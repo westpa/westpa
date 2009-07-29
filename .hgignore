@@ -1,0 +1,10 @@
+syntax: glob
+.project
+.pydevproject
+*.pyc
+*.pyo
+*~
+
+syntax: regexp
+\.[0-9]+$
+
