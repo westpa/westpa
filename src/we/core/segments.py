@@ -14,6 +14,7 @@ class Segment:
                  weight = None, final_pcoord = None,
                  data_ref = None,
                  walltime = None, cputime = None,
+                 starttime = None, endtime = None,
                  supplementary_data = None):
         
         self.seg_id = seg_id            
@@ -27,6 +28,8 @@ class Segment:
         self.data_ref = data_ref
         self.walltime = walltime
         self.cputime = cputime
+        self.starttime = starttime
+        self.endtime = endtime
         self.supplementary_data = supplementary_data
         
     def __repr__(self):

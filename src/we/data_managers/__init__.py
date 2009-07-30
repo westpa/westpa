@@ -87,6 +87,8 @@ class DataManagerBase:
         trajs = [self.get_trajectory(we_iter, seg.seg_id) for seg in segs]
         return trajs
         
+    def scrub_crashed_segments(self, we_iter):
+        raise NotImplementedError
 
 from sqlite import SQLiteDataManager
 

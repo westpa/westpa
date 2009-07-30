@@ -66,7 +66,8 @@ class BinArray:
         nparticles_array = numpy.empty(self.bins.shape, numpy.int_)
         for (i, bin) in enumerate(self.bins.flat):
             nparticles_array.flat[i] = len(bin)
-            
+        return nparticles_array
+    
     def clear(self):
         for bin in self.bins.flat:
             bin.clear()

@@ -265,6 +265,9 @@ class WESim:
             self.data_manager.record_data_item(self.current_iteration,
                                                'bins_population',
                                                self.bins_population)
+            self.data_manager.record_data_item(self.current_iteration,
+                                               'bins_nparticles',
+                                               self.bins_nparticles)
 
         # Convert particles to new segments
         if self.current_iteration > 0:

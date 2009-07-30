@@ -20,7 +20,7 @@ log = logging.getLogger('we.data_managers.sqlite')
 LOCK_TIMEOUT = 120
 
 def pickle_to_blob(obj):
-    return buffer(pickle.dumps(obj, pickle.HIGHEST_PROTOCOL))
+    return sqlitedb.Binary(pickle.dumps(obj, pickle.HIGHEST_PROTOCOL))
 
 def unpickle_from_blob(field):
     if field is None: 
@@ -150,6 +150,9 @@ class SQLiteDataManager(DataManagerBase):
         cputime             REAL NULL,
         walltime            REAL NULL,
         
+        starttime           TEXT NULL,
+        endtime             TEXT NULL,
+        
         final_pcoord        BLOB NULL,
         supplementary_data  BLOB NULL,
         
@@ -237,7 +240,19 @@ class SQLiteDataManager(DataManagerBase):
         curs.close()
         return bool(n_incomplete == 0)
     
-    def _segment_from_row(self, row):
+    def num_segments(self, we_iter, status = None):
+        curs = self.conn.cursor()
+        qtxt = 'SELECT COUNT(*) FROM SEGMENTS WHERE we_iter=?'
+        qargs = [we_iter]
+        
+        if status:
+            qtxt += ' AND status=?'
+            qargs.append(status)
+            
+        curs.execute(qtxt, qargs)
+        return curs.fetchone()[0]
+    
+    def segment_from_row(self, row):
         seg =  Segment(we_iter = row['we_iter'],
                        seg_id = row['seg_id'],
                        status = row['status'],
@@ -246,6 +261,8 @@ class SQLiteDataManager(DataManagerBase):
                        data_ref = row['data_ref'],
                        walltime = row['walltime'],
                        cputime = row['cputime'],
+                       starttime = row['starttime'],
+                       endtime = row['endtime'],
                        supplementary_data = unpickle_from_blob(row['supplementary_data']),
                        final_pcoord = unpickle_from_blob(row['final_pcoord']))
         return seg
@@ -258,21 +275,23 @@ class SQLiteDataManager(DataManagerBase):
         row = curs.fetchone()
         if row is None: 
             return None
-        segment = self._segment_from_row(row)
+        segment = self.segment_from_row(row)
         
         if load_parent and segment.p_parent_id is not None:
             curs.execute('''SELECT * FROM segments 
                               WHERE we_iter = ? AND seg_id = ?''',
                          (we_iter-1, segment.p_parent_id,))
-            segment.parent = self._segment_from_row(curs.fetchone())
+            segment.parent = self.segment_from_row(curs.fetchone())
         return segment
     
     _update_segment_valid_fields = frozenset(('status', 'weight', 
                                               'data_ref', 'final_pcoord',  
                                               'cputime', 'walltime',
+                                              'starttime', 'endtime',
                                               'supplementary_data'))
     _update_segment_stmt = '''UPDATE segments SET status=?, weight=?,
                                 data_ref=?, cputime=?, walltime=?,
+                                starttime=?, endtime=?,
                                 supplementary_data=?, final_pcoord=?
                               WHERE we_iter=? AND seg_id=?'''
     def update_segment(self, segment, fields = None):
@@ -297,7 +316,9 @@ class SQLiteDataManager(DataManagerBase):
         curs.execute('BEGIN IMMEDIATE TRANSACTION')
         curs.execute(self._update_segment_stmt,
                      (segment.status, segment.weight, segment.data_ref,
-                      segment.cputime, segment.walltime, sdata, fpc,
+                      segment.cputime, segment.walltime, 
+                      segment.starttime, segment.endtime,
+                      sdata, fpc,
                       segment.we_iter, segment.seg_id))
         curs.execute('COMMIT')
         self.conn.commit()
@@ -306,7 +327,7 @@ class SQLiteDataManager(DataManagerBase):
         curs = self.conn.cursor()
         curs.execute('''SELECT * FROM segments
                         WHERE we_iter = ?''', (we_iter,))
-        segments = [self._segment_from_row(row) for row in curs]
+        segments = [self.segment_from_row(row) for row in curs]
         return segments
     
     def get_total_cputime(self):
@@ -320,12 +341,15 @@ class SQLiteDataManager(DataManagerBase):
         curs.execute('BEGIN IMMEDIATE TRANSACTION')
         curs.executemany('''INSERT INTO segments
                             (seg_id, we_iter, status, p_parent_id, weight,
-                             data_ref, walltime, cputime, final_pcoord,
+                             data_ref, walltime, cputime,
+                             starttime, endtime, 
+                             final_pcoord,
                              supplementary_data)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
                          ((seg.seg_id, seg.we_iter, seg.status, seg.p_parent_id,
                            seg.weight,
                            seg.data_ref, seg.walltime, seg.cputime,
+                           seg.starttime, seg.endtime,
                            seg.final_pcoord is not None
                              and pickle_to_blob(seg.final_pcoord)
                              or None, 
@@ -335,7 +359,9 @@ class SQLiteDataManager(DataManagerBase):
         curs.execute('COMMIT')
         self.conn.commit()
                 
-    _scrub_fields = ('cputime', 'walltime', 'final_pcoord', 'supplementary_data')
+    _scrub_fields = ('cputime', 'walltime',
+                     'starttime', 'endtime', 
+                     'final_pcoord', 'supplementary_data')
     def scrub_crashed_segments(self, we_iter):
         curs = self.conn.cursor()
         curs.execute('BEGIN EXCLUSIVE TRANSACTION')
@@ -349,6 +375,7 @@ class SQLiteDataManager(DataManagerBase):
         self.conn.commit()
                 
     def get_next_segment(self, pretend = False):
+        from datetime import datetime
         curs = self.conn.cursor()
         if not pretend:
             curs.execute('''BEGIN EXCLUSIVE TRANSACTION''')
@@ -359,7 +386,7 @@ class SQLiteDataManager(DataManagerBase):
                      (self.we_sim.current_iteration, 
                       Segment.SEG_STATUS_PREPARED))
         try:
-            segment = self._segment_from_row(curs.fetchone())
+            segment = self.segment_from_row(curs.fetchone())
         except (IndexError,TypeError):
             return None
         
@@ -367,12 +394,13 @@ class SQLiteDataManager(DataManagerBase):
             curs.execute('''SELECT * FROM segments 
                             WHERE we_iter = ? AND seg_id = ?''',
                          (segment.we_iter-1,segment.p_parent_id,))
-            segment.p_parent = self._segment_from_row(curs.fetchone())
+            segment.p_parent = self.segment_from_row(curs.fetchone())
         
         if not pretend:
-            curs.execute('''UPDATE segments SET status = ? 
-                            WHERE we_iter = ? AND seg_id = ?''',
-                            (Segment.SEG_STATUS_RUNNING, 
+            curs.execute('''UPDATE segments 
+                              SET status = ?, starttime=?  
+                              WHERE we_iter = ? AND seg_id = ?''',
+                            (Segment.SEG_STATUS_RUNNING, datetime.now(),
                              segment.we_iter, segment.seg_id))
         curs.execute('COMMIT')
         self.conn.commit()

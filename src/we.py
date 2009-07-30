@@ -1,4 +1,7 @@
 #!/usr/bin/python
+
+from __future__ import division
+
 import os, sys, re, logging, datetime
 import we
 
@@ -103,36 +106,114 @@ class WEUberTool(WECmdLineMultiTool):
         self.showsetup(opts)
         
     def cmd_status(self, args):
+        import numpy
+        from we.util import datetime_from_iso
         parser = self.make_parser()
         self.add_state_option(parser)
         (opts, args) = parser.parse_args(args)
         self.load_state(opts)
         datamgr = self.datamgr
         current_iteration = datamgr.we_sim.current_iteration
-        segments = datamgr.get_segments(current_iteration)
         
-        import operator
-        norm = reduce(operator.add, (segment.weight for segment in segments))
-            
-        self.output_stream.write("Current WE iteration: %d, particles=%d, norm=%g\n" 
-                         % (current_iteration, len(segments), norm))
+        curs = datamgr.conn.cursor()
+        # Start a transaction so we get a coherent view of the entire DB
+        curs.execute('''BEGIN IMMEDIATE TRANSACTION''')
+        curs.execute('''SELECT status, COUNT(*) FROM segments
+                        WHERE we_iter=? GROUP BY status''',
+                     (current_iteration,))
+        count_by_status = dict((row[0], row[1]) for row in curs)
         
-        self.output_stream.write("Total CPU time: %s\n" % datamgr.get_total_cputime())
+        curs.execute('''SELECT MIN(starttime), MAX(endtime) FROM segments
+                        WHERE we_iter=? AND status=?
+                        AND starttime IS NOT NULL AND endtime IS NOT NULL''', 
+                        (current_iteration, Segment.SEG_STATUS_COMPLETE))
+        row = curs.fetchone()
+
+        try:
+            we_start, we_end = datetime_from_iso(row[0]), datetime_from_iso(row[1])
+            iter_wallclock = we_end - we_start
+        except TypeError:
+            we_start = we_end = iter_wallclock = 0
         
-        maxlen = max(len(segment.data_ref) for segment in segments)
-        maxlen = max(maxlen, len('Segment'))
-        self.output_stream.write('%-*s    %-8s    %-8s    %s'
-                                 % (maxlen, 'Segment', 'Status', 
-                                    'Weight', 'P.Coord\n'))
-        for segment in segments:
-            self.output_stream.write('%*s    %-8s    %8.4g    %s\n' 
-                                     % (maxlen, segment.data_ref,
-                                        segment.status_text, segment.weight,
-                                        segment.final_pcoord))
+        curs.execute('''SELECT cputime FROM segments 
+                        WHERE we_iter=? AND cputime IS NOT NULL''',
+                     (current_iteration,))
+        cputimes = numpy.fromiter((row[0] for row in curs), numpy.single)
         
-        if datamgr.is_propagation_complete():
-            self.output_stream.write('Propagation complete; ready for WE\n')
+        curs.execute('''SELECT weight FROM segments WHERE we_iter=?''',
+                     (current_iteration,))
+        weights = numpy.fromiter((row[0] for row in curs), numpy.float_)
+        nparticles = len(weights)
+        
+        curs.execute('''SELECT COUNT(*), SUM(cputime) FROM segments 
+                        WHERE status=?''',
+                     (Segment.SEG_STATUS_COMPLETE,))
+        row=curs.fetchone()
+        sim_segs, sim_cpu = row[0], row[1]
+        
+        curs.execute('''SELECT we_iter, 
+                               STRFTIME('%s',MIN(starttime)),
+                               STRFTIME('%s',MAX(endtime)), COUNT(*)
+                        FROM segments WHERE status=?
+                          AND starttime IS NOT NULL AND endtime IS NOT NULL
+                        GROUP BY we_iter''',
+                     (Segment.SEG_STATUS_COMPLETE,))
+        throughputs = []
+        for row in curs:
+            throughputs.append(3600 / (long(row[2])-long(row[1])) * row[3])
+        throughputs = numpy.array(throughputs)
+                
+        curs.execute('''COMMIT''')
+                
+        bins_population = datamgr.we_sim.bins_population
+        bins_nparticles = datamgr.we_sim.bins_nparticles
+        
+        bins_populated = bins_nparticles[bins_nparticles>0].size
+        nbins = bins_nparticles.size
+                    
+        self.output_stream.write("Current WE iteration: %d\n" 
+                                 % current_iteration)
+        self.output_stream.write('''\
+  Number of segments: %d
+    Prepared:         %d
+    Running:          %d
+    Completed:        %d
+  Populated bins:     %d / %d (%.0f%%)
+  Norm:               %.8f
+  Cumulative CPU (s): %.1f
+  Average CPU:        %.1f
+  Min CPU:            %.1f
+  Max CPU:            %.1f
+  Wallclock time:     %s
+''' % (len(weights), 
+       count_by_status.get(Segment.SEG_STATUS_PREPARED, 0),
+       count_by_status.get(Segment.SEG_STATUS_RUNNING, 0),
+       count_by_status.get(Segment.SEG_STATUS_COMPLETE, 0),
+       bins_populated, nbins, bins_populated/nbins*100,
+       weights.sum(),
+       cputimes.sum(),
+       cputimes.mean(),
+       min(cputimes) if cputimes.size else 0.0,
+       max(cputimes) if cputimes.size else 0.0,
+       iter_wallclock))
     
+        self.output_stream.write('WE simulation:\n')
+        self.output_stream.write('''\
+  Completed segments:             %d
+  Total CPU (s):                  %s
+  Average throughput (segs/hour): %g
+  Minimum throughput:             %g
+  Maximum throughput:             %g        
+''' % (sim_segs,
+       sim_cpu,
+       throughputs.mean(),
+       min(throughputs),
+       max(throughputs)))
+
+        if datamgr.is_propagation_complete():
+            self.output_stream.write('\nPropagation complete; ready for WE\n')
+
+            
     def cmd_nextseg(self, args):
         parser = self.make_parser(description = \
     """Request information about the next simulation segment, updating the
@@ -186,6 +267,7 @@ class WEUberTool(WECmdLineMultiTool):
             
     def cmd_updateseg(self, args):
         from we.util import parse_elapsed_time
+        from datetime import datetime
         
         parser = self.make_parser(description=\
     """Record segment results, including progress coordinate value.  Use the
@@ -245,6 +327,7 @@ class WEUberTool(WECmdLineMultiTool):
     
         if opts.mark_complete:
             updates['status'] = Segment.SEG_STATUS_COMPLETE
+            updates['endtime'] = datetime.now()
             vprint(' -> marked as complete')
         
         self.datamgr.update_segment(self.current_segment, updates)
