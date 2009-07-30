@@ -27,6 +27,73 @@ def unpickle_from_blob(field):
         return None
     else:
         return pickle.loads(str(field))
+    
+class SQLiteConnProxy(object):
+    def __init__(self, *args, **kwargs):
+        try:
+            self.retries = kwargs['retries']
+        except KeyError:
+            self.retries = 5
+        else:
+            del kwargs['retries']
+        self._conn = sqlitedb.connect(*args, **kwargs)
+        
+    def __getattr__(self, attr):
+        return getattr(self._conn, attr)
+    
+    def __setattr__(self, attr, val):
+        if attr not in ('retries', '_conn'):
+            setattr(self._conn, attr, val)
+        else:
+            super(SQLiteConnProxy, self).__setattr__(attr, val)
+    
+    def cursor(self, *args, **kwargs):
+        return SQLiteCursorProxy(self._conn.cursor(*args, **kwargs),
+                                 self.retries)
+    
+class SQLiteCursorProxy(object):
+    def __init__(self, cursor, retries):
+        self._curs = cursor
+        self.retries = retries
+        
+    def __getattr__(self, attr):
+        return getattr(self._curs, attr)
+
+    def __setattr__(self, attr, val):
+        if attr not in ('retries', '_curs'):
+            setattr(self._conn, attr, val)
+        else:
+            super(SQLiteCursorProxy,self).__setattr__(attr, val)
+            
+    def __iter__(self):
+        return iter(self._curs)
+
+    def execute(self, *args, **kwargs):
+        for i in xrange(0, self.retries):
+            try:
+                return self._curs.execute(*args, **kwargs)
+            except sqlitedb.OperationalError, e:
+                if 'unable to open database file' in str(e):
+                    log.debug('suppressing error %r in favor of retry' % e)
+                    continue
+                else:
+                    raise
+        else:
+            raise e
+                
+    def executemany(self, *args, **kwargs):
+        for i in xrange(0, self.retries):
+            try:
+                return self._curs.executemany(*args, **kwargs)
+            except sqlitedb.OperationalError, e:
+                if 'unable to open database file' in str(e):
+                    continue
+                else:
+                    raise
+        else:
+            raise e
+        
+        
 
 class SQLiteDataManager(DataManagerBase):
     _config_schema = \
@@ -113,8 +180,9 @@ class SQLiteDataManager(DataManagerBase):
         try:
             return self._conn
         except AttributeError:
-            self._conn = sqlitedb.connect(self.source, LOCK_TIMEOUT,
-                                          isolation_level = None)
+            self._conn = SQLiteConnProxy(self.source, LOCK_TIMEOUT,
+                                         isolation_level = None,
+                                         retries = 5)
             self._conn.row_factory = sqlitedb.Row
             return self._conn
             
