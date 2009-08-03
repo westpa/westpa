@@ -368,10 +368,12 @@ class SQLiteDataManager(DataManagerBase):
         sstmt = ', '.join('%s=NULL' % field for field in self._scrub_fields)
         curs.execute('''UPDATE segments SET %s,
                                             status=?
-                        WHERE we_iter=? AND status != ?''' % sstmt,
+                        WHERE we_iter=? AND (status != ? 
+                                             OR final_pcoord IS NULL)''' 
+                     % sstmt,
                      (Segment.SEG_STATUS_PREPARED, 
                       we_iter, Segment.SEG_STATUS_COMPLETE))
-        curs.commit('COMMIT')
+        curs.execute('COMMIT')
         self.conn.commit()
                 
     def get_next_segment(self, pretend = False):
