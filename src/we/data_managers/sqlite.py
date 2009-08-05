@@ -5,7 +5,7 @@ except ImportError:
     import pickle
 
 try:
-    import pysqlite as sqlitedb    
+    import pysqlite2.dbapi2 as sqlitedb    
 except ImportError:
     import sqlite3 as sqlitedb
 
