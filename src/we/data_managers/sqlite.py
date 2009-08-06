@@ -73,7 +73,8 @@ class SQLiteCursorProxy(object):
             try:
                 return self._curs.execute(*args, **kwargs)
             except sqlitedb.OperationalError, e:
-                if 'unable to open database file' in str(e):
+                if ('unable to open database file' in str(e)
+                    or 'database is locked' in str(e)):
                     log.debug('suppressing error %r in favor of retry' % e)
                     continue
                 else:
