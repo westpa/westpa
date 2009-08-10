@@ -76,6 +76,8 @@ class SQLiteCursorProxy(object):
                 if ('unable to open database file' in str(e)
                     or 'database is locked' in str(e)):
                     log.debug('suppressing error %r in favor of retry' % e)
+                    import time, random
+                    time.sleep(random.uniform(0, (i+1)/10.0))
                     continue
                 else:
                     raise
