@@ -1,4 +1,5 @@
 import core, data_managers, sim_drivers, environment, client, util
+import analysis
 from core import ConfigError, WEError
 
 import logging

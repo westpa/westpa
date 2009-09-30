@@ -414,6 +414,6 @@ class WEUberTool(WECmdLineMultiTool):
         (opts, args) = parser.parse_args(args)
         self.load_state(opts)
         self.datamgr.scrub_crashed_segments(self.datamgr.we_sim.current_iteration)
-            
+                    
 if __name__ == '__main__':
     WEUberTool().run()
