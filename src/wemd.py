@@ -3,13 +3,13 @@
 from __future__ import division
 
 import os, sys, re, logging, datetime
-import we
+import wemd
 
 from optparse import OptionParser
-from we.util.wetool import WECmdLineMultiTool
-from we.core import Segment
-from we.core.we_sim import PropagationIncompleteError
-from we.environment import *
+from wemd.util.wetool import WECmdLineMultiTool
+from wemd.core import Segment
+from wemd.core.we_sim import PropagationIncompleteError
+from wemd.environment import *
 
 class WEUberTool(WECmdLineMultiTool):
     def __init__(self):
@@ -45,9 +45,9 @@ class WEUberTool(WECmdLineMultiTool):
         else:
             (dbfile, configfile) = args
             
-        from we.util.config_dict import ConfigDict
-        from we.data_managers import make_data_manager
-        from we.sim_drivers import make_sim_driver
+        from wemd.util.config_dict import ConfigDict
+        from wemd.data_managers import make_data_manager
+        from wemd.sim_drivers import make_sim_driver
         
         self.output_stream.write('reading simulation configuration file %s\n' 
                                  % configfile)
@@ -107,7 +107,7 @@ class WEUberTool(WECmdLineMultiTool):
         
     def cmd_status(self, args):
         import numpy
-        from we.util import datetime_from_iso
+        from wemd.util import datetime_from_iso
         parser = self.make_parser()
         self.add_state_option(parser)
         (opts, args) = parser.parse_args(args)
@@ -266,7 +266,7 @@ class WEUberTool(WECmdLineMultiTool):
         self.output_stream.flush()
             
     def cmd_updateseg(self, args):
-        from we.util import parse_elapsed_time
+        from wemd.util import parse_elapsed_time
         from datetime import datetime
         
         parser = self.make_parser(description=\

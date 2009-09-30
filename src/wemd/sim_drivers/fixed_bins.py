@@ -1,7 +1,7 @@
 import numpy
-from we.core.we_sim import WESim
-from we.core.binarrays import Bin, BinArray
-from we.core import ConfigError
+from wemd.core.we_sim import WESim
+from wemd.core.binarrays import Bin, BinArray
+from wemd.core import ConfigError
 
 class FixedBinWESim(WESim):
     def configure_bin_params(self, config):

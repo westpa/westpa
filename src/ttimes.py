@@ -84,7 +84,7 @@ if len(args) != 3:
     parser.print_help(sys.stderr)
     sys.exit(2)
     
-import numpy, we
+import numpy, wemd
 
 dat = numpy.load(args[0])
 if len(dat.shape) < 2:
@@ -99,7 +99,7 @@ assert len(Q) == len(t)
 Q_trans_lb = float(args[1])
 Q_trans_ub = float(args[2])
 
-te_finder = we.analysis.transitions.PC1DCrossingFinder(Q_trans_lb, Q_trans_ub)
+te_finder = wemd.analysis.transitions.PC1DCrossingFinder(Q_trans_lb, Q_trans_ub)
 te_finder.assign_regions(Q)
 te_finder.find_crossings()
 te_finder.find_transitions()
@@ -124,7 +124,7 @@ for (region1, region2) in sorted(te_finder.transition_indices):
     quantiles = [0.01*x for x in xrange(1,100)]
     tt_qs = numpy.empty((len(quantiles), 2), numpy.float_)
     tt_qs[:,0] = quantiles
-    tt_qs[:,1] = we.analysis.probability.quantiles(trans_times, quantiles)
+    tt_qs[:,1] = wemd.analysis.probability.quantiles(trans_times, quantiles)
     asaver.save_array(tt_qs,
                       '%(region1)s%(region2)s_trans_quantiles%(format_ext)s',
                       filename_params)
@@ -150,7 +150,7 @@ for (region1, region2) in sorted(te_finder.transition_indices):
                           filename_params)
         pt_qs = numpy.empty((len(quantiles), 2), numpy.float_)
         pt_qs[:,0] = quantiles
-        pt_qs[:,1] = we.analysis.probability.quantiles(passage_times, quantiles)
+        pt_qs[:,1] = wemd.analysis.probability.quantiles(passage_times, quantiles)
         asaver.save_array(pt_qs, 
                           '%(region1)s%(region2)s_passage_quantiles%(format_ext)s',
                           filename_params)

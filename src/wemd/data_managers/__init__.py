@@ -1,4 +1,4 @@
-from we.util.lazy_loader import lazy_load
+from wemd.util.lazy_loader import lazy_load
 
 __metaclass__ = type
     

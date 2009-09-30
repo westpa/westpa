@@ -1,7 +1,7 @@
 import sys, os, re, logging
 from optparse import OptionParser
 from command_optparse import CommandOptionParser
-from we.environment import *
+from wemd.environment import *
 
 class WECmdLineTool(object):
     state_short_option = '-S'

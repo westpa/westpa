@@ -11,11 +11,11 @@ except ImportError:
 
 import numpy
     
-from we.data_managers import DataManagerBase
-from we.core.segments import Segment
+from wemd.data_managers import DataManagerBase
+from wemd.core.segments import Segment
 
 import logging
-log = logging.getLogger('we.data_managers.sqlite')
+log = logging.getLogger('wemd.data_managers.sqlite')
 
 LOCK_TIMEOUT = 120
 

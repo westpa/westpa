@@ -7,7 +7,7 @@ import numpy
 import math, random
 from copy import copy
 
-from we.core import ConfigError
+from wemd.core import ConfigError
 from particles import Particle, ParticleCollection
 from segments import Segment
 from binarrays import BinArray

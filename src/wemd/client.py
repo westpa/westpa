@@ -1,4 +1,4 @@
-from we.environment import *
+from wemd.environment import *
         
 def update_current_segment(*args, **kwargs):
     updates = {}
