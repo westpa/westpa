@@ -1,4 +1,5 @@
 from wemd.util.lazy_loader import lazy_load
+import sa
 
 __metaclass__ = type
     

@@ -298,3 +298,16 @@ class WESim:
             self.data_manager.create_segments(new_segments)
             self.data_manager.record_lineage(segment_lineages)
 
+class WESimIter:
+    """
+    Describes per-iteration information (summary or otherwise) for
+    a WE simulation.
+    """
+    
+    def __init__(self):
+        self.we_iter = None
+        self.n_particles = None
+        self.norm = None
+        self.cputime = None
+        self.walltime = None
+        self.data = {}

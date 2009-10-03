@@ -12,7 +12,7 @@ class ConfigError(ValueError):
         elif self.exc:
             return str(self.exc)
         else:
-            return ValueError.__str__(self)
+            return ValueError.__str__(self)    
 
 import particles, segments, we_sim
 from particles import Particle, ParticleCollection

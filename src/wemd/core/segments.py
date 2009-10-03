@@ -15,14 +15,14 @@ class Segment:
                  data_ref = None,
                  walltime = None, cputime = None,
                  starttime = None, endtime = None,
-                 supplementary_data = None):
+                 data = None):
         
         self.seg_id = seg_id            
         self.we_iter = we_iter
         self.status = status
         self.p_parent_id = p_parent_id
         self.p_parent = p_parent
-        self.parents = parents
+        self.parents = parents or set()
         self.weight = weight
         self.final_pcoord = final_pcoord
         self.data_ref = data_ref
@@ -30,7 +30,7 @@ class Segment:
         self.cputime = cputime
         self.starttime = starttime
         self.endtime = endtime
-        self.supplementary_data = supplementary_data
+        self.data = data or dict()
         
     def __repr__(self):
         return '<%s(%s) seg_id=%s p_parent_id=%s weight=%s>' \
