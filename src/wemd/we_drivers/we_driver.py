@@ -7,82 +7,25 @@ import numpy
 import math, random
 from copy import copy
 
-from wemd.core import ConfigError
-from particles import Particle, ParticleCollection
-from segments import Segment
-from binarrays import BinArray
+from wemd.core import ConfigError, ParticleExitError
+from wemd.core.particles import Particle, ParticleCollection
+from wemd.core.segments import Segment
+from wemd.core.binarrays import BinArray
 
-class WEError(Exception):
-    pass
-
-class PropagationIncompleteError(WEError):
-    pass
-
-class ParticleExitError(WEError):
-    """Particle has exited the bin space
-    args[0] = particle
-    args[1] = tuple index into the bin limit array; None appears where the 
-              particle did not fall into specified limits
-              
-    This may be raised as an error condition, or as a (rather inefficient)
-    signal to process the particle in some way (after which the swarm will
-    have to be re-binned from scratch)."""
-    
-    def __init__(self, particle, index):
-        self.particle = particle
-        self.index = index
-
-    def __str__(self):
-        return 'particle exited bin space; pcoord=%s, indices=%s' \
-               % (self.particle.pcoord, self.index)  
-
-class WESim:
-    def __init__(self, data_manager = None):
+class WEDriver:
+    def __init__(self, sim_manager):
+        self.sim_manager = sim_manager
         self.current_iteration = None
-        self._next_seg_id = 0
-        self.data_manager = data_manager
+        self.segments = None
+        self.segment_lineages = None
         self.bins = None
         self.bins_population = None
         self.bins_nparticles = None
         self.bins_flux = None
-                
-    def configure(self, sim_config):
-        self.data_manager.config['we.initial_particles'] \
-            = sim_config.get_int('we.initial_particles')
-        self.data_manager.config['we.initial_pcoord'] \
-            = numpy.array([float(val) for val in 
-                           sim_config.get_list('we.initial_pcoord')]) 
-        self.configure_data_refs(sim_config)
-        self.configure_bin_params(sim_config)
-        
-    def configure_bin_params(self, sim_config):
-        raise NotImplementedError
-    
+                    
     def make_bins(self):
         raise NotImplementedError
-        
-    def configure_data_refs(self, config):
-        from string import Template
-        try:
-            self.data_manager.config['data_refs.template'] \
-                = Template(config['data_refs.template'])
-        except Exception, e:
-            raise ConfigError('could not compile data ref template', e)
-        
-    def find_next_seg_id(self, segments):
-        self._next_seg_id = max(seg.seg_id for seg in segments) + 1
-        return self._next_seg_id
-        
-    def next_seg_id(self, pretend = False):
-        seg_id = self._next_seg_id
-        if not pretend:
-            self._next_seg_id += 1
-        return seg_id 
-    
-    def make_data_ref(self, segment):
-        dr_template = self.data_manager.config['data_refs.template']
-        return dr_template.substitute(segment.__dict__)    
-                    
+                                        
     def distribute_particles(self, particles, binarray):
         boundaries = binarray.boundaries
         ndim = binarray.ndim
@@ -206,11 +149,9 @@ class WESim:
     def on_particle_merge(self, particles, glom):
         pass
     
-    def initialize(self):
+    def initialize(self, n_init, init_pcoord):
         self.current_iteration = 0
-        self._next_seg_id = 0
-        n_init = self.data_manager.config['we.initial_particles']
-        pcoord = self.data_manager.config['we.initial_pcoord'] 
+        pcoord = init_pcoord 
         segments = []
         for i in xrange(0, n_init):
             segment = Segment(we_iter = self.current_iteration,
@@ -220,15 +161,12 @@ class WESim:
                               final_pcoord = pcoord
                               )
             segments.append(segment)
-        self.data_manager.create_segments(segments)
-        # Run an iteration of WE to perform initial bin assignments
-        self.run_we()
+        self.segments = segments
             
-    def run_we(self, pretend = False):
-        if not self.data_manager.is_propagation_complete():
-            raise PropagationIncompleteError()        
-        segments = self.data_manager.get_segments(self.current_iteration)
+    def run_we(self, segments):
         assert(segments)
+        self.segments = None
+        self.segment_lineages = None
 
         # Convert current segments to particles
         particles = ParticleCollection(Particle(seg_id = segment.seg_id,
@@ -257,21 +195,7 @@ class WESim:
         
         if self.current_iteration > 0:
             self.bins_flux = last_population - self.bins_population
-            if not pretend:
-                self.data_manager.record_data_item(self.current_iteration,
-                                                   'bins_flux',
-                                                   self.bins_flux)        
-        if not pretend:
-            self.data_manager.record_data_item(self.current_iteration,
-                                               'bins_population',
-                                               self.bins_population)
-            self.data_manager.record_data_item(self.current_iteration,
-                                               'bins_nparticles',
-                                               self.bins_nparticles)
-
-        # Convert particles to new segments
-        if self.current_iteration > 0:
-            self.find_next_seg_id(particles)
+            
         self.current_iteration += 1
         new_segments = []
         segment_lineages = []
@@ -288,15 +212,15 @@ class WESim:
                               p_parent_id = p_parent_id,
                               status = Segment.SEG_STATUS_PREPARED,
                               weight = particle.weight)
-            segment.data_ref = self.make_data_ref(segment)
+            segment.data_ref = self.sim_manager.make_data_ref(segment)
             
             new_segments.append(segment)
             segment_lineages.extend((segment, parent)
                                     for parent in (particle.parents or [particle]))
             
-        if not pretend:
-            self.data_manager.create_segments(new_segments)
-            self.data_manager.record_lineage(segment_lineages)
+        self.segments = new_segments
+        self.segment_lineages = segment_lineages
+            
 
 class WESimIter:
     """
@@ -311,3 +235,53 @@ class WESimIter:
         self.cputime = None
         self.walltime = None
         self.data = {}
+        
+class WESimDriver:
+    def __init__(self):
+        self.we_info = None
+        self.we_driver = None
+    
+    def initialize(self):
+        pass
+    
+    def save_we_info(self):
+        """Save per-iteration information
+        """
+        pass
+    
+    def load_we_info(self):
+        """Load per-iteration information
+        """
+        pass
+    
+    def save_segments(self):
+        pass
+
+    def load_segments(self):
+        pass
+    
+    def save_state(self):
+        pass
+    
+    def load_state(self):
+        pass
+
+    def propagate_segments(self):
+        pass
+    
+    def simulation_complete(self):
+        pass
+    
+    def run_we(self):
+        pass
+    
+    def run_sim(self):
+        while not self.simulation_complete():
+            self.work_manager.propagate_segments(self.current_segments)
+            self.data_manager.save_segments(self.current_segments)
+            self.we_driver.run_we()
+            self.data_manager.save_segments(self.we_driver.segments)
+            self.data_manager.save_lineage(self.we_driver.segment_lineages)
+            self.state_manager.save_state(self.we_driver)
+    
+        

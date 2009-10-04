@@ -65,7 +65,7 @@ segmentLineageTable = Table('segment_lineage', metadata,
                                    primary_key=True, nullable=False))
 
 from wemd.core.segments import Segment
-from wemd.core.we_sim import WESimIter
+from wemd.core import WESimIter
 from data_items import DBDataItem
 
 class SegmentDataItem(DBDataItem): pass

@@ -1,9 +1,9 @@
 import numpy
-from wemd.core.we_sim import WESim
+from we_driver import WEDriver
 from wemd.core.binarrays import Bin, BinArray
 from wemd.core import ConfigError
 
-class FixedBinWESim(WESim):
+class FixedBinWEDriver(WEDriver):
     def configure_bin_params(self, config):
         bintype = config['bins.type']
         assert(bintype == 'fixed')
