@@ -1,21 +1,20 @@
 __metaclass__ = type
 
-class Particle:    
+class Particle:
     def __repr__(self):
-        return '<%s(%s): seg_id=%r, weight=%r, pcoord=%r>' \
+        return '<%s(%s): weight=%r, pcoord=%r>' \
                 % (self.__class__.__name__,
                    hex(id(self)),
-                   self.seg_id,
                    self.weight,
                    self.pcoord)
     
-    def __init__(self, seg_id = None, weight = None, pcoord = None,
-                 p_parent = None, parents = None): 
-        self.seg_id = seg_id
+    def __init__(self, particle_id = None, weight = None, pcoord = None, 
+                 p_parent = None, parents = None):
+        self.particle_id = particle_id 
         self.weight = weight
         self.pcoord = pcoord
         self.p_parent = p_parent
-        self.parents = parents or []
+        self.parents = parents or set()
         
 class ParticleCollection(set):
     def __init__(self, iterable=None):

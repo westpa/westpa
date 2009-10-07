@@ -1,9 +1,9 @@
-import core, data_managers, sim_drivers, environment, client, util
-import analysis
-from core import ConfigError, WEError
-
 import logging
 log = logging.getLogger('wemd')
-del logging
+import core, environment, util
+import data_manager, we_drivers
+from core.errors import *
+from core import Segment, Particle
+
 
 __all__ = [name for name in dict(locals()) if not name.startswith('_')]

@@ -1,3 +1,4 @@
+from particles import Particle
 __metaclass__ = type
 
 class Segment:
@@ -7,24 +8,30 @@ class Segment:
     SEG_STATUS_COMPLETE = 3
     
     status_names = {}
-
+    
+    def __hash__(self):
+        return hash(self.seg_id)
+    
     def __init__(self, 
                  seg_id = None, we_iter = None, status = None,
-                 p_parent_id = None, p_parent = None, parents = None,
-                 weight = None, final_pcoord = None,
+                 p_parent = None, parents = None,
+                 weight = None, pcoord = None,
                  data_ref = None,
                  walltime = None, cputime = None,
                  starttime = None, endtime = None,
                  data = None):
+        super(Segment,self).__init__(weight = weight,
+                                     pcoord = pcoord,
+                                     p_parent = p_parent,
+                                     parents = parents)
         
         self.seg_id = seg_id            
         self.we_iter = we_iter
         self.status = status
-        self.p_parent_id = p_parent_id
         self.p_parent = p_parent
         self.parents = parents or set()
         self.weight = weight
-        self.final_pcoord = final_pcoord
+        self.pcoord = pcoord
         self.data_ref = data_ref
         self.walltime = walltime
         self.cputime = cputime

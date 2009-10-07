@@ -1,4 +1,22 @@
 import os, sys, re
+import logging
+log = logging.getLogger('wemd.util.config_dict')
+
+class ConfigError(EnvironmentError, ValueError):
+    def __init__(self, message = '', exc = None):
+        self.message = message
+        self.exc = exc
+
+    def __str__(self):
+        if self.message:
+            if self.exc:
+                return '%s: %s' % (self.message, self.exc)
+            else:
+                return self.message
+        elif self.exc:
+            return str(self.exc)
+        else:
+            return ValueError.__str__(self)    
 
 class ConfigDict(dict):
     true_values = set(('1', 'true', 't', 'yes', 'y'))
@@ -13,7 +31,8 @@ class ConfigDict(dict):
             
     def read_config_file(self, config_filename):
         from ConfigParser import SafeConfigParser
-        
+                
+        log.debug('opening %r' % config_filename)
         config_file = open(config_filename, 'r')
         cparser = SafeConfigParser()
         cparser.optionxform = str
@@ -23,8 +42,17 @@ class ConfigDict(dict):
         self.dirname  = self['__dir__'] = os.path.dirname(self.filename)
         
         for section in cparser.sections():
+            log.debug('processing section %r' % section)
             for (key, value) in cparser.items(section):
                 self['%s.%s' % (section, key)] = value
+                log.debug('%s.%s = %s' % (section, key, value))
+                
+    def require(self, key):
+        (section, name) = key.split('.', 1)
+        if key not in self:
+            raise ConfigError(("entry '%s' in section '%s' is required in "
+                              +"configuration file %r")
+                              % (name, section, self['__file__']))
                 
     def _get_typed(self, key, type_, *args):
         

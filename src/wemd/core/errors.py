@@ -1,6 +1,15 @@
+from wemd.util.config_dict import ConfigError
+
 class WEError(Exception):
     pass
 
+class WEEnvironmentError(WEError, EnvironmentError):
+    pass
+
+class WEEnvironmentVarError(WEEnvironmentError):
+    def __init__(self, e):
+        self.message = 'WE environment variable not set: %s' % e
+        
 class PropagationIncompleteError(WEError):
     pass
 
@@ -22,18 +31,4 @@ class ParticleExitError(WEError):
         return 'particle exited bin space; pcoord=%s, indices=%s' \
                % (self.particle.pcoord, self.index)  
 
-class ConfigError(ValueError):
-    def __init__(self, message = '', exc = None):
-        self.message = message
-        self.exc = exc
-
-    def __str__(self):
-        if self.message:
-            if self.exc:
-                return '%s: %s' % (self.message, self.exc)
-            else:
-                return self.message
-        elif self.exc:
-            return str(self.exc)
-        else:
-            return ValueError.__str__(self)    
+class WEConfigError(ConfigError): pass

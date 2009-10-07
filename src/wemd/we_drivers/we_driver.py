@@ -1,6 +1,9 @@
 from __future__ import division
 __metaclass__ = type
 
+import logging
+log = logging.getLogger('wemd.we_drivers.we_driver')
+
 import re
 from itertools import izip
 import numpy
@@ -13,15 +16,17 @@ from wemd.core.segments import Segment
 from wemd.core.binarrays import BinArray
 
 class WEDriver:
-    def __init__(self, sim_manager):
-        self.sim_manager = sim_manager
+    def __init__(self):
         self.current_iteration = None
-        self.segments = None
-        self.segment_lineages = None
+        self.particles = None
+        self.particle_lineages = None
         self.bins = None
         self.bins_population = None
         self.bins_nparticles = None
         self.bins_flux = None
+        
+    def initialize(self, sim_config):
+        self.current_iteration = 0
                     
     def make_bins(self):
         raise NotImplementedError
@@ -57,13 +62,11 @@ class WEDriver:
                     assert(m >= 2)
                     
                     new_weight = particle.weight / m
-                    new_particles = [P(seg_id = particle.seg_id,
-                                       weight = new_weight,
+                    new_particles = [P(weight = new_weight,
                                        pcoord = copy(particle.pcoord),
                                        p_parent = particle,
                                        parents = [particle])]
-                    new_particles.extend(P(seg_id = self.next_seg_id(),
-                                           weight = new_weight,
+                    new_particles.extend(P(weight = new_weight,
                                            pcoord = copy(particle.pcoord),
                                            p_parent = particle,
                                            parents = [particle])
@@ -98,7 +101,8 @@ class WEDriver:
                         glom_weight += particle.weight
                     
                 if glom_src:
-                    glom = Particle()                
+                    P = glom_src[0].__class__
+                    glom = P()                
                     u = random.uniform(0, glom_weight)
                     u_lower = glom_weight
                     u_upper = glom_weight
@@ -122,7 +126,7 @@ class WEDriver:
                     
                     glom.weight = glom_weight
                     glom.parents = glom_src
-                    glom.seg_id = glom.p_parent.seg_id
+                    glom.particle_id = glom.p_parent.particle_id
                     
                     self.on_particle_merge(glom_src, glom)
                     
@@ -148,31 +152,9 @@ class WEDriver:
     
     def on_particle_merge(self, particles, glom):
         pass
-    
-    def initialize(self, n_init, init_pcoord):
-        self.current_iteration = 0
-        pcoord = init_pcoord 
-        segments = []
-        for i in xrange(0, n_init):
-            segment = Segment(we_iter = self.current_iteration,
-                              seg_id = self.next_seg_id(),
-                              weight = 1 / n_init,                              
-                              status = Segment.SEG_STATUS_COMPLETE,
-                              final_pcoord = pcoord
-                              )
-            segments.append(segment)
-        self.segments = segments
-            
-    def run_we(self, segments):
-        assert(segments)
-        self.segments = None
-        self.segment_lineages = None
-
-        # Convert current segments to particles
-        particles = ParticleCollection(Particle(seg_id = segment.seg_id,
-                                                weight = segment.weight,
-                                                pcoord = segment.final_pcoord)
-                                       for segment in segments)
+                
+    def run_we(self, particles):
+        assert(particles)
 
         # Bin particles
         last_bins = self.bins
@@ -197,91 +179,13 @@ class WEDriver:
             self.bins_flux = last_population - self.bins_population
             
         self.current_iteration += 1
-        new_segments = []
-        segment_lineages = []
+        
+        # Assign parents as appropriate
         for particle in particles:
-            assert(particle.seg_id is not None)
             if not particle.p_parent:
                 # Continuation
-                p_parent_id = particle.seg_id
-            else:
-                p_parent_id = particle.p_parent.seg_id
-            
-            segment = Segment(we_iter = self.current_iteration,
-                              seg_id = particle.seg_id,
-                              p_parent_id = p_parent_id,
-                              status = Segment.SEG_STATUS_PREPARED,
-                              weight = particle.weight)
-            segment.data_ref = self.sim_manager.make_data_ref(segment)
-            
-            new_segments.append(segment)
-            segment_lineages.extend((segment, parent)
-                                    for parent in (particle.parents or [particle]))
-            
-        self.segments = new_segments
-        self.segment_lineages = segment_lineages
-            
-
-class WESimIter:
-    """
-    Describes per-iteration information (summary or otherwise) for
-    a WE simulation.
-    """
-    
-    def __init__(self):
-        self.we_iter = None
-        self.n_particles = None
-        self.norm = None
-        self.cputime = None
-        self.walltime = None
-        self.data = {}
+                particle.p_parent = particle
+                particle.parents = [particle]
         
-class WESimDriver:
-    def __init__(self):
-        self.we_info = None
-        self.we_driver = None
-    
-    def initialize(self):
-        pass
-    
-    def save_we_info(self):
-        """Save per-iteration information
-        """
-        pass
-    
-    def load_we_info(self):
-        """Load per-iteration information
-        """
-        pass
-    
-    def save_segments(self):
-        pass
+        return particles
 
-    def load_segments(self):
-        pass
-    
-    def save_state(self):
-        pass
-    
-    def load_state(self):
-        pass
-
-    def propagate_segments(self):
-        pass
-    
-    def simulation_complete(self):
-        pass
-    
-    def run_we(self):
-        pass
-    
-    def run_sim(self):
-        while not self.simulation_complete():
-            self.work_manager.propagate_segments(self.current_segments)
-            self.data_manager.save_segments(self.current_segments)
-            self.we_driver.run_we()
-            self.data_manager.save_segments(self.we_driver.segments)
-            self.data_manager.save_lineage(self.we_driver.segment_lineages)
-            self.state_manager.save_state(self.we_driver)
-    
-        

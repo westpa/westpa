@@ -1,18 +1,25 @@
+import logging
+log = logging.getLogger('wemd.we_drivers.fixed_bins')
+
 import numpy
 from we_driver import WEDriver
 from wemd.core.binarrays import Bin, BinArray
 from wemd.core import ConfigError
 
 class FixedBinWEDriver(WEDriver):
-    def configure_bin_params(self, config):
-        bintype = config['bins.type']
+    def initialize(self, sim_config):
+        super(FixedBinWEDriver,self).initialize(sim_config)
+        self.configure_bin_params(sim_config)
+    
+    def configure_bin_params(self, sim_config):
+        bintype = sim_config['bins.type']
         assert(bintype == 'fixed')
 
-        ndim = config.get_int('bins.ndim')
+        ndim = sim_config.get_int('bins.ndim')
         bin_limits = []
         
         if ndim == 1:
-            boundary_entries = [key for key in config if key.startswith('bins.boundaries')]
+            boundary_entries = [key for key in sim_config if key.startswith('bins.boundaries')]
             if not boundary_entries:
                 raise ConfigError('no bin boundaries provided')
             elif len(boundary_entries) > 1:
@@ -21,9 +28,9 @@ class FixedBinWEDriver(WEDriver):
                 boundary_entry = boundary_entries[0]
             
             if boundary_entry in ('bins.boundaries', 'bins.boundaries_0'):
-                boundaries = [float(bound) for bound in config.get_list(boundary_entry)]
+                boundaries = [float(bound) for bound in sim_config.get_list(boundary_entry)]
             elif boundary_entry in ('bins.boundaries_expr', 'bins.boundaries_expr_0'):
-                boundaries = eval(config[boundary_entry])
+                boundaries = eval(sim_config[boundary_entry])
             else:
                 raise ConfigError('invalid bin boundary specification')
                 
@@ -32,7 +39,7 @@ class FixedBinWEDriver(WEDriver):
             reIsBoundary = re.compile('bins\.boundaries(_expr)?_(\d+)')
             bin_limits = [None] * ndim
             
-            boundary_entries = [entry for entry in config if entry.startswith('bins.boundaries')]
+            boundary_entries = [entry for entry in sim_config if entry.startswith('bins.boundaries')]
             for boundary_entry in boundary_entries:
                 m = reIsBoundary.match(boundary_entry)
                 if not m:
@@ -40,31 +47,24 @@ class FixedBinWEDriver(WEDriver):
                 else:
                     ndim = int(m.group(2))
                     if m.group(1):
-                        boundaries = eval(config[boundary_entry])
+                        boundaries = eval(sim_config[boundary_entry])
                     else:
-                        boundaries = [float(lim) for lim in config.get_list(boundary_entry)]
+                        boundaries = [float(lim) for lim in sim_config.get_list(boundary_entry)]
                     boundary_entries[ndim] = numpy.array(boundaries)
                     
             if None in bin_limits:
                 raise ConfigError('missing bin boundaries for at least one dimension')
         
-        self.data_manager.config['bins.boundaries'] =  bin_limits
-        self.data_manager.config['bins.particles_per_bin'] \
-            = config.get_int('bins.particles_per_bin')
-        self.data_manager.config['bins.split_threshold'] \
-            = config.get_float('bins.split_threshold', 2.0)
-        self.data_manager.config['bins.merge_threshold_min'] \
-            = config.get_float('bins.merge_threshold_min', 0.5)
-        self.data_manager.config['bins.merge_threshold_max'] \
-            = config.get_float('bins.merge_threshold_max', 1.5)        
-        
-        self.bins = self.make_bins()
+        self.bin_boundaries =  bin_limits
+        self.particles_per_bin = sim_config.get_int('bins.particles_per_bin')
+        self.bin_split_threshold = sim_config.get_float('bins.split_threshold', 2.0)
+        self.bin_merge_threshold_min = sim_config.get_float('bins.merge_threshold_min', 0.5)
+        self.bin_merge_threshold_max = sim_config.get_float('bins.merge_threshold_max', 1.5)        
     
     def make_bins(self):
-        config = self.data_manager.config
-        return BinArray(boundaries = config['bins.boundaries'],
-                        ideal_num = config['bins.particles_per_bin'],
-                        split_threshold = config['bins.split_threshold'],
-                        merge_threshold_min = config['bins.merge_threshold_min'],
-                        merge_threshold_max = config['bins.merge_threshold_max'])
+        return BinArray(boundaries = self.bin_boundaries,
+                        ideal_num = self.particles_per_bin,
+                        split_threshold = self.bin_split_threshold,
+                        merge_threshold_min = self.bin_merge_threshold_min,
+                        merge_threshold_max = self.bin_merge_threshold_max)
         # non-time-dependent bin info stored here

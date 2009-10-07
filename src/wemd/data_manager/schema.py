@@ -45,7 +45,7 @@ segmentsTable = Table('segments', metadata,
                              nullable=True),
                       Column('data_ref', Text, nullable=True),
                       Column('weight', Float(17), nullable=False),
-                      Column('final_pcoord', PickleType, nullable=True),
+                      Column('pcoord', PickleType, nullable=True),
                       Column('cputime', Interval, nullable=True),
                       Column('walltime', Interval, nullable=True),
                       Column('startdate', DateTime, nullable=True),
@@ -74,7 +74,9 @@ mapper(SegmentDataItem, segDataTable)
 class WEIterDataItem(DBDataItem): pass
 mapper(WEIterDataItem, weDataTable)
 
-seg_pparent_rel = relation(Segment, segmentsTable, uselist=False)
+seg_pparent_rel = relation(Segment, 
+                           remote_side=[segmentsTable.c.seg_id],
+                           uselist=False)
 seg_parents_rel = relation(Segment, segmentLineageTable,
                            collection_class = set,
                            primaryjoin=segmentsTable.c.seg_id==segmentLineageTable.c.seg_id,
