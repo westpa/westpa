@@ -1,3 +1,2 @@
 import schema
-from schema import (weIterTable, weDataTable, segDataTable,
-                    segmentsTable, segmentLineageTable)
+from schema import (weIterTable, segmentsTable, segmentLineageTable)

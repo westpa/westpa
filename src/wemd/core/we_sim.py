@@ -2,7 +2,8 @@ from __future__ import division
 import cPickle as pickle
 import numpy
 import time, datetime
-
+from wemd.util import DBDataItem
+from wemd.util.numpy_hacks import NumpyCmpSafeDict
 ZERO_INTERVAL = datetime.timedelta(0)
 
 __metaclass__ = type
@@ -16,13 +17,14 @@ class WESimIter:
     a WE simulation.
     """
     
-    def __init__(self):
-        self.we_iter = None
-        self.n_particles = None
-        self.norm = None
-        self.cputime = None
-        self.walltime = None
-        self.data = {}
+    def __init__(self, we_iter = None, n_particles = None, norm = None,
+                 cputime = None, walltime = None, data = None):
+        self.we_iter = we_iter
+        self.n_particles = n_particles
+        self.norm = norm
+        self.cputime = cputime
+        self.walltime = walltime
+        self.data = NumpyCmpSafeDict(data or dict())
 
 class WESimDriver:
     def __init__(self):
@@ -30,9 +32,9 @@ class WESimDriver:
         
         self.runtime_config = None
         self.dbengine = None
-        self.dbmetadata = None
         self.DBSession = None
         self.dbsession = None
+        self.segments = None           
             
     def init_runtime(self, runtime_config):
         from string import Template
@@ -60,8 +62,6 @@ class WESimDriver:
         self.DBSession = sqlalchemy.orm.sessionmaker(bind=self.dbengine,
                                                      autocommit=True,
                                                      autoflush=False)
-        self.dbsession = self.DBSession()
-        self.dbmetadata = wemd.data_manager.schema.metadata
         
     def save_state(self):
         state_dict = {'we_driver': self.we_driver}
@@ -80,7 +80,6 @@ class WESimDriver:
         """Convert (DB-oriented) segments into (WE-oriented) particles.
         Lineage information is not conserved, as it flows (one way) out of
         the WE routine."""
-        from wemd.core import Particle
         particles = []
         for segment in segments:
             p = Particle(particle_id = segment.seg_id,
@@ -88,49 +87,42 @@ class WESimDriver:
                          pcoord = segment.pcoord)
             particles.append(p)
         return particles
-    
-    def particles_to_new_segments(self, particles):
-        """Convert WE particles into DB segments.  Lineage information is
-        retained to one generation."""
-        from wemd.core import Segment
         
-        segments = []
+    def run_we(self):
+        assert self.dbsession
+        assert self.segments
+
+        current_particles = self.segments_to_particles(self.segments)
+        
+        # Perform actual WE calculation
+        new_particles = self.we_driver.run_we(current_particles)
+        new_we_iter = self.we_driver.current_iteration 
+        
+        # Convert particles to new DB segments
+        new_segments = []
         self.dbsession.begin()
         sq = self.dbsession.query(Segment)
-        log.debug('converting particles to new segments')
-        for particle in particles:
+        for particle in new_particles:
             s = Segment(weight = particle.weight)
-            s.we_iter = self.we_driver.current_iteration
+            s.we_iter = new_we_iter
             s.status = Segment.SEG_STATUS_PREPARED
-            
             if particle.p_parent:
                 s.p_parent = sq.get([particle.p_parent.particle_id])
                 log.debug('segment %r parent is %r' % (s, s.p_parent))
             if particle.parents:
                 s.parents = set(sq.filter(Segment.seg_id.in_([pp.particle_id for pp in particle.parents])).all())
-                log.debug('segment %r parents are %r' % (s, s.parents))        
-            segments.append(s)
+                log.debug('segment %r parents are %r' % (s, s.parents))
+            new_segments.append(s)
             self.dbsession.add(s)
+        # Flush new segments to obtain segment IDs
         self.dbsession.flush()
-        for segment in segments:
+        for segment in new_segments:
             segment.data_ref = self.make_data_ref(segment)
+        # Record completed information about new segments
         self.dbsession.flush()
-        self.dbsession.commit()
-        return segments
-    
-    def run_we(self, segments):
-        """Run WE on the given segments"""
-                
-        new_particles = self.we_driver.run_we(self.segments_to_particles(segments))
-        
-        # Record new segments
-        new_segments = self.particles_to_new_segments(new_particles)
-        for seg in new_segments:
-            assert seg.parents
-            assert seg.p_parent is not None
-        
+                        
         we_iter = WESimIter()
-        we_iter.we_iter = self.we_driver.current_iteration
+        we_iter.we_iter = new_we_iter
         we_iter.n_particles = len(new_segments)
         we_iter.norm = numpy.sum((seg.weight for seg in new_segments))
         we_iter.data['bins_population'] = self.we_driver.bins_population
@@ -138,20 +130,22 @@ class WESimDriver:
         if we_iter.we_iter > 0:
             we_iter.data['bins_flux'] = self.we_driver.bins_flux
         
-        self.dbsession.begin()
         self.dbsession.add(we_iter)
+        self.dbsession.flush()
         self.dbsession.commit()
+        self.segments = new_segments
              
     def init_sim(self, sim_config):
         import wemd.we_drivers
         from wemd.core import Segment, Particle
+        from wemd.data_manager.schema import metadata
         
         for item in ('wemd.initial_particles', 'wemd.initial_pcoord'):
             sim_config.require(item)
             
         log.debug('creating database tables')
         self.dbengine.echo = True
-        self.dbmetadata.create_all(bind=self.dbengine)
+        metadata.create_all(bind=self.dbengine)
         
         # Create and configure the WE driver
         self.we_driver = we_driver = wemd.we_drivers.make_we_driver(sim_config)
@@ -167,8 +161,10 @@ class WESimDriver:
                             weight=1.0/n_init,
                             pcoord = pcoord)
                     for i in xrange(1,n_init+1)]
+        self.dbsession = self.DBSession()
         self.dbsession.begin()
-        for segment in segments: self.dbsession.add(segment)
+        for segment in segments: 
+            self.dbsession.add(segment)
         
         # Record dummy stats for the starting iteration
         stats = WESimIter()
@@ -182,7 +178,10 @@ class WESimDriver:
         self.dbsession.commit()
         
         # Run one iteration of WE to assign particles to bins
-        self.run_we(segments)
+        self.segments = segments
+        self.run_we()
+        
+        
             
 from wemd.core.particles import Particle, ParticleCollection
 from wemd.core.segments import Segment

@@ -17,23 +17,8 @@ weIterTable = Table('we_iter', metadata,
                    Column('norm', Float(17), nullable=False),
                    Column('cputime', Interval, nullable=True),
                    Column('walltime', Interval, nullable=True),
+                   Column('data', PickleType, nullable=True)
                    )
-
-weDataTable = Table('we_data', metadata,
-                  Column('we_iter', Integer, ForeignKey('we_iter.we_iter'),
-                         primary_key=True, nullable=False,),
-                  Column('name', Text, primary_key=True, nullable=False),
-                  Column('pvalue', PickleType, nullable=True),
-                  Column('cvalue', CLOB, nullable=True),
-                  Column('bvalue', BLOB, nullable=True))
-
-segDataTable = Table('seg_data', metadata,
-                     Column('seg_id', Integer, ForeignKey('segments.seg_id'),
-                            primary_key=True, nullable=False),
-                     Column('name', Text, primary_key=True, nullable=False),
-                     Column('pvalue', PickleType, nullable=True),
-                     Column('cvalue', CLOB, nullable=True),
-                     Column('bvalue', BLOB, nullable=True))
 
 segmentsTable = Table('segments', metadata,
                       Column('seg_id', Integer, primary_key=True,
@@ -50,6 +35,7 @@ segmentsTable = Table('segments', metadata,
                       Column('walltime', Interval, nullable=True),
                       Column('startdate', DateTime, nullable=True),
                       Column('enddate', DateTime, nullable=True),
+                      Column('data', PickleType, nullable=True),
                       )
 
 Index('ix_segments_status', segmentsTable.c.we_iter,
@@ -66,13 +52,6 @@ segmentLineageTable = Table('segment_lineage', metadata,
 
 from wemd.core.segments import Segment
 from wemd.core import WESimIter
-from data_items import DBDataItem
-
-class SegmentDataItem(DBDataItem): pass
-mapper(SegmentDataItem, segDataTable)
-
-class WEIterDataItem(DBDataItem): pass
-mapper(WEIterDataItem, weDataTable)
 
 seg_pparent_rel = relation(Segment, 
                            remote_side=[segmentsTable.c.seg_id],
@@ -88,17 +67,8 @@ seg_parents_rel = relation(Segment, segmentLineageTable,
 # should only happen to delete a corrupted/incomplete segment in the current
 # iteration, and parents are always in the previous iteration 
 
-Segment.data = association_proxy('seg_data', 'value', creator=SegmentDataItem.named_create)
-WESimIter.data = association_proxy('iter_data', 'value', creator=WEIterDataItem.named_create)
-
 mapper(Segment, segmentsTable,
        properties = {'p_parent': seg_pparent_rel,
-                     'parents': seg_parents_rel,
-                     'seg_data': relation(SegmentDataItem, 
-                                          collection_class=column_mapped_collection(segDataTable.c.name),
-                                          cascade='all, delete, delete-orphan'), })
+                     'parents': seg_parents_rel,})
 
-mapper(WESimIter, weIterTable,
-       properties = {'iter_data': relation(WEIterDataItem,
-                                           collection_class=column_mapped_collection(weDataTable.c.name),
-                                           cascade='all, delete, delete-orphan'),})
+mapper(WESimIter, weIterTable)
