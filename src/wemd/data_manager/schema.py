@@ -17,7 +17,7 @@ weIterTable = Table('we_iter', metadata,
                    Column('norm', Float(17), nullable=False),
                    Column('cputime', Interval, nullable=True),
                    Column('walltime', Interval, nullable=True),
-                   Column('data', PickleType, nullable=True)
+                   Column('data', PickleType(mutable=False), nullable=True)
                    )
 
 segmentsTable = Table('segments', metadata,
@@ -30,12 +30,12 @@ segmentsTable = Table('segments', metadata,
                              nullable=True),
                       Column('data_ref', Text, nullable=True),
                       Column('weight', Float(17), nullable=False),
-                      Column('pcoord', PickleType, nullable=True),
+                      Column('pcoord', PickleType(mutable=False), nullable=True),
                       Column('cputime', Interval, nullable=True),
                       Column('walltime', Interval, nullable=True),
                       Column('startdate', DateTime, nullable=True),
                       Column('enddate', DateTime, nullable=True),
-                      Column('data', PickleType, nullable=True),
+                      Column('data', PickleType(mutable=False), nullable=True),
                       )
 
 Index('ix_segments_status', segmentsTable.c.we_iter,

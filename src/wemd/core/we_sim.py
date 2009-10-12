@@ -1,9 +1,10 @@
 from __future__ import division
 import cPickle as pickle
 import numpy
-import time, datetime
-from wemd.util import DBDataItem
-from wemd.util.numpy_hacks import NumpyCmpSafeDict
+import time, datetime        
+from wemd.core.particles import Particle, ParticleCollection
+from wemd.core.segments import Segment
+
 ZERO_INTERVAL = datetime.timedelta(0)
 
 __metaclass__ = type
@@ -24,8 +25,8 @@ class WESimIter:
         self.norm = norm
         self.cputime = cputime
         self.walltime = walltime
-        self.data = NumpyCmpSafeDict(data or dict())
-
+        self.data = data or {}
+        
 class WESimDriver:
     def __init__(self):
         self.we_driver = None
@@ -106,6 +107,7 @@ class WESimDriver:
             s = Segment(weight = particle.weight)
             s.we_iter = new_we_iter
             s.status = Segment.SEG_STATUS_PREPARED
+            s.pcoord = None
             if particle.p_parent:
                 s.p_parent = sq.get([particle.p_parent.particle_id])
                 log.debug('segment %r parent is %r' % (s, s.p_parent))
@@ -125,10 +127,14 @@ class WESimDriver:
         we_iter.we_iter = new_we_iter
         we_iter.n_particles = len(new_segments)
         we_iter.norm = numpy.sum((seg.weight for seg in new_segments))
-        we_iter.data['bins_population'] = self.we_driver.bins_population
-        we_iter.data['bins_nparticles'] = self.we_driver.bins_nparticles
+        # The "data" field is immutable, meaning that it will not get stored
+        # unless a completely new object is specified for it
+        we_data = {}
+        we_data['bins_population'] = self.we_driver.bins_population
+        we_data['bins_nparticles'] = self.we_driver.bins_nparticles
         if we_iter.we_iter > 0:
-            we_iter.data['bins_flux'] = self.we_driver.bins_flux
+            we_data['bins_flux'] = self.we_driver.bins_flux
+        we_iter.data = we_data
         
         self.dbsession.add(we_iter)
         self.dbsession.flush()
@@ -180,9 +186,4 @@ class WESimDriver:
         # Run one iteration of WE to assign particles to bins
         self.segments = segments
         self.run_we()
-        
-        
-            
-from wemd.core.particles import Particle, ParticleCollection
-from wemd.core.segments import Segment
         

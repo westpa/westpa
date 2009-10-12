@@ -1,4 +1,3 @@
-from wemd.util.numpy_hacks import NumpyCmpSafeDict
 from particles import Particle
 __metaclass__ = type
 
@@ -38,7 +37,7 @@ class Segment:
         self.cputime = cputime
         self.starttime = starttime
         self.endtime = endtime
-        self.data = NumpyCmpSafeDict(data or dict())
+        self.data = data or {}
         
     def __repr__(self):
         return '<%s(%s) seg_id=%s p_parent_id=%s weight=%s>' \
