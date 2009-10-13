@@ -34,11 +34,14 @@ class WESimDriver:
         self.work_manager = None
         self.runtime_config = runtime_config
         
-        self.dbengine = runtime_config['data.db.engine']
-        self.DBSession = runtime_config['data.db.sessionmaker']
-        self.dbsession = None
+        self.dbengine = None
+        self.DBSession = None
+        self._dbsession = None
         self.segments = None           
-            
+    
+    current_iteration = property((lambda s: s.we_driver.current_iteration),
+                                 None, None)
+    
     def init_runtime(self):
         from string import Template
         self.runtime_config.require('data.state')
@@ -50,7 +53,39 @@ class WESimDriver:
             raise ConfigError('invalid data ref template', e)
         else:
             self.runtime_config['data.segrefs.ctemplate'] = ctemplate
+            
+    def connect_db(self):
+        self.runtime_config.require('data.db.url')
+        db_url = self.runtime_config['data.db.url']
+        log.info('connecting to %r' % db_url)
         
+        import wemd.data_manager
+        from sqlalchemy import create_engine
+        from sqlalchemy.orm import sessionmaker
+        
+        self.dbengine = create_engine(db_url)
+        self.DBSession = sessionmaker(bind=self.dbengine,
+                                      autocommit = True,
+                                      autoflush = False)
+    
+    def _get_dbsession(self):
+        if self._dbsession is None:
+            log.debug('implicitly instantiating new DB session')
+            self._dbsession = self.DBSession()
+        return self._dbsession
+         
+    def new_dbsession(self):
+        if self._dbsession is not None:
+            log.warn('implicitly closing open DB session to create new one')
+            self.close_dbsession()
+        return self._get_dbsession()
+    
+    def close_dbsession(self):
+        self._dbsession.close()
+        self._dbsession = None
+        
+    dbsession = property(_get_dbsession, None, close_dbsession, None)
+         
     def save_state(self):
         state_filename = self.runtime_config['data.state']
         log.info('saving state to %s' % state_filename)
@@ -79,19 +114,52 @@ class WESimDriver:
                          weight = segment.weight,
                          pcoord = segment.pcoord)
             particles.append(p)
-        return particles
+        return ParticleCollection(particles)
+    
+    def num_incomplete_segments(self, we_iter = None):
+        we_iter = we_iter or self.current_iteration
+        n_inc = self.dbsession.query(Segment)\
+                    .filter(Segment.we_iter == we_iter)\
+                    .filter(Segment.status != Segment.SEG_STATUS_COMPLETE)\
+                    .count()
+        return n_inc
         
+    def get_incomplete_segments(self, we_iter = None):
+        we_iter = we_iter or self.current_iteration
+        from sqlalchemy.orm import eagerload
+        return self.dbsession.query(Segment)\
+                   .filter(Segment.we_iter == we_iter)\
+                   .filter(Segment.status != Segment.SEG_STATUS_COMPLETE)\
+                   .options(eagerload(Segment.p_parent))\
+                   .all()
+                   
+    def get_completed_segments(self, we_iter = None):
+        we_iter = we_iter or self.current_iteration
+        return self.dbsession.query(Segment)\
+                   .filter(Segment.we_iter == we_iter)\
+                   .filter(Segment.status == Segment.SEG_STATUS_COMPLETE)\
+                   .all()
+                       
     def run_we(self):
-        assert self.dbsession
-        assert self.segments
+        n_inc = self.num_incomplete_segments()
+        if n_inc:
+            raise PropagationIncompleteError('%d segments have not been completed'
+                                             % n_inc)
+        segments = self.get_completed_segments()
         
-        for segment in self.segments:
-            if segment.status != Segment.SEG_STATUS_COMPLETE:
-                raise PropagationIncompleteError('segment %s is not propagated'
-                                                 % segment.seg_id)
-
-        log.info('running WE on %d particles' % len(self.segments))
-        current_particles = self.segments_to_particles(self.segments)
+        import sqlalchemy
+        
+        self.dbsession.begin()
+        sim_iter = self.dbsession.query(WESimIter).get([self.current_iteration])
+        sim_iter.endtime = datetime.datetime.now()
+        sim_iter.walltime = self.dbsession.query(sqlalchemy.func.sum(Segment.walltime)).filter(Segment.we_iter == self.current_iteration).scalar()
+        sim_iter.cputime = self.dbsession.query(sqlalchemy.func.sum(Segment.cputime)).filter(Segment.we_iter == self.current_iteration).scalar()
+        self.dbsession.flush()
+        self.dbsession.commit()
+        
+        log.info('running WE on %d particles' % len(segments))
+        current_particles = self.segments_to_particles(segments)
+        log.info('norm = %.15g' % current_particles.norm)
         
         # Perform actual WE calculation
         new_particles = self.we_driver.run_we(current_particles)
@@ -100,44 +168,49 @@ class WESimDriver:
         # Convert particles to new DB segments
         new_segments = []
         self.dbsession.begin()
-        sq = self.dbsession.query(Segment)
-        for particle in new_particles:
-            s = Segment(weight = particle.weight)
-            s.we_iter = new_we_iter
-            s.status = Segment.SEG_STATUS_PREPARED
-            s.pcoord = None
-            if particle.p_parent:
-                s.p_parent = sq.get([particle.p_parent.particle_id])
-                log.debug('segment %r parent is %r' % (s, s.p_parent))
-            if particle.parents:
-                s.parents = set(sq.filter(Segment.seg_id.in_([pp.particle_id for pp in particle.parents])).all())
-                log.debug('segment %r parents are %r' % (s, s.parents))
-            new_segments.append(s)
-            self.dbsession.add(s)
-        # Flush new segments to obtain segment IDs
-        self.dbsession.flush()
-        for segment in new_segments:
-            segment.data_ref = self.make_data_ref(segment)
-        # Record completed information about new segments
-        self.dbsession.flush()
-                        
-        we_iter = WESimIter()
-        we_iter.we_iter = new_we_iter
-        we_iter.n_particles = len(new_segments)
-        we_iter.norm = numpy.sum((seg.weight for seg in new_segments))
-        # The "data" field is immutable, meaning that it will not get stored
-        # unless a completely new object is specified for it
-        we_data = {}
-        we_data['bins_population'] = self.we_driver.bins_population
-        we_data['bins_nparticles'] = self.we_driver.bins_nparticles
-        if we_iter.we_iter > 0:
-            we_data['bins_flux'] = self.we_driver.bins_flux
-        we_iter.data = we_data
-        
-        self.dbsession.add(we_iter)
-        self.dbsession.flush()
-        self.dbsession.commit()
-        self.segments = new_segments
+        try:
+            sq = self.dbsession.query(Segment)
+            for particle in new_particles:
+                s = Segment(weight = particle.weight)
+                s.we_iter = new_we_iter
+                s.status = Segment.SEG_STATUS_PREPARED
+                s.pcoord = None
+                if particle.p_parent:
+                    s.p_parent = sq.get([particle.p_parent.particle_id])
+                    log.debug('segment %r parent is %r' % (s, s.p_parent))
+                if particle.parents:
+                    s.parents = set(sq.filter(Segment.seg_id.in_([pp.particle_id for pp in particle.parents])).all())
+                    log.debug('segment %r parents are %r' % (s, s.parents))
+                new_segments.append(s)
+                self.dbsession.add(s)
+            # Flush new segments to obtain segment IDs
+            self.dbsession.flush()
+            for segment in new_segments:
+                segment.data_ref = self.make_data_ref(segment)
+            # Record completed information about new segments
+            self.dbsession.flush()
+                            
+            we_iter = WESimIter()
+            we_iter.we_iter = new_we_iter
+            we_iter.n_particles = len(new_segments)
+            we_iter.norm = numpy.sum((seg.weight for seg in new_segments))
+            # The "data" field is immutable, meaning that it will not get stored
+            # unless a completely new object is specified for it
+            we_data = {}
+            we_data['bins_population'] = self.we_driver.bins_population
+            we_data['bins_nparticles'] = self.we_driver.bins_nparticles
+            if we_iter.we_iter > 0:
+                we_data['bins_flux'] = self.we_driver.bins_flux
+            we_iter.data = we_data
+            
+            self.dbsession.add(we_iter)
+            self.dbsession.flush()
+        except:
+            log.debug('error in WE', exc_info = True)
+            self.dbsession.rollback()
+            raise
+        else:
+            self.dbsession.commit()
              
     def init_sim(self, sim_config):
         import wemd.we_drivers
@@ -165,7 +238,6 @@ class WESimDriver:
                             weight=1.0/n_init,
                             pcoord = pcoord)
                     for i in xrange(1,n_init+1)]
-        self.dbsession = self.DBSession()
         self.dbsession.begin()
         for segment in segments: 
             self.dbsession.add(segment)
@@ -184,38 +256,24 @@ class WESimDriver:
         # Run one iteration of WE to assign particles to bins
         self.segments = segments
         self.run_we()
-        self.dbsession.close()
         
     def run_sim(self):
         from sqlalchemy.orm import eagerload
-        max_iterations = self.runtime_config.get_int('wemd.max_iterations')
-        while self.we_driver.current_iteration <= max_iterations:
+        max_iterations = self.runtime_config.get_int('limits.max_iterations')
+        while self.current_iteration <= max_iterations:
+            self.new_dbsession()
+            sim_iter = self.dbsession.query(WESimIter).get([self.current_iteration])
+            if sim_iter.starttime is None:
+                sim_iter.starttime = datetime.datetime.now()
+            self.dbsession.flush()
             log.info('WE iteration %d (of %d requested)'
-                     % (self.we_driver.current_iteration, max_iterations))
-            self.dbsession = self.DBSession()
-            segs_remaining = self.dbsession.query(Segment)\
-                .filter(Segment.we_iter == self.we_driver.current_iteration)\
-                .filter(Segment.status != Segment.SEG_STATUS_COMPLETE)\
-                .options(eagerload(Segment.p_parent))\
-                .all()
-            log.info('%d segments remaining in WE iteration %d' 
-                     % (len(segs_remaining), self.we_driver.current_iteration))
-            self.dbsession.begin()
-            try:
-                self.work_manager.propagate_segments(segs_remaining)
-                self.dbsession.flush()
-                raise AssertionError
-            except:
-                self.dbsession.rollback()
-                raise
-            else:
-                self.dbsession.commit()
-            
-            # check to see that all segments are SEG_STATUS_COMPLETE
-            # or abort
-            
-            # load segments into self.segments
-            # run we
+                     % (self.current_iteration, max_iterations))
+            self.work_manager.propagate_segments(self.current_iteration)
+            self.run_we()
+            self.save_state()
+            self.close_dbsession()
+        else:
+            log.info('maximum number of iterations reached')
             
             
             

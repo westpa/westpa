@@ -11,8 +11,6 @@ class WEMDCtlTool(WECmdLineMultiTool):
         
         cop.add_command('init', 'initialize a new WE simulation',
                         self.cmd_init, True)
-        cop.add_command('run', 'run a WE simulation',
-                        self.cmd_run, True)
         self.add_rc_option(cop)
         
     def cmd_init(self, args):
@@ -27,7 +25,6 @@ class WEMDCtlTool(WECmdLineMultiTool):
         else:
             sim_config_file = args[0]
         
-        self.connect_db()
         from wemd.core.we_sim import WESimDriver
         from wemd.util.config_dict import ConfigDict
         sim_config = ConfigDict()
@@ -40,16 +37,11 @@ class WEMDCtlTool(WECmdLineMultiTool):
         
         sim_driver = WESimDriver(self.runtime_config)
         sim_driver.init_runtime()
+        sim_driver.connect_db()
         sim_driver.init_sim(sim_config)
         sim_driver.save_state()
         self.exit()
-        
-    def cmd_run(self, args):
-        parser = self.make_parser(description = 'run the WE simulation')
-        (opts, args) = parser.parse_args(args)
-        
-        
-        
+                
 if __name__ == '__main__':
     WEMDCtlTool().run()
 

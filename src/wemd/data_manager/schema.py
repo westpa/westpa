@@ -17,6 +17,8 @@ weIterTable = Table('we_iter', metadata,
                    Column('norm', Float(17), nullable=False),
                    Column('cputime', Float, nullable=True),
                    Column('walltime', Float, nullable=True),
+                   Column('starttime', DateTime, nullable = True),
+                   Column('endtime', DateTime, nullable = True),
                    Column('data', PickleType(mutable=False), nullable=True)
                    )
 

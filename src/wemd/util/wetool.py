@@ -40,25 +40,8 @@ class WECmdLineTool(object):
             self.error_stream.write('cannot open runtime config file: %s\n' % e)
             self.exit(EX_RTC_ERROR)
         self.configure_logging()
-        
-    def connect_db(self):
-        self.runtime_config.require('data.db.url')
-        db_url = self.runtime_config['data.db.url']
-        self.log.info('connecting to %r' % db_url)
-        
-        import wemd.data_manager
-        from sqlalchemy import create_engine
-        from sqlalchemy.orm import sessionmaker
-        
-        self.dbengine = create_engine(db_url)
-        self.DBSession = sessionmaker(bind=self.dbengine,
-                                      autocommit = True,
-                                      autoflush = False)
-        self.runtime_config['data.db.engine'] = self.dbengine
-        self.runtime_config['data.db.sessionmaker'] = self.DBSession
-        
+                
     def configure_logging(self):
-        #logging.basicConfig()
         logkeys = set(k for k in self.runtime_config
                       if k.startswith('logging.'))
         

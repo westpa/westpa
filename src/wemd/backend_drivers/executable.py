@@ -107,6 +107,8 @@ class ExecutableBackend(BackendDriver):
                 self.update_segment_from_output(segment, stream)
             finally:
                 stream.close()
+        log.info('segment %s progress coordinate = %s'
+                 % (segment.seg_id, segment.pcoord))
                 
         try:
             os.unlink(return_filename)

@@ -24,11 +24,13 @@ class WEMDRunTool(WECmdLineTool):
         work_manager = make_work_manager(self.runtime_config)
         work_manager.initialize(backend_driver, self.runtime_config)
         
-        self.connect_db()
-        we_sim = wemd.core.we_sim.WESimDriver(self.runtime_config)
-        we_sim.restore_state()
-        we_sim.work_manager = work_manager
-        we_sim.run_sim()
+        sim_driver = wemd.core.we_sim.WESimDriver(self.runtime_config)
+        sim_driver.init_runtime()
+        sim_driver.connect_db()
+        sim_driver.restore_state()
+        sim_driver.work_manager = work_manager
+        work_manager.sim_driver = sim_driver 
+        sim_driver.run_sim()
         self.exit(0)
         
         
