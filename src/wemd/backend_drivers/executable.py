@@ -71,18 +71,18 @@ class ExecutableBackend(BackendDriver):
         log.debug('launching %r with environment %r' % (self.exename, child_environ))
         segment.starttime = datetime.datetime.now()
         log.debug('launched at %s' % segment.starttime)
-        init_ru = getrusage(RUSAGE_CHILDREN)
+        init_walltime = time.time()
+        init_cputime = getrusage(RUSAGE_CHILDREN).ru_utime
         
         proc = subprocess.Popen([self.exename], env=child_environ)
         rc = proc.wait()
         
         # Record end timing info
-        final_ru = getrusage(RUSAGE_CHILDREN)
+        final_cputime = getrusage(RUSAGE_CHILDREN).ru_utime
+        final_walltime = time.time()
         segment.endtime = datetime.datetime.now()
-        segment.walltime = segment.endtime - segment.starttime
-        ticks = final_ru.ru_utime - init_ru.ru_utime
-        ticks_per_sec = float(os.sysconf('SC_CLK_TCK'))
-        segment.cputime = datetime.timedelta(ticks/ticks_per_sec)
+        segment.walltime = final_walltime - init_walltime
+        segment.cputime = final_cputime - init_cputime
         log.debug('completed at %s (wallclock %s, cpu %s)' 
                   % (segment.endtime,
                      segment.walltime,

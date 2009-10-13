@@ -85,7 +85,7 @@ class WESimDriver:
         assert self.dbsession
         assert self.segments
         
-        for segment in segments:
+        for segment in self.segments:
             if segment.status != Segment.SEG_STATUS_COMPLETE:
                 raise PropagationIncompleteError('segment %s is not propagated'
                                                  % segment.seg_id)
@@ -173,7 +173,7 @@ class WESimDriver:
         # Record dummy stats for the starting iteration
         stats = WESimIter()
         stats.we_iter = 0
-        stats.cputime = stats.walltime = ZERO_INTERVAL
+        stats.cputime = stats.walltime = 0.0
         stats.n_particles = len(segments)
         stats.norm = numpy.sum([seg.weight for seg in segments])
         self.dbsession.add(stats)
@@ -204,10 +204,12 @@ class WESimDriver:
             try:
                 self.work_manager.propagate_segments(segs_remaining)
                 self.dbsession.flush()
-                self.dbsession.commit()
+                raise AssertionError
             except:
                 self.dbsession.rollback()
                 raise
+            else:
+                self.dbsession.commit()
             
             # check to see that all segments are SEG_STATUS_COMPLETE
             # or abort
