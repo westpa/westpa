@@ -4,8 +4,9 @@ __metaclass__ = type
 class Segment:
     SEG_STATUS_UNSET = None
     SEG_STATUS_PREPARED = 1
-    SEG_STATUS_RUNNING = 2
+    SEG_STATUS_RUNNING  = 2
     SEG_STATUS_COMPLETE = 3
+    SEG_STATUS_FAILED   = 4
     
     status_names = {}
     
@@ -37,7 +38,7 @@ class Segment:
         self.cputime = cputime
         self.starttime = starttime
         self.endtime = endtime
-        self.data = data or {}
+        self.data = data
         
     def __repr__(self):
         return '<%s(%s) seg_id=%s p_parent_id=%s weight=%s>' \

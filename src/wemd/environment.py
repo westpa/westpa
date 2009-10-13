@@ -1,15 +1,7 @@
 import os
 from wemd.core.errors import WEEnvironmentError, WEEnvironmentVarError
 
-ENV_RUNTIME_CONFIG       = 'WEMD_RUNTIME_CONFIG'
-ENV_CURRENT_ITER         = 'WEMD_CURRENT_ITER'
-ENV_CURRENT_SEG_ID       = 'WEMD_CURRENT_SEG_ID'
-ENV_CURRENT_SEG_DATA_REF = 'WEMD_CURRENT_SEG_DATA_REF'
-ENV_PARENT_ITER          = 'WEMD_PARENT_ITER'
-ENV_PARENT_SEG_ID        = 'WEMD_PARENT_SEG_ID'
-ENV_PARENT_SEG_DATA_REF  = 'WEMD_PARENT_SEG_DATA_REF'
-ENV_SEG_REPORT_SOCKET    = 'WEMD_SEG_REPORT_SOCKET'
-ENV_SEG_REPORT_FILE      = 'WEMD_SEG_REPORT_FILE'
+ENV_RUNTIME_CONFIG       = 'WEMDRC'
 
 EX_SUCCESS           = 0
 EX_ERROR             = 1
@@ -22,6 +14,18 @@ EX_CALC_ERROR        = 7
 EX_COMM_ERROR        = 8
 EX_DATA_ERROR        = 9
 
+_ex_names = dict((code, name) for (name, code) in locals().iteritems()
+                 if name.startswith('EX_'))
+
+def get_exit_code_name(code):
+    return _ex_names.get(code, 'error %d' % code)
+
+LOGGING_DEFAULT_FORMAT = '%(levelname)s: %(message)s'
+LOGGING_DEFAULT_SETTINGS = {'': {'level': 'WARNING',
+                                 'format': LOGGING_DEFAULT_FORMAT},
+                            'wemd': {'level': 'WARNING'},
+                            'sqlalchemy.engine': {'level': 'ERROR'}
+                            }
 
 def get_we_variable(varname, *args):
     if len(args) > 0:

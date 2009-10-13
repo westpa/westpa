@@ -16,3 +16,11 @@ def datetime_from_iso(dtstr):
     m = reISODate.match(dtstr)
     ints = [int(field) for field in m.groups() if field is not None]
     return datetime(*ints)
+
+def logging_level_by_name(lvlname):
+    import logging
+    try:
+        level = getattr(logging, lvlname)
+    except AttributeError:
+        raise ValueError('invalid level name %r' % lvlname)
+    return level

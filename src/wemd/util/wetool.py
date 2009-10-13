@@ -2,122 +2,101 @@ import sys, os, re, logging
 from optparse import OptionParser
 from command_optparse import CommandOptionParser
 from wemd.environment import *
+from wemd.util.config_dict import ConfigDict
+from wemd.util.miscfn import logging_level_by_name
+
 
 class WECmdLineTool(object):
-    state_short_option = '-S'
-    state_long_option  = '--state'
-    seg_id_short_option = '-s'
-    seg_id_long_option = '--seg-id'
-    we_iter_short_option = '-i'
-    we_iter_long_option  = '--iter'
-    
+    RC_SHORT_OPTION = '-r'
+    RC_LONG_OPTION  = '--rcfile'
+    RC_DEFAULT      = 'run.cfg'
+
+    @classmethod
+    def add_rc_option(cls, parser):
+        parser.add_option(cls.RC_SHORT_OPTION, cls.RC_LONG_OPTION,
+                          dest='rcfile', 
+                          help='runtime configuration is in RCFILE '
+                              +'(default: %s)' % cls.RC_DEFAULT,
+                          default=cls.RC_DEFAULT)
+        
     usage = '%prog [options] COMMAND [...]'
     description = None
     
-    def __init__(self):
-                
+    def __init__(self):    
         self.input_stream  = sys.stdin
         self.output_stream = sys.stdout
         self.error_stream  = sys.stderr
+        self.runtime_config = None
+        self.dbengine = None
+        self.DBSession = None
+        self.log = logging.getLogger('%s.%s' 
+                                     % (__name__, self.__class__.__name__))
         
-        self.datamgr = None
-        self.current_iteration = None
-        self.current_segment = None
+    def read_runtime_config(self, opts):
+        self.runtime_config = ConfigDict()
+        try:
+            self.runtime_config.read_config_file(opts.rcfile)
+        except IOError, e:
+            self.error_stream.write('cannot open runtime config file: %s\n' % e)
+            self.exit(EX_RTC_ERROR)
+        self.configure_logging()
         
-        logging.basicConfig(level=logging.WARN)
+    def connect_db(self):
+        self.runtime_config.require('data.db.url')
+        db_url = self.runtime_config['data.db.url']
+        self.log.info('connecting to %r' % db_url)
         
+        import wemd.data_manager
+        from sqlalchemy import create_engine
+        from sqlalchemy.orm import sessionmaker
+        
+        self.dbengine = create_engine(db_url)
+        self.DBSession = sessionmaker(bind=self.dbengine,
+                                      autocommit = True,
+                                      autoflush = False)
+        self.runtime_config['data.db.engine'] = self.dbengine
+        self.runtime_config['data.db.sessionmaker'] = self.DBSession
+        
+    def configure_logging(self):
+        #logging.basicConfig()
+        logkeys = set(k for k in self.runtime_config
+                      if k.startswith('logging.'))
+        
+        logger_settings = LOGGING_DEFAULT_SETTINGS.copy()
+        for key in logkeys:
+            item = key[8:]
+            value = self.runtime_config[key]
+            try:
+                (logger_name, param) = item.rsplit('.', 1)
+            except ValueError:
+                continue
+            else:
+                if param not in ('level', 'format', 'handler'):
+                    continue
+            if logger_name == 'root': logger_name = ''
+            try:
+                logger_settings[logger_name][param] = value
+            except KeyError:
+                logger_settings[logger_name] = {param: value}
+                
+        for (logger_name, settings) in logger_settings.iteritems():                
+            level = logging_level_by_name(settings.get('level', 'NOTSET'))
+            logger = logging.getLogger(logger_name)
+            logger.setLevel(level)
+            try:
+                format = settings['format']
+            except KeyError:
+                pass
+            else:
+                handler = logging.StreamHandler()
+                handler.setFormatter(logging.Formatter(format))
+                logger.addHandler(handler)
+                logger.propagate = False
+                            
     def exit(self, code=0):
+        self.log.info('exiting with code %d (%s)' 
+                       % (code, get_exit_code_name(code)))
         sys.exit(code)
-                
-    def add_state_option(self, parser):
-        parser.add_option(self.state_short_option, self.state_long_option, 
-                          dest='state',
-                          help='simulation status/data is located in STATE '
-                              +'(default: taken from $%s)' % ENV_STATE)
-        
-    def add_seg_id_option(self, parser):
-        parser.add_option(self.seg_id_short_option, self.seg_id_long_option,
-                          dest='seg_id', type='long',
-                          help='use SEG_ID as the applicable segment (default: '
-                              +'taken from $%s' % ENV_CURRENT_SEG_ID)
-        
-    def add_we_iter_option(self, parser, source='state'):
-        if source == 'environment':
-            src_msg = '$' + ENV_CURRENT_ITER
-        else:
-            src_msg = 'stored state'
-            
-        parser.add_option(self.we_iter_short_option, self.we_iter_long_option,
-                          dest='we_iter', type='long',
-                          help='use WE_ITER as the applicable iteration '
-                              +'(default: taken from %s)' % src_msg)
-        
-    def format_env_error_message(self, msg, optname, envname):
-        return (msg.rstrip() + ' not specified on command line (%s) ' % optname
-                + 'or in $%s' % envname) 
-        
-    def connect_datamgr(self, opts = None):
-        from we.data_managers import make_data_manager
-        try:
-            source = opts.state
-        except AttributeError:
-            source = None
-            
-        if source is None:
-            try:
-                source = get_we_variable(ENV_STATE)
-            except WEEnvironmentVarError:
-                self.error_stream.write(
-                    self.format_env_error_message('state/data source',
-                                                  self.state_long_option,
-                                                  ENV_STATE) + '\n')
-                self.exit(EX_ENVIRONMENT_ERROR)
-        self.datamgr = make_data_manager(source)
-            
-    def load_state(self, opts = None):
-        if not self.datamgr:
-            self.connect_datamgr(opts)
-        self.datamgr.restore_state()
-        
-    def set_current_iteration(self, opts = None):
-        try:
-            we_iter = opts.we_iter
-        except AttributeError:
-            we_iter = None
-            
-        if we_iter is None:
-            try:
-                we_iter = long(get_we_variable(ENV_CURRENT_ITER))
-            except WEEnvironmentVarError:
-                try:
-                    we_iter = self.datamgr.current_iteration
-                except AttributeError:
-                    self.error_stream.write(
-                        self.format_env_error_message('current iteration', 
-                                                      self.we_iter_long_option,
-                                                      ENV_CURRENT_ITER) + '\n')
-                    self.exit(EX_ENVIRONMENT_ERROR)
-        self.current_iteration = we_iter
-        
-    def load_current_segment(self, opts = None):
-        self.set_current_iteration(opts)
-        try:
-            seg_id = opts.seg_id
-        except AttributeError:
-            pass
-        
-        if seg_id is None:
-            try:
-                seg_id = long(get_we_variable(ENV_CURRENT_SEG_ID))
-            except WEEnvironmentError:
-                self.error_stream.write(
-                    self.format_env_error_message('current segment ID', 
-                                                  self.seg_id_long_option,
-                                                  ENV_CURRENT_SEG_ID) + '\n')
-                self.exit(EX_ENVIRONMENT_ERROR)
-                
-        self.current_segment = self.datamgr.get_segment(self.current_iteration,
-                                                        seg_id)
 
     def run(self):
         raise NotImplementedError
@@ -158,5 +137,6 @@ class WECmdLineMultiTool(WECmdLineTool):
         self.command_parser.add_command('help', 'show help', self.cmd_help, 
                                         False)
         (self.global_opts, self.command_args) = self.command_parser.parse_args()
+        self.read_runtime_config(self.global_opts)
         self.command = self.command_parser.command
         self.command(self.command_args)

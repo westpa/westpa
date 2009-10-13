@@ -41,6 +41,7 @@ class ConfigDict(dict):
         self.filename = self['__file__'] = os.path.abspath(config_filename)
         self.dirname  = self['__dir__'] = os.path.dirname(self.filename)
         
+        defaults = cparser.defaults()
         for section in cparser.sections():
             log.debug('processing section %r' % section)
             for (key, value) in cparser.items(section):

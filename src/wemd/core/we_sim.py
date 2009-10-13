@@ -4,6 +4,7 @@ import numpy
 import time, datetime        
 from wemd.core.particles import Particle, ParticleCollection
 from wemd.core.segments import Segment
+from wemd.core.errors import PropagationIncompleteError
 
 ZERO_INTERVAL = datetime.timedelta(0)
 
@@ -25,54 +26,45 @@ class WESimIter:
         self.norm = norm
         self.cputime = cputime
         self.walltime = walltime
-        self.data = data or {}
+        self.data = data
         
 class WESimDriver:
-    def __init__(self):
+    def __init__(self, runtime_config):
         self.we_driver = None
+        self.work_manager = None
+        self.runtime_config = runtime_config
         
-        self.runtime_config = None
-        self.dbengine = None
-        self.DBSession = None
+        self.dbengine = runtime_config['data.db.engine']
+        self.DBSession = runtime_config['data.db.sessionmaker']
         self.dbsession = None
         self.segments = None           
             
-    def init_runtime(self, runtime_config):
+    def init_runtime(self):
         from string import Template
-        for item in ('data.state', 'data.db.url'):
-            runtime_config.require(item)
-            
-        drtemplate = runtime_config.setdefault('data.segrefs.template', 
-                                               'traj_segs/${we_iter}/${seg_id}')
+        self.runtime_config.require('data.state')
+        drtemplate = self.runtime_config.setdefault('data.segrefs.template', 
+                                                   'traj_segs/${we_iter}/${seg_id}')
         try:
             ctemplate = Template(drtemplate)
         except Exception, e:
             raise ConfigError('invalid data ref template', e)
         else:
-            runtime_config['data.segrefs.ctemplate'] = ctemplate
-            
-        self.runtime_config = runtime_config
-                
-    def connect_db(self):
-        import wemd.data_manager
-        import sqlalchemy
-        
-        db_url = self.runtime_config['data.db.url']
-        log.debug('connecting to %r' % db_url)
-        self.dbengine = sqlalchemy.create_engine(db_url)
-        self.DBSession = sqlalchemy.orm.sessionmaker(bind=self.dbengine,
-                                                     autocommit=True,
-                                                     autoflush=False)
+            self.runtime_config['data.segrefs.ctemplate'] = ctemplate
         
     def save_state(self):
+        state_filename = self.runtime_config['data.state']
+        log.info('saving state to %s' % state_filename)
         state_dict = {'we_driver': self.we_driver}
-        pickle.dump(state_dict, open(self.runtime_config['data.state'], 'wb'),
-                    -1)
+        log.debug('state info: %r' % state_dict)
+        pickle.dump(state_dict, open(state_filename, 'wb'), -1)
     
     def restore_state(self):
-        state_dict = pickle.load(open(self.runtime_config['data.state']))
-        self.sim_driver = state_dict['we_driver']
-    
+        state_filename = self.runtime_config['data.state']
+        log.info('loading state from %s' % state_filename)
+        state_dict = pickle.load(open(state_filename))
+        log.debug('state info: %r' % state_dict)
+        self.we_driver = state_dict['we_driver']
+        
     def make_data_ref(self, segment):
         template = self.runtime_config['data.segrefs.ctemplate']
         return template.substitute(segment.__dict__)
@@ -92,7 +84,13 @@ class WESimDriver:
     def run_we(self):
         assert self.dbsession
         assert self.segments
+        
+        for segment in segments:
+            if segment.status != Segment.SEG_STATUS_COMPLETE:
+                raise PropagationIncompleteError('segment %s is not propagated'
+                                                 % segment.seg_id)
 
+        log.info('running WE on %d particles' % len(self.segments))
         current_particles = self.segments_to_particles(self.segments)
         
         # Perform actual WE calculation
@@ -149,8 +147,7 @@ class WESimDriver:
         for item in ('wemd.initial_particles', 'wemd.initial_pcoord'):
             sim_config.require(item)
             
-        log.debug('creating database tables')
-        self.dbengine.echo = True
+        log.info('creating database tables')
         metadata.create_all(bind=self.dbengine)
         
         # Create and configure the WE driver
@@ -158,6 +155,7 @@ class WESimDriver:
         we_driver.initialize(sim_config)
         
         # Create the initial segments
+        log.info('creating initial segments')
         n_init = sim_config.get_int('wemd.initial_particles')
         pcoord = numpy.array([float(x) for x in 
                               sim_config.get_list('wemd.initial_pcoord')])        
@@ -186,4 +184,36 @@ class WESimDriver:
         # Run one iteration of WE to assign particles to bins
         self.segments = segments
         self.run_we()
+        self.dbsession.close()
         
+    def run_sim(self):
+        from sqlalchemy.orm import eagerload
+        max_iterations = self.runtime_config.get_int('wemd.max_iterations')
+        while self.we_driver.current_iteration <= max_iterations:
+            log.info('WE iteration %d (of %d requested)'
+                     % (self.we_driver.current_iteration, max_iterations))
+            self.dbsession = self.DBSession()
+            segs_remaining = self.dbsession.query(Segment)\
+                .filter(Segment.we_iter == self.we_driver.current_iteration)\
+                .filter(Segment.status != Segment.SEG_STATUS_COMPLETE)\
+                .options(eagerload(Segment.p_parent))\
+                .all()
+            log.info('%d segments remaining in WE iteration %d' 
+                     % (len(segs_remaining), self.we_driver.current_iteration))
+            self.dbsession.begin()
+            try:
+                self.work_manager.propagate_segments(segs_remaining)
+                self.dbsession.flush()
+                self.dbsession.commit()
+            except:
+                self.dbsession.rollback()
+                raise
+            
+            # check to see that all segments are SEG_STATUS_COMPLETE
+            # or abort
+            
+            # load segments into self.segments
+            # run we
+            
+            
+            
