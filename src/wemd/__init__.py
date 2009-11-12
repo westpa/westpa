@@ -1,7 +1,10 @@
+import util.extlogger
 import logging
+logging.getLogger('')
 log = logging.getLogger('wemd')
+
 import core, environment, util
-import we_drivers, work_managers, backend_drivers
+import we_drivers, work_managers, sim_managers, backend_drivers
 from core.errors import *
 from core import Segment, Particle, WESimIter
 

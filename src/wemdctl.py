@@ -25,7 +25,7 @@ class WEMDCtlTool(WECmdLineMultiTool):
         else:
             sim_config_file = args[0]
         
-        from wemd.core.we_sim import WESimDriver
+        from wemd.sim_managers import make_sim_manager
         from wemd.util.config_dict import ConfigDict
         sim_config = ConfigDict()
         try:
@@ -35,11 +35,9 @@ class WEMDCtlTool(WECmdLineMultiTool):
             self.error_stream.write('cannot open simulation config file: %s\n' % e)
             self.exit(EX_ENVIRONMENT_ERROR)
         
-        sim_driver = WESimDriver(self.runtime_config)
-        sim_driver.init_runtime()
-        sim_driver.connect_db()
-        sim_driver.init_sim(sim_config)
-        sim_driver.save_state()
+        sim_manager = make_sim_manager(self.runtime_config)
+        sim_manager.initialize_simulation(sim_config)
+        sim_manager.save_state()
         self.exit()
                 
 if __name__ == '__main__':

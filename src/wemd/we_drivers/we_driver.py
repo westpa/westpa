@@ -16,18 +16,15 @@ from wemd.core.segments import Segment
 from wemd.core.binarrays import BinArray
 
 class WEDriver:
-    def __init__(self):
-        self.current_iteration = None
+    def __init__(self, sim_config):
+        self.current_iteration = 0
         self.particles = None
         self.particle_lineages = None
         self.bins = None
         self.bins_population = None
         self.bins_nparticles = None
         self.bins_flux = None
-        
-    def initialize(self, sim_config):
-        self.current_iteration = 0
-                    
+                            
     def make_bins(self):
         raise NotImplementedError
                                         

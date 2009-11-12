@@ -7,8 +7,8 @@ from wemd.core.binarrays import Bin, BinArray
 from wemd.core import ConfigError
 
 class FixedBinWEDriver(WEDriver):
-    def initialize(self, sim_config):
-        super(FixedBinWEDriver,self).initialize(sim_config)
+    def __init__(self, sim_config):
+        super(FixedBinWEDriver,self).__init__(sim_config)
         self.configure_bin_params(sim_config)
     
     def configure_bin_params(self, sim_config):
