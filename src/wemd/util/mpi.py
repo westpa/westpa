@@ -9,7 +9,7 @@ def is_mpi_active():
     else:
         return True
 
-def is_mpi_rank0():
+def is_rank_0():
     try:
         from mpi4py import MPI
     except ImportError:
@@ -24,7 +24,7 @@ def getnodename():
         from socket import gethostname
         return gethostname()
     else:
-        return MPI.Get_processor_name
+        return MPI.Get_processor_name()
 
 def getrank():
     try:

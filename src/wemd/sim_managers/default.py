@@ -19,7 +19,7 @@ log = logging.getLogger(__name__)
 class DefaultWEMaster(WESimMaster):
     def __init__(self, runtime_config):
         super(DefaultWEMaster,self).__init__(runtime_config)
-        self.load_backend_driver()
+        if self.backend_driver is None: self.load_backend_driver()
 
         self.dbengine = None
         self.DBSession = None

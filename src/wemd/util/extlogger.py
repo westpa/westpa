@@ -20,5 +20,5 @@ class ExtendedLogger(logging.getLoggerClass()):
 
 
 ExtendedLogger.clsextra['nodename'] = mpi.getnodename()
-ExtendedLogger.clsextra['mpi_rank'] = mpi.getrank()
+ExtendedLogger.clsextra['proc_rank'] = mpi.getrank()
 logging.setLoggerClass(ExtendedLogger)

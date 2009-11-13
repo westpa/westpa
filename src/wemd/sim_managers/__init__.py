@@ -1,5 +1,8 @@
 __metaclass__ = type
 
+import logging
+log = logging.getLogger(__name__)
+
 class WESimManagerBase:
     """
     Simulation driver portions common to both master and workers
@@ -61,6 +64,25 @@ class WESimMaster(WESimManagerBase):
     def restore_state(self):
         raise NotImplementedError
 
+from wemd.core.errors import ConfigError
 def make_sim_manager(runtime_config):
     from default import DefaultWEMaster
-    return DefaultWEMaster(runtime_config)
+    driver_name = runtime_config.get('sim_manager.driver', 'serial')
+    driver_name = driver_name.lower()
+    if driver_name in ('', 'serial', 'default'):
+        log.info('using default simulation manager')
+        return DefaultWEMaster(runtime_config)
+    elif driver_name == 'mpi':
+        log.info('using MPI simulation manager')
+        from wemd import util
+        from mpi import MPIWEMaster, MPIWEWorker
+        if not util.mpi.is_mpi_active():
+            log.warning('MPI environment not available; using serial driver')
+            return DefaultWEMaster(runtime_config)
+        elif util.mpi.is_rank_0():
+            return MPIWEMaster(runtime_config)
+        else:
+            return MPIWEWorker(runtime_config)
+    else:
+        raise ConfigError('invalid simulation manager driver %r specified'
+                          % driver_name)
