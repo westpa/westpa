@@ -16,8 +16,9 @@ from mpi4py import MPI
 class MPISimManager(WESimManagerBase):
     ROOT_TASK = 0
     
-    TAG_EXIT = 1
-    TAG_AWAIT_SCATTER = 10
+    TAG_WORKER_MESSAGE = 1
+    MSG_EXIT = 1
+    MSG_AWAIT_SEGMENT_SCATTER = 10
     
     def __init__(self, runtime_config):
         super(MPISimManager,self).__init__(runtime_config)
@@ -26,25 +27,7 @@ class MPISimManager(WESimManagerBase):
                     os.getpid()))
         self.load_backend_driver()
         self.comm = MPI.COMM_WORLD
-        
-    def recv_object(self, source=0, tag=0, status = None):
-        #rsize = numpy.array([0], '>I')
-        #log.debug('awaiting object size')
-        #self.comm.Recv((rsize, 1, MPI.UNSIGNED_INT), source=source, tag=tag)
-        #log.debug('received object size %d' % rsize[0])
-        #log.debug('awaiting object')
-        #buf = numpy.array((rsize[0],), numpy.byte)
-        #self.comm.Recv((buf, rsize[0], MPI.BYTE), source=source, tag=tag)
-        #obj = pickle.loads(buf.data)
-        #obj = self.comm.recv(source = source, tag = tag, status = status)
-        self.comm.Probe(source = source, tag = tag, status = status)
-        log.debug('probed message of tag %d, length %d bytes' 
-                  % (status.tag, status.Get_count()))
-        buf = numpy.empty((status.Get_count(),), numpy.ubyte)
-        self.comm.Recv((buf, MPI.BYTE), source = source, tag = tag, status=status)
-        log.debug('receive buffer data: %r' % str(buf.data))
-        return pickle.loads(str(buf.data))
-        
+                
     def scatter_propagate_gather(self, segments):
         if segments:
             log.debug('scattering %d segments' % len(segments))
@@ -59,6 +42,12 @@ class MPISimManager(WESimManagerBase):
             self.backend_driver.propagate_segments([segment])
             log.debug('dispatching segment %r via gather' % segment.seg_id)
         return self.comm.gather(segment, self.ROOT_TASK)
+    
+    def _get_message_name(self, msgno):
+        msg_idx = dict((getattr(self, name), name) for name in dir(self)
+                       if name.startswith('MSG_'))
+        return msg_idx.get(msgno, str(msgno))
+        
         
 class MPIWEMaster(DefaultWEMaster, MPISimManager):
     def __init__(self, runtime_config):
@@ -66,26 +55,34 @@ class MPIWEMaster(DefaultWEMaster, MPISimManager):
         
     def run(self):
         super(MPIWEMaster,self).run()
-        self.send_directive(self.TAG_EXIT, 0)
+        self.send_directive(self.MSG_EXIT, 0)
         
-    def send_directive(self, tag, data = None, block = True):
-        pdata = pickle.dumps(data, -1)
-        #log.debug('pickled data: %r' % pdata)
-        #bdata = numpy.zeros((len(pdata),), numpy.ubyte)
-        #bdata.data[:] = pdata
-        #log.debug('send buffer data: %r' % str(bdata.data))
+    def send_directive(self, msg, data = None, block = True):
+        pdata = pickle.dumps((msg,data), -1)
         requests = []
+        if log.getEffectiveLevel() <= logging.DEBUG:
+            msgname = self._get_message_name(msg)
+        else:
+            msgname = str(msg)
+            
         for rank in xrange(0, self.comm.size):
             if rank == self.comm.rank: continue            
             # Send the data, and record the request handle
-            requests.append(self.comm.Isend((pdata, len(pdata), MPI.BYTE), rank, tag))
-            #self.comm.Send((bdata.data, bdata.nbytes, MPI.BYTE), rank, tag)
-            log.debug('dispatched message %d to rank %d' % (tag, rank))
+            requests.append(self.comm.Isend((pdata, len(pdata), MPI.BYTE), 
+                                            rank,
+                                            self.TAG_WORKER_MESSAGE))
+            log.debug('dispatched message %s to rank %d' % (msgname, rank))
         if block:
             log.debug('waiting on delivery of all messages')
             MPI.Request.Waitall(requests)
-        else:
-            return requests
+            
+        # pdata cannot be destroyed until actual send completes, so make sure
+        # to hang onto a reference to it until *AFTER* the Waitall()
+        # No way to do this with Python reference counting without using a
+        # thread to dispatch the non-blocking sends and then wait on them,
+        # then check whether the thread has terminated.  So, just pass out
+        # a reference to pdata for the caller to hold onto if so desired.
+        return requests, pdata
         
     def propagate_particles(self):
         current_iteration = self.current_iteration
@@ -93,23 +90,27 @@ class MPIWEMaster(DefaultWEMaster, MPISimManager):
                  % (current_iteration, self.max_iterations))
         q_inc = self.q_incomplete_segments(current_iteration)
         n_inc = q_inc.count()
+        n_workers = self.comm.size
         log.info('%d segments remaining in WE iteration %d'
                  % (n_inc, current_iteration))
-        log.debug('dispatching to %d processes' % self.comm.size)
+        log.debug('dispatching to %d processes' % n_workers)
         
-        # DANGER OF HANG HERE (if some segment can never finish...)
+        # XXX: DANGER OF HANG HERE (if some segment can never finish...)
         while q_inc.count() > 0:
-            requests = self.send_directive(self.TAG_AWAIT_SCATTER, block = True)
-            segments = q_inc[0:self.comm.size]            
-            if len(segments) < self.comm.size:
-                segments = [None] * (self.comm.size - len(segments)) + segments
-            #log.debug('waiting on completed send of TAG_AWAIT_SCATTER')
-            #MPI.Request.Waitall(requests)
+            requests,pdata = self.send_directive(self.MSG_AWAIT_SEGMENT_SCATTER, 
+                                                  block = False)
+            segments = q_inc[0:n_workers]            
+            if len(segments) < n_workers:
+                segments = [None] * (n_workers - len(segments)) + segments
+            log.debug('waiting on completed send of MSG_AWAIT_SEGMENT_SCATTER')                
+            MPI.Request.Waitall(requests)            
+            del pdata
             
             log.debug('scattering %d segments to %d workers' 
-                      % (len(segments), self.comm.size))
+                      % (len(segments), n_workers))
             segments = self.scatter_propagate_gather(segments)
             
+            log.debug('flushing changes to DB')
             self.dbsession.begin()
             for segment in segments:
                 if segment:
@@ -129,23 +130,30 @@ class MPIWEWorker(MPISimManager):
     def restore_state(self):
         # No need for clients to restore state
         pass
-        
+    
+    def unknown_message_abort(self, status, data):
+        from wemd.environment import EX_COMM_ERROR
+        log.fatal('unknown message %r (tag %d from rank %d) received'
+                  % (data, status.tag, status.source))
+        self.comm.Abort(EX_COMM_ERROR)
+    
     def run(self):
         log.info('entering receive loop')
         while True:
             status = MPI.Status()
-            #data = self.recv_object(source = self.ROOT_TASK, 
-            #                        tag=MPI.ANY_TAG, 
-            #                        status = status)
             data = self.comm.recv(source = self.ROOT_TASK,
                                   tag = MPI.ANY_TAG,
                                   status = status)
-            if status.tag == self.TAG_AWAIT_SCATTER:
-                log.debug('received scatter wait message')
-                self.scatter_propagate_gather(None)
-            elif status.tag == self.TAG_EXIT:
-                log.debug('received exit message')
-                sys.exit(data)
-            else:
-                log.fatal('unknown message (%d) received' % status.tag)
-                self.comm.Abort(253)
+            (msgno, msgdata) = data        
+            if status.tag == self.TAG_WORKER_MESSAGE:
+                if log.getEffectiveLevel() <= logging.DEBUG:
+                    log.debug('received message %s' % self._get_message_name(msgno))
+                
+                if msgno == self.MSG_AWAIT_SEGMENT_SCATTER:
+                    log.debug('awaiting scatter')
+                    self.scatter_propagate_gather(None)
+                elif msgno == self.MSG_EXIT:
+                    log.info('exiting on directive from master process')
+                    sys.exit(data)
+                else:
+                    raise ValueError('invalid worker message %d' % msgno)
