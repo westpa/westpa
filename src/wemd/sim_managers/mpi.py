@@ -28,15 +28,22 @@ class MPISimManager(WESimManagerBase):
         self.comm = MPI.COMM_WORLD
         
     def recv_object(self, source=0, tag=0, status = None):
-        rsize = numpy.array([0], 'i')
-        log.debug('awaiting object size')
-        self.comm.Recv((rsize, MPI.INT), source=source, tag=tag)
-        log.debug('received object size %d' % rsize[0])
-        log.debug('awaiting object')
-        buf = numpy.array((rsize[0],), numpy.byte)
-        self.comm.Recv((buf, MPI.BYTE), source=source, tag=tag)
-        obj = pickle.loads(buf.data)
-        return obj
+        #rsize = numpy.array([0], '>I')
+        #log.debug('awaiting object size')
+        #self.comm.Recv((rsize, 1, MPI.UNSIGNED_INT), source=source, tag=tag)
+        #log.debug('received object size %d' % rsize[0])
+        #log.debug('awaiting object')
+        #buf = numpy.array((rsize[0],), numpy.byte)
+        #self.comm.Recv((buf, rsize[0], MPI.BYTE), source=source, tag=tag)
+        #obj = pickle.loads(buf.data)
+        #obj = self.comm.recv(source = source, tag = tag, status = status)
+        self.comm.Probe(source = source, tag = tag, status = status)
+        log.debug('probed message of tag %d, length %d bytes' 
+                  % (status.tag, status.Get_count()))
+        buf = numpy.empty((status.Get_count(),), numpy.ubyte)
+        self.comm.Recv((buf, MPI.BYTE), source = source, tag = tag, status=status)
+        log.debug('receive buffer data: %r' % str(buf.data))
+        return pickle.loads(str(buf.data))
         
     def scatter_propagate_gather(self, segments):
         if segments:
@@ -62,20 +69,17 @@ class MPIWEMaster(DefaultWEMaster, MPISimManager):
         self.send_directive(self.TAG_EXIT, 0)
         
     def send_directive(self, tag, data = None, block = True):
-        size = numpy.array([0], 'i')
-        bpdata = buffer(pickle.dumps(data))
-        size[0] = len(bpdata)
-        
+        pdata = pickle.dumps(data, -1)
+        #log.debug('pickled data: %r' % pdata)
+        #bdata = numpy.zeros((len(pdata),), numpy.ubyte)
+        #bdata.data[:] = pdata
+        #log.debug('send buffer data: %r' % str(bdata.data))
         requests = []
         for rank in xrange(0, self.comm.size):
-            if rank == self.comm.rank: continue
-            # Send the size
-            log.debug('sending object size %d to rank %d'  
-                      % (size[0], rank))
-            self.comm.Isend((size, MPI.INT), rank, tag)
-            
+            if rank == self.comm.rank: continue            
             # Send the data, and record the request handle
-            requests.append(self.comm.Isend((bpdata, MPI.BYTE), rank, tag))
+            requests.append(self.comm.Isend((pdata, len(pdata), MPI.BYTE), rank, tag))
+            #self.comm.Send((bdata.data, bdata.nbytes, MPI.BYTE), rank, tag)
             log.debug('dispatched message %d to rank %d' % (tag, rank))
         if block:
             log.debug('waiting on delivery of all messages')
@@ -95,12 +99,12 @@ class MPIWEMaster(DefaultWEMaster, MPISimManager):
         
         # DANGER OF HANG HERE (if some segment can never finish...)
         while q_inc.count() > 0:
-            requests = self.send_directive(self.TAG_AWAIT_SCATTER, block = False)
+            requests = self.send_directive(self.TAG_AWAIT_SCATTER, block = True)
             segments = q_inc[0:self.comm.size]            
             if len(segments) < self.comm.size:
                 segments = [None] * (self.comm.size - len(segments)) + segments
-            log.debug('waiting on completed send of TAG_AWAIT_SCATTER')
-            MPI.Request.Waitall(requests)
+            #log.debug('waiting on completed send of TAG_AWAIT_SCATTER')
+            #MPI.Request.Waitall(requests)
             
             log.debug('scattering %d segments to %d workers' 
                       % (len(segments), self.comm.size))
@@ -130,14 +134,18 @@ class MPIWEWorker(MPISimManager):
         log.info('entering receive loop')
         while True:
             status = MPI.Status()
-            data = self.recv_object(source = self.ROOT_TASK, 
-                                    tag=MPI.ANY_TAG, 
-                                    status = status)
+            #data = self.recv_object(source = self.ROOT_TASK, 
+            #                        tag=MPI.ANY_TAG, 
+            #                        status = status)
+            data = self.comm.recv(source = self.ROOT_TASK,
+                                  tag = MPI.ANY_TAG,
+                                  status = status)
             if status.tag == self.TAG_AWAIT_SCATTER:
                 log.debug('received scatter wait message')
                 self.scatter_propagate_gather(None)
             elif status.tag == self.TAG_EXIT:
                 log.debug('received exit message')
+                sys.exit(data)
             else:
                 log.fatal('unknown message (%d) received' % status.tag)
                 self.comm.Abort(253)
