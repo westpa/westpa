@@ -30,10 +30,12 @@ class DefaultWEMaster(WESimMaster):
 
         drtemplate = self.runtime_config.setdefault('data.segrefs.template', 
                                                    'traj_segs/${we_iter}/${seg_id}')
+
+        ctemplate = string.Template(drtemplate)
         try:
-            ctemplate = string.Template(drtemplate)
-        except Exception, e:
-            raise ConfigError('invalid data ref template', e)
+            ctemplate.safe_substitute(dict())
+        except ValueError, e:
+            raise ConfigError('invalid data ref template %r' % drtemplate)
         else:
             self.runtime_config['data.segrefs.ctemplate'] = ctemplate
 
@@ -44,7 +46,7 @@ class DefaultWEMaster(WESimMaster):
         
     def make_data_ref(self, segment):
         template = self.runtime_config['data.segrefs.ctemplate']
-        return template.substitute(segment.__dict__)
+        return template.safe_substitute(segment.__dict__)
         
     current_iteration = property((lambda s: s.we_driver.current_iteration),
                                  None, None)

@@ -1,4 +1,4 @@
-import os, sys, re
+import os, sys, re, string
 import logging
 log = logging.getLogger('wemd.util.config_dict')
 
@@ -34,12 +34,14 @@ class ConfigDict(dict):
                 
         log.debug('opening %r' % config_filename)
         config_file = open(config_filename, 'r')
-        cparser = SafeConfigParser()
+        self.filename = self['__file__'] = os.path.abspath(config_filename)
+        self.dirname  = self['__dir__'] = os.path.dirname(self.filename)
+
+        cparser = SafeConfigParser({'__file__': self.filename,
+                                    '__dir__': self.dirname})
         cparser.optionxform = str
         cparser.readfp(config_file)
         
-        self.filename = self['__file__'] = os.path.abspath(config_filename)
-        self.dirname  = self['__dir__'] = os.path.dirname(self.filename)
         
         defaults = cparser.defaults()
         for section in cparser.sections():
@@ -152,6 +154,31 @@ class ConfigDict(dict):
             return os.path.normpath(path)
         else:
             return os.path.normpath(os.path.join(self['__dirname__'], path))
+        
+    def get_compiled_template(self, key, *args):
+        if len(args) > 1:
+            raise TypeError('unexpected positional argument encountered')
+        
+        try:
+            template = self[key]
+        except KeyError, ke:
+            try:
+                template = args[0]
+            except IndexError:
+                raise ke
+                
+        if not template: 
+            return None
+        elif not isinstance(template, string.Template):
+            template = string.Template(template)
+        
+        try:
+            template.safe_substitute(dict())
+        except ValueError, e:
+            raise ConfigError('invalid substitution template %r in %r: %s'
+                              % (template.template, key, e))
+        else:
+            return template
         
     def get_python_object(self, key, *args):
         if len(args) > 1:

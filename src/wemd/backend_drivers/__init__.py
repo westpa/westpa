@@ -7,6 +7,24 @@ class BackendDriver:
     def __init__(self, runtime_config):
         self.runtime_config = runtime_config
         
+    def pre_sim(self):
+        pass
+    
+    def post_sim(self):
+        pass
+        
+    def pre_iter(self, we_iter):
+        pass
+    
+    def post_iter(self, we_iter):
+        pass
+    
+    def pre_segment(self, segment):
+        pass
+    
+    def post_segment(self, segment):
+        pass
+        
     def propagate_segments(self, segments):
         raise NotImplementedError
 

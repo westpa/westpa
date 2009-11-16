@@ -21,10 +21,6 @@ class Segment:
                  walltime = None, cputime = None,
                  starttime = None, endtime = None,
                  data = None):
-        super(Segment,self).__init__(weight = weight,
-                                     pcoord = pcoord,
-                                     p_parent = p_parent,
-                                     parents = parents)
         
         self.seg_id = seg_id            
         self.we_iter = we_iter
