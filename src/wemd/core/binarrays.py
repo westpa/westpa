@@ -71,6 +71,9 @@ class BinArray:
     def clear(self):
         for bin in self.bins.flat:
             bin.clear()
+            
+    def __len__(self):
+        return self.bins.size
 
     def __iter__(self):
         return self.bins.flat

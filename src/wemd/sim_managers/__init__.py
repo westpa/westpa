@@ -11,6 +11,7 @@ class WESimManagerBase:
         self.runtime_config = runtime_config
         self.backend_driver = None
         self.we_driver = None
+        self.we_iter = None
         
     def load_backend_driver(self):
         from wemd.backend_drivers import make_backend_driver
@@ -54,8 +55,10 @@ class WESimMaster(WESimManagerBase):
     def run(self):
         while self.continue_simulation():
             self.prepare_iteration()
+            self.backend_driver.pre_iter(self.we_iter)
             self.propagate_particles()
             self.run_we()
+            self.backend_driver.post_iter(self.we_iter)
             self.finalize_iteration()
     
     def save_state(self):

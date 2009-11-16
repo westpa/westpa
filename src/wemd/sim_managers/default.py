@@ -47,9 +47,6 @@ class DefaultWEMaster(WESimMaster):
     def make_data_ref(self, segment):
         template = self.runtime_config['data.segrefs.ctemplate']
         return template.safe_substitute(segment.__dict__)
-        
-    current_iteration = property((lambda s: s.we_driver.current_iteration),
-                                 None, None)
             
     def connect_db(self):
         db_url = self.runtime_config['data.db.url']
@@ -97,20 +94,29 @@ class DefaultWEMaster(WESimMaster):
         self.we_driver = state_dict['we_driver']
             
     def q_incomplete_segments(self, we_iter = None):
-        if we_iter is None: we_iter = self.current_iteration
+        if we_iter is None: we_iter = self.we_iter
         return self.dbsession.query(Segment)\
-            .filter(Segment.we_iter == we_iter)\
+            .filter(Segment.we_iter == we_iter.we_iter)\
             .filter(Segment.status != Segment.SEG_STATUS_COMPLETE)\
             .options(eagerload(Segment.p_parent))\
             .order_by(Segment.seg_id)
             
-    def q_complete_segments(self, we_iter = None):
-        if we_iter is None: we_iter = self.current_iteration
+    def q_prepared_segments(self, we_iter = None):
+        if we_iter is None: we_iter = self.we_iter
         return self.dbsession.query(Segment)\
-                   .filter(Segment.we_iter == we_iter)\
+            .filter(Segment.we_iter == we_iter.we_iter)\
+            .filter(Segment.status == Segment.SEG_STATUS_PREPARED)\
+            .options(eagerload(Segment.p_parent))\
+            .order_by(Segment.seg_id)
+            
+    def q_complete_segments(self, we_iter = None):
+        if we_iter is None: we_iter = self.we_iter
+        return self.dbsession.query(Segment)\
+                   .filter(Segment.we_iter == we_iter.we_iter)\
                    .filter(Segment.status == Segment.SEG_STATUS_COMPLETE)
                                               
     def run_we(self):
+        current_iteration = self.we_driver.current_iteration
         n_inc = self.q_incomplete_segments().count()
         if n_inc:
             raise PropagationIncompleteError('%d segments have not been completed'
@@ -121,15 +127,15 @@ class DefaultWEMaster(WESimMaster):
         import sqlalchemy
         SUM = sqlalchemy.func.sum
         
+        assert(self.we_iter is not None and self.we_iter.we_iter == current_iteration)
         self.dbsession.begin()
-        sim_iter = self.dbsession.query(WESimIter).get([self.current_iteration])
-        sim_iter.endtime = datetime.datetime.now()
-        sim_iter.walltime = self.dbsession.query(SUM(Segment.walltime))\
-                            .filter(Segment.we_iter == self.current_iteration)\
-                            .scalar()
-        sim_iter.cputime = self.dbsession.query(SUM(Segment.cputime))\
-                           .filter(Segment.we_iter == self.current_iteration)\
-                           .scalar()
+        self.we_iter.endtime = datetime.datetime.now()
+        self.we_iter.walltime = self.dbsession.query(SUM(Segment.walltime))\
+            .filter(Segment.we_iter == current_iteration)\
+            .scalar()
+        self.we_iter.cputime = self.dbsession.query(SUM(Segment.cputime))\
+            .filter(Segment.we_iter == current_iteration)\
+            .scalar()
         self.dbsession.flush()
         self.dbsession.commit()
         
@@ -143,7 +149,9 @@ class DefaultWEMaster(WESimMaster):
             current_particles.append(p)
         current_particles = ParticleCollection(current_particles)
 
-        log.info('norm = %.15g' % current_particles.norm)
+        norm = current_particles.norm
+        log.info('norm = %.15g; error in norm %.6g' % (norm, norm-1))
+        
         
         # Perform actual WE calculation
         new_particles = self.we_driver.run_we(current_particles)
@@ -231,12 +239,12 @@ class DefaultWEMaster(WESimMaster):
             self.dbsession.add(segment)
         
         # Record dummy stats for the starting iteration
-        stats = WESimIter()
-        stats.we_iter = 0
-        stats.cputime = stats.walltime = 0.0
-        stats.n_particles = len(segments)
-        stats.norm = numpy.sum([seg.weight for seg in segments])
-        self.dbsession.add(stats)
+        self.we_iter = WESimIter()
+        self.we_iter.we_iter = 0
+        self.we_iter.cputime = self.we_iter.walltime = 0.0
+        self.we_iter.n_particles = len(segments)
+        self.we_iter.norm = numpy.sum([seg.weight for seg in segments])
+        self.dbsession.add(self.we_iter)
         
         # Record results to the database
         self.dbsession.commit()
@@ -245,23 +253,23 @@ class DefaultWEMaster(WESimMaster):
         self.run_we()        
         
     def continue_simulation(self):
-        return bool(self.current_iteration <= self.max_iterations)
+        return bool(self.we_driver.current_iteration <= self.max_iterations)
     
     def prepare_iteration(self):
         self.new_dbsession()
-        sim_iter = self.dbsession.query(WESimIter).get([self.current_iteration])
-        if sim_iter.starttime is None:
-            sim_iter.starttime = datetime.datetime.now()
+        self.we_iter = self.dbsession.query(WESimIter).get([self.we_driver.current_iteration])
+        if self.we_iter.starttime is None:
+            self.we_iter.starttime = datetime.datetime.now()
         self.dbsession.flush()
         
     def propagate_particles(self):
-        current_iteration = self.current_iteration
+        current_iteration = self.we_iter.we_iter
         log.info('WE iteration %d (of %d requested)'
                  % (current_iteration, self.max_iterations))
         n_inc = self.q_incomplete_segments(current_iteration).count()
         log.info('%d segments remaining in WE iteration %d'
                  % (n_inc, current_iteration))
-        for segment in self.q_incomplete_segments(current_iteration):
+        for segment in self.q_prepared_segments():
             segments = [segment]
             self.backend_driver.propagate_segments(segments)
             
@@ -275,5 +283,9 @@ class DefaultWEMaster(WESimMaster):
                 self.dbsession.commit()
         
     def finalize_iteration(self):
+        anparticles = self.we_driver.bins.nparticles_array()
+        n_pop_bins = anparticles[anparticles != 0].size
+        n_bins = len(self.we_driver.bins)
+        log.info('%d / %d bins are populated' %( n_pop_bins, n_bins))
         self.save_state()
         self.close_dbsession()

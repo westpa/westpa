@@ -32,10 +32,6 @@ class ExecutableBackend(BackendDriver):
         # etc)
         self.propagator_info =      {'executable': None,
                                      'environ': dict()}
-        self.pre_sim_info =         {'executable': None,
-                                     'environ': dict()}
-        self.post_sim_info =        {'executable': None,
-                                     'environ': dict()}
         self.pre_iteration_info =   {'executable': None,
                                      'environ': dict()}
         self.post_iteration_info =  {'executable': None,
@@ -73,26 +69,26 @@ class ExecutableBackend(BackendDriver):
                        = runtime_config.get('backend.executable.%s' 
                                             % child_type, None)            
             if executable:
-                log.info('%s executable is %r' % (child_type, executable))
+                log.debug('%s executable is %r' % (child_type, executable))
 
                 stdout_template = child_info['stdout_template'] \
                                 = runtime_config.get_compiled_template('backend.executable.%s.stdout_capture' % child_type,
                                                                        None)
                 if stdout_template:
-                    log.info('redirecting %s standard output to %r'
+                    log.debug('redirecting %s standard output to %r'
                              % (child_type, stdout_template.template))
                 stderr_template = child_info['stderr_template'] \
                                 = runtime_config.get_compiled_template('backend.executable.%s.stderr_capture' % child_type,
                                                                        None)
                 if stderr_template:
-                    log.info('redirecting %s standard error to %r'
+                    log.debug('redirecting %s standard error to %r'
                              % (child_type, stderr_template.template))
                     
                 merge_stderr = child_info['merge_stderr'] \
                              = runtime_config.get_bool('backend.executable.%s.merge_stderr_to_stdout' % child_type, 
                                                        False)
                 if merge_stderr:
-                    log.info('merging %s standard error with standard output'
+                    log.debug('merging %s standard error with standard output'
                              % child_type)
                 
                 if stderr_template and merge_stderr:
@@ -117,62 +113,81 @@ class ExecutableBackend(BackendDriver):
         stderr = None
         if child_info['stdout_template']:
             stdout = child_info['stdout_template'].safe_substitute(template_args)
-            log.info('redirecting child stdout to %r' % stdout)
+            if child_info['merge_stderr']:
+                log.debug('redirecting child stdout and stderr to %r' % stdout)
+            else:
+                log.debug('redirecting child stdout to %r' % stdout)
             stdout = open(stdout, 'wb')
         if child_info['stderr_template']:
             stderr = child_info['stderr_template'].safe_substitute(template_args)
-            log.info('redirecting child stderr to %r' % stderr)
+            log.debug('redirecting child stderr to %r' % stderr)
             stderr = open(stderr, 'wb')
         elif child_info['merge_stderr']:
             stderr = subprocess.STDOUT
-            log.info('merging child stderr to stdout')
         
-        log.debug('launching %s executable %r with environment %r' 
-                  % (child_type, exename, child_environ))
+        if log.getEffectiveLevel() <= logging.DEBUG:
+            log.debug('launching %s executable %r with environment %r' 
+                      % (child_type, exename, child_environ))
+        else:
+            log.debug('launching %s executable %r'
+                     % (child_type, exename))
         proc = subprocess.Popen([exename], stdout = stdout, stderr = stderr,
                                 env = child_environ)
-        return proc        
-
-    def pre_sim(self):
-        pass
+        return proc
     
-    def post_sim(self):
-        pass
+    def _iter_environ(self, we_iter):
+        addtl_environ = {self.ENV_CURRENT_ITER: str(we_iter.we_iter)}
+        return addtl_environ
+    
+    def _segment_env(self, segment):
+        addtl_environ = {self.ENV_CURRENT_ITER: str(segment.we_iter),
+                         self.ENV_CURRENT_SEG_DATA_REF: segment.data_ref,
+                         self.ENV_CURRENT_SEG_ID: str(segment.seg_id),}
+        if segment.p_parent:
+            addtl_environ[self.ENV_PARENT_SEG_ID] = str(segment.p_parent.seg_id)
+            addtl_environ[self.ENV_PARENT_SEG_DATA_REF] = segment.p_parent.data_ref or ''        
+        return addtl_environ
+    
+    def _run_pre_post(self, child_info, env_func, env_obj):
+        if child_info['executable']:
+            proc = self._popen(child_info, env_func(env_obj), env_obj.__dict__)
+            rc = proc.wait()
+            if rc != 0:
+                log.warning('%s executable %r returned %s'
+                            % (child_info['child_type'], 
+                               child_info['executable'],
+                               rc))
+            else:
+                log.debug('%s executable exited successfully' 
+                          % child_info['child_type'])
         
     def pre_iter(self, we_iter):
-        pass
-    
+        self._run_pre_post(self.pre_iteration_info, self._iter_environ, we_iter)
+
     def post_iter(self, we_iter):
-        pass
+        self._run_pre_post(self.post_iteration_info, self._iter_environ, we_iter)
     
     def pre_segment(self, segment):
-        pass
+        self._run_pre_post(self.pre_segment_info, self._segment_env, segment)
     
     def post_segment(self, segment):
-        pass
-
+        self._run_pre_post(self.post_segment_info, self._segment_env, segment)
     
     def propagate_segments(self, segments):
         log.debug('propagating %d segment(s)' % len(segments))
         for segment in segments:
+            self.pre_segment(segment)
             # Create a temporary file for the child process to return information
             # to us
             (return_fd, return_filename) = tempfile.mkstemp()
             log.debug('expecting return information in %r' % return_filename)
             os.close(return_fd)
             
-            # Set up the child process environment
-            addtl_environ = {}
-            addtl_environ[self.ENV_CURRENT_ITER] = str(segment.we_iter)
-            addtl_environ[self.ENV_SEG_DATA_RETURN] = return_filename
-            addtl_environ[self.ENV_CURRENT_SEG_DATA_REF] = segment.data_ref
-            addtl_environ[self.ENV_CURRENT_SEG_ID] = str(segment.seg_id)
-            if segment.p_parent:
-                addtl_environ[self.ENV_PARENT_SEG_ID] = str(segment.p_parent.seg_id)
-                addtl_environ[self.ENV_PARENT_SEG_DATA_REF] = segment.p_parent.data_ref or ''
-            
             # Fork the new process
-            proc = self._popen(self.propagator_info, addtl_environ, 
+            addtl_env = self._segment_env(segment)
+            addtl_env[self.ENV_SEG_DATA_RETURN] = return_filename
+            proc = self._popen(self.propagator_info, 
+                               addtl_env, 
                                segment.__dict__)
             # Record start timing info
             segment.starttime = datetime.datetime.now()
@@ -220,6 +235,8 @@ class ExecutableBackend(BackendDriver):
                 log.warn('could not delete output return file: %s' % e)
             else:
                 log.debug('deleted output return file %r' % return_filename)
+                
+            self.post_segment(segment)
             
         
     def update_segment_from_output(self, segment, stream):

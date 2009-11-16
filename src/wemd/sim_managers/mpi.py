@@ -85,21 +85,20 @@ class MPIWEMaster(DefaultWEMaster, MPISimManager):
         return requests, pdata
         
     def propagate_particles(self):
-        current_iteration = self.current_iteration
+        current_iteration = self.we_driver.current_iteration
         log.info('WE iteration %d (of %d requested)'
                  % (current_iteration, self.max_iterations))
-        q_inc = self.q_incomplete_segments(current_iteration)
-        n_inc = q_inc.count()
+        q_prep = self.q_prepared_segments()
+        n_prep = q_prep.count()
         n_workers = self.comm.size
         log.info('%d segments remaining in WE iteration %d'
-                 % (n_inc, current_iteration))
+                 % (n_prep, current_iteration))
         log.debug('dispatching to %d processes' % n_workers)
         
-        # XXX: DANGER OF HANG HERE (if some segment can never finish...)
-        while q_inc.count() > 0:
+        while q_prep.count() > 0:
             requests,pdata = self.send_directive(self.MSG_AWAIT_SEGMENT_SCATTER, 
                                                   block = False)
-            segments = q_inc[0:n_workers]            
+            segments = q_prep[0:n_workers]            
             if len(segments) < n_workers:
                 segments = [None] * (n_workers - len(segments)) + segments
             log.debug('waiting on completed send of MSG_AWAIT_SEGMENT_SCATTER')                
@@ -138,7 +137,7 @@ class MPIWEWorker(MPISimManager):
         self.comm.Abort(EX_COMM_ERROR)
     
     def run(self):
-        log.info('entering receive loop')
+        log.debug('entering receive loop')
         while True:
             status = MPI.Status()
             data = self.comm.recv(source = self.ROOT_TASK,
@@ -153,7 +152,7 @@ class MPIWEWorker(MPISimManager):
                     log.debug('awaiting scatter')
                     self.scatter_propagate_gather(None)
                 elif msgno == self.MSG_EXIT:
-                    log.info('exiting on directive from master process')
+                    log.debug('exiting on directive from master process')
                     sys.exit(data)
                 else:
                     raise ValueError('invalid worker message %d' % msgno)
