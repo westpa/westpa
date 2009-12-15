@@ -28,7 +28,7 @@ class ArrayAccumulator(object):
             self.data.resize((oldshape[0]+len(self.buffer), oldshape[1]))
             self.data[-len(self.buffer):,...] = self.buffer
         self.buffer = list()
-
+        
 class TextArrayConverter(object):
     re_valid_line_area = re.compile(r'^\s*([+-]?\d[^#]*)')
     re_field_sep = re.compile(r'\s+')
@@ -66,7 +66,8 @@ if __name__ == '__main__':
     from optparse import OptionParser
     parser = OptionParser(usage='%prog [TXTFILE] [OUTFILE]',
                           description = 'convert a 2-D matrix stored as text'
-                          +' into a pickled numpy array')
+                          +' into a binary format (pickled numpy array or '
+                          +'raw binary data with a header).')
     parser.add_option('-b', '--buffer', dest='buffer_size', type='int',
                       help='read BUFFER_SIZE lines at a time (use 0 to read '
                            +'entire file before converting to an array)')

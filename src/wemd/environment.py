@@ -20,7 +20,7 @@ _ex_names = dict((code, name) for (name, code) in locals().iteritems()
 def get_exit_code_name(code):
     return _ex_names.get(code, 'error %d' % code)
 
-LOGGING_DEFAULT_FORMAT = 'WEMD[%(proc_rank)s] %(levelname)-8s -- %(message)s'
+LOGGING_DEFAULT_FORMAT = 'WEMD[%(proc_rank)4s] %(levelname)-8s -- %(message)s'
     
 LOGGING_DEFAULT_SETTINGS = {'': {'level': 'WARNING',
                                  'format': LOGGING_DEFAULT_FORMAT},

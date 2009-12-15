@@ -14,6 +14,7 @@ class TransitionFinder(object):
         self.region_name_index = None
         self.event_counts = None
         self.event_times = {}
+        self.flux = {}
         self.fpts = {}
         self.tbs = {}
         self.fpt_quantiles = {}
@@ -24,6 +25,7 @@ class TransitionFinder(object):
         
         self.save_tb = {}
         self.save_fpt = {}
+        self.save_flux = {}
         self.save_tb_quantiles = {}
         self.save_fpt_quantiles = {}
         
@@ -41,8 +43,6 @@ class TransitionFinder(object):
     def read_config(self, config_filename):
         from ConfigParser import SafeConfigParser, NoSectionError, NoOptionError
         
-        
-        
         config_parser = SafeConfigParser()
         config_file = open(config_filename, 'rt')
         config_parser.readfp(config_file)
@@ -56,6 +56,11 @@ class TransitionFinder(object):
         if len(self.region_edges) != len(self.region_names) + 1:
             raise ValueError('region names and boundaries do not match')
         self.region_name_index = dict((v,i) for (i,v) in enumerate(self.region_names))
+        
+        for irr1 in xrange(0,len(self.region_names)):
+            for irr2 in xrange(0,len(self.region_names)):
+                if abs(irr1-irr2) == 1:
+                    self.flux[irr1, irr2] = []
         
         # Configure the input
         source_filename = config_parser.get('input', 'source')
@@ -103,7 +108,7 @@ class TransitionFinder(object):
 
             
         for name in ('save_tb', 'save_fpt', 'save_tb_quantiles',
-                     'save_fpt_quantiles'):
+                     'save_fpt_quantiles', 'save_flux'):
             basename = name.split('_', 1)[-1]
             try:
                 self._config_save(config_parser.get('output', name),
@@ -193,6 +198,7 @@ class TransitionFinder(object):
             
                 completion_times[last_iregion, iregion] = it
                 event_count[last_iregion, iregion] += 1
+                self.flux[last_iregion, iregion].append((it,w))
                 try:
                     event_times[last_iregion, iregion].append(it)
                 except KeyError:
@@ -224,14 +230,11 @@ class TransitionFinder(object):
                             except KeyError:
                                 pass
                             else:
-                                #print "  %s->%s transition complete" % (region_names[trans_iregion], region_names[iregion])
                         
                                 # First passage time:  time since last transition ending in starting state
                                 if completion_times[iregion, trans_iregion] >= 0:
                                     fpt = it-completion_times[iregion, trans_iregion]
                                     type_fpts.append((it,fpt,w)) 
-                                    #print "  %s->%s first passage time: %d" \
-                                    #      % (region_names[trans_iregion], region_names[iregion], it-completion_times[iregion, trans_iregion])
                             
                                 # Event duration: time since last transition originating from starting state
                                 # trans_iregion -> trans_iregion +/- 1
@@ -241,9 +244,6 @@ class TransitionFinder(object):
                                     # transition
                                     tb = it-completion_times[trans_iregion, tb_iregion]-1
                                     type_tbs.append((it,tb,w))
-                                    #print "  %s->%s event duration: %d" \
-                                    #      % (region_names[trans_iregion], region_names[iregion], 
-                                    #         it-completion_times[trans_iregion, tb_iregion])
                             # Update completion times matrix
                             completion_times[trans_iregion, iregion] = it
                             event_count[trans_iregion, iregion] += 1
@@ -260,6 +260,10 @@ class TransitionFinder(object):
             self.tb_quantiles[k] = self._calc_quantiles(self.tbs, k)
         for (k,v) in self.fpt_quantiles.iteritems():
             self.fpt_quantiles[k] = self._calc_quantiles(self.fpts, k)
+        for (k,v) in self.flux.iteritems():
+            self.flux[k] = numpy.array(v, numpy.float)
+            self.flux[k][:,0] *= self.dt
+            self.flux[k][:,1] /= self.dt
     
     def _calc_quantiles(self, bucket, key):
         data = bucket[key][:,1]
@@ -291,6 +295,12 @@ class TransitionFinder(object):
         for key in self.save_fpt_quantiles:
             of = open(self.save_fpt_quantiles[key], 'wt')
             for t in self.fpt_quantiles[key][:]:
+                of.write('%8f    %20.16g\n' % tuple(t))
+            of.close()
+
+        for key in self.save_flux:
+            of = open(self.save_flux[key], 'wt')
+            for t in self.flux[key][:]:
                 of.write('%8f    %20.16g\n' % tuple(t))
             of.close()
             
