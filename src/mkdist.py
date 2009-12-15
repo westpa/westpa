@@ -5,16 +5,13 @@ from optparse import OptionParser
 from wemd.util.binfiles import UniformTimeData
 
 parser = OptionParser(usage='mkdist.py TRAJ_DIR GROUPS',
-                      description = 'collect progress coordinate data')
+                      description = 'stitch together a bunch of GROMACS trajectories')
 parser.add_option('-n', '--index-file', dest='index_file',
                   help='GROMACS index (.ndx) file')
 parser.add_option('-r', '--rc-file', dest='rc_file',
                   help='GROMACS run control (.tpr) file')
 parser.add_option('-t', '--timestep',  dest='timestep', type='float',
                   help='MD timestep (default: read from first distance calc)')
-parser.add_option('--binary-output', dest='binary_output',
-                  help='filename binary output '
-                      +'(default: dist.dat')
 parser.add_option('--text-output', dest='text_output', default='dist.txt',
                   help='filename for text output (default: dist.txt)')
 parser.add_option('--g_dist-verbose', dest='gdist_verbose',
@@ -59,13 +56,7 @@ txt_out = open(opts.text_output, 'wt')
 dt = opts.timestep
 last_dist_txt = None
 ti = -1
-weight = 1.0
 
-# output is series of (distance, weight) pairs
-bin_out_array = numpy.array([0.0, weight], numpy.float_)
-bin_out = open(opts.binary_output or 'dist.dat', 'w')
-utd = UniformTimeData()
-bin_out.seek(utd.calc_data_offset((None, 2)))
 base_args = ['g_dist', '-noxvgr', '-s', opts.rc_file, '-n', opts.index_file]
 
 for (i, trajfile) in enumerate(trajfiles):
@@ -83,9 +74,7 @@ for (i, trajfile) in enumerate(trajfiles):
                                          '-o', distfilename],
                             stdin = subprocess.PIPE,
                             stdout = child_output,
-                            stderr = subprocess.STDOUT)
-    
-                         
+                            stderr = subprocess.STDOUT)                  
     proc.stdin.write(dist_groups + '\n')
     rc = proc.wait()
     
@@ -123,14 +112,8 @@ for (i, trajfile) in enumerate(trajfiles):
         dist = float(fields[1])
 
         txt_out.write(txt_out_fmt % (t, dist, weight))
-        bin_out_array[0] = dist
-        bin_out.write(bin_out_array.data)
 
     txt_out.flush()
-    bin_out.flush()
     dist_in.close()
 
-bin_out.seek(0)
-utd.write_header_to(bin_out, 0.0, dt, bin_out_array.dtype, (ti+1,2))
-bin_out.close()
 txt_out.close()

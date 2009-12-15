@@ -2,6 +2,7 @@ from __future__ import division
 import os, sys, re
 from optparse import OptionParser
 import numpy
+import h5py
 from wemd.util.binfiles import UniformTimeData
 from wemd.analysis.probability import quantiles
 from itertools import izip
@@ -14,7 +15,6 @@ class TransitionFinder(object):
         self.region_name_index = None
         self.event_counts = None
         self.event_times = {}
-        self.flux = {}
         self.fpts = {}
         self.tbs = {}
         self.fpt_quantiles = {}
@@ -22,23 +22,27 @@ class TransitionFinder(object):
         self.transition_log = None
         self.dist = None
         self.dt = None
+        self.ntraj = None
+        self.ndim = None
         
         self.save_tb = {}
         self.save_fpt = {}
-        self.save_flux = {}
         self.save_tb_quantiles = {}
         self.save_fpt_quantiles = {}
         
         self.output_stream = sys.stdout
         self.error_stream = sys.stderr
     
-    def load_wemd_utd(self, filename):
-        dist_utd = UniformTimeData()
-        dist = dist_utd.mmap_array_from(open(filename, 'rb'))
-        dt = dist_utd.dt
-        self.dt = dt
-        self.dist = dist
-        return dist
+    def load_pc_hdf5(self, filename):
+        self.h5file = h5py.File(filename, 'r')
+        # This ellipsis is important, as it goes through the overhead of 
+        # creating the HDF5 hyperslab; otherwise every single access
+        # in the analysis loop will trigger an HDF5 selection creation,
+        # slowing things down about 1000-fold
+        self.dist = self.h5file['pcoords/pcoord'][...]
+        self.dt = self.h5file['pcoords/pcoord'].attrs['timestep']
+        self.ntraj = self.dist.shape[1]
+        self.ndim = self.dist.shape[2]
 
     def read_config(self, config_filename):
         from ConfigParser import SafeConfigParser, NoSectionError, NoOptionError
@@ -57,18 +61,9 @@ class TransitionFinder(object):
             raise ValueError('region names and boundaries do not match')
         self.region_name_index = dict((v,i) for (i,v) in enumerate(self.region_names))
         
-        for irr1 in xrange(0,len(self.region_names)):
-            for irr2 in xrange(0,len(self.region_names)):
-                if abs(irr1-irr2) == 1:
-                    self.flux[irr1, irr2] = []
-        
         # Configure the input
         source_filename = config_parser.get('input', 'source')
-        source_type = config_parser.get('input', 'source_type').lower()
-        if source_type in ('wemd_utd', 'utd'):
-            self.dist = self.load_wemd_utd(source_filename)
-        else:
-            raise ValueError('invalid or unsupported source type')
+        self.load_pc_hdf5(source_filename)
         
         # Configure the output, as much as we can at this point
         try:
@@ -108,7 +103,7 @@ class TransitionFinder(object):
 
             
         for name in ('save_tb', 'save_fpt', 'save_tb_quantiles',
-                     'save_fpt_quantiles', 'save_flux'):
+                     'save_fpt_quantiles'):
             basename = name.split('_', 1)[-1]
             try:
                 self._config_save(config_parser.get('output', name),
@@ -161,7 +156,7 @@ class TransitionFinder(object):
        
     def find_transitions(self):
         nreg = len(self.region_names)
-        completion_times = numpy.zeros((nreg,nreg), numpy.int64) - 1
+        
         event_count = numpy.zeros((nreg,nreg), numpy.int64)
         region_edges = self.region_edges
         region_names = self.region_names
@@ -171,105 +166,103 @@ class TransitionFinder(object):
         tbs = self.tbs
         dist = self.dist
         dt = self.dt
-    
-        for ir in xrange(0, nreg):
-            q = dist[0,0]
-            if region_edges[ir] <= dist[0,0] < region_edges[ir+1]:
-                last_iregion = ir
-                break
-        else:
-            raise ValueError('particle is outside specified coordinate space')
-            
-        for it in xrange(1, dist.shape[0]):
-            q = dist[it,0]
-            w = dist[it,1]
+        
+        for itraj in xrange(0, self.ntraj):
+            completion_times = numpy.zeros((nreg,nreg), numpy.int64) - 1
             for ir in xrange(0, nreg):
-                lb = region_edges[ir]
-                ub = region_edges[ir+1]
-                
-                if lb <= q < ub:
-                    iregion = ir
+                q = dist[0,itraj,0]
+                if region_edges[ir] <= q < region_edges[ir+1]:
+                    last_iregion = ir
                     break
             else:
                 raise ValueError('particle is outside specified coordinate space')
             
-            if iregion != last_iregion:        
-                # Crossing event...do all the real work here
-            
-                completion_times[last_iregion, iregion] = it
-                event_count[last_iregion, iregion] += 1
-                self.flux[last_iregion, iregion].append((it,w))
-                try:
-                    event_times[last_iregion, iregion].append(it)
-                except KeyError:
-                    pass
+            for it in xrange(1, dist.shape[0]):
+                q = dist[it,itraj,0]
+                for ir in xrange(0, nreg):
+                    lb = region_edges[ir]
+                    ub = region_edges[ir+1]
+                    
+                    if lb <= q < ub:
+                        iregion = ir
+                        break
+                else:
+                    raise ValueError('particle is outside specified coordinate space')
                 
-                if transition_log:
-                    transition_log.write('%d    %s -> %s\n' 
-                                         % (it, 
-                                            region_names[last_iregion], 
-                                            region_names[iregion]) )
+                if iregion != last_iregion:        
+                    # Crossing event...do all the real work here
                 
-                for irr in xrange(1, nreg):
-                    if iregion > last_iregion:
-                        trans_iregion = last_iregion - irr
-                        tb_iregion = trans_iregion + 1
-                    else:
-                        trans_iregion = last_iregion + irr
-                        tb_iregion = trans_iregion - 1
-                        
-                    if 0 <= trans_iregion < nreg and trans_iregion != iregion:
-                        if completion_times[iregion, last_iregion] > completion_times[trans_iregion, last_iregion]:
-                            # Fluctuation between regions
-                            #print "  cannot be a %s->%s transition" % (region_names[trans_iregion], region_names[iregion])
-                            pass
+                    completion_times[last_iregion, iregion] = it
+                    event_count[last_iregion, iregion] += 1
+                    try:
+                        event_times[last_iregion, iregion].append(it)
+                    except KeyError:
+                        pass
+                    
+                    if transition_log:
+                        transition_log.write('%d    %s -> %s\n' 
+                                             % (it, 
+                                                region_names[last_iregion], 
+                                                region_names[iregion]) )
+                    
+                    for irr in xrange(1, nreg):
+                        if iregion > last_iregion:
+                            trans_iregion = last_iregion - irr
+                            tb_iregion = trans_iregion + 1
                         else:
-                            try:
-                                type_tbs = tbs[trans_iregion, iregion]
-                                type_fpts = fpts[trans_iregion, iregion]
-                            except KeyError:
+                            trans_iregion = last_iregion + irr
+                            tb_iregion = trans_iregion - 1
+                            
+                        if 0 <= trans_iregion < nreg and trans_iregion != iregion:
+                            if completion_times[iregion, last_iregion] > completion_times[trans_iregion, last_iregion]:
+                                # Fluctuation between regions
+                                #print "  cannot be a %s->%s transition" % (region_names[trans_iregion], region_names[iregion])
                                 pass
                             else:
-                        
-                                # First passage time:  time since last transition ending in starting state
-                                if completion_times[iregion, trans_iregion] >= 0:
-                                    fpt = it-completion_times[iregion, trans_iregion]
-                                    type_fpts.append((it,fpt,w)) 
+                                try:
+                                    type_tbs = tbs[trans_iregion, iregion]
+                                    type_fpts = fpts[trans_iregion, iregion]
+                                except KeyError:
+                                    pass
+                                else:
                             
-                                # Event duration: time since last transition originating from starting state
-                                # trans_iregion -> trans_iregion +/- 1
-                                if completion_times[trans_iregion, tb_iregion] >= 0:
-                                    # Since we record the completion time of the exit of the initial region
-                                    # subtract one timestep to indicate the initial time of the 
-                                    # transition
-                                    tb = it-completion_times[trans_iregion, tb_iregion]-1
-                                    type_tbs.append((it,tb,w))
-                            # Update completion times matrix
-                            completion_times[trans_iregion, iregion] = it
-                            event_count[trans_iregion, iregion] += 1
-                last_iregion = iregion
+                                    # First passage time:  time since last transition ending in starting state
+                                    if completion_times[iregion, trans_iregion] >= 0:
+                                        fpt = it-completion_times[iregion, trans_iregion]
+                                        type_fpts.append(fpt)
+                                
+                                    # Event duration: time since last transition originating from starting state
+                                    # trans_iregion -> trans_iregion +/- 1
+                                    if completion_times[trans_iregion, tb_iregion] >= 0:
+                                        # Since we record the completion time of the exit of the initial region
+                                        # subtract one timestep to indicate the initial time of the 
+                                        # transition
+                                        tb = it-completion_times[trans_iregion, tb_iregion]-1
+                                        type_tbs.append(tb)
+                                # Update completion times matrix
+                                completion_times[trans_iregion, iregion] = it
+                                event_count[trans_iregion, iregion] += 1
+                    last_iregion = iregion
                 
         self.event_counts = event_count
         for (k,v) in self.fpts.iteritems():
             self.fpts[k] = numpy.array(v, numpy.float)
-            self.fpts[k][:,0:2] *= self.dt
+            self.fpts[k] *= self.dt
         for (k,v) in self.tbs.iteritems():
             self.tbs[k] = numpy.array(v, numpy.float) 
-            self.tbs[k][:,0:2] *= self.dt
+            self.tbs[k] *= self.dt
         for (k,v) in self.tb_quantiles.iteritems():
             self.tb_quantiles[k] = self._calc_quantiles(self.tbs, k)
         for (k,v) in self.fpt_quantiles.iteritems():
             self.fpt_quantiles[k] = self._calc_quantiles(self.fpts, k)
-        for (k,v) in self.flux.iteritems():
-            self.flux[k] = numpy.array(v, numpy.float)
-            self.flux[k][:,0] *= self.dt
-            self.flux[k][:,1] /= self.dt
     
     def _calc_quantiles(self, bucket, key):
-        data = bucket[key][:,1]
-        nq = min(int(len(data)/5), 100)
-        dq = 1/nq
-        qs = numpy.arange(dq,1,dq)
+        data = bucket[key]
+        if not data.any(): return numpy.zeros((0, 0), numpy.float64)
+        #nq = min(len(data), int(len(data)/5), 100)
+        #dq = 1/(nq or 1)
+        #qs = numpy.arange(dq,1,dq)
+        qs = numpy.arange(0.05, 1.0, 0.05)
         quants = quantiles(data, qs)
         return numpy.column_stack([qs, quants])
     
@@ -277,13 +270,13 @@ class TransitionFinder(object):
         for key in self.save_tb:
             of = open(self.save_tb[key], 'wt')
             for t in self.tbs[key][:]:
-                of.write('%20.16g    %20.16g    %20.16g\n' % tuple(t))
+                of.write('%20.16g\n' % t)
             of.close()
                 
         for key in self.save_fpt:
             of = open(self.save_fpt[key], 'wt')
             for t in self.fpts[key][:]:
-                of.write('%20.16g    %20.16g    %20.16g\n' % tuple(t))
+                of.write('%20.16g\n' % t)
             of.close()
             
         for key in self.save_tb_quantiles:
@@ -297,12 +290,6 @@ class TransitionFinder(object):
             for t in self.fpt_quantiles[key][:]:
                 of.write('%8f    %20.16g\n' % tuple(t))
             of.close()
-
-        for key in self.save_flux:
-            of = open(self.save_flux[key], 'wt')
-            for t in self.flux[key][:]:
-                of.write('%8f    %20.16g\n' % tuple(t))
-            of.close()
             
     def summarize_results(self):
         common_keys = set(self.fpts.iterkeys()) | set(self.tbs.iterkeys())
@@ -312,11 +299,11 @@ class TransitionFinder(object):
         for key in common_keys:
             region1 = self.region_names[key[0]]
             region2 = self.region_names[key[1]]
-            tb_mean = self.tbs[key][:,1].mean()
-            tb_std = self.tbs[key][:,1].std()
+            tb_mean = self.tbs[key][:].mean()
+            tb_std = self.tbs[key][:].std()
             tb_sem = tb_std / (self.tbs[key].shape[0] ** 0.5)
-            fpt_mean = self.fpts[key][:,1].mean()
-            fpt_std = self.fpts[key][:,1].std()
+            fpt_mean = self.fpts[key][:].mean()
+            fpt_std = self.fpts[key][:].std()
             fpt_sem = fpt_std / (self.fpts[key].shape[0] ** 0.5)
             rrate = 1/fpt_mean
             rrate_err = fpt_sem/(fpt_mean ** 2)
@@ -339,8 +326,8 @@ class TransitionFinder(object):
         for key in tbs_only:
             region1 = self.region_names[key[0]]
             region2 = self.region_names[key[1]]
-            tb_mean = self.tbs[key][:,1].mean()
-            tb_std = self.tbs[key][:,1].std()
+            tb_mean = self.tbs[key][:].mean()
+            tb_std = self.tbs[key][:].std()
             tb_sem = tb_std / (self.tbs[key].shape[0] ** 0.5)
             self.output_stream.write(
 '''%s->%s transitions:
@@ -354,8 +341,8 @@ class TransitionFinder(object):
         for key in fpts_only:
             region1 = self.region_names[key[0]]
             region2 = self.region_names[key[1]]
-            fpt_mean = self.fpts[key][:,1].mean()
-            fpt_std = self.fpts[key][:,1].std()
+            fpt_mean = self.fpts[key][:].mean()
+            fpt_std = self.fpts[key][:].std()
             fpt_sem = fpt_std / (self.fpts[key].shape[0] ** 0.5)
             rrate = 1/fpt_mean
             rrate_err = fpt_sem/(fpt_mean ** 2)
