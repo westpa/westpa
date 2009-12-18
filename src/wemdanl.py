@@ -12,6 +12,9 @@ class WEMDAnlTool(WECmdLineMultiTool):
         super(WEMDAnlTool,self).__init__()
         cop = self.command_parser
         
+        cop.add_command('simcat',
+                        'show progress ofa  simulation',
+                        self.cmd_simcat, True)
         cop.add_command('trajcat',
                         'show progress of a trajectory',
                         self.cmd_trajcat, True)
@@ -44,7 +47,38 @@ class WEMDAnlTool(WECmdLineMultiTool):
                            params = {'status': Segment.SEG_STATUS_COMPLETE}).fetchone()[0]
         self.sim_iter = self.sim_manager.dbsession.query(WESimIter).get([we_iter])
         return self.sim_iter
-                                                        
+    
+    def cmd_simcat(self, args):
+        parser = self.make_parser()
+        (opts, args) = parser.parse_args(args)
+        
+        self.get_sim_manager()
+        sim_iters = self.sim_manager.dbsession.query(WESimIter).order_by(WESimIter.we_iter)
+        last_iter = self.get_sim_iter(None)
+        nbins = last_iter.data['bins_nparticles'].shape[0]
+        
+        npart_field = '%8d'
+        pop_field = '%20.15g'
+        
+        rpt_fields = '%-8d    %-8d    %12.6g    %12.6g    %10g    %10g'
+        hdr_text =   '%-8s    %-8s    %12s    %12s    %10s    %10s' \
+                      % ('we_iter', 'n_part', 'norm', 'err_norm', 'cputime',
+                         'walltime')
+        self.output_stream.write(hdr_text + '\n')
+        for sim_iter in sim_iters[:]:
+            self.output_stream.write(rpt_fields % (sim_iter.we_iter,
+                                                   sim_iter.n_particles,
+                                                   sim_iter.norm,
+                                                   sim_iter.norm - 1,
+                                                   round(sim_iter.cputime or 0),
+                                                   round(sim_iter.walltime or 0)))
+            try:
+                npart_text = '    '.join(npart_field % n for n in sim_iter.data['bins_nparticles'].flat)
+                pop_text   = '    '.join(pop_field % p for p in sim_iter.data['bins_population'].flat)
+            except TypeError:
+                self.output_stream.write('\n')
+            else:
+                self.output_stream.write('    %s    %s\n' % (npart_text, pop_text))
 
     def cmd_lstraj(self, args):
         parser = self.make_parser()

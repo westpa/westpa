@@ -302,6 +302,9 @@ class TransitionFinder(object):
             tb_mean = self.tbs[key][:].mean()
             tb_std = self.tbs[key][:].std()
             tb_sem = tb_std / (self.tbs[key].shape[0] ** 0.5)
+            #tb_min = self.tbs[key][:].min()
+            #tb_max = self.tbs[key][:].max()
+            #tb_med = self.tbs[key][self.tbs[key].shape[0] // 2]
             fpt_mean = self.fpts[key][:].mean()
             fpt_std = self.fpts[key][:].std()
             fpt_sem = fpt_std / (self.fpts[key].shape[0] ** 0.5)
@@ -319,7 +322,7 @@ class TransitionFinder(object):
     Error in reaction rate: %g
 
 ''' % (region1, region2, 
-       tb_mean, tb_std, tb_sem,
+       tb_mean, tb_std, tb_sem, #tb_min, tb_med, tb_max,
        fpt_mean, fpt_std, fpt_sem,
        rrate, rrate_err))
             
