@@ -4,7 +4,6 @@ import logging
 log = logging.getLogger(__name__)
 
 import numpy
-import simplejson as json
 from wemd.core import Segment
 from wemd.backend_drivers import BackendDriver
 

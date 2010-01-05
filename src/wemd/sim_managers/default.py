@@ -9,9 +9,6 @@ from wemd.core.we_sim import WESimIter
 from wemd.core.particles import Particle, ParticleCollection
 from wemd.core.segments import Segment
 from wemd.core.errors import PropagationIncompleteError
-from sqlalchemy.orm import eagerload
-
-ZERO_INTERVAL = datetime.timedelta(0)
 
 import logging
 log = logging.getLogger(__name__)
@@ -20,12 +17,8 @@ class DefaultWEMaster(WESimMaster):
     def __init__(self, runtime_config):
         super(DefaultWEMaster,self).__init__(runtime_config)
         if self.backend_driver is None: self.load_backend_driver()
-
-        self.dbengine = None
-        self.DBSession = None
-        self._dbsession = None
         
-        for key in (('data.state', 'data.db.url', 'backend.driver')):
+        for key in (('data.state', 'backend.driver', 'data.storage_engine')):
             runtime_config.require(key)
 
         drtemplate = self.runtime_config.setdefault('data.segrefs.template', 
@@ -41,44 +34,14 @@ class DefaultWEMaster(WESimMaster):
 
         self.max_iterations = runtime_config.get_int('limits.max_iterations', 1)
         # Eventually, add support for max_wallclock
-            
-        self.connect_db()
+        
+        from wemd.data_managers import make_data_manager
+        self.data_manager = make_data_manager(runtime_config)
         
     def make_data_ref(self, segment):
         template = self.runtime_config['data.segrefs.ctemplate']
         return template.safe_substitute(segment.__dict__)
-            
-    def connect_db(self):
-        db_url = self.runtime_config['data.db.url']
-        log.info('connecting to %r' % db_url)
-        
-        import wemd.data_manager
-        from sqlalchemy import create_engine
-        from sqlalchemy.orm import sessionmaker
-        
-        self.dbengine = create_engine(db_url)
-        self.DBSession = sessionmaker(bind=self.dbengine,
-                                      autocommit = True,
-                                      autoflush = False)
-    
-    def _get_dbsession(self):
-        if self._dbsession is None:
-            log.debug('implicitly instantiating new DB session')
-            self._dbsession = self.DBSession()
-        return self._dbsession
-         
-    def new_dbsession(self):
-        if self._dbsession is not None:
-            log.warn('implicitly closing open DB session to create new one')
-            self.close_dbsession()
-        return self._get_dbsession()
-    
-    def close_dbsession(self):
-        self._dbsession.close()
-        self._dbsession = None
-        
-    dbsession = property(_get_dbsession, None, close_dbsession, None)
-         
+                                  
     def save_state(self):
         state_filename = self.runtime_config['data.state']
         log.info('saving state to %s' % state_filename)
@@ -93,52 +56,27 @@ class DefaultWEMaster(WESimMaster):
         log.debug('state info: %r' % state_dict)
         self.we_driver = state_dict['we_driver']
             
-    def q_incomplete_segments(self, we_iter = None):
-        if we_iter is None: we_iter = self.we_iter
-        return self.dbsession.query(Segment)\
-            .filter(Segment.we_iter == we_iter.we_iter)\
-            .filter(Segment.status != Segment.SEG_STATUS_COMPLETE)\
-            .options(eagerload(Segment.p_parent))\
-            .order_by(Segment.seg_id)
-            
-    def q_prepared_segments(self, we_iter = None):
-        if we_iter is None: we_iter = self.we_iter
-        return self.dbsession.query(Segment)\
-            .filter(Segment.we_iter == we_iter.we_iter)\
-            .filter(Segment.status == Segment.SEG_STATUS_PREPARED)\
-            .options(eagerload(Segment.p_parent))\
-            .order_by(Segment.seg_id)
-            
-    def q_complete_segments(self, we_iter = None):
-        if we_iter is None: we_iter = self.we_iter
-        return self.dbsession.query(Segment)\
-                   .filter(Segment.we_iter == we_iter.we_iter)\
-                   .filter(Segment.status == Segment.SEG_STATUS_COMPLETE)
-                                              
     def run_we(self):
         current_iteration = self.we_driver.current_iteration
-        n_inc = self.q_incomplete_segments().count()
-        if n_inc:
+        
+        # Get number of incomplete segments
+
+        if self.data_manager.num_incomplete_segments(self.we_iter):
             raise PropagationIncompleteError('%d segments have not been completed'
                                              % n_inc)
-        segments = self.q_complete_segments().all()
+            
+        # Get all completed segments
+        segments = self.data_manager.get_segments(self.we_iter)
         
-        # Record WE iteration end time and accumulated CPU and wallclock time
-        import sqlalchemy
-        SUM = sqlalchemy.func.sum
-        
-        assert(self.we_iter is not None and self.we_iter.we_iter == current_iteration)
-        self.dbsession.begin()
-        self.we_iter.endtime = datetime.datetime.now()
-        self.we_iter.walltime = self.dbsession.query(SUM(Segment.walltime))\
-            .filter(Segment.we_iter == current_iteration)\
-            .scalar()
-        self.we_iter.cputime = self.dbsession.query(SUM(Segment.cputime))\
-            .filter(Segment.we_iter == current_iteration)\
-            .scalar()
-        self.dbsession.flush()
-        self.dbsession.commit()
-        
+        # Calculate WE iteration end time and accumulated CPU and wallclock time
+        total_cputime = 0.0
+        total_walltime = 0.0
+        for segment in segments:
+            total_cputime += segment.cputime
+            total_walltime += segment.walltime
+        self.we_iter.cputime = total_cputime
+        self.we_iter.walltime = total_walltime
+                
         log.info('running WE on %d particles' % len(segments))
         # Convert DB-oriented segments to WE-oriented particles
         current_particles = []
@@ -151,74 +89,56 @@ class DefaultWEMaster(WESimMaster):
 
         norm = current_particles.norm
         log.info('norm = %.15g; error in norm %.6g' % (norm, norm-1))
-        
-        
+                
         # Perform actual WE calculation
         new_particles = self.we_driver.run_we(current_particles)
         new_we_iter = self.we_driver.current_iteration 
         
+        # Create storage for next WE iteration data        
+        we_iter = WESimIter()
+        we_iter.we_iter = new_we_iter
+        self.data_manager.create_we_sim_iter(we_iter)
+        
         # Convert particles to new DB segments
         new_segments = []
-        self.dbsession.begin()
-        try:
-            sq = self.dbsession.query(Segment)
-            for particle in new_particles:
-                s = Segment(weight = particle.weight)
-                s.we_iter = new_we_iter
-                s.status = Segment.SEG_STATUS_PREPARED
-                s.pcoord = None
-                if particle.p_parent:
-                    s.p_parent = sq.get([particle.p_parent.particle_id])
-                    log.debug('segment %r primary parent is %r' 
-                              % (s.seg_id or '(New)', s.p_parent.seg_id))
-                if particle.parents:
-                    s.parents = set(sq.filter(Segment.seg_id.in_([pp.particle_id for pp in particle.parents])).all())
-                    log.debug('segment %r parents are %r' 
-                              % (s.seg_id or '(New)',
-                                 [s2.particle_id for s2 in particle.parents]))
-                new_segments.append(s)
-                self.dbsession.add(s)
-            # Flush new segments to obtain segment IDs
-            self.dbsession.flush()
-            for segment in new_segments:
-                segment.data_ref = self.make_data_ref(segment)
-            # Record completed information about new segments
-            self.dbsession.flush()
-                            
-            we_iter = WESimIter()
-            we_iter.we_iter = new_we_iter
-            we_iter.n_particles = len(new_segments)
-            we_iter.norm = numpy.sum((seg.weight for seg in new_segments))
+        for particle in new_particles:
+            s = Segment(weight = particle.weight)
+            s.we_iter = new_we_iter
+            s.status = Segment.SEG_STATUS_PREPARED
+            s.pcoord = None
+            if particle.p_parent:
+                s.p_parent = Segment(we_iter = current_iteration,
+                                     seg_id = particle.p_parent.particle_id)
+                log.debug('segment %r primary parent is %r' 
+                          % (s.seg_id or '(New)', s.p_parent.seg_id))
+            if particle.parents:
+                s.parents = set([Segment(we_iter = current_iteration,
+                                         seg_id = pp.particle_id) for pp in particle.parents])
+                log.debug('segment %r parents are %r' 
+                          % (s.seg_id or '(New)',
+                             [s2.particle_id for s2 in particle.parents]))
+            new_segments.append(s)
+
+        for segment in new_segments:
+            self.data_manager.create_segment(segment)
+            segment.data_ref = self.make_data_ref(segment)
+            self.data_manager.update_segment(segment)
             
-            # The "data" field is immutable, meaning that it will not get stored
-            # unless a completely new object is specified for it
-            we_data = {}
-            we_data['bins_population'] = self.we_driver.bins_population
-            we_data['bins_nparticles'] = self.we_driver.bins_nparticles
-            if we_iter.we_iter > 0:
-                we_data['bins_flux'] = self.we_driver.bins_flux
-            we_iter.data = we_data
-            
-            self.dbsession.add(we_iter)
-            self.dbsession.flush()
-        except:
-            log.debug('error in WE', exc_info = True)
-            self.dbsession.rollback()
-            raise
-        else:
-            self.dbsession.commit()
+        we_iter.n_particles = len(new_segments)
+        we_iter.norm = numpy.sum((seg.weight for seg in new_segments))
+        we_iter.binarray = self.we_driver.bins
+        self.data_manager.update_we_sim_iter(we_iter)
              
     def initialize_simulation(self, sim_config):
         import wemd.we_drivers
         from wemd.core import Segment, Particle
-        from wemd.data_manager.schema import metadata
         
         for item in ('wemd.initial_particles', 'wemd.initial_pcoord'):
             sim_config.require(item)
             
-        log.info('creating database tables')
-        metadata.create_all(bind=self.dbengine)
-        
+        # Create the backing store
+        self.data_manager.prepare_backing(sim_config)
+                    
         # Create and configure the WE driver
         self.load_we_driver(sim_config)
         we_driver = self.we_driver
@@ -228,15 +148,11 @@ class DefaultWEMaster(WESimMaster):
         n_init = sim_config.get_int('wemd.initial_particles')
         pcoord = numpy.array([float(x) for x in 
                               sim_config.get_list('wemd.initial_pcoord')])        
-        segments = [Segment(seg_id=i,
-                            we_iter = 0, 
+        segments = [Segment(we_iter = 0, 
                             status = wemd.Segment.SEG_STATUS_COMPLETE,
                             weight=1.0/n_init,
                             pcoord = pcoord)
                     for i in xrange(1,n_init+1)]
-        self.dbsession.begin()
-        for segment in segments: 
-            self.dbsession.add(segment)
         
         # Record dummy stats for the starting iteration
         self.we_iter = WESimIter()
@@ -244,10 +160,9 @@ class DefaultWEMaster(WESimMaster):
         self.we_iter.cputime = self.we_iter.walltime = 0.0
         self.we_iter.n_particles = len(segments)
         self.we_iter.norm = numpy.sum([seg.weight for seg in segments])
-        self.dbsession.add(self.we_iter)
-        
-        # Record results to the database
-        self.dbsession.commit()
+        self.data_manager.create_we_sim_iter(self.we_iter)
+        for segment in segments:
+            self.data_manager.create_segment(segment)
         
         # Run one iteration of WE to assign particles to bins
         self.run_we()        

@@ -22,7 +22,7 @@ class Segment:
                  starttime = None, endtime = None,
                  data = None):
         
-        self.seg_id = seg_id            
+        self.seg_id = seg_id
         self.we_iter = we_iter
         self.status = status
         self.p_parent = p_parent
