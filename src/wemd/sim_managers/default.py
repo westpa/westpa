@@ -77,7 +77,7 @@ class DefaultWEMaster(WESimMaster):
                        sim_config.get_list('wemd.initial_pcoord')]
         pcoord = numpy.empty((1,len(pcoord_vals)), numpy.float64)
         pcoord[0] = pcoord_vals        
-        segments = [Segment(i_iter = 0, 
+        segments = [Segment(n_iter = 0, 
                             status = wemd.Segment.SEG_STATUS_COMPLETE,
                             weight=1.0/n_init,
                             pcoord = pcoord)
@@ -86,7 +86,7 @@ class DefaultWEMaster(WESimMaster):
         # Record dummy stats for the starting iteration
         self.we_iter = WESimIter()
         self.we_iter.binarray = self.we_driver.make_bins()
-        self.we_iter.i_iter = 0
+        self.we_iter.n_iter = 0
         self.we_iter.n_particles = len(segments)
         self.we_iter.norm = numpy.sum([seg.weight for seg in segments])
         self.we_iter.segments = segments
@@ -135,22 +135,22 @@ class DefaultWEMaster(WESimMaster):
         
         # Create storage for next WE iteration data        
         we_iter = WESimIter()
-        we_iter.i_iter = new_we_iter
+        we_iter.n_iter = new_we_iter
         
         # Convert particles to new propagation segments
         new_segments = []
         for particle in new_particles:
             s = Segment(weight = particle.weight)
-            s.i_iter = new_we_iter
+            s.n_iter = new_we_iter
             s.status = Segment.SEG_STATUS_PREPARED
             s.pcoord = None
             if particle.p_parent:
-                s.p_parent = Segment(i_iter = current_iteration,
+                s.p_parent = Segment(n_iter = current_iteration,
                                      seg_id = particle.p_parent.particle_id)
                 log.debug('segment %r primary parent is %r' 
                           % (s.seg_id or '(New)', s.p_parent.seg_id))
             if particle.parents:
-                s.parents = set([Segment(i_iter = current_iteration,
+                s.parents = set([Segment(n_iter = current_iteration,
                                          seg_id = pp.particle_id) for pp in particle.parents])
                 log.debug('segment %r parents are %r' 
                           % (s.seg_id or '(New)',
@@ -162,26 +162,21 @@ class DefaultWEMaster(WESimMaster):
         we_iter.norm = numpy.sum((seg.weight for seg in new_segments))
         we_iter.binarray = self.we_driver.bins
         self.data_manager.create_we_sim_iter(we_iter)
-             
-        
+                     
     def continue_simulation(self):
         return bool(self.we_driver.current_iteration <= self.max_iterations)
     
     def prepare_iteration(self):
-        self.new_dbsession()
-        self.we_iter = self.dbsession.query(WESimIter).get([self.we_driver.current_iteration])
-        if self.we_iter.starttime is None:
-            self.we_iter.starttime = datetime.datetime.now()
-        self.dbsession.flush()
+        self.we_iter = self.data_manager.get_we_sim_iter(self.we_driver.current_iteration)
         
     def propagate_particles(self):
-        current_iteration = self.we_iter.i_iter
+        current_iteration = self.we_iter.n_iter
         log.info('WE iteration %d (of %d requested)'
                  % (current_iteration, self.max_iterations))
-        n_inc = self.q_incomplete_segments(current_iteration).count()
+        n_inc = self.data_manager.num_incomplete_segments(self.we_iter)
         log.info('%d segments remaining in WE iteration %d'
                  % (n_inc, current_iteration))
-        for segment in self.q_prepared_segments():
+        for segment in self.data_manager.get_prepared_segments(self.we_iter):
             segments = [segment]
             self.backend_driver.propagate_segments(segments)
             
@@ -200,4 +195,3 @@ class DefaultWEMaster(WESimMaster):
         n_bins = len(self.we_driver.bins)
         log.info('%d / %d bins are populated' %( n_pop_bins, n_bins))
         self.save_state()
-        self.close_dbsession()

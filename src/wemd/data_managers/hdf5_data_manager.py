@@ -35,12 +35,12 @@ class HDF5DataManager(DataManagerBase):
         
     def _get_we_sim_iter_path(self, we_sim_iter):
         try:
-            i_iter = we_sim_iter.i_iter
+            n_iter = we_sim_iter.n_iter
         except AttributeError:
-            i_iter = we_sim_iter
+            n_iter = we_sim_iter
             
         iteridx = self.hdf5file['/WE/Iterations/IterIndex']
-        return '/WE/Iterations/%s' % (iteridx[i_iter, 'nodename'])    
+        return '/WE/Iterations/%s' % (iteridx[n_iter, 'nodename'])    
                 
     def prepare_backing(self, sim_config):
         self.hdf5file.create_group('/WE')
@@ -52,28 +52,28 @@ class HDF5DataManager(DataManagerBase):
                                         dtype = self.iterations_index_dtype)
         
     def create_we_sim_iter(self, we_sim_iter):
-        assert we_sim_iter.i_iter is not None
+        assert we_sim_iter.n_iter is not None
         assert we_sim_iter.n_particles > 0
         assert we_sim_iter.binarray is not None
         
-        i_iter = we_sim_iter.i_iter
+        n_iter = we_sim_iter.n_iter
         n_particles = we_sim_iter.n_particles
         pcoord_ndim = we_sim_iter.binarray.ndim
                 
         iterations_group = self.hdf5file['/WE/Iterations']
         idx = iterations_group['IterIndex']
         
-        if i_iter == 0:
+        if n_iter == 0:
             # We are bootstrapping the simulation
             log.debug('bootstrapping simulation; not resizing index')
         else:
             # We are extending the simulation
-            assert i_iter == len(idx)
+            assert n_iter == len(idx)
             log.debug('extending index')
-            idx.resize((i_iter+1,))
+            idx.resize((n_iter+1,))
             
-        iter_node_name = self._iter_nodename_from_id(i_iter)
-        idx[i_iter] = (iter_node_name,)
+        iter_node_name = self._iter_nodename_from_id(n_iter)
+        idx[n_iter] = (iter_node_name,)
         new_iter_group = iterations_group.create_group(iter_node_name)
 
         # Create the segment index
@@ -105,7 +105,7 @@ class HDF5DataManager(DataManagerBase):
             ds[...] = bin_boundaries
 
             for (nodename, contents) in (('BinIdealNumParticles', we_sim_iter.binarray.ideal_num),
-                                         ('BinSplitThresholds', we_sim_iter.binarray.split_threshold),
+                                         ('BinSplitThreshold', we_sim_iter.binarray.split_threshold),
                                          ('BinMergeThresholdMin', we_sim_iter.binarray.merge_threshold_min),
                                          ('BinMergeThresholdMax', we_sim_iter.binarray.merge_threshold_max)):
                 try:
@@ -120,14 +120,23 @@ class HDF5DataManager(DataManagerBase):
                                                 ('BinInitialNumParticles', we_sim_iter.binarray.nparticles_array)):
                 contents = generating_func()
                 try:
-                    iter_group.require_dataset(nodename, shape=contents.shape, dtype=contents.dtype)
+                    ds = iter_group.require_dataset(nodename, shape=contents.shape, dtype=contents.dtype)
                 except ValueError:
                     log.warning('unexpected resize of %s' % nodename)
                     del iter_group[nodename]
                     ds = iter_group.create_dataset(nodename, shape=contents.shape, dtype=contents.dtype)
                 ds[...] = contents
+        else:
+            for key in ('BinBoundaries', 'BinIdealNumParticles', 
+                        'BinSplitThreshold', 'BinMergeThresholdMin',
+                        'BinMergeThresholdMax', 'BinInitialPopulation',
+                        'BinInitialNumParticles'):
+                try:
+                    del iter_group[key]
+                except (KeyError,SymbolError):
+                    pass
 
-        iter_group.attrs['i_iter'] = uint64(we_sim_iter.i_iter)
+        iter_group.attrs['n_iter'] = uint64(we_sim_iter.n_iter)
         iter_group.attrs['norm'] = float64(we_sim_iter.norm)        
         iter_group.attrs['n_particles'] = uint64(we_sim_iter.n_particles)
         for (attr,dtype) in (('cputime', float64), ('walltime', float64)):
@@ -209,12 +218,12 @@ class HDF5DataManager(DataManagerBase):
                 ninc += 1
         return ninc
     
-    def get_we_sim_iter(self, i_iter, load_segments = False):
-        iter_node = self.hdf5file[self._get_we_sim_iter_path(i_iter)]
-        we_iter = WESimIter(i_iter = iter_node.attrs['i_iter'],
+    def get_we_sim_iter(self, n_iter, load_segments = False):
+        iter_node = self.hdf5file[self._get_we_sim_iter_path(n_iter)]
+        we_iter = WESimIter(n_iter = iter_node.attrs['n_iter'],
                             norm   = iter_node.attrs['norm'],
                             n_particles = iter_node.attrs['n_particles'])
-        assert we_iter.i_iter == i_iter
+        assert we_iter.n_iter == n_iter
         return we_iter
     
     def get_segments(self, we_iter, seg_load_pcoord = True):
@@ -224,7 +233,7 @@ class HDF5DataManager(DataManagerBase):
         for irow in xrange(0,len(segidx)):
             seg_id = segidx[irow,'seg_id']
             segment = Segment(seg_id = seg_id,
-                              i_iter = iter_group.attrs['i_iter'],
+                              n_iter = iter_group.attrs['n_iter'],
                               status = segidx[irow, 'status'],
                               weight = segidx[irow, 'weight'],
                               cputime = segidx[irow, 'cputime'],
@@ -244,7 +253,7 @@ class HDF5DataManager(DataManagerBase):
                 continue
             seg_id = segidx[irow,'seg_id']
             segment = Segment(seg_id = seg_id,
-                              i_iter = iter_group.attrs['i_iter'],
+                              n_iter = iter_group.attrs['n_iter'],
                               status = segidx[irow, 'status'],
                               weight = segidx[irow, 'weight'],
                               cputime = segidx[irow, 'cputime'],

@@ -15,7 +15,7 @@ class Segment:
         return hash(self.seg_id)
     
     def __init__(self, 
-                 seg_id = None, i_iter = None, status = None,
+                 seg_id = None, n_iter = None, status = None,
                  p_parent_id = None, parent_ids = None,
                  p_parent = None, parents = None,
                  weight = None, pcoord = None,
@@ -25,7 +25,7 @@ class Segment:
                  data = None):
         
         self.seg_id = seg_id
-        self.i_iter = i_iter
+        self.n_iter = n_iter
         self.status = status
         self.p_parent = p_parent
         self.parents = parents or set()
