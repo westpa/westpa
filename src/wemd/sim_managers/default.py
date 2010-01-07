@@ -55,13 +55,52 @@ class DefaultWEMaster(WESimMaster):
         state_dict = pickle.load(open(state_filename))
         log.debug('state info: %r' % state_dict)
         self.we_driver = state_dict['we_driver']
+
+    def initialize_simulation(self, sim_config):
+        import wemd.we_drivers
+        from wemd.core import Segment, Particle
+        
+        for item in ('wemd.initial_particles', 'wemd.initial_pcoord'):
+            sim_config.require(item)
+            
+        # Create the backing store
+        self.data_manager.prepare_backing(sim_config)
+                    
+        # Create and configure the WE driver
+        self.load_we_driver(sim_config)
+        we_driver = self.we_driver
+        
+        # Create the initial segments
+        log.info('creating initial segments')
+        n_init = sim_config.get_int('wemd.initial_particles')
+        pcoord_vals = [float(x) for x in 
+                       sim_config.get_list('wemd.initial_pcoord')]
+        pcoord = numpy.empty((1,len(pcoord_vals)), numpy.float64)
+        pcoord[0] = pcoord_vals        
+        segments = [Segment(i_iter = 0, 
+                            status = wemd.Segment.SEG_STATUS_COMPLETE,
+                            weight=1.0/n_init,
+                            pcoord = pcoord)
+                    for i in xrange(1,n_init+1)]
+        
+        # Record dummy stats for the starting iteration
+        self.we_iter = WESimIter()
+        self.we_iter.binarray = self.we_driver.make_bins()
+        self.we_iter.i_iter = 0
+        self.we_iter.n_particles = len(segments)
+        self.we_iter.norm = numpy.sum([seg.weight for seg in segments])
+        self.we_iter.segments = segments
+        self.data_manager.create_we_sim_iter(self.we_iter)
+        
+        # Run one iteration of WE to assign particles to bins
+        self.run_we()        
             
     def run_we(self):
         current_iteration = self.we_driver.current_iteration
         
         # Get number of incomplete segments
-
-        if self.data_manager.num_incomplete_segments(self.we_iter):
+        ninc = self.data_manager.num_incomplete_segments(self.we_iter)
+        if ninc:
             raise PropagationIncompleteError('%d segments have not been completed'
                                              % n_inc)
             
@@ -96,76 +135,34 @@ class DefaultWEMaster(WESimMaster):
         
         # Create storage for next WE iteration data        
         we_iter = WESimIter()
-        we_iter.we_iter = new_we_iter
-        self.data_manager.create_we_sim_iter(we_iter)
+        we_iter.i_iter = new_we_iter
         
-        # Convert particles to new DB segments
+        # Convert particles to new propagation segments
         new_segments = []
         for particle in new_particles:
             s = Segment(weight = particle.weight)
-            s.we_iter = new_we_iter
+            s.i_iter = new_we_iter
             s.status = Segment.SEG_STATUS_PREPARED
             s.pcoord = None
             if particle.p_parent:
-                s.p_parent = Segment(we_iter = current_iteration,
+                s.p_parent = Segment(i_iter = current_iteration,
                                      seg_id = particle.p_parent.particle_id)
                 log.debug('segment %r primary parent is %r' 
                           % (s.seg_id or '(New)', s.p_parent.seg_id))
             if particle.parents:
-                s.parents = set([Segment(we_iter = current_iteration,
+                s.parents = set([Segment(i_iter = current_iteration,
                                          seg_id = pp.particle_id) for pp in particle.parents])
                 log.debug('segment %r parents are %r' 
                           % (s.seg_id or '(New)',
                              [s2.particle_id for s2 in particle.parents]))
             new_segments.append(s)
 
-        for segment in new_segments:
-            self.data_manager.create_segment(segment)
-            segment.data_ref = self.make_data_ref(segment)
-            self.data_manager.update_segment(segment)
-            
+        we_iter.segments = new_segments
         we_iter.n_particles = len(new_segments)
         we_iter.norm = numpy.sum((seg.weight for seg in new_segments))
         we_iter.binarray = self.we_driver.bins
-        self.data_manager.update_we_sim_iter(we_iter)
+        self.data_manager.create_we_sim_iter(we_iter)
              
-    def initialize_simulation(self, sim_config):
-        import wemd.we_drivers
-        from wemd.core import Segment, Particle
-        
-        for item in ('wemd.initial_particles', 'wemd.initial_pcoord'):
-            sim_config.require(item)
-            
-        # Create the backing store
-        self.data_manager.prepare_backing(sim_config)
-                    
-        # Create and configure the WE driver
-        self.load_we_driver(sim_config)
-        we_driver = self.we_driver
-        
-        # Create the initial segments
-        log.info('creating initial segments')
-        n_init = sim_config.get_int('wemd.initial_particles')
-        pcoord = numpy.array([float(x) for x in 
-                              sim_config.get_list('wemd.initial_pcoord')])        
-        segments = [Segment(we_iter = 0, 
-                            status = wemd.Segment.SEG_STATUS_COMPLETE,
-                            weight=1.0/n_init,
-                            pcoord = pcoord)
-                    for i in xrange(1,n_init+1)]
-        
-        # Record dummy stats for the starting iteration
-        self.we_iter = WESimIter()
-        self.we_iter.we_iter = 0
-        self.we_iter.cputime = self.we_iter.walltime = 0.0
-        self.we_iter.n_particles = len(segments)
-        self.we_iter.norm = numpy.sum([seg.weight for seg in segments])
-        self.data_manager.create_we_sim_iter(self.we_iter)
-        for segment in segments:
-            self.data_manager.create_segment(segment)
-        
-        # Run one iteration of WE to assign particles to bins
-        self.run_we()        
         
     def continue_simulation(self):
         return bool(self.we_driver.current_iteration <= self.max_iterations)
@@ -178,7 +175,7 @@ class DefaultWEMaster(WESimMaster):
         self.dbsession.flush()
         
     def propagate_particles(self):
-        current_iteration = self.we_iter.we_iter
+        current_iteration = self.we_iter.i_iter
         log.info('WE iteration %d (of %d requested)'
                  % (current_iteration, self.max_iterations))
         n_inc = self.q_incomplete_segments(current_iteration).count()

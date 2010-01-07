@@ -1,4 +1,4 @@
-from wemd.core import Segment
+from wemd.core import Segment, WESimIter
 from wemd.data_managers import DataManagerBase
 import h5py
 from h5py.h5e import SymbolError
@@ -9,9 +9,6 @@ from numpy import uint8, uint64, float64
 import logging
 log = logging.getLogger(__name__)
 
-ITERIDX_HDF5REF = 0
-SEGIDX_HDF5REF = 0
-
 class HDF5DataManager(DataManagerBase):
     def __init__(self, runtime_config):
         super(HDF5DataManager,self).__init__(runtime_config)
@@ -19,216 +16,241 @@ class HDF5DataManager(DataManagerBase):
         
         self.hdf5file = h5py.File(runtime_config['data.hdf5.filename'])
         try:
-            self._nodename_prec = self.hdf5file.attrs['nodename_prec']
+            self._iter_nodename_prec = self.hdf5file.attrs['iter_nodename_prec']
         except KeyError:
-            self._nodename_prec = runtime_config.get_int('data.hdf5.nodename_prec', 12)
-            self.hdf5file.attrs['nodename_prec'] = uint8(self._nodename_prec)
+            self._iter_nodename_prec = runtime_config.get_int('data.hdf5.iter_nodename_prec', 12)
+            self.hdf5file.attrs['nodename_prec'] = uint8(self._iter_nodename_prec)
         
-        self.iterations_index_dtype = numpy.dtype([('hdf5ref', 
-                                                    numpy.dtype('|S%d' % self._nodename_prec))])
-        self.segments_index_dtype = numpy.dtype([('hdf5ref',
-                                                  numpy.dtype('|S%d' % self._nodename_prec))])
-
+        self.iterations_index_dtype = numpy.dtype([('nodename', 
+                                                    numpy.dtype('|S%d' % self._iter_nodename_prec))])
+        self.seg_index_dtype = numpy.dtype([('seg_id', uint64),
+                                            ('p_parent_id', uint64),
+                                            ('weight', float64),
+                                            ('cputime', float64),
+                                            ('walltime', float64),
+                                            ('status', uint8),])
         
-    def _nodename_from_id(self, id_):
-        return '%0.*d' % (self._nodename_prec, id_)
-    
+    def _iter_nodename_from_id(self, id_):
+        return '%0.*d' % (self._iter_nodename_prec, id_)
+        
     def _get_we_sim_iter_path(self, we_sim_iter):
         try:
-            we_iter = we_sim_iter.we_iter
+            i_iter = we_sim_iter.i_iter
         except AttributeError:
-            we_iter = we_sim_iter
+            i_iter = we_sim_iter
             
-        iteridx = self.hdf5file['/Iterations/Index']
-        return '/Iterations/%s' % (iteridx[we_iter][ITERIDX_HDF5REF])    
-        
-    def _get_segment_path(self, we_iter, seg_id):
-        segpath = self._get_we_sim_iter_path(we_iter)
-        segidx = self.hdf5file['%s/Segments/Index' % segpath]
-        return '%s/Segments/%s' % (segpath, segidx[seg_id][SEGIDX_HDF5REF])
-        
+        iteridx = self.hdf5file['/WE/Iterations/IterIndex']
+        return '/WE/Iterations/%s' % (iteridx[i_iter, 'nodename'])    
+                
     def prepare_backing(self, sim_config):
-        iterations_group = self.hdf5file.create_group('Iterations')
-        iterations_group.create_dataset('Index', 
+        self.hdf5file.create_group('/WE')
+        iterations_group = self.hdf5file.create_group('/WE/Iterations')
+        iterations_group.create_dataset('IterIndex', 
                                         shape = (1,),
                                         maxshape = (None,),
-                                        #chunks = (1024,),
+                                        chunks = (4,),
                                         dtype = self.iterations_index_dtype)
         
     def create_we_sim_iter(self, we_sim_iter):
-        assert we_sim_iter.we_iter is not None
-                
-        iterations_group = self.hdf5file['Iterations']
-        idx = iterations_group['Index']
+        assert we_sim_iter.i_iter is not None
+        assert we_sim_iter.n_particles > 0
+        assert we_sim_iter.binarray is not None
         
-        if we_sim_iter.we_iter == 0:
+        i_iter = we_sim_iter.i_iter
+        n_particles = we_sim_iter.n_particles
+        pcoord_ndim = we_sim_iter.binarray.ndim
+                
+        iterations_group = self.hdf5file['/WE/Iterations']
+        idx = iterations_group['IterIndex']
+        
+        if i_iter == 0:
             # We are bootstrapping the simulation
             log.debug('bootstrapping simulation; not resizing index')
         else:
             # We are extending the simulation
-            assert we_sim_iter.we_iter == len(idx)
+            assert i_iter == len(idx)
             log.debug('extending index')
-            idx.resize((len(idx)+1,))
-        log.debug('index shape: %r' % idx.shape)
+            idx.resize((i_iter+1,))
             
-        iter_node_name = self._nodename_from_id(we_sim_iter.we_iter)
-        idx[we_sim_iter.we_iter] = (iter_node_name,)
+        iter_node_name = self._iter_nodename_from_id(i_iter)
+        idx[i_iter] = (iter_node_name,)
         new_iter_group = iterations_group.create_group(iter_node_name)
 
-        seg_group = new_iter_group.create_group('Segments')
-        segidx = seg_group.create_dataset('Index', 
-                                        shape = (1,),
-                                        maxshape = (None,),
-                                        #chunks = (1024,),
-                                        dtype = self.segments_index_dtype)
+        # Create the segment index
+        segidx = new_iter_group.create_dataset('SegIndex', 
+                                               shape = (n_particles,),
+                                               dtype = self.seg_index_dtype)
+        
+        # Create the progress coordinate array
+        # TODO: add support for different data type
+        new_iter_group.create_dataset('ProgCoords',
+                                      shape=(n_particles, 1, pcoord_ndim),
+                                      dtype=float64)
+        
         self._update_we_sim_iter(we_sim_iter, new_iter_group)
         
     def _update_we_sim_iter(self, we_sim_iter, iter_group):
         if we_sim_iter.binarray is not None:
+            bin_boundaries = numpy.array(we_sim_iter.binarray.boundaries)
             try:
-                iter_group.create_dataset('BinBoundaries', data=numpy.array(we_sim_iter.binarray.boundaries))
+                ds = iter_group.require_dataset('BinBoundaries', 
+                                                shape=bin_boundaries.shape,
+                                                dtype=bin_boundaries.dtype)
             except ValueError:
-                iter_group['BinBoundaries'][...] = numpy.array(we_sim_iter.binarray.boundaries)
+                log.warning('unexpected resize of BinBoundaries')
+                del iter_group['BinBoundaries']
+                ds = iter_group.create_dataset('BinBoundaries',
+                                               shape=bin_boundaries.shape,
+                                               dtype=bin_boundaries.dtype)
+            ds[...] = bin_boundaries
+
             for (nodename, contents) in (('BinIdealNumParticles', we_sim_iter.binarray.ideal_num),
                                          ('BinSplitThresholds', we_sim_iter.binarray.split_threshold),
                                          ('BinMergeThresholdMin', we_sim_iter.binarray.merge_threshold_min),
                                          ('BinMergeThresholdMax', we_sim_iter.binarray.merge_threshold_max)):
-                log.debug('assigning to %r: %r' % (nodename, contents))
                 try:
-                    log.debug('shape of %r: %r' % (nodename, contents.shape))
-                except AttributeError:
-                    pass
-                
-                try:
-                    iter_group.create_dataset(nodename, data=contents)
+                    ds = iter_group.require_dataset(nodename, shape=contents.shape, dtype=contents.dtype)
                 except ValueError:
-                    iter_group[nodename] = contents
+                    log.warning('unexpected resize of %s' % nodename)
+                    del iter_group[nodename]
+                    ds = iter_group.create_dataset(nodename, shape=contents.shape, dtype=contents.dtype)
+                ds[...] = contents
             
             for (nodename, generating_func) in (('BinInitialPopulation', we_sim_iter.binarray.population_array),
                                                 ('BinInitialNumParticles', we_sim_iter.binarray.nparticles_array)):
                 contents = generating_func()
                 try:
-                    iter_group.create_dataset(nodename, data=contents)
+                    iter_group.require_dataset(nodename, shape=contents.shape, dtype=contents.dtype)
                 except ValueError:
-                    iter_group[nodename] = contents
+                    log.warning('unexpected resize of %s' % nodename)
+                    del iter_group[nodename]
+                    ds = iter_group.create_dataset(nodename, shape=contents.shape, dtype=contents.dtype)
+                ds[...] = contents
 
-        iter_group.attrs['we_iter'] = uint64(we_sim_iter.we_iter)
+        iter_group.attrs['i_iter'] = uint64(we_sim_iter.i_iter)
         iter_group.attrs['norm'] = float64(we_sim_iter.norm)        
-        iter_group.attrs['n_particles'] = uint64(we_sim_iter.n_particles or 0)
-        iter_group.attrs['cputime'] = float64(we_sim_iter.cputime or 0.0)
-        iter_group.attrs['walltime'] = float64(we_sim_iter.walltime or 0.0)
+        iter_group.attrs['n_particles'] = uint64(we_sim_iter.n_particles)
+        for (attr,dtype) in (('cputime', float64), ('walltime', float64)):
+            val = getattr(we_sim_iter, attr)
+            if val is None:
+                try:
+                    del iter_group.attrs[attr]
+                except KeyError:
+                    pass
+            else:
+                iter_group.attrs[attr] = dtype(val)
+                
+        self._update_segments(we_sim_iter, iter_group)
+                
+    def _update_segments(self, we_sim_iter, iter_group):
+        segments = we_sim_iter.segments
+        assert segments is not None and len(segments) > 0
+        segidx = iter_group['SegIndex']
+        idxrow = numpy.empty((1,), dtype=self.seg_index_dtype)
         
-    
+        pcoords = None
+        if segments[0].pcoord is not None:
+            pcoords = iter_group['ProgCoords']
+            if pcoords[0].shape != segments[0].pcoord.shape:
+                log.info('resizing progress coordinate storage')
+                del iter_group['ProgCoords']
+                pcoords = iter_group.create_dataset('ProgCoords',
+                                                    shape = (we_sim_iter.n_particles,) + segments[0].pcoord.shape,
+                                                    dtype = segments[0].pcoord.dtype,
+                                                    chunks = (1,) + segments[0].pcoord.shape)
+        
+        segment_lineage = numpy.zeros((we_sim_iter.n_particles,1), dtype=uint64)
+        for (iseg, segment) in enumerate(segments):
+            # update index   
+            idxrow[:] = segidx[iseg]
+            if segment.seg_id is None:
+                segment.seg_id = iseg + 1
+                idxrow['seg_id'] = segment.seg_id
+            else:
+                idxrow['seg_id'] = segment.seg_id
+            try:
+                idxrow['p_parent_id'] = segment.p_parent.seg_id
+            except AttributeError:
+                idxrow['p_parent_id'] = 0
+            idxrow['weight'] = segment.weight
+            idxrow['cputime'] = segment.cputime or 0.0
+            idxrow['walltime'] = segment.cputime or 0.0
+            idxrow['status'] = segment.status
+            segidx[iseg] = idxrow
+            
+            if pcoords is not None: 
+                pcoords[iseg] = segment.pcoord
+                
+            if len(segment.parents) > segment_lineage.shape[1]:
+                segment_lineage.resize((segment_lineage.shape[0], len(segment.parents)))
+                segment_lineage[:,len(segment.parents)-1] = 0
+            segment_lineage[iseg,0:len(segment.parents)] = [s.seg_id for s in segment.parents]
+            
+        # Store family tree
+        try:
+            del iter_group['SegmentLineage']
+        except (KeyError,SymbolError):
+            pass
+        if (segment_lineage != 0).any():
+            iter_group.create_dataset('SegmentLineage', data=segment_lineage)
+            
+                
+        # Sanity checks
+        assert set(segidx[:,'seg_id']) == set(xrange(1,len(segidx)+1))
+            
     def update_we_sim_iter(self, we_sim_iter):
         self._update_we_sim_iter(we_sim_iter, self.hdf5file[self._get_we_sim_iter_path(we_sim_iter)])
-    
-    def create_segment(self, segment):
-        assert segment.seg_id is None
         
-        segs_group = self.hdf5file['%s/Segments' % self._get_we_sim_iter_path(segment.we_iter)]
-        segidx = segs_group['Index']
-        last_seg_id = segidx.shape[0]-1
-        if last_seg_id == 0:
-            if segidx[0][0] == '':
-                last_seg_id = None
-        
-        if last_seg_id is None:
-            segment.seg_id = 0
-        else:
-            segidx.resize((len(segidx)+1,))
-            segment.seg_id = last_seg_id+1
-        segidx[segment.seg_id] = (self._nodename_from_id(segment.seg_id),)
-            
-        seg_group = segs_group.create_group(segidx[segment.seg_id][SEGIDX_HDF5REF])
-        self._update_segment(segment, seg_group)
-        
-    def _update_segment(self, segment, seg_group):
-        seg_group.attrs['seg_id'] = uint64(segment.seg_id)
-        seg_group.attrs['we_iter'] = uint64(segment.we_iter)
-        seg_group.attrs['weight'] = float64(segment.weight)
-        seg_group.attrs['status'] = uint8(segment.status or 0)
-        seg_group.attrs['cputime'] = float64(segment.cputime or 0.0)
-        seg_group.attrs['walltime'] = float64(segment.walltime or 0.0)
-        if segment.data_ref:
-            seg_group.attrs['data_ref'] = numpy.array(segment.data_ref)
-        else:
-            try:
-                del seg_group.attrs['data_ref']
-            except KeyError:
-                pass
-        
-        if segment.pcoord is not None:
-            if len(segment.pcoord.shape) == 1:
-                # Vector of a single n-dimensional progress coordinate
-                pcoord_node = seg_group.require_dataset('Pcoord', dtype=segment.pcoord.dtype,
-                                                       shape=(1, segment.pcoord.shape[0]),
-                                                       )
-                pcoord_node[0,:] = segment.pcoord
-            else:
-                # Array of time-resolved progress coordinates                
-                try:
-                    pcoord_node = seg_group.require_dataset('Pcoord', dtype=segment.pcoord.dtype,
-                                                           shape = segment.pcoord.shape,
-                                                           )
-                except ValueError:
-                    # Needs resize
-                    del seg_group['Pcoord']
-                    pcoord_node = seg_group.create_dataset('Pcoord', dtype=segment.pcoord.dtype,
-                                                           shape = segment.pcoord.shape,
-                                                           )
-                pcoord_node[...] = segment.pcoord
-
-
-        if segment.p_parent:
-            seg_group.attrs['p_parent_id'] = uint64(segment.p_parent.seg_id)
-        else:
-            try:
-                del seg_group.attrs['p_parent_id']
-            except KeyError:
-                pass
-            
-        if segment.parents:
-            try:
-                parents_node = seg_group.require_dataset('Parents', dtype=uint64,
-                                                         shape = (len(segment.parents),))
-                parents_node[...] = [p.seg_id for p in segment.parents]
-            except ValueError:
-                del seg_group['Parents']
-                parents_node = seg_group.create_dataset('Parents', dtype=uint64,
-                                                         shape = (len(segment.parents),))
-                parents_node[...] = [p.seg_id for p in segment.parents]
-
-    def update_segment(self, segment):
-        self._update_segment(segment, self.hdf5file[self._get_segment_path(segment.we_iter, segment.seg_id)])
-    
     def num_incomplete_segments(self, we_iter):
         ninc = 0
-        seg_group = self.hdf5file['%s/Segments' % self._get_we_sim_iter_path(we_iter)]
-        for row in seg_group['Index']:
-            nodename = row[SEGIDX_HDF5REF]
-            if seg_group[nodename].attrs['status'] != Segment.SEG_STATUS_COMPLETE:
+        segidx = self.hdf5file['%s/SegIndex' % self._get_we_sim_iter_path(we_iter)]
+        for irow in xrange(0, len(segidx)):
+            if segidx[irow, 'status'] != Segment.SEG_STATUS_COMPLETE:
                 ninc += 1
         return ninc
     
-    def get_segment(self, we_sim_iter, seg_id, load_p_parent = False):
-        segment = Segment()
-        seg_group = self.hdf5file[self._get_segment_path(we_sim_iter, seg_id)]
-        segment.we_iter = seg_group.attrs['we_iter']
-        segment.seg_id = seg_group.attrs['seg_id']
-        segment.status = seg_group.attrs['status']
-        segment.weight = seg_group.attrs['weight']
-        segment.cputime = seg_group.attrs.get('cputime', 0.0)
-        segment.walltime = seg_group.attrs.get('walltime', 0.0)
-        segment.data_ref = seg_group.attrs.get('data_ref',None)
-        try:
-            segment.pcoord = seg_group['Pcoord'][...]
-        except KeyError:
-            segment.pcoord = None
-        return segment
-            
-    def get_segments(self, we_sim_iter):
-        sim_iter_path = self._get_we_sim_iter_path(we_sim_iter)
-        segs_group = self.hdf5file['%s/Segments' % sim_iter_path]
-        segments = [self.get_segment(we_sim_iter, seg_id)
-                    for seg_id in xrange(0, segs_group['Index'].shape[0])]
+    def get_we_sim_iter(self, i_iter, load_segments = False):
+        iter_node = self.hdf5file[self._get_we_sim_iter_path(i_iter)]
+        we_iter = WESimIter(i_iter = iter_node.attrs['i_iter'],
+                            norm   = iter_node.attrs['norm'],
+                            n_particles = iter_node.attrs['n_particles'])
+        assert we_iter.i_iter == i_iter
+        return we_iter
+    
+    def get_segments(self, we_iter, seg_load_pcoord = True):
+        iter_group = self.hdf5file[self._get_we_sim_iter_path(we_iter)]
+        segments = []
+        segidx = iter_group['SegIndex']
+        for irow in xrange(0,len(segidx)):
+            seg_id = segidx[irow,'seg_id']
+            segment = Segment(seg_id = seg_id,
+                              i_iter = iter_group.attrs['i_iter'],
+                              status = segidx[irow, 'status'],
+                              weight = segidx[irow, 'weight'],
+                              cputime = segidx[irow, 'cputime'],
+                              walltime = segidx[irow, 'walltime'],
+                              )
+            if seg_load_pcoord:
+                segment.pcoord = iter_group['ProgCoords'][irow]
+            segments.append(segment)
         return segments
+    
+    def get_prepared_segments(self, we_iter):
+        iter_group = self.hdf5file[self._get_we_sim_iter_path(we_iter)]
+        segments = []
+        segidx = iter_group['SegIndex']
+        for irow in xrange(0,len(segidx)):
+            if segidx[irow, 'status'] != Segment.SEG_STATUS_PREPARED:
+                continue
+            seg_id = segidx[irow,'seg_id']
+            segment = Segment(seg_id = seg_id,
+                              i_iter = iter_group.attrs['i_iter'],
+                              status = segidx[irow, 'status'],
+                              weight = segidx[irow, 'weight'],
+                              cputime = segidx[irow, 'cputime'],
+                              walltime = segidx[irow, 'walltime'],
+                              )
+            segments.append(segment)
+        return segments
+        
+        
