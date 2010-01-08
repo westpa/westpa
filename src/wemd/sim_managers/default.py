@@ -89,8 +89,8 @@ class DefaultWEMaster(WESimMaster):
         self.we_iter.n_iter = 0
         self.we_iter.n_particles = len(segments)
         self.we_iter.norm = numpy.sum([seg.weight for seg in segments])
-        self.we_iter.segments = segments
         self.data_manager.create_we_sim_iter(self.we_iter)
+        self.data_manager.create_segments(self.we_iter, segments)
         
         # Run one iteration of WE to assign particles to bins
         self.run_we()        
@@ -157,11 +157,11 @@ class DefaultWEMaster(WESimMaster):
                              [s2.particle_id for s2 in particle.parents]))
             new_segments.append(s)
 
-        we_iter.segments = new_segments
         we_iter.n_particles = len(new_segments)
         we_iter.norm = numpy.sum((seg.weight for seg in new_segments))
         we_iter.binarray = self.we_driver.bins
         self.data_manager.create_we_sim_iter(we_iter)
+        self.data_manager.create_segments(we_iter, new_segments)
                      
     def continue_simulation(self):
         return bool(self.we_driver.current_iteration <= self.max_iterations)
@@ -177,17 +177,8 @@ class DefaultWEMaster(WESimMaster):
         log.info('%d segments remaining in WE iteration %d'
                  % (n_inc, current_iteration))
         for segment in self.data_manager.get_prepared_segments(self.we_iter):
-            segments = [segment]
-            self.backend_driver.propagate_segments(segments)
-            
-            self.dbsession.begin()
-            try:
-                self.dbsession.flush()
-            except Exception, e:
-                self.dbsession.rollback()
-                raise
-            else:
-                self.dbsession.commit()
+            self.backend_driver.propagate_segments([segment])
+        self.data_manager.update_segments(self.we_iter, segments)
         
     def finalize_iteration(self):
         anparticles = self.we_driver.bins.nparticles_array()

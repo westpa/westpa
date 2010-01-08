@@ -9,6 +9,26 @@ from numpy import uint8, uint64, float64
 import logging
 log = logging.getLogger(__name__)
 
+class SegIndexRow(object):
+    dtype = numpy.dtype([('seg_id', uint64),
+                         ('p_parent_id', uint64),
+                         ('weight', float64),
+                         ('cputime', float64),
+                         ('walltime', float64),
+                         ('status', uint8),])
+    idx_by_field = dict((field, i) for (i,field) in enumerate(dtype.fields.iterkeys()))
+    
+    def __init__(self, item = None):
+        self.data = numpy.zeros((1,), dtype=self.dtype)
+        if item is not None:
+            self.data[0] = item
+    
+    def __getitem__(self, key):
+        return self.data[key]
+    
+    def __setitem__(self, key, value):
+        self.data[key] = value
+                
 class HDF5DataManager(DataManagerBase):
     def __init__(self, runtime_config):
         super(HDF5DataManager,self).__init__(runtime_config)
@@ -22,17 +42,10 @@ class HDF5DataManager(DataManagerBase):
             self.hdf5file.attrs['nodename_prec'] = uint8(self._iter_nodename_prec)
         
         self.iterations_index_dtype = numpy.dtype([('nodename', 
-                                                    numpy.dtype('|S%d' % self._iter_nodename_prec))])
-        self.seg_index_dtype = numpy.dtype([('seg_id', uint64),
-                                            ('p_parent_id', uint64),
-                                            ('weight', float64),
-                                            ('cputime', float64),
-                                            ('walltime', float64),
-                                            ('status', uint8),])
-        
+                                                    numpy.dtype('|S%d' % self._iter_nodename_prec))])        
     def _iter_nodename_from_id(self, id_):
         return '%0.*d' % (self._iter_nodename_prec, id_)
-        
+            
     def _get_we_sim_iter_path(self, we_sim_iter):
         try:
             n_iter = we_sim_iter.n_iter
@@ -63,10 +76,7 @@ class HDF5DataManager(DataManagerBase):
         iterations_group = self.hdf5file['/WE/Iterations']
         idx = iterations_group['IterIndex']
         
-        if n_iter == 0:
-            # We are bootstrapping the simulation
-            log.debug('bootstrapping simulation; not resizing index')
-        else:
+        if n_iter > 0:
             # We are extending the simulation
             assert n_iter == len(idx)
             log.debug('extending index')
@@ -79,13 +89,20 @@ class HDF5DataManager(DataManagerBase):
         # Create the segment index
         segidx = new_iter_group.create_dataset('SegIndex', 
                                                shape = (n_particles,),
-                                               dtype = self.seg_index_dtype)
+                                               dtype = SegIndexRow.dtype)
         
         # Create the progress coordinate array
         # TODO: add support for different data type
         new_iter_group.create_dataset('ProgCoords',
                                       shape=(n_particles, 1, pcoord_ndim),
+                                      chunks=(2, 1, pcoord_ndim),
+                                      maxshape=(n_particles, None, pcoord_ndim),
                                       dtype=float64)
+        
+        # Create the family tree array
+        new_iter_group.create_dataset('SegmentLineage',
+                                      shape=(n_particles, 1),
+                                      dtype=uint64)
         
         self._update_we_sim_iter(we_sim_iter, new_iter_group)
         
@@ -148,68 +165,122 @@ class HDF5DataManager(DataManagerBase):
                     pass
             else:
                 iter_group.attrs[attr] = dtype(val)
-                
-        self._update_segments(we_sim_iter, iter_group)
-                
-    def _update_segments(self, we_sim_iter, iter_group):
-        segments = we_sim_iter.segments
-        assert segments is not None and len(segments) > 0
-        segidx = iter_group['SegIndex']
-        idxrow = numpy.empty((1,), dtype=self.seg_index_dtype)
-        
-        pcoords = None
-        if segments[0].pcoord is not None:
-            pcoords = iter_group['ProgCoords']
-            if pcoords[0].shape != segments[0].pcoord.shape:
-                log.info('resizing progress coordinate storage')
-                del iter_group['ProgCoords']
-                pcoords = iter_group.create_dataset('ProgCoords',
-                                                    shape = (we_sim_iter.n_particles,) + segments[0].pcoord.shape,
-                                                    dtype = segments[0].pcoord.dtype,
-                                                    chunks = (1,) + segments[0].pcoord.shape)
-        
-        segment_lineage = numpy.zeros((we_sim_iter.n_particles,1), dtype=uint64)
-        for (iseg, segment) in enumerate(segments):
-            # update index   
-            idxrow[:] = segidx[iseg]
-            if segment.seg_id is None:
-                segment.seg_id = iseg + 1
-                idxrow['seg_id'] = segment.seg_id
-            else:
-                idxrow['seg_id'] = segment.seg_id
-            try:
-                idxrow['p_parent_id'] = segment.p_parent.seg_id
-            except AttributeError:
-                idxrow['p_parent_id'] = 0
-            idxrow['weight'] = segment.weight
-            idxrow['cputime'] = segment.cputime or 0.0
-            idxrow['walltime'] = segment.cputime or 0.0
-            idxrow['status'] = segment.status
-            segidx[iseg] = idxrow
-            
-            if pcoords is not None: 
-                pcoords[iseg] = segment.pcoord
-                
-            if len(segment.parents) > segment_lineage.shape[1]:
-                segment_lineage.resize((segment_lineage.shape[0], len(segment.parents)))
-                segment_lineage[:,len(segment.parents)-1] = 0
-            segment_lineage[iseg,0:len(segment.parents)] = [s.seg_id for s in segment.parents]
-            
-        # Store family tree
-        try:
-            del iter_group['SegmentLineage']
-        except (KeyError,SymbolError):
-            pass
-        if (segment_lineage != 0).any():
-            iter_group.create_dataset('SegmentLineage', data=segment_lineage)
-            
-                
-        # Sanity checks
-        assert set(segidx[:,'seg_id']) == set(xrange(1,len(segidx)+1))
-            
+
     def update_we_sim_iter(self, we_sim_iter):
         self._update_we_sim_iter(we_sim_iter, self.hdf5file[self._get_we_sim_iter_path(we_sim_iter)])
+
+                
+    def create_segments(self, we_sim_iter, segments):
+        iter_group = self.hdf5file[self._get_we_sim_iter_path(we_sim_iter)]
+        segidx = iter_group['SegIndex']
+        pcoords = iter_group['ProgCoords']
+        lineage = iter_group['SegmentLineage']
         
+        # Check for duplicate IDs
+        existing_seg_ids = set(segidx[:,'seg_id'])
+        existing_seg_ids.discard(0)
+        new_seg_ids = set(segment.seg_id for segment in segments)
+        new_seg_ids.difference_update((None,0))
+        duplicate_ids = existing_seg_ids & new_seg_ids
+        if duplicate_ids:
+            raise ValueError('duplicate key(s): %s' % list(duplicate_ids))
+        
+        # Find the maximum existing ID
+        try:
+            max_seg_id = max(existing_seg_ids)
+        except ValueError:
+            # Empty sequence
+            max_seg_id = 0
+        
+        # Free some memory if we need to
+        del existing_seg_ids, new_seg_ids
+        
+        # Find the first empty index row
+        first_empty_row = 0
+        for irow in xrange(0, len(segidx)):
+            if segidx[irow,'seg_id'] == 0:
+                first_empty_row = irow
+                break
+                
+        for (inewseg, segment) in enumerate(segments):
+            irow = first_empty_row + inewseg
+
+            if segment.seg_id is None:
+                seg_id = segment.seg_id = max_seg_id + inewseg + 1
+            
+            row = SegIndexRow(segidx[irow])
+            row['seg_id'] = segment.seg_id
+            segidx[irow] = row.data
+        
+        self.update_segments(we_sim_iter, segments)
+                
+            
+    def update_segments(self, we_sim_iter, segments):
+        iter_group = self.hdf5file[self._get_we_sim_iter_path(we_sim_iter)]
+        segidx = iter_group['SegIndex']
+        pcoords = iter_group['ProgCoords']
+        lineage = iter_group['SegmentLineage']
+        
+        # Resize progress coordinate array if necessary
+        shape_set = set((segment.pcoord is not None) and segment.pcoord.shape or None
+                        for segment in segments)
+        if len(shape_set) > 1:
+            # Refuse to commit changes where segments have different
+            # pcoord array sizes
+            raise ValueError('pcoord shapes do not match')
+        pcoord_shape = shape_set.pop()
+        if pcoord_shape is not None and pcoords.shape[1:] != pcoord_shape:
+            log.debug('resizing pcoord array to %r' % (pcoord_shape,))
+            pcoords.resize(pcoords.shape[0] + pcoord_shape)
+
+        # Resize the family tree if necessary
+        max_n_parents = max(len(seg.parents) for seg in segments)
+        if lineage.shape[1] < max_n_parents:
+            log.debug('resizing particle lineage table')
+            old_lineage = iter_group.copy(lineage, '_SegmentLineage')
+            lineage = iter_group.create_dataset('SegmentLineage',
+                                                shape=(old_lineage.shape[0],
+                                                       max_n_parents),
+                                                dtype=old_lineage.dtype)
+            lineage[:, 0:old_lineage.shape[1]] = old_lineage
+            del iter_group['_SegmentLineage']
+            
+        # Create an index into the index :)
+        # i.e. have a mapping at hand between seg_id and array indices
+        index_by_id = dict((segidx[idx, 'seg_id'], idx) for idx in xrange(0, len(segidx)))
+        
+        # Save updates
+        for segment in segments:
+            assert segment.n_iter == we_sim_iter.n_iter
+            
+            if segment.seg_id is None:
+                raise ValueError('seg_id cannot be None')
+            
+            irow = index_by_id[segment.seg_id]
+            idxrow = SegIndexRow(segidx[irow])            
+            idxrow['weight'] = segment.weight
+            idxrow['cputime'] = segment.cputime or 0.0
+            idxrow['walltime'] = segment.walltime or 0.0
+            idxrow['status'] = segment.status
+            
+            if segment.p_parent is not None:
+                idxrow['p_parent_id'] = segment.p_parent.seg_id
+            else:
+                idxrow['p_parent_id'] = 0
+                
+            if segment.parents:
+                lineage[irow] = [p.seg_id for p in segment.parents]
+            else:
+                # Broadcasts across entire row, setting all entries to zero
+                lineage[irow] = 0
+            
+            if segment.pcoord is not None:
+                pcoords[irow] = segment.pcoord
+            else:
+                pcoords[irow] = 0
+                
+            segidx[irow] = idxrow.data
+                        
     def num_incomplete_segments(self, we_iter):
         ninc = 0
         segidx = self.hdf5file['%s/SegIndex' % self._get_we_sim_iter_path(we_iter)]
@@ -218,7 +289,7 @@ class HDF5DataManager(DataManagerBase):
                 ninc += 1
         return ninc
     
-    def get_we_sim_iter(self, n_iter, load_segments = False):
+    def get_we_sim_iter(self, n_iter):
         iter_node = self.hdf5file[self._get_we_sim_iter_path(n_iter)]
         we_iter = WESimIter(n_iter = iter_node.attrs['n_iter'],
                             norm   = iter_node.attrs['norm'],

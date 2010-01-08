@@ -11,7 +11,7 @@ class ExecutableBackend(BackendDriver):
     EXTRA_ENVIRONMENT_PREFIX = 'backend.executable.env.'
 
     ENV_CURRENT_ITER         = 'WEMD_CURRENT_ITER'
-    ENV_SEG_DATA_RETURN      = 'WEMD_SEG_DATA_RETURN'
+    ENV_SEG_PCOORD_RETURN    = 'WEMD_SEG_PCOORD_RETURN'
 
     ENV_CURRENT_SEG_ID       = 'WEMD_CURRENT_SEG_ID'
     ENV_CURRENT_SEG_DATA_REF = 'WEMD_CURRENT_SEG_DATA_REF'
@@ -176,15 +176,15 @@ class ExecutableBackend(BackendDriver):
         log.debug('propagating %d segment(s)' % len(segments))
         for segment in segments:
             self.pre_segment(segment)
-            # Create a temporary file for the child process to return information
-            # to us
-            (return_fd, return_filename) = tempfile.mkstemp()
-            log.debug('expecting return information in %r' % return_filename)
-            os.close(return_fd)
+            # Create a temporary file for the child process to return 
+            # progress coordinate information to us
+            (pc_return_fd, pc_return_filename) = tempfile.mkstemp()
+            log.debug('expecting return information in %r' % pc_return_filename)
+            os.close(pc_return_fd)
             
             # Fork the new process
             addtl_env = self._segment_env(segment)
-            addtl_env[self.ENV_SEG_DATA_RETURN] = return_filename
+            addtl_env[self.ENV_SEG_PCOORD_RETURN] = pc_return_filename
             proc = self._popen(self.propagator_info, 
                                addtl_env, 
                                segment.__dict__)
@@ -214,49 +214,22 @@ class ExecutableBackend(BackendDriver):
                 log.warn('child process exited with code %s' % rc)
                 segment.status = Segment.SEG_STATUS_FAILED
                 return
-            
+                                
             try:
-                stream = open(return_filename)
-            except OSError, e:
-                log.error('could not open output return file: %s' % e)
+                self.update_pcoord_from_output(segment, pc_return_filename)
+            except Exception, e:
+                log.error('could not read progress coordinate file: %s' % e)
                 segment.status = Segment.SEG_STATUS_FAILED
-            else:
-                try:            
-                    self.update_segment_from_output(segment, stream)
-                finally:
-                    stream.close()
-                log.info('segment %s progress coordinate = %s'
-                         % (segment.seg_id, segment.pcoord))
-                    
+                
             try:
-                os.unlink(return_filename)
+                os.unlink(pc_return_filename)
             except OSError, e:
-                log.warn('could not delete output return file: %s' % e)
+                log.warn('could not delete progress coordinate file: %s' % e)
             else:
-                log.debug('deleted output return file %r' % return_filename)
+                log.debug('deleted progress coordinate file %r' % pc_return_filename)
                 
             self.post_segment(segment)
             
         
-    def update_segment_from_output(self, segment, stream):
-        try:
-            stream.seek(0)
-        except AttributeError:
-            pass
-        
-        retdata = json.load(stream)
-        try:
-            pcoord = retdata['pcoord']
-        except KeyError:
-            pcoord = retdata
-            
-        try:
-            iter(pcoord)
-        except TypeError:
-            pcoord = [pcoord]
-            
-        segment.pcoord = numpy.array(pcoord)
-            
-        
-        
-        
+    def update_pcoord_from_output(self, segment, pc_return_filename):            
+        segment.pcoord = numpy.loadtxt(pc_return_filename, dtype=numpy.float64)
