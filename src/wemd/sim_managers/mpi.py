@@ -88,17 +88,17 @@ class MPIWEMaster(DefaultWEMaster, MPISimManager):
         current_iteration = self.we_driver.current_iteration
         log.info('WE iteration %d (of %d requested)'
                  % (current_iteration, self.max_iterations))
-        q_prep = self.q_prepared_segments()
-        n_prep = q_prep.count()
+        n_inc = self.data_manager.num_incomplete_segments(current_iteration)
         n_workers = self.comm.size
         log.info('%d segments remaining in WE iteration %d'
-                 % (n_prep, current_iteration))
+                 % (n_inc, current_iteration))
         log.debug('dispatching to %d processes' % n_workers)
         
-        while q_prep.count() > 0:
+        prep_segments = self.data_manager.get_prepared_segments(current_iteration)
+        while len(prep_segments) > 0:
             requests,pdata = self.send_directive(self.MSG_AWAIT_SEGMENT_SCATTER, 
                                                   block = False)
-            segments = q_prep[0:n_workers]            
+            segments = prep_segments[0:n_workers]            
             if len(segments) < n_workers:
                 segments = [None] * (n_workers - len(segments)) + segments
             log.debug('waiting on completed send of MSG_AWAIT_SEGMENT_SCATTER')                
@@ -108,20 +108,12 @@ class MPIWEMaster(DefaultWEMaster, MPISimManager):
             log.debug('scattering %d segments to %d workers' 
                       % (len(segments), n_workers))
             segments = self.scatter_propagate_gather(segments)
+            self.data_manager.update_segments(current_iteration, 
+                                              [segment for segment in segments
+                                               if segment is not None],
+                                              update_parents = False)
+            del prep_segments[0:n_workers]
             
-            log.debug('flushing changes to DB')
-            self.dbsession.begin()
-            for segment in segments:
-                if segment:
-                    self.dbsession.merge(segment)
-            try:
-                self.dbsession.flush()
-            except Exception, e:
-                self.dbsession.rollback()
-                raise e
-            else:
-                self.dbsession.commit()
-
 class MPIWEWorker(MPISimManager):
     def __init__(self, runtime_config):
         super(MPIWEWorker, self).__init__(runtime_config)

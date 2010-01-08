@@ -21,27 +21,12 @@ class DefaultWEMaster(WESimMaster):
         for key in (('data.state', 'backend.driver', 'data.storage_engine')):
             runtime_config.require(key)
 
-        drtemplate = self.runtime_config.setdefault('data.segrefs.template', 
-                                                   'traj_segs/${we_iter}/${seg_id}')
-
-        ctemplate = string.Template(drtemplate)
-        try:
-            ctemplate.safe_substitute(dict())
-        except ValueError, e:
-            raise ConfigError('invalid data ref template %r' % drtemplate)
-        else:
-            self.runtime_config['data.segrefs.ctemplate'] = ctemplate
-
         self.max_iterations = runtime_config.get_int('limits.max_iterations', 1)
         # Eventually, add support for max_wallclock
         
         from wemd.data_managers import make_data_manager
         self.data_manager = make_data_manager(runtime_config)
-        
-    def make_data_ref(self, segment):
-        template = self.runtime_config['data.segrefs.ctemplate']
-        return template.safe_substitute(segment.__dict__)
-                                  
+                                          
     def save_state(self):
         state_filename = self.runtime_config['data.state']
         log.info('saving state to %s' % state_filename)
@@ -102,7 +87,7 @@ class DefaultWEMaster(WESimMaster):
         ninc = self.data_manager.num_incomplete_segments(self.we_iter)
         if ninc:
             raise PropagationIncompleteError('%d segments have not been completed'
-                                             % n_inc)
+                                             % ninc)
             
         # Get all completed segments
         segments = self.data_manager.get_segments(self.we_iter)
@@ -122,7 +107,7 @@ class DefaultWEMaster(WESimMaster):
         for segment in segments:
             p = Particle(particle_id = segment.seg_id,
                          weight = segment.weight,
-                         pcoord = segment.pcoord)
+                         pcoord = segment.pcoord[-1,:])
             current_particles.append(p)
         current_particles = ParticleCollection(current_particles)
 
@@ -178,7 +163,10 @@ class DefaultWEMaster(WESimMaster):
                  % (n_inc, current_iteration))
         for segment in self.data_manager.get_prepared_segments(self.we_iter):
             self.backend_driver.propagate_segments([segment])
-        self.data_manager.update_segments(self.we_iter, segments)
+        # Parents not loaded, so tell the data manager to ignore lineage
+        # during the update, or else the lineage will be deleted!
+        self.data_manager.update_segments(self.we_iter, segments,
+                                          update_parents = False)
         
     def finalize_iteration(self):
         anparticles = self.we_driver.bins.nparticles_array()

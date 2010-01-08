@@ -22,7 +22,8 @@ class Segment:
                  data_ref = None,
                  walltime = None, cputime = None,
                  starttime = None, endtime = None,
-                 data = None):
+                 addtl_data = None,
+                 addtl_attrs = None):
         
         self.seg_id = seg_id
         self.n_iter = n_iter
@@ -36,7 +37,8 @@ class Segment:
         self.cputime = cputime
         self.starttime = starttime
         self.endtime = endtime
-        self.data = data
+        self.addtl_data  = addtl_data or {}
+        self.addtl_attrs = addtl_attrs or {}
         
     def __repr__(self):
         return '<%s(%s) seg_id=%s p_parent_id=%s weight=%s>' \

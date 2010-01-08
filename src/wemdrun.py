@@ -17,11 +17,6 @@ class WEMDRunTool(WECmdLineTool):
         self.read_runtime_config(opts)
         for key in ('backend.driver',):
             self.runtime_config.require(key)
-            
-            
-        # Force a load of database metadata, or else pickling/unpickling 
-        # of DB objects won't work
-        import wemd.data_manager
         
         sim_manager = wemd.sim_managers.make_sim_manager(self.runtime_config)
         sim_manager.restore_state()

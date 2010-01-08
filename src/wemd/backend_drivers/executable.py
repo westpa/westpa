@@ -1,4 +1,4 @@
-import os, sys, subprocess, time, datetime, tempfile
+import os, sys, subprocess, time, datetime, tempfile, string
 from resource import getrusage, RUSAGE_CHILDREN
 import logging
 log = logging.getLogger(__name__)
@@ -43,6 +43,20 @@ class ExecutableBackend(BackendDriver):
         assert(runtime_config['backend.driver'].lower() == 'executable')
         runtime_config.require('backend.executable.propagator')
         
+        drtemplate = self.runtime_config.setdefault('backend.executable.segref_template', 
+                                                   'traj_segs/${we_iter}/${seg_id}')
+        ctemplate = string.Template(drtemplate)
+        try:
+            ctemplate.safe_substitute(dict())
+        except ValueError, e:
+            raise ConfigError('invalid data ref template %r' % drtemplate)
+        else:
+            self.segref_template = ctemplate
+            
+        pcoord_file_format = self.runtime_config.get('backend.executable.pcoord_file.format', 'text')
+        if pcoord_file_format != 'text':
+            raise ConfigError('invalid pcoord file format %r' % pcoord_file_format)
+
         try:
             if runtime_config\
             .get_bool('backend.executable.preserve_environment'):
@@ -93,7 +107,10 @@ class ExecutableBackend(BackendDriver):
                 if stderr_template and merge_stderr:
                     log.warning('both standard error redirection and merge specified for %s; standard error will be merged' % child_type)
                     child_info['stderr_template'] = None
-    
+
+    def make_data_ref(self, segment):
+        return self.segref_template.safe_substitute(segment.__dict__)
+
     def _popen(self, child_info, addtl_environ = None, template_args = None):
         """Create a subprocess.Popen object for the appropriate child
         process, passing it the appropriate environment and setting up proper
@@ -135,16 +152,16 @@ class ExecutableBackend(BackendDriver):
         return proc
     
     def _iter_environ(self, we_iter):
-        addtl_environ = {self.ENV_CURRENT_ITER: str(we_iter.we_iter)}
+        addtl_environ = {self.ENV_CURRENT_ITER: str(we_iter.n_iter)}
         return addtl_environ
     
     def _segment_env(self, segment):
-        addtl_environ = {self.ENV_CURRENT_ITER: str(segment.we_iter),
-                         self.ENV_CURRENT_SEG_DATA_REF: segment.data_ref,
+        addtl_environ = {self.ENV_CURRENT_ITER: str(segment.n_iter),
+                         self.ENV_CURRENT_SEG_DATA_REF: self.make_data_ref(segment),
                          self.ENV_CURRENT_SEG_ID: str(segment.seg_id),}
         if segment.p_parent:
             addtl_environ[self.ENV_PARENT_SEG_ID] = str(segment.p_parent.seg_id)
-            addtl_environ[self.ENV_PARENT_SEG_DATA_REF] = segment.p_parent.data_ref or ''        
+            addtl_environ[self.ENV_PARENT_SEG_DATA_REF] = self.make_data_ref(segment.p_parent)        
         return addtl_environ
     
     def _run_pre_post(self, child_info, env_func, env_obj):
@@ -231,5 +248,15 @@ class ExecutableBackend(BackendDriver):
             self.post_segment(segment)
             
         
-    def update_pcoord_from_output(self, segment, pc_return_filename):            
-        segment.pcoord = numpy.loadtxt(pc_return_filename, dtype=numpy.float64)
+    def update_pcoord_from_output(self, segment, pc_return_filename):
+        pcarray =  numpy.loadtxt(pc_return_filename, dtype=numpy.float64)
+        
+        #FIXME: Need to communicate/store timestep in some elegant way
+        #(or really, ANY WAY AT ALL)
+        if self.runtime_config.get_bool('backend.executable.pcoord_file.eliminate_time_column', True):
+            if len(pcarray) > 1:
+                segment.addtl_attrs['t0'] = pcarray[0,0]
+                segment.addtl_attrs['dt'] = pcarray[1,0] - pcarray[0,0] 
+            segment.pcoord = pcarray[:,1:]
+        else:
+            segment.pcoord = pcarray
