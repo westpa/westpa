@@ -278,7 +278,9 @@ class HDF5DataManager(DataManagerBase):
                     idxrow['p_parent_id'] = 0
                     
                 if segment.parents:
-                    lineage[irow] = [p.seg_id for p in segment.parents]
+                    parent_ids = [p.seg_id for p in segment.parents]
+                    lineage[irow] = 0
+                    lineage[irow, 0:len(parent_ids)] = parent_ids
                 else:
                     # Broadcasts across entire row, setting all entries to zero
                     lineage[irow] = 0
