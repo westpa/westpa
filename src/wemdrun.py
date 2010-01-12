@@ -17,8 +17,12 @@ class WEMDRunTool(WECmdLineTool):
         self.read_runtime_config(opts)
         for key in ('backend.driver',):
             self.runtime_config.require(key)
-        
-        sim_manager = wemd.sim_managers.make_sim_manager(self.runtime_config)
+
+        if self.runtime_config['data.storage_engine'] == 'sql':
+            from wemd.data_managers.sa_data_manager import init_schema
+            init_schema()
+            
+        sim_manager = wemd.sim_managers.make_sim_manager(self.runtime_config)    
         sim_manager.restore_state()
         sim_manager.run()
         

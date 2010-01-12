@@ -255,8 +255,8 @@ class ExecutableBackend(BackendDriver):
         #(or really, ANY WAY AT ALL)
         if self.runtime_config.get_bool('backend.executable.pcoord_file.eliminate_time_column', True):
             if len(pcarray) > 1:
-                segment.addtl_attrs['t0'] = pcarray[0,0]
-                segment.addtl_attrs['dt'] = pcarray[1,0] - pcarray[0,0] 
+                segment.data['t0'] = pcarray[0,0]
+                segment.data['dt'] = pcarray[1,0] - pcarray[0,0] 
             segment.pcoord = pcarray[:,1:]
         else:
             segment.pcoord = pcarray

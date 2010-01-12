@@ -96,8 +96,8 @@ class DefaultWEMaster(WESimMaster):
         total_cputime = 0.0
         total_walltime = 0.0
         for segment in segments:
-            total_cputime += segment.cputime
-            total_walltime += segment.walltime
+            total_cputime += segment.cputime or 0.0
+            total_walltime += segment.walltime or 0.0
         self.we_iter.cputime = total_cputime
         self.we_iter.walltime = total_walltime
                 
@@ -130,13 +130,12 @@ class DefaultWEMaster(WESimMaster):
             s.status = Segment.SEG_STATUS_PREPARED
             s.pcoord = None
             if particle.p_parent:
-                s.p_parent = Segment(n_iter = current_iteration,
-                                     seg_id = particle.p_parent.particle_id)
+                s.p_parent = self.data_manager.get_segment(current_iteration, particle.p_parent.particle_id)
                 log.debug('segment %r primary parent is %r' 
                           % (s.seg_id or '(New)', s.p_parent.seg_id))
             if particle.parents:
-                s.parents = set([Segment(n_iter = current_iteration,
-                                         seg_id = pp.particle_id) for pp in particle.parents])
+                s.parents = set([self.data_manager.get_segment(current_iteration, pp.particle_id)
+                                 for pp in particle.parents])
                 log.debug('segment %r parents are %r' 
                           % (s.seg_id or '(New)',
                              [s2.particle_id for s2 in particle.parents]))
@@ -161,7 +160,8 @@ class DefaultWEMaster(WESimMaster):
         n_inc = self.data_manager.num_incomplete_segments(self.we_iter)
         log.info('%d segments remaining in WE iteration %d'
                  % (n_inc, current_iteration))
-        for segment in self.data_manager.get_prepared_segments(self.we_iter):
+        segments = self.data_manager.get_prepared_segments(self.we_iter)
+        for segment in segments:
             self.backend_driver.propagate_segments([segment])
         # Parents not loaded, so tell the data manager to ignore lineage
         # during the update, or else the lineage will be deleted!
