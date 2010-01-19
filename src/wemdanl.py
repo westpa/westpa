@@ -1,4 +1,5 @@
 import os, sys
+from itertools import izip
 from optparse import OptionParser
 import wemd
 from wemd import Segment, WESimIter
@@ -12,6 +13,9 @@ class WEMDAnlTool(WECmdLineMultiTool):
         super(WEMDAnlTool,self).__init__()
         cop = self.command_parser
         
+        cop.add_command('mapsim',
+                        'trace trajectories',
+                        self.cmd_mapsim, True)
         cop.add_command('simcat',
                         'show progress ofa  simulation',
                         self.cmd_simcat, True)
@@ -39,15 +43,131 @@ class WEMDAnlTool(WECmdLineMultiTool):
         
     def get_sim_iter(self, we_iter):
         if we_iter is None:
-            we_iter = self.sim_manager.dbsession.execute(
-'''SELECT MAX(we_iter) FROM we_iter 
+            dbsession = self.sim_manager.data_manager.require_dbsession()
+            we_iter = dbsession.execute(
+'''SELECT MAX(n_iter) FROM we_iter 
      WHERE NOT EXISTS (SELECT * FROM segments 
-                         WHERE segments.we_iter = we_iter.we_iter 
+                         WHERE segments.n_iter = we_iter.n_iter 
                            AND segments.status != :status)''',
                            params = {'status': Segment.SEG_STATUS_COMPLETE}).fetchone()[0]
-        self.sim_iter = self.sim_manager.dbsession.query(WESimIter).get([we_iter])
-        return self.sim_iter
+        
+        self.we_iter = dbsession.query(WESimIter).get([we_iter])
+        return self.we_iter
     
+    def cmd_mapsim(self, args):
+        # Walk tree and convert trajectory data to HDF5 array
+        parser = self.make_parser()
+        self.add_iter_param(parser)
+        parser.add_option('--squeeze', dest='squeeze', action='store_true',
+                          help='eliminate duplicate records at segment '
+                              +'boundaries (default)')
+        parser.add_option('--nosqueeze', dest='squeeze', action='store_false',
+                          help='do not treat segment boundaries in any special '
+                              +'way')
+        parser.add_option('-o', '--output', dest='output_file',
+                          help='store compiled output in OUTPUT_FILE '
+                              +'(default: trajectories.h5)')
+        parser.add_option('-t', '--timestep', dest='timestep', type='float',
+                          help='manually specify dynamics timestep')
+        parser.add_option('--timestep-units', dest='timestep_units',
+                          help='store given timestep units in HDF5 file')
+        parser.add_option('-T', '--segment-length', '--tau', dest='tau',
+                          type='float',
+                          help='manually specify segment length')
+        parser.add_option('--segment-length-units', '--tau-units', 
+                          dest='tau_units',
+                          help='store given segment length units in HDF5 file')
+        parser.set_defaults(squeeze = True,
+                            output_file = 'trajectories.h5')
+        (opts, args) = parser.parse_args(args)
+        
+        self.get_sim_manager()
+        we_iter = self.get_sim_iter(opts.we_iter)
+        live_segments = self.sim_manager.data_manager.get_segments(we_iter)
+        model_segment = live_segments[0]
+        n_md_steps = model_segment.pcoord.shape[0]
+        ndim_pcoord = model_segment.pcoord.ndim - 1
+        try:
+            dt = model_segment.data['timestep']
+        except KeyError:
+            dt = opts.timestep
+
+        self.output_stream.write('using WE iteration %d (%d live trajectories)\n' 
+                                 % (we_iter.n_iter, len(live_segments)))
+        self.output_stream.write('pcoord is %d-dimensional with %d frames per segment\n'
+                                 % (ndim_pcoord, n_md_steps))
+        
+        import numpy, h5py, sqlalchemy
+        from sqlalchemy.sql import select, bindparam
+        schema = self.sim_manager.data_manager.get_schema()
+        dbsession = self.sim_manager.data_manager.require_dbsession()
+
+        h5file = h5py.File(opts.output_file)
+        dynamics_group = h5file.create_group('Dynamics')
+        we_group = h5file.create_group('WE')
+                    
+        seg_paths = dynamics_group.create_dataset('SegPaths', 
+                                                  shape=(len(live_segments),
+                                                         we_iter.n_iter),
+                                                  dtype=numpy.uint64)
+        if opts.squeeze:
+            # Omit first data point from all segments except the first
+            pcoords_shape = ( len(live_segments), (n_md_steps-1)*(we_iter.n_iter-1) + n_md_steps,) + model_segment.pcoord.shape[1:]
+        else:
+            pcoords_shape = ( len(live_segments), n_md_steps * we_iter.n_iter,) + model_segment.pcoord.shape[1:]
+        # pcoords[trajectory][t][...]
+        pcoords = dynamics_group.create_dataset('ProgCoord',
+                                                shape=pcoords_shape,
+                                                dtype=model_segment.pcoord.dtype)
+        if dt is not None:
+            pcoords.attrs['timestep'] = dt
+        
+        # Do some fast select magic without reconstituting true Segment objects
+        sel = select([schema.segmentsTable.c.n_iter,
+                      schema.segmentsTable.c.seg_id,
+                      schema.segmentsTable.c.p_parent_id,
+                      schema.segmentsTable.c.pcoord])
+        
+        n_iter = we_iter.n_iter
+        segments = live_segments
+        seg_ids = list(sorted([segment.seg_id for segment in live_segments]))
+        segments_by_seg_id = dict((segment.seg_id, segment) for segment in live_segments)
+        parent_ids_by_seg_id = dict((segment.seg_id, segment.p_parent.seg_id)
+                                    for segment in segments)
+        
+        # We do not record WE iteration 0 (the bootstrap iteration), so
+        # seg_paths[:, n] is iteration n+1
+        if opts.squeeze:
+            pcoord_row_offset = 1
+            n_pcoord_rows = n_md_steps - 1
+        else:
+            pcoord_row_offset = 0
+            n_pcoord_rows = n_md_steps
+        
+        seg_paths[:, n_iter-1] = seg_ids
+        for (i_seg, seg_id) in enumerate(seg_ids):
+            pc_lb = (n_iter-1)*n_pcoord_rows+pcoord_row_offset
+            pc_ub = pc_lb + n_pcoord_rows
+            pcoords[i_seg, pc_lb:pc_ub] = segments_by_seg_id[seg_id].pcoord[pcoord_row_offset:]
+            
+        seg_paths[:, n_iter-2] = [parent_ids_by_seg_id[seg_id] for seg_id in seg_ids]
+        i_iter = n_iter - 2
+        MAXCHUNK=768
+        while i_iter >= 1:
+            seg_ids = [long(seg_id) for seg_id in seg_paths[:, i_iter]]
+            parent_ids = []
+            for b_seg in xrange(0, len(seg_ids), MAXCHUNK):
+                subset_ids = seg_ids[b_seg:b_seg+MAXCHUNK]
+                sel2 = sel.where((schema.segmentsTable.c.n_iter == i_iter+1)
+                                 & schema.segmentsTable.c.seg_id.in_(subset_ids))
+                rows = dbsession.execute(sel2).fetchall()
+                
+                parent_ids_by_seg_id = dict((row.seg_id, row.p_parent_id) for row in rows)
+                parent_ids.extend([parent_ids_by_seg_id[seg_id] for seg_id in subset_ids])
+                                    
+            seg_paths[:, i_iter-1] = parent_ids            
+            i_iter -= 1
+            
     def cmd_simcat(self, args):
         parser = self.make_parser()
         (opts, args) = parser.parse_args(args)

@@ -37,6 +37,7 @@ class SQLAlchemyDataManager(DataManagerBase):
     def require_dbsession(self):
         if self.dbsession is None:
             self.dbsession = self.DBSession()
+        return self.dbsession
         
     def close_dbsession(self):
         self.dbsession.close()
@@ -87,6 +88,11 @@ class SQLAlchemyDataManager(DataManagerBase):
             for segment in segments:
                 segment.pcoord = copy(segment.pcoord)
                 segment.data = copy(segment.data)
+                try:
+                    segment.p_parent.pcoord = copy(segment.p_parent.pcoord)
+                    segment.p_parent.data = copy(segment.p_parent.data)
+                except AttributeError:
+                    pass
                 dbsession.merge(segment)
             dbsession.flush()
         except:
@@ -124,4 +130,7 @@ class SQLAlchemyDataManager(DataManagerBase):
             .filter( (Segment.n_iter == n_iter)
                     &(Segment.status == Segment.SEG_STATUS_PREPARED))\
             .options(eagerload(Segment.p_parent)).all()
+            
+    def get_schema(self):
+        return schema
     
