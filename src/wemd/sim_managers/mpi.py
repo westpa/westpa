@@ -111,7 +111,7 @@ class MPIWEMaster(DefaultWEMaster, MPISimManager):
             self.data_manager.update_segments(current_iteration, 
                                               [segment for segment in segments
                                                if segment is not None],
-                                              update_parents = False)
+                                              )
             del prep_segments[0:n_workers]
             
 class MPIWEWorker(MPISimManager):

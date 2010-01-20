@@ -33,8 +33,8 @@ class WEMDAnlTool(WECmdLineMultiTool):
         return self.sim_manager
         
     def get_sim_iter(self, we_iter):
+        dbsession = self.sim_manager.data_manager.require_dbsession()
         if we_iter is None:
-            dbsession = self.sim_manager.data_manager.require_dbsession()
             we_iter = dbsession.execute(
 '''SELECT MAX(n_iter) FROM we_iter 
      WHERE NOT EXISTS (SELECT * FROM segments 
@@ -90,7 +90,7 @@ class WEMDAnlTool(WECmdLineMultiTool):
         n_md_steps = model_segment.pcoord.shape[0]
         ndim_pcoord = model_segment.pcoord.ndim - 1 
         try:
-            dt = model_segment.data['timestep']
+            dt = model_segment.data['dt']
         except KeyError:
             dt = opts.timestep
             if dt is not None:
@@ -103,32 +103,40 @@ class WEMDAnlTool(WECmdLineMultiTool):
         dynamics_group = h5file.create_group('Dynamics')
         we_group = h5file.create_group('WE')
                     
-        seg_paths = dynamics_group.create_dataset('SegPaths', 
+        seg_paths_ds = dynamics_group.create_dataset('SegPaths', 
                                                   shape=(n_trajs,
                                                          we_iter.n_iter),
                                                   dtype=numpy.uint64)
+        seg_paths = numpy.empty(shape=seg_paths_ds.shape, dtype=numpy.uint64)
         if opts.squeeze:
             # Omit first data point from all segments except the first
             pcoords_shape = ( n_trajs, 
                               (n_md_steps-1)*(we_iter.n_iter-1) + n_md_steps,) \
-                            + model_segment.pcoord.shape[1:]
+                            + model_segment.pcoord.shape[1:]    
         else:
             pcoords_shape = ( n_trajs, n_md_steps * we_iter.n_iter,) \
                             + model_segment.pcoord.shape[1:]
+
         # pcoords[trajectory][t][...]
-        pcoords = dynamics_group.create_dataset('ProgCoord',
+        pcoords_ds = dynamics_group.create_dataset('ProgCoord',
                                                 shape=pcoords_shape,
                                                 dtype=model_segment.pcoord.dtype)
+        pcoords = numpy.empty(shape=pcoords_shape, dtype=model_segment.pcoord.dtype)
         
+        weights_shape = pcoords_shape[0:2]
+        weights_ds = dynamics_group.create_dataset('Weight',
+                                                shape=weights_shape,
+                                                dtype=numpy.float64)
+        weights = numpy.empty(shape=weights_shape, dtype=numpy.float64)
         
         # Store some metadata
         if dt is not None:
-            dynamics_group.attrs['timestep'] = pcoords.attrs['timestep'] = dt
+            dynamics_group.attrs['timestep'] = pcoords_ds.attrs['timestep'] = dt
         else:
             log.warning('no timestep specified')
             
         if opts.timestep_units:
-            dynamics_group.attrs['timestep'] = pcoords.attrs['timestep_units'] = opts.timestep_units
+            dynamics_group.attrs['timestep'] = pcoords_ds.attrs['timestep_units'] = opts.timestep_units
             
         if opts.tau:
             we_group.attrs['tau'] = opts.tau
@@ -138,6 +146,7 @@ class WEMDAnlTool(WECmdLineMultiTool):
         # Do some fast select magic without reconstituting true Segment objects
         sel = select([schema.segmentsTable.c.seg_id,
                       schema.segmentsTable.c.p_parent_id,
+                      schema.segmentsTable.c.weight,
                       schema.segmentsTable.c.pcoord,
                       schema.segmentsTable.c.data],
                      schema.segmentsTable.c.n_iter == bindparam('n_iter'))
@@ -155,7 +164,7 @@ class WEMDAnlTool(WECmdLineMultiTool):
                 # Set up the last point to start up the induction
                 seg_paths[:, i_iter] = rows_by_seg_id.keys()
                 
-            seg_ids = seg_paths[:, i_iter][...]
+            seg_ids = seg_paths[:, i_iter]
                 
             if i_iter > 0:
                 seg_paths[:, i_iter-1] = [rows_by_seg_id[seg_id].p_parent_id 
@@ -172,12 +181,20 @@ class WEMDAnlTool(WECmdLineMultiTool):
                 seg_pc_lb = 0
                 pc_lb = 0
                 pc_ub = n_md_steps
-            
-            pcoords[:, pc_lb:pc_ub] = \
-                [rows_by_seg_id[seg_id].pcoord[seg_pc_lb:]
-                 for seg_id in seg_ids
-                ]
                 
+            for (i_seg, seg_id) in enumerate(seg_ids):
+                row = rows_by_seg_id[seg_id]
+                pcoords[i_seg, pc_lb:pc_ub] = row.pcoord[seg_pc_lb:]
+                weights[i_seg, pc_lb:pc_ub] = row.weight
+            
+            #pcoords[:, pc_lb:pc_ub] = \
+            #    [rows_by_seg_id[seg_id].pcoord[seg_pc_lb:]
+            #     for seg_id in seg_ids
+            #    ]
+        
+        seg_paths_ds[...] = seg_paths
+        weights_ds[...] = weights
+        pcoords_ds[...] = pcoords     
         h5file.close()
             
         

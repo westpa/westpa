@@ -152,6 +152,25 @@ class DefaultWEMaster(WESimMaster):
     
     def prepare_iteration(self):
         self.we_iter = self.data_manager.get_we_sim_iter(self.we_driver.current_iteration)
+        self.we_iter.starttime = datetime.datetime.now()
+        self.we_iter.data['bin_boundaries'] = self.we_driver.bins.boundaries
+        self.we_iter.data['bins_shape'] = self.we_driver.bins.shape
+        self.we_iter.data['bin_ideal_num'] = self.we_driver.bins.ideal_num
+        self.we_iter.data['bin_split_threshold'] = self.we_driver.bins.split_threshold
+        self.we_iter.data['bin_merge_threshold_min'] = self.we_driver.bins.merge_threshold_min
+        self.we_iter.data['bin_merge_threshold_max'] = self.we_driver.bins.merge_threshold_max
+
+        anparticles = self.we_driver.bins.nparticles_array()
+        pops = self.we_driver.bins.population_array()
+        self.we_iter.data['bin_n_particles'] = anparticles
+        self.we_iter.data['bin_populations'] = pops 
+
+        n_pop_bins = anparticles[anparticles != 0].size
+        n_bins = len(self.we_driver.bins)
+        
+        log.info('%d / %d bins are populated' %( n_pop_bins, n_bins))
+
+        self.data_manager.update_we_sim_iter(self.we_iter)
         
     def propagate_particles(self):
         current_iteration = self.we_iter.n_iter
@@ -163,14 +182,9 @@ class DefaultWEMaster(WESimMaster):
         segments = self.data_manager.get_prepared_segments(self.we_iter)
         for segment in segments:
             self.backend_driver.propagate_segments([segment])
-        # Parents not loaded, so tell the data manager to ignore lineage
-        # during the update, or else the lineage will be deleted!
-        self.data_manager.update_segments(self.we_iter, segments,
-                                          update_parents = False)
+        self.data_manager.update_segments(self.we_iter, segments)
         
     def finalize_iteration(self):
-        anparticles = self.we_driver.bins.nparticles_array()
-        n_pop_bins = anparticles[anparticles != 0].size
-        n_bins = len(self.we_driver.bins)
-        log.info('%d / %d bins are populated' %( n_pop_bins, n_bins))
+        self.we_iter.endtime = datetime.datetime.now()
+        self.data_manager.update_we_sim_iter(self.we_iter)
         self.save_state()

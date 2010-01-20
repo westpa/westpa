@@ -58,8 +58,8 @@ class SQLAlchemyDataManager(DataManagerBase):
         self.require_dbsession()
         # Ensure an update of the data field.  Since this is a shallow copy,
         # this shouldn't be a memory explosion even with a lot of data
-        we_sim_iter.addtl_data = copy(we_sim_iter.data)
-        self.dbsession.add(we_sim_iter)
+        we_sim_iter.data = copy(we_sim_iter.data)
+        self.dbsession.merge(we_sim_iter)
         self.dbsession.flush()
     
     def get_we_sim_iter(self, n_iter):
@@ -88,11 +88,6 @@ class SQLAlchemyDataManager(DataManagerBase):
             for segment in segments:
                 segment.pcoord = copy(segment.pcoord)
                 segment.data = copy(segment.data)
-                try:
-                    segment.p_parent.pcoord = copy(segment.p_parent.pcoord)
-                    segment.p_parent.data = copy(segment.p_parent.data)
-                except AttributeError:
-                    pass
                 dbsession.merge(segment)
             dbsession.flush()
         except:
