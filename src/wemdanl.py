@@ -17,8 +17,11 @@ class WEMDAnlTool(WECmdLineMultiTool):
         cop = self.command_parser
         
         cop.add_command('mapsim',
-                        'trace trajectories',
+                        'trace all trajectories into an HDF5 file',
                         self.cmd_mapsim, True)
+        cop.add_command('tracetraj',
+                        'trace an individual trajectory and report',
+                        self.cmd_tracetraj, True)
         self.add_rc_option(cop)
         
     def add_iter_param(self, parser):
@@ -197,6 +200,31 @@ class WEMDAnlTool(WECmdLineMultiTool):
         pcoords_ds[...] = pcoords     
         h5file.close()
             
+    def cmd_tracetraj(self, args):
+        parser = self.make_parser('TRAJ_ID')
+        self.add_iter_param(parser)
+        (opts, args) = parser.parse_args(args)
+        if len(args) != 1:
+            parser.print_help(self.error_stream)
+            self.exit(EX_USAGE_ERROR)
+        
+        self.get_sim_manager()
+        we_iter = self.get_sim_iter(opts.we_iter)
+        
+        seg = self.sim_manager.data_manager.get_segment(we_iter, long(args[0]))
+        segs = [seg]
+        while seg.p_parent and seg.n_iter:
+            seg = seg.p_parent
+            segs.append(seg)
+        traj = list(reversed(segs))
+        
+        for seg in traj:
+            self.output_stream.write('%5d  %10d  %10d  %20.16g  %20.16g\n'
+                                     % (seg.n_iter,
+                                        seg.seg_id,
+                                        seg.p_parent_id or 0,
+                                        seg.weight,
+                                        seg.pcoord[-1]))
         
 if __name__ == '__main__':
     WEMDAnlTool().run()
