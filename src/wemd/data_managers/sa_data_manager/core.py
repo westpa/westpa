@@ -3,6 +3,7 @@ from wemd.core import Segment, WESimIter
 import schema
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, eagerload, lazyload, defer
+from sqlalchemy import select, bindparam
 from copy import copy
 
 import logging
@@ -30,6 +31,12 @@ class SQLAlchemyDataManager(DataManagerBase):
         # Transient DB session
         self.dbsession = None
         
+        from mappingtable import DictTableIface
+        import schema
+        self.meta = DictTableIface(self.dbengine, schema.metaTable,
+                                   schema.metaTable.c.key_,
+                                   schema.metaTable.c.value)
+
     def new_dbsession(self):
         assert self.dbsession is None
         self.dbsession = self.DBSession()
@@ -129,3 +136,9 @@ class SQLAlchemyDataManager(DataManagerBase):
     def get_schema(self):
         return schema
     
+    def get_schema_version(self):
+        import versioning
+        return versioning.get_schema_version(self.dbengine)
+    
+    
+        

@@ -11,13 +11,23 @@ from wemd.sim_managers import make_sim_manager
 from logging import getLogger
 log = getLogger(__name__)
 
+class SegNode(object):
+    __slots__ = ('seg_id', 'children',
+                 'lt', 'rt')
+    def __init__(self, seg_id, children=None,
+                 lt = None, rt=None):
+        self.seg_id = seg_id
+        self.children = children or []
+        self.lt = lt
+        self.rt = rt
+    
 class WEMDAnlTool(WECmdLineMultiTool):
     def __init__(self):
         super(WEMDAnlTool,self).__init__()
         cop = self.command_parser
         
         cop.add_command('mapsim',
-                        'trace all trajectories into an HDF5 file',
+                        'trace all trajectories and record tree data',
                         self.cmd_mapsim, True)
         cop.add_command('transanl',
                         'analyze transitions',
@@ -52,157 +62,86 @@ class WEMDAnlTool(WECmdLineMultiTool):
         return self.we_iter
     
     def cmd_mapsim(self, args):
-        # Walk tree and convert trajectory data to HDF5 array
         parser = self.make_parser()
         self.add_iter_param(parser)
-        parser.add_option('--squeeze', dest='squeeze', action='store_true',
-                          help='eliminate duplicate records at segment '
-                              +'boundaries (default)')
-        parser.add_option('--nosqueeze', dest='squeeze', action='store_false',
-                          help='do not treat segment boundaries in any special '
-                              +'way')
-        parser.add_option('-o', '--output', dest='output_file',
-                          help='store compiled output in OUTPUT_FILE '
-                              +'(default: trajectories.h5)')
-        parser.add_option('-t', '--timestep', dest='timestep', type='float',
-                          help='manually specify dynamics timestep')
-        parser.add_option('--timestep-units', dest='timestep_units',
-                          help='store given timestep units in HDF5 file')
-        parser.add_option('-T', '--segment-length', '--tau', dest='tau',
-                          type='float',
-                          help='manually specify segment length')
-        parser.add_option('--segment-length-units', '--tau-units', 
-                          dest='tau_units',
-                          help='store given segment length units in HDF5 file')
-        parser.set_defaults(squeeze = True,
-                            output_file = 'trajectories.h5')
-        (opts, args) = parser.parse_args(args)
+        parser.add_option('-f', '--force', dest='force', action='store_true',
+                          help='rebuild map even if one exists')
+        (opts,args) = parser.parse_args(args)
         
         self.get_sim_manager()
-        we_iter = self.get_sim_iter(opts.we_iter)
+        final_we_iter = self.get_sim_iter(opts.we_iter)
+        max_iter = final_we_iter.n_iter        
         
         import numpy, h5py, sqlalchemy
+        from sqlalchemy import (Table, Column, Index, Integer)
         from sqlalchemy.sql import select, bindparam
+        
         schema = self.sim_manager.data_manager.get_schema()
         dbsession = self.sim_manager.data_manager.require_dbsession()
-        n_trajs = dbsession.query(Segment).filter(Segment.n_iter == we_iter.n_iter).count()
-        model_segment = dbsession.query(Segment).filter(Segment.n_iter == we_iter.n_iter).first()
         
-        self.output_stream.write('%d live trajectories in iteration %d\n'
-                                 % (n_trajs, we_iter.n_iter))
-        self.output_stream.write('progress coordinate is %s for each segment\n'
-                                 % ('x'.join(str(x) for x in model_segment.pcoord.shape),))
         
-        n_md_steps = model_segment.pcoord.shape[0]
-        ndim_pcoord = model_segment.pcoord.ndim - 1 
-        try:
-            dt = model_segment.data['dt']
-        except KeyError:
-            dt = opts.timestep
-            if dt is not None:
-                self.output_stream.write('timestep %g taken from command line\n'
-                                         % dt)
+        if not opts.force and self.sim_manager.data_manager.meta.get('tree.mapped_through') == max_iter:
+            self.output_stream.write('trajectories already traced\n')
+            self.exit(0)
         else:
-            self.output_stream.write('timestep %g read from database\n' % dt)
-
-        h5file = h5py.File(opts.output_file)
-        dynamics_group = h5file.create_group('Dynamics')
-        we_group = h5file.create_group('WE')
-                    
-        seg_paths_ds = dynamics_group.create_dataset('SegPaths', 
-                                                  shape=(n_trajs,
-                                                         we_iter.n_iter),
-                                                  dtype=numpy.uint64)
-        seg_paths = numpy.empty(shape=seg_paths_ds.shape, dtype=numpy.uint64)
-        if opts.squeeze:
-            # Omit first data point from all segments except the first
-            pcoords_shape = ( n_trajs, 
-                              (n_md_steps-1)*(we_iter.n_iter-1) + n_md_steps,) \
-                            + model_segment.pcoord.shape[1:]    
-        else:
-            pcoords_shape = ( n_trajs, n_md_steps * we_iter.n_iter,) \
-                            + model_segment.pcoord.shape[1:]
-
-        # pcoords[trajectory][t][...]
-        pcoords_ds = dynamics_group.create_dataset('ProgCoord',
-                                                shape=pcoords_shape,
-                                                dtype=model_segment.pcoord.dtype)
-        pcoords = numpy.empty(shape=pcoords_shape, dtype=model_segment.pcoord.dtype)
+            self.output_stream.write('rebuilding trajectory map\n')
+            dbsession.begin()
+            dbsession.execute(schema.trajTreeTable.delete())
+            dbsession.commit()
+        self.output_stream.write('mapping simulation through iteration %d\n' % max_iter)
+                
+        isegsel = select([schema.segmentsTable.c.seg_id,
+                         schema.segmentsTable.c.p_parent_id,
+                         schema.segmentsTable.c.n_iter],
+                        schema.segmentsTable.c.n_iter == bindparam('n_iter'))
         
-        weights_shape = pcoords_shape[0:2]
-        weights_ds = dynamics_group.create_dataset('Weight',
-                                                shape=weights_shape,
-                                                dtype=numpy.float64)
-        weights = numpy.empty(shape=weights_shape, dtype=numpy.float64)
+        psegsel = select([schema.segmentsTable.c.seg_id],
+                         (schema.segmentsTable.c.p_parent_id == bindparam('p_parent_id'))
+                         &(schema.segmentsTable.c.n_iter <= bindparam('max_iter')))
+                
+        ttInsert = schema.trajTreeTable.insert()
         
-        # Store some metadata
-        if dt is not None:
-            dynamics_group.attrs['timestep'] = pcoords_ds.attrs['timestep'] = dt
-        else:
-            log.warning('no timestep specified')
-            
-        if opts.timestep_units:
-            dynamics_group.attrs['timestep'] = pcoords_ds.attrs['timestep_units'] = opts.timestep_units
-            
-        if opts.tau:
-            we_group.attrs['tau'] = opts.tau
-        if opts.tau_units:
-            we_group.attrs['tau_units'] = opts.tau_units
-            
-        # Do some fast select magic without reconstituting true Segment objects
-        sel = select([schema.segmentsTable.c.seg_id,
-                      schema.segmentsTable.c.p_parent_id,
-                      schema.segmentsTable.c.weight,
-                      schema.segmentsTable.c.pcoord,
-                      schema.segmentsTable.c.data],
-                     schema.segmentsTable.c.n_iter == bindparam('n_iter'))
-        
-        for n_iter in xrange(we_iter.n_iter, 0, -1):
-            i_iter = n_iter - 1
                         
-            rows = dbsession.execute(sel, params={'n_iter': n_iter}).fetchall()
-            rows_by_seg_id = dict((row.seg_id, row) for row in rows)
-            
-            if n_iter == we_iter.n_iter:
-                # If we ever set up automatic handling of everything in the 
-                # "data" field, here's where we'd do it
+        roots = [SegNode(row.seg_id) for row in 
+                 dbsession.execute(isegsel, params={'n_iter': 1}).fetchall()]
                 
-                # Set up the last point to start up the induction
-                seg_paths[:, i_iter] = rows_by_seg_id.keys()
+        label = 0
+        for (iroot, root) in enumerate(roots):
+            log.info('mapping initial replica %d of %d' % (iroot+1, len(roots)))
+            node_stack = [root]
+            children_stack = [[SegNode(row.seg_id) for row in
+                               dbsession.execute(psegsel, params={'p_parent_id': root.seg_id,
+                                                                  'max_iter': max_iter}).fetchall()]]
+            while node_stack:
+                node = node_stack.pop(-1)
+                children = children_stack.pop(-1)
                 
-            seg_ids = seg_paths[:, i_iter]
-                
-            if i_iter > 0:
-                seg_paths[:, i_iter-1] = [rows_by_seg_id[seg_id].p_parent_id 
-                                          for seg_id in seg_ids]
-                if opts.squeeze:
-                    seg_pc_lb = 1
-                    pc_lb = i_iter * (n_md_steps - 1) + 1
-                    pc_ub = pc_lb + (n_md_steps-1)
+                while children:
+                    node_stack.append(node)
+                    if node.lt is None:
+                        label += 1
+                        node.lt = label
+                    
+                    node = children.pop(0)
+                    children_stack.append(children)
+                    children = [SegNode(row.seg_id) for row in
+                                dbsession.execute(psegsel, params={'p_parent_id': node.seg_id,
+                                                                   'max_iter': max_iter}).fetchall()]
                 else:
-                    seg_pc_lb = 0
-                    pc_lb = i_iter * n_md_steps
-                    pc_ub = pc_lb + n_md_steps
-            else:
-                seg_pc_lb = 0
-                pc_lb = 0
-                pc_ub = n_md_steps
+                    if node.lt is None:
+                        label += 1
+                        node.lt = label
+                label += 1
+                node.rt = label
                 
-            for (i_seg, seg_id) in enumerate(seg_ids):
-                row = rows_by_seg_id[seg_id]
-                pcoords[i_seg, pc_lb:pc_ub] = row.pcoord[seg_pc_lb:]
-                weights[i_seg, pc_lb:pc_ub] = row.weight
+                # Commit data here
+                dbsession.execute(ttInsert, params={'seg_id': node.seg_id,
+                                                     'lt': node.lt,
+                                                     'rt': node.rt})
+            # END while node_stack
+        # END for root in roots
+        self.sim_manager.data_manager.meta['tree.mapped_through'] = max_iter
             
-            #pcoords[:, pc_lb:pc_ub] = \
-            #    [rows_by_seg_id[seg_id].pcoord[seg_pc_lb:]
-            #     for seg_id in seg_ids
-            #    ]
-        
-        seg_paths_ds[...] = seg_paths
-        weights_ds[...] = weights
-        pcoords_ds[...] = pcoords     
-        h5file.close()
-        
     def cmd_transanl(self, args):
         # Find transitions
         parser = self.make_parser()
@@ -227,7 +166,7 @@ class WEMDAnlTool(WECmdLineMultiTool):
             self.exit(EX_ERROR)
             
         try:
-            translog = open(transcfg['transitions.log'], 'wt')
+            translog = open(transcfg['transitions.txt.gz'], 'w')
         except KeyError:
             translog = None 
         

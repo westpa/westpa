@@ -9,7 +9,15 @@ from sqlalchemy.orm import (mapper, relation, deferred)
 from sqlalchemy.orm.collections import column_mapped_collection
 from sqlalchemy.ext.associationproxy import association_proxy
 
+version = 1
+
 metadata = sqlalchemy.MetaData()
+
+metaTable = Table('meta', metadata,
+                  Column('key_', String, primary_key = True, nullable=False),
+                  # With mutable = True, numpy arrays cannot be stored here...
+                  # a Null maps directly to None
+                  Column('value', PickleType(mutable = True), nullable=True))
 
 weIterTable = Table('we_iter', metadata,
                    Column('n_iter', Integer, primary_key=True),
@@ -55,8 +63,19 @@ segmentLineageTable = Table('segment_lineage', metadata,
                                    ForeignKey('segments.seg_id'), 
                                    primary_key=True, nullable=False))
 
+trajTreeTable = Table('traj_tree', metadata,
+                      Column('seg_id', Integer, 
+                             primary_key=True,
+                             nullable=False),
+                      Column('lt', Integer, nullable=False, index=True),
+                      Column('rt', Integer, nullable=False, index=True))
+
 from wemd.core.segments import Segment
 from wemd.core import WESimIter
+from mappingtable import DictTableObject
+
+class MetaTableObject(DictTableObject):
+    pass
 
 seg_pparent_rel = relation(Segment, 
                            remote_side=[segmentsTable.c.seg_id],
@@ -78,3 +97,7 @@ mapper(Segment, segmentsTable,
                      })
 
 mapper(WESimIter, weIterTable)
+
+mapper(MetaTableObject, metaTable,
+       properties = {'key': metaTable.c.key_,
+                     'value': metaTable.c.value})

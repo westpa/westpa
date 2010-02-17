@@ -155,6 +155,34 @@ class ConfigDict(dict):
         else:
             return os.path.normpath(os.path.join(self['__dirname__'], path))
         
+    def get_file_object(self, key, default_path=None, mode='rb', 
+                        compression_allowed=True):
+        try:
+            path = self[key]
+        except KeyError, ke:
+            if default_path is None:
+                raise ke
+            else:
+                path = default_path
+        
+        if compression_allowed:
+            (bn, ext) = os.path.splitext(path)
+            if ext == '.gz':
+                try:
+                    import gzip
+                except ImportError:
+                    raise ConfigError('gzip compression not supported')
+                
+                return gzip.open(path, mode)
+            elif ext == '.bz2':
+                try:
+                    import bz2
+                except ImportError:
+                    raise ConfigError('bzip2 compression not supported')
+                
+                return bz2.BZ2File(path, mode[0]+'U')
+        return open(path, mode)
+        
     def get_compiled_template(self, key, *args):
         if len(args) > 1:
             raise TypeError('unexpected positional argument encountered')

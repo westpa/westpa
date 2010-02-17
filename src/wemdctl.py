@@ -124,18 +124,19 @@ class WEMDCtlTool(WECmdLineMultiTool):
         import numpy
         from sqlalchemy.sql import desc
         sim_manager = make_sim_manager(self.runtime_config)
-        current_iter = sim_manager.dbsession.query(WESimIter)\
-                                            .order_by(desc(WESimIter.we_iter))\
-                                            .first()
+        dbsession = sim_manager.data_manager.require_dbsession()
+        current_iter = dbsession.query(WESimIter)\
+                                .order_by(desc(WESimIter.n_iter))\
+                                .first()
         if opts.we_iter is None:
             sim_iter = current_iter
             self.output_stream.write('Current WE iteration: %d\n' 
-                                     % current_iter.we_iter)
+                                     % current_iter.n_iter)
         else:
-            sim_iter = sim_manager.dbsession.query(WESimIter).get([opts.we_iter])
+            sim_iter = dbsession.query(WESimIter).get([opts.we_iter])
             
-        segq = sim_manager.dbsession.query(Segment)\
-                          .filter(Segment.we_iter == sim_iter.we_iter)
+        segq = dbsession.query(Segment)\
+                        .filter(Segment.n_iter == sim_iter.n_iter)
         
         n_total = segq.count()
         n_pending = segq.filter(Segment.status == Segment.SEG_STATUS_PREPARED).count()
@@ -143,8 +144,10 @@ class WEMDCtlTool(WECmdLineMultiTool):
         pct_pending = n_pending / n_total * 100
         pct_complete = n_complete / n_total * 100
         
+        self.output_stream.write('Data source: %s\n' % self.runtime_config['data.db.url'])
+        self.output_stream.write('  Schema version: %s\n' % sim_manager.data_manager.get_schema_version())
         self.output_stream.write('Total of %d segments in iteration %d\n'
-                                 % (sim_iter.n_particles, sim_iter.we_iter))
+                                 % (sim_iter.n_particles, sim_iter.n_iter))
         self.output_stream.write('population norm = %.8f\n' % sim_iter.norm)
         self.output_stream.write('error in norm = %.8g (machine epsilon = %.16g)\n'
                                  % (sim_iter.norm - 1,
