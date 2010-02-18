@@ -69,7 +69,30 @@ class Update_0_1(SchemaUpdate):
     
     def update_schema(self, schema, metadata, engine):
         new_tables = [schema.metaTable, schema.trajTreeTable]
+        
+        conn = engine.connect()
+        
+        log.info('creating new tables')
         metadata.create_all(bind=engine, tables=new_tables, checkfirst=True)
+        
+        sel_iter_0_segs = select([schema.segmentsTable.c.seg_id],
+                                 schema.segmentsTable.c.n_iter == 0) 
+        
+        trans = conn.begin()
+        try:
+            log.info('removing references to iteration 0 segments')
+            engine.execute(schema.segmentLineageTable.delete(schema.segmentLineageTable.c.seg_id.in_(sel_iter_0_segs)))
+            log.info('removing iteration 0 segments')
+            engine.execute(schema.segmentsTable.delete(schema.segmentsTable.c.n_iter == 0))
+            log.info('setting iteration 1 parents to NULL')
+            engine.execute(schema.segmentsTable.update(schema.segmentsTable.c.n_iter == 1,
+                                                       {'p_parent_id': None}))
+            trans.commit()
+        except:
+            trans.rollback()
+            raise
+        
+        conn.close()
 
     def post_update(self, schema, metadata, engine):
         metaInsert = schema.metaTable.insert()

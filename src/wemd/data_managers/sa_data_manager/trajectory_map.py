@@ -11,6 +11,20 @@ from sqlalchemy.sql.functions import count as COUNT, max as MAX, min as MIN, sum
 import logging
 log = logging.getLogger(__name__)
 
+class ResultSetIterator(object):
+    def __init__(self, rslset):
+        self.rslset = rslset
+        
+    def __iter__(self):
+        return self
+    
+    def next(self):
+        row = self.rslset.fetchone()
+        if row is None:
+            raise StopIteration
+        else:
+            return row
+
 class TrajectoryPath(object):
     def __init__(self, seg_ids, weight, pcoord, 
                  cputime = None, walltime = None,
@@ -43,7 +57,7 @@ class TrajectoryMap(object):
         self.squeeze_data = squeeze_data
             
     def _find_roots(self, min_iter, max_iter):
-        """Query the database and return a list of `SegNode` objects 
+        """Query the database and return an iterable of `SegNode` objects 
         representing roots of trajectory trees (i.e. those that have no 
         parents)"""
         
@@ -53,8 +67,8 @@ class TrajectoryMap(object):
                            &(schema.segmentsTable.c.n_iter <= max_iter))
         
         
-        return [SegNode(row.seg_id) for row in 
-                self.bind.execute(root_sel).fetchall()]
+        return iter(SegNode(row.seg_id) 
+                    for row in ResultSetIterator(self.bind.execute(root_sel)))
         
     def _get_max_iter(self):
         try:
@@ -98,7 +112,6 @@ class TrajectoryMap(object):
         
     def update(self, max_iter, min_iter=1):
         self.clear()
-        roots = self._find_roots(min_iter, max_iter)
         
         sel_by_parent = select([schema.segmentsTable.c.seg_id],
                                (schema.segmentsTable.c.p_parent_id == bindparam('p_parent_id'))
@@ -106,10 +119,11 @@ class TrajectoryMap(object):
                                &(schema.segmentsTable.c.n_iter <= max_iter))
         
         tt_insert = schema.trajTreeTable.insert()
+        nroots = self.nroots
         
         label = 0
-        for (iroot, root) in enumerate(roots):
-            log.info('mapping root %d of %d' % (iroot+1, len(roots)))
+        for (iroot, root) in enumerate(self._find_roots(min_iter, max_iter)):
+            log.info('mapping root %d of %d' % (iroot+1, nroots))
             
             node_stack = deque([root])
             children_stack = deque([deque(SegNode(row.seg_id) for row in
@@ -162,16 +176,38 @@ class TrajectoryMap(object):
         min_iter, max_iter = self._get_min_max_iter()
         return self._find_roots(min_iter, max_iter)
     
+    def _get_nroots(self):
+        min_iter, max_iter = self._get_min_max_iter()
+        nroot_sel = select([COUNT(schema.segmentsTable.c.seg_id)],
+                            (schema.segmentsTable.c.p_parent_id == None)
+                           &(schema.segmentsTable.c.n_iter >= min_iter)
+                           &(schema.segmentsTable.c.n_iter <= max_iter))
+        return self.bind.execute(nroot_sel).scalar()
+
+    
     def _get_leaves(self):
         sel_leaves = select([schema.trajTreeTable.c.seg_id],
                             schema.trajTreeTable.c.rt == schema.trajTreeTable.c.lt + 1)
-        return list(SegNode(row.seg_id) for row in 
-                    self.bind.execute(sel_leaves).fetchall())
+        return iter(SegNode(row.seg_id) for row in 
+                    ResultSetIterator(self.bind.execute(sel_leaves)))
+        
+    def _get_nleaves(self):
+        sel_nleaves = select([COUNT(schema.trajTreeTable.c.seg_id)],
+                            schema.trajTreeTable.c.rt == schema.trajTreeTable.c.lt + 1)
+        return self.bind.execute(sel_nleaves).scalar()
     
-    roots = property(_get_roots, None, None, None)
-    leaves = property(_get_leaves, None, None, None)
+    nroots = property(_get_nroots, None, None, 'Return the number of tree roots')
+    nleaves = property(_get_nleaves, None, None, 'Return the number of tree leaves')
+    ntrajs = nleaves
+    roots = property(_get_roots, None, None, 'Return an iterator over tree roots')
+    leaves = property(_get_leaves, None, None, 'Return an iterator over tree leaves')
     
     def get_trajectory(self, leaf_id):
+        try:
+            leaf_id = leaf_id.seg_id
+        except AttributeError:
+            leaf_id = long(leaf_id)
+        
         parent_tbl = schema.trajTreeTable.alias('parent')
         node_tbl = schema.trajTreeTable.alias('node')
                 
@@ -181,24 +217,20 @@ class TrajectoryMap(object):
                           from_obj=[parent_tbl, node_tbl])\
                    .order_by(parent_tbl.c.lt)
 
-        sel_aggr = select([COUNT(schema.segmentsTable.c.seg_id),
-                           SUM(schema.segmentsTable.c.cputime),
-                           SUM(schema.segmentsTable.c.walltime),
-                           MIN(schema.segmentsTable.c.startdate),
-                           MAX(schema.segmentsTable.c.enddate)],
-                           schema.segmentsTable.c.seg_id.in_(sel_path),
-                           from_obj = [schema.segmentsTable])
+#        sel_aggr = select([COUNT(schema.segmentsTable.c.seg_id),
+#                           SUM(schema.segmentsTable.c.cputime),
+#                           SUM(schema.segmentsTable.c.walltime),
+#                           MIN(schema.segmentsTable.c.startdate),
+#                           MAX(schema.segmentsTable.c.enddate)],
+#                           schema.segmentsTable.c.seg_id.in_(sel_path),
+#                           from_obj = [schema.segmentsTable])
         
-        sel_details = select([schema.segmentsTable.c.seg_id,
-                              schema.segmentsTable.c.weight,
-                              schema.segmentsTable.c.pcoord,
-                              schema.segmentsTable.c.data],
+        sel_details = select([schema.segmentsTable],
                              schema.segmentsTable.c.seg_id.in_(sel_path))
         
         q_start_time = time.clock()
-        (n_segs, tot_cputime, tot_walltime,
-         startdate, enddate) = self.bind.execute(sel_aggr).fetchone()
         segments = self.bind.execute(sel_details).fetchall()
+        n_segs = len(segments)
         q_end_time = time.clock()
         log.debug('retrieved %d-segment path in %g seconds'
                   % (n_segs, q_end_time - q_start_time))
@@ -243,13 +275,15 @@ class TrajectoryMap(object):
         traj = TrajectoryPath(seg_ids, 
                               weight = weight,
                               pcoord = pcoord,
-                              cputime = tot_cputime,
-                              walltime = tot_walltime,
                               data_first = segments[0].data,
                               data_last = segments[-1].data
                               )
         return traj
         
-        
+    def itertrajs(self):
+        return iter(self.get_trajectory(leaf_node.seg_id)
+                    for leaf_node in self.leaves)
+    
+    trajs = property(itertrajs, None, None, 'An iterator over trajectory paths')
     
     

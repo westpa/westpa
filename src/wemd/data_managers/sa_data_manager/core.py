@@ -140,5 +140,9 @@ class SQLAlchemyDataManager(DataManagerBase):
         import versioning
         return versioning.get_schema_version(self.dbengine)
     
-    
+    def trajectory_map(self, squeeze_data = True):
+        import trajectory_map
+        return trajectory_map.TrajectoryMap(self.dbengine, self.meta,
+                                            squeeze_data)
+        
         
