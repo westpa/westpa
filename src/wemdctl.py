@@ -21,6 +21,9 @@ class WEMDCtlTool(WECmdLineMultiTool):
                         self.cmd_status, True)
         cop.add_command('console', 'open an interactive Python console',
                         self.cmd_console, True)
+        cop.add_command('update_schema', 
+                        'update a database to the most recent schema',
+                        self.cmd_update_schema, True)
         self.add_rc_option(cop)
         
     def cmd_init(self, args):
@@ -167,6 +170,15 @@ class WEMDCtlTool(WECmdLineMultiTool):
                                      % (bpop.size, len(bpop.shape)))
             self.output_stream.write('  %d populated (%.0f%%)\n'
                                      % (n_populated, n_populated/n_bins*100))
+        
+    def cmd_update_schema(self, args):
+        parser = self.make_parser('update the database to the most recent schema')
+        (opts, args) = parser.parse_args(args)
+        
+        from wemd.data_managers.sa_data_manager.versioning import update_schema
+        sim_manager = make_sim_manager(self.runtime_config)
+        update_schema(sim_manager.data_manager.dbengine)
+        
         
 
         

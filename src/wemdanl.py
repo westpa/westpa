@@ -127,6 +127,7 @@ class WEMDAnlTool(WECmdLineMultiTool):
             for irr2 in xrange(0, len(regions)):
                 if abs(irr1-irr2) > 1:
                     event_durations[irr1,irr2] = numpy.empty((0,2), numpy.float64)
+        print event_durations
                     
         event_counts = numpy.zeros((len(regions), len(regions)), numpy.uint64)
             
@@ -151,9 +152,8 @@ class WEMDAnlTool(WECmdLineMultiTool):
             event_counts += trans_finder.event_counts
             
             for ((region1, region2), tfed_array) in trans_finder.event_durations.iteritems():
-                ed_array = event_durations[region1, region2]
-                ed_array.resize((ed_array.shape[0] + tfed_array.shape[0], 2))
-                ed_array[-tfed_array.shape[0]:,:] = tfed[:,:]
+                event_durations[region1, region2].resize((event_durations[region1, region2].shape[0] + tfed_array.shape[0], 2))
+                event_durations[region1, region2][-tfed_array.shape[0]:,:] = tfed_array[:,:]
                 
         
         for ((region1, region2), ed_array) in event_durations.iteritems():
@@ -175,7 +175,7 @@ class WEMDAnlTool(WECmdLineMultiTool):
                 self.output_stream.write('ED median:           %g\n' % ed_array[ed_array.shape[0]/2,0])
                 self.output_stream.write('ED max:              %g\n' % ed_array[:,0].max())
                 
-                ed_file = open('ed_%s_%s.txt', 'wt')
+                ed_file = open('ed_%s_%s.txt' % (region1_name, region2_name), 'wt')
                 for irow in xrange(0, ed_array.shape[0]):
                     ed_file.write('%20.16g    %20.16g\n'
                                   % tuple(ed_array[irow,:]))

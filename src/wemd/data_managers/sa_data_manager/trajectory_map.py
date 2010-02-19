@@ -109,6 +109,10 @@ class TrajectoryMap(object):
     def clear(self):
         log.info('clearing trajectory tree')
         self.bind.execute(schema.trajTreeTable.delete())
+        try:
+            del self.meta[self.TT_INFO_KEY]
+        except KeyError:
+            pass
         
     def update(self, max_iter, min_iter=1):
         self.clear()
@@ -119,20 +123,20 @@ class TrajectoryMap(object):
                                &(schema.segmentsTable.c.n_iter <= max_iter))
         
         tt_insert = schema.trajTreeTable.insert()
-        nroots = self.nroots
+        nroots = self._get_nroots(max_iter, min_iter)
         
         label = 0
         for (iroot, root) in enumerate(self._find_roots(min_iter, max_iter)):
             log.info('mapping root %d of %d' % (iroot+1, nroots))
             
-            node_stack = deque([root])
-            children_stack = deque([deque(SegNode(row.seg_id) for row in
+            node_stack = [root]
+            children_stack = [[SegNode(row.seg_id) for row in
                                self.bind.execute(sel_by_parent,
-                                                 {'p_parent_id': root.seg_id}).fetchall())])
+                                                 {'p_parent_id': root.seg_id}).fetchall()]]
             
             while node_stack:
-                node = node_stack.pop()
-                children = children_stack.pop()
+                node = node_stack.pop(-1)
+                children = children_stack.pop(-1)
                 
                 while children:
                     node_stack.append(node)
@@ -140,19 +144,22 @@ class TrajectoryMap(object):
                         label += 1
                         node.lt = label
                     
-                    node = children.popleft()
+                    node = children.pop(0)
                     children_stack.append(children)
-                    children = deque(SegNode(row.seg_id) for row in
-                                     self.bind.execute(sel_by_parent, {'p_parent_id': node.seg_id}).fetchall())
-            else:
-                if node.lt is None:
-                    label += 1
-                    node.lt = label
-            label += 1
-            node.rt = label
-            self.bind.execute(tt_insert, params={'seg_id': node.seg_id,
-                                                 'lt': node.lt,
-                                                 'rt': node.rt})
+                    children = [SegNode(row.seg_id) for row in
+                                self.bind.execute(sel_by_parent, {'p_parent_id': node.seg_id}).fetchall()]
+                else:
+                    # For leaf nodes
+                    if node.lt is None:
+                        label += 1
+                        node.lt = label
+
+                assert node.lt is not None
+                label += 1
+                node.rt = label
+                self.bind.execute(tt_insert, {'seg_id': node.seg_id,
+                                              'lt': node.lt,
+                                              'rt': node.rt})
         
         self.meta[self.TT_INFO_KEY] = {'min_iter': min_iter,
                                        'max_iter': max_iter}
@@ -176,8 +183,9 @@ class TrajectoryMap(object):
         min_iter, max_iter = self._get_min_max_iter()
         return self._find_roots(min_iter, max_iter)
     
-    def _get_nroots(self):
-        min_iter, max_iter = self._get_min_max_iter()
+    def _get_nroots(self, max_iter=None, min_iter=1):
+        if max_iter is None:
+            min_iter, max_iter = self._get_min_max_iter()
         nroot_sel = select([COUNT(schema.segmentsTable.c.seg_id)],
                             (schema.segmentsTable.c.p_parent_id == None)
                            &(schema.segmentsTable.c.n_iter >= min_iter)
