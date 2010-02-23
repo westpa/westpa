@@ -38,9 +38,9 @@ class MPISimManager(WESimManagerBase):
         if not segment:
             log.debug('no data to process')
         else:
-            log.debug('received segment %r via scatter' % segment.seg_id)
+            log.debug('received segment %r via scatter' % segment)
             self.backend_driver.propagate_segments([segment])
-            log.debug('dispatching segment %r via gather' % segment.seg_id)
+            log.debug('dispatching segment %r via gather' % segment)
         return self.comm.gather(segment, self.ROOT_TASK)
     
     def _get_message_name(self, msgno):

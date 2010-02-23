@@ -2,7 +2,8 @@ from __future__ import division
 __metaclass__ = type
 import cPickle as pickle
 import numpy
-import string, time, datetime        
+import string, time, datetime
+from copy import copy        
 
 from wemd.sim_managers import WESimMaster
 from wemd.core.we_sim import WESimIter
@@ -41,10 +42,7 @@ class DefaultWEMaster(WESimMaster):
         log.debug('state info: %r' % state_dict)
         self.we_driver = state_dict['we_driver']
 
-    def initialize_simulation(self, sim_config):
-        import wemd.we_drivers
-        from wemd.core import Segment, Particle
-        
+    def initialize_simulation(self, sim_config):        
         for item in ('wemd.initial_particles', 'wemd.initial_pcoord'):
             sim_config.require(item)
             
@@ -53,7 +51,6 @@ class DefaultWEMaster(WESimMaster):
                     
         # Create and configure the WE driver
         self.load_we_driver(sim_config)
-        we_driver = self.we_driver
         
         # Create the initial segments
         log.info('creating initial segments')
@@ -63,7 +60,7 @@ class DefaultWEMaster(WESimMaster):
         pcoord = numpy.empty((1,len(pcoord_vals)), numpy.float64)
         pcoord[0] = pcoord_vals        
         segments = [Segment(n_iter = 0, 
-                            status = wemd.Segment.SEG_STATUS_COMPLETE,
+                            status = Segment.SEG_STATUS_COMPLETE,
                             weight=1.0/n_init,
                             pcoord = pcoord)
                     for i in xrange(1,n_init+1)]
@@ -75,12 +72,27 @@ class DefaultWEMaster(WESimMaster):
         self.we_iter.n_particles = len(segments)
         self.we_iter.norm = numpy.sum([seg.weight for seg in segments])
         self.data_manager.create_we_sim_iter(self.we_iter)
-        self.data_manager.create_segments(self.we_iter, segments)
         
-        # Run one iteration of WE to assign particles to bins
-        self.run_we()        
-            
-    def run_we(self):
+        # Run one iteration of WE to assign particles to bins (for bin data
+        # only)
+        self.run_we(segments)
+
+        self.we_iter.data = {}
+        self.we_iter.data['bin_boundaries'] = self.we_driver.bins.boundaries
+        self.we_iter.data['bins_shape'] = self.we_driver.bins.shape
+        self.we_iter.data['bin_ideal_num'] = self.we_driver.bins.ideal_num
+        self.we_iter.data['bin_split_threshold'] = self.we_driver.bins.split_threshold
+        self.we_iter.data['bin_merge_threshold_min'] = self.we_driver.bins.merge_threshold_min
+        self.we_iter.data['bin_merge_threshold_max'] = self.we_driver.bins.merge_threshold_max
+
+        anparticles = self.we_driver.bins.nparticles_array()
+        pops = self.we_driver.bins.population_array()
+        self.we_iter.data['bin_n_particles'] = anparticles
+        self.we_iter.data['bin_populations'] = pops
+        self.data_manager.update_we_sim_iter(self.we_iter) 
+                    
+                    
+    def run_we(self, initial_segments = None):
         current_iteration = self.we_driver.current_iteration
         
         # Get number of incomplete segments
@@ -90,7 +102,10 @@ class DefaultWEMaster(WESimMaster):
                                              % ninc)
             
         # Get all completed segments
-        segments = self.data_manager.get_segments(self.we_iter)
+        if initial_segments:
+            segments = initial_segments
+        else:
+            segments = self.data_manager.get_segments(self.we_iter)
         
         # Calculate WE iteration end time and accumulated CPU and wallclock time
         total_cputime = 0.0
@@ -100,7 +115,8 @@ class DefaultWEMaster(WESimMaster):
             total_walltime += segment.walltime or 0.0
         self.we_iter.cputime = total_cputime
         self.we_iter.walltime = total_walltime
-                
+        
+        we_starttime = time.clock() 
         log.info('running WE on %d particles' % len(segments))
         # Convert DB-oriented segments to WE-oriented particles
         current_particles = []
@@ -122,30 +138,43 @@ class DefaultWEMaster(WESimMaster):
         we_iter = WESimIter()
         we_iter.n_iter = new_we_iter
         
-        # Convert particles to new propagation segments
+        # Convert particles (phase space points) to new propagation segments
         new_segments = []
         for particle in new_particles:
             s = Segment(weight = particle.weight)
             s.n_iter = new_we_iter
             s.status = Segment.SEG_STATUS_PREPARED
             s.pcoord = None
-            if particle.p_parent:
-                s.p_parent = self.data_manager.get_segment(current_iteration, particle.p_parent.particle_id)
-                log.debug('segment %r primary parent is %r' 
-                          % (s.seg_id or '(New)', s.p_parent.seg_id))
-            if particle.parents:
-                s.parents = set([self.data_manager.get_segment(current_iteration, pp.particle_id)
-                                 for pp in particle.parents])
-                log.debug('segment %r parents are %r' 
-                          % (s.seg_id or '(New)',
-                             [s2.particle_id for s2 in particle.parents]))
+            if current_iteration > 0:
+                if particle.p_parent:
+                    s.p_parent = self.data_manager.get_segment(current_iteration, particle.p_parent.particle_id)
+                    log.debug('segment %r primary parent is %r' 
+                              % (s.seg_id or '(New)', s.p_parent.seg_id))
+                else:
+                    log.debug('segment %r has no primary parent; will restart in initial bin' % s)
+                if particle.parents:
+                    s.parents = set([self.data_manager.get_segment(current_iteration, pp.particle_id)
+                                     for pp in particle.parents])
+                    log.debug('segment %r parents are %r' 
+                              % (s.seg_id or '(New)',
+                                 [s2.particle_id for s2 in particle.parents]))
             new_segments.append(s)
 
         we_iter.n_particles = len(new_segments)
         we_iter.norm = numpy.sum((seg.weight for seg in new_segments))
         we_iter.binarray = self.we_driver.bins
+        
+        # Save the total probability that flowed off the edge of the world
+        recycled_population = 0
+        for particle in self.we_driver.particles_escaped:
+            recycled_population += particle.weight 
+        we_iter.data['recycled_population'] = recycled_population
+        
         self.data_manager.create_we_sim_iter(we_iter)
         self.data_manager.create_segments(we_iter, new_segments)
+        we_endtime = time.clock()
+        log.info('WE (including data management) took %.2e seconds'
+                 % (we_endtime - we_starttime))
                      
     def continue_simulation(self):
         return bool(self.we_driver.current_iteration <= self.max_iterations)
@@ -153,6 +182,7 @@ class DefaultWEMaster(WESimMaster):
     def prepare_iteration(self):
         self.we_iter = self.data_manager.get_we_sim_iter(self.we_driver.current_iteration)
         self.we_iter.starttime = datetime.datetime.now()
+        self.we_iter.data = copy(self.we_iter.data)
         self.we_iter.data['bin_boundaries'] = self.we_driver.bins.boundaries
         self.we_iter.data['bins_shape'] = self.we_driver.bins.shape
         self.we_iter.data['bin_ideal_num'] = self.we_driver.bins.ideal_num
@@ -160,10 +190,9 @@ class DefaultWEMaster(WESimMaster):
         self.we_iter.data['bin_merge_threshold_min'] = self.we_driver.bins.merge_threshold_min
         self.we_iter.data['bin_merge_threshold_max'] = self.we_driver.bins.merge_threshold_max
 
-        anparticles = self.we_driver.bins.nparticles_array()
-        pops = self.we_driver.bins.population_array()
-        self.we_iter.data['bin_n_particles'] = anparticles
-        self.we_iter.data['bin_populations'] = pops 
+        anparticles = self.we_iter.data['bins_nparticles'] = self.we_driver.bins_nparticles
+        self.we_iter.data['bins_population'] = self.we_driver.bins_population
+        self.we_iter.data['bins_popchange'] = self.we_driver.bins_popchange 
 
         n_pop_bins = anparticles[anparticles != 0].size
         n_bins = len(self.we_driver.bins)
