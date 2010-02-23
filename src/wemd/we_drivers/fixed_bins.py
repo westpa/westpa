@@ -1,3 +1,5 @@
+import re
+
 import logging
 log = logging.getLogger('wemd.we_drivers.fixed_bins')
 

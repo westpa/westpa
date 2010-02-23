@@ -5,7 +5,7 @@ from sqlalchemy import (Table, Column, Index, ForeignKey,
                         SmallInteger, Integer, Boolean, Float, 
                         Text, CLOB, BLOB, PickleType, String, 
                         DateTime, Interval, UnicodeText)
-from sqlalchemy.orm import (mapper, relation, deferred)
+from sqlalchemy.orm import (mapper, relation, deferred, compile_mappers)
 from sqlalchemy.orm.collections import column_mapped_collection
 from sqlalchemy.ext.associationproxy import association_proxy
 
@@ -101,3 +101,6 @@ mapper(WESimIter, weIterTable)
 mapper(MetaTableObject, metaTable,
        properties = {'key': metaTable.c.key_,
                      'value': metaTable.c.value})
+
+# The following prevents mysterious pickle/MPI-related Heisenbugs
+compile_mappers()
