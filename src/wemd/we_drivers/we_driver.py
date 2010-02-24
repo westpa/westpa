@@ -159,6 +159,25 @@ class WEDriver:
             # end while len(mergable_particles) > 1
                 
     def run_we(self, particles):
+        """Run the weighted ensemble bin/split/merge algorithm on the given 
+        particles.  Sets the following instance variables (all sets):
+          `particles_created`
+              particles created for any reason (split or merge)
+          `particles_escaped`
+              particles which exited the bin space (can be used for rudimentary
+              probability recycling)
+          `particles_merged`
+              particles which ceased to be in existence due to a merge
+              (*including* the particle whose phase space point was selected
+              as that of the new conglomerate particle)
+          `particles_split`
+              particles which ceased to be in existence due to a split,
+              *including* the parent particle
+              
+        Returns the set of particles (with properly-set lineage information)
+        to be propagated next. Particles in this set without any lineage
+        information indicate that their probability is to be recycled.
+        """
         assert(particles)
         
         self.particles_created = set()

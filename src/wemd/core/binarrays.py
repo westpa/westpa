@@ -4,10 +4,17 @@ from particles import ParticleCollection
 __metaclass__ = type
 
 class Bin(ParticleCollection):
+    BIN_TYPE_NORMAL = 1
+    BIN_TYPE_SINK   = 10
+    
+    bintypes = {}
+    bintype_names = {}
+    
     def __init__(self, iterable = None, 
                  bin_id = None, index = None,
                  ideal_num = None, split_threshold = None,
-                 merge_threshold_min = None, merge_threshold_max = None):
+                 merge_threshold_min = None, merge_threshold_max = None,
+                 bintype=None):
         super(Bin,self).__init__(iterable or [])
         self.bin_id = bin_id
         self.index = index
@@ -15,11 +22,19 @@ class Bin(ParticleCollection):
         self.split_threshold = split_threshold
         self.merge_threshold_min = merge_threshold_min
         self.merge_threshold_max = merge_threshold_max
+        self.bintype = bintype or self.BIN_TYPE_NORMAL
         
     def __repr__(self):
-        return '<%s(%s) index=%r, %d particles, norm=%g>' \
-               % (self.__class__.__name__, hex(id(self)), self.index,
+        return '<%s(%s) type=%s index=%r, %d particles, norm=%g>' \
+               % (self.__class__.__name__, hex(id(self)),
+                  self.bintype_names(self.bintype), 
+                  self.index,
                   len(self), self.norm)
+
+Bin.bintypes.update((k,v) for (k,v) in Bin.__dict__
+                    if k.startswith('BIN_TYPE_'))
+Bin.bintype_names.update((v,k) for (k,v) in Bin.__dict__
+                         if k.startswith('BIN_TYPE_'))
 
 class BinArray:
     def __init__(self, boundaries, ideal_num, 

@@ -47,12 +47,12 @@ class FixedBinWEDriver(WEDriver):
                 if not m:
                     raise ConfigError('invalid bin boundary specification')
                 else:
-                    ndim = int(m.group(2))
+                    idim = int(m.group(2))
                     if m.group(1):
                         boundaries = eval(sim_config[boundary_entry])
                     else:
                         boundaries = [float(lim) for lim in sim_config.get_list(boundary_entry)]
-                    boundary_entries[ndim] = numpy.array(boundaries)
+                    boundary_entries[idim] = numpy.array(boundaries)
                     
             if None in bin_limits:
                 raise ConfigError('missing bin boundaries for at least one dimension')
