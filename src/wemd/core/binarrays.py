@@ -31,9 +31,9 @@ class Bin(ParticleCollection):
                   self.index,
                   len(self), self.norm)
 
-Bin.bintypes.update((k,v) for (k,v) in Bin.__dict__
+Bin.bintypes.update((k,v) for (k,v) in Bin.__dict__.iteritems()
                     if k.startswith('BIN_TYPE_'))
-Bin.bintype_names.update((v,k) for (k,v) in Bin.__dict__
+Bin.bintype_names.update((v,k) for (k,v) in Bin.__dict__.iteritems()
                          if k.startswith('BIN_TYPE_'))
 
 class BinArray:

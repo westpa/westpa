@@ -4,27 +4,30 @@ import numpy
 import h5py
 from optparse import OptionParser
 
-parser = OptionParser(usage='%prog [OPTIONS] TEXT_FILE',
-                      description = 'Create a pcoord file from a text file')
-parser.add_option('-o', '--output', dest='output', default='dist.h5',
-                  help='destination HDF5 file (default: dist.h5)')
+parser = OptionParser(usage='%prog [OPTIONS] TEXT_FILE HDF5_FILE HDF5_NODE',
+                      description = 'Import data from a text file into an HDF5 file')
 parser.add_option('-t', '--timestep', dest='dt',
                   help='simulation timestep (default: read from input)')
 parser.add_option('-d', '--ndim', dest='ndim', type='int',
-                  help='number of progress coordinate dimensions '
+                  help='number of columns '
                       +'(default: read from input)')
 (opts, args) = parser.parse_args()
 
-if len(args) != 1:
-    sys.stderr.write('exactly one argument is required\n')
+if len(args) != 3:
+    sys.stderr.write('exactly 3 arguments are required\n')
     parser.print_help(sys.stderr)
     sys.exit(2)
+    
+input_filename = args[0]
+hdf5_filename = args[1]
+hdf5_nodename = args[2]
 
-if args[0] == '-':
+if input_filename == '-':
     input_file = sys.stdin
 else:
-    input_file = open(args[0], 'rt')
-h5file = h5py.File(opts.output, 'w')
+    input_file = open(input_filename, 'rt')
+
+h5file = h5py.File(hdf5_filename)
 
 dt = opts.dt
 ndim = opts.ndim
@@ -50,10 +53,15 @@ chunk_size = 32768
 conv_buffer = numpy.empty((chunk_size,ndim), numpy.float64)
 chunks_read = 0
 lines_read = 0
-grp = h5file.create_group('pcoords')
-dset = grp.create_dataset('pcoord', (1,1,ndim), numpy.float64,
-                             maxshape=(None, None, ndim),
-                             chunks=(chunk_size,1,ndim)) 
+
+nodenames = hdf5_nodename.split('/')
+grp = None
+for nodename in nodenames[:-1]:
+    grp = (grp or h5file).create_group(nodename)
+
+dset = (grp or h5file).create_dataset(nodenames[-1], (1,ndim), numpy.float64,
+                                      maxshape=(None, ndim),
+                                      chunks=(chunk_size,ndim)) 
 dset.attrs['timestep'] = dt
 for line in chain(linebuffer, input_file):
     if line[0] in ('#', '@'): continue

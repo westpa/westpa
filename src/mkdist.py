@@ -1,10 +1,7 @@
-import os, sys, subprocess, re
-import numpy
+import sys, subprocess, re
 from optparse import OptionParser
 
-from wemd.util.binfiles import UniformTimeData
-
-parser = OptionParser(usage='mkdist.py TRAJ_DIR GROUPS',
+parser = OptionParser(usage='mkdist.py -n INDEX_FILE -r RC_FILE GROUP_1 GROUP_2 TRAJ_FILES...',
                       description = 'stitch together a bunch of GROMACS trajectories')
 parser.add_option('-n', '--index-file', dest='index_file',
                   help='GROMACS index (.ndx) file')
@@ -12,45 +9,69 @@ parser.add_option('-r', '--rc-file', dest='rc_file',
                   help='GROMACS run control (.tpr) file')
 parser.add_option('-t', '--timestep',  dest='timestep', type='float',
                   help='MD timestep (default: read from first distance calc)')
-parser.add_option('--text-output', dest='text_output', default='dist.txt',
-                  help='filename for text output (default: dist.txt)')
+parser.add_option('-o', '--output', '--text-output', 
+                  dest='text_output', default='dist.txt',
+                  help='Filename for text output (default: dist.txt)')
+parser.add_option('-s', '--sort-files', dest='sort_files', action='store_true',
+                  help='Sort trajectory files')
+parser.add_option('-N', '--sort-numerically', dest='sort_numerically',
+                  action='store_true',
+                  help='Sort trajectory files numerically rather than '
+                      +'lexicographically')
+parser.add_option('-p', '--filename-pattern', dest='filename_pattern',
+                  default=r'.*?(\d+)\.xtc$',
+                  help='Regular expression used to extract sort key from '
+                      +'filenames when sorting numerically. Must contain '
+                      +'exactly one group matching an integer value. '
+                      +"(Default: '.*?(\d+)\.xtc$')")
 parser.add_option('--g_dist-verbose', dest='gdist_verbose',
                   action = 'store_true',
-                  help = 'do not suppress g_dist output')
+                  help = 'Do not suppress g_dist output')
 (opts, args) = parser.parse_args()
 
-if len(args) != 2:
-    parser.print_usage(sys.stderr)
+if len(args) < 4:
+    parser.print_help(sys.stderr)
     sys.exit(2)
 else:
-    traj_dir = args[0]
-    dist_groups = args[1]
-
+    try:
+        group1 = int(args.pop(0))
+        group2 = int(args.pop(0))
+    except ValueError, e:
+        sys.stderr.write('groups must be integers\n')
+        parser.print_help(sys.stderr)
+        sys.exit(2)
+    xtc_files = args
+        
 if not opts.rc_file:
     sys.stderr.write('a GROMACS run control (.tpr) file must be provided\n')
-    parser.print_usage(sys.stderr)
+    parser.print_help(sys.stderr)
     sys.exit(2)
     
 if not opts.index_file:
     sys.stderr.write('a GROMACS index file (.ndx) must be provided\n')
-    parser.print_usage(sys.stderr)
+    parser.print_help(sys.stderr)
     sys.exit(2)
     
-reTrajName = re.compile(r'(.*?)(\d+)\.xtc$')
+if opts.sort_files or opts.sort_numerically:
+    if opts.sort_numerically:
+        re_get_key = re.compile(opts.filename_pattern)
+        try:
+            xtc_files = [item[1] for item in 
+                         sorted((int(re_get_key.search(xtc_file).group(1)), 
+                                 xtc_file)
+                                for xtc_file in xtc_files)]
+        except AttributeError:
+            sys.stderr.write('at least one file did not match the key pattern\n')
+            sys.exit(1)
+    else:
+        xtc_files = list(sorted(xtc_files))
+        
+sys.stdout.write(('Generating distances for groups %d and %d in the following '
+                  +'files:\n') % (group1, group2))
+for xtc_file in xtc_files:
+    sys.stdout.write('  %s\n' % xtc_file)
 
-trajfiles = []
-for fn in os.listdir(traj_dir):
-    m = reTrajName.match(fn)
-    if not m: continue
-
-    groups = m.groups()
-    
-    fn_prefix = groups[0]
-    ntraj = int(groups[1])
-    trajfiles.append((ntraj, fn))
-trajfiles = [i[1] for i in sorted(trajfiles)]
-
-txt_out_fmt = '%-20.15g    %-12.8g    %-20.15g\n'
+txt_out_fmt = '%-20.15g    %-12.8g\n'
 txt_out = open(opts.text_output, 'wt')
 
 dt = opts.timestep
@@ -59,23 +80,21 @@ ti = -1
 
 base_args = ['g_dist', '-noxvgr', '-s', opts.rc_file, '-n', opts.index_file]
 
-for (i, trajfile) in enumerate(trajfiles):
+for (i, trajfile) in enumerate(xtc_files):
     basename = trajfile[:-4]
-    distfilename = 'dist-' + basename + '.xvg'
-    trajfile_fullpath = os.path.join(traj_dir, trajfile)
-    
-    sys.stdout.write('g_traj %s -> %s\n' % (trajfile_fullpath, distfilename))
+    distfilename = 'dist-' + basename + '.xvg'    
+    sys.stdout.write('g_traj %s -> %s\n' % (trajfile, distfilename))
     sys.stdout.flush()
     if opts.gdist_verbose:
         child_output = None
     else:
         child_output = open('/dev/null', 'wb')
-    proc = subprocess.Popen(base_args + ['-f', trajfile_fullpath, 
+    proc = subprocess.Popen(base_args + ['-f', trajfile, 
                                          '-o', distfilename],
                             stdin = subprocess.PIPE,
                             stdout = child_output,
                             stderr = subprocess.STDOUT)                  
-    proc.stdin.write(dist_groups + '\n')
+    proc.stdin.write('%s %s\n' % (group1, group2))
     rc = proc.wait()
     
     if rc != 0:
@@ -111,7 +130,7 @@ for (i, trajfile) in enumerate(trajfiles):
         last_dist_txt = fields[1]
         dist = float(fields[1])
 
-        txt_out.write(txt_out_fmt % (t, dist, weight))
+        txt_out.write(txt_out_fmt % (t, dist))
 
     txt_out.flush()
     dist_in.close()
