@@ -32,6 +32,9 @@ class WEMDAnlTool(WECmdLineMultiTool):
         cop.add_command('transanl',
                         'analyze transitions',
                         self.cmd_transanl, True)
+        cop.add_command('fluxanl',
+                        'analyze probability flux',
+                        self.cmd_fluxanl, True)
         cop.add_command('tracetraj',
                         'trace an individual trajectory and report',
                         self.cmd_tracetraj, True)
@@ -126,8 +129,7 @@ class WEMDAnlTool(WECmdLineMultiTool):
         for irr1 in xrange(0, len(regions)):
             for irr2 in xrange(0, len(regions)):
                 if abs(irr1-irr2) > 1:
-                    event_durations[irr1,irr2] = numpy.empty((0,2), numpy.float64)
-        print event_durations
+                    event_durations[irr1,irr2] = numpy.empty((0,2), numpy.float64)                    
                     
         event_counts = numpy.zeros((len(regions), len(regions)), numpy.uint64)
             
@@ -208,6 +210,35 @@ class WEMDAnlTool(WECmdLineMultiTool):
                                         seg.p_parent_id or 0,
                                         seg.weight,
                                         seg.pcoord[-1]))
+    def cmd_fluxanl(self, args):
+        parser = self.make_parser()
+        parser.add_option('-T', '--tau', dest='tau', type='float',
+                          default=1.0,
+                          help='length of each WE iteration in simulation '
+                              +'time is TAU (default: 1.0)')
+        (opts,args) = parser.parse_args(args)
+        sim_manager = self.get_sim_manager()
+        latest_we_iter = self.get_sim_iter(None)
+
+
+        import numpy
+        fluxen = numpy.zeros((latest_we_iter.n_iter,), numpy.float64)
+        for i_iter in xrange(1, latest_we_iter.n_iter+1):
+            we_iter = sim_manager.data_manager.get_we_sim_iter(i_iter)
+            fluxen[i_iter-1] = we_iter.data['recycled_population']
+            
+        fluxen /= opts.tau
+        
+        for irow in xrange(0, fluxen.shape[0]):
+            self.output_stream.write('%-8d    %16.12g    %21.16g\n'
+                                     % (irow+1, opts.tau*(irow+1), 
+                                        fluxen[irow]))
+        
+            
+            
+            
+        
+        
         
 if __name__ == '__main__':
     WEMDAnlTool().run()

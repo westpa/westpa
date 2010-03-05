@@ -56,7 +56,15 @@ class ConfigDict(dict):
             raise ConfigError(("entry '%s' in section '%s' is required in "
                               +"configuration file %r")
                               % (name, section, self['__file__']))
-                
+    
+    def require_all(self, keys):
+        for key in keys:
+            (section, name) = key.split('.', 1)
+            if key not in self:
+                raise ConfigError(("entry '%s' in section '%s' is required in "
+                                   +"configuration file %r")
+                                   % (name, section, self['__file__']))
+                        
     def _get_typed(self, key, type_, *args):
         
         try:
@@ -128,10 +136,18 @@ class ConfigDict(dict):
     def get_list(self, key, *args, **kwargs):
         if len(args) > 1:
             raise TypeError('unexpected positional argument encountered')
+        
+        type_ = kwargs.get('type')
 
         split = re.compile(kwargs.get('split', self.default_list_split))
         try:
-            return split.split(self[key])
+            if type_:
+                try:
+                    return [type_(item) for item in split.split(self[key])]
+                except ValueError, e:
+                    raise ConfigError("%s in entry '%s'" % (e, key))
+            else:
+                return split.split(self[key])
         except KeyError, ke:
             try:
                 return args[0]

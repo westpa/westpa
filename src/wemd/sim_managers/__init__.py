@@ -67,7 +67,7 @@ class WESimMaster(WESimManagerBase):
     def restore_state(self):
         raise NotImplementedError
 
-from wemd.core.errors import ConfigError
+from wemd.util.config_dict import ConfigError
 def make_sim_manager(runtime_config):
     from default import DefaultWEMaster
     driver_name = runtime_config.get('sim_manager.driver', 'serial')
@@ -77,12 +77,12 @@ def make_sim_manager(runtime_config):
         return DefaultWEMaster(runtime_config)
     elif driver_name == 'mpi':
         log.info('using MPI simulation manager')
-        from wemd import util
+        from wemd.util import mpi as wemd_mpi
         from mpi import MPIWEMaster, MPIWEWorker
-        if not util.mpi.is_mpi_active():
+        if not wemd_mpi.is_mpi_active():
             log.warning('MPI environment not available; using serial driver')
             return DefaultWEMaster(runtime_config)
-        elif util.mpi.is_rank_0():
+        elif wemd_mpi.is_rank_0():
             return MPIWEMaster(runtime_config)
         else:
             return MPIWEWorker(runtime_config)
