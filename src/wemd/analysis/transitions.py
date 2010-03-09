@@ -55,7 +55,6 @@ class TransitionEventFinder(object):
                  pcoords,
                  t0 = 0.0,
                  dt = 1.0,
-                 time_threshold = None,
                  weights = None, 
                  traj_id = 0,
                  transition_log = None,
@@ -102,7 +101,6 @@ class TransitionEventFinder(object):
         self.pcoords = pcoords
         self.t0 = t0
         self.dt = dt
-        self.time_threshold = time_threshold or t0
         self.pcoord_regions = None
         self.event_counts = None
         self.event_durations = {}
@@ -151,6 +149,9 @@ class TransitionEventFinder(object):
         event_counts = self.event_counts = numpy.zeros((nreg,nreg), 
                                                        numpy.uint64)
         transition_log = self.transition_log
+        t0 = self.t0
+        dt = self.dt
+        traj_id = self.traj_id
         
         event_durations = {}
         fpts = {}
@@ -213,7 +214,7 @@ class TransitionEventFinder(object):
                                              self.regions[iregion][0]))
                                 try:
                                     fpts[int(trans_iregion), 
-                                         int(iregion)].append((fpt, weights[it]))
+                                         int(iregion)].append((fpt, weights[it],t0+it*dt))
                                 except KeyError:
                                     pass
                                     
@@ -233,7 +234,7 @@ class TransitionEventFinder(object):
                                              self.regions[iregion][0]))
                                 try:
                                     event_durations[int(trans_iregion),
-                                                    int(iregion)].append((tb,weights[it]))
+                                                    int(iregion)].append((tb,weights[it],t0+it*dt))
                                 except KeyError:
                                     pass
                                 

@@ -1,8 +1,12 @@
-import sys, subprocess, re
+import os, sys, subprocess, re
 from optparse import OptionParser
 
 parser = OptionParser(usage='mkdist.py -n INDEX_FILE -r RC_FILE GROUP_1 GROUP_2 TRAJ_FILES...',
                       description = 'stitch together a bunch of GROMACS trajectories')
+parser.add_option('-d', '--distance-program', dest='distance_program',
+                  help='use DISTANCE_PROGRAM to calculate distance (default: '
+                      +'g_dist)',
+                  default='g_dist')
 parser.add_option('-n', '--index-file', dest='index_file',
                   help='GROMACS index (.ndx) file')
 parser.add_option('-r', '--rc-file', dest='rc_file',
@@ -24,9 +28,9 @@ parser.add_option('-p', '--filename-pattern', dest='filename_pattern',
                       +'filenames when sorting numerically. Must contain '
                       +'exactly one group matching an integer value. '
                       +"(Default: '.*?(\d+)\.xtc$')")
-parser.add_option('--g_dist-verbose', dest='gdist_verbose',
+parser.add_option('-v', '--verbose', dest='verbose',
                   action = 'store_true',
-                  help = 'Do not suppress g_dist output')
+                  help = 'Do not suppress child output')
 (opts, args) = parser.parse_args()
 
 if len(args) < 4:
@@ -78,19 +82,25 @@ dt = opts.timestep
 last_dist_txt = None
 ti = -1
 
-base_args = ['g_dist', '-noxvgr', '-s', opts.rc_file, '-n', opts.index_file]
+base_args = [opts.distance_program, '-noxvgr', '-s', opts.rc_file, '-n', opts.index_file]
+
+if opts.distance_program == 'g_mindist':
+    output_arg = '-od'
+else:
+    output_arg = '-o'
 
 for (i, trajfile) in enumerate(xtc_files):
-    basename = trajfile[:-4]
+    basename = os.path.basename(trajfile[:-4])
     distfilename = 'dist-' + basename + '.xvg'    
-    sys.stdout.write('g_traj %s -> %s\n' % (trajfile, distfilename))
+    sys.stdout.write('%s %s -> %s\n' % (opts.distance_program, trajfile, 
+                                        distfilename))
     sys.stdout.flush()
-    if opts.gdist_verbose:
+    if opts.verbose:
         child_output = None
     else:
         child_output = open('/dev/null', 'wb')
     proc = subprocess.Popen(base_args + ['-f', trajfile, 
-                                         '-o', distfilename],
+                                         output_arg, distfilename],
                             stdin = subprocess.PIPE,
                             stdout = child_output,
                             stderr = subprocess.STDOUT)                  
@@ -98,7 +108,8 @@ for (i, trajfile) in enumerate(xtc_files):
     rc = proc.wait()
     
     if rc != 0:
-        sys.stderr.write('g_traj exited with code %r; aborting\n' % rc)
+        sys.stderr.write('%s exited with code %r; aborting\n' 
+                         % (opts.distance_program, rc))
         sys.exit(1)
 
     dist_in = open(distfilename, 'rt')

@@ -112,11 +112,10 @@ class SQLAlchemyDataManager(DataManagerBase):
 
     def get_segment(self, we_iter, seg_id, **kwargs):
         self.require_dbsession()
-        n_iter = _n_iter(we_iter)
-        return self.dbsession.query(Segment)\
-            .filter( (Segment.n_iter == n_iter)
-                    &(Segment.seg_id == seg_id))\
-            .options(eagerload(Segment.p_parent)).one()
+        q = self.dbsession.query(Segment).filter(Segment.seg_id==seg_id)
+        if we_iter is not None:
+            q = q.filter(Segment.n_iter == _n_iter(we_iter))
+        return q.options(eagerload(Segment.p_parent)).one()
     
     def get_segments(self, we_iter, **kwargs):
         self.require_dbsession()
