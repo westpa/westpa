@@ -8,14 +8,14 @@ import cPickle as pickle
 import logging
 log = logging.getLogger(__name__)
 
-_db_version_key = 'db.schema_version'
+db_version_key = 'db.schema_version'
 
 _updaters = []
 
 def get_schema_version(engine):
     try:
         rsl = engine.execute("SELECT key_, value FROM meta WHERE key_='%s'"
-                             %  _db_version_key)
+                             %  db_version_key)
     except OperationalError, e:
         if 'table' in str(e).lower():
             return 0
@@ -28,7 +28,7 @@ def get_schema_version(engine):
             return pickle.loads(str(row[1]))
         finally:
             rsl.close()
-        
+                                
 def update_schema(engine):
     global schema
     metadata = schema.metadata
@@ -42,7 +42,15 @@ class SchemaUpdate(object):
     target_version = None
     
     def __init__(self):
-        log = logging.getLogger(self.__class__.__name__)
+        self.log = logging.getLogger(self.__class__.__name__)
+        
+    def create_tables(self, schema, metadata, engine, tables):
+        self.log.info('creating new tables')
+        metadata.create_all(bind=engine, tables=tables, checkfirst=True)
+        
+    def drop_tables(self, schema, metadata, engine, tables):
+        self.log.info('dropping outdated tables')
+        metadata.drop_all(bind=engine, tables=tables, checkfirst=True)
     
     def needs_update(self, schema, metadata, engine):
         assert self.target_version is not None
@@ -53,7 +61,7 @@ class SchemaUpdate(object):
         self.pre_update(schema, metadata, engine)
         self.update_schema(schema, metadata, engine)
         self.post_update(schema, metadata, engine)
-        log.info('database schema updated to version %s' % self.target_version)
+        self.log.info('database schema updated to version %s' % self.target_version)
 
     def pre_update(self, schema, metadata, engine):
         pass
@@ -68,13 +76,11 @@ class Update_0_1(SchemaUpdate):
     target_version = 1
     
     def update_schema(self, schema, metadata, engine):
-        new_tables = [schema.metaTable, schema.trajTreeTable]
+        new_tables = ['meta', 'traj_tree']
         
         conn = engine.connect()
-        
-        log.info('creating new tables')
-        metadata.create_all(bind=engine, tables=new_tables, checkfirst=True)
-        
+        self.create_tables(schema, metadata, engine, new_tables)
+                
         sel_iter_0_segs = select([schema.segmentsTable.c.seg_id],
                                  schema.segmentsTable.c.n_iter == 0) 
         
@@ -96,7 +102,17 @@ class Update_0_1(SchemaUpdate):
 
     def post_update(self, schema, metadata, engine):
         metaInsert = schema.metaTable.insert()
-        engine.execute(metaInsert, {'key_': _db_version_key, 
+        engine.execute(metaInsert, {'key_': db_version_key, 
                                     'value': self.target_version})
 
+class Update_1_2(SchemaUpdate):
+    target_version = 2
+    
+    def update_schema(self, schema, metadata, engine):
+        self.drop_tables(schema, metadata, engine, ['traj_tree'])
+        
+    def post_update(self, schema, metadata, engine):
+        self.log.warning('endpoint data not available for this simulation')
+    
 _updaters.append(Update_0_1)
+_updaters.append(Update_1_2)

@@ -9,7 +9,7 @@ from sqlalchemy.orm import (mapper, relation, deferred, compile_mappers)
 from sqlalchemy.orm.collections import column_mapped_collection
 from sqlalchemy.ext.associationproxy import association_proxy
 
-version = 1
+version = 2
 
 metadata = sqlalchemy.MetaData()
 
@@ -37,11 +37,16 @@ segmentsTable = Table('segments', metadata,
                              autoincrement=True),
                       Column('n_iter', Integer, 
                              ForeignKey('we_iter.n_iter'),
-                             nullable=False),                      
-                      Column('status', SmallInteger, nullable=False),
+                             nullable=False,
+                             index=True),                      
+                      Column('status', SmallInteger, nullable=False,
+                             index=True),
                       Column('p_parent_id', Integer, 
                              ForeignKey('segments.seg_id'),
-                             nullable=True),
+                             nullable=True,
+                             index=True),
+                      Column('endpoint_type', SmallInteger, nullable=False,
+                             index=True),
                       Column('weight', Float(17), nullable=False),
                       Column('pcoord', PickleType(mutable=False), nullable=True),
                       Column('cputime', Float, nullable=True),
@@ -51,10 +56,6 @@ segmentsTable = Table('segments', metadata,
                       Column('data', PickleType(mutable=False), nullable=True),
                       )
 
-Index('ix_segments_status', segmentsTable.c.n_iter,
-                            segmentsTable.c.status)
-Index('ix_segments_p_parent_id', segmentsTable.c.p_parent_id)
-
 segmentLineageTable = Table('segment_lineage', metadata,
                             Column('seg_id', Integer,
                                    ForeignKey('segments.seg_id'), 
@@ -62,13 +63,6 @@ segmentLineageTable = Table('segment_lineage', metadata,
                             Column('parent_id', Integer,
                                    ForeignKey('segments.seg_id'), 
                                    primary_key=True, nullable=False))
-
-trajTreeTable = Table('traj_tree', metadata,
-                      Column('seg_id', Integer, 
-                             primary_key=True,
-                             nullable=False),
-                      Column('lt', Integer, nullable=False, index=True),
-                      Column('rt', Integer, nullable=False, index=True))
 
 from wemd.core.segments import Segment
 from wemd.core import WESimIter

@@ -190,7 +190,7 @@ class ExecutableBackend(BackendDriver):
         self._run_pre_post(self.post_segment_info, self._segment_env, segment)
     
     def propagate_segments(self, segments):
-        log.debug('propagating %d segment(s)' % len(segments))
+        #log.info('propagating %d segment(s)' % len(segments))
         for segment in segments:
             self.pre_segment(segment)
             # Create a temporary file for the child process to return 
@@ -200,6 +200,7 @@ class ExecutableBackend(BackendDriver):
             os.close(pc_return_fd)
             
             # Fork the new process
+            log.debug('propagating segment %d' % segment.seg_id)
             addtl_env = self._segment_env(segment)
             addtl_env[self.ENV_SEG_PCOORD_RETURN] = pc_return_filename
             proc = self._popen(self.propagator_info, 

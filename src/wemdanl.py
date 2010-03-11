@@ -10,27 +10,14 @@ from wemd.sim_managers import make_sim_manager
 
 from logging import getLogger
 log = getLogger(__name__)
-
-class SegNode(object):
-    __slots__ = ('seg_id', 'children',
-                 'lt', 'rt')
-    def __init__(self, seg_id, children=None,
-                 lt = None, rt=None):
-        self.seg_id = seg_id
-        self.children = children or []
-        self.lt = lt
-        self.rt = rt
     
 class WEMDAnlTool(WECmdLineMultiTool):
     def __init__(self):
         super(WEMDAnlTool,self).__init__()
         cop = self.command_parser
         
-        cop.add_command('mapsim',
-                        'trace all trajectories and record tree data',
-                        self.cmd_mapsim, True)
         cop.add_command('lstrajs',
-                        'list all living trajectories',
+                        'list trajectories',
                         self.cmd_lstrajs, True)
         cop.add_command('transanl',
                         'analyze transitions',
@@ -66,72 +53,57 @@ class WEMDAnlTool(WECmdLineMultiTool):
         
         self.we_iter = dbsession.query(WESimIter).get([we_iter])
         return self.we_iter
-    
-    def cmd_mapsim(self, args):
-        parser = self.make_parser()
-        self.add_iter_param(parser)
-        parser.add_option('-f', '--force', dest='force', action='store_true',
-                          help='rebuild map even if one exists')
-        (opts,args) = parser.parse_args(args)
-        
-        self.get_sim_manager()
-        final_we_iter = self.get_sim_iter(opts.we_iter)
-        max_iter = final_we_iter.n_iter        
-        data_manager = self.sim_manager.data_manager
-        trajmap = data_manager.trajectory_map()
-        
-        if opts.force:
-            trajmap.clear()
-        trajmap.check_update(max_iter)
-        
+            
     def cmd_lstrajs(self, args):
         parser = self.make_parser(description = 'list trajectories')
         self.add_iter_param(parser)
         parser.add_option('-t', '--type', dest='traj_type',
-                          type='choice', choices=('live', 'complete', 'all'),
+                          type='choice', choices=('live', 'complete', 
+                                                  'merged', 'recycled', 'all'),
                           default='live',
-                          help='list all trajectories ("all"), those that are '
-                               'alive ("live"), or those that are complete '
-                               '("complete"). "complete" and "all" require a'
-                               'trajectory map (see "mapsim")')
+                          help='''list all trajectories ("all"), those that are 
+                               alive ("live", default), those that are complete
+                               for any reason ("complete"), those that have been
+                               terminated because of a merge ("merged"),
+                               or those that have been terminated and
+                               recycled ("recycled")''')
         (opts,args) = parser.parse_args(args)
         
         self.get_sim_manager()
         data_manager = self.sim_manager.data_manager
         we_iter = self.get_sim_iter(opts.we_iter)
         from wemd.core import Segment
+        from sqlalchemy.sql import select
         dbsession = data_manager.require_dbsession()
-        live_segments = dbsession.query(Segment).filter(Segment.n_iter == we_iter.n_iter).all()
+        
+        self.output_stream.write('# %s trajectories as of iteration %d:\n'
+                                 % (opts.traj_type, we_iter.n_iter))
+        self.output_stream.write('#%-11s    %-12s    %-21s\n'
+                                 % ('seg_id', 'n_iter', 'weight'))
+        segsel = select([Segment.seg_id, Segment.n_iter, Segment.weight])
         
         if opts.traj_type == 'live':
-            self.output_stream.write('# Trajectories alive as of iteration %d:\n'
-                                     % we_iter.n_iter)
-            for segment in live_segments:
-                self.output_stream.write('%-12d     %21.16g\n'
-                                         % (segment.seg_id, segment.weight))
-        else:
-            tmap = data_manager.trajectory_map()
-            tmap.check_update(we_iter.n_iter)
-            live_trajectories = set(segment.seg_id for segment in live_segments) 
-            
-            if opts.traj_type == 'complete':
-                self.output_stream.write('# Trajectories completed as of iteration %d:\n'
-                                         % we_iter.n_iter)
-                self.output_stream.write('#%-11s     %-21s    %12s\n'
-                                         % ('n_iter', 'weight', 'length'))
-                for traj in tmap.trajs:
-                    if traj.seg_ids[-1] in live_trajectories:
-                        continue
-                    self.output_stream.write('%-12d     %21.16g    %12d\n'
-                                             % (traj.seg_ids[-1], traj.weight[-1], len(traj.seg_ids)))
-            else: # opts.traj_type == 'all'
-                self.output_stream.write('# All trajectories as of iteration %d:\n'
-                                         % we_iter.n_iter)
-                self.output_stream.write('#%-11s     %-21s    %12s\n'
-                                         % ('n_iter', 'weight', 'length'))
-                for traj in tmap.trajs:
-                    self.output_stream.write('%-12d     %21.16g    %12d\n'
-                                             % (traj.seg_ids[-1], traj.weight[-1], len(traj.seg_ids)))
+            query = segsel.where(Segment.n_iter == we_iter.n_iter)
+        elif opts.traj_type == 'complete':
+            query = segsel.where(Segment.n_iter <= we_iter.n_iter)\
+                          .where(Segment.endpoint_type != Segment.SEG_ENDPOINT_TYPE_CONTINUATION)
+        elif opts.traj_type == 'merged':
+            query = segsel.where(Segment.n_iter <= we_iter.n_iter)\
+                          .where(Segment.endpoint_type == Segment.SEG_ENDPOINT_TYPE_MERGED)
+        elif opts.traj_type == 'recycled':
+            query = segsel.where(Segment.n_iter <= we_iter.n_iter)\
+                          .where(Segment.endpoint_type == Segment.SEG_ENDPOINT_TYPE_RECYCLED)
+        elif opts.traj_type == 'all':
+            query = segsel.where((Segment.n_iter == we_iter.n_iter)
+                                  |((Segment.n_iter <= we_iter.n_iter)
+                                    &(Segment.endpoint_type != Segment.SEG_ENDPOINT_TYPE_CONTINUATION)))
+
+        query = query.order_by(Segment.n_iter)
+        segments = dbsession.execute(query)
+        for segment in segments:
+            self.output_stream.write('%-12d     %-12d    %21.16g\n'
+                                     % (segment.seg_id, segment.n_iter,
+                                        segment.weight))
                 
     def cmd_transanl(self, args):
         # Find transitions
@@ -161,20 +133,20 @@ class WEMDAnlTool(WECmdLineMultiTool):
         except KeyError:
             translog = None 
         
+        squeeze_data = transcfg.get_bool('data.squeeze')
         regions = []
         for (irr,rname) in enumerate(region_names):
             regions.append((rname, (region_edges[irr], region_edges[irr+1])))
             
+        from sqlalchemy import select
         from wemd.analysis.transitions import OneDimTransitionEventFinder
         
         self.get_sim_manager()
         final_we_iter = self.get_sim_iter(opts.we_iter)
         max_iter = final_we_iter.n_iter
         data_manager = self.sim_manager.data_manager
-        
-        trajmap = data_manager.trajectory_map()
-        trajmap.check_update(max_iter)
-        
+        dbsession = data_manager.require_dbsession()
+            
         import numpy
         
         event_durations = {}
@@ -184,14 +156,17 @@ class WEMDAnlTool(WECmdLineMultiTool):
                     event_durations[irr1,irr2] = numpy.empty((0,3), numpy.float64)                    
                     
         event_counts = numpy.zeros((len(regions), len(regions)), numpy.uint64)
-            
-        ntraj = trajmap.ntrajs
+        leafsel = select([Segment.seg_id]).where((Segment.n_iter <= max_iter)
+                                                 &(Segment.endpoint_type != Segment.SEG_ENDPOINT_TYPE_CONTINUATION))
+        leaves = [row[0] for row in dbsession.execute(leafsel)]
+        ntraj = len(leaves)
         
-        for (itraj, traj) in enumerate(trajmap.trajs):
+        for (ileaf, leaf_id) in enumerate(leaves):
+            traj = data_manager.get_trajectory(leaf_id, squeeze_data)
             self.output_stream.write('analyzing trajectory %d of %d\n'
-                                     % (itraj+1, ntraj))
+                                     % (ileaf+1, ntraj))
             try:
-                dt = traj.data_first['dt']
+                dt = traj.data[0]['dt']
             except KeyError:
                 dt = transcfg.get_float('data.timestep', 1.0)
                 

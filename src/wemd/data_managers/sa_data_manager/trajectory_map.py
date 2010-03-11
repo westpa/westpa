@@ -272,13 +272,15 @@ class TrajectoryMap(object):
             if self.squeeze_data:
                 lb = (n_md_steps-1)*(iseg-1) + n_md_steps
                 ub = (n_md_steps-1)*iseg     + n_md_steps
+                pco = 1
                 assert (seg.pcoord[0] == pcoord[lb-1]).all()
             else:
                 lb = (n_md_steps)*(iseg-1)
                 ub = (n_md_steps)*iseg
+                pco = 0
             
             weight[lb:ub] = seg.weight
-            pcoord[lb:ub] = seg.pcoord[1:]
+            pcoord[lb:ub] = seg.pcoord[pco:]
         
         traj = TrajectoryPath(seg_ids, 
                               weight = weight,

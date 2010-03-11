@@ -132,7 +132,17 @@ class DefaultWEMaster(WESimMaster):
                 
         # Perform actual WE calculation
         new_particles = self.we_driver.run_we(current_particles)
-        new_we_iter = self.we_driver.current_iteration 
+        new_we_iter = self.we_driver.current_iteration
+        
+        # Mark old segments as merged/recycled/continued
+        if not initial_segments:
+            segments_by_id = dict((segment.seg_id, segment) for segment in segments)
+            for particle in self.we_driver.particles_merged:
+                segments_by_id[particle.particle_id].endpoint_type = Segment.SEG_ENDPOINT_TYPE_MERGED
+            for particle in self.we_driver.particles_escaped:
+                segments_by_id[particle.particle_id].endpoint_type = Segment.SEG_ENDPOINT_TYPE_RECYCLED
+                
+            self.data_manager.update_segments(self.we_iter, segments)
         
         # Create storage for next WE iteration data        
         we_iter = WESimIter()
@@ -141,10 +151,11 @@ class DefaultWEMaster(WESimMaster):
         # Convert particles (phase space points) to new propagation segments
         new_segments = []
         for particle in new_particles:
-            s = Segment(weight = particle.weight)
-            s.n_iter = new_we_iter
-            s.status = Segment.SEG_STATUS_PREPARED
-            s.pcoord = None
+            s = Segment(n_iter = new_we_iter,
+                        status = Segment.SEG_STATUS_PREPARED,
+                        weight = particle.weight,
+                        endpoint_type = Segment.SEG_ENDPOINT_TYPE_CONTINUATION,
+                        pcoord = None)
             if current_iteration > 0:
                 if particle.p_parent:
                     s.p_parent = self.data_manager.get_segment(current_iteration, particle.p_parent.particle_id)
