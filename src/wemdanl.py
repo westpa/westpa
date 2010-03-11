@@ -112,6 +112,13 @@ class WEMDAnlTool(WECmdLineMultiTool):
         parser.add_option('-a', '--analysis-config', dest='anl_config',
                           help='use ANALYSIS_CONFIG as configuration file '
                               +'(default: analysis.cfg)')
+        parser.add_option('-t', '--type', dest='traj_type', type='choice',
+                          choices=('complete', 'recycled'),
+                          default='complete',
+                          help='''Analyze only recycled ("recycled")
+                          trajectories, or all completed ("complete", default)
+                          trajectories, which include both recycled and
+                          merged particles''')
         parser.set_defaults(anl_config = 'analysis.cfg')
         (opts,args) = parser.parse_args(args)
         
@@ -156,33 +163,46 @@ class WEMDAnlTool(WECmdLineMultiTool):
                     event_durations[irr1,irr2] = numpy.empty((0,3), numpy.float64)                    
                     
         event_counts = numpy.zeros((len(regions), len(regions)), numpy.uint64)
-        leafsel = select([Segment.seg_id]).where((Segment.n_iter <= max_iter)
-                                                 &(Segment.endpoint_type != Segment.SEG_ENDPOINT_TYPE_CONTINUATION))
+        if opts.traj_type == 'complete':
+            leafsel = select([Segment.seg_id]).where((Segment.n_iter <= max_iter)
+                                                     &(Segment.endpoint_type != Segment.SEG_ENDPOINT_TYPE_CONTINUATION))
+        elif opts.traj_type == 'recycled':
+            leafsel = select([Segment.seg_id]).where((Segment.n_iter <= max_iter)
+                                         &(Segment.endpoint_type == Segment.SEG_ENDPOINT_TYPE_RECYCLED))
+
         leaves = [row[0] for row in dbsession.execute(leafsel)]
         ntraj = len(leaves)
         
-        for (ileaf, leaf_id) in enumerate(leaves):
-            traj = data_manager.get_trajectory(leaf_id, squeeze_data)
-            self.output_stream.write('analyzing trajectory %d of %d\n'
-                                     % (ileaf+1, ntraj))
-            try:
-                dt = traj.data[0]['dt']
-            except KeyError:
-                dt = transcfg.get_float('data.timestep', 1.0)
+        blksize = 512
+        
+        for ileaf in xrange(0, ntraj, blksize):
+            leaf_block = leaves[ileaf:ileaf+blksize]
+            self.output_stream.write('retrieving block of %d trajectories\n'
+                                     % len(leaf_block))
+            trajs = data_manager.get_trajectories(leaf_block,
+                                                  squeeze_data)
+            for (itraj, traj) in enumerate(trajs):
+        
+                self.output_stream.write('analyzing trajectory %d of %d\n'
+                                         % (ileaf+itraj+1, ntraj))
+                try:
+                    dt = traj.data[0]['dt']
+                except KeyError:
+                    dt = transcfg.get_float('data.timestep', 1.0)
+                    
+                trans_finder = OneDimTransitionEventFinder(regions,
+                                                           traj.pcoord,
+                                                           dt = dt,
+                                                           traj_id=traj.seg_ids[-1],
+                                                           weights = traj.weight,
+                                                           transition_log = translog)
+                trans_finder.identify_regions()
+                trans_finder.identify_transitions()
+                event_counts += trans_finder.event_counts
                 
-            trans_finder = OneDimTransitionEventFinder(regions,
-                                                       traj.pcoord,
-                                                       dt = dt,
-                                                       traj_id=traj.seg_ids[-1],
-                                                       weights = traj.weight,
-                                                       transition_log = translog)
-            trans_finder.identify_regions()
-            trans_finder.identify_transitions()
-            event_counts += trans_finder.event_counts
-            
-            for ((region1, region2), tfed_array) in trans_finder.event_durations.iteritems():
-                event_durations[region1, region2].resize((event_durations[region1, region2].shape[0] + tfed_array.shape[0], 3))
-                event_durations[region1, region2][-tfed_array.shape[0]:,:] = tfed_array[:,:]
+                for ((region1, region2), tfed_array) in trans_finder.event_durations.iteritems():
+                    event_durations[region1, region2].resize((event_durations[region1, region2].shape[0] + tfed_array.shape[0], 3))
+                    event_durations[region1, region2][-tfed_array.shape[0]:,:] = tfed_array[:,:]
                 
         
         for ((region1, region2), ed_array) in event_durations.iteritems():

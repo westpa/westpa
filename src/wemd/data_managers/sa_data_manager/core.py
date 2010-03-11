@@ -264,7 +264,7 @@ class SQLAlchemyDataManager(DataManagerBase):
                     if seg_ids[iiter,icol] == dbrow.seg_id:
                         segments[iiter, icol] = dbrow
                         if iiter > 0:
-                            seg_ids[iiter-1, icol] = dbrow.p_parent_id
+                            seg_ids[iiter-1, icol] = dbrow.p_parent_id or 0
             rsl.close()
         
         # We now have a matrix whose columns are trajectories
