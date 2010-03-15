@@ -79,7 +79,8 @@ class SQLAlchemyDataManager(DataManagerBase):
         # during the merge() call by SQLAlchemy)
         data = copy(we_sim_iter.data)
         we_sim_iter.data = None
-        self.dbsession.merge(we_sim_iter)
+        we_sim_iter = self.dbsession.merge(we_sim_iter)
+        self.dbsession.add(we_sim_iter)
         self.dbsession.flush()
         we_sim_iter.data = data
         self.dbsession.flush()
@@ -112,7 +113,8 @@ class SQLAlchemyDataManager(DataManagerBase):
                 data = copy(segment.data)
                 segment.pcoord = None
                 segment.data = None
-                dbsession.merge(segment)
+                segment = dbsession.merge(segment)
+                dbsession.add(segment)
                 dbsession.flush()
                 segment.pcoord = pcoord
                 segment.data = data
