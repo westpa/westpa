@@ -85,7 +85,7 @@ for ((region1, region2), ed_array) in trans_finder.event_durations.iteritems():
     
     ed_file = open('ed_%s_%s.txt' % (region1_name, region2_name), 'wt')
     for irow in xrange(0, ed_array.shape[0]):
-        ed_file.write('%20.16g    %20.16g\n' % tuple(ed_array[irow,:]))
+        ed_file.write('%20.16g    %20.16g\n' % tuple(ed_array[irow,0:2]))
     ed_file.close()
     
     try:
@@ -115,5 +115,5 @@ for ((region1, region2), ed_array) in trans_finder.event_durations.iteritems():
         
         fpt_file = open('fpt_%s_%s.txt' % (region1_name, region2_name), 'wt')
         for irow in xrange(0, fpt_array.shape[0]):
-            fpt_file.write('%20.16g    %20.16g\n' % tuple(fpt_array[irow,:]))
+            fpt_file.write('%20.16g    %20.16g\n' % tuple(fpt_array[irow,0:2]))
         fpt_file.close()
