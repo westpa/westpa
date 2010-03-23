@@ -103,8 +103,10 @@ class DefaultWEMaster(WESimMaster):
             
         # Get all completed segments
         if initial_segments:
+            print "Initial Segments"
             segments = initial_segments
         else:
+            print "Not Initial Segments"
             segments = self.data_manager.get_segments(self.we_iter)
         
         # Calculate WE iteration end time and accumulated CPU and wallclock time
@@ -137,8 +139,16 @@ class DefaultWEMaster(WESimMaster):
         # Mark old segments as merged/recycled/continued
         if not initial_segments:
             segments_by_id = dict((segment.seg_id, segment) for segment in segments)
+            print "Print Segments"
+            for segment in segments:
+                print segment.seg_id, segment
+            print "Merged Particles"    
             for particle in self.we_driver.particles_merged:
-                segments_by_id[particle.particle_id].endpoint_type = Segment.SEG_ENDPOINT_TYPE_MERGED
+                print particle.particle_id, particle
+            
+            for particle in self.we_driver.particles_merged:
+                if segments_by_id.has_key(particle.particle_id):    
+                    segments_by_id[particle.particle_id].endpoint_type = Segment.SEG_ENDPOINT_TYPE_MERGED
             for particle in self.we_driver.particles_escaped:
                 segments_by_id[particle.particle_id].endpoint_type = Segment.SEG_ENDPOINT_TYPE_RECYCLED
                 

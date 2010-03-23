@@ -25,11 +25,14 @@ class BackendDriver:
 
 from wemd.core import ConfigError
 from executable import ExecutableBackend
+from pyopenmm import PyOpenMMBackend
 
 def make_backend_driver(runtime_config):
     driver_name = runtime_config['backend.driver']
     if driver_name == 'executable':
         driver = ExecutableBackend(runtime_config)
+    elif driver_name == 'pyopenmm':
+        driver = PyOpenMMBackend(runtime_config)
     else:
         raise ConfigError('invalid backend driver (%s) specified' % driver_name)
     log.info('using %s propagation backend' % driver_name)
