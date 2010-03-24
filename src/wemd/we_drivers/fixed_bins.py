@@ -15,7 +15,7 @@ class FixedBinWEDriver(WEDriver):
     
     def configure_bin_params(self, sim_config):
         bintype = sim_config['bins.type']
-        assert(bintype == 'fixed')
+        assert(bintype == 'fixed' or bintype == "fixed_bin_particles")
 
         ndim = sim_config.get_int('bins.ndim')
         bin_limits = []
