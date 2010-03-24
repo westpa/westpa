@@ -23,16 +23,19 @@ class BackendDriver:
         raise NotImplementedError
 
 
-from wemd.core import ConfigError
-from executable import ExecutableBackend
-from pyopenmm import PyOpenMMBackend
-
 def make_backend_driver(runtime_config):
+    from wemd.core import ConfigError
     driver_name = runtime_config['backend.driver']
     if driver_name == 'executable':
+        from executable import ExecutableBackend
         driver = ExecutableBackend(runtime_config)
     elif driver_name == 'pyopenmm':
-        driver = PyOpenMMBackend(runtime_config)
+        try:
+            from pyopenmm import PyOpenMMBackend
+        except ImportError, e:
+            raise ConfigError('pyopenmm backend driver unavailable (%s)' % e)
+        else:
+            driver = PyOpenMMBackend(runtime_config)
     else:
         raise ConfigError('invalid backend driver (%s) specified' % driver_name)
     log.info('using %s propagation backend' % driver_name)

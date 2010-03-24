@@ -25,7 +25,7 @@ class DefaultWEMaster(WESimMaster):
         self.max_iterations = runtime_config.get_int('limits.max_iterations', 1)
         # Eventually, add support for max_wallclock
         
-        from wemd.data_managers import make_data_manager
+        from wemd.data_manager import make_data_manager
         self.data_manager = make_data_manager(runtime_config)
                                           
     def save_state(self):

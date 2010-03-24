@@ -12,16 +12,18 @@ COUNT = sqlalchemy.sql.func.count
 MIN = sqlalchemy.sql.func.min
 MAX = sqlalchemy.sql.func.max
 
-from wemd.data_managers import DataManagerBase
 from wemd.core import Segment, WESimIter, Trajectory
 import schema, versioning
-
 
 def _n_iter(we_sim_iter):
     try:
         return we_sim_iter.n_iter
     except AttributeError:
         return we_sim_iter
+    
+class DataManagerBase(object):
+    def __init__(self, runtime_config):
+        self.runtime_config = runtime_config
 
 class SQLAlchemyDataManager(DataManagerBase):
     def __init__(self, runtime_config):
@@ -40,7 +42,6 @@ class SQLAlchemyDataManager(DataManagerBase):
         self.dbsession = None
         
         from mappingtable import DictTableIface
-        import schema
         self.meta = DictTableIface(self.dbengine, schema.metaTable,
                                    schema.metaTable.c.key_,
                                    schema.metaTable.c.value)

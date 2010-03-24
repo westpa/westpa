@@ -175,7 +175,7 @@ class WEMDCtlTool(WECmdLineMultiTool):
         parser = self.make_parser('update the database to the most recent schema')
         (opts, args) = parser.parse_args(args)
         
-        from wemd.data_managers.sa_data_manager.versioning import update_schema
+        from wemd.data_manager.versioning import update_schema
         sim_manager = make_sim_manager(self.runtime_config)
         update_schema(sim_manager.data_manager.dbengine)
         
