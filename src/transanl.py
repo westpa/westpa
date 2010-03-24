@@ -1,7 +1,7 @@
 import os, sys
 from optparse import OptionParser
 import numpy, h5py
-from wemd.analysis.transitions import OneDimTransitionEventFinder
+from wemd.analysis.transitions import AltOneDimTransitionEventFinder
 from wemd.util.config_dict import ConfigDict, ConfigError
 
 transcfg = ConfigDict()
@@ -14,37 +14,39 @@ if args:
 else:
     transcfg.read_config_file('analysis.cfg')
 
-transcfg.require_all(['regions.edges', 'regions.names', 
+transcfg.require_all(['regions.edges', 'regions.names',
                       'data.source', 'data.source_node'])
 
 region_names = transcfg.get_list('regions.names')
+region_idx = dict()
 region_edges = transcfg.get_list('regions.edges', type=float)
 if len(region_edges) != len(region_names) + 1:
     sys.stderr.write('region names and boundaries do not match')
     sys.exit(1)
+regions = []
+for (irr, rname) in enumerate(region_names):
+    regions.append((rname, (region_edges[irr], region_edges[irr+1])))
+    region_idx[rname] = irr
 
 try:
     translog = transcfg.get_file_object('output.transition_log', mode='w')
 except KeyError:
     translog = None
     
-regions = []
-for (irr, rname) in enumerate(region_names):
-    regions.append((rname, (region_edges[irr], region_edges[irr+1])))
 
 source_filename = transcfg['data.source']
 source_node = transcfg['data.source_node']
 
 h5file = h5py.File(source_filename)
-data = h5file[source_node][...]
+data = h5file[source_node]
 sys.stdout.write('source data is %s\n' % 'x'.join([str(x) for x in data.shape]))
 
-if data.ndim > 1 and transcfg.get_bool('data.contains_time', True):
+if len(data.shape) > 1 and transcfg.get_bool('data.contains_time', True):
     pcoord = data[:, 1:]
     sys.stdout.write('using time data from source file\n')
     timestep = data[1,0] - data[0,0]
 else:
-    pcoord = data
+    pcoord = data[...]
     timestep = transcfg.get_float('data.timestep', 1.0)
 sys.stdout.write('using dt=%g\n' % timestep)
 
@@ -56,13 +58,21 @@ for irr1 in xrange(0, len(regions)):
             event_durations[irr1,irr2] = numpy.empty((0,2), numpy.float64)
             fpts[irr1, irr2] = numpy.empty((0,2), numpy.float64)
 
-trans_finder = OneDimTransitionEventFinder(regions,
-                                           pcoord,
-                                           dt = timestep,
-                                           transition_log = translog)
+trans_finder = AltOneDimTransitionEventFinder(regions,
+                                              pcoord,
+                                              dt = timestep,
+                                              transition_log = translog)
 
+sys.stdout.write('identifying regions...')
+sys.stdout.flush()
 trans_finder.identify_regions()
+sys.stdout.write('done\n')
+sys.stdout.flush()
+sys.stdout.write('identifying transitions...')
+sys.stdout.flush()
 trans_finder.identify_transitions()
+sys.stdout.write('done\n')
+sys.stdout.flush()
 
 for ((region1, region2), ed_array) in trans_finder.event_durations.iteritems():
     region1_name = regions[region1][0]

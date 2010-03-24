@@ -146,7 +146,7 @@ class WEMDAnlTool(WECmdLineMultiTool):
             regions.append((rname, (region_edges[irr], region_edges[irr+1])))
             
         from sqlalchemy import select
-        from wemd.analysis.transitions import OneDimTransitionEventFinder
+        from wemd.analysis.transitions import AltOneDimTransitionEventFinder
         
         self.get_sim_manager()
         final_we_iter = self.get_sim_iter(opts.we_iter)
@@ -160,7 +160,7 @@ class WEMDAnlTool(WECmdLineMultiTool):
         for irr1 in xrange(0, len(regions)):
             for irr2 in xrange(0, len(regions)):
                 if abs(irr1-irr2) > 1:
-                    event_durations[irr1,irr2] = numpy.empty((0,3), numpy.float64)                    
+                    event_durations[irr1,irr2] = numpy.empty((0,2), numpy.float64)                    
                     
         event_counts = numpy.zeros((len(regions), len(regions)), numpy.uint64)
         if opts.traj_type == 'complete':
@@ -190,7 +190,7 @@ class WEMDAnlTool(WECmdLineMultiTool):
                 except KeyError:
                     dt = transcfg.get_float('data.timestep', 1.0)
                     
-                trans_finder = OneDimTransitionEventFinder(regions,
+                trans_finder = AltOneDimTransitionEventFinder(regions,
                                                            traj.pcoord,
                                                            dt = dt,
                                                            traj_id=traj.seg_ids[-1],
@@ -201,8 +201,8 @@ class WEMDAnlTool(WECmdLineMultiTool):
                 event_counts += trans_finder.event_counts
                 
                 for ((region1, region2), tfed_array) in trans_finder.event_durations.iteritems():
-                    event_durations[region1, region2].resize((event_durations[region1, region2].shape[0] + tfed_array.shape[0], 3))
-                    event_durations[region1, region2][-tfed_array.shape[0]:,:] = tfed_array[:,:]
+                    event_durations[region1, region2].resize((event_durations[region1, region2].shape[0] + tfed_array.shape[0], 2))
+                    event_durations[region1, region2][-tfed_array.shape[0]:,:] = tfed_array[:,0:2]
                 
         
         for ((region1, region2), ed_array) in event_durations.iteritems():
@@ -226,8 +226,8 @@ class WEMDAnlTool(WECmdLineMultiTool):
                 
                 ed_file = open('ed_%s_%s.txt' % (region1_name, region2_name), 'wt')
                 for irow in xrange(0, ed_array.shape[0]):
-                    ed_file.write('%20.16g    %20.16g    %20.16g\n'
-                                  % tuple(ed_array[irow,:]))
+                    ed_file.write('%20.16g    %20.16g\n'
+                                  % tuple(ed_array[irow,0:2]))
                 ed_file.close()
                     
             

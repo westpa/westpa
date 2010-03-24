@@ -51,7 +51,8 @@ class TransitionEventFinder(object):
         Available after calling `identify_transitions()`.
         
     """
-    def __init__(self, regions,
+    def __init__(self, 
+                 regions,
                  pcoords,
                  t0 = 0.0,
                  dt = 1.0,
@@ -84,13 +85,13 @@ class TransitionEventFinder(object):
           transition_log : object (file-like) or ``None``
             When not ``None``, individual transitions are written to this file.
           save_durations : dict
-            A dictionary of ``(int,int)`` tuples indicating the transition 
+            A set of ``(int,int)`` tuples indicating the transition 
             types for which to store event duration data. If not provided
             (or ``None`` is provided), event duration data is stored for every 
             possible transition type. If an empty dictionary is provided,
             no event duration time data will be stored. 
           save_fpts : dict
-            A dictionary of ``(int,int)`` tuples indicating the transition 
+            A set of ``(int,int)`` tuples indicating the transition 
             types for which to store first passage time data. If not provided
             (or `None` is provided), FPT data is stored for every 
             possible transition type. If an empty dictionary is provided,
@@ -114,21 +115,21 @@ class TransitionEventFinder(object):
         self.traj_id = traj_id
         self.transition_log = transition_log
         
-        self.save_durations = {}
+        self.save_durations = set()
         if save_durations is None:
             for irr1 in xrange(0, len(self.regions)):
                 for irr2 in xrange(0, len(self.regions)):
                     if abs(irr1-irr2) > 1:
-                        self.save_durations[(irr1,irr2)] = True
+                        self.save_durations.add((irr1,irr2))
         else:
             self.save_durations = save_durations
         
-        self.save_fpts = {}           
+        self.save_fpts = set()    
         if save_fpts is None:
             for irr1 in xrange(0, len(self.regions)):
                 for irr2 in xrange(0, len(self.regions)):
                     if abs(irr1-irr2) > 1:
-                        self.save_fpts[(irr1,irr2)] = True
+                        self.save_fpts.add((irr1,irr2))
         else:
             self.save_fpts = save_fpts
     
@@ -156,9 +157,9 @@ class TransitionEventFinder(object):
         event_durations = {}
         fpts = {}
                 
-        for (irr1,irr2) in self.save_durations.iterkeys():
+        for (irr1,irr2) in self.save_durations:
             event_durations[irr1,irr2] = []
-        for (irr1,irr2) in self.save_fpts.iterkeys():
+        for (irr1,irr2) in self.save_fpts:
             fpts[irr1,irr2] = []
             
         for it in xrange(1, pcoords.shape[0]):
@@ -268,3 +269,100 @@ class OneDimTransitionEventFinder(TransitionEventFinder):
                     pcoord_regions[it] = irr
                     break
 
+class AltOneDimTransitionEventFinder(TransitionEventFinder):
+    def identify_regions(self):
+        return
+    
+    def identify_transitions(self):
+        nreg = len(self.regions)
+        pcoords = self.pcoords
+        weights = self.weights
+        regions = self.regions 
+                
+        completion_times = numpy.zeros((nreg,nreg), numpy.int64) - 1
+        event_counts = self.event_counts = numpy.zeros((nreg,nreg), 
+                                                       numpy.uint64)
+        transition_log = self.transition_log
+        t0 = self.t0
+        dt = self.dt
+        traj_id = self.traj_id
+        
+        save_durations = self.save_durations
+        save_fpts = self.save_fpts
+        event_durations = {}
+        fpts = {}
+        
+        for (irr1,irr2) in save_durations:
+            event_durations[irr1,irr2] = []
+        for (irr1,irr2) in save_fpts:
+            fpts[irr1,irr2] = []
+        
+        last_forward_trans_entry = [0, 1]
+        last_backward_trans_entry = [0, 1]
+        last_forward_trans_exit = [0, 1]
+        last_backward_trans_exit = [0, 1]
+        last_forward_completion = [0, 1]
+        last_backward_completion = [0, 1]
+        
+        q = pcoords[0,0]
+        for irr in xrange(0, nreg):
+            lb, ub = regions[irr][1]
+            if lb <= q < ub:
+                last_iregion = irr
+                break
+        
+        for it in xrange(1, pcoords.shape[0]):
+            q = pcoords[it, 0]
+            for irr in xrange(0, nreg):
+                lb, ub = regions[irr][1]
+                if lb <= q < ub:
+                    iregion = irr
+                    break
+                
+            if iregion != last_iregion:
+                # A crossing has occurred
+                
+                t = self.t0 + self.dt * it
+                
+                if transition_log:
+                    transition_log.write('%-12s    %21.16g    %21.16g    %s->%s\n'
+                                          % (self.traj_id or '', 
+                                             t, weights[it],
+                                             regions[last_iregion][0],
+                                             regions[iregion][0]))
+                                
+                if iregion == nreg-1: 
+                    # "forward" crossing into endpoint
+                    if last_forward_completion[0] < last_forward_trans_entry[0]:
+                        if (0, iregion) in save_durations and last_forward_trans_entry[0] > 0:
+                            event_durations[0, iregion].append((it - last_forward_trans_entry[0] - 1, weights[it]))
+                        if (0, iregion) in save_fpts and last_backward_completion[0] > 0:
+                            fpts[0, iregion].append((it-last_backward_completion[0], weights[it]))
+                        last_forward_completion = (it, weights[it])
+                elif iregion == 0: 
+                    # "backward" crossing into endpoint
+                    if last_backward_completion[0] < last_backward_trans_entry[0]:
+                        if (nreg-1, 0) in save_durations and last_backward_trans_entry[0] > 0:
+                            event_durations[nreg-1, 0].append((it - last_backward_trans_entry[0] - 1, weights[it]))
+                        if (nreg-1, 0) in save_fpts and last_forward_completion[0] > 0:
+                            fpts[nreg-1,0].append((it - last_forward_completion[0], weights[it]))
+
+                        last_backward_completion = (it, weights[it])
+                elif last_iregion == 0:
+                    # "forward" crossing into transition region
+                    last_forward_trans_entry = (it, weights[it])
+                elif last_iregion == nreg-1:
+                    # "backward" crossing into transition region
+                    last_backward_trans_entry = (it, weights[it])
+                
+            last_iregion = iregion
+            
+        for (k,v) in fpts.iteritems():
+            if len(v):
+                self.fpts[k] = numpy.array(v, numpy.float64)
+                self.fpts[k][:,0] *= self.dt + self.t0
+        for (k,v) in event_durations.iteritems():
+            if len(v):
+                self.event_durations[k] = numpy.array(v, numpy.float64)
+                self.event_durations[k][:,0] *= self.dt + self.t0
+        

@@ -62,7 +62,7 @@ class Trajectory(object):
                 # Skip first pcoord row, as we already have it in the last point
                 # from the last segment (but double check)
                 pco = 1
-                assert (seg.pcoord[0] == pcoord[lb-1]).all()
+                #assert (seg.pcoord[0] == pcoord[lb-1]).all()
             else:
                 lb = (n_pcoord_steps) * (iseg-1)
                 ub = (n_pcoord_steps) * iseg
