@@ -53,6 +53,9 @@ class WESimMaster(WESimManagerBase):
         raise NotImplementedError
     
     def run(self):
+        if self.backend_driver is None:
+            self.load_backend_driver()
+            
         while self.continue_simulation():
             self.prepare_iteration()
             self.backend_driver.pre_iter(self.we_iter)

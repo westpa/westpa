@@ -9,6 +9,7 @@ log = logging.getLogger(__name__)
 
 from default import DefaultWEMaster
 import wemd
+import wemd.data_manager
 from wemd.sim_managers import WESimManagerBase
 
 from mpi4py import MPI
@@ -25,7 +26,6 @@ class MPISimManager(WESimManagerBase):
         log.info('rank %d is %s:%d'
                  % (wemd.util.mpi.getrank(), wemd.util.mpi.getnodename(),
                     os.getpid()))
-        self.load_backend_driver()
         self.comm = MPI.COMM_WORLD
                 
     def scatter_propagate_gather(self, segments):
@@ -129,6 +129,8 @@ class MPIWEWorker(MPISimManager):
         self.comm.Abort(EX_COMM_ERROR)
     
     def run(self):
+        if self.backend_driver is None:
+            self.load_backend_driver()
         log.debug('entering receive loop')
         while True:
             status = MPI.Status()

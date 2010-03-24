@@ -17,7 +17,6 @@ log = logging.getLogger(__name__)
 class DefaultWEMaster(WESimMaster):
     def __init__(self, runtime_config):
         super(DefaultWEMaster,self).__init__(runtime_config)
-        if self.backend_driver is None: self.load_backend_driver()
         
         for key in (('data.state', 'backend.driver', 'data.storage_engine')):
             runtime_config.require(key)
@@ -103,10 +102,10 @@ class DefaultWEMaster(WESimMaster):
             
         # Get all completed segments
         if initial_segments:
-            print "Initial Segments"
+            log.debug("Initial Segments")
             segments = initial_segments
         else:
-            print "Not Initial Segments"
+            log.debug("Not Initial Segments")
             segments = self.data_manager.get_segments(self.we_iter)
         
         # Calculate WE iteration end time and accumulated CPU and wallclock time
@@ -139,12 +138,6 @@ class DefaultWEMaster(WESimMaster):
         # Mark old segments as merged/recycled/continued
         if not initial_segments:
             segments_by_id = dict((segment.seg_id, segment) for segment in segments)
-            print "Print Segments"
-            for segment in segments:
-                print segment.seg_id, segment
-            print "Merged Particles"    
-            for particle in self.we_driver.particles_merged:
-                print particle.particle_id, particle
             
             for particle in self.we_driver.particles_merged:
                 if segments_by_id.has_key(particle.particle_id):    
@@ -232,7 +225,7 @@ class DefaultWEMaster(WESimMaster):
         segments = self.data_manager.get_prepared_segments(self.we_iter)
         for segment in segments:
             self.backend_driver.propagate_segments([segment])
-        self.data_manager.update_segments(self.we_iter, segments)
+            self.data_manager.update_segments(self.we_iter, [segment])
         
     def finalize_iteration(self):
         self.we_iter.endtime = datetime.datetime.now()
