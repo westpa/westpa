@@ -100,9 +100,9 @@ class TrajTree:
     def trace_trajectories(self, max_iter, callable):
         """
         Walk the trajectory tree depth-first, calling
-          ``callable(segment, children, history)`` for each segment visited.
-        ``segment`` is the segment being visited, ``children`` is that
-        segment's children, and ``history`` is the chain of segments leading
+          ``callable(segment, children, history)`` for each segment 
+        visited. ``segment`` is the segment being visited, ``children`` is that
+        segment's children, ``history`` is the chain of segments leading
         to ``segment`` (not including ``segment``).
         """
         
