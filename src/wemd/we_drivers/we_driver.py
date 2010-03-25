@@ -150,6 +150,7 @@ class WEDriver:
                     particles.add(glom)
                     
                     self.particles_merged.update(glom_src)
+                    self.particles_merged.remove(glom.p_parent)
                     bin.difference_update(glom_src)
                     particles.difference_update(glom_src)
                 # end if glom_src

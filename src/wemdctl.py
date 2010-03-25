@@ -100,7 +100,7 @@ class WEMDCtlTool(WECmdLineMultiTool):
                   'sqlalchemy': sqlalchemy, 'numpy': numpy,
                   'wemd': wemd,
                   'Segment': wemd.Segment, 'Particle': wemd.Particle,
-                  'WESimIter': wemd.WESimIter,
+                  'WESimIter': wemd.WESimIter, 'Trajectory': wemd.Trajectory,
                   'sim_manager': sim_manager}
         
         try:

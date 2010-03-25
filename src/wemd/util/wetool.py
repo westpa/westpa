@@ -32,10 +32,15 @@ class WECmdLineTool(object):
         self.log = logging.getLogger('%s.%s' 
                                      % (__name__, self.__class__.__name__))
         
-    def read_runtime_config(self, opts):
+    def read_runtime_config(self, opts_or_filename):
+        try:
+            rcfile = opts_or_filename.rcfile
+        except AttributeError:
+            rcfile = opts_or_filename or self.RC_DEFAULT
+            
         self.runtime_config = ConfigDict()
         try:
-            self.runtime_config.read_config_file(opts.rcfile)
+            self.runtime_config.read_config_file(rcfile)
         except IOError, e:
             self.error_stream.write('cannot open runtime config file: %s\n' % e)
             self.exit(EX_RTC_ERROR)

@@ -87,6 +87,8 @@ class WEMDAnlTool(WECmdLineMultiTool):
         elif opts.traj_type == 'complete':
             query = segsel.where(Segment.n_iter <= we_iter.n_iter)\
                           .where(Segment.endpoint_type != Segment.SEG_ENDPOINT_TYPE_CONTINUATION)
+            #query = segsel.where( (Segment.n_iter <= we_iter.n_iter)
+            #                     &(Segment.endpoint_type != Segment.SEG_ENDPOINT_TYPE_CONTINUATION) )
         elif opts.traj_type == 'merged':
             query = segsel.where(Segment.n_iter <= we_iter.n_iter)\
                           .where(Segment.endpoint_type == Segment.SEG_ENDPOINT_TYPE_MERGED)
