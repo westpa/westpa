@@ -68,22 +68,30 @@ else:
     
 sys.stdout.write('identifying transitions...\n')
 for istart in xrange(0, data.shape[0], chunk_size):
+    if istart+chunk_size > data.shape[0]:
+        iend = data.shape[0]
+    else:
+        iend = istart+chunk_size
+    
     if contains_time:
         if timestep is None:
-            data_chunk = data[istart:istart+chunk_size,:]
+            data_chunk = data[istart:iend,:]
             timestep = data_chunk[1,0] - data_chunk[0,0]
             sys.stdout.write('(using timestep = %g)\n' % timestep)
             pc_chunk = data_chunk[:,1:]
             del data_chunk
         else:
-            pc_chunk = data[istart:istart+chunk_size,1:]
+            pc_chunk = data[istart:iend,1:]
     else:
-        pc_chunk = data[istart:istart+chunk_size]
+        pc_chunk = data[istart:iend]
     
     sys.stdout.write('%d/%d (%.1f%%)\n' % (istart, data.shape[0], 100*istart/data.shape[0]))
+    trans_finder.timestep = timestep
     trans_finder.identify_transitions(pc_chunk,weights)
-    sys.stdout.write('%s\n\n' % trans_finder.event_counts)
+    #sys.stdout.write('%s\n\n' % trans_finder.event_counts)
     
+sys.stdout.write('event count (row->column, states %s)\n' % ', '.join(regions.names))
+sys.stdout.write('%s\n' % trans_finder.event_counts)
 for ((ir1, ir2), ed_list) in trans_finder.eds.iteritems():
     region1_name = regions.names[ir1]
     region2_name = regions.names[ir2]
@@ -119,7 +127,7 @@ for ((ir1, ir2), ed_list) in trans_finder.eds.iteritems():
                          % (region1_name, region2_name))
     else:
         sys.stdout.write('%d %s->%s FPTs observed\n'
-                         % (region1_name, region2_name))
+                         % (len(fpt_list), region1_name, region2_name))
         fpt_array = numpy.array(fpt_list, numpy.float64)
         fpt_array[:,0] *= timestep
         
