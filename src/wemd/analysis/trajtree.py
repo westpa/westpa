@@ -1,5 +1,5 @@
 from sqlalchemy.sql.expression import bindparam
-_metaclass__ = type
+__metaclass__ = type
 
 from itertools import chain
 import numpy
@@ -97,7 +97,8 @@ class TrajTree:
 
         return trajs
     
-    def trace_trajectories(self, max_iter, callable):
+    def trace_trajectories(self, max_iter, callable, get_ext_state = None,
+                           set_ext_state = None):
         """
         Walk the trajectory tree depth-first, calling
           ``callable(segment, children, history)`` for each segment 
@@ -105,6 +106,18 @@ class TrajTree:
         segment's children, ``history`` is the chain of segments leading
         to ``segment`` (not including ``segment``).
         """
+        
+        if get_ext_state is None:
+            if set_ext_state is not None:
+                raise ValueError('external state getter required')
+            else:
+                get_ext_state = (lambda: None)
+        if set_ext_state is None:
+            if get_ext_state is not None:
+                raise ValueError('external state setter required')
+            else:
+                set_ext_state = (lambda ext: None)
+            
         
         # This will grow to contain the maximum trajectory length
         history_chunksize = 32
@@ -121,7 +134,8 @@ class TrajTree:
             
             state_stack = [{'node': root,
                             'children': children,
-                            'len_history': 0}]
+                            'len_history': 0,
+                            'ext': get_ext_state()}]
             
             # Walk the tree, depth-first
             while state_stack:
@@ -130,13 +144,15 @@ class TrajTree:
                 node = state['node']
                 children = state['children']
                 len_history = state['len_history']
+                set_ext_state(state['ext'])
                 
                 # Descend as far as we can
                 while node.n_iter < max_iter and len(children):
                     # Save current state before descending
                     state_stack.append({'node': node,
                                         'children': children,
-                                        'len_history': len_history})
+                                        'len_history': len_history,
+                                        'ext': get_ext_state()})
                     
                     # Add an item to the historical record
                     if len_history >= history.shape[0]: 

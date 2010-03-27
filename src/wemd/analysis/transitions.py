@@ -1,5 +1,6 @@
 __metaclass__ = type
 
+from copy import copy
 import numpy
 
 class RegionSet:
@@ -79,7 +80,17 @@ class TransitionEventAccumulator:
         
         self.completion_indices = numpy.zeros(self.regions.adjacency.shape, numpy.uint64)
         self.event_counts = numpy.zeros(self.regions.adjacency.shape, numpy.uint64)
-        
+
+    def get_state(self):
+        return {'time_index': self.time_index,
+                'last_iregion': self.last_iregion,
+                'completion_indices': copy(self.completion_indices)}
+    
+    def set_state(self, state):
+        self.time_index = state['time_index']
+        self.last_iregion = state['last_iregion']
+        self.completion_indices = state['completion_indices']
+    
     def identify_transitions(self, pcoords, weights):
         pcoord_regions = self.regions.localize_all(pcoords)
         
