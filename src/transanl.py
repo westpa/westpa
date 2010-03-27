@@ -112,7 +112,7 @@ for ((ir1, ir2), ed_list) in trans_finder.eds.iteritems():
     sys.stdout.write('ED st. dev.:      %g\n' % ed_stdev)
     sys.stdout.write('ED S.E.M.:        %g\n' % ed_sem)
     sys.stdout.write('ED min:           %g\n' % ed_array[:,0].min())
-    sys.stdout.write('ED median:        %g\n' % ed_array[ed_array.shape[0]/2,0])
+    sys.stdout.write('ED median:        %g\n' % numpy.median(ed_array[:,0]))
     sys.stdout.write('ED max:           %g\n' % ed_array[:,0].max())
     
     ed_file = open('ed_%s_%s.txt' % (region1_name, region2_name), 'wt')
@@ -139,7 +139,7 @@ for ((ir1, ir2), ed_list) in trans_finder.eds.iteritems():
         sys.stdout.write('FPT st. dev.:     %g\n' % fpt_stdev)
         sys.stdout.write('FPT S.E.M.:       %g\n' % fpt_sem)
         sys.stdout.write('FPT min:          %g\n' % fpt_array[:,0].min())
-        sys.stdout.write('FPT median:       %g\n' % fpt_array[fpt_array.shape[0]/2,0])
+        sys.stdout.write('FPT median:       %g\n' % numpy.median(fpt_array[:,0]))
         sys.stdout.write('FPT max:          %g\n' % fpt_array[:,0].max())
         
         rate_mean = 1.0/fpt_mean

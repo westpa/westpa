@@ -40,18 +40,8 @@ class OneDimRegionSet(RegionSet):
     
     def localize_all(self, qs):
         regions = numpy.zeros((len(qs),), numpy.uintp)
-        #for (ireg, (lb, ub)) in enumerate(self.boundaries):
-        #    for (iq,q) in enumerate(qs):
-        #        if lb <= q < ub:
-        #            regions[iq] = ireg
-        
-        #for (iq,q) in enumerate(qs):
-        #    for (ireg, (lb,ub)) in enumerate(self.boundaries):
-        #        if lb <= q < ub:
-        #            regions[iq] = ireg
         for (ireg, (lb, ub)) in enumerate(self.boundaries):
-            which = numpy.argwhere((lb <= qs) * (qs < ub))
-            regions[which] = ireg
+            regions[(qs[:,0] >= lb) & (qs[:,0] < ub)] = ireg
         return regions
     
 class TransitionEventAccumulator:
@@ -115,6 +105,8 @@ class TransitionEventAccumulator:
             
             if iregion != self.last_iregion:
                 # A crossing has occurred
+                self.completion_indices[self.last_iregion, iregion] = self.time_index
+                self.event_counts[self.last_iregion, iregion] += 1
                 
                 if self.transition_log:
                     self.transition_log.write('%-12s    %21.16g    %21.16g    %s->%s\n'
@@ -127,30 +119,27 @@ class TransitionEventAccumulator:
                 for isrc in sources_nonadjacent:
                     isrc = int(isrc)
                     if self.completion_indices[isrc,iregion] < self.completion_indices[isrc, self.last_iregion]:
-                        print "found %s->%s transition at time %s (last %s)" \
-                              % (self.regions.names[isrc], self.regions.names[iregion],
-                                 self.time_index * self.timestep,
-                                 self.completion_indices[isrc,iregion]*self.timestep)
+                        #print "found %s->%s transition at time %s (last %s)" \
+                        #      % (self.regions.names[isrc], self.regions.names[iregion],
+                        #         self.time_index * self.timestep,
+                        #         self.completion_indices[isrc,iregion]*self.timestep)
                         #print "adjacency matrix:"
                         #print self.regions.adjacency
                         #print "completion indices (not yet updated):"
                         #print self.completion_indices
                         
-                        if (isrc, iregion) in self.accumulate_eds:
+                        if (isrc, iregion) in self.accumulate_eds and self.completion_indices[isrc,self.last_iregion]>0:
                             self.eds[isrc,iregion].append((self.time_index - self.completion_indices[isrc, self.last_iregion] - 1, w))
-                            print "found event duration %f" % ((self.time_index - self.completion_indices[isrc, self.last_iregion] - 1) * self.timestep)
-                        if self.completion_indices[iregion, isrc] > 0:
+                            #print "found event duration %f" % ((self.time_index - self.completion_indices[isrc, self.last_iregion] - 1) * self.timestep)
+                        if (isrc, iregion) in self.accumulate_fpts and self.completion_indices[iregion, isrc] > 0:
                             # completed first passage
-                            if (isrc, iregion) in self.accumulate_fpts:
-                                self.fpts[isrc,iregion].append((self.time_index - self.completion_indices[iregion,isrc], w))
-                                                # completed transition
+    
+                            self.fpts[isrc,iregion].append((self.time_index - self.completion_indices[iregion,isrc], w))
 
                         self.completion_indices[isrc,iregion] = self.time_index
                         self.event_counts[isrc,iregion] += 1
                     else:
                         # fluctuation across boundary without transition
                         pass
-                self.completion_indices[self.last_iregion, iregion] = self.time_index
-                self.event_counts[self.last_iregion, iregion] += 1
             
             self.last_iregion = iregion

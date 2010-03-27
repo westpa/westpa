@@ -1,3 +1,5 @@
+from __future__ import division
+
 import os, sys
 from itertools import izip
 from optparse import OptionParser
