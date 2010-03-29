@@ -115,13 +115,6 @@ class WEMDAnlTool(WECmdLineMultiTool):
         parser.add_option('-a', '--analysis-config', dest='anl_config',
                           help='use ANALYSIS_CONFIG as configuration file '
                               +'(default: analysis.cfg)')
-        parser.add_option('-t', '--type', dest='traj_type', type='choice',
-                          choices=('complete', 'recycled'),
-                          default='complete',
-                          help='''Analyze only recycled ("recycled")
-                          trajectories, or all completed ("complete", default)
-                          trajectories, which include both recycled and
-                          merged particles''')
         parser.set_defaults(anl_config = 'analysis.cfg')
         (opts,args) = parser.parse_args(args)
         
