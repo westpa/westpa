@@ -115,7 +115,13 @@ class WEMDAnlTool(WECmdLineMultiTool):
         parser.add_option('-a', '--analysis-config', dest='anl_config',
                           help='use ANALYSIS_CONFIG as configuration file '
                               +'(default: analysis.cfg)')
-        parser.set_defaults(anl_config = 'analysis.cfg')
+        parser.add_option('-o', '--output', dest='output_pattern',
+                          help='write results to OUTPUT_PATTERN, which must '
+                              +'contain two "%s" flags which will be replaced '
+                              +'by the region names as given in the analysis '
+                              +'configuration file')
+        parser.set_defaults(anl_config = 'analysis.cfg',
+                            output_pattern = 'ed_%s_%s.txt')
         (opts,args) = parser.parse_args(args)
         
         from wemd.util.config_dict import ConfigDict, ConfigError
@@ -152,7 +158,7 @@ class WEMDAnlTool(WECmdLineMultiTool):
         max_iter = final_we_iter.n_iter
         data_manager = self.sim_manager.data_manager
         dbsession = data_manager.require_dbsession()
-        
+                
         tree = TrajTree(data_manager, False)
         trans_finder = TransitionEventAccumulator(regions, data_overlaps = (not squeeze_data))
         
@@ -190,7 +196,8 @@ class WEMDAnlTool(WECmdLineMultiTool):
                 self.output_stream.write('ED median:           %g\n' % numpy.median(ed_array[:,0]))
                 self.output_stream.write('ED max:              %g\n' % ed_array[:,0].max())
                 
-                ed_file = open('ed_%s_%s.txt' % (region1_name, region2_name), 'wt')
+                ed_file = open(opts.output_pattern % 
+                               (region1_name, region2_name), 'wt')
                 for irow in xrange(0, ed_array.shape[0]):
                     ed_file.write('%20.16g    %20.16g\n'
                                   % tuple(ed_array[irow,0:2]))
