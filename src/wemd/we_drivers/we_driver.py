@@ -243,8 +243,10 @@ class WEDriver:
         self.bins_population = bins.population_array()
         self.bins_nparticles = bins.nparticles_array()
         
-        if self.current_iteration > 0:
+        try:
             self.bins_popchange = last_population - self.bins_population
+        except (TypeError,ValueError):
+            self.bins_popchange = None
             
         self.current_iteration += 1
         

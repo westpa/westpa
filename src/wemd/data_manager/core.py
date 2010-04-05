@@ -91,23 +91,13 @@ class SQLAlchemyDataManager(DataManagerBase):
         return self.dbsession.query(WESimIter).filter(WESimIter.n_iter == n_iter).one()
     
     def create_segments(self, we_sim_iter, segments):
-        self.require_dbsession()
-        dbsession = self.dbsession
-        
-        dbsession.begin()
-        try:
-            dbsession.add_all(segments)
-        except:
-            dbsession.rollback()
-            raise
-        else:
-            dbsession.commit()
+        dbsession = self.require_dbsession()
+        dbsession.add_all(segments)
     
     def update_segments(self, we_sim_iter, segments, **kwargs):
-        self.require_dbsession()
-        dbsession = self.dbsession
+        dbsession = self.require_dbsession()
         
-        dbsession.begin()
+        dbsession.begin(subtransactions=True)
         try:
             for segment in segments:
                 pcoord = copy(segment.pcoord)
@@ -125,7 +115,7 @@ class SQLAlchemyDataManager(DataManagerBase):
             raise
         else:
             dbsession.commit()
-    
+                
     def num_incomplete_segments(self, we_iter):
         self.require_dbsession()
         return self.dbsession.query(Segment)\
