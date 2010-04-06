@@ -93,7 +93,7 @@ class WEMDCtlTool(WECmdLineMultiTool):
         n_prepared = qsegs.filter(Segment.status == Segment.SEG_STATUS_PREPARED).count()
         
         try:
-            if n_prepared != n_total:
+            if n_prepared and n_prepared != n_total:
                 self.error_stream.write('%d segments are incomplete\n' 
                                         % n_prepared)
                 self.error_stream.write('complete or truncate current iteration'

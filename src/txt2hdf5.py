@@ -9,6 +9,9 @@ parser = OptionParser(usage='%prog [OPTIONS] TEXT_FILE HDF5_FILE HDF5_NODE',
 parser.add_option('--ncol', dest='ncol', type='int',
                   help='number of columns '
                       +'(default: read from input)')
+parser.add_option('-t', '--type', dest='type',
+                  help='data type of array (default: float64)',
+                  default='float64')
 parser.add_option('-c', '--compress', dest='do_compress', action='store_true',
                   help='compress the dataset')
 (opts, args) = parser.parse_args()
@@ -16,6 +19,12 @@ parser.add_option('-c', '--compress', dest='do_compress', action='store_true',
 if len(args) != 3:
     sys.stderr.write('exactly 3 arguments are required\n')
     parser.print_help(sys.stderr)
+    sys.exit(2)
+    
+try:
+    dtype = getattr(numpy, opts.type)
+except AttributeError:
+    sys.stderr.write('invalid data type (%r) specified\n' % opts.type)
     sys.exit(2)
     
 input_filename = args[0]
@@ -49,7 +58,7 @@ if ncol < 10:
     chunk_size = 32768
 else:
     chunk_size = 16384
-conv_buffer = numpy.empty((chunk_size,ncol), numpy.float64)
+conv_buffer = numpy.empty((chunk_size,ncol), dtype)
 chunks_read = 0
 lines_read = 0
 
@@ -58,7 +67,7 @@ grp = None
 for nodename in nodenames[:-1]:
     grp = (grp or h5file).require_group(nodename)
 
-dset = (grp or h5file).create_dataset(nodenames[-1], (1,ncol), numpy.float64,
+dset = (grp or h5file).create_dataset(nodenames[-1], (1,ncol), dtype,
                                       maxshape=(None, ncol),
                                       chunks=(chunk_size,ncol),
                                       compression = (opts.do_compress and 9 or None),
@@ -69,9 +78,9 @@ for line in chain(linebuffer, input_file):
     fields = line.split()
     lines_read += 1
     if ncol == 1:
-        conv_buffer[lines_read-1,0] = float(fields[0])
+        conv_buffer[lines_read-1,0] = dtype(fields[0])
     else:
-        conv_buffer[lines_read-1,:] = [float(field) for field in fields[0:ncol]]
+        conv_buffer[lines_read-1,:] = [dtype(field) for field in fields[0:ncol]]
     if lines_read == chunk_size:
         new_shape = (chunk_size*(chunks_read+1),) + tuple(dset.shape[1:])
         dset.resize(new_shape)
