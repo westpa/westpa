@@ -1,4 +1,5 @@
 import os, sys, subprocess, time, datetime, tempfile, string
+import errno,exceptions
 from resource import getrusage, RUSAGE_CHILDREN
 import logging
 log = logging.getLogger(__name__)
@@ -10,7 +11,6 @@ import cPickle
 from wemd.core import Segment
 from wemd.util.mpi import getrank
 from wemd.backend_drivers import BackendDriver
-from DoubleGo import DoubleGo
 
 import simtk
 import simtk.chem.openmm as openmm
@@ -36,7 +36,20 @@ class PyOpenMMBackend(BackendDriver):
         assert(runtime_config['backend.driver'].lower() == 'pyopenmm')
         
         # Get the system creator object and configuration file
-        sysmaker = eval(runtime_config.get('backend.pyopenmm.sysmaker'))
+        system_module_name = runtime_config.get('backend.pyopenmm.system_module')
+        
+        from wemd.core import ConfigError
+        try:
+            system_module = sys.modules[system_module_name] = __import__(system_module_name,globals(),locals(),[],-1)
+        except ImportError, e:
+            raise ConfigError('pyopenmm backend driver system module unavailable (%s)' % e)
+        
+        try:
+            sysmaker = getattr(system_module,runtime_config.get('backend.pyopenmm.sysmaker'))
+        except AttributeError, e:
+            raise ConfigError('pyopenmm backend driver system class unavailable (%s)' % e)
+        
+        
         sysconfig = runtime_config.get('backend.pyopenmm.sysconfig')
         
         # Setup and extract the system
@@ -138,7 +151,7 @@ class PyOpenMMBackend(BackendDriver):
             
             # Dump coordinates and velocities into cPickle
             bdir = self._segdir + "/%d/%d/" % (segment.n_iter, segment.seg_id)
-            os.makedirs(bdir)
+            make_dirs(bdir)
             coordpkl = bdir + "/coord.pkl"
             velpkl = bdir + "/vel.pkl"
             
@@ -168,9 +181,22 @@ class PyOpenMMBackend(BackendDriver):
         log.debug('pcoord = %f' % (pcoord))
         segment.pcoord = numpy.array([[pcoord]], dtype=numpy.float64)
 
+def make_dirs(dirname):
+    tx = None
+    try:
+        os.makedirs(dirname)
+    except OSError,x:
+        tx = x
+
+    if not os.path.isdir(dirname):
+        if tx:
+            raise tx
+        raise exceptions.IOError, "unknown error prevented the creation of directory: %s" % dirname
+        
+        
 
 
-         
+     
      
 
 
