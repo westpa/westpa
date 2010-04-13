@@ -22,6 +22,8 @@ class WEMDRunTool(WECmdLineTool):
         
         try:
             sim_manager.run()
+        except:
+            wemd.util.mpi.abort_mpi(1)
         finally:
             wemd.util.mpi.finalize_mpi()
         

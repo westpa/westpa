@@ -88,9 +88,6 @@ def make_sim_manager(runtime_config):
         if not wemd_mpi.is_mpi_active():
             log.warning('MPI environment not available; using serial driver')
             return DefaultWEMaster(runtime_config)
-
-        import atexit
-        atexit.register(wemd_mpi.finalize_mpi)
         
         if wemd_mpi.is_rank_0():
             return MPIWEMaster(runtime_config)

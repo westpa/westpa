@@ -31,6 +31,14 @@ def finalize_mpi():
         if not MPI.Is_finalized():
             log.info('finalizing MPI environment')
             MPI.Finalize()
+            
+def abort_mpi(errorcode=0):
+    try:
+        from mpi4py import MPI
+    except ImportError:
+        pass
+    else:
+        MPI.COMM_WORLD.Abort(errorcode)
 
 def is_mpi_active():
     try:
