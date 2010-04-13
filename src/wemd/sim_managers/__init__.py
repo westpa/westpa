@@ -81,11 +81,14 @@ def make_sim_manager(runtime_config):
     elif driver_name == 'mpi':
         log.info('using MPI simulation manager')
         from wemd.util import mpi as wemd_mpi
+        
+        wemd_mpi.init_mpi()
+        
         from mpi import MPIWEMaster, MPIWEWorker
         if not wemd_mpi.is_mpi_active():
             log.warning('MPI environment not available; using serial driver')
             return DefaultWEMaster(runtime_config)
-        
+
         import atexit
         atexit.register(wemd_mpi.finalize_mpi)
         

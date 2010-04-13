@@ -1,8 +1,7 @@
 import os, sys
 from optparse import OptionParser
-import wemd
+import wemd, wemd.util.mpi
 from wemd import Segment, WESimIter
-
 from wemd.util.wetool import WECmdLineTool
 from wemd.environment import *
 
@@ -20,10 +19,11 @@ class WEMDRunTool(WECmdLineTool):
             
         sim_manager = wemd.sim_managers.make_sim_manager(self.runtime_config)    
         sim_manager.restore_state()
+        
         try:
             sim_manager.run()
         finally:
-            sim_manager.finalize_mpi = True
+            wemd.util.mpi.finalize_mpi()
         
 if __name__ == '__main__':
     WEMDRunTool().run()

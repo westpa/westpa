@@ -24,9 +24,6 @@ class MPISimManager(WESimManagerBase):
     
     def __init__(self, runtime_config):
         super(MPISimManager,self).__init__(runtime_config)
-        log.info('rank %d is %s:%d'
-                 % (wemd.util.mpi.getrank(), wemd.util.mpi.getnodename(),
-                    os.getpid()))
         self.comm = MPI.COMM_WORLD
                                 
     def scatter_propagate_gather(self, segments):
