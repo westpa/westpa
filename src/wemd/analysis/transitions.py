@@ -89,7 +89,7 @@ class TransitionEventAccumulator:
     def set_state(self, state):
         self.time_index = state['time_index']
         self.last_iregion = state['last_iregion']
-        self.completion_indices = state['completion_indices']
+        self.completion_indices = copy(state['completion_indices'])
     
     def identify_transitions(self, pcoords, weights):
         pcoord_regions = self.regions.localize_all(pcoords)

@@ -1,5 +1,4 @@
 import logging
-import mpi
 from logging import Logger, LogRecord
 
 
@@ -19,6 +18,6 @@ class ExtendedLogger(logging.getLoggerClass()):
         return rec
 
 
-ExtendedLogger.clsextra['nodename'] = mpi.getnodename()
-ExtendedLogger.clsextra['proc_rank'] = mpi.getrank()
+ExtendedLogger.clsextra['nodename'] = 'localhost'
+ExtendedLogger.clsextra['proc_rank'] = 0
 logging.setLoggerClass(ExtendedLogger)

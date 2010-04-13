@@ -20,7 +20,10 @@ class WEMDRunTool(WECmdLineTool):
             
         sim_manager = wemd.sim_managers.make_sim_manager(self.runtime_config)    
         sim_manager.restore_state()
-        sim_manager.run()
+        try:
+            sim_manager.run()
+        finally:
+            sim_manager.finalize_mpi = True
         
 if __name__ == '__main__':
     WEMDRunTool().run()
