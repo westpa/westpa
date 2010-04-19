@@ -6,6 +6,7 @@ log = logging.getLogger('wemd.we_drivers.we_driver')
 
 import math, random
 from copy import copy
+import numpy #only for std of weights (i.e. testing)
 
 class WEDriver:
     def __init__(self, sim_config):
@@ -23,6 +24,9 @@ class WEDriver:
         self.bins_population = None
         self.bins_nparticles = None
         self.bins_popchange = None
+
+	self.sim_config = sim_config
+	self.initial_pcoord = numpy.array(sim_config.get_list('wemd.initial_pcoord', type=float))
                             
     def make_bins(self):
         """Create an array of ParticleCollection objects appropriate to this WE
@@ -63,35 +67,98 @@ class WEDriver:
         lineage information set correctly and be put into the 
         `particles_created` collection.  The source particle must be added
         to the `particles_split` collection.
-        """                
+        """             
+
         for bin in binarray:
             bnorm = bin.norm
-            ideal_weight = bnorm / bin.ideal_num
-            for particle in list(bin):
-                if particle.weight > bin.split_threshold*ideal_weight:
-                    P = particle.__class__
-                    m = int(math.ceil(particle.weight / ideal_weight))
-                    assert(m >= 2)
+
+            cur_num = len(bin) #current number of particles
+            if( (cur_num == 0) or (cur_num >= bin.ideal_num) ): #no need to split
+                continue
+
+            particles_list = list(bin)[:]
+            weight_key = (lambda p: p.weight)
+
+            #sort particles by weight
+            sorted_particles = sorted( particles_list, key = weight_key, reverse = True ) 
+            
+            proposed_split = [] #contains a list of particles that will be split
+                                #[index_into_sorted_particles, nparticle to create, new_weight, orig_weight]
+
+            for i in range(0, len(sorted_particles)):
+                proposed_split.append([i, 1, sorted_particles[i].weight, sorted_particles[i].weight ]) #add the particles
+
+            while( cur_num != (bin.ideal_num) ):
+
+                for i in range(0, len(proposed_split)): #loop through proposed_split
+
+                    if( i < (len(proposed_split)-1) ): #if there are more particles, split by next weight
+                        while 1: #do { } while ( ... )
+
+                            proposed_split[i][1] += 1 #number of particles to create
+                            cur_num += 1
+                            proposed_split[i][2] = proposed_split[i][3] / proposed_split[i][1] #update weight
+
+                            if( cur_num == (bin.ideal_num) ):
+                                break
+
+                            if( i > 0 ): #more evenly split by checking to see how previous weight compares to this one
+
+                                #weight if we were to split the prev particle again
+                                prev_weight = proposed_split[i-1][3] / (proposed_split[i-1][1] + 1)
+
+                                if( prev_weight >= proposed_split[i][2] ): #split particle if it will be greater than the next weight
+                                    proposed_split[i-1][1] += 1 #number of particles to create
+                                    cur_num += 1
+                                    proposed_split[i-1][2] = proposed_split[i-1][3] / proposed_split[i-1][1] #update weight
+                                    
+                                    if( cur_num == (bin.ideal_num) ):
+                                        break
+                                
+                            if ( proposed_split[i][2] < proposed_split[i+1][2] ): #continue until proposed weight is less than next weight
+                                break
+
+                    else: #last particle in the bin split it (for cases with one particle, etc)
+                        proposed_split[i][1] += 1 #number of particles to create
+                        cur_num += 1
+                        proposed_split[i][2] = proposed_split[i][3] / proposed_split[i][1] #update weight
+
+                    if( cur_num == (bin.ideal_num) ):
+                        break                    
+
+            x = 0
+            for i in range(0, len(proposed_split)):
+
+                particle = sorted_particles[proposed_split[i][0]]
+                new_num = proposed_split[i][1]
+
+                if( new_num < 2 ): #no need to do anything to this particle
+                    continue
+
+                P = particle.__class__
+                assert(new_num >= 2)
                     
-                    new_weight = particle.weight / m
-                    new_particles = [P(weight = new_weight,
+                new_weight = particle.weight / new_num
+                new_particles = [P(weight = new_weight,
+                                   pcoord = copy(particle.pcoord),
+                                   p_parent = particle,
+                                   parents = [particle])]
+    
+                new_particles.extend(P(weight = new_weight,
                                        pcoord = copy(particle.pcoord),
                                        p_parent = particle,
-                                       parents = [particle])]
-                    new_particles.extend(P(weight = new_weight,
-                                           pcoord = copy(particle.pcoord),
-                                           p_parent = particle,
-                                           parents = [particle])
-                                         for i in xrange(1, m))
+                                       parents = [particle])
+                                     for i in xrange(1, new_num))
                     
-                    self.particles_split.add(particle)                    
-                    bin.discard(particle)
-                    particles.discard(particle)
+                self.particles_split.add(particle)                    
+                bin.discard(particle)
+                particles.discard(particle)
                     
-                    self.particles_created.update(new_particles)
-                    bin.update(new_particles)
-                    particles.update(new_particles)
-    
+                self.particles_created.update(new_particles)
+                bin.update(new_particles)
+                particles.update(new_particles)
+
+
     def merge_particles(self, particles, binarray):
         """Merge particles according to weight.  The conglomerate particle
         must have its lineage information set properly and be placed into the 
@@ -99,24 +166,65 @@ class WEDriver:
         the `particles_merged` collection.
         """
         weight_key = (lambda p: p.weight)
-        
+ 
+
         for bin in binarray:
             ideal_weight = bin.norm / bin.ideal_num
-            min_weight = ideal_weight * bin.merge_threshold_min
-            max_weight = ideal_weight * bin.merge_threshold_max
-            
-            mergable_particles = [particle for particle in bin
-                                  if particle.weight <= min_weight]
-            while len(mergable_particles) > 1:
-                glom_src = []
-                glom_weight = 0.0
-                for particle in mergable_particles:
-                    if glom_weight + particle.weight > max_weight:
+
+            cur_num = len(bin) #current number of particles
+            if( (cur_num < 2) or (cur_num <= bin.ideal_num) ): #no need to merge
+                continue
+
+            proposed_merge = [] #a list of proposed particles to mnerge,
+                                #each element contains an array of particles that will be merged
+
+            mergable_particles = sorted( [particle for particle in bin], key = weight_key )
+            for particle in mergable_particles:
+                proposed_merge.append([particle])
+
+            while( len(proposed_merge) != bin.ideal_num ):
+
+                #the length of proposed_merge changes
+                #so we can't use for i in range(0,len(proposed_merge))
+                i = 0
+                while i < len(proposed_merge) - 1:
+
+                    if( len(proposed_merge) == bin.ideal_num ):
                         break
-                    else:
-                        glom_src.append(particle)
-                        glom_weight += particle.weight
-                    
+
+                    #len(proposed_merge) changes, i does not
+                    while i < len(proposed_merge) - 1:
+
+                        proposed_merge[i].append( proposed_merge[i+1][0] )
+                        proposed_merge[i+1].pop(0)
+
+                        if( len(proposed_merge[i+1]) == 0 ):#all elements merged
+                            proposed_merge.pop(i+1) #remove empty container
+
+                        new_weight = 0.0
+                        for x in range(0, len(proposed_merge[i])):
+                            new_weight += proposed_merge[i][x].weight
+    
+                        if( len(proposed_merge) == bin.ideal_num ):
+                            break
+
+                        #weight high, move onto next proposed particle to merge
+                        if( new_weight > ideal_weight ):
+                            break
+
+                    i += 1
+               
+            for i in range(0, len(proposed_merge)):
+
+                if len(proposed_merge[i]) > 1: #need 2 particles to merge
+                    glom_src = proposed_merge[i]
+                else:
+                    continue
+
+                glom_weight = 0.0 #get the weight of the new particle
+                for x in range(0, len(proposed_merge[i])):
+                    glom_weight += proposed_merge[i][x].weight
+
                 if glom_src:
                     P = glom_src[0].__class__
                     glom = P()                
@@ -150,13 +258,11 @@ class WEDriver:
                     particles.add(glom)
                     
                     self.particles_merged.update(glom_src)
+                    self.particles_merged.remove(glom.p_parent)
                     bin.difference_update(glom_src)
                     particles.difference_update(glom_src)
-                # end if glom_src
-                
-                mergable_particles = [particle for particle in bin
-                                      if particle.weight <= min_weight]
-            # end while len(mergable_particles) > 1
+                # end if glom_src        
+
                 
     def run_we(self, particles):
         """Run the weighted ensemble bin/split/merge algorithm on the given 
@@ -190,6 +296,16 @@ class WEDriver:
         bins = self.bins = self.make_bins()
         # bin info stored here if time-dependent binning
         self.distribute_particles(particles, bins)
+        log.info('%d particles escaped' % len(self.particles_escaped))
+        for particle in self.particles_escaped:
+            assert particle in particles
+            # Clear particle lineage information so that the particles start
+            # new trajectories next round
+            particle.parents = []
+            particle.p_parent = None
+            particle.pcoord = copy(self.initial_pcoord)
+	self.distribute_particles(particles, bins)
+
         
         # endpoint bin assignments stored here
         
@@ -201,14 +317,12 @@ class WEDriver:
         # By this point, the self.particles_* collections are properly populated
         # and can (must) be used to assign particle lineage to those particles
         # left untouched by the various WE routines
-
-        log.info('%d particles escaped' % len(self.particles_escaped))
         log.info('%d particles split' % len(self.particles_split))
         log.info('%d particles merged' % len(self.particles_merged))        
         log.info('%d new particles created' % len(self.particles_created))
-                 
+        log.info('%d particles total' % len(particles))
         # Various sanity checks
-        assert abs(particles.norm - 1) < 1.0e-14
+        #assert abs(particles.norm - 1) < 1.0e-14
         
         for particle in self.particles_merged:
             assert particle not in particles
@@ -219,14 +333,7 @@ class WEDriver:
         for particle in self.particles_created:
             assert particle.p_parent is not None
             assert particle in particles
-        
-        for particle in self.particles_escaped:
-            assert particle in particles
-            # Clear particle lineage information so that the particles start
-            # new trajectories next round
-            particle.parents = []
-            particle.p_parent = None
-            
+                    
         self.continued_particles = set(particles) \
                                  - self.particles_created \
                                  - self.particles_escaped
@@ -242,8 +349,10 @@ class WEDriver:
         self.bins_population = bins.population_array()
         self.bins_nparticles = bins.nparticles_array()
         
-        if self.current_iteration > 0:
+        try:
             self.bins_popchange = last_population - self.bins_population
+        except (TypeError,ValueError):
+            self.bins_popchange = None
             
         self.current_iteration += 1
         
