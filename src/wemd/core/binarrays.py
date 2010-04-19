@@ -27,7 +27,7 @@ class Bin(ParticleCollection):
     def __repr__(self):
         return '<%s(%s) type=%s index=%r, %d particles, norm=%g>' \
                % (self.__class__.__name__, hex(id(self)),
-                  self.bintype_names(self.bintype), 
+                  self.bintype_names[self.bintype], 
                   self.index,
                   len(self), self.norm)
 

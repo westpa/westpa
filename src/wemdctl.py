@@ -19,6 +19,10 @@ class WEMDCtlTool(WECmdLineMultiTool):
                         self.cmd_init, True)
         cop.add_command('status', 'show simulation status',
                         self.cmd_status, True)
+        cop.add_command('rebin', 'apply new bin limits to a WE simulation',
+                        self.cmd_rebin, True)
+        cop.add_command('truncate', 'truncate a WE simulation',
+                        self.cmd_truncate, True)
         cop.add_command('console', 'open an interactive Python console',
                         self.cmd_console, True)
         cop.add_command('update_schema', 
@@ -52,6 +56,149 @@ class WEMDCtlTool(WECmdLineMultiTool):
         sim_manager.save_state()
         self.exit()
         
+    def cmd_rebin(self, args):
+        parser = self.make_parser('SIM_CONFIG', 
+                                  'apply new bin limits to a WE simulation '
+                                  +' according to the directives in SIM_CONFIG')
+        (opts, args) = parser.parse_args(args)
+        if len(args) != 1:
+            self.error_stream.write('a simulation configuration file is required\n')
+            parser.print_help(self.error_stream)
+            self.exit(EX_USAGE_ERROR)
+        else:
+            sim_config_file = args[0]
+        
+        from wemd.util.config_dict import ConfigDict
+        sim_config = ConfigDict()
+        try:
+            sim_config.read_config_file(sim_config_file)
+        except IOError, e:
+            self.log.debug('cannot open simulation config file', exc_info=True)
+            self.error_stream.write('cannot open simulation config file: %s\n' 
+                                    % e)
+            self.exit(EX_ENVIRONMENT_ERROR)
+            
+        from sqlalchemy.sql import select, delete
+        from wemd.data_manager import schema
+            
+        sim_manager = make_sim_manager(self.runtime_config)
+        sim_manager.restore_state()
+        
+        dbsession = sim_manager.data_manager.require_dbsession()
+        n_iter = sim_manager.we_driver.current_iteration
+        qsegs = dbsession.query(Segment).filter(Segment.n_iter == n_iter)
+        
+        dbsession.begin()
+        n_total = qsegs.count()
+        n_prepared = qsegs.filter(Segment.status == Segment.SEG_STATUS_PREPARED).count()
+        
+        try:
+            if n_prepared and n_prepared != n_total:
+                self.error_stream.write('%d segments are incomplete\n' 
+                                        % n_prepared)
+                self.error_stream.write('complete or truncate current iteration'
+                                        +' before rebinning\n')
+                self.exit(EX_STATE_ERROR)
+            
+            dbsession.execute(delete(schema.segmentLineageTable,
+                                     schema.segmentLineageTable.c.seg_id.in_(
+                                         select([schema.segmentsTable.c.seg_id],
+                                                schema.segmentsTable.c.n_iter == n_iter))))
+            qsegs.delete()
+            dbsession.flush()
+            
+            sim_manager.load_we_driver(sim_config)
+            sim_manager.we_driver.current_iteration = n_iter-1
+            sim_manager.we_iter = sim_manager.data_manager.get_we_sim_iter(n_iter-1)
+            dbsession.query(WESimIter).filter(WESimIter.n_iter == n_iter).delete()
+            sim_manager.run_we()
+            dbsession.flush()
+            sim_manager.save_state()
+        except:
+            dbsession.rollback()
+            raise
+        else:
+            dbsession.commit()
+            self.exit(EX_SUCCESS)
+    
+    def cmd_truncate(self, args):
+        parser = self.make_parser('[N_ITER]',
+                                  'truncate the simulation record just prior to'
+                                  + ' N_ITER '
+                                  +'(thus, WE will run on the results of '
+                                  +'iteration N_ITER-1). If no N_ITER is '
+                                  +'given, then delete the current iteration.')
+        parser.add_option('-A', '--after', 
+                          dest='trunc_after', action='store_true',
+                          help='truncate after N_ITER, instead of before')
+        (opts, args) = parser.parse_args(args)
+        
+        sim_manager = make_sim_manager(self.runtime_config)
+        sim_manager.restore_state()
+        dbsession = sim_manager.data_manager.require_dbsession()
+        
+        from sqlalchemy.sql.functions import max as max_
+        from sqlalchemy.sql import select, delete
+        from wemd.data_manager.schema import segmentsTable, segmentLineageTable
+        max_we_iter = dbsession.query(max_(WESimIter.n_iter)).scalar()
+        
+        try:
+            n_iter = int(args[0])
+        except IndexError:
+            n_iter = sim_manager.we_driver.current_iteration
+        except ValueError:
+            sys.stderr.write('invalid iteration number %r\n' % args[0])
+            self.exit(EX_USAGE_ERROR)
+        
+        if opts.trunc_after:
+            n_iter += 1
+            
+        if n_iter > max_we_iter:
+            sys.stderr.write(('iteration number (%d) exceeds those found '
+                              +'in the simulation (max = %d)')
+                              % (n_iter, max_we_iter))
+            self.exit(EX_USAGE_ERROR)
+            
+        dbsession.begin()
+        try:
+            # Clean up lineage table
+            dbsession.execute(delete(segmentLineageTable,
+                                     segmentLineageTable.c.seg_id.in_(
+                                         select([segmentsTable.c.seg_id],
+                                                segmentsTable.c.n_iter >= n_iter))))
+            # Delete segments
+            dbsession.query(Segment).filter(Segment.n_iter >= n_iter).delete()
+            
+            # Delete iteration record
+            dbsession.query(WESimIter).filter(WESimIter.n_iter >= n_iter).delete()
+            
+            # Update sim manager
+            prev_iter = dbsession.query(WESimIter).get([n_iter-1])
+            sim_manager.we_driver.current_iteration = prev_iter.n_iter
+            sim_manager.we_driver.bins = None
+            sim_manager.we_driver.n_particles = prev_iter.data.get('bin_n_particles')
+            sim_manager.we_driver.bins_population = prev_iter.data.get('bin_populations')
+            sim_manager.save_state()
+        except:
+            dbsession.rollback()
+            raise
+        else:
+            dbsession.commit()
+            self.exit(EX_SUCCESS)
+        
+                
+        
+        
+        
+        
+        
+            
+             
+        
+
+        
+        
+    
     def cmd_console(self, args):
         parser = self.make_parser('open an interactive Python console with '
                                   +'the current simulation loaded')
@@ -100,7 +247,7 @@ class WEMDCtlTool(WECmdLineMultiTool):
                   'sqlalchemy': sqlalchemy, 'numpy': numpy,
                   'wemd': wemd,
                   'Segment': wemd.Segment, 'Particle': wemd.Particle,
-                  'WESimIter': wemd.WESimIter,
+                  'WESimIter': wemd.WESimIter, 'Trajectory': wemd.Trajectory,
                   'sim_manager': sim_manager}
         
         try:

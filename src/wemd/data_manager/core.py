@@ -91,23 +91,13 @@ class SQLAlchemyDataManager(DataManagerBase):
         return self.dbsession.query(WESimIter).filter(WESimIter.n_iter == n_iter).one()
     
     def create_segments(self, we_sim_iter, segments):
-        self.require_dbsession()
-        dbsession = self.dbsession
-        
-        dbsession.begin()
-        try:
-            dbsession.add_all(segments)
-        except:
-            dbsession.rollback()
-            raise
-        else:
-            dbsession.commit()
+        dbsession = self.require_dbsession()
+        dbsession.add_all(segments)
     
     def update_segments(self, we_sim_iter, segments, **kwargs):
-        self.require_dbsession()
-        dbsession = self.dbsession
+        dbsession = self.require_dbsession()
         
-        dbsession.begin()
+        dbsession.begin(subtransactions=True)
         try:
             for segment in segments:
                 pcoord = copy(segment.pcoord)
@@ -125,7 +115,7 @@ class SQLAlchemyDataManager(DataManagerBase):
             raise
         else:
             dbsession.commit()
-    
+                
     def num_incomplete_segments(self, we_iter):
         self.require_dbsession()
         return self.dbsession.query(Segment)\
@@ -169,67 +159,8 @@ class SQLAlchemyDataManager(DataManagerBase):
         while seg.p_parent:
             seg = seg.p_parent
             segs.append(seg)
-        segs = list(reversed(segs))
-        n_segs = len(segs)
-        model_segment = segs[0]
-        n_pcoord_steps = model_segment.pcoord.shape[0]
-        ndim_pcoord = model_segment.pcoord.ndim - 1
-        
-        if squeeze_data:
-            pcoord_shape = ((n_pcoord_steps-1)*(n_segs-1) + n_pcoord_steps,) \
-                           + model_segment.pcoord.shape[1:]
-        else:
-            pcoord_shape = (n_pcoord_steps * n_segs,) \
-                           + model_segment.pcoord.shape[1:]
-                           
-        weight_shape = pcoord_shape[0:1]
-        
-        seg_ids = numpy.empty((n_segs,), numpy.uint64)
-        pcoord = numpy.empty(pcoord_shape, model_segment.pcoord.dtype)
-        weight = numpy.empty(weight_shape, numpy.float64)
-        data = numpy.empty((n_segs,), numpy.object_)
-        
-        seg_ids[0] = segs[0].seg_id
-        weight[0:n_pcoord_steps] = segs[0].weight
-        pcoord[0:n_pcoord_steps] = segs[0].pcoord
-        cputime = segs[0].cputime or 0.0
-        walltime = segs[0].walltime or 0.0
-        data[0] = segs[0].data
-        
-        for (oiseg, seg) in enumerate(segs[1:]):
-            iseg = oiseg+1
-            seg_ids[iseg] = seg.seg_id
-            data[iseg] = seg.data
             
-            if squeeze_data:
-                lb = (n_pcoord_steps-1)*(iseg-1) + n_pcoord_steps
-                ub = (n_pcoord_steps-1)*iseg     + n_pcoord_steps
-                pco = 1
-                assert (seg.pcoord[0] == pcoord[lb-1]).all()
-            else:
-                lb = (n_pcoord_steps) * (iseg-1)
-                ub = (n_pcoord_steps) * iseg
-                pco = 0
-                
-            # Constant weight through the segment
-            weight[lb:ub] = seg.weight
-            
-            # Skip first pcoord row, as we already have it in the last point
-            # from the last segment
-            pcoord[lb:ub] = seg.pcoord[pco:]
-            
-            cputime += segs[iseg].cputime
-            walltime += segs[iseg].walltime
-        
-            
-            
-        traj = Trajectory(seg_ids, weight, pcoord, 
-                          endpoint_type = segs[-1].endpoint_type, 
-                          cputime = cputime, walltime = walltime, 
-                          startdate = segs[0].startdate, 
-                          enddate = segs[0].enddate,
-                          data = data)
-        
+        traj = Trajectory(segs, squeeze_data)
         return traj
 
     def get_trajectories(self, leaf_ids, squeeze_data = True):
@@ -275,7 +206,7 @@ class SQLAlchemyDataManager(DataManagerBase):
         for icol in xrange(0, ncols):
             trajcol = segments[:,icol]
             trajsegs = [seg for seg in trajcol if seg is not None]
-            trajs.append(Trajectory.from_segment_list(trajsegs, squeeze_data))
+            trajs.append(Trajectory(trajsegs, squeeze_data))
             
         return trajs
         

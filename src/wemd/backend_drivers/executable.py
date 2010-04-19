@@ -5,6 +5,7 @@ log = logging.getLogger(__name__)
 
 import numpy
 from wemd.core import Segment
+from wemd.util.config_dict import ConfigError
 from wemd.backend_drivers import BackendDriver
 
 class ExecutableBackend(BackendDriver):
@@ -226,10 +227,12 @@ class ExecutableBackend(BackendDriver):
                          segment.cputime))
             
             if rc == 0:
-                log.debug('child process exited successfully')
+                log.debug('child process for segment %d exited successfully'
+                          % segment.seg_id)
                 segment.status = Segment.SEG_STATUS_COMPLETE
             else:
-                log.warn('child process exited with code %s' % rc)
+                log.warn('child process for segment %d exited with code %s' 
+                         % (segment.seg_id, rc))
                 segment.status = Segment.SEG_STATUS_FAILED
                 return
                                 

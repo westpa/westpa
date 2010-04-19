@@ -1,3 +1,45 @@
+import logging, os
+log = logging.getLogger(__name__)
+
+def init_mpi():
+    from wemd.util.extlogger import ExtendedLogger
+    try:
+        from mpi4py import rc
+    except ImportError:
+        return
+    
+    rc.initialize = False
+    rc.finalize = False
+    rc.threaded = False
+    
+    from mpi4py import MPI
+    if not MPI.Is_initialized():
+        log.info('initializing MPI environment')
+        MPI.Init()
+        
+    ExtendedLogger.clsextra['nodename'] = getnodename()
+    ExtendedLogger.clsextra['proc_rank'] = getrank()
+    log.info('MPI environment initialized; rank %d is %s (process %d)'
+             % (getrank(), getnodename(), os.getpid()))
+
+def finalize_mpi():
+    try:
+        from mpi4py import MPI
+    except ImportError:
+        pass
+    else:
+        if not MPI.Is_finalized():
+            log.info('finalizing MPI environment')
+            MPI.Finalize()
+            
+def abort_mpi(errorcode=0):
+    try:
+        from mpi4py import MPI
+    except ImportError:
+        pass
+    else:
+        MPI.COMM_WORLD.Abort(errorcode)
+
 def is_mpi_active():
     try:
         from mpi4py import MPI

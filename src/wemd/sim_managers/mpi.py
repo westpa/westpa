@@ -10,6 +10,7 @@ log = logging.getLogger(__name__)
 from default import DefaultWEMaster
 import wemd
 import wemd.data_manager
+import wemd.util.mpi
 from wemd.sim_managers import WESimManagerBase
 
 from mpi4py import MPI
@@ -23,11 +24,8 @@ class MPISimManager(WESimManagerBase):
     
     def __init__(self, runtime_config):
         super(MPISimManager,self).__init__(runtime_config)
-        log.info('rank %d is %s:%d'
-                 % (wemd.util.mpi.getrank(), wemd.util.mpi.getnodename(),
-                    os.getpid()))
         self.comm = MPI.COMM_WORLD
-                
+                                
     def scatter_propagate_gather(self, segments):
         if segments:
             log.debug('scattering %d segments' % len(segments))
@@ -147,6 +145,6 @@ class MPIWEWorker(MPISimManager):
                     self.scatter_propagate_gather(None)
                 elif msgno == self.MSG_EXIT:
                     log.debug('exiting on directive from master process')
-                    sys.exit(data)
+                    sys.exit(msgdata)
                 else:
                     raise ValueError('invalid worker message %d' % msgno)

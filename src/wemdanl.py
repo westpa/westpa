@@ -1,5 +1,6 @@
+from __future__ import division
+
 import os, sys
-from itertools import izip
 from optparse import OptionParser
 import wemd
 from wemd import Segment, WESimIter
@@ -87,6 +88,8 @@ class WEMDAnlTool(WECmdLineMultiTool):
         elif opts.traj_type == 'complete':
             query = segsel.where(Segment.n_iter <= we_iter.n_iter)\
                           .where(Segment.endpoint_type != Segment.SEG_ENDPOINT_TYPE_CONTINUATION)
+            #query = segsel.where( (Segment.n_iter <= we_iter.n_iter)
+            #                     &(Segment.endpoint_type != Segment.SEG_ENDPOINT_TYPE_CONTINUATION) )
         elif opts.traj_type == 'merged':
             query = segsel.where(Segment.n_iter <= we_iter.n_iter)\
                           .where(Segment.endpoint_type == Segment.SEG_ENDPOINT_TYPE_MERGED)
@@ -112,18 +115,20 @@ class WEMDAnlTool(WECmdLineMultiTool):
         parser.add_option('-a', '--analysis-config', dest='anl_config',
                           help='use ANALYSIS_CONFIG as configuration file '
                               +'(default: analysis.cfg)')
-        parser.add_option('-t', '--type', dest='traj_type', type='choice',
-                          choices=('complete', 'recycled'),
-                          default='complete',
-                          help='''Analyze only recycled ("recycled")
-                          trajectories, or all completed ("complete", default)
-                          trajectories, which include both recycled and
-                          merged particles''')
-        parser.set_defaults(anl_config = 'analysis.cfg')
+        parser.add_option('-o', '--output', dest='output_pattern',
+                          help='write results to OUTPUT_PATTERN, which must '
+                              +'contain two "%s" flags which will be replaced '
+                              +'by the region names as given in the analysis '
+                              +'configuration file')
+        parser.set_defaults(anl_config = 'analysis.cfg',
+                            output_pattern = 'ed_%s_%s.txt')
         (opts,args) = parser.parse_args(args)
         
         from wemd.util.config_dict import ConfigDict, ConfigError
-        transcfg = ConfigDict({'data.squeeze': True,
+        from wemd.analysis.transitions import TransitionEventAccumulator, OneDimRegionSet
+        from wemd.analysis.trajtree import TrajTree
+
+        transcfg = ConfigDict({'data.squeeze': False,
                                'data.timestep.units': 'ps'})
         transcfg.read_config_file(opts.anl_config)
         transcfg.require('regions.edges')
@@ -141,77 +146,44 @@ class WEMDAnlTool(WECmdLineMultiTool):
             translog = None 
         
         squeeze_data = transcfg.get_bool('data.squeeze')
-        regions = []
+        region_boundaries = []
         for (irr,rname) in enumerate(region_names):
-            regions.append((rname, (region_edges[irr], region_edges[irr+1])))
-            
+            region_boundaries.append((region_edges[irr], region_edges[irr+1]))
+        regions = OneDimRegionSet(region_names, region_boundaries)
+        
         from sqlalchemy import select
-        from wemd.analysis.transitions import AltOneDimTransitionEventFinder
         
         self.get_sim_manager()
         final_we_iter = self.get_sim_iter(opts.we_iter)
         max_iter = final_we_iter.n_iter
         data_manager = self.sim_manager.data_manager
         dbsession = data_manager.require_dbsession()
+                
+        tree = TrajTree(data_manager, False)
+        trans_finder = TransitionEventAccumulator(regions, data_overlaps = (not squeeze_data))
+        
+        def analyze_segment(segment, children, history):
+            seg_weights = numpy.zeros((len(segment.pcoord),),numpy.float64)
+            seg_weights += segment.weight
+            trans_finder.timestep = segment.data.get('dt', 1.0)
+            trans_finder.identify_transitions(segment.pcoord, seg_weights)
             
         import numpy
         
-        event_durations = {}
-        for irr1 in xrange(0, len(regions)):
-            for irr2 in xrange(0, len(regions)):
-                if abs(irr1-irr2) > 1:
-                    event_durations[irr1,irr2] = numpy.empty((0,2), numpy.float64)                    
-                    
-        event_counts = numpy.zeros((len(regions), len(regions)), numpy.uint64)
-        if opts.traj_type == 'complete':
-            leafsel = select([Segment.seg_id]).where((Segment.n_iter <= max_iter)
-                                                     &(Segment.endpoint_type != Segment.SEG_ENDPOINT_TYPE_CONTINUATION))
-        elif opts.traj_type == 'recycled':
-            leafsel = select([Segment.seg_id]).where((Segment.n_iter <= max_iter)
-                                         &(Segment.endpoint_type == Segment.SEG_ENDPOINT_TYPE_RECYCLED))
-
-        leaves = [row[0] for row in dbsession.execute(leafsel)]
-        ntraj = len(leaves)
-        
-        blksize = 512
-        
-        for ileaf in xrange(0, ntraj, blksize):
-            leaf_block = leaves[ileaf:ileaf+blksize]
-            self.output_stream.write('retrieving block of %d trajectories\n'
-                                     % len(leaf_block))
-            trajs = data_manager.get_trajectories(leaf_block,
-                                                  squeeze_data)
-            for (itraj, traj) in enumerate(trajs):
-        
-                self.output_stream.write('analyzing trajectory %d of %d\n'
-                                         % (ileaf+itraj+1, ntraj))
-                try:
-                    dt = traj.data[0]['dt']
-                except KeyError:
-                    dt = transcfg.get_float('data.timestep', 1.0)
-                    
-                trans_finder = AltOneDimTransitionEventFinder(regions,
-                                                           traj.pcoord,
-                                                           dt = dt,
-                                                           traj_id=traj.seg_ids[-1],
-                                                           weights = traj.weight,
-                                                           transition_log = translog)
-                trans_finder.identify_regions()
-                trans_finder.identify_transitions()
-                event_counts += trans_finder.event_counts
-                
-                for ((region1, region2), tfed_array) in trans_finder.event_durations.iteritems():
-                    event_durations[region1, region2].resize((event_durations[region1, region2].shape[0] + tfed_array.shape[0], 2))
-                    event_durations[region1, region2][-tfed_array.shape[0]:,:] = tfed_array[:,0:2]
-                
-        
-        for ((region1, region2), ed_array) in event_durations.iteritems():
-            region1_name = regions[region1][0]
-            region2_name = regions[region2][0]
-            if ed_array.shape[0] == 0:
+        tree.trace_trajectories(max_iter, analyze_segment, 
+                                trans_finder.get_state, 
+                                trans_finder.set_state)
+        self.output_stream.write('event count (row->column, states %s\n' % ', '.join(regions.names))
+        self.output_stream.write('%s\n' % trans_finder.event_counts)
+        for ((ir1, ir2), ed_list) in trans_finder.eds.iteritems():
+            region1_name = regions.names[ir1]
+            region2_name = regions.names[ir2]
+            if len(ed_list) == 0:
                 self.output_stream.write('No %s->%s transitions observed\n'
                                          % (region1_name, region2_name))
             else:
+                ed_array = numpy.array(ed_list, numpy.float64)
+                ed_array[:,0] *= trans_finder.timestep
                 self.output_stream.write('\nStatistics for %s->%s:\n'
                                          % (region1_name, region2_name))
                 (ed_mean, ed_norm) = numpy.average(ed_array[:,0],
@@ -221,10 +193,11 @@ class WEMDAnlTool(WECmdLineMultiTool):
                 self.output_stream.write('ED average:          %g\n' % ed_array[:,0].mean())
                 self.output_stream.write('ED weighted average: %g\n' % ed_mean)
                 self.output_stream.write('ED min:              %g\n' % ed_array[:,0].min())
-                self.output_stream.write('ED median:           %g\n' % ed_array[ed_array.shape[0]/2,0])
+                self.output_stream.write('ED median:           %g\n' % numpy.median(ed_array[:,0]))
                 self.output_stream.write('ED max:              %g\n' % ed_array[:,0].max())
                 
-                ed_file = open('ed_%s_%s.txt' % (region1_name, region2_name), 'wt')
+                ed_file = open(opts.output_pattern % 
+                               (region1_name, region2_name), 'wt')
                 for irow in xrange(0, ed_array.shape[0]):
                     ed_file.write('%20.16g    %20.16g\n'
                                   % tuple(ed_array[irow,0:2]))
