@@ -28,7 +28,7 @@ def finalize_mpi():
     except ImportError:
         pass
     else:
-        if not MPI.Is_finalized():
+        if is_mpi_active() and not MPI.Is_finalized():
             log.info('finalizing MPI environment')
             MPI.Finalize()
             
@@ -38,7 +38,8 @@ def abort_mpi(errorcode=0):
     except ImportError:
         pass
     else:
-        MPI.COMM_WORLD.Abort(errorcode)
+        if is_mpi_active():
+            MPI.COMM_WORLD.Abort(errorcode)
 
 def is_mpi_active():
     try:
