@@ -69,6 +69,10 @@ class WESimMaster(WESimManagerBase):
     
     def restore_state(self):
         raise NotImplementedError
+    
+    def shutdown(self, exit_code=0):
+        pass
+
 
 from wemd.util.config_dict import ConfigError
 def make_sim_manager(runtime_config):

@@ -13,6 +13,7 @@ EX_STATE_ERROR       = 6
 EX_CALC_ERROR        = 7
 EX_COMM_ERROR        = 8
 EX_DATA_ERROR        = 9
+EX_EXCEPTION_ERROR   = 10
 
 _ex_names = dict((code, name) for (name, code) in locals().iteritems()
                  if name.startswith('EX_'))

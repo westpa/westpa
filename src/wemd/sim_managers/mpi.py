@@ -112,6 +112,13 @@ class MPIWEMaster(DefaultWEMaster, MPISimManager):
                                               )
             del prep_segments[0:n_workers]
             
+    def shutdown(self, exit_code=0):
+        if exit_code != 0:
+            log.error('terminating remote MPI processes')
+        else:
+            log.info('terminating remote MPI processes')
+        self.send_directive(self.MSG_EXIT, exit_code, block = False)
+            
 class MPIWEWorker(MPISimManager):
     def __init__(self, runtime_config):
         super(MPIWEWorker, self).__init__(runtime_config)

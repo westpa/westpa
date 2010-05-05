@@ -5,6 +5,9 @@ from wemd import Segment, WESimIter
 from wemd.util.wetool import WECmdLineTool
 from wemd.environment import *
 
+import logging
+log = logging.getLogger(__name__)
+
 class WEMDRunTool(WECmdLineTool):
     def __init__(self):
         super(WEMDRunTool,self).__init__()
@@ -23,8 +26,13 @@ class WEMDRunTool(WECmdLineTool):
         try:
             sim_manager.run()
         except:
-            wemd.util.mpi.abort_mpi(1)
-            raise
+            log.error('unhandled exception in run()', exc_info = True)
+            sim_manager.shutdown(EX_EXCEPTION_ERROR)
+            self.exit(EX_EXCEPTION_ERROR)
+        else:
+            log.info('WEMD run completed successfully')
+            sim_manager.shutdown(0)
+            self.exit(0)
         finally:
             wemd.util.mpi.finalize_mpi()
         

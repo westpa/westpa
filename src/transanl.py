@@ -12,14 +12,38 @@ parser = OptionParser(usage='%prog [ANLCONF]',
                       description='Perform transition analysis')
 parser.add_option('-c', '--chunk-size', type='int', dest='chunk_size',
                   help='retrieve CHUNK_SIZE coordinates from disk at a time')
+parser.add_option('-s', '--source', dest='data_source',
+                  help='use DATA_SOURCE as the HDF5 file from which to read '
+                      +'data (overrides analysis.cfg)')
+parser.add_option('-n', '--source-node', dest='data_source_node',
+                  help='use DATA_SOURCE_NODE as the HDF5 node name from which '
+                      +'to retrieve data')
+parser.add_option('-o', '--output', dest='output_pattern',
+                  help='write results to OUTPUT_PATTERN, which  must contain '
+                      +'three "%s" flags which will be replaced by the '
+                      +'transition type (ed or fpt) and region '
+                      +'names as given in the analysis configuration file')
+parser.set_defaults(output_pattern='%s_%s_%s.txt')
 (opts, args) = parser.parse_args()
 if args:
     transcfg.read_config_file(args[0])
 else:
     transcfg.read_config_file('analysis.cfg')
 
-transcfg.require_all(['regions.edges', 'regions.names',
-                      'data.source', 'data.source_node'])
+transcfg.require_all(['regions.edges', 'regions.names'])
+
+if not opts.data_source:
+    transcfg.require('data.source')
+    source_filename = transcfg['data.source']
+else:
+    source_filename = opts.data_source
+    
+if not opts.data_source_node:
+    transcfg.require('data.source_node')
+    source_node = transcfg['data.source_node']
+else:
+    source_node = opts.data_source_node 
+
 
 region_names = transcfg.get_list('regions.names')
 region_edges = transcfg.get_list('regions.edges', type=float)
@@ -37,17 +61,14 @@ try:
     translog = transcfg.get_file_object('output.transition_log', mode='w')
 except KeyError:
     translog = None
-    
-
-source_filename = transcfg['data.source']
-source_node = transcfg['data.source_node']
 
 h5file = h5py.File(source_filename)
 data = h5file[source_node]
 sys.stdout.write('source data is %s\n' % 'x'.join([str(x) for x in data.shape]))
 
 trans_finder = TransitionEventAccumulator(regions, data_overlaps=False,
-                                          transition_log = translog)
+                                          transition_log = translog,
+                                          include_first_fpt = transcfg.get_bool('output.include_first_fpt', False))
 
 chunk_size = opts.chunk_size
 if not chunk_size:
@@ -85,12 +106,14 @@ for istart in xrange(0, data.shape[0], chunk_size):
     else:
         pc_chunk = data[istart:iend]
     
-    sys.stdout.write('%d/%d (%.1f%%)\n' % (istart, data.shape[0], 100*istart/data.shape[0]))
+    if sys.stdout.isatty():
+        sys.stdout.write('\r%d/%d (%.1f%%)' % (istart, data.shape[0], 100*istart/data.shape[0]))
+        sys.stdout.flush()
+        
     trans_finder.timestep = timestep
     trans_finder.identify_transitions(pc_chunk,weights)
-    #sys.stdout.write('%s\n\n' % trans_finder.event_counts)
     
-sys.stdout.write('event count (row->column, states %s)\n' % ', '.join(regions.names))
+sys.stdout.write('\nevent count (row->column, states %s)\n' % ', '.join(regions.names))
 sys.stdout.write('%s\n' % trans_finder.event_counts)
 for ((ir1, ir2), ed_list) in trans_finder.eds.iteritems():
     region1_name = regions.names[ir1]
@@ -115,7 +138,7 @@ for ((ir1, ir2), ed_list) in trans_finder.eds.iteritems():
     sys.stdout.write('ED median:        %g\n' % numpy.median(ed_array[:,0]))
     sys.stdout.write('ED max:           %g\n' % ed_array[:,0].max())
     
-    ed_file = open('ed_%s_%s.txt' % (region1_name, region2_name), 'wt')
+    ed_file = open(opts.output_pattern % ('ed', region1_name, region2_name), 'wt')
     for irow in xrange(0, ed_array.shape[0]):
         ed_file.write('%20.16g    %20.16g\n' % tuple(ed_array[irow,0:2]))
     ed_file.close()
@@ -150,7 +173,7 @@ for ((ir1, ir2), ed_list) in trans_finder.eds.iteritems():
         sys.stdout.write('rate st. dev.:    %g\n' % rate_stdev)
         sys.stdout.write('rate S.E.M.:      %g\n' % rate_sem)
         
-        fpt_file = open('fpt_%s_%s.txt' % (region1_name, region2_name), 'wt')
+        fpt_file = open(opts.output_pattern % ('fpt', region1_name, region2_name), 'wt')
         for irow in xrange(0, fpt_array.shape[0]):
             fpt_file.write('%20.16g    %20.16g\n' % tuple(fpt_array[irow,0:2]))
         fpt_file.close()

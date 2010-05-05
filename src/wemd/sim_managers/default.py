@@ -231,3 +231,4 @@ class DefaultWEMaster(WESimMaster):
         self.we_iter.endtime = datetime.datetime.now()
         self.data_manager.update_we_sim_iter(self.we_iter)
         self.save_state()
+        

@@ -51,12 +51,14 @@ class TransitionEventAccumulator:
                  data_overlaps = False, 
                  accumulate_eds = True,
                  accumulate_fpts = True,
+                 include_first_fpt = False,
                  transition_log = None):
         
         self.regions = regions
         self.timestep = timestep
         self.transition_log = transition_log
         self.data_overlaps = data_overlaps
+        self.include_first_fpt = include_first_fpt
         
         if accumulate_eds is True:
             self.accumulate_eds = set(tuple(pair) for pair in regions.nonadjacent_pairs())
@@ -93,6 +95,7 @@ class TransitionEventAccumulator:
     
     def identify_transitions(self, pcoords, weights):
         pcoord_regions = self.regions.localize_all(pcoords)
+        include_first_fpt = self.include_first_fpt
         
         if len(pcoords) == 1:
             if self.last_iregion is None:
@@ -142,7 +145,11 @@ class TransitionEventAccumulator:
                         if (isrc, iregion) in self.accumulate_eds and self.completion_indices[isrc,self.last_iregion]>0:
                             self.eds[isrc,iregion].append((self.time_index - self.completion_indices[isrc, self.last_iregion] - 1, w))
                             #print "found event duration %f" % ((self.time_index - self.completion_indices[isrc, self.last_iregion] - 1) * self.timestep)
-                        if (isrc, iregion) in self.accumulate_fpts and self.completion_indices[iregion, isrc] > 0:
+                        if include_first_fpt:
+                            discriminator = (self.completion_indices[iregion, isrc] >= 0)
+                        else:
+                            discriminator = (self.completion_indices[iregion, isrc] > 0)
+                        if (isrc, iregion) in self.accumulate_fpts and discriminator:
                             # completed first passage
     
                             self.fpts[isrc,iregion].append((self.time_index - self.completion_indices[iregion,isrc], w))
