@@ -175,7 +175,7 @@ class WEMDCtlTool(WECmdLineMultiTool):
             # Update sim manager
             prev_iter = dbsession.query(WESimIter).get([n_iter-1])
             sim_manager.we_driver.current_iteration = prev_iter.n_iter
-            sim_manager.we_driver.bins = None
+            sim_manager.we_driver.bins = sim_manager.we_driver.make_bins()
             sim_manager.we_driver.n_particles = prev_iter.data.get('bin_n_particles')
             sim_manager.we_driver.bins_population = prev_iter.data.get('bin_populations')
             sim_manager.save_state()
@@ -185,58 +185,43 @@ class WEMDCtlTool(WECmdLineMultiTool):
         else:
             dbsession.commit()
             self.exit(EX_SUCCESS)
-        
-                
-        
-        
-        
-        
-        
-            
-             
-        
-
-        
-        
     
     def cmd_console(self, args):
         parser = self.make_parser('open an interactive Python console with '
                                   +'the current simulation loaded')
         (opts, args) = parser.parse_args(args)
         
+        import code
         try:
-            import readline, rlcompleter, code
+            import readline, rlcompleter
         except Exception, e:
-            self.error_stream.write('console not available\n')
-            log.debug('extended error information:', exc_info = True)
-            self.exit(EX_ENVIRONMENT_ERROR)
-            
-        class HistoryConsole(code.InteractiveConsole):
-            def __init__(self, locals, filename='<console>',
-                         histfile = os.path.expanduser('~/.wemd_history')):
-                code.InteractiveConsole.__init__(self, locals, filename)
-                self.init_history(histfile)
-            
-            def init_history(self, histfile):
-                import atexit
-                readline.parse_and_bind('tab: complete')
-                try:
-                    readline.read_history_file(histfile)
-                #except AttributeError:
-                #    pass
-                except IOError:
-                    pass
-
-                atexit.register(self.save_history, histfile)
-            
-            def save_history(self, histfile):
-                try:
-                    readline.write_history_file(histfile)
-                #except AttributeError:
-                #    pass
-                except Exception, e:
-                    self.error_stream.write('could not save history file: %s\n'
-                                            % e)
+            class HistoryConsole(code.InteractiveConsole):
+                def __init__(self, locals, filename='<console>',
+                             histfile = os.path.expanduser('~/.wemd_history')):
+                    code.InteractiveConsole.__init__(self, locals, filename)
+        else:
+            class HistoryConsole(code.InteractiveConsole):
+                def __init__(self, locals, filename='<console>',
+                             histfile = os.path.expanduser('~/.wemd_history')):
+                    code.InteractiveConsole.__init__(self, locals, filename)
+                    self.init_history(histfile)
+                
+                def init_history(self, histfile):
+                    import atexit
+                    readline.parse_and_bind('tab: complete')
+                    try:
+                        readline.read_history_file(histfile)
+                    except IOError:
+                        pass
+    
+                    atexit.register(self.save_history, histfile)
+                
+                def save_history(self, histfile):
+                    try:
+                        readline.write_history_file(histfile)
+                    except Exception, e:
+                        self.error_stream.write('could not save history file: %s\n'
+                                                % e)
         
         import wemd, sqlalchemy, numpy
         sim_manager = make_sim_manager(self.runtime_config)
@@ -258,8 +243,12 @@ class WEMDCtlTool(WECmdLineMultiTool):
         else:
             locals['mpi4py'] = mpi4py
             locals['MPI'] = MPI
-            
-        readline.set_completer(rlcompleter.Completer(locals).complete)
+        
+        try:
+            readline.set_completer(rlcompleter.Completer(locals).complete)
+        except NameError:
+            pass
+        
         hc = HistoryConsole(locals = locals)
         hc.interact(banner)
         self.exit(EX_SUCCESS)        
