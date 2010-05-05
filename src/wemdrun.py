@@ -25,7 +25,7 @@ class WEMDRunTool(WECmdLineTool):
         
         try:
             sim_manager.run()
-        except:
+        except Exception:
             log.error('unhandled exception in run()', exc_info = True)
             sim_manager.shutdown(EX_EXCEPTION_ERROR)
             self.exit(EX_EXCEPTION_ERROR)

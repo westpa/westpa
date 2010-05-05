@@ -21,6 +21,9 @@ class WESimManagerBase:
         """Enter a running state, such as driving the simulation or waiting
         for network data to arrive for processing."""
         raise NotImplementedError
+
+    def shutdown(self, exit_code=0):
+        pass
         
 class WESimMaster(WESimManagerBase):
     """
@@ -70,9 +73,6 @@ class WESimMaster(WESimManagerBase):
     def restore_state(self):
         raise NotImplementedError
     
-    def shutdown(self, exit_code=0):
-        pass
-
 
 from wemd.util.config_dict import ConfigError
 def make_sim_manager(runtime_config):
