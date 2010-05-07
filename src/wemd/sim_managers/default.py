@@ -24,6 +24,8 @@ class DefaultWEMaster(WESimMaster):
         self.max_iterations = runtime_config.get_int('limits.max_iterations', 1)
         # Eventually, add support for max_wallclock
         
+        self.worker_blocksize = runtime_config.get_int('backend.blocksize', 1)
+        
         from wemd.data_manager import make_data_manager
         self.data_manager = make_data_manager(runtime_config)
                                           
@@ -223,9 +225,15 @@ class DefaultWEMaster(WESimMaster):
         log.info('%d segments remaining in WE iteration %d'
                  % (n_inc, current_iteration))
         segments = self.data_manager.get_prepared_segments(self.we_iter)
-        for segment in segments:
-            self.backend_driver.propagate_segments([segment])
-            self.data_manager.update_segments(self.we_iter, [segment])
+        
+        #for segment in segments: 
+        for segment in map(None, *(iter(segments),) * self.worker_blocksize):
+            if type(segment) is tuple:
+                self.backend_driver.propagate_segments(list(segment))
+                self.data_manager.update_segments(self.we_iter, list(segment))
+            else:    
+                self.backend_driver.propagate_segments([segment])
+                self.data_manager.update_segments(self.we_iter, [segment])
         
     def finalize_iteration(self):
         self.we_iter.endtime = datetime.datetime.now()

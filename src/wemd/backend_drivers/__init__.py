@@ -36,6 +36,13 @@ def make_backend_driver(runtime_config):
             raise ConfigError('pyopenmm backend driver unavailable (%s)' % e)
         else:
             driver = PyOpenMMBackend(runtime_config)
+    elif driver_name == 'pyopenmmmultiseg':
+        try:
+            from pyopenmm import PyOpenMMBackendMultiSeg
+        except ImportError, e:
+            raise ConfigError('pyopenmm-multiseg backend driver unavailable (%s)' % e)
+        else:
+            driver = PyOpenMMBackendMultiSeg(runtime_config)
     else:
         raise ConfigError('invalid backend driver (%s) specified' % driver_name)
     log.info('using %s propagation backend' % driver_name)
