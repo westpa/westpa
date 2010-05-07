@@ -30,15 +30,25 @@ class MPISimManager(WESimManagerBase):
         if segments:
             log.debug('scattering %d segments' % len(segments))
         elif segments is None:
-            log.debug('awaiting scattered data')
-            
+            log.debug('awaiting scattered data')    
+    
         segment = self.comm.scatter(segments, self.ROOT_TASK)
+    
         if not segment:
             log.debug('no data to process')
+        elif all(s == None for s in segment):
+            log.debug('no data to process')
         else:
-            log.debug('received segment %r via scatter' % segment)
-            self.backend_driver.propagate_segments([segment])
-            log.debug('dispatching segment %r via gather' % segment)
+            for s in segment:
+                log.debug('received segment %r via scatter' % s)
+                
+            if type(segment) is tuple:
+                self.backend_driver.propagate_segments(list(segment))
+            else:
+                self.backend_driver.propagate_segments([segment])
+                
+            for s in segment:
+                log.debug('dispatching segment %r via gather' % s)
         return self.comm.gather(segment, self.ROOT_TASK)
     
     def _get_message_name(self, msgno):
@@ -96,21 +106,30 @@ class MPIWEMaster(DefaultWEMaster, MPISimManager):
         while len(prep_segments) > 0:
             requests,pdata = self.send_directive(self.MSG_AWAIT_SEGMENT_SCATTER, 
                                                   block = False)
-            segments = prep_segments[0:n_workers]            
-            if len(segments) < n_workers:
-                segments = [None] * (n_workers - len(segments)) + segments
+            #segments = prep_segments[0:n_workers]
+            segments = prep_segments[0:n_workers*self.worker_blocksize]            
+            if len(segments) < n_workers*self.worker_blocksize:
+                segments = [None] * (n_workers*self.worker_blocksize - len(segments)) + segments
             log.debug('waiting on completed send of MSG_AWAIT_SEGMENT_SCATTER')                
             MPI.Request.Waitall(requests)            
             del pdata
             
             log.debug('scattering %d segments to %d workers' 
                       % (len(segments), n_workers))
+                      
+            # recast segment list into a list of tuples of len(n_workers)
+            segments = map(None, *(iter(segments),) * self.worker_blocksize)
+            
             segments = self.scatter_propagate_gather(segments)
+            
+            # flatten list of tuples into a single list
+            segments = [j for i in segments for j in i]
             self.data_manager.update_segments(current_iteration, 
                                               [segment for segment in segments
                                                if segment is not None],
                                               )
-            del prep_segments[0:n_workers]
+            #del prep_segments[0:n_workers]
+            del prep_segments[0:n_workers*self.worker_blocksize]
             
     def shutdown(self, exit_code=0):
         if exit_code != 0:
