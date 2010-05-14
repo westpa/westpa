@@ -13,13 +13,13 @@ version = 2
 
 metadata = sqlalchemy.MetaData()
 
-metaTable = Table('meta', metadata,
+meta_table = Table('meta', metadata,
                   Column('key_', String, primary_key = True, nullable=False),
                   # With mutable = True, numpy arrays cannot be stored here...
                   # a Null maps directly to None
                   Column('value', PickleType(mutable = True), nullable=True))
 
-weIterTable = Table('we_iter', metadata,
+we_iter_table = Table('we_iter', metadata,
                    Column('n_iter', Integer, primary_key=True),
                    Column('n_particles', Integer, nullable=False),
                    Column('norm', Float(17), nullable=False),
@@ -30,7 +30,7 @@ weIterTable = Table('we_iter', metadata,
                    Column('data', PickleType(mutable=False), nullable=True)
                    )
 
-segmentsTable = Table('segments', metadata,
+segments_table = Table('segments', metadata,
                       Column('seg_id', Integer,
                              primary_key = True,
                              nullable=False,
@@ -56,7 +56,7 @@ segmentsTable = Table('segments', metadata,
                       Column('data', PickleType(mutable=False), nullable=True),
                       )
 
-segmentLineageTable = Table('segment_lineage', metadata,
+segment_lineage_table = Table('segment_lineage', metadata,
                             Column('seg_id', Integer,
                                    ForeignKey('segments.seg_id'), 
                                    primary_key=True, nullable=False),
@@ -72,29 +72,29 @@ class MetaTableObject(DictTableObject):
     pass
 
 seg_pparent_rel = relation(Segment, 
-                           remote_side=[segmentsTable.c.seg_id],
+                           remote_side=[segments_table.c.seg_id],
                            uselist=False)
-seg_parents_rel = relation(Segment, segmentLineageTable,
+seg_parents_rel = relation(Segment, segment_lineage_table,
                            collection_class = set,
-                           primaryjoin=segmentsTable.c.seg_id==segmentLineageTable.c.seg_id,
-                           secondaryjoin=segmentLineageTable.c.parent_id==segmentsTable.c.seg_id,
+                           primaryjoin=segments_table.c.seg_id==segment_lineage_table.c.seg_id,
+                           secondaryjoin=segment_lineage_table.c.parent_id==segments_table.c.seg_id,
                            )
 # Note that there is no delete-cascade if a parent gets deleted
-# This could leave segmentLineageTable in an inconsistent state
+# This could leave segment_lineage_table in an inconsistent state
 # However, this shouldn't be trouble in practice because deleting a segment
 # should only happen to delete a corrupted/incomplete segment in the current
 # iteration, and parents are always in the previous iteration 
 
-mapper(Segment, segmentsTable,
+mapper(Segment, segments_table,
        properties = {'p_parent': seg_pparent_rel,
                      'parents': seg_parents_rel,
                      })
 
-mapper(WESimIter, weIterTable)
+mapper(WESimIter, we_iter_table)
 
-mapper(MetaTableObject, metaTable,
-       properties = {'key': metaTable.c.key_,
-                     'value': metaTable.c.value})
+mapper(MetaTableObject, meta_table,
+       properties = {'key': meta_table.c.key_,
+                     'value': meta_table.c.value})
 
 # The following prevents mysterious pickle/MPI-related Heisenbugs
 compile_mappers()

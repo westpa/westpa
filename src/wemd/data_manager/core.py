@@ -47,9 +47,10 @@ class SQLAlchemyDataManager(DataManagerBase):
         self.dbsession = None
         
         from mappingtable import DictTableIface
-        self.meta = DictTableIface(self.dbengine, schema.metaTable,
-                                   schema.metaTable.c.key_,
-                                   schema.metaTable.c.value)
+        self.meta = DictTableIface(self.dbengine, 
+                                   schema.meta_table,
+                                   schema.meta_table.c.key_,
+                                   schema.meta_table.c.value)
 
     def new_dbsession(self):
         assert self.dbsession is None
@@ -168,7 +169,7 @@ class SQLAlchemyDataManager(DataManagerBase):
     def get_trajectories(self, leaf_ids, squeeze_data = True):
         self.require_dbsession()
         seg_id_sel = select([Segment.seg_id, Segment.n_iter])
-        seg_sel = select([schema.segmentsTable])
+        seg_sel = select([schema.segments_table])
                           
         mit_sel = select([MAX(Segment.n_iter)],
                          Segment.seg_id.in_(leaf_ids))

@@ -100,10 +100,10 @@ class WEMDCtlTool(WECmdLineMultiTool):
                                         +' before rebinning\n')
                 self.exit(EX_STATE_ERROR)
             
-            dbsession.execute(delete(schema.segmentLineageTable,
-                                     schema.segmentLineageTable.c.seg_id.in_(
-                                         select([schema.segmentsTable.c.seg_id],
-                                                schema.segmentsTable.c.n_iter == n_iter))))
+            dbsession.execute(delete(schema.segment_lineage_table,
+                                     schema.segment_lineage_table.c.seg_id.in_(
+                                         select([schema.segments_table.c.seg_id],
+                                                schema.segments_table.c.n_iter == n_iter))))
             qsegs.delete()
             dbsession.flush()
             
@@ -139,7 +139,7 @@ class WEMDCtlTool(WECmdLineMultiTool):
         
         from sqlalchemy.sql.functions import max as max_
         from sqlalchemy.sql import select, delete
-        from wemd.data_manager.schema import segmentsTable, segmentLineageTable
+        from wemd.data_manager.schema import segments_table, segment_lineage_table
         max_we_iter = dbsession.query(max_(WESimIter.n_iter)).scalar()
         
         try:
@@ -162,10 +162,10 @@ class WEMDCtlTool(WECmdLineMultiTool):
         dbsession.begin()
         try:
             # Clean up lineage table
-            dbsession.execute(delete(segmentLineageTable,
-                                     segmentLineageTable.c.seg_id.in_(
-                                         select([segmentsTable.c.seg_id],
-                                                segmentsTable.c.n_iter >= n_iter))))
+            dbsession.execute(delete(segment_lineage_table,
+                                     segment_lineage_table.c.seg_id.in_(
+                                         select([segments_table.c.seg_id],
+                                                segments_table.c.n_iter >= n_iter))))
             # Delete segments
             dbsession.query(Segment).filter(Segment.n_iter >= n_iter).delete()
             

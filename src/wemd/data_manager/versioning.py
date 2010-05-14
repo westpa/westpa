@@ -81,17 +81,17 @@ class Update_0_1(SchemaUpdate):
         conn = engine.connect()
         self.create_tables(schema, metadata, engine, new_tables)
                 
-        sel_iter_0_segs = select([schema.segmentsTable.c.seg_id],
-                                 schema.segmentsTable.c.n_iter == 0) 
+        sel_iter_0_segs = select([schema.segments_table.c.seg_id],
+                                 schema.segments_table.c.n_iter == 0) 
         
         trans = conn.begin()
         try:
             log.info('removing references to iteration 0 segments')
-            engine.execute(schema.segmentLineageTable.delete(schema.segmentLineageTable.c.seg_id.in_(sel_iter_0_segs)))
+            engine.execute(schema.segment_lineage_table.delete(schema.segment_lineage_table.c.seg_id.in_(sel_iter_0_segs)))
             log.info('removing iteration 0 segments')
-            engine.execute(schema.segmentsTable.delete(schema.segmentsTable.c.n_iter == 0))
+            engine.execute(schema.segments_table.delete(schema.segments_table.c.n_iter == 0))
             log.info('setting iteration 1 parents to NULL')
-            engine.execute(schema.segmentsTable.update(schema.segmentsTable.c.n_iter == 1,
+            engine.execute(schema.segments_table.update(schema.segments_table.c.n_iter == 1,
                                                        {'p_parent_id': None}))
             trans.commit()
         except:
@@ -101,7 +101,7 @@ class Update_0_1(SchemaUpdate):
         conn.close()
 
     def post_update(self, schema, metadata, engine):
-        metaInsert = schema.metaTable.insert()
+        metaInsert = schema.meta_table.insert()
         engine.execute(metaInsert, {'key_': db_version_key, 
                                     'value': self.target_version})
 
