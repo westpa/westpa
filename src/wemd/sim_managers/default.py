@@ -108,7 +108,8 @@ class DefaultWEMaster(WESimMaster):
             segments = initial_segments
         else:
             log.debug("Not Initial Segments")
-            segments = self.data_manager.get_segments(self.we_iter)
+            segments = self.data_manager.get_segments(Segment.n_iter == self.we_iter.n_iter,
+                                                      load_p_parent = True)
         
         # Calculate WE iteration end time and accumulated CPU and wallclock time
         total_cputime = 0.0
@@ -163,13 +164,13 @@ class DefaultWEMaster(WESimMaster):
                         pcoord = None)
             if current_iteration > 0:
                 if particle.p_parent:
-                    s.p_parent = self.data_manager.get_segment(current_iteration, particle.p_parent.particle_id)
+                    s.p_parent = self.data_manager.get_segment(particle.p_parent.particle_id)
                     log.debug('segment %r primary parent is %r' 
                               % (s.seg_id or '(New)', s.p_parent.seg_id))
                 else:
                     log.debug('segment %r has no primary parent; will restart in initial bin' % s)
                 if particle.parents:
-                    s.parents = set([self.data_manager.get_segment(current_iteration, pp.particle_id)
+                    s.parents = set([self.data_manager.get_segment(pp.particle_id)
                                      for pp in particle.parents])
                     log.debug('segment %r parents are %r' 
                               % (s.seg_id or '(New)',
@@ -224,7 +225,10 @@ class DefaultWEMaster(WESimMaster):
         n_inc = self.data_manager.num_incomplete_segments(self.we_iter)
         log.info('%d segments remaining in WE iteration %d'
                  % (n_inc, current_iteration))
-        segments = self.data_manager.get_prepared_segments(self.we_iter)
+        #segments = self.data_manager.get_prepared_segments(self.we_iter)
+        segments = self.data_manager.get_segments((Segment.n_iter == self.we_iter.n_iter)
+                                                  &(Segment.status == Segment.SEG_STATUS_PREPARED),
+                                                  load_p_parent = True)
         
         #for segment in segments: 
         for segment in map(None, *(iter(segments),) * self.worker_blocksize):

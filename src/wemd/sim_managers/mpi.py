@@ -12,6 +12,7 @@ import wemd
 import wemd.data_manager
 import wemd.util.mpi
 from wemd.sim_managers import WESimManagerBase
+from wemd import Segment
 
 from mpi4py import MPI
 
@@ -33,7 +34,12 @@ class MPISimManager(WESimManagerBase):
             log.debug('awaiting scattered data')    
     
         segment = self.comm.scatter(segments, self.ROOT_TASK)
-    
+        
+        try:
+            iter(segment)
+        except TypeError:
+            segment = (segment,)
+        
         if not segment:
             log.debug('no data to process')
         elif all(s == None for s in segment):
@@ -102,7 +108,11 @@ class MPIWEMaster(DefaultWEMaster, MPISimManager):
                  % (n_inc, current_iteration))
         log.debug('dispatching to %d processes' % n_workers)
         
-        prep_segments = self.data_manager.get_prepared_segments(current_iteration)
+        #prep_segments = self.data_manager.get_prepared_segments(current_iteration)
+        prep_segments = self.data_manager.get_segments((Segment.n_iter == self.we_iter.n_iter)
+                                                       &(Segment.status == Segment.SEG_STATUS_PREPARED),
+                                                       load_p_parent = True)
+
         while len(prep_segments) > 0:
             requests,pdata = self.send_directive(self.MSG_AWAIT_SEGMENT_SCATTER, 
                                                   block = False)

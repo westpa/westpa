@@ -129,35 +129,63 @@ class SQLAlchemyDataManager(DataManagerBase):
             .filter(Segment.status != Segment.SEG_STATUS_COMPLETE)\
             .count()
 
-    def get_segment(self, we_iter, seg_id, **kwargs):
+    def get_segment(self, seg_id, **kwargs):
         self.require_dbsession()
         q = self.dbsession.query(Segment).filter(Segment.seg_id==seg_id)
-        if we_iter is not None:
-            q = q.filter(Segment.n_iter == _n_iter(we_iter))
         return q.options(eagerload(Segment.p_parent)).one()
     
-    def get_segments(self, we_iter, **kwargs):
+    def _get_segment_objects(self, criteria, **kwargs):
         self.require_dbsession()
-        n_iter = _n_iter(we_iter)
-        return self.dbsession.query(Segment)\
-            .filter(Segment.n_iter == n_iter)\
-            .options(eagerload(Segment.p_parent)).all()
+        q = self.dbsession.query(Segment)
+        if criteria is not None:
+            q = q.filter(criteria)
+        
+        if kwargs.get('load_p_parent', False):
+            q = q.options(eagerload(Segment.p_parent))
+        
+        return q.all()
     
-    def get_prepared_segments(self, we_iter, **kwargs):
-        self.require_dbsession()
-        n_iter = _n_iter(we_iter)
-        return self.dbsession.query(Segment) \
-            .filter( (Segment.n_iter == n_iter)
-                    &(Segment.status == Segment.SEG_STATUS_PREPARED))\
-            .options(eagerload(Segment.p_parent)).all()
-                
+    def _get_segment_rows(self, criteria, **kwargs):
+        conn = self.dbengine.connect()
+        s = select([schema.segments_table])
+        if criteria is not None:
+            s = s.where(criteria)
+            
+        try:
+            return list(conn.execute(s))
+        finally:
+            conn.close()
+    
+    def get_segments(self, 
+                     criteria=None, 
+                     result_format='objects', # or 'rows' 
+                     **kwargs):
+        if result_format == 'objects':
+            return self._get_segment_objects(criteria, **kwargs)
+        elif result_format == 'rows':
+            return self._get_segment_rows(criteria, **kwargs)
+        else:
+            raise ValueError("invalid result format %r; valid choices are 'objects' or 'rows'")
+        
+    def get_connectivity(self, criteria=None, **kwargs):
+        conn = self.dbengine.connect()
+        
+        s = select([schema.segments_table.c.p_parent_id, schema.segments_table.c.seg_id])
+        s = s.where(schema.segments_table.c.p_parent_id != None)
+        if criteria is not None:
+            s = s.where(criteria)
+        try:
+            return list(conn.execute(s))
+        finally:
+            conn.close()
+                            
     def get_schema_version(self):
         return versioning.get_schema_version(self.dbengine)
     
     def get_trajectory(self, leaf_id, squeeze_data = True):
         self.require_dbsession()
         
-        seg = self.get_segment(None, leaf_id)
+        seg = self.get_segment(leaf_id)
         segs = [seg]
         while seg.p_parent:
             seg = seg.p_parent

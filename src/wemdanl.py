@@ -213,7 +213,7 @@ class WEMDAnlTool(WECmdLineMultiTool):
             self.exit(EX_USAGE_ERROR)
         
         self.get_sim_manager()
-        seg = self.sim_manager.data_manager.get_segment(None, long(args[0]))
+        seg = self.sim_manager.data_manager.get_segment(long(args[0]))
         segs = [seg]
         while seg.p_parent and seg.n_iter:
             seg = seg.p_parent
