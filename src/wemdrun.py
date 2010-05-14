@@ -3,7 +3,7 @@ from optparse import OptionParser
 import wemd, wemd.util.mpi
 from wemd import Segment, WESimIter
 from wemd.util.wetool import WECmdLineTool
-from wemd.environment import *
+from wemd.rc import EX_EXCEPTION_ERROR
 
 import logging
 log = logging.getLogger(__name__)

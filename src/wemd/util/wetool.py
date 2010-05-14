@@ -1,23 +1,20 @@
 import sys, os, re, logging
 from optparse import OptionParser
 from command_optparse import CommandOptionParser
-from wemd.environment import *
-from wemd.util.config_dict import ConfigDict
-from wemd.util.miscfn import logging_level_by_name
+import wemd.rc
 
 
 class WECmdLineTool(object):
     RC_SHORT_OPTION = '-r'
     RC_LONG_OPTION  = '--rcfile'
-    RC_DEFAULT      = 'run.cfg'
 
     @classmethod
     def add_rc_option(cls, parser):
         parser.add_option(cls.RC_SHORT_OPTION, cls.RC_LONG_OPTION,
                           dest='rcfile', 
                           help='runtime configuration is in RCFILE '
-                              +'(default: %s)' % cls.RC_DEFAULT,
-                          default=cls.RC_DEFAULT)
+                              +'(default: %s)' % wemd.rc.RC_DEFAULT_FILENAME,
+                          default=wemd.rc.RC_DEFAULT_FILENAME)
         
     usage = '%prog [options] COMMAND [...]'
     description = None
@@ -36,54 +33,18 @@ class WECmdLineTool(object):
         try:
             rcfile = opts_or_filename.rcfile
         except AttributeError:
-            rcfile = opts_or_filename or self.RC_DEFAULT
+            rcfile = opts_or_filename
             
-        self.runtime_config = ConfigDict()
         try:
-            self.runtime_config.read_config_file(rcfile)
+            self.runtime_config = wemd.rc.read_config(rcfile)
         except IOError, e:
             self.error_stream.write('cannot open runtime config file: %s\n' % e)
-            self.exit(EX_RTC_ERROR)
-        self.configure_logging()
-                
-    def configure_logging(self):
-        logkeys = set(k for k in self.runtime_config
-                      if k.startswith('logging.'))
-        
-        logger_settings = LOGGING_DEFAULT_SETTINGS.copy()
-        for key in logkeys:
-            item = key[8:]
-            value = self.runtime_config[key]
-            try:
-                (logger_name, param) = item.rsplit('.', 1)
-            except ValueError:
-                continue
-            else:
-                if param not in ('level', 'format', 'handler'):
-                    continue
-            if logger_name == 'root': logger_name = ''
-            try:
-                logger_settings[logger_name][param] = value
-            except KeyError:
-                logger_settings[logger_name] = {param: value}
-                
-        for (logger_name, settings) in logger_settings.iteritems():                
-            level = logging_level_by_name(settings.get('level', 'NOTSET'))
-            logger = logging.getLogger(logger_name)
-            logger.setLevel(level)
-            try:
-                format = settings['format']
-            except KeyError:
-                pass
-            else:
-                handler = logging.StreamHandler()
-                handler.setFormatter(logging.Formatter(format))
-                logger.addHandler(handler)
-                logger.propagate = False
-                            
+            self.exit(wemd.rc.EX_RTC_ERROR)
+        wemd.rc.configure_logging(self.runtime_config)
+                                            
     def exit(self, code=0):
         self.log.info('exiting with code %d (%s)' 
-                       % (code, get_exit_code_name(code)))
+                       % (code, wemd.rc.get_exit_code_name(code)))
         sys.exit(code)
 
     def run(self):

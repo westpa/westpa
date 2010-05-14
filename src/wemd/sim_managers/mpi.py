@@ -147,7 +147,7 @@ class MPIWEWorker(MPISimManager):
         pass
     
     def unknown_message_abort(self, status, data):
-        from wemd.environment import EX_COMM_ERROR
+        from wemd.rc import EX_COMM_ERROR
         log.fatal('unknown message %r (tag %d from rank %d) received'
                   % (data, status.tag, status.source))
         self.comm.Abort(EX_COMM_ERROR)

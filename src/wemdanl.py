@@ -6,7 +6,7 @@ import wemd
 from wemd import Segment, WESimIter
 
 from wemd.util.wetool import WECmdLineMultiTool
-from wemd.environment import *
+from wemd.rc import EX_ERROR, EX_USAGE_ERROR
 from wemd.sim_managers import make_sim_manager
 
 from logging import getLogger

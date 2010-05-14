@@ -3,7 +3,7 @@ import logging
 logging.getLogger('')
 log = logging.getLogger('wemd')
 
-import core, environment, util
+import core, util, rc
 import we_drivers, sim_managers, backend_drivers
 from core.errors import *
 from core import Segment, Particle, WESimIter, Trajectory

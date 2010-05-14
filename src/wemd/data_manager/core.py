@@ -31,7 +31,12 @@ class SQLAlchemyDataManager(DataManagerBase):
         runtime_config.require('data.db.url')
     
         # Connect to the database
-        self.dbengine = create_engine(runtime_config['data.db.url'])
+        self.dbengine = create_engine(runtime_config['data.db.url'],
+                                      # don't block on simple queries
+                                      isolation_level = 'READ UNCOMMITTED',
+                                      # if for some reason we do block, don't die after 5 secs
+                                      connect_args={'timeout': 90})
+        
         
         # Session factory object
         self.DBSession = sessionmaker(bind=self.dbengine,
@@ -144,10 +149,7 @@ class SQLAlchemyDataManager(DataManagerBase):
             .filter( (Segment.n_iter == n_iter)
                     &(Segment.status == Segment.SEG_STATUS_PREPARED))\
             .options(eagerload(Segment.p_parent)).all()
-            
-    def get_schema(self):
-        return schema
-    
+                
     def get_schema_version(self):
         return versioning.get_schema_version(self.dbengine)
     

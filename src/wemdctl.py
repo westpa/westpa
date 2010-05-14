@@ -3,7 +3,7 @@ import wemd
 from wemd import Segment, WESimIter
 from wemd.sim_managers import make_sim_manager
 from wemd.util.wetool import WECmdLineMultiTool
-from wemd.environment import *
+from wemd.rc import EX_USAGE_ERROR, EX_ENVIRONMENT_ERROR, EX_STATE_ERROR
 
 import logging
 log = logging.getLogger(__name__)
@@ -119,7 +119,7 @@ class WEMDCtlTool(WECmdLineMultiTool):
             raise
         else:
             dbsession.commit()
-            self.exit(EX_SUCCESS)
+            self.exit(0)
     
     def cmd_truncate(self, args):
         parser = self.make_parser('[N_ITER]',
@@ -184,7 +184,7 @@ class WEMDCtlTool(WECmdLineMultiTool):
             raise
         else:
             dbsession.commit()
-            self.exit(EX_SUCCESS)
+            self.exit(0)
     
     def cmd_console(self, args):
         parser = self.make_parser('open an interactive Python console with '
@@ -251,7 +251,7 @@ class WEMDCtlTool(WECmdLineMultiTool):
         
         hc = HistoryConsole(locals = locals)
         hc.interact(banner)
-        self.exit(EX_SUCCESS)        
+        self.exit(0)        
         
     def cmd_status(self, args):
         parser = self.make_parser('report the status of a WEMD simulation')
