@@ -33,7 +33,7 @@ class SQLAlchemyDataManager(DataManagerBase):
         # Connect to the database
         self.dbengine = create_engine(runtime_config['data.db.url'],
                                       # don't block on simple queries
-                                      isolation_level = 'READ UNCOMMITTED',
+                                       isolation_level = 'READ UNCOMMITTED',
                                       # if for some reason we do block, don't die after 5 secs
                                       connect_args={'timeout': 90})
         

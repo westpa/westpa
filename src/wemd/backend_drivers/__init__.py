@@ -29,6 +29,9 @@ def make_backend_driver(runtime_config):
     if driver_name == 'executable':
         from executable import ExecutableBackend
         driver = ExecutableBackend(runtime_config)
+    elif driver_name == 'test':
+        from test import TestBackend
+        driver = TestBackend(runtime_config)
     elif driver_name == 'pyopenmm':
         try:
             from pyopenmm import PyOpenMMBackend

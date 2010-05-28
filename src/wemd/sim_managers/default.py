@@ -164,9 +164,13 @@ class DefaultWEMaster(WESimMaster):
                         pcoord = None)
             if current_iteration > 0:
                 if particle.p_parent:
-                    s.p_parent = self.data_manager.get_segment(particle.p_parent.particle_id)
-                    log.debug('segment %r primary parent is %r' 
-                              % (s.seg_id or '(New)', s.p_parent.seg_id))
+
+                    if particle.p_parent in [p for p in self.we_driver.particles_escaped]:
+                        pass
+                    else:
+                        s.p_parent = self.data_manager.get_segment(particle.p_parent.particle_id)
+                        log.debug('segment %r primary parent is %r' 
+                                  % (s.seg_id or '(New)', s.p_parent.seg_id))
                 else:
                     log.debug('segment %r has no primary parent; will restart in initial bin' % s)
                 if particle.parents:
