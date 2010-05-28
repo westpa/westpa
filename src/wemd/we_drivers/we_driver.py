@@ -25,10 +25,10 @@ class WEDriver:
         self.bins_nparticles = None
         self.bins_popchange = None
 
-	self.sim_config = sim_config
-	self.initial_pcoord = numpy.array(sim_config.get_list('wemd.initial_pcoord', type=float))
-	self.target_pcoord_lower = numpy.array(sim_config.get_list('wemd.target_pcoord_lb', type=float))
-	self.target_pcoord_upper = numpy.array(sim_config.get_list('wemd.target_pcoord_ub', type=float))
+        self.sim_config = sim_config
+        self.initial_pcoord = numpy.array(sim_config.get_list('wemd.initial_pcoord', type=float))
+        self.target_pcoord_lower = numpy.array(sim_config.get_list('wemd.target_pcoord_lb', type=float))
+        self.target_pcoord_upper = numpy.array(sim_config.get_list('wemd.target_pcoord_ub', type=float))
                             
     def make_bins(self):
         """Create an array of ParticleCollection objects appropriate to this WE
