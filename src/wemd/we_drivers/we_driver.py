@@ -6,7 +6,7 @@ log = logging.getLogger('wemd.we_drivers.we_driver')
 
 import math, random
 from copy import copy
-import numpy #only for std of weights (i.e. testing)
+import numpy 
 
 class WEDriver:
     def __init__(self, sim_config):
@@ -27,6 +27,8 @@ class WEDriver:
 
 	self.sim_config = sim_config
 	self.initial_pcoord = numpy.array(sim_config.get_list('wemd.initial_pcoord', type=float))
+	self.target_pcoord_lower = numpy.array(sim_config.get_list('wemd.target_pcoord_lb', type=float))
+	self.target_pcoord_upper = numpy.array(sim_config.get_list('wemd.target_pcoord_ub', type=float))
                             
     def make_bins(self):
         """Create an array of ParticleCollection objects appropriate to this WE
@@ -43,25 +45,35 @@ class WEDriver:
          
         boundaries = binarray.boundaries
         ndim = binarray.ndim
+
+        target_lb = self.target_pcoord_lower
+        target_ub = self.target_pcoord_upper
+
         for particle in particles:
+
+            particle_escaped = False
             assert(len(particle.pcoord) == ndim)
             index = [None] * ndim
             for idim in xrange(0, ndim):
+                #index[idim] = numpy.digitize( particle.pcoord[idim], boundaries[idim] )
                 for ibound in xrange(0, len(boundaries[idim])-1):
                     if boundaries[idim][ibound] <= particle.pcoord[idim] < boundaries[idim][ibound+1]:
                         index[idim] = ibound
-            
+
+            for idim in xrange(0, ndim):
+                if (particle.pcoord[idim] < target_lb[idim]) or (particle.pcoord[idim] > target_ub[idim]):
+                    break
+                elif idim == (ndim - 1):
+                    self.particles_escaped.add(particle)
+                    particle_escaped = True
+
             index = tuple(index)
             if None in index:
-                particle.bin_index = index
-                self.particles_escaped.add(particle)
-            else:                
-                try:
-                    binarray.bins[index].add(particle)
-                except IndexError:
-                    particle.bin_index = index
-                    self.particles_escaped.add(particle)
-            
+                raise ValueError("Error, particle not in binspace %r" % particle.pcoord)
+
+            if particle_escaped == False:
+                binarray.bins[index].add(particle)
+ 
     def split_particles(self, particles, binarray):
         """Split particles according to weight.  New particles must have their
         lineage information set correctly and be put into the 
