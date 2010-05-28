@@ -17,9 +17,8 @@ log = logging.getLogger(__name__)
 class DefaultWEMaster(WESimMaster):
     def __init__(self, runtime_config):
         super(DefaultWEMaster,self).__init__(runtime_config)
-        
-        for key in (('data.state', 'backend.driver', 'data.storage_engine')):
-            runtime_config.require(key)
+    
+        runtime_config.require_all(('data.state', 'data.storage_engine'))
 
         self.max_iterations = runtime_config.get_int('limits.max_iterations', 1)
         # Eventually, add support for max_wallclock
@@ -28,11 +27,14 @@ class DefaultWEMaster(WESimMaster):
         
         from wemd.data_manager import make_data_manager
         self.data_manager = make_data_manager(runtime_config)
+        self.backend_driver = None
+        self.backend_driver_name = None
                                           
     def save_state(self):
         state_filename = self.runtime_config['data.state']
         log.info('saving state to %s' % state_filename)
-        state_dict = {'we_driver': self.we_driver}
+        state_dict = {'we_driver': self.we_driver,
+                      'backend_driver_name': self.backend_driver_name}
         log.debug('state info: %r' % state_dict)
         pickle.dump(state_dict, open(state_filename, 'wb'), -1)
     
@@ -42,16 +44,23 @@ class DefaultWEMaster(WESimMaster):
         state_dict = pickle.load(open(state_filename))
         log.debug('state info: %r' % state_dict)
         self.we_driver = state_dict['we_driver']
+        self.backend_driver_name = state_dict['backend_driver_name']
 
     def initialize_simulation(self, sim_config):        
-        for item in ('wemd.initial_particles', 'wemd.initial_pcoord'):
-            sim_config.require(item)
+        sim_config.require_all(('wemd.initial_particles', 'wemd.initial_pcoord',
+                                'backend.driver'))
+        
+        
             
         # Create the backing store
         self.data_manager.prepare_backing(sim_config)
                     
         # Create and configure the WE driver
         self.load_we_driver(sim_config)
+        
+        # Create and configure the backend driver
+        self.backend_driver_name = sim_config.get('backend.driver')
+        self.load_backend_driver(sim_config)
         
         # Create the initial segments
         log.info('creating initial segments')

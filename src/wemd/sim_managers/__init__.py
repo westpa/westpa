@@ -10,12 +10,15 @@ class WESimManagerBase:
     def __init__(self, runtime_config):
         self.runtime_config = runtime_config
         self.backend_driver = None
+        self.backend_driver_name = None
         self.we_driver = None
         self.we_iter = None
         
-    def load_backend_driver(self):
+    def load_backend_driver(self, sim_config=None):
         from wemd.backend_drivers import make_backend_driver
-        self.backend_driver = make_backend_driver(self.runtime_config)
+        self.backend_driver = make_backend_driver(self.backend_driver_name,
+                                                  self.runtime_config, 
+                                                  sim_config)
             
     def run(self):
         """Enter a running state, such as driving the simulation or waiting

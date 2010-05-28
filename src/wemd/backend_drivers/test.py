@@ -1,4 +1,5 @@
 import os, sys, subprocess, time, datetime, tempfile, string
+import cPickle as pickle
 from resource import getrusage, RUSAGE_CHILDREN
 import logging
 log = logging.getLogger(__name__)
@@ -18,49 +19,73 @@ class TestBackend(BackendDriver):
     Backend driver to run a test system using discrete overdamped Langevin Dynamics
     """
     
-    def __init__(self, runtime_config):
+    def __init__(self, runtime_config, sim_config = None):
         super(TestBackend, self).__init__(runtime_config)
-        # Get the system creator object and configuration file
-        self._temperature = eval(runtime_config.get('backend.test.temperature'))
-        #timestep in ps
-        self._timestep = eval(runtime_config.get('backend.test.timestep')) * 10.0 ** -12.0
-        self._mass = eval(runtime_config.get('backend.test.mass'))
-        self._friction_const = eval(runtime_config.get('backend.test.friction_const'))
-        self._dimension = int(eval(runtime_config.get('backend.test.dimension')))
-
-        #read in intial coord, in nm
-        pcoord_vals = [float(x) for x in runtime_config.get_list('backend.test.initial_pcoord')]
-        self._initial_pcoord = numpy.array( [pcoord_vals], dtype=numpy.float64 )
-
-        #read in the Gaussian Potentials (if present)
-        potential = []
-        potential_entries = [key for key in runtime_config if key.startswith('backend.test.potential')]
-        for potential_entry in potential_entries:
-            potential.append( eval(runtime_config.get(potential_entry)) )
-
-        #check to make sure they have the correct dimensions
-        for i in xrange(0, len(potential)):
-            if len(potential[i][1]) != self._dimension or len(potential[i][2]) != self._dimension:
-                raise ConfigError("Invalid potential specified, check dimensions")
-
-        self._potentials = potential
-
-        #allow for > 3 dimensions
-        if( self._dimension < 1 ):
-            raise ConfigError("Invalid Dimension")
-
-    def pre_iter(self, we_iter):
-        pass
+        runtime_config.require('backend.test.initial_state')
+        
+        if sim_config is not None:
+            sim_config.require_all(('backend.test.temperature',
+                                    'backend.test.timestep',
+                                    'backend.test.mass',
+                                    'backend.test.friction_const',
+                                    'backend.test.dimension',
+                                    'backend.test.initial_pcoord',
+                                    ))
+            # temperature in K
+            self._temperature = sim_config.get_float('backend.test.temperature')
+            #timestep in ps
+            self._timestep = sim_config.get_float('backend.test.timestep') * 10.0 ** -12.0
+            # mass in kg
+            self._mass = sim_config.get_float('backend.test.mass')
+            # friction constant (1/s)
+            self._friction_const = sim_config.get_float('backend.test.friction_const')
+            # dimensionality
+            self._dimension = sim_config.get_int('backend.test.dimension')
     
-    def post_iter(self, we_iter):
-        pass
+            #read in intial coord, in nm
+            pcoord_vals = sim_config.get_list('backend.test.initial_pcoord', type=float)
+            self._initial_pcoord = numpy.array( [pcoord_vals], dtype=numpy.float64 )
     
-    def pre_segment(self, segment):
-        pass
+            #read in the Gaussian Potentials (if present)
+            potential = []
+            potential_entries = [key for key in sim_config if key.startswith('backend.test.potential')]
+            for potential_entry in potential_entries:
+                # FIXME: prefer typed retrieval functions from ConfigDict over eval
+                potential.append(eval(sim_config.get(potential_entry)))
     
-    def post_segment(self, segment):
-        pass
+            #check to make sure they have the correct dimensions
+            for i in xrange(0, len(potential)):
+                if len(potential[i][1]) != self._dimension or len(potential[i][2]) != self._dimension:
+                    raise ConfigError("Invalid potential specified, check dimensions")
     
+            self._potentials = potential
+    
+            #allow for > 3 dimensions
+            if( self._dimension < 1 ):
+                raise ConfigError("Invalid Dimension")
+            
+            self.save_initial_state(self.runtime_config['backend.test.initial_state'])
+        else:
+            self.load_initial_state(runtime_config['backend.test.initial_state'])            
+    
+    def load_initial_state(self, state_file):
+        state = pickle.load(open(state_file, 'rb'))
+        
+        for key in ('temperature', 'timestep', 'mass', 'friction_const', 'dimension',
+                    'initial_pcoord', 'potentials'):
+            setattr(self, '_%s' % key, state[key])
+    
+    def save_initial_state(self, state_file):
+        state = {'temperature': self._temperature,
+                 'timestep': self._timestep,
+                 'mass': self._mass,
+                 'friction_const': self._friction_const,
+                 'dimension': self._dimension,
+                 'initial_pcoord': self._initial_pcoord,
+                 'potentials': self._potentials}
+        
+        pickle.dump(state, open(state_file, 'wb'), pickle.HIGHEST_PROTOCOL)
+        
     def propagate_segments(self, segments):
         log.debug('propagating %d segment(s)' % len(segments))
         for segment in segments:

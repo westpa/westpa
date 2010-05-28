@@ -16,10 +16,7 @@ class WEMDRunTool(WECmdLineTool):
         parser = OptionParser(usage = '%prog [options]')
         self.add_rc_option(parser)
         (opts, args) = parser.parse_args()
-        self.read_runtime_config(opts)
-        for key in ('backend.driver',):
-            self.runtime_config.require(key)
-            
+        self.read_runtime_config(opts)            
         sim_manager = wemd.sim_managers.make_sim_manager(self.runtime_config)    
         sim_manager.restore_state()
         

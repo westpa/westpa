@@ -4,9 +4,9 @@ __metaclass__ = type
 
 
 class BackendDriver:
-    def __init__(self, runtime_config):
+    def __init__(self, runtime_config, sim_config = None):
         self.runtime_config = runtime_config
-                
+                            
     def pre_iter(self, we_iter):
         pass
     
@@ -23,15 +23,17 @@ class BackendDriver:
         raise NotImplementedError
 
 
-def make_backend_driver(runtime_config):
+def make_backend_driver(driver_name, runtime_config, sim_config = None):
     from wemd.core import ConfigError
-    driver_name = runtime_config['backend.driver']
+    
+    assert driver_name in ('executable', 'test', 'pyopenmm', 'pyopenmmmultiseg')
+
     if driver_name == 'executable':
         from executable import ExecutableBackend
         driver = ExecutableBackend(runtime_config)
     elif driver_name == 'test':
         from test import TestBackend
-        driver = TestBackend(runtime_config)
+        driver = TestBackend(runtime_config, sim_config)
     elif driver_name == 'pyopenmm':
         try:
             from pyopenmm import PyOpenMMBackend
@@ -46,7 +48,5 @@ def make_backend_driver(runtime_config):
             raise ConfigError('pyopenmm-multiseg backend driver unavailable (%s)' % e)
         else:
             driver = PyOpenMMBackendMultiSeg(runtime_config)
-    else:
-        raise ConfigError('invalid backend driver (%s) specified' % driver_name)
     log.info('using %s propagation backend' % driver_name)
     return driver
