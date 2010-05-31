@@ -16,20 +16,21 @@ class WEMDRunTool(WECmdLineTool):
         parser = OptionParser(usage = '%prog [options]')
         self.add_rc_option(parser)
         (opts, args) = parser.parse_args()
-        self.read_runtime_config(opts)            
-        sim_manager = wemd.sim_managers.make_sim_manager(self.runtime_config)    
-        sim_manager.restore_state()
+        self.read_runtime_config(opts)
+        
+        sim_manager = self.load_sim_manager()
+        sim_manager.load_sim_state()
         
         try:
             sim_manager.run()
         except Exception:
             log.error('unhandled exception in run()', exc_info = True)
             sim_manager.shutdown(EX_EXCEPTION_ERROR)
-            self.exit(EX_EXCEPTION_ERROR)
+            sys.exit(EX_EXCEPTION_ERROR)
         else:
             log.info('WEMD run completed successfully')
             sim_manager.shutdown(0)
-            self.exit(0)
+            sys.exit(0)
         finally:
             wemd.util.mpi.finalize_mpi()
         

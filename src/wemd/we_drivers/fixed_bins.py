@@ -9,19 +9,19 @@ from wemd.core.binarrays import Bin, BinArray
 from wemd.core import ConfigError
 
 class FixedBinWEDriver(WEDriver):
-    def __init__(self, sim_config):
-        super(FixedBinWEDriver,self).__init__(sim_config)
-        self.configure_bin_params(sim_config)
-    
-    def configure_bin_params(self, sim_config):
+    def __init__(self):
+        super(FixedBinWEDriver,self).__init__()
+        
+    def sim_init(self, sim_config, sim_config_src):
+        super(FixedBinWEDriver,self).sim_init(sim_config, sim_config_src)
         bintype = sim_config['bins.type']
-        assert(bintype == 'fixed' or bintype == "fixed_bin_particles")
+        assert bintype in ('fixed', 'fixed_bin_particles')
 
-        ndim = sim_config.get_int('bins.ndim')
+        ndim = sim_config['bins.ndim'] = sim_config_src.get_int('bins.ndim')
         bin_limits = []
         
         if ndim == 1:
-            boundary_entries = [key for key in sim_config if key.startswith('bins.boundaries')]
+            boundary_entries = [key for key in sim_config_src if key.startswith('bins.boundaries')]
             if not boundary_entries:
                 raise ConfigError('no bin boundaries provided')
             elif len(boundary_entries) > 1:
@@ -30,9 +30,9 @@ class FixedBinWEDriver(WEDriver):
                 boundary_entry = boundary_entries[0]
             
             if boundary_entry in ('bins.boundaries', 'bins.boundaries_0'):
-                boundaries = [float(bound) for bound in sim_config.get_list(boundary_entry)]
+                boundaries = [float(bound) for bound in sim_config_src.get_list(boundary_entry)]
             elif boundary_entry in ('bins.boundaries_expr', 'bins.boundaries_expr_0'):
-                boundaries = eval(sim_config[boundary_entry])
+                boundaries = eval(sim_config_src[boundary_entry])
             else:
                 raise ConfigError('invalid bin boundary specification')
                 
@@ -41,7 +41,7 @@ class FixedBinWEDriver(WEDriver):
             reIsBoundary = re.compile('bins\.boundaries(_expr)?_(\d+)')
             bin_limits = [None] * ndim
             
-            boundary_entries = [entry for entry in sim_config if entry.startswith('bins.boundaries')]
+            boundary_entries = [entry for entry in sim_config_src if entry.startswith('bins.boundaries')]
             for boundary_entry in boundary_entries:
                 m = reIsBoundary.match(boundary_entry)
                 if not m:
@@ -49,24 +49,18 @@ class FixedBinWEDriver(WEDriver):
                 else:
                     idim = int(m.group(2))
                     if m.group(1):
-                        boundaries = eval(sim_config[boundary_entry])
+                        boundaries = eval(sim_config_src[boundary_entry])
                     else:
-                        boundaries = [float(lim) for lim in sim_config.get_list(boundary_entry)]
+                        boundaries = [float(lim) for lim in sim_config_src.get_list(boundary_entry)]
                     bin_limits[idim] = numpy.array(boundaries)
                     
             if None in bin_limits:
                 raise ConfigError('missing bin boundaries for at least one dimension')
         
-        self.bin_boundaries =  bin_limits
-        self.particles_per_bin = sim_config.get_int('bins.particles_per_bin')
-        self.bin_split_threshold = sim_config.get_float('bins.split_threshold', 2.0)
-        self.bin_merge_threshold_min = sim_config.get_float('bins.merge_threshold_min', 0.5)
-        self.bin_merge_threshold_max = sim_config.get_float('bins.merge_threshold_max', 1.5)        
+        sim_config['bins.boundaries'] = self.bin_boundaries = bin_limits
+        sim_config['bins.particles_per_bin'] = self.particles_per_bin = sim_config_src.get_int('bins.particles_per_bin')
     
     def make_bins(self):
         return BinArray(boundaries = self.bin_boundaries,
-                        ideal_num = self.particles_per_bin,
-                        split_threshold = self.bin_split_threshold,
-                        merge_threshold_min = self.bin_merge_threshold_min,
-                        merge_threshold_max = self.bin_merge_threshold_max)
+                        ideal_num = self.particles_per_bin)
         # non-time-dependent bin info stored here

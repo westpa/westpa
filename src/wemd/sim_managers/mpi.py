@@ -11,7 +11,7 @@ from default import DefaultWEMaster
 import wemd
 import wemd.data_manager
 import wemd.util.mpi
-from wemd.sim_managers import WESimManagerBase
+from wemd.sim_managers import WESimManagerBase, WESimClient
 from wemd import Segment
 
 from mpi4py import MPI
@@ -23,8 +23,7 @@ class MPISimManager(WESimManagerBase):
     MSG_EXIT = 1
     MSG_AWAIT_SEGMENT_SCATTER = 10
     
-    def __init__(self, runtime_config):
-        super(MPISimManager,self).__init__(runtime_config)
+    def __init__(self):
         self.comm = MPI.COMM_WORLD
                                 
     def scatter_propagate_gather(self, segments):
@@ -64,8 +63,8 @@ class MPISimManager(WESimManagerBase):
         
         
 class MPIWEMaster(DefaultWEMaster, MPISimManager):
-    def __init__(self, runtime_config):
-        super(MPIWEMaster, self).__init__(runtime_config)
+    def __init__(self):
+        super(MPIWEMaster, self).__init__()
         
     def run(self):
         super(MPIWEMaster,self).run()
@@ -148,14 +147,10 @@ class MPIWEMaster(DefaultWEMaster, MPISimManager):
             log.info('terminating remote MPI processes')
         self.send_directive(self.MSG_EXIT, exit_code, block = False)
             
-class MPIWEWorker(MPISimManager):
-    def __init__(self, runtime_config):
-        super(MPIWEWorker, self).__init__(runtime_config)
-        
-    def restore_state(self):
-        # No need for clients to restore state
-        pass
-    
+class MPIWEWorker(WESimClient, MPISimManager):
+    def __init__(self):
+        super(MPIWEWorker, self).__init__()
+            
     def unknown_message_abort(self, status, data):
         from wemd.rc import EX_COMM_ERROR
         log.fatal('unknown message %r (tag %d from rank %d) received'

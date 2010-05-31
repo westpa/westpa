@@ -7,7 +7,6 @@ from wemd import Segment, WESimIter
 
 from wemd.util.wetool import WECmdLineMultiTool
 from wemd.rc import EX_ERROR, EX_USAGE_ERROR
-from wemd.sim_managers import make_sim_manager
 
 from logging import getLogger
 log = getLogger(__name__)
@@ -38,10 +37,6 @@ class WEMDAnlTool(WECmdLineMultiTool):
                                + ' iteration)'
                          )
         
-    def get_sim_manager(self):
-        self.sim_manager = make_sim_manager(self.runtime_config)
-        return self.sim_manager
-        
     def get_sim_iter(self, we_iter):
         dbsession = self.sim_manager.data_manager.require_dbsession()
         if we_iter is None:
@@ -70,16 +65,16 @@ class WEMDAnlTool(WECmdLineMultiTool):
                                recycled ("recycled")''')
         (opts,args) = parser.parse_args(args)
         
-        self.get_sim_manager()
+        self.load_sim_manager()
         data_manager = self.sim_manager.data_manager
         we_iter = self.get_sim_iter(opts.we_iter)
         from wemd.core import Segment
         from sqlalchemy.sql import select
         dbsession = data_manager.require_dbsession()
         
-        self.output_stream.write('# %s trajectories as of iteration %d:\n'
+        sys.stdout.write('# %s trajectories as of iteration %d:\n'
                                  % (opts.traj_type, we_iter.n_iter))
-        self.output_stream.write('#%-11s    %-12s    %-21s\n'
+        sys.stdout.write('#%-11s    %-12s    %-21s\n'
                                  % ('seg_id', 'n_iter', 'weight'))
         segsel = select([Segment.seg_id, Segment.n_iter, Segment.weight])
         
@@ -104,7 +99,7 @@ class WEMDAnlTool(WECmdLineMultiTool):
         query = query.order_by(Segment.n_iter)
         segments = dbsession.execute(query)
         for segment in segments:
-            self.output_stream.write('%-12d     %-12d    %21.16g\n'
+            sys.stdout.write('%-12d     %-12d    %21.16g\n'
                                      % (segment.seg_id, segment.n_iter,
                                         segment.weight))
                 
@@ -137,8 +132,8 @@ class WEMDAnlTool(WECmdLineMultiTool):
         region_names = transcfg.get_list('regions.names')
         region_edges = [float(v) for v in transcfg.get_list('regions.edges')]
         if len(region_edges) != len(region_names) + 1:
-            self.error_stream.write('region names and boundaries do not match\n')
-            self.exit(EX_ERROR)
+            sys.stderr.write('region names and boundaries do not match\n')
+            sys.exit(EX_ERROR)
             
         try:
             translog = transcfg.get_file_object('output.transition_log', mode='w')
@@ -153,7 +148,7 @@ class WEMDAnlTool(WECmdLineMultiTool):
         
         from sqlalchemy import select
         
-        self.get_sim_manager()
+        self.load_sim_manager()
         final_we_iter = self.get_sim_iter(opts.we_iter)
         max_iter = final_we_iter.n_iter
         data_manager = self.sim_manager.data_manager
@@ -173,28 +168,28 @@ class WEMDAnlTool(WECmdLineMultiTool):
         tree.trace_trajectories(max_iter, analyze_segment, 
                                 trans_finder.get_state, 
                                 trans_finder.set_state)
-        self.output_stream.write('event count (row->column, states %s\n' % ', '.join(regions.names))
-        self.output_stream.write('%s\n' % trans_finder.event_counts)
+        sys.stdout.write('event count (row->column, states %s\n' % ', '.join(regions.names))
+        sys.stdout.write('%s\n' % trans_finder.event_counts)
         for ((ir1, ir2), ed_list) in trans_finder.eds.iteritems():
             region1_name = regions.names[ir1]
             region2_name = regions.names[ir2]
             if len(ed_list) == 0:
-                self.output_stream.write('No %s->%s transitions observed\n'
+                sys.stdout.write('No %s->%s transitions observed\n'
                                          % (region1_name, region2_name))
             else:
                 ed_array = numpy.array(ed_list, numpy.float64)
                 ed_array[:,0] *= trans_finder.timestep
-                self.output_stream.write('\nStatistics for %s->%s:\n'
+                sys.stdout.write('\nStatistics for %s->%s:\n'
                                          % (region1_name, region2_name))
                 (ed_mean, ed_norm) = numpy.average(ed_array[:,0],
                                                    weights = ed_array[:,1],
                                                    returned = True)    
-                self.output_stream.write('Number of events:    %d\n' % ed_array.shape[0])
-                self.output_stream.write('ED average:          %g\n' % ed_array[:,0].mean())
-                self.output_stream.write('ED weighted average: %g\n' % ed_mean)
-                self.output_stream.write('ED min:              %g\n' % ed_array[:,0].min())
-                self.output_stream.write('ED median:           %g\n' % numpy.median(ed_array[:,0]))
-                self.output_stream.write('ED max:              %g\n' % ed_array[:,0].max())
+                sys.stdout.write('Number of events:    %d\n' % ed_array.shape[0])
+                sys.stdout.write('ED average:          %g\n' % ed_array[:,0].mean())
+                sys.stdout.write('ED weighted average: %g\n' % ed_mean)
+                sys.stdout.write('ED min:              %g\n' % ed_array[:,0].min())
+                sys.stdout.write('ED median:           %g\n' % numpy.median(ed_array[:,0]))
+                sys.stdout.write('ED max:              %g\n' % ed_array[:,0].max())
                 
                 ed_file = open(opts.output_pattern % 
                                (region1_name, region2_name), 'wt')
@@ -209,10 +204,10 @@ class WEMDAnlTool(WECmdLineMultiTool):
                                   +'path')
         (opts, args) = parser.parse_args(args)
         if len(args) != 1:
-            parser.print_help(self.error_stream)
-            self.exit(EX_USAGE_ERROR)
+            parser.print_help(sys.stderr)
+            sys.exit(EX_USAGE_ERROR)
         
-        self.get_sim_manager()
+        self.load_sim_manager()
         seg = self.sim_manager.data_manager.get_segment(long(args[0]))
         segs = [seg]
         while seg.p_parent and seg.n_iter:
@@ -221,7 +216,7 @@ class WEMDAnlTool(WECmdLineMultiTool):
         traj = list(reversed(segs))
         
         for seg in traj:
-            self.output_stream.write('%5d  %10d  %10d  %21.16g  %21.16g\n'
+            sys.stdout.write('%5d  %10d  %10d  %21.16g  %21.16g\n'
                                      % (seg.n_iter,
                                         seg.seg_id,
                                         seg.p_parent_id or 0,
@@ -234,7 +229,7 @@ class WEMDAnlTool(WECmdLineMultiTool):
                           help='length of each WE iteration in simulation '
                               +'time is TAU (default: 1.0)')
         (opts,args) = parser.parse_args(args)
-        sim_manager = self.get_sim_manager()
+        sim_manager = self.load_sim_manager()
         latest_we_iter = self.get_sim_iter(None)
 
 
@@ -247,7 +242,7 @@ class WEMDAnlTool(WECmdLineMultiTool):
         fluxen /= opts.tau
         
         for irow in xrange(0, fluxen.shape[0]):
-            self.output_stream.write('%-8d    %16.12g    %21.16g\n'
+            sys.stdout.write('%-8d    %16.12g    %21.16g\n'
                                      % (irow+1, opts.tau*(irow+1), 
                                         fluxen[irow]))
         

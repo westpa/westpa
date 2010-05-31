@@ -36,10 +36,11 @@ class PyOpenMMBackend(BackendDriver):
     as the progress coordinate.
     """
     
-    def __init__(self, runtime_config):
-        super(PyOpenMMBackend, self).__init__(runtime_config)
+    def __init__(self):
+        super(PyOpenMMBackend, self).__init__()
         
-        #assert(runtime_config['backend.driver'].lower() == 'pyopenmm')
+    def runtime_init(self, runtime_config):
+        super(PyOpenMMBackend, self).runtime_init(runtime_config)
         
         # Get the system creator object and configuration file
         system_module_name = runtime_config.get('backend.pyopenmm.system_module')
@@ -221,7 +222,10 @@ class PyOpenMMBackendMultiSeg(PyOpenMMBackend):
     """docstring for PyOpenMMBackendMultiSeg"""
     
     def __init__(self, runtime_config):
-        super(PyOpenMMBackendMultiSeg, self).__init__(runtime_config)
+        super(PyOpenMMBackendMultiSeg,self).__init__()
+        
+    def runtime_init(self, runtime_config):
+        super(PyOpenMMBackendMultiSeg, self).runtime_init(runtime_config)
         
         # Check to make sure that the block size is equal to the number of replicas
         self._blockSize = runtime_config.get_int('backend.blocksize', 1)

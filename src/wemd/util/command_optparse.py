@@ -112,13 +112,13 @@ class CommandOptionParser(OptionParser):
         try:
             cmdname = rargs.pop(0)
         except IndexError:
-            self.exit(self.invalid_command_exit_code,
+            sys.exit(self.invalid_command_exit_code,
                       'no command given\n%s' % self.format_help())
         
         try:
             self.command = self._command_index[cmdname]
         except KeyError:
-            self.exit(self.invalid_command_exit_code,
+            sys.exit(self.invalid_command_exit_code,
                       "no such command: '%s'\n%s" 
                       % (cmdname, self.format_help()))            
         return (values, rargs)

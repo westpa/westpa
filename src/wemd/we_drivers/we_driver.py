@@ -9,7 +9,7 @@ from copy import copy
 import numpy 
 
 class WEDriver:
-    def __init__(self, sim_config):
+    def __init__(self):
         self.current_iteration = 0
         
         # Newly-created particles (for whatever reason)
@@ -24,12 +24,21 @@ class WEDriver:
         self.bins_population = None
         self.bins_nparticles = None
         self.bins_popchange = None
-
+        
+    def sim_init(self, sim_config, sim_config_src):
         self.sim_config = sim_config
-        self.initial_pcoord = numpy.array(sim_config.get_list('wemd.initial_pcoord', type=float))
-        self.target_pcoord_lower = numpy.array(sim_config.get_list('wemd.target_pcoord_lb', type=float))
-        self.target_pcoord_upper = numpy.array(sim_config.get_list('wemd.target_pcoord_ub', type=float))
-                            
+        
+        sim_config_src.require_all(('wemd.initial_pcoord', 'wemd.target_pcoord_lb', 'wemd.target_pcoord_ub'))
+        self.initial_pcoord = sim_config['wemd.initial_pcoord'] \
+                            = numpy.array(sim_config_src.get_list('wemd.initial_pcoord', type=float))
+        self.target_pcoord_lower = sim_config['wemd.target_pcoord_lb'] \
+                                 = numpy.array(sim_config_src.get_list('wemd.target_pcoord_lb', type=float))        
+        self.target_pcoord_upper = sim_config['wemd.target_pcoord_ub'] \
+                                 = numpy.array(sim_config_src.get_list('wemd.target_pcoord_ub', type=float))
+    
+    def runtime_init(self, runtime_config):
+        self.runtime_config = runtime_config
+        
     def make_bins(self):
         """Create an array of ParticleCollection objects appropriate to this WE
         method."""
@@ -316,7 +325,7 @@ class WEDriver:
             particle.parents = []
             particle.p_parent = None
             particle.pcoord = copy(self.initial_pcoord)
-	self.distribute_particles(particles, bins)
+        self.distribute_particles(particles, bins)
 
         
         # endpoint bin assignments stored here

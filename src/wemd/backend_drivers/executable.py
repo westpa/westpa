@@ -20,8 +20,7 @@ class ExecutableBackend(BackendDriver):
     ENV_PARENT_SEG_ID        = 'WEMD_PARENT_SEG_ID'
     ENV_PARENT_SEG_DATA_REF  = 'WEMD_PARENT_SEG_DATA_REF'
     
-    def __init__(self, runtime_config):
-        super(ExecutableBackend, self).__init__(runtime_config)
+    def __init__(self):
         self.exename = None
     
         # Common environment variables for all child processes;
@@ -40,8 +39,10 @@ class ExecutableBackend(BackendDriver):
                                      'environ': dict()}
         self.post_segment_info =    {'executable': None,
                                      'environ': dict()}
+    
+    def runtime_init(self, runtime_config):
+        super(ExecutableBackend,self).runtime_init(runtime_config)
         
-        assert(runtime_config['backend.driver'].lower() == 'executable')
         runtime_config.require('backend.executable.propagator')
         
         drtemplate = self.runtime_config.setdefault('backend.executable.segref_template', 
