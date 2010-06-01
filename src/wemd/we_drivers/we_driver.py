@@ -4,6 +4,7 @@ __metaclass__ = type
 import logging
 log = logging.getLogger('wemd.we_drivers.we_driver')
 
+from itertools import izip
 import math, random
 from copy import copy
 import numpy 
@@ -45,43 +46,61 @@ class WEDriver:
         raise NotImplementedError
                                         
     def distribute_particles(self, particles, binarray):
-        """Assign particles to bins.  Particles outside of the bin space must
-        be assigned to the `particles_escaped` collection and may optionally
-        have a `bin_index` attribute added to them, which will indicate which
-        bin dimensions contain the particles fall into and which dimensions
-        cannot contain the particles.
+        """Assign particles to bins.  Particles cannot fall out of the bin space.
         """
+        
+        from numpy import digitize
          
         boundaries = binarray.boundaries
         ndim = binarray.ndim
 
-        target_lb = self.target_pcoord_lower
-        target_ub = self.target_pcoord_upper
-
-        for particle in particles:
-
-            particle_escaped = False
-            assert(len(particle.pcoord) == ndim)
-            index = [None] * ndim
+        #target_lb = self.target_pcoord_lower
+        #target_ub = self.target_pcoord_upper
+        n_targets = 1
+        target_bounds = numpy.empty((n_targets, ndim, 4), numpy.float64)
+        target_bounds[0,:,0] = float('-inf')
+        target_bounds[0,:,1] = self.target_pcoord_lower
+        target_bounds[0,:,2] = self.target_pcoord_upper
+        target_bounds[0,:,3] = float('inf')
+                
+        particle_list = numpy.empty((len(particles),), numpy.object_)
+        recycled_particles = set()
+        particle_list[:] = list(particles)
+        #print particle_list, type(particle_list)
+        pcoords = numpy.empty((len(particles), ndim), numpy.float64)
+        for (ipart, particle) in enumerate(particle_list):
+            pcoords[ipart] = particle.pcoord
+        indices = numpy.empty((pcoords.shape[0], ndim), numpy.uintp)
+        
+        # Find particles at the sink(s)
+        for itarget in xrange(0, target_bounds.shape[0]):
             for idim in xrange(0, ndim):
-                #index[idim] = numpy.digitize( particle.pcoord[idim], boundaries[idim] )
-                for ibound in xrange(0, len(boundaries[idim])-1):
-                    if boundaries[idim][ibound] <= particle.pcoord[idim] < boundaries[idim][ibound+1]:
-                        index[idim] = ibound
+                indices[:, idim] = numpy.digitize(pcoords[:, idim], target_bounds[itarget,idim,:])
+            # Every row which is all 2s indicates a particle which is entirely within the given target region
+            
+            recycled_particles.update(particle_list[numpy.all(indices==2, axis=-1)])
+        
+        # Assign particles to bins
+        particles = particles - recycled_particles            
+        particle_list = numpy.empty((len(particles),), numpy.object_)
+        particle_list[:] = list(particles)
+        pcoords = numpy.empty((len(particles), ndim), numpy.float64)
+        for (ipart, particle) in enumerate(particle_list):
+            pcoords[ipart] = particle.pcoord
+        indices = numpy.empty((pcoords.shape[0], ndim), numpy.uintp)    
+        
+        for idim in xrange(0, ndim):
+            indices[:, idim] = numpy.digitize(pcoords[:, idim], boundaries[idim])
+            if (indices[indices[:, idim] == 0].size
+               or indices[indices[:, idim] == len(boundaries[idim])].size):
+                raise ValueError('particle not in bin space')
+        # Rebase so that we have a valid index into the array of particle collections
+        indices -= 1
 
-            for idim in xrange(0, ndim):
-                if (particle.pcoord[idim] < target_lb[idim]) or (particle.pcoord[idim] > target_ub[idim]):
-                    break
-                elif idim == (ndim - 1):
-                    self.particles_escaped.add(particle)
-                    particle_escaped = True
-
-            index = tuple(index)
-            if None in index:
-                raise ValueError("Error, particle not in binspace %r" % particle.pcoord)
-
-            if particle_escaped == False:
-                binarray.bins[index].add(particle)
+        for (particle, index) in izip(particle_list, indices):
+            #print particle, index
+            binarray.bins[tuple(index)].add(particle)
+        self.particles_escaped.update(recycled_particles)
  
     def split_particles(self, particles, binarray):
         """Split particles according to weight.  New particles must have their

@@ -8,7 +8,7 @@ class BackendDriver:
         self.runtime_config = None
         self.sim_config = None
     
-    def sim_init(self, sim_config):
+    def sim_init(self, sim_config, sim_config_src):
         pass
     
     def runtime_init(self, runtime_config):
@@ -33,7 +33,7 @@ class BackendDriver:
 def get_backend_driver(driver_name):
     from wemd.util.config_dict import ConfigError
     
-    assert driver_name in ('executable', 'test', 'pyopenmm', 'pyopenmmmultiseg')
+    assert driver_name in ('executable', 'test', 'pyopenmm', 'pyopenmmmultiseg', 'odld')
     log.info('using %s propagation backend' % driver_name)
 
     if driver_name == 'executable':
@@ -42,6 +42,9 @@ def get_backend_driver(driver_name):
     elif driver_name == 'test':
         from test import TestBackend
         return TestBackend
+    elif driver_name == 'odld':
+        from odld import ODLDBackendDriver
+        return ODLDBackendDriver
     elif driver_name == 'pyopenmm':
         try:
             from pyopenmm import PyOpenMMBackend

@@ -24,6 +24,7 @@ class MPISimManager(WESimManagerBase):
     MSG_AWAIT_SEGMENT_SCATTER = 10
     
     def __init__(self):
+        super(MPISimManager,self).__init__()
         self.comm = MPI.COMM_WORLD
                                 
     def scatter_propagate_gather(self, segments):
@@ -64,7 +65,8 @@ class MPISimManager(WESimManagerBase):
         
 class MPIWEMaster(DefaultWEMaster, MPISimManager):
     def __init__(self):
-        super(MPIWEMaster, self).__init__()
+        MPISimManager.__init__(self)
+        DefaultWEMaster.__init__(self)
         
     def run(self):
         super(MPIWEMaster,self).run()
@@ -149,7 +151,11 @@ class MPIWEMaster(DefaultWEMaster, MPISimManager):
             
 class MPIWEWorker(WESimClient, MPISimManager):
     def __init__(self):
-        super(MPIWEWorker, self).__init__()
+        MPISimManager.__init__(self)
+        WESimClient.__init__(self)
+
+        #super(MPIWEWorker, self).__init__()
+        #super(MPISimManager,self).__init__()
             
     def unknown_message_abort(self, status, data):
         from wemd.rc import EX_COMM_ERROR

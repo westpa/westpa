@@ -48,10 +48,10 @@ class TestBackend(BackendDriver):
 
         #read in the Gaussian Potentials (if present)
         potential = []
-        potential_entries = [key for key in sim_config if key.startswith('backend.test.potential')]
+        potential_entries = [key for key in sim_config_src if key.startswith('backend.test.potential')]
         for potential_entry in potential_entries:
             # FIXME: prefer typed retrieval functions from ConfigDict over eval
-            potential.append(eval(sim_config.get(potential_entry)))
+            potential.append(eval(sim_config_src.get(potential_entry)))
 
         #check to make sure they have the correct dimensions
         for i in xrange(0, len(potential)):

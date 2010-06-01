@@ -145,7 +145,9 @@ class DefaultWEMaster(WESimMaster):
         log.info('norm = %.15g; error in norm %.6g' % (norm, norm-1))
                 
         # Perform actual WE calculation
+        we_int_starttime = time.clock()
         new_particles = self.we_driver.run_we(current_particles)
+        we_int_stoptime = time.clock()
         new_we_iter = self.we_driver.current_iteration
         
         # Mark old segments as merged/recycled/continued
@@ -200,11 +202,16 @@ class DefaultWEMaster(WESimMaster):
         for particle in self.we_driver.particles_escaped:
             recycled_population += particle.weight 
         we_iter.data['recycled_population'] = recycled_population
+        log.info('%.6g probability recycled' % recycled_population)
+        log.info('bin populations:')
+        log.info(str(self.we_driver.bins.population_array()))  
+
         
         self.data_manager.create_we_sim_iter(we_iter)
         self.data_manager.create_segments(we_iter, new_segments)
         we_endtime = time.clock()
-        log.info('WE (including data management) took %.2e seconds'
+        log.info('core WE procedures took %.2g seconds' % (we_int_stoptime - we_int_starttime))
+        log.info('WE (including data management) took %.2g seconds'
                  % (we_endtime - we_starttime))
                      
     def continue_simulation(self):
