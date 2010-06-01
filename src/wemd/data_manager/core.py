@@ -65,7 +65,7 @@ class SQLAlchemyDataManager(DataManagerBase):
         self.dbsession.close()
         self.dbsession = None
                         
-    def prepare_backing(self, sim_config):
+    def prepare_database(self):
         self.new_dbsession()
         log.info('creating database tables')
         schema.metadata.create_all(bind = self.dbengine)

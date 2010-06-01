@@ -34,3 +34,12 @@ class ParticleCollection(set):
             
     norm = property(get_norm, None, None, 
                     "The total weight of all particles in this collection")
+
+    def renorm(self, weight):
+        current_weight = self.get_norm()
+        if current_weight == 0.0 and weight != 0.0:
+            raise ValueError('cannot renormalize empty bin')
+        else:
+            wfactor = weight / current_weight
+            for particle in self:
+                particle.weight *= wfactor

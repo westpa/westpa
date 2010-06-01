@@ -4,9 +4,16 @@ __metaclass__ = type
 
 
 class BackendDriver:
-    def __init__(self, runtime_config):
+    def __init__(self):
+        self.runtime_config = None
+        self.sim_config = None
+    
+    def sim_init(self, sim_config, sim_config_src):
+        pass
+    
+    def runtime_init(self, runtime_config):
         self.runtime_config = runtime_config
-                
+                            
     def pre_iter(self, we_iter):
         pass
     
@@ -23,30 +30,32 @@ class BackendDriver:
         raise NotImplementedError
 
 
-def make_backend_driver(runtime_config):
-    from wemd.core import ConfigError
-    driver_name = runtime_config['backend.driver']
+def get_backend_driver(driver_name):
+    from wemd.util.config_dict import ConfigError
+    
+    assert driver_name in ('executable', 'test', 'pyopenmm', 'pyopenmmmultiseg', 'odld')
+    log.info('using %s propagation backend' % driver_name)
+
     if driver_name == 'executable':
         from executable import ExecutableBackend
-        driver = ExecutableBackend(runtime_config)
+        return ExecutableBackend
     elif driver_name == 'test':
         from test import TestBackend
-        driver = TestBackend(runtime_config)
+        return TestBackend
+    elif driver_name == 'odld':
+        from odld import ODLDBackendDriver
+        return ODLDBackendDriver
     elif driver_name == 'pyopenmm':
         try:
             from pyopenmm import PyOpenMMBackend
         except ImportError, e:
             raise ConfigError('pyopenmm backend driver unavailable (%s)' % e)
         else:
-            driver = PyOpenMMBackend(runtime_config)
+            return PyOpenMMBackend
     elif driver_name == 'pyopenmmmultiseg':
         try:
             from pyopenmm import PyOpenMMBackendMultiSeg
         except ImportError, e:
             raise ConfigError('pyopenmm-multiseg backend driver unavailable (%s)' % e)
         else:
-            driver = PyOpenMMBackendMultiSeg(runtime_config)
-    else:
-        raise ConfigError('invalid backend driver (%s) specified' % driver_name)
-    log.info('using %s propagation backend' % driver_name)
-    return driver
+            return PyOpenMMBackendMultiSeg

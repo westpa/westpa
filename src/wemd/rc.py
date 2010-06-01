@@ -9,6 +9,9 @@ from wemd.core.errors import WEEnvironmentError, WEEnvironmentVarError
 ENV_RUNTIME_CONFIG  = 'WEMDRC'
 RC_DEFAULT_FILENAME = 'run.cfg'
 
+RC_SIM_STATE_KEY = 'data.state'
+RC_SIM_CONFIG_KEY = 'data.sim_config'
+
 def read_config(filename = None):
     if filename is None:
         filename = RC_DEFAULT_FILENAME
@@ -18,7 +21,13 @@ def read_config(filename = None):
     
     return cdict
 
-
+def make_sim_manager(runtime_config, load_sim_config = True):
+    driver_name = runtime_config.get('sim_manager.driver', 'serial').lower()
+    Manager = wemd.sim_managers.get_sim_manager(driver_name)   
+    sim_manager = Manager()
+    sim_manager.runtime_init(self.runtime_config, load_sim_config)
+    return sim_manager
+    
 # Logging management
 LOGGING_DEFAULT_FORMAT = 'WEMD[%(proc_rank)4s] %(levelname)-8s -- %(message)s'
     

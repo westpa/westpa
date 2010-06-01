@@ -3,61 +3,75 @@ __metaclass__ = type
 import cPickle as pickle
 import numpy
 import string, time, datetime
-from copy import copy        
+from copy import copy   
+from itertools import izip     
 
 from wemd.sim_managers import WESimMaster
 from wemd.core.we_sim import WESimIter
 from wemd.core.particles import Particle, ParticleCollection
 from wemd.core.segments import Segment
 from wemd.core.errors import PropagationIncompleteError
+from wemd.rc import RC_SIM_STATE_KEY 
 
 import logging
 log = logging.getLogger(__name__)
 
 class DefaultWEMaster(WESimMaster):
-    def __init__(self, runtime_config):
-        super(DefaultWEMaster,self).__init__(runtime_config)
+    def __init__(self):
+        super(DefaultWEMaster,self).__init__()
+        self.max_iterations = 1
+        self.worker_blocksize = 1
         
-        for key in (('data.state', 'backend.driver', 'data.storage_engine')):
-            runtime_config.require(key)
-
+    def runtime_init(self, runtime_config, load_sim_config = True):
+        super(DefaultWEMaster, self).runtime_init(runtime_config, load_sim_config)
+        self.load_data_manager()
         self.max_iterations = runtime_config.get_int('limits.max_iterations', 1)
-        # Eventually, add support for max_wallclock
-        
         self.worker_blocksize = runtime_config.get_int('backend.blocksize', 1)
-        
-        from wemd.data_manager import make_data_manager
-        self.data_manager = make_data_manager(runtime_config)
-                                          
-    def save_state(self):
-        state_filename = self.runtime_config['data.state']
+                                                  
+    def save_sim_state(self):
+        state_filename = self.runtime_config[RC_SIM_STATE_KEY]
         log.info('saving state to %s' % state_filename)
         state_dict = {'we_driver': self.we_driver}
         log.debug('state info: %r' % state_dict)
         pickle.dump(state_dict, open(state_filename, 'wb'), -1)
     
-    def restore_state(self):
-        state_filename = self.runtime_config['data.state']
+    def load_sim_state(self):
+        self.runtime_config.require(RC_SIM_STATE_KEY)
+        state_filename = self.runtime_config[RC_SIM_STATE_KEY]
         log.info('loading state from %s' % state_filename)
         state_dict = pickle.load(open(state_filename))
         log.debug('state info: %r' % state_dict)
         self.we_driver = state_dict['we_driver']
 
-    def initialize_simulation(self, sim_config):        
-        for item in ('wemd.initial_particles', 'wemd.initial_pcoord'):
-            sim_config.require(item)
+    def sim_init(self, sim_config, sim_config_src):
+        self.sim_config = sim_config        
+        sim_config_src.require_all(('wemd.initial_particles', 'wemd.initial_pcoord',
+                                    'backend.driver'))
+        
+        sim_config['wemd.we_driver'] = sim_config['bins.type'] = sim_config_src['bins.type'].lower()
+        sim_config['backend.driver'] = sim_config_src['backend.driver'].lower()
+        sim_config['wemd.initial_particles'] = sim_config_src.get_int('wemd.initial_particles')
+        sim_config['wemd.initial_pcoord'] = numpy.array(sim_config_src.get_list('wemd.initial_pcoord', type=float))
             
-        # Create the backing store
-        self.data_manager.prepare_backing(sim_config)
-                    
+        # Create the database
+        self.data_manager.prepare_database()
+        
+        # Create and configure the backend driver
+        self.load_backend_driver()
+        self.backend_driver.sim_init(sim_config, sim_config_src)
+
         # Create and configure the WE driver
-        self.load_we_driver(sim_config)
+        self.load_we_driver()
+        self.we_driver.sim_init(sim_config, sim_config_src)
+        
+        # The backend and WE driver are successfully initialized; save any static config to disk
+        self.save_sim_config()
+        
         
         # Create the initial segments
         log.info('creating initial segments')
-        n_init = sim_config.get_int('wemd.initial_particles')
-        pcoord_vals = [float(x) for x in 
-                       sim_config.get_list('wemd.initial_pcoord')]
+        n_init = sim_config['wemd.initial_particles']
+        pcoord_vals = sim_config['wemd.initial_pcoord']
         pcoord = numpy.empty((1,len(pcoord_vals)), numpy.float64)
         pcoord[0] = pcoord_vals        
         segments = [Segment(n_iter = 0, 
@@ -82,9 +96,6 @@ class DefaultWEMaster(WESimMaster):
         self.we_iter.data['bin_boundaries'] = self.we_driver.bins.boundaries
         self.we_iter.data['bins_shape'] = self.we_driver.bins.shape
         self.we_iter.data['bin_ideal_num'] = self.we_driver.bins.ideal_num
-        self.we_iter.data['bin_split_threshold'] = self.we_driver.bins.split_threshold
-        self.we_iter.data['bin_merge_threshold_min'] = self.we_driver.bins.merge_threshold_min
-        self.we_iter.data['bin_merge_threshold_max'] = self.we_driver.bins.merge_threshold_max
 
         anparticles = self.we_driver.bins.nparticles_array()
         pops = self.we_driver.bins.population_array()
@@ -93,7 +104,7 @@ class DefaultWEMaster(WESimMaster):
         self.data_manager.update_we_sim_iter(self.we_iter) 
                     
                     
-    def run_we(self, initial_segments = None):
+    def run_we(self, initial_segments = None, reweight = None):
         current_iteration = self.we_driver.current_iteration
         
         # Get number of incomplete segments
@@ -135,9 +146,23 @@ class DefaultWEMaster(WESimMaster):
         log.info('norm = %.15g; error in norm %.6g' % (norm, norm-1))
                 
         # Perform actual WE calculation
+        we_int_starttime = time.clock()
         new_particles = self.we_driver.run_we(current_particles)
+        we_int_stoptime = time.clock()
         new_we_iter = self.we_driver.current_iteration
         
+        # Reweight, if requested
+        if reweight is not None:
+            if reweight.shape != self.we_driver.bins.shape:
+                raise ValueError('shape mismatch')
+            for (bin, new_weight) in izip(self.we_driver.bins, reweight.flat):
+                if new_weight == 0.0:
+                    bin.clear()
+                elif bin.norm == 0.0:
+                    log.warn('cannot renormalize bin of weight 0; expect relaxation')
+                else:
+                    bin.renorm(new_weight)
+            
         # Mark old segments as merged/recycled/continued
         if not initial_segments:
             segments_by_id = dict((segment.seg_id, segment) for segment in segments)
@@ -188,11 +213,16 @@ class DefaultWEMaster(WESimMaster):
         for particle in self.we_driver.particles_escaped:
             recycled_population += particle.weight 
         we_iter.data['recycled_population'] = recycled_population
+        log.info('%.6g probability recycled' % recycled_population)
+        log.info('bin populations:')
+        log.info(str(self.we_driver.bins.population_array()))  
+
         
         self.data_manager.create_we_sim_iter(we_iter)
         self.data_manager.create_segments(we_iter, new_segments)
         we_endtime = time.clock()
-        log.info('WE (including data management) took %.2e seconds'
+        log.info('core WE procedures took %.2g seconds' % (we_int_stoptime - we_int_starttime))
+        log.info('WE (including data management) took %.2g seconds'
                  % (we_endtime - we_starttime))
                      
     def continue_simulation(self):
@@ -205,9 +235,6 @@ class DefaultWEMaster(WESimMaster):
         self.we_iter.data['bin_boundaries'] = self.we_driver.bins.boundaries
         self.we_iter.data['bins_shape'] = self.we_driver.bins.shape
         self.we_iter.data['bin_ideal_num'] = self.we_driver.bins.ideal_num
-        self.we_iter.data['bin_split_threshold'] = self.we_driver.bins.split_threshold
-        self.we_iter.data['bin_merge_threshold_min'] = self.we_driver.bins.merge_threshold_min
-        self.we_iter.data['bin_merge_threshold_max'] = self.we_driver.bins.merge_threshold_max
 
         anparticles = self.we_iter.data['bins_nparticles'] = self.we_driver.bins_nparticles
         self.we_iter.data['bins_population'] = self.we_driver.bins_population
@@ -244,5 +271,5 @@ class DefaultWEMaster(WESimMaster):
     def finalize_iteration(self):
         self.we_iter.endtime = datetime.datetime.now()
         self.data_manager.update_we_sim_iter(self.we_iter)
-        self.save_state()
+        self.save_sim_state()
         

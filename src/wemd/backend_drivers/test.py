@@ -17,54 +17,67 @@ class TestBackend(BackendDriver):
     """
     Backend driver to run a test system using discrete overdamped Langevin Dynamics
     """
-    
-    def __init__(self, runtime_config):
-        super(TestBackend, self).__init__(runtime_config)
-        # Get the system creator object and configuration file
-        self._temperature = eval(runtime_config.get('backend.test.temperature'))
+
+    def __init__(self):
+        super(TestBackend, self).__init__()
+
+        
+    def sim_init(self, sim_config, sim_config_src):
+        self.sim_config = sim_config
+        sim_config_src.require_all(('backend.test.temperature',
+                                    'backend.test.timestep',
+                                    'backend.test.mass',
+                                    'backend.test.friction_const',
+                                    'backend.test.dimension',
+                                    'backend.test.initial_pcoord',
+                                    'backend.test.nsteps'
+                                    ))
+        # temperature in K
+        self._temperature = sim_config['backend.test.temperature'] = sim_config_src.get_float('backend.test.temperature')
         #timestep in ps
-        self._timestep = eval(runtime_config.get('backend.test.timestep')) * 10.0 ** -12.0
-        self._mass = eval(runtime_config.get('backend.test.mass'))
-        self._friction_const = eval(runtime_config.get('backend.test.friction_const'))
-        self._dimension = int(eval(runtime_config.get('backend.test.dimension')))
-
-        if( self._dimension < 1 ):
-            raise ConfigError("Invalid Dimension")
-
-        self._nsteps = int(eval(runtime_config.get('backend.test.nsteps')))
-
-        if self._nsteps < 1:
-            raise ConfigError("Invalid number of intergration steps")
-
-        #read in intial pcoord, in nm
-        pcoord_vals = [float(x) for x in runtime_config.get_list('backend.test.initial_pcoord')]
-        self._initial_pcoord = numpy.array( [pcoord_vals], dtype=numpy.float64 )
+        self._timestep = sim_config['backend.test.timestep'] = sim_config_src.get_float('backend.test.timestep') * 10.0 ** -12.0
+        # mass in kg
+        self._mass = sim_config['backend.test.mass'] = sim_config_src.get_float('backend.test.mass')
+        # friction constant (1/s)
+        self._friction_const = sim_config['backend.test.friction_const'] = sim_config_src.get_float('backend.test.friction_const')
+        # dimensionality
+        self._dimension = sim_config['backend.test.dimension'] = sim_config_src.get_int('backend.test.dimension')
+        # number of timesteps
+        self._nsteps = sim_config['backend.test.nsteps'] = sim_config_src.get_int('backend.test.nsteps')
+        
+        #read in intial coord, in nm
+        pcoord_vals = sim_config_src.get_list('backend.test.initial_pcoord', type=float)
+        self._initial_pcoord = sim_config['backend.test.initial_pcoord'] = numpy.array( [pcoord_vals], dtype=numpy.float64 )
 
         #read in the Gaussian Potentials (if present)
         potential = []
-        potential_entries = [key for key in runtime_config if key.startswith('backend.test.potential')]
+        potential_entries = [key for key in sim_config_src if key.startswith('backend.test.potential')]
         for potential_entry in potential_entries:
-            potential.append( eval(runtime_config.get(potential_entry)) )
+            # FIXME: prefer typed retrieval functions from ConfigDict over eval
+            potential.append(eval(sim_config_src.get(potential_entry)))
 
         #check to make sure they have the correct dimensions
         for i in xrange(0, len(potential)):
             if len(potential[i][1]) != self._dimension or len(potential[i][2]) != self._dimension:
                 raise ConfigError("Invalid potential specified, check dimensions")
 
-        self._potentials = potential
+        self._potentials = sim_config['backend.test.potentials'] = potential
 
-
-    def pre_iter(self, we_iter):
-        pass
-    
-    def post_iter(self, we_iter):
-        pass
-    
-    def pre_segment(self, segment):
-        pass
-    
-    def post_segment(self, segment):
-        pass
+        #allow for > 3 dimensions
+        if( self._dimension < 1 ):
+            raise ConfigError("Invalid Dimension")
+        
+    def runtime_init(self, runtime_config):
+        super(TestBackend, self).runtime_init(runtime_config)
+        
+        try:
+            self.sim_config['backend.test.temperature']
+        except (KeyError,TypeError):
+            log.info('skipping backend configuration for now')
+        else:            
+            for key in ('temperature', 'timestep', 'mass', 'friction_const', 'dimension',
+                        'initial_pcoord', 'potentials', 'nsteps'):
+                setattr(self, '_%s' % key, self.sim_config['backend.test.%s' % key])
     
     def propagate_segments(self, segments):
         log.debug('propagating %d segment(s)' % len(segments))

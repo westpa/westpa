@@ -1,8 +1,8 @@
 import sys, os, re, logging
 from optparse import OptionParser
 from command_optparse import CommandOptionParser
+import wemd
 import wemd.rc
-
 
 class WECmdLineTool(object):
     RC_SHORT_OPTION = '-r'
@@ -20,12 +20,9 @@ class WECmdLineTool(object):
     description = None
     
     def __init__(self):    
-        self.input_stream  = sys.stdin
-        self.output_stream = sys.stdout
-        self.error_stream  = sys.stderr
         self.runtime_config = None
-        self.dbengine = None
-        self.DBSession = None
+        self.sim_config = {}
+        self.sim_config_src = None
         self.log = logging.getLogger('%s.%s' 
                                      % (__name__, self.__class__.__name__))
         
@@ -38,15 +35,17 @@ class WECmdLineTool(object):
         try:
             self.runtime_config = wemd.rc.read_config(rcfile)
         except IOError, e:
-            self.error_stream.write('cannot open runtime config file: %s\n' % e)
-            self.exit(wemd.rc.EX_RTC_ERROR)
+            sys.stderr.write('cannot open runtime config file: %s\n' % e)
+            sys.exit(wemd.rc.EX_RTC_ERROR)    
         wemd.rc.configure_logging(self.runtime_config)
-                                            
-    def exit(self, code=0):
-        self.log.info('exiting with code %d (%s)' 
-                       % (code, wemd.rc.get_exit_code_name(code)))
-        sys.exit(code)
-
+        
+    def load_sim_manager(self, load_sim_config = True):
+        driver_name = self.runtime_config.get('sim_manager.driver', 'serial').lower()
+        Manager = wemd.sim_managers.get_sim_manager(driver_name)   
+        self.sim_manager = Manager()
+        self.sim_manager.runtime_init(self.runtime_config, load_sim_config)
+        return self.sim_manager
+        
     def run(self):
         raise NotImplementedError
 
@@ -80,7 +79,7 @@ class WECmdLineMultiTool(WECmdLineTool):
                 command(['--help'])
             else:
                 self.command_parser.print_help()
-        self.exit(0)
+        sys.exit(0)
         
     def run(self):
         self.command_parser.add_command('help', 'show help', self.cmd_help, 
