@@ -9,6 +9,7 @@ import logging
 log = logging.getLogger(__name__)
 
 import os, sys
+from itertools import izip
 
 class WEMDCtlTool(WECmdLineMultiTool):
     def __init__(self):
@@ -19,6 +20,8 @@ class WEMDCtlTool(WECmdLineMultiTool):
                         self.cmd_init, True)
         cop.add_command('status', 'show simulation status',
                         self.cmd_status, True)
+        cop.add_command('reweight', 'apply new bin weights to a WE simulation',
+                        self.cmd_reweight, True)
         cop.add_command('rebin', 'apply new bin limits to a WE simulation',
                         self.cmd_rebin, True)
         cop.add_command('truncate', 'truncate a WE simulation',
@@ -55,6 +58,81 @@ class WEMDCtlTool(WECmdLineMultiTool):
         self.sim_manager.sim_init(self.sim_config, self.sim_config_src)
         self.sim_manager.save_sim_state()
         sys.exit(0)
+        
+    def cmd_reweight(self, args):
+        import cPickle as pickle
+        import numpy
+        parser = self.make_parser('SIM_CONFIG', 
+                                  'apply new bin weights to a WE simulation '
+                                  +' according to the directives in SIM_CONFIG')
+        (opts, args) = parser.parse_args(args)
+
+        if len(args) != 1:
+            sys.stderr.write('a simulation configuration file is required\n')
+            parser.print_help(sys.stderr)
+            sys.exit(EX_USAGE_ERROR)
+        else:
+            sim_config_file = args[0]
+        
+        from wemd.util.config_dict import ConfigDict
+        sim_config_src = ConfigDict()
+        try:
+            sim_config_src.read_config_file(sim_config_file)
+        except IOError, e:
+            self.log.debug('cannot open simulation config file', exc_info=True)
+            sys.stderr.write('cannot open simulation config file: %s\n' 
+                                    % e)
+            sys.exit(EX_ENVIRONMENT_ERROR)
+            
+        sim_config_src.require('bins.weights_from')
+        
+        new_weights = pickle.load(open(sim_config_src['bins.weights_from'], 'rb'))
+                    
+        from sqlalchemy.sql import select, delete
+        from wemd.data_manager import schema
+    
+        sim_manager = self.load_sim_manager()
+        sim_manager.load_sim_state()
+        
+        dbsession = sim_manager.data_manager.require_dbsession()
+        n_iter = sim_manager.we_driver.current_iteration
+        qsegs = dbsession.query(Segment).filter(Segment.n_iter == n_iter)
+        
+        dbsession.begin()
+        n_total = qsegs.count()
+        n_prepared = qsegs.filter(Segment.status == Segment.SEG_STATUS_PREPARED).count()
+        
+        try:
+            if n_prepared and n_prepared != n_total:
+                sys.stderr.write('%d segments are incomplete\n' 
+                                        % n_prepared)
+                sys.stderr.write('complete or truncate current iteration'
+                                        +' before reweighting\n')
+                sys.exit(EX_STATE_ERROR)
+            
+            dbsession.execute(delete(schema.segment_lineage_table,
+                                     schema.segment_lineage_table.c.seg_id.in_(
+                                         select([schema.segments_table.c.seg_id],
+                                                schema.segments_table.c.n_iter == n_iter))))
+            qsegs.delete()
+            
+            # set new bin parameters
+            sim_manager.we_driver.sim_init(sim_manager.sim_config, sim_config_src)            
+            sim_manager.we_driver.current_iteration = n_iter-1
+            sim_manager.we_iter = sim_manager.data_manager.get_we_sim_iter(n_iter-1)
+            dbsession.query(WESimIter).filter(WESimIter.n_iter == n_iter).delete()
+            dbsession.flush()
+            sim_manager.run_we(reweight = new_weights)
+            dbsession.flush()     
+            sim_manager.save_sim_state()
+        except:
+            dbsession.rollback()
+            raise
+        else:
+            dbsession.commit()
+            sys.exit(0)
+        
+        
         
     def cmd_rebin(self, args):
         parser = self.make_parser('SIM_CONFIG', 

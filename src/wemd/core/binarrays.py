@@ -46,6 +46,17 @@ class BinArray:
             nd.fill(o)
             return nd
         
+    def get_norm(self):
+        return sum(b.norm for b in self.bins)
+    
+    norm = property(get_norm, None, None, 'total weight in all bins')
+    
+    def renorm(self, weight=1.0):
+        wfactor = weight/self.get_norm()
+        for bin in self:
+            for particle in bin:
+                particle.weight *= wfactor
+        
     def population_array(self):
         pop_array = numpy.empty(self.bins.shape, numpy.float_)
         for (i, bin) in enumerate(self.bins.flat):

@@ -3,7 +3,8 @@ __metaclass__ = type
 import cPickle as pickle
 import numpy
 import string, time, datetime
-from copy import copy        
+from copy import copy   
+from itertools import izip     
 
 from wemd.sim_managers import WESimMaster
 from wemd.core.we_sim import WESimIter
@@ -103,7 +104,7 @@ class DefaultWEMaster(WESimMaster):
         self.data_manager.update_we_sim_iter(self.we_iter) 
                     
                     
-    def run_we(self, initial_segments = None):
+    def run_we(self, initial_segments = None, reweight = None):
         current_iteration = self.we_driver.current_iteration
         
         # Get number of incomplete segments
@@ -150,6 +151,18 @@ class DefaultWEMaster(WESimMaster):
         we_int_stoptime = time.clock()
         new_we_iter = self.we_driver.current_iteration
         
+        # Reweight, if requested
+        if reweight is not None:
+            if reweight.shape != self.we_driver.bins.shape:
+                raise ValueError('shape mismatch')
+            for (bin, new_weight) in izip(self.we_driver.bins, reweight.flat):
+                if new_weight == 0.0:
+                    bin.clear()
+                elif bin.norm == 0.0:
+                    log.warn('cannot renormalize bin of weight 0; expect relaxation')
+                else:
+                    bin.renorm(new_weight)
+            
         # Mark old segments as merged/recycled/continued
         if not initial_segments:
             segments_by_id = dict((segment.seg_id, segment) for segment in segments)
