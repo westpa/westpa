@@ -27,8 +27,6 @@ class WEDriver:
 
 	self.sim_config = sim_config
 	self.initial_pcoord = numpy.array(sim_config.get_list('wemd.initial_pcoord', type=float))
-	self.target_pcoord_lower = numpy.array(sim_config.get_list('wemd.target_pcoord_lb', type=float))
-	self.target_pcoord_upper = numpy.array(sim_config.get_list('wemd.target_pcoord_ub', type=float))
                             
     def make_bins(self):
         """Create an array of ParticleCollection objects appropriate to this WE
@@ -46,8 +44,7 @@ class WEDriver:
         boundaries = binarray.boundaries
         ndim = binarray.ndim
 
-        target_lb = self.target_pcoord_lower
-        target_ub = self.target_pcoord_upper
+        target_pcoords = self.target_pcoords
 
         for particle in particles:
 
@@ -55,18 +52,21 @@ class WEDriver:
             assert(len(particle.pcoord) == ndim)
             index = [None] * ndim
             for idim in xrange(0, ndim):
-                #index[idim] = numpy.digitize( particle.pcoord[idim], boundaries[idim] )
                 for ibound in xrange(0, len(boundaries[idim])-1):
                     if boundaries[idim][ibound] <= particle.pcoord[idim] < boundaries[idim][ibound+1]:
                         index[idim] = ibound
 
-            for idim in xrange(0, ndim):
-                if (particle.pcoord[idim] < target_lb[idim]) or (particle.pcoord[idim] > target_ub[idim]):
+            for icoord in xrange(0, len(target_pcoords)):
+                #only add once if targets overlap
+                if particle_escaped == True:
                     break
-                elif idim == (ndim - 1):
-                    self.particles_escaped.add(particle)
-                    particle_escaped = True
-
+                for idim in xrange(0, ndim):
+                    if (particle.pcoord[idim] < target_pcoords[icoord][idim][0]) or (particle.pcoord[idim] > target_pcoords[icoord][idim][1]):
+                        break
+                    elif idim == (ndim - 1):
+                        self.particles_escaped.add(particle)
+                        particle_escaped = True
+               
             index = tuple(index)
             if None in index:
                 raise ValueError("Error, particle not in binspace %r" % particle.pcoord)
@@ -309,16 +309,60 @@ class WEDriver:
         # bin info stored here if time-dependent binning
         self.distribute_particles(particles, bins)
         log.info('%d particles escaped' % len(self.particles_escaped))
-        for particle in self.particles_escaped:
-            assert particle in particles
+        ndim = bins.ndim
+        source_pcoords = self.source_pcoords
+
+        #use one coordinate recycling
+        if not source_pcoords:
             # Clear particle lineage information so that the particles start
             # new trajectories next round
-            particle.parents = []
-            particle.p_parent = None
-            particle.pcoord = copy(self.initial_pcoord)
-	self.distribute_particles(particles, bins)
+            for particle in self.particles_escaped:
+                assert particle in particles                
+                particle.parents = []
+                particle.p_parent = None
+                particle.pcoord = copy(self.initial_pcoord)
+        #recycle proportional to the weight in a specified region
+        #[ "Name", [pcoord], [lower bound, upper bound], ...]
+        else:
+            for particle in self.particles_escaped:
+                assert particle in particles                
+                region_weight = numpy.zeros((len(source_pcoords),),dtype=numpy.float64)
 
-        
+                #calculate weight in each region
+                for icoord in xrange(0, len(source_pcoords)):
+                    for p in particles:
+                        for idim in xrange(0, ndim):
+                            if (p.pcoord[idim] < source_pcoords[icoord][idim+3][0]) or (p.pcoord[idim] > source_pcoords[icoord][idim+3][1]):
+                                break
+                            elif idim == (ndim - 1):
+                                region_weight[icoord] += p.weight
+
+                region_prob = numpy.zeros((len(source_pcoords),),dtype=numpy.float64)
+                        
+                #assign new position based on that weight
+                
+                #if regions are empty use initial weight
+                if region_weight.sum() == 0:
+                    for icoord in xrange(0,len(region_weight)):      
+                        region_prob[icoord] = source_pcoords[icoord][1]
+                else:
+                    for icoord in xrange(0,len(region_weight)):
+                        region_prob[icoord] = region_weight[icoord] / region_weight.sum()
+                        
+                icoord = 0
+                while(True):
+
+                    if numpy.random.random_sample() < region_prob[icoord]:
+                        particle.parents = []
+                        particle.p_parent = None
+                        particle.pcoord = copy(source_pcoords[icoord][2])
+                        particle.initial_region = source_pcoords[icoord][0]
+                        break
+                    
+                    icoord = (icoord+1) % len(source_pcoords)
+
+	    self.distribute_particles(particles, bins)
+
         # endpoint bin assignments stored here
         
         # Split/merge particles

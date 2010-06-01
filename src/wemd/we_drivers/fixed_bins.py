@@ -56,7 +56,61 @@ class FixedBinWEDriver(WEDriver):
                     
             if None in bin_limits:
                 raise ConfigError('missing bin boundaries for at least one dimension')
-        
+
+        #read in the recycling regions
+        #[ [lower bound, uppder bound], ...]
+        target_pcoords = []
+        target_entries = [key for key in sim_config if key.startswith('bins.target_pcoord')]
+        for target_entry in target_entries:
+            target_pcoords.append( eval(sim_config.get(target_entry)) )
+
+        #check to make sure they are correct
+        for i in xrange(0, len(target_pcoords)):
+
+            if len(target_pcoords[i]) != ndim:
+                raise ConfigError("Invalid target pcoord specified, check dimensions %r" % (target_pcoords[i]))
+
+            for idim in xrange(0, len(target_pcoords[i])):
+                if len(target_pcoords[i][idim]) != 2:
+                    raise ConfigError("Invalid target pcoord specified, [ [lower bound, upper bound], ...] %r" %(target_pcoords[i]))
+
+        if not target_pcoords:
+            raise ConfigError("No recycling targets specified")
+            
+        #read in the source regions
+        #[ "Name", [pcoord], [lower bound, upper bound], ...]
+        source_pcoords = []
+        source_entries = [key for key in sim_config if key.startswith('bins.source_pcoord_')]
+        reIsSourcePcoord = re.compile('bins\.source_pcoord_(.+)')
+
+        for source_entry in source_entries:
+            m = reIsSourcePcoord.match(source_entry)
+            if not m:
+                raise ConfigError('Invalid source pcoord specified')
+            else:
+                source_pcoord_vals = eval(sim_config.get(source_entry))
+                source_pcoord_vals.insert(0,m.group(1))
+                source_pcoords.append(source_pcoord_vals)          
+
+        #check to make sure they are correct
+        for i in xrange(0, len(source_pcoords)):
+
+            if len(source_pcoords[i]) != ndim+3:
+                raise ConfigError("Invalid source pcoord specified, check dimensions \n source_pcoord_%s" % (source_pcoords[i][0]))
+
+            if (source_pcoords[i][1] < 0) or (source_pcoords[i][1] > 1):
+                raise ConfigError("Invalid initial weight \n source_pcoord_%s" % (source_pcoords[i][0]))
+            
+            if len(source_pcoords[i][2]) != ndim:
+                raise ConfigError("Invalid source pcoord specified, check pcoord dimensions \n source_pcoord_%s" % (source_pcoords[i][0]))
+            
+            for idim in xrange(3, len(source_pcoords[i])):
+                if len(source_pcoords[i][idim]) != 2:
+                    raise ConfigError("Invalid source pcoord specified, [ initial weight, [pcoord],"+\
+                                      " [lower bound, upper bound], ...] \n source_pcoord_%s" %(source_pcoords[i][0]))
+
+        self.target_pcoords = target_pcoords
+        self.source_pcoords = source_pcoords
         self.bin_boundaries =  bin_limits
         self.particles_per_bin = sim_config.get_int('bins.particles_per_bin')
         self.bin_split_threshold = sim_config.get_float('bins.split_threshold', 2.0)

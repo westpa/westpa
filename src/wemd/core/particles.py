@@ -9,12 +9,13 @@ class Particle:
                    self.pcoord)
     
     def __init__(self, particle_id = None, weight = None, pcoord = None, 
-                 p_parent = None, parents = None):
+                 p_parent = None, parents = None, initial_region = None):
         self.particle_id = particle_id 
         self.weight = weight
         self.pcoord = pcoord
         self.p_parent = p_parent
         self.parents = parents or set()
+        self.initial_region = initial_region
         
 class ParticleCollection(set):
     def __init__(self, iterable=None):
