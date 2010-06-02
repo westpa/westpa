@@ -125,6 +125,7 @@ class WEMDCtlTool(WECmdLineMultiTool):
             sim_manager.run_we(reweight = new_weights)
             dbsession.flush()     
             sim_manager.save_sim_state()
+            sim_manager.save_sim_config()
         except:
             dbsession.rollback()
             raise
@@ -183,17 +184,21 @@ class WEMDCtlTool(WECmdLineMultiTool):
                                          select([schema.segments_table.c.seg_id],
                                                 schema.segments_table.c.n_iter == n_iter))))
             qsegs.delete()
+            # flush the deletes
             dbsession.flush()
             
-            #sim_manager.load_we_driver(sim_config)
             sim_manager.we_driver.sim_init(sim_manager.sim_config, sim_config_src)
-            
             sim_manager.we_driver.current_iteration = n_iter-1
             sim_manager.we_iter = sim_manager.data_manager.get_we_sim_iter(n_iter-1)
             dbsession.query(WESimIter).filter(WESimIter.n_iter == n_iter).delete()
+            # flush the delete of the WESimIter
+            dbsession.flush()
+            
             sim_manager.run_we()
+            # flush the new WESimIter
             dbsession.flush()
             sim_manager.save_sim_state()
+            sim_manager.save_sim_config()
         except:
             dbsession.rollback()
             raise
