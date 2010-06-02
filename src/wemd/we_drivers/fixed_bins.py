@@ -78,38 +78,51 @@ class FixedBinWEDriver(WEDriver):
             raise ConfigError("No recycling targets specified")
             
         #read in the source regions
-        #[ "Name", [pcoord], [lower bound, upper bound], ...]
-        source_pcoords = []
+        #source_pcoords['Region Name'] is a dictionary with the keys 'pcoord', 'region', and 'weight'
+        source_pcoords = {}
         source_entries = [key for key in sim_config_src if key.startswith('bins.source_pcoord_')]
-        reIsSourcePcoord = re.compile('bins\.source_pcoord_(.+)')
+        reIsSourcePcoord = re.compile('bins\.source_pcoord_(.+)_(.+)')
 
         for source_entry in source_entries:
             m = reIsSourcePcoord.match(source_entry)
             if not m:
                 raise ConfigError('Invalid source pcoord specified')
             else:
-                source_pcoord_vals = eval(sim_config_src.get(source_entry))
-                source_pcoord_vals.insert(0,m.group(1))
-                source_pcoords.append(source_pcoord_vals)          
+                if m.group(2) not in source_pcoords.keys():
+                    source_pcoords[m.group(2)] = {} 
 
+                if m.group(1) == 'weight':
+                    source_pcoords[m.group(2)][m.group(1)] = sim_config_src.get_float(source_entry)
+                elif m.group(1) == 'pcoord':
+                    pcoord_vals = [float(x) for x in sim_config_src.get_list(source_entry)]
+                    source_pcoords[m.group(2)][m.group(1)] = numpy.array( pcoord_vals, dtype=numpy.float64 )
+                elif m.group(1) == 'region':
+                    source_pcoords[m.group(2)][m.group(1)] = eval(sim_config_src.get(source_entry))
+                else:
+                    raise ConfigError('Invalid source pcoord specified')     
+                               
         #check to make sure they are correct
-        for i in xrange(0, len(source_pcoords)):
+        for source_name in source_pcoords:
 
-            if len(source_pcoords[i]) != ndim+3:
-                raise ConfigError("Invalid source pcoord specified, check dimensions \n source_pcoord_%s" % (source_pcoords[i][0]))
+            for key in ('weight', 'pcoord', 'region'):
+                if key not in source_pcoords[source_name]:
+                    raise ConfigError("Invalid source pcoord specified -- missing key %s -- source_pcoord_%s" % (key, source_name))
 
-            if (source_pcoords[i][1] < 0) or (source_pcoords[i][1] > 1):
-                raise ConfigError("Invalid initial weight \n source_pcoord_%s" % (source_pcoords[i][0]))
+            if (source_pcoords[source_name]['weight'] < 0) or (source_pcoords[source_name]['weight'] > 1):
+                raise ConfigError("Invalid initial weight -- source_pcoord_%s" % (source_name))
             
-            if len(source_pcoords[i][2]) != ndim:
-                raise ConfigError("Invalid source pcoord specified, check pcoord dimensions \n source_pcoord_%s" % (source_pcoords[i][0]))
+            if len(source_pcoords[source_name]['pcoord']) != ndim:
+                raise ConfigError("Invalid source pcoord specified, check pcoord dimensions -- source_pcoord_%s" % (source_name))
             
-            for idim in xrange(3, len(source_pcoords[i])):
-                if len(source_pcoords[i][idim]) != 2:
-                    raise ConfigError("Invalid source pcoord specified, [ initial weight, [pcoord],"+\
-                                      " [lower bound, upper bound], ...] \n source_pcoord_%s" %(source_pcoords[i][0]))
-
-        sim_config['bin.target_pcoords'] = self.target_pcoords = target_pcoords
+            if len(source_pcoords[source_name]['region']) != ndim:
+                raise ConfigError("Invalid source region specified, check region dimensions -- source_pcoord_%s" % (source_name))
+            
+            for idim in xrange(0, len(source_pcoords[source_name]['region'])):
+                if len(source_pcoords[source_name]['region'][idim]) != 2:
+                    raise ConfigError("Invalid source pcoord region specified "+\
+                                      "[ [lower bound, upper bound], ...] -- source_pcoord_%s" %(source_name))
+        
+        sim_config['bin.target_pcoords'] = self.target_pcoords = numpy.array(target_pcoords,dtype=numpy.float64)
         sim_config['bin.source_pcoords'] = self.source_pcoords = source_pcoords
         sim_config['bins.boundaries'] = self.bin_boundaries = bin_limits
         sim_config['bins.particles_per_bin'] = self.particles_per_bin = sim_config_src.get_int('bins.particles_per_bin')       

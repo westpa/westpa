@@ -188,14 +188,21 @@ class DefaultWEMaster(WESimMaster):
                         endpoint_type = Segment.SEG_ENDPOINT_TYPE_CONTINUATION,
                         pcoord = None)
             if current_iteration > 0:
-                if particle.p_parent and particle.p_parent not in self.we_driver.particles_escaped:
-                    s.p_parent = self.data_manager.get_segment(particle.p_parent.particle_id)
-                    log.debug('segment %r primary parent is %r' 
-                              % (s.seg_id or '(New)', s.p_parent.seg_id))
+                if particle.p_parent:
+                    if particle.p_parent not in self.we_driver.particles_escaped:
+                        s.p_parent = self.data_manager.get_segment(particle.p_parent.particle_id)
+                        log.debug('segment %r primary parent is %r' 
+                                  % (s.seg_id or '(New)', s.p_parent.seg_id))
+                    else:
+                        if particle.initial_region:
+                            s.data['initial_region'] = particle.initial_region
+                        else: #use the parent's recycling target
+                            s.data['initial_region'] = particle.p_parent.initial_region                   
                 else:
                     log.debug('segment %r has no primary parent; will restart in initial bin' % s)
-                    s.data.update(initial_region = particle.initial_region)  
-                    
+                    if particle.initial_region:
+                        s.data['initial_region'] = particle.initial_region
+
                 if particle.parents:
                     s.parents = set([self.data_manager.get_segment(pp.particle_id)
                                      for pp in particle.parents])

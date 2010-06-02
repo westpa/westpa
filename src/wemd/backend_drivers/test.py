@@ -1,4 +1,4 @@
-import os, sys, subprocess, time, datetime, tempfile, string
+import os, sys, subprocess, time, datetime, tempfile, string, re
 from resource import getrusage, RUSAGE_CHILDREN
 import logging
 log = logging.getLogger(__name__)
@@ -21,16 +21,15 @@ class TestBackend(BackendDriver):
     def __init__(self):
         super(TestBackend, self).__init__()
 
-        
     def sim_init(self, sim_config, sim_config_src):
         self.sim_config = sim_config
         sim_config_src.require_all(('backend.test.temperature',
                                     'backend.test.timestep',
                                     'backend.test.mass',
                                     'backend.test.friction_const',
-                                    'backend.test.dimension',
-                                    'backend.test.initial_pcoord',
-                                    'backend.test.nsteps'
+                                    'backend.test.nsteps',
+                                    'bins.ndim',
+                                    'wemd.initial_pcoord'
                                     ))
         # temperature in K
         self._temperature = sim_config['backend.test.temperature'] = sim_config_src.get_float('backend.test.temperature')
@@ -41,24 +40,48 @@ class TestBackend(BackendDriver):
         # friction constant (1/s)
         self._friction_const = sim_config['backend.test.friction_const'] = sim_config_src.get_float('backend.test.friction_const')
         # dimensionality
-        self._dimension = sim_config['backend.test.dimension'] = sim_config_src.get_int('backend.test.dimension')
+        self._dimension = sim_config['bins.ndim'] = sim_config_src.get_int('bins.ndim')
+        
         # number of timesteps
         self._nsteps = sim_config['backend.test.nsteps'] = sim_config_src.get_int('backend.test.nsteps')
         
         #read in intial coord, in nm
-        pcoord_vals = sim_config_src.get_list('backend.test.initial_pcoord', type=float)
-        self._initial_pcoord = sim_config['backend.test.initial_pcoord'] = numpy.array( [pcoord_vals], dtype=numpy.float64 )
-
+        if 'wemd.initial_pcoord' in sim_config.keys():
+            self._initial_pcoord = sim_config['wemd.initial_pcoord']
+        else:
+            pcoord_vals = [float(x) for x in sim_config_src.get_list('wemd.initial_pcoord')]
+            self._initial_pcoord = sim_config['wemd.initial_pcoord'] = numpy.array( pcoord_vals, dtype=numpy.float64 )
+        
         #read in the Gaussian Potentials (if present)
-        potential = []
+        potential = {}
         potential_entries = [key for key in sim_config_src if key.startswith('backend.test.potential')]
+        reIsPotential = re.compile('backend\.test\.potential_(.+)_(.+)')
         for potential_entry in potential_entries:
+            m = reIsPotential.match( potential_entry )
+            if not m:
+                raise ConfigError("Invalid potential specified")
+            else:
+                if m.group(2) not in potential.keys():
+                    potential[m.group(2)] = {}
+                    
+                if m.group(1) == 'height':
+                    potential[m.group(2)][m.group(1)] = sim_config_src.get_float(potential_entry)
+                elif m.group(1) == 'coord' or m.group(1) == 'width':
+                    coord_vals = [float(x) for x in sim_config_src.get_list(potential_entry)]
+                    potential[m.group(2)][m.group(1)] = numpy.array( coord_vals, dtype=numpy.float64 )
+                else:
+                    raise ConfigError('Invalid potential specified')
+                  
             # FIXME: prefer typed retrieval functions from ConfigDict over eval
-            potential.append(eval(sim_config_src.get(potential_entry)))
+            #potential.append(eval(sim_config_src.get(potential_entry)))
 
         #check to make sure they have the correct dimensions
-        for i in xrange(0, len(potential)):
-            if len(potential[i][1]) != self._dimension or len(potential[i][2]) != self._dimension:
+        for pkey in potential.keys():
+            for key in ('height', 'coord', 'width'):
+                if key not in potential[pkey]:
+                    raise ConfigError("Invalid potential -- missing key %s" % (key))
+            
+            if len(potential[pkey]['coord']) != self._dimension or len(potential[pkey]['width']) != self._dimension:
                 raise ConfigError("Invalid potential specified, check dimensions")
 
         self._potentials = sim_config['backend.test.potentials'] = potential
@@ -66,6 +89,7 @@ class TestBackend(BackendDriver):
         #allow for > 3 dimensions
         if( self._dimension < 1 ):
             raise ConfigError("Invalid Dimension")
+        
         
     def runtime_init(self, runtime_config):
         super(TestBackend, self).runtime_init(runtime_config)
@@ -75,24 +99,37 @@ class TestBackend(BackendDriver):
         except (KeyError,TypeError):
             log.info('skipping backend configuration for now')
         else:            
-            for key in ('temperature', 'timestep', 'mass', 'friction_const', 'dimension',
-                        'initial_pcoord', 'potentials', 'nsteps'):
+            for key in ('temperature', 'timestep', 'mass', 'friction_const',
+                        'potentials', 'nsteps'):
                 setattr(self, '_%s' % key, self.sim_config['backend.test.%s' % key])
-    
+                
+            self._initial_pcoord = self.sim_config['wemd.initial_pcoord']
+            self._dimension = self.sim_config['bins.ndim']
+            self._source_pcoords = self.sim_config['bin.source_pcoords']
+
+            
     def propagate_segments(self, segments):
         log.debug('propagating %d segment(s)' % len(segments))
         for segment in segments:
             self.pre_segment(segment)
-
-        
+                       
             if segment.n_iter == 1 or segment.p_parent == None:
                 log.debug('Initializing segment coordinates from initial pcoord')
-                
+
                 if segment.data.get('initial_region') is not None:
-                    segment.pcoord = copy(self._initial_pcoord)                    
-                    print "test backend using region %r" % segment.data['initial_region']
+                    initial_region = segment.data['initial_region']
+
+                    #source_pcoord = eval(sim_config_src.get( config_name ))
+                    source_pcoord = self._source_pcoords[initial_region]
+                    source_pcoord_val = numpy.array( [source_pcoord['pcoord']], dtype=numpy.float64 )
+                    
+                    #use the pcoord associated with the region
+                    segment.pcoord = copy(source_pcoord_val)                    
+
                 else:
-                    segment.pcoord = copy(self._initial_pcoord)
+                    pcoord_val = numpy.array( [self._initial_pcoord], dtype=numpy.float64 )
+                    segment.pcoord = copy(pcoord_val)
+           
             else:
                 log.debug('Initializing segment coordinates from parent')
                 segment.pcoord = copy(segment.p_parent.pcoord)
@@ -163,20 +200,19 @@ class TestBackend(BackendDriver):
 
         diff_potential_val = numpy.zeros((1,dim),dtype=numpy.float64)
 
-        #potential has the format [ H (kT), [mu_x,...] (nm), [sigma_x,...] (nm) ]
-        for potential in self._potentials:
-
+        for pkey in self._potentials.keys():       
+    
             # H (k_b T) * nm
-            g_const = ( 1 / nano ) * potential[0] * k_b * self._temperature
+            g_const = ( 1 / nano ) * self._potentials[pkey]['height'] * k_b * self._temperature
 
             # exp(- (x-mu_x)^2/(2 sigma_x^2)) * ...
             g_exp = 1
             for i in xrange(0, dim):
-                g_exp *= math.exp(-0.5 * (pos[i] - potential[1][i]) ** 2.0 / (potential[2][i] ** 2.0) )
+                g_exp *= math.exp(-0.5 * (pos[i] - self._potentials[pkey]['coord'][i]) ** 2.0 / (self._potentials[pkey]['width'][i] ** 2.0) )
 
             g_grad = []
             for i in xrange(0, dim):
-                g_grad.append( - g_const * g_exp * (pos[i] - potential[1][i]) / (potential[2][i] ** 2.0) )
+                g_grad.append( - g_const * g_exp * (pos[i] - self._potentials[pkey]['coord'][i]) / (self._potentials[pkey]['width'][i] ** 2.0) )
 
             diff_potential_val += numpy.array(g_grad,dtype=numpy.float64)
 

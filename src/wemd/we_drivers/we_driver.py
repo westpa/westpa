@@ -29,7 +29,7 @@ class WEDriver:
     def sim_init(self, sim_config, sim_config_src):
         self.sim_config = sim_config
         
-        sim_config_src.require_all(('wemd.initial_pcoord'))
+        sim_config_src.require('wemd.initial_pcoord')
         self.initial_pcoord = sim_config['wemd.initial_pcoord'] \
                             = numpy.array(sim_config_src.get_list('wemd.initial_pcoord', type=float))
 
@@ -50,17 +50,14 @@ class WEDriver:
         boundaries = binarray.boundaries
         ndim = binarray.ndim
 
-        #target_lb = self.target_pcoord_lower
-        #target_ub = self.target_pcoord_upper
-        self.target_pcoords
         n_targets = len(self.target_pcoords)
         target_bounds = numpy.empty((n_targets, ndim, 4), numpy.float64)
         for itarg in xrange(0,n_targets):
-            target_bounds[0,:,0] = float('-inf')
-            target_bounds[0,:,1] = self.target_pcoord[itarg][:][0]
-            target_bounds[0,:,2] = self.target_pcoord[itarg][:][1]
-            target_bounds[0,:,3] = float('inf')
-                
+            target_bounds[itarg,:,0] = float('-inf')
+            target_bounds[itarg,:,1] = self.target_pcoords[itarg,:,0]
+            target_bounds[itarg,:,2] = self.target_pcoords[itarg,:,1]
+            target_bounds[itarg,:,3] = float('inf')
+              
         particle_list = numpy.empty((len(particles),), numpy.object_)
         recycled_particles = set()
         particle_list[:] = list(particles)
@@ -73,6 +70,7 @@ class WEDriver:
         # Find particles at the sink(s)
         for itarget in xrange(0, target_bounds.shape[0]):
             for idim in xrange(0, ndim):
+                #print target_bounds[itarget,idim,:]
                 indices[:, idim] = numpy.digitize(pcoords[:, idim], target_bounds[itarget,idim,:])
             # Every row which is all 2s indicates a particle which is entirely within the given target region
             
@@ -348,44 +346,47 @@ class WEDriver:
                 particle.p_parent = None
                 particle.pcoord = copy(self.initial_pcoord)
         #recycle proportional to the weight in a specified region
-        #[ "Name", [pcoord], [lower bound, upper bound], ...]
+        #source_pcoords['Region Name'] is a dictionary with the keys 'pcoord', 'region', and 'weight'
         else:
+            npcoords = len(source_pcoords)
             for particle in self.particles_escaped:
                 assert particle in particles                
-                region_weight = numpy.zeros((len(source_pcoords),),dtype=numpy.float64)
+                region_weight = numpy.zeros((npcoords,),dtype=numpy.float64)
 
                 #calculate weight in each region
-                for icoord in xrange(0, len(source_pcoords)):
+                kcoord = source_pcoords.keys()
+                for icoord in xrange(0,npcoords):
                     for p in particles:
                         for idim in xrange(0, ndim):
-                            if (p.pcoord[idim] < source_pcoords[icoord][idim+3][0]) or (p.pcoord[idim] > source_pcoords[icoord][idim+3][1]):
+                            if (p.pcoord[idim] < source_pcoords[kcoord[icoord]]['region'][idim][0]) or (p.pcoord[idim] > source_pcoords[kcoord[icoord]]['region'][idim][1]):
                                 break
                             elif idim == (ndim - 1):
                                 region_weight[icoord] += p.weight
-
-                region_prob = numpy.zeros((len(source_pcoords),),dtype=numpy.float64)
+                    
+                region_prob = numpy.zeros((npcoords,),dtype=numpy.float64)
                         
                 #assign new position based on that weight
                 
                 #if regions are empty use initial weight
                 if region_weight.sum() == 0:
                     for icoord in xrange(0,len(region_weight)):      
-                        region_prob[icoord] = source_pcoords[icoord][1]
+                        region_prob[icoord] = source_pcoords[kcoord[icoord]]['weight']
                 else:
                     for icoord in xrange(0,len(region_weight)):
                         region_prob[icoord] = region_weight[icoord] / region_weight.sum()
                         
+             
                 icoord = 0
                 while(True):
 
-                    if numpy.random.random_sample() < region_prob[icoord]:
+                    if numpy.random.random_sample() < region_prob[icoord]:                       
                         particle.parents = []
                         particle.p_parent = None
-                        particle.pcoord = copy(source_pcoords[icoord][2])
-                        particle.initial_region = source_pcoords[icoord][0]
+                        particle.pcoord = copy(source_pcoords[kcoord[icoord]]['pcoord'])
+                        particle.initial_region = kcoord[icoord]
                         break
-                    
-                    icoord = (icoord+1) % len(source_pcoords)
+                                    
+                    icoord = (icoord+1) % npcoords
 
 	    self.distribute_particles(particles, bins)
 
