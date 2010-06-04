@@ -19,6 +19,11 @@ class ExecutableBackend(BackendDriver):
     
     ENV_PARENT_SEG_ID        = 'WEMD_PARENT_SEG_ID'
     ENV_PARENT_SEG_DATA_REF  = 'WEMD_PARENT_SEG_DATA_REF'
+
+    ENV_OLD_SEG_ID        = 'WEMD_OLD_SEG_ID'
+    ENV_OLD_SEG_DATA_REF  = 'WEMD_OLD_SEG_DATA_REF'
+        
+    ENV_REC_DATA_REF     = 'WEMD_REC_DATA_REF'
     
     def __init__(self):
         self.exename = None
@@ -46,7 +51,7 @@ class ExecutableBackend(BackendDriver):
         runtime_config.require('backend.executable.propagator')
         
         drtemplate = self.runtime_config.setdefault('backend.executable.segref_template', 
-                                                   'traj_segs/${we_iter}/${seg_id}')
+                                                   'traj_segs/${n_iter}/${seg_id}')
         ctemplate = string.Template(drtemplate)
         try:
             ctemplate.safe_substitute(dict())
@@ -54,7 +59,27 @@ class ExecutableBackend(BackendDriver):
             raise ConfigError('invalid data ref template %r' % drtemplate)
         else:
             self.segref_template = ctemplate
-            
+
+        drtemplate = self.runtime_config.setdefault('backend.executable.recref_template', 
+                                                   'rec_targs/${region_name}')
+        ctemplate = string.Template(drtemplate)
+        try:
+            ctemplate.safe_substitute(dict())
+        except ValueError, e:
+            raise ConfigError('invalid rec data ref template %r' % drtemplate)
+        else:
+            self.recref_template = ctemplate
+
+        drtemplate = self.runtime_config.setdefault('backend.executable.old_segref_template', 
+                                                   'old_traj_segs/${n_iter}/${seg_id}')
+        ctemplate = string.Template(drtemplate)
+        try:
+            ctemplate.safe_substitute(dict())
+        except ValueError, e:
+            raise ConfigError('invalid old data ref template %r' % drtemplate)
+        else:
+            self.old_segref_template = ctemplate
+                                    
         pcoord_file_format = self.runtime_config.get('backend.executable.pcoord_file.format', 'text')
         if pcoord_file_format != 'text':
             raise ConfigError('invalid pcoord file format %r' % pcoord_file_format)
@@ -113,6 +138,12 @@ class ExecutableBackend(BackendDriver):
     def make_data_ref(self, segment):
         return self.segref_template.safe_substitute(segment.__dict__)
 
+    def make_old_data_ref(self, we_iter, seg_id):
+        return self.old_segref_template.safe_substitute({'n_iter':we_iter,'seg_id':seg_id})
+
+    def make_rec_data_ref(self, reg_name):
+        return self.recref_template.safe_substitute(dict(region_name=reg_name))
+    
     def _popen(self, child_info, addtl_environ = None, template_args = None):
         """Create a subprocess.Popen object for the appropriate child
         process, passing it the appropriate environment and setting up proper
@@ -158,12 +189,23 @@ class ExecutableBackend(BackendDriver):
         return addtl_environ
     
     def _segment_env(self, segment):
+
         addtl_environ = {self.ENV_CURRENT_ITER: str(segment.n_iter),
                          self.ENV_CURRENT_SEG_DATA_REF: self.make_data_ref(segment),
                          self.ENV_CURRENT_SEG_ID: str(segment.seg_id),}
+        
+        if segment.data.get('old_seg_id') is not None:
+            assert segment.data['old_we_iter'] is not None
+            addtl_environ[self.ENV_OLD_SEG_ID] = str(segment.data['old_seg_id'])
+            addtl_environ[self.ENV_OLD_SEG_DATA_REF] = self.make_old_data_ref(segment.data['old_we_iter'],segment.data['old_seg_id'])
+                    
         if segment.p_parent:
             addtl_environ[self.ENV_PARENT_SEG_ID] = str(segment.p_parent.seg_id)
-            addtl_environ[self.ENV_PARENT_SEG_DATA_REF] = self.make_data_ref(segment.p_parent)        
+            addtl_environ[self.ENV_PARENT_SEG_DATA_REF] = self.make_data_ref(segment.p_parent)
+            
+        if segment.data.get('initial_region') is not None:
+            addtl_environ[self.ENV_REC_DATA_REF] = self.make_rec_data_ref( segment.data['initial_region'] )
+                    
         return addtl_environ
     
     def _run_pre_post(self, child_info, env_func, env_obj):

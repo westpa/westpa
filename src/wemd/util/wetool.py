@@ -18,7 +18,7 @@ class WECmdLineTool(object):
         
     usage = '%prog [options] COMMAND [...]'
     description = None
-    
+        
     def __init__(self):    
         self.runtime_config = None
         self.sim_config = {}

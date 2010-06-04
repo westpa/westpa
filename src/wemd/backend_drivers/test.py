@@ -71,9 +71,6 @@ class TestBackend(BackendDriver):
                     potential[m.group(2)][m.group(1)] = numpy.array( coord_vals, dtype=numpy.float64 )
                 else:
                     raise ConfigError('Invalid potential specified')
-                  
-            # FIXME: prefer typed retrieval functions from ConfigDict over eval
-            #potential.append(eval(sim_config_src.get(potential_entry)))
 
         #check to make sure they have the correct dimensions
         for pkey in potential.keys():
@@ -119,7 +116,6 @@ class TestBackend(BackendDriver):
                 if segment.data.get('initial_region') is not None:
                     initial_region = segment.data['initial_region']
 
-                    #source_pcoord = eval(sim_config_src.get( config_name ))
                     source_pcoord = self._source_pcoords[initial_region]
                     source_pcoord_val = numpy.array( [source_pcoord['pcoord']], dtype=numpy.float64 )
                     
@@ -143,8 +139,6 @@ class TestBackend(BackendDriver):
             segment.data['dt'] = self._timestep
             # Propagate System
             self.update_progress_coordinate(segment)
-
-            #print "segment.pcoord: %r" % segment.pcoord
 
             # Record end timing info
             final_cputime = getrusage(RUSAGE_CHILDREN).ru_utime

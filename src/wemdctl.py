@@ -4,6 +4,7 @@ from wemd import Segment, WESimIter
 from wemd.sim_managers import get_sim_manager
 from wemd.util.wetool import WECmdLineMultiTool
 from wemd.rc import EX_USAGE_ERROR, EX_ENVIRONMENT_ERROR, EX_STATE_ERROR
+from copy import copy
 
 import logging
 log = logging.getLogger(__name__)
@@ -18,6 +19,8 @@ class WEMDCtlTool(WECmdLineMultiTool):
         
         cop.add_command('init', 'initialize a new WE simulation',
                         self.cmd_init, True)
+        cop.add_command('reinit', 'reinitialize a WE simulation',
+                        self.cmd_reinit, True)
         cop.add_command('status', 'show simulation status',
                         self.cmd_status, True)
         cop.add_command('reweight', 'apply new bin weights to a WE simulation',
@@ -57,6 +60,78 @@ class WEMDCtlTool(WECmdLineMultiTool):
         self.load_sim_manager(load_sim_config = False)
         self.sim_manager.sim_init(self.sim_config, self.sim_config_src)
         self.sim_manager.save_sim_state()
+        sys.exit(0)
+
+    def cmd_reinit(self, args):
+        parser = self.make_parser('NEW_SIM_CONFIG', 
+                                  'Start a new WEMD simulation from an old one according '
+                                  +'to the directives in NEW_SIM_CONFIG')
+        parser = self.make_parser('NEW_RUN_CONFIG', 
+                                  'new_run.cfg that will be used for the reinit\'d simulation ')        
+        (opts, args) = parser.parse_args(args)
+        if len(args) != 2:
+            sys.stderr.write('a simulation and new runtime configuration file is required\n')
+            parser.print_help(sys.stderr)
+            sys.exit(EX_USAGE_ERROR)
+        else:
+            sim_config_file = args[0]
+            new_rc_file = args[1]
+            
+        from wemd.util.config_dict import ConfigDict
+        self.sim_config_src = ConfigDict()
+        try:
+            self.sim_config_src.read_config_file(sim_config_file)
+        except IOError, e:
+            self.log.debug('cannot open simulation config file', exc_info=True)
+            sys.stderr.write('cannot open simulation config file: %s\n' % e)
+            sys.exit(EX_ENVIRONMENT_ERROR)
+
+        try:
+            new_runtime_config = wemd.rc.read_config(new_rc_file)
+        except IOError, e:
+            self.log.debug('cannot open new run config file', exc_info=True)
+            sys.stderr.write('cannot open new run config file: %s\n' % e)
+            sys.exit(EX_ENVIRONMENT_ERROR)            
+
+        if self.runtime_config.get('data.state') == new_runtime_config.get('data.state')\
+            or self.runtime_config.get('data.db.url') == new_runtime_config.get('data.db.url')\
+            or self.runtime_config.get('data.sim_config') == new_runtime_config.get('data.sim_config'):
+            self.log.debug('data parameters can\'t be the same \n see [data] in run config files\n', exc_info=True)
+            sys.stderr.write('data parameters can\'t be the same \n see [data] in run config files\n')
+            sys.exit(EX_ENVIRONMENT_ERROR)  
+
+                
+        sim_manager = self.load_sim_manager()
+        sim_manager.load_sim_state()
+
+        new_driver_name = new_runtime_config.get('sim_manager.driver', 'serial').lower()
+        Manager = wemd.sim_managers.get_sim_manager(new_driver_name)   
+        new_sim_manager = Manager()
+        new_sim_manager.runtime_init(new_runtime_config, load_sim_config = False)
+                    
+        from wemd import Segment
+        import numpy
+
+        n_iter = sim_manager.we_driver.current_iteration
+        
+        new_segments = []
+        old_segments = sim_manager.data_manager.get_segments(Segment.n_iter == n_iter, result_format='objects')
+        for old_s in old_segments:
+            assert old_s.status == Segment.SEG_STATUS_COMPLETE
+            last_pcoord = numpy.array( [old_s.pcoord[-1][:]], dtype=numpy.float64)
+
+
+            new_s = Segment( n_iter = 0,
+                            status = Segment.SEG_STATUS_COMPLETE,
+                            weight = old_s.weight,
+                            pcoord = copy(last_pcoord),
+                            data = {'old_we_iter': old_s.n_iter, 'old_seg_id': old_s.seg_id} )
+            
+            new_segments.append( new_s )
+
+        new_sim_manager.sim_init(self.sim_config, self.sim_config_src, new_segments)
+        new_sim_manager.save_sim_state() 
+                
         sys.exit(0)
         
     def cmd_reweight(self, args):

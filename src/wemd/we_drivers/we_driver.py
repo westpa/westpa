@@ -388,8 +388,7 @@ class WEDriver:
                                     
                     icoord = (icoord+1) % npcoords
 
-	    self.distribute_particles(particles, bins)
-
+        self.distribute_particles(particles, bins)
         # endpoint bin assignments stored here
         
         # Split/merge particles

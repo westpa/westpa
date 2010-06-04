@@ -13,7 +13,7 @@ class WESimManagerBase:
     def __init__(self):
         # Runtime configuration; can be changed between invocations (to change file locations, etc)
         self.runtime_config = None
-    
+
         # Static simulation configuration, set up and locked in at "wemdctl init"
         self.sim_config = None
         
@@ -27,7 +27,7 @@ class WESimManagerBase:
         self.runtime_config = runtime_config
         if load_sim_config:
             self.load_sim_config()
-        
+                    
     def sim_init(self, sim_config, sim_config_src):
         """Create the necessary state for a new simulation"""
         raise NotImplementedError
@@ -43,7 +43,7 @@ class WESimManagerBase:
         self.runtime_config.require(RC_SIM_CONFIG_KEY)
         log.info("saving static simulation configuration to '%s'" % self.runtime_config[RC_SIM_CONFIG_KEY])
         pickle.dump(self.sim_config, open(self.runtime_config[RC_SIM_CONFIG_KEY], 'wb'), pickle.HIGHEST_PROTOCOL)
-        
+
     def load_data_manager(self):
         """Load and configure the data manager"""
         from wemd.data_manager import make_data_manager
@@ -63,7 +63,7 @@ class WESimManagerBase:
         self.backend_driver = Driver()
         self.backend_driver.sim_config = self.sim_config
         self.backend_driver.runtime_init(self.runtime_config)
-            
+        
     def run(self):
         """Enter a running state, such as driving the simulation or waiting
         for network data to arrive for processing."""
