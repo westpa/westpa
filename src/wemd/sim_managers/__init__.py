@@ -2,6 +2,8 @@ import cPickle as pickle
 __metaclass__ = type
 
 import logging
+import time
+import sys
 log = logging.getLogger(__name__)
 
 from wemd.rc import RC_SIM_CONFIG_KEY
@@ -104,14 +106,34 @@ class WESimMaster(WESimManagerBase):
             
         if self.we_driver is None:
             self.load_we_driver()
-            
+
+        max_wallclock = self.max_wallclock   
+        if( max_wallclock is not None):     
+            we_cur_wallclock = time.time() - self.start_wallclock
+            loop_start_time = loop_end_time = None
+                    
         while self.continue_simulation():
+            if( max_wallclock is not None):
+                if( loop_end_time is not None):
+                    loop_duration = loop_end_time - loop_start_time
+                    we_cur_wallclock += loop_duration
+                    if( we_cur_wallclock + loop_duration * 2.0 > max_wallclock ):
+                        log.info('Shutdown so walltime does not exceed max wallclock:%r'%(max_wallclock))                        
+                        self.shutdown(0)
+                        sys.exit(0)
+
+                loop_start_time = time.time()                        
+                            
             self.prepare_iteration()
             self.backend_driver.pre_iter(self.we_iter)
             self.propagate_particles()
             self.run_we()
             self.backend_driver.post_iter(self.we_iter)
             self.finalize_iteration()
+            
+            if( max_wallclock is not None):
+                loop_end_time = time.time()
+                
     
     def save_sim_state(self):
         raise NotImplementedError

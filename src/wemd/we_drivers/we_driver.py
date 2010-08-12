@@ -97,11 +97,114 @@ class WEDriver:
             #print particle, index
             binarray.bins[tuple(index)].add(particle)
         self.particles_escaped.update(recycled_particles)
- 
-    def split_particles(self, particles, binarray):
+        
+    def split_particles_weight(self, particles, binarray):
         """Split particles according to weight.  New particles must have their
         lineage information set correctly and be put into the 
         `particles_created` collection.  The source particle must be added
+        to the `particles_split` collection.
+        """                
+        for bin in binarray:
+            bnorm = bin.norm
+            ideal_weight = bnorm / bin.ideal_num
+            for particle in list(bin):
+
+                if particle.weight > 2.0*ideal_weight:
+                    P = particle.__class__
+                    m = int(math.ceil(particle.weight / ideal_weight))
+                    assert(m >= 2)
+                    
+                    new_weight = particle.weight / m
+                    new_particles = [P(weight = new_weight,
+                                       pcoord = copy(particle.pcoord),
+                                       p_parent = particle,
+                                       parents = [particle])]
+                    new_particles.extend(P(weight = new_weight,
+                                           pcoord = copy(particle.pcoord),
+                                           p_parent = particle,
+                                           parents = [particle])
+                                         for i in xrange(1, m))
+                    
+                    self.particles_split.add(particle)                    
+                    bin.discard(particle)
+                    particles.discard(particle)
+                    
+                    self.particles_created.update(new_particles)
+                    bin.update(new_particles)
+                    particles.update(new_particles)
+    
+    def merge_particles_weight(self, particles, binarray):
+        """Merge particles according to weight.  The conglomerate particle
+        must have its lineage information set properly and be placed into the 
+        `particles_created` collection.  The source particles must be added to
+        the `particles_merged` collection.
+        """
+        weight_key = (lambda p: p.weight)
+        
+        for bin in binarray:
+            ideal_weight = bin.norm / bin.ideal_num
+            min_weight = ideal_weight * 0.5
+            max_weight = ideal_weight * 1.5
+            
+            mergable_particles = [particle for particle in bin
+                                  if particle.weight <= min_weight]
+            while len(mergable_particles) > 1:
+                glom_src = []
+                glom_weight = 0.0
+                for particle in mergable_particles:
+                    if glom_weight + particle.weight > max_weight:
+                        break
+                    else:
+                        glom_src.append(particle)
+                        glom_weight += particle.weight
+                    
+                if glom_src:
+                    P = glom_src[0].__class__
+                    glom = P()                
+                    u = random.uniform(0, glom_weight)
+                    u_lower = glom_weight
+                    u_upper = glom_weight
+                    
+                    glom_src = sorted(glom_src, key = weight_key, 
+                                      reverse = True)
+                    
+                    for gparticle in glom_src:
+                        u_lower -= gparticle.weight
+                        if u_lower <= u < u_upper:
+                            glom.pcoord = gparticle.pcoord
+                            glom.p_parent = gparticle
+                            break
+                        else:
+                            u_upper -= gparticle.weight
+                    else:
+                        # Should never happen, so throw a programmer-centric
+                        # error
+                        raise AssertionError('something wrong with '
+                                             +'probabilities during merge')
+                    
+                    glom.weight = glom_weight
+                    glom.parents = glom_src
+                    glom.particle_id = glom.p_parent.particle_id
+                    
+                    self.particles_created.add(glom)
+                    bin.add(glom)
+                    particles.add(glom)
+                    
+                    self.particles_merged.update(glom_src)
+                    self.particles_merged.remove(glom.p_parent)
+                    bin.difference_update(glom_src)
+                    particles.difference_update(glom_src)
+                # end if glom_src
+                
+                mergable_particles = [particle for particle in bin
+                                      if particle.weight <= min_weight]
+            # end while len(mergable_particles) > 1
+                    
+    def split_particles_number(self, particles, binarray):
+        """Split particles according to weight, while making the number of particles
+        in each bin eqaul to the ideal number in the bin.
+        New particles must have their lineage information set correctly and be put 
+        into the `particles_created` collection.  The source particle must be added
         to the `particles_split` collection.
         """             
 
@@ -173,7 +276,7 @@ class WEDriver:
 
                 P = particle.__class__
                 assert(new_num >= 2)
-                    
+
                 new_weight = particle.weight / new_num
                 new_particles = [P(weight = new_weight,
                                    pcoord = copy(particle.pcoord),
@@ -185,17 +288,17 @@ class WEDriver:
                                        p_parent = particle,
                                        parents = [particle])
                                      for i in xrange(1, new_num))
-                    
+                                    
                 self.particles_split.add(particle)                    
                 bin.discard(particle)
-                particles.discard(particle)
-                    
+                particles.discard(particle)                
+                                    
                 self.particles_created.update(new_particles)
                 bin.update(new_particles)
                 particles.update(new_particles)
 
 
-    def merge_particles(self, particles, binarray):
+    def merge_particles_number(self, particles, binarray):
         """Merge particles according to weight.  The conglomerate particle
         must have its lineage information set properly and be placed into the 
         `particles_created` collection.  The source particles must be added to
@@ -284,7 +387,7 @@ class WEDriver:
                         # error
                         raise AssertionError('something wrong with '
                                              +'probabilities during merge')
-                    
+                                                    
                     glom.weight = glom_weight
                     glom.parents = glom_src
                     glom.particle_id = glom.p_parent.particle_id
@@ -296,10 +399,64 @@ class WEDriver:
                     self.particles_merged.update(glom_src)
                     self.particles_merged.remove(glom.p_parent)
                     bin.difference_update(glom_src)
-                    particles.difference_update(glom_src)
+                    particles.difference_update(glom_src)                 
                 # end if glom_src        
 
-                
+    def split_merge_adjust(self):
+        """Fixes up parents of particles that were split then merged (etc) to prevent
+        phantom particles from showing up.
+        """
+        particles_created_discard = []
+        particles_merged_discard = []
+        particles_split_discard = []
+        for particle in self.particles_created: 
+            pp_remove = []
+            pp_append = []
+
+            for i in xrange(0, len(particle.parents)):
+                pp = particle.parents[i]
+                if pp in self.particles_created:
+                    particles_created_discard.append(pp) #temporary particle not in db
+                    
+                    if pp in self.particles_merged:
+                        pp_append.append(pp.p_parent)
+                        pp_remove.append(pp)
+                        particles_merged_discard.append(pp)
+                        if( pp.particle_id == particle.p_parent.particle_id ): 
+                            #print("replacing p_parent merged")
+                            particle.p_parent = pp.p_parent
+                            
+                        assert pp.p_parent not in self.particles_created
+         
+                    elif pp in self.particles_split:                
+                        pp_append.append(pp.p_parent)
+                        pp_remove.append(pp)
+                        particles_split_discard.append(pp)
+                        if( pp.particle_id == particle.p_parent.particle_id ):
+                            particle.p_parent = pp.p_parent
+
+                        assert pp.p_parent not in self.particles_created
+                    else: #self.particles_merged.remove(glom.p_parent) <-- so it was merged but is not in particles_merged                        
+                        pp_append.append(pp.p_parent)
+                        pp_remove.append(pp)
+                        particles_merged_discard.append(pp)
+                        if( pp.particle_id == particle.p_parent.particle_id ): 
+                            particle.p_parent = pp.p_parent
+                            
+                        assert pp.p_parent not in self.particles_created
+                    
+            for pp in pp_remove:
+                particle.parents.remove(pp)   
+            for pp in pp_append:
+                particle.parents.append(pp)              
+
+        for p in particles_created_discard:
+            self.particles_created.discard(p)
+        for p in particles_merged_discard:
+            self.particles_merged.discard(p)
+        for p in particles_split_discard:
+            self.particles_split.discard(p)   
+              
     def run_we(self, particles):
         """Run the weighted ensemble bin/split/merge algorithm on the given 
         particles.  Sets the following instance variables (all sets):
@@ -393,9 +550,22 @@ class WEDriver:
         
         # Split/merge particles
         if self.current_iteration > 0:
-            self.split_particles(particles, bins)
-            self.merge_particles(particles, bins)
-            
+            self.split_particles_weight(particles, bins)
+            self.merge_particles_weight(particles, bins)
+            self.split_merge_adjust()
+            self.split_particles_number(particles, bins)
+            self.split_merge_adjust()
+            self.merge_particles_number(particles, bins)
+            self.split_merge_adjust()
+
+          
+        for bin in bins:
+            ideal_weight = bin.norm / bin.ideal_num
+            for particle in bin:
+                if particle.weight < (0.1 * ideal_weight) or (particle.weight > 4.0 * ideal_weight):
+                    log.warning('Warning: particle weight out of range:\n\
+                                 [%r , %r]: %r' % (ideal_weight * 0.1, ideal_weight * 4.0, particle.weight))
+                     
         # By this point, the self.particles_* collections are properly populated
         # and can (must) be used to assign particle lineage to those particles
         # left untouched by the various WE routines

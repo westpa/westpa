@@ -26,6 +26,14 @@ class DefaultWEMaster(WESimMaster):
         super(DefaultWEMaster, self).runtime_init(runtime_config, load_sim_config)
         self.load_data_manager()
         self.max_iterations = runtime_config.get_int('limits.max_iterations', 1)
+        try:
+            max_wallclock_list = runtime_config.get_list('limits.max_wallclock', type=float, split=':')
+            self.max_wallclock = max_wallclock_list[0]*60*60+max_wallclock_list[1]*60+max_wallclock_list[2]
+            self.start_wallclock = time.time()
+        except KeyError:
+            self.max_wallclock = None
+            self.start_wallclock = None
+            
         self.worker_blocksize = runtime_config.get_int('backend.blocksize', 1)
                                                   
     def save_sim_state(self):
@@ -215,7 +223,7 @@ class DefaultWEMaster(WESimMaster):
                         if particle.initial_region:
                             s.data['initial_region'] = particle.initial_region
     
-                    if particle.parents:
+                    if particle.parents:                            
                         s.parents = set([self.data_manager.get_segment(pp.particle_id)
                                          for pp in particle.parents])
                         log.debug('segment %r parents are %r' 

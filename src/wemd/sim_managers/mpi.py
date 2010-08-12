@@ -5,6 +5,7 @@ import os, sys
 import cPickle as pickle
 import numpy
 import logging
+import time
 log = logging.getLogger(__name__)
 
 from default import DefaultWEMaster
@@ -101,6 +102,12 @@ class MPIWEMaster(DefaultWEMaster, MPISimManager):
         
     def propagate_particles(self):
         current_iteration = self.we_driver.current_iteration
+        
+        max_wallclock = self.max_wallclock                
+        if( max_wallclock is not None):     
+            we_cur_wallclock = time.time() - self.start_wallclock
+            loop_start_time = loop_end_time = None
+                    
         log.info('WE iteration %d (of %d requested)'
                  % (current_iteration, self.max_iterations))
         n_inc = self.data_manager.num_incomplete_segments(current_iteration)
@@ -115,6 +122,18 @@ class MPIWEMaster(DefaultWEMaster, MPISimManager):
                                                        load_p_parent = True)
 
         while len(prep_segments) > 0:
+
+            if( max_wallclock is not None):
+                if( loop_end_time is not None):
+                    loop_duration = loop_end_time - loop_start_time
+                    we_cur_wallclock += loop_duration
+                    if( we_cur_wallclock + loop_duration * 2.0 > max_wallclock ):
+                        log.info('Shutdown so walltime does not exceed max wallclock:%r'%(max_wallclock)) 
+                        self.shutdown(0)
+                        sys.exit(0)
+
+                loop_start_time = time.time()
+                            
             requests,pdata = self.send_directive(self.MSG_AWAIT_SEGMENT_SCATTER, 
                                                   block = False)
             #segments = prep_segments[0:n_workers]
@@ -142,6 +161,9 @@ class MPIWEMaster(DefaultWEMaster, MPISimManager):
             #del prep_segments[0:n_workers]
             del prep_segments[0:n_workers*self.worker_blocksize]
             
+            if( max_wallclock is not None):            
+                loop_end_time = time.time()
+        
     def shutdown(self, exit_code=0):
         if exit_code != 0:
             log.error('terminating remote MPI processes')
