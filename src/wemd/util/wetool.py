@@ -7,7 +7,8 @@ import wemd.rc
 class WECmdLineTool(object):
     RC_SHORT_OPTION = '-r'
     RC_LONG_OPTION  = '--rcfile'
-
+    SERVER_SHORT_OPTION = '-s'
+    SERVER_LONG_OPTION = '--hostname'
     @classmethod
     def add_rc_option(cls, parser):
         parser.add_option(cls.RC_SHORT_OPTION, cls.RC_LONG_OPTION,
@@ -16,6 +17,12 @@ class WECmdLineTool(object):
                               +'(default: %s)' % wemd.rc.RC_DEFAULT_FILENAME,
                           default=wemd.rc.RC_DEFAULT_FILENAME)
         
+    def add_server_option(cls, parser):
+        parser.add_option(cls.SERVER_SHORT_OPTION, cls.SERVER_LONG_OPTION,
+                          dest='hostname',
+                          help='hostname of server',
+                          default=None)
+             
     usage = '%prog [options] COMMAND [...]'
     description = None
         

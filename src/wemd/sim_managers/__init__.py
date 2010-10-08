@@ -60,8 +60,14 @@ class WESimManagerBase:
         self.we_driver.runtime_init(self.runtime_config)
         
     def load_backend_driver(self):
-        from wemd.backend_drivers import get_backend_driver
-        Driver = get_backend_driver(self.sim_config['backend.driver'])
+        from wemd.backend_drivers import get_backend_driver, get_backend_driver_by_file
+        
+        if( self.sim_config['backend.driver'] == 'file' ):
+            Driver = get_backend_driver_by_file(self.runtime_config['backend.file.file'], 
+                                                self.runtime_config['backend.file.class'])
+        else:
+            Driver = get_backend_driver(self.sim_config['backend.driver'])
+            
         self.backend_driver = Driver()
         self.backend_driver.sim_config = self.sim_config
         self.backend_driver.runtime_init(self.runtime_config)
@@ -169,6 +175,14 @@ def get_sim_manager(driver_name):
             driver = MPIWEMaster
         else:
             driver = MPIWEWorker
+    elif driver_name == 'tcp_server':
+        log.info('using TCP simulation manager (server)')
+        from tcpip import TCPWEMaster
+        driver = TCPWEMaster
+    elif driver_name == 'tcp_client':
+        log.info('using TCP simulation manager (client)')
+        from tcpip import TCPWEWorker
+        driver = TCPWEWorker
     else:
         raise ConfigError('invalid simulation manager driver %r specified'
                           % driver_name)

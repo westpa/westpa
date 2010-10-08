@@ -59,3 +59,25 @@ def get_backend_driver(driver_name):
             raise ConfigError('pyopenmm-multiseg backend driver unavailable (%s)' % e)
         else:
             return PyOpenMMBackendMultiSeg
+
+def get_backend_driver_by_file(file_name, class_name):
+    from wemd.util.config_dict import ConfigError
+    import imp, sys
+
+    log.info('using %s propagation backend from file %s' % (class_name, file_name))
+
+    try:
+        module = imp.load_source('wemd.backend_driver', file_name)
+    except SyntaxError, e:
+        raise
+    except ImportError, e:
+        raise ConfigError('import error %r in %s from file %s' %(e, class_name, file_name))
+    except IOError:
+        raise ConfigError('error opening %r as backend driver' % file_name)
+    
+    try:
+        driver = module.__dict__[class_name]
+    except KeyError:
+        raise ConfigError('error importing %s from %s -- check class name' %(class_name, file_name))
+    
+    return driver

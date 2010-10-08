@@ -172,17 +172,29 @@ class ExecutableBackend(BackendDriver):
             log.debug('redirecting child stderr to %r' % stderr)
             stderr = open(stderr, 'wb')
         elif child_info['merge_stderr']:
-            stderr = subprocess.STDOUT
-        
+            stderr = sys.stdout
+                    
         if log.getEffectiveLevel() <= logging.DEBUG:
             log.debug('launching %s executable %r with environment %r' 
                       % (child_type, exename, child_environ))
         else:
             log.debug('launching %s executable %r'
                      % (child_type, exename))
-        proc = subprocess.Popen([exename], stdout = stdout, stderr = stderr,
-                                env = child_environ)
-        return proc
+
+        pid = os.fork()
+        if pid:
+            #in parent
+            id, rc = os.waitpid(pid, 0)
+            return rc
+        else:
+            #redirect stdout/stderr
+            stderr_fd = stderr.fileno()
+            stdout_fd = stdout.fileno()
+            
+            os.dup2(stdout_fd, 1)
+            os.dup2(stderr_fd, 2)
+            
+            os.execlpe(exename, child_environ)
     
     def _iter_environ(self, we_iter):
         addtl_environ = {self.ENV_CURRENT_ITER: str(we_iter.n_iter)}
@@ -210,8 +222,7 @@ class ExecutableBackend(BackendDriver):
     
     def _run_pre_post(self, child_info, env_func, env_obj):
         if child_info['executable']:
-            proc = self._popen(child_info, env_func(env_obj), env_obj.__dict__)
-            rc = proc.wait()
+            rc = self._popen(child_info, env_func(env_obj), env_obj.__dict__)
             if rc != 0:
                 log.warning('%s executable %r returned %s'
                             % (child_info['child_type'], 
@@ -247,17 +258,17 @@ class ExecutableBackend(BackendDriver):
             log.debug('propagating segment %d' % segment.seg_id)
             addtl_env = self._segment_env(segment)
             addtl_env[self.ENV_SEG_PCOORD_RETURN] = pc_return_filename
-            proc = self._popen(self.propagator_info, 
-                               addtl_env, 
-                               segment.__dict__)
+            
             # Record start timing info
             segment.starttime = datetime.datetime.now()
             init_walltime = time.time()
             init_cputime = getrusage(RUSAGE_CHILDREN).ru_utime
             log.debug('launched at %s' % segment.starttime)
-            
-            rc = proc.wait()
-            
+
+            rc = self._popen(self.propagator_info, 
+                               addtl_env, 
+                               segment.__dict__)
+
             # Record end timing info
             final_cputime = getrusage(RUSAGE_CHILDREN).ru_utime
             final_walltime = time.time()

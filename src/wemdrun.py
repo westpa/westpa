@@ -15,10 +15,20 @@ class WEMDRunTool(WECmdLineTool):
     def run(self):
         parser = OptionParser(usage = '%prog [options]')
         self.add_rc_option(parser)
+        self.add_server_option(parser)
         (opts, args) = parser.parse_args()
         self.read_runtime_config(opts)
         
         sim_manager = self.load_sim_manager()
+        
+        if opts.hostname:
+            try:
+                sim_manager.set_hostname(opts.hostname)
+            except Exception:
+                log.error('unhandled exception in run() -- make sure sim manager is tcp server/client')
+                sim_manager.shutdown(EX_EXCEPTION_ERROR)
+                sys.exit(EX_EXCEPTION_ERROR)
+                            
         sim_manager.load_sim_state()
         
         try:
