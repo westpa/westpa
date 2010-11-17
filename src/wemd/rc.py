@@ -22,7 +22,7 @@ def read_config(filename = None):
     return cdict
 
 def make_sim_manager(runtime_config, load_sim_config = True):
-    driver_name = runtime_config.get('sim_manager.driver', 'serial').lower()
+    driver_name = runtime_config.get('work_manager.driver', 'serial').lower()
     Manager = wemd.sim_managers.get_sim_manager(driver_name)   
     sim_manager = Manager()
     sim_manager.runtime_init(self.runtime_config, load_sim_config)

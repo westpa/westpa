@@ -104,7 +104,7 @@ class WEMDCtlTool(WECmdLineMultiTool):
         sim_manager = self.load_sim_manager()
         sim_manager.load_sim_state()
 
-        new_driver_name = new_runtime_config.get('sim_manager.driver', 'serial').lower()
+        new_driver_name = new_runtime_config.get('work_manager.driver', 'serial').lower()
         Manager = wemd.sim_managers.get_sim_manager(new_driver_name)   
         new_sim_manager = Manager()
         new_sim_manager.runtime_init(new_runtime_config, load_sim_config = False)
@@ -115,7 +115,7 @@ class WEMDCtlTool(WECmdLineMultiTool):
         n_iter = sim_manager.we_driver.current_iteration
         
         new_segments = []
-        old_segments = sim_manager.data_manager.get_segments(Segment.n_iter == n_iter, result_format='objects')
+        old_segments = sim_manager.data_manager.get_segments(n_iter)
         for old_s in old_segments:
             assert old_s.status == Segment.SEG_STATUS_COMPLETE
             last_pcoord = numpy.array( [old_s.pcoord[-1][:]], dtype=numpy.float64)

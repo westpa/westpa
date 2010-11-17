@@ -25,9 +25,9 @@ class WEMDRunTool(WECmdLineTool):
             try:
                 sim_manager.set_hostname(opts.hostname)
             except Exception:
-                log.error('unhandled exception in run() -- make sure sim manager is tcp server/client')
-                sim_manager.shutdown(EX_EXCEPTION_ERROR)
-                sys.exit(EX_EXCEPTION_ERROR)
+                sim_manager.shutdown(EX_EXCEPTION_ERROR)            
+                log.error('unhandled exception in run() -- make sure worker is tcp server/client')
+                sys.exit(EX_EXCEPTION_ERROR)    
                             
         sim_manager.load_sim_state()
         

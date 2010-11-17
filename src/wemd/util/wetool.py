@@ -47,7 +47,7 @@ class WECmdLineTool(object):
         wemd.rc.configure_logging(self.runtime_config)
         
     def load_sim_manager(self, load_sim_config = True):
-        driver_name = self.runtime_config.get('sim_manager.driver', 'serial').lower()
+        driver_name = self.runtime_config.get('work_manager.driver', 'serial').lower()
         Manager = wemd.sim_managers.get_sim_manager(driver_name)   
         self.sim_manager = Manager()
         self.sim_manager.runtime_init(self.runtime_config, load_sim_config)

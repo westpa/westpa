@@ -120,8 +120,8 @@ class TestBackend(BackendDriver):
                     source_pcoord_val = numpy.array( [source_pcoord['pcoord']], dtype=numpy.float64 )
                     
                     #use the pcoord associated with the region
-                    segment.pcoord = copy(source_pcoord_val)                    
-
+                    segment.pcoord = copy(source_pcoord_val)
+                        
                 else:
                     pcoord_val = numpy.array( [self._initial_pcoord], dtype=numpy.float64 )
                     segment.pcoord = copy(pcoord_val)
@@ -168,18 +168,22 @@ class TestBackend(BackendDriver):
         nsteps = self._nsteps
 
         #extend pcoord by the number of integration steps
-        pcoord = numpy.empty((segment.pcoord.shape[0]+nsteps,segment.pcoord.shape[1]),dtype=numpy.float64)
-      
-        #copy the existing pcoords
-        pcoord_size = len(segment.pcoord)
-        for i in xrange(0, pcoord_size):
-            pcoord[i] = segment.pcoord[i]
-
-        for itime in xrange(pcoord_size, pcoord_size+nsteps):
+        pcoord = numpy.empty((nsteps+1,segment.pcoord.shape[1]),dtype=numpy.float64)
+        pcoord[0] = segment.pcoord[-1]
+        
+        for itime in xrange(0, nsteps):
             #discrete overdamped Langevin equation
             #x_{j+1} = x_j - {delta t} over {m %gamma} (dU/dx)_xj + delta{x^rand}
-            pcoord[itime] = pcoord[itime-1] - tmg * self.diff_potential( pcoord[itime-1], dim ) / nano + numpy.random.normal(0, std, (1,dim)) / nano
-
+            
+            if itime > 0:
+                prev_coord = pcoord[itime-1]
+            else:
+                prev_coord = segment.pcoord[-1]
+            if True:    
+                pcoord[itime + 1] = prev_coord - tmg * self.diff_potential(prev_coord, dim ) / nano + numpy.random.normal(0, std, (1,dim)) / nano
+            else:
+                pcoord[itime + 1] = prev_coord - tmg * self.diff_potential(prev_coord, dim ) / nano + 1.0
+                
         segment.pcoord = copy(pcoord)
 
     def diff_potential(self,pos,dim):

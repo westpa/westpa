@@ -2,11 +2,12 @@ __metaclass__ = type
 
 class Particle:
     def __repr__(self):
-        return '<%s(%s): weight=%r, pcoord=%r>' \
+        return '<%s(%s): weight=%r, pcoord=%r, id=%r>' \
                 % (self.__class__.__name__,
                    hex(id(self)),
                    self.weight,
-                   self.pcoord)
+                   self.pcoord,
+                   self.particle_id)
     
     def __init__(self, particle_id = None, weight = None, pcoord = None, 
                  p_parent = None, parents = None, initial_region = None):

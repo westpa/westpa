@@ -117,10 +117,10 @@ class MPIWEMaster(DefaultWEMaster, MPISimManager):
         log.debug('dispatching to %d processes' % n_workers)
         
         #prep_segments = self.data_manager.get_prepared_segments(current_iteration)
-        prep_segments = self.data_manager.get_segments((Segment.n_iter == self.we_iter.n_iter)
-                                                       &(Segment.status == Segment.SEG_STATUS_PREPARED),
+        prep_segments = self.data_manager.get_segments(self.we_iter.n_iter,
+                                                       status_criteria = Segment.SEG_STATUS_PREPARED,
                                                        load_p_parent = True)
-
+        we_data_delta = 0.0###
         while len(prep_segments) > 0:
 
             if( max_wallclock is not None):
@@ -154,15 +154,19 @@ class MPIWEMaster(DefaultWEMaster, MPISimManager):
             
             # flatten list of tuples into a single list
             segments = [j for i in segments for j in i]
+            we_data_starttime = time.clock()###
             self.data_manager.update_segments(current_iteration, 
                                               [segment for segment in segments
                                                if segment is not None],
                                               )
+            we_data_endtime = time.clock()###
+            we_data_delta += (we_data_endtime - we_data_starttime)###
             #del prep_segments[0:n_workers]
             del prep_segments[0:n_workers*self.worker_blocksize]
             
             if( max_wallclock is not None):            
                 loop_end_time = time.time()
+        log.info('MPI segment update took %.2g seconds' % we_data_delta)###             
         
     def shutdown(self, exit_code=0):
         if exit_code != 0:

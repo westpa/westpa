@@ -10,8 +10,7 @@ import multiprocessing
 import cPickle as pickle
 from socket import timeout
 
-from default import DefaultWEMaster
-from wemd.sim_managers import WESimManagerBase, WESimClient
+from wemd.work_managers import WEWorkManagerBase
 
 from wemd.core.we_sim import WESimIter
 from wemd.core.particles import Particle, ParticleCollection
@@ -68,14 +67,14 @@ def watchdog_check(server, flag, timeout):
 
             if curtime - ctime > timeout:
                 flag.set()
-                log.debug('watchdog flag set '+repr(flag.is_set())+' \n')       
+                log.warn('watchdog flag set '+repr(flag.is_set())+' \n')       
                 return
 
         time.sleep(timeout)
 
-class TCPWEMaster(DefaultWEMaster):
-    def __init__(self):
-        super(TCPWEMaster,self).__init__()
+class TCPWEMaster(WEWorkManagerBase):
+    def __init__(self, runtime_config, load_sim_config = True):
+        super(TCPWEMaster,self).__init__(runtime_config, load_sim_config)
         self.hostname = None
         self.dport = None #data
         self.sport = None #sync
@@ -100,7 +99,18 @@ class TCPWEMaster(DefaultWEMaster):
         self.dport = runtime_config.get_int('server.dport')
         self.sport = runtime_config.get_int('server.sport')
         self.wport = runtime_config.get_int('server.wport')
-        self.nclients = runtime_config.get_int('server.nclients')  
+        self.nclients = runtime_config.get_int('server.nclients')
+
+        if self.backend_driver is None:
+            self.load_backend_driver()
+
+        self.init_server()
+        
+        if self.send_cid() == False:
+            self.shutdown(EX_ERROR)
+            sys.exit(EX_ERROR)
+
+        self.init_watchdog_server()          
 
     def init_server(self):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -133,66 +143,30 @@ class TCPWEMaster(DefaultWEMaster):
         #queue up to nclients
         self.sync_sock.listen(self.nclients)
         self.sync_sock.settimeout(self.timeout)
-    
-    def run(self, hostname = None):
-        if self.backend_driver is None:
-            self.load_backend_driver()
-            
-        if self.we_driver is None:
-            self.load_we_driver() #runtime_init
 
-        self.init_server()
+    def prepare_iteration(self):
+        super(TCPWEMaster,self).prepare_iteration()
         
-        if self.send_cid() == False:
+        if self.watchdog_flag.is_set():
+            self.shutdown(EX_ERROR)
+            sys.exit(EX_ERROR)
+    
+    def post_iter(self, we_iter):
+        self.backend_driver.post_iter(we_iter)
+        
+    def finalize_iteration(self):
+        super(TCPWEMaster,self).finalize_iteration()
+        
+        if self.sync() == False:
             self.shutdown(EX_ERROR)
             sys.exit(EX_ERROR)
 
-        self.init_watchdog_server()
-        
-        max_wallclock = self.max_wallclock   
-        if( max_wallclock is not None):     
-            we_cur_wallclock = time.time() - self.start_wallclock
-            loop_start_time = loop_end_time = None
-                    
-        while self.continue_simulation():
-            if( max_wallclock is not None):
-                if( loop_end_time is not None):
-                    loop_duration = loop_end_time - loop_start_time
-                    we_cur_wallclock += loop_duration
-                    if( we_cur_wallclock + loop_duration * 2.0 > max_wallclock ):
-                        log.info('Shutdown so walltime does not exceed max wallclock:%r'%(max_wallclock))                        
-                        self.shutdown(0)
-                        sys.exit(0)
-
-                loop_start_time = time.time()                        
-
-            if self.watchdog_flag.is_set():
-                self.shutdown(EX_ERROR)
-                sys.exit(EX_ERROR)
-                                        
-            self.prepare_iteration()
-                        
-            self.backend_driver.pre_iter(self.we_iter)
-            if self.propagate_particles() == False:
-                self.shutdown(EX_ERROR)
-                sys.exit(EX_ERROR)
-            
-            self.run_we()
-            self.backend_driver.post_iter(self.we_iter)
-            self.finalize_iteration()
-            
-            if self.sync() == False:
-                self.shutdown(EX_ERROR)
-                sys.exit(EX_ERROR)
-            
-            if( max_wallclock is not None):
-                loop_end_time = time.time()
+    def worker_is_master(self):
+        return True                                        
 
     def send_cid(self):
         '''assigns an id to each client, and gets the number of cores available
            returns True on success, False on failure'''
-        
-        
         msgs = []
         for i in range(0, self.nclients):
             msg = (i, 'cid')
@@ -221,34 +195,26 @@ class TCPWEMaster(DefaultWEMaster):
 
         return True
 
-    def propagate_particles(self):
-        current_iteration = self.we_iter.n_iter
-        log.info('WE iteration %d (of %d requested)'
-                 % (current_iteration, self.max_iterations))
-        n_inc = self.data_manager.num_incomplete_segments(self.we_iter)
-        log.info('%d segments remaining in WE iteration %d'
-                 % (n_inc, current_iteration))
-        #segments = self.data_manager.get_prepared_segments(self.we_iter)
-        segments = self.data_manager.get_segments((Segment.n_iter == self.we_iter.n_iter)
-                                                  &(Segment.status == Segment.SEG_STATUS_PREPARED),
-                                                  load_p_parent = True)
+    def propagate_particles(self, we_iter, segments):
+        self.prepare_iteration()
+             
+        self.backend_driver.pre_iter(we_iter)
 
         if self.send_segments(segments) == False:
-            return False
+            raise ValueError
         
         segments = self.get_segments()
         
         if segments is None:
-            return False
+            log.error('No segments returned')
+            raise ValueError('No segments returned')
         
         #segments[cid][task#] -> segments[i]
-        segments = [j for k in segments for j in k if j is not None]
-        self.data_manager.update_segments(self.we_iter, segments)
-        
-        return True
+        segs = [j for k in segments for j in k if j is not None]
+        return segs
+
 
     def send_segments(self, segments):
-
         cmds = []
         
         #for now, just assume a homogeneous resource
@@ -280,7 +246,6 @@ class TCPWEMaster(DefaultWEMaster):
         return True
                         
     def get_segments(self):
-
         msgs = []
         for i in range(0, self.nclients):
             msg = (i, 'prepare for next commnand')
@@ -304,7 +269,6 @@ class TCPWEMaster(DefaultWEMaster):
     def sync(self, shutdown = False):
         '''sends sync command to clients on sport
            returns False on timeout, True otherwise'''
-
         self.init_sync_server()
 
         sock = self.sync_sock
@@ -373,7 +337,7 @@ class TCPWEMaster(DefaultWEMaster):
             try:
                 newSocket, address = sock.accept()
                 
-                log.debug('connected to:'+repr(address)+'\n')
+                log.warn('connected to:'+repr(address)+'\n')
                 client_sockets.append(newSocket)
 
                 buf = []
@@ -484,18 +448,18 @@ def watchdog_check_client(hostname, wport, flag, cid, timeout):
 
             last_connect_time = time.time()
 
-            sock.close()
+            sock.close()       
         except (socket.timeout, socket.error):
             pass       
-
-        if time.time() - last_connect_time > timeout:
-            flag.set()
-            log.debug('watchdog flag set '+repr(flag.is_set())+' \n')   
-            return
 
         #if shutdown is called somewhere else
         #exit this thread
         if flag.is_set():
+            return
+
+        if time.time() - last_connect_time > timeout:
+            flag.set()
+            log.debug('watchdog flag set '+repr(flag.is_set())+' \n')   
             return
 
         time.sleep(effective_timeout)
@@ -503,9 +467,9 @@ def watchdog_check_client(hostname, wport, flag, cid, timeout):
 def propagate_segment_thread(backend_driver, segment):
     backend_driver.propagate_segments(segment)
             
-class TCPWEWorker(WESimClient):
-    def __init__(self):
-        WESimClient.__init__(self)
+class TCPWEWorker(WEWorkManagerBase):
+    def __init__(self, runtime_config, load_sim_config = True):
+        super(TCPWEWorker, self).__init__(runtime_config, load_sim_config)
         self.hostname = None
         self.dport = None
         self.sport = None
@@ -519,7 +483,7 @@ class TCPWEWorker(WESimClient):
         self.timeout = None
         # The driver that actually propagates segments
         self.backend_driver = None
-
+        
     def set_hostname(self, hostname):
         self.hostname = hostname
              
@@ -530,12 +494,6 @@ class TCPWEWorker(WESimClient):
         self.sport = runtime_config.get_int('server.sport')
         self.wport = runtime_config.get_int('server.wport') 
 
-    def init_watchdog(self):
-        self.watchdog_check_thread = threading.Thread(target=watchdog_check_client, args=(self.hostname, self.wport, self.watchdog_flag, self.cid, self.timeout))
-        self.watchdog_check_thread.daemon = True
-        self.watchdog_check_thread.start()
-
-    def run(self):
         if self.backend_driver is None:
             self.load_backend_driver()
             
@@ -546,28 +504,36 @@ class TCPWEWorker(WESimClient):
             sys.exit(EX_ERROR)     
 
         self.init_watchdog()
-                
-        while True:
-            if self.get_segments() == False:
-                self.shutdown(EX_ERROR)
-                sys.exit(EX_ERROR)
 
-            if self.propogate_segments() == False:
-                self.shutdown(EX_ERROR)
-                sys.exit(EX_ERROR)
-            
-            if self.send_segments() == False:
-                self.shutdown(EX_ERROR)
-                sys.exit(EX_ERROR)
+    def init_watchdog(self):
+        self.watchdog_check_thread = threading.Thread(target=watchdog_check_client, args=(self.hostname, self.wport, self.watchdog_flag, self.cid, self.timeout))
+        self.watchdog_check_thread.daemon = True
+        self.watchdog_check_thread.start()
 
-            if self.sync_clients() == False:
-                self.shutdown(0)
-                sys.exit(0)
+    def prepare_iteration(self):
+        super(TCPWEWorker, self).prepare_iteration()
+        if self.get_segments() == False:
+            self.shutdown(EX_ERROR)
+            sys.exit(EX_ERROR)
 
-            if self.shutdown_flag == True:
-                self.shutdown(EX_ERROR)
-                sys.exit(EX_ERROR)
-                        
+    def finalize_iteration(self):
+        super(TCPWEWorker, self).finalize_iteration()
+        
+        if self.send_segments() == False:
+            self.shutdown(EX_ERROR)
+            sys.exit(EX_ERROR)
+
+        if self.sync_clients() == False:
+            self.shutdown(0)
+            sys.exit(0)
+
+        if self.shutdown_flag == True:
+            self.shutdown(EX_ERROR)
+            sys.exit(EX_ERROR)
+                                    
+    def worker_is_master(self):
+        return False
+        
     def get_cid(self):
         '''gets the client id and sends the # of cores available'''
         try:
@@ -608,7 +574,6 @@ class TCPWEWorker(WESimClient):
         return True              
 
     def get_segments(self):
-
         self.work_pickle = None
         
         work_pickle_str = self.send_to_server((self.cid, 'ready for work'))
@@ -620,14 +585,15 @@ class TCPWEWorker(WESimClient):
 
         return True    
 
-    def propogate_segments(self):
-
+    def propagate_particles(self, we_iter, segments):
+        self.prepare_iteration()
+        
         self.rc = None
 
         if self.work_pickle is None:
             log.error('Work pickle is not defined')
             self.rc = None
-            return False
+            raise TypeError
 
         try:
             cid, segs = pickle.loads(self.work_pickle)
@@ -636,7 +602,7 @@ class TCPWEWorker(WESimClient):
             log.error('Error unpickling work')
             log.error(repr(self.work_pickle))
             self.segments = None
-            return False
+            raise
          
         nsegs = len(segs)
         
@@ -644,7 +610,7 @@ class TCPWEWorker(WESimClient):
         #return [] (== segs)
         if nsegs == 0:
             self.segments = segs
-            return True
+            return []
         
         ncpus = multiprocessing.cpu_count()
         returncodes = []
@@ -694,11 +660,11 @@ class TCPWEWorker(WESimClient):
         self.segments = segs
 
         if shutdown_flag == True:
-            return False
+            raise ValueError
                     
         for seg in segs:
             if seg.status == Segment.SEG_STATUS_FAILED:
-                return False
+                raise ValueError('Segment(s) Failed')
             
         return True
 
@@ -708,7 +674,6 @@ class TCPWEWorker(WESimClient):
         return thread
 
     def send_segments(self):
-
         try:
             data_pickle = self.send_to_server((self.cid, self.segments))          
             
@@ -728,7 +693,6 @@ class TCPWEWorker(WESimClient):
         return True
 
     def sync_clients(self):
-
         shutdown_flag = False
         while True:
 
@@ -791,7 +755,7 @@ class TCPWEWorker(WESimClient):
             
             sock.sendall(complete_pickle)
         except socket.error, e:
-            log.error('problem connecting to server %r-> exit\n' % e)
+            log.warn('problem connecting to server %r-> exit\n' % e)
             sock.close()
             return None
 
@@ -811,7 +775,7 @@ class TCPWEWorker(WESimClient):
   
                 buf.append(data)
             except socket.error, e:
-                log.error('problem connecting to server %r-> exit\n' % e)
+                log.warn('problem connecting to server %r-> exit\n' % e)
                 sock.close()
                 return None
 
@@ -820,6 +784,5 @@ class TCPWEWorker(WESimClient):
               
         return buf_str                   
 
-            
     def shutdown(self, exit_code=0):
         self.watchdog_flag.set()   

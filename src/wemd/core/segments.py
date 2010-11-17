@@ -47,9 +47,9 @@ class Segment:
         self.data = data or {}
         
     def __repr__(self):
-        return '<%s(%s) seg_id=%s p_parent_id=%s weight=%s>' \
+        return '<%s(%s) seg_id=%s weight=%s>' \
                % (self.__class__.__name__, hex(id(self)),
-                  self.seg_id, self.p_parent_id, self.weight)
+                  self.seg_id, self.weight)
             
     status_text = property((lambda s: s.status_names[s.status]))
     endpoint_type_text = property((lambda s: s.endpoint_type_names[s.endpoint_type]))
