@@ -8,7 +8,6 @@ import SocketServer
 import time
 import multiprocessing
 import cPickle as pickle
-from socket import timeout
 
 from wemd.work_managers import WEWorkManagerBase
 
@@ -21,187 +20,331 @@ from wemd.rc import EX_ERROR
 import logging
 log = logging.getLogger(__name__)
 
-#For the watchdog (server side)
-class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
-
-    def handle(self):
-
-        data = self.request.recv(1024)
-
-        try:
-            cid, cmsg = pickle.loads(data)
-        except pickle.UnpicklingError:
-            log.error(('Error in watchdog unpickling %r\n' % data))
-            raise
- 
-        assert(cmsg == 'client here')
-
-        self.request.send('server here')
-
-        if cid >= self.server.nclients:
-            log.error(('Watchdog cid out of range %d\n' % cid))
-            raise ValueError
-
-        #update last time client was heard from
-        self.server.client_list[cid] = time.time()
-
-class ThreadedTCPServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
-
-    def __init__(self, addr, handlerclass, nclients):
-
-        for superclass in self.__class__.__bases__:
-            initfunc = getattr(superclass, '__init__', lambda x, y, z: None)
-            initfunc(self, addr, handlerclass)
-
-        self.nclients = nclients
-        cur_time = time.time()
-        self.client_list = [cur_time for i in range(0, nclients)]
-
-def watchdog_check(server, flag, timeout):
-    while True:
-        curtime = time.time()
-
-        for cid in range(0,len(server.client_list)):
-
-            ctime = server.client_list[cid]
-
-            if curtime - ctime > timeout:
-                flag.set()
-                log.warn('watchdog flag set '+repr(flag.is_set())+' \n')       
-                return
-
-        time.sleep(timeout)
-
-class TCPWEMaster(WEWorkManagerBase):
-    def __init__(self, runtime_config, load_sim_config = True):
-        super(TCPWEMaster,self).__init__(runtime_config, load_sim_config)
-        self.hostname = None
-        self.dport = None #data
-        self.sport = None #sync
-        self.wport = None #watchdog
-        self.nclients = None
-        self.sync_sock = None
-        self.sock = None
-        self.timeout = None #watchdog timeout in s
-        #self.cores[cid] = number of cores for client 'cid'
-        self.cores = None
-        self.watchdog_server = None
-        self.watchdog_server_thread = None
-        self.watchdog_check_thread = None
-        self.watchdog_flag = threading.Event() #set to true when shutdown should occur
-
-    def set_hostname(self, hostname):
-        self.hostname = hostname
         
+class TCPWorkerBase(WEWorkManagerBase):
+    def __init__(self, runtime_config, load_sim_config = True):
+        super(TCPWorkerBase,self).__init__(runtime_config, load_sim_config)
+        self.hostname = None
+        self.secret_key = None
+        self.secret_key_len = 128
+        self.dport = None
+        self.timeout = None
+        self.sock = None
+                        
+    def set_server_hostname(self, hostname):
+        self.hostname = socket.gethostbyname(hostname)
+    
+    def get_local_hostname(self):
+        return socket.gethostbyname(socket.gethostname())
+    
+    def set_secret_key(self, secret_key):
+        assert(len(secret_key) == self.secret_key_len)
+        self.secret_key = secret_key
+
     def runtime_init(self, runtime_config, load_sim_config = True):
-        super(TCPWEMaster, self).runtime_init(runtime_config, load_sim_config)
+        super(TCPWorkerBase, self).runtime_init(runtime_config, load_sim_config)
         self.timeout = runtime_config.get_int('server.timeout')
         self.dport = runtime_config.get_int('server.dport')
-        self.sport = runtime_config.get_int('server.sport')
-        self.wport = runtime_config.get_int('server.wport')
-        self.nclients = runtime_config.get_int('server.nclients')
 
         if self.backend_driver is None:
             self.load_backend_driver()
 
-        self.init_server()
-        
-        if self.send_cid() == False:
-            self.shutdown(EX_ERROR)
-            sys.exit(EX_ERROR)
+    def post_iter(self, we_iter):
+        self.backend_driver.post_iter(we_iter)
 
-        self.init_watchdog_server()          
-
-    def init_server(self):
+    def init_dserver(self, port):
+        self.debug('init_dserver')
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
         #So server can be restarted quickly
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.sock.bind((self.hostname, self.dport))
-
-        #queue up to nclients
-        self.sock.listen(self.nclients)
         self.sock.settimeout(self.timeout)
-
-    def init_watchdog_server(self):
-        self.watchdog_server = ThreadedTCPServer((self.hostname, self.wport), ThreadedTCPRequestHandler, self.nclients)
-        self.watchdog_server_thread = threading.Thread(target=self.watchdog_server.serve_forever)
-        self.watchdog_server_thread.daemon = True
-        self.watchdog_server_thread.start()
-
-        self.watchdog_check_thread = threading.Thread(target=watchdog_check, args=(self.watchdog_server, self.watchdog_flag, self.timeout))
-        self.watchdog_check_thread.daemon = True
-        self.watchdog_check_thread.start()
-
-    def init_sync_server(self):
-        self.sync_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
-        #So server can be restarted quickly
-        self.sync_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.sync_sock.bind((self.hostname, self.sport))
-
-        #queue up to nclients
-        self.sync_sock.listen(self.nclients)
-        self.sync_sock.settimeout(self.timeout)
-
-    def prepare_iteration(self):
-        super(TCPWEMaster,self).prepare_iteration()
+        self.sock.bind((self.get_local_hostname(), port))
+        self.sock.listen(1)
+                
+    def shutdown_dserver(self):
+        if self.sock is not None:
+            self.sock.close()        
+            self.sock = None
         
-        if self.watchdog_flag.is_set():
-            self.shutdown(EX_ERROR)
-            sys.exit(EX_ERROR)
+    def send_message(self, message, sock):
+        '''adds secret key and length to message
+           returns [128 bytes secret key][32 bytes pickled msg length (padded)][pickled msg]
+           or None on error '''
+        #self.debug('send_message' % repr(message))
+        
+        msg_pickle = pickle.dumps(message, pickle.HIGHEST_PROTOCOL)
+        len_pickle = pickle.dumps(len(msg_pickle), pickle.HIGHEST_PROTOCOL)
+        
+        #pad len_pickle
+        if len(len_pickle) < 32:
+            len_pickle = len_pickle + ' ' * ( 32 - len(len_pickle) )
+        else:
+            return False #message too long --> unlikely unless message is very long
+        
+        assert(self.secret_key is not None)
+        assert(len(self.secret_key) >= 64)
+        
+        data = self.secret_key + len_pickle + msg_pickle
+   
+        sock.sendall(data)
+        
+        return True
     
-    def post_iter(self, we_iter):
-        self.backend_driver.post_iter(we_iter)
+    def send_message_thread(self, message, sock, error):
+        '''calls send_message, but sets error on error'''
         
-    def finalize_iteration(self):
-        super(TCPWEMaster,self).finalize_iteration()
+        if self.send_message(message, sock) == False:
+            error.set()
+               
+    def recv_message(self, sock):
+        '''verifies key and recvs on sock until message complete
+           returns message or None on error
+        '''
+        #self.debug('recv_message')
         
-        if self.sync() == False:
+        #[128 bytes secret key][32 bytes pickled msg length (padded)][pickled msg]
+        key_check = True
+        data_len = None
+        buf = []
+        key_len = self.secret_key_len
+        assert(key_len >= 64)
+        assert(self.secret_key is not None)
+        
+        while True:
+            data = sock.recv(1024) 
+
+            buf.append(data)    
+            tmp_buf = ''.join(buf)
+            
+            if key_check == False:
+                #need to receive at least secret_key_len+32 bytes
+                if len(tmp_buf) < (key_len+32):
+                    continue
+                            
+                if tmp_buf[0:key_len] != self.secret_key[0:key_len]:
+                    log.error('Invalid Key: %r %r %r' %(repr(sock),repr(data)))
+                    return None
+                
+                key_check = True
+
+            if data_len is None:
+                data_len = pickle.loads(data[key_len:key_len+32])
+                self.debug('recv %d bytes from client' % data_len)
+
+            if (len(tmp_buf) - (key_len+32)) >= data_len:
+                break                
+        
+        pickled_data = ''.join(buf)
+
+        try:
+            data = pickle.loads(pickled_data[key_len+32:])
+        except (pickle.UnpicklingError, EOFError):
+            raise ValueError('problem decoding data pickle')  
+                
+        return data
+
+    def debug(self, string):
+        log.info('DEBUG: Base: ' + string + ' ' + repr(time.time()))
+
+
+def send_to_client_by_id_thread(s, message, cid):
+    s.send_to_client_by_id(message, cid)
+                                                       
+class TCPWEMaster(TCPWorkerBase):
+    def __init__(self, runtime_config, load_sim_config = True):
+        super(TCPWEMaster,self).__init__(runtime_config, load_sim_config)
+        self.nclients = None
+        #client info
+        #client_info[cid]['key']
+        #key = cores -> # cores
+        #key = ip -> ip addr
+        #key = port -> client port
+        self.client_info = None
+        self.stop_ping_event = None
+        self.ping_thread = None
+        
+    def runtime_init(self, runtime_config, load_sim_config = True):
+        super(TCPWEMaster, self).runtime_init(runtime_config, load_sim_config)
+        self.nclients = runtime_config.get_int('server.nclients')
+        #only for initial connection (to get client info)
+        self.init_dserver(self.dport)
+        
+        if self.send_cid() == False:
             self.shutdown(EX_ERROR)
             sys.exit(EX_ERROR)
+            
+        self.shutdown_dserver()
 
+    def debug(self, string):
+        log.info('DEBUG: Server: ' + string + ' ' + repr(time.time()))
+        
     def worker_is_master(self):
         return True                                        
 
     def send_cid(self):
         '''assigns an id to each client, and gets the number of cores available
            returns True on success, False on failure'''
-        msgs = []
-        for i in range(0, self.nclients):
-            msg = (i, 'cid')
-            msg_pickle = pickle.dumps(msg, pickle.HIGHEST_PROTOCOL)
-            msgs.append(msg_pickle)
-
-        data = self.send_to_clients(msgs, timeout = True)
-        
-        if data is None:
-            return False
+        self.debug('send_cid')
 
         msgs = []
         for i in range(0, self.nclients):
-            msg = (i, 'cores')
-            msg_pickle = pickle.dumps(msg, pickle.HIGHEST_PROTOCOL)
-            msgs.append(msg_pickle)
+            msgs.append((i,'cid'))
 
-        self.cores = self.send_to_clients(msgs, timeout = True)
+        self.client_info = self.recv_from_clients(msgs)
+
+        if self.client_info is None:
+            self.debug('self.client_info is None')
+            return False
         
-        if self.cores is None:
-            return False
-
-        #this can happen if the # of clients in run.cfg is wrong 
-        if 'cid' in self.cores:
-            return False
-
+        #cmsg -> cores
+        for info in self.client_info:
+            info.update({'cores':info['cmsg']})
+            info.pop('cmsg')
+        
+        self.debug('send_cid client_info:'+ repr(self.client_info))
         return True
 
+    def recv_from_clients(self, messages):
+        '''Send message to clients -> They must connect to server
+        Returns (ip, port, client_id, client 'message') as dictionary
+        '''       
+        self.debug('recv_from_clients') 
+        sock = self.sock
+        client_data = [0 for x in range(0, self.nclients)]
+        
+        nclients_alive = 0
+        while nclients_alive < self.nclients:
+            new_socket, address = sock.accept()
+            self.debug('connected to %r' % (repr(address)))
+            data = self.recv_message(new_socket)
+                  
+            if data is None:
+                new_socket.close()
+                return None
+            
+            cid, cmsg, port = data
+            self.debug('cid, cmsg, port: %r, %r, %r' %(cid, cmsg, port))
+
+            #assign cid on first come basis
+            if cid is None:
+                cid = nclients_alive
+
+            client_data[cid] = {'ip':address[0], 'port':port, 'cid':cid, 'cmsg':cmsg}
+            self.debug('recv_from_clients: %r' % client_data[cid])
+
+            if self.send_message(messages[cid], new_socket) == False:
+                new_socket.close()                
+                return None
+
+            new_socket.close()
+
+            nclients_alive += 1
+                                
+        return client_data
+
+    
+    def send_to_clients(self, messages):
+        '''Like recv_from_clients but sends then recvs()
+           Also initiates connection
+           Assumes that self.client_info is known'''
+        self.debug('send_to_clients %r ' % messages)
+
+        info = self.client_info
+        
+        cdata = [0 for x in range(0, self.nclients)]
+        
+        sock_threads = []
+        sock_error = threading.Event()
+        socks = []
+        for cid in xrange(0, self.nclients):
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)            
+            sock.connect((info[cid]['ip'], info[cid]['port']))
+
+            socks.append(sock)
+            
+            sock_threads.append(threading.Thread(target=self.send_message_thread, args=(messages[cid], sock, sock_error)))
+            sock_threads[-1].start()
+        
+        complete_threads = []
+        while True: 
+            for cid in xrange(0, self.nclients):
+                if cid not in complete_threads:
+                    if sock_threads[cid].is_alive() == False:
+                        complete_threads.append(cid)
+                        
+            if len(complete_threads) == len(sock_threads):
+                break
+        
+        
+        if sock_error.is_set():
+            for sock in socks:
+                sock.close()
+            log.error('TCPServer: socket error in send message')
+            return None
+        
+        for sock in socks:
+            data = self.recv_message(sock)
+            cid = data[0]
+            cdata[cid] = data
+            sock.close()
+        
+        self.debug('send_to_clients recv %r' % repr(cdata))
+        return cdata
+    
+    def send_command_to_clients(self, command):
+        '''Like send_to_clients but sends the same message to each one
+        '''
+        self.debug('send_command_to_clients %r' % command)
+        msgs = []
+        for i in range(0, self.nclients):
+            msgs.append((i, command))
+        
+        return self.send_to_clients(msgs)
+                
+    def get_clients_status(self):
+        self.debug('get_clients_status')
+        return self.send_command_to_clients('status')
+    
+    def shutdown_clients(self):
+        self.debug('shutdown clients')
+        return self.send_command_to_clients('shutdown')
+    
+    def send_to_client_by_id(self, message, cid):
+        #self.debug('send_to_client_by_id %r %r' % (message, cid))
+
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        info = self.client_info
+        
+        sock.connect((info[cid]['ip'], info[cid]['port']))
+        
+        if self.send_message(message, sock) == False:
+            sock.close()
+            return None
+        
+        data = self.recv_message(sock)
+        
+        sock.close()
+        
+        #self.debug('send_to_client_by_id:%r' % repr(data))
+        return data
+    
     def propagate_particles(self, we_iter, segments):
+        self.debug('propagate_particles')
+        self.stop_ping_thread()
+        
         self.prepare_iteration()
-             
         self.backend_driver.pre_iter(we_iter)
 
+        status = self.get_clients_status()
+        state = self.reduce_client_status(status)
+            
+        if state != 'ready':
+            log.error('Clients not ready for next iter, current state %r' % state)
+            raise ValueError('Clients not ready')
+        
         if self.send_segments(segments) == False:
-            raise ValueError
+            raise ValueError('Segments could not be sent')
         
         segments = self.get_segments()
         
@@ -209,19 +352,22 @@ class TCPWEMaster(WEWorkManagerBase):
             log.error('No segments returned')
             raise ValueError('No segments returned')
         
+        self.start_ping_thread()
         #segments[cid][task#] -> segments[i]
         segs = [j for k in segments for j in k if j is not None]
         return segs
 
 
     def send_segments(self, segments):
+        self.debug('send_segments')
+
         cmds = []
         
         #for now, just assume a homogeneous resource
         i = 0
         tasks = [[] for i in xrange(0, self.nclients)]
         
-        for segment in map(None, *(iter(segments),) * self.cores[0]):
+        for segment in map(None, *(iter(segments),) * self.client_info[0]['cores']):
 
             if type(segment) is tuple:
                 tasks[i].append(segment)                
@@ -234,9 +380,7 @@ class TCPWEMaster(WEWorkManagerBase):
         for i in xrange(0, self.nclients):
             #flatten list of tuples into a list
             task = [j for k in tasks[i] for j in k if j is not None]
-            command = (i, task)
-            work_pickle = pickle.dumps(command, pickle.HIGHEST_PROTOCOL)
-            cmds.append(work_pickle)
+            cmds.append((i, 'propagate_segs', task))
             
         ret = self.send_to_clients(cmds)
 
@@ -244,545 +388,333 @@ class TCPWEMaster(WEWorkManagerBase):
             return False
 
         return True
-                        
+    
+    def reduce_client_status(self, status):
+        '''reduces list of status to one status
+           All Clients Ready -> ready
+           Any Clients Busy -> busy
+           All Clients Have Data -> data
+           Otherwise (some ready, some data) -> busy
+        '''
+        self.debug('reduce_client_status: %r' % repr(status))
+
+        if status is None:
+            return 'error'
+        
+        if None in status:
+            return 'error'
+        
+        data = False
+        ready = False
+        reduced_status = None
+        for cid in xrange(0, self.nclients):
+            cstatus = status[cid][1]
+                
+            if cstatus == 'busy':
+                return 'busy'
+            elif cstatus == 'data':
+                if ready == False:
+                    data = True
+                else:
+                    return 'busy'
+            elif cstatus == 'ready':
+                if data == False:
+                    ready = True
+                else:
+                    return 'busy'
+            else:
+                raise ValueError('Unknown status %r' % cstatus)
+            
+        if data == True:
+            return 'data'
+        elif ready == True:
+            return 'ready'
+        else:
+            raise ValueError('Inconsistent status')
+    
+    def start_ping_thread(self, cid = None):
+        if self.ping_thread is None:
+            self.stop_ping_event = threading.Event()
+            self.ping_thread = threading.Thread(target=self.ping_clients, args=(self.stop_ping_event, cid))
+            self.ping_thread.start()
+    
+    def stop_ping_thread(self):
+        if self.ping_thread is not None:
+            self.stop_ping_event.set()
+
+            while True: #wait until ping_thread has stopped
+                if self.ping_thread.is_alive() == False:
+                    break   
+                 
+                time.sleep(5)                        
+            
+    def ping_clients(self, stop, cid = None):
+        '''ping all clients except cid if set'''
+        while True:
+            if stop.is_set():
+                break
+            
+            for i in xrange(0, self.nclients):
+                if cid is not None and i == cid:
+                        continue
+                self.send_to_client_by_id((i,'status'), i)
+                
+            time.sleep(5)
+    
     def get_segments(self):
-        msgs = []
-        for i in range(0, self.nclients):
-            msg = (i, 'prepare for next commnand')
-            msg_pickle = pickle.dumps(msg, pickle.HIGHEST_PROTOCOL)
-            msgs.append(msg_pickle)
+        self.debug('get_segments')
 
-        segs = self.send_to_clients(msgs, block = False)
-        if segs is None:
-            return None
+        getsegs_msgs = []
+        for i in xrange(0, self.nclients):
+            getsegs_msgs.append((i, 'get_segs'))
 
-        for cid in range(0, len(segs)):
+        segs = [] #NOTE: these are not sorted by cid
+        cids = [] #recv'd segs from these clients
 
-            if segs[cid] is None:
-                log.error(('client: %d returned %r\n' % (cid, segs[cid])))
+        while len(segs) < self.nclients:
+            status = self.get_clients_status()
+    
+            if self.reduce_client_status(status) == 'ready':
+                break
+            
+            #occurs if client has died (connection refused)
+            if status is None:
+                log.error('Error connecting to client')
                 return None
+            
+            for cid in xrange(0, self.nclients):
+                self.debug('get_segments: status[cid] %r' % repr(status[cid]))
+                if status[cid][1] == 'data':
+                    self.debug('get_segments: sending %r to %r' % (getsegs_msgs[cid], cid))
 
-            log.debug(('client: %d returned %r\n' % (cid, segs[cid])))
-             
+                    self.start_ping_thread(cid)     
+
+                    #this will cause the client to switch to ready
+                    data_tuple = self.send_to_client_by_id(getsegs_msgs[cid], cid)
+                    
+                    self.stop_ping_thread()
+                    
+                    if data_tuple is None:
+                        return None
+                    
+                    ccid, seg_data, seg = data_tuple
+                    
+                    assert(cid == ccid)
+                    assert(seg_data == 'segs')
+                    
+                    if seg is None:
+                        log.error('Error retrieving seg from client %r' % cid)
+                        return None
+                    
+                    segs.append(seg)
+                    cids.append(cid)
+                    
+            time.sleep(5)
+            
         return segs
 
-    def sync(self, shutdown = False):
-        '''sends sync command to clients on sport
-           returns False on timeout, True otherwise'''
-        self.init_sync_server()
-
-        sock = self.sync_sock
-
-        clients_alive = []
-        while len(clients_alive) < self.nclients:
-
-            if self.watchdog_flag.is_set():
-                return False
-
-            try:
-                newSocket, address = sock.accept()
-
-                data = newSocket.recv(1024)
-
-                try:
-                    cid, cmsg = pickle.loads(data)
-                except (pickle.UnpicklingError, EOFError):
-                    newSocket.close()
-                    self.shutdown_sync_server()
-                    return False
-                    
-
-                if shutdown == False:
-                    newSocket.sendall('sync')
-                else:
-                    newSocket.sendall('shutdown')
-
-                newSocket.close()
-
-                #only count sync clients
-                if cmsg == 'sync' and cid not in clients_alive:
-                    clients_alive.append(cid)
-
-            except (socket.timeout, socket.error):
-                pass
-
-        self.shutdown_sync_server()
-        return True
-
-    def send_to_clients(self, messages, block = True, timeout = False):
-        '''Send message to clients
-           Returns received data[client_id] or None on timeout
-           messages[client_id] is message for client client_id
-           set block to False to send message as clients connect
-           rather then after all clients have connected'''
-
-        sock = self.sock
-        client_sockets = []
-        client_sockets_cid = []
-
-        #block until all clients have connected
-        client_data = [0 for x in range(0, self.nclients)]
-
-        nclients_alive = 0
-        while nclients_alive < self.nclients:
-
-            if self.watchdog_flag.is_set():
-
-                if block == True:
-                    for i in range(0, nclients_alive):
-                        client_sockets[i].close()
-
-                return None
-
-            try:
-                newSocket, address = sock.accept()
-                
-                log.warn('connected to:'+repr(address)+'\n')
-                client_sockets.append(newSocket)
-
-                buf = []
-                data_len = None
-                #[32 bytes pickled msg length (padded)][pickled msg]
-                while True:
-
-                    if self.watchdog_flag.is_set():
-                        if block == True:
-                            for i in range(0, nclients_alive):
-                                client_sockets[i].close()
-                        return None
-
-                    data = client_sockets[-1].recv(1024)
-                    
-                    if data_len is None:
-                        data_len = pickle.loads(data)
-                        log.debug('recv %d bytes from client' % data_len)
-                    
-                    buf.append(data)    
-                    tmp_buf = ''.join(buf)
-                      
-                    if len(tmp_buf) - 32 >= data_len:
-                        break
-
-                cpickle = ''.join(buf)
-                data = cpickle[32:] #pickled msg
-
-                cid, cmsg = pickle.loads(data)
-
-                if cid is None:
-                    cid = nclients_alive
-
-                client_data[cid] = cmsg
-
-                client_sockets_cid.append(cid)
-
-                if block == False:
-                    client_sockets[-1].sendall(messages[cid])
-                    client_sockets[-1].close()
-
-                nclients_alive += 1
-
-            except (pickle.UnpicklingError, EOFError):
-
-                if block == True:
-                    for i in range(0, nclients_alive):
-                        client_sockets[i].close()
-
-                log.error('Error unpickling client data')
-
-                return None
-
-            except socket.timeout:
-                if timeout == True:
-                    return None
-                #otherwise just ignore error
-
-        if block == True:
-            for i in range(0, len(client_sockets)):
-
-                cid = client_sockets_cid[i]
-                #send message that corresponds to client
-                if cid is not None:
-                    client_sockets[i].sendall(messages[cid])
-                else:
-                    client_sockets[i].sendall(messages[i])
-
-                client_sockets[i].close()
-
-        return client_data
-
-
-    def shutdown_sync_server(self):
-        self.sync_sock.close()
-
     def shutdown(self, exit_code=0):
-        log.debug(('server: Shutdown %d\n' % exit_code))
+        self.debug(('server: Shutdown %d\n' % exit_code))
 
-        if self.sock is not None:
-            self.sock.close()
+        self.shutdown_dserver()
+        self.shutdown_clients()
 
-        if self.watchdog_server is not None:
-            self.watchdog_server.shutdown()
-            #wait until both threads have exited
-            self.watchdog_server_thread.join()
-            self.watchdog_check_thread.join()
-       
-    
-#client     
-def watchdog_check_client(hostname, wport, flag, cid, timeout):
-    last_connect_time = time.time()
-    #use a shorter timeout so we connect to the server more than needed
-    effective_timeout = timeout/4
-    while True:
-        try:
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.settimeout(effective_timeout)
-            sock.connect((hostname, wport))
-
-            msg = (cid, 'client here')
-            msg_pickle = pickle.dumps(msg, pickle.HIGHEST_PROTOCOL)   
-
-            sock.sendall(msg_pickle)
-            data = sock.recv(1024)
-
-            assert(data == 'server here')
-
-            last_connect_time = time.time()
-
-            sock.close()       
-        except (socket.timeout, socket.error):
-            pass       
-
-        #if shutdown is called somewhere else
-        #exit this thread
-        if flag.is_set():
-            return
-
-        if time.time() - last_connect_time > timeout:
-            flag.set()
-            log.debug('watchdog flag set '+repr(flag.is_set())+' \n')   
-            return
-
-        time.sleep(effective_timeout)
-
+#client
 def propagate_segment_thread(backend_driver, segment):
     backend_driver.propagate_segments(segment)
+
+def propagate_particles(backend_driver, segments, shutdown_flag):
+    
+    nsegs = len(segments)
+   
+    #if there aren't any segs for this client
+    if nsegs == 0:
+        return
+   
+    ncpus = multiprocessing.cpu_count()
+   
+    for cur_seg in xrange(0, nsegs, ncpus):
+
+        seg_threads = []
+
+        if cur_seg + ncpus > nsegs:
+            seg_list = segments[cur_seg:]
+        else:
+            seg_list = segments[cur_seg:cur_seg + ncpus]
+           
+        for seg in seg_list:
+            p = threading.Thread(target=propagate_segment_thread, args=(backend_driver, [seg],))
+            p.start()        
+            seg_threads.append(p)
+
+        nrunning_tasks = len(seg_list)
+                       
+        complete_threads = []
+
+        while True:
+            #check to see if threads are finished
+            for i in [x for x in range(0, nrunning_tasks) if x not in complete_threads]:
+                if seg_threads[i].is_alive() == False:
+                    complete_threads.append(i)
+
+            if len(complete_threads) == nrunning_tasks:
+                break
+
+            if shutdown_flag.is_set():
+
+                #wait on all incomplete threads
+                for i in [x for x in range(0, nrunning_tasks) if x not in complete_threads]:
+                    if seg_threads[i].is_alive() == True:
+                        log.info('Join '+repr(i)+'\n')
+                        seg_threads[i].join()
+                break
+
+            time.sleep(5)
             
-class TCPWEWorker(WEWorkManagerBase):
+        if shutdown_flag.is_set():
+            return
+
+    for seg in segments:
+        if seg.status == Segment.SEG_STATUS_FAILED:
+            shutdown_flag.set()
+            raise ValueError('Segment(s) Failed')
+       
+
+class TCPWEWorker(TCPWorkerBase):
     def __init__(self, runtime_config, load_sim_config = True):
         super(TCPWEWorker, self).__init__(runtime_config, load_sim_config)
-        self.hostname = None
-        self.dport = None
-        self.sport = None
-        self.wport = None
         self.work_pickle = None
         self.segments = None
-        self.shutdown_flag = False
         self.cid = None
-        self.watchdog_flag = threading.Event()
-        self.watchdog_check_thread = None
-        self.timeout = None
-        # The driver that actually propagates segments
-        self.backend_driver = None
+        self.shutdown_flag = threading.Event()
+        self.state = 'busy'
+        self.pp_thread = None
+        self.cport = None
+    
+    def set_cport(self, cport):
+        self.cport = int(cport)
         
-    def set_hostname(self, hostname):
-        self.hostname = hostname
-             
     def runtime_init(self, runtime_config, load_sim_config = True):
         super(TCPWEWorker, self).runtime_init(runtime_config, load_sim_config)
-        self.timeout = runtime_config.get_int('server.timeout')
-        self.dport = runtime_config.get_int('server.dport')
-        self.sport = runtime_config.get_int('server.sport')
-        self.wport = runtime_config.get_int('server.wport') 
-
-        if self.backend_driver is None:
-            self.load_backend_driver()
+        if self.cport is None:
+            self.cport = self.dport
             
-        log.debug('entering receive loop')
-
-        if self.get_cid() == False:
-            self.shutdown(EX_ERROR)
-            sys.exit(EX_ERROR)     
-
-        self.init_watchdog()
-
-    def init_watchdog(self):
-        self.watchdog_check_thread = threading.Thread(target=watchdog_check_client, args=(self.hostname, self.wport, self.watchdog_flag, self.cid, self.timeout))
-        self.watchdog_check_thread.daemon = True
-        self.watchdog_check_thread.start()
-
-    def prepare_iteration(self):
-        super(TCPWEWorker, self).prepare_iteration()
-        if self.get_segments() == False:
-            self.shutdown(EX_ERROR)
-            sys.exit(EX_ERROR)
-
-    def finalize_iteration(self):
-        super(TCPWEWorker, self).finalize_iteration()
+        log.info('TCPClient runtime init')
         
-        if self.send_segments() == False:
-            self.shutdown(EX_ERROR)
-            sys.exit(EX_ERROR)
+        self.get_cid()        
+        self.init_dserver(self.cport)
+   
+    def debug(self, string):
+        log.info('DEBUG: Client ' + repr(self.cid) + ' ' + string + ' ' + repr(time.time()))
+ 
+    def get_command(self):
+        self.debug('get_command')
 
-        if self.sync_clients() == False:
-            self.shutdown(0)
-            sys.exit(0)
+        sock = self.sock
+        
+        new_socket, address = sock.accept()
+        self.debug('connected to %r' % repr(address))
+        
+        dec_data = self.recv_message(new_socket)
 
-        if self.shutdown_flag == True:
-            self.shutdown(EX_ERROR)
-            sys.exit(EX_ERROR)
+        if dec_data is None:
+            new_socket.close()
+            raise ValueError('Invalid command from server None')
+
+        if len(dec_data) == 2:
+            cid, cmsg = dec_data
+            data = None
+        elif len(dec_data) == 3:
+            cid, cmsg, data = dec_data
+        else:
+            raise ValueError('Invalid command from server %r' % (repr(dec_data)))
+
+        assert(cid == self.cid)
+        
+        return cmsg, data, new_socket
+
+    def run(self):
+        self.debug('run loop')
+
+        self.state = 'ready'
+        segs = []
+        while True:
+            cmd, data, data_sock = self.get_command()
+            self.debug('cmd %r' % (cmd))
+
+            if cmd == 'propagate_segs':
+                self.state = 'busy'
+                self.prepare_iteration()
+                
+                segs = data
+                
+                if segs:
+                    self.propagate_particles(segs) #nonblocking
+                else:
+                    self.state = 'data'
+                    
+                self.send_message((self.cid, 'running segs'), data_sock)
+                
+            elif cmd == 'status':
+                self.send_message((self.cid, self.state), data_sock)
+            elif cmd == 'get_segs':
+                if self.state == 'data':
+                    self.send_message((self.cid, 'segs', segs), data_sock)
+                    segs = []
+                    self.state = 'ready'
+                else:
+                    self.send_message((self.cid, None), data_sock)
+            
+            elif cmd == 'shutdown':
+                self.send_message((self.cid, 'shutdown'), data_sock)
+                data_sock.close()
+                self.shutdown()
+                return
+            
+            data_sock.close() #close connection after replying to server
+    
+            if self.propagate_particles_complete() == True and self.state == 'busy': #ie segs finished
+                self.state = 'data'
+                self.finalize_iteration()
+                
+    def propagate_particles(self, segments):
+        self.debug('propagate_particles')
+        self.pp_thread = threading.Thread(target=propagate_particles, args=(self.backend_driver, segments, self.shutdown_flag))
+        self.pp_thread.start()    
+    
+    def propagate_particles_complete(self):
+        if self.pp_thread is None:
+            return False
+        
+        if self.pp_thread.is_alive():
+            return False
+        else:
+            return True
                                     
     def worker_is_master(self):
         return False
         
     def get_cid(self):
         '''gets the client id and sends the # of cores available'''
-        try:
-            #get cid
-
-            data = self.send_to_server((None, 'cid'))
-            
-            if data is None:
-                log.error('problem connecting to server-> exit\n')                
-                return False
-                        
-            self.cid, tmp = pickle.loads(data)
-
-            assert(tmp == 'cid')
-   
-        except (pickle.UnpicklingError, EOFError):
-            log.error('problem connecting to server-> exit\n')
-            return False
-
-        try:
-            #send number of cores
-
-            data = self.send_to_server((self.cid, multiprocessing.cpu_count()))
-    
-            if data is None:
-                log.error('problem connecting to server-> exit\n')                
-                return False
-    
-            cid, tmp = pickle.loads(data)
-
-            assert(tmp == 'cores')
-            assert(self.cid == cid)
-
-        except (pickle.UnpicklingError, EOFError):
-            log.error('problem connecting to server-> exit\n')
-            return False
-
-        return True              
-
-    def get_segments(self):
-        self.work_pickle = None
-        
-        work_pickle_str = self.send_to_server((self.cid, 'ready for work'))
-
-        if work_pickle_str is None:
-            return False
-
-        self.work_pickle = work_pickle_str
-
-        return True    
-
-    def propagate_particles(self, we_iter, segments):
-        self.prepare_iteration()
-        
-        self.rc = None
-
-        if self.work_pickle is None:
-            log.error('Work pickle is not defined')
-            self.rc = None
-            raise TypeError
-
-        try:
-            cid, segs = pickle.loads(self.work_pickle)
-            assert(self.cid == cid)
-        except (pickle.UnpicklingError, EOFError):
-            log.error('Error unpickling work')
-            log.error(repr(self.work_pickle))
-            self.segments = None
-            raise
-         
-        nsegs = len(segs)
-        
-        #if there aren't any segs for this client
-        #return [] (== segs)
-        if nsegs == 0:
-            self.segments = segs
-            return []
-        
-        ncpus = multiprocessing.cpu_count()
-        returncodes = []
-        
-        for cur_seg in xrange(0, nsegs, ncpus):
-
-            seg_threads = []
-
-            if cur_seg + ncpus > nsegs:
-                seg_list = segs[cur_seg:]
-            else:
-                seg_list = segs[cur_seg:cur_seg + ncpus]
-                
-            for seg in seg_list:
-                p = self.do_propagate_segment([seg])
-                seg_threads.append(p)
-
-            nrunning_tasks = len(seg_list)                
-            complete_threads = []
-
-            shutdown_flag = False
-            while True:
-
-                #check to see if threads are finished
-                for i in [x for x in range(0, nrunning_tasks) if x not in complete_threads]:
-                    if seg_threads[i].is_alive() == False:
-                        complete_threads.append(i)
-
-                if len(complete_threads) == nrunning_tasks:
-                    break
-
-                if self.watchdog_flag.is_set():
-                    shutdown_flag = True
- 
-                    #wait on all incomplete threads
-                    for i in [x for x in range(0, nrunning_tasks) if x not in complete_threads]:
-                        if seg_threads[i].is_alive() == True:
-                            log.debug('Join '+repr(i)+'\n')
-                            seg_threads[i].join()
-                    break
-
-                time.sleep(5)
-                
-            if shutdown_flag == True:
-                break
-            
-        self.segments = segs
-
-        if shutdown_flag == True:
-            raise ValueError
-                    
-        for seg in segs:
-            if seg.status == Segment.SEG_STATUS_FAILED:
-                raise ValueError('Segment(s) Failed')
-            
-        return True
-
-    def do_propagate_segment(self, segment):
-        thread = threading.Thread(target=propagate_segment_thread, args=(self.backend_driver, segment,))
-        thread.start()        
-        return thread
-
-    def send_segments(self):
-        try:
-            data_pickle = self.send_to_server((self.cid, self.segments))          
-            
-            if data_pickle is None:
-                return False
-
-            cid, data = pickle.loads(data_pickle)
-            
-            if data != 'prepare for next commnand':
-                return False
-
-        except (pickle.UnpicklingError, EOFError):
-            log.error('Error unpickling rc data')
-            log.error(repr(data_pickle))
-            return False
-
-        return True
-
-    def sync_clients(self):
-        shutdown_flag = False
-        while True:
-
-            if self.watchdog_flag.is_set():
-                shutdown_flag = True
-                break
-
-            try:
-                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                #do not set too low, otherwise it will never connect with a large # of clients
-                sock.settimeout(self.timeout)
-                sock.connect((self.hostname, self.sport))
-
-                msg = (self.cid, 'sync')
-                msg_pickle = pickle.dumps(msg, pickle.HIGHEST_PROTOCOL)
-
-                sock.sendall(msg_pickle)
-
-                data = sock.recv(1024)
-
-                if data == 'shutdown':
-                    shutdown_flag = True
-                    break
-                #sync means all clients have checked in and are ready to continue
-                elif data == 'sync':
-                    break
-                else:                
-                    shutdown_flag = True
-                    break                  
-
-            except (socket.timeout, socket.error):
-                pass
-            
-            finally:
-                sock.close()
-
-            time.sleep(self.timeout)
-
-        if shutdown_flag == True:
-            return False
-
-        return True
-    
-    def send_to_server(self, msg):
+        self.debug('get_cid')
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
-        msg_pickle = pickle.dumps(msg, pickle.HIGHEST_PROTOCOL)
-        len_pickle = pickle.dumps(len(msg_pickle), pickle.HIGHEST_PROTOCOL)
+        sock.connect((self.hostname, self.dport))
+        self.debug('connected to: %r' % repr((self.hostname, self.dport)))
         
-        #pad len_pickle
-        if len(len_pickle) < 32:
-            len_pickle = len_pickle + ' ' * ( 32 - len(len_pickle) )
-        else:
-            return None
-        
-        complete_pickle = len_pickle + msg_pickle
-        
-        try:
-            sock.connect((self.hostname, self.dport))
-            
-            sock.sendall(complete_pickle)
-        except socket.error, e:
-            log.warn('problem connecting to server %r-> exit\n' % e)
+        if self.send_message((None, multiprocessing.cpu_count(), self.cport), sock) == False:
             sock.close()
-            return None
+            raise ValueError('could not retrieve cid')
 
-        buf = []
+        self.debug('get_cid recv_message')
+        cid, msg = self.recv_message(sock)
+        sock.close()
 
-        while True:
-
-            if self.watchdog_flag.is_set():
-                sock.close()
-                return None
-
-            try:
-                data = sock.recv(1024)
-                #stop when server closes connection
-                if not data:
-                    break
-  
-                buf.append(data)
-            except socket.error, e:
-                log.warn('problem connecting to server %r-> exit\n' % e)
-                sock.close()
-                return None
-
-        buf_str = ''.join(buf)
-        sock.close()  
-              
-        return buf_str                   
+        self.cid = cid
+        assert(msg == 'cid')
+        self.debug('hello from client %r' % self.cid)
 
     def shutdown(self, exit_code=0):
-        self.watchdog_flag.set()   
+        self.debug('shutdown')
+        self.shutdown_flag.set()   
+        self.shutdown_dserver()
+        

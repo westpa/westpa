@@ -9,6 +9,10 @@ class WECmdLineTool(object):
     RC_LONG_OPTION  = '--rcfile'
     SERVER_SHORT_OPTION = '-s'
     SERVER_LONG_OPTION = '--hostname'
+    CPORT_SHORT_OPTION = '-c'
+    CPORT_LONG_OPTION = '--client-port'
+    KEY_SHORT_OPTION = '-k'
+    KEY_LONG_OPTION = '--key'        
     @classmethod
     def add_rc_option(cls, parser):
         parser.add_option(cls.RC_SHORT_OPTION, cls.RC_LONG_OPTION,
@@ -22,6 +26,16 @@ class WECmdLineTool(object):
                           dest='hostname',
                           help='hostname of server',
                           default=None)
+        
+        parser.add_option(cls.CPORT_SHORT_OPTION, cls.CPORT_LONG_OPTION,
+                          dest='cport',
+                          help='client port',
+                          default=None)      
+
+        parser.add_option(cls.KEY_SHORT_OPTION, cls.KEY_LONG_OPTION,
+                          dest='key',
+                          help='key for tcp server/client communication',
+                          default=None)             
              
     usage = '%prog [options] COMMAND [...]'
     description = None

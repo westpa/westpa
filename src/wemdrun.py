@@ -23,12 +23,28 @@ class WEMDRunTool(WECmdLineTool):
         
         if opts.hostname:
             try:
-                sim_manager.set_hostname(opts.hostname)
+                sim_manager.set_server_hostname(opts.hostname)
             except Exception:
                 sim_manager.shutdown(EX_EXCEPTION_ERROR)            
                 log.error('unhandled exception in run() -- make sure worker is tcp server/client')
-                sys.exit(EX_EXCEPTION_ERROR)    
-                            
+                raise  
+        
+        if opts.cport:
+            try:
+                sim_manager.set_cport(opts.cport)
+            except Exception:     
+                sim_manager.shutdown(EX_EXCEPTION_ERROR)            
+                log.error('unhandled exception in run() -- make sure worker is tcp client')
+                raise
+        
+        if opts.key:
+            try:
+                sim_manager.set_secret_key(opts.key)
+            except Exception:
+                sim_manager.shutdown(EX_EXCEPTION_ERROR)            
+                log.error('unhandled exception in run() -- make sure key is correct length')
+                raise
+                                      
         sim_manager.load_sim_state()
         
         try:

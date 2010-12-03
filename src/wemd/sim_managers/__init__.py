@@ -33,6 +33,8 @@ class WESimManagerBase:
         
         #hostname for tcp worker
         self.hostname = None
+        self.cport = None
+        self.key = None
         
     def runtime_init(self, runtime_config, load_sim_config=True):
         self.runtime_config = runtime_config
@@ -73,8 +75,14 @@ class WESimManagerBase:
         for network data to arrive for processing."""
         raise NotImplementedError
 
-    def set_hostname(self, hostname):
+    def set_server_hostname(self, hostname):
         self.hostname = hostname
+        
+    def set_secret_key(self, key):
+        self.key = key
+        
+    def set_cport(self, cport):
+        self.cport = cport
         
     def shutdown(self, exit_code=0):
         pass
@@ -147,13 +155,23 @@ class WESimMaster(WESimManagerBase):
             WM = self.load_work_manager(driver_name)
             self.worker = WM(self.runtime_config, True)
             if self.hostname is not None:
-                self.worker.set_hostname(self.hostname)
-
+                self.worker.set_server_hostname(self.hostname)
+            if self.worker.worker_is_master() == False:
+                if self.cport is not None:
+                    self.worker.set_cport(self.cport)
+            if self.key is not None:
+                self.worker.set_secret_key(self.key)
+                
         #only open db for write if worker is master
         if self.worker.worker_is_master() and self.data_manager is None:
             self.load_data_manager()
-            
-        self.worker.runtime_init(self.runtime_config, True)                    
+        
+        self.worker.runtime_init(self.runtime_config, True)
+    
+        if self.worker.worker_is_master() == False:
+            self.worker.run()
+            return 
+        
         max_wallclock = self.max_wallclock   
         if( max_wallclock is not None):     
             we_cur_wallclock = time.time() - self.start_wallclock
@@ -164,13 +182,6 @@ class WESimMaster(WESimManagerBase):
         max_seg_id = None
         incomplete_segs = False          
         while self.continue_simulation():
-            
-            if self.worker.worker_is_master():
-                debug_name = 'master'
-            else:
-                debug_name = 'worker'
-                
-            log.info('DEBUG: %r start of loop %r' % (debug_name,time.time()))
                 
             if( max_wallclock is not None):
                 if( loop_end_time is not None):
@@ -182,98 +193,78 @@ class WESimMaster(WESimManagerBase):
                         sys.exit(0)
 
                 loop_start_time = time.time()                        
+                   
+            self.prepare_iteration()
             
-            try:                   
-                if self.worker.worker_is_master():
-                    log.info('DEBUG: %r %r prepare iteration' % (debug_name,time.time()))
-                    self.prepare_iteration()
-                    
-                    current_iteration = self.we_iter.n_iter
-                    log.info('WE iteration %d (of %d requested)'
-                             % (current_iteration, self.max_iterations))
-                    
-                    n_inc = self.data_manager.num_incomplete_segments(self.we_iter)
-                    log.info('%d segments remaining in WE iteration %d'
-                             % (n_inc, current_iteration))
-             
-                    if n_inc == 0: #can happen if a run crashed between iter
-                        log.info('DEBUG: %r %r n_inc==0' % (debug_name,time.time()))
-                        segments = self.data_manager.get_segments(self.we_iter.n_iter,
-                                          load_p_parent = True)
-                        max_seg_id = max([s.seg_id for s in segments])  
-                        segments = self.run_we(segments = segments)   
-                        self.worker.post_iter(self.we_iter)                
-                        self.finalize_iteration()
-                        continue
-                    
-                    if segments is None:
-                        log.info('DEBUG: %r %r segment is None' % (debug_name,time.time()))
-                        segments = self.data_manager.get_segments(self.we_iter.n_iter, 
-                                                                  status_criteria = Segment.SEG_STATUS_PREPARED,
-                                                                  load_p_parent = True)
-                        if not segments: #crashed during run
-                            #get incomplete segments
-                            log.warn('restarting %d incomplete segments' % n_inc)
-                            segments = self.data_manager.get_segments(self.we_iter.n_iter, 
-                                                                  status_criteria = Segment.SEG_STATUS_COMPLETE,
-                                                                  status_negate = True,
-                                                                  load_p_parent = True)
-                            
-                            max_seg_id = self.data_manager.get_max_seg_id(self.we_iter.n_iter)
-                            incomplete_segs = True
-                            
-                    if incomplete_segs == False:
-                        prev_max_seg_id = max_seg_id
-                        seg_ids = [s.seg_id for s in segments if s.seg_id is not None]
-                        if len(seg_ids) > 0:
-                            max_seg_id = max(seg_ids)
-                        else:
-                            max_seg_id = None
-                    
-                    if max_seg_id is None:
-                        log.info('DEBUG: %r %r assign segids' % (debug_name,time.time()))
-                        if prev_max_seg_id is None:
-                            prev_max_seg_id = self.data_manager.get_max_seg_id(self.we_iter.n_iter - 1)
-
-                        for i in xrange(0,len(segments)):
-                            segments[i].seg_id = prev_max_seg_id + i + 1
-                        max_seg_id = segments[-1].seg_id
-                log.info('DEBUG: %r %r propagate_particles' % (debug_name,time.time()))                                      
-                segments = self.worker.propagate_particles(self.we_iter, segments)
-                                
-                if self.worker.worker_is_master():
-                    log.info('DEBUG: %r %r update segments' % (debug_name,time.time()))                  
-                    self.data_manager.update_segments(self.we_iter, list(segments))
-                    
-            except:              
-                log.info('DEBUG: %r %r shutdown !!!' % (debug_name,time.time()))
-                self.shutdown(EX_ERROR)
-                raise
-                sys.exit(EX_ERROR)
-                
-            if self.worker.worker_is_master():
-                log.info('DEBUG: %r %r run_we' % (debug_name,time.time()))                        
-                #the new segments are returned
-                #the old ones are updated/used for we
-                if incomplete_segs:
-                    #after run crashed, need to load all segments, not just incomplete ones
-                    #run_we will fail if the segments are still incomplete
-                    segments = self.data_manager.get_segments(self.we_iter.n_iter,
-                                      load_p_parent = True)
-                    incomplete_segs = False
-                    
-                segments = self.run_we(segments = segments)
-                log.info('DEBUG: %r %r post_iter/finalize_iter' % (debug_name,time.time()))   
+            current_iteration = self.we_iter.n_iter
+            log.info('WE iteration %d (of %d requested)'
+                     % (current_iteration, self.max_iterations))
+            
+            n_inc = self.data_manager.num_incomplete_segments(self.we_iter)
+            log.info('%d segments remaining in WE iteration %d'
+                     % (n_inc, current_iteration))
+     
+            if n_inc == 0: #can happen if a run crashed between iter
+                segments = self.data_manager.get_segments(self.we_iter.n_iter,
+                                  load_p_parent = True)
+                max_seg_id = max([s.seg_id for s in segments])  
+                segments = self.run_we(segments = segments)   
                 self.worker.post_iter(self.we_iter)                
                 self.finalize_iteration()
+                continue
+            
+            if segments is None:
+                segments = self.data_manager.get_segments(self.we_iter.n_iter, 
+                                                          status_criteria = Segment.SEG_STATUS_PREPARED,
+                                                          load_p_parent = True)
+                if not segments: #crashed during run
+                    #get incomplete segments
+                    log.warn('restarting %d incomplete segments' % n_inc)
+                    segments = self.data_manager.get_segments(self.we_iter.n_iter, 
+                                                          status_criteria = Segment.SEG_STATUS_COMPLETE,
+                                                          status_negate = True,
+                                                          load_p_parent = True)
+                    
+                    max_seg_id = self.data_manager.get_max_seg_id(self.we_iter.n_iter)
+                    incomplete_segs = True
+                    
+            if incomplete_segs == False:
+                prev_max_seg_id = max_seg_id
+                seg_ids = [s.seg_id for s in segments if s.seg_id is not None]
+                if len(seg_ids) > 0:
+                    max_seg_id = max(seg_ids)
+                else:
+                    max_seg_id = None
+            
+            if max_seg_id is None:
+                if prev_max_seg_id is None:
+                    prev_max_seg_id = self.data_manager.get_max_seg_id(self.we_iter.n_iter - 1)
+
+                for i in xrange(0,len(segments)):
+                    segments[i].seg_id = prev_max_seg_id + i + 1
+                max_seg_id = segments[-1].seg_id
+                                                         
+            segments = self.worker.propagate_particles(self.we_iter, segments)
+                                         
+            self.data_manager.update_segments(self.we_iter, list(segments))
                 
-            log.info('DEBUG: %r %r worker finalize_iter' % (debug_name,time.time()))   
+            #the new segments are returned
+            #the old ones are updated/used for we
+            if incomplete_segs:
+                #after run crashed, need to load all segments, not just incomplete ones
+                #run_we will fail if the segments are still incomplete
+                segments = self.data_manager.get_segments(self.we_iter.n_iter,
+                                  load_p_parent = True)
+                incomplete_segs = False
+                
+            segments = self.run_we(segments = segments)  
+            self.worker.post_iter(self.we_iter)                
+            self.finalize_iteration()
+                
             self.worker.finalize_iteration()
             
-            if(max_wallclock is not None):
+            if max_wallclock is not None:
                 loop_end_time = time.time()
-                
-            log.info('DEBUG: %r end of loop %r' % (debug_name,time.time()))
             
     def save_sim_state(self):
         raise NotImplementedError
