@@ -353,6 +353,7 @@ class TCPWEMaster(TCPWorkerBase):
             raise ValueError('No segments returned')
         
         self.start_ping_thread()
+        
         #segments[cid][task#] -> segments[i]
         segs = [j for k in segments for j in k if j is not None]
         return segs
@@ -433,20 +434,28 @@ class TCPWEMaster(TCPWorkerBase):
             raise ValueError('Inconsistent status')
     
     def start_ping_thread(self, cid = None):
+        self.debug('PING start_ping_thread %r %r' % (self.ping_thread,self.stop_ping_event))
+        
         if self.ping_thread is None:
+            self.debug('start_ping_thread')
             self.stop_ping_event = threading.Event()
             self.ping_thread = threading.Thread(target=self.ping_clients, args=(self.stop_ping_event, cid))
             self.ping_thread.start()
     
     def stop_ping_thread(self):
+        self.debug('PING stop_ping_thread %r %r' % (self.ping_thread,self.stop_ping_event))
         if self.ping_thread is not None:
+            self.debug('stop_ping_thread')
             self.stop_ping_event.set()
 
             while True: #wait until ping_thread has stopped
                 if self.ping_thread.is_alive() == False:
                     break   
                  
-                time.sleep(5)                        
+                time.sleep(5)
+                
+            self.ping_thread = None
+            self.stop_ping_event = None                        
             
     def ping_clients(self, stop, cid = None):
         '''ping all clients except cid if set'''
@@ -457,6 +466,7 @@ class TCPWEMaster(TCPWorkerBase):
             for i in xrange(0, self.nclients):
                 if cid is not None and i == cid:
                         continue
+                self.debug('ping %r' % i)
                 self.send_to_client_by_id((i,'status'), i)
                 
             time.sleep(5)
