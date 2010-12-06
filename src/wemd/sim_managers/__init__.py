@@ -257,12 +257,20 @@ class WESimMaster(WESimManagerBase):
                                   load_p_parent = True)
                 incomplete_segs = False
                 
-            segments = self.run_we(segments = segments)  
+            segments = self.run_we(segments = segments)
+            
             self.worker.post_iter(self.we_iter)                
             self.finalize_iteration()
                 
             self.worker.finalize_iteration()
             
+            #remove references to parents of segments
+            #prevent mem problem
+            for segment in segments:
+                segment.parents = set()
+                if segment.p_parent:
+                        segment.p_parent.p_parent = None
+                        
             if max_wallclock is not None:
                 loop_end_time = time.time()
             

@@ -184,7 +184,13 @@ class ExecutableBackend(BackendDriver):
         pid = os.fork()
         if pid:
             #in parent
-            id, rc = os.waitpid(pid, 0)
+            while True:
+                id, rc = os.waitpid(pid, os.WNOHANG)
+                if id == pid:
+                    break
+                
+                time.sleep(1)
+                
             return rc
         else:
             #redirect stdout/stderr

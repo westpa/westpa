@@ -93,7 +93,6 @@ class TCPWorkerBase(WEWorkManagerBase):
     
     def send_message_thread(self, message, sock, error):
         '''calls send_message, but sets error on error'''
-        
         if self.send_message(message, sock) == False:
             error.set()
                
@@ -129,7 +128,9 @@ class TCPWorkerBase(WEWorkManagerBase):
                 key_check = True
 
             if data_len is None:
+                self.debug('pickle.loads data_len start')
                 data_len = pickle.loads(data[key_len:key_len+32])
+                self.debug('pickle.loads data_len end')
                 self.debug('recv %d bytes from client' % data_len)
 
             if (len(tmp_buf) - (key_len+32)) >= data_len:
@@ -138,18 +139,18 @@ class TCPWorkerBase(WEWorkManagerBase):
         pickled_data = ''.join(buf)
 
         try:
+            self.debug('pickle.loads data start')
             data = pickle.loads(pickled_data[key_len+32:])
+            self.debug('pickle.loads data end')
         except (pickle.UnpicklingError, EOFError):
             raise ValueError('problem decoding data pickle')  
                 
         return data
 
     def debug(self, string):
-        log.info('DEBUG: Base: ' + string + ' ' + repr(time.time()))
+        pass
+        #log.info('DEBUG: Base: ' + string + ' ' + repr(time.time()))
 
-
-def send_to_client_by_id_thread(s, message, cid):
-    s.send_to_client_by_id(message, cid)
                                                        
 class TCPWEMaster(TCPWorkerBase):
     def __init__(self, runtime_config, load_sim_config = True):
@@ -177,7 +178,8 @@ class TCPWEMaster(TCPWorkerBase):
         self.shutdown_dserver()
 
     def debug(self, string):
-        log.info('DEBUG: Server: ' + string + ' ' + repr(time.time()))
+        pass
+        #log.info('DEBUG: Server: ' + string + ' ' + repr(time.time()))
         
     def worker_is_master(self):
         return True                                        
@@ -266,16 +268,18 @@ class TCPWEMaster(TCPWorkerBase):
             sock_threads.append(threading.Thread(target=self.send_message_thread, args=(messages[cid], sock, sock_error)))
             sock_threads[-1].start()
         
+        self.debug('send_to_clients sending data to clients (threads)')
+
         complete_threads = []
         while True: 
             for cid in xrange(0, self.nclients):
                 if cid not in complete_threads:
                     if sock_threads[cid].is_alive() == False:
                         complete_threads.append(cid)
-                        
+                  
             if len(complete_threads) == len(sock_threads):
                 break
-        
+        self.debug('send_to_clients finished sending data')
         
         if sock_error.is_set():
             for sock in socks:
@@ -287,6 +291,9 @@ class TCPWEMaster(TCPWorkerBase):
             data = self.recv_message(sock)
             cid = data[0]
             cdata[cid] = data
+            
+        for sock in socks:
+            self.debug('send_to_clients closing socket %r' % cid)
             sock.close()
         
         self.debug('send_to_clients recv %r' % repr(cdata))
@@ -452,7 +459,7 @@ class TCPWEMaster(TCPWorkerBase):
                 if self.ping_thread.is_alive() == False:
                     break   
                  
-                time.sleep(5)
+                time.sleep(1)
                 
             self.ping_thread = None
             self.stop_ping_event = None                        
@@ -461,15 +468,20 @@ class TCPWEMaster(TCPWorkerBase):
         '''ping all clients except cid if set'''
         while True:
             if stop.is_set():
+                self.debug('ending ping clients')
                 break
-            
+            self.debug('pinging clients')
+
             for i in xrange(0, self.nclients):
-                if cid is not None and i == cid:
+                if cid is not None:
+                    if i == cid:
+                        self.debug('skipping ping %r'%cid)
                         continue
                 self.debug('ping %r' % i)
+
                 self.send_to_client_by_id((i,'status'), i)
-                
-            time.sleep(5)
+            
+            time.sleep(1)
     
     def get_segments(self):
         self.debug('get_segments')
@@ -485,6 +497,8 @@ class TCPWEMaster(TCPWorkerBase):
             status = self.get_clients_status()
     
             if self.reduce_client_status(status) == 'ready':
+                self.debug('all clients ready, exiting loop')
+                assert(len(segs) == self.nclients)
                 break
             
             #occurs if client has died (connection refused)
@@ -493,7 +507,7 @@ class TCPWEMaster(TCPWorkerBase):
                 return None
             
             for cid in xrange(0, self.nclients):
-                self.debug('get_segments: status[cid] %r' % repr(status[cid]))
+                self.debug('get_segments: status[%r] %r' % (cid,repr(status[cid])))
                 if status[cid][1] == 'data':
                     self.debug('get_segments: sending %r to %r' % (getsegs_msgs[cid], cid))
 
@@ -519,8 +533,9 @@ class TCPWEMaster(TCPWorkerBase):
                     segs.append(seg)
                     cids.append(cid)
                     
-            time.sleep(5)
-            
+            time.sleep(1)
+
+        self.debug('segs retrieved %r %r %r'%(segs,cids,len(segs)))
         return segs
 
     def shutdown(self, exit_code=0):
@@ -615,15 +630,16 @@ class TCPWEWorker(TCPWorkerBase):
         self.init_dserver(self.cport)
    
     def debug(self, string):
-        log.info('DEBUG: Client ' + repr(self.cid) + ' ' + string + ' ' + repr(time.time()))
+        pass
+        #log.info('DEBUG: Client ' + repr(self.cid) + ' ' + string + ' ' + repr(time.time()))
  
     def get_command(self):
         self.debug('get_command')
 
         sock = self.sock
-        
+           
         new_socket, address = sock.accept()
-        self.debug('connected to %r' % repr(address))
+        self.debug('get_command connected to %r' % repr(address))
         
         dec_data = self.recv_message(new_socket)
 
@@ -653,6 +669,7 @@ class TCPWEWorker(TCPWorkerBase):
             self.debug('cmd %r' % (cmd))
 
             if cmd == 'propagate_segs':
+                self.debug('propagate_segs cmd')
                 self.state = 'busy'
                 self.prepare_iteration()
                 
@@ -662,10 +679,12 @@ class TCPWEWorker(TCPWorkerBase):
                     self.propagate_particles(segs) #nonblocking
                 else:
                     self.state = 'data'
-                    
+                self.debug('send running segs')    
                 self.send_message((self.cid, 'running segs'), data_sock)
-                
+                self.debug('done send running segs')
+
             elif cmd == 'status':
+                self.debug('sending status')
                 self.send_message((self.cid, self.state), data_sock)
             elif cmd == 'get_segs':
                 if self.state == 'data':
