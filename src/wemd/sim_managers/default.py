@@ -81,17 +81,47 @@ class DefaultSimManager(WESimMaster):
         
         # Create the initial segments
         log.info('creating initial segments')
+        source_pcoords = sim_config['bin.source_pcoords']
         n_init = sim_config['wemd.initial_particles']
-        pcoord_vals = sim_config['wemd.initial_pcoord']
-        pcoord = numpy.empty((1,len(pcoord_vals)), numpy.float64)
-        pcoord[0] = pcoord_vals
-        if not segments:
-            segments = [Segment(n_iter = 0, 
-                                status = Segment.SEG_STATUS_COMPLETE,
-                                weight=1.0/n_init,
-                                pcoord = pcoord)
-                        for i in xrange(1,n_init+1)]
-        
+        if not source_pcoords:
+            pcoord_vals = sim_config['wemd.initial_pcoord']
+            pcoord = numpy.empty((1,len(pcoord_vals)), numpy.float64)
+            pcoord[0] = pcoord_vals
+            if not segments:
+                segments = [Segment(n_iter = 0, 
+                                    status = Segment.SEG_STATUS_COMPLETE,
+                                    weight=1.0/n_init,
+                                    pcoord = pcoord)
+                            for i in xrange(1,n_init+1)]
+        else:
+            log.info('using initial regions')
+            npcoords = len(source_pcoords)
+            kcoord = source_pcoords.keys()
+            segments = []
+            for icoord in range(0, npcoords):
+
+                try:
+                    init_weight = source_pcoords[kcoord[icoord]]['init_weight']
+                except KeyError:
+                    init_weight = source_pcoords[kcoord[icoord]]['weight']
+                    
+                if icoord < (npcoords - 1):
+                    nsegs = int(init_weight * n_init)
+                else:
+                    nsegs = n_init - len(segments)
+                    
+                pcoord_vals = source_pcoords[kcoord[icoord]]['pcoord']
+                pcoord = numpy.empty((1,len(pcoord_vals)), numpy.float64)
+                pcoord[0] = copy(pcoord_vals)                
+                
+                segments.extend([Segment(n_iter = 0,
+                                        status = Segment.SEG_STATUS_COMPLETE,
+                                        weight = 1.0 / n_init,
+                                        pcoord = pcoord,
+                                        data = {'initial_region':kcoord[icoord]})  
+                                 for i in xrange(1,nsegs+1)])
+                
+            assert(len(segments) == n_init)
         # Record dummy stats for the starting iteration
         self.we_iter = WESimIter()
         self.we_iter.binarray = self.we_driver.make_bins()
@@ -103,7 +133,7 @@ class DefaultSimManager(WESimMaster):
         # Run one iteration of WE to assign particles to bins (for bin data
         # only)
         self.run_we(initial_segments = segments)
-
+            
         self.we_iter.data = {}
         self.we_iter.data['bin_boundaries'] = self.we_driver.bins.boundaries
         self.we_iter.data['bins_shape'] = self.we_driver.bins.shape
@@ -148,6 +178,10 @@ class DefaultSimManager(WESimMaster):
             p = Particle(particle_id = segment.seg_id,
                          weight = segment.weight,
                          pcoord = segment.pcoord[-1,:])
+            
+            if 'initial_region' in segment.data.keys():
+                p.initial_region = segment.data['initial_region']
+                
             current_particles.append(p)
         current_particles = ParticleCollection(current_particles)
 
@@ -232,7 +266,10 @@ class DefaultSimManager(WESimMaster):
                         log.debug('segment %r parents are %r' 
                                   % (s.seg_id or '(New)',
                                      [s2.particle_id for s2 in particle.parents]))
-                        
+                else: #use multiple initial pcoords
+                    if particle.initial_region:
+                        s.data['initial_region'] = particle.initial_region
+                    
                 new_segments.append(s)
 
         we_iter.n_particles = len(new_segments)
@@ -248,8 +285,15 @@ class DefaultSimManager(WESimMaster):
         we_iter.data['recycled_population'] = recycled_population
         log.info('%.6g probability recycled' % recycled_population)
         log.info('bin populations:')
-        log.info(str(self.we_driver.bins.population_array()))  
+        log.info(str(self.we_driver.bins.population_array()))
 
+        nparticles = self.we_driver.bins.nparticles_array()
+        boundaries = self.we_driver.bins.boundaries[0]
+        for i in xrange(0,len(nparticles)):
+            npart = nparticles[i]
+            if npart != 0:
+                log.info("%r segments in [%r,%r] " %(npart,boundaries[i],boundaries[i+1]))
+         
         self.data_manager.create_we_sim_iter(we_iter)
         self.data_manager.create_segments(we_iter, new_segments)
         we_endtime = time.clock()

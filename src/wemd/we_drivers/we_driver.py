@@ -508,33 +508,16 @@ class WEDriver:
         #source_pcoords['Region Name'] is a dictionary with the keys 'pcoord', 'region', and 'weight'
         else:
             npcoords = len(source_pcoords)
+            kcoord = source_pcoords.keys()
+                        
             for particle in self.particles_escaped:
-                assert particle in particles                
-                region_weight = numpy.zeros((npcoords,),dtype=numpy.float64)
-
-                #calculate weight in each region
-                kcoord = source_pcoords.keys()
-                for icoord in xrange(0,npcoords):
-                    for p in particles:
-                        for idim in xrange(0, ndim):
-                            if (p.pcoord[idim] < source_pcoords[kcoord[icoord]]['region'][idim][0]) or (p.pcoord[idim] > source_pcoords[kcoord[icoord]]['region'][idim][1]):
-                                break
-                            elif idim == (ndim - 1):
-                                region_weight[icoord] += p.weight
-                    
-                region_prob = numpy.zeros((npcoords,),dtype=numpy.float64)
-                        
-                #assign new position based on that weight
+                assert particle in particles
                 
-                #if regions are empty use initial weight
-                if region_weight.sum() == 0:
-                    for icoord in xrange(0,len(region_weight)):      
-                        region_prob[icoord] = source_pcoords[kcoord[icoord]]['weight']
-                else:
-                    for icoord in xrange(0,len(region_weight)):
-                        region_prob[icoord] = region_weight[icoord] / region_weight.sum()
-                        
-             
+                region_prob = numpy.zeros((npcoords,),dtype=numpy.float64)
+                #use initial weight
+                for icoord in xrange(0,npcoords):      
+                    region_prob[icoord] = source_pcoords[kcoord[icoord]]['weight']
+
                 icoord = 0
                 while(True):
 
