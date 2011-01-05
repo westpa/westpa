@@ -8,29 +8,21 @@ log = logging.getLogger(__name__)
 
 from wemd.rc import RC_SIM_CONFIG_KEY 
 
-class WEWorkManagerBase:
-    """
-    Simulation driver portions common to both master and workers
-    """
-    def __init__(self, runtime_config, load_sim_config = True):
-        # Runtime configuration; can be changed between invocations (to change file locations, etc)
-        self.runtime_config = None
+class WEWorkManager:
+    is_master = True
+    is_worker = False
 
-        # Static simulation configuration, set up and locked in at "wemdctl init"
-        self.sim_config = None
-        self.sim_config_src = None
-        
+    def __init__(self, sim_manager):
+        self.sim_manager = sim_manager
+                
         # The driver that actually propagates segments
         self.backend_driver = None
         
         self.we_iter = None
                 
-    def runtime_init(self, runtime_config, load_sim_config=True):
-        self.runtime_config = runtime_config
-
-        #need sim_config to load backend driver
-        if self.sim_config is None:
-            self.load_sim_config()
+    def runtime_init(self):
+        self.runtime_config = self.sim_manager.runtime_config
+        self.sim_config = self.sim_manager.sim_config
 
         if self.backend_driver is None:
             self.load_backend_driver()            
@@ -38,16 +30,7 @@ class WEWorkManagerBase:
     def sim_init(self, sim_config, sim_config_src):
         """Create the necessary state for a new simulation"""
         raise NotImplementedError
-    
-    def load_sim_config(self):
-        """Load the static simulation configuration from disk"""
-        self.runtime_config.require(RC_SIM_CONFIG_KEY)
-        log.info("loading static simulation configuration from '%s'" % self.runtime_config[RC_SIM_CONFIG_KEY])
-        self.sim_config, self.sim_config_src = pickle.load(open(self.runtime_config[RC_SIM_CONFIG_KEY], 'rb'))
-
-    def worker_is_master(self):
-        return True        
-    
+        
     def load_backend_driver(self):
         from wemd.backend_drivers import get_backend_driver, get_backend_driver_by_file
         
@@ -63,19 +46,39 @@ class WEWorkManagerBase:
         self.backend_driver.runtime_init(self.runtime_config)
 
     def propagate_particles(self, we_iter, segments):
-        pass
+        raise NotImplementedError
     
     def finalize_iteration(self):
-        """Runs right before next iter"""
         pass
     
     def prepare_iteration(self):
         pass
-    
-    def post_iter(self, we_iter):
-        """Post iteration processing"""
-        pass
-    
+        
     def shutdown(self, exit_code=0):
         pass
+
+class WEWorker:
+    def __init__(self, sim_manager, work_manager):
+        self.sim_manager = sim_manager
+        self.work_manager = work_manager
+        
+    def get_status(self):
+        """Return information about the current status of this worker"""
+        raise NotImplementedError
+        
+    def propagate_particles(self, segments):
+        """Use the backend to propagate particles"""
+        raise NotImplementedError
     
+    def prepare_iteration(self):
+        """Set up worker state necessary for all segments to be run in a new iteration"""
+        pass
+    
+    def finalize_iteration(self):
+        """Finalize worker state after all segments in an iteration have been run"""
+        pass
+    
+    def shutdown(self, exit_code = 0):
+        """Gracefully terminate this worker"""
+        pass
+        

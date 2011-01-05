@@ -92,22 +92,6 @@ _ex_names = dict((code, name) for (name, code) in locals().iteritems()
 def get_exit_code_name(code):
     return _ex_names.get(code, 'error %d' % code)
 
-
-
-# Environment variables
-def get_we_variable(varname, *args):
-    if len(args) > 0:
-        raise TypeError('unexpected positional argument encountered: %r' 
-                        % args[1])
-        
-    try:
-        return os.environ[varname]
-    except KeyError:
-        if args:
-            return args[0]
-        else:
-            raise WEEnvironmentVarError(varname)
-
 __all__ = [name for name in dict(locals()) 
            if not name.startswith('_') 
            and name not in ('os',)]

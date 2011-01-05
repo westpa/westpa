@@ -2,7 +2,7 @@ from __future__ import division
 __metaclass__ = type
 
 import logging
-log = logging.getLogger('wemd.we_drivers.we_driver')
+log = logging.getLogger(__name__)
 
 from itertools import izip
 import math, random
@@ -10,7 +10,9 @@ from copy import copy
 import numpy 
 
 class WEDriver:
-    def __init__(self):
+    def __init__(self, sim_manager):
+        self.sim_manager = sim_manager
+        
         self.current_iteration = 0
         
         # Newly-created particles (for whatever reason)
@@ -34,7 +36,7 @@ class WEDriver:
                             = numpy.array(sim_config_src.get_list('wemd.initial_pcoord', type=float))
 
     def runtime_init(self, runtime_config):
-        self.runtime_config = runtime_config
+        self.runtime_config = self.sim_manager.runtime_config
         
     def make_bins(self):
         """Create an array of ParticleCollection objects appropriate to this WE

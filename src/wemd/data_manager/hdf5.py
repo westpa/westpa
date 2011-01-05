@@ -19,15 +19,13 @@ def _n_iter(we_sim_iter):
     except AttributeError:
         return we_sim_iter
     
-class DataManagerBase(object):
-    def __init__(self, runtime_config):
-        self.runtime_config = runtime_config
 
-class HDF5_data_manager(DataManagerBase):
-    def __init__(self, runtime_config):
-        super(HDF5_data_manager,self).__init__(runtime_config)
-        runtime_config.require('data.db.h5')
-        self.h5_name = runtime_config['data.db.h5']
+class HDF5DataManager(object):
+    def __init__(self, sim_manager):
+        self.sim_manager = sim_manager
+        self.runtime_config = sim_manager.runtime_config
+        self.runtime_config.require('data.db.h5')
+        self.h5_name = self.runtime_config['data.db.h5']
         self.h5 = None
         self.index = None
         self.warn = None

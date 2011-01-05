@@ -13,6 +13,6 @@ def get_we_driver(driver_name):
         driver = FixedBinParticlesWEDriver
     else:
         from wemd.core import ConfigError
-        raise ConfigError('invalid bin type (%s) specified' % bin_type)
+        raise ConfigError('invalid bin type (%s) specified' % driver_name)
     
     return driver

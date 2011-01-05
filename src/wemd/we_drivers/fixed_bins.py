@@ -1,7 +1,7 @@
 import re
 
 import logging
-log = logging.getLogger('wemd.we_drivers.fixed_bins')
+log = logging.getLogger(__name__)
 
 import numpy
 from we_driver import WEDriver
@@ -9,8 +9,8 @@ from wemd.core.binarrays import Bin, BinArray
 from wemd.core import ConfigError
 
 class FixedBinWEDriver(WEDriver):
-    def __init__(self):
-        super(FixedBinWEDriver,self).__init__()
+    def __init__(self, sim_manager):
+        super(FixedBinWEDriver,self).__init__(sim_manager)
         
     def sim_init(self, sim_config, sim_config_src):
         super(FixedBinWEDriver,self).sim_init(sim_config, sim_config_src)

@@ -17,14 +17,6 @@ import logging
 log = logging.getLogger(__name__)
 
 class DefaultWorkManager(WEWorkManagerBase):
-    def __init__(self, runtime_config, load_sim_config = True):
-        super(DefaultWorkManager, self).__init__(runtime_config, load_sim_config = True)
-        self.worker_blocksize = 1
-        
-    def runtime_init(self, runtime_config, load_sim_config = True):
-        super(DefaultWorkManager, self).runtime_init(runtime_config, load_sim_config)
-        self.worker_blocksize = runtime_config.get_int('backend.blocksize', 1)
-
     def propagate_particles(self, we_iter, segments):
         for segment in map(None, *(iter(segments),) * self.worker_blocksize):
             if type(segment) is tuple:
