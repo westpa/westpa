@@ -33,7 +33,7 @@ class HDF5_data_manager(DataManagerBase):
         self.warn = None
         
     def prepare_database(self):
-        self.h5 = h5py.File(self.h5_name) #pass?
+        self.h5 = h5py.File(self.h5_name)
     
     def require_hdf5(self):
         if self.h5 is None:
@@ -75,7 +75,6 @@ class HDF5_data_manager(DataManagerBase):
         self.create_we_sim_iter(we_sim_iter)
         
     def get_we_sim_iter(self, n_iter):  
-
         h5 = self.require_hdf5()        
         cur_iter = h5['iter_%d' % n_iter]
         we_sim_data = cur_iter['we_sim_data']       
@@ -100,6 +99,17 @@ class HDF5_data_manager(DataManagerBase):
       
         return we_sim_iter
     
+    def del_iter(self, n_iter):
+        h5 = self.require_hdf5()    
+            
+        try:
+            del h5['iter_%d' % n_iter]
+        except:
+            self.close_hdf5()
+            raise
+        self.flush_hdf5()
+        
+            
     def update_segments(self, we_sim_iter, segments):
        
         h5 = self.require_hdf5()
@@ -250,7 +260,7 @@ class HDF5_data_manager(DataManagerBase):
             seg_off = id - min_seg_id
             assert(seg_off >= 0)
             
-            old_data_pickle[seg_off] = pickle.dumps((sorted_segs[i].data, sorted_segs[i].data_ref), pickle.HIGHEST_PROTOCOL)           
+            old_data_pickle[seg_off] = pickle.dumps((sorted_segs[i].data, sorted_segs[i].data_ref), pickle.HIGHEST_PROTOCOL) 
             i += 1
 
         del cur_iter['seg_data']
@@ -361,7 +371,7 @@ class HDF5_data_manager(DataManagerBase):
         #timing info
         time_pickle = [pickle.dumps((s.cputime, s.walltime, s.starttime, s.endtime), pickle.HIGHEST_PROTOCOL) for s in sorted_segs]
         cur_iter.create_dataset('timing', data=time_pickle)        
-
+        
         #data/data_ref
         data_pickle = [pickle.dumps((s.data, s.data_ref), pickle.HIGHEST_PROTOCOL) for s in sorted_segs]
         cur_iter.create_dataset('seg_data', data=data_pickle)

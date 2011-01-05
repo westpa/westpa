@@ -94,7 +94,7 @@ class WEMDCtlTool(WECmdLineMultiTool):
             sys.exit(EX_ENVIRONMENT_ERROR)            
 
         if self.runtime_config.get('data.state') == new_runtime_config.get('data.state')\
-            or self.runtime_config.get('data.db.url') == new_runtime_config.get('data.db.url')\
+            or self.runtime_config.get('data.db.h5') == new_runtime_config.get('data.db.h5')\
             or self.runtime_config.get('data.sim_config') == new_runtime_config.get('data.sim_config'):
             self.log.debug('data parameters can\'t be the same \n see [data] in run config files\n', exc_info=True)
             sys.stderr.write('data parameters can\'t be the same \n see [data] in run config files\n')
@@ -163,49 +163,34 @@ class WEMDCtlTool(WECmdLineMultiTool):
         
         new_weights = pickle.load(open(sim_config_src['bins.weights_from'], 'rb'))
                     
-        from sqlalchemy.sql import select, delete
-        from wemd.data_manager import schema
-    
         sim_manager = self.load_sim_manager()
         sim_manager.load_sim_state()
         
-        dbsession = sim_manager.data_manager.require_dbsession()
+        #sim_manager.data_manager.require_hdf5()
         n_iter = sim_manager.we_driver.current_iteration
-        qsegs = dbsession.query(Segment).filter(Segment.n_iter == n_iter)
-        
-        dbsession.begin()
-        n_total = qsegs.count()
-        n_prepared = qsegs.filter(Segment.status == Segment.SEG_STATUS_PREPARED).count()
+        num_inc_segs = sim_manager.data_manager.num_incomplete_segments()
         
         try:
-            if n_prepared and n_prepared != n_total:
+            if num_inc_segs != 0:
                 sys.stderr.write('%d segments are incomplete\n' 
-                                        % n_prepared)
+                                        % num_inc_segs)
                 sys.stderr.write('complete or truncate current iteration'
                                         +' before reweighting\n')
                 sys.exit(EX_STATE_ERROR)
-            
-            dbsession.execute(delete(schema.segment_lineage_table,
-                                     schema.segment_lineage_table.c.seg_id.in_(
-                                         select([schema.segments_table.c.seg_id],
-                                                schema.segments_table.c.n_iter == n_iter))))
-            qsegs.delete()
             
             # set new bin parameters
             sim_manager.we_driver.sim_init(sim_manager.sim_config, sim_config_src)            
             sim_manager.we_driver.current_iteration = n_iter-1
             sim_manager.we_iter = sim_manager.data_manager.get_we_sim_iter(n_iter-1)
-            dbsession.query(WESimIter).filter(WESimIter.n_iter == n_iter).delete()
-            dbsession.flush()
+            sim_manager.data_manager.del_iter(n_iter)
+            
             sim_manager.run_we(reweight = new_weights)
-            dbsession.flush()     
+            sim_manager.data_manager.update_we_sim_iter(sim_manager.we_iter)
             sim_manager.save_sim_state()
             sim_manager.save_sim_config()
         except:
-            dbsession.rollback()
             raise
         else:
-            dbsession.commit()
             sys.exit(0)
         
         
@@ -232,53 +217,32 @@ class WEMDCtlTool(WECmdLineMultiTool):
                                     % e)
             sys.exit(EX_ENVIRONMENT_ERROR)
             
-        from sqlalchemy.sql import select, delete
-        from wemd.data_manager import schema
-        
         sim_manager = self.load_sim_manager()
-        self.sim_manager.load_sim_state()
+        sim_manager.load_sim_state()
+        sim_manager.load_data_manager()
         
-        dbsession = sim_manager.data_manager.require_dbsession()
         n_iter = sim_manager.we_driver.current_iteration
-        qsegs = dbsession.query(Segment).filter(Segment.n_iter == n_iter)
-        
-        dbsession.begin()
-        n_total = qsegs.count()
-        n_prepared = qsegs.filter(Segment.status == Segment.SEG_STATUS_PREPARED).count()
+        num_inc_segs = sim_manager.data_manager.num_incomplete_segments(n_iter)
         
         try:
-            if n_prepared and n_prepared != n_total:
+            if num_inc_segs != 0:
                 sys.stderr.write('%d segments are incomplete\n' 
-                                        % n_prepared)
+                                        % num_inc_segs)
                 sys.stderr.write('complete or truncate current iteration'
                                         +' before rebinning\n')
                 sys.exit(EX_STATE_ERROR)
             
-            dbsession.execute(delete(schema.segment_lineage_table,
-                                     schema.segment_lineage_table.c.seg_id.in_(
-                                         select([schema.segments_table.c.seg_id],
-                                                schema.segments_table.c.n_iter == n_iter))))
-            qsegs.delete()
-            # flush the deletes
-            dbsession.flush()
-            
             sim_manager.we_driver.sim_init(sim_manager.sim_config, sim_config_src)
-            sim_manager.we_driver.current_iteration = n_iter-1
-            sim_manager.we_iter = sim_manager.data_manager.get_we_sim_iter(n_iter-1)
-            dbsession.query(WESimIter).filter(WESimIter.n_iter == n_iter).delete()
-            # flush the delete of the WESimIter
-            dbsession.flush()
-            
-            sim_manager.run_we()
-            # flush the new WESimIter
-            dbsession.flush()
+            sim_manager.we_driver.current_iteration = n_iter
+            sim_manager.we_iter = sim_manager.data_manager.get_we_sim_iter(n_iter)
+            segs = sim_manager.data_manager.get_segments(n_iter,load_p_parent = True)
+            sim_manager.run_we(segments = segs)
+
             sim_manager.save_sim_state()
             sim_manager.save_sim_config()
         except:
-            dbsession.rollback()
             raise
         else:
-            dbsession.commit()
             sys.exit(0)
     
     def cmd_truncate(self, args):
@@ -295,13 +259,9 @@ class WEMDCtlTool(WECmdLineMultiTool):
         
         sim_manager = self.load_sim_manager()
         sim_manager.load_sim_state()
-        dbsession = sim_manager.data_manager.require_dbsession()
+        sim_manager.load_data_manager()
         
-        from sqlalchemy.sql.functions import max as max_
-        from sqlalchemy.sql import select, delete
-        from wemd.data_manager.schema import segments_table, segment_lineage_table
-        max_we_iter = dbsession.query(max_(WESimIter.n_iter)).scalar()
-        
+        max_we_iter = sim_manager.we_driver.current_iteration
         try:
             n_iter = int(args[0])
         except IndexError:
@@ -319,33 +279,22 @@ class WEMDCtlTool(WECmdLineMultiTool):
                               % (n_iter, max_we_iter))
             sys.exit(EX_USAGE_ERROR)
             
-        dbsession.begin()
         try:
-            # Clean up lineage table
-            dbsession.execute(delete(segment_lineage_table,
-                                     segment_lineage_table.c.seg_id.in_(
-                                         select([segments_table.c.seg_id],
-                                                segments_table.c.n_iter >= n_iter))))
-            # Delete segments
-            dbsession.query(Segment).filter(Segment.n_iter >= n_iter).delete()
-            
-            # Delete iteration record
-            dbsession.query(WESimIter).filter(WESimIter.n_iter >= n_iter).delete()
+            for iter in xrange(n_iter, max_we_iter + 1):
+                sim_manager.data_manager.del_iter(iter)
             
             # Update sim manager
-            prev_iter = dbsession.query(WESimIter).get([n_iter-1])
+            prev_iter = sim_manager.data_manager.get_we_sim_iter(n_iter - 1)
             sim_manager.we_driver.current_iteration = prev_iter.n_iter
             sim_manager.we_driver.bins = sim_manager.we_driver.make_bins()
             sim_manager.we_driver.n_particles = prev_iter.data.get('bin_n_particles')
             sim_manager.we_driver.bins_population = prev_iter.data.get('bin_populations')
             sim_manager.save_sim_state()
         except:
-            dbsession.rollback()
             raise
         else:
-            dbsession.commit()
             sys.stdout.write('simulation truncated after iteration %d\n' % n_iter)
-            self.cmd_status([])
+            #self.cmd_status([])
             sys.exit(0)
     
     def cmd_console(self, args):

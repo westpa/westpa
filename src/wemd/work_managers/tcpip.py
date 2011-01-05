@@ -548,7 +548,7 @@ class TCPWEMaster(TCPWorkerBase):
 def propagate_segment_thread(backend_driver, segment):
     backend_driver.propagate_segments(segment)
 
-def propagate_particles(backend_driver, segments, shutdown_flag):
+def propagate_particles(backend_driver, segments, shutdown_flag, error_flag):
     
     nsegs = len(segments)
    
@@ -594,13 +594,14 @@ def propagate_particles(backend_driver, segments, shutdown_flag):
                         seg_threads[i].join()
                 break
 
-            time.sleep(5)
+            time.sleep(1)
             
         if shutdown_flag.is_set():
             return
 
     for seg in segments:
         if seg.status == Segment.SEG_STATUS_FAILED:
+            error_flag.set()
             shutdown_flag.set()
             raise ValueError('Segment(s) Failed')
        
@@ -612,6 +613,7 @@ class TCPWEWorker(TCPWorkerBase):
         self.segments = None
         self.cid = None
         self.shutdown_flag = threading.Event()
+        self.error_flag = threading.Event()
         self.state = 'busy'
         self.pp_thread = None
         self.cport = None
@@ -665,6 +667,13 @@ class TCPWEWorker(TCPWorkerBase):
         self.state = 'ready'
         segs = []
         while True:
+            if self.error_flag.is_set():
+                log.error('segments have not completed - client exiting')
+                raise ValueError('Incomplete Segments')
+                        
+            if self.shutdown_flag.is_set():
+                return
+            
             cmd, data, data_sock = self.get_command()
             self.debug('cmd %r' % (cmd))
 
@@ -708,7 +717,7 @@ class TCPWEWorker(TCPWorkerBase):
                 
     def propagate_particles(self, segments):
         self.debug('propagate_particles')
-        self.pp_thread = threading.Thread(target=propagate_particles, args=(self.backend_driver, segments, self.shutdown_flag))
+        self.pp_thread = threading.Thread(target=propagate_particles, args=(self.backend_driver, segments, self.shutdown_flag, self.error_flag))
         self.pp_thread.start()    
     
     def propagate_particles_complete(self):

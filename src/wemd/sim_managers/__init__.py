@@ -227,7 +227,7 @@ class WESimMaster(WESimManagerBase):
                     
                     max_seg_id = self.data_manager.get_max_seg_id(self.we_iter.n_iter)
                     incomplete_segs = True
-                    
+                
             if incomplete_segs == False:
                 prev_max_seg_id = max_seg_id
                 seg_ids = [s.seg_id for s in segments if s.seg_id is not None]
@@ -265,7 +265,7 @@ class WESimMaster(WESimManagerBase):
             self.worker.finalize_iteration()
             
             #remove references to parents of segments
-            #prevent mem problem
+            #prevent memory problem
             for segment in segments:
                 segment.parents = set()
                 if segment.p_parent:

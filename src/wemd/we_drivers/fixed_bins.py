@@ -78,7 +78,7 @@ class FixedBinWEDriver(WEDriver):
             raise ConfigError("No recycling targets specified")
             
         #read in the source regions
-        #source_pcoords['Region Name'] is a dictionary with the keys 'pcoord', 'region', and 'weight'
+        #source_pcoords['Region Name'] is a dictionary with the keys 'pcoord' and 'weight' (and possibly 'init_weight')
         source_pcoords = {}
         source_entries = [key for key in sim_config_src if key.startswith('bins.source_pcoord_')]
         reIsSourcePcoord = re.compile('bins\.source_pcoord_(.+)_(.+)')
@@ -93,39 +93,49 @@ class FixedBinWEDriver(WEDriver):
 
                 if m.group(1) == 'weight':
                     source_pcoords[m.group(2)][m.group(1)] = sim_config_src.get_float(source_entry)
+                elif m.group(1) == 'init_weight':
+                    source_pcoords[m.group(2)][m.group(1)] = sim_config_src.get_float(source_entry)                    
                 elif m.group(1) == 'pcoord':
                     pcoord_vals = [float(x) for x in sim_config_src.get_list(source_entry)]
                     source_pcoords[m.group(2)][m.group(1)] = numpy.array( pcoord_vals, dtype=numpy.float64 )
-                elif m.group(1) == 'region':
-                    source_pcoords[m.group(2)][m.group(1)] = eval(sim_config_src.get(source_entry))
                 else:
                     raise ConfigError('Invalid source pcoord specified')     
                                
         #check to make sure they are correct
         for source_name in source_pcoords:
 
-            for key in ('weight', 'pcoord', 'region'):
+            for key in ('weight', 'pcoord'):
                 if key not in source_pcoords[source_name]:
                     raise ConfigError("Invalid source pcoord specified -- missing key %s -- source_pcoord_%s" % (key, source_name))
 
             if (source_pcoords[source_name]['weight'] < 0) or (source_pcoords[source_name]['weight'] > 1):
-                raise ConfigError("Invalid initial weight -- source_pcoord_%s" % (source_name))
+                raise ConfigError("Invalid weight -- source_pcoord_%s" % (source_name))
+
+            try:
+                if (source_pcoords[source_name]['init_weight'] < 0) or (source_pcoords[source_name]['init_weight'] > 1):
+                    raise ConfigError("Invalid initial weight -- source_pcoord_%s" % (source_name))
+            except KeyError:
+                pass
             
             if len(source_pcoords[source_name]['pcoord']) != ndim:
                 raise ConfigError("Invalid source pcoord specified, check pcoord dimensions -- source_pcoord_%s" % (source_name))
-            
-            if len(source_pcoords[source_name]['region']) != ndim:
-                raise ConfigError("Invalid source region specified, check region dimensions -- source_pcoord_%s" % (source_name))
-            
-            for idim in xrange(0, len(source_pcoords[source_name]['region'])):
-                if len(source_pcoords[source_name]['region'][idim]) != 2:
-                    raise ConfigError("Invalid source pcoord region specified "+\
-                                      "[ [lower bound, upper bound], ...] -- source_pcoord_%s" %(source_name))
+        
+        for key in ('weight','init_weight'):
+            try:
+                weights = [source_pcoords[names][key] for names in source_pcoords]
+                if weights:
+                    weight_value = sum(weights)
+                    epsilon = numpy.finfo(numpy.double).eps
+                    if( weight_value < (1.0 - epsilon) or weight_value > (1.0 + epsilon) ):
+                        raise ConfigError("Invalid weight, total must be 1.0")
+            except KeyError:
+                pass
         
         sim_config['bin.target_pcoords'] = self.target_pcoords = numpy.array(target_pcoords,dtype=numpy.float64)
         sim_config['bin.source_pcoords'] = self.source_pcoords = source_pcoords
         sim_config['bins.boundaries'] = self.bin_boundaries = bin_limits
-        sim_config['bins.particles_per_bin'] = self.particles_per_bin = sim_config_src.get_int('bins.particles_per_bin')       
+        sim_config['bins.particles_per_bin'] = self.particles_per_bin = sim_config_src.get_int('bins.particles_per_bin')
+
     
     def make_bins(self):
         return BinArray(boundaries = self.bin_boundaries,
