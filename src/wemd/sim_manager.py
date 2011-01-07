@@ -10,7 +10,7 @@ from wemd.rc import RC_SIM_CONFIG_KEY, RC_SIM_STATE_KEY
 from wemd.util import extloader
 
 class WESimManager:
-    """A communications broker for other WEMD components"""
+    """A state machine and communications broker"""
     def __init__(self, runtime_config):
         self.runtime_config = None
         self.sim_config = None
@@ -18,6 +18,8 @@ class WESimManager:
         self.data_manager = None
         self.we_driver = None
         self.work_manager = None
+        self.pcoord_driver = None
+        
         
     def _sim_init(self, sim_config, sim_config_src):
         """Hook for derived sim managers to perform their own simulation initialization"""
@@ -31,7 +33,7 @@ class WESimManager:
         self.sim_config = sim_config = {}
         sim_config['__sim_manager__'] = self.__class__.__name__
         sim_config['__data_manager__'] = self.data_manager.__class__.__name__
-        sim_config['__we_driver__'] = self.we_driver.__class__.__name__
+        #sim_config['__we_driver__'] = self.we_driver.__class__.__name__
         
         self._sim_init(sim_config, sim_config_src)
         self.data_manager.sim_init(sim_config, sim_config_src)
@@ -85,12 +87,12 @@ class WESimManager:
         
     def load_data_manager(self):
         log.info('loading HDF5 data manager')
-        self.data_manager = wemd.data_manager.hdf5.HDF5DataManager(self)
+        self.data_manager = wemd.data_manager.WEMDDataManager(self)
     
     def load_we_driver(self):
         log.info('loading fixed boundary/fixed particle count WE driver')
-        from wemd.we_drivers.fixed_bins import FixedBinWEDriver
-        self.we_driver = FixedBinWEDriver(self)
+        #from wemd.we_drivers.fixed_bins import FixedBinWEDriver
+        #self.we_driver = FixedBinWEDriver(self)
         self.we_driver.runtime_init()
     
     def load_work_manager(self):

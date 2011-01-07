@@ -1,4 +1,4 @@
-import re
+import re, operator, numpy
 
 reIsSeconds = re.compile(r'^\d+(:?\.\d*)?$')
 reISODate = re.compile(r'(\d+)-(\d+)-(\d+)[ T](\d+):(\d+):(\d+)\.?(d+)?')
@@ -24,3 +24,9 @@ def logging_level_by_name(lvlname):
     except AttributeError:
         raise ValueError('invalid level name %r' % lvlname)
     return level
+        
+def vgetattr(attr, obj):
+    return numpy.frompyfunc(operator.attrgetter(attr), 1, 1)(obj)
+
+def vattrgetter(attr):
+    return numpy.frompyfunc(operator.attrgetter(attr), 1, 1)

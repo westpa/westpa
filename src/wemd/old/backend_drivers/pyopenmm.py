@@ -1,3 +1,5 @@
+raise ImportError('pyopenmm is unsupported and broken')
+
 import os, sys, subprocess, time, datetime, tempfile, string
 import errno,exceptions
 from resource import getrusage, RUSAGE_CHILDREN
