@@ -1,5 +1,7 @@
 from __future__ import division; __metaclass__ = type
 
+import sys
+
 import logging
 log = logging.getLogger(__name__)
 
@@ -11,14 +13,16 @@ from wemd.util import extloader
 
 class WESimManager:
     """A state machine and communications broker"""
-    def __init__(self, runtime_config):
-        self.runtime_config = None
-        self.sim_config = None
+    def __init__(self, runtime_config = None):
+        self.runtime_config = runtime_config or {}
+        self.sim_config = {}
         
         self.data_manager = None
         self.we_driver = None
         self.work_manager = None
         self.pcoord_driver = None
+        
+        self.status_stream = sys.stdout
         
         
     def _sim_init(self, sim_config, sim_config_src):
@@ -39,21 +43,7 @@ class WESimManager:
         self.data_manager.sim_init(sim_config, sim_config_src)
         self.we_driver.sim_init(sim_config, sim_config_src)
         # work manager has no simulation state; it is completely run-time-configured
-    
-    def load_sim_config(self):
-        """Load static simulation configuration"""
-        self.runtime_config.require(RC_SIM_CONFIG_KEY)
-        sim_config_file = self.runtime_config[RC_SIM_CONFIG_KEY]
-        log.info('loading static simulation configuration from %r' % sim_config_file )
-        self.sim_config = pickle.load(open(sim_config_file, 'rb'))
-    
-    def save_sim_config(self):
-        """Save static simulation configuration"""
-        self.runtime_config.require(RC_SIM_CONFIG_KEY)
-        runtime_config_file = self.runtime_config[RC_SIM_CONFIG_KEY]
-        log.info('saving static simulation configuration to %r' % runtime_config_file)
-        pickle.dump(self.sim_config, open(runtime_config_file, 'wb'), pickle.HIGHEST_PROTOCOL)
-    
+        
     def load_sim_state(self):
         """Load simulation state"""
         self.runtime_config.require(RC_SIM_STATE_KEY)

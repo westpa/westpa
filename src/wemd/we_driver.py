@@ -1,5 +1,8 @@
-'''
-Created on Jan 5, 2011
+from __future__ import division; __metaclass__ = type
+import numpy
 
-@author: mzwier
-'''
+class WEMDWEDriver:
+    def __init__(self, sim_manager):
+        self.sim_manager = sim_manager
+        
+    

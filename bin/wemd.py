@@ -58,5 +58,8 @@ runtime_config = rc.read_config(args.run_config_file)
 # Apply logging options
 rc.configure_logging(runtime_config)
 
+# Load SimManager
+sim_manager = rc.load_sim_manager(runtime_config)
+
 # Branch to appropriate function
-args.func(args)
+args.func(sim_manger, args)
