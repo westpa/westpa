@@ -37,19 +37,21 @@ class WEMDAnlTool(WECmdLineMultiTool):
                                + ' iteration)'
                          )
         
-    def get_sim_iter(self, we_iter):
-        dbsession = self.sim_manager.data_manager.require_dbsession()
-        if we_iter is None:
-            we_iter = dbsession.execute(
-'''SELECT MAX(n_iter) FROM we_iter 
-     WHERE NOT EXISTS (SELECT * FROM segments 
-                         WHERE segments.n_iter = we_iter.n_iter 
-                           AND segments.status != :status)''',
-                           params = {'status': Segment.SEG_STATUS_COMPLETE}).fetchone()[0]
+    def get_sim_iter(self, we_iter, complete = False):
+        self.load_sim_manager()
+        self.sim_manager.load_data_manager()
+                
+        data_manager = self.sim_manager.data_manager
+        if we_iter is not None:
+            self.we_iter = data_manager.get_we_sim_iter( we_iter )
+        else:
+            if complete:
+                self.we_iter = data_manager.get_last_complete_iter()
+            else:
+                self.we_iter = data_manager.get_last_iter()
         
-        self.we_iter = dbsession.query(WESimIter).get([we_iter])
         return self.we_iter
-            
+                
     def cmd_lstrajs(self, args):
         parser = self.make_parser(description = 'list trajectories')
         self.add_iter_param(parser)
@@ -66,38 +68,31 @@ class WEMDAnlTool(WECmdLineMultiTool):
         (opts,args) = parser.parse_args(args)
         
         self.load_sim_manager()
+        self.sim_manager.load_data_manager()
+        
         data_manager = self.sim_manager.data_manager
         we_iter = self.get_sim_iter(opts.we_iter)
         from wemd.core import Segment
-        from sqlalchemy.sql import select
-        dbsession = data_manager.require_dbsession()
         
         sys.stdout.write('# %s trajectories as of iteration %d:\n'
                                  % (opts.traj_type, we_iter.n_iter))
         sys.stdout.write('#%-11s    %-12s    %-21s\n'
                                  % ('seg_id', 'n_iter', 'weight'))
-        segsel = select([Segment.seg_id, Segment.n_iter, Segment.weight])
         
         if opts.traj_type == 'live':
-            query = segsel.where(Segment.n_iter == we_iter.n_iter)
+            segments = data_manager.get_segments(we_iter.n_iter)
         elif opts.traj_type == 'complete':
-            query = segsel.where(Segment.n_iter <= we_iter.n_iter)\
-                          .where(Segment.endpoint_type != Segment.SEG_ENDPOINT_TYPE_CONTINUATION)
-            #query = segsel.where( (Segment.n_iter <= we_iter.n_iter)
-            #                     &(Segment.endpoint_type != Segment.SEG_ENDPOINT_TYPE_CONTINUATION) )
+            segments = data_manager.get_segments(1, n_iter_upper = we_iter.n_iter, 
+                                                 status_criteria = Segment.SEG_STATUS_COMPLETE)
         elif opts.traj_type == 'merged':
-            query = segsel.where(Segment.n_iter <= we_iter.n_iter)\
-                          .where(Segment.endpoint_type == Segment.SEG_ENDPOINT_TYPE_MERGED)
+            segments = data_manager.get_segments(1, n_iter_upper = we_iter.n_iter, 
+                                                 endpoint_criteria = Segment.SEG_ENDPOINT_TYPE_MERGED)    
         elif opts.traj_type == 'recycled':
-            query = segsel.where(Segment.n_iter <= we_iter.n_iter)\
-                          .where(Segment.endpoint_type == Segment.SEG_ENDPOINT_TYPE_RECYCLED)
+            segments = data_manager.get_segments(1, n_iter_upper = we_iter.n_iter, 
+                                                 endpoint_criteria = Segment.SEG_ENDPOINT_TYPE_RECYCLED)             
         elif opts.traj_type == 'all':
-            query = segsel.where((Segment.n_iter == we_iter.n_iter)
-                                  |((Segment.n_iter <= we_iter.n_iter)
-                                    &(Segment.endpoint_type != Segment.SEG_ENDPOINT_TYPE_CONTINUATION)))
+            segments = data_manager.get_segments(1, n_iter_upper = we_iter.n_iter)
 
-        query = query.order_by(Segment.n_iter)
-        segments = dbsession.execute(query)
         for segment in segments:
             sys.stdout.write('%-12d     %-12d    %21.16g\n'
                                      % (segment.seg_id, segment.n_iter,
@@ -146,14 +141,13 @@ class WEMDAnlTool(WECmdLineMultiTool):
             region_boundaries.append((region_edges[irr], region_edges[irr+1]))
         regions = OneDimRegionSet(region_names, region_boundaries)
         
-        from sqlalchemy import select
-        
         self.load_sim_manager()
-        final_we_iter = self.get_sim_iter(opts.we_iter)
+        self.sim_manager.load_data_manager()
+        
+        final_we_iter = self.get_sim_iter(opts.we_iter, complete = True)
         max_iter = final_we_iter.n_iter
         data_manager = self.sim_manager.data_manager
-        dbsession = data_manager.require_dbsession()
-                
+
         tree = TrajTree(data_manager, False)
         trans_finder = TransitionEventAccumulator(regions, data_overlaps = (not squeeze_data))
         
@@ -208,20 +202,34 @@ class WEMDAnlTool(WECmdLineMultiTool):
             sys.exit(EX_USAGE_ERROR)
         
         self.load_sim_manager()
-        seg = self.sim_manager.data_manager.get_segment(long(args[0]))
+        self.sim_manager.load_data_manager()
+        data_manager = self.sim_manager.data_manager
+        seg = data_manager.get_segment(long(args[0]), load_p_parent = True)
+        
         segs = [seg]
         while seg.p_parent and seg.n_iter:
-            seg = seg.p_parent
+            seg = data_manager.get_segment(seg.p_parent.seg_id, load_p_parent = True)
             segs.append(seg)
         traj = list(reversed(segs))
         
         for seg in traj:
+            
+            if seg.p_parent is not None:
+                p_parent_id = seg.p_parent.seg_id
+            else:
+                p_parent_id = 0
+            
+            if seg.pcoord is not None:
+                pcoord = seg.pcoord[-1]
+            else:
+                pcoord = -1 #ie an incomplete seg was given
+                
             sys.stdout.write('%5d  %10d  %10d  %21.16g  %21.16g\n'
                                      % (seg.n_iter,
                                         seg.seg_id,
-                                        seg.p_parent_id or 0,
+                                        p_parent_id,
                                         seg.weight,
-                                        seg.pcoord[-1]))
+                                        pcoord))
     def cmd_fluxanl(self, args):
         parser = self.make_parser()
         parser.add_option('-T', '--tau', dest='tau', type='float',
@@ -229,14 +237,16 @@ class WEMDAnlTool(WECmdLineMultiTool):
                           help='length of each WE iteration in simulation '
                               +'time is TAU (default: 1.0)')
         (opts,args) = parser.parse_args(args)
-        sim_manager = self.load_sim_manager()
-        latest_we_iter = self.get_sim_iter(None)
-
+        self.load_sim_manager()
+        self.sim_manager.load_data_manager()
+        data_manager = self.sim_manager.data_manager
+        
+        latest_we_iter = self.get_sim_iter(None, complete = True)
 
         import numpy
         fluxen = numpy.zeros((latest_we_iter.n_iter,), numpy.float64)
         for i_iter in xrange(1, latest_we_iter.n_iter+1):
-            we_iter = sim_manager.data_manager.get_we_sim_iter(i_iter)
+            we_iter = self.get_sim_iter(i_iter)
             fluxen[i_iter-1] = we_iter.data['recycled_population']
             
         fluxen /= opts.tau

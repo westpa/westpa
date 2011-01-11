@@ -294,7 +294,7 @@ class HDF5_data_manager(DataManagerBase):
             if min_seg_id is None:
                 min_seg_id = 1
             
-        cur_iter.create_dataset('min_seg_id_nsegs', data = numpy.array([min_seg_id, len(sorted_segs)]), shape = (2,), dtype = numpy.uint64)
+        cur_iter.create_dataset('min_seg_id_nsegs', data = numpy.array([min_seg_id, len(sorted_segs)], dtype=numpy.uint64), shape = (2,), dtype = numpy.uint64)
         
         pcoord_len = 0
         for seg in sorted_segs:
@@ -523,6 +523,24 @@ class HDF5_data_manager(DataManagerBase):
         cur_iter = h5['iter_%d' % n_iter]
         ids = cur_iter['min_seg_id_nsegs'][:]
         return int(ids[0] + ids[1] - 1)
+    
+    def get_last_iter(self):
+        h5 = self.require_hdf5()
+        
+        iters = [int(k.split('_')[1]) for k in h5.keys()]
+        sorted_iter = sorted(iters)
+        max_iter = sorted_iter[-1]       
+
+        return self.get_we_sim_iter(max_iter)
+
+    def get_last_complete_iter(self):
+        h5 = self.require_hdf5()
+        
+        iters = [int(k.split('_')[1]) for k in h5.keys()]
+        sorted_iter = sorted(iters)
+        max_iter = sorted_iter[-1]       
+
+        return self.get_we_sim_iter(max_iter-1)
         
     def get_segment(self, seg_id, load_p_parent = False):
         h5 = self.require_hdf5()
@@ -548,15 +566,15 @@ class HDF5_data_manager(DataManagerBase):
         log.warning('could not find segment seg_id %r' % seg_id)
         return None
     
-    def get_segments(self, we_n_iter, n_iter_upper = None, status_criteria = None, status_negate = False, load_p_parent = False):
+    def get_segments(self, we_n_iter, n_iter_upper = None, status_criteria = None, status_negate = False, endpoint_criteria = None, endpoint_negate = False, load_p_parent = False):
         h5 = self.require_hdf5()
         
         if n_iter_upper is None:
             n_iter_upper = we_n_iter
             
         segs = []
-        for i in xrange(we_n_iter, n_iter_upper + 1):
-            iter = h5['iter_%d' % i]
+        for iter_num in xrange(we_n_iter, n_iter_upper + 1):
+            iter = h5['iter_%d' % iter_num]
             min_seg_id = iter['min_seg_id_nsegs'][0]
             nsegs = iter['min_seg_id_nsegs'][1]
             
@@ -622,13 +640,13 @@ class HDF5_data_manager(DataManagerBase):
             p_parents = []
             
             if load_p_parent:
-                for i in xrange(0,len(p_parent_ids)):
-                    if p_parent_ids[i]:
-                        p_parents.append(self.get_segment(p_parent_ids[i], load_p_parent = False))
+                for k in xrange(0,len(p_parent_ids)):
+                    if p_parent_ids[k]:
+                        p_parents.append(self.get_segment(p_parent_ids[k], load_p_parent = False))
                     else:
                         p_parents.append(None)
             else:
-                p_parents = [None for i in p_parent_ids]
+                p_parents = [None for k in p_parent_ids]
             
             
             for i in xrange(0, len(seg_offsets)): 
@@ -645,7 +663,15 @@ class HDF5_data_manager(DataManagerBase):
                     else:
                         if status[i] == status_criteria:
                             continue    
-                    
+
+                if endpoint_criteria is not None:               
+                    if endpoint_negate == False:
+                        if endpoint_types[i] != endpoint_criteria:
+                            continue
+                    else:
+                        if endpoint_types[i] == endpoint_criteria:
+                            continue                                    
+                         
                 seg_data, seg_data_ref = data_values[i]
                 seg_cputime, seg_walltime, seg_starttime, seg_endtime = timing_values[i]
                 
@@ -671,4 +697,117 @@ class HDF5_data_manager(DataManagerBase):
 
                 segs.append(seg)
    
-            return segs 
+        return segs 
+
+    def get_segments_by_parent_id(self, we_n_iter, n_iter_upper = None, p_parent_id = None):
+        h5 = self.require_hdf5()
+        
+        if n_iter_upper is None:
+            n_iter_upper = we_n_iter
+            
+        segs = []
+        for iter_num in xrange(we_n_iter, n_iter_upper + 1):
+            iter = h5['iter_%d' % iter_num]
+            min_seg_id = iter['min_seg_id_nsegs'][0]
+            nsegs = iter['min_seg_id_nsegs'][1]
+            
+            seg_offsets = range(0, nsegs)
+                                    
+            p_parent_ids = iter['parents'][seg_offsets,1][:]
+            
+            load_segs = []       
+            for i in xrange(0,len(p_parent_ids)):
+                if p_parent_id is None:
+                    p_parent_id = 0
+                    
+                if p_parent_ids[i] == p_parent_id:
+                    load_segs.append(i)
+                       
+            if not load_segs:
+                continue
+
+            seg_offsets = load_segs
+                         
+            try:
+                pcoords = iter['pcoord'][seg_offsets][:]
+            except KeyError:
+                pcoord_len = 0
+                pcoords = None            
+            
+            weights = iter['weight'][seg_offsets][:]            
+            status = iter['status'][seg_offsets][:]
+                
+            endpoint_types = iter['endpoint_type'][seg_offsets][:]
+            
+            timing_pickles = iter['timing'][seg_offsets][:]
+            timing_values = [] # [(seg_cputime, seg_walltime, seg_starttime, seg_endtime),...]
+            for timing_pickle in timing_pickles:
+                try:
+                    timing_values.append( pickle.loads(timing_pickle) )
+                except (pickle.UnpicklingError, EOFError):
+                    log.error('Error unpickling seg timing for seg %r' % seg_offsets)
+                    raise
+    
+            data_pickles = iter['seg_data'][seg_offsets][:]
+            data_values = [] #[(seg_data, seg_data_ref), ...]
+            for data_pickle in data_pickles:                     
+                try:
+                    data_values.append(pickle.loads(data_pickle))
+                except (pickle.UnpicklingError, EOFError):
+                    log.error('Error unpickling seg data for seg %r' % seg_offsets)
+                    raise
+                        
+            we_sim_data = iter['we_sim_data']       
+            we_sim_data_str = we_sim_data[...]
+            
+            try:
+                ( n_iter,
+                  n_particles,
+                  norm,
+                  binarray,
+                  data ) = pickle.loads(we_sim_data_str)
+            except (pickle.UnpicklingError, EOFError):
+                log.error('Error unpickling we data')
+                raise
+            
+            p_parents = []        
+            for k in seg_offsets:
+                if p_parent_ids[k]:
+                    p_parents.append(self.get_segment(p_parent_ids[k], load_p_parent = False))
+                else:
+                    p_parents.append(None)
+            
+            
+            for i in xrange(0, len(seg_offsets)): 
+                               
+                if status[i] == 0:
+                    stat = Segment.SEG_STATUS_UNSET
+                else:
+                    stat = status[i]                              
+                         
+                seg_data, seg_data_ref = data_values[i]
+                seg_cputime, seg_walltime, seg_starttime, seg_endtime = timing_values[i]
+                
+                pcoord = None
+                if pcoords is not None:
+                    if pcoords[i] is not None:
+                        pcoord = pcoords[i]
+                        
+                seg = Segment( seg_id = seg_offsets[i] + min_seg_id,
+                            n_iter = n_iter,
+                            status = stat,
+                            p_parent = p_parents[i],
+                            endpoint_type = endpoint_types[i],
+                            weight = weights[i],
+                            pcoord = copy(pcoord),
+                            data_ref = seg_data_ref,  
+                            starttime = seg_starttime,
+                            endtime = seg_endtime,
+                            cputime = seg_cputime,
+                            walltime = seg_walltime,                              
+                            data = seg_data
+                            )
+
+                segs.append(seg)
+   
+        return segs 

@@ -1,51 +1,41 @@
-from sqlalchemy.sql.expression import bindparam
 __metaclass__ = type
 
 from itertools import chain
 import numpy
 
 from wemd import Segment, Trajectory
-from wemd.data_manager.schema import segments_table
 
-import sqlalchemy
-from sqlalchemy.sql import select
-from sqlalchemy.orm import lazyload
 
 class TrajTree:
     def __init__(self, data_manager, squeeze_data):
         self.data_manager = data_manager
         self.squeeze_data = squeeze_data
-
-        # We only use the data manager for its SQL connection
-        # (the ORM is too slow, so we use the more fundamental SQL interface)
-        self.bind = data_manager.dbengine.connect()
-    
+        self.roots = None
+        
     def _seg_id(self, node):
         try:
             return node.seg_id
         except AttributeError:
             return long(node)
         
-    def get_roots(self, max_iter = None):        
-        s = select([segments_table])
-        
-        if max_iter:
-            s = s.where( (segments_table.c.p_parent_id == None)
-                          &(segments_table.c.n_iter <= max_iter) )
-        else:
-            s = s.where(segments_table.c.p_parent_id == None)
-            
-        return list(self.bind.execute(s))
+    def get_roots(self, max_iter = None):      
+        if not max_iter:
+            max_iter = self.data_manager.get_last_complete_iter()
+              
+        if self.roots is None:
+            self.roots = self.data_manager.get_segments_by_parent_id(1, n_iter_upper = max_iter, p_parent_id = None)
+                    
+        return self.roots
     
     def get_children(self, node):
         seg_id = self._seg_id(node)
-        
-        s = select([segments_table]).where(segments_table.c.p_parent_id == seg_id)
-        return list(self.bind.execute(s))
+        max_iter = self.data_manager.get_last_complete_iter()          
+        s = self.data_manager.get_segments_by_parent_id(1, n_iter_upper = max_iter, p_parent_id = seg_id)
+        return s
     
     def _desc_traj(self, node, segs, max_iter, trajs):
-        s = select([segments_table]).where(segments_table.c.p_parent_id == node.seg_id)
-        children = self.bind.execute(s).fetchall()
+        children = self.data_manager.get_segments_by_parent_id(1, n_iter_upper = max_iter, p_parent_id = node.seg_id)
+        
         if not children or node.n_iter == max_iter:
             trajs.append(Trajectory(segs + [node], self.squeeze_data))
         else:
@@ -62,11 +52,9 @@ class TrajTree:
     def get_trajectories_iterative_reference(self, max_iter):
         trajs = []
         
-        s = select([segments_table]).where((segments_table.c.p_parent_id == bindparam('p_parent_id')))
-        
         for root in self.get_roots(max_iter):
             state_stack = [{'node': root,
-                           'children': list(self.bind.execute(s, {'p_parent_id': root.seg_id})),
+                           'children': self.data_manager.get_segments_by_parent_id(1, n_iter_upper = max_iter, p_parent_id = root.seg_id)
                            }]
             
                         
@@ -83,7 +71,7 @@ class TrajTree:
                 else:                
                     while state['children']:
                         node = state['children'].pop(-1)                    
-                        children = list(self.bind.execute(s, {'p_parent_id': node.seg_id}))
+                        children = self.data_manager.get_segments_by_parent_id(1, n_iter_upper = max_iter, p_parent_id = node.seg_id)
                         if not children or node.n_iter == max_iter:
                             # end of the line
                             trajs.append(Trajectory([si['node'] for si in state_stack] 
@@ -123,10 +111,10 @@ class TrajTree:
         history_chunksize = 32
         history = numpy.empty((history_chunksize,), numpy.object_)
         
-        s = select([segments_table]).where((segments_table.c.p_parent_id == bindparam('p_parent_id')))
+        #s = select([segments_table]).where((segments_table.c.p_parent_id == bindparam('p_parent_id')))
         
         for root in self.get_roots(max_iter):
-            children = list(self.bind.execute(s, {'p_parent_id': root.seg_id}))
+            children = self.data_manager.get_segments_by_parent_id(1, n_iter_upper = max_iter, p_parent_id = root.seg_id)
 
             # Visit the root node of each tree unconditionally
             callable(root, children, [])
@@ -161,7 +149,7 @@ class TrajTree:
                     len_history += 1
                     
                     node = children.pop(-1)
-                    children = list(self.bind.execute(s, {'p_parent_id': node.seg_id}))
+                    children = self.data_manager.get_segments_by_parent_id(1, n_iter_upper = max_iter, p_parent_id = node.seg_id)
                     
                     # Visit the new node as we descend
                     callable(node, children, history[:len_history])
