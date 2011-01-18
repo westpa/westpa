@@ -10,9 +10,9 @@ class ParticleSet(set):
         if iterable is not None:
             super(ParticleSet,self).__init__(iterable)
 
-    def map_to_bins(self, pcoords):
+    def map_to_bins(self, coords):
         # Degenerate case to terminate recursive descent
-        return [self] * len(pcoords)
+        return [self] * len(coords)
 
     def reweight(self, new_weight):
         """Reweight all particles in this set so that the total weight is new_weight"""
@@ -41,6 +41,8 @@ class RegionSet:
         # Target counts for each of the above regions
         # An entry of None denotes no target count to be enforced
         self.target_counts = None
+        
+        
 
     def reweight(self, new_weight):
         """Reweight all particles in this set so that the total weight is new_weight"""
@@ -58,37 +60,42 @@ class RegionSet:
     @property
     def count(self):
         """The number of particles in this set"""
-        return len(self)        
+        return sum(region.count() for region in self.regions)        
     
-    def construct_regions(self, boundaries):
-        raise NotImplementedError
+    def transform_coords(self, coords):
+        """Transform input coordinates into the coordinates spanned by this RegionSet. By default, does
+        nothing (returns coords unchanged).  Note that to override this function, one may either subclass
+        and override directly, or simply assign a function with signature transform(self, coords) to 
+        transform_coords.  Also note that this could be as simple as returning a slice from coords 
+        (i.e. to use only a subset of the total dimensionality of the coordinate)."""
+        return coords
     
-    def map_pcoords(self, pcoords):
+    def map_coords(self, coords):
         """ 
-        Map each pcoord in pcoords to an index into self.regions identifying which region to which the corresponding
-        pcoord belongs
+        Map each coord in coords to an index into self.regions identifying which region to which the corresponding
+        coord belongs
         """
         raise NotImplementedError
         
-    def map_to_bins(self, pcoords):
+    def map_to_bins(self, coords):
         """
-         Recursively descend each region in this set until each pcoord in pcoords is mapped to a ParticleSet
-         In other words, calling map_to_bins(pcoords) returns a list of the same length as pcoords where
-         each entry is a ParticleSet; calling map_pcoords on a top-level RegionSet returns the bins to which 
+         Recursively descend each region in this set until each coord in coords is mapped to a ParticleSet
+         In other words, calling map_to_bins(coords) returns a list of the same length as coords where
+         each entry is a ParticleSet; calling map_coords on a top-level RegionSet returns the bins to which 
          the particles belong.
         """
         
-        bins = numpy.empty((len(pcoords),), numpy.object_)
-        region_indices = self.map_pcoords(pcoords)
+        bins = numpy.empty((len(coords),), numpy.object_)
+        region_indices = self.map_coords(coords)
         
-        for ipcoord in xrange(0, len(bins)):
-            region = self.regions[region_indices[ipcoord]]
+        for icoord in xrange(0, len(bins)):
+            region = self.regions[region_indices[icoord]]
             # Descend recursively; since map_to_bins maps iterables to iterables, we must pass
             # a vector of length one and dereference the returned vector of length 1
-            bins[ipcoord] = region.map_to_bins(pcoords[ipcoord:ipcoord+1])[0]
+            bins[icoord] = region.map_to_bins(coords[icoord:icoord+1])[0]
         
         if (bins == None).any():
-            raise ValueError('one or more pcoords could not be mapped to bins')
+            raise ValueError('one or more coords could not be mapped to bins')
 
 
 class RectilinearRegionSet(RegionSet):
@@ -101,8 +108,10 @@ class RectilinearRegionSet(RegionSet):
         # A numpy array of integers
         self.target_counts_array = None
         
+        self.ndim = None
+        
         # A list of lists of bin boundaries
-        # First dimension: dimension of pcoord
+        # First dimension: dimension of coord
         # Remaining dimensions: bin boundaries
         # e.g. for 2-d boundaries at -1, 0, 1:
         # [ [-1, 0, 1], [-1, 0, 1] ]
@@ -110,8 +119,9 @@ class RectilinearRegionSet(RegionSet):
         
         # Indirection array.  Each entry of this ndarray is an index into self.region_array.flat
         self.indir = None
-        
+                
     def construct_regions(self, boundaries):
+        self.ndim = len(boundaries)
         self.region_array = numpy.empty(tuple(len(boundary_entry)-1 for boundary_entry in boundaries), numpy.object_)
         self.target_counts_array = numpy.zeros(self.region_array.shape, numpy.uint)
         
@@ -131,27 +141,25 @@ class RectilinearRegionSet(RegionSet):
     def target_counts(self):
         return self.target_counts_array.flat
     
-    def map_pcoords(self, pcoords):
-        pcoords = numpy.asarray(pcoords)
-        assert pcoords.ndim == 2
-        region_indices = numpy.empty(pcoords.shape, numpy.uintp)
-        flat_indices = numpy.empty(len(pcoords,), numpy.uintp)
+    def map_coords(self, coords):
+        coords = numpy.asarray(self.transform_coords(coords))
+        assert coords.ndim == 2
+        assert coords.shape[1] == self.ndim
+        region_indices = numpy.empty(coords.shape, numpy.uintp)
+        flat_indices = numpy.empty(len(coords,), numpy.uintp)
                 
-        for idim in xrange(0, self.boundaries.ndim):
-            region_indices[:,idim] = numpy.digitize(pcoords[:,idim], self.boundaries[idim])
+        for idim in xrange(0, self.ndim):
+            region_indices[:,idim] = numpy.digitize(coords[:,idim], self.boundaries[idim])
             if ( (region_indices[:, idim] == len(self.boundaries[idim]))
                 |(region_indices[:, idim] == 0) ).any():
                 # Beyond the upper bin limit
-                raise ValueError('pcoord outside of bin space in dimension %d' % idim)
+                raise ValueError('coord outside of bin space in dimension %d' % idim)
             region_indices[:,idim] -= 1
     
         # We now have an array of n-dimensional indices into our bin space, with each row corresponding to
-        # one entry in pcoords
+        # one entry in coords
         indir = self.indir
-        for ipcoord in xrange(0, len(pcoords)):
-            flat_indices[ipcoord] = indir[region_indices[ipcoord]]
+        for icoord in xrange(0, len(coords)):
+            flat_indices[icoord] = indir[region_indices[icoord]]
         
         return flat_indices
-    
-                    
-            

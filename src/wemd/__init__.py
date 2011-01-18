@@ -3,10 +3,8 @@ import logging
 logging.getLogger('')
 log = logging.getLogger('wemd')
 
-import core, util, rc
-import we_drivers, data_manager, sim_managers, backend_drivers, work_managers
-from core.errors import *
-from core import Segment, Particle, WESimIter, Trajectory
+import util, rc, types, propagators
+from types import Segment, Particle
 
 version = '0.5'
 
