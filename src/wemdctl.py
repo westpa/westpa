@@ -31,9 +31,10 @@ class WEMDCtlTool(WECmdLineMultiTool):
                         self.cmd_truncate, True)
         cop.add_command('console', 'open an interactive Python console',
                         self.cmd_console, True)
-        cop.add_command('update_schema', 
-                        'update a database to the most recent schema',
-                        self.cmd_update_schema, True)
+        cop.add_command('steady_state', 
+                        'apply the steady state reweighting to a simulation',
+                        self.cmd_steady_state_reweight, True)
+        
         self.add_rc_option(cop)
         
     def cmd_init(self, args):
@@ -165,8 +166,7 @@ class WEMDCtlTool(WECmdLineMultiTool):
                     
         sim_manager = self.load_sim_manager()
         sim_manager.load_sim_state()
-        
-        #sim_manager.data_manager.require_hdf5()
+
         n_iter = sim_manager.we_driver.current_iteration
         num_inc_segs = sim_manager.data_manager.num_incomplete_segments()
         
@@ -418,19 +418,53 @@ class WEMDCtlTool(WECmdLineMultiTool):
             sys.stdout.write('  %d populated (%.0f%%)\n'
                                      % (n_populated, n_populated/n_bins*100))
         
-    def cmd_update_schema(self, args):
-        parser = self.make_parser('update the database to the most recent schema')
+    def cmd_steady_state_reweight(self, args):
+        parser = self.make_parser('SIM_CONFIG', 
+                                  'Reweight a current wemd simulation')
         (opts, args) = parser.parse_args(args)
+        if len(args) != 1:
+            sys.stderr.write('a simulation configuration file is required\n')
+            parser.print_help(sys.stderr)
+            sys.exit(EX_USAGE_ERROR)
+        else:
+            sim_config_file = args[0]
         
-        from wemd.data_manager.versioning import update_schema
+        from wemd.util.config_dict import ConfigDict
+        self.sim_config_src = ConfigDict()
+        try:
+            self.sim_config_src.read_config_file(sim_config_file)
+        except IOError, e:
+            self.log.debug('cannot open simulation config file', exc_info=True)
+            sys.stderr.write('cannot open simulation config file: %s\n' % e)
+            sys.exit(EX_ENVIRONMENT_ERROR)
+                    
         sim_manager = self.load_sim_manager()
-        update_schema(sim_manager.data_manager.dbengine)
+        sim_manager.load_sim_state()
+        sim_manager.load_data_manager()
         
-        
+        from wemd.steady_state.steady_state import steady_state
+        ss = steady_state(runtime_config_file='run.cfg', sim_manager = sim_manager, data_manager = sim_manager.data_manager)
+        new_weights = ss.get_new_weights(lag=[1])
 
+        new_weights_by_bin = new_weights[new_weights.keys()[0]] #only use one lag time
+        #apply reweight procedure
+        n_iter = sim_manager.we_driver.current_iteration
         
+        # set new bin weights
+        sim_manager.we_driver.sim_init(sim_manager.sim_config, self.sim_config_src)            
+        sim_manager.we_driver.current_iteration = n_iter-1
+        sim_manager.we_iter = sim_manager.data_manager.get_we_sim_iter(n_iter-1)
+        sim_manager.data_manager.del_iter(n_iter)
         
-                
+        segs = sim_manager.data_manager.get_segments(n_iter-1)
+
+        sim_manager.run_we(segments = segs, reweight = new_weights_by_bin)
+        sim_manager.data_manager.update_we_sim_iter(sim_manager.we_iter)
+        sim_manager.save_sim_state()
+        sim_manager.save_sim_config()
+
+        sys.exit(0)        
+        
 if __name__ == '__main__':
     WEMDCtlTool().run()
 

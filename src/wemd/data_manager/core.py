@@ -378,8 +378,11 @@ class HDF5_data_manager(DataManagerBase):
 
         self.flush_hdf5()
         
-    def num_incomplete_segments(self, we_iter):
+    def num_incomplete_segments(self, we_iter = None):
         h5 = self.require_hdf5()
+        if not we_iter:
+            we_iter = self.get_last_iter()
+            
         n_iter = _n_iter(we_iter)
         cur_iter = h5['iter_%d' % n_iter]
         iter = self.get_we_sim_iter( n_iter )
@@ -541,6 +544,15 @@ class HDF5_data_manager(DataManagerBase):
         max_iter = sorted_iter[-1]       
 
         return self.get_we_sim_iter(max_iter-1)
+    
+    def get_first_iter(self):
+        h5 = self.require_hdf5()
+        
+        iters = [int(k.split('_')[1]) for k in h5.keys()]
+        sorted_iter = sorted(iters)
+        max_iter = max(sorted_iter[0],1) #iteration 0 does not contain any segments       
+
+        return self.get_we_sim_iter(max_iter)    
         
     def get_segment(self, seg_id, load_p_parent = False):
         h5 = self.require_hdf5()
@@ -699,7 +711,7 @@ class HDF5_data_manager(DataManagerBase):
    
         return segs 
 
-    def get_segments_by_parent_id(self, we_n_iter, n_iter_upper = None, p_parent_id = None):
+    def get_segments_by_parent_id(self, we_n_iter, n_iter_upper = None, p_parent_id = None, p_parent_id_negate = False):
         h5 = self.require_hdf5()
         
         if n_iter_upper is None:
@@ -719,9 +731,13 @@ class HDF5_data_manager(DataManagerBase):
             for i in xrange(0,len(p_parent_ids)):
                 if p_parent_id is None:
                     p_parent_id = 0
-                    
-                if p_parent_ids[i] == p_parent_id:
-                    load_segs.append(i)
+                
+                if p_parent_id_negate:
+                    if p_parent_ids[i] != p_parent_id:
+                        load_segs.append(i)                    
+                else:
+                    if p_parent_ids[i] == p_parent_id:
+                        load_segs.append(i)
                        
             if not load_segs:
                 continue
@@ -811,3 +827,10 @@ class HDF5_data_manager(DataManagerBase):
                 segs.append(seg)
    
         return segs 
+
+    def get_connectivity(self, we_n_iter, n_iter_upper = None):
+        h5 = self.require_hdf5()
+
+        segs = self.get_segments_by_parent_id(we_n_iter, n_iter_upper = n_iter_upper, p_parent_id = None, p_parent_id_negate = True)
+        conn = [[s.p_parent.seg_id,s.seg_id] for s in segs]
+        return conn

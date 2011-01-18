@@ -205,6 +205,11 @@ class DefaultSimManager(WESimMaster):
                     log.warn('cannot renormalize bin of weight 0; expect relaxation')
                 else:
                     bin.renorm(new_weight)
+            norm = 0
+            for bin in self.we_driver.bins:
+                norm += bin.get_norm()
+                
+            log.info('after reweight norm = %.15g; error in norm %.6g' % (norm,norm-1))
             
         # Mark old segments as merged/recycled/continued
         if not initial_segments:
@@ -289,10 +294,6 @@ class DefaultSimManager(WESimMaster):
 
         nparticles = self.we_driver.bins.nparticles_array()
         boundaries = self.we_driver.bins.boundaries[0]
-        for i in xrange(0,len(nparticles)):
-            npart = nparticles[i]
-            if npart != 0:
-                log.info("%r segments in [%r,%r] " %(npart,boundaries[i],boundaries[i+1]))
          
         self.data_manager.create_we_sim_iter(we_iter)
         self.data_manager.create_segments(we_iter, new_segments)

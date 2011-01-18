@@ -38,8 +38,6 @@ class WEMDAnlTool(WECmdLineMultiTool):
                          )
         
     def get_sim_iter(self, we_iter, complete = False):
-        self.load_sim_manager()
-        self.sim_manager.load_data_manager()
                 
         data_manager = self.sim_manager.data_manager
         if we_iter is not None:
