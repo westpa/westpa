@@ -52,7 +52,7 @@ class TCPWorkerBase(WEWorkManagerBase):
     def post_iter(self, we_iter):
         self.backend_driver.post_iter(we_iter)
 
-    def init_dserver(self, port):
+    def init_dserver(self, port, nqueue = 1):
         self.debug('init_dserver')
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
@@ -60,7 +60,7 @@ class TCPWorkerBase(WEWorkManagerBase):
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.sock.settimeout(self.timeout)
         self.sock.bind((self.get_local_hostname(), port))
-        self.sock.listen(1)
+        self.sock.listen(nqueue)
                 
     def shutdown_dserver(self):
         if self.sock is not None:
@@ -169,7 +169,7 @@ class TCPWEMaster(TCPWorkerBase):
         super(TCPWEMaster, self).runtime_init(runtime_config, load_sim_config)
         self.nclients = runtime_config.get_int('server.nclients')
         #only for initial connection (to get client info)
-        self.init_dserver(self.dport)
+        self.init_dserver(self.dport, nqueue = self.nclients)
         
         if self.send_cid() == False:
             self.shutdown(EX_ERROR)
@@ -617,7 +617,8 @@ class TCPWEWorker(TCPWorkerBase):
         self.state = 'busy'
         self.pp_thread = None
         self.cport = None
-    
+        self.max_attempt = None
+        
     def set_cport(self, cport):
         self.cport = int(cport)
         
@@ -625,9 +626,14 @@ class TCPWEWorker(TCPWorkerBase):
         super(TCPWEWorker, self).runtime_init(runtime_config, load_sim_config)
         if self.cport is None:
             self.cport = self.dport
-            
+
+        try:
+            self.max_attempt = runtime_config.get_int('server.max_attempt')
+        except KeyError:
+            self.max_attempt = 100
+               
         log.info('TCPClient runtime init')
-        
+
         self.get_cid()        
         self.init_dserver(self.cport)
    
@@ -735,8 +741,15 @@ class TCPWEWorker(TCPWorkerBase):
     def get_cid(self):
         '''gets the client id and sends the # of cores available'''
         self.debug('get_cid')
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.connect((self.hostname, self.dport))
+        tries = 0
+        while tries < self.max_attempt:
+            try:
+                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                sock.connect((self.hostname, self.dport))
+                break
+            except (socket.error,socket.timeout):
+                tries += 1
+                
         self.debug('connected to: %r' % repr((self.hostname, self.dport)))
         
         if self.send_message((None, multiprocessing.cpu_count(), self.cport), sock) == False:
