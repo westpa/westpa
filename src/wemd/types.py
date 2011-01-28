@@ -1,6 +1,5 @@
 __metaclass__ = type
 import numpy
-from numpy import asarray
 
 class Segment:
     SEG_STATUS_UNSET = None
@@ -9,8 +8,8 @@ class Segment:
     SEG_STATUS_COMPLETE = 3
     SEG_STATUS_FAILED   = 4
     
-    SEG_ENDPOINT_TYPE_UNKNOWN = 0
-    SEG_ENDPOINT_TYPE_CONTINUATION = 1
+    SEG_ENDPOINT_TYPE_NOTSET = 0
+    SEG_ENDPOINT_TYPE_CONTINUES = 1
     SEG_ENDPOINT_TYPE_MERGED = 2
     SEG_ENDPOINT_TYPE_RECYCLED = 3
     
@@ -29,7 +28,7 @@ class Segment:
         self.parents = set(parents) if parents else set()
         self.endpoint_type = endpoint_type
         self.weight = weight
-        self.pcoord = asarray(pcoord) if pcoord is not None else None
+        self.pcoord = numpy.asarray(pcoord) if pcoord is not None else None
         self.walltime = walltime
         self.cputime = cputime
 
@@ -52,10 +51,11 @@ del _attr, _val
 
 
 class Particle:
-    def __init__(self):
-        self.particle_id = None
-        self.p_parent = None
-        self.parents = None
-        self.weight = None
-        self.pcoord = None
+    def __init__(self, particle_id = None, weight = None, pcoord = None, 
+                 p_parent = None, parents = None):
+        self.particle_id = particle_id
+        self.p_parent = p_parent
+        self.parents = set(parents) if parents else set()
+        self.weight = weight
+        self.pcoord = numpy.asarray(pcoord)
         

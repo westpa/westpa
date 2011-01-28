@@ -1,27 +1,19 @@
 import os, sys, re, string
 import logging
+import extloader
+from collections import OrderedDict
+from datetime import timedelta
 log = logging.getLogger('wemd.util.config_dict')
 
-class ConfigError(EnvironmentError, ValueError):
-    def __init__(self, message = '', exc = None):
-        self.message = message
-        self.exc = exc
+NotProvided = object()
 
-    def __str__(self):
-        if self.message:
-            if self.exc:
-                return '%s: %s' % (self.message, self.exc)
-            else:
-                return self.message
-        elif self.exc:
-            return str(self.exc)
-        else:
-            return ValueError.__str__(self)    
-
-class ConfigDict(dict):
+class ConfigDict(OrderedDict):
     true_values = set(('1', 'true', 't', 'yes', 'y'))
     false_values = set(('0', 'false', 'f', 'no', 'n'))
     default_list_split = re.compile(r'\s*,?\s*')
+    
+    re_interval_float_unit = re.compile(r'((?:\d+\.)?\d+)\s+(second|minute|hour|day|sec|min|hr|s|m|h|d)s?')
+    re_interval_dhms = re.compile(r'(?:\d+:)?\d?\d:\d\d:\d\d')
 
     defaults = {}
     
@@ -44,26 +36,31 @@ class ConfigDict(dict):
         
         
         defaults = cparser.defaults()
+        log.debug('DEFAULT section')
+        for (key, value) in defaults.viewitems():
+            log.debug('%s = %r' % (key, value))
+        default_keys = set(defaults.viewkeys())
+        
         for section in cparser.sections():
-            log.debug('processing section %r' % section)
+            log.debug('reading section %r' % section)
             for (key, value) in cparser.items(section):
                 self['%s.%s' % (section, key)] = value
-                log.debug('%s.%s = %s' % (section, key, value))
+                if key in default_keys and defaults[key] == value:
+                    log.debug('%s.%s propagated from [DEFAULT]' % (section,key))
+                else:
+                    log.debug('%s.%s = %r' % (section, key, value))
                 
     def require(self, key):
-        (section, name) = key.split('.', 1)
-        if key not in self:
-            raise ConfigError(("entry '%s' in section '%s' is required in "
+        try:
+            return self[key]
+        except KeyError:
+            (section, name) = key.split('.', 1)
+            raise KeyError(("entry %r in section %r is required in "
                               +"configuration file %r")
                               % (name, section, self['__file__']))
     
     def require_all(self, keys):
-        for key in keys:
-            (section, name) = key.split('.', 1)
-            if key not in self:
-                raise ConfigError(("entry '%s' in section '%s' is required in "
-                                   +"configuration file %r")
-                                   % (name, section, self['__file__']))
+        return map(self.require, keys)
                         
     def _get_typed(self, key, type_, *args):
         
@@ -132,6 +129,38 @@ class ConfigDict(dict):
             except IndexError:
                 raise ke
     
+    def get_interval(self, key, default=NotProvided, type=None):        
+        try:
+            inttxt = self[key].lower()
+        except KeyError as ke:
+            if default is not NotProvided:
+                inttxt = default
+            else:
+                raise ke
+        
+        match = self.re_interval_float_unit.match(inttxt) or self.re_interval_dhms(inttxt)
+        if not match:
+            ValueError('invalid time interval %r' % inttxt)
+        groups = match.groups()
+        
+        multipliers = {'s': 1, 'm': 60, 'h': 3600, 'd': 86400}
+        if groups:
+            # matched re_interval_float_unit, returning (quantity, unit)
+            # since unit is uniquely determined by its first character, just examine that and
+            # multiply appropriately
+            seconds = float(groups[0]) * multipliers[groups[1][0]]
+        else:
+            qtys = map(float, match.group(0).split(':'))
+            seconds = qtys[-1] + 60*qtys[-2] + 3600*qtys[-3]
+            try:
+                seconds += qtys[-4] * 86400
+            except IndexError:
+                pass
+            
+        if type is None:
+            return timedelta(seconds=seconds)
+        else:
+            return type(seconds)        
     
     def get_list(self, key, *args, **kwargs):
         if len(args) > 1:
@@ -142,10 +171,7 @@ class ConfigDict(dict):
         split = re.compile(kwargs.get('split', self.default_list_split))
         try:
             if type_:
-                try:
-                    return [type_(item) for item in split.split(self[key])]
-                except ValueError, e:
-                    raise ConfigError("%s in entry '%s'" % (e, key))
+                [type_(item) for item in split.split(self[key])]
             else:
                 return split.split(self[key])
         except KeyError, ke:
@@ -165,12 +191,13 @@ class ConfigDict(dict):
                 path = args[0]
             except IndexError:
                 raise ke
-            
+        
+        path = os.path.expanduser(os.path.expandvars(path))    
         if os.path.isabs(path):
             return os.path.normpath(path)
         else:
-            return os.path.normpath(os.path.join(self['__dirname__'], path))
-        
+            return os.path.normpath(os.path.join(self['__dir__'], path))
+                
     def get_file_object(self, key, default_path=None, mode='rb', 
                         compression_allowed=True):
         try:
@@ -187,14 +214,14 @@ class ConfigDict(dict):
                 try:
                     import gzip
                 except ImportError:
-                    raise ConfigError('gzip compression not supported')
+                    raise ValueError('gzip compression not supported')
                 
                 return gzip.open(path, mode)
             elif ext == '.bz2':
                 try:
                     import bz2
                 except ImportError:
-                    raise ConfigError('bzip2 compression not supported')
+                    raise ValueError('bzip2 compression not supported')
                 
                 return bz2.BZ2File(path, mode[0]+'U')
         return open(path, mode)
@@ -219,28 +246,33 @@ class ConfigDict(dict):
         try:
             template.safe_substitute(dict())
         except ValueError, e:
-            raise ConfigError('invalid substitution template %r in %r: %s'
+            raise ValueError('invalid substitution template %r in %r: %s'
                               % (template.template, key, e))
         else:
             return template
         
-    def get_python_object(self, key, *args):
-        if len(args) > 1:
-            raise TypeError('unexpected positional argument encountered')
-        
+    def get_python_object(self, key, default=NotProvided, path=None):
         try:
             qualname = self[key]
-        except KeyError, ke:
-            try:
-                return args[0]
-            except IndexError:
+        except KeyError as ke:
+            if default is not NotProvided:
+                return default
+            else:
                 raise ke
         
-        (module_name, symbol) = qualname.rsplit('.', 1)
-
+        return extloader.get_object(qualname, path)
+    
+    def get_python_callable(self, key, default=NotProvided, path=None):
         try:
-            module = sys.modules[module_name]
-        except KeyError:
-            module = __import__(module_name)
+            qualname = self[key]
+        except KeyError as ke:
+            if default is not NotProvided:
+                return default
+            else:
+                raise ke
             
-        return getattr(module, symbol)
+        fn = extloader.get_object(qualname, path)
+        if not callable(fn):
+            raise TypeError('%s is not callable' % qualname)
+
+        

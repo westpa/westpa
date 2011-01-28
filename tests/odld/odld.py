@@ -2,9 +2,17 @@ from __future__ import division, print_function; __metaclass__ = type
 import os, sys, math, itertools
 import numpy, scipy
 import wemd
+from wemd.pcoords import PiecewiseRegionSet, ParticleSet, RectilinearRegionSet
+
+import logging
+log = logging.getLogger(__name__)
+log.debug('loading module %r' % __name__)
 
 class ODLDPropagator(wemd.propagators.WEMDPropagator):
-    def __init__(self):
+    def __init__(self, runtime_config, sim_manager = None):
+        self.runtime_config = runtime_config
+        self.sim_manager = sim_manager
+        
         self.variance = 0.001
         self.sigma = self.variance**0.5
         self.nsteps = 10
@@ -34,23 +42,68 @@ class ODLDPropagator(wemd.propagators.WEMDPropagator):
         for (iseg, segment) in enumerate(segments):
             segment.pcoord = new_pcoords[:,iseg,:]
 
-def construct_regions():
-    from wemd.pcoords import ParticleSet, RectilinearRegionSet
-    
-    
-    
+class ODLDSystem:
+    def __init__(self, sim_manager):
+        self.sim_manager = sim_manager
+        
+        # Construct bin regions
+        # Divide space into x<0 and x>=0
+        self.region_set = PiecewiseRegionSet([(lambda x: x<0), (lambda x: x>=0)])
+        
+        # Replace each bin with a set of smaller bins
+        self.region_set.replace_region([-0.5], RectilinearRegionSet([[float('-inf')] + list(numpy.arange(-1.0, 0.1, 0.1))]))
+        self.region_set.replace_region([0.5], RectilinearRegionSet(boundaries=[list(numpy.arange(0.0, 1.1, 0.1)) + [float('inf')]]))
+        
+        # 10 particles per bin
+        for bin in self.region_set.get_all_bins():
+            bin.target_count = 10
+            
+        # Except for target bins, which are denoted by a target_count of zero; here, abs(x) > 1
+        self.region_set.get_bin_containing([1.1]).target_count = 0
+        self.region_set.get_bin_containing([-1.1]).target_count = 0
+        
+        self.initial_distribution = [('left', 0.7, [-0.1]),
+                                     ('right', 0.3, [0.1])]
+        self.pcoord_ndim = 1
+        self.pcoord_len = 10
+        self.pcoord_dtype = numpy.float64
 
-def main():
+def test_regions_simple(segments):
+    rrs = RectilinearRegionSet([numpy.arange(-1.0,1.1,0.1)])
+    
+    print(repr(rrs.boundaries))
+    print(repr(rrs.region_array))
+    
+    for segment in segments:
+        pci = rrs.map_to_indices([segment.pcoord[-1,:]])
+        print('segment', segment.seg_id, 'pcoord', segment.pcoord[-1], 'bin', pci)
+        
+    bins = rrs.map_to_bins([segment.pcoord[-1] for segment in segments])
+    for (bin,segment) in zip(bins,segments):
+        bin.add(segment)
+    
+    print(repr(rrs.region_array))
+
+def test_regions_nested(segments): 
+    rs = PiecewiseRegionSet([(lambda x: x<0), (lambda x: x>=0)])
+    rs.replace_region([-0.5], RectilinearRegionSet(boundaries=[numpy.arange(-1.0, 0.1, 0.1)]))
+    rs.replace_region([0.5], RectilinearRegionSet(boundaries=[numpy.arange(0.0, 1.1, 0.1)]))
+                
+    bins = rs.map_to_bins([segment.pcoord[-1] for segment in segments])
+    for (bin,segment) in zip(bins,segments):
+        bin.add(segment)
+    
+    print(repr(rs.regions))
+    for (ireg, region) in enumerate(rs.regions):
+        print('region', ireg, 'count', region.count)
+        for (iireg, iregion) in enumerate(region.regions):
+            print('iregion', iireg, 'count', iregion.count)
+
+
+def test_nopot():
     import itertools
-    #sim_manager = wemd.sim_manager.WESimManager()
     
-    # Construct driver tree
-    
-    # Construct simulation
-    
-    # Run simulation
-    
-    prop = ODLDPropagator()
+    prop = ODLDPropagator({})
     
     parent = None
     seg_id_generator = itertools.count(1)
@@ -66,7 +119,13 @@ def main():
         numpy.savetxt(sys.stdout, numpy.column_stack([seg.pcoord for seg in segs]))
         parent = seg
         pcoord = seg.pcoord[-1]
+    
+    return segs
 
+def run_basic_tests():
+    segs = test_nopot()
+    test_regions_simple(segs)
+    test_regions_nested(segs)
 
 if __name__ == '__main__':
-    main()
+    run_basic_tests()

@@ -1,9 +1,9 @@
-import util.extlogger
+#import util.extlogger
 import logging
 logging.getLogger('')
 log = logging.getLogger('wemd')
 
-import util, rc, types, propagators
+import util, rc, types, propagators, work_managers, data_manager, pcoords, sim_manager, we_driver
 from types import Segment, Particle
 
 version = '0.5'

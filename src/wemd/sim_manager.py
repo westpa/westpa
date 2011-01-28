@@ -1,6 +1,6 @@
 from __future__ import division; __metaclass__ = type
 
-import sys
+import sys, os
 
 import logging
 log = logging.getLogger(__name__)
@@ -8,42 +8,24 @@ log = logging.getLogger(__name__)
 import cPickle as pickle
 
 import wemd
-from wemd.rc import RC_SIM_CONFIG_KEY, RC_SIM_STATE_KEY
+from wemd.rc import RC_SIM_STATE_KEY
 from wemd.util import extloader
 
 class WESimManager:
     """A state machine and communications broker"""
     def __init__(self, runtime_config = None):
         self.runtime_config = runtime_config or {}
-        self.sim_config = {}
         
         self.data_manager = None
         self.we_driver = None
         self.work_manager = None
-        self.pcoord_driver = None
         
+        self.propagator = None
+        
+        self.system = None
+                
         self.status_stream = sys.stdout
-        
-        
-    def _sim_init(self, sim_config, sim_config_src):
-        """Hook for derived sim managers to perform their own simulation initialization"""
-        raise NotImplementedError
-    
-    def sim_init(self, sim_config, sim_config_src):
-        """Initialize a new simulation using the configuration information in sim_config_src. Each
-        dependent component (WE driver, etc.) processes information from sim_config_src and inserts the
-        results in sim_config."""
-        
-        self.sim_config = sim_config = {}
-        sim_config['__sim_manager__'] = self.__class__.__name__
-        sim_config['__data_manager__'] = self.data_manager.__class__.__name__
-        #sim_config['__we_driver__'] = self.we_driver.__class__.__name__
-        
-        self._sim_init(sim_config, sim_config_src)
-        self.data_manager.sim_init(sim_config, sim_config_src)
-        self.we_driver.sim_init(sim_config, sim_config_src)
-        # work manager has no simulation state; it is completely run-time-configured
-        
+                                
     def load_sim_state(self):
         """Load simulation state"""
         self.runtime_config.require(RC_SIM_STATE_KEY)
@@ -54,7 +36,13 @@ class WESimManager:
         for (key, dest) in [('data_manager', self.data_manager),
                             ('we_driver', self.we_driver),
                             ('work_manager', self.work_manager)]:
-            dest.restore_state(state_data[key])
+            try:
+                dest.restore_state(state_data[key])
+            except AttributeError as e:
+                if 'NoneType' in str(e):
+                    log.warning('cannot load %s state (%s not loaded)' % (key,key))
+                else:
+                    raise
                 
     def save_sim_state(self):
         """Save simulation state"""
@@ -64,17 +52,18 @@ class WESimManager:
         for (key, dest) in [('data_manager', self.data_manager),
                             ('we_driver', self.we_driver),
                             ('work_manager', self.work_manager)]:
-            state_data[key] = dest.dump_state()
+
+            try:
+                state_data[key] = dest.dump_state()
+            except AttributeError as e:
+                if 'NoneType' in str(e):
+                    log.warning('cannot save %s state (%s not loaded)' % (key,key))
+                else:
+                    raise
         
         log.info('saving simulation state to %r' % state_file)
         state_data = pickle.dump(state_data, open(state_file, 'wb'), pickle.HIGHEST_PROTOCOL)
-    
-    def load_plugin_component(self, callable_qualname, description, path = None):
-        log.debug('loading %s from %s' % (description, callable_qualname))
-        callable = extloader.get_callable(callable_qualname, path)
-        component = callable(self)
-        return component
-        
+            
     def load_data_manager(self):
         log.info('loading HDF5 data manager')
         self.data_manager = wemd.data_manager.WEMDDataManager(self)
@@ -88,11 +77,26 @@ class WESimManager:
     def load_work_manager(self):
         self.work_manager = wemd.work_managers.default.DefaultWorkManager(self)
         self.work_manager.runtime_init()
-    
+        
+    def load_system_driver(self):
+        sysdrivername = self.runtime_config.require('system.system_driver')
+        log.info('loading system driver %r' % sysdrivername)
+        
+        sysmodpath = self.runtime_config.get('system.module_path')
+        if sysmodpath:
+            pathinfo = [os.path.abspath(os.path.realpath(os.path.expanduser(os.path.expandvars(pathcomp))))
+                        for pathcomp in sysmodpath.split(os.pathsep)]
+        else:
+            pathinfo = None
+        
+        self.system = extloader.get_object(sysdrivername, pathinfo)(self)
+        log.debug('system driver is %r' % self.system)
+                    
     def run(self):
         """Begin (or continue) running a simulation"""
-        raise NotImplementedError
+        return self.work_manager.run()
     
     def shutdown(self, exit_code = 0):
         """Shut down a running simulation"""
-        pass
+        self.work_manager.shutdown(exit_code)
+

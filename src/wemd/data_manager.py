@@ -7,7 +7,7 @@ Current implementation: Matt Zwier
 """
 from __future__ import division; __metaclass__ = type
 
-from copy import copy
+import operator
 import numpy
 import h5py
 
@@ -24,14 +24,20 @@ summary_table_dtype = numpy.dtype( [ ('n_iter', numpy.uint),
                                      ('cputime', numpy.float64),
                                      ('walltime', numpy.float64) ] )
 
-seg_index_dtype = numpy.dtype( [ ('seg_id', numpy.uint),
-                                 ('weight', numpy.float64),
+seg_index_dtype = numpy.dtype( [ ('weight', numpy.float64),
                                  ('cputime', numpy.float64),
                                  ('walltime', numpy.float64),
                                  ('parents_offset', numpy.uint32),
                                  ('n_parents', numpy.uint32),                                 
                                  ('status', numpy.uint8),
                                  ('endpoint_type', numpy.uint8)] )
+SEG_INDEX_WEIGHT = 0
+SEG_INDEX_CPUTIME = 1
+SEG_INDEX_WALLTIME = 2
+SEG_INDEX_PARENTS_OFFSET = 3
+SEG_INDEX_N_PARENTS = 4
+SEG_INDEX_STATUS = 5
+SEG_INDEX_ENDPOINT_TYPE = 6
 
 class WEMDDataManager:
     def __init__(self, sim_manager):
@@ -43,6 +49,12 @@ class WEMDDataManager:
         # A few functions for extracting vectors of attributes from vectors of segments
         self._attrgetters = dict((key, vattrgetter(key)) for key in 
                                  ('seg_id', 'status', 'endpoint_type', 'weight', 'walltime', 'cputime'))
+    
+    def dump_state(self):
+        pass
+    
+    def restore_state(self, stateinfo):
+        pass
         
     def _get_iter_group_name(self, n_iter):
         return 'iter_%0*d' % (self.iter_prec, n_iter)
@@ -82,8 +94,7 @@ class WEMDDataManager:
         except (KeyError,ValueError):
             pass
         
-    def prepare_iteration(self, n_iter, segments, pcoord_ndim, pcoord_len, pcoord_dtype,
-                          cputime = None, walltime = None):
+    def prepare_iteration(self, n_iter, segments, pcoord_ndim, pcoord_len, pcoord_dtype):
         """Prepare for a new iteration by creating space to store the new iteration's data.
         The number of segments, their IDs, and their lineage must be determined and included
         in the set of segments passed in."""
@@ -102,79 +113,81 @@ class WEMDDataManager:
         iter_group.attrs['n_iter'] = n_iter
         
         # everything indexed by [particle] goes in an index table
-        seg_index_table = iter_group.create_dataset('seg_index', shape=(n_particles,),
-                                                    dtype=seg_index_dtype)
-        
-        seg_index_table[:,'seg_id'] = self._attrgetters['seg_id'](segments)
-        seg_index_table[:,'p_parent_id'] = self._attrgetters['']
-        seg_index_table[:,'status'] = self._attrgetters['status'](segments)
-        seg_index_table[:,'endpoint_type'] = self._attrgetters['endpoint_type'](segments)
-        seg_index_table[:,'walltime'] = self._attrgetters['walltime'](segments)
-        seg_index_table[:,'cputime'] = self._attrgetters['cputime'](segments)
-        seg_index_table[:,'weight'] = self._attrgetters['weight'](segments)
-
-        summary_row = summary_table[n_iter]
+        seg_index_table_ds = iter_group.create_dataset('seg_index', shape=(n_particles,),
+                                                       dtype=seg_index_dtype)
+        # unfortunately, h5py doesn't like in-place modification of individual fields; it expects
+        # tuples. So, construct everything in a numpy array and then dump the whole thing into hdf5
+        # In fact, this appears to be an h5py best practice (collect as much in ram as possible and then dump)
+        seg_index_table = numpy.zeros((n_particles,), dtype=seg_index_dtype)
+                
+        summary_row = numpy.zeros((1,), dtype=summary_table_dtype)
         summary_row['n_iter'] = n_iter
         summary_row['n_particles'] = n_particles
-        summary_row['norm'] = numpy.add.reduce(self._attrgetters['weight'], segments)
-        summary_row['cputime'] = numpy.sum(seg_index_table[:,'cputime'])
-        summary_row['walltime'] = numpy.sum(seg_index_table[:,'walltime'])
+        summary_row['norm'] = numpy.add.reduce(map(self._attrgetters['weight'], segments))
+        summary_row['cputime'] = numpy.sum(seg_index_table[:]['cputime'])
+        summary_row['walltime'] = numpy.sum(seg_index_table[:]['walltime'])
+        summary_table[n_iter-1] = summary_row
         
         # pcoord is indexed as [particle, time, dimension]
         pcoord_ds = iter_group.create_dataset('pcoord', 
                                               shape=(n_particles, pcoord_len, pcoord_ndim), 
                                               dtype=pcoord_dtype)
         pcoord = pcoord_ds[...]
-                
-        # family tree is stored as two things: a big vector of ints containing parent seg_ids, 
-        # and an index (into this vector) and extent pair
-        seg_index_table[:,'n_parents'] = numpy.frompyfunc((lambda seg: len(seg.parents) if seg.parents else 0), 1, 1)
+        log.debug('pcoord shape is {!r}'.format(pcoord.shape))
         
-        # voodoo by induction!
-        # offset[0] = 0
-        # offset[1:] = numpy.add.accumulate(n_parents[:-1])
-        seg_index_table[0,'parents_offset'] = 0
-        seg_index_table[1:,'parents_offset'] = numpy.add.accumulate(seg_index_table[:-1,'n_parents'])
-        
-        total_parents = numpy.sum(seg_index_table[:,'n_parents'])
-        parents_ds = iter_group.create_dataset('parents', (total_parents,), numpy.uint32)
-        parents = parents_ds[:]
-        
-        # Don't directly index an HDF5 data set in a loop
-        offsets = seg_index_table[:,'parents_offset']
-        extents = seg_index_table[:,'n_parents']
-        
-        for (iseg, segment) in enumerate(segments):
-            offset = offsets[iseg]
-            extent = extents[iseg]
-            assert extent == len(segment.parents)
-            if extent == 0: continue
-            
-            # Ensure that the primary parent is first in the list
-            assert segment.p_parent in segment.parents
-            parents[offset] = segment.p_parent.seg_id
-            segment.parents.remove(segment.p_parent)
-            parents[offset+1:offset+extent] = segment.parents
-            
+        for (seg_id, segment) in enumerate(segments):
+            seg_index_table[seg_id]['status'] = segment.status
+            seg_index_table[seg_id]['weight'] = segment.weight
+            seg_index_table[seg_id]['n_parents'] = len(segment.parents) if segment.parents else 0
+
             # Assign progress coordinate if any exists
             if segment.pcoord is not None:
                 if len(segment.pcoord) == 1:
                     # Initial pcoord
-                    pcoord[iseg,0,:] = segment.pcoord[0,:]
-                elif len(segment.pcoord) == pcoord_len:
-                    # Somehow we have all pcoord data here
-                    pcoord[iseg,:,:] = segment.pcoord[:,:]
+                    pcoord[seg_id,0,:] = segment.pcoord[0,:]
                 else:
                     raise ValueError('segment pcoord shape [%r] does not match expected shape [%r]'
                                      % (segment.pcoord.shape, pcoord.shape[1:]))
-                    
-  
+            
+
+                
+        # family tree is stored as two things: a big vector of ints containing parent seg_ids, 
+        # and an index (into this vector) and extent pair
+        
+        # voodoo by induction!
+        # offset[0] = 0
+        # offset[1:] = numpy.add.accumulate(n_parents[:-1])
+        seg_index_table[0]['parents_offset'] = 0
+        seg_index_table[1:]['parents_offset'] = numpy.add.accumulate(seg_index_table[:-1]['n_parents'])
+        
+        total_parents = numpy.sum(seg_index_table[:]['n_parents'])
+        if total_parents > 0:
+            parents_ds = iter_group.create_dataset('parents', (total_parents,), numpy.uint32)
+            parents = parents_ds[:]
+        
+            # Don't directly index an HDF5 data set in a loop
+            offsets = seg_index_table[:]['parents_offset']
+            extents = seg_index_table[:]['n_parents']
+            
+            for (iseg, segment) in enumerate(segments):
+                offset = offsets[iseg]
+                extent = extents[iseg]
+                assert extent == len(segment.parents)
+                if extent == 0: continue
+                
+                # Ensure that the primary parent is first in the list
+                assert segment.p_parent in segment.parents
+                parents[offset] = segment.p_parent.seg_id
+                segment.parents.remove(segment.p_parent)
+                parents[offset+1:offset+extent] = segment.parents
+            
+            parents_ds[:] = parents                    
 
         # Since we accumulated many of these changes in RAM (and not directly in HDF5), propagate
         # the changes out to HDF5
-        parents_ds[:] = parents
+        seg_index_table_ds[:] = seg_index_table
+
         pcoord_ds[...] = pcoord
-        summary_table[n_iter] = summary_row
         self.flush_backing()
     
     def update_segments(self, n_iter, segments):

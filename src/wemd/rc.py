@@ -6,7 +6,7 @@ from wemd.util.miscfn import logging_level_by_name
 
 # Runtime config file management
 ENV_RUNTIME_CONFIG  = 'WEMDRC'
-RC_DEFAULT_FILENAME = 'run.cfg'
+RC_DEFAULT_FILENAME = 'wemd.cfg'
 
 RC_SIM_STATE_KEY = 'data.state'
 RC_SIM_CONFIG_KEY = 'data.sim_config'
@@ -63,10 +63,13 @@ def configure_logging(runtime_config):
         except KeyError:
             pass
         else:
-            handler = logging.StreamHandler()
-            handler.setFormatter(logging.Formatter(format))
-            logger.addHandler(handler)
-            logger.propagate = False
+            if not logger.handlers:
+                handler = logging.StreamHandler()
+                handler.setFormatter(logging.Formatter(format))
+                logger.addHandler(handler)
+            else:
+                for handler in logger.handlers:
+                    handler.setFormatter(logging.Formatter(format))
         
 
 # Exit codes

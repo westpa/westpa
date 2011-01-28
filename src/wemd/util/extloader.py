@@ -42,29 +42,22 @@ def load_module(module_name, path = None):
 
     return module
 
-def get_callable(callable_name, path=None):
-    """Attempt to load the given callable, using additional path information if given.
-    path is a list of additional directories to search (akin to appending to $PYTHONPATH)"""
-    
+def get_object(object_name, path=None):
+    """Attempt to load the given object, using additional path information if given."""
+
     try:
-        (modspec, symbol) = callable_name.rsplit('.', 1)
+        (modspec, symbol) = object_name.rsplit('.', 1)
     except ValueError:
         # no period found
-        raise ValueError("callable name must be in the form 'module.symbol'")
+        raise ValueError("object_name name must be in the form 'module.symbol'")
     
     log.debug('attempting to load %r from %r' % (symbol, modspec))
     module = load_module(modspec, path)
     
     # This will raise AttributeError (as expected) if the symbol is not in the module
-    fn = getattr(module, symbol)
-    
-    if not callable(fn):
-        raise TypeError('%r is not callable' % callable_name)
-    else:
-        return fn
-    
+    return getattr(module, symbol)    
 
 if __name__ == '__main__':
     
-    print get_callable('numpy.array')
+    print get_object('numpy.array')
     
