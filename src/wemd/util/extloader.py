@@ -5,6 +5,10 @@ log = logging.getLogger(__name__)
 
 def load_module(module_name, path = None):
     """Load and return the given module, recursively loading containing packages as necessary."""
+    if module_name in sys.modules:
+        log.debug('module %r already loaded' % module_name)
+        return sys.modules[module_name]
+    
     spec_components = list(reversed(module_name.split('.')))
     qname_components = []
     mod_chain = []

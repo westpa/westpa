@@ -138,7 +138,7 @@ class ConfigDict(OrderedDict):
             else:
                 raise ke
         
-        match = self.re_interval_float_unit.match(inttxt) or self.re_interval_dhms(inttxt)
+        match = self.re_interval_float_unit.match(inttxt) or self.re_interval_dhms.match(inttxt)
         if not match:
             ValueError('invalid time interval %r' % inttxt)
         groups = match.groups()
@@ -197,6 +197,32 @@ class ConfigDict(OrderedDict):
             return os.path.normpath(path)
         else:
             return os.path.normpath(os.path.join(self['__dir__'], path))
+        
+    def get_pathlist(self, key, default=NotProvided, sep=os.pathsep, 
+                     expandvars = True, expanduser = True, realpath = True, abspath = True):
+        try:
+            paths = self[key]
+        except KeyError as ke:
+            if default is not NotProvided:
+                paths = default
+            else:
+                raise ke
+        
+        try:
+            items = paths.split(sep)
+        except AttributeError:
+            # Default must have been something we can't process, like a list or None
+            # Just pass it through, since enforcing a restriction on what kind of
+            # default is passed is probably more counterproductive than any poor programming
+            # practice it encourages.
+            return items
+        
+        if expandvars: items = map(os.path.expandvars, items)
+        if expanduser: items = map(os.path.expanduser, items)
+        if realpath:   items = map(os.path.realpath, items)
+        if abspath:    items = map(os.path.abspath, items)
+        
+        return items
                 
     def get_file_object(self, key, default_path=None, mode='rb', 
                         compression_allowed=True):

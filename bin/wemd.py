@@ -28,6 +28,7 @@ def cmd_init(sim_manager, args):
     
     # Create HDF5 data file
     sim_manager.load_data_manager()
+    sim_manager.load_we_driver()
     sim_manager.runtime_config.require('data.h5file')
     h5file = sim_manager.runtime_config.get_path('data.h5file')
     if os.path.exists(h5file):
@@ -50,7 +51,7 @@ def cmd_init(sim_manager, args):
     sys.stdout.write('{:<16} {:<12} {:<52}\n'.format('Name', 'Probability', 'Coordinates'))
     
     tprob = 0.0
-    for (name, prob, pcoord) in system.initial_distribution:
+    for (name, prob, pcoord, bin) in system.initial_distribution:
         sys.stdout.write('{:<16} {:<12g} {!s:<52}\n'.format(name, prob, list(pcoord)))
         tprob += prob
 
@@ -61,11 +62,10 @@ def cmd_init(sim_manager, args):
 
     # Create initial segments
     # First assign to bins
-    for (name, prob, pcoord) in system.initial_distribution:
-        bin = region_set.get_bin_containing(pcoord)
+    for (istate, (name, prob, pcoord, bin)) in enumerate(system.initial_distribution):
         target_count = bin.target_count
         for i in xrange(0, target_count):
-            bin.add(wemd.Particle(pcoord=pcoord, weight=prob/target_count))
+            bin.add(wemd.Particle(pcoord=pcoord, weight=prob/target_count, source_id=istate))
         sys.stdout.write('%d replicas from initial point %r\n' % (target_count,name))
 
     iprobtot = region_set.weight
@@ -89,8 +89,10 @@ Total target particles: {:d}
     segments = []
     for (seg_id, particle) in enumerate(itertools.chain(*all_bins)):
         segment = wemd.Segment(weight = particle.weight,
+                               source_id = particle.source_id,
                                pcoord = [particle.pcoord],
-                               p_parent = None, parents = None,
+                               p_parent_id = -(particle.source_id+1),
+                               parent_ids = set((-(particle.source_id+1),)),
                                status = wemd.Segment.SEG_STATUS_PREPARED)
         segments.append(segment)
             
@@ -103,6 +105,13 @@ Total target particles: {:d}
     sys.stdout.write('Simulation prepared.\n')
         
 def cmd_run(sim_manager, args):
+    sim_manager.load_data_manager()
+    sim_manager.data_manager.open_backing()
+    sim_manager.load_work_manager()
+    sim_manager.load_system_driver()
+    sim_manager.load_we_driver()
+    sim_manager.load_propagator()
+    sim_manager.load_sim_state()
     rc = sim_manager.run()
     sys.exit(rc)   
 
@@ -126,8 +135,9 @@ parser_init.add_argument('--force', dest='force', action='store_true',
 parser_init.set_defaults(func=cmd_init)
 
 parser_run =     subparsers.add_parser('run', help='start/continue a simulation')
+parser_run.set_defaults(func=cmd_run)
+
 parser_status =  subparsers.add_parser('status', help='report simulation status')
-parser_console = subparsers.add_parser('console', help='console with current simulation loaded')
 
 
 # Parse command line arguments
@@ -137,35 +147,28 @@ args = parser.parse_args()
 import logging.config
 logging_config = {'version': 1, 'incremental': False,
                   'formatters': {'standard': {'format': '  -- %(levelname)-8s -- %(message)s'},
-                                 'debug':    {'format': '  -- %(levelname)s [%(name)s] -- %(message)s'}},
+                                 'debug':    {'format': '''\
+  -- %(levelname)-8s %(asctime)24s PID %(process)-12d TID %(thread)-20d 
+     %(pathname)s:%(lineno)d [%(funcName)s()] 
+       %(message)s'''}},
                   'handlers': {'console': {'class': 'logging.StreamHandler',
                                            'stream': 'ext://sys.stdout',
                                            'formatter': 'standard'}},
                   'loggers': {'wemd': {'handlers': ['console'], 'propagate': False}},
                   'root': {'handlers': ['console']}}
-logging.config.dictConfig(logging_config)
-logging_config['incremental'] = True
-#rc.configure_logging({})
-#if args.verbose_mode:
-#    logging.getLogger('').setLevel(logging.INFO)
-#    logging.getLogger('wemd').setLevel(logging.INFO)
-#if args.debug_mode:
-#    logging.getLogger('').setLevel(logging.DEBUG)
-#    logging.getLogger('wemd').setLevel(logging.DEBUG)
 
 if args.verbose_mode:
     logging_config['root']['level'] = 'INFO'
 if args.debug_mode:
     logging_config['root']['level'] = 'DEBUG'
+    logging_config['handlers']['console']['formatter'] = 'debug'
 
 logging.config.dictConfig(logging_config)
+logging_config['incremental'] = True
+
 
 # Read runtime configuration file
 runtime_config = rc.read_config(args.run_config_file)
-
-# Apply logging options
-#rc.configure_logging(runtime_config)
-
 
 # Merge command line arguments into runtime config (for convenience)
 runtime_config.update({'args.%s' % key : value for (key,value) in args.__dict__.viewitems() if not key.startswith('_')})

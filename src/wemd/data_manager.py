@@ -15,6 +15,7 @@ import logging
 log = logging.getLogger(__name__)
 
 from wemd.util.miscfn import vattrgetter
+from wemd.types import Segment
 
 file_format_version = 1
 SUMMARY_TABLE = 'summary'
@@ -22,7 +23,10 @@ summary_table_dtype = numpy.dtype( [ ('n_iter', numpy.uint),
                                      ('n_particles', numpy.uint),
                                      ('norm', numpy.float64),
                                      ('cputime', numpy.float64),
-                                     ('walltime', numpy.float64) ] )
+                                     ('walltime', numpy.float64),
+                                     ('status', numpy.byte) ] )
+ITER_STATUS_INCOMPLETE = 0
+ITER_STATUS_COMPLETE   = 1
 
 seg_index_dtype = numpy.dtype( [ ('weight', numpy.float64),
                                  ('cputime', numpy.float64),
@@ -30,7 +34,7 @@ seg_index_dtype = numpy.dtype( [ ('weight', numpy.float64),
                                  ('parents_offset', numpy.uint32),
                                  ('n_parents', numpy.uint32),                                 
                                  ('status', numpy.uint8),
-                                 ('endpoint_type', numpy.uint8)] )
+                                 ('endpoint_type', numpy.uint8), ] )
 SEG_INDEX_WEIGHT = 0
 SEG_INDEX_CPUTIME = 1
 SEG_INDEX_WALLTIME = 2
@@ -39,12 +43,20 @@ SEG_INDEX_N_PARENTS = 4
 SEG_INDEX_STATUS = 5
 SEG_INDEX_ENDPOINT_TYPE = 6
 
+
 class WEMDDataManager:
     def __init__(self, sim_manager):
         self.sim_manager = sim_manager
         
         self.h5file = None
-        self.iter_prec = 8 # field width of numeric portion of iteration group names
+        
+        runtime_config = self.sim_manager.runtime_config
+        runtime_config.require('data.h5file')
+        
+        try:
+            self.iter_prec = runtime_config.get_int('data_manager.iter_prec')
+        except (KeyError,ValueError):
+            self.iter_prec = 8 # field width of numeric portion of iteration group names
         
         # A few functions for extracting vectors of attributes from vectors of segments
         self._attrgetters = dict((key, vattrgetter(key)) for key in 
@@ -61,6 +73,14 @@ class WEMDDataManager:
     
     def _get_iter_group(self, n_iter):
         return self.h5file['/iter_%0*d' % (self.iter_prec, n_iter)]
+    
+    @property
+    def current_iteration(self):
+        return self.h5file['/'].attrs['wemd_current_iteration']
+    
+    @current_iteration.setter
+    def current_iteration(self, n_iter):
+        self.h5file['/'].attrs['wemd_current_iteration'] = n_iter
         
     def open_backing(self):
         if not self.h5file:
@@ -70,6 +90,8 @@ class WEMDDataManager:
         self.open_backing()
         
         self.h5file['/'].attrs['wemd_file_format_version'] = file_format_version
+        self.current_iteration = 1
+        assert self.h5file['/'].attrs['wemd_current_iteration'] == 1
         
         self.h5file['/'].create_dataset(SUMMARY_TABLE,
                                         shape=(1,), 
@@ -84,20 +106,13 @@ class WEMDDataManager:
         
     def flush_backing(self):
         self.h5file.flush()
-        
-    def runtime_init(self):
-        runtime_config = self.sim_manager.runtime_config
-        runtime_config.require('data.h5file')
-        
-        try:
-            self.iter_prec = runtime_config.get_int('data_manager.iter_prec')
-        except (KeyError,ValueError):
-            pass
-        
+                
     def prepare_iteration(self, n_iter, segments, pcoord_ndim, pcoord_len, pcoord_dtype):
         """Prepare for a new iteration by creating space to store the new iteration's data.
         The number of segments, their IDs, and their lineage must be determined and included
         in the set of segments passed in."""
+        
+        log.debug('preparing HDF5 group for iteration %d (%d segments)' % (n_iter, len(segments)))
         
         n_particles = len(segments)
         
@@ -126,6 +141,7 @@ class WEMDDataManager:
         summary_row['norm'] = numpy.add.reduce(map(self._attrgetters['weight'], segments))
         summary_row['cputime'] = numpy.sum(seg_index_table[:]['cputime'])
         summary_row['walltime'] = numpy.sum(seg_index_table[:]['walltime'])
+        summary_row['status'] = ITER_STATUS_INCOMPLETE
         summary_table[n_iter-1] = summary_row
         
         # pcoord is indexed as [particle, time, dimension]
@@ -136,9 +152,14 @@ class WEMDDataManager:
         log.debug('pcoord shape is {!r}'.format(pcoord.shape))
         
         for (seg_id, segment) in enumerate(segments):
+            if log.isEnabledFor(logging.DEBUG):
+                log.debug('processing segment %r' % segment)
+                log.debug('assigning seg_id=%r' % seg_id)
+            assert segment.p_parent_id is not None
+            segment.seg_id = seg_id
             seg_index_table[seg_id]['status'] = segment.status
             seg_index_table[seg_id]['weight'] = segment.weight
-            seg_index_table[seg_id]['n_parents'] = len(segment.parents) if segment.parents else 0
+            seg_index_table[seg_id]['n_parents'] = len(segment.parent_ids) if segment.parent_ids else 1
 
             # Assign progress coordinate if any exists
             if segment.pcoord is not None:
@@ -162,7 +183,8 @@ class WEMDDataManager:
         
         total_parents = numpy.sum(seg_index_table[:]['n_parents'])
         if total_parents > 0:
-            parents_ds = iter_group.create_dataset('parents', (total_parents,), numpy.uint32)
+            log.debug('creating dataset for %d parents' % total_parents)
+            parents_ds = iter_group.create_dataset('parents', (total_parents,), numpy.int32)
             parents = parents_ds[:]
         
             # Don't directly index an HDF5 data set in a loop
@@ -172,14 +194,23 @@ class WEMDDataManager:
             for (iseg, segment) in enumerate(segments):
                 offset = offsets[iseg]
                 extent = extents[iseg]
-                assert extent == len(segment.parents)
+                assert extent == len(segment.parent_ids)
+                #log.debug('segment %d has %d parent(s): %r'  % (iseg, extent, tuple(sorted(segment.parent_ids))))
                 if extent == 0: continue
                 
                 # Ensure that the primary parent is first in the list
-                assert segment.p_parent in segment.parents
-                parents[offset] = segment.p_parent.seg_id
-                segment.parents.remove(segment.p_parent)
-                parents[offset+1:offset+extent] = segment.parents
+                # If any parent is None, indicating that a recycled particle was merged in and selected as
+                # the initial position of a segment, store -1 to indicate this
+                assert segment.p_parent_id in segment.parent_ids
+                parents[offset] = segment.p_parent_id if segment.p_parent_id is not None else -1
+                segment.parent_ids.remove(segment.p_parent_id)
+                if None in segment.parent_ids:
+                    segment.parent_ids.remove(None)
+                    segment.parent_ids.add(-1)
+                if extent == 2:
+                    parents[offset+1] = segment.parent_ids.pop()
+                else: # extent > 2:
+                    parents[offset+1:offset+extent] = list(segment.parent_ids)
             
             parents_ds[:] = parents                    
 
@@ -210,4 +241,55 @@ class WEMDDataManager:
         
         segments = list(segments)
         iter_group = self._get_iter_group(n_iter)
+        seg_index_table = iter_group['seg_index'][...]
+        
+        row = numpy.empty((1,), seg_index_dtype)
+        for segment in segments:
+            seg_id = segment.seg_id
+            row[:] = seg_index_table[seg_id]
+            #log.debug('row: %r' % (row,))
+            row['status'] = segment.status
+            row['endpoint_type'] = segment.endpoint_type or Segment.SEG_ENDPOINT_TYPE_NOTSET
+            row['cputime'] = segment.cputime
+            row['walltime'] = segment.walltime
+            iter_group['pcoord'][seg_id] = segment.pcoord
+            #log.debug('row: %r' % (row,))
+            seg_index_table[seg_id] = row
+        
+        iter_group['seg_index'][...] = seg_index_table
+        
+    def load_parents(self, segments):
+        """Load the parents of the given segments, returning a mapping of seg_id => (p_parent, parents) """
+        raise NotImplementedError
+        
+    def get_segments(self, n_iter, status = None, endpoint_type = None):
+        iter_group = self._get_iter_group(n_iter)
+        seg_index_table = iter_group['seg_index'][...]
+        
+        segments = []
+        for (seg_id, row) in enumerate(seg_index_table):
+            if status is not None and row['status'] != status: continue
+            if endpoint_type is not None and row['endpoint_type'] != endpoint_type: continue
+            
+            segment = Segment(seg_id = seg_id,
+                              n_iter = n_iter,
+                              status = row['status'],
+                              n_parents = row['n_parents'],
+                              endpoint_type = row['endpoint_type'],
+                              walltime = row['walltime'],
+                              cputime = row['cputime'],
+                              weight = row['weight'])
+            
+            segment.pcoord = iter_group['pcoord'][seg_id]
+            segments.append(segment)
+        return segments
+    
+    def is_propagation_complete(self, n_iter):
+        iter_group = self._get_iter_group(n_iter)
+        return (iter_group['seg_index']['status'] == Segment.SEG_STATUS_COMPLETE).all() 
+        
+
+        
+            
+        
         

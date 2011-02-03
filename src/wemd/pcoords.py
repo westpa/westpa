@@ -6,14 +6,16 @@ weight_getter = numpy.frompyfunc(operator.attrgetter('weight'), 1, 1)
 count_getter = numpy.frompyfunc(operator.attrgetter('count'), 1, 1)
 
 class ParticleSet(set):
-    def __init__(self, iterable = None, target_count = None):
+    def __init__(self, iterable = None, target_count = None, label = None):
         if iterable is not None:
             super(ParticleSet,self).__init__(iterable)
             
         self.target_count = target_count
+        self.label = label
 
     def map_to_bins(self, coords):
         # Degenerate case to terminate recursive descent
+        coords = list(coords)
         return [self] * len(coords)
     
     def get_all_bins(self):
@@ -100,7 +102,7 @@ class RegionSet:
          each entry is a ParticleSet; calling map_to_indices on a top-level RegionSet returns the bins to which 
          the particles belong.
         """
-        
+        coords = list(coords)
         bins = numpy.empty((len(coords),), numpy.object_)
         region_indices = self.map_to_indices(coords)
         

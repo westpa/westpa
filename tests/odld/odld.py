@@ -2,6 +2,7 @@ from __future__ import division, print_function; __metaclass__ = type
 import os, sys, math, itertools
 import numpy, scipy
 import wemd
+from wemd import Segment, WEMDSystem
 from wemd.pcoords import PiecewiseRegionSet, ParticleSet, RectilinearRegionSet
 
 import logging
@@ -23,17 +24,22 @@ class ODLDPropagator(wemd.propagators.WEMDPropagator):
         self.potential_widths = None
         self.potential_heights = None
         
+    def preprocess_segment(self, segment):
+        pass
+        
+    def postprocess_segment(self, segment):
+        pass
+        
     def propagate_segments(self, segments):
         if not segments:
             return
-        assert len(segments[0].pcoord) == 1
         
         nsegs = len(segments)
         
         new_pcoords = numpy.empty((self.nsteps+1, nsegs, self.ndim), numpy.float64)
         
         for (iseg, segment) in enumerate(segments):
-            new_pcoords[0,iseg,:] = segment.pcoord[-1]
+            new_pcoords[0,iseg,:] = segment.pcoord[0]
         
         for istep in xrange(1, self.nsteps+1):
             random_displacements = numpy.random.normal(scale = self.sigma, size = (nsegs, self.ndim))
@@ -41,8 +47,9 @@ class ODLDPropagator(wemd.propagators.WEMDPropagator):
         
         for (iseg, segment) in enumerate(segments):
             segment.pcoord = new_pcoords[:,iseg,:]
+            segment.status = Segment.SEG_STATUS_COMPLETE
 
-class ODLDSystem:
+class ODLDSystem(WEMDSystem):
     def __init__(self, sim_manager):
         self.sim_manager = sim_manager
         
@@ -56,17 +63,19 @@ class ODLDSystem:
         
         # 10 particles per bin
         for bin in self.region_set.get_all_bins():
-            bin.target_count = 10
+            bin.target_count = 50
             
         # Except for target bins, which are denoted by a target_count of zero; here, abs(x) > 1
         self.region_set.get_bin_containing([1.1]).target_count = 0
         self.region_set.get_bin_containing([-1.1]).target_count = 0
         
-        self.initial_distribution = [('left', 0.7, [-0.1]),
-                                     ('right', 0.3, [0.1])]
+        self.initial_distribution = [('left', 0.7, [-0.1], self.region_set.get_bin_containing([-0.1])),
+                                     ('right', 0.3, [0.1], self.region_set.get_bin_containing([0.1]))]
         self.pcoord_ndim = 1
-        self.pcoord_len = 10
+        self.pcoord_len = 11
         self.pcoord_dtype = numpy.float64
+        
+
 
 def test_regions_simple(segments):
     rrs = RectilinearRegionSet([numpy.arange(-1.0,1.1,0.1)])
