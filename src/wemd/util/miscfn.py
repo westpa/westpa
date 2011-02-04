@@ -1,4 +1,4 @@
-import re, operator, numpy
+import re, operator, itertools, numpy
 
 reIsSeconds = re.compile(r'^\d+(:?\.\d*)?$')
 reISODate = re.compile(r'(\d+)-(\d+)-(\d+)[ T](\d+):(\d+):(\d+)\.?(d+)?')
@@ -25,8 +25,11 @@ def logging_level_by_name(lvlname):
         raise ValueError('invalid level name %r' % lvlname)
     return level
         
-def vgetattr(attr, obj):
-    return numpy.frompyfunc(operator.attrgetter(attr), 1, 1)(obj)
+def vgetattr(attr, obj, dtype=numpy.object_):
+    if issubclass(dtype, numpy.object_):
+        return numpy.frompyfunc(operator.attrgetter(attr), 1, 1)(obj)
+    else:
+        return numpy.fromiter(itertools.imap(operator.attrgetter(attr), obj), dtype=dtype)
 
-def vattrgetter(attr):
+def vattrgetter(attr, dtype=numpy.object_):
     return numpy.frompyfunc(operator.attrgetter(attr), 1, 1)

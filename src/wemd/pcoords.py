@@ -9,10 +9,13 @@ class ParticleSet(set):
     def __init__(self, iterable = None, target_count = None, label = None):
         if iterable is not None:
             super(ParticleSet,self).__init__(iterable)
-            
+        
+        # How many particles should live here
         self.target_count = target_count
+        
+        # A descriptive label
         self.label = label
-
+        
     def map_to_bins(self, coords):
         # Degenerate case to terminate recursive descent
         coords = list(coords)

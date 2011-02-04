@@ -4,39 +4,50 @@ log = logging.getLogger(__name__)
 import numpy
 import operator
 from itertools import izip, chain
-from math import floor, ceil
+from math import ceil
 from copy import copy
 import random
 
+from collections import namedtuple
+from wemd.util.miscfn import vgetattr
 from wemd.types import Particle
 from wemd.systems import WEMDSystem
+
+RecyclingInfo = namedtuple('RecyclingInfo', ['count', 'weight'])
 
 class WEMDWEDriver:
     weight_split_threshold = 2.0
     weight_merge_cutoff = 1.0
-    
+        
     def __init__(self, sim_manager):
         self.sim_manager = sim_manager
+        
+        # (count recycled, probability recycled) tuples
+        self.recycle_from = list()
+        
+        # (count_recycled, probability recycled) lists
+        self.recycle_to = list()
+        
+        # Particle objects (not IDs) which were created by the recycling procedure
+        # Note that there is no guarantee that these particles survive split/merge;
+        # this is only to track if the recycling code is working properly
+        self.recycled_particles = set()
         
         # IDs of segments which terminate in recycling
         self.recycle_terminations = set()
         
         # IDs of segments which are merged into others
         self.merge_terminations = set()
-        
-    def dump_state(self):
-        pass
-    
-    def restore_state(self, stateinfo):
-        pass
-        
+                
     def run_we(self, particles, region_set):
         '''Run the weighted ensemble algorithm on the given particles, setting the particle
         collections appropriately'''
         particles = list(particles)
         self.recycle_terminations = set()
         self.merge_terminations = set()
-
+        self.recycled_particles = set()
+        self.recycle_from = [[0, 0.0] for istate in xrange(0, len(self.sim_manager.system.target_states))]
+        self.recycle_to   = [[0, 0.0] for istate in xrange(0, len(self.sim_manager.system.initial_states))]  
         
         # Unless otherwise manhandled, all particles will merely continue propagation and therefore are 
         # in a 1-to-1 correspondence with the segments from which they were created
@@ -49,11 +60,16 @@ class WEMDWEDriver:
             bin.add(particle)
             
         bins = numpy.array(region_set.get_all_bins(), numpy.object_)
-        target_counts = numpy.array(map(operator.attrgetter('target_count'), bins))
-                
-        # Recycle particles which are in bins with target_count==0 (indicating a sink)
-        for bin in bins[target_counts==0]:
-            self.recycle_particles(bin)
+        
+        # Recycle particles
+        for istate, target_state in enumerate(self.sim_manager.system.target_states):
+            self.recycle_particles(istate, target_state)
+
+        # Sanity check
+        bin_counts = vgetattr('count', bins)
+        target_counts = vgetattr('target_count', bins)            
+        if bin_counts[target_counts == 0].any():
+            raise ValueError('particle in forbidden region')
         
         # Regardless of current particle count, always split overweight particles and merge underweight particles
         # Then and only then adjust for correct particle count
@@ -75,6 +91,11 @@ class WEMDWEDriver:
         # merge_terminations may include negative seg_ids if recycled particles are merged
         # eliminate these
         self.merge_terminations = set(seg_id for seg_id in self.merge_terminations if seg_id >= 0)
+        
+        # Replace these simple lists with named tuples to make others' lives easier
+        if self.recycled_particles:
+            self.recycle_to = [RecyclingInfo(*dest) for dest in self.recycle_to]
+            self.recycle_from = [RecyclingInfo(*src) for src in self.recycle_from]
             
         # Return all particles, existing or created
         return set(chain(*bins))
@@ -94,46 +115,54 @@ class WEMDWEDriver:
                            % (weights[0], numpy.median(weights), weights[-1]))
             
         
-    def recycle_particles(self, bin):
+    def recycle_particles(self, istate, target_state):
         '''Create new particles with the weight of the given particles whose progress coordinates are 
         chosen probabilistically from the set of initial states.'''
+        label, bin = target_state
+        
+        if log.isEnabledFor(logging.DEBUG):
+            if bin.count == 0:
+                log.debug('no particles recycled from bin %r')
+            else:
+                log.debug('%d particles (%g probability) recycled from bin %r' % (bin.count,bin.weight,bin))
         
         if bin.count == 0:
-            log.debug('no particles recycled')
             return
-        else:
-            log.debug('%d particles recycled from bin %r' % (bin.count,bin))
-            
         particles = list(bin)
                         
         system = self.sim_manager.system
         self.recycle_terminations.update(particle.seg_id for particle in particles)
+        self.recycle_from[istate] = (len(bin), bin.weight)
         
         new_particles = [Particle(weight = particle.weight, 
                                   pcoord = numpy.empty((system.pcoord_ndim,), system.pcoord_dtype),
                                   genesis = Particle.GEN_RECYCLE)
                          for particle in particles]
+        self.recycled_particles.update(new_particles)
         
-        if len(system.initial_distribution) == 1:
-            init_pcoord = system.initial_distribution[0][WEMDSystem.INITDIST_PCOORD]
+        if len(system.initial_states) == 1:
+            init_pcoord = system.initial_states[0][WEMDSystem.INITDIST_PCOORD]
+            self.recycle_to[0][0] = len(new_particles)
             for new_particle in new_particles:
                 new_particle.pcoord = init_pcoord 
                 new_particle.source_id = 0
                 new_particle.seg_id = -1
-            system.initial_distribution[0][WEMDSystem.INITDIST_BIN].update(new_particles)
+                self.recycle_to[0][1] += new_particle.weight
+            system.initial_states[0][WEMDSystem.INITDIST_BIN].update(new_particles)
         else:   
             # Sequentially add probabilities for initial states.
-            state_disc = numpy.add.accumulate([state[WEMDSystem.INITDIST_PROB] for state in system.initial_distribution])
-            log.debug('state_disc = %r' % state_disc)
+            state_disc = numpy.add.accumulate([state[WEMDSystem.INITDIST_PROB] for state in system.initial_states])
             
             # Bin on (0, state_disc[-1]) in case probabilities don't sum to exactly one
             istates = numpy.digitize(numpy.random.uniform(0, state_disc[-1], size=len(particles)),state_disc)
             
             for (new_particle,istate) in izip(new_particles,istates):
-                new_particle.pcoord = system.initial_distribution[istate][WEMDSystem.INITDIST_PCOORD]
+                new_particle.pcoord = system.initial_states[istate][WEMDSystem.INITDIST_PCOORD]
                 new_particle.source_id = istate
                 new_particle.seg_id = -(istate+1)
-                system.initial_distribution[istate][WEMDSystem.INITDIST_BIN].add(new_particle)
+                self.recycle_to[istate][0] += 1
+                self.recycle_to[istate][1] += new_particle.weight
+                system.initial_states[istate][WEMDSystem.INITDIST_BIN].add(new_particle)
         bin.clear()
             
     def split_by_weight(self, bin):

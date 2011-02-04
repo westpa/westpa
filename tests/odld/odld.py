@@ -24,13 +24,7 @@ class ODLDPropagator(wemd.propagators.WEMDPropagator):
         self.potential_widths = None
         self.potential_heights = None
         
-    def preprocess_segment(self, segment):
-        pass
-        
-    def postprocess_segment(self, segment):
-        pass
-        
-    def propagate_segments(self, segments):
+    def propagate(self, segments):
         if not segments:
             return
         
@@ -66,11 +60,17 @@ class ODLDSystem(WEMDSystem):
             bin.target_count = 20
             
         # Except for target bins, which are denoted by a target_count of zero; here, abs(x) > 1
-        self.region_set.get_bin_containing([1.1]).target_count = 0
-        self.region_set.get_bin_containing([-1.1]).target_count = 0
+        left_target = self.region_set.get_bin_containing([-1.1])
+        right_target = self.region_set.get_bin_containing([1.1])
+        left_target.target_count = right_target.target_count = 0
+        left_target.label = 'left_target'
+        right_target.label = 'right_target'
         
-        self.initial_distribution = [('left', 0.7, [-0.1], self.region_set.get_bin_containing([-0.1])),
-                                     ('right', 0.3, [0.1], self.region_set.get_bin_containing([0.1]))]
+        self.target_states = [('left_target', left_target),
+                              ('right_target', right_target)]
+        
+        self.initial_states = [('left', 0.9, [-0.1], self.region_set.get_bin_containing([-0.1])),
+                                     ('right', 0.1, [0.1], self.region_set.get_bin_containing([0.1]))]
         self.pcoord_ndim = 1
         self.pcoord_len = 11
         self.pcoord_dtype = numpy.float64

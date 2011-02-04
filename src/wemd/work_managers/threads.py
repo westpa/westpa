@@ -21,7 +21,7 @@ class ThreadedWorkManager(WEMDWorkManager):
         self.block_size = self.n_threads
         log.info('using %d threads for parallel propagation' % self.n_threads)
         
-    def propagate_particles(self, segments):
+    def propagate(self, segments):
         n_rounds = int(math.ceil(len(segments) / self.n_threads))
         segarray = numpy.empty((self.n_threads, n_rounds), numpy.object_)
         segarray.flat[0:len(segments)] = segments
@@ -45,16 +45,7 @@ class WorkerThread(threading.Thread):
         log.debug('propagating %d segments' % len(self.segments))
         for segment in self.segments:
             if segment is None: continue
-            log.debug('preparing segment %r'  % segment)
-            propagator.prepare_segment(segment)
-            log.debug('preprocessing segment %r' % segment)
-            system_driver.preprocess_segment(segment)
-            
-            log.debug('propagating segment %r' % segment)
-            propagator.propagate_segments([segment])
-            
-            log.debug('postprocessing segment %r' % segment)
-            system_driver.postprocess_segment(segment)
-            log.debug('finalizing segment %r' % segment)
-            propagator.finalize_segment(segment)
+            system_driver.preprocess_segments([segment])
+            propagator.propagate([segment])
+            system_driver.postprocess_segments([segment])
         log.debug('propagation complete')

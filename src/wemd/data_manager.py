@@ -22,6 +22,14 @@ SUMMARY_TABLE = 'summary'
 summary_table_dtype = numpy.dtype( [ ('n_iter', numpy.uint),
                                      ('n_particles', numpy.uint),
                                      ('norm', numpy.float64),
+                                     ('target_flux', numpy.float64),
+                                     ('target_hits', numpy.uint),
+                                     ('min_bin_prob', numpy.float64),
+                                     ('max_bin_prob', numpy.float64),
+                                     ('bin_dyn_range', numpy.float64),
+                                     ('min_seg_prob', numpy.float64),
+                                     ('max_seg_prob', numpy.float64),
+                                     ('seg_dyn_range', numpy.float64),
                                      ('cputime', numpy.float64),
                                      ('walltime', numpy.float64),
                                      ('status', numpy.byte) ] )
@@ -43,6 +51,8 @@ SEG_INDEX_N_PARENTS = 4
 SEG_INDEX_STATUS = 5
 SEG_INDEX_ENDPOINT_TYPE = 6
 
+rec_summary_dtype = numpy.dtype( [ ('count', numpy.uint),
+                                   ('weight', numpy.float64) ] )
 
 class WEMDDataManager:
     def __init__(self, sim_manager):
@@ -61,13 +71,7 @@ class WEMDDataManager:
         # A few functions for extracting vectors of attributes from vectors of segments
         self._attrgetters = dict((key, vattrgetter(key)) for key in 
                                  ('seg_id', 'status', 'endpoint_type', 'weight', 'walltime', 'cputime'))
-    
-    def dump_state(self):
-        pass
-    
-    def restore_state(self, stateinfo):
-        pass
-        
+            
     def _get_iter_group_name(self, n_iter):
         return 'iter_%0*d' % (self.iter_prec, n_iter)
     
@@ -293,7 +297,24 @@ class WEMDDataManager:
     def update_iter_summary(self,n_iter,summary):
         self.h5file[SUMMARY_TABLE][n_iter-1] = summary
         
-    
+    def write_bin_data(self, n_iter, bin_counts, bin_probabilities):
+        assert len(bin_counts) == len(bin_probabilities)
+        iter_group = self._get_iter_group(n_iter)
+        bin_count_ds = iter_group.require_dataset('bin_counts', (len(bin_counts),), numpy.uint)
+        bin_prob_ds  = iter_group.require_dataset('bin_probs', (len(bin_probabilities),), numpy.float64)
+        
+        bin_count_ds[:] = bin_counts
+        bin_prob_ds[:]  = bin_probabilities
+        
+    def write_recycling_data(self, n_iter, rec_summary):
+        iter_group = self._get_iter_group(n_iter)
+        rec_data_ds = iter_group.require_dataset('recycling', (len(rec_summary),), dtype=rec_summary_dtype)
+        rec_data = numpy.zeros((len(rec_summary),), dtype=rec_summary_dtype)
+        for itarget, target in enumerate(rec_summary):
+            count, weight = target
+            rec_data[itarget]['count'] = count
+            rec_data[itarget]['weight'] = weight
+        rec_data_ds[...] = rec_data
         
 
         

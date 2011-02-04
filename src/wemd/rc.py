@@ -2,14 +2,11 @@
 
 import os
 from wemd.util.config_dict import ConfigDict
-from wemd.util.miscfn import logging_level_by_name
+from wemd.util import extloader
 
 # Runtime config file management
 ENV_RUNTIME_CONFIG  = 'WEMDRC'
 RC_DEFAULT_FILENAME = 'wemd.cfg'
-
-RC_SIM_STATE_KEY = 'data.state'
-RC_SIM_CONFIG_KEY = 'data.sim_config'
 
 def read_config(filename = None):
     if filename is None:
@@ -21,57 +18,14 @@ def read_config(filename = None):
     return cdict
 
 def load_sim_manager(runtime_config):
-    from wemd.sim_manager import WESimManager
-    return WESimManager(runtime_config)
+    drivername = runtime_config.get('drivers.sim_manager', 'default')
+    if drivername.lower() == 'default':
+        from wemd.sim_manager import WESimManager
+        return WESimManager(runtime_config)
+    else:
+        pathinfo = runtime_config.get_pathlist('drivers.module_path')
+        return extloader.get_object(drivername,pathinfo)(runtime_config)
         
-# Logging management
-LOGGING_DEFAULT_FORMAT = 'WEMD[%(proc_rank)4s] %(levelname)-8s -- %(message)s'
-    
-LOGGING_DEFAULT_SETTINGS = {'': {'level': 'WARNING',
-                                 'format': LOGGING_DEFAULT_FORMAT},
-                            'wemd': {'level': 'WARNING'},
-                            'sqlalchemy.engine': {'level': 'ERROR'}
-                            }
-    
-def configure_logging(runtime_config):
-    import logging
-    logkeys = set(k for k in runtime_config if k.startswith('logging.'))
-    logger_settings = LOGGING_DEFAULT_SETTINGS.copy()
-    for key in logkeys:
-        item = key[8:]
-        value = runtime_config[key]
-        try:
-            (logger_name, param) = item.rsplit('.', 1)
-        except ValueError:
-            continue
-        else:
-            if param not in ('level', 'format', 'handler'):
-                continue
-        if logger_name == 'root': 
-            logger_name = ''
-        try:
-            logger_settings[logger_name][param] = value
-        except KeyError:
-            logger_settings[logger_name] = {param: value}
-        
-    for (logger_name, settings) in logger_settings.iteritems():
-        level = logging_level_by_name(settings.get('level', 'NOTSET'))
-        logger = logging.getLogger(logger_name)
-        logger.setLevel(level)
-        try:
-            format = settings['format']
-        except KeyError:
-            pass
-        else:
-            if not logger.handlers:
-                handler = logging.StreamHandler()
-                handler.setFormatter(logging.Formatter(format))
-                logger.addHandler(handler)
-            else:
-                for handler in logger.handlers:
-                    handler.setFormatter(logging.Formatter(format))
-        
-
 # Exit codes
 EX_SUCCESS           = 0
 EX_ERROR             = 1

@@ -4,7 +4,7 @@ import os, sys
 
 if sys.version_info[0] < 3 and sys.version_info[1] < 7:
     sys.stderr.write('wemd requires at least Python version 2.7\n')
-    sys.exit(rc.EX_ENVIRONMENT_ERROR)
+    sys.exit(1)
 
 import logging
 log = logging.getLogger('wemd_cli')
@@ -51,18 +51,18 @@ def cmd_init(sim_manager, args):
     sys.stdout.write('{:<16} {:<12} {:<52}\n'.format('Name', 'Probability', 'Coordinates'))
     
     tprob = 0.0
-    for (name, prob, pcoord, bin) in system.initial_distribution:
+    for (name, prob, pcoord, bin) in system.initial_states:
         sys.stdout.write('{:<16} {:<12g} {!s:<52}\n'.format(name, prob, list(pcoord)))
         tprob += prob
 
     MACHEPS = numpy.finfo(numpy.float64).eps
-    if abs(1.0 - tprob) > MACHEPS*len(system.initial_distribution):
+    if abs(1.0 - tprob) > MACHEPS*len(system.initial_states):
         sys.stderr.write('Initial probabilities do not sum to one.')
         sys.exit(1)
 
     # Create initial segments
     # First assign to bins
-    for (istate, (name, prob, pcoord, bin)) in enumerate(system.initial_distribution):
+    for (istate, (name, prob, pcoord, bin)) in enumerate(system.initial_states):
         target_count = bin.target_count
         for i in xrange(0, target_count):
             bin.add(wemd.Particle(pcoord=pcoord, weight=prob/target_count, source_id=istate))
@@ -101,7 +101,6 @@ Total target particles: {:d}
     sim_manager.data_manager.flush_backing()
 
     sim_manager.system.region_set.clear()    
-    sim_manager.save_sim_state()
     sys.stdout.write('Simulation prepared.\n')
         
 def cmd_run(sim_manager, args):
@@ -111,7 +110,6 @@ def cmd_run(sim_manager, args):
     sim_manager.load_system_driver()
     sim_manager.load_we_driver()
     sim_manager.load_propagator()
-    sim_manager.load_sim_state()
     rc = sim_manager.run()
     sys.exit(rc)   
 
@@ -190,4 +188,18 @@ if args.profile_mode:
         stats.sort_stats('time')
         stats.print_stats()
 else:
-    args.func(sim_manager, args)
+    try:
+        args.func(sim_manager, args)
+    except KeyboardInterrupt:
+        sys.stderr.write('Interrupted.\n')
+        sys.exit(1)
+    except Exception as e:
+        # The following won't show up if the log isn't set up properly
+        log.error(str(e))
+        sys.stderr.write('%s: %s\n' % (e.__class__.__name__, str(e)))
+        if args.debug_mode:
+            import traceback
+            traceback.print_exc()
+        sys.exit(1)
+    else:
+        sys.exit(0)
