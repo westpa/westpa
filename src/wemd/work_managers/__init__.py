@@ -23,5 +23,9 @@ class WEMDWorkManager:
     
     def finalize_iteration(self):
         self.sim_manager.propagator.finalize_iteration()
+        
+    def shutdown(self, exit_code=0):
+        '''Cleanly shut down any active workers.'''
+        pass
 
-import threads
+import serial, threads, processes

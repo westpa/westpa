@@ -63,7 +63,7 @@ class ODLDSystem(WEMDSystem):
         
         # 10 particles per bin
         for bin in self.region_set.get_all_bins():
-            bin.target_count = 50
+            bin.target_count = 20
             
         # Except for target bins, which are denoted by a target_count of zero; here, abs(x) > 1
         self.region_set.get_bin_containing([1.1]).target_count = 0

@@ -30,7 +30,11 @@ class ParticleSet(set):
     @property
     def weight(self):
         'Total weight of all particles in this set'
-        return numpy.add.reduce(map(weight_getter, self))
+        #return numpy.add.reduce(map(weight_getter, self))
+        weight = 0.0
+        for particle in self:
+            weight += particle.weight
+        return weight
     
     @weight.setter
     def weight(self, new_weight):
@@ -102,6 +106,7 @@ class RegionSet:
          each entry is a ParticleSet; calling map_to_indices on a top-level RegionSet returns the bins to which 
          the particles belong.
         """
+        #coords = numpy.array(coords)
         coords = list(coords)
         bins = numpy.empty((len(coords),), numpy.object_)
         region_indices = self.map_to_indices(coords)
@@ -213,6 +218,7 @@ class RectilinearRegionSet(RegionSet):
                 |(region_indices[:, idim] == 0) ).any():
                 # Beyond the bin limits
                 raise ValueError('coord outside of bin space in dimension %d' % idim)
+            # Adjust for how numpy.digitize chooses to return its values
             region_indices[:,idim] -= 1
     
         # We now have an array of n-dimensional indices into our bin space, with each row corresponding to

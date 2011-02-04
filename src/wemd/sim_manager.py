@@ -11,6 +11,7 @@ import cPickle as pickle
 import wemd
 from wemd.rc import RC_SIM_STATE_KEY
 from wemd.util import extloader
+from wemd.util.rtracker import ResourceTracker, ResourceUsage
 from wemd.types import Segment, Particle
 
 class WESimManager:
@@ -28,6 +29,7 @@ class WESimManager:
         self.status_stream = sys.stdout
         
         self.state = {}
+        self.rtracker = ResourceTracker()
                                 
     def load_sim_state(self):
         """Load simulation state"""
@@ -76,7 +78,8 @@ class WESimManager:
         self.we_driver = wemd.we_driver.WEMDWEDriver(self)
     
     def load_work_manager(self):
-        self.work_manager = wemd.work_managers.threads.ThreadedWorkManager(self)
+        #self.work_manager = wemd.work_managers.threads.ThreadedWorkManager(self)
+        self.work_manager = wemd.work_managers.serial.SerialWorkManager(self)
         
     def load_propagator(self):
         drivername = self.runtime_config.require('drivers.propagator')
@@ -99,20 +102,28 @@ class WESimManager:
         #self.work_manager.prepare()
         
         # Set up internal timing
-        run_start_time = time.time()
+        self.rtracker.begin('run')
+        run_starttime = time.time()
         max_walltime = self.runtime_config.get_interval('limits.max_wallclock', default=None, type=float)
+        run_killtime = run_starttime + max_walltime
         self.status_stream.write('Maximum wallclock time: %s\n' % timedelta(seconds=max_walltime or 0))
-        last_iteration_runtime= 0
+        iteration_elapsed = 0
                         
         # Get segments
         n_iter = self.data_manager.current_iteration
         max_iter = self.runtime_config.get_int('limits.max_iterations', n_iter+1)
          
-        
-        
         # Guaranteed ordering by seg_id, so segments[seg_id] works for any valid seg_id for this iteration
         segments = sorted(self.data_manager.get_segments(n_iter = n_iter), key=operator.attrgetter('seg_id'))
-        while n_iter <= max_iter: 
+        while n_iter <= max_iter:
+            self.rtracker.begin('iteration')
+            if max_walltime and time.time() + iteration_elapsed >= run_killtime:
+                self.status_stream.write('Iteration %d would require more than the allotted time. Ending run.\n'
+                                         % n_iter)
+                self.work_manager.shutdown(0)
+                sys.exit(0)
+                
+            iteration_starttime = time.time()
             self.status_stream.write('\n%s\n' % time.asctime())
             self.status_stream.write('Iteration %d (%d requested)\n' % (n_iter, max_iter))
             
@@ -131,10 +142,14 @@ class WESimManager:
             except AttributeError:
                 pass
             
+            self.rtracker.begin('propagation')
             self.work_manager.propagate_particles(segments)
+            self.rtracker.end('propagation')
             
             # Save results in case WE crashes
+            self.rtracker.begin('we_prep')
             self.data_manager.update_segments(n_iter, segments)
+            
             
             # Check to ensure that all segments have been propagated
             failed_segments = [segment for segment in segments if segment.status != Segment.SEG_STATUS_COMPLETE]
@@ -150,12 +165,16 @@ class WESimManager:
                                   p_parent_id = None, # NOT the same as a segment's p_parent_id
                                   parent_ids = set(),
                                   pcoord = segment.pcoord[-1]) for segment in segments]
+            self.rtracker.end('we_prep')
             
             # Run the weighted ensemble algorithm
+            self.rtracker.begin('we_core')
             next_iter_particles = self.we_driver.run_we(particles, self.system.region_set)
+            self.rtracker.end('we_core')
                         
             # Mark old segments' endpoint types appropriately
             # Everything continues unless we are told otherwise
+            self.rtracker.begin('prep_next_iter')
             n_recycled = 0
             P_recycled = 0.0
             n_merged = 0
@@ -209,7 +228,22 @@ class WESimManager:
             # Create new iteration group in HDF5            
             self.data_manager.prepare_iteration(n_iter+1, new_segments, 
                                                 self.system.pcoord_ndim, self.system.pcoord_len, self.system.pcoord_dtype)
+            self.rtracker.end('prep_next_iter')
             
+            self.rtracker.end('iteration')
+            iteration_endtime = self.rtracker.final['iteration'].walltime
+            iteration_elapsed = iteration_endtime - iteration_starttime
+            
+            intervals = ResourceUsage(*[timedelta(seconds=field) for field in self.rtracker.difference['iteration']])
+            self.status_stream.write('Iteration wallclock: {0.walltime!s}, cputime: {0.cputime!s}\n'.format(intervals))
+            
+            iter_summary = self.data_manager.get_iter_summary(n_iter)
+            if iter_summary['walltime'] == 0:
+                iter_summary['walltime'] = self.rtracker.difference['iteration'].walltime
+            if iter_summary['cputime'] == 0:
+                iter_summary['cputime'] = self.rtracker.difference['iteration'].cputime
+            self.data_manager.update_iter_summary(n_iter, iter_summary) 
+
             n_iter += 1
             self.data_manager.current_iteration = n_iter
             segments = new_segments
@@ -218,3 +252,7 @@ class WESimManager:
                 self.status_stream.flush()
             except AttributeError:
                 pass
+            
+        # end propagation/WE loop
+        self.rtracker.dump_differences(self.status_stream)
+    # end WESimManager.run()

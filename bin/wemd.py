@@ -125,6 +125,8 @@ parser.add_argument('--verbose', dest='verbose_mode', action='store_true',
                     help='emit extra information')
 parser.add_argument('--debug', dest='debug_mode', action='store_true',
                     help='enable extra checks and emit copious information')
+parser.add_argument('--profile', dest='profile_mode', action='store_true',
+                    help='run this process under the Python profiler')
 parser.add_argument('--version', action='version', version='WEMD version %s' % wemd.version)
 
 subparsers = parser.add_subparsers()
@@ -178,4 +180,14 @@ runtime_config.update({'args.%s' % key : value for (key,value) in args.__dict__.
 sim_manager = rc.load_sim_manager(runtime_config)
 
 # Branch to appropriate function
-args.func(sim_manager, args)
+if args.profile_mode:
+    import cProfile, pstats
+    try:
+        cProfile.run('args.func(sim_manager,args)', 'profile.dat')
+    finally:
+        stats = pstats.Stats('profile.dat')
+        #stats.sort_stats('cumulative')
+        stats.sort_stats('time')
+        stats.print_stats()
+else:
+    args.func(sim_manager, args)

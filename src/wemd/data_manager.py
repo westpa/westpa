@@ -139,8 +139,6 @@ class WEMDDataManager:
         summary_row['n_iter'] = n_iter
         summary_row['n_particles'] = n_particles
         summary_row['norm'] = numpy.add.reduce(map(self._attrgetters['weight'], segments))
-        summary_row['cputime'] = numpy.sum(seg_index_table[:]['cputime'])
-        summary_row['walltime'] = numpy.sum(seg_index_table[:]['walltime'])
         summary_row['status'] = ITER_STATUS_INCOMPLETE
         summary_table[n_iter-1] = summary_row
         
@@ -219,7 +217,7 @@ class WEMDDataManager:
         seg_index_table_ds[:] = seg_index_table
 
         pcoord_ds[...] = pcoord
-        self.flush_backing()
+        #self.flush_backing()
     
     def update_segments(self, n_iter, segments):
         """Update "mutable" fields (status, endpoint type, pcoord, timings) in the HDF5 file
@@ -242,6 +240,7 @@ class WEMDDataManager:
         segments = list(segments)
         iter_group = self._get_iter_group(n_iter)
         seg_index_table = iter_group['seg_index'][...]
+        pcoords = iter_group['pcoord'][...]
         
         row = numpy.empty((1,), seg_index_dtype)
         for segment in segments:
@@ -252,14 +251,16 @@ class WEMDDataManager:
             row['endpoint_type'] = segment.endpoint_type or Segment.SEG_ENDPOINT_TYPE_NOTSET
             row['cputime'] = segment.cputime
             row['walltime'] = segment.walltime
-            iter_group['pcoord'][seg_id] = segment.pcoord
             #log.debug('row: %r' % (row,))
             seg_index_table[seg_id] = row
+            
+            pcoords[seg_id] = segment.pcoord
         
         iter_group['seg_index'][...] = seg_index_table
+        iter_group['pcoord'][...] = pcoords
         
     def load_parents(self, segments):
-        """Load the parents of the given segments, returning a mapping of seg_id => (p_parent, parents) """
+        """Load the parents of the given segments, returning a mapping of seg_id => (p_parent, set(parents)) """
         raise NotImplementedError
         
     def get_segments(self, n_iter, status = None, endpoint_type = None):
@@ -284,9 +285,15 @@ class WEMDDataManager:
             segments.append(segment)
         return segments
     
-    def is_propagation_complete(self, n_iter):
-        iter_group = self._get_iter_group(n_iter)
-        return (iter_group['seg_index']['status'] == Segment.SEG_STATUS_COMPLETE).all() 
+    def get_iter_summary(self,n_iter):
+        summary_row = numpy.zeros((1,), dtype=summary_table_dtype)
+        summary_row[:] = self.h5file[SUMMARY_TABLE][n_iter-1]
+        return summary_row
+        
+    def update_iter_summary(self,n_iter,summary):
+        self.h5file[SUMMARY_TABLE][n_iter-1] = summary
+        
+    
         
 
         
