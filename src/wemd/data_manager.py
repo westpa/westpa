@@ -262,14 +262,12 @@ class WEMDDataManager:
         
         iter_group['seg_index'][...] = seg_index_table
         iter_group['pcoord'][...] = pcoords
-        
-    def load_parents(self, segments):
-        """Load the parents of the given segments, returning a mapping of seg_id => (p_parent, set(parents)) """
-        raise NotImplementedError
-        
+                
     def get_segments(self, n_iter, status = None, endpoint_type = None):
         iter_group = self._get_iter_group(n_iter)
         seg_index_table = iter_group['seg_index'][...]
+        pcoords = iter_group['pcoord'][...]
+        all_parent_ids = iter_group['parents'][...]
         
         segments = []
         for (seg_id, row) in enumerate(seg_index_table):
@@ -283,9 +281,11 @@ class WEMDDataManager:
                               endpoint_type = row['endpoint_type'],
                               walltime = row['walltime'],
                               cputime = row['cputime'],
-                              weight = row['weight'])
-            
-            segment.pcoord = iter_group['pcoord'][seg_id]
+                              weight = row['weight'],
+                              pcoord = pcoords[seg_id])
+            parent_ids = all_parent_ids[row['parents_offset']:row['parents_offset']+row['n_parents']]
+            segment.p_parent_id = parent_ids[0]
+            segment.parent_ids = set(parent_ids)
             segments.append(segment)
         return segments
     

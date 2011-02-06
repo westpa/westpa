@@ -197,7 +197,7 @@ else:
         # The following won't show up if the log isn't set up properly
         log.error(str(e))
         sys.stderr.write('%s: %s\n' % (e.__class__.__name__, str(e)))
-        if args.debug_mode:
+        if args.debug_mode or args.verbose_mode:
             import traceback
             traceback.print_exc()
         sys.exit(1)

@@ -10,9 +10,9 @@ log = logging.getLogger(__name__)
 log.debug('loading module %r' % __name__)
 
 class ODLDPropagator(wemd.propagators.WEMDPropagator):
-    def __init__(self, runtime_config, sim_manager = None):
-        self.runtime_config = runtime_config
+    def __init__(self, sim_manager = None, runtime_config = None):
         self.sim_manager = sim_manager
+        self.runtime_config = runtime_config or sim_manager.runtime_config
         
         self.variance = 0.001
         self.sigma = self.variance**0.5

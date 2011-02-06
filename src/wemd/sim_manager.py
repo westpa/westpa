@@ -33,7 +33,7 @@ class WESimManager:
         if drivername.lower() in ('hdf5', 'default'):
             self.data_manager = wemd.data_manager.WEMDDataManager(self)
         else:
-            pathinfo = self.runtime_config.get_pathlist('drivers.module_path')
+            pathinfo = self.runtime_config.get_pathlist('drivers.module_path', default=None)
             self.data_manager = extloader.get_object(drivername, pathinfo)(self)
         log.debug('data manager is %r' % self.data_manager)
             
@@ -42,7 +42,7 @@ class WESimManager:
         if drivername.lower() == 'default':
             self.we_driver = wemd.we_driver.WEMDWEDriver(self)
         else:
-            pathinfo = self.runtime_config.get_pathlist('drivers.module_path')
+            pathinfo = self.runtime_config.get_pathlist('drivers.module_path', default=None)
             self.work_manager = extloader.get_object(drivername, pathinfo)(self)
         log.debug('WE algorithm driver is %r' % self.we_driver)
     
@@ -53,7 +53,7 @@ class WESimManager:
         elif drivername.lower() == 'threads':
             self.work_manager = wemd.work_managers.threads.ThreadedWorkManager(self)
         else:
-            pathinfo = self.runtime_config.get_pathlist('drivers.module_path')
+            pathinfo = self.runtime_config.get_pathlist('drivers.module_path', default=None)
             self.work_manager = extloader.get_object(drivername, pathinfo)(self)
         log.debug('work manager is %r' % self.work_manager)
         
@@ -63,14 +63,14 @@ class WESimManager:
             import wemd.propagators.executable
             self.propagator = wemd.propagators.executable.ExecutablePropagator(self)
         else:
-            pathinfo = self.runtime_config.get_pathlist('drivers.module_path')
+            pathinfo = self.runtime_config.get_pathlist('drivers.module_path', default=None)
             self.propagator = extloader.get_object(drivername, pathinfo)(self)
         log.debug('propagator is %r' % self.propagator)
         
     def load_system_driver(self):
         sysdrivername = self.runtime_config.require('system.system_driver')
         log.info('loading system driver %r' % sysdrivername)
-        pathinfo = self.runtime_config.get_pathlist('system.module_path', None)        
+        pathinfo = self.runtime_config.get_pathlist('system.module_path', default=None)        
         self.system = extloader.get_object(sysdrivername, pathinfo)(self)
         log.debug('system driver is %r' % self.system)
                     

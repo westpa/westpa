@@ -215,7 +215,7 @@ class ConfigDict(OrderedDict):
             # Just pass it through, since enforcing a restriction on what kind of
             # default is passed is probably more counterproductive than any poor programming
             # practice it encourages.
-            return items
+            return paths
         
         if expandvars: items = map(os.path.expandvars, items)
         if expanduser: items = map(os.path.expanduser, items)

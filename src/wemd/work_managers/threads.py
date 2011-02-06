@@ -25,6 +25,7 @@ class ThreadedWorkManager(WEMDWorkManager):
         n_rounds = int(math.ceil(len(segments) / self.n_threads))
         segarray = numpy.empty((self.n_threads, n_rounds), numpy.object_)
         segarray.flat[0:len(segments)] = segments
+        log.debug('segarray: %r' % segarray)
         threads = [WorkerThread(self.sim_manager, segarray[ithread,:]) for ithread in xrange(0, self.n_threads)]
         for thread in threads:
             # Spawn threads, begin propagation in each
@@ -42,9 +43,10 @@ class WorkerThread(threading.Thread):
     def run(self):
         propagator = self.sim_manager.propagator
         system_driver = self.sim_manager.system
-        log.debug('propagating %d segments' % len(self.segments))
-        for segment in self.segments:
-            if segment is None: continue
+        segments = [segment for segment in self.segments if segment is not None]
+        log.debug('propagating %d segment(s)' % len(segments))
+        for segment in segments:
+            assert segment is not None
             system_driver.preprocess_segments([segment])
             propagator.propagate([segment])
             system_driver.postprocess_segments([segment])

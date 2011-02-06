@@ -1,4 +1,5 @@
-import os, sys, time
+import os, sys, time, contextlib, tempfile
+import numpy
 import logging
 log = logging.getLogger(__name__)
 
@@ -6,6 +7,19 @@ from wemd import Segment
 from wemd.propagators import WEMDPropagator
 from wemd.util.rtracker import ResourceTracker
 
+@contextlib.contextmanager
+def changed_cwd(target_dir):
+    if target_dir:
+        init_dir = os.getcwd()
+        log.debug('chdir(%r)' % target_dir)
+        os.chdir(target_dir)
+        
+    yield # to with block
+    
+    if target_dir:
+        log.debug('chdir(%r)' % init_dir)
+        os.chdir(init_dir)
+    
 class ExecutablePropagator(WEMDPropagator):
     EXTRA_ENVIRONMENT_PREFIX = 'executable.env.'
 
@@ -16,6 +30,8 @@ class ExecutablePropagator(WEMDPropagator):
     
     ENV_PARENT_SEG_ID        = 'WEMD_PARENT_SEG_ID'
     ENV_PARENT_SEG_DATA_REF  = 'WEMD_PARENT_SEG_DATA_REF'
+    
+    ENV_PCOORD_RETURN        = 'WEMD_PCOORD_RETURN'
         
     def __init__(self, sim_manager):
         super(ExecutablePropagator,self).__init__(sim_manager)
@@ -31,84 +47,65 @@ class ExecutablePropagator(WEMDPropagator):
         # Information about child programs (executables, output redirections,
         # etc)
         self.propagator_info =      {'executable': None,
-                                     'environ': dict()}
+                                     'environ': dict(),
+                                     'cwd': None}
         self.pre_iteration_info =   {'executable': None,
-                                     'environ': dict()}
+                                     'environ': dict(),
+                                     'cwd': None}
         self.post_iteration_info =  {'executable': None,
-                                     'environ': dict()}
-        self.pre_segment_info =     {'executable': None,
-                                     'environ': dict()}
-        self.post_segment_info =    {'executable': None,
-                                     'environ': dict()}
+                                     'environ': dict(),
+                                     'cwd': None}
         
-        self.sim_manager.runtime_config.require('executable.executable')
-    
-        self.segref_template = self.sim_manager.runtime_config.get_compiled_template('executable.segref_template', 
-                                                                         'traj_segs/${n_iter}/${seg_id}')
-        self.istateref_template = self.sim_manager.runtime_config.get_compiled_template('executable.istateref_template', 
-                                                                            'initdist/${region_name}')
-
-                                    
-        try:
-            if self.sim_manager.runtime_config.get_bool('executable.preserve_environment'):
-                log.info('including parent environment')
-                log.debug('parent environment: %r' % os.environ)
-                self.child_environ.update(os.environ)
-        except KeyError:
-            pass
+        # Process configuration file information
+        runtime_config = self.sim_manager.runtime_config
+        runtime_config.require('executable.propagator')
+        self.segment_dir    = runtime_config.require('executable.segment_dir')
+        self.parent_dir     = runtime_config.require('executable.parent_dir')
+        self.initial_state_dir = runtime_config.get('executable.initial_state_dir', self.parent_dir)
+                
+        if 'executable.pcoord_loader' in runtime_config:
+            from wemd.util import extloader
+            pathinfo = runtime_config.get_pathlist('executable.module_path', default=None)
+            self.pcoord_loader = extloader.get_object(runtime_config['executable.pcoord_loader'], 
+                                                      pathinfo)
+        else:
+            self.pcoord_loader = None
+        
         
         prefixlen = len(self.EXTRA_ENVIRONMENT_PREFIX)
-        for (k,v) in self.sim_manager.runtime_config.iteritems():
+        for (k,v) in runtime_config.iteritems():
             if k.startswith(self.EXTRA_ENVIRONMENT_PREFIX):
                 evname = k[prefixlen:]                
                 self.child_environ[evname] = v                
                 log.info('including environment variable %s=%r for all child processes' % (evname, v))
         
-        for child_type in ('executable', 'pre_iteration', 'post_iteration',
-                           'pre_segment', 'post_segment'):
+        for child_type in ('propagator', 'pre_iteration', 'post_iteration'):
             child_info = getattr(self, child_type + '_info')
             child_info['child_type'] = child_type
-            executable = child_info['executable'] = self.sim_manager.runtime_config.get('executable.%s' % child_type, None)            
+            executable = child_info['executable'] = runtime_config.get('executable.%s' % child_type, None)            
             if executable:
                 log.info('%s executable is %r' % (child_type, executable))
 
-                stdout_template = child_info['stdout_template'] \
-                                = self.sim_manager.runtime_config.get_compiled_template('backend.executable.%s.stdout_capture' 
-                                                                                        % child_type, None)
-                if stdout_template:
-                    log.info('redirecting %s standard output to %r'
-                             % (child_type, stdout_template.template))
-                stderr_template = child_info['stderr_template'] \
-                                = self.sim_manager.runtime_config.get_compiled_template('backend.executable.%s.stderr_capture' 
-                                                                                        % child_type, None)
-                if stderr_template:
-                    log.info('redirecting %s standard error to %r'
-                             % (child_type, stderr_template.template))
-                    
-                merge_stderr = child_info['merge_stderr'] \
-                             = self.sim_manager.runtime_config.get_bool('backend.executable.%s.merge_stderr_to_stdout' 
-                                                                        % child_type, False)
-                if merge_stderr:
-                    log.info('merging %s standard error with standard output'
-                             % child_type)
-                
-                if stderr_template and merge_stderr:
-                    log.warning('both standard error redirection and merge specified for %s; standard error will be merged' 
-                                % child_type)
-                    child_info['stderr_template'] = None
-
-    def make_data_ref(self, segment):
-        return self.segref_template.safe_substitute(segment.__dict__)
-
-    def make_istate_data_ref(self, segment):
-        # Fetch the name associated with the region
-        system = self.sim_manager.system
-        assert segment.p_parent_id < 0
-        istate = -segment.p_parent_id - 1
+                stdout = child_info['stdout'] = runtime_config.get('executable.%s.stdout' % child_type, None)
+                if stdout:
+                    log.info('redirecting %s standard output to %r'% (child_type, stdout))
+                stderr = child_info['stderr'] = runtime_config.get('executable.%s.stderr' % child_type, None)
+                if stderr:
+                    if stderr == 'stdout':
+                        log.info('merging %s standard error with standard output' % child_type)
+                    else:
+                        log.info('redirecting %s standard error to %r' % (child_type, stderr))
+                        
+    def makepath(self, template, template_args = None,
+                  expanduser = True, expandvars = True, abspath = False, realpath = False):
+        path = template.format(**template_args)
+        if expandvars: path = os.path.expandvars(path)
+        if expanduser: path = os.path.expanduser(path)
+        if realpath:   path = os.path.realpath(path)
+        if abspath:    path = os.path.abspath(path)
+        path = os.path.normpath(path)
+        return path
         
-        subdict = dict(segment.__dict__)
-        subdict['region_name'] = system.initial_states[istate][system.INITDIST_NAME]
-        return self.istateref_template.safe_substitute(subdict)
     
     def _popen(self, child_info, addtl_environ = None, template_args = None):
         """Create a subprocess.Popen object for the appropriate child
@@ -117,74 +114,87 @@ class ExecutablePropagator(WEMDPropagator):
         """
         
         template_args = template_args or dict()
-        
-        exename = child_info['executable']
+                
+        exename = self.makepath(child_info['executable'], template_args)
         child_type = child_info['child_type']
-        child_environ = dict(self.child_environ)
+        child_environ = dict(os.environ)
+        child_environ.update(self.child_environ)
         child_environ.update(addtl_environ or {})
         child_environ.update(child_info['environ'])
         
-        stdout = None
-        stderr = None
-        if child_info['stdout_template']:
-            stdout = child_info['stdout_template'].safe_substitute(template_args)
-            if child_info['merge_stderr']:
-                log.debug('redirecting child stdout and stderr to %r' % stdout)
+        log.debug('preparing to execute %r (%s) in %r' % (exename, child_info['child_type'], 
+                                                          os.getcwd()))
+        
+        stdout = sys.stdout
+        stderr = sys.stderr
+        if child_info['stdout']:
+            stdout_path = self.makepath(child_info['stdout'], template_args)
+            log.debug('redirecting stdout to %r' % stdout_path)
+            stdout = open(stdout_path, 'wb')
+        if child_info['stderr']:
+            if child_info['stderr'] == 'stdout':
+                stderr = stdout
             else:
-                log.debug('redirecting child stdout to %r' % stdout)
-            stdout = open(stdout, 'wb')
-        if child_info['stderr_template']:
-            stderr = child_info['stderr_template'].safe_substitute(template_args)
-            log.debug('redirecting child stderr to %r' % stderr)
-            stderr = open(stderr, 'wb')
-        elif child_info['merge_stderr']:
-            stderr = sys.stdout
+                stderr_path = self.makepath(child_info['stderr'], template_args)
+                log.debug('redirecting standard error to %r' % stderr_path)
+                stderr = open(stderr_path, 'wb')
                     
         log.debug('launching %s executable %r' % (child_type, exename))
         pid = os.fork()
         if pid:
             # in parent process
-            while True:
-                id, rc = os.waitpid(pid, os.WNOHANG)
-                if id == pid:
-                    break
-                
-                time.sleep(1)
-                
+            #while True:
+                #id, rc = os.waitpid(pid, os.WNOHANG)
+                #if id == pid:
+                #    break
+                #time.sleep(1)
+            (id,rc) = os.wait()    
             return rc
         else:
             # in child process
             # redirect stdout/stderr
-            stderr_fd = stderr.fileno()
             stdout_fd = stdout.fileno()
-            
-            os.dup2(stdout_fd, 1)
-            os.dup2(stderr_fd, 2)
-            
+            stderr_fd = stderr.fileno()
+            os.dup2(stdout_fd,1)
+            os.dup2(stderr_fd,2)
+                        
             # Execute
-            os.execlpe(exename, child_environ)
+            os.execlpe(exename, 'wemd_worker[%s]' % os.path.basename(exename), child_environ)
     
-    def _iter_env(self, n_iter, ):
+    def _iter_env(self, n_iter):
         addtl_environ = {self.ENV_CURRENT_ITER: str(n_iter)}
         return addtl_environ
     
     def _segment_env(self, segment):
-
+        template_args = self.segment_template_args(segment)
+        parent_template = (self.parent_dir if segment.p_parent_id >= 0 
+                           else (self.initial_state_dir or self.parent_dir))            
         addtl_environ = {self.ENV_CURRENT_ITER: str(segment.n_iter),
-                         self.ENV_CURRENT_SEG_DATA_REF: self.make_data_ref(segment),
                          self.ENV_CURRENT_SEG_ID: str(segment.seg_id),
-                         self.ENV_PARENT_SEG_ID: str(segment.p_parent.seg_id),}
-        
-        if segment.p_parent_id < 0:
-            # Restarting from an initial state    
-            addtl_environ[self.ENV_PARENT_SEG_DATA_REF] = self.make_istate_data_ref(segment)
-            
+                         self.ENV_PARENT_SEG_ID: str(segment.p_parent_id),
+                         self.ENV_CURRENT_SEG_DATA_REF: self.makepath(self.segment_dir, template_args),
+                         self.ENV_PARENT_SEG_DATA_REF: self.makepath(parent_template, template_args)}
         return addtl_environ
     
-    def _segment_template_args(self, segment):
-        return dict(segment.__dict__)
+    def segment_template_args(self, segment):
+        template_args = {'n_iter': segment.n_iter,
+                         'segment': segment}
+        
+        if segment.p_parent_id < 0:
+            # (Re)starting from an initial state
+            system = self.sim_manager.system
+            istate = -segment.p_parent_id - 1
+            parent_segment = Segment(seg_id = istate,
+                                     n_iter = 0)
+            template_args['parent'] = parent_segment
+            template_args['initial_region_name'] = system.initial_states[istate][system.INITDIST_NAME]
+        else:
+            # Continuing from another segment
+            parent_segment = Segment(seg_id = segment.p_parent_id,
+                                     n_iter = segment.n_iter - 1)
+        return template_args
     
-    def _iter_template_args(self, n_iter):
+    def iter_template_args(self, n_iter):
         return {'n_iter': n_iter}
     
     def _run_pre_post(self, child_info, env_func, template_func, args=(), kwargs={}):
@@ -201,24 +211,16 @@ class ExecutablePropagator(WEMDPropagator):
         
     def pre_iter(self, n_iter):
         self.rtracker.begin('pre_iter')
-        self._run_pre_post(self.pre_iteration_info, self._iter_environ, self._iter_template_args, args=(n_iter,))
+        with changed_cwd(self.pre_iteration_info['cwd']):
+            self._run_pre_post(self.pre_iteration_info, self._iter_env, self.iter_template_args, args=(n_iter,))
         self.rtracker.end('pre_iter')
 
     def post_iter(self, n_iter):
         self.rtracker.begin('post_iter')
-        self._run_pre_post(self.post_iteration_info, self._iter_environ, self._iter_template_args, args=(n_iter,))
+        with changed_cwd(self.post_iteration_info['cwd']):
+            self._run_pre_post(self.post_iteration_info, self._iter_env, self.iter_template_args, args=(n_iter,))
         self.rtracker.end('post_iter')
-    
-    def pre_segment(self, segment):
-        self.rtracker.begin('pre_segment')
-        self._run_pre_post(self.pre_segment_info, self._segment_env, self._segment_template_args, args=(segment,))
-        self.rtracker.end('pre_segment')
-    
-    def post_segment(self, segment):
-        self.rtracker.begin('post_segment')
-        self._run_pre_post(self.post_segment_info, self._segment_env, self._segment_template_args, args=(segment,))
-        self.rtracker.end('post_segment')
-        
+            
     def prepare_iteration(self, n_iter, segments):
         self.pre_iter(n_iter)
         
@@ -230,31 +232,51 @@ class ExecutablePropagator(WEMDPropagator):
         for segment in segments:
             # Record start timing info
             self.rtracker.begin('propagation')
-            
-            self.pre_segment(segment)
-            
+
             # Fork the new process
-            log.debug('propagating segment %d' % segment.seg_id)
-            addtl_env = self._segment_env(segment)
-            
-
-            rc = self._popen(self.propagator_info, 
-                               addtl_env, 
-                               segment.__dict__)
-            
-            if rc == 0:
-                log.debug('child process for segment %d exited successfully'
-                          % segment.seg_id)
-                segment.status = Segment.SEG_STATUS_COMPLETE
-            else:
-                log.warn('child process for segment %d exited with code %s' 
-                         % (segment.seg_id, rc))
-                segment.status = Segment.SEG_STATUS_FAILED
-                return
+            with changed_cwd(self.propagator_info['cwd']):
+                log.debug('propagating segment %r' % segment)
+                addtl_env = self._segment_env(segment)
                 
-            self.post_segment(segment)
-
+                if not self.pcoord_loader:
+                    (pc_return_fd, pc_return_filename) = tempfile.mkstemp()
+                    log.debug('expecting return information in %r' % pc_return_filename)
+                    os.close(pc_return_fd)
+                    addtl_env[self.ENV_PCOORD_RETURN] = pc_return_filename
+                
+                # Spawn propagator and wait for its completion
+                rc = self._popen(self.propagator_info, 
+                                   addtl_env, 
+                                   self.segment_template_args(segment))
+                
+                if rc == 0:
+                    log.debug('child process for segment %d exited successfully'
+                              % segment.seg_id)
+                    segment.status = Segment.SEG_STATUS_COMPLETE
+                else:
+                    log.warn('child process for segment %d exited with code %s' 
+                             % (segment.seg_id, rc))
+                    segment.status = Segment.SEG_STATUS_FAILED
+                    return
+                
+                # Extract progress coordinate
+                if self.pcoord_loader:
+                    segment.pcoord[...] = self.pcoord_loader(segment, self.sim_manager)
+                else:
+                    try:
+                        segment.pcoord[...] = numpy.loadtxt(pc_return_filename, self.sim_manager.system.pcoord_dtype)
+                    except Exception as e:
+                        log.error('could not read progress coordinate from %r: %s' % (pc_return_filename, e))
+                        segment.status = Segment.SEG_STATUS_FAILED
+                    
+                    try:
+                        os.unlink(pc_return_filename)
+                    except OSError as e:
+                        log.warning('could not delete progress coordinate return file %r: %s' % (pc_return_filename, e))
+                    else:
+                        log.debug('deleted %r' % pc_return_filename)
+            
             # Record end timing info
             self.rtracker.end('propagation')            
-            segment.walltime = self.rtracker.difference['walltime']
-            segment.cputime  = self.rtracker.difference['cputime']
+            segment.walltime = self.rtracker.difference['propagation'].walltime
+            segment.cputime  = self.rtracker.difference['propagation'].cputime
