@@ -54,6 +54,9 @@ class WESimManager:
             self.work_manager = wemd.work_managers.serial.SerialWorkManager(self)
         elif drivername.lower() in ('threads', 'default'):
             self.work_manager = wemd.work_managers.threads.ThreadedWorkManager(self)
+        elif drivername.lower() == 'tcpip':
+            import wemd.work_managers.tcpip
+            self.work_manager = wemd.work_managers.tcpip.TCPWorkManager(self)
         else:
             pathinfo = self.runtime_config.get_pathlist('drivers.module_path', default=None)
             self.work_manager = extloader.get_object(drivername, pathinfo)(self)
@@ -81,6 +84,8 @@ class WESimManager:
                 
         # Have the work manager initialize
         self.work_manager.prepare_workers()
+        if self.work_manager.is_server() == False:
+            return self.work_manager.run()
         
         # Set up internal timing
         self.rtracker.begin('run')
