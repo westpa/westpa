@@ -14,7 +14,6 @@ class SerialWorkManager(WEMDWorkManager):
         log.debug('initializing serial work manager')
         super(SerialWorkManager,self).__init__(sim_manager)
         self.n_iter = None        
-        self.block_size = 1
         
     def propagate(self, segments):
         propagator = self.sim_manager.propagator

@@ -17,8 +17,7 @@ class ProcessWorkManager(WEMDWorkManager):
         log.debug('cpu count: %d' % self.cpu_count)
         self.n_threads = sim_manager.runtime_config.get_int('work_manager.n_threads', self.cpu_count)
         self.n_iter = None
-        
-        self.block_size = self.n_threads
+    
         log.info('using %d processes for parallel propagation' % self.n_threads)
         
     def propagate_particles(self, segments):

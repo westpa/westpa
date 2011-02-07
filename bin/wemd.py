@@ -20,12 +20,38 @@ log.debug('prepending %r to sys.path' % wemd_lib_path)
 sys.path.insert(0, wemd_lib_path)
 
 import wemd
-from wemd import rc
+from wemd.util.config_dict import ConfigDict
+from wemd.util import extloader
 
 import numpy, operator, itertools
 
-def cmd_init(sim_manager, args):
+# Runtime config file management
+ENV_RUNTIME_CONFIG  = 'WEMDRC'
+RC_DEFAULT_FILENAME = 'wemd.cfg'
+
+def read_config(filename = None):
+    if filename is None:
+        filename = RC_DEFAULT_FILENAME
     
+    cdict = ConfigDict()
+    cdict.read_config_file(filename)
+    
+    return cdict
+
+def load_sim_manager(runtime_config):
+    drivername = runtime_config.get('drivers.sim_manager', 'default')
+    if drivername.lower() == 'default':
+        from wemd.sim_manager import WESimManager
+        return WESimManager(runtime_config)
+    else:
+        pathinfo = runtime_config.get_pathlist('drivers.module_path')
+        return extloader.get_object(drivername,pathinfo)(runtime_config)
+
+def cmd_init(sim_manager, args, aux_args):
+    if aux_args:
+        log.error('unexpected command line argument(s) ignored: %r' % aux_args)
+        sys.exit(os.EX_USAGE)
+        
     # Create HDF5 data file
     sim_manager.load_data_manager()
     sim_manager.load_we_driver()
@@ -37,7 +63,7 @@ def cmd_init(sim_manager, args):
             os.unlink(h5file)
         else:
             sys.stderr.write('HDF5 file %r already exists; exiting.\n' % h5file)
-            sys.exit(rc.EX_DATA_ERROR)
+            sys.exit(os.EX_USAGE)
     
     sys.stdout.write('Creating HDF5 file %r.\n' % h5file)
     sim_manager.data_manager.prepare_backing()
@@ -103,13 +129,21 @@ Total target particles: {:d}
     sim_manager.system.region_set.clear()    
     sys.stdout.write('Simulation prepared.\n')
         
-def cmd_run(sim_manager, args):
+def cmd_run(sim_manager, args, aux_args):
+    # Let the work manager parse any remaining command-line arguments
+    sim_manager.load_work_manager()
+    aux_args = sim_manager.work_manager.parse_aux_args(aux_args)
+    
     sim_manager.load_data_manager()
     sim_manager.data_manager.open_backing()
-    sim_manager.load_work_manager()
+        
     sim_manager.load_system_driver()
     sim_manager.load_we_driver()
     sim_manager.load_propagator()
+    
+    if aux_args:
+        log.warning('unexpected command line argument(s) ignored: %r' % aux_args)
+    
     rc = sim_manager.run()
     sys.exit(rc)   
 
@@ -118,7 +152,7 @@ def cmd_run(sim_manager, args):
 parser = argparse.ArgumentParser()
 parser.add_argument('-r', '--rcfile', metavar='RCFILE', dest='run_config_file',
                     help='use RCFILE as the WEMD run-time configuration file (default: %s)' 
-                          % rc.RC_DEFAULT_FILENAME)
+                          % RC_DEFAULT_FILENAME)
 parser.add_argument('--verbose', dest='verbose_mode', action='store_true',
                     help='emit extra information')
 parser.add_argument('--debug', dest='debug_mode', action='store_true',
@@ -135,13 +169,16 @@ parser_init.add_argument('--force', dest='force', action='store_true',
 parser_init.set_defaults(func=cmd_init)
 
 parser_run =     subparsers.add_parser('run', help='start/continue a simulation')
+parser_run.add_argument('--work-manager', dest='work_manager_name', 
+                        help='use the given work manager to propagate segments (e.g. serial, threads, tcpip,'
+                            +' or name a Python class; default: threads)')
 parser_run.set_defaults(func=cmd_run)
 
 parser_status =  subparsers.add_parser('status', help='report simulation status')
 
 
 # Parse command line arguments
-args = parser.parse_args()
+(args, aux_args) = parser.parse_known_args()
 
 # Handle forward configuration of logging
 import logging.config
@@ -154,7 +191,8 @@ logging_config = {'version': 1, 'incremental': False,
                   'handlers': {'console': {'class': 'logging.StreamHandler',
                                            'stream': 'ext://sys.stdout',
                                            'formatter': 'standard'}},
-                  'loggers': {'wemd': {'handlers': ['console'], 'propagate': False}},
+                  'loggers': {'wemd': {'handlers': ['console'], 'propagate': False},
+                              'wemd_cli': {'handlers': ['console'], 'propagate': False}},
                   'root': {'handlers': ['console']}}
 
 if args.verbose_mode:
@@ -168,20 +206,19 @@ logging_config['incremental'] = True
 
 
 # Read runtime configuration file
-runtime_config = rc.read_config(args.run_config_file)
+runtime_config = read_config(args.run_config_file)
 
 # Merge command line arguments into runtime config (for convenience)
 runtime_config.update({'args.%s' % key : value for (key,value) in args.__dict__.viewitems() if not key.startswith('_')})
 
-
 # Load SimManager
-sim_manager = rc.load_sim_manager(runtime_config)
+sim_manager = load_sim_manager(runtime_config)
 
 # Branch to appropriate function
 if args.profile_mode:
     import cProfile, pstats
     try:
-        cProfile.run('args.func(sim_manager,args)', 'profile.dat')
+        cProfile.run('args.func(sim_manager,args,aux_args)', 'profile.dat')
     finally:
         stats = pstats.Stats('profile.dat')
         #stats.sort_stats('cumulative')
@@ -189,7 +226,7 @@ if args.profile_mode:
         stats.print_stats()
 else:
     try:
-        args.func(sim_manager, args)
+        args.func(sim_manager, args, aux_args)
     except KeyboardInterrupt:
         sys.stderr.write('Interrupted.\n')
         sys.exit(1)

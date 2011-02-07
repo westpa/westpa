@@ -47,10 +47,12 @@ class WESimManager:
         log.debug('WE algorithm driver is %r' % self.we_driver)
     
     def load_work_manager(self):
-        drivername = self.runtime_config.get('drivers.work_manager', 'serial')
-        if drivername.lower() in ('serial', 'default'):
+        drivername = self.runtime_config.get('args.work_manager_name')
+        if not drivername:
+            drivername = self.runtime_config.get('drivers.work_manager', 'threads')
+        if drivername.lower() == 'serial':
             self.work_manager = wemd.work_managers.serial.SerialWorkManager(self)
-        elif drivername.lower() == 'threads':
+        elif drivername.lower() in ('threads', 'default'):
             self.work_manager = wemd.work_managers.threads.ThreadedWorkManager(self)
         else:
             pathinfo = self.runtime_config.get_pathlist('drivers.module_path', default=None)
