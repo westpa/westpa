@@ -520,7 +520,7 @@ class TCPWorkerServer(TCPWorkerBase):
                 if self.ping_thread.is_alive() == False:
                     break   
                  
-                time.sleep(1)
+                time.sleep(0.01)
                 
             self.ping_thread = None
             self.stop_ping_event = None                        
@@ -542,7 +542,7 @@ class TCPWorkerServer(TCPWorkerBase):
 
                 self.send_to_client_by_id((i,'status'), i)
             
-            time.sleep(1)
+            time.sleep(0.01)
     
     def get_segments(self):
         self.debug('get_segments')
@@ -594,7 +594,7 @@ class TCPWorkerServer(TCPWorkerBase):
                     segs.append(seg)
                     cids.append(cid)
                     
-            time.sleep(1)
+            time.sleep(0.01)
 
         self.debug('segs retrieved %r %r %r'%(segs,cids,len(segs)))
         return segs
@@ -608,6 +608,7 @@ class TCPWorkerServer(TCPWorkerBase):
 #client
 def propagate_segment_thread(propagator, segment):
     propagator.propagate(segment)
+
 
 def propagate_particles(propagator, segments, shutdown_flag, error_flag):
     
@@ -655,7 +656,7 @@ def propagate_particles(propagator, segments, shutdown_flag, error_flag):
                         seg_threads[i].join()
                 break
 
-            time.sleep(1)
+            time.sleep(0.01)
             
         if shutdown_flag.is_set():
             return

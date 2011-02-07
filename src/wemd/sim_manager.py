@@ -51,8 +51,13 @@ class WESimManager:
         if not drivername:
             drivername = self.runtime_config.get('drivers.work_manager', 'threads')
         if drivername.lower() == 'serial':
+            import wemd.work_managers.serial
             self.work_manager = wemd.work_managers.serial.SerialWorkManager(self)
+        elif drivername.lower() == 'processes':
+            import wemd.work_managers.processes
+            self.work_manager = wemd.work_managers.processes.ProcessWorkManager(self)                    
         elif drivername.lower() in ('threads', 'default'):
+            import wemd.work_managers.threads
             self.work_manager = wemd.work_managers.threads.ThreadedWorkManager(self)
         elif drivername.lower() == 'tcpip':
             import wemd.work_managers.tcpip
