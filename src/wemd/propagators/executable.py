@@ -1,7 +1,11 @@
-import os, sys, time, contextlib, tempfile
+import os, sys, time, contextlib, signal
 import numpy
 import logging
 log = logging.getLogger(__name__)
+
+# Get a list of user-friendly signal names
+SIGNAL_NAMES = {getattr(signal, name): name for name in dir(signal) 
+                if name.startswith('SIG') and not name.startswith('SIG_')}
 
 from wemd import Segment
 from wemd.propagators import WEMDPropagator
@@ -61,16 +65,14 @@ class ExecutablePropagator(WEMDPropagator):
         runtime_config.require('executable.propagator')
         self.segment_dir    = runtime_config.require('executable.segment_dir')
         self.parent_dir     = runtime_config.require('executable.parent_dir')
+        self.pcoord_file    = runtime_config.require('executable.pcoord_file')
         self.initial_state_dir = runtime_config.get('executable.initial_state_dir', self.parent_dir)
                 
         if 'executable.pcoord_loader' in runtime_config:
             from wemd.util import extloader
             pathinfo = runtime_config.get_pathlist('executable.module_path', default=None)
             self.pcoord_loader = extloader.get_object(runtime_config['executable.pcoord_loader'], 
-                                                      pathinfo)
-        else:
-            self.pcoord_loader = None
-        
+                                                      pathinfo)        
         
         prefixlen = len(self.EXTRA_ENVIRONMENT_PREFIX)
         for (k,v) in runtime_config.iteritems():
@@ -84,20 +86,14 @@ class ExecutablePropagator(WEMDPropagator):
             child_info['child_type'] = child_type
             executable = child_info['executable'] = runtime_config.get('executable.%s' % child_type, None)            
             if executable:
-                log.info('%s executable is %r' % (child_type, executable))
-
                 stdout = child_info['stdout'] = runtime_config.get('executable.%s.stdout' % child_type, None)
-                if stdout:
-                    log.info('redirecting %s standard output to %r'% (child_type, stdout))
                 stderr = child_info['stderr'] = runtime_config.get('executable.%s.stderr' % child_type, None)
-                if stderr:
-                    if stderr == 'stdout':
-                        log.info('merging %s standard error with standard output' % child_type)
-                    else:
-                        log.info('redirecting %s standard error to %r' % (child_type, stderr))
+                if stderr == 'stdout':
+                    log.info('merging %s standard error with standard output' % child_type)
                         
     def makepath(self, template, template_args = None,
                   expanduser = True, expandvars = True, abspath = False, realpath = False):
+        log.debug('formatting path {!r} with arguments {!r}'.format(template, template_args))
         path = template.format(**template_args)
         if expandvars: path = os.path.expandvars(path)
         if expanduser: path = os.path.expanduser(path)
@@ -107,7 +103,7 @@ class ExecutablePropagator(WEMDPropagator):
         return path
         
     
-    def _popen(self, child_info, addtl_environ = None, template_args = None):
+    def _exec(self, child_info, addtl_environ = None, template_args = None):
         """Create a subprocess.Popen object for the appropriate child
         process, passing it the appropriate environment and setting up proper
         output redirections
@@ -143,12 +139,12 @@ class ExecutablePropagator(WEMDPropagator):
         pid = os.fork()
         if pid:
             # in parent process
-            #while True:
-                #id, rc = os.waitpid(pid, os.WNOHANG)
-                #if id == pid:
-                #    break
-                #time.sleep(1)
-            (id,rc) = os.wait()    
+            while True:
+                id, rc = os.waitpid(pid, os.WNOHANG)
+                if id == pid:
+                    break
+                time.sleep(1)
+            #(id,rc) = os.wait()    
             return rc
         else:
             # in child process
@@ -167,8 +163,11 @@ class ExecutablePropagator(WEMDPropagator):
     
     def _segment_env(self, segment):
         template_args = self.segment_template_args(segment)
-        parent_template = (self.parent_dir if segment.p_parent_id >= 0 
-                           else (self.initial_state_dir or self.parent_dir))            
+        if segment.p_parent_id >= 0 or not self.initial_state_dir:
+            parent_template = self.parent_dir
+        else:
+            parent_template = self.initial_state_dir
+            
         addtl_environ = {self.ENV_CURRENT_ITER: str(segment.n_iter),
                          self.ENV_CURRENT_SEG_ID: str(segment.seg_id),
                          self.ENV_PARENT_SEG_ID: str(segment.p_parent_id),
@@ -177,8 +176,10 @@ class ExecutablePropagator(WEMDPropagator):
         return addtl_environ
     
     def segment_template_args(self, segment):
-        template_args = {'n_iter': segment.n_iter,
-                         'segment': segment}
+        phony_segment = Segment(n_iter = segment.n_iter,
+                                seg_id = segment.seg_id,
+                                p_parent_id = segment.p_parent_id)
+        template_args = {'segment': phony_segment}
         
         if segment.p_parent_id < 0:
             # (Re)starting from an initial state
@@ -186,12 +187,18 @@ class ExecutablePropagator(WEMDPropagator):
             istate = -segment.p_parent_id - 1
             parent_segment = Segment(seg_id = istate,
                                      n_iter = 0)
-            template_args['parent'] = parent_segment
             template_args['initial_region_name'] = system.initial_states[istate][system.INITDIST_NAME]
         else:
             # Continuing from another segment
-            parent_segment = Segment(seg_id = segment.p_parent_id,
-                                     n_iter = segment.n_iter - 1)
+            parent_segment = Segment(seg_id = segment.p_parent_id, n_iter = segment.n_iter - 1)
+
+        template_args['parent'] = parent_segment
+        log.debug('template args: %r' % template_args)
+        log.debug('segment fields: %r' % {k: v for k,v in template_args['segment'].__dict__.viewitems()
+                                          if not k.startswith('_')})
+        log.debug('parent fields: %r' % {k: v for k,v in template_args['parent'].__dict__.viewitems()
+                                          if not k.startswith('_')})
+        
         return template_args
     
     def iter_template_args(self, n_iter):
@@ -199,7 +206,7 @@ class ExecutablePropagator(WEMDPropagator):
     
     def _run_pre_post(self, child_info, env_func, template_func, args=(), kwargs={}):
         if child_info['executable']:
-            rc = self._popen(child_info, env_func(*args, **kwargs), template_func(*args, **kwargs))
+            rc = self._exec(child_info, env_func(*args, **kwargs), template_func(*args, **kwargs))
             if rc != 0:
                 log.warning('%s executable %r returned %s'
                             % (child_info['child_type'], 
@@ -226,26 +233,38 @@ class ExecutablePropagator(WEMDPropagator):
         
     def finalize_iteration(self, n_iter, segments):
         self.post_iter(n_iter)
+        
+        
+    def pcoord_loader(self, pcoord_return_filename, segment, sim_manager):
+        """Read progress coordinate data. An exception will be raised if there are 
+        too many fields on a line, or too many lines, too few lines, or improperly formatted fields"""
+        
+        pcoord = numpy.zeros_like(segment.pcoord)
+        log.debug('expecting progress coordinate of shape {!r}'.format(segment.pcoord.shape))
+        iline = 0
+        with open(pcoord_return_filename, 'rt') as pcfile:
+            for (iline,line) in enumerate(pcfile):
+                pcoord[iline,:] = map(pcoord.dtype.type,line.split())
+        if iline != pcoord.shape[0]-1:
+            raise ValueError('not enough lines in pcoord file')
+        segment.pcoord = pcoord
     
     def propagate(self, segments):
-        #log.info('propagating %d segment(s)' % len(segments))
         for segment in segments:
             # Record start timing info
             self.rtracker.begin('propagation')
 
             # Fork the new process
             with changed_cwd(self.propagator_info['cwd']):
-                log.debug('propagating segment %r' % segment)
-                addtl_env = self._segment_env(segment)
+                log.info('iteration {segment.n_iter}, propagating segment {segment.seg_id}'.format(segment=segment))
                 
-                if not self.pcoord_loader:
-                    (pc_return_fd, pc_return_filename) = tempfile.mkstemp()
-                    log.debug('expecting return information in %r' % pc_return_filename)
-                    os.close(pc_return_fd)
-                    addtl_env[self.ENV_PCOORD_RETURN] = pc_return_filename
+                addtl_env = self._segment_env(segment)
+                pc_return_filename = self.makepath(self.pcoord_file, self.segment_template_args(segment))
+                log.debug('expecting return information in %r' % pc_return_filename)
+                addtl_env[self.ENV_PCOORD_RETURN] = pc_return_filename
                 
                 # Spawn propagator and wait for its completion
-                rc = self._popen(self.propagator_info, 
+                rc = self._exec(self.propagator_info, 
                                    addtl_env, 
                                    self.segment_template_args(segment))
                 
@@ -254,27 +273,25 @@ class ExecutablePropagator(WEMDPropagator):
                               % segment.seg_id)
                     segment.status = Segment.SEG_STATUS_COMPLETE
                 else:
-                    log.warn('child process for segment %d exited with code %s' 
-                             % (segment.seg_id, rc))
+                    if os.WIFEXITED(rc):
+                        log.error('child process for segment %d exited with code %s' 
+                                 % (segment.seg_id, os.WEXITSTATUS(rc)))
+                    elif os.WIFSIGNALED(rc):
+                        sig = os.WTERMSIG(rc)
+                        log.error('child process exited on signal %d (%s)'
+                                  % (sig, SIGNAL_NAMES[sig]))
+                    else:
+                        log.error('child process exited with (16-bit) status %d' % rc)
+                        
                     segment.status = Segment.SEG_STATUS_FAILED
                     return
                 
                 # Extract progress coordinate
-                if self.pcoord_loader:
-                    segment.pcoord[...] = self.pcoord_loader(segment, self.sim_manager)
-                else:
-                    try:
-                        segment.pcoord[...] = numpy.loadtxt(pc_return_filename, self.sim_manager.system.pcoord_dtype)
-                    except Exception as e:
-                        log.error('could not read progress coordinate from %r: %s' % (pc_return_filename, e))
-                        segment.status = Segment.SEG_STATUS_FAILED
-                    
-                    try:
-                        os.unlink(pc_return_filename)
-                    except OSError as e:
-                        log.warning('could not delete progress coordinate return file %r: %s' % (pc_return_filename, e))
-                    else:
-                        log.debug('deleted %r' % pc_return_filename)
+                try:
+                    self.pcoord_loader(pc_return_filename, segment, self.sim_manager)
+                except Exception as e:
+                    log.error('could not read progress coordinate from %r: %s' % (pc_return_filename, e))
+                    segment.status = Segment.SEG_STATUS_FAILED
             
             # Record end timing info
             self.rtracker.end('propagation')            

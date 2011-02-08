@@ -58,3 +58,6 @@ class WEMDSystem:
         of an entire iteration's set of segments at once should occur in
         postprocess_iteration().'''
         pass
+    
+    def new_pcoord_array(self):
+        return numpy.zeros((self.pcoord_len, self.pcoord_ndim), self.pcoord_dtype)
