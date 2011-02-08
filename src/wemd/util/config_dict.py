@@ -13,7 +13,7 @@ class ConfigDict(OrderedDict):
     default_list_split = re.compile(r'\s*,?\s*')
     
     re_interval_float_unit = re.compile(r'((?:\d+\.)?\d+)\s+(second|minute|hour|day|sec|min|hr|s|m|h|d)s?')
-    re_interval_dhms = re.compile(r'(?:\d+:)?\d?\d:\d\d:\d\d')
+    re_interval_dhms = re.compile(r'(?:\d+:)?\d+:\d\d:\d\d')
 
     defaults = {}
     
@@ -137,6 +137,9 @@ class ConfigDict(OrderedDict):
                 inttxt = default
             else:
                 raise ke
+        
+        if not inttxt:
+            return None
         
         match = self.re_interval_float_unit.match(inttxt) or self.re_interval_dhms.match(inttxt)
         if not match:

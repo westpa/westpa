@@ -7,7 +7,6 @@ Current implementation: Matt Zwier
 """
 from __future__ import division; __metaclass__ = type
 
-import operator
 import numpy
 import h5py
 
@@ -168,7 +167,7 @@ class WEMDDataManager:
                 if len(segment.pcoord) == 1:
                     # Initial pcoord
                     pcoord[seg_id,0,:] = segment.pcoord[0,:]
-                else:
+                elif segment.pcoord.shape != pcoord.shape[1:]:
                     raise ValueError('segment pcoord shape [%r] does not match expected shape [%r]'
                                      % (segment.pcoord.shape, pcoord.shape[1:]))
             
@@ -283,7 +282,8 @@ class WEMDDataManager:
                               cputime = row['cputime'],
                               weight = row['weight'],
                               pcoord = pcoords[seg_id])
-            parent_ids = all_parent_ids[row['parents_offset']:row['parents_offset']+row['n_parents']]
+            
+            parent_ids = all_parent_ids[row['parents_offset']:row['parents_offset']+row['n_parents']+1]
             segment.p_parent_id = parent_ids[0]
             segment.parent_ids = set(parent_ids)
             segments.append(segment)

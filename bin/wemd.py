@@ -169,6 +169,8 @@ parser_init.add_argument('--force', dest='force', action='store_true',
 parser_init.set_defaults(func=cmd_init)
 
 parser_run =     subparsers.add_parser('run', help='start/continue a simulation')
+parser_run.add_argument('--oneseg', dest='only_one_segment', action='store_true',
+                        help='only propagate one segment (useful for debugging problems in propagators)')
 parser_run.add_argument('--work-manager', dest='work_manager_name', 
                         help='use the given work manager to propagate segments (e.g. serial, threads, tcpip,'
                             +' or name a Python class; default: threads)')
@@ -233,7 +235,7 @@ else:
     except Exception as e:
         # The following won't show up if the log isn't set up properly
         log.error(str(e))
-        sys.stderr.write('%s: %s\n' % (e.__class__.__name__, str(e)))
+        sys.stderr.write('ERROR: {!s}\n'.format(e))
         if args.debug_mode or args.verbose_mode:
             import traceback
             traceback.print_exc()

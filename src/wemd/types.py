@@ -34,7 +34,7 @@ class Segment:
         self.cputime = cputime
 
     def __repr__(self):
-        return '<%s(%s) seg_id=%s weight=%s p_parent_id=%r parent_ids=%r>' \
+        return '<%s(%s) seg_id=%r weight=%r p_parent_id=%r parent_ids=%r>' \
                % (self.__class__.__name__, hex(id(self)),
                   self.seg_id, self.weight, self.p_parent_id, tuple(sorted(self.parent_ids)))
             
@@ -68,6 +68,6 @@ class Particle:
         self.genesis = genesis
                 
     def __repr__(self):
-        return '<%s(%s) seg_id=%s weight=%s p_parent_id=%r parent_ids=%r>' \
+        return '<%s(%s) seg_id=%r weight=%r p_parent_id=%r parent_ids=%r>' \
                % (self.__class__.__name__, hex(id(self)),
                   self.seg_id, self.weight, self.p_parent_id, tuple(sorted(self.parent_ids)))
