@@ -151,7 +151,7 @@ class PiecewiseRegionSet(RegionSet):
         
         for (ifunc, func) in enumerate(self.functions):
             rsl = numpy.apply_along_axis(func, 0, coords)
-            region_pred[:,ifunc] = rsl[:,0]
+            region_pred[:,ifunc] = rsl.flat
         
         # why does this seem too fancy?
         apred = numpy.argwhere(region_pred)
