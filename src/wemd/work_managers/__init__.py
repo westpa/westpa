@@ -38,4 +38,8 @@ class WEMDWorkManager:
         '''Cleanly shut down any active workers.'''
         pass
 
+    def is_server(self):
+        '''A client must have a run method, which runs until WE is ready to exit'''        
+        return True
+
 import serial, threads, processes

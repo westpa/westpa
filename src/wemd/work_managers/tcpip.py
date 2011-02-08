@@ -9,28 +9,95 @@ import time
 import multiprocessing
 import cPickle as pickle
 
-from wemd.work_managers import WEWorkManagerBase
+from wemd.work_managers import WEMDWorkManager
 
-from wemd.core.we_sim import WESimIter
-from wemd.core.particles import Particle, ParticleCollection
-from wemd.core.segments import Segment
-from wemd.core.errors import PropagationIncompleteError
-from wemd.rc import EX_ERROR
+#from wemd.core.we_sim import WESimIter
+#from wemd.core.particles import Particle, ParticleCollection
+from wemd.types import Segment
+#from wemd.core.errors import PropagationIncompleteError
+#from wemd.rc import EX_ERROR
 
 import logging
 log = logging.getLogger(__name__)
 
+class TCPWorkManager(WEMDWorkManager):
+    def __init__(self, sim_manager):
+        super(TCPWorkManager,self).__init__(sim_manager)
+        self.worker = None
         
-class TCPWorkerBase(WEWorkManagerBase):
-    def __init__(self, runtime_config, load_sim_config = True):
-        super(TCPWorkerBase,self).__init__(runtime_config, load_sim_config)
-        self.hostname = None
+    def parse_aux_args(self, aux_args):
+        extra_args = []
+        client = False
+        dport = None
+        for i in xrange(0,len(aux_args),2):
+            if aux_args[i] == '-s': #hostname
+                hostname = aux_args[i+1]
+            elif aux_args[i] == '-k': #password
+                secret_key = aux_args[i+1]
+            elif aux_args[i] == '-c': #client port
+                client = True
+                cport = int(aux_args[i+1])
+            elif aux_args[i] == '-d': #server port
+                dport = int(aux_args[i+1])                
+            elif aux_args[i] == '-n': #nclients
+                nclients = int(aux_args[i+1])
+            else:
+                extra_args.extend([aux_args[i],aux_args[i+1]])
+        
+        if client:
+            self.worker = TCPWorkerClient(self.sim_manager, hostname, secret_key, dport, cport)
+        else:
+            self.worker = TCPWorkerServer(self.sim_manager, hostname, secret_key, dport, nclients)
+            
+        return extra_args
+
+    def prepare_workers(self):
+        return self.worker.prepare_workers()
+    
+    def prepare_iteration(self, n_iter, segments):
+        if self.is_server():
+            super(TCPWorkManager,self).prepare_iteration(n_iter, segments)
+            self.worker.prepare_iteration(n_iter, segments)    
+
+    def propagate(self, segments):
+        if self.is_server():
+            self.worker.propagate(segments)
+    
+    def finalize_iteration(self, n_iter, segments):
+        if self.is_server():
+            super(TCPWorkManager,self).finalize_iteration(n_iter, segments)
+            self.worker.finalize_iteration(n_iter, segments)
+    
+    def shutdown(self, exit_code=0):
+        return self.worker.shutdown(exit_code)
+    
+    def is_server(self):
+        return self.worker.is_server()
+    
+    def run(self):
+        if self.is_server() == False:
+            self.worker.run()
+
+class TCPWorkerBase():
+    def __init__(self, sim_manager, hostname, secret_key, dport):
+        log.debug('initializing tcpip work manager')
+        self.set_server_hostname(hostname)
         self.secret_key = None
         self.secret_key_len = 128
-        self.dport = None
+        self.set_secret_key(secret_key)
+        
+        self.runtime_config = sim_manager.runtime_config
+        self.sim_manager = sim_manager
+        
+        self.timeout = self.runtime_config.get_int('server.timeout')
+        self.dport = dport 
+
         self.timeout = None
         self.sock = None
-                        
+
+    def run(self):
+        pass
+                                            
     def set_server_hostname(self, hostname):
         self.hostname = socket.gethostbyname(hostname)
     
@@ -41,17 +108,6 @@ class TCPWorkerBase(WEWorkManagerBase):
         assert(len(secret_key) == self.secret_key_len)
         self.secret_key = secret_key
 
-    def runtime_init(self, runtime_config, load_sim_config = True):
-        super(TCPWorkerBase, self).runtime_init(runtime_config, load_sim_config)
-        self.timeout = runtime_config.get_int('server.timeout')
-        self.dport = runtime_config.get_int('server.dport')
-
-        if self.backend_driver is None:
-            self.load_backend_driver()
-
-    def post_iter(self, we_iter):
-        self.backend_driver.post_iter(we_iter)
-
     def init_dserver(self, port, nqueue = 1):
         self.debug('init_dserver')
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -61,6 +117,7 @@ class TCPWorkerBase(WEWorkManagerBase):
         self.sock.settimeout(self.timeout)
         self.sock.bind((self.get_local_hostname(), port))
         self.sock.listen(nqueue)
+        return self.sock.getsockname()[1] #return the port used
                 
     def shutdown_dserver(self):
         if self.sock is not None:
@@ -149,12 +206,12 @@ class TCPWorkerBase(WEWorkManagerBase):
 
     def debug(self, string):
         pass
-        #log.info('DEBUG: Base: ' + string + ' ' + repr(time.time()))
+        #print('DEBUG: Base: ' + string + ' ' + repr(time.time()))
 
                                                        
-class TCPWEMaster(TCPWorkerBase):
-    def __init__(self, runtime_config, load_sim_config = True):
-        super(TCPWEMaster,self).__init__(runtime_config, load_sim_config)
+class TCPWorkerServer(TCPWorkerBase):
+    def __init__(self, sim_manager, hostname, secret_key, dport, nclients):
+        super(TCPWorkerServer,self).__init__(sim_manager, hostname, secret_key, dport)
         self.nclients = None
         #client info
         #client_info[cid]['key']
@@ -164,10 +221,12 @@ class TCPWEMaster(TCPWorkerBase):
         self.client_info = None
         self.stop_ping_event = None
         self.ping_thread = None
+        self.nclients = nclients
         
-    def runtime_init(self, runtime_config, load_sim_config = True):
-        super(TCPWEMaster, self).runtime_init(runtime_config, load_sim_config)
-        self.nclients = runtime_config.get_int('server.nclients')
+    def is_server(self):
+        return True    
+        
+    def prepare_workers(self):
         #only for initial connection (to get client info)
         self.init_dserver(self.dport, nqueue = self.nclients)
         
@@ -177,12 +236,12 @@ class TCPWEMaster(TCPWorkerBase):
             
         self.shutdown_dserver()
 
+    def prepare_iteration(self, n_iter, segments):
+        pass
+
     def debug(self, string):
         pass
-        #log.info('DEBUG: Server: ' + string + ' ' + repr(time.time()))
-        
-    def worker_is_master(self):
-        return True                                        
+        #print('DEBUG: Server: ' + string + ' ' + repr(time.time()))                             
 
     def send_cid(self):
         '''assigns an id to each client, and gets the number of cores available
@@ -336,13 +395,10 @@ class TCPWEMaster(TCPWorkerBase):
         #self.debug('send_to_client_by_id:%r' % repr(data))
         return data
     
-    def propagate_particles(self, we_iter, segments):
-        self.debug('propagate_particles')
+    def propagate(self, segments):
+        self.debug('propagate')
         self.stop_ping_thread()
         
-        self.prepare_iteration()
-        self.backend_driver.pre_iter(we_iter)
-
         status = self.get_clients_status()
         state = self.reduce_client_status(status)
             
@@ -353,19 +409,24 @@ class TCPWEMaster(TCPWorkerBase):
         if self.send_segments(segments) == False:
             raise ValueError('Segments could not be sent')
         
-        segments = self.get_segments()
-        
-        if segments is None:
+        new_segments = self.get_segments()
+            
+        if new_segments is None:
             log.error('No segments returned')
-            raise ValueError('No segments returned')
-        
+            raise ValueError('No segments returned')    
+
         self.start_ping_thread()
-        
+                
         #segments[cid][task#] -> segments[i]
-        segs = [j for k in segments for j in k if j is not None]
-        return segs
+        segs = [j for k in new_segments for j in k if j is not None]
+        
+        #update in place
+        for i in xrange(0,len(segments)):
+            segments[i] = segs[i]
 
-
+    def finalize_iteration(self, n_iter, segments):
+        pass
+    
     def send_segments(self, segments):
         self.debug('send_segments')
 
@@ -459,7 +520,7 @@ class TCPWEMaster(TCPWorkerBase):
                 if self.ping_thread.is_alive() == False:
                     break   
                  
-                time.sleep(1)
+                time.sleep(0.01)
                 
             self.ping_thread = None
             self.stop_ping_event = None                        
@@ -481,7 +542,7 @@ class TCPWEMaster(TCPWorkerBase):
 
                 self.send_to_client_by_id((i,'status'), i)
             
-            time.sleep(1)
+            time.sleep(0.01)
     
     def get_segments(self):
         self.debug('get_segments')
@@ -533,7 +594,7 @@ class TCPWEMaster(TCPWorkerBase):
                     segs.append(seg)
                     cids.append(cid)
                     
-            time.sleep(1)
+            time.sleep(0.01)
 
         self.debug('segs retrieved %r %r %r'%(segs,cids,len(segs)))
         return segs
@@ -545,10 +606,11 @@ class TCPWEMaster(TCPWorkerBase):
         self.shutdown_clients()
 
 #client
-def propagate_segment_thread(backend_driver, segment):
-    backend_driver.propagate_segments(segment)
+def propagate_segment_thread(propagator, segment):
+    propagator.propagate(segment)
 
-def propagate_particles(backend_driver, segments, shutdown_flag, error_flag):
+
+def propagate_particles(propagator, segments, shutdown_flag, error_flag):
     
     nsegs = len(segments)
    
@@ -568,7 +630,7 @@ def propagate_particles(backend_driver, segments, shutdown_flag, error_flag):
             seg_list = segments[cur_seg:cur_seg + ncpus]
            
         for seg in seg_list:
-            p = threading.Thread(target=propagate_segment_thread, args=(backend_driver, [seg],))
+            p = threading.Thread(target=propagate_segment_thread, args=(propagator, [seg],))
             p.start()        
             seg_threads.append(p)
 
@@ -594,7 +656,7 @@ def propagate_particles(backend_driver, segments, shutdown_flag, error_flag):
                         seg_threads[i].join()
                 break
 
-            time.sleep(1)
+            time.sleep(0.01)
             
         if shutdown_flag.is_set():
             return
@@ -606,9 +668,9 @@ def propagate_particles(backend_driver, segments, shutdown_flag, error_flag):
             raise ValueError('Segment(s) Failed')
        
 
-class TCPWEWorker(TCPWorkerBase):
-    def __init__(self, runtime_config, load_sim_config = True):
-        super(TCPWEWorker, self).__init__(runtime_config, load_sim_config)
+class TCPWorkerClient(TCPWorkerBase):
+    def __init__(self, sim_manager, hostname, secret_key, dport, cport):
+        super(TCPWorkerClient, self).__init__(sim_manager, hostname, secret_key, dport)
         self.work_pickle = None
         self.segments = None
         self.cid = None
@@ -616,31 +678,29 @@ class TCPWEWorker(TCPWorkerBase):
         self.error_flag = threading.Event()
         self.state = 'busy'
         self.pp_thread = None
-        self.cport = None
-        self.max_attempt = None
+        self.cport = cport
         
-    def set_cport(self, cport):
-        self.cport = int(cport)
-        
-    def runtime_init(self, runtime_config, load_sim_config = True):
-        super(TCPWEWorker, self).runtime_init(runtime_config, load_sim_config)
-        if self.cport is None:
-            self.cport = self.dport
-
         try:
-            self.max_attempt = runtime_config.get_int('server.max_attempt')
+            self.max_attempt = self.runtime_config.get_int('server.max_attempt')
         except KeyError:
-            self.max_attempt = 100
-               
+            self.max_attempt = 100                       
+        
+    def prepare_workers(self):
+        if self.cport is None:
+            self.cport = 0
+        
         log.info('TCPClient runtime init')
 
+        self.cport = self.init_dserver(self.cport) #ie if cport == 0, have the os choose which port to use
         self.get_cid()        
-        self.init_dserver(self.cport)
+        
+        #propagator isn't loaded until after init
+        self.propagator = self.sim_manager.propagator        
    
     def debug(self, string):
         pass
-        #log.info('DEBUG: Client ' + repr(self.cid) + ' ' + string + ' ' + repr(time.time()))
- 
+        #print('DEBUG: Client ' + repr(self.cid) + ' ' + string + ' ' + repr(time.time()))
+      
     def get_command(self):
         self.debug('get_command')
 
@@ -686,7 +746,6 @@ class TCPWEWorker(TCPWorkerBase):
             if cmd == 'propagate_segs':
                 self.debug('propagate_segs cmd')
                 self.state = 'busy'
-                self.prepare_iteration()
                 
                 segs = data
                 
@@ -702,7 +761,7 @@ class TCPWEWorker(TCPWorkerBase):
                 self.debug('sending status')
                 self.send_message((self.cid, self.state), data_sock)
             elif cmd == 'get_segs':
-                if self.state == 'data':
+                if self.state == 'data':                    
                     self.send_message((self.cid, 'segs', segs), data_sock)
                     segs = []
                     self.state = 'ready'
@@ -719,11 +778,11 @@ class TCPWEWorker(TCPWorkerBase):
     
             if self.propagate_particles_complete() == True and self.state == 'busy': #ie segs finished
                 self.state = 'data'
-                self.finalize_iteration()
+
                 
     def propagate_particles(self, segments):
         self.debug('propagate_particles')
-        self.pp_thread = threading.Thread(target=propagate_particles, args=(self.backend_driver, segments, self.shutdown_flag, self.error_flag))
+        self.pp_thread = threading.Thread(target=propagate_particles, args=(self.propagator, segments, self.shutdown_flag, self.error_flag))
         self.pp_thread.start()    
     
     def propagate_particles_complete(self):
@@ -735,7 +794,7 @@ class TCPWEWorker(TCPWorkerBase):
         else:
             return True
                                     
-    def worker_is_master(self):
+    def is_server(self):
         return False
         
     def get_cid(self):
@@ -768,4 +827,4 @@ class TCPWEWorker(TCPWorkerBase):
         self.debug('shutdown')
         self.shutdown_flag.set()   
         self.shutdown_dserver()
-        
+    
