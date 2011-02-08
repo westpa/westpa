@@ -231,8 +231,8 @@ class TCPWorkerServer(TCPWorkerBase):
         self.init_dserver(self.dport, nqueue = self.nclients)
         
         if self.send_cid() == False:
-            self.shutdown(EX_ERROR)
-            sys.exit(EX_ERROR)
+            self.shutdown(os.EX_NOHOST)
+            sys.exit(os.EX_NOHOST)
             
         self.shutdown_dserver()
 
