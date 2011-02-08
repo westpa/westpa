@@ -11,11 +11,7 @@ import cPickle as pickle
 
 from wemd.work_managers import WEMDWorkManager
 
-#from wemd.core.we_sim import WESimIter
-#from wemd.core.particles import Particle, ParticleCollection
 from wemd.types import Segment
-#from wemd.core.errors import PropagationIncompleteError
-#from wemd.rc import EX_ERROR
 
 import logging
 log = logging.getLogger(__name__)
@@ -91,8 +87,6 @@ class TCPWorkerBase():
         
         self.timeout = self.runtime_config.get_int('server.timeout')
         self.dport = dport 
-
-        self.timeout = None
         self.sock = None
 
     def run(self):
@@ -167,9 +161,9 @@ class TCPWorkerBase():
         assert(key_len >= 64)
         assert(self.secret_key is not None)
         
-        while True:
+        while True:            
             data = sock.recv(1024) 
-
+            
             buf.append(data)    
             tmp_buf = ''.join(buf)
             
@@ -601,7 +595,7 @@ class TCPWorkerServer(TCPWorkerBase):
 
     def shutdown(self, exit_code=0):
         self.debug(('server: Shutdown %d\n' % exit_code))
-
+        self.stop_ping_thread()
         self.shutdown_dserver()
         self.shutdown_clients()
 
@@ -768,7 +762,7 @@ class TCPWorkerClient(TCPWorkerBase):
                 else:
                     self.send_message((self.cid, None), data_sock)
             
-            elif cmd == 'shutdown':
+            elif cmd == 'shutdown' or cmd is None:
                 self.send_message((self.cid, 'shutdown'), data_sock)
                 data_sock.close()
                 self.shutdown()

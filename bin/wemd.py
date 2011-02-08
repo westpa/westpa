@@ -144,8 +144,14 @@ def cmd_run(sim_manager, args, aux_args):
     if aux_args:
         log.warning('unexpected command line argument(s) ignored: %r' % aux_args)
     
-    rc = sim_manager.run()
-    sys.exit(rc)   
+    try:
+        rc = sim_manager.run()
+    except:
+        sim_manager.work_manager.shutdown(-1)
+        raise
+    else:
+        sim_manager.work_manager.shutdown(0)
+        sys.exit(rc)   
 
     
 

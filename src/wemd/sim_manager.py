@@ -90,7 +90,8 @@ class WESimManager:
         # Have the work manager initialize
         self.work_manager.prepare_workers()
         if self.work_manager.is_server() == False:
-            return self.work_manager.run()
+            self.work_manager.run()
+            return 
         
         # Set up internal timing
         self.rtracker.begin('run')
@@ -329,6 +330,7 @@ class WESimManager:
             except AttributeError:
                 pass
             
+        self.work_manager.shutdown(0)    
         # end propagation/WE loop
         self.status_stream.write('\n%s\n' % time.asctime())
         self.status_stream.write('WEMD run complete.\n')
