@@ -295,5 +295,6 @@ class ExecutablePropagator(WEMDPropagator):
             
             # Record end timing info
             self.rtracker.end('propagation')            
-            segment.walltime = self.rtracker.difference['propagation'].walltime
-            segment.cputime  = self.rtracker.difference['propagation'].cputime
+            elapsed = self.rtracker.difference['propagation']
+            segment.walltime = elapsed.walltime
+            segment.cputime = elapsed.usertime + elapsed.c_usertime
