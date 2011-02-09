@@ -7,45 +7,10 @@ if sys.version_info[0] < 3 and sys.version_info[1] < 7:
     sys.exit(1)
 
 import logging
-log = logging.getLogger('wemd_cli')
-import argparse
-
-# We must prefer to load the wemd package over this script;
-# this is only a problem for a program called "wemd.py"
-try:
-    wemd_lib_path = os.environ['WEMDLIB']
-except KeyError:
-    wemd_lib_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'src')
-log.debug('prepending %r to sys.path' % wemd_lib_path)
-sys.path.insert(0, wemd_lib_path)
+log = logging.getLogger('wemd_cmd')
 
 import wemd
-from wemd.util.config_dict import ConfigDict
-from wemd.util import extloader
-
 import numpy, operator, itertools
-
-# Runtime config file management
-ENV_RUNTIME_CONFIG  = 'WEMDRC'
-RC_DEFAULT_FILENAME = 'wemd.cfg'
-
-def read_config(filename = None):
-    if filename is None:
-        filename = RC_DEFAULT_FILENAME
-    
-    cdict = ConfigDict()
-    cdict.read_config_file(filename)
-    
-    return cdict
-
-def load_sim_manager(runtime_config):
-    drivername = runtime_config.get('drivers.sim_manager', 'default')
-    if drivername.lower() == 'default':
-        from wemd.sim_manager import WESimManager
-        return WESimManager(runtime_config)
-    else:
-        pathinfo = runtime_config.get_pathlist('drivers.module_path')
-        return extloader.get_object(drivername,pathinfo)(runtime_config)
 
 def cmd_init(sim_manager, args, aux_args):
     if aux_args:
@@ -153,20 +118,8 @@ def cmd_run(sim_manager, args, aux_args):
         sim_manager.work_manager.shutdown(0)
         sys.exit(rc)   
 
-    
-
-parser = argparse.ArgumentParser()
-parser.add_argument('-r', '--rcfile', metavar='RCFILE', dest='run_config_file',
-                    help='use RCFILE as the WEMD run-time configuration file (default: %s)' 
-                          % RC_DEFAULT_FILENAME)
-parser.add_argument('--verbose', dest='verbose_mode', action='store_true',
-                    help='emit extra information')
-parser.add_argument('--debug', dest='debug_mode', action='store_true',
-                    help='enable extra checks and emit copious information')
-parser.add_argument('--profile', dest='profile_mode', action='store_true',
-                    help='run this process under the Python profiler')
-parser.add_argument('--version', action='version', version='WEMD version %s' % wemd.version)
-
+# Set up command-line argument parser    
+parser = wemd.rc.common_arg_parser()
 subparsers = parser.add_subparsers()
 
 parser_init =    subparsers.add_parser('init', help='initialize a new simulation')
@@ -184,67 +137,18 @@ parser_run.set_defaults(func=cmd_run)
 
 parser_status =  subparsers.add_parser('status', help='report simulation status')
 
-
 # Parse command line arguments
 (args, aux_args) = parser.parse_known_args()
 
-# Handle forward configuration of logging
-import logging.config
-logging_config = {'version': 1, 'incremental': False,
-                  'formatters': {'standard': {'format': '  -- %(levelname)-8s -- %(message)s'},
-                                 'debug':    {'format': '''\
-  -- %(levelname)-8s %(asctime)24s PID %(process)-12d TID %(thread)-20d 
-     %(pathname)s:%(lineno)d [%(funcName)s()] 
-       %(message)s'''}},
-                  'handlers': {'console': {'class': 'logging.StreamHandler',
-                                           'stream': 'ext://sys.stdout',
-                                           'formatter': 'standard'}},
-                  'loggers': {'wemd': {'handlers': ['console'], 'propagate': False},
-                              'wemd_cli': {'handlers': ['console'], 'propagate': False}},
-                  'root': {'handlers': ['console']}}
+# Configure logging
+wemd.rc.config_logging(args)
 
-if args.verbose_mode:
-    logging_config['root']['level'] = 'INFO'
-if args.debug_mode:
-    logging_config['root']['level'] = 'DEBUG'
-    logging_config['handlers']['console']['formatter'] = 'debug'
-
-logging.config.dictConfig(logging_config)
-logging_config['incremental'] = True
-
-
-# Read runtime configuration file
-runtime_config = read_config(args.run_config_file)
-
-# Merge command line arguments into runtime config (for convenience)
+# Read runtime configuration file and merge command line arguments in
+runtime_config = wemd.rc.read_config(args.run_config_file)
 runtime_config.update({'args.%s' % key : value for (key,value) in args.__dict__.viewitems() if not key.startswith('_')})
 
 # Load SimManager
-sim_manager = load_sim_manager(runtime_config)
+sim_manager = wemd.rc.load_sim_manager(runtime_config)
 
 # Branch to appropriate function
-if args.profile_mode:
-    import cProfile, pstats
-    try:
-        cProfile.run('args.func(sim_manager,args,aux_args)', 'profile.dat')
-    finally:
-        stats = pstats.Stats('profile.dat')
-        #stats.sort_stats('cumulative')
-        stats.sort_stats('time')
-        stats.print_stats()
-else:
-    try:
-        args.func(sim_manager, args, aux_args)
-    except KeyboardInterrupt:
-        sys.stderr.write('Interrupted.\n')
-        sys.exit(1)
-    except Exception as e:
-        # The following won't show up if the log isn't set up properly
-        log.error(str(e))
-        sys.stderr.write('ERROR: {!s}\n'.format(e))
-        if args.debug_mode or args.verbose_mode:
-            import traceback
-            traceback.print_exc()
-        sys.exit(1)
-    else:
-        sys.exit(0)
+wemd.rc.default_cmdline_dispatch(args.func, args=(sim_manager,args,aux_args), kwargs=None, cmdline_args=args, log=log)
