@@ -131,7 +131,7 @@ class WESimManager:
             segments = self.data_manager.get_segments(n_iter = n_iter)
             while n_iter <= max_iter:
                 self.rtracker.begin('iteration')
-                if max_walltime and time.time() + iteration_elapsed >= run_killtime:
+                if max_walltime and time.time() + 1.1*iteration_elapsed >= run_killtime:
                     self.status_stream.write('Iteration %d would require more than the allotted time. Ending run.\n'
                                              % n_iter)
                     self.work_manager.shutdown(0)
@@ -210,6 +210,7 @@ class WESimManager:
                     self.system.preprocess_iteration(n_iter, segments)
                 
                 # Allow the user to run only one segment to aid in debugging propagators
+                log.info('propagating iteration {:d}'.format(n_iter))
                 if self.runtime_config.get('args.only_one_segment',False):
                     log.info('propagating only one segment')
                     self._propagate(n_iter, segs_to_run[0:1])                
@@ -219,6 +220,7 @@ class WESimManager:
                         break
                 else:
                     self._propagate(n_iter, segs_to_run)
+                log.info('propagation complete')
                     
                 # There is no guarantee that the segment objects returned from workers are the same as those submitted, 
                 # so update our master segment list appropriately                
@@ -266,7 +268,8 @@ class WESimManager:
                                                  .format(src,isrc,self.system.target_states[isrc][self.system.TARGET_NAME]))
                         
                     for idest, dest in enumerate(self.we_driver.recycle_to):
-                        self.status_stream.write("  {0.count:d} ({0.weight:g} probability, {1:%} of recycled particles) to state '{2}'\n"\
+                        self.status_stream.write(("  {0.count:d} ({0.weight:g} probability,"
+                                                  +" {1:%} of recycled particles) to state '{2}'\n")\
                                                  .format(dest, dest.count/n_recycled,
                                                          self.system.initial_states[idest][self.system.INITDIST_NAME]))
                 else:
@@ -343,26 +346,33 @@ class WESimManager:
                 self.rtracker.end('iteration')
                 iteration_endtime = self.rtracker.final['iteration'].walltime
                 iteration_elapsed = iteration_endtime - iteration_starttime
+                                
+                iter_walltime = self.rtracker.difference['iteration'].walltime
+                iter_cputime = sum(segment.cputime or 0.0 for segment in segments)
                 
-                intervals = ResourceUsage(*[timedelta(seconds=field) for field in self.rtracker.difference['iteration']])
-                self.status_stream.write('Iteration wallclock: {0.walltime!s}, cputime: {0.cputime!s}\n'.format(intervals))
-                
-                if iter_summary['walltime'] == 0:
-                    iter_summary['walltime'] = self.rtracker.difference['iteration'].walltime
-                if iter_summary['cputime'] == 0:
-                    iter_summary['cputime'] = sum(segment.cputime or 0.0 for segment in segments)
+                iter_summary['walltime'] += iter_walltime
+                iter_summary['cputime'] = iter_cputime
                 self.data_manager.update_iter_summary(n_iter, iter_summary)
                 
+                self.status_stream.write('Iteration wallclock: {0!s}, cputime: {1!s}\n'\
+                                          .format(timedelta(seconds=iter_summary['walltime']),
+                                                  timedelta(seconds=iter_summary['cputime'])))
+                
     
+                # Update HDF5 and flush the status output buffer in preparation for
+                # the next iteration
                 n_iter += 1
                 self.data_manager.current_iteration = n_iter
                 self.data_manager.flush_backing()
-                
-                segments = new_segments
-                
                 self.flush_status()
+                
+                # Update segments list for next iteration
+                segments = new_segments                
+                
             # end propagation/WE loop
         finally:
+            # Regardless of what happens (end of loop/exit/exception), make sure run data
+            # is saved
             self.data_manager.flush_backing()
             self.data_manager.close_backing()
 
@@ -374,7 +384,7 @@ class WESimManager:
         # dump resource statistics
         intervals = ResourceUsage(*[timedelta(seconds=field) for field in self.rtracker.difference['run']])
         self.status_stream.write(('\nRun wallclock: {intervals.walltime}, CPU time: {intervals.cputime},'
-                                  +' system time: {intervals.systime}\n').format(intervals=intervals))
+                                 +' system time: {intervals.systime}\n').format(intervals=intervals))
         
         if self.runtime_config['args.profile_mode']:
             self.status_stream.write('Internal timing information:\n')

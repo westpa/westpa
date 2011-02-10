@@ -75,10 +75,20 @@ def run_optionally_profiled(func, args, kwargs, cmdline_args):
         
     if cmdline_args.profile_mode:
         import cProfile, pstats
+        from wemd import log
+        
+        profile_file = '_wemd_profile_{:d}.dat'.format(os.getpid())
+        log.info('writing profiling information to {}'.format(profile_file))
+        
+        gvars = globals()
+        lvars = locals()
+        lvars['func'] = func
+        lvars['args'] = args
+        lvars['kwargs'] = kwargs
         try:
-            cProfile.run('func(*args, **kwargs)', '_wemd_profile.dat')
+            cProfile.runctx('func(*args, **kwargs)', gvars, lvars, profile_file)
         finally:
-            stats = pstats.Stats('_wemd_profile.dat')
+            stats = pstats.Stats(profile_file)
             stats.sort_stats('time')
             stats.print_stats()
     else:

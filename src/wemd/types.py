@@ -42,7 +42,11 @@ class Segment:
     
     def update_propagation_data(self, segment):
         '''Update this segment with propagation data from the given segment object. 
-        Non-propagation data (seg_id, parentage, n_iter, etc.) is IGNORED.'''            
+        Non-propagation data (seg_id, parentage, n_iter, etc.) is IGNORED.'''
+        if segment is self:
+            return
+        else:
+            assert self.seg_id == segment.seg_id            
         self.status = segment.status
         self.walltime = segment.walltime
         self.cputime = segment.cputime
