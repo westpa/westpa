@@ -145,7 +145,9 @@ class WESimManager:
                 assert not (seg_weights == 0).any()
                 norm = seg_weights.sum()
                 self.status_stream.write('norm: %g, error in norm: %g\n' % (norm, norm-1))
-                            
+                
+                # Index segments for later use
+                segs_by_id = {segment.seg_id : segment for segment in segments}
                 segs_to_run = [segment for segment in segments if segment.status != Segment.SEG_STATUS_COMPLETE]
                 self.status_stream.write('%d of %d segments remain in iteration %d\n' % (len(segs_to_run), len(segments), n_iter))
                 
@@ -217,7 +219,12 @@ class WESimManager:
                         break
                 else:
                     self._propagate(n_iter, segs_to_run)
-                                                
+                    
+                # There is no guarantee that the segment objects returned from workers are the same as those submitted, 
+                # so update our master segment list appropriately                
+                for segment in segs_to_run:
+                    segs_by_id[segment.seg_id].update_propagation_data(segment)
+
                 self.rtracker.begin('we_prep')
                 # Check to ensure that all segments have been propagated
                 failed_segments = [segment for segment in segments if segment.status != Segment.SEG_STATUS_COMPLETE]

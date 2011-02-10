@@ -80,7 +80,6 @@ Total target particles: {:d}
     segments = []
     for (seg_id, particle) in enumerate(itertools.chain(*all_bins)):
         segment = wemd.Segment(weight = particle.weight,
-                               source_id = particle.source_id,
                                pcoord = [particle.pcoord],
                                p_parent_id = -(particle.source_id+1),
                                parent_ids = set((-(particle.source_id+1),)),
