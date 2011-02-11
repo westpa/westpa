@@ -1,12 +1,8 @@
 from __future__ import division 
 __metaclass__ = type
 
-import os, sys
-import socket
-import threading
-import SocketServer
-import time
-import multiprocessing
+import os, stat, sys, socket, threading, time, multiprocessing
+import argparse
 import cPickle as pickle
 
 from wemd.work_managers import WEMDWorkManager
@@ -21,29 +17,60 @@ class TCPWorkManager(WEMDWorkManager):
         super(TCPWorkManager,self).__init__(sim_manager)
         self.worker = None
         
-    def parse_aux_args(self, aux_args):
-        extra_args = []
-        client = False
-        dport = None
-        for i in xrange(0,len(aux_args),2):
-            if aux_args[i] == '-s': #hostname
-                hostname = aux_args[i+1]
-            elif aux_args[i] == '-k': #password
-                secret_key = aux_args[i+1]
-            elif aux_args[i] == '-c': #client port
-                client = True
-                cport = int(aux_args[i+1])
-            elif aux_args[i] == '-d': #server port
-                dport = int(aux_args[i+1])                
-            elif aux_args[i] == '-n': #nclients
-                nclients = int(aux_args[i+1])
-            else:
-                extra_args.extend([aux_args[i],aux_args[i+1]])
+    def read_key_file(self, keyfilename):
+        '''Read communications "secret key" from keyfile, which must be between 16 and 512 bytes
+        in length (inclusive) and must not be world-readable.'''
+        kfstats = os.stat(keyfilename) 
+        if (kfstats.st_mode & stat.S_IROTH):
+            raise RuntimeError('key file (%r) must not be world-readable' % keyfilename)
+        elif not 16 <= kfstats.st_size <= 512:
+            raise RuntimeError('key file (%r) must be between 16 and 512 bytes')
+        keyfile = file(os.path.expanduser(os.path.expandvars(keyfilename)), 'rb')
+        key = keyfile.read()
+        return key
         
-        if client:
-            self.worker = TCPWorkerClient(self.sim_manager, hostname, secret_key, dport, cport)
+    def parse_aux_args(self, aux_args):
+        parser = argparse.ArgumentParser(add_help=False)
+        parser.add_argument('--help-workmanager', '--help-tcpip', dest='do_help', action='store_true',
+                            help='show this help message and exit')
+        parser.add_argument('--debug-tcp', dest='do_tcp_debug', action='store_true',
+                            help='enable TCP driver-specific debug messages')
+        parser.add_argument('-s', '--servername', dest='servername', 
+                            help='Hostname of server to connect to (clients) or the hostname to serve on (server) '
+                                +'(default: %(default)s)',
+                            default=socket.getfqdn())
+        parser.add_argument('-k', '--keyfile', dest='keyfile',
+                            help='Read communication authentication key from KEYFILE '
+                                +'(default: %(default)s)',
+                            default='~/.wemd_key')
+        parser.add_argument('-d', '--sport', '--dport', dest='dport', type=int,
+                            help='Server port (default: %(default)d)',
+                            default=5231)
+        subparsers = parser.add_subparsers()
+        
+        client_parser = subparsers.add_parser('client')        
+        client_parser.add_argument('-c', '--cport', dest='cport', type=int,
+                                   help='Client-side port. Zero chooses an unused port. (Default: 0)',
+                                   default=0)
+        client_parser.set_defaults(mode='client')
+        server_parser = subparsers.add_parser('server')
+        server_parser.add_argument('-n', '--nclients', dest='nclients', type=int,
+                                   help='Number of clients (hosts) to expect', required=True)
+        server_parser.set_defaults(mode='server')
+
+        if '--help-workmanager' in aux_args:
+            parser.print_help()
+            sys.exit(0)
+        args, extra_args = parser.parse_known_args(aux_args)
+    
+        secret_key = self.read_key_file(args.keyfile)
+        
+        if args.mode == 'client':
+            self.worker = TCPWorkerClient(self.sim_manager, args.servername, secret_key, args.dport, args.cport, 
+                                          args.do_tcp_debug)
         else:
-            self.worker = TCPWorkerServer(self.sim_manager, hostname, secret_key, dport, nclients)
+            self.worker = TCPWorkerServer(self.sim_manager, args.servername, secret_key, args.dport, args.nclients, 
+                                          args.do_tcp_debug)
             
         return extra_args
 
@@ -75,11 +102,10 @@ class TCPWorkManager(WEMDWorkManager):
             self.worker.run()
 
 class TCPWorkerBase():
-    def __init__(self, sim_manager, hostname, secret_key, dport):
+    def __init__(self, sim_manager, hostname, secret_key, dport, enable_debug=False):
         log.debug('initializing tcpip work manager')
         self.set_server_hostname(hostname)
         self.secret_key = None
-        self.secret_key_len = 128
         self.set_secret_key(secret_key)
         
         self.runtime_config = sim_manager.runtime_config
@@ -88,6 +114,8 @@ class TCPWorkerBase():
         self.timeout = self.runtime_config.get_int('server.timeout')
         self.dport = dport 
         self.sock = None
+        
+        self.enable_debug = enable_debug
 
     def run(self):
         pass
@@ -99,7 +127,6 @@ class TCPWorkerBase():
         return socket.gethostbyname(socket.gethostname())
     
     def set_secret_key(self, secret_key):
-        assert(len(secret_key) == self.secret_key_len)
         self.secret_key = secret_key
 
     def init_dserver(self, port, nqueue = 1):
@@ -157,9 +184,7 @@ class TCPWorkerBase():
         key_check = True
         data_len = None
         buf = []
-        key_len = self.secret_key_len
-        assert(key_len >= 64)
-        assert(self.secret_key is not None)
+        key_len = len(self.secret_key)
         
         while True:            
             data = sock.recv(1024) 
@@ -199,12 +224,11 @@ class TCPWorkerBase():
         return data
 
     def debug(self, string):
-        pass
-        #print('DEBUG: Base: ' + string + ' ' + repr(time.time()))
-
+        if self.enable_debug is True and log.getEffectiveLevel() <= logging.DEBUG:
+            log.debug('DEBUG: Base: ' + string + ' ' + repr(time.time()))
                                                        
 class TCPWorkerServer(TCPWorkerBase):
-    def __init__(self, sim_manager, hostname, secret_key, dport, nclients):
+    def __init__(self, sim_manager, hostname, secret_key, dport, nclients, enable_debug=False):
         super(TCPWorkerServer,self).__init__(sim_manager, hostname, secret_key, dport)
         self.nclients = None
         #client info
@@ -216,6 +240,7 @@ class TCPWorkerServer(TCPWorkerBase):
         self.stop_ping_event = None
         self.ping_thread = None
         self.nclients = nclients
+        self.enable_debug=enable_debug
         
     def is_server(self):
         return True    
@@ -234,8 +259,8 @@ class TCPWorkerServer(TCPWorkerBase):
         pass
 
     def debug(self, string):
-        pass
-        #print('DEBUG: Server: ' + string + ' ' + repr(time.time()))                             
+        if self.enable_debug is True and log.getEffectiveLevel() <= logging.DEBUG:
+            log.debug('DEBUG: Server: ' + string + ' ' + repr(time.time()))
 
     def send_cid(self):
         '''assigns an id to each client, and gets the number of cores available
@@ -663,7 +688,7 @@ def propagate_particles(propagator, segments, shutdown_flag, error_flag):
        
 
 class TCPWorkerClient(TCPWorkerBase):
-    def __init__(self, sim_manager, hostname, secret_key, dport, cport):
+    def __init__(self, sim_manager, hostname, secret_key, dport, cport, enable_debug=False):
         super(TCPWorkerClient, self).__init__(sim_manager, hostname, secret_key, dport)
         self.work_pickle = None
         self.segments = None
@@ -673,6 +698,7 @@ class TCPWorkerClient(TCPWorkerBase):
         self.state = 'busy'
         self.pp_thread = None
         self.cport = cport
+        self.enable_debug=enable_debug
         
         try:
             self.max_attempt = self.runtime_config.get_int('server.max_attempt')
@@ -692,8 +718,8 @@ class TCPWorkerClient(TCPWorkerBase):
         self.propagator = self.sim_manager.propagator        
    
     def debug(self, string):
-        pass
-        #print('DEBUG: Client ' + repr(self.cid) + ' ' + string + ' ' + repr(time.time()))
+        if self.enable_debug is True and log.getEffectiveLevel() <= logging.DEBUG:
+            log.debug('DEBUG: Client: ' + string + ' ' + repr(time.time()))
       
     def get_command(self):
         self.debug('get_command')

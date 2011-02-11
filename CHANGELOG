@@ -1,0 +1,19 @@
+2011-02-11 -- Matt Zwier <mczwier@gmail.com>
+ * Modified tcpip work manager to use the argparse module to parse command-line
+   arguments. Besides providing a help message, this prevents bad options from
+   crashing "wemd run" with cryptic errors.
+ * Changed meaning of -k for tcpip work manager.  Now -k specifies a filename 
+   from which to read the communications key. (So that on multi-user systems, 
+   the key cannot be read from the process table or anything in /proc/<PID>/*.)
+   This key file must not be world-readable and must be between 16 and 512 
+   bytes in length (16 for at least a modicum of security, 512 so that 
+   individual message data isn't mostly the key).
+ * Added --debug-tcp option to tcpip work manager argument parser to switch
+   TCP debugging code on and off without needing to comment/uncomment.
+   Server vs. client specificity is obtained by specifying --debug-tcp only on
+   server or client invocations, respectively.
+ * Modified wemd_cmd.cmd_run exception handler to (attempt) to separate the
+   original exception from any that arises during work_manager.shutdown(). 
+   
+2011-02-11 -- Matt Zwier <mczwier@gmail.com>
+ * Time to start a CHANGELOG.

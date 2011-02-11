@@ -58,11 +58,14 @@ def config_logging(args):
                                   'wemd_cli': {'handlers': ['console'], 'propagate': False}},
                       'root': {'handlers': ['console']}}
     
-    if args.verbose_mode:
-        logging_config['root']['level'] = 'INFO'
     if args.debug_mode:
         logging_config['root']['level'] = 'DEBUG'
         logging_config['handlers']['console']['formatter'] = 'debug'
+    elif args.verbose_mode:
+        logging_config['root']['level'] = 'INFO'
+    else:
+        logging_config['root']['level'] = 'WARNING'
+        
     
     logging.config.dictConfig(logging_config)
     logging_config['incremental'] = True
@@ -111,9 +114,6 @@ def default_cmdline_dispatch(func, args, kwargs, cmdline_args, log):
     except Exception as e:
         log.error(str(e))
         sys.stderr.write('ERROR: {!s}\n'.format(e))
-        if cmdline_args.debug_mode or cmdline_args.verbose_mode:
-            import traceback
-            traceback.print_exc()
         sys.exit(1)
         
 # Exit codes

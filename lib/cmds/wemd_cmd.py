@@ -1,6 +1,6 @@
 from __future__ import division, print_function
 
-import os, sys
+import os, sys, traceback
 
 if sys.version_info[0] < 3 and sys.version_info[1] < 7:
     sys.stderr.write('wemd requires at least Python version 2.7\n')
@@ -97,6 +97,9 @@ def cmd_run(sim_manager, args, aux_args):
     # Let the work manager parse any remaining command-line arguments
     sim_manager.load_work_manager()
     aux_args = sim_manager.work_manager.parse_aux_args(aux_args)
+
+    if aux_args:
+        log.warning('unexpected command line argument(s) ignored: %r' % aux_args)
     
     sim_manager.load_data_manager()
     sim_manager.data_manager.open_backing()
@@ -105,13 +108,19 @@ def cmd_run(sim_manager, args, aux_args):
     sim_manager.load_we_driver()
     sim_manager.load_propagator()
     
-    if aux_args:
-        log.warning('unexpected command line argument(s) ignored: %r' % aux_args)
-    
     try:
         rc = sim_manager.run()
-    except:
-        sim_manager.work_manager.shutdown(-1)
+    except Exception as run_exc:
+        if log.getEffectiveLevel() <= logging.INFO:
+            traceback.print_exc()
+        
+        try:
+            sim_manager.work_manager.shutdown(1)
+        except Exception as shutdown_exc:
+            log.error('error shutting down worker(s): %s' % shutdown_exc)
+            traceback.print_exc()
+            
+        # raise the (hopefully) original error
         raise
     else:
         sim_manager.work_manager.shutdown(0)
