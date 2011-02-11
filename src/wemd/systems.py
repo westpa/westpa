@@ -1,6 +1,11 @@
 from __future__ import division; __metaclass__ = type
 
+from collections import namedtuple
+
 import numpy
+
+InitialState = namedtuple('InitialState', ['label', 'initial_prob', 'recycle_prob', 'pcoord', 'bin'])
+TargetState  = namedtuple('TargetState', ['label', 'bin'])
 
 class WEMDSystem:
     INITDIST_NAME = 0
@@ -17,10 +22,10 @@ class WEMDSystem:
         # The progress coordinate region set
         self.region_set = None
         
-        # The initial distribution, a list of (name, probability, initial pcoord) tuples
+        # The initial distribution, a list of InitialDistribution namedtuples
         self.initial_states = None
         
-        # Target states, a list of (name, bin) tuples
+        # Target states, a list of TargetState namedtuples
         self.target_states = None
         
         # Number of dimentions in progress coordinate data
@@ -31,6 +36,19 @@ class WEMDSystem:
         
         # Data type of progress coordinate
         self.pcoord_dtype = numpy.float64
+        
+    def add_initial_state(self, label, initial_prob, recycle_prob, pcoord, bin = None):
+        if self.initial_states is None:
+            self.initial_states = []
+        if bin is None:
+            bin = self.region_set.get_bin_containing(pcoord)
+        self.initial_states.append(InitialState(label, initial_prob, recycle_prob, pcoord, bin))
+        
+    def add_target_state(self, label, bin):
+        try:
+            self.target_states.append(TargetState(label, bin))
+        except AttributeError:
+            self.target_states = [TargetState(label,bin)]
         
     def preprocess_iteration(self, n_iter, segments):
         '''Perform pre-processing on all segments for a new iteration.  This is

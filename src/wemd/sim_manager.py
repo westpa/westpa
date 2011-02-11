@@ -311,7 +311,6 @@ class WESimManager:
                     segment = Segment(seg_id = None,
                                       n_iter = n_iter+1,
                                       weight = particle.weight,
-                                      #pcoord = numpy.expand_dims(particle.pcoord, 0),
                                       status = Segment.SEG_STATUS_PREPARED,
                                       )
                     
@@ -355,8 +354,8 @@ class WESimManager:
                 self.data_manager.update_iter_summary(n_iter, iter_summary)
                 
                 self.status_stream.write('Iteration wallclock: {0!s}, cputime: {1!s}\n'\
-                                          .format(timedelta(seconds=iter_summary['walltime']),
-                                                  timedelta(seconds=iter_summary['cputime'])))
+                                          .format(timedelta(seconds=float(iter_summary['walltime'])),
+                                                  timedelta(seconds=float(iter_summary['cputime']))))
                 
     
                 # Update HDF5 and flush the status output buffer in preparation for
@@ -383,7 +382,7 @@ class WESimManager:
         
         # dump resource statistics
         intervals = ResourceUsage(*[timedelta(seconds=field) for field in self.rtracker.difference['run']])
-        self.status_stream.write(('\nRun wallclock: {intervals.walltime}, CPU time: {intervals.cputime},'
+        self.status_stream.write(('\nRun wallclock: {intervals.walltime}, CPU time (WEMD only): {intervals.cputime},'
                                  +' system time: {intervals.systime}\n').format(intervals=intervals))
         
         if self.runtime_config['args.profile_mode']:
