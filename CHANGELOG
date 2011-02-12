@@ -1,3 +1,19 @@
+2011-02-12 -- Matt Zwier <mczwier@gmail.com>
+ * Added support for separate initial state and recycling (steady) state
+   probabilities.  Tested with ODLD driver. This change requires modification
+   of existing simulation system modules.
+ * Modified wemd.systems.WEMDSystem to support reading initial states from a
+   text file (WEMDSystem.read_initial_states()). Each line represents one 
+   initial state, and must specify the label, the initial probability (the
+   probability that a given replica starts in that state when the simulation is
+   initialized), the recycling probability (the probability that a given 
+   replica is recycled to that state), and the progress coordinate of that
+   state. 
+ * Added a "w_ntop" utility, which extracts the top N segments from each bin
+   at a given simulation iteration. Optionally, w_ntop can output an initial
+   states file (see above); thus, w_ntop can be used to populate a new
+   simulation from an existing one.
+
 2011-02-11 -- Matt Zwier <mczwier@gmail.com>
  * Modified tcpip work manager to use the argparse module to parse command-line
    arguments. Besides providing a help message, this prevents bad options from

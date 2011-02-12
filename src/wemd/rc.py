@@ -26,11 +26,11 @@ def load_sim_manager(runtime_config):
         pathinfo = runtime_config.get_pathlist('drivers.module_path')
         return extloader.get_object(drivername,pathinfo)(runtime_config)
     
-def common_arg_parser():
+def common_arg_parser(prog=None,description=None):
     '''Return an argparse.ArgumentParser pre-loaded with --rcfile, --verbose, --debug,
     --profile, and --version'''
     import wemd
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(prog=prog,description=description)
     parser.add_argument('-r', '--rcfile', metavar='RCFILE', dest='run_config_file',
                         help='use RCFILE as the WEMD run-time configuration file (default: %s)' 
                               % RC_DEFAULT_FILENAME)
@@ -112,8 +112,12 @@ def default_cmdline_dispatch(func, args, kwargs, cmdline_args, log):
         sys.stderr.write('Interrupted.\n')
         sys.exit(os.EX_TEMPFAIL)
     except Exception as e:
+        import logging
         log.error(str(e))
         sys.stderr.write('ERROR: {!s}\n'.format(e))
+        if log.isEnabledFor(logging.DEBUG):
+            import traceback
+            traceback.print_exc()
         sys.exit(1)
         
 # Exit codes

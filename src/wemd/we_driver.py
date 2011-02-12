@@ -11,7 +11,6 @@ import random
 from collections import namedtuple
 from wemd.util.miscfn import vgetattr
 from wemd.types import Particle
-from wemd.systems import WEMDSystem
 
 RecyclingInfo = namedtuple('RecyclingInfo', ['count', 'weight'])
 
@@ -140,29 +139,22 @@ class WEMDWEDriver:
                          for particle in particles]
         self.recycled_particles.update(new_particles)
         
-        if len(system.initial_states) == 1:
-            init_pcoord = system.initial_states[0][WEMDSystem.INITDIST_PCOORD]
-            self.recycle_to[0][0] = len(new_particles)
-            for new_particle in new_particles:
-                new_particle.pcoord = init_pcoord 
-                new_particle.source_id = 0
-                new_particle.seg_id = -1
-                self.recycle_to[0][1] += new_particle.weight
-            system.initial_states[0][WEMDSystem.INITDIST_BIN].update(new_particles)
-        else:   
-            # Sequentially add probabilities for initial states.
-            state_disc = numpy.add.accumulate([state[WEMDSystem.INITDIST_PROB] for state in system.initial_states])
-            
-            # Bin on (0, state_disc[-1]) in case probabilities don't sum to exactly one
-            istates = numpy.digitize(numpy.random.uniform(0, state_disc[-1], size=len(particles)),state_disc)
-            
-            for (new_particle,istate) in izip(new_particles,istates):
-                new_particle.pcoord = system.initial_states[istate][WEMDSystem.INITDIST_PCOORD]
-                new_particle.source_id = istate
-                new_particle.seg_id = -(istate+1)
-                self.recycle_to[istate][0] += 1
-                self.recycle_to[istate][1] += new_particle.weight
-                system.initial_states[istate][WEMDSystem.INITDIST_BIN].add(new_particle)
+        rstates = [(istate, state) for (istate,state) in enumerate(system.initial_states) if state.recycle_prob > 0]
+        
+        # Sequentially add probabilities for initial states.
+        state_disc = numpy.add.accumulate([state.recycle_prob for (istate,state) in rstates])
+        
+        # Bin on (0, state_disc[-1]) in case probabilities don't sum to exactly one
+        irstates = numpy.digitize(numpy.random.uniform(0, state_disc[-1], size=len(particles)),state_disc)
+        
+        for (new_particle,irstate) in izip(new_particles,irstates):
+            iistate, istate = rstates[irstate]
+            new_particle.pcoord = istate.pcoord
+            new_particle.source_id = iistate
+            new_particle.seg_id = -(iistate+1)
+            self.recycle_to[iistate][0] += 1
+            self.recycle_to[iistate][1] += new_particle.weight
+            istate.bin.add(new_particle)
         bin.clear()
             
     def split_by_weight(self, bin):

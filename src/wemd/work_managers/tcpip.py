@@ -224,7 +224,7 @@ class TCPWorkerBase():
         return data
 
     def debug(self, string):
-        if self.enable_debug is True and log.getEffectiveLevel() <= logging.DEBUG:
+        if self.enable_debug is True and log.isEnabledFor(logging.DEBUG):
             log.debug('DEBUG: Base: ' + string + ' ' + repr(time.time()))
                                                        
 class TCPWorkerServer(TCPWorkerBase):
@@ -259,7 +259,7 @@ class TCPWorkerServer(TCPWorkerBase):
         pass
 
     def debug(self, string):
-        if self.enable_debug is True and log.getEffectiveLevel() <= logging.DEBUG:
+        if self.enable_debug is True and log.isEnabledFor(logging.DEBUG):
             log.debug('DEBUG: Server: ' + string + ' ' + repr(time.time()))
 
     def send_cid(self):
@@ -718,7 +718,7 @@ class TCPWorkerClient(TCPWorkerBase):
         self.propagator = self.sim_manager.propagator        
    
     def debug(self, string):
-        if self.enable_debug is True and log.getEffectiveLevel() <= logging.DEBUG:
+        if self.enable_debug is True and log.isEnabledFor(logging.DEBUG):
             log.debug('DEBUG: Client: ' + string + ' ' + repr(time.time()))
       
     def get_command(self):

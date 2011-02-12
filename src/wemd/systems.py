@@ -1,5 +1,9 @@
 from __future__ import division; __metaclass__ = type
 
+import logging
+log = logging.getLogger(__name__)
+
+import re
 from collections import namedtuple
 
 import numpy
@@ -42,13 +46,31 @@ class WEMDSystem:
             self.initial_states = []
         if bin is None:
             bin = self.region_set.get_bin_containing(pcoord)
-        self.initial_states.append(InitialState(label, initial_prob, recycle_prob, pcoord, bin))
+        istate = InitialState(label, initial_prob, recycle_prob, pcoord, bin)
+        log.debug('adding initial state {!r}'.format(istate))
+        self.initial_states.append(istate)
         
     def add_target_state(self, label, bin):
         try:
             self.target_states.append(TargetState(label, bin))
         except AttributeError:
             self.target_states = [TargetState(label,bin)]
+            
+    def read_initial_states(self, istate_filename):
+        '''Read a list of initial states from a file. Each line describes an initial (micro)state,
+        and contains whitespace-separated fields for (in order) the state label, initial probability,
+        recycling probability, and progress coordinate (with further fields for each additional
+        pcoord dimension).'''
+        re_strip_comments = re.compile(r'\s*#.*$')
+        with open(istate_filename, 'rt') as istate_file:
+            for line in istate_file:
+                if line.startswith('#'): continue
+                line = re_strip_comments.sub('',line)
+                (label, iprob, rprob, pcoord_txt) = line.split(None,3)
+                iprob = float(iprob)
+                rprob = float(rprob)
+                pcoord = list(map(self.pcoord_dtype, pcoord_txt.split()))
+                self.add_initial_state(label, iprob, rprob, pcoord)
         
     def preprocess_iteration(self, n_iter, segments):
         '''Perform pre-processing on all segments for a new iteration.  This is

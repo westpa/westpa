@@ -38,26 +38,33 @@ def cmd_init(sim_manager, args, aux_args):
     system = sim_manager.system
     region_set = system.region_set
     
-    sys.stdout.write('\nDistribution of initial states:\n')
-    sys.stdout.write('{:<16} {:<12} {:<52}\n'.format('Name', 'Probability', 'Coordinates'))
-    
-    tprob = 0.0
-    for (name, prob, pcoord, bin) in system.initial_states:
-        sys.stdout.write('{:<16} {:<12g} {!s:<52}\n'.format(name, prob, list(pcoord)))
-        tprob += prob
+    tiprob = 0.0
+    trprob = 0.0
+    sys.stdout.write('\nInitial state:\n')
+    sys.stdout.write('{:<16} {:<12} {:<12} {}\n'.format('Label', 'Init. Prob.', 'Recyc. Prob.', 'Coordinates'))
+    for istate in system.initial_states:
+        sys.stdout.write('{istate.label:<16} {istate.initial_prob:<12g} {istate.recycle_prob:<12g} {pcoord!s:<52}\n'\
+                         .format(istate=istate, pcoord=list(istate.pcoord)))
+        tiprob += istate.initial_prob
+        trprob += istate.recycle_prob
 
     MACHEPS = numpy.finfo(numpy.float64).eps
-    if abs(1.0 - tprob) > MACHEPS*len(system.initial_states):
+    if abs(1.0 - tiprob) > MACHEPS*len(system.initial_states):
         sys.stderr.write('Initial probabilities do not sum to one.')
+        sys.exit(1)
+    if abs(1.0 - trprob) > MACHEPS*len(system.initial_states):
+        sys.stderr.write('Recycle probabilities do not sum to one.')
         sys.exit(1)
 
     # Create initial segments
     # First assign to bins
-    for (istate, (name, prob, pcoord, bin)) in enumerate(system.initial_states):
-        target_count = bin.target_count
+    for (i_istate, istate) in enumerate(system.initial_states):
+        # Skip microstates that are for recycling only
+        if istate.initial_prob == 0.0: continue
+        target_count = istate.bin.target_count
         for i in xrange(0, target_count):
-            bin.add(wemd.Particle(pcoord=pcoord, weight=prob/target_count, source_id=istate))
-        sys.stdout.write('%d replicas from initial point %r\n' % (target_count,name))
+            istate.bin.add(wemd.Particle(pcoord=istate.pcoord, weight=istate.initial_prob/target_count, source_id=i_istate))
+        sys.stdout.write('%d replicas from initial point %r\n' % (target_count,istate.label))
 
     iprobtot = region_set.weight
     all_bins = region_set.get_all_bins()
@@ -74,7 +81,7 @@ Total target particles: {:d}
     
     # The user-side check for this was above; this is an assertion that the above assignment to bins 
     # and division of probability is correct
-    assert abs(sim_manager.system.region_set.weight - tprob) < MACHEPS*sum(bin_occupancies)
+    assert abs(sim_manager.system.region_set.weight - tiprob) < MACHEPS*sum(bin_occupancies)
     
     # Now that we're in bins, let's create some segments and commit them to the data manager
     segments = []
@@ -111,7 +118,7 @@ def cmd_run(sim_manager, args, aux_args):
     try:
         rc = sim_manager.run()
     except Exception as run_exc:
-        if log.getEffectiveLevel() <= logging.INFO:
+        if log.isEnabledFor(logging.INFO):
             traceback.print_exc()
         
         try:
@@ -127,7 +134,7 @@ def cmd_run(sim_manager, args, aux_args):
         sys.exit(rc)   
 
 # Set up command-line argument parser    
-parser = wemd.rc.common_arg_parser()
+parser = wemd.rc.common_arg_parser(prog='wemd')
 subparsers = parser.add_subparsers()
 
 parser_init =    subparsers.add_parser('init', help='initialize a new simulation')
@@ -153,7 +160,7 @@ wemd.rc.config_logging(args)
 
 # Read runtime configuration file and merge command line arguments in
 runtime_config = wemd.rc.read_config(args.run_config_file)
-runtime_config.update({'args.%s' % key : value for (key,value) in args.__dict__.viewitems() if not key.startswith('_')})
+runtime_config.update_from_object(args)
 
 # Load SimManager
 sim_manager = wemd.rc.load_sim_manager(runtime_config)

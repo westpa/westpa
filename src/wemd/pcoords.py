@@ -47,7 +47,10 @@ class ParticleSet(set):
     def count(self):
         """The number of particles in this set"""
         return len(self)
-
+    
+    def __repr__(self):
+        return '<ParticleSet at 0x{id:x}, label={label!r}>'.format(id=id(self), label=self.label)
+    
             
 class RegionSet:    
     def __init__(self):
