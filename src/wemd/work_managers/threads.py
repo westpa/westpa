@@ -22,6 +22,11 @@ class ThreadedWorkManager(WEMDWorkManager):
         
     def propagate(self, segments):
         n_rounds = int(math.ceil(len(segments) / self.n_threads))
+        # Create an array large enough to hold all of our segments
+        # Number of rows is n_threads, columns is n_rounds, large enough to
+        # contain all of our segments.
+        # Once that's done, each row contains the set of segments for the
+        # corresponding thread to run
         segarray = numpy.empty((self.n_threads, n_rounds), numpy.object_)
         segarray.flat[0:len(segments)] = segments
         log.debug('segarray: %r' % segarray)
