@@ -11,15 +11,7 @@ import numpy
 InitialState = namedtuple('InitialState', ['label', 'initial_prob', 'recycle_prob', 'pcoord', 'bin'])
 TargetState  = namedtuple('TargetState', ['label', 'bin'])
 
-class WEMDSystem:
-    INITDIST_NAME = 0
-    INITDIST_PROB = 1
-    INITDIST_PCOORD = 2
-    INITDIST_BIN = 3
-    
-    TARGET_NAME = 0
-    TARGET_BIN = 1
-    
+class WEMDSystem:    
     def __init__(self, sim_manager):
         self.sim_manager = sim_manager
         

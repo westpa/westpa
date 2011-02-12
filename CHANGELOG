@@ -1,7 +1,14 @@
 2011-02-12 -- Matt Zwier <mczwier@gmail.com>
+ * Formalized requirement that a work manager modifies Segment objects
+   in-place WITHOUT changing the Python identity of members of the the list 
+   submitted to WEMDWorkManager.propagate(segments). That is, if a remote
+   worker returns a Segment object, that new object must be used to update
+   the corresponding segment submitted by the sim manager, NOT replace it.
+ * Process and TCP/IP work managers updated to reflect the above requirement;
+   both work managers test clean with ODLD driver.
+ * Eliminated Segment.update_propagation_data, as it is no longer necessary
+   with the above formally required behavior. 
  * Simplified and clarified dispatch mechanism in processes work manager.
-
-2011-02-12 -- Matt Zwier <mczwier@gmail.com>
  * Added support for separate initial state and recycling (steady) state
    probabilities.  Tested with ODLD driver. This change requires modification
    of existing simulation system modules.
@@ -12,10 +19,15 @@
    initialized), the recycling probability (the probability that a given 
    replica is recycled to that state), and the progress coordinate of that
    state. 
+ * Replaced initial and target state tuples with systems.InitialState and
+   systems.TargetState namedtuples. These should be accessed using field names,
+   not indices, if at all possible; future development may require substitution
+   of more general objects for namedtuples.
  * Added a "w_ntop" utility, which extracts the top N segments from each bin
    at a given simulation iteration. Optionally, w_ntop can output an initial
    states file (see above); thus, w_ntop can be used to populate a new
    simulation from an existing one.
+ * General cleanup and clarification.
 
 2011-02-11 -- Matt Zwier <mczwier@gmail.com>
  * Modified tcpip work manager to use the argparse module to parse command-line

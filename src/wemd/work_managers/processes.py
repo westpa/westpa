@@ -35,20 +35,28 @@ class ProcessWorkManager(WEMDWorkManager):
         for process in processes:
             # Spawn processes, begin propagation in each
             process.start()
-        for process in processes:
-            # Wait on all processes 
+            
+        # Might as well do a little work here
+        segs_by_id = {segment.seg_id: segment for segment in segments}
+        
+        # Wait on all processes
+        for process in processes: 
             process.join()      
         
         # Get all the segments from the queue
-        segret = list(itertools.chain(*[queue.get() for queue in queues]))
+        propagated_segs = list(itertools.chain(*[queue.get() for queue in queues]))
         
         # Check to make sure we got back what we sent out
         out_ids = set(segment.seg_id for segment in segments)
-        in_ids  = set(segment.seg_id for segment in segret if segment is not None)
+        in_ids  = set(segment.seg_id for segment in propagated_segs if segment is not None)
         assert out_ids == in_ids
         
-        for i in xrange(0,len(segments)):
-            segments[i] = segret[i]            
+        for propagated_seg in propagated_segs:
+            orig_segment = segs_by_id[propagated_seg.seg_id]
+            orig_segment.status = propagated_seg.status
+            orig_segment.walltime = propagated_seg.walltime
+            orig_segment.cputime  = propagated_seg.cputime
+            orig_segment.pcoord[...] = propagated_seg.pcoord[...]
         
 class WorkerProcess(multiprocessing.Process):
     def __init__(self, sim_manager, segments, queue):

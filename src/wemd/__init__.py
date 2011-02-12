@@ -5,7 +5,7 @@ log = logging.getLogger('wemd')
 
 import util, rc, types, propagators, work_managers, data_manager, pcoords, sim_manager, we_driver, systems
 from types import Segment, Particle
-from systems import WEMDSystem
+from systems import WEMDSystem, InitialState, TargetState
 
 version = '0.5'
 

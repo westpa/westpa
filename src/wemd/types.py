@@ -39,19 +39,7 @@ class Segment:
             
     status_text = property((lambda s: s.status_names[s.status]))
     endpoint_type_text = property((lambda s: s.endpoint_type_names[s.endpoint_type]))
-    
-    def update_propagation_data(self, segment):
-        '''Update this segment with propagation data from the given segment object. 
-        Non-propagation data (seg_id, parentage, n_iter, etc.) is IGNORED.'''
-        if segment is self:
-            return
-        else:
-            assert self.seg_id == segment.seg_id            
-        self.status = segment.status
-        self.walltime = segment.walltime
-        self.cputime = segment.cputime
-        self.pcoord[...] = segment.pcoord[...]
-    
+        
 for _attr in (attr for attr in dir(Segment) if attr.startswith('SEG_STATUS_')):
     _val = getattr(Segment, _attr)
     Segment.status_names[_val] = _attr[11:].lower()

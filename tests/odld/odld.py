@@ -2,7 +2,7 @@ from __future__ import division, print_function; __metaclass__ = type
 import os, sys, math, itertools
 import numpy, scipy
 import wemd
-from wemd import Segment, WEMDSystem
+from wemd import Segment, WEMDSystem, InitialState, TargetState
 from wemd.pcoords import PiecewiseRegionSet, ParticleSet, RectilinearRegionSet
 
 import logging
@@ -45,8 +45,12 @@ class ODLDPropagator(wemd.propagators.WEMDPropagator):
 
 class ODLDSystem(WEMDSystem):
     def __init__(self, sim_manager):
-        self.sim_manager = sim_manager
-        
+        super(ODLDSystem,self).__init__(sim_manager)
+
+        self.pcoord_ndim = 1
+        self.pcoord_len = 11
+        self.pcoord_dtype = numpy.float64
+
         # Construct bin regions
         # Divide space into x<0 and x>=0
         self.region_set = PiecewiseRegionSet([(lambda x: x<0), (lambda x: x>=0)])
@@ -63,17 +67,12 @@ class ODLDSystem(WEMDSystem):
         left_target = self.region_set.get_bin_containing([-1.1])
         right_target = self.region_set.get_bin_containing([1.1])
         left_target.target_count = right_target.target_count = 0
-        left_target.label = 'left_target'
-        right_target.label = 'right_target'
         
-        self.target_states = [('left_target', left_target),
-                              ('right_target', right_target)]
+        self.target_states = [TargetState('left_target', left_target),
+                              TargetState('right_target', right_target)]
         
-        self.initial_states = [('left', 0.9, [-0.1], self.region_set.get_bin_containing([-0.1])),
-                                     ('right', 0.1, [0.1], self.region_set.get_bin_containing([0.1]))]
-        self.pcoord_ndim = 1
-        self.pcoord_len = 11
-        self.pcoord_dtype = numpy.float64
+        self.initial_states = [InitialState('left', 0.0, 0.9, [-0.1], self.region_set.get_bin_containing([-0.1])),
+                               InitialState('right', 1.0, 0.1, [0.1], self.region_set.get_bin_containing([0.1]))]
         
 
 

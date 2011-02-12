@@ -428,6 +428,8 @@ class TCPWorkerServer(TCPWorkerBase):
         if self.send_segments(segments) == False:
             raise ValueError('Segments could not be sent')
         
+        
+        segs_by_id = {segment.seg_id: segment for segment in segments}
         new_segments = self.get_segments()
             
         if new_segments is None:
@@ -437,11 +439,20 @@ class TCPWorkerServer(TCPWorkerBase):
         self.start_ping_thread()
                 
         #segments[cid][task#] -> segments[i]
-        segs = [j for k in new_segments for j in k if j is not None]
+        propagated_segments = [j for k in new_segments for j in k if j is not None]
         
-        #update in place
-        for i in xrange(0,len(segments)):
-            segments[i] = segs[i]
+        # Double check that we got back what we sent out
+        assert (set(segment.seg_id for segment in propagated_segments if segment is not None) 
+                == set(segment.seg_id for segment in segments))
+        
+        # Update in place
+        for propagated_seg in propagated_segments:
+            orig_segment = segs_by_id[propagated_seg.seg_id]
+            orig_segment.status = propagated_seg.status
+            orig_segment.walltime = propagated_seg.walltime
+            orig_segment.cputime  = propagated_seg.cputime
+            orig_segment.pcoord[...] = propagated_seg.pcoord[...]
+        
 
     def finalize_iteration(self, n_iter, segments):
         pass

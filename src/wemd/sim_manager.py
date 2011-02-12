@@ -146,8 +146,6 @@ class WESimManager:
                 norm = seg_weights.sum()
                 self.status_stream.write('norm: %g, error in norm: %g\n' % (norm, norm-1))
                 
-                # Index segments for later use
-                segs_by_id = {segment.seg_id : segment for segment in segments}
                 segs_to_run = [segment for segment in segments if segment.status != Segment.SEG_STATUS_COMPLETE]
                 self.status_stream.write('%d of %d segments remain in iteration %d\n' % (len(segs_to_run), len(segments), n_iter))
                 
@@ -222,11 +220,6 @@ class WESimManager:
                     self._propagate(n_iter, segs_to_run)
                 log.info('propagation complete')
                     
-                # There is no guarantee that the segment objects returned from workers are the same as those submitted, 
-                # so update our master segment list appropriately                
-                for segment in segs_to_run:
-                    segs_by_id[segment.seg_id].update_propagation_data(segment)
-
                 self.rtracker.begin('we_prep')
                 # Check to ensure that all segments have been propagated
                 failed_segments = [segment for segment in segments if segment.status != Segment.SEG_STATUS_COMPLETE]
@@ -265,13 +258,13 @@ class WESimManager:
                     for isrc,src in enumerate(self.we_driver.recycle_from):
                         log.debug('isrc=%d, src=%r' % (isrc,src))
                         self.status_stream.write("  {0.count:d} ({0.weight:g} probability) from region {1:d} '{2}'\n"\
-                                                 .format(src,isrc,self.system.target_states[isrc][self.system.TARGET_NAME]))
+                                                 .format(src,isrc,self.system.target_states[isrc].label))
                         
                     for idest, dest in enumerate(self.we_driver.recycle_to):
                         self.status_stream.write(("  {0.count:d} ({0.weight:g} probability,"
                                                   +" {1:%} of recycled particles) to state '{2}'\n")\
                                                  .format(dest, dest.count/n_recycled,
-                                                         self.system.initial_states[idest][self.system.INITDIST_NAME]))
+                                                         self.system.initial_states[idest].label))
                 else:
                     self.status_stream.write('0 particles recycled\n')
         

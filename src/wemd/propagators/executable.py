@@ -187,7 +187,7 @@ class ExecutablePropagator(WEMDPropagator):
             istate = -segment.p_parent_id - 1
             parent_segment = Segment(seg_id = istate,
                                      n_iter = 0)
-            template_args['initial_region_name'] = system.initial_states[istate][system.INITDIST_NAME]
+            template_args['initial_region_name'] = system.initial_states[istate].label
         else:
             # Continuing from another segment
             parent_segment = Segment(seg_id = segment.p_parent_id, n_iter = segment.n_iter - 1)
