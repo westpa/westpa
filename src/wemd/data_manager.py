@@ -223,9 +223,9 @@ class WEMDDataManager:
         #self.flush_backing()
     
     def update_segments(self, n_iter, segments):
-        """Update "mutable" fields (status, endpoint type, pcoord, timings) in the HDF5 file
+        """Update "mutable" fields (status, endpoint type, pcoord, timings, weights) in the HDF5 file
         and update the summary table accordingly.  Note that this DOES NOT update other fields,
-        notably weights and the family tree.
+        notably the family tree.
                 
         Fields updated:
           * status
@@ -233,11 +233,11 @@ class WEMDDataManager:
           * pcoord
           * cputime
           * walltime
-          
+          * weight
+                    
         Fields not updated:
           * seg_id
           * parents
-          * weight
         """
         
         segments = list(segments)
@@ -254,6 +254,8 @@ class WEMDDataManager:
             row['endpoint_type'] = segment.endpoint_type or Segment.SEG_ENDPOINT_TYPE_NOTSET
             row['cputime'] = segment.cputime
             row['walltime'] = segment.walltime
+            row['weight'] = segment.weight
+            
             #log.debug('row: %r' % (row,))
             seg_index_table[seg_id] = row
             

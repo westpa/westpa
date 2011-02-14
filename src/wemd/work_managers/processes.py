@@ -58,7 +58,10 @@ class ProcessWorkManager(WEMDWorkManager):
             segret.extend(queues[i].get())
 
         for i in xrange(0,len(segments)):
-            segments[i] = segret[i]            
+            segments[i] = segret[i]
+
+        for s in segments:
+            print("s:%r s.status:%r"%(s,s.status))                 
         
 class WorkerProcess(multiprocessing.Process):
     def __init__(self, sim_manager, segments, queue):
