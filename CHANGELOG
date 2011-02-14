@@ -1,3 +1,9 @@
+2011-02-14 -- Matt Zwier <mczwier@gmail.com>
+ * Added w_fluxanl tool to perform average flux-into-target analysis with
+   Monte Carlo bootstrap estimates on the error of the mean. Subsumes the
+   critical functionality of current_taudep.py (in wemdtools); omits the
+   plotting features and alternate methods of calculating error bars.
+
 2011-02-12 -- Matt Zwier <mczwier@gmail.com>
  * Formalized requirement that a work manager modifies Segment objects
    in-place WITHOUT changing the Python identity of members of the the list 
