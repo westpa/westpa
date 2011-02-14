@@ -74,7 +74,7 @@ class WEMDDataManager:
     def _get_iter_group_name(self, n_iter):
         return 'iter_%0*d' % (self.iter_prec, n_iter)
     
-    def _get_iter_group(self, n_iter):
+    def get_iter_group(self, n_iter):
         return self.h5file['/iter_%0*d' % (self.iter_prec, n_iter)]
     
     @property
@@ -241,7 +241,7 @@ class WEMDDataManager:
         """
         
         segments = list(segments)
-        iter_group = self._get_iter_group(n_iter)
+        iter_group = self.get_iter_group(n_iter)
         seg_index_table = iter_group['seg_index'][...]
         pcoords = iter_group['pcoord'][...]
         
@@ -265,7 +265,7 @@ class WEMDDataManager:
         iter_group['pcoord'][...] = pcoords
                 
     def get_segments(self, n_iter, status = None, endpoint_type = None):
-        iter_group = self._get_iter_group(n_iter)
+        iter_group = self.get_iter_group(n_iter)
         seg_index_table = iter_group['seg_index'][...]
         pcoords = iter_group['pcoord'][...]
         all_parent_ids = iter_group['parents'][...]
@@ -301,7 +301,7 @@ class WEMDDataManager:
         
     def write_bin_data(self, n_iter, bin_counts, bin_probabilities):
         assert len(bin_counts) == len(bin_probabilities)
-        iter_group = self._get_iter_group(n_iter)
+        iter_group = self.get_iter_group(n_iter)
         bin_count_ds = iter_group.require_dataset('bin_counts', (len(bin_counts),), numpy.uint)
         bin_prob_ds  = iter_group.require_dataset('bin_probs', (len(bin_probabilities),), numpy.float64)
         
@@ -309,7 +309,7 @@ class WEMDDataManager:
         bin_prob_ds[:]  = bin_probabilities
         
     def write_recycling_data(self, n_iter, rec_summary):
-        iter_group = self._get_iter_group(n_iter)
+        iter_group = self.get_iter_group(n_iter)
         rec_data_ds = iter_group.require_dataset('recycling', (len(rec_summary),), dtype=rec_summary_dtype)
         rec_data = numpy.zeros((len(rec_summary),), dtype=rec_summary_dtype)
         for itarget, target in enumerate(rec_summary):

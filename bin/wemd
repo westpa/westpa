@@ -1,0 +1,31 @@
+#!/bin/bash
+
+# If $WEMD_ROOT is not set, then set it based on the path to this script
+if [ -z "$WEMD_ROOT" ]; then
+    export WEMD_ROOT=$(readlink -f $(dirname $0)/..)
+fi
+
+# In the absence of other information, use whatever Python v2.7 is on the path
+if [ -z "$WEMD_PYTHON" ]; then
+    export WEMD_PYTHON=python2.7
+fi
+
+if [ -z "$WEMD_PYTHONPATH" ]; then
+    export WEMD_PYTHONPATH="$WEMD_ROOT/src"
+fi
+
+# Make sure the WEMD Python package can be found, and do a quick and dirty 
+# check to (try to) avoid duplicating something that's already on $PYTHONPATH
+if echo "$PYTHONPATH" | grep -v "$WEMD_PYTHONPATH" ; then
+    if [ -z "$PYTHONPATH" ] ; then
+        export PYTHONPATH="$WEMD_PYTHONPATH"
+    else
+        export PYTHONPATH="$WEMD_PYTHONPATH:$PYTHONPATH"
+    fi
+fi  
+
+# Take the name of the script to execute from the name by which this process
+# is called (i.e. appropriately-named symlinks to this script work).
+SCRIPT=$(basename $0)
+
+exec $WEMD_PYTHON $WEMD_ROOT/lib/cmds/${SCRIPT}_cmd.py "$@"

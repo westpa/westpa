@@ -47,7 +47,10 @@ class ParticleSet(set):
     def count(self):
         """The number of particles in this set"""
         return len(self)
-
+    
+    def __repr__(self):
+        return '<ParticleSet at 0x{id:x}, label={label!r}>'.format(id=id(self), label=self.label)
+    
             
 class RegionSet:    
     def __init__(self):
@@ -160,9 +163,6 @@ class PiecewiseRegionSet(RegionSet):
         region_indices = apred[:,1]
         return region_indices
         
-    
-    
-
 class RectilinearRegionSet(RegionSet):
     """A multidimensional RegionSet divided by rectilinear (interior) boundaries"""
     
@@ -189,15 +189,26 @@ class RectilinearRegionSet(RegionSet):
     def construct_regions(self, boundaries):
         self.ndim = len(boundaries)
         self.region_array = numpy.empty(tuple(len(boundary_entry)-1 for boundary_entry in boundaries), numpy.object_)
+        self.boundaries = [numpy.array(boundary_set) for boundary_set in boundaries]
         
         for index in numpy.ndindex(self.region_array.shape):
-            self.region_array[index] = ParticleSet()
+            bin = ParticleSet()
+
+            # This list comprehension reduces to this:
+            # index is (i_dim0, i_dim1, idim_2, i_dim3, ... )
+            #bounds=[]
+            #for idim in xrange(0,len(index)):
+            #    lb = boundaries[idim][index[idim]]
+            #    ub = boundaries[idim][index[idim]+1]
+            #    bounds.append[(lb,ub)]
+            bounds = [(boundaries[idim][index[idim]], boundaries[idim][index[idim]+1])
+                      for idim in xrange(0,self.ndim)]
+            bin.label = repr(bounds)
+            self.region_array[index] = bin
             
-        # Admittedly not the most memory-efficient, but at least it's quite simple
+        # Admittedly not the most memory-efficient, but at least it's quite simple and fast
         self.indir = numpy.arange(self.region_array.size).reshape(self.region_array.shape)
         
-        self.boundaries = [numpy.array(boundary_set) for boundary_set in boundaries]
-                            
     # The mandated region and target_counts iterables are 1-dimensional, so provide
     # accessors to one-dimensional representations
     @property
@@ -220,7 +231,7 @@ class RectilinearRegionSet(RegionSet):
             if ( (region_indices[:, idim] == len(self.boundaries[idim]))
                 |(region_indices[:, idim] == 0) ).any():
                 # Beyond the bin limits
-                raise ValueError('coord outside of bin space in dimension %d' % idim)
+                raise ValueError('coordinate outside of bin space in dimension %d' % idim)
             # Adjust for how numpy.digitize chooses to return its values
             region_indices[:,idim] -= 1
     

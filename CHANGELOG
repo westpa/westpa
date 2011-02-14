@@ -1,0 +1,50 @@
+2011-02-12 -- Matt Zwier <mczwier@gmail.com>
+ * Formalized requirement that a work manager modifies Segment objects
+   in-place WITHOUT changing the Python identity of members of the the list 
+   submitted to WEMDWorkManager.propagate(segments). That is, if a remote
+   worker returns a Segment object, that new object must be used to update
+   the corresponding segment submitted by the sim manager, NOT replace it.
+ * Process and TCP/IP work managers updated to reflect the above requirement;
+   both work managers test clean with ODLD driver.
+ * Eliminated Segment.update_propagation_data, as it is no longer necessary
+   with the above formally required behavior. 
+ * Simplified and clarified dispatch mechanism in processes work manager.
+ * Added support for separate initial state and recycling (steady) state
+   probabilities.  Tested with ODLD driver. This change requires modification
+   of existing simulation system modules.
+ * Modified wemd.systems.WEMDSystem to support reading initial states from a
+   text file (WEMDSystem.read_initial_states()). Each line represents one 
+   initial state, and must specify the label, the initial probability (the
+   probability that a given replica starts in that state when the simulation is
+   initialized), the recycling probability (the probability that a given 
+   replica is recycled to that state), and the progress coordinate of that
+   state. 
+ * Replaced initial and target state tuples with systems.InitialState and
+   systems.TargetState namedtuples. These should be accessed using field names,
+   not indices, if at all possible; future development may require substitution
+   of more general objects for namedtuples.
+ * Added a "w_ntop" utility, which extracts the top N segments from each bin
+   at a given simulation iteration. Optionally, w_ntop can output an initial
+   states file (see above); thus, w_ntop can be used to populate a new
+   simulation from an existing one.
+ * General cleanup and clarification.
+
+2011-02-11 -- Matt Zwier <mczwier@gmail.com>
+ * Modified tcpip work manager to use the argparse module to parse command-line
+   arguments. Besides providing a help message, this prevents bad options from
+   crashing "wemd run" with cryptic errors.
+ * Changed meaning of -k for tcpip work manager.  Now -k specifies a filename 
+   from which to read the communications key. (So that on multi-user systems, 
+   the key cannot be read from the process table or anything in /proc/<PID>/*.)
+   This key file must not be world-readable and must be between 16 and 512 
+   bytes in length (16 for at least a modicum of security, 512 so that 
+   individual message data isn't mostly the key).
+ * Added --debug-tcp option to tcpip work manager argument parser to switch
+   TCP debugging code on and off without needing to comment/uncomment.
+   Server vs. client specificity is obtained by specifying --debug-tcp only on
+   server or client invocations, respectively.
+ * Modified wemd_cmd.cmd_run exception handler to (attempt) to separate the
+   original exception from any that arises during work_manager.shutdown(). 
+   
+2011-02-11 -- Matt Zwier <mczwier@gmail.com>
+ * Time to start a CHANGELOG.
