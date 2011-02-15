@@ -170,6 +170,8 @@ class WEMDDataManager:
                 elif segment.pcoord.shape != pcoord.shape[1:]:
                     raise ValueError('segment pcoord shape [%r] does not match expected shape [%r]'
                                      % (segment.pcoord.shape, pcoord.shape[1:]))
+                else:
+                    pcoord[seg_id,...] = segment.pcoord
             
 
                 

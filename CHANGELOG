@@ -1,3 +1,9 @@
+2011-02-15 -- Matt Zwier <mczwier@gmail.com>
+ * Fixed bug in data manager where pcoords were not being written for any iteration
+   except the first.  This manifested as broken (i.e. silently failing) restarts,
+   because the progress coordinate data was otherwise handled completely
+   within the sim manager.
+
 2011-02-14 -- Matt Zwier <mczwier@gmail.com>
  * Added w_fluxanl tool to perform average flux-into-target analysis with
    Monte Carlo bootstrap estimates on the error of the mean. Subsumes the
