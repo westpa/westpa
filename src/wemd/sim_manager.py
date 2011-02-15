@@ -221,10 +221,8 @@ class WESimManager:
                 log.info('propagation complete')
                     
                 self.rtracker.begin('we_prep')
-                # Check to ensure that all segments have been propagated
-                for s in segments:
-                    print("s:%r s.status:%r"%(s,s.status))   
-                    
+                
+                # Check to ensure that all segments have been propagated                    
                 failed_segments = [segment for segment in segments if segment.status != Segment.SEG_STATUS_COMPLETE]
                 if failed_segments:
                     self.status_stream.write('Propagation FAILED for %d segments:\n' % len(failed_segments))

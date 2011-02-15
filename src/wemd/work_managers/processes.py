@@ -38,12 +38,11 @@ class ProcessWorkManager(WEMDWorkManager):
             
         # Might as well do a little work here
         segs_by_id = {segment.seg_id: segment for segment in segments}
-        
+       
         # Wait on all processes
         for process in processes: 
             process.join()      
-      
-        
+
         # Get all the segments from the queue
         propagated_segs = list(itertools.chain(*[queue.get() for queue in queues]))
         
@@ -67,6 +66,7 @@ class WorkerProcess(multiprocessing.Process):
         self.queue = queue
         
     def run(self):
+
         propagator = self.sim_manager.propagator
         
         log.debug('propagating %d segments' % len(self.segments))
@@ -81,3 +81,4 @@ class WorkerProcess(multiprocessing.Process):
             
         self.queue.put(self.segments)
         log.debug('propagation complete')
+         

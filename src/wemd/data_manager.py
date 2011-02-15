@@ -76,7 +76,10 @@ class WEMDDataManager:
     
     def get_iter_group(self, n_iter):
         return self.h5file['/iter_%0*d' % (self.iter_prec, n_iter)]
-    
+   
+    def del_iter_group(self, n_iter):
+        del self.h5file['/iter_%0*d' % (self.iter_prec, n_iter)]
+ 
     @property
     def current_iteration(self):
         return self.h5file['/'].attrs['wemd_current_iteration']
