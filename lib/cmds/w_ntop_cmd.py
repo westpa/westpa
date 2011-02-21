@@ -82,7 +82,7 @@ max_ibin_len = int(ceil(log10(len(bins))))
 #max_seg_id_len = int(ceil(log10(abs(max(segment.seg_id for segment in segments)))))
 max_seg_id_len = int(ceil(log10(max(max(segment.seg_id, abs(segment.p_parent_id or 0)) for segment in segments)))) + 1
 max_itop_len = int(ceil(log10(n_replicas)))
-total_prob = sum(top[3] for top in ntop)
+total_prob = sum(top[4] for top in ntop)
 
 if not args.suppress_headers:
     output_file.write('''\
