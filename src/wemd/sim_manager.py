@@ -94,7 +94,9 @@ class WESimManager:
         # Propagate segments            
         self.rtracker.begin('propagation')
         self.flush_status()
+        self.data_manager.close_backing()
         self.work_manager.propagate(segments)
+        self.data_manager.open_backing()
         self.data_manager.update_segments(n_iter, segments)
         self.rtracker.end('propagation')
                     

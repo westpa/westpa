@@ -1,3 +1,7 @@
+2011-02-21 -- Matt Zwier <mczwier@gmail.com>
+ * Added p_parent_id output to w_ntop, to facilitate restarts when the initial
+   state for a given segment is not known.
+
 2011-02-15 -- Matt Zwier <mczwier@gmail.com>
  * Fixed bug in data manager where pcoords were not being written for any iteration
    except the first.  This manifested as broken (i.e. silently failing) restarts,

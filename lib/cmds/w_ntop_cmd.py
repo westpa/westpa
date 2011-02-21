@@ -1,4 +1,5 @@
 from __future__ import division, print_function
+from itertools import chain, starmap, izip
 import os, sys, operator, argparse
 import numpy
 import wemd
@@ -75,21 +76,25 @@ ntop = []
 for (ibin, bin) in enumerate(bins):
     sorted_segs = list(sorted(bin, key=operator.attrgetter('weight')))
     for (iseg, segment) in enumerate(sorted_segs[:n_replicas]):
-        ntop.append( (ibin, iseg, segment.seg_id, segment.weight, tuple(segment.pcoord[0]) ) )
+        ntop.append( (ibin, iseg, long(segment.seg_id), long(segment.p_parent_id), segment.weight, tuple(segment.pcoord[0]) ) )
 
 max_ibin_len = int(ceil(log10(len(bins))))
-max_seg_id_len = int(ceil(log10(max(segment.seg_id for segment in segments))))
+#max_seg_id_len = int(ceil(log10(abs(max(segment.seg_id for segment in segments)))))
+max_seg_id_len = int(ceil(log10(max(max(segment.seg_id, abs(segment.p_parent_id or 0)) for segment in segments)))) + 1
 max_itop_len = int(ceil(log10(n_replicas)))
 total_prob = sum(top[3] for top in ntop)
 
 if not args.suppress_headers:
     output_file.write('''\
+# {n_replicas:d} highest-weight particle(s) for each bin 
+# at beginning of iteration {n_iter:d}
 # column 0:    bin index
 # column 1:    weight rank of segment within bin
 # column 2:    seg_id
-# column 3:    weight
-# columns >=4: pcoord
-''')
+# column 3:    p_parent_id
+# column 4:    weight
+# columns >=5: pcoord
+'''.format(n_replicas = n_replicas, n_iter = n_iter))
     
     if istates_file is not None:
         istates_file.write('''\
@@ -100,12 +105,13 @@ if not args.suppress_headers:
 ''')
 
 for top in ntop:
-    (ibin, itop, seg_id, weight, pcoord) = top
+    (ibin, itop, seg_id, p_parent_id, weight, pcoord) = top
     pcoord_txt = ' '.join('{!r:<24s}'.format(q) for q in pcoord)
     output_file.write(( '{ibin:{max_ibin_len}d}  {itop:{max_itop_len}d}  {seg_id:<{max_seg_id_len}d}'
-                       +'  {weight!r:<24s}  {pcoord_txt}\n')\
+                       +'  {p_parent_id:<{max_seg_id_len}d}  {weight!r:<24s}  {pcoord_txt}\n')\
                       .format(ibin=ibin, itop=itop+1, seg_id=seg_id, weight=weight, pcoord_txt=pcoord_txt,
-                             max_ibin_len=max_ibin_len, max_seg_id_len=max_seg_id_len, max_itop_len=max_itop_len))
+                              p_parent_id=p_parent_id,
+                              max_ibin_len=max_ibin_len, max_seg_id_len=max_seg_id_len, max_itop_len=max_itop_len))
 
     # If requested, write an initial states file
     if istates_file is not None:
