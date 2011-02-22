@@ -6,7 +6,7 @@ import wemd
 from math import ceil, log10
 
 import logging
-log = logging.getLogger('w_binprobs')
+log = logging.getLogger('w_ntop')
 
 parser = wemd.rc.common_arg_parser('w_ntop', description='''Retrieve a number of high-weight replicas from each bin.''')
 parser.add_argument('-N', '--perbin', dest='perbin', type=int,

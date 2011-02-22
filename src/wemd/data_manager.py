@@ -277,17 +277,17 @@ class WEMDDataManager:
             
             segment = Segment(seg_id = seg_id,
                               n_iter = n_iter,
-                              status = row['status'],
-                              n_parents = row['n_parents'],
-                              endpoint_type = row['endpoint_type'],
-                              walltime = row['walltime'],
-                              cputime = row['cputime'],
-                              weight = row['weight'],
+                              status = int(row['status']),
+                              n_parents = int(row['n_parents']),
+                              endpoint_type = int(row['endpoint_type']),
+                              walltime = float(row['walltime']),
+                              cputime = float(row['cputime']),
+                              weight = float(row['weight']),
                               pcoord = pcoords[seg_id])
             
             parent_ids = all_parent_ids[row['parents_offset']:row['parents_offset']+row['n_parents']+1]
-            segment.p_parent_id = parent_ids[0]
-            segment.parent_ids = set(parent_ids)
+            segment.p_parent_id = long(parent_ids[0])
+            segment.parent_ids = set(map(long,parent_ids))
             segments.append(segment)
         return segments
     
