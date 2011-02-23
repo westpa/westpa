@@ -26,18 +26,7 @@ class WEMDWEDriver:
         
         # (count_recycled, probability recycled) lists
         self.recycle_to = list()
-        
-        # Particle objects (not IDs) which were created by the recycling procedure
-        # Note that there is no guarantee that these particles survive split/merge;
-        # this is only to track if the recycling code is working properly
-        self.recycled_particles = set()
-        
-        # IDs of segments which terminate in recycling
-        self.recycle_terminations = set()
-        
-        # IDs of segments which are merged into others
-        self.merge_terminations = set()
-                
+                        
     def run_we(self, segments, region_set):
         '''Run the weighted ensemble algorithm on the given segments, binning on their final
         positions.  The endpoint_type field of each segment is updated appropriately.  Returns the

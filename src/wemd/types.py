@@ -48,26 +48,3 @@ for _attr in (attr for attr in dir(Segment) if attr.startswith('SEG_ENDPOINT_TYP
     Segment.endpoint_type_names[_val] = _attr[18:].lower()    
 
 del _attr, _val
-
-
-class Particle:
-    def __init__(self, p_parent_seg_id = None, parent_seg_ids = None, weight = None, pcoord = None):
-        
-        # The segment which this particle continues
-        self.p_parent_seg_id = p_parent_seg_id
-        
-        # The set of segments which were considered for selecting p_parent_seg_id
-        # Will have one member for simple continuations, for recycling, or for splits
-        # Will have more than one member for merges.
-        self.parent_seg_ids = set(parent_seg_ids or tuple())
-        
-        # The weight of this particle
-        self.weight = weight
-        
-        # The progress coordinate of this particle
-        self.pcoord = numpy.asarray(pcoord)
-                        
-    def __repr__(self):
-        return '<%s(%s) seg_id=%r weight=%r p_parent_id=%r parent_ids=%r>' \
-               % (self.__class__.__name__, hex(id(self)),
-                  self.seg_id, self.weight, self.p_parent_id, tuple(sorted(self.parent_ids)))

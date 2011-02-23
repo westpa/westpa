@@ -1,6 +1,7 @@
 from __future__ import division, print_function
 
 import os, sys, traceback
+from copy import copy
 
 if sys.version_info[0] < 3 and sys.version_info[1] < 7:
     sys.stderr.write('wemd requires at least Python version 2.7\n')
@@ -57,15 +58,20 @@ def cmd_init(sim_manager, args, aux_args):
         sys.exit(1)
 
     # Create initial segments
-    # First assign to bins
+    segments = []
     for (i_istate, istate) in enumerate(system.initial_states):
         # Skip microstates that are for recycling only
         if istate.initial_prob == 0.0: continue
         target_count = istate.bin.target_count
         for i in xrange(0, target_count):
-            istate.bin.add(wemd.Particle(pcoord=istate.pcoord, 
-                                         weight=istate.initial_prob/target_count, 
-                                         p_parent_seg_id=-(i_istate+1)))
+            segment = wemd.Segment(pcoord = system.new_pcoord_array(),
+                                   weight = istate.initial_prob / target_count,
+                                   p_parent_id = -(i_istate+1),
+                                   parent_ids = set([-(i_istate+1)]),
+                                   status = wemd.Segment.SEG_STATUS_PREPARED)
+            segment.pcoord[0] = istate.pcoord
+            istate.bin.add(segment)
+            segments.append(segment)
         sys.stdout.write('%d replicas from initial point %r\n' % (target_count,istate.label))
 
     iprobtot = region_set.weight
@@ -85,16 +91,7 @@ Total target particles: {:d}
     # and division of probability is correct
     assert abs(sim_manager.system.region_set.weight - tiprob) < MACHEPS*sum(bin_occupancies)
     
-    # Now that we're in bins, let's create some segments and commit them to the data manager
-    segments = []
-    for (seg_id, particle) in enumerate(itertools.chain(*all_bins)):
-        segment = wemd.Segment(weight = particle.weight,
-                               pcoord = [particle.pcoord],
-                               p_parent_id = particle.p_parent_seg_id,
-                               parent_ids = set(((particle.p_parent_seg_id),)),
-                               status = wemd.Segment.SEG_STATUS_PREPARED)
-        segments.append(segment)
-            
+    # Send the segments over to the data manager to commit to disk            
     sim_manager.data_manager.prepare_iteration(1, segments, system.pcoord_ndim, system.pcoord_len,
                                                system.pcoord_dtype)
     sim_manager.data_manager.flush_backing()

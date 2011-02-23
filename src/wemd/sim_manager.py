@@ -239,9 +239,9 @@ class WESimManager:
     
                 self.rtracker.begin('we_postprocess')                        
                 
-                # Report recycling statistics            
-                n_recycled = len(self.we_driver.recycled_particles)
-                P_recycled = 0.0            
+                # Report recycling statistics
+                n_recycled = sum(dest.count for dest in self.we_driver.recycle_to)
+                P_recycled = sum(dest.weight for dest in self.we_driver.recycle_to)                            
                 if n_recycled > 0:
                     P_recycled = sum(dest.weight for dest in self.we_driver.recycle_to)
                     self.status_stream.write('%d particles (%g probability) recycled\n' % (n_recycled, P_recycled))
@@ -259,8 +259,7 @@ class WESimManager:
                                                          self.system.initial_states[idest].label))
                 else:
                     self.status_stream.write('0 particles recycled\n')
-        
-                self.status_stream.write('%d trajectories merged\n' % len(self.we_driver.merge_terminations))                        
+                    
                 self.status_stream.write('%d trajectory segments in next iteration\n' % len(next_iter_segments))
                 
                 # Store recycling information in HDF5

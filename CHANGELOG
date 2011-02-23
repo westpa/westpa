@@ -1,3 +1,8 @@
+2011-02-23 -- Matt Zwier <mczwier@gmail.com>
+ * Yesterday's refactoring broke recycling reporting (though not recycling
+   itself); this has been corrected.
+ * Removed last reference to Particle and eliminated the class.
+
 2011-02-22 -- Matt Zwier <mczwier@gmail.com>
  * Completely removed the use of the Particle class from the weighted ensemble
    routines, instead operating on Segment objects.  It's not actually much
