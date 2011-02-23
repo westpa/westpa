@@ -14,6 +14,8 @@ parser.add_argument('-p', '--print-pcoords', dest='print_pcoords', action='store
                     help='print initial and final progress coordinates for each segment')
 parser.add_argument('-i', '--iteration', dest='n_iter', type=int,
                     help='Use data from iteration N_ITER (default: last complete iteration)')
+parser.add_argument('-s', '--segments', dest='seg_ids', type=long, nargs='+',
+                    help='Print only the given SEG_IDS')
 parser.add_argument('-o', '--output', dest='output_file',
                     help='Store output in OUTPUT_FILE (default: write to standard output).',
                     type=argparse.FileType('wt'), default=sys.stdout)
@@ -49,7 +51,10 @@ report_line = ( '{segment.n_iter:d}  {segment.seg_id:{max_seg_id_len}d}  {segmen
                 +'\n')
 pcoord_lines = ('  pcoord[0]  = {init_pcoord}\n  pcoord[-1] = {final_pcoord}'
                 +'\n')
-for (seg_id, segment) in enumerate(segments):    
+
+seg_ids = set(args.seg_ids or [])
+for (seg_id, segment) in enumerate(segments):
+    if seg_ids and seg_id not in seg_ids: continue
     parents_str = '['+', '.join(map(str,sorted(segment.parent_ids)))+']'
     init_pcoord_str = '[' + ', '.join('{pcval:<12.6g}'.format(pcval=pce) for pce in segment.pcoord[0]) + ']'
     final_pcoord_str = '[' + ', '.join('{pcval:<12.6g}'.format(pcval=pce) for pce in segment.pcoord[-1]) + ']'

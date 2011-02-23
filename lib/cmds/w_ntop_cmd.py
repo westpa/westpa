@@ -30,7 +30,7 @@ output_file = args.output_file
 istates_file = args.istates_file
 
 
-wemd.rc.config_logging(args)
+wemd.rc.config_logging(args, tool_logger_name = 'w_ntop')
 runtime_config = wemd.rc.read_config(args.run_config_file)
 runtime_config.update_from_object(args)
 sim_manager = wemd.rc.load_sim_manager(runtime_config)
@@ -74,7 +74,8 @@ for (iseg, bin) in enumerate(bin_assignments):
 # bin index, index_in_bin, seg_id, weight, pcoord
 ntop = []
 for (ibin, bin) in enumerate(bins):
-    sorted_segs = list(sorted(bin, key=operator.attrgetter('weight')))
+    sorted_segs = list(sorted(bin, key=(lambda segment: (segment.weight, segment.seg_id))))
+    log.debug('sorted_segs: {!r}'.format(sorted_segs))
     for (iseg, segment) in enumerate(sorted_segs[:n_replicas]):
         ntop.append( (ibin, iseg, long(segment.seg_id), long(segment.p_parent_id), segment.weight, tuple(segment.pcoord[0]) ) )
 

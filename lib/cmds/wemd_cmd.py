@@ -63,7 +63,9 @@ def cmd_init(sim_manager, args, aux_args):
         if istate.initial_prob == 0.0: continue
         target_count = istate.bin.target_count
         for i in xrange(0, target_count):
-            istate.bin.add(wemd.Particle(pcoord=istate.pcoord, weight=istate.initial_prob/target_count, source_id=i_istate))
+            istate.bin.add(wemd.Particle(pcoord=istate.pcoord, 
+                                         weight=istate.initial_prob/target_count, 
+                                         p_parent_seg_id=-(i_istate+1)))
         sys.stdout.write('%d replicas from initial point %r\n' % (target_count,istate.label))
 
     iprobtot = region_set.weight
@@ -88,8 +90,8 @@ Total target particles: {:d}
     for (seg_id, particle) in enumerate(itertools.chain(*all_bins)):
         segment = wemd.Segment(weight = particle.weight,
                                pcoord = [particle.pcoord],
-                               p_parent_id = -(particle.source_id+1),
-                               parent_ids = set((-(particle.source_id+1),)),
+                               p_parent_id = particle.p_parent_seg_id,
+                               parent_ids = set(((particle.p_parent_seg_id),)),
                                status = wemd.Segment.SEG_STATUS_PREPARED)
         segments.append(segment)
             

@@ -9,7 +9,7 @@ log = logging.getLogger(__name__)
 import wemd
 from wemd.util import extloader
 from wemd.util.rtracker import ResourceTracker, ResourceUsage
-from wemd.types import Segment, Particle
+from wemd.types import Segment
 from wemd.util.miscfn import vgetattr
 
 class WESimManager:
@@ -161,12 +161,9 @@ class WESimManager:
                     target_counts = vgetattr('target_count', bins, numpy.uint)
                     if (bin_counts == 0).all():                
                         log.info('initial iteration for this run; binning on segment initial points')
-                        particles = [Particle(seg_id = segment.seg_id,
-                                              weight = segment.weight,
-                                              pcoord = segment.pcoord[0]) for segment in segments]
-                        for (particle, bin) in izip(particles, 
-                                                    self.system.region_set.map_to_bins(particle.pcoord for particle in particles)):
-                            bin.add(particle)
+                        for (segment, bin) in izip(segments, 
+                                                   self.system.region_set.map_to_bins(segment.pcoord[0] for segment in segments)):
+                            bin.add(segment)
                         bin_counts = vgetattr('count', bins, numpy.uint)
     
                     # Do not include bins with target count zero (e.g. sinks, never-filled bins) in the (non)empty bins statistics
@@ -232,19 +229,12 @@ class WESimManager:
                     raise RuntimeError('propagation failed for %d segments' % len(failed_segments))
                 
                 log.info('running system-specific per-iteration postprocessing')                    
-                self.system.postprocess_iteration(n_iter, segments)
-    
-                # Convert segments into particles representing their endpoints
-                particles = [Particle(seg_id = segment.seg_id,
-                                      weight = segment.weight,
-                                      p_parent_id = None, # NOT the same as a segment's p_parent_id
-                                      parent_ids = set(),
-                                      pcoord = segment.pcoord[-1]) for segment in segments]
+                self.system.postprocess_iteration(n_iter, segments)    
                 self.rtracker.end('we_prep')
                 
                 # Run the weighted ensemble algorithm
                 self.rtracker.begin('we_core')
-                next_iter_particles = self.we_driver.run_we(particles, self.system.region_set)
+                next_iter_segments = self.we_driver.run_we(segments, self.system.region_set)
                 self.rtracker.end('we_core')
     
                 self.rtracker.begin('we_postprocess')                        
@@ -271,7 +261,7 @@ class WESimManager:
                     self.status_stream.write('0 particles recycled\n')
         
                 self.status_stream.write('%d trajectories merged\n' % len(self.we_driver.merge_terminations))                        
-                self.status_stream.write('%d trajectory segments in next iteration\n' % len(next_iter_particles))
+                self.status_stream.write('%d trajectory segments in next iteration\n' % len(next_iter_segments))
                 
                 # Store recycling information in HDF5
                 iter_summary = self.data_manager.get_iter_summary(n_iter)
@@ -279,18 +269,7 @@ class WESimManager:
                 iter_summary['target_hits'] = n_recycled
                 self.data_manager.write_recycling_data(n_iter, self.we_driver.recycle_from)
     
-                # Update segment termination information
-                # Everything continues unless the WE driver tells us otherwise
-                for segment in segments:
-                    segment.endpoint_type = Segment.SEG_ENDPOINT_TYPE_CONTINUES
-                    
-                for seg_id in self.we_driver.recycle_terminations:
-                    segment = segments[seg_id]
-                    segment.endpoint_type = Segment.SEG_ENDPOINT_TYPE_RECYCLED
-                    
-                for seg_id in self.we_driver.merge_terminations:
-                    segments[seg_id].endpoint_type = Segment.SEG_ENDPOINT_TYPE_MERGED
-                
+                # Update current segments; their endpoint types were modified by WE                
                 self.data_manager.update_segments(n_iter, segments)
                 self.data_manager.flush_backing()
                 
@@ -298,41 +277,31 @@ class WESimManager:
                 self.work_manager.finalize_iteration(n_iter, segments)
                 self.rtracker.end('we_postprocess')
                 
-                self.rtracker.begin('prep_next_iter')            
-                new_segments = []
-                for particle in next_iter_particles:
+                self.rtracker.begin('prep_next_iter')
+                # For use in debugging
+                seg_debug_fmt = '\n            '.join(['created segment {segment!r}', 
+                                                 'n_iter: {segment.n_iter}, seg_id: {segment.seg_id}, weight: {segment.weight}',
+                                                 'n_parents: {segment.n_parents}, p_parent_id: {segment.p_parent_id}, '
+                                                 +'parent_ids: {segment.parent_ids!r}',
+                                                 ' pcoord[0]: {init_pcoord!r}',
+                                                 'pcoord[-1]: {final_pcoord!r}'
+                                                 ])
+            
+                log.debug('new segments follow')
+                for new_segment in next_iter_segments:
+                    assert new_segment.weight is not None
+                    assert new_segment.p_parent_id is not None
+                    assert new_segment.parent_ids is not None and new_segment.p_parent_id in new_segment.parent_ids
+                    new_segment.n_iter = n_iter+1
+                    new_segment.status = Segment.SEG_STATUS_PREPARED
+                    new_segment.n_parents = len(new_segment.parent_ids)
+                
                     if log.isEnabledFor(logging.DEBUG):
-                        log.debug('processing particle %r' % particle)
-                    segment = Segment(seg_id = None,
-                                      n_iter = n_iter+1,
-                                      weight = particle.weight,
-                                      status = Segment.SEG_STATUS_PREPARED,
-                                      )
-                    
-                    # Recall that each particle has only one progress coordinate point; we need
-                    # the correctly-shaped array
-                    segment.pcoord = self.system.new_pcoord_array()
-                    segment.pcoord[0,:] = particle.pcoord
-                    
-                    if particle.p_parent_id is None:
-                        # Particle did not result from split or merge, but perhaps (if seg_id is negative) a recycle  
-                        assert len(particle.parent_ids) == 0
-                        assert particle.seg_id is not None
-                        segment.p_parent_id = particle.seg_id
-                        segment.parent_ids = set((particle.seg_id,))
-                    else:
-                        # Particle did result from a split or a merge
-                        assert len(particle.parent_ids) > 0
-                        assert None not in particle.parent_ids
-                        assert particle.seg_id is None
-                        segment.p_parent_id = particle.p_parent_id
-                        segment.parent_ids = set(particle.parent_ids)
-    
-                    segment.n_parents = len(segment.parent_ids)
-                    new_segments.append(segment)
+                        log.debug(seg_debug_fmt.format(segment = new_segment, init_pcoord = segment.pcoord[0],
+                                                       final_pcoord = segment.pcoord[-1]))
                         
                 # Create new iteration group in HDF5            
-                self.data_manager.prepare_iteration(n_iter+1, new_segments, 
+                self.data_manager.prepare_iteration(n_iter+1, next_iter_segments, 
                                                     self.system.pcoord_ndim, self.system.pcoord_len, self.system.pcoord_dtype)
                 self.rtracker.end('prep_next_iter')
                 
@@ -361,7 +330,7 @@ class WESimManager:
                 self.flush_status()
                 
                 # Update segments list for next iteration
-                segments = new_segments                
+                segments = next_iter_segments            
                 
             # end propagation/WE loop
         finally:

@@ -33,9 +33,9 @@ class Segment:
         self.cputime = cputime
 
     def __repr__(self):
-        return '<%s(%s) seg_id=%r weight=%r p_parent_id=%r parent_ids=%r>' \
+        return '<%s(%s) n_iter=%r seg_id=%r weight=%r p_parent_id=%r parent_ids=%r>' \
                % (self.__class__.__name__, hex(id(self)),
-                  self.seg_id, self.weight, self.p_parent_id, tuple(sorted(self.parent_ids)))
+                  self.n_iter, self.seg_id, self.weight, self.p_parent_id, tuple(sorted(self.parent_ids)))
             
     status_text = property((lambda s: s.status_names[s.status]))
     endpoint_type_text = property((lambda s: s.endpoint_type_names[s.endpoint_type]))
@@ -51,21 +51,22 @@ del _attr, _val
 
 
 class Particle:
-    GEN_CONTINUATION = 0
-    GEN_SPLIT = 1
-    GEN_MERGE = 2
-    GEN_RECYCLE = 3
-    
-    def __init__(self, seg_id = None, weight = None, pcoord = None, 
-                 p_parent_id = None, parent_ids = None, source_id = None, genesis = None):
-        self.seg_id = seg_id
-        self.p_parent_id = p_parent_id
-        self.parent_ids = set(parent_ids) if parent_ids else set()
+    def __init__(self, p_parent_seg_id = None, parent_seg_ids = None, weight = None, pcoord = None):
+        
+        # The segment which this particle continues
+        self.p_parent_seg_id = p_parent_seg_id
+        
+        # The set of segments which were considered for selecting p_parent_seg_id
+        # Will have one member for simple continuations, for recycling, or for splits
+        # Will have more than one member for merges.
+        self.parent_seg_ids = set(parent_seg_ids or tuple())
+        
+        # The weight of this particle
         self.weight = weight
+        
+        # The progress coordinate of this particle
         self.pcoord = numpy.asarray(pcoord)
-        self.source_id = source_id
-        self.genesis = genesis
-                
+                        
     def __repr__(self):
         return '<%s(%s) seg_id=%r weight=%r p_parent_id=%r parent_ids=%r>' \
                % (self.__class__.__name__, hex(id(self)),
