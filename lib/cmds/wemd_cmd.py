@@ -145,7 +145,7 @@ parser_run =     subparsers.add_parser('run', help='start/continue a simulation'
 parser_run.add_argument('--oneseg', dest='only_one_segment', action='store_true',
                         help='only propagate one segment (useful for debugging problems in propagators)')
 parser_run.add_argument('--work-manager', dest='work_manager_name', 
-                        help='use the given work manager to propagate segments (e.g. serial, threads, tcpip,'
+                        help='use the given work manager to propagate segments (e.g. serial, threads, processes, tcpip,'
                             +' or name a Python class; default: threads)')
 parser_run.set_defaults(func=cmd_run)
 
