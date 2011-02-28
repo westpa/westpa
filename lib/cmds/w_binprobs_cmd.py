@@ -9,7 +9,7 @@ import wemd
 
 parser = wemd.rc.common_arg_parser()
 parser.add_argument('-o', '--output', dest='output_file', type=argparse.FileType('wt'), default=sys.stdout,
-                    help='Store output in OUTPUT_FILE (default: write to standard output).')
+                    help='Store per-iteration output in OUTPUT_FILE (default: write to standard output).')
 parser.add_argument('-l', '--labels', dest='print_labels', action='store_true',
                     help='Print bin labels (to stdout) corresponding to each column in the output '
                         +'(requires system driver to be available; default: do not print labels)')
@@ -43,4 +43,4 @@ for iiter in xrange(0, max_iter):
     iter_group = sim_manager.data_manager.get_iter_group(iiter+1)
     prob_fields = ['{:<{width}.{precision}g}'.format(prob, width=prob_width, precision=args.precision) 
                    for prob in iter_group['bin_probs'][...]]
-    output_file.write('{0:<{maxwidth}d} {1}\n'.format(iiter+1, ' '.join(prob_fields), maxwidth = max_iter_width))
+    args.output_file.write('{0:<{maxwidth}d} {1}\n'.format(iiter+1, ' '.join(prob_fields), maxwidth = max_iter_width))

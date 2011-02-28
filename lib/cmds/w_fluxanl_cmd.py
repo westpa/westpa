@@ -102,7 +102,7 @@ if not args.suppress_headers:
 # column 3:  upper bound of confidence interval
 # column 4:  width of confidence interval
 # column 5:  relative width of confidence interval (width/average)
-# column 5:  symmetrized error [max(upper - average, average - lower)]
+# column 6:  symmetrized error [max(upper - average, average-lower)]
 '''.format(tau=args.tau, start_iter=start_iter, confidence=confidence, bssize=bssize))
     
 for ub_tau in ub_taus:
@@ -117,11 +117,12 @@ for ub_tau in ub_taus:
     bsmean.sort()
     lb = bsmean[int(floor(bssize*alpha/2))]
     ub = bsmean[int(ceil(bssize*(1-alpha/2)))] 
+    rel_width = (ub-lb)/mean_flux if mean_flux != 0 else 0.0
     
     args.output_file.write(('{ub_tau:<{max_iter_width}d}  {avg_flux:10.6e}  {lb:10.6e}  {ub:10.6e}  '
                             +'{ci_width:10.6e}  {rel_ci_width:<10.6e}  {symm_error:<10.6e}\n')\
                            .format(start_iter = start_iter, ub_tau = ub_tau, avg_flux = mean_flux, lb = lb, ub = ub,
-                                   ci_width = ub-lb, rel_ci_width = (ub-lb)/mean_flux, 
+                                   ci_width = ub-lb, rel_ci_width = rel_width, 
                                    symm_error=max(ub - mean_flux, mean_flux - lb),
                                    max_iter_width=max_iter_width))
     

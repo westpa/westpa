@@ -1,3 +1,10 @@
+2011-02-28 -- Matt Zwier <mczwier@gmail.com>
+ * Added w_avgbinprobs tool, which reports the average population of bins
+   in a simulation along with Monte Carlo bootstrap error bars.  This is most
+   suitable for use in determining simulation convergence, as no attempt is
+   made to account for the global characteristics of the probability
+   distribution (e.g. it may not even sum to unity).
+
 2011-02-23 -- Matt Zwier <mczwier@gmail.com>
  * Yesterday's refactoring broke recycling reporting (though not recycling
    itself); this has been corrected.
