@@ -73,13 +73,13 @@ class WEMDDataManager:
             
     def _get_iter_group_name(self, n_iter):
         return 'iter_%0*d' % (self.iter_prec, n_iter)
-    
+
+    def del_iter(self, n_iter):
+        del self.h5file['/iter_%0*d' % (self.iter_prec, n_iter)]
+
     def get_iter_group(self, n_iter):
         return self.h5file['/iter_%0*d' % (self.iter_prec, n_iter)]
    
-    def del_iter_group(self, n_iter):
-        del self.h5file['/iter_%0*d' % (self.iter_prec, n_iter)]
- 
     @property
     def current_iteration(self):
         return self.h5file['/'].attrs['wemd_current_iteration']
@@ -111,7 +111,8 @@ class WEMDDataManager:
         self.h5file = None
         
     def flush_backing(self):
-        self.h5file.flush()
+        if self.h5file is not None:
+            self.h5file.flush()
                 
     def prepare_iteration(self, n_iter, segments, pcoord_ndim, pcoord_len, pcoord_dtype):
         """Prepare for a new iteration by creating space to store the new iteration's data.
@@ -303,7 +304,10 @@ class WEMDDataManager:
         
     def update_iter_summary(self,n_iter,summary):
         self.h5file[SUMMARY_TABLE][n_iter-1] = summary
-        
+
+    def del_iter_summary(self, min_iter): #delete the iterations starting at min_iter      
+        self.h5file[SUMMARY_TABLE].resize((min_iter - 1,))
+             
     def write_bin_data(self, n_iter, bin_counts, bin_probabilities):
         assert len(bin_counts) == len(bin_probabilities)
         iter_group = self.get_iter_group(n_iter)

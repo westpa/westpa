@@ -129,13 +129,14 @@ class TCPWorkerBase():
     def set_secret_key(self, secret_key):
         self.secret_key = secret_key
 
-    def init_dserver(self, port, nqueue = 1):
+    def init_dserver(self, port, nqueue = 1, use_timeout = True):
         self.debug('init_dserver')
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
         #So server can be restarted quickly
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.sock.settimeout(self.timeout)
+        if use_timeout:
+            self.sock.settimeout(self.timeout)
         self.sock.bind((self.get_local_hostname(), port))
         self.sock.listen(nqueue)
         return self.sock.getsockname()[1] #return the port used
@@ -690,14 +691,13 @@ def propagate_particles(propagator, segments, shutdown_flag, error_flag):
             
         if shutdown_flag.is_set():
             return
-
-    for seg in segments:
-        if seg.status == Segment.SEG_STATUS_FAILED:
-            error_flag.set()
-            shutdown_flag.set()
-            raise ValueError('Segment(s) Failed')
        
-
+        for seg in segments:
+            if seg.status == Segment.SEG_STATUS_FAILED:
+                error_flag.set()
+                shutdown_flag.set()
+                raise ValueError('Segment(s) Failed')
+                
 class TCPWorkerClient(TCPWorkerBase):
     def __init__(self, sim_manager, hostname, secret_key, dport, cport, enable_debug=False):
         super(TCPWorkerClient, self).__init__(sim_manager, hostname, secret_key, dport)
@@ -722,7 +722,7 @@ class TCPWorkerClient(TCPWorkerBase):
         
         log.info('TCPClient runtime init')
 
-        self.cport = self.init_dserver(self.cport) #ie if cport == 0, have the os choose which port to use
+        self.cport = self.init_dserver(self.cport, use_timeout = False) #ie if cport == 0, have the os choose which port to use
         self.get_cid()        
         
         #propagator isn't loaded until after init
@@ -807,7 +807,7 @@ class TCPWorkerClient(TCPWorkerBase):
             
             data_sock.close() #close connection after replying to server
     
-            if self.propagate_particles_complete() == True and self.state == 'busy': #ie segs finished
+            if self.propagate_particles_complete() == True and self.state == 'busy': #ie segs finished                                  
                 self.state = 'data'
 
                 

@@ -94,7 +94,9 @@ class WESimManager:
         # Propagate segments            
         self.rtracker.begin('propagation')
         self.flush_status()
+        self.data_manager.close_backing()
         self.work_manager.propagate(segments)
+        self.data_manager.open_backing()
         self.data_manager.update_segments(n_iter, segments)
         self.rtracker.end('propagation')
                     
@@ -347,9 +349,20 @@ class WESimManager:
                 iter_summary['cputime'] = iter_cputime
                 self.data_manager.update_iter_summary(n_iter, iter_summary)
                 
+                #This may give NaN if starting a truncated simulation
+                try:
+                    walltime = timedelta(seconds=float(iter_summary['walltime']))
+                except ValueError:
+                    walltime = 0.0 
+                
+                try:
+                    cputime = timedelta(seconds=float(iter_summary['cputime']))
+                except ValueError:
+                    cputime = 0.0                     
+                    
                 self.status_stream.write('Iteration wallclock: {0!s}, cputime: {1!s}\n'\
-                                          .format(timedelta(seconds=float(iter_summary['walltime'])),
-                                                  timedelta(seconds=float(iter_summary['cputime']))))
+                                          .format(walltime,
+                                                  cputime))
                 
     
                 # Update HDF5 and flush the status output buffer in preparation for
