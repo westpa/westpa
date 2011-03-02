@@ -43,6 +43,7 @@ class WEMDSystem:
         self.initial_states.append(istate)
         
     def add_target_state(self, label, bin):
+        bin.target_count = 0
         try:
             self.target_states.append(TargetState(label, bin))
         except AttributeError:

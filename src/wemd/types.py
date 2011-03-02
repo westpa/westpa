@@ -33,9 +33,9 @@ class Segment:
         self.cputime = cputime
 
     def __repr__(self):
-        return '<%s(%s) seg_id=%r weight=%r p_parent_id=%r parent_ids=%r>' \
+        return '<%s(%s) n_iter=%r seg_id=%r weight=%r p_parent_id=%r parent_ids=%r>' \
                % (self.__class__.__name__, hex(id(self)),
-                  self.seg_id, self.weight, self.p_parent_id, tuple(sorted(self.parent_ids)))
+                  self.n_iter, self.seg_id, self.weight, self.p_parent_id, tuple(sorted(self.parent_ids)))
             
     status_text = property((lambda s: s.status_names[s.status]))
     endpoint_type_text = property((lambda s: s.endpoint_type_names[s.endpoint_type]))
@@ -48,25 +48,3 @@ for _attr in (attr for attr in dir(Segment) if attr.startswith('SEG_ENDPOINT_TYP
     Segment.endpoint_type_names[_val] = _attr[18:].lower()    
 
 del _attr, _val
-
-
-class Particle:
-    GEN_CONTINUATION = 0
-    GEN_SPLIT = 1
-    GEN_MERGE = 2
-    GEN_RECYCLE = 3
-    
-    def __init__(self, seg_id = None, weight = None, pcoord = None, 
-                 p_parent_id = None, parent_ids = None, source_id = None, genesis = None):
-        self.seg_id = seg_id
-        self.p_parent_id = p_parent_id
-        self.parent_ids = set(parent_ids) if parent_ids else set()
-        self.weight = weight
-        self.pcoord = numpy.asarray(pcoord)
-        self.source_id = source_id
-        self.genesis = genesis
-                
-    def __repr__(self):
-        return '<%s(%s) seg_id=%r weight=%r p_parent_id=%r parent_ids=%r>' \
-               % (self.__class__.__name__, hex(id(self)),
-                  self.seg_id, self.weight, self.p_parent_id, tuple(sorted(self.parent_ids)))

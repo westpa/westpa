@@ -160,11 +160,13 @@ class WEMDDataManager:
             if log.isEnabledFor(logging.DEBUG):
                 log.debug('processing segment %r' % segment)
                 log.debug('assigning seg_id=%r' % seg_id)
+            if segment.seg_id is not None:
+                assert segment.seg_id == seg_id
             assert segment.p_parent_id is not None
             segment.seg_id = seg_id
             seg_index_table[seg_id]['status'] = segment.status
             seg_index_table[seg_id]['weight'] = segment.weight
-            seg_index_table[seg_id]['n_parents'] = len(segment.parent_ids) if segment.parent_ids else 1
+            seg_index_table[seg_id]['n_parents'] = len(segment.parent_ids)
 
             # Assign progress coordinate if any exists
             if segment.pcoord is not None:
@@ -202,22 +204,24 @@ class WEMDDataManager:
                 offset = offsets[iseg]
                 extent = extents[iseg]
                 assert extent == len(segment.parent_ids)
-                #log.debug('segment %d has %d parent(s): %r'  % (iseg, extent, tuple(sorted(segment.parent_ids))))
-                if extent == 0: continue
+                assert extent > 0
+                assert None not in segment.parent_ids
+                assert segment.p_parent_id in segment.parent_ids
+                log.debug('segment {!r} has {!r} parent(s): {!r}'.format(segment, extent, segment.parent_ids))
                 
                 # Ensure that the primary parent is first in the list
-                # If any parent is None, indicating that a recycled particle was merged in and selected as
-                # the initial position of a segment, store -1 to indicate this
-                assert segment.p_parent_id in segment.parent_ids
-                parents[offset] = segment.p_parent_id if segment.p_parent_id is not None else -1
-                segment.parent_ids.remove(segment.p_parent_id)
-                if None in segment.parent_ids:
-                    segment.parent_ids.remove(None)
-                    segment.parent_ids.add(-1)
-                if extent == 2:
-                    parents[offset+1] = segment.parent_ids.pop()
-                else: # extent > 2:
-                    parents[offset+1:offset+extent] = list(segment.parent_ids)
+                parents[offset] = segment.p_parent_id                
+                if extent > 1:
+                    parent_ids = set(segment.parent_ids)
+                    parent_ids.remove(segment.p_parent_id)
+                    parent_ids = list(sorted(parent_ids))
+                    if extent == 2:
+                        assert len(parent_ids) == 1
+                        parents[offset+1] = parent_ids[0]
+                    else:
+                        parents[offset+1:offset+extent] = parent_ids
+                assert set(parents[offset:offset+extent]) == segment.parent_ids
+                log.debug('HDF5 data for parents: {!r}'.format(parents[offset:offset+extent]))
             
             parents_ds[:] = parents                    
 
@@ -277,23 +281,31 @@ class WEMDDataManager:
         all_parent_ids = iter_group['parents'][...]
         
         segments = []
+        debug_logging = log.isEnabledFor(logging.DEBUG)
         for (seg_id, row) in enumerate(seg_index_table):
             if status is not None and row['status'] != status: continue
             if endpoint_type is not None and row['endpoint_type'] != endpoint_type: continue
-            
+            parents_offset = row['parents_offset']
+            n_parents = row['n_parents']
+            # the int() and float() calls are required so that new-style string formatting doesn't barf
+            # assuming that the respective fields are actually strings, probably after implicitly 
+            # calling __str__() on them.  Not sure if this is a numpy or an h5py problem
             segment = Segment(seg_id = seg_id,
                               n_iter = n_iter,
-                              status = row['status'],
-                              n_parents = row['n_parents'],
-                              endpoint_type = row['endpoint_type'],
-                              walltime = row['walltime'],
-                              cputime = row['cputime'],
-                              weight = row['weight'],
+                              status = int(row['status']),
+                              n_parents = int(n_parents),
+                              endpoint_type = int(row['endpoint_type']),
+                              walltime = float(row['walltime']),
+                              cputime = float(row['cputime']),
+                              weight = float(row['weight']),
                               pcoord = pcoords[seg_id])
-            
-            parent_ids = all_parent_ids[row['parents_offset']:row['parents_offset']+row['n_parents']+1]
-            segment.p_parent_id = parent_ids[0]
-            segment.parent_ids = set(parent_ids)
+            parent_ids = all_parent_ids[parents_offset:parents_offset+n_parents]
+            segment.p_parent_id = long(parent_ids[0])
+            segment.parent_ids = set(map(long,parent_ids))
+            if debug_logging:
+                log.debug('reconstructed segment {segment!r} (n_parents: {n_parents}, parents_offset: {parents_offset})'\
+                          .format(segment=segment, n_parents=n_parents, parents_offset=parents_offset))
+            assert len(segment.parent_ids) == n_parents
             segments.append(segment)
         return segments
     

@@ -93,7 +93,7 @@ class ExecutablePropagator(WEMDPropagator):
                         
     def makepath(self, template, template_args = None,
                   expanduser = True, expandvars = True, abspath = False, realpath = False):
-        log.debug('formatting path {!r} with arguments {!r}'.format(template, template_args))
+        #log.debug('formatting path {!r} with arguments {!r}'.format(template, template_args))
         path = template.format(**template_args)
         if expandvars: path = os.path.expandvars(path)
         if expanduser: path = os.path.expanduser(path)
@@ -135,7 +135,6 @@ class ExecutablePropagator(WEMDPropagator):
                 log.debug('redirecting standard error to %r' % stderr_path)
                 stderr = open(stderr_path, 'wb')
                     
-        log.debug('launching %s executable %r' % (child_type, exename))
         pid = os.fork()
         if pid:
             # in parent process
@@ -193,11 +192,11 @@ class ExecutablePropagator(WEMDPropagator):
             parent_segment = Segment(seg_id = segment.p_parent_id, n_iter = segment.n_iter - 1)
 
         template_args['parent'] = parent_segment
-        log.debug('template args: %r' % template_args)
-        log.debug('segment fields: %r' % {k: v for k,v in template_args['segment'].__dict__.viewitems()
-                                          if not k.startswith('_')})
-        log.debug('parent fields: %r' % {k: v for k,v in template_args['parent'].__dict__.viewitems()
-                                          if not k.startswith('_')})
+        #log.debug('template args: %r' % template_args)
+        #log.debug('segment fields: %r' % {k: v for k,v in template_args['segment'].__dict__.viewitems()
+        #                                  if not k.startswith('_')})
+        #log.debug('parent fields: %r' % {k: v for k,v in template_args['parent'].__dict__.viewitems()
+        #                                  if not k.startswith('_')})
         
         return template_args
     

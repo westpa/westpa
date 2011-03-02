@@ -43,7 +43,7 @@ def common_arg_parser(prog=None,description=None):
     parser.add_argument('--version', action='version', version='WEMD version %s' % wemd.version)
     return parser
 
-def config_logging(args):
+def config_logging(args, tool_logger_name = None):
     import logging.config
     logging_config = {'version': 1, 'incremental': False,
                       'formatters': {'standard': {'format': '  -- %(levelname)-8s -- %(message)s'},
@@ -58,6 +58,9 @@ def config_logging(args):
                                   'wemd_cli': {'handlers': ['console'], 'propagate': False}},
                       'root': {'handlers': ['console']}}
     
+    if tool_logger_name:
+        logging_config['loggers'][tool_logger_name] = {'handlers': ['console'], 'propagate': False}
+        
     if args.debug_mode:
         logging_config['root']['level'] = 'DEBUG'
         logging_config['handlers']['console']['formatter'] = 'debug'
@@ -115,7 +118,7 @@ def default_cmdline_dispatch(func, args, kwargs, cmdline_args, log):
         import logging
         log.error(str(e))
         sys.stderr.write('ERROR: {!s}\n'.format(e))
-        if log.isEnabledFor(logging.DEBUG):
+        if log.isEnabledFor(logging.INFO):
             import traceback
             traceback.print_exc()
         sys.exit(1)

@@ -207,7 +207,7 @@ class RectilinearRegionSet(RegionSet):
             self.region_array[index] = bin
             
         # Admittedly not the most memory-efficient, but at least it's quite simple and fast
-        self.indir = numpy.arange(self.region_array.size).reshape(self.region_array.shape)
+        self.indir = numpy.arange(self.region_array.size,dtype=numpy.uintp).reshape(self.region_array.shape)
         
     # The mandated region and target_counts iterables are 1-dimensional, so provide
     # accessors to one-dimensional representations
@@ -224,8 +224,7 @@ class RectilinearRegionSet(RegionSet):
         assert coords.ndim == 2
         assert coords.shape[1] == self.ndim
         region_indices = numpy.empty(coords.shape, numpy.uintp)
-        flat_indices = numpy.empty(len(coords,), numpy.uintp)
-                
+           
         for idim in xrange(0, self.ndim):
             region_indices[:,idim] = numpy.digitize(coords[:,idim], self.boundaries[idim])
             if ( (region_indices[:, idim] == len(self.boundaries[idim]))
@@ -237,8 +236,11 @@ class RectilinearRegionSet(RegionSet):
     
         # We now have an array of n-dimensional indices into our bin space, with each row corresponding to
         # one entry in coords. Now map the multidimensional indices to flat indices.
+        # Fancy indexing is less clear, and doesn't gain much speed, so the following explicit loop
+        # explains things pretty well.
         indir = self.indir
+        flat_indices = numpy.empty(len(coords,), numpy.uintp)
         for icoord in xrange(0, len(coords)):
             flat_indices[icoord] = indir[tuple(region_indices[icoord])]
-        
         return flat_indices
+        
