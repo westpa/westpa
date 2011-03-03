@@ -50,13 +50,13 @@ def cmd_init(sim_manager, args, aux_args):
         trprob += istate.recycle_prob
 
     MACHEPS = numpy.finfo(numpy.float64).eps
-    if abs(1.0 - tiprob) > MACHEPS*len(system.initial_states):
+    if abs(1.0 - tiprob) > args.ptol:
         sys.stderr.write('Initial probabilities do not sum to one.')
         sys.exit(1)
-    if abs(1.0 - trprob) > MACHEPS*len(system.initial_states):
+    if abs(1.0 - trprob) > args.ptol:
         sys.stderr.write('Recycle probabilities do not sum to one.')
         sys.exit(1)
-
+    
     # Create initial segments
     segments = []
     for (i_istate, istate) in enumerate(system.initial_states):
@@ -139,6 +139,8 @@ subparsers = parser.add_subparsers()
 parser_init =    subparsers.add_parser('init', help='initialize a new simulation')
 parser_init.add_argument('--force', dest='force', action='store_true',
                          help='overwrite any existing simulation data')
+parser_init.add_argument('--ptol', dest='ptol', type=float, default=1.0e-8,
+                         help='tolerance for sum of initial/recycle probabilities (default: 1.0e-8)')
 parser_init.set_defaults(func=cmd_init)
 
 parser_run =     subparsers.add_parser('run', help='start/continue a simulation')

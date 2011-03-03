@@ -7,7 +7,7 @@ import cPickle as pickle
 
 from wemd.work_managers import WEMDWorkManager
 
-from wemd.types import Segment
+from wemd import Segment
 
 import logging
 log = logging.getLogger(__name__)

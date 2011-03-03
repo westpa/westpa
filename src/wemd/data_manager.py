@@ -14,7 +14,7 @@ import logging
 log = logging.getLogger(__name__)
 
 from wemd.util.miscfn import vattrgetter
-from wemd.types import Segment
+from wemd import Segment
 
 file_format_version = 1
 SUMMARY_TABLE = 'summary'

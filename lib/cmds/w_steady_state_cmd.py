@@ -7,7 +7,7 @@ log = logging.getLogger('w_steady_state')
 import argparse
 
 import wemd
-from wemd.types import Segment
+from wemd import Segment
 import numpy, operator, itertools
 from itertools import izip
 

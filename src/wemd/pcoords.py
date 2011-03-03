@@ -1,6 +1,8 @@
-from __future__ import division; __metaclass__ = type
+from __future__ import division, print_function; __metaclass__ = type
 
 import numpy, operator
+import logging
+log = logging.getLogger(__name__)
 
 weight_getter = numpy.frompyfunc(operator.attrgetter('weight'), 1, 1)
 count_getter = numpy.frompyfunc(operator.attrgetter('count'), 1, 1)
@@ -185,7 +187,7 @@ class RectilinearRegionSet(RegionSet):
         
         if boundaries is not None:
             self.construct_regions(boundaries)
-                        
+                                
     def construct_regions(self, boundaries):
         self.ndim = len(boundaries)
         self.region_array = numpy.empty(tuple(len(boundary_entry)-1 for boundary_entry in boundaries), numpy.object_)
@@ -224,23 +226,32 @@ class RectilinearRegionSet(RegionSet):
         assert coords.ndim == 2
         assert coords.shape[1] == self.ndim
         region_indices = numpy.empty(coords.shape, numpy.uintp)
-           
+        flat_indices   = numpy.zeros((len(coords),), numpy.uintp)
+        
+        # flat iterators, like self.regions, always index in C order
+        # this sets up the ordering
+        extents = numpy.ones((self.region_array.ndim,), numpy.uintp)
+        extents[:-1] = numpy.cumprod(self.region_array.shape[::-1])[:-1][::-1]
+        
         for idim in xrange(0, self.ndim):
             region_indices[:,idim] = numpy.digitize(coords[:,idim], self.boundaries[idim])
             if ( (region_indices[:, idim] == len(self.boundaries[idim]))
                 |(region_indices[:, idim] == 0) ).any():
                 # Beyond the bin limits
                 raise ValueError('coordinate outside of bin space in dimension %d' % idim)
+            
             # Adjust for how numpy.digitize chooses to return its values
             region_indices[:,idim] -= 1
-    
-        # We now have an array of n-dimensional indices into our bin space, with each row corresponding to
-        # one entry in coords. Now map the multidimensional indices to flat indices.
-        # Fancy indexing is less clear, and doesn't gain much speed, so the following explicit loop
-        # explains things pretty well.
-        indir = self.indir
-        flat_indices = numpy.empty(len(coords,), numpy.uintp)
-        for icoord in xrange(0, len(coords)):
-            flat_indices[icoord] = indir[tuple(region_indices[icoord])]
+            flat_indices += region_indices[:,idim]*extents[idim]
+                        
         return flat_indices
         
+if __name__ == '__main__':
+    regions = RectilinearRegionSet([[-2,-1,0,1,2],[-2,-1,0,1,2],[-2,-1,0,1,2]])
+    
+    coords = -4*numpy.random.random(size=(10,3)) + 2
+    indices = regions.map_to_indices(coords)
+    
+    for (coord, index) in zip(coords,indices):
+        print('coords:', coord, 'index:', index, 'bin:', regions.regions[index])
+    

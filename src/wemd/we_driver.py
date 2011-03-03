@@ -10,7 +10,7 @@ import random
 
 from collections import namedtuple
 from wemd.util.miscfn import vgetattr
-from wemd.types import Segment
+from wemd import Segment
 
 RecyclingInfo = namedtuple('RecyclingInfo', ['count', 'weight'])
 

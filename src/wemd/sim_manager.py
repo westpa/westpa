@@ -9,7 +9,7 @@ log = logging.getLogger(__name__)
 import wemd
 from wemd.util import extloader
 from wemd.util.rtracker import ResourceTracker, ResourceUsage
-from wemd.types import Segment
+from wemd import Segment
 from wemd.util.miscfn import vgetattr
 
 class WESimManager:
