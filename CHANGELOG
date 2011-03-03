@@ -6,6 +6,13 @@
  * Tripled bin assignment throughput by directly converting n-dimensional
    indices to flat indices without going through any list comprehensions
    or lookups.
+ * Increased transition time analysis throughput between 3- and 6-fold
+   by rewriting as much of the sequential processing as numpy vectorized
+   operations as possible.  (3-fold improvement reflects tracking and
+   writing all transitions and bin lifetimes; 6-fold improvement reflects
+   tracking and reporting only event durations.)  Combined with the bin
+   assignment speedup, transition time analysis throughput is increased
+   9- to 17-fold. 
 
 2011-02-28 -- Matt Zwier <mczwier@gmail.com>
  * Added w_avgbinprobs tool, which reports the average population of bins
