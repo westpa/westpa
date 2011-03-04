@@ -1,3 +1,11 @@
+2011-03-04 -- Matt Zwier <mczwier@gmail.com>
+ * Updated trajectory tree walker for HDF5 storage. Relatively aggressive
+   reads and caching were necessary to minimize HDF5 overhead.  
+ * Added w_sqlite2hdf5 tool to convert old SQLite databases into the new HDF5
+   format.  Most data is there, but user-supplied data (in the 'data' members
+   of DB objects) and the target_hits column of the iteration summary table are
+   not available.
+
 2011-03-02 -- Matt Zwier <mczwier@gmail.com>
  * Added --ptol option to wemd init to allow for an initial probability
    distribution that doesn't sum *exactly* to one.

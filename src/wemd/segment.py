@@ -1,5 +1,6 @@
 __metaclass__ = type
 import numpy
+from math import isnan
 
 class Segment:
     SEG_STATUS_UNSET = None
@@ -20,14 +21,21 @@ class Segment:
                  n_parents = None, p_parent_id = None, parent_ids = None,
                  endpoint_type = None, weight = None, pcoord = None, walltime = None,
                  cputime = None):
-        self.n_iter = n_iter
-        self.seg_id = seg_id
-        self.status = status
-        self.p_parent_id = p_parent_id
-        self.parent_ids = set(parent_ids) if parent_ids else set()
-        self.n_parents = n_parents or len(self.parent_ids)
-        self.endpoint_type = endpoint_type
-        self.weight = weight
+        # NaNs appear sometimes if a WEMD program is terminated unexpectedly; replace with zero
+        walltime = 0.0 if walltime is None or isnan(walltime) else walltime
+        cputime  = 0.0 if cputime  is None or isnan(cputime)  else cputime
+        
+        # the int() and float() calls are required so that new-style string formatting doesn't barf
+        # assuming that the respective fields are actually strings, probably after implicitly 
+        # calling __str__() on them.  Not sure if this is a numpy, h5py, or python problem
+        self.n_iter = int(n_iter)  if n_iter is not None else None
+        self.seg_id = long(seg_id) if seg_id is not None else None
+        self.status = int(status)  if status is not None else None
+        self.p_parent_id = long(p_parent_id) if p_parent_id is not None else None
+        self.parent_ids = set(map(long,parent_ids)) if parent_ids else set()
+        self.n_parents = int(n_parents) if n_parents else len(self.parent_ids)
+        self.endpoint_type = int(endpoint_type) if endpoint_type is not None else None
+        self.weight = float(weight) if weight is not None else None
         self.pcoord = numpy.asarray(pcoord) if pcoord is not None else None
         self.walltime = walltime
         self.cputime = cputime

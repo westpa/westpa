@@ -55,6 +55,7 @@ def config_logging(args, tool_logger_name = None):
                                                'stream': 'ext://sys.stdout',
                                                'formatter': 'standard'}},
                       'loggers': {'wemd': {'handlers': ['console'], 'propagate': False},
+                                  'wemdtools': {'handlers': ['console'], 'propagate': False},
                                   'wemd_cli': {'handlers': ['console'], 'propagate': False}},
                       'root': {'handlers': ['console']}}
     

@@ -1,5 +1,4 @@
 from __future__ import division, print_function
-import os, sys, argparse
 
 import logging
 log = logging.getLogger('w_truncate')
@@ -7,7 +6,8 @@ log = logging.getLogger('w_truncate')
 import wemd
 
 parser = wemd.rc.common_arg_parser()
-parser.add_argument('-n', '--iter', dest='iter', default=None, help='Truncate after this iteration (by default remove the last iteration)')
+parser.add_argument('-n', '--iter', dest='iter', default=None, 
+                    help='Truncate after this iteration (by default remove the last iteration)')
 
 args = parser.parse_args()
 
@@ -26,7 +26,7 @@ else:
     iter = int(args.iter)
 
 for i in xrange(iter, max_iter + 1):
-    dm.del_iter(i)
+    dm.del_iter_group(i)
 
 dm.del_iter_summary(iter)
 sim_manager.data_manager.current_iteration = iter - 1

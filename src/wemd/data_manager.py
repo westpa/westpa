@@ -1,14 +1,15 @@
 """
 HDF5 data manager for WEMD.
 
-Original specifications: Matt Zwier
 Original HDF5 implementation: Joe Kaus
 Current implementation: Matt Zwier
 """
 from __future__ import division; __metaclass__ = type
-
+from itertools import imap
 import numpy
 import h5py
+
+from wemd.util.rtracker import ResourceTracker
 
 import logging
 log = logging.getLogger(__name__)
@@ -70,11 +71,13 @@ class WEMDDataManager:
         # A few functions for extracting vectors of attributes from vectors of segments
         self._attrgetters = dict((key, vattrgetter(key)) for key in 
                                  ('seg_id', 'status', 'endpoint_type', 'weight', 'walltime', 'cputime'))
+        
+        self.rtracker = ResourceTracker()
             
     def _get_iter_group_name(self, n_iter):
         return 'iter_%0*d' % (self.iter_prec, n_iter)
 
-    def del_iter(self, n_iter):
+    def del_iter_group(self, n_iter):
         del self.h5file['/iter_%0*d' % (self.iter_prec, n_iter)]
 
     def get_iter_group(self, n_iter):
@@ -88,9 +91,9 @@ class WEMDDataManager:
     def current_iteration(self, n_iter):
         self.h5file['/'].attrs['wemd_current_iteration'] = n_iter
         
-    def open_backing(self):
+    def open_backing(self, mode=None):
         if not self.h5file:
-            self.h5file = h5py.File(self.sim_manager.runtime_config['data.h5file'])
+            self.h5file = h5py.File(self.sim_manager.runtime_config['data.h5file'], mode=mode)
         
     def prepare_backing(self):
         self.open_backing()
@@ -178,9 +181,7 @@ class WEMDDataManager:
                                      % (segment.pcoord.shape, pcoord.shape[1:]))
                 else:
                     pcoord[seg_id,...] = segment.pcoord
-            
-
-                
+                    
         # family tree is stored as two things: a big vector of ints containing parent seg_ids, 
         # and an index (into this vector) and extent pair
         
@@ -228,9 +229,38 @@ class WEMDDataManager:
         # Since we accumulated many of these changes in RAM (and not directly in HDF5), propagate
         # the changes out to HDF5
         seg_index_table_ds[:] = seg_index_table
-
         pcoord_ds[...] = pcoord
-        #self.flush_backing()
+    
+    def get_iter_summary(self,n_iter):
+        summary_row = numpy.zeros((1,), dtype=summary_table_dtype)
+        summary_row[:] = self.h5file[SUMMARY_TABLE][n_iter-1]
+        return summary_row
+        
+    def update_iter_summary(self,n_iter,summary):
+        self.h5file[SUMMARY_TABLE][n_iter-1] = summary
+
+    def del_iter_summary(self, min_iter): #delete the iterations starting at min_iter      
+        self.h5file[SUMMARY_TABLE].resize((min_iter - 1,))
+             
+    def write_bin_data(self, n_iter, bin_counts, bin_probabilities):
+        assert len(bin_counts) == len(bin_probabilities)
+        iter_group = self.get_iter_group(n_iter)
+        bin_count_ds = iter_group.require_dataset('bin_counts', (len(bin_counts),), numpy.uint)
+        bin_prob_ds  = iter_group.require_dataset('bin_probs', (len(bin_probabilities),), numpy.float64)
+        
+        bin_count_ds[:] = bin_counts
+        bin_prob_ds[:]  = bin_probabilities
+        
+    def write_recycling_data(self, n_iter, rec_summary):
+        iter_group = self.get_iter_group(n_iter)
+        rec_data_ds = iter_group.require_dataset('recycling', (len(rec_summary),), dtype=rec_summary_dtype)
+        rec_data = numpy.zeros((len(rec_summary),), dtype=rec_summary_dtype)
+        for itarget, target in enumerate(rec_summary):
+            count, weight = target
+            rec_data[itarget]['count'] = count
+            rec_data[itarget]['weight'] = weight
+        rec_data_ds[...] = rec_data
+    
     
     def update_segments(self, n_iter, segments):
         """Update "mutable" fields (status, endpoint type, pcoord, timings, weights) in the HDF5 file
@@ -273,71 +303,123 @@ class WEMDDataManager:
         
         iter_group['seg_index'][...] = seg_index_table
         iter_group['pcoord'][...] = pcoords
-                
-    def get_segments(self, n_iter, status = None, endpoint_type = None):
+                        
+    def get_segments(self, n_iter):
+        '''Return the segments from a given iteration.  This function is optimized for the 
+        case of retrieving (nearly) all segments for a given iteration as quickly as possible, 
+        and as such effectively loads all data for the given iteration into memory (which
+        is what is currently required for running a WE iteration).'''
+        
         iter_group = self.get_iter_group(n_iter)
         seg_index_table = iter_group['seg_index'][...]
         pcoords = iter_group['pcoord'][...]
         all_parent_ids = iter_group['parents'][...]
         
         segments = []
-        debug_logging = log.isEnabledFor(logging.DEBUG)
         for (seg_id, row) in enumerate(seg_index_table):
-            if status is not None and row['status'] != status: continue
-            if endpoint_type is not None and row['endpoint_type'] != endpoint_type: continue
             parents_offset = row['parents_offset']
-            n_parents = row['n_parents']
-            # the int() and float() calls are required so that new-style string formatting doesn't barf
-            # assuming that the respective fields are actually strings, probably after implicitly 
-            # calling __str__() on them.  Not sure if this is a numpy or an h5py problem
+            n_parents = row['n_parents']            
             segment = Segment(seg_id = seg_id,
                               n_iter = n_iter,
-                              status = int(row['status']),
-                              n_parents = int(n_parents),
-                              endpoint_type = int(row['endpoint_type']),
-                              walltime = float(row['walltime']),
-                              cputime = float(row['cputime']),
-                              weight = float(row['weight']),
+                              status = row['status'],
+                              n_parents = n_parents,
+                              endpoint_type = row['endpoint_type'],
+                              walltime = row['walltime'],
+                              cputime = row['cputime'],
+                              weight = row['weight'],
                               pcoord = pcoords[seg_id])
             parent_ids = all_parent_ids[parents_offset:parents_offset+n_parents]
             segment.p_parent_id = long(parent_ids[0])
-            segment.parent_ids = set(map(long,parent_ids))
-            if debug_logging:
-                log.debug('reconstructed segment {segment!r} (n_parents: {n_parents}, parents_offset: {parents_offset})'\
-                          .format(segment=segment, n_parents=n_parents, parents_offset=parents_offset))
+            segment.parent_ids = set(imap(long,parent_ids))
             assert len(segment.parent_ids) == n_parents
             segments.append(segment)
         return segments
     
-    def get_iter_summary(self,n_iter):
-        summary_row = numpy.zeros((1,), dtype=summary_table_dtype)
-        summary_row[:] = self.h5file[SUMMARY_TABLE][n_iter-1]
-        return summary_row
+    def get_segments_by_id(self, n_iter, seg_ids):
+        if len(seg_ids) == 0: return []
         
-    def update_iter_summary(self,n_iter,summary):
-        self.h5file[SUMMARY_TABLE][n_iter-1] = summary
+        with self.rtracker.tracking('gsid_get_group'):
+            iter_group = self.get_iter_group(n_iter)
+        with self.rtracker.tracking('gsid_get_seg_index'):
+            seg_index = iter_group['seg_index'][...]
+        with self.rtracker.tracking('gsid_get_pcoord_ds'):
+            pcoord_ds = iter_group['pcoord']
+        #pcoords = iter_group['pcoord'][...]
+        with self.rtracker.tracking('gsid_get_parent_ids'):
+            all_parent_ids = iter_group['parents'][...] 
+        
+        with self.rtracker.tracking('gsid_construct_segs'):
+            segments = []
+            seg_ids = list(seg_ids)
+            for seg_id in seg_ids:
+                row = seg_index[seg_id]
+                parents_offset = row['parents_offset']
+                n_parents = row['n_parents']            
+                segment = Segment(seg_id = seg_id,
+                                  n_iter = n_iter,
+                                  status = row['status'],
+                                  n_parents = n_parents,
+                                  endpoint_type = row['endpoint_type'],
+                                  walltime = row['walltime'],
+                                  cputime = row['cputime'],
+                                  weight = row['weight'],)
+                                  #pcoord = pcoords[seg_id,...])
+                parent_ids = all_parent_ids[parents_offset:parents_offset+n_parents]
+                segment.p_parent_id = long(parent_ids[0])
+                segment.parent_ids = set(imap(long,parent_ids))
+                segments.append(segment)
+            
+        # Use a pointwise selection from pcoord_ds to get only the
+        # data we care about
+        with self.rtracker.tracking('gsid_store_pcoords'):
+            pcoords_by_seg = pcoord_ds[seg_ids,...]
+            for (iseg,segment) in enumerate(segments):
+                segment.pcoord = pcoords_by_seg[iseg]
+                assert segment.seg_id is not None
+        
+        return segments        
+    
+    def get_children(self, segment):
+        '''Return all segments which have the given segment as a parent'''
 
-    def del_iter_summary(self, min_iter): #delete the iterations starting at min_iter      
-        self.h5file[SUMMARY_TABLE].resize((min_iter - 1,))
-             
-    def write_bin_data(self, n_iter, bin_counts, bin_probabilities):
-        assert len(bin_counts) == len(bin_probabilities)
-        iter_group = self.get_iter_group(n_iter)
-        bin_count_ds = iter_group.require_dataset('bin_counts', (len(bin_counts),), numpy.uint)
-        bin_prob_ds  = iter_group.require_dataset('bin_probs', (len(bin_probabilities),), numpy.float64)
+        if segment.n_iter == self.current_iteration: return []
         
-        bin_count_ds[:] = bin_counts
-        bin_prob_ds[:]  = bin_probabilities
+        # Examine the segment index from the following iteration to see who has this segment
+        # as a parent.  We don't need to worry about the number of parents each segment
+        # has, since each has at least one, and indexing on the offset into the parents array 
+        # gives the primary parent ID
+    
+        with self.rtracker.tracking('gc_get_iter_group'):
+            iter_group = self.get_iter_group(segment.n_iter+1)
+        with self.rtracker.tracking('gc_get_parent_ids'):
+            all_parent_ids = iter_group['parents'][...]
+        with self.rtracker.tracking('gc_get_parent_offsets'):
+            seg_index = iter_group['seg_index'][...]
+            parent_offsets = seg_index['parents_offset'][...]
+
+
+        # This is one of the slowest pieces of code I've ever written...
+        #seg_index = iter_group['seg_index'][...]
+        #seg_ids = [seg_id for (seg_id,row) in enumerate(seg_index) 
+        #           if all_parent_ids[row['parents_offset']] == segment.seg_id]
+        #return self.get_segments_by_id(segment.n_iter+1, seg_ids)
         
-    def write_recycling_data(self, n_iter, rec_summary):
-        iter_group = self.get_iter_group(n_iter)
-        rec_data_ds = iter_group.require_dataset('recycling', (len(rec_summary),), dtype=rec_summary_dtype)
-        rec_data = numpy.zeros((len(rec_summary),), dtype=rec_summary_dtype)
-        for itarget, target in enumerate(rec_summary):
-            count, weight = target
-            rec_data[itarget]['count'] = count
-            rec_data[itarget]['weight'] = weight
-        rec_data_ds[...] = rec_data
+
+        with self.rtracker.tracking('gc_filter'):
+            p_parents = all_parent_ids[parent_offsets]
+            all_seg_ids = numpy.arange(len(parent_offsets), dtype=numpy.uintp)
+            seg_ids = all_seg_ids[p_parents == segment.seg_id]
+            try:
+                len(seg_ids)
+            except TypeError:
+                seg_ids = [seg_ids]
+        
+        with self.rtracker.tracking('gc_get_segments'):
+            return self.get_segments_by_id(segment.n_iter+1, seg_ids)
+        
+        
+        
+    
         
 
         

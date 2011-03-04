@@ -1,5 +1,9 @@
 from __future__ import division, print_function
 
+'''Enhanced steady state sampling (Bhatt, Zhang, Zuckerman, 2010) for WE,
+originally implemented by Josh Adelman (2010), re-implemented for this version
+of WEMD by Joe Kaus (February 2011).'''
+
 import os, sys
 
 import logging

@@ -51,7 +51,7 @@ for n_iter in xrange(1, sim_manager.data_manager.current_iteration):
         if segment.seg_id != iseg:
             n_errors += 1
             output_file.write('segment {seg_id:d}: seg_id does not match location in HDF5 file ({iseg:d})\n'
-                              .format(seg_id=seg_id, iseg=iseg))
+                              .format(seg_id=segment.seg_id, iseg=iseg))
     
     # Check to see if current iteration's start positions are the same as the previous iteration's end position
     if prev_segs:

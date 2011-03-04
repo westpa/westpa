@@ -171,8 +171,7 @@ class RectilinearRegionSet(RegionSet):
     def __init__(self, boundaries):
         
         # A numpy array of RegionSets/ParticleSets
-        self.region_array = None
-                
+        self.region_array = None   
         self.ndim = None
         
         # A list of lists of bin boundaries
@@ -181,10 +180,7 @@ class RectilinearRegionSet(RegionSet):
         # e.g. for 2-d boundaries at -1, 0, 1:
         # [ [-1, 0, 1], [-1, 0, 1] ]
         self.boundaries = None
-        
-        # Indirection array.  Each entry of this ndarray is an index into self.region_array.flat
-        self.indir = None
-        
+                
         if boundaries is not None:
             self.construct_regions(boundaries)
                                 
@@ -208,9 +204,15 @@ class RectilinearRegionSet(RegionSet):
             bin.label = repr(bounds)
             self.region_array[index] = bin
             
-        # Admittedly not the most memory-efficient, but at least it's quite simple and fast
-        self.indir = numpy.arange(self.region_array.size,dtype=numpy.uintp).reshape(self.region_array.shape)
-        
+        # flat iterators, like self.regions, always index in C order
+        # (create a numpy Fortran-order array and call flat on it and watch
+        # what happens -- only if you iterate on flat in C order will the
+        # data come out right)
+        # use clever cumulative products based on shape dotted with the
+        # indices to reduce N-d indices to flat indices         
+        self._extents = numpy.ones((self.region_array.ndim,), numpy.uintp)
+        self._extents[:-1] = numpy.cumprod(self.region_array.shape[::-1])[:-1][::-1]
+                    
     # The mandated region and target_counts iterables are 1-dimensional, so provide
     # accessors to one-dimensional representations
     @property
@@ -225,24 +227,18 @@ class RectilinearRegionSet(RegionSet):
         coords = numpy.atleast_2d(self.transform_coords(coords))
         assert coords.ndim == 2
         assert coords.shape[1] == self.ndim
-        region_indices = numpy.empty(coords.shape, numpy.uintp)
         flat_indices   = numpy.zeros((len(coords),), numpy.uintp)
-        
-        # flat iterators, like self.regions, always index in C order
-        # this sets up the ordering
-        extents = numpy.ones((self.region_array.ndim,), numpy.uintp)
-        extents[:-1] = numpy.cumprod(self.region_array.shape[::-1])[:-1][::-1]
+        dim_indices = numpy.empty((len(coords),), numpy.uintp)
+        extents = self._extents
         
         for idim in xrange(0, self.ndim):
-            region_indices[:,idim] = numpy.digitize(coords[:,idim], self.boundaries[idim])
-            if ( (region_indices[:, idim] == len(self.boundaries[idim]))
-                |(region_indices[:, idim] == 0) ).any():
+            dim_indices[:] = numpy.digitize(coords[:,idim], self.boundaries[idim])
+            if ( (dim_indices == len(self.boundaries[idim])) | (dim_indices == 0) ).any():
                 # Beyond the bin limits
                 raise ValueError('coordinate outside of bin space in dimension %d' % idim)
-            
             # Adjust for how numpy.digitize chooses to return its values
-            region_indices[:,idim] -= 1
-            flat_indices += region_indices[:,idim]*extents[idim]
+            dim_indices -= 1
+            flat_indices += dim_indices*extents[idim]
                         
         return flat_indices
         
@@ -253,5 +249,5 @@ if __name__ == '__main__':
     indices = regions.map_to_indices(coords)
     
     for (coord, index) in zip(coords,indices):
-        print('coords:', coord, 'index:', index, 'bin:', regions.regions[index])
+        print('coords:', coord, 'index:', index, 'bin:', regions.regions[index].label)
     

@@ -3,6 +3,7 @@ from __future__ import division; __metaclass__ = type
 import time, resource, operator
 from itertools import izip, starmap
 from collections import namedtuple
+from contextlib import contextmanager
 
 ResourceUsage = namedtuple('ResourceUsage', ['walltime', 'cputime', 'usertime', 'systime',
                                              'c_usertime', 'c_systime'] )
@@ -15,7 +16,13 @@ class ResourceTracker:
         self.difference = dict()
         self.initial = dict()
         self.final = dict()
-                
+    
+    @contextmanager
+    def tracking(self, label):
+        self.begin(label)
+        yield
+        self.end(label)
+    
     def reset(self, label=None):
         if label is None:
             self.initial = dict()
@@ -46,12 +53,17 @@ class ResourceTracker:
         self.difference[label] = ResourceUsage(*starmap(operator.sub, izip(final, self.initial[label])))
         
     def dump_differences(self, filename_or_stream):
-        try:
-            filename_or_stream.write
-        except AttributeError:
-            stream = open(filename_or_stream, 'wt')
-        else:
-            stream = filename_or_stream
+        if filename_or_stream is None:
+            # return a string
+            from cStringIO import StringIO
+            stream = StringIO()
+        else:        
+            try:
+                filename_or_stream.write
+            except AttributeError:
+                stream = open(filename_or_stream, 'wt')
+            else:
+                stream = filename_or_stream
         
         max_label_len = max(map(len, self.difference.viewkeys()))
         field_width=14
@@ -74,5 +86,6 @@ class ResourceTracker:
         except AttributeError:
             pass
         
-        
+        if filename_or_stream is None:
+            return stream.getvalue()
     
