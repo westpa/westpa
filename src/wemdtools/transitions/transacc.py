@@ -68,13 +68,13 @@ class TransitionEventAccumulator:
         self.time_index      = state_dict['time_index']
         self.last_region     = state_dict['last_region']
             
-    def record_transition_entry(self, time_index, initial_region, final_region, weight):
+    def record_transition_entry(self, time_index, initial_region, final_region, weight, label=''):
         if self.tfile:
-            label = '{:d}->{:d}'.format(int(initial_region),int(final_region))
-            self.tfile.write('{time_index:20d}    {label:<24s}    {weight:20.14e}\n'
-                             .format(time_index=long(time_index), label=label, weight=float(weight)))
+            tlabel = '{:d}->{:d}'.format(int(initial_region),int(final_region))
+            self.tfile.write('{label:<24s}    {time_index:20d}    {tlabel:<24s}    {weight:20.14e}\n'
+                             .format(time_index=long(time_index), tlabel=tlabel, weight=float(weight), label=label))
     
-    def record_lifetime_entry(self, time_index, final_region, lifetime, weight):
+    def record_lifetime_entry(self, time_index, final_region, lifetime, weight, label=''):
         if self.accumulate_statistics:
             lt_acc = self.lt_acc
             lt_acc.count[final_region] += 1
@@ -83,11 +83,11 @@ class TransitionEventAccumulator:
             lt_acc.sqsum[final_region] += weight*lifetime*lifetime
         
         if self.ltfile:
-            self.ltfile.write('{time_index:20d}    {label:10d}    {lifetime:20d}    {weight:20.14e}\n'
-                              .format(time_index=long(time_index), label=long(final_region), lifetime=long(lifetime), 
-                                      weight=float(weight)))
+            self.ltfile.write('{label:<24s}    {time_index:20d}    {slabel:10d}    {lifetime:20d}    {weight:20.14e}\n'
+                              .format(time_index=long(time_index), slabel=long(final_region), lifetime=long(lifetime), 
+                                      weight=float(weight), label=label))
     
-    def record_ed_entry(self, time_index, initial_region, final_region, ed, weight):
+    def record_ed_entry(self, time_index, initial_region, final_region, ed, weight, label=''):
         if self.accumulate_statistics:
             ed_acc = self.ed_acc
             ed_acc.count[initial_region,final_region] += 1
@@ -95,11 +95,12 @@ class TransitionEventAccumulator:
             ed_acc.sum[initial_region,final_region] += weight*ed
             ed_acc.sqsum[initial_region,final_region] += weight*ed*ed
         if self.edfile:
-            label = '{:d}->{:d}'.format(int(initial_region),int(final_region))
-            self.edfile.write('{time_index:20d}    {label:<24s}    {ed:20d}    {weight:20.14e}\n'
-                              .format(time_index=long(time_index), label=label, ed=long(ed), weight=float(weight)))
+            tlabel = '{:d}->{:d}'.format(int(initial_region),int(final_region))
+            self.edfile.write('{label:<24s}    {time_index:20d}    {tlabel:<24s}    {ed:20d}    {weight:20.14e}\n'
+                              .format(time_index=long(time_index), tlabel=tlabel, ed=long(ed), weight=float(weight),
+                                      label=label))
     
-    def record_fpt_entry(self, time_index, initial_region, final_region, fpt, weight):
+    def record_fpt_entry(self, time_index, initial_region, final_region, fpt, weight, label=''):
         if self.accumulate_statistics:
             fpt_acc = self.fpt_acc
             fpt_acc.count[initial_region,final_region] += 1
@@ -107,11 +108,12 @@ class TransitionEventAccumulator:
             fpt_acc.sum[initial_region,final_region] += weight*fpt
             fpt_acc.sqsum[initial_region,final_region] += weight*fpt*fpt
         if self.fptfile:
-            label = '{:d}->{:d}'.format(int(initial_region),int(final_region))
-            self.fptfile.write('{time_index:20d}    {label:<24s}    {fpt:20d}    {weight:20.14e}\n'
-                              .format(time_index=long(time_index), label=label, fpt=long(fpt), weight=float(weight)))
+            tlabel = '{:d}->{:d}'.format(int(initial_region),int(final_region))
+            self.fptfile.write('{label:<24s}    {time_index:20d}    {tlabel:<24s}    {fpt:20d}    {weight:20.14e}\n'
+                              .format(time_index=long(time_index), tlabel=tlabel, fpt=long(fpt), weight=float(weight), 
+                                      label=label))
     
-    def accumulate_transitions(self, pcoords, weight = None, time_index=None, continuation = False):
+    def accumulate_transitions(self, pcoords, weight = None, time_index=None, continuation = False, label=''):
         """Assign the given progress coordinates to regions, and then determine transitions among regions.
         If continuation is True, ignore the first point (raises an error if accumulate_transitions() has not
         been called at least once already), otherwise use the first point as the initial point."""
@@ -179,11 +181,11 @@ class TransitionEventAccumulator:
         for ((time_index,current_region,last_region), weight) in izip(trans_observed, weights_observed):
             n_crossings[last_region,current_region] += 1
             if track_transitions:
-                record_transition_entry(time_index,last_region,current_region,weight)
+                record_transition_entry(time_index,last_region,current_region,weight, label=label)
             
             if track_lifetimes and last_entry[last_region] > 0:
                 lifetime = time_index - last_entry[last_region]
-                record_lifetime_entry(time_index, last_region, lifetime, weight)
+                record_lifetime_entry(time_index, last_region, lifetime, weight, label=label)
                 
             irdisc[:] = True
             irdisc[last_region] = False
@@ -193,14 +195,14 @@ class TransitionEventAccumulator:
             for initial_region in init_regions[irdisc]:
                 
                 if track_transitions:
-                    record_transition_entry(time_index,initial_region,current_region,weight)
+                    record_transition_entry(time_index,initial_region,current_region,weight, label=label)
                 if track_eds:
                     ed = time_index - last_exit[initial_region]
-                    record_ed_entry(time_index,initial_region,current_region,ed,weight)
+                    record_ed_entry(time_index,initial_region,current_region,ed,weight, label=label)
                 
                 if track_fpts and last_completion[current_region,initial_region] > 0:
                         fpt = time_index - last_completion[current_region,initial_region]
-                        record_fpt_entry(time_index,initial_region,current_region,fpt,weight)
+                        record_fpt_entry(time_index,initial_region,current_region,fpt,weight, label=label)
                 
                 last_completion[initial_region,current_region] = time_index
                 n_completions[initial_region,current_region] += 1

@@ -1,6 +1,13 @@
+2011-03-07 -- Matt Zwier <mczwier@gmail.com>
+ * Updated TrajTree and w_ttimes to allow direct reading of pcoord data from
+   the HDF5 file (formerly, only caching the pcoord data was allowed).  The
+   performance hit is measurable, but not nearly as bad as it could be (for 
+   the NaCl test data, less than 2-fold), probably due to OS-level caching.
+
 2011-03-04 -- Matt Zwier <mczwier@gmail.com>
  * Updated trajectory tree walker for HDF5 storage. Relatively aggressive
-   reads and caching were necessary to minimize HDF5 overhead.  
+   reads and caching were necessary to minimize HDF5 overhead.  Tests
+   against prior data confirm the correctness of the tree walker.  
  * Added w_sqlite2hdf5 tool to convert old SQLite databases into the new HDF5
    format.  Most data is there, but user-supplied data (in the 'data' members
    of DB objects) and the target_hits column of the iteration summary table are

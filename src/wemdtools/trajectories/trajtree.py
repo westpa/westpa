@@ -7,7 +7,7 @@ import logging
 log = logging.getLogger(__name__)
 
 class TrajTree:
-    def __init__(self, data_manager):
+    def __init__(self, data_manager, cache_pcoords = False):
         self.data_manager = data_manager
         
         self.history_chunksize = 32
@@ -24,9 +24,12 @@ class TrajTree:
         self._parent_arrays = dict()
         self._p_parent_arrays = dict()
         self._pcoord_arrays = dict()
+        self._pcoord_datasets = dict()
         
         self.segments_to_visit = 0
         self.segments_visited = 0
+        
+        self.cache_pcoords = cache_pcoords
         
     def _get_seg_index(self, n_iter):
         try:
@@ -58,18 +61,26 @@ class TrajTree:
             pcoords = self._pcoord_arrays[n_iter] = self._iter_groups[n_iter]['pcoord'][...]
             return pcoords
         
+    def _get_pcoord_dataset(self, n_iter):
+        try:
+            return self._pcoord_datasets[n_iter]
+        except KeyError:
+            pcoord_ds = self._pcoord_datasets[n_iter] = self._iter_groups[n_iter]['pcoord']
+            return pcoord_ds
+        
     def _get_segments_by_id(self, n_iter, seg_ids):
-        '''Get segments from the data manager, employing caching'''
+        '''Get segments from the data manager, employing caching where possible (and, in the case
+        of pcoords, requested)'''
         if len(seg_ids) == 0: return []
         
         seg_index  = self._get_seg_index(n_iter)
         all_parent_ids = self._get_parent_array(n_iter)
         
-        # Believe it or not, because we're walking over a tree with shared history, and 
-        # the segment pcoords are partially shared, it's more memory efficient to 
-        # load the entire pcoord array into memory for a given iteration, and let
-        # numpy shared views on that array populate the pcoord fields
-        pcoords = self._get_pcoord_array(n_iter)
+        if self.cache_pcoords:
+            pcoords = self._get_pcoord_array(n_iter)
+        else:
+            pcoord_ds = self._get_pcoord_dataset(n_iter)
+            
         
         segments = []
         # seg_ids must be a list, or else the pcoords_by_seg dereference will fail
@@ -87,11 +98,17 @@ class TrajTree:
                               walltime = row['walltime'],
                               cputime = row['cputime'],
                               weight = row['weight'])
-            segment.pcoord = pcoords[seg_id,...]
+            if self.cache_pcoords:
+                segment.pcoord = pcoords[seg_id,...]
             parent_ids = all_parent_ids[parents_offset:parents_offset+n_parents]
             segment.p_parent_id = long(parent_ids[0])
             segment.parent_ids = set(imap(long,parent_ids))
             segments.append(segment)
+            
+        if not self.cache_pcoords:
+            pcoords_by_seg = pcoord_ds[seg_ids,...]
+            for (iseg,segment) in enumerate(segments):
+                segment.pcoord = pcoords_by_seg[iseg]
         
         return segments
         
@@ -106,9 +123,6 @@ class TrajTree:
     
         
     def _seg_ids_where(self, n_iter, bool_array):
-        #seg_index = self._get_seg_index(n_iter)
-        #all_seg_ids = numpy.arange(len(seg_index), dtype=numpy.uintp)
-        #seg_ids = all_seg_ids[bool_array]
         seg_ids = self._seg_id_ranges[n_iter][bool_array]
         try:
             len(seg_ids)

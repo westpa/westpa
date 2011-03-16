@@ -103,4 +103,9 @@ for n_iter in xrange(1,args.maxiter+1):
     iter_summary['bin_dyn_range'] = math.log(max_bin_prob/min_bin_prob)
     iter_summary['target_flux']  = we_iter.data['recycled_population'] or 0.0
     sim_manager.data_manager.update_iter_summary(n_iter, iter_summary)
+    
+    # Delete everything we were working with, since the garbage collector seems
+    # pretty bad at discerning when we're done with nested OldSegments.
+    del iter_summary, populations, pcoord, new_segment, new_segments, old_segment, old_segments
+    
 sim_manager.data_manager.current_iteration = n_iter

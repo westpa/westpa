@@ -91,9 +91,11 @@ class WEMDDataManager:
     def current_iteration(self, n_iter):
         self.h5file['/'].attrs['wemd_current_iteration'] = n_iter
         
-    def open_backing(self, mode=None):
+    def open_backing(self, **kwargs):
+        '''Open the HDF5 file. All keyword arguments are passed to h5py.File(), permitting
+        use of different access modes or different I/O drivers.'''
         if not self.h5file:
-            self.h5file = h5py.File(self.sim_manager.runtime_config['data.h5file'], mode=mode)
+            self.h5file = h5py.File(self.sim_manager.runtime_config['data.h5file'], **kwargs)
         
     def prepare_backing(self):
         self.open_backing()
