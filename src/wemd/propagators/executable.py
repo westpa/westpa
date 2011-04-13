@@ -137,14 +137,8 @@ class ExecutablePropagator(WEMDPropagator):
                     
         pid = os.fork()
         if pid:
-            # in parent process
-            while True:
-                id, rc = os.waitpid(pid, os.WNOHANG)
-                if id == pid:
-                    break
-                time.sleep(1)
-            #(id,rc) = os.wait()    
-            return rc
+            (id, rc, rusage) = os.wait4(pid, 0)    
+            return (rc, rusage)
         else:
             # in child process
             # redirect stdout/stderr
@@ -205,7 +199,7 @@ class ExecutablePropagator(WEMDPropagator):
     
     def _run_pre_post(self, child_info, env_func, template_func, args=(), kwargs={}):
         if child_info['executable']:
-            rc = self._exec(child_info, env_func(*args, **kwargs), template_func(*args, **kwargs))
+            rc, rusage = self._exec(child_info, env_func(*args, **kwargs), template_func(*args, **kwargs))
             if rc != 0:
                 log.warning('%s executable %r returned %s'
                             % (child_info['child_type'], 
@@ -263,7 +257,7 @@ class ExecutablePropagator(WEMDPropagator):
                 addtl_env[self.ENV_PCOORD_RETURN] = pc_return_filename
                 
                 # Spawn propagator and wait for its completion
-                rc = self._exec(self.propagator_info, 
+                rc, rusage = self._exec(self.propagator_info, 
                                    addtl_env, 
                                    self.segment_template_args(segment))
                 
@@ -296,4 +290,4 @@ class ExecutablePropagator(WEMDPropagator):
             self.rtracker.end('propagation')            
             elapsed = self.rtracker.difference['propagation']
             segment.walltime = elapsed.walltime
-            segment.cputime = elapsed.usertime + elapsed.c_usertime
+            segment.cputime = rusage.ru_utime

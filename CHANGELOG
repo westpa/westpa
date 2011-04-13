@@ -1,3 +1,11 @@
+2011-04-13 -- Matt Zwier <mczwier@gmail.com>
+ * Fixed bug in CPU time accounting in executable backend. Namely, the cputime
+   was derived from a getrusage() call in the parent process, which returned
+   cumulative data for all running threads.  When combined with the threads or
+   TCP/IP work manager, the CPU time was effectively being multiplied by the
+   number of threads. Using wait4() instead of waitpid() to get child CPU
+   times accurately.
+
 2011-03-07 -- Matt Zwier <mczwier@gmail.com>
  * Updated TrajTree and w_ttimes to allow direct reading of pcoord data from
    the HDF5 file (formerly, only caching the pcoord data was allowed).  The
