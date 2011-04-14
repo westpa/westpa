@@ -1,3 +1,11 @@
+2011-04-14 -- Matt Zwier <mczwier@gmail.com>
+ * Modified w_avgbinprobs to calculate bin occupancies from segment progress 
+   coordinates rather than read them from the bin_probs dataset stored for
+   each iteration. This makes w_avgbinprobs work for simulations which change
+   bin space during the run.
+ * Added wemdtools.bins with functions for specifying region sets on the
+   command line, within a Python file, or reading them from the system file.
+
 2011-04-13 -- Matt Zwier <mczwier@gmail.com>
  * Fixed bug in CPU time accounting in executable backend. Namely, the cputime
    was derived from a getrusage() call in the parent process, which returned

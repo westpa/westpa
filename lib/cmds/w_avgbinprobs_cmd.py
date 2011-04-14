@@ -6,29 +6,39 @@ import numpy
 import logging
 log = logging.getLogger('w_avgbinprobs')
 
-import wemd
+import wemd, wemdtools
+
 
 parser = wemd.rc.common_arg_parser(description = '''\
-Calculate the average probability distribution across bins and associated statistical error
+Calculate the average probability distribution across bins and associated statistical error. The probability
+distribution is calculated at the beginning of each iteration directly from the segment data.
 ''')
 parser.add_argument('-o', '--output', dest='output_file', type=argparse.FileType('wt'), default=sys.stdout,
                     help='Store per-iteration output in OUTPUT_FILE (default: write to standard output).')
 parser.add_argument('-l', '--labels', dest='print_labels', action='store_true',
                     help='Print bin labels (to stdout) corresponding to each column in the output '
-                        +'(requires system driver to be available; default: do not print labels)')
-parser.add_argument('-p', '--precision', dest='precision', type=int, 
-                    help='Number of significant figures for probability display (default: 6)',
-                    default=6)
+                        +'(default: do not print labels)')
+wemdtools.bins.add_region_set_options(parser)
+# Subset options
 parser.add_argument('-b', '--begin', '--start', dest='start_iter', type=int, default=1,
                     help='Begin averaging at iteration START_ITER (default: first iteration)')
 parser.add_argument('-e', '--end', '--stop', dest='stop_iter', type=int,
                     help='Average through iteration STOP_ITER (default: last completed iteration)')
+# Bootstrap options
 parser.add_argument('--confidence', dest='confidence', type=float, default=0.95,
                     help='Construct a confidence interval of width CONFIDENCE (default: 0.95=95%%)')
 parser.add_argument('--bssize', dest='bssize', type=int,
                     help='Use a bootstrap of BSSIZE samples to calculate error (default: chosen from confidence)')
+# Output options
+parser.add_argument('-p', '--precision', dest='precision', type=int, 
+                    help='Number of significant figures for probability display (default: 6)',
+                    default=6)
 parser.add_argument('--noheaders', dest='suppress_headers', action='store_true',
                     help='Do not write headers to output files (default: write headers).')
+parser.add_argument('--quiet', dest='quiet_mode', action='store_true',
+                    help='''Do not emit periodic status messages (default: emit status messages if standard output
+                    is a terminal)''')
+
 args = parser.parse_args()
 
 wemd.rc.config_logging(args, 'w_avgbinprobs')
@@ -45,7 +55,9 @@ if args.stop_iter and args.stop_iter <= stop_iter:
     stop_iter = args.stop_iter
 
 sim_manager.load_system_driver()
-bins = sim_manager.system.region_set.get_all_bins()
+region_set = wemdtools.bins.get_region_set_from_args(args, status_stream=sys.stdout)
+bins = region_set.get_all_bins()
+bin_map = {id(bin): ibin for (ibin, bin) in enumerate(bins)}
 n_bins = len(bins)
         
 confidence = args.confidence
@@ -59,13 +71,29 @@ sys.stdout.write('using bootstrap of {:d} samples to estimate confidence interva
 
 # Retrieve bin probabilities
 binprobs = numpy.empty((n_iters,n_bins), numpy.float64)
-for n_iter in xrange(start_iter, stop_iter+1): 
-    binprobs[n_iter-1] = sim_manager.data_manager.get_iter_group(n_iter)['bin_probs']
+for i_iter in xrange(0, len(binprobs)):
+    n_iter = i_iter + start_iter
+    if sys.stdout.isatty() and not args.quiet_mode:
+        sys.stdout.write('\rprocessing iteration {:d}'.format(n_iter))
+        sys.stdout.flush()
+    iter_group = sim_manager.data_manager.get_iter_group(n_iter)
+    seg_index = iter_group['seg_index'][:]
+
+    # Read only the initial point
+    pcoords = iter_group['pcoord'][:,0,:]
+    binprobs[i_iter, :] = 0
+    # map_to_indices only works for the top level;
+    
+    bin_indices = [bin_map[id(bin)] for bin in region_set.map_to_bins(pcoords)]
+    for (seg_id, ibin) in enumerate(bin_indices):
+        binprobs[i_iter, ibin] += seg_index[seg_id]['weight']
 
 # Average over time
 avg_binprobs = numpy.mean(binprobs, axis=0)
 sumavg = avg_binprobs.sum()
 assert len(avg_binprobs) == n_bins
+if sys.stdout.isatty() and not args.quiet_mode:
+    sys.stdout.write('\n')
 sys.stdout.write('total average probability: {} (error: {})\n'.format(sumavg, abs(sumavg-1.0)))
 
 # Use bootstrapping to obtain synthetic probability as a function of time, then average to obtain

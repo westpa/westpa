@@ -68,8 +68,7 @@ class RegionSet:
         bins = []
         for region in self.regions:
             bins.extend(region.get_all_bins())
-        return bins
-        
+        return bins        
                                 
     def reweight(self, new_weight):
         """Reweight all particles in this set so that the total weight is new_weight"""
@@ -129,7 +128,7 @@ class RegionSet:
             raise ValueError('one or more coords could not be mapped to bins')
         
         return bins
-    
+        
     def get_bin_containing(self, coord):
         return self.map_to_bins([coord])[0]
     
