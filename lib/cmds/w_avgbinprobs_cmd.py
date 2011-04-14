@@ -10,14 +10,10 @@ import wemd, wemdtools
 
 
 parser = wemd.rc.common_arg_parser(description = '''\
-Calculate the average probability distribution across bins and associated statistical error. The probability
+Calculate the average probability in each bin and the associated statistical error. The probability
 distribution is calculated at the beginning of each iteration directly from the segment data.
 ''')
-parser.add_argument('-o', '--output', dest='output_file', type=argparse.FileType('wt'), default=sys.stdout,
-                    help='Store per-iteration output in OUTPUT_FILE (default: write to standard output).')
-parser.add_argument('-l', '--labels', dest='print_labels', action='store_true',
-                    help='Print bin labels (to stdout) corresponding to each column in the output '
-                        +'(default: do not print labels)')
+# Region set options
 wemdtools.bins.add_region_set_options(parser)
 # Subset options
 parser.add_argument('-b', '--begin', '--start', dest='start_iter', type=int, default=1,
@@ -30,6 +26,11 @@ parser.add_argument('--confidence', dest='confidence', type=float, default=0.95,
 parser.add_argument('--bssize', dest='bssize', type=int,
                     help='Use a bootstrap of BSSIZE samples to calculate error (default: chosen from confidence)')
 # Output options
+parser.add_argument('-o', '--output', dest='output_file', type=argparse.FileType('wt'), default=sys.stdout,
+                    help='Store average output in OUTPUT_FILE (default: write to standard output).')
+parser.add_argument('-l', '--labels', dest='print_labels', action='store_true',
+                    help='Print bin labels corresponding to each column in the output '
+                        +'(default: do not print labels)')
 parser.add_argument('-p', '--precision', dest='precision', type=int, 
                     help='Number of significant figures for probability display (default: 6)',
                     default=6)
@@ -74,7 +75,7 @@ binprobs = numpy.empty((n_iters,n_bins), numpy.float64)
 for i_iter in xrange(0, len(binprobs)):
     n_iter = i_iter + start_iter
     if sys.stdout.isatty() and not args.quiet_mode:
-        sys.stdout.write('\rprocessing iteration {:d}'.format(n_iter))
+        sys.stdout.write('\reading iteration {:d}'.format(n_iter))
         sys.stdout.flush()
     iter_group = sim_manager.data_manager.get_iter_group(n_iter)
     seg_index = iter_group['seg_index'][:]
@@ -98,6 +99,7 @@ sys.stdout.write('total average probability: {} (error: {})\n'.format(sumavg, ab
 
 # Use bootstrapping to obtain synthetic probability as a function of time, then average to obtain
 # error bars on the average probability
+sys.stdout.write('performing bootstrap with {:d} samples\n'.format(bssize))
 syn_avgbinprobs = numpy.empty((bssize, n_bins), numpy.float64)
 for ibin in xrange(0, n_bins):
     for isynth in xrange(0, bssize):
@@ -124,7 +126,7 @@ if not args.suppress_headers:
 
     if args.print_labels:
         maxwidth = int(ceil(log10(n_bins)))
-        sys.stdout.write('# bin labels:\n')
+        args.output_file.write('# bin labels:\n')
         for (ibin, bin) in enumerate(bins):
             args.output_file.write('#  bin {0:<{maxwidth}d}: {1!s}\n'.format(ibin, bin.label, maxwidth=maxwidth))
         args.output_file.write('# ----\n')
