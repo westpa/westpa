@@ -1,3 +1,7 @@
+2011-04-15 -- Matt Zwier <mczwier@gmail.com>
+ * Added w_segstats and w_succ scripts, reporting per-iteration statistics and
+   listing successful trajectories, respectively.
+
 2011-04-14 -- Matt Zwier <mczwier@gmail.com>
  * Modified w_avgbinprobs to calculate bin occupancies from segment progress 
    coordinates rather than read them from the bin_probs dataset stored for
