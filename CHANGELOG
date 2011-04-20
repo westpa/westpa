@@ -1,3 +1,32 @@
+2011-04-20 -- Matt Zwier <mczwier@gmail.com>
+ * Added an initial testing framework. Currently, only tests the ``pcoords``
+   module, and requires nose to be installed to be used in any convenient way.
+ * Optimized the various mapping routines in ``wemd.pcoords``.  5-d binning on
+   a test data set of ~70,000 segments now takes about one second, compared to
+   tens.
+ * Made ``RegionSet.transform_coords`` actually work.  
+ * Split wemd.pcoords.ParticleSet into a base class (ParticleCollection) and
+   subclasses (ParticleSet and ParticleList) to support more generalized
+   collections of particles.  This is probably not as useful as replacing
+   the internal collection set for a RegionSet (see below).
+ * Added the ``container_class`` keyword argument to the constructors for
+   RectilinearRegionSet and PiecewiseRegionSet to allow for more general
+   collections of binned objects.  This may ultimately be useless, but I
+   wished for something like this while working with the w_binprobs script.
+ * Renamed ``map_to_indices()`` to ``_map_to_indices()`` in RegionSet and
+   subclasses, to formalize the fact that is it not intended to be a public
+   entry point.
+ * Added ``RegionSet.prep_coords()`` to ensure that assumptions used
+   throughout pcoords.py are met (namely, that all lists of coordinates are
+   2-d arrays) without sacrificing convenience (e.g. by making users promote
+   vectors to 2-d arrays in transform_pcoord functions). This also uniformly
+   applies a RegionSet's transform_pcoord where it is necessary (i.e. at any
+   public entry point, such as ``map_to_bins()`` or ``get_bin_containing()``).
+ * Renamed ``replace_region`` to ``replace_region_containing`` in RegionSet.
+   ``replace_region`` continues to function, though it will cause a 
+   DeprecationWarning. (TODO: make DeprecationWarnings visible when importing
+   a system file.)
+
 2011-04-15 -- Matt Zwier <mczwier@gmail.com>
  * Added w_segstats and w_succ scripts, reporting per-iteration statistics and
    listing successful trajectories, respectively.

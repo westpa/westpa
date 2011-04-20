@@ -4,14 +4,8 @@ import numpy, operator
 import logging
 log = logging.getLogger(__name__)
 
-weight_getter = numpy.frompyfunc(operator.attrgetter('weight'), 1, 1)
-count_getter = numpy.frompyfunc(operator.attrgetter('count'), 1, 1)
-
-class ParticleSet(set):
-    def __init__(self, iterable = None, target_count = None, label = None):
-        if iterable is not None:
-            super(ParticleSet,self).__init__(iterable)
-        
+class ParticleCollection:
+    def __init__(self, target_count = None, label = None):
         # How many particles should live here
         self.target_count = target_count
         
@@ -20,22 +14,20 @@ class ParticleSet(set):
         
     def map_to_bins(self, coords):
         # Degenerate case to terminate recursive descent
-        coords = list(coords)
         return [self] * len(coords)
     
     def get_all_bins(self):
         return [self]
 
     def reweight(self, new_weight):
-        """Reweight all particles in this set so that the total weight is new_weight"""
+        """Reweight all particles in this collection so that the total weight is new_weight"""
         current_weight = self.weight
         for p in self:
             p.weight *= new_weight / current_weight
     
     @property
     def weight(self):
-        'Total weight of all particles in this set'
-        #return numpy.add.reduce(map(weight_getter, self))
+        'Total weight of all particles in this collection'
         weight = 0.0
         for particle in self:
             weight += particle.weight
@@ -47,19 +39,40 @@ class ParticleSet(set):
         
     @property
     def count(self):
-        """The number of particles in this set"""
+        """The number of particles in this collection"""
         return len(self)
     
     def __repr__(self):
-        return '<ParticleSet at 0x{id:x}, label={label!r}>'.format(id=id(self), label=self.label)
+        return '<{classname} at 0x{id:x}, label={label!r}>'.format(classname=self.__class__.__name__, 
+                                                                   id=id(self), 
+                                                                   label=self.label)
     
-            
+class ParticleSet(set, ParticleCollection):
+    def __init__(self, iterable = None, target_count = None, label = None):
+        ParticleCollection.__init__(self, target_count, label)
+        if iterable is not None:
+            set.__init__(self, iterable)
+        
+class ParticleList(list, ParticleCollection):
+    def __init__(self, iterable = None, target_count = None, label = None):
+        ParticleCollection.__init__(self, target_count, label)
+        if iterable is not None:
+            list.__init__(self, iterable)
+        
+    def clear(self):
+        self[:] = []
+                
 class RegionSet:    
     def __init__(self):
         
         # Regions (RegionSets or ParticleSets)
         self.regions = None
-    
+        
+        # Transform coordinates to those used in this RegionSet; could be as simple as
+        # returning a slice, for systems where nested coordinate regions handle different
+        # parts of the pcoord data as stored in the HDF5 file.
+        self.transform_coords = None
+        
     def clear(self):
         for region in self.regions:
             region.clear()
@@ -79,7 +92,7 @@ class RegionSet:
     @property
     def weight(self):
         'Total weight of all particles in this set' 
-        return numpy.add.reduce(map(weight_getter, self.regions))
+        return sum(region.weight for region in self.regions)
     
     @weight.setter
     def weight(self, new_weight):
@@ -90,39 +103,79 @@ class RegionSet:
         """The number of particles in this set"""
         return sum(region.count for region in self.regions)        
     
-    def transform_coords(self, coords):
-        """Transform input coordinates into the coordinates spanned by this RegionSet. By default, does
-        nothing (returns coords unchanged).  Note that to override this function, one may either subclass
-        and override directly, or simply assign a function with signature transform(self, coords) to 
-        transform_coords.  Also note that this could be as simple as returning a slice from coords 
-        (i.e. to use only a subset of the total dimensionality of the coordinate)."""
-        return coords
+#    def transform_coords(self, coords):
+#        """Transform input coordinates into the coordinates spanned by this RegionSet. By default, does
+#        nothing (returns coords unchanged).  Note that to override this function, one may either subclass
+#        and override directly, or simply assign a function with signature transform(self, coords) to 
+#        transform_coords.  Also note that this could be as simple as returning a slice from coords 
+#        (i.e. to use only a subset of the total dimensionality of the coordinate).
+#        
+#        If performance is especially critical, set transform_coords to None to avoid one function call
+#        per call to map_to_bins()"""
+#        return coords
     
-    def map_to_indices(self, coords):
+    def prep_coords(self, coords):
+        """Prepare a list of coordinates for further processing. Ensures that the coordinates
+        are filtered through self.transform_coords(), and further that input and output 
+        conforms to assumptions about array shape -- namely, that an array of coords is
+        two-dimensional, with the first dimension indexing time and the second dimension
+        indexing progress coordinate dimension."""
+
+        # ensure we have an array        
+        coords = numpy.asarray(coords)
+        
+        # ensure we have a 2-d array
+        if coords.ndim == 1:
+            coords = numpy.expand_dims(coords, axis=1)
+        elif coords.ndim > 2:
+            raise TypeError('coords must be a 1- or 2-d array')
+        
+        # apply transform_coords if it's defined
+        try:
+            transform_coords = self.transform_coords
+        except AttributeError:
+            # No transformation defined
+            return coords
+        else:
+            if transform_coords is None:
+                # Another way of expressing "no transformation defined"
+                return coords
+        
+        # a transformation is defined; apply it
+        coords = numpy.asarray(transform_coords(coords))
+        
+        # and again ensure that we have a 2-d array to return
+        if coords.ndim == 1:
+            coords = numpy.expand_dims(coords, axis=1)
+        elif coords.ndim > 2:
+            raise TypeError('transform_coords() must return a 1- or 2-d array')
+        return coords
+        
+    def _map_to_indices(self, coords):
         """ 
-        Map each coord in coords to an index into self.regions identifying which region to which the corresponding
+        Map each coord in coords to an index into self.regions identifying the region to which each corresponding
         coord belongs.  The first index denotes separate sets of coordinates, and the second index denotes 
-        a component within a coordinate set.
+        a component within a coordinate set.  Subclasses (must) override this to implement binning functionality. 
         """
         raise NotImplementedError
-        
+            
     def map_to_bins(self, coords):
         """
-         Recursively descend each region in this set until each coord in coords is mapped to a ParticleSet
-         In other words, calling map_to_bins(coords) returns a list of the same length as coords where
-         each entry is a ParticleSet; calling map_to_indices on a top-level RegionSet returns the bins to which 
-         the particles belong.
+        Recursively descend each region in this set until each coord in coords is mapped to a ParticleSet
+        In other words, calling map_to_bins(coords) returns a list of the same length as coords where
+        each entry is a ParticleSet; calling map_to_indices on a top-level RegionSet returns the bins to which 
+        the particles belong.
         """
-        #coords = numpy.array(coords)
-        coords = list(coords)
+
+        coords = self.prep_coords(coords)
         bins = numpy.empty((len(coords),), numpy.object_)
-        region_indices = self.map_to_indices(coords)
+        region_indices = self._map_to_indices(coords)
         
-        for icoord in xrange(0, len(bins)):
-            region = self.regions[region_indices[icoord]]
-            # Descend recursively; since map_to_bins maps iterables to iterables, we must pass
-            # a vector of length one and dereference the returned vector of length 1
-            bins[icoord] = region.map_to_bins(coords[icoord:icoord+1])[0]
+        populated_indices = set(region_indices)
+        for index in populated_indices:
+            # create a vector of len(bins) of booleans indicating which rows we're updating 
+            bin_selector = (region_indices == index)
+            bins[bin_selector] = self.regions[index].map_to_bins(coords[bin_selector])
         
         if None in bins:
             raise ValueError('one or more coords could not be mapped to bins')
@@ -130,16 +183,25 @@ class RegionSet:
         return bins
         
     def get_bin_containing(self, coord):
-        return self.map_to_bins([coord])[0]
+        return self.map_to_bins(self.prep_coords([coord]))[0]
     
     def replace_region(self, coord, new_container):
+        """Deprecated synonym for replace_region_containing()"""
+        import warnings
+        warnings.warn('replace_region() is deprecated in favor of replace_region_containing()', DeprecationWarning)
+        self.replace_region_containing(coord, new_container)
+        
+    def replace_region_containing(self, coord, new_container):
         """Replace the region containing coord with new_container"""
-        idx = self.map_to_indices([coord])[0]
+        idx = self._map_to_indices(self.prep_coords([coord]))[0]
         self.regions[idx] = new_container
 
 class PiecewiseRegionSet(RegionSet):
-    """A multidimensional RegionSet which uses a set of functions to map coordinates to regions"""
-    def __init__(self, functions, regions = None):
+    """A multidimensional RegionSet which uses a set of functions to map coordinates to regions.
+    In the event multiple functions match for a given coordinate set, the first one matched (which in turn
+    is the first one passed to the constructor) takes precedence."""
+    
+    def __init__(self, functions, regions = None, container_class = ParticleSet):
         super(PiecewiseRegionSet,self).__init__()
         self.functions = list(functions)
         self.regions = numpy.empty((len(functions),), numpy.object_)
@@ -147,27 +209,29 @@ class PiecewiseRegionSet(RegionSet):
             self.regions[:] = regions
         for (ireg, region) in enumerate(self.regions):
             if region is None:
-                self.regions[ireg] = ParticleSet()            
+                self.regions[ireg] = container_class()            
+
+    def _map_to_indices(self, coords):
+        assert coords.ndim == 2
+        functions = self.functions
         
-    def map_to_indices(self, coords):
-        coords = numpy.asarray(self.transform_coords(coords))
-        region_pred = numpy.empty((len(coords), len(self.functions)), numpy.bool_)
+        region_indices = numpy.empty((len(coords),), numpy.uintp)
         
-        for (ifunc, func) in enumerate(self.functions):
-            rsl = numpy.apply_along_axis(func, 1, coords)
-            region_pred[:,ifunc] = rsl.flat
-        
-        # why does this seem too fancy?
-        apred = numpy.argwhere(region_pred)
-        if not (apred[:,0] == numpy.arange(0, len(coords))).all():
-            raise ValueError('coordinate outside of bin space')
-        region_indices = apred[:,1]
+        for (icoord, coord) in enumerate(coords):
+            for (ifunc, func) in enumerate(functions):
+                if func(coord):
+                    region_indices[icoord] = ifunc
+                    break
+            else:
+                # loop terminated without break, which means no function matched
+                raise ValueError('coordinate ({!r}) outside of bin space'.format(coord))
+
         return region_indices
         
 class RectilinearRegionSet(RegionSet):
     """A multidimensional RegionSet divided by rectilinear (interior) boundaries"""
     
-    def __init__(self, boundaries):
+    def __init__(self, boundaries, container_class = ParticleSet):
         
         # A numpy array of RegionSets/ParticleSets
         self.region_array = None   
@@ -181,15 +245,15 @@ class RectilinearRegionSet(RegionSet):
         self.boundaries = None
                 
         if boundaries is not None:
-            self.construct_regions(boundaries)
+            self.construct_regions(boundaries, container_class)
                                 
-    def construct_regions(self, boundaries):
+    def construct_regions(self, boundaries, container_class):
         self.ndim = len(boundaries)
         self.region_array = numpy.empty(tuple(len(boundary_entry)-1 for boundary_entry in boundaries), numpy.object_)
         self.boundaries = [numpy.array(boundary_set) for boundary_set in boundaries]
         
         for index in numpy.ndindex(self.region_array.shape):
-            bin = ParticleSet()
+            bin = container_class()
 
             # This list comprehension reduces to this:
             # index is (i_dim0, i_dim1, idim_2, i_dim3, ... )
@@ -222,10 +286,13 @@ class RectilinearRegionSet(RegionSet):
     def regions(self, regions):
         self.region_array.flat = regions
     
-    def map_to_indices(self, coords):
-        coords = numpy.atleast_2d(self.transform_coords(coords))
+    def _map_to_indices(self, coords):
         assert coords.ndim == 2
-        assert coords.shape[1] == self.ndim
+
+        if coords.shape[1] != self.ndim:
+            raise TypeError('length of coordinate tuples ({}) does not match the dimensionality of this region set ({})'
+                            .format(coords.shape[1], self.ndim))
+
         flat_indices   = numpy.zeros((len(coords),), numpy.uintp)
         dim_indices = numpy.empty((len(coords),), numpy.uintp)
         extents = self._extents
@@ -240,13 +307,3 @@ class RectilinearRegionSet(RegionSet):
             flat_indices += dim_indices*extents[idim]
                         
         return flat_indices
-        
-if __name__ == '__main__':
-    regions = RectilinearRegionSet([[-2,-1,0,1,2],[-2,-1,0,1,2],[-2,-1,0,1,2]])
-    
-    coords = -4*numpy.random.random(size=(10,3)) + 2
-    indices = regions.map_to_indices(coords)
-    
-    for (coord, index) in zip(coords,indices):
-        print('coords:', coord, 'index:', index, 'bin:', regions.regions[index].label)
-    
