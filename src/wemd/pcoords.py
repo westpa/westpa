@@ -188,7 +188,7 @@ class RegionSet:
     def replace_region(self, coord, new_container):
         """Deprecated synonym for replace_region_containing()"""
         import warnings
-        warnings.warn('replace_region() is deprecated in favor of replace_region_containing()', DeprecationWarning)
+        warnings.warn('replace_region() is deprecated in favor of replace_region_containing()', DeprecationWarning,2)
         self.replace_region_containing(coord, new_container)
         
     def replace_region_containing(self, coord, new_container):
