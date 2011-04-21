@@ -161,8 +161,8 @@ class WESimManager:
                     target_counts = vgetattr('target_count', bins, numpy.uint)
                     if (bin_counts == 0).all():                
                         log.info('initial iteration for this run; binning on segment initial points')
-                        for (segment, bin) in izip(segments, 
-                                                   self.system.region_set.map_to_bins(segment.pcoord[0] for segment in segments)):
+                        initial_points = [segment.pcoord[0] for segment in segments]
+                        for (segment, bin) in izip(segments, self.system.region_set.map_to_bins(initial_points)):
                             bin.add(segment)
                         bin_counts = vgetattr('count', bins, numpy.uint)
     

@@ -43,7 +43,8 @@ class WEMDWEDriver:
                         
         # Distribute segments into bins based on their endpoints 
         region_set.clear()
-        for (segment, bin) in izip(segments, region_set.map_to_bins(segment.pcoord[-1] for segment in segments)):
+        endpoint_coords = [segment.pcoord[-1] for segment in segments]
+        for (segment, bin) in izip(segments, region_set.map_to_bins(endpoint_coords)):
             bin.add(segment)
             
         bins = numpy.array(region_set.get_all_bins(), numpy.object_)
