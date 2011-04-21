@@ -73,16 +73,16 @@ class RegionSet:
         # parts of the pcoord data as stored in the HDF5 file.
         self.transform_coords = None
         
+        # Used to select fast variants of mapping algorithms when topologies
+        # aren't nested
+        self._simple_topology = False
+        self._stale_topology = True
+        self._binmap = None
+        
     def clear(self):
         for region in self.regions:
             region.clear()
-        
-    def get_all_bins(self):
-        bins = []
-        for region in self.regions:
-            bins.extend(region.get_all_bins())
-        return bins        
-                                
+                                        
     def reweight(self, new_weight):
         """Reweight all particles in this set so that the total weight is new_weight"""
         current_weight = self.weight
@@ -102,18 +102,7 @@ class RegionSet:
     def count(self):
         """The number of particles in this set"""
         return sum(region.count for region in self.regions)        
-    
-#    def transform_coords(self, coords):
-#        """Transform input coordinates into the coordinates spanned by this RegionSet. By default, does
-#        nothing (returns coords unchanged).  Note that to override this function, one may either subclass
-#        and override directly, or simply assign a function with signature transform(self, coords) to 
-#        transform_coords.  Also note that this could be as simple as returning a slice from coords 
-#        (i.e. to use only a subset of the total dimensionality of the coordinate).
-#        
-#        If performance is especially critical, set transform_coords to None to avoid one function call
-#        per call to map_to_bins()"""
-#        return coords
-    
+        
     def prep_coords(self, coords):
         """Prepare a list of coordinates for further processing. Ensures that the coordinates
         are filtered through self.transform_coords(), and further that input and output 
@@ -150,6 +139,21 @@ class RegionSet:
         elif coords.ndim > 2:
             raise TypeError('transform_coords() must return a 1- or 2-d array')
         return coords
+    
+    def scan_topology(self):
+        """Scan the topology of this bin space. Must be called prior to calling the various map_to_...
+        functions"""
+        
+        all_bins = self.get_all_bins()
+        if list(all_bins) == list(self.regions):
+            self._simple_topology = True
+            self._binmap = None
+            log.info('using algorithms optimized for non-nested bin spaces')
+        else:
+            self._simple_topology = False
+            self._binmap = {id(bin): ibin for (ibin,bin) in enumerate(all_bins)}
+            log.info('using algorithms appropriate for nested bin spaces')
+        self._stale_topology = False
         
     def _map_to_indices(self, coords):
         """ 
@@ -158,30 +162,62 @@ class RegionSet:
         a component within a coordinate set.  Subclasses (must) override this to implement binning functionality. 
         """
         raise NotImplementedError
-            
+          
     def map_to_bins(self, coords):
         """
         Recursively descend each region in this set until each coord in coords is mapped to a ParticleSet
         In other words, calling map_to_bins(coords) returns a list of the same length as coords where
-        each entry is a ParticleSet; calling map_to_indices on a top-level RegionSet returns the bins to which 
+        each entry is a ParticleSet; calling map_to_bins on a top-level RegionSet returns the bins to which 
         the particles belong.
         """
-
+        
+        if self._stale_topology:
+            self.scan_topology()
+        
         coords = self.prep_coords(coords)
         bins = numpy.empty((len(coords),), numpy.object_)
         region_indices = self._map_to_indices(coords)
         
-        populated_indices = set(region_indices)
-        for index in populated_indices:
-            # create a vector of len(bins) of booleans indicating which rows we're updating 
-            bin_selector = (region_indices == index)
-            bins[bin_selector] = self.regions[index].map_to_bins(coords[bin_selector])
+        if self._simple_topology:
+            bins[:] = [self.regions[index] for index in region_indices]
+        else:
+            populated_indices = set(region_indices)
+            for index in populated_indices:
+                # create a vector of len(bins) of booleans indicating which rows we're updating 
+                bin_selector = (region_indices == index)
+                bins[bin_selector] = self.regions[index].map_to_bins(coords[bin_selector])
         
         if None in bins:
             raise ValueError('one or more coords could not be mapped to bins')
         
         return bins
+
+    def get_all_bins(self):
+        """Get a list of all bins contained in this RegionSet, descending depth-first"""
+        bins = []
+        for region in self.regions:
+            bins.extend(region.get_all_bins())
+        return bins        
+
+    def map_to_all_indices(self, coords):
+        """Map sets of coordinates to indices into the list of bins returned by `get_all_bins()`
         
+        This function caches a map from bin identity to index. If the topology of regions changes
+        between calls to map_to_all_indices(), scan_topology() must also be called to ensure that
+        the map gets updated properly.
+        
+        Currently, there are no optimizations for non-nested bin topologies. Such optimizations may
+        increase throughput for analysis of relatively simple topologies."""
+
+        if self._stale_topology:
+            self.scan_topology()
+            
+        if self._simple_topology:
+            # No nesting, so we can delegate to _map_to_indices()
+            return self._map_to_indices(self.prep_coords(coords))
+        else:
+            return [self._binmap[id(bin)] for bin in self.map_to_bins(coords)]
+                
     def get_bin_containing(self, coord):
         return self.map_to_bins(self.prep_coords([coord]))[0]
     
@@ -195,6 +231,7 @@ class RegionSet:
         """Replace the region containing coord with new_container"""
         idx = self._map_to_indices(self.prep_coords([coord]))[0]
         self.regions[idx] = new_container
+        self._stale_topology = True
 
 class PiecewiseRegionSet(RegionSet):
     """A multidimensional RegionSet which uses a set of functions to map coordinates to regions.
@@ -232,9 +269,13 @@ class RectilinearRegionSet(RegionSet):
     """A multidimensional RegionSet divided by rectilinear (interior) boundaries"""
     
     def __init__(self, boundaries, container_class = ParticleSet):
-        
         # A numpy array of RegionSets/ParticleSets
-        self.region_array = None   
+        self.region_array = None
+        
+        # because of the accessor for region, region_array must be set before
+        # calling our parent's __init__
+        super(RectilinearRegionSet,self).__init__()
+                   
         self.ndim = None
         
         # A list of lists of bin boundaries
@@ -284,7 +325,8 @@ class RectilinearRegionSet(RegionSet):
     
     @regions.setter
     def regions(self, regions):
-        self.region_array.flat = regions
+        if regions is not None:
+            self.region_array.flat = regions
     
     def _map_to_indices(self, coords):
         assert coords.ndim == 2

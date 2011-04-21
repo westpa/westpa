@@ -34,7 +34,6 @@ sim_manager.data_manager.open_backing()
 
 region_set = wemdtools.bins.get_region_set_from_args(args, status_stream=sys.stdout)
 bins = region_set.get_all_bins()
-bin_map = {id(bin): ibin for (ibin, bin) in enumerate(bins)}
 n_bins = len(bins)
 
 max_iter = sim_manager.data_manager.current_iteration
@@ -74,7 +73,7 @@ for i_iter in xrange(0, max_iter):
 
     # Read only the initial point
     pcoords = iter_group['pcoord'][:,0,:]
-    bin_indices = [bin_map[id(bin)] for bin in region_set.map_to_bins(pcoords)]
+    bin_indices = region_set.map_to_all_indices(pcoords)
     for (seg_id, ibin) in enumerate(bin_indices):
         binprobs[ibin] += weights[seg_id]
         

@@ -3,7 +3,7 @@ import os, sys, argparse, math
 from collections import namedtuple
 from itertools import count, izip, islice
 import numpy
-import wemd
+import wemd, wemdtools
 from wemd.pcoords import PiecewiseRegionSet, RectilinearRegionSet
 from wemd.util import extloader
 from wemdtools.transitions.transacc import TransitionEventAccumulator
@@ -147,12 +147,7 @@ parser.add_argument('-L', '--lifetimes', dest='lifetime_file', type=argparse.Fil
 parser.add_argument('--noheaders', dest='suppress_headers', action='store_true',
                     help='Do not write headers to output files (default: write headers).')
 
-parser.add_argument('--binexpr', dest='binexpr',
-                    help='''Use BINEXPR to construct bins for analysis; must contain an assignment to 
-                     a variable called "region_set" (Default: load from system file.)''')
-parser.add_argument('--binbounds', dest='binbounds',
-                    help='''Construct rectilinear bins from BINBOUNDS, which will be parsed as a list of lists
-                    of bin boundaries.  The text 'inf' will be replaced by infinity.''')
+wemdtools.bins.add_region_set_options(parser)
 
 parser.add_argument('--start', dest='start', type=int, default=0,
                     help='Start at brute force entry or WEMD iteration START; ' 
@@ -184,42 +179,7 @@ wemd.rc.config_logging(args, 'w_ttimes')
 
 runtime_config = None
 sim_manager = None
-if args.binexpr:
-    print('using region set expression on the command line',file=args.output_file)
-    print('region set expression:',file=args.output_file)
-    print(args.binexpr,file=args.output_file)
-    print('----', file=args.output_file)
-    namespace = globals()
-    namespace.update(locals())
-    try:
-        ccode = compile(args.binexpr, '<BINEXPR>', mode='exec')
-        exec ccode in namespace
-        region_set = namespace['region_set']
-    except SyntaxError as e:
-        sys.stderr.write('{!s}\n'.format(e))
-        sys.exit(1)
-    except KeyError:
-        sys.stderr.write('inline region set code MUST assign to a variable named "region_set"\n')
-        sys.exit(1)
-elif args.binbounds:
-    import re
-    re_transform_inf = re.compile(r'inf', re.IGNORECASE)
-    
-    transformed_expr = '{}\n'.format(re_transform_inf.sub("float('inf')", args.binbounds))
-    binbounds = eval(transformed_expr)
-    
-    print('using rectiliear bin boundaries specified on the command line')
-    print('bin expression:',file=args.output_file)
-    print(binbounds,file=args.output_file)
-    print('----', file=args.output_file)
-    region_set = RectilinearRegionSet(binbounds) 
-else:
-    print('loading bin data from WEMD system', file=args.output_file)
-    runtime_config = wemd.rc.read_config(args.run_config_file)
-    runtime_config.update_from_object(args)
-    sim_manager = wemd.rc.load_sim_manager(runtime_config)
-    sim_manager.load_system_driver()
-    region_set = sim_manager.system.region_set
+region_set = wemdtools.bins.get_region_set_from_args(args, status_stream=sys.stderr)
 
 if not args.suppress_headers:
     if args.trans_file is not None:

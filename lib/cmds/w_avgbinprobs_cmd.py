@@ -58,7 +58,6 @@ if args.stop_iter and args.stop_iter <= stop_iter:
 sim_manager.load_system_driver()
 region_set = wemdtools.bins.get_region_set_from_args(args, status_stream=sys.stdout)
 bins = region_set.get_all_bins()
-bin_map = {id(bin): ibin for (ibin, bin) in enumerate(bins)}
 n_bins = len(bins)
         
 confidence = args.confidence
@@ -85,7 +84,7 @@ for i_iter in xrange(0, len(binprobs)):
     binprobs[i_iter, :] = 0
     # map_to_indices only works for the top level;
     
-    bin_indices = [bin_map[id(bin)] for bin in region_set.map_to_bins(pcoords)]
+    bin_indices = region_set.map_to_all_indices(pcoords)
     for (seg_id, ibin) in enumerate(bin_indices):
         binprobs[i_iter, ibin] += seg_index[seg_id]['weight']
 

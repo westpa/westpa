@@ -26,8 +26,10 @@ class TransitionEventAccumulator:
         self.track_lifetimes = (ltfile is not None)
         self.track_fpts = (fptfile is not None)
         self.track_eds = (edfile is not None)
+        
                 
         self.n_bins = len(self.region_set.get_all_bins())
+        
         self.clear()
         
     def clear(self):
@@ -131,7 +133,7 @@ class TransitionEventAccumulator:
             else:
                 weights = weight            
         
-        indices = self.region_set.map_to_indices(pcoords)
+        indices = self.region_set.map_to_all_indices(pcoords)
         
         # a table of time points, region at that time point, and (yes, believe it), the region at the prior time point
         # in that order
