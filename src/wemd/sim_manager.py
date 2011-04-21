@@ -360,7 +360,7 @@ class WESimManager:
         self.status_stream.write(('\nRun wallclock: {intervals.walltime}, CPU time (WEMD only): {intervals.cputime},'
                                  +' system time: {intervals.systime}\n').format(intervals=intervals))
         
-        if self.runtime_config['args.profile_mode']:
+        if self.runtime_config['args.verbose_mode']:
             self.status_stream.write('Internal timing information:\n')
             self.rtracker.dump_differences(self.status_stream)
     # end WESimManager.run()

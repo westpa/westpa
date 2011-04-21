@@ -26,6 +26,12 @@
    ``replace_region`` continues to function, though it will cause a 
    DeprecationWarning. (TODO: make DeprecationWarnings visible when importing
    a system file.)
+ * Enabled developer warnings by default for all programs executed through the
+   ``bin/wemd`` wrapper script.
+ * Moved the --profile global option from being WEMD's responsibility to being
+   the responsibility of the ``bin/wemd`` wrapper script. As a result, any WEMD
+   script invoked using the ``bin/wemd`` wrapper can now be profiled without
+   changing any code. 
 
 2011-04-15 -- Matt Zwier <mczwier@gmail.com>
  * Added w_segstats and w_succ scripts, reporting per-iteration statistics and

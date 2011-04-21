@@ -28,7 +28,7 @@ def load_sim_manager(runtime_config):
     
 def common_arg_parser(prog=None,description=None):
     '''Return an argparse.ArgumentParser pre-loaded with --rcfile, --verbose, --debug,
-    --profile, and --version'''
+    and --version'''
     import wemd
     parser = argparse.ArgumentParser(prog=prog,description=description)
     parser.add_argument('-r', '--rcfile', metavar='RCFILE', dest='run_config_file',
@@ -38,8 +38,6 @@ def common_arg_parser(prog=None,description=None):
                         help='emit extra information')
     parser.add_argument('--debug', dest='debug_mode', action='store_true',
                         help='enable extra checks and emit copious information')
-    parser.add_argument('--profile', dest='profile_mode', action='store_true',
-                        help='run this process under the Python profiler')
     parser.add_argument('--version', action='version', version='WEMD version %s' % wemd.version)
     return parser
 
@@ -73,45 +71,17 @@ def config_logging(args, tool_logger_name = None):
     
     logging.config.dictConfig(logging_config)
     logging_config['incremental'] = True
-
-def run_optionally_profiled(func, args, kwargs, cmdline_args):
-    '''Run func(*args, **kwargs).  If cmdline_args.profile_mode is True, run the same
-    expression under the cProfile profiler.'''
-    args = args or tuple()
-    kwargs = kwargs or dict()
-        
-    if cmdline_args.profile_mode:
-        import cProfile, pstats
-        from wemd import log
-        
-        profile_file = '_wemd_profile_{:d}.dat'.format(os.getpid())
-        log.info('writing profiling information to {}'.format(profile_file))
-        
-        gvars = globals()
-        lvars = locals()
-        lvars['func'] = func
-        lvars['args'] = args
-        lvars['kwargs'] = kwargs
-        try:
-            cProfile.runctx('func(*args, **kwargs)', gvars, lvars, profile_file)
-        finally:
-            stats = pstats.Stats(profile_file)
-            stats.sort_stats('time')
-            stats.print_stats()
-    else:
-        func(*args, **kwargs)
         
 def default_cmdline_dispatch(func, args, kwargs, cmdline_args, log):
-    '''Run func(*args, **kwargs) wrapped in the default WEMD exception handler, optionally with
-    profiling (if cmdline_args.profile_mode is True).  log should be the top-level logger of
-    the module responsible for calling func().  If an exception is caught, the program will
-    terminate with exit code 1.'''
+    '''Run func(*args, **kwargs) wrapped in the default WEMD exception handler. ``log``
+    should be the top-level logger of the module responsible for calling ``func()``.  
+    If an exception is caught, the program will terminate with exit code 1.'''
 
     args = args or tuple()
     kwargs = kwargs or dict()
     
     try:
-        run_optionally_profiled(func, args, kwargs, cmdline_args)
+        func(*args,**kwargs)
     except KeyboardInterrupt:
         sys.stderr.write('Interrupted.\n')
         sys.exit(os.EX_TEMPFAIL)
