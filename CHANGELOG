@@ -1,3 +1,19 @@
+2011-04-22 -- Matt Zwier <mczwier@gmail.com>
+ * Added support for non-recycling simulations by not specifying any target
+   states.
+ * Provided WEMDSystem.initialize(), which must now be overridden instead
+   of __init__() to implement a system class.  This separates the setup which
+   *must* occur for all instances of WEMDSystem subclasses from the system-
+   specific setup. The former occurs in WEMDSystem.__init__() which should
+   not need to be overridden; the latter occurs in WEMDSystem.initialize(),
+   which must be overridden. For a time, overriding WEMDSystem.__init__()
+   will be supported, but will trigger DeprecationWarnings.
+ * Outdated features of system files now trigger DeprecationWarnings.  Some
+   especially critical warnings are logged using logging.warning() in
+   addition to triggering a DeprecationWarning (just in case someone has
+   circumvented the automatic display of DeprecationWarnings which occurs
+   in any script called by the bin/wemd wrapper).
+
 2011-04-20 -- Matt Zwier <mczwier@gmail.com>
  * Added an initial testing framework. Currently, only tests the ``pcoords``
    module, and requires nose to be installed to be used in any convenient way.
@@ -24,8 +40,7 @@
    public entry point, such as ``map_to_bins()`` or ``get_bin_containing()``).
  * Renamed ``replace_region`` to ``replace_region_containing`` in RegionSet.
    ``replace_region`` continues to function, though it will cause a 
-   DeprecationWarning. (TODO: make DeprecationWarnings visible when importing
-   a system file.)
+   DeprecationWarning. 
  * Enabled developer warnings by default for all programs executed through the
    ``bin/wemd`` wrapper script.
  * Moved the --profile global option from being WEMD's responsibility to being

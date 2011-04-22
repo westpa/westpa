@@ -83,6 +83,28 @@ class WESimManager:
         pathinfo = self.runtime_config.get_pathlist('system.module_path', default=None)        
         self.system = extloader.get_object(sysdrivername, pathinfo)(self)
         log.debug('system driver is %r' % self.system)
+        log.debug('initializing system driver')
+        
+        # Initialize the system driver
+        try:
+            self.system.initialize()
+        except NotImplementedError:
+            msg = 'WEMD systems must now override the initialize() method, not the __init__() method'
+            import warnings
+            warnings.warn(msg, DeprecationWarning)
+            
+            # This is really critical, so make sure it gets logged even if DeprecationWarnings are
+            # suppressed            
+            log.warn(msg)
+            
+        # Catch a couple loose problems, which will eventually be made illegal but
+        # for a transition period will be allowed.
+        if self.system.target_states is None:
+            msg ='system target_states is None; resetting to []' 
+            log.warning(msg)
+            warnings.warn(msg, DeprecationWarning)
+            self.system.target_states = []
+
         
     def flush_status(self):
         try:
@@ -263,11 +285,12 @@ class WESimManager:
                     
                 self.status_stream.write('%d trajectory segments in next iteration\n' % len(next_iter_segments))
                 
-                # Store recycling information in HDF5
-                iter_summary = self.data_manager.get_iter_summary(n_iter)
-                iter_summary['target_flux'] = P_recycled
-                iter_summary['target_hits'] = n_recycled
-                self.data_manager.write_recycling_data(n_iter, self.we_driver.recycle_from)
+                # Store recycling information in HDF5, but only if we actually have targets
+                if self.system.target_states:
+                    iter_summary = self.data_manager.get_iter_summary(n_iter)
+                    iter_summary['target_flux'] = P_recycled
+                    iter_summary['target_hits'] = n_recycled
+                    self.data_manager.write_recycling_data(n_iter, self.we_driver.recycle_from)
     
                 # Update current segments; their endpoint types were modified by WE                
                 self.data_manager.update_segments(n_iter, segments)
