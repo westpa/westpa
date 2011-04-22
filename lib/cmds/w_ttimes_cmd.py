@@ -235,8 +235,8 @@ else:
     if args.force_wemd:
         from wemd.util.config_dict import ConfigDict
         if runtime_config is None: runtime_config = ConfigDict()
-        runtime_config['data.h5file'] = args.datafile
-        print('reading WEMD data from', args.datafile, file=args.output_file)
+        runtime_config['data.h5file'] = args.datafile[0]
+        print('reading WEMD data from', args.datafile[0], file=args.output_file)
     else:
         print('reading data from WEMD simulation', file=args.output_file)
         if runtime_config is None:

@@ -200,20 +200,20 @@ class RegionSet:
         return bins        
 
     def map_to_all_indices(self, coords):
-        """Map sets of coordinates to indices into the list of bins returned by `get_all_bins()`
+        """Map sets of coordinates to indices into the list of bins returned by `get_all_bins()`.
+        This works correctly for nested topologies and quickly and correctly for non-nested 
+        topologies.
         
         This function caches a map from bin identity to index. If the topology of regions changes
         between calls to map_to_all_indices(), scan_topology() must also be called to ensure that
         the map gets updated properly.
-        
-        Currently, there are no optimizations for non-nested bin topologies. Such optimizations may
-        increase throughput for analysis of relatively simple topologies."""
+        """
 
         if self._stale_topology:
             self.scan_topology()
             
         if self._simple_topology:
-            # No nesting, so we can delegate to _map_to_indices()
+            # No nesting, so we can delegate to _map_to_indices() and avoid some recusion
             return self._map_to_indices(self.prep_coords(coords))
         else:
             return [self._binmap[id(bin)] for bin in self.map_to_bins(coords)]
