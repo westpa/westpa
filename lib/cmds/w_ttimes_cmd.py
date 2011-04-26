@@ -98,6 +98,7 @@ def accumulate_transitions_segment(segment, children, history, transacc, data_ma
                                .format(n_visited, n_to_visit, pct_visited, nsegwidth=nsegwidth))
         args.output_file.flush()
     if segment.p_parent_id < 0:
+    #if len(history) == 0:
         transacc.accumulate_transitions(segment.pcoord, weight=segment.weight, continuation = False, label=str(segment.n_iter))
     else:
         transacc.accumulate_transitions(segment.pcoord[1:], weight=segment.weight, continuation = True, label=str(segment.n_iter))
@@ -108,7 +109,6 @@ def accumulate_transitions_segment(segment, children, history, transacc, data_ma
     
 def run_transanl_wemd(args, transacc, sim_manager):
     start_iter = args.start or 1
-    if not args.stop: args.stop = sim_manager.data_manager.current_iteration - 1
     stop_iter  = min(args.stop, sim_manager.data_manager.current_iteration-1)
     if start_iter == stop_iter: return
     

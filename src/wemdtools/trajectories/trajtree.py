@@ -149,19 +149,50 @@ class TrajTree:
         if max_iter is None or max_iter >= self.data_manager.current_iteration:
             max_iter = self.data_manager.current_iteration - 1 
         
+        log.debug('finding trajectory roots for n_iter in [%d,%d]' % (min_iter, max_iter))
+        
         roots = []
         for n_iter in xrange(min_iter, max_iter+1):
             # roots always have a p_parent_id less than zero
             p_parent_ids = self._get_p_parent_array(n_iter)
             seg_ids = self._seg_ids_where(n_iter, p_parent_ids < 0)
             segments = self._get_segments_by_id(n_iter, seg_ids)
-            #segments = self.data_manager.get_segments(n_iter)
-            #segments = [segment for segment in segments if segment.p_parent_id < 0]
             roots.extend(segments)
         return roots
     
+    def get_initial_nodes(self, min_iter = None, max_iter = None, whole_only = False):
+        '''Get segments with which to begin a tree walk.  If ``whole_only`` is false (the
+        default), return segments which are alive at min_iter or start new trajectories between 
+        min_iter and max_iter (inclusive).  If ``whole_only`` is true, return only segments
+        which begin new trajectories.'''
+        
+        min_iter = min_iter or 1
+        if max_iter is None or max_iter >= self.data_manager.current_iteration:
+            max_iter = self.data_manager.current_iteration - 1
+            
+        roots = []
+        min_iter_roots = set()
+        for n_iter in xrange(min_iter, max_iter+1):
+            # roots always have a p_parent_id less than zero
+            p_parent_ids = self._get_p_parent_array(n_iter)
+            seg_ids = self._seg_ids_where(n_iter, p_parent_ids < 0)
+            segments = self._get_segments_by_id(n_iter, seg_ids)
+            roots.extend(segments)
+            
+            if n_iter == min_iter:
+                min_iter_roots.update(seg_ids)
+                
+        if not whole_only:
+            min_iter_segs = self.data_manager.get_segments(min_iter)
+            for segment in min_iter_segs:
+                if segment.seg_id not in min_iter_roots:
+                    roots.append(segment)
+        
+        return roots
+    
     def trace_trajectories(self, min_iter, max_iter, 
-                           callable, args=None, kwargs= None, get_state = None, set_state = None):
+                           callable, args=None, kwargs= None, get_state = None, set_state = None,
+                           whole_only = False):
         """
         Walk the trajectory tree depth-first, calling
           ``callable(segment, children, history, *args, **kwargs)`` for each segment 
@@ -169,7 +200,13 @@ class TrajTree:
         segment's children, ``history`` is the chain of segments leading
         to ``segment`` (not including ``segment``). get_state and set_state are
         used to record and reset, respectively, any state specific to 
-        callable when a new branch is traversed.
+        ``callable`` when a new branch is traversed.
+        
+        If called with whole_only == False (the default), analyze all trajectories 
+        alive at min_iter and those newly created between min_iter and max_iter
+        (inclusive).  Conversely, if whole_only is true, analyze only trajectories
+        which begin between min_iter and max_iter (inclusive), thus analyzing only
+        entire trajectories.
         """
         
         args = args or tuple()
@@ -184,8 +221,11 @@ class TrajTree:
         # This will grow to contain the maximum trajectory length
         history = numpy.empty((self.history_chunksize,), numpy.object_)
         self.count_segs_in_range(min_iter, max_iter)
+        roots = self.get_roots(min_iter,max_iter)
         
-        for root in self.get_roots(min_iter, max_iter):
+        #for root in self.get_initial_nodes(min_iter, max_iter, whole_only):
+        log.debug('%d roots' % len(roots))
+        for root in roots:
             children = self._get_children(root)
 
             # Visit the root node of each tree unconditionally

@@ -55,19 +55,37 @@ rec_summary_dtype = numpy.dtype( [ ('count', numpy.uint),
                                    ('weight', numpy.float64) ] )
 
 class WEMDDataManager:
-    def __init__(self, sim_manager):
+    """Data manager for reading and writing HDF5 files with WEMD.
+    
+    Though the constructor expects a sim_manager argument, it is essentially
+    there only for derived classes or future use. 
+    
+    """
+    
+    # field width of numeric portion of iteration group names
+    iter_prec = 8
+    
+    def __init__(self, sim_manager, backing_file = None):
         self.sim_manager = sim_manager
         
         self.h5file = None
         
-        runtime_config = self.sim_manager.runtime_config
-        runtime_config.require('data.h5file')
-        
-        try:
-            self.iter_prec = runtime_config.get_int('data_manager.iter_prec')
-        except (KeyError,ValueError):
-            self.iter_prec = 8 # field width of numeric portion of iteration group names
-        
+        if backing_file:
+            # Some analysis script is using this class to get at a HDF5 file
+            # without requiring a system file or wemd.cfg
+            self.backing_file = backing_file
+        else:
+            # This must be a more typical arrangement, with a system file
+            # and wemd.cfg
+
+            runtime_config = sim_manager.runtime_config
+            self.backing_file = runtime_config.require('data.h5file')
+            try:
+                self.iter_prec = runtime_config.get_int('data_manager.iter_prec')
+            except (KeyError,ValueError):
+                # use default value
+                pass
+         
         # A few functions for extracting vectors of attributes from vectors of segments
         self._attrgetters = dict((key, vattrgetter(key)) for key in 
                                  ('seg_id', 'status', 'endpoint_type', 'weight', 'walltime', 'cputime'))
@@ -95,7 +113,7 @@ class WEMDDataManager:
         '''Open the HDF5 file. All keyword arguments are passed to h5py.File(), permitting
         use of different access modes or different I/O drivers.'''
         if not self.h5file:
-            self.h5file = h5py.File(self.sim_manager.runtime_config['data.h5file'], **kwargs)
+            self.h5file = h5py.File(self.backing_file, **kwargs)
         
     def prepare_backing(self):
         self.open_backing()
