@@ -18,26 +18,41 @@ from itertools import izip
 class steady_state(object):
     """Calculate the Transition Probability Matrix for lag time [1]  
     """
-    def __init__(self, sim_manager):
+    def __init__(self, sim_manager, count_adjust = 0, debug = None):
         self._sim_manager = sim_manager
         self._data_manager = sim_manager.data_manager
 
         self._system_driver = sim_manager.system
         # Determine first and last iteration in the database
-        self._miniter = 1
-        self._maxiter = self._data_manager.current_iteration - 1 #the last complete iteration
+        self.miniter = 1
+        self.maxiter = self._data_manager.current_iteration - 1 #the last complete iteration
+        self.count_adjust = count_adjust
+        self.debug = None
+        if debug is not None:
+            import h5py
+            self.debug = h5py.File(debug,'w')
 
-    def get_new_weights(self):     
+    def get_new_weights(self):                    
         Cij = self.calcCountMatrix()
-        eps = numpy.finfo(type(Cij[0,0])).eps
+        if self.debug is not None:        
+            self.debug.create_dataset('Cij',data=Cij)
         
+        eps = numpy.finfo(type(Cij[0,0])).eps
+
         #Reduce Cij to remove columns/row which are empty
         #oldindex[Ri] == Ci (ie it maps the reduced i,j to the original i,j which correspond to the original bins)        
         Rij, oldindex = self.reduceCountMatrix(Cij)
         #prevents a problem due to a low # of transitions
-        Rij += eps*10 
-        Q = self.convCount2ProbMatrix(Rij)
+        Rij += self.count_adjust
 
+        if self.debug is not None:          
+            self.debug.create_dataset('Rij',data=Rij)
+            
+        Q = self.convCount2ProbMatrix(Rij)
+        
+        if self.debug is not None:             
+            self.debug.create_dataset('Q',data=Q)
+                
         region_set = self._system_driver.region_set
         #Cij -> i or j is the index into bins
         bins = region_set.get_all_bins()
@@ -57,22 +72,30 @@ class steady_state(object):
         n_targets = len(flat_target_regions)
         
         bindim = Rij.shape[0]
-
+        
         SSP, ActiveBins = self.steady_state_approximation(Q, bindim, flat_target_regions)
-      
+        if self.debug is not None:     
+            self.debug.create_dataset('SSP',data=SSP)
+        
         #now remap new_weights onto the bin indices
         MappedActiveBins = []
         for ibin in ActiveBins:
             MappedActiveBins.append(oldindex[ibin])
 
         mapped_new_weights = numpy.zeros(len(bins))
-        for i in xrange(0,len(SSP)):            
+        for i in xrange(0,len(SSP)):
             mapped_new_weights[MappedActiveBins[i]] = SSP[i]
             #else it will be 0
-            
+  
         binnorm = 0.0
         for ibin in MappedActiveBins:
             binnorm += bins[ibin].weight
+            
+        if self.debug is not None:     
+            self.debug.create_dataset('binnorm',data=binnorm)
+            if MappedActiveBins:
+                self.debug.create_dataset('MappedActiveBins',data=MappedActiveBins)
+            self.debug.create_dataset('mapped_new_weights_not_norm',data=mapped_new_weights)
 
         #scale weights so sum is 1.0 for active bins (and 0 for inactive bins)
         for ibin in xrange(0,len(bins)):
@@ -81,6 +104,10 @@ class steady_state(object):
             else:
                 mapped_new_weights[ibin] = 0.0
 
+        if self.debug is not None:     
+            self.debug.create_dataset('final_weights',data=mapped_new_weights)
+            self.debug.close()
+                
         return mapped_new_weights
 
     def calcCountMatrix(self):
@@ -93,9 +120,7 @@ class steady_state(object):
         self._nstates = len(bins)
         self._Cij = numpy.zeros((self._nstates, self._nstates))
 
-        segments = self._data_manager.get_segments(self._maxiter)
-
-        for iter in xrange(self._miniter,self._maxiter):
+        for iter in xrange(self.miniter,self.maxiter):
 
             segs = self._data_manager.get_segments(iter)
             weights = [s.weight for s in segs]
@@ -124,7 +149,7 @@ class steady_state(object):
             #match child with parent and update Cij
             for j in xrange(0,len(initial_linbin)):
                 
-                if endpoint_types[j] != Segment.SEG_ENDPOINT_TYPE_CONTINUES:      
+                if endpoint_types[j] != Segment.SEG_ENDPOINT_TYPE_CONTINUES and endpoint_types[j] != Segment.SEG_ENDPOINT_TYPE_RECYCLED:    
                     continue
                 
                 Cj = final_linbin[j] #final state 
@@ -190,61 +215,96 @@ class steady_state(object):
         #sum(Pi)=1
         for ii in xrange(W.shape[0]):
             W[0,ii] = 1.0
-
-        P = numpy.linalg.solve(W,S)
-        
+            
+        P = numpy.linalg.solve(W,S)    
         return P, sactive
-        
-def cmd_steady_state(sim_manager):
+  
+def cmd_steady_state(sim_manager, count_adjust, ss_h5):
     sim_manager.load_data_manager()
     sim_manager.data_manager.open_backing()
         
     sim_manager.load_system_driver()
     sim_manager.load_we_driver()
-
+    sim_manager.load_propagator()
+    
     dm = sim_manager.data_manager    
     n_iter = dm.current_iteration
 
-    #populate the bins
     segments = sim_manager.data_manager.get_segments(n_iter)
-    for (seg, bin) in izip(segments, sim_manager.system.region_set.map_to_bins(s.pcoord[0] for s in segments)):
-        bin.add(seg)
-
-    ss = steady_state(sim_manager)
+    
+    #If the segments are all incomplete, delete this iteration and re-run we in case the binning has changed
+    seg_status = numpy.array([s.status for s in segments],dtype=numpy.uint)
+    
+    if (seg_status != Segment.SEG_STATUS_COMPLETE).any():
+        dm.del_iter_group(n_iter)
+        dm.del_iter_summary(n_iter)
+        sim_manager.data_manager.current_iteration = n_iter - 1
+        n_iter -= 1     
+        segments = sim_manager.data_manager.get_segments(n_iter)
+               
+    new_segments = sim_manager.we_driver.run_we(segments, sim_manager.system.region_set)
+    
+    sim_manager.data_manager.update_segments(n_iter, segments)
+        
+    ss = steady_state(sim_manager, count_adjust, ss_h5)
     new_weights = ss.get_new_weights()
 
     #reweight bins
     region_set = sim_manager.system.region_set
+    
+    region_set.clear()
     bins = region_set.get_all_bins()    
+   
+    for (seg, bin) in izip(new_segments, sim_manager.system.region_set.map_to_bins(s.pcoord[0] for s in new_segments)):
+        bin.add(seg)
     
     #actually reweight the particles in the bins                
     for ibin in xrange(0,len(bins)):
         bins[ibin].reweight(new_weights[ibin]) 
 
     # Create new iteration group in HDF5
-    sim_manager.data_manager.update_segments(n_iter, segments)
-    
-    sim_manager.data_manager.current_iteration = n_iter
+    for new_segment in new_segments:
+        assert new_segment.weight is not None
+        assert new_segment.p_parent_id is not None
+        assert new_segment.parent_ids is not None and new_segment.p_parent_id in new_segment.parent_ids
+        new_segment.n_iter = n_iter+1
+        new_segment.status = Segment.SEG_STATUS_PREPARED
+        new_segment.n_parents = len(new_segment.parent_ids)
+        
+    dm.prepare_iteration(n_iter+1, new_segments, 
+                                        sim_manager.system.pcoord_ndim, sim_manager.system.pcoord_len, sim_manager.system.pcoord_dtype)
+
+    sim_manager.data_manager.current_iteration = n_iter + 1
     dm.flush_backing()
     dm.close_backing()
     
     sys.exit(0)        
 
-parser = wemd.rc.common_arg_parser('w_steady_state', description='''Reweight a simulation to help achieve steady state''')
+#to allow others to use the steady_state class if desired 
+if __name__ == "__main__":
+    parser = wemd.rc.common_arg_parser('w_steady_state', description='''Reweight a simulation to help achieve steady state''')
 
-# Parse command line arguments
-args = parser.parse_args()
-wemd.rc.config_logging(args)
-runtime_config = wemd.rc.read_config(args.run_config_file)
-runtime_config.update_from_object(args)
-sim_manager = wemd.rc.load_sim_manager(runtime_config)
+    eps = numpy.finfo(numpy.float64).eps
+    
+    parser.add_argument('--count-adjust', dest='count_adjust', type=numpy.float64, default=10.0*eps,
+                            help='adjust the count matrix to prevent singular matrix or negative probabilities (default: 10*machine epsilon)\
+                                 If there are problems, try starting with this set to one.')
 
-try:
-    cmd_steady_state(sim_manager)
-except Exception as e:
-    # The following won't show up if the log isn't set up properly
-    log.error(str(e))
-    sys.stderr.write('ERROR: {!s}\n'.format(e))
-    import traceback
-    traceback.print_exc()
-    sys.exit(1)    
+    parser.add_argument('--ss-h5', dest='ss_h5', default=None, help='write debugging info to this h5 file')
+        
+    # Parse command line arguments
+    args = parser.parse_args()
+    wemd.rc.config_logging(args)
+    runtime_config = wemd.rc.read_config(args.run_config_file)
+    runtime_config.update_from_object(args)
+    sim_manager = wemd.rc.load_sim_manager(runtime_config)
+
+    try:
+        cmd_steady_state(sim_manager, args.count_adjust, args.ss_h5)
+    except Exception as e:
+        # The following won't show up if the log isn't set up properly
+        log.error(str(e))
+        sys.stderr.write('ERROR: {!s}\n'.format(e))
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)    
