@@ -268,3 +268,15 @@ class TrajTree:
                     callable(node, children, history[:len_history], *args, **kwargs)
                     self.segments_visited += 1
                     
+        
+    def trace_to_root(self, n_iter, seg_id):
+        '''Trace the given segment back to its starting point, returning a list of Segment
+        objects describing the entire trajectory.'''
+        
+        segments = []
+        segment = self._get_segments_by_id(n_iter, [seg_id])[0]
+        segments.append(segment)
+        while segment.p_parent_id >= 0:
+            segment = self._get_segments_by_id(segment.n_iter-1, [segment.p_parent_id])[0]
+            segments.append(segment)
+        return list(reversed(segments))
