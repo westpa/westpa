@@ -97,8 +97,8 @@ def accumulate_transitions_segment(segment, children, history, transacc, data_ma
         args.output_file.write('{:>{nsegwidth}d} of {:<{nsegwidth}d} segments ({:5.1f}%) analyzed\n'
                                .format(n_visited, n_to_visit, pct_visited, nsegwidth=nsegwidth))
         args.output_file.flush()
-    if segment.p_parent_id < 0:
-    #if len(history) == 0:
+    #if segment.p_parent_id < 0:
+    if len(history) == 0:
         transacc.accumulate_transitions(segment.pcoord, weight=segment.weight, continuation = False, label=str(segment.n_iter))
     else:
         transacc.accumulate_transitions(segment.pcoord[1:], weight=segment.weight, continuation = True, label=str(segment.n_iter))
@@ -109,11 +109,15 @@ def accumulate_transitions_segment(segment, children, history, transacc, data_ma
     
 def run_transanl_wemd(args, transacc, sim_manager):
     start_iter = args.start or 1
-    stop_iter  = min(args.stop, sim_manager.data_manager.current_iteration-1)
+    stop_iter = sim_manager.data_manager.current_iteration - 1 if not args.stop else args.stop    
+    stop_iter  = min(stop_iter, sim_manager.data_manager.current_iteration-1)
     if start_iter == stop_iter: return
     
     from wemdtools.trajectories.trajtree import TrajTree
     tree = TrajTree(sim_manager.data_manager, cache_pcoords = args.cache_pcoords)
+    
+    if args.whole_only:
+        args.output_file.write('considering whole trajectories only\n')
     
     if args.cache_pcoords:
         args.output_file.write('will cache pcoord data in memory\n')
@@ -122,7 +126,8 @@ def run_transanl_wemd(args, transacc, sim_manager):
                             callable=accumulate_transitions_segment,
                             get_state=transacc.get_state,
                             set_state=transacc.set_state,
-                            args=(transacc,sim_manager.data_manager,tree,args))
+                            args=(transacc,sim_manager.data_manager,tree,args),
+                            whole_only = bool(args.whole_only))
     args.output_file.write('{} segments analyzed\n'.format(tree.segments_visited))
     
 
@@ -155,7 +160,9 @@ parser.add_argument('--start', dest='start', type=int, default=0,
 parser.add_argument('--stop', dest='stop', type=int,
                     help='Stop at brute force entry or WEMD iteration STOP; '
                         +'zero-based for brute force, one-based for WEMD (default: process all data)')
-
+parser.add_argument('--whole-only', dest='whole_only', action='store_true',
+                    help='Consider entire trajectories only (default: consider any trajectory '
+                        +'alive at START)')
 parser.add_argument('-C', '--chunksize', dest='chunksize', type=int, default=100000,
                     help='Retrieve and analyze brute force data in chunks of size CHUNKSIZE (default: 100000)')
 parser.add_argument('--ignore-first-column', dest='ignore_1st_col', action='store_true',

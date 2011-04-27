@@ -1,3 +1,11 @@
+2011-04-27 -- Matt Zwier <mczwier@gmail.com>
+ * Modified w_ttimes and wemdtools.trajectories.trajtree to support analyzing
+   not only entire trajectories, but all trajectories alive at a specified
+   start time.  The old behavior is available using the --whole-only command-
+   line argument.  The number of segments to analyze is wrong for --whole-only,
+   but was probably wrong all along.  TODO: count segments correctly for
+   --whole-only.
+
 2011-04-22 -- Matt Zwier <mczwier@gmail.com>
  * Added support for non-recycling simulations by not specifying any target
    states.

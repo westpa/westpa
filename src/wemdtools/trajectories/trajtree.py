@@ -221,10 +221,11 @@ class TrajTree:
         # This will grow to contain the maximum trajectory length
         history = numpy.empty((self.history_chunksize,), numpy.object_)
         self.count_segs_in_range(min_iter, max_iter)
-        roots = self.get_roots(min_iter,max_iter)
         
-        #for root in self.get_initial_nodes(min_iter, max_iter, whole_only):
-        log.debug('%d roots' % len(roots))
+        #roots = self.get_roots(min_iter,max_iter)
+        roots = self.get_initial_nodes(min_iter, max_iter, whole_only)
+        #log.debug('%d roots' % len(roots))
+                
         for root in roots:
             children = self._get_children(root)
 
