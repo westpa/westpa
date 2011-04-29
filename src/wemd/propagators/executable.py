@@ -1,4 +1,4 @@
-import os, sys, time, contextlib, signal
+import os, sys, time, contextlib, signal, random
 import numpy
 import logging
 log = logging.getLogger(__name__)
@@ -36,6 +36,12 @@ class ExecutablePropagator(WEMDPropagator):
     ENV_PARENT_SEG_DATA_REF  = 'WEMD_PARENT_SEG_DATA_REF'
     
     ENV_PCOORD_RETURN        = 'WEMD_PCOORD_RETURN'
+    
+    ENV_RAND16               = 'WEMD_RAND16'
+    ENV_RAND32               = 'WEMD_RAND32'
+    ENV_RAND64               = 'WEMD_RAND64'
+    ENV_RAND128              = 'WEMD_RAND128'
+    ENV_RAND1               = 'WEMD_RAND1'
         
     def __init__(self, sim_manager):
         super(ExecutablePropagator,self).__init__(sim_manager)
@@ -160,12 +166,22 @@ class ExecutablePropagator(WEMDPropagator):
             parent_template = self.parent_dir
         else:
             parent_template = self.initial_state_dir
-            
+   
+        #ENV_RAND16               = 'WEMD_RAND16'
+        #ENV_RAND32               = 'WEMD_RAND32'
+        #ENV_RAND64               = 'WEMD_RAND64'
+        #ENV_RAND_1               = 'WEMD_RAND1'
+
         addtl_environ = {self.ENV_CURRENT_ITER: str(segment.n_iter),
                          self.ENV_CURRENT_SEG_ID: str(segment.seg_id),
                          self.ENV_PARENT_SEG_ID: str(segment.p_parent_id),
                          self.ENV_CURRENT_SEG_DATA_REF: self.makepath(self.segment_dir, template_args),
-                         self.ENV_PARENT_SEG_DATA_REF: self.makepath(parent_template, template_args)}
+                         self.ENV_PARENT_SEG_DATA_REF: self.makepath(parent_template, template_args),
+                         self.ENV_RAND16: str(random.randint(0,2**16)),
+                         self.ENV_RAND32: str(random.randint(0,2**32)),
+                         self.ENV_RAND64: str(random.randint(0,2**64)),
+                         self.ENV_RAND128: str(random.randint(0,2**128)),
+                         self.ENV_RAND1:  str(random.random())}
         return addtl_environ
     
     def segment_template_args(self, segment):
