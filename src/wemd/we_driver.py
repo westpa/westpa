@@ -208,8 +208,29 @@ class WEMDWEDriver:
         assert cumul_weight[len(to_merge)-1] == sum(weights[:len(to_merge)])
         glom = Segment(weight = cumul_weight[len(to_merge)-1],
                        parent_ids = set(to_merge_ids),
-                       pcoord = self.sim_manager.system.new_pcoord_array()) 
+                       pcoord = self.sim_manager.system.new_pcoord_array())
+        # This selects the proper parent, randomly, according to the relative weights of the
+        # particles to be merged. To prove empirically that this works (if logical proof isn't
+        # satisfying), do the following:
+        #>>> weights = numpy.array([0.01,0.02,0.04,0.2,0.2])
+        #>>> weights
+        #array([ 0.01,  0.02,  0.04,  0.2 ,  0.2 ])
+        #>>> cumul_weight = numpy.add.accumulate(weights)
+        #>>> cumul_weight
+        #array([ 0.01,  0.03,  0.07,  0.27,  0.47])
+        #>>> glom_weight = cumul_weight[3-1]
+        #>>> glom_weight
+        #0.070000000000000007
+        #>>> for i in xrange(0,700000): idx = numpy.digitize((random.uniform(0,glom_weight),),cumul_weight[:3])[0]; counts[idx] += 1;
+        #>>> 
+        #>>> counts / float(sum(counts))
+        #array([ 0.142598,  0.285781,  0.571621])
+        #>>> 1/7.0, 2/7.0, 4/7.0
+        #(0.14285714285714285, 0.2857142857142857, 0.5714285714285714)
+
         iparent = numpy.digitize((random.uniform(0,glom.weight),),cumul_weight[:len(to_merge)])[0]
+        
+        # This bit accounts for merging of previously-split or -recycled particles
         if to_merge[iparent].seg_id is not None:
             glom.pcoord[0] = to_merge[iparent].pcoord[-1]
         else:

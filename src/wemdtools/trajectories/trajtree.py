@@ -2,134 +2,19 @@ from __future__ import print_function, division; __metaclass__=type
 from itertools import imap
 import numpy
 from wemd import Segment
+from wemdtools.data_manager import CachingDataReader
 
 import logging
 log = logging.getLogger(__name__)
 
 class TrajTree:
     def __init__(self, data_manager, cache_pcoords = False):
-        self.data_manager = data_manager
+        self.data_manager = CachingDataReader(data_manager, cache_pcoords)
+        self.data_manager.include_pcoords = True
         
-        self.history_chunksize = 32
-        
-        self.current_iteration = data_manager.current_iteration
-        self._iter_groups = {n_iter: data_manager.get_iter_group(n_iter)
-                             for n_iter in xrange(1,self.current_iteration+1)}
-        self._seg_id_ranges = {n_iter: numpy.arange(0,self._iter_groups[n_iter]['seg_index'].shape[0],
-                                                    dtype = numpy.uintp) 
-                               for n_iter in xrange(1,self.current_iteration+1)}
-        
-        # Mapping of iteration -> data from that iteration
-        self._seg_indices = dict()
-        self._parent_arrays = dict()
-        self._p_parent_arrays = dict()
-        self._pcoord_arrays = dict()
-        self._pcoord_datasets = dict()
-        
+        self.history_chunksize = 32        
         self.segments_to_visit = 0
         self.segments_visited = 0
-        
-        self.cache_pcoords = cache_pcoords
-        
-    def _get_seg_index(self, n_iter):
-        try:
-            return self._seg_indices[n_iter]
-        except KeyError:
-            seg_index = self._seg_indices[n_iter] = self._iter_groups[n_iter]['seg_index'][...]
-            return seg_index
-        
-    def _get_parent_array(self, n_iter):
-        try:
-            return self._parent_arrays[n_iter]
-        except KeyError:
-            parent_array = self._parent_arrays[n_iter] = self._iter_groups[n_iter]['parents'][...]
-            return parent_array
-                
-    def _get_p_parent_array(self, n_iter):
-        try:
-            return self._p_parent_arrays[n_iter]
-        except KeyError:
-            parent_offsets = self._get_seg_index(n_iter)['parents_offset'][:]
-            p_parent_array = self._get_parent_array(n_iter)[parent_offsets]
-            self._p_parent_arrays[n_iter] = p_parent_array
-            return p_parent_array
-                
-    def _get_pcoord_array(self, n_iter):
-        try:
-            return self._pcoord_arrays[n_iter]
-        except KeyError:
-            pcoords = self._pcoord_arrays[n_iter] = self._iter_groups[n_iter]['pcoord'][...]
-            return pcoords
-        
-    def _get_pcoord_dataset(self, n_iter):
-        try:
-            return self._pcoord_datasets[n_iter]
-        except KeyError:
-            pcoord_ds = self._pcoord_datasets[n_iter] = self._iter_groups[n_iter]['pcoord']
-            return pcoord_ds
-        
-    def _get_segments_by_id(self, n_iter, seg_ids):
-        '''Get segments from the data manager, employing caching where possible (and, in the case
-        of pcoords, requested)'''
-        if len(seg_ids) == 0: return []
-        
-        seg_index  = self._get_seg_index(n_iter)
-        all_parent_ids = self._get_parent_array(n_iter)
-        
-        if self.cache_pcoords:
-            pcoords = self._get_pcoord_array(n_iter)
-        else:
-            pcoord_ds = self._get_pcoord_dataset(n_iter)
-            
-        
-        segments = []
-        # seg_ids must be a list, or else the pcoords_by_seg dereference will fail
-        seg_ids = list(seg_ids)
-        
-        for seg_id in seg_ids:
-            row = seg_index[seg_id]
-            parents_offset = row['parents_offset']
-            n_parents = row['n_parents']
-            segment = Segment(seg_id = seg_id,
-                              n_iter = n_iter,
-                              status = row['status'],
-                              n_parents = n_parents,
-                              endpoint_type = row['endpoint_type'],
-                              walltime = row['walltime'],
-                              cputime = row['cputime'],
-                              weight = row['weight'])
-            if self.cache_pcoords:
-                segment.pcoord = pcoords[seg_id,...]
-            parent_ids = all_parent_ids[parents_offset:parents_offset+n_parents]
-            segment.p_parent_id = long(parent_ids[0])
-            segment.parent_ids = set(imap(long,parent_ids))
-            segments.append(segment)
-            
-        if not self.cache_pcoords:
-            pcoords_by_seg = pcoord_ds[seg_ids,...]
-            for (iseg,segment) in enumerate(segments):
-                segment.pcoord = pcoords_by_seg[iseg]
-        
-        return segments
-        
-        
-    def _get_children(self, segment):        
-        # get_children gets called for every segment being processed, always,
-        # which means that the segment table and parent table get pulled from
-        # HDF5 TWICE per segment if data_manager.get_children() is called
-        p_parents = self._get_p_parent_array(segment.n_iter+1)
-        seg_ids = self._seg_ids_where(segment.n_iter+1, p_parents == segment.seg_id)
-        return self._get_segments_by_id(segment.n_iter+1, seg_ids)
-    
-        
-    def _seg_ids_where(self, n_iter, bool_array):
-        seg_ids = self._seg_id_ranges[n_iter][bool_array]
-        try:
-            len(seg_ids)
-        except TypeError:
-            return [seg_ids]
-        else:
-            return seg_ids
         
     def count_segs_in_range(self, min_iter = None, max_iter = None):
         min_iter = min_iter or 1
@@ -138,7 +23,7 @@ class TrajTree:
         
         self.segments_to_visit = 0
         for n_iter in xrange(min_iter, max_iter+1):
-            seg_index = self._get_seg_index(n_iter)
+            seg_index = self.data_manager.get_seg_index(n_iter)
             self.segments_to_visit += len(seg_index)        
                 
     def get_roots(self, min_iter = None, max_iter = None):
@@ -154,9 +39,9 @@ class TrajTree:
         roots = []
         for n_iter in xrange(min_iter, max_iter+1):
             # roots always have a p_parent_id less than zero
-            p_parent_ids = self._get_p_parent_array(n_iter)
-            seg_ids = self._seg_ids_where(n_iter, p_parent_ids < 0)
-            segments = self._get_segments_by_id(n_iter, seg_ids)
+            p_parent_ids = self.data_manager.get_p_parent_array(n_iter)
+            seg_ids = self.data_manager.get_seg_ids_where(n_iter, p_parent_ids < 0)
+            segments = self.data_manager.get_segments_by_id(n_iter, seg_ids)
             roots.extend(segments)
         return roots
     
@@ -174,9 +59,9 @@ class TrajTree:
         min_iter_roots = set()
         for n_iter in xrange(min_iter, max_iter+1):
             # roots always have a p_parent_id less than zero
-            p_parent_ids = self._get_p_parent_array(n_iter)
-            seg_ids = self._seg_ids_where(n_iter, p_parent_ids < 0)
-            segments = self._get_segments_by_id(n_iter, seg_ids)
+            p_parent_ids = self.data_manager.get_p_parent_array(n_iter)
+            seg_ids = self.data_manager.get_seg_ids_where(n_iter, p_parent_ids < 0)
+            segments = self.data_manager.get_segments_by_id(n_iter, seg_ids)
             roots.extend(segments)
             
             if n_iter == min_iter:
@@ -227,7 +112,7 @@ class TrajTree:
         #log.debug('%d roots' % len(roots))
                 
         for root in roots:
-            children = self._get_children(root)
+            children = self.data_manager.get_children(root)
 
             # Visit the root node of each tree unconditionally
             callable(root, children, [], *args, **kwargs)
@@ -262,7 +147,7 @@ class TrajTree:
                     len_history += 1
                     
                     node = children.pop(-1)
-                    children = self._get_children(node)
+                    children = self.data_manager.get_children(node)
 
                     # Visit the new node as we descend
                     callable(node, children, history[:len_history], *args, **kwargs)
@@ -274,9 +159,9 @@ class TrajTree:
         objects describing the entire trajectory.'''
         
         segments = []
-        segment = self._get_segments_by_id(n_iter, [seg_id])[0]
+        segment = self.data_manager.get_segments_by_id(n_iter, [seg_id])[0]
         segments.append(segment)
         while segment.p_parent_id >= 0:
-            segment = self._get_segments_by_id(segment.n_iter-1, [segment.p_parent_id])[0]
+            segment = self.data_manager.get_segments_by_id(segment.n_iter-1, [segment.p_parent_id])[0]
             segments.append(segment)
         return list(reversed(segments))

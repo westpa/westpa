@@ -94,10 +94,14 @@ def accumulate_transitions_segment(segment, children, history, transacc, data_ma
     if not args.quiet_mode and n_visited % 1000 == 0:
         nsegwidth = int(ceil(log10(n_to_visit)))
         pct_visited = n_visited / n_to_visit * 100
-        args.output_file.write('{:>{nsegwidth}d} of {:<{nsegwidth}d} segments ({:5.1f}%) analyzed\n'
-                               .format(n_visited, n_to_visit, pct_visited, nsegwidth=nsegwidth))
+        if args.whole_only:
+            args.output_file.write('{:>{nsegwidth}d} of a maximum of {:<{nsegwidth}d} segments analyzed\n'
+                                   .format(n_visited, n_to_visit, nsegwidth=nsegwidth))
+        else:
+            args.output_file.write('{:>{nsegwidth}d} of {:<{nsegwidth}d} segments ({:5.1f}%) analyzed\n'
+                                   .format(n_visited, n_to_visit, pct_visited, nsegwidth=nsegwidth))
         args.output_file.flush()
-    #if segment.p_parent_id < 0:
+
     if len(history) == 0:
         transacc.accumulate_transitions(segment.pcoord, weight=segment.weight, continuation = False, label=str(segment.n_iter))
     else:

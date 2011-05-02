@@ -109,3 +109,5 @@ for n_iter in xrange(1,args.maxiter+1):
     del iter_summary, populations, pcoord, new_segment, new_segments, old_segment, old_segments
     
 sim_manager.data_manager.current_iteration = n_iter
+sim_manager.data_manager.flush_backing()
+sim_manager.data_manager.close_backing()

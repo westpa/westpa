@@ -16,6 +16,9 @@ class TransitionEventAccumulator:
     def __init__(self, region_set, tfile = None, ltfile = None, edfile = None, fptfile = None,
                  accumulate_statistics = True):
         self.region_set = region_set
+        self.n_bins = len(self.region_set.get_all_bins())
+        self.init_regions = numpy.arange(0,self.n_bins, dtype=self.index_dtype)
+        
         self.tfile = tfile
         self.edfile = edfile
         self.fptfile = fptfile
@@ -26,9 +29,6 @@ class TransitionEventAccumulator:
         self.track_lifetimes = (ltfile is not None)
         self.track_fpts = (fptfile is not None)
         self.track_eds = (edfile is not None)
-        
-                
-        self.n_bins = len(self.region_set.get_all_bins())
         
         self.clear()
         
@@ -145,7 +145,9 @@ class TransitionEventAccumulator:
             tracking_table[:,CURRENT_REGION] = indices
             if len(pcoords) > 1:
                 tracking_table[1:,LAST_REGION] = indices[:-1]
-            tracking_table[:,TIMEPOINT] = numpy.arange(self.time_index+1, self.time_index+len(pcoords)+1, dtype=self.index_dtype)
+            til = long(self.time_index)
+            xr = xrange(til+1, til+len(pcoords)+1)
+            tracking_table[:,TIMEPOINT] = xr
         else:
             # not a continuation
             self.clear_state()
@@ -153,7 +155,9 @@ class TransitionEventAccumulator:
             tracking_table = numpy.empty((len(pcoords)-1,3), self.index_dtype)
             tracking_table[:,LAST_REGION] = indices[:-1]
             tracking_table[:,CURRENT_REGION] = indices[1:]
-            tracking_table[:,TIMEPOINT] = numpy.arange(self.time_index+1, self.time_index+len(pcoords), dtype=self.index_dtype)
+            til = long(self.time_index)
+            xr = xrange(til+1, til+len(pcoords))
+            tracking_table[:,TIMEPOINT] = xr
         
         observed_at = tracking_table[:,CURRENT_REGION] != tracking_table[:,LAST_REGION]
         trans_observed = tracking_table[observed_at, :]
@@ -178,7 +182,7 @@ class TransitionEventAccumulator:
         track_fpts = self.track_fpts
 
         irdisc = numpy.zeros((n_bins,), numpy.bool_)        
-        init_regions = numpy.arange(0,n_bins,dtype=index_dtype)
+        init_regions = self.init_regions
         
         for ((time_index,current_region,last_region), weight) in izip(trans_observed, weights_observed):
             n_crossings[last_region,current_region] += 1
