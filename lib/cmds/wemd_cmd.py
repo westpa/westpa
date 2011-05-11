@@ -147,8 +147,13 @@ parser_run =     subparsers.add_parser('run', help='start/continue a simulation'
 parser_run.add_argument('--oneseg', dest='only_one_segment', action='store_true',
                         help='only propagate one segment (useful for debugging problems in propagators)')
 parser_run.add_argument('--work-manager', dest='work_manager_name', 
-                        help='use the given work manager to propagate segments (e.g. serial, threads, processes, tcpip,'
+                        help='use the given work manager to propagate segments (e.g. serial, threads, processes, tcpip, zmq'
                             +' or name a Python class; default: threads)')
+mode_group = parser_run.add_mutually_exclusive_group()
+mode_group.add_argument('--master', '--server', dest='work_manager_mode', action='store_const', const='master',
+                        help='For distributed work managers, run as a master.')
+mode_group.add_argument('--worker', '--client', dest='work_manager_mode', action='store_const', const='worker',
+                        help='For distributed work managers, run as a worker')
 parser_run.set_defaults(func=cmd_run)
 
 parser_status =  subparsers.add_parser('status', help='report simulation status')

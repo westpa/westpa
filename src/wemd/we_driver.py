@@ -78,8 +78,6 @@ class WEMDWEDriver:
         new_segments = []
         new_pcoord_array = self.sim_manager.system.new_pcoord_array
         for segment in chain(*bins):
-            if log.isEnabledFor(logging.DEBUG):
-                log.debug('examining segment {!r}'.format(segment))
             if segment.seg_id is not None:
                 # A simple continuation; we need to create a new segment for it here
                 new_segment = Segment(weight = segment.weight,

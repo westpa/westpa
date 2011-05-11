@@ -130,8 +130,9 @@ class WEMDDataManager:
         
         
     def close_backing(self):
-        self.h5file.close()
-        self.h5file = None
+        if self.h5file is not None:
+            self.h5file.close()
+            self.h5file = None
         
     def flush_backing(self):
         if self.h5file is not None:
@@ -177,12 +178,8 @@ class WEMDDataManager:
                                               shape=(n_particles, pcoord_len, pcoord_ndim), 
                                               dtype=pcoord_dtype)
         pcoord = pcoord_ds[...]
-        log.debug('pcoord shape is {!r}'.format(pcoord.shape))
         
         for (seg_id, segment) in enumerate(segments):
-            if log.isEnabledFor(logging.DEBUG):
-                log.debug('processing segment %r' % segment)
-                log.debug('assigning seg_id=%r' % seg_id)
             if segment.seg_id is not None:
                 assert segment.seg_id == seg_id
             assert segment.p_parent_id is not None
@@ -213,7 +210,6 @@ class WEMDDataManager:
         
         total_parents = numpy.sum(seg_index_table[:]['n_parents'])
         if total_parents > 0:
-            log.debug('creating dataset for %d parents' % total_parents)
             parents_ds = iter_group.create_dataset('parents', (total_parents,), numpy.int32)
             parents = parents_ds[:]
         
@@ -228,7 +224,6 @@ class WEMDDataManager:
                 assert extent > 0
                 assert None not in segment.parent_ids
                 assert segment.p_parent_id in segment.parent_ids
-                log.debug('segment {!r} has {!r} parent(s): {!r}'.format(segment, extent, segment.parent_ids))
                 
                 # Ensure that the primary parent is first in the list
                 parents[offset] = segment.p_parent_id                
@@ -242,7 +237,6 @@ class WEMDDataManager:
                     else:
                         parents[offset+1:offset+extent] = parent_ids
                 assert set(parents[offset:offset+extent]) == segment.parent_ids
-                log.debug('HDF5 data for parents: {!r}'.format(parents[offset:offset+extent]))
             
             parents_ds[:] = parents                    
 
@@ -309,14 +303,12 @@ class WEMDDataManager:
         for segment in segments:
             seg_id = segment.seg_id
             row[:] = seg_index_table[seg_id]
-            #log.debug('row: %r' % (row,))
             row['status'] = segment.status
             row['endpoint_type'] = segment.endpoint_type or Segment.SEG_ENDPOINT_TYPE_NOTSET
             row['cputime'] = segment.cputime
             row['walltime'] = segment.walltime
             row['weight'] = segment.weight
             
-            #log.debug('row: %r' % (row,))
             seg_index_table[seg_id] = row
             
             pcoords[seg_id] = segment.pcoord

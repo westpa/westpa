@@ -62,6 +62,9 @@ class WESimManager:
         elif drivername.lower() == 'tcpip':
             import wemd.work_managers.tcpip
             self.work_manager = wemd.work_managers.tcpip.TCPWorkManager(self)
+        elif drivername.lower() in ('zmq', 'zeromq'):
+            import wemd.work_managers.zeromq
+            self.work_manager = wemd.work_managers.zeromq.ZMQWorkManager(self)
         else:
             pathinfo = self.runtime_config.get_pathlist('drivers.module_path', default=None)
             self.work_manager = extloader.get_object(drivername, pathinfo)(self)
@@ -123,12 +126,16 @@ class WESimManager:
         self.rtracker.end('propagation')
                     
     def run(self):
-        """Begin (or continue) running a simulation"""
-
-        # Have the work manager initialize
-        self.work_manager.prepare_workers()
-        if self.work_manager.is_server() == False:
-            return self.work_manager.run()
+        """Begin (or continue) running a simulation
+        
+        If ``mode`` is 'master' (the default), runs the entire WE simulation loop. If
+        ``mode`` is 'worker', drops straight into a work manager's "receive-work" loop, if
+        supported
+        """
+        
+        if self.work_manager.mode == 'worker':
+            self.work_manager.run_worker()
+            return
         
         # Set up internal timing
         self.rtracker.begin('run')
