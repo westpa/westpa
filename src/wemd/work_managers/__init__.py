@@ -9,7 +9,7 @@ log = logging.getLogger(__name__)
 class WEMDWorkManager:
     def __init__(self, sim_manager):
         self.sim_manager = sim_manager
-        self.mode='master'
+        self.mode=sim_manager.runtime_config.get('args.mode', 'master')
                 
     def parse_aux_args(self, aux_args, do_help = False):
         '''Parse any unprocessed command-line arguments, returning any arguments not proccessed

@@ -265,7 +265,7 @@ class ExecutablePropagator(WEMDPropagator):
 
             # Fork the new process
             with changed_cwd(self.propagator_info['cwd']):
-                log.info('iteration {segment.n_iter}, propagating segment {segment.seg_id}'.format(segment=segment))
+                log.debug('iteration {segment.n_iter}, propagating segment {segment.seg_id}'.format(segment=segment))
                 
                 addtl_env = self._segment_env(segment)
                 pc_return_filename = self.makepath(self.pcoord_file, self.segment_template_args(segment))

@@ -38,6 +38,8 @@ class ZMQBase:
         self.node_id = str(uuid.uuid4())
         
         # An inproc PUB socket for asynchronous inter-thread signaling WITHIN THIS CLASS
+        # This is a bit risky, as there's no protection against creating in one thread
+        # and using in another, but no crashes so far
         self._intsig_endpoint = 'inproc://_intsig_{:x}'.format(id(self))
         self._intsig = self.context.socket(zmq.PUB)
         self._intsig.setsockopt(zmq.LINGER, 100)
@@ -53,7 +55,6 @@ class ZMQBase:
     def intsig(self, message):
         '''Send an in-process signal to all registered listeners'''
         self._intsig.send(message)
-    
         
 class ZWorkProvider(ZMQBase):
     def __init__(self, zmq_context, task_endpoint, results_endpoint, ann_tasks_endpoint):
@@ -62,15 +63,6 @@ class ZWorkProvider(ZMQBase):
         self.task_endpoint = task_endpoint
         self.results_endpoint = results_endpoint
         self.ann_tasks_endpoint = ann_tasks_endpoint
-        
-        # create sockets in the threads in which they are used
-        #self.task_socket = self.context.socket(zmq.REP)
-        #self.results_socket = self.context.socket(zmq.PULL)
-        #self.ann_tasks_socket = self.context.socket(zmq.PUB)
-        #self.ann_tasks_socket.setsockopt(zmq.LINGER, 0)       
-        #self.task_socket.bind(task_endpoint)
-        #self.results_socket.bind(results_endpoint)
-        #self.ann_tasks_socket.bind(ann_tasks_endpoint)
         
         self.task_socket = None
         self.results_socket = None
@@ -87,11 +79,8 @@ class ZWorkProvider(ZMQBase):
 
         # incoming tasks, undispatched
         self.task_queue = collections.deque()
-        
-        # Tasks (or rather, task_ids) which have been dispatched but not returned
-        self.pending_tasks = set()
-                
-        # Mapping of task_id to results
+                        
+        # Mapping of task_id to results (i.e. returned results)
         self.results = {}
 
     def handle_work_request(self):
@@ -113,31 +102,19 @@ class ZWorkProvider(ZMQBase):
             log.debug('sending {:d} tasks: {!r}'.format(len(to_send), [task.task_id for task in to_send]))
             self.task_socket.send('tasks {} {}'.format(len(to_send), self.results_endpoint), zmq.SNDMORE)
             self.task_socket.send_pyobj(to_send)
-            self.pending_tasks.update(task.task_id for task in to_send)
         else:
             log.debug('no tasks to send')
             self.task_socket.send('tasks 0', zmq.SNDMORE)
             self.task_socket.send('')
             
     def handle_results_receipt(self):
-        results_queued = True
-        while results_queued:
-            try:
-                task_id, results = self.results_socket.recv_pyobj(flags=zmq.NOBLOCK)
-            except zmq.ZMQError as e:
-                log.debug('no more results available: {}'.format(e))
-                results_queued = False
-            else:                
-                log.debug('received results for task {!r}'.format(task_id))
-                try:
-                    self.pending_tasks.remove(task_id)
-                except KeyError:
-                    log.error('results received for unknown task {!r}; ignoring'.format(task_id))
-                else:
-                    # Atomic assignment
-                    self.results[task_id] = results
-                    # Signal to listeners to check for results
-                    self.intsig('results {}'.format(task_id))        
+        task_id, results = self.results_socket.recv_pyobj()
+        log.debug('received results for task {!r}'.format(task_id))
+        # Atomic assignment
+        self.results[task_id] = results
+        # Signal to listeners to check for results
+        self.intsig('results {}'.format(task_id))        
+
         
     def wait(self, task_id):
         log.debug('waiting on {!r}'.format(task_id))
@@ -245,7 +222,7 @@ class ZWorkProvider(ZMQBase):
             poller.register(intsig, zmq.POLLIN)
             
             while self.do_collect:
-                poll_results = set(poller.poll(1000))
+                poll_results = set(poller.poll())
                 if (self.results_socket, zmq.POLLIN) in poll_results:
                     self.handle_results_receipt()
                     
@@ -270,10 +247,6 @@ class ZWorkConsumer(ZMQBase):
         self.ann_in_endpoint = ann_in_endpoint
         self.ann_in_socket = None
         
-        #self.ann_in_socket = self.context.socket(zmq.SUB)
-        #self.ann_in_socket.setsockopt(zmq.SUBSCRIBE,'')
-        #self.ann_in_socket.connect(self.ann_in_endpoint)
-                
         self.do_work = True
         self.work_thread = None
         
@@ -327,7 +300,7 @@ class ZWorkConsumer(ZMQBase):
             poller.register(intsig, zmq.POLLIN)
             
             while self.do_work:
-                poll_results = set(poller.poll(1000))
+                poll_results = set(poller.poll())
                 
                 if not poll_results:
                     log.debug('timeout')
@@ -367,6 +340,10 @@ class ZWorkConsumer(ZMQBase):
                                 # Ship out results one at a time - upstream expects a tuple of (task_id, result)
                                 log.debug('returning results for {!r}'.format(task.task_id))
                                 results_socket.send_pyobj((task.task_id, result))
+                                
+                            # overzealous use of results_socket.close() led to lost messages
+                            # don't know why, but nothing seems to break (yet) without it, so just let
+                            # it be closed on garbage collection for now
                             
                             # And ask for more
                             results_endpoint, tasks = self.retrieve_work(task_socket)
@@ -385,7 +362,6 @@ class ZMQWorkManager(WEMDWorkManager):
         super(ZMQWorkManager,self).__init__(sim_manager)
         
         runtime_config = sim_manager.runtime_config
-        self.mode = 'master'
         self.upstream_host  = runtime_config.get('zmq_work_manager.master', socket.gethostname())
         self.command_port = runtime_config.get_int('zmq_work_manager.command_port', DEFAULT_COMMAND_PORT)
         self.status_port  = runtime_config.get_int('zmq_work_manager.status_port', DEFAULT_STATUS_PORT)
@@ -408,8 +384,10 @@ class ZMQWorkManager(WEMDWorkManager):
         
         self.zmaster = None
         self.zclient = None
+        
+        self.child_pids = set()
 
-    def parse_aux_args(self, aux_args, do_help = False, mode='master'):
+    def parse_aux_args(self, aux_args, do_help = False):
         parser = argparse.ArgumentParser(usage='%(prog)s [NON_WORK_MANAGER_OPTIONS] [OPTIONS]',
                                          add_help=False)
         
@@ -448,8 +426,6 @@ class ZMQWorkManager(WEMDWorkManager):
         self.task_endpoint    = 'tcp://{}:{}'.format(self.upstream_host, self.task_port)
         self.results_endpoint = 'tcp://{}:{}'.format(self.upstream_host, self.results_port)
         
-        self.mode = mode
-        
         return extra_args
         
     def shutdown(self, exit_code = 0):
@@ -465,18 +441,18 @@ class ZMQWorkManager(WEMDWorkManager):
         poller.register(self.command_socket, zmq.POLLIN)
         #poller.register(intsig, zmq.POLLIN)
         while self.do_listen_commands:
-            poll_results = set(poller.poll(1000))
+            poll_results = set(poller.poll())
                         
             if (self.command_socket, zmq.POLLIN) in poll_results:
                 command = self.command_socket.recv()
                 if command == 'cmd_shutdown':
-                    self.zworker.shutdown()
+                    if self.zworker is not None:
+                        self.zworker.shutdown()
                     return
                 
             if not poll_results:
                 log.debug('timeout')
-
-            
+                            
     def listen_commands(self):
         if self.command_thread is None:
             self.command_thread = threading.Thread(target=self.listen_commands_loop)
@@ -490,23 +466,44 @@ class ZMQWorkManager(WEMDWorkManager):
         self.zworker.work()
         return self.zworker.work_thread.join()
     
-    def prepare(self):
+    def prepare_worker(self):
+        assert self.mode == 'worker'
+        assert self.context is None
+        self.context = zmq.Context()
+        self.command_socket = self.context.socket(zmq.SUB)
+        self.command_socket.setsockopt(zmq.SUBSCRIBE, '')
+        self.command_socket.connect(self.command_endpoint)
+        self.zworker = ZWorkConsumer(self.context, self.status_endpoint, self.sim_manager.propagator)
+    
+    def spawn_worker_processes(self):
         if self.mode == 'master':
-            # Run workers on this machine, and also run as master
-            for iworker in xrange(0, self.n_workers):
-                log.debug('spawning worker {} of {}'.format(iworker+1, self.n_workers))
-                pid = os.fork()
-                if pid == 0:
-                    # in child
-                    self.mode = 'worker'
-                    self.context = zmq.Context()
-                    self.command_socket = self.context.socket(zmq.SUB)
-                    self.command_socket.setsockopt(zmq.SUBSCRIBE, '')
-                    self.command_socket.connect(self.command_endpoint)
-                    self.zworker = ZWorkConsumer(self.context, self.status_endpoint, self.sim_manager.propagator)
-                    log.debug('worker {} is PID {}'.format(iworker+1, os.getpid()))
-                    return
-                            
+            n_to_spawn = self.n_workers
+        else:
+            # We started as a dedicated worker, so this process *is* a worker process
+            # and we only need to spawn enough processes to fill up to self.n_workers
+            n_to_spawn = self.n_workers - 1
+        
+        if n_to_spawn <= 0:
+            return
+        
+        for iworker in xrange(0, n_to_spawn):
+            log.debug('spawning worker {} of {}'.format(iworker+1, n_to_spawn))
+            pid = os.fork()
+            if pid == 0:
+                # in child
+                self.mode = 'worker'
+                self.prepare_worker()
+                log.debug('worker {} is PID {}'.format(iworker+1, os.getpid()))
+                return
+            else:
+                self.child_pids.add(pid)
+        
+        if self.mode == 'worker':
+            self.prepare_worker()
+            
+    def prepare(self):
+        self.spawn_worker_processes()
+        if self.mode == 'master':
             # Run master
             assert self.context is None
             log.debug('master is PID {}'.format(os.getpid()))
@@ -518,17 +515,19 @@ class ZMQWorkManager(WEMDWorkManager):
             self.ann_results_socket.bind(self.ann_results_endpoint)
             self.zmaster = ZWorkProvider(self.context, self.task_endpoint, self.results_endpoint, self.status_endpoint)
             self.zmaster.collect()
-        else:
-            raise NotImplementedError
     
     def propagate(self, segments):
         assert self.zmaster.collect_thread is not None
         blocks = [segments[i:i+self.blocksize] for i in xrange(0,len(segments),self.blocksize)]
         log.debug('dispatching {} segment(s) in {} block(s)'.format(len(segments), len(blocks)))
-        tasks = [Task('propagate', block) # task_id=('propagate', tuple((segment.n_iter, segment.seg_id) for segment in block))) 
-                 for block in blocks]
+        # label deterministically to save a little system entropy
+        tasks = [Task('propagate', block, task_id=('propagate', block[0].n_iter, block[0].seg_id)) for block in blocks]
         self.zmaster.dispatch_all(tasks)
         results = self.zmaster.wait_all(task.task_id for task in tasks)
+        
+        # No unprocessed results?
+        assert not self.zmaster.results
+        
         incoming_segments = []
         for block in results:
             incoming_segments.extend(block)

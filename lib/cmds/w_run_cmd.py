@@ -9,6 +9,12 @@ parser = wemd.rc.common_arg_parser(prog='w_run', description='start/continue a W
 parser.add_argument('--work-manager', dest='work_manager_name',
                     help='use the given work manager to distribute work among processors (serial, threads, processes, tcpip, zmq, '
                         +'or name a Python class; default: threads)')
+mode_group = parser.add_mutually_exclusive_group()
+mode_group.add_argument('--master', dest='mode', action='store_const', const='master',
+                        help='Run as a WEMD master (responsible for coordinating WE and parallel propagation')
+mode_group.add_argument('--worker', dest='mode', action='store_const', const='worker',
+                        help='Run as a WEMD worker (listening for work from a master)')
+mode_group.set_defaults(mode='master') 
 parser.add_argument('--oneseg', dest='only_one_segment', action='store_true',
                     help='only propagate one segment (useful for debugging propagators)')
 parser.add_argument('--help-work-manager', dest='do_work_manager_help', action='store_true',

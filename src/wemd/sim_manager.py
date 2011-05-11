@@ -229,14 +229,14 @@ class WESimManager:
                     self.data_manager.update_iter_summary(n_iter, iter_summary)
                     
                     
-                    log.info('preparing work manager for new iteration')
+                    log.debug('preparing work manager for new iteration')
                     self.work_manager.prepare_iteration(n_iter, segments)
                     
-                    log.info('running system-specific per-iteration preprocessing')
+                    log.debug('running system-specific per-iteration preprocessing')
                     self.system.preprocess_iteration(n_iter, segments)
                 
                 # Allow the user to run only one segment to aid in debugging propagators
-                log.info('propagating iteration {:d}'.format(n_iter))
+                log.debug('propagating iteration {:d}'.format(n_iter))
                 if self.runtime_config.get('args.only_one_segment',False):
                     log.info('propagating only one segment')
                     self._propagate(n_iter, segs_to_run[0:1])                
@@ -246,7 +246,7 @@ class WESimManager:
                         break
                 else:
                     self._propagate(n_iter, segs_to_run)
-                log.info('propagation complete')
+                log.debug('propagation complete')
                     
                 self.rtracker.begin('we_prep')
                 
@@ -258,7 +258,7 @@ class WESimManager:
                         self.status_stream.write('  %d\n' % failed_segment.seg_id)
                     raise RuntimeError('propagation failed for %d segments' % len(failed_segments))
                 
-                log.info('running system-specific per-iteration postprocessing')                    
+                log.debug('running system-specific per-iteration postprocessing')                    
                 self.system.postprocess_iteration(n_iter, segments)    
                 self.rtracker.end('we_prep')
                 
@@ -303,7 +303,7 @@ class WESimManager:
                 self.data_manager.update_segments(n_iter, segments)
                 self.data_manager.flush_backing()
                 
-                log.info('work manager finalizing iteration')
+                log.debug('work manager finalizing iteration')
                 self.work_manager.finalize_iteration(n_iter, segments)
                 self.rtracker.end('we_postprocess')
                 
