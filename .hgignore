@@ -4,6 +4,7 @@ syntax: glob
 *.pyc
 *.pyo
 *~
+.DS_Store
 
 syntax: regexp
 \.[0-9]+$

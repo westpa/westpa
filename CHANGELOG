@@ -1,3 +1,12 @@
+2011-05-12 -- Joshua Adelman <joshua.adelman@gmail.com>
+ * Modified .hgignore to include .DS_Store files for developing on Mac OSX.
+ * Modified w_steady_state to address Issue #3 in the main repo and added 
+   additional functionality to provide users of w_steady_state command-line
+   arguments to select the start/stop iteration for collecting statistics, an
+   output option to write output to file, and a mode where the calculated bin
+   probabilities are not pushed to storage, and an option to symmetrize the 
+   count matrix. 
+   
 2011-04-27 -- Matt Zwier <mczwier@gmail.com>
  * Modified w_ttimes and wemdtools.trajectories.trajtree to support analyzing
    not only entire trajectories, but all trajectories alive at a specified
