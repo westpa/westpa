@@ -1,4 +1,7 @@
 2011-05-12 -- Joshua Adelman <joshua.adelman@gmail.com>
+ * Initial implementation of VoronoiRegionSet
+
+2011-05-12 -- Joshua Adelman <joshua.adelman@gmail.com>
  * Modified .hgignore to include .DS_Store files for developing on Mac OSX.
  * Modified w_steady_state to address Issue #3 in the main repo and added 
    additional functionality to provide users of w_steady_state command-line
