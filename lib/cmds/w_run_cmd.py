@@ -12,6 +12,8 @@ parser.add_argument('--work-manager', dest='work_manager_name',
 mode_group = parser.add_mutually_exclusive_group()
 mode_group.add_argument('--master', dest='mode', action='store_const', const='master',
                         help='Run as a WEMD master (responsible for coordinating WE and parallel propagation')
+mode_group.add_argument('--node', dest='mode', action='store_const', const='node',
+                        help='Run as a WEMD node coordinator (a communications broker between a remote master and local workers)')
 mode_group.add_argument('--worker', dest='mode', action='store_const', const='worker',
                         help='Run as a WEMD worker (listening for work from a master)')
 mode_group.set_defaults(mode='master') 

@@ -83,14 +83,13 @@ class Master(ZMQBase):
         self.task_endpoint = task_endpoint
         self.results_endpoint = results_endpoint
         self.ann_endpoint = ann_endpoint
-                        
-        # How often we announce available work in the absence of requests (in seconds)        
-        self.announce_interval = 0.1
         
+        # How often do we broadcast that we have work available, to handle slow starting clients (in s)
+        self.announce_interval = 5.0
+                                
         # How often do we check for results (in s)
-        self.results_check_interval = 0.01
+        self.results_check_interval = 5.0
         
-    
         self.do_main_loop = True
         self.main_loop_thread = None
         self._work_avail_endpoint = 'inproc://_work_avail_{:x}'.format(id(self))
@@ -101,10 +100,9 @@ class Master(ZMQBase):
         self.task_queue = collections.deque()
                         
         # Mapping of task_id to results (i.e. returned results)
+        # the main loop inserts items, and wait() removes them
         self.results = {}
         
-        self.last_announcement = 0
-                        
     def main_loop(self):
         log.debug('starting main loop')
         ann_socket = self.context.socket(zmq.PUB)
@@ -128,22 +126,19 @@ class Master(ZMQBase):
         poller.register(task_socket, zmq.POLLIN)
         poller.register(wakeup_socket, zmq.POLLIN)
         poller.register(work_avail_socket, zmq.POLLIN)
-        
-        last_announcement = 0
-        
+                
         log.debug('waiting for sockets to settle')
         time.sleep(1)        
         
+        last_announcement = 0
         while self.do_main_loop:            
             # Wait on messages from clients (or the shutdown signal)
-            poll_results = set(fd for (fd,_flag) in poller.poll())
+            poll_results = set(fd for (fd,_flag) in poller.poll(self.announce_interval*1000))
             
             if wakeup_socket in poll_results:
                 # Just flush, and make sure we re-evaluate self.do_main_loop and announce work if it's time
                 log.debug('wakeup!')
                 wakeup_socket.recv()
-                #self.flush_socket(wakeup_socket)
-                #assert_flushed(wakeup_socket)
 
             if results_socket in poll_results:
                 log.debug('receiving results')
@@ -173,11 +168,14 @@ class Master(ZMQBase):
                         break
                 log.debug('sending {} task(s)'.format(len(to_send)))
                 task_socket.send_pyobj((self.results_endpoint, to_send))
-    
-            if work_avail_socket in poll_results:
-                work_avail_socket.recv()
+            
+            now = time.time()
+            if self.task_queue and (work_avail_socket in poll_results or now - last_announcement >= self.announce_interval):
+                if work_avail_socket in poll_results:
+                    work_avail_socket.recv()
                 log.debug('announcing tasks available')
                 ann_socket.send('tasks available {}'.format(self.task_endpoint))
+                last_announcement = now
             
         else:
             log.debug('sending termination signal')
@@ -347,8 +345,67 @@ class Worker(ZMQBase):
 
 class Node(ZMQBase):
     '''Forward traffic between an upstream master (or node) and downstream workers (or nodes)'''
-    def __init__(self, context, upstream_endpoints, downstream_endpoints):
-        pass                            
+    def __init__(self, context,
+                 upstream_task_endpoint, upstream_results_endpoint, upstream_ann_endpoint,
+                 downstream_task_endpoint, downstream_results_endpoint, downstream_ann_endpoint):
+        ZMQBase.__init__(self, context)
+        
+        # upstream (remote) endpoints
+        self.upstream_task_endpoint = upstream_task_endpoint
+        self.upstream_results_endpoint = upstream_results_endpoint
+        self.upstream_ann_endpoint = upstream_ann_endpoint
+        
+        # where downstream (local) workers reach *this* object
+        self.downstream_task_endpoint = downstream_task_endpoint
+        self.downstream_results_endpoint = downstream_results_endpoint
+        self.downstream_ann_endpoint = downstream_ann_endpoint
+        
+        # Start a streamer to forward results back upstream (to the master)
+        self.zstreamer = zmq.devices.ThreadDevice(zmq.STREAMER, zmq.PULL, zmq.PUSH)
+        self.zstreamer.bind_in(self.downstream_results_endpoint)
+        self.zstreamer.connect_out(self.upstream_results_endpoint)
+        log.debug('starting STREAMER')
+        self.zstreamer.start()
+        
+        # Start a queue to forward results between upstream (the master) and downstream (clients)
+        self.zqueue = zmq.devices.ThreadDevice(zmq.QUEUE, zmq.REP, zmq.REQ)
+        self.zqueue.bind_in(self.downstream_task_endpoint)
+        self.zqueue.connect_out(self.upstream_task_endpoint)
+        log.debug('starting QUEUE')
+        self.zqueue.start()
+        
+        # We do manual forwarding of PUB/SUB messages to catch the "shutdown" message ourselves
+        
+        self.forward_thread = None
+        
+    def forward_loop(self):
+        upstream_ann = self.context.socket(zmq.SUB)
+        upstream_ann.setsockopt(zmq.SUBSCRIBE, '')
+        upstream_ann.connect(self.upstream_ann_endpoint)
+        
+        downstream_ann = self.context.socket(zmq.PUB)
+        downstream_ann.bind(self.downstream_ann_endpoint)
+        
+        poller = zmq.Poller()
+        poller.register(upstream_ann, zmq.POLLIN)
+        while True:
+            poll_results = set(fd for (fd, _flag) in poller.poll())
+            
+            if upstream_ann in poll_results:
+                msg = upstream_ann.recv()
+                # Immediately dispatch message
+                downstream_ann.send(msg)
+                
+                if msg == 'shutdown':
+                    return
+                
+    def start_forward_loop(self):
+        if self.forward_thread is None:
+            self.forward_thread = threading.Thread(target = self.forward_loop)
+            self.forward_thread.daemon = False
+            self.forward_thread.start()
+    
+    
                 
 class ZMQWorkManager(ZMQBase, WEMDWorkManager):
     def __init__(self, sim_manager):
@@ -420,9 +477,14 @@ class ZMQWorkManager(ZMQBase, WEMDWorkManager):
         self.remove_ipc_endpoints()
                         
     def run_worker(self):
-        assert self.mode == 'worker'
+        assert self.mode in ('worker', 'nodeworker')
         assert self.zdev.listen_thread is not None
         return self.zdev.listen_thread.join()
+    
+    def run_node(self):
+        assert self.mode == 'node'
+        assert self.zdev.forward_thread is not None
+        return self.zdev.forward_thread.join()
     
     def spawn_worker_processes(self):
         if self.mode == 'master':
@@ -432,7 +494,7 @@ class ZMQWorkManager(ZMQBase, WEMDWorkManager):
             # and we only need to spawn enough processes to fill up to self.n_workers
             n_to_spawn = self.n_workers - 1
         elif self.mode == 'node':
-            raise NotImplementedError
+            n_to_spawn = self.n_workers
         else:
             raise ValueError('invalid operational mode {!r}'.format(self.mode))
         
@@ -444,7 +506,10 @@ class ZMQWorkManager(ZMQBase, WEMDWorkManager):
             pid = os.fork()
             if pid == 0:
                 # in child
-                self.mode = 'worker'
+                if self.mode == 'master':
+                    self.mode = 'worker'
+                elif self.mode == 'node':
+                    self.mode = 'nodeworker'
                 return
             
     def prepare(self):
@@ -475,11 +540,20 @@ class ZMQWorkManager(ZMQBase, WEMDWorkManager):
             self.zdev = Master(self.context, self.remote_task_endpoint, self.remote_results_endpoint, self.remote_ann_endpoint)
             #self.zdev = Master(self.context, self.local_task_endpoint, self.local_results_endpoint, self.local_ann_endpoint)
             self.zdev.start_main_thread()
+        elif self.mode == 'node':
+            log.debug('PID {} is node coordinator'.format(os.getpid()))
+            self.zdev = Node(self.context, self.remote_task_endpoint, self.remote_results_endpoint, self.remote_ann_endpoint,
+                                           self.local_task_endpoint, self.local_results_endpoint, self.local_ann_endpoint)
+            self.zdev.start_forward_loop()
         elif self.mode == 'worker':
             log.debug('PID {} is worker'.format(os.getpid()))
             self.zdev = Worker(self.context, self.remote_ann_endpoint, self.sim_manager.propagator)
             #self.zdev = Worker(self.context, self.local_ann_endpoint, self.sim_manager.propagator)
             # Listen for work immediately; run_worker() then joins the worker thread to await termination
+            self.zdev.listen()
+        elif self.mode == 'nodeworker':
+            log.debug('PID {} is node worker'.format(os.getpid()))
+            self.zdev = Worker(self.context, self.local_ann_endpoint, self.sim_manager.propagator)
             self.zdev.listen()
         else:
             raise NotImplementedError

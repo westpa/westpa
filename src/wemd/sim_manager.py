@@ -133,8 +133,11 @@ class WESimManager:
         supported
         """
         
-        if self.work_manager.mode == 'worker':
+        if self.work_manager.mode in ('worker', 'nodeworker'):
             self.work_manager.run_worker()
+            return
+        elif self.work_manager.mode == 'node':
+            self.work_manager.run_node()
             return
         
         # Set up internal timing
