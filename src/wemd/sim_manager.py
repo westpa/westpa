@@ -293,8 +293,8 @@ class WESimManager:
                 self.status_stream.write('%d trajectory segments in next iteration\n' % len(next_iter_segments))
                 
                 # Store recycling information in HDF5, but only if we actually have targets
-                if self.system.target_states:
-                    iter_summary = self.data_manager.get_iter_summary(n_iter)
+                iter_summary = self.data_manager.get_iter_summary(n_iter)                
+                if self.system.target_states:    
                     iter_summary['target_flux'] = P_recycled
                     iter_summary['target_hits'] = n_recycled
                     self.data_manager.write_recycling_data(n_iter, self.we_driver.recycle_from)

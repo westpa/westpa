@@ -42,32 +42,15 @@ sim_manager.load_propagator()
 # Have the work manager perform any preparation (spawning clients, etc)
 log.debug('preparing work manager')
 sim_manager.work_manager.prepare()
+log.debug('dispatching to sim manager')
+sim_manager.run()
+log.debug('back from sim manager')
+log.debug('calling work_manager.shutdown()')
+sim_manager.work_manager.shutdown()
+log.debug('back from work_manager.shutdown()')
 
-try:
-    # enter the sim_manager run loop
-    log.debug('entering simulation loop')
-    rc = sim_manager.run()
-except KeyboardInterrupt:
-    sys.stderr.write('interrupted; shutting down')
-    try:
-        sim_manager.work_manager.shutdown(1)
-    except Exception as shutdown_exc:
-        sys.stderr.write('error shutting down worker(s) (error information follows)\n')
-        traceback.print_exc()
-        
-    sys.exit(1)
-except Exception as run_exc:
-    sys.stderr.write('error encountered: shutting down (error information follows)\n')
-    traceback.print_exc()
-    
-    try:
-        sim_manager.work_manager.shutdown(1)
-    except Exception as shutdown_exc:
-        sys.stderr.write('error shutting down worker(s) (error information follows)\n')
-        traceback.print_exc()
-    
-    sys.exit(1)
-else:
-    log.debug('exited simulation loop')
-    sim_manager.work_manager.shutdown(rc)
-    sys.exit(rc)
+#if args.verbose_mode:
+import threading, thread
+for thread in threading.enumerate():
+    if 'MainThread' not in thread.name:
+        sys.stderr.write('thread {!r} is still alive\n'.format(thread))
