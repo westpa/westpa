@@ -51,8 +51,8 @@ log.debug('calling work_manager.shutdown()')
 sim_manager.work_manager.shutdown()
 log.debug('back from work_manager.shutdown()')
 
-#if args.verbose_mode:
-import threading, thread
-for thread in threading.enumerate():
-    if 'MainThread' not in thread.name:
-        sys.stderr.write('thread {!r} is still alive\n'.format(thread))
+if args.debug_mode:
+    import threading, thread
+    for thread in threading.enumerate():
+        if 'MainThread' not in thread.name:
+            sys.stderr.write('thread {!r} is still alive\n'.format(thread))

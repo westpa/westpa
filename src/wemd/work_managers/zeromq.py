@@ -88,7 +88,7 @@ class Master(ZMQBase):
         self.announce_interval = 5.0
                                 
         # How often do we check for results (in s)
-        self.results_check_interval = 5.0
+        self.results_check_interval = 0.05
         
         self.do_main_loop = True
         self.main_loop_thread = None
@@ -439,6 +439,9 @@ class ZMQWorkManager(ZMQBase, WEMDWorkManager):
                                          add_help=False)
         
         runtime_config = self.sim_manager.runtime_config
+        parser.add_argument('-n', '-np', '-nw', type=int, dest='n_workers', default=multiprocessing.cpu_count(),
+                            help='Number of worker processes to run on this host. Use 0 for a dedicated server '
+                                +' or forwarder process. (Default: %(default)s)')
         parser.add_argument('-H', '--host', default=socket.gethostname(),
                             help='Upstream (master) host (default: %(default)s)')
         parser.add_argument('--aport', type=int, default=DEFAULT_ANN_PORT,
@@ -448,11 +451,16 @@ class ZMQWorkManager(ZMQBase, WEMDWorkManager):
                             help='Port where remote workers contact the master to receive work (default: %(default)s)')
         parser.add_argument('--rport', type=int, default=DEFAULT_RESULTS_PORT,
                             help='Port where remote workers return completed tasks to the master (default: %(default)s)')
-        parser.add_argument('-n', '-np', '-nw', type=int, dest='n_workers', default=multiprocessing.cpu_count(),
-                            help='Number of worker processes to run on this host. Use 0 for a dedicated server '
-                                +' or forwarder process. (Default: %(default)s)')
-        parser.add_argument('-b', '--blocksize', type=int, dest='blocksize', default=1,
-                            help='Number of segments for each worker to run at once (default: %(default)s)')
+        
+        master_opts = parser.add_argument_group('options for WEMD master processes')
+        master_opts.add_argument('-b', '--blocksize', type=int, dest='blocksize', default=1,
+                            help='Number of segments to dispatch as a unit to each worker (default: %(default)s)')
+        master_opts.add_argument('--announce-interval', type=float, dest='announce_interval', default=60,
+                            help='How often (in seconds) to announce to workers that work remains to be done. '
+                                +'Too low a value will increase network load. (Default: %(default)s).')
+        master_opts.add_argument('--results-check-interval', type=float, dest='results_check_interval', default=0.1,
+                            help='How often (in seconds) to check for results. Too low a value will increase CPU '
+                                +'load on the master. (Default: %(default)s).')
 
         if do_help:
             parser.print_help()
