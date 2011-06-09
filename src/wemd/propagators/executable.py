@@ -41,7 +41,7 @@ class ExecutablePropagator(WEMDPropagator):
     ENV_RAND32               = 'WEMD_RAND32'
     ENV_RAND64               = 'WEMD_RAND64'
     ENV_RAND128              = 'WEMD_RAND128'
-    ENV_RAND1               = 'WEMD_RAND1'
+    ENV_RAND1                = 'WEMD_RAND1'
         
     def __init__(self, sim_manager):
         super(ExecutablePropagator,self).__init__(sim_manager)

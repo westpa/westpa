@@ -1,13 +1,9 @@
 from __future__ import print_function, division; __metaclass__=type
-import os, sys, argparse, math
-from collections import namedtuple
-from itertools import count, izip, islice
+import os, sys, argparse
 import numpy
 import wemd, wemdtools
-from wemd.pcoords import PiecewiseRegionSet, RectilinearRegionSet
-from wemd.util import extloader
 from wemdtools.transitions.transacc import TransitionEventAccumulator
-from wemdtools.files import load_npy_or_text 
+from wemdtools.trajectories.trajtree import TrajTree 
 from math import ceil, log10
 
 import logging
@@ -36,7 +32,7 @@ def print_2d_float_array(array, precision=6, sep='  ', file=sys.stdout):
 def report_counts_averages(args, transacc, output_file):
     print('Number of crossings:',file=output_file)
     print_2d_int_array(transacc.n_crossings,file=output_file)
-    print('Number of completed transitions:',file=output_file)
+    print('Number of completed long-time/non-adjacent transitions:',file=output_file)
     print_2d_int_array(transacc.n_completions,file=output_file)
     
     if transacc.track_lifetimes:
@@ -50,6 +46,12 @@ def report_counts_averages(args, transacc, output_file):
         print_2d_float_array(transacc.ed_acc.average(),file=output_file)
         print('Standard deviation of event durations:',file=output_file)
         print_2d_float_array(transacc.ed_acc.std(),file=output_file)
+        
+    if transacc.track_rates:
+        print('Average rates:', file=output_file)
+        print_2d_float_array(transacc.rate_acc.average(), file=output_file)
+        print('Standard deviation of rates:',file=output_file)
+        print_2d_float_array(transacc.rate_acc.std(),file=output_file)
 
     if transacc.track_fpts:    
         print('Average first passage times:',file=output_file)
@@ -57,38 +59,7 @@ def report_counts_averages(args, transacc, output_file):
         print('Standard deviation of first passage times:',file=output_file)
         print_2d_float_array(transacc.fpt_acc.std(),file=output_file)
     
-    
-def run_transanl_bf(args, transacc):
-    for (ifile, datafile) in enumerate(args.datafile):
-        print('reading data from', datafile, file=args.output_file)
-        pcoords = load_npy_or_text(datafile)
-        if args.ignore_1st_col:
-            pcoords = pcoords[:,1:]
-    
-        minidx = args.start or 0
-        maxidx = args.stop or len(pcoords)
-        n_chunks = int(math.ceil((maxidx-minidx)/args.chunksize))
-        for ichunk in xrange(0, n_chunks):
-            lbi = minidx+ichunk*args.chunksize
-            ubi = min(minidx+(ichunk+1)*args.chunksize, maxidx)
-            pc_chunk = pcoords[lbi:ubi]
-            if pc_chunk.ndim == 1:
-                pc_chunk = numpy.expand_dims(pc_chunk,-1)
-    
-            if not args.quiet_mode and ichunk > 0:    
-                args.output_file.write('{current_time:d}/{total_time:d}\n'.format(current_time=lbi,
-                                                                                  total_time=maxidx))
-                report_counts_averages(args, transacc, args.output_file)
-                args.output_file.write('\n')
-                args.output_file.flush()
-    
-            if ichunk == 0:
-                transacc.accumulate_transitions(pc_chunk, continuation=False, label=str(ifile))
-            else:
-                transacc.accumulate_transitions(pc_chunk, continuation=True, label=str(ifile))
-        del pcoords
-
-def accumulate_transitions_segment(segment, children, history, transacc, data_manager, trajtree, args):
+def accumulate_transitions_segment(segment, children, history, transacc, data_manager, trajtree, binprobs, start_iter, args):
     n_visited = trajtree.segments_visited
     n_to_visit = trajtree.segments_to_visit
     if not args.quiet_mode and n_visited % 1000 == 0:
@@ -103,40 +74,21 @@ def accumulate_transitions_segment(segment, children, history, transacc, data_ma
         args.output_file.flush()
 
     if len(history) == 0:
-        transacc.accumulate_transitions(segment.pcoord, weight=segment.weight, continuation = False, label=str(segment.n_iter))
+        transacc.accumulate_transitions(segment.pcoord, weight=segment.weight, 
+                                        region_weights=binprobs[segment.n_iter-start_iter],
+                                        continuation = False, label=str(segment.n_iter))
     else:
-        transacc.accumulate_transitions(segment.pcoord[1:], weight=segment.weight, continuation = True, label=str(segment.n_iter))
+        transacc.accumulate_transitions(segment.pcoord[1:], weight=segment.weight, 
+                                        region_weights=binprobs[segment.n_iter-start_iter], 
+                                        continuation = True, label=str(segment.n_iter))
         
     # Delete the progress coordinate from processed segments so that memory use doesn't explode
     del segment.pcoord
     segment.pcoord = None
-    
-def run_transanl_wemd(args, transacc, sim_manager):
-    start_iter = args.start or 1
-    stop_iter = sim_manager.data_manager.current_iteration - 1 if not args.stop else args.stop    
-    stop_iter  = min(stop_iter, sim_manager.data_manager.current_iteration-1)
-    if start_iter == stop_iter: return
-    
-    from wemdtools.trajectories.trajtree import TrajTree
-    tree = TrajTree(sim_manager.data_manager, cache_pcoords = args.cache_pcoords)
-    
-    if args.whole_only:
-        args.output_file.write('considering whole trajectories only\n')
-    
-    if args.cache_pcoords:
-        args.output_file.write('will cache pcoord data in memory\n')
-    
-    tree.trace_trajectories(start_iter, stop_iter, 
-                            callable=accumulate_transitions_segment,
-                            get_state=transacc.get_state,
-                            set_state=transacc.set_state,
-                            args=(transacc,sim_manager.data_manager,tree,args),
-                            whole_only = bool(args.whole_only))
-    args.output_file.write('{} segments analyzed\n'.format(tree.segments_visited))
-    
+
 
 parser = wemd.rc.common_arg_parser('w_ttimes', description='''
-Perform lifetime and transition analysis on WEMD or brute force data.''')
+Perform lifetime, transition, and kinetic analysis on WEMD data.''')
 parser.add_argument('--quiet', dest='quiet_mode', action='store_true',
                     help='Do not emit intermediate results (default: emit intermediate results '
                         +'every CHUNKSIZE brute force time points or every 1000 WE segments)')
@@ -149,6 +101,8 @@ parser.add_argument('-T', '--transitions', dest='trans_file', type=argparse.File
                     help='List transitions to TRANS_FILE (default: do not list)')
 parser.add_argument('-E', '--eds', dest='ed_file', type=argparse.FileType('wt'), default='eds.txt',
                     help='List event durations to ED_FILE (default: durations.txt)')
+parser.add_argument('-R', '--rates', dest='rate_file', type=argparse.FileType('wt'), default='rates.txt',
+                    help='List bin-to-bin rates to RATE_FILE (default: rates.txt)')
 parser.add_argument('-F', '--fpts', dest='fpt_file', type=argparse.FileType('wt'),
                     help='List first passage times to FPT_FILE (default: not analyzed)')
 parser.add_argument('-L', '--lifetimes', dest='lifetime_file', type=argparse.FileType('wt'),
@@ -167,15 +121,7 @@ parser.add_argument('--stop', dest='stop', type=int,
 parser.add_argument('--whole-only', dest='whole_only', action='store_true',
                     help='Consider entire trajectories only (default: consider any trajectory '
                         +'alive at START)')
-parser.add_argument('-C', '--chunksize', dest='chunksize', type=int, default=100000,
-                    help='Retrieve and analyze brute force data in chunks of size CHUNKSIZE (default: 100000)')
-parser.add_argument('--ignore-first-column', dest='ignore_1st_col', action='store_true',
-                    help='Ignore the first column in data files (useful for ignoring a time column). '
-                        +'(Default: do not ignore.)')
 
-parser.add_argument('--wemd', dest='force_wemd', action='store_true',
-                    help = 'force interpretation of the given DATAFILE as a WEMD HDF5 file '
-                         + '(so one doesn\'t have to create a wemd.cfg just to run this program)')
 parser.add_argument('--cache-pcoords', dest='cache_pcoords', action='store_true',
                     help = '(WE only) cache progress coordinate data in memory for improved analysis speed; '
                          + 'generally requires as much free RAM as the size of the HDF5 file (default: do not cache')
@@ -191,6 +137,7 @@ wemd.rc.config_logging(args, 'w_ttimes')
 runtime_config = None
 sim_manager = None
 region_set = wemdtools.bins.get_region_set_from_args(args, status_stream=sys.stderr)
+n_bins = len(region_set.get_all_bins())
 
 if not args.suppress_headers:
     if args.trans_file is not None:
@@ -236,29 +183,79 @@ if not args.suppress_headers:
 # (column widths:  [24, 20, 24, 20, 20])
 # (column offsets assuming no field overflows: [0, 28, 52, 80, 104]) 
 ''')
+    if args.rate_file is not None:
+        args.rate_file.write('''\
+# Kinetic rates
+# column 0: (trajectory for brute force data, iteration number for WE data)
+# column 1: time point of end of transition
+# column 2: initial->final bin indices
+# column 3: observed rate
+''')
     
-transacc = TransitionEventAccumulator(region_set, args.trans_file, args.lifetime_file, args.ed_file, args.fpt_file)
 
-if args.datafile and not args.force_wemd:
-    wemd.rc.default_cmdline_dispatch(run_transanl_bf, 
-                                     args=[args, transacc], kwargs={}, cmdline_args=args, log=log)
+if args.datafile:
+    from wemd.util.config_dict import ConfigDict
+    if runtime_config is None: runtime_config = ConfigDict()
+    runtime_config['data.h5file'] = args.datafile[0]
+    print('reading WEMD data from', args.datafile[0], file=args.output_file)
 else:
-    if args.force_wemd:
-        from wemd.util.config_dict import ConfigDict
-        if runtime_config is None: runtime_config = ConfigDict()
-        runtime_config['data.h5file'] = args.datafile[0]
-        print('reading WEMD data from', args.datafile[0], file=args.output_file)
-    else:
-        print('reading data from WEMD simulation', file=args.output_file)
-        if runtime_config is None:
-            runtime_config = wemd.rc.read_config(args.run_config_file)
+    print('reading data from WEMD simulation', file=args.output_file)
+    if runtime_config is None:
+        runtime_config = wemd.rc.read_config(args.run_config_file)
                     
-    if sim_manager is None:
-        sim_manager = wemd.rc.load_sim_manager(runtime_config)
-    sim_manager.load_data_manager()
-    sim_manager.data_manager.open_backing(mode='r')
-    wemd.rc.default_cmdline_dispatch(run_transanl_wemd, args=[args, transacc, sim_manager], kwargs={}, cmdline_args=args, log=log)
+if sim_manager is None:
+    sim_manager = wemd.rc.load_sim_manager(runtime_config)
+
+sim_manager.load_data_manager()
+sim_manager.data_manager.open_backing(mode='r')
+
+start_iter = args.start or 1
+stop_iter = sim_manager.data_manager.current_iteration - 1 if not args.stop else args.stop    
+stop_iter  = min(stop_iter, sim_manager.data_manager.current_iteration-1)
+
+if start_iter == stop_iter:
+    args.output_file.write('start and stop iterations are the same -- no data to analyze')
+    sys.exit(0)
+
+if args.whole_only:
+    args.output_file.write('considering whole trajectories only\n')
+
+if args.cache_pcoords:
+    args.output_file.write('will cache pcoord data in memory\n')
     
+
+tree = TrajTree(sim_manager.data_manager, cache_pcoords = args.cache_pcoords)
+transacc = TransitionEventAccumulator(region_set, args.trans_file, args.lifetime_file, args.ed_file, args.fpt_file, args.rate_file)
+
+# Use the caching wrapper, which is conveniently created around the true data manager when instantiating TrajTree
+data_manager = tree.data_manager
+
+# Determine the shape of pcoords - (n_segs, pcoord_len, pcoord_ndim)
+pcoord_ds = data_manager.get_pcoord_dataset(1)
+pcoord_len = pcoord_ds.shape[1]
+pcoord_ndim = pcoord_ds.shape[2]
+
+args.output_file.write('determining bin probabilities\n')
+binprobs = numpy.empty((stop_iter-start_iter+1, pcoord_len, n_bins),dtype=numpy.float64)
+log.debug('binprobs is {!r}'.format(binprobs.shape))
+for n_iter in xrange(start_iter, stop_iter+1):
+    print('iteration {}'.format(n_iter))
+    i_iter = n_iter - start_iter
+    pcoords = data_manager.get_pcoord_array(n_iter)
+    weights = data_manager.get_seg_index(n_iter)['weight']
+    for ti in xrange(0,pcoord_len):
+        index_map = region_set.map_to_all_indices(pcoords[:,ti,:])
+        for si in xrange(0, len(index_map)):
+            binprobs[i_iter,ti,index_map[si]] += weights[si]
+        assert abs(binprobs[i_iter,ti,:].sum() - 1.0) < 1.0e-8    
+
+args.output_file.write('tracing trajectories\n')
+tree.trace_trajectories(start_iter, stop_iter, 
+                        callable=accumulate_transitions_segment,
+                        get_state=transacc.get_state,
+                        set_state=transacc.set_state,
+                        args=(transacc,data_manager,tree,binprobs,start_iter,args),
+                        whole_only = bool(args.whole_only))
+args.output_file.write('{} segments analyzed\n'.format(tree.segments_visited))
 args.output_file.write('Final results:\n')
 report_counts_averages(args, transacc, args.output_file)
-    
