@@ -74,7 +74,7 @@ binprobs = numpy.empty((n_iters,n_bins), numpy.float64)
 for i_iter in xrange(0, len(binprobs)):
     n_iter = i_iter + start_iter
     if sys.stdout.isatty() and not args.quiet_mode:
-        sys.stdout.write('\reading iteration {:d}'.format(n_iter))
+        sys.stdout.write('\rreading iteration {:d}'.format(n_iter))
         sys.stdout.flush()
     iter_group = sim_manager.data_manager.get_iter_group(n_iter)
     seg_index = iter_group['seg_index'][:]
