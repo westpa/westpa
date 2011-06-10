@@ -51,9 +51,9 @@ sim_manager.data_manager.open_backing()
 
 start_iter = args.start_iter
 stop_iter = sim_manager.data_manager.current_iteration - 1
-n_iters = stop_iter - start_iter + 1
 if args.stop_iter and args.stop_iter <= stop_iter:
     stop_iter = args.stop_iter
+n_iters = stop_iter - start_iter + 1
 
 sim_manager.load_system_driver()
 region_set = wemdtools.bins.get_region_set_from_args(args, status_stream=sys.stdout)
