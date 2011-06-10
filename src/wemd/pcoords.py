@@ -349,3 +349,57 @@ class RectilinearRegionSet(RegionSet):
             flat_indices += dim_indices*extents[idim]
                         
         return flat_indices
+        
+class VoronoiRegionSet(RegionSet):
+    """A one-dimensional RegionSet that assigns a multidimensional pcoord to the closest center based on a distance metric"""
+    def __init__(self, distfunc, centers, container_class = ParticleSet):
+        super(VoronoiRegionSet, self).__init__()
+        
+        self.centers = None
+        self.ncenters = None
+        self.ndim = None
+        self.regions = None
+        self.dfunc = None
+        
+        if centers is not None:
+            self.construct_regions(distfunc,centers,container_class)
+        
+        
+    def construct_regions(self, distfunc, centers, container_class):
+        self.centers = numpy.asarray(centers)
+        self.ncenters = self.centers.shape[0]
+        self.ndim = self.centers.shape[1]
+        
+        self.regions = numpy.empty((self.ncenters,), numpy.object_)
+        for index in xrange(self.ncenters):
+            self.regions[index] = container_class()
+        
+        # dfunc is a callable function supplied by the user that returns the distance between a point and 
+        # each of the M centers as a (M,) shaped numpy array D, where D[i] is the distance between the
+        # point and center i. 
+        self.dfunc = distfunc
+        
+        # As a sanity check of the distance metric, map the centers
+        region_indices = self._map_to_indices(self.centers)
+        if not (region_indices == numpy.arange(self.ncenters)).any():
+            raise ValueError('Application of distance metric to centers does not map center to itself')
+        
+    def _map_to_indices(self, coords):
+        assert coords.ndim == 2
+        
+        if coords.shape[1] != self.ndim:
+            raise TypeError('length of coordinate tuples ({}) does not match the dimensionality of this region set ({})'
+                            .format(coords.shape[1], self.ndim))
+                            
+        region_indices = numpy.zeros((len(coords),), numpy.uintp)
+        for k in xrange(coords.shape[0]):
+            region_indices[k] = numpy.argmin(self.dfunc(coords[k,:],self.centers))
+        
+        return region_indices
+        
+        
+        
+            
+        
+        
+        
