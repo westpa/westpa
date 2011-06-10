@@ -37,10 +37,11 @@ class TransitionEventAccumulator:
         # Accumulators/counters
         self.n_crossings     = None # shape (n_bins,n_bins)
         self.n_completions   = None # (n_bins,n_bins)        
-        self.lt_acc  = None # (n_bins,)
-        self.ed_acc  = None # (n_bins, n_bins)
-        self.fpt_acc = None # (n_bins,n_bins)
-        self.rate_acc = None # (n_bins,n_bins)
+        self.lt_acc          = None # (n_bins,)
+        self.ed_acc          = None # (n_bins, n_bins)
+        self.fpt_acc         = None # (n_bins,n_bins)
+        self.rate_acc        = None # (n_bins,n_bins)
+        self.flux_acc        = None # (n_bins, n_bins)
 
         # Time points and per-timepoint data
         self.last_crossing   = None # shape (n_bins,n_bins)
@@ -80,6 +81,9 @@ class TransitionEventAccumulator:
         self.fpt_acc = RunningStatsAccumulator(shape=(self.n_bins,self.n_bins), dtype=self.time_dtype, count_dtype=self.count_dtype,
                                                weight_dtype = self.weight_dtype, mask_value=0)
         self.rate_acc = RunningStatsAccumulator(shape=(self.n_bins,self.n_bins), 
+                                                dtype=self.weight_dtype, count_dtype=self.count_dtype,
+                                                weight_dtype = self.weight_dtype, mask_value = 0)
+        self.flux_acc = RunningStatsAccumulator(shape=(self.n_bins,self.n_bins),
                                                 dtype=self.weight_dtype, count_dtype=self.count_dtype,
                                                 weight_dtype = self.weight_dtype, mask_value = 0)
 
@@ -148,17 +152,25 @@ class TransitionEventAccumulator:
                               .format(time_index=long(time_index), tlabel=tlabel, fpt=long(fpt), weight=float(weight), 
                                       label=label))
             
-    def record_rate_entry(self, time_index, initial_region, final_region, rate, label=''):
+    def record_rate_entry(self, time_index, initial_region, final_region, flux, dt, pop, rate, label=''):
         if self.accumulate_statistics:
             rate_acc = self.rate_acc
             rate_acc.count[initial_region,final_region] +=1
             rate_acc.weight[initial_region,final_region] += 1.0
             rate_acc.sum[initial_region,final_region] += rate
             rate_acc.sqsum[initial_region,final_region] += rate*rate
+            
+            flux_acc = self.flux_acc
+            flux_acc.count[initial_region,final_region] += 1
+            flux_acc.weight[initial_region,final_region] += 1.0
+            flux_acc.sum[initial_region,final_region] += flux
+            flux_acc.sqsum[initial_region,final_region] += flux*flux
+            
         if self.ratefile:
             tlabel = '{:d}->{:d}'.format(int(initial_region), int(final_region))
-            self.ratefile.write('{label:<24s}    {time_index:20d}    {tlabel:<24s}    {rate:20.14e}\n'
-                                .format(time_index=long(time_index), tlabel=tlabel, rate=float(rate), label=label))
+            self.ratefile.write('{label:<24s}    {time_index:20d}    {tlabel:<24s}    {flux:20.14e}    {dt:20d}    {pop:20.14e}    {rate:20.14e}\n'
+                                .format(time_index=long(time_index), tlabel=tlabel, 
+                                        flux=float(flux), dt=long(dt), pop=float(pop), rate=float(rate), label=label))
 
     def accumulate_transitions(self, pcoords, 
                                    weight = None, region_weights = None, 
@@ -180,6 +192,9 @@ class TransitionEventAccumulator:
                                  .format(weight.shape, pcoords.shape))
             else:
                 weights = weight
+        
+        if region_weights is None:
+            region_weights = numpy.ones((len(pcoords), self.n_bins))
                 
         indices = self.region_set.map_to_all_indices(pcoords)
         
@@ -189,7 +204,7 @@ class TransitionEventAccumulator:
         tracking_table = None
         TIMEPOINT = 0; CURRENT_REGION = 1; LAST_REGION = 2
         
-        # The total weight in LAST_REGION at the previous time point
+        # The total weight in LAST_REGION at the previous time point, used for calculating rates
         region_weight_table = None
         
         if continuation:
@@ -258,18 +273,21 @@ class TransitionEventAccumulator:
                 lifetime = time_index - last_entry[last_region]
                 record_lifetime_entry(time_index, last_region, lifetime, weight, label=label)
                 
-            if track_rates:
+            if track_rates and last_region_weight > 0:
                 # Fluxes for crossings are always divided by a time of one (the resolution of pcoord data)
                 rate = weight / last_region_weight
-                record_rate_entry(time_index, last_region, current_region, rate, label=label)
+                #record_rate_entry(time_index, last_region, current_region, rate, label=label)
+                #record_rate_entry(self, time_index, initial_region, final_region, flux, dt, pop, rate, label='')
+                record_rate_entry(time_index, last_region, current_region, flux=weight, dt=1, pop=last_region_weight,
+                                  rate=rate, label=label)
             
             # Note that transitions, event durations, etc. all require a transition *through* an intermediate state
             # i.e. the transitions file and count matrix do not reflect transitions across one (or more) boundaries
             # with no intervening time (thanks to Brandon Mills for pointing out how confusing this is without
             # a few more comments)                
             irdisc[:] = True # We need to look at everything
-            irdisc[last_region] = False # except transitions beginning in the last region (that's just a crossing)
-            irdisc[current_region] = False # and transitions beginning in the current region (that's coming full circle)
+            irdisc[last_region] = False # except transitions beginning in the last region (that's just a crossing, reported above)
+            #irdisc[current_region] = False # and transitions beginning in the current region (that's coming full circle)
             irdisc &= (last_entry > last_completion[:,current_region]) # and only those visited since the last time we were here
             
             for initial_region in init_regions[irdisc]:
@@ -284,7 +302,9 @@ class TransitionEventAccumulator:
                 if track_rates and track_eds and last_exit[initial_region] > 0 and last_exit_weights[initial_region] > 0:
                     # k_ij = 1/(t_j - t_i) * (Prob arriving in j) / (Prob of leaving i)
                     rate = weight / last_exit_weights[initial_region] / ed
-                    record_rate_entry(time_index, initial_region, current_region, rate, label=label)
+                    #record_rate_entry(time_index, initial_region, current_region, rate, label=label)
+                    record_rate_entry(time_index, initial_region, current_region, flux=weight, dt=ed, 
+                                      pop=last_exit_weights[initial_region], rate=rate, label=label)
                 
                 last_completion[initial_region,current_region] = time_index
                 n_completions[initial_region,current_region] += 1

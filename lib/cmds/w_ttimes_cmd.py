@@ -27,38 +27,7 @@ def print_2d_float_array(array, precision=6, sep='  ', file=sys.stdout):
         file.flush()
     except AttributeError:
         pass
-        
             
-def report_counts_averages(args, transacc, output_file):
-    print('Number of crossings:',file=output_file)
-    print_2d_int_array(transacc.n_crossings,file=output_file)
-    print('Number of completed long-time/non-adjacent transitions:',file=output_file)
-    print_2d_int_array(transacc.n_completions,file=output_file)
-    
-    if transacc.track_lifetimes:
-        print('Average lifetimes:',file=output_file)
-        print_2d_float_array(numpy.expand_dims(transacc.lt_acc.average(),1),file=output_file)
-        print('Standard deviation of lifetimes:',file=output_file)
-        print_2d_float_array(numpy.expand_dims(transacc.lt_acc.std(),1),file=output_file)
-    
-    if transacc.track_eds:
-        print('Average event durations:',file=output_file)
-        print_2d_float_array(transacc.ed_acc.average(),file=output_file)
-        print('Standard deviation of event durations:',file=output_file)
-        print_2d_float_array(transacc.ed_acc.std(),file=output_file)
-        
-    if transacc.track_rates:
-        print('Average rates:', file=output_file)
-        print_2d_float_array(transacc.rate_acc.average(), file=output_file)
-        print('Standard deviation of rates:',file=output_file)
-        print_2d_float_array(transacc.rate_acc.std(),file=output_file)
-
-    if transacc.track_fpts:    
-        print('Average first passage times:',file=output_file)
-        print_2d_float_array(transacc.fpt_acc.average(),file=output_file)
-        print('Standard deviation of first passage times:',file=output_file)
-        print_2d_float_array(transacc.fpt_acc.std(),file=output_file)
-    
 def accumulate_transitions_segment(segment, children, history, transacc, data_manager, trajtree, binprobs, start_iter, args):
     n_visited = trajtree.segments_visited
     n_to_visit = trajtree.segments_to_visit
@@ -90,8 +59,7 @@ def accumulate_transitions_segment(segment, children, history, transacc, data_ma
 parser = wemd.rc.common_arg_parser('w_ttimes', description='''
 Perform lifetime, transition, and kinetic analysis on WEMD data.''')
 parser.add_argument('--quiet', dest='quiet_mode', action='store_true',
-                    help='Do not emit intermediate results (default: emit intermediate results '
-                        +'every CHUNKSIZE brute force time points or every 1000 WE segments)')
+                    help='Do not emit status messages (default: emit status every 1000 WE segments)')
 
 parser.add_argument('-o', '--output', dest='output_file',
                     help='Store output in OUTPUT_FILE (default: write to standard output).',
@@ -113,11 +81,9 @@ parser.add_argument('--noheaders', dest='suppress_headers', action='store_true',
 wemdtools.bins.add_region_set_options(parser)
 
 parser.add_argument('--start', dest='start', type=int, default=0,
-                    help='Start at brute force entry or WEMD iteration START; ' 
-                        +'zero-based for brute force, one-based for WEMD (default: the beginning)')
+                    help='Start at WEMD iteration START (default: the beginning)')
 parser.add_argument('--stop', dest='stop', type=int,
-                    help='Stop at brute force entry or WEMD iteration STOP; '
-                        +'zero-based for brute force, one-based for WEMD (default: process all data)')
+                    help='Stop after WEMD iteration STOP (default: the last completed iteration)')
 parser.add_argument('--whole-only', dest='whole_only', action='store_true',
                     help='Consider entire trajectories only (default: consider any trajectory '
                         +'alive at START)')
@@ -127,9 +93,7 @@ parser.add_argument('--cache-pcoords', dest='cache_pcoords', action='store_true'
                          + 'generally requires as much free RAM as the size of the HDF5 file (default: do not cache')
 
 parser.add_argument('datafile', nargs='*',
-                    help='Read progress coordinate from DATAFILE(s) (default: load from WEMD HDF5 file). '
-                        +'Multiple brute-force trajectories are supported. WEMD HDF5 files are supported '
-                        +'by naming them AND also specifying the --wemd switch.')
+                    help='Read progress coordinate from DATAFILE(s) (default: load WEMD HDF5 file specified in wemd.cfg).')
 args = parser.parse_args()
 
 wemd.rc.config_logging(args, 'w_ttimes')
@@ -235,11 +199,12 @@ pcoord_ds = data_manager.get_pcoord_dataset(1)
 pcoord_len = pcoord_ds.shape[1]
 pcoord_ndim = pcoord_ds.shape[2]
 
-args.output_file.write('determining bin probabilities\n')
+if not args.quiet_mode:
+    args.output_file.write('determining bin probabilities\n')
 binprobs = numpy.empty((stop_iter-start_iter+1, pcoord_len, n_bins),dtype=numpy.float64)
-log.debug('binprobs is {!r}'.format(binprobs.shape))
 for n_iter in xrange(start_iter, stop_iter+1):
-    print('iteration {}'.format(n_iter))
+    if not args.quiet_mode and (n_iter - start_iter) % 10 == 0:
+        args.output_file.write('iteration {}\n'.format(n_iter))
     i_iter = n_iter - start_iter
     pcoords = data_manager.get_pcoord_array(n_iter)
     weights = data_manager.get_seg_index(n_iter)['weight']
@@ -257,5 +222,38 @@ tree.trace_trajectories(start_iter, stop_iter,
                         args=(transacc,data_manager,tree,binprobs,start_iter,args),
                         whole_only = bool(args.whole_only))
 args.output_file.write('{} segments analyzed\n'.format(tree.segments_visited))
+
 args.output_file.write('Final results:\n')
-report_counts_averages(args, transacc, args.output_file)
+print('\nNumber of crossings:',file=args.output_file)
+print_2d_int_array(transacc.n_crossings,file=args.output_file)
+print('Number of completed long-time/non-adjacent transitions:',file=args.output_file)
+print_2d_int_array(transacc.n_completions,file=args.output_file)
+
+if transacc.track_lifetimes:
+    print('\nAverage lifetimes:',file=args.output_file)
+    print_2d_float_array(numpy.expand_dims(transacc.lt_acc.average(),1),file=args.output_file)
+    print('Standard deviation of lifetimes:',file=args.output_file)
+    print_2d_float_array(numpy.expand_dims(transacc.lt_acc.std(),1),file=args.output_file)
+
+if transacc.track_eds:
+    print('\nAverage event durations:',file=args.output_file)
+    print_2d_float_array(transacc.ed_acc.average(),file=args.output_file)
+    print('Standard deviation of event durations:',file=args.output_file)
+    print_2d_float_array(transacc.ed_acc.std(),file=args.output_file)
+    
+if transacc.track_rates:
+    print('\nAverage fluxes:', file=args.output_file)
+    print_2d_float_array(transacc.flux_acc.average(), file=args.output_file)
+    print('Standard deviation of fluxes:', file=args.output_file)
+    print_2d_float_array(transacc.flux_acc.std(), file=args.output_file)
+    
+    print('\nAverage rates:', file=args.output_file)
+    print_2d_float_array(transacc.rate_acc.average(), file=args.output_file)
+    print('Standard deviation of rates:',file=args.output_file)
+    print_2d_float_array(transacc.rate_acc.std(),file=args.output_file)
+
+if transacc.track_fpts:    
+    print('\nAverage first passage times:',file=args.output_file)
+    print_2d_float_array(transacc.fpt_acc.average(),file=args.output_file)
+    print('Standard deviation of first passage times:',file=args.output_file)
+    print_2d_float_array(transacc.fpt_acc.std(),file=args.output_file)
