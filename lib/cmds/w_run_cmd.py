@@ -45,11 +45,13 @@ sim_manager.load_propagator()
 log.debug('preparing work manager')
 sim_manager.work_manager.prepare()
 log.debug('dispatching to sim manager')
-sim_manager.run()
-log.debug('back from sim manager')
-log.debug('calling work_manager.shutdown()')
-sim_manager.work_manager.shutdown()
-log.debug('back from work_manager.shutdown()')
+try:
+    sim_manager.run()
+finally:
+    log.debug('back from sim manager')
+    log.debug('calling work_manager.shutdown()')
+    sim_manager.work_manager.shutdown()
+    log.debug('back from work_manager.shutdown()')
 
 if args.debug_mode:
     import threading, thread

@@ -179,6 +179,8 @@ class TransitionEventAccumulator:
         If continuation is True, ignore the first point (raises an error if accumulate_transitions() has not
         been called at least once already), otherwise use the first point as the initial point."""
         
+        # TODO: speed up reporting, which is currently the main speed bottleneck
+        
         # Coerce the given weight into a vector the same length as pcoords
         if weight is None:
             weights = numpy.ones((len(pcoords),), dtype=self.weight_dtype)

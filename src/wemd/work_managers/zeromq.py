@@ -556,7 +556,6 @@ class ZMQWorkManager(ZMQBase, WEMDWorkManager):
         elif self.mode == 'worker':
             log.debug('PID {} is worker'.format(os.getpid()))
             self.zdev = Worker(self.context, self.remote_ann_endpoint, self.sim_manager.propagator)
-            #self.zdev = Worker(self.context, self.local_ann_endpoint, self.sim_manager.propagator)
             # Listen for work immediately; run_worker() then joins the worker thread to await termination
             self.zdev.listen()
         elif self.mode == 'nodeworker':
