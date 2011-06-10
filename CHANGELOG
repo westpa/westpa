@@ -1,3 +1,20 @@
+2011-06-10 -- Matt Zwier <mczwier@gmail.com>
+ * Split "wemd init" and "wemd run" into w_init and w_run. The wemd script
+   has been eliminated.
+ * Added basic flux and rate calculations to w_ttimes
+ * Removed brute-force analysis support from w_ttimes for clarity.  This
+   functionality will be added back into separate a brute-force analysis tool.
+ * Added ZeroMQ work manager. A master process coordinates work (and optionally
+   spawns worker processes on the local machine). Worker processes respond to
+   the master.  A third operational mode, "--node", is meant to coalesce
+   communications between the master and multi-core nodes; the node process 
+   communicates with the master through TCP/IP and with worker processes
+   (which it spawns) over Unix sockets.  Speed within a node is almost
+   identical to the Processes work manager, and so the zmq work manager will
+   likely become the default soon. 
+ * ZeroMQ-related development has probably broken the TCP/IP work manager,
+   which will not be removed immediately (but soon).
+
 2011-05-12 -- Joshua Adelman <joshua.adelman@gmail.com>
  * Initial implementation of VoronoiRegionSet
 
