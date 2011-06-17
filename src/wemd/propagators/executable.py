@@ -36,6 +36,8 @@ class ExecutablePropagator(WEMDPropagator):
     ENV_PARENT_SEG_DATA_REF  = 'WEMD_PARENT_SEG_DATA_REF'
     
     ENV_PCOORD_RETURN        = 'WEMD_PCOORD_RETURN'
+    ENV_COORD_RETURN         = 'WEMD_COORD_RETURN'
+    ENV_VELOCITY_RETURN      = 'WEMD_VELOCITY_RETURN'
     
     ENV_RAND16               = 'WEMD_RAND16'
     ENV_RAND32               = 'WEMD_RAND32'
@@ -71,7 +73,11 @@ class ExecutablePropagator(WEMDPropagator):
         runtime_config.require('executable.propagator')
         self.segment_dir    = runtime_config.require('executable.segment_dir')
         self.parent_dir     = runtime_config.require('executable.parent_dir')
+        
         self.pcoord_file    = runtime_config.require('executable.pcoord_file')
+        self.coord_file     = runtime_config.get('executable.coord_file', '')
+        self.velocity_file  = runtime_config.get('executable.velocity_file', '')
+        
         self.initial_state_dir = runtime_config.get('executable.initial_state_dir', self.parent_dir)
                 
         if 'executable.pcoord_loader' in runtime_config:
@@ -244,8 +250,7 @@ class ExecutablePropagator(WEMDPropagator):
     def finalize_iteration(self, n_iter, segments):
         self.post_iter(n_iter)
         
-        
-    def pcoord_loader(self, pcoord_return_filename, segment, sim_manager):
+    def pcoord_loader(self, pcoord_return_filename, segment):
         """Read progress coordinate data. An exception will be raised if there are 
         too many fields on a line, or too many lines, too few lines, or improperly formatted fields"""
         
@@ -259,6 +264,10 @@ class ExecutablePropagator(WEMDPropagator):
             raise ValueError('not enough lines in pcoord file')
         segment.pcoord = pcoord
     
+    def data_loader(self, fieldname, data_filename, segment):
+        data = numpy.loadtxt(data_filename)
+        segment.data[fieldname] = data
+                
     def propagate(self, segments):
         for segment in segments:
             # Record start timing info
@@ -268,15 +277,23 @@ class ExecutablePropagator(WEMDPropagator):
             with changed_cwd(self.propagator_info['cwd']):
                 log.debug('iteration {segment.n_iter}, propagating segment {segment.seg_id}'.format(segment=segment))
                 
+                seg_template_args = self.segment_template_args(segment)
+                
                 addtl_env = self._segment_env(segment)
-                pc_return_filename = self.makepath(self.pcoord_file, self.segment_template_args(segment))
+                pc_return_filename = self.makepath(self.pcoord_file, seg_template_args)
                 log.debug('expecting return information in %r' % pc_return_filename)
                 addtl_env[self.ENV_PCOORD_RETURN] = pc_return_filename
                 
+                if self.coord_file:
+                    coord_filename = self.makepath(self.coord_file, seg_template_args)
+                    addtl_env[self.ENV_COORD_RETURN] = coord_filename
+                
+                if self.velocity_file:
+                    velocity_filename = self.makepath(self.velocity_file, seg_template_args)
+                    addtl_env[self.ENV_VELOCITY_RETURN] = velocity_filename
+                
                 # Spawn propagator and wait for its completion
-                rc, rusage = self._exec(self.propagator_info, 
-                                   addtl_env, 
-                                   self.segment_template_args(segment))
+                rc, rusage = self._exec(self.propagator_info, addtl_env, seg_template_args)
                 
                 if rc == 0:
                     log.debug('child process for segment %d exited successfully'
@@ -298,10 +315,25 @@ class ExecutablePropagator(WEMDPropagator):
                 
                 # Extract progress coordinate
                 try:
-                    self.pcoord_loader(pc_return_filename, segment, self.sim_manager)
+                    self.pcoord_loader(pc_return_filename, segment)
                 except Exception as e:
                     log.error('could not read progress coordinate from %r: %s' % (pc_return_filename, e))
                     segment.status = Segment.SEG_STATUS_FAILED
+                    
+                if self.coord_file:
+                    try:
+                        self.data_loader('coord', coord_filename, segment)
+                    except Exception as e:
+                        log.error('could not read coordinate data from %r: %s' % (coord_filename, e))
+                        segment.status = Segment.SEG_STATUS_FAILED
+                
+                if self.velocity_file:
+                    try:
+                        self.data_loader('velocity', velocity_filename, segment)
+                    except Exception as e:
+                        log.error('could not read velocity data from %r: %s' % (velocity_filename, e))
+                        segment.status = Segment.SEG_STATUS_FAILED
+                    
             
             # Record end timing info
             self.rtracker.end('propagation')            

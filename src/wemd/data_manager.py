@@ -297,7 +297,29 @@ class WEMDDataManager:
         segments = list(segments)
         iter_group = self.get_iter_group(n_iter)
         seg_index_table = iter_group['seg_index'][...]
+        
+        # For speed, particularly for fast-propagating systems, we assume 
+        # we can cache an entire iteration's pcoords in RAM
         pcoords = iter_group['pcoord'][...]
+        
+        # Collect names of generic data sets to create
+        data_shapes = {}
+        data_types = {}
+        for segment in segments:
+            for (key, value) in segment.data.iteritems():
+                try:
+                    if value.shape != data_shapes[key]:
+                        raise ValueError('segment %r has incorrect shape for supplementary data field %r' % (segment, key))
+                    if value.dtype != data_types[key]:
+                        raise ValueError('segment %r has incorrect data type for supplementary data field %r' % (segment, key))
+                except KeyError:
+                    data_shapes[key] = value.shape
+                    data_types[key] = value.dtype
+            
+        # Create generic data sets
+        datasets = {}
+        for (name, shape) in data_shapes.iteritems():
+            datasets[name] = iter_group.require_dataset(name, (len(seg_index_table),) + shape, data_types[name])
         
         row = numpy.empty((1,), seg_index_dtype)
         for segment in segments:
@@ -312,6 +334,11 @@ class WEMDDataManager:
             seg_index_table[seg_id] = row
             
             pcoords[seg_id] = segment.pcoord
+            
+            # We probably can't assume we can fit auxiliary data like coordinates in RAM, so the
+            # existence of supplementary data will likely slow down updates significantly
+            for name in segment.data:
+                datasets[name][seg_id] = segment.data[name]
         
         iter_group['seg_index'][...] = seg_index_table
         iter_group['pcoord'][...] = pcoords

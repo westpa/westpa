@@ -1,3 +1,13 @@
+2011-06-17 -- Matt Zwier <mczwier@gmail.com>
+ * Fixed a largely broken w_init, rolling back a one-off change accidentally 
+   placed in the development tree.
+ * Added support for storage of generic segment-related data in HDF5 and
+   initial support for storing coordinates and velocities.  The executable
+   backend now accepts ``coord_return`` and ``velocity_return`` options
+   in ``wemd.cfg`` mirroring ``pcoord_return``, and provides environment
+   variables ``WEMD_COORD_RETURN`` and ``WEMD_VELOCITY_RETURN``.  Thanks to
+   David Wang and Brandon Mills for help in this.
+
 2011-06-10 -- Matt Zwier <mczwier@gmail.com>
  * Split "wemd init" and "wemd run" into w_init and w_run. The wemd script
    has been eliminated.

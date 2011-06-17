@@ -19,8 +19,8 @@ class Segment:
     
     def __init__(self, n_iter = None, seg_id = None, status = None, 
                  n_parents = None, p_parent_id = None, parent_ids = None,
-                 endpoint_type = None, weight = None, pcoord = None, walltime = None,
-                 cputime = None):
+                 endpoint_type = None, weight = None, pcoord = None, walltime = None, cputime = None,
+                 data = None):
         # NaNs appear sometimes if a WEMD program is terminated unexpectedly; replace with zero
         walltime = 0.0 if walltime is None or isnan(walltime) else walltime
         cputime  = 0.0 if cputime  is None or isnan(cputime)  else cputime
@@ -39,6 +39,7 @@ class Segment:
         self.pcoord = numpy.asarray(pcoord) if pcoord is not None else None
         self.walltime = walltime
         self.cputime = cputime
+        self.data = data if data else {}
 
     def __repr__(self):
         return '<%s(%s) n_iter=%r seg_id=%r weight=%r p_parent_id=%r parent_ids=%r>' \

@@ -57,7 +57,10 @@ MACHEPS = numpy.finfo(numpy.float64).eps
 if abs(1.0 - tiprob) > args.ptol:
     sys.stderr.write('Initial probabilities do not sum to one.')
     sys.exit(1)
-    
+if abs(1.0 - trprob) > args.ptol:
+    sys.stderr.write('Recycle probabilities do not sum to one.')
+    sys.exit(1)
+
 # Create initial segments
 segments = []
 for (i_istate, istate) in enumerate(system.initial_states):
@@ -75,20 +78,11 @@ for (i_istate, istate) in enumerate(system.initial_states):
         segments.append(segment)
     sys.stdout.write('%d replicas from initial point %r\n' % (target_count,istate.label))
 
-# Run WE to constrain particle counts appropriately
-segments = sim_manager.we_driver.run_we(segments, region_set)
-endpoint_coords = [segment.pcoord[0] for segment in segments]
-region_set.clear()
-for (segment, bin) in zip(segments, region_set.map_to_bins(endpoint_coords)):
-    segment.status = wemd.Segment.SEG_STATUS_PREPARED
-    assert segment.p_parent_id < 0
-    bin.add(segment)
-
 iprobtot = region_set.weight
 all_bins = region_set.get_all_bins()
 bin_occupancies = numpy.array(map(operator.attrgetter('count'), all_bins))
 target_occupancies = numpy.array(map(operator.attrgetter('target_count'), all_bins))
-
+    
 sys.stdout.write('''
 Total bins:             {:d}
 Initial particles:      {:d} in {:d} bins, total weight = {:g}
