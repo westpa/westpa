@@ -140,7 +140,7 @@ class WEMDSystem:
     def add_target_state(self, label, bin_or_pcoord):
         if self.target_states is None:
             warn_deprecated_usage('target_states appears to be None; change system to use initialize() instead of __init__()')
-            self.initial_states = []
+            self.target_states = []
             
         if isinstance(bin_or_pcoord, wemd.pcoords.ParticleCollection):
             warn_deprecated_usage('add_target_state() should be called with a pcoord, not a bin')
@@ -151,7 +151,10 @@ class WEMDSystem:
             bin = self.region_set.get_bin_containing(pcoord)
             
         bin.target_count = 0
-        self.target_states.append(TargetState(label, pcoord, bin))
+        tstate = TargetState(label, pcoord, bin)
+        log.debug('adding target state {!r}'.format(tstate))
+        self.target_states.append(tstate)
+        
             
     def read_initial_states(self, istate_filename):
         '''Read a list of initial states from a file. Each line describes an initial (micro)state,

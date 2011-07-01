@@ -64,7 +64,7 @@ class steady_state(object):
         target_regions = self._system_driver.target_states
         
         flat_target_regions = []
-        for (name, target_region) in target_regions:
+        for target_region in target_regions:
             for ibin in xrange(0,len(bins)):
                 if target_region is bins[ibin]:
                     break
