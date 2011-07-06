@@ -66,7 +66,7 @@ class steady_state(object):
         flat_target_regions = []
         for target_region in target_regions:
             for ibin in xrange(0,len(bins)):
-                if target_region is bins[ibin]:
+                if target_region.bin is bins[ibin]:
                     break
 
             if ibin in oldindex: #it is possible that the target region was removed (ie if no recycling has occurred)
@@ -111,6 +111,8 @@ class steady_state(object):
         if self.debug is not None:     
             self.debug.create_dataset('final_weights',data=mapped_new_weights)
             self.debug.close()
+            
+        #assert not (mapped_new_weights < 0).any()
                 
         return mapped_new_weights
 
