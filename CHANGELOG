@@ -1,3 +1,9 @@
+2011-07-14 -- Matt Zwier <mczwier@gmail.com>
+ * Fixed a very broken algorithm in w_ttimes for calculating fluxes and rates.
+ * w_ttimes now stores intermediate results in an HDF5 file, both for speed
+   and in anticipation of a more stepwise analysis framework.
+ * Fixed a few regressions in w_steady_state.
+
 2011-06-17 -- Matt Zwier <mczwier@gmail.com>
  * Fixed a largely broken w_init, rolling back a one-off change accidentally 
    placed in the development tree.
