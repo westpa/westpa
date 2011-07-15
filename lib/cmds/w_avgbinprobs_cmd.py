@@ -13,6 +13,7 @@ parser = wemd.rc.common_arg_parser(description = '''\
 Calculate the average probability in each bin and the associated statistical error. The probability
 distribution is calculated at the beginning of each iteration directly from the segment data.
 ''')
+
 # Region set options
 wemdtools.bins.add_region_set_options(parser)
 # Subset options
@@ -40,11 +41,22 @@ parser.add_argument('--quiet', dest='quiet_mode', action='store_true',
                     help='''Do not emit periodic status messages (default: emit status messages if standard output
                     is a terminal)''')
 
+parser.add_argument('datafile', nargs='*',
+                    help='Read progress coordinate from DATAFILE(s) (default: load WEMD HDF5 file specified in wemd.cfg).')
 args = parser.parse_args()
 
 wemd.rc.config_logging(args, 'w_avgbinprobs')
 runtime_config = wemd.rc.read_config(args.run_config_file)
 runtime_config.update_from_object(args)
+if args.datafile:
+    from wemd.util.config_dict import ConfigDict
+    if runtime_config is None: runtime_config = ConfigDict()
+    runtime_config['data.h5file'] = args.datafile[0]
+    print('reading WEMD data from', args.datafile[0])
+else:
+    print('reading data from WEMD simulation')
+    if runtime_config is None:
+        runtime_config = wemd.rc.read_config(args.run_config_file)
 sim_manager = wemd.rc.load_sim_manager(runtime_config)
 sim_manager.load_data_manager()
 sim_manager.data_manager.open_backing()
@@ -55,7 +67,6 @@ if args.stop_iter and args.stop_iter <= stop_iter:
     stop_iter = args.stop_iter
 n_iters = stop_iter - start_iter + 1
 
-sim_manager.load_system_driver()
 region_set = wemdtools.bins.get_region_set_from_args(args, status_stream=sys.stdout)
 bins = region_set.get_all_bins()
 n_bins = len(bins)

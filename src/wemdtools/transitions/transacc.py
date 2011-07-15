@@ -7,41 +7,53 @@ log = logging.getLogger(__name__)
 
 from wemdtools.stats.accumulator import RunningStatsAccumulator
 
+# Indices for fields in transition data tuples
+TDAT_NITER = 0          # WE iteration in which the transition occurred
+TDAT_TIMEPOINT = 1      # Time within the trajectory 
+TDAT_INIT_REGION = 2    # Index of initial region of transition 
+TDAT_FINAL_REGION = 3   # Index of final region of transition
+TDAT_WEIGHT = 4         # Weight at time of crossing into final region
+TDAT_IPROB = 5          # Weight at time of crossing out of initial region
+TDAT_LIFETIME = 6       # Lifetime (of being in TDAT_INIT_REGION) ended by this crossing
+TDAT_ED = 7             # Event duration of this transition              
+
+# Numpy data type
+tdat_dtype = numpy.dtype( [('n_iter', numpy.int32),
+                           ('timepoint', numpy.uint64),
+                           ('init_region', numpy.uint16),
+                           ('final_region', numpy.uint16),
+                           ('weight', numpy.float64),
+                           ('iprob', numpy.float64),
+                           ('lifetime', numpy.uint64),
+                           ('ed', numpy.uint64),
+                          ])
+
 class TransitionEventAccumulator:
     index_dtype  = numpy.uintp
     count_dtype  = numpy.uint64
     time_dtype   = numpy.float64
     weight_dtype = numpy.float64
+    output_tdat_chunksize = 10000    # HDF5 chunksize for transition data (~500 KiB)
+    tdat_buffersize = 1000000         # Internal buffer length (~50 MiB)
     
-    def __init__(self, region_set, tfile = None, ltfile = None, edfile = None, fptfile = None, ratefile = None,
-                 accumulate_statistics = True):
+    def __init__(self, region_set, output_group):
         self.region_set = region_set
         self.n_bins = len(self.region_set.get_all_bins())
         self.init_regions = numpy.arange(0,self.n_bins, dtype=self.index_dtype)
         
-        self.tfile = tfile       # file to which to write an accounting of transitions
-        self.edfile = edfile     # event duration file
-        self.fptfile = fptfile   # first passage time file
-        self.ltfile = ltfile     # lifetime (dwell time) file
-        self.ratefile = ratefile # bin-to-bin rates 
-        
-        # whether or not to record various kinds of data -- each takes a little bit of performance out of 
-        # the overall procedure
-        self.accumulate_statistics = accumulate_statistics # whether or not to accumulate running averages/std.devs.
-        self.track_transitions = (tfile is not None)       # whether to record individual transitions
-        self.track_lifetimes = (ltfile is not None)        # whether to record lifetimes
-        self.track_fpts = (fptfile is not None)            # whether to record first passage times
-        self.track_eds = (edfile is not None)              # whether to record event duration times
-        self.track_rates = (ratefile is not None and edfile is not None) # whether to record rates (requires tracking eds)
-        
+        # HDF5 group in which to store results
+        self.output_group = output_group
+        self.tdat_buffer = numpy.empty((self.tdat_buffersize,), dtype=tdat_dtype)
+        self.tdat_buffer_offset = 0
+        self.output_tdat_offset = 0
+        self.output_tdat_ds = None
+                        
         # Accumulators/counters
         self.n_crossings     = None # shape (n_bins,n_bins)
         self.n_completions   = None # (n_bins,n_bins)        
         self.lt_acc          = None # (n_bins,)
         self.ed_acc          = None # (n_bins, n_bins)
         self.fpt_acc         = None # (n_bins,n_bins)
-        self.rate_acc        = None # (n_bins,n_bins)
-        self.flux_acc        = None # (n_bins, n_bins)
 
         # Time points and per-timepoint data
         self.last_crossing   = None # shape (n_bins,n_bins)
@@ -60,6 +72,10 @@ class TransitionEventAccumulator:
     def clear(self):
         self.clear_statistics()
         self.clear_state()
+        self.tdat_buffer = numpy.empty((self.tdat_buffersize,), dtype=tdat_dtype)
+        self.tdat_buffer_offset = 0
+        self.output_tdat_offset = 0
+        self.output_tdat_ds = None
         
     def clear_state(self):
         self.last_crossing      = numpy.zeros((self.n_bins,self.n_bins), self.index_dtype)
@@ -80,12 +96,6 @@ class TransitionEventAccumulator:
                                                weight_dtype = self.weight_dtype, mask_value=0)
         self.fpt_acc = RunningStatsAccumulator(shape=(self.n_bins,self.n_bins), dtype=self.time_dtype, count_dtype=self.count_dtype,
                                                weight_dtype = self.weight_dtype, mask_value=0)
-        self.rate_acc = RunningStatsAccumulator(shape=(self.n_bins,self.n_bins), 
-                                                dtype=self.weight_dtype, count_dtype=self.count_dtype,
-                                                weight_dtype = self.weight_dtype, mask_value = 0)
-        self.flux_acc = RunningStatsAccumulator(shape=(self.n_bins,self.n_bins),
-                                                dtype=self.weight_dtype, count_dtype=self.count_dtype,
-                                                weight_dtype = self.weight_dtype, mask_value = 0)
 
     def get_state(self):
         return {'last_crossing':   self.last_crossing.copy(),
@@ -106,80 +116,83 @@ class TransitionEventAccumulator:
         self.time_index      = state_dict['time_index']
         self.last_region     = state_dict['last_region']
         self.last_region_weight = state_dict['last_region_weight']
-            
-    def record_transition_entry(self, time_index, initial_region, final_region, weight, label=''):
-        if self.tfile:
-            tlabel = '{:d}->{:d}'.format(int(initial_region),int(final_region))
-            self.tfile.write('{label:<24s}    {time_index:20d}    {tlabel:<24s}    {weight:20.14e}\n'
-                             .format(time_index=long(time_index), tlabel=tlabel, weight=float(weight), label=label))
-    
-    def record_lifetime_entry(self, time_index, final_region, lifetime, weight, label=''):
-        if self.accumulate_statistics:
-            lt_acc = self.lt_acc
-            lt_acc.count[final_region] += 1
-            lt_acc.weight[final_region] += weight
-            lt_acc.sum[final_region] += weight*lifetime
-            lt_acc.sqsum[final_region] += weight*lifetime*lifetime
         
-        if self.ltfile:
-            self.ltfile.write('{label:<24s}    {time_index:20d}    {slabel:10d}    {lifetime:20d}    {weight:20.14e}\n'
-                              .format(time_index=long(time_index), slabel=long(final_region), lifetime=long(lifetime), 
-                                      weight=float(weight), label=label))
-    
-    def record_ed_entry(self, time_index, initial_region, final_region, ed, weight, label=''):
-        if self.accumulate_statistics:
-            ed_acc = self.ed_acc
-            ed_acc.count[initial_region,final_region] += 1
-            ed_acc.weight[initial_region,final_region] += weight
-            ed_acc.sum[initial_region,final_region] += weight*ed
-            ed_acc.sqsum[initial_region,final_region] += weight*ed*ed
-        if self.edfile:
-            tlabel = '{:d}->{:d}'.format(int(initial_region),int(final_region))
-            self.edfile.write('{label:<24s}    {time_index:20d}    {tlabel:<24s}    {ed:20d}    {weight:20.14e}\n'
-                              .format(time_index=long(time_index), tlabel=tlabel, ed=long(ed), weight=float(weight),
-                                      label=label))
-    
-    def record_fpt_entry(self, time_index, initial_region, final_region, fpt, weight, label=''):
-        if self.accumulate_statistics:
-            fpt_acc = self.fpt_acc
-            fpt_acc.count[initial_region,final_region] += 1
-            fpt_acc.weight[initial_region,final_region] += weight
-            fpt_acc.sum[initial_region,final_region] += weight*fpt
-            fpt_acc.sqsum[initial_region,final_region] += weight*fpt*fpt
-        if self.fptfile:
-            tlabel = '{:d}->{:d}'.format(int(initial_region),int(final_region))
-            self.fptfile.write('{label:<24s}    {time_index:20d}    {tlabel:<24s}    {fpt:20d}    {weight:20.14e}\n'
-                              .format(time_index=long(time_index), tlabel=tlabel, fpt=long(fpt), weight=float(weight), 
-                                      label=label))
+        
+    def record_transition_data(self, tdat):
+        """Update running statistics and write transition data to HDF5 (with buffering)"""
+        
+        # Update running statistics
+        # event durations are weighted, everything else is unweighted
+        lt_count = self.lt_acc.count
+        lt_weight = self.lt_acc.weight
+        lt_sum = self.lt_acc.sum
+        lt_sqsum = self.lt_acc.sqsum
+        
+        ed_count = self.ed_acc.count
+        ed_weight = self.ed_acc.weight
+        ed_sum = self.ed_acc.sum
+        ed_sqsum = self.ed_acc.sqsum
+                
+        for (n_iter, timepoint, init_region, final_region, weight, iprob, lifetime, ed) in tdat:
+            idx = (init_region, final_region)
+                                    
+            if lifetime > 0:
+                lt_count[init_region] += 1
+                lt_weight[init_region] += 1
+                lt_sum[init_region] += weight*lifetime
+                lt_sqsum[init_region] += weight*lifetime*lifetime
             
-    def record_rate_entry(self, time_index, initial_region, final_region, flux, dt, pop, rate, label=''):
-        if self.accumulate_statistics:
-            rate_acc = self.rate_acc
-            rate_acc.count[initial_region,final_region] +=1
-            rate_acc.weight[initial_region,final_region] += 1.0
-            rate_acc.sum[initial_region,final_region] += rate
-            rate_acc.sqsum[initial_region,final_region] += rate*rate
+            if ed > 1:
+                ed_count[idx] += 1
+                ed_weight[idx] += weight
+                ed_sum[idx] += weight*ed
+                ed_sqsum[idx] += weight*ed*ed
+        
+        
+        # Write out accumulated transition data
+        if self.output_tdat_ds is None:        
+            # Create dataset
+            self.output_tdat_ds = self.output_group.create_dataset('transitions', shape=(self.output_tdat_chunksize,), 
+                                                                   dtype=tdat_dtype, maxshape=(None,), 
+                                                                   chunks=(self.output_tdat_chunksize,))
             
-            flux_acc = self.flux_acc
-            flux_acc.count[initial_region,final_region] += 1
-            flux_acc.weight[initial_region,final_region] += 1.0
-            flux_acc.sum[initial_region,final_region] += flux
-            flux_acc.sqsum[initial_region,final_region] += flux*flux
+        # If the amount of data to write exceeds our remaining buffer space, flush the buffer, then
+        # write data directly to HDF5, otherwise just add to the buffer and wait for the last flush
+        if len(tdat) + self.tdat_buffer_offset > self.tdat_buffersize:
+            self.flush_transition_data()
+            ub = self.output_tdat_offset + len(tdat)
+            self.output_tdat_ds.resize((ub,))
+            self.output_tdat_ds[self.output_tdat_offset:ub] = tdat
+            self.output_tdat_offset += len(tdat)
+        else:
+            self.tdat_buffer[self.tdat_buffer_offset:(self.tdat_buffer_offset+len(tdat))] = tdat
+            self.tdat_buffer_offset += len(tdat)
+        
+    def flush_transition_data(self):
+        """Flush any unwritten output that may be present"""
+        if self.output_tdat_ds is None:
+            return
+                
+        # self.tdat_buffer_offset is the number of items in the buffer
+        nbuf = self.tdat_buffer_offset
+        if nbuf == 0: return
+        ub = nbuf + self.output_tdat_offset
+        if ub > self.output_tdat_ds.len():
+            # Resize dataset to fit data
+            self.output_tdat_ds.resize((ub,))
             
-        if self.ratefile:
-            tlabel = '{:d}->{:d}'.format(int(initial_region), int(final_region))
-            self.ratefile.write('{label:<24s}    {time_index:20d}    {tlabel:<24s}    {flux:20.14e}    {dt:20d}    {pop:20.14e}    {rate:20.14e}\n'
-                                .format(time_index=long(time_index), tlabel=tlabel, 
-                                        flux=float(flux), dt=long(dt), pop=float(pop), rate=float(rate), label=label))
-
+        self.output_tdat_ds[self.output_tdat_offset:ub] = self.tdat_buffer[:nbuf]
+        self.output_tdat_offset += nbuf
+        self.tdat_buffer_offset = 0
+        
+                    
     def accumulate_transitions(self, pcoords, 
                                    weight = None, region_weights = None, 
-                                   time_index=None, continuation = False, label=''):
+                                   time_index=None, continuation = False,
+                                   n_iter=None):
         """Assign the given progress coordinates to regions, and then determine transitions among regions.
         If continuation is True, ignore the first point (raises an error if accumulate_transitions() has not
         been called at least once already), otherwise use the first point as the initial point."""
-        
-        # TODO: speed up reporting, which is currently the main speed bottleneck
         
         # Coerce the given weight into a vector the same length as pcoords
         if weight is None:
@@ -249,17 +262,10 @@ class TransitionEventAccumulator:
         last_completion = self.last_completion
         n_crossings = self.n_crossings
         n_completions = self.n_completions
-        record_transition_entry = self.record_transition_entry
-        record_lifetime_entry = self.record_lifetime_entry
-        record_ed_entry = self.record_ed_entry
-        record_fpt_entry = self.record_fpt_entry
-        record_rate_entry = self.record_rate_entry
         n_bins = self.n_bins
-        track_transitions = self.track_transitions
-        track_lifetimes = self.track_lifetimes
-        track_eds = self.track_eds
-        track_fpts = self.track_fpts
-        track_rates = self.track_rates
+        n_iter = n_iter or 0
+                
+        tdat = []
 
         # a discriminator indicating which initial regions we have to deal with when calculating transitions
         irdisc = numpy.zeros((n_bins,), numpy.bool_)        
@@ -268,45 +274,27 @@ class TransitionEventAccumulator:
         for ((time_index,current_region,last_region), weight, last_region_weight) in izip(trans_observed, weights_observed, 
                                                                                           last_region_weights_observed):
             n_crossings[last_region,current_region] += 1
-            if track_transitions:
-                record_transition_entry(time_index,last_region,current_region,weight, label=label)
-            
-            if track_lifetimes and last_entry[last_region] > 0:
+            n_completions[last_region,current_region] += 1
+
+            if last_entry[last_region] > 0:
                 lifetime = time_index - last_entry[last_region]
-                record_lifetime_entry(time_index, last_region, lifetime, weight, label=label)
+            else:
+                lifetime = 0
                 
-            if track_rates and last_region_weight > 0:
-                # Fluxes for crossings are always divided by a time of one (the resolution of pcoord data)
-                rate = weight / last_region_weight
-                #record_rate_entry(time_index, last_region, current_region, rate, label=label)
-                #record_rate_entry(self, time_index, initial_region, final_region, flux, dt, pop, rate, label='')
-                record_rate_entry(time_index, last_region, current_region, flux=weight, dt=1, pop=last_region_weight,
-                                  rate=rate, label=label)
-            
+            tdat.append((n_iter, time_index, last_region, current_region, weight, last_region_weight, lifetime, 1))
+                        
             # Note that transitions, event durations, etc. all require a transition *through* an intermediate state
             # i.e. the transitions file and count matrix do not reflect transitions across one (or more) boundaries
             # with no intervening time (thanks to Brandon Mills for pointing out how confusing this is without
             # a few more comments)                
             irdisc[:] = True # We need to look at everything
-            irdisc[last_region] = False # except transitions beginning in the last region (that's just a crossing, reported above)
-            #irdisc[current_region] = False # and transitions beginning in the current region (that's coming full circle)
+            irdisc[last_region] = False # except transitions beginning in the last region (that's just a crossing, handled above)
             irdisc &= (last_entry > last_completion[:,current_region]) # and only those visited since the last time we were here
             
             for initial_region in init_regions[irdisc]:
-                if track_transitions:
-                    record_transition_entry(time_index,initial_region,current_region,weight, label=label)
-                if track_eds:
-                    ed = time_index - last_exit[initial_region]
-                    record_ed_entry(time_index,initial_region,current_region,ed,weight, label=label)
-                if track_fpts and last_completion[current_region,initial_region] > 0:
-                    fpt = time_index - last_completion[current_region,initial_region]
-                    record_fpt_entry(time_index,initial_region,current_region,fpt,weight, label=label)
-                if track_rates and track_eds and last_exit[initial_region] > 0 and last_exit_weights[initial_region] > 0:
-                    # k_ij = 1/(t_j - t_i) * (Prob arriving in j) / (Prob of leaving i)
-                    rate = weight / last_exit_weights[initial_region] / ed
-                    #record_rate_entry(time_index, initial_region, current_region, rate, label=label)
-                    record_rate_entry(time_index, initial_region, current_region, flux=weight, dt=ed, 
-                                      pop=last_exit_weights[initial_region], rate=rate, label=label)
+                if last_exit[initial_region] > 0:        
+                    ed = time_index - last_exit[initial_region]                        
+                    tdat.append((n_iter, time_index, initial_region, current_region, weight, last_exit_weights[initial_region], 0, ed))
                 
                 last_completion[initial_region,current_region] = time_index
                 n_completions[initial_region,current_region] += 1
@@ -320,3 +308,8 @@ class TransitionEventAccumulator:
         self.time_index = tracking_table[-1,TIMEPOINT]
         self.last_region = tracking_table[-1,CURRENT_REGION]
         self.last_region_weight = region_weights[-1, self.last_region]
+        
+        if tdat:
+            self.record_transition_data(tdat)
+            
+

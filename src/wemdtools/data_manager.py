@@ -3,8 +3,6 @@ from itertools import imap, izip
 import numpy
 from wemd import Segment
 
-import operator, functools
-
 import logging
 log = logging.getLogger(__name__)
 
@@ -27,6 +25,19 @@ class CachingDataReader:
                 
         # For functions returning lists of segments, whether to include pcoords.
         self.include_pcoords = False
+        
+    def clear_cache(self):
+        del self._iter_groups, self._seg_id_ranges, self._seg_indices, self._parent_arrays, self._p_parent_arrays
+        del self._pcoord_arrays, self._pcoord_datasets
+        
+        self._iter_groups = dict()
+        self._seg_id_ranges = dict()
+        self._seg_indices = dict()
+        self._parent_arrays = dict()
+        self._p_parent_arrays = dict()
+        self._pcoord_arrays = dict()
+        self._pcoord_datasets = dict()
+        
     
     def __getattr__(self, attr):
         return getattr(self._data_manager,attr)

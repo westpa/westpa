@@ -120,3 +120,17 @@ def get_region_set_from_args(args, status_stream = None, print_labels=False, pri
     
     return region_set
         
+def print_labels(region_set, dest, header='# bin labels:\n', format='#  bin {bin_index:{max_iwidth}d} -- {label!s}\n'):
+    '''Print labels for all bins in the given ``region_set`` to ``dest``.  If provided, ``header`` is printed
+    before any labels.   The ``format`` string specifies how bin labels are to be printed.  Valid entries are:
+      * ``bin_index`` -- the zero-based index of the bin
+      * ``label`` -- the label, as obtained by ``bin.label``
+      * ``max_iwidth`` -- the maximum width (in characters) of the bin index, for pretty alignment
+    '''
+    
+    dest.write(header)
+    bins = region_set.get_all_bins()
+    max_iwidth = len(str(len(bins)-1))
+    for (ibin, bin) in enumerate(bins):
+        dest.write(format.format(bin_index=ibin, label=bin.label, max_iwidth=max_iwidth))
+    
