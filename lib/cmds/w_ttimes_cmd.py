@@ -263,8 +263,7 @@ for iregion in xrange(0, n_bins):
         if not len(trans_ifregions): 
             continue
         
-        this_total_weight         = trans_ifregions['weight'].sum()
-        this_iprobs               = trans_ifregions['iprob']        
+        this_total_weight         = trans_ifregions['weight'].sum()        
         fluxes[iregion,fregion,0] = this_total_weight
         rates[iregion,fregion,0]  = (trans_ifregions['weight'] / trans_ifregions['iprob']).sum()
         eds[iregion,fregion,0]    = (trans_ifregions['ed'] * trans_ifregions['weight'] ).sum() / this_total_weight
@@ -302,9 +301,9 @@ for iregion in xrange(0, n_bins):
 fluxes[...,[0,1,2,3,5]] /= args.dt * (stop_iter-start_iter+1) * (pcoord_len-1)
 rates[...,[0,1,2,3,5]]  /= args.dt * (stop_iter-start_iter+1) * (pcoord_len-1)
 
-# Divide everything else by dt
-lifetimes[...,[0,1,2,3,5]] /= args.dt
-eds[...,[0,1,2,3,5]] /= args.dt
+# Multiply times else by dt
+lifetimes[...,[0,1,2,3,5]] *= args.dt
+eds[...,[0,1,2,3,5]] *= args.dt
 
 # Write output files
 max_ibin_width = len(str(n_bins-1))
@@ -323,5 +322,3 @@ print('\nNumber of boundary crossings:',file=sys.stdout)
 print_2d_int_array(transacc.n_crossings,file=sys.stdout)
 print('Number of transitions:',file=sys.stdout)
 print_2d_int_array(transacc.n_completions,file=sys.stdout)
-
-
