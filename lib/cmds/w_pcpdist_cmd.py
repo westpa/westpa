@@ -21,8 +21,7 @@ else:
         
     # Color map based on that in Hovmoeller et al. "Conformations of amino acids in proteins." 
     # Act. Cryst. D., 2002.58. doi:10.1107/S0907444902003359
-    cmap_data = numpy.array( [ (255, 255, 255),
-                               (124,   0,  24),
+    cmap_data = numpy.array( [ (124,   0,  24),
                                (211,   0,  32),
                                (244, 184,   0),
                                (245, 235,   0),
