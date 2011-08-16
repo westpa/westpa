@@ -36,11 +36,11 @@ def accumulate_transitions_segment(segment, children, history, transacc, data_ma
         nsegwidth = int(ceil(log10(n_to_visit)))
         pct_visited = n_visited / n_to_visit * 100
         if args.whole_only:
-            sys.stdout.write('{:>{nsegwidth}d} of a maximum of {:<{nsegwidth}d} segments analyzed\n'
-                                   .format(n_visited, n_to_visit, nsegwidth=nsegwidth))
+            sys.stdout.write('\r{:>{nsegwidth}d} of a maximum of {:<{nsegwidth}d} segments analyzed\n'
+                             .format(n_visited, n_to_visit, nsegwidth=nsegwidth))
         else:
-            sys.stdout.write('{:>{nsegwidth}d} of {:<{nsegwidth}d} segments ({:5.1f}%) analyzed\n'
-                                   .format(n_visited, n_to_visit, pct_visited, nsegwidth=nsegwidth))
+            sys.stdout.write('\r{:>{nsegwidth}d} of {:<{nsegwidth}d} segments ({:5.1f}%) analyzed\n'
+                             .format(n_visited, n_to_visit, pct_visited, nsegwidth=nsegwidth))
         sys.stdout.flush()
 
     if len(history) == 0:
@@ -166,7 +166,7 @@ binprobs = numpy.empty((stop_iter-start_iter+1, pcoord_len, n_bins),dtype=numpy.
 
 for n_iter in xrange(start_iter, stop_iter+1):
     if not args.quiet_mode and n_iter % 10 == 0:
-        sys.stdout.write('iteration {}\n'.format(n_iter))
+        sys.stdout.write('\riteration {}\n'.format(n_iter))
     i_iter = n_iter - start_iter
     pcoords = data_manager.get_pcoord_array(n_iter)
     weights = data_manager.get_seg_index(n_iter)['weight']

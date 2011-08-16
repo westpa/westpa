@@ -288,7 +288,7 @@ class TransitionEventAccumulator:
             # with no intervening time (thanks to Brandon Mills for pointing out how confusing this is without
             # a few more comments)                
             irdisc[:] = True # We need to look at everything
-            irdisc[last_region] = False # except transitions beginning in the last region (that's just a crossing, handled above)
+            #irdisc[last_region] = False # except transitions beginning in the last region (that's just a crossing, handled above)
             irdisc &= (last_entry > last_completion[:,current_region]) # and only those visited since the last time we were here
             
             for initial_region in init_regions[irdisc]:
@@ -297,7 +297,8 @@ class TransitionEventAccumulator:
                     tdat.append((n_iter, time_index, initial_region, current_region, weight, last_exit_weights[initial_region], 0, ed))
                 
                 last_completion[initial_region,current_region] = time_index
-                n_completions[initial_region,current_region] += 1
+                if initial_region != last_region:
+                    n_completions[initial_region,current_region] += 1
                          
             last_exit[last_region] = time_index
             last_exit_weights[last_region] = last_region_weight
