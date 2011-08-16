@@ -1,4 +1,5 @@
 2011-08-16 -- Matt Zwier <mczwier@gmail.com>
+ * Renamed everything in lib/ to remove the ``_cmd``...finally.
  * Restructured hooks and callbacks used during the simulation loop.
  * Removed calls to callbacks in ``systems.py``.
  * Added bin assignment, bin population, flux, and rate tracking code to the

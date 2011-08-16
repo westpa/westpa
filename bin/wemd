@@ -45,8 +45,8 @@ if [ "$1" == "--profile" ]; then
     shift
     pfile=wemd_profile_$$.dat
     echo >&2 "Saving profiling information to $pfile"
-    $WEMD_PYTHON -m cProfile -o $pfile $WEMD_ROOT/lib/cmds/${SCRIPT}_cmd.py "$@"
+    $WEMD_PYTHON -m cProfile -o $pfile $WEMD_ROOT/lib/cmds/${SCRIPT}.py "$@"
     $WEMD_PYTHON -c "import sys, pstats; ps = pstats.Stats('$pfile', stream=sys.stderr); ps.sort_stats('time').print_stats(100);"
 else
-    exec $WEMD_PYTHON $WEMD_ROOT/lib/cmds/${SCRIPT}_cmd.py "$@"
+    exec $WEMD_PYTHON $WEMD_ROOT/lib/cmds/${SCRIPT}.py "$@"
 fi
