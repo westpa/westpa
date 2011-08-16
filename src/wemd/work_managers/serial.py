@@ -19,6 +19,4 @@ class SerialWorkManager(WEMDWorkManager):
         propagator = self.sim_manager.propagator
         system_driver = self.sim_manager.system
         for segment in segments:
-            system_driver.preprocess_segments([segment])
             propagator.propagate([segment])
-            system_driver.postprocess_segments([segment])

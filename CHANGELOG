@@ -1,8 +1,38 @@
+2011-08-16 -- Matt Zwier <mczwier@gmail.com>
+ * Restructured hooks and callbacks used during the simulation loop.
+ * Removed calls to callbacks in ``systems.py``.
+ * Added bin assignment, bin population, flux, and rate tracking code to the
+   core SimManager loop.
+ * Restructured HDF5 somewhat to store bin assignments, populations, fluxes,
+   and rates in HDF5: added ``bin_assignments``, ``bin_populations``,
+   ``bin_ntrans`` (number of transitions from i to j), ``bin_fluxes`` (flux
+   from i to j), and ``bin_rates`` (rate from i to j) to each iteration's
+   group; removed ``bin_counts``; renamed ``bin_probs`` to 
+   ``bin_populations``.  Assignments and populations are per-timepoint, and
+   transition counts, fluxes, and rates are per-iteration, evaluated by
+   comparing the beginning and end of each iteration.
+ * Added preliminary generic plug-in facilities to ``sim_manager.py``.
+ * Added checks to ParticleCollection so that a populated bin cannot be set to
+   zero weight and vice versa.
+ * Binning has moved from WEDriver to SimManager.
+ * Fixed bug in loading nested packages with ``extloader.py``.
+ 
 2011-07-14 -- Matt Zwier <mczwier@gmail.com>
  * Fixed a very broken algorithm in w_ttimes for calculating fluxes and rates.
  * w_ttimes now stores intermediate results in an HDF5 file, both for speed
    and in anticipation of a more stepwise analysis framework.
  * Fixed a few regressions in w_steady_state.
+
+2011-06-20 -- Matt Zwier <mczwier@gmail.com>
+ * Fixed w_init so that it actually runs weighted ensemble correctly in order
+   to populate initial bins.  The behavior now matches what is described in 
+   the documentation for class ``InitialState``.
+ * Integrated Dan's equilibrium reweighting code. This is activated by 
+   specifying "do_equilibrium_reweighting = true" in ``wemd.cfg``. Code is
+   contained in the newly-created ``wemdext`` package, which contains a 
+   ``weed`` package with Dan's code.
+ * Imposed a temporary restriction that binning cannot change between
+   calls to w_run in order to support the equilibrium reweighting code.
 
 2011-06-17 -- Matt Zwier <mczwier@gmail.com>
  * Fixed a largely broken w_init, rolling back a one-off change accidentally 

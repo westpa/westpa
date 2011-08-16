@@ -21,9 +21,23 @@ class ParticleCollection:
 
     def reweight(self, new_weight):
         """Reweight all particles in this collection so that the total weight is new_weight"""
+
+        if len(self) == 0 and new_weight == 0:
+            return
+        
+        if len(self) == 0 and new_weight != 0:
+            raise ValueError('cannot reweight empty ParticleCollection')         
+        
         current_weight = self.weight
+        log.debug('reweighting collection of {:d} particles from {:g} to {:g}'.format(len(self), current_weight, new_weight))
+        assert (new_weight == 0 and current_weight == 0) or new_weight > 0
+                
+        wrat = new_weight / current_weight
         for p in self:
-            p.weight *= new_weight / current_weight
+            p.weight *= wrat
+            
+        log.debug('new weight: {:g}'.format(self.weight))
+        assert abs(new_weight-self.weight) <= 1.0e-15*len(self)
     
     @property
     def weight(self):
@@ -148,11 +162,11 @@ class RegionSet:
         if list(all_bins) == list(self.regions):
             self._simple_topology = True
             self._binmap = None
-            log.info('using algorithms optimized for non-nested bin spaces')
+            log.debug('using algorithms optimized for non-nested bin spaces')
         else:
             self._simple_topology = False
             self._binmap = {id(bin): ibin for (ibin,bin) in enumerate(all_bins)}
-            log.info('using algorithms appropriate for nested bin spaces')
+            log.debug('using algorithms appropriate for nested bin spaces')
         self._stale_topology = False
         
     def _map_to_indices(self, coords):

@@ -323,8 +323,7 @@ def cmd_steady_state(sim_manager, args):
             new_segment.status = Segment.SEG_STATUS_PREPARED
             new_segment.n_parents = len(new_segment.parent_ids)
         
-        dm.prepare_iteration(n_iter+1, new_segments, 
-                                            sim_manager.system.pcoord_ndim, sim_manager.system.pcoord_len, sim_manager.system.pcoord_dtype)
+        dm.prepare_iteration(n_iter+1, new_segments)
 
         sim_manager.data_manager.current_iteration = n_iter + 1
         dm.flush_backing()

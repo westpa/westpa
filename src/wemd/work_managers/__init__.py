@@ -10,14 +10,19 @@ class WEMDWorkManager:
     def __init__(self, sim_manager):
         self.sim_manager = sim_manager
         self.mode=sim_manager.runtime_config.get('args.mode', 'master')
+        self.shutdown_called = False
                 
     def parse_aux_args(self, aux_args, do_help = False):
         '''Parse any unprocessed command-line arguments, returning any arguments not proccessed
         by this object. By default, this does nothing except return the input.'''
         return aux_args
     
-    def prepare(self):
-        '''Prepare to distribute/receive work'''
+    def startup(self):
+        '''Perform any necessary startup work, such as spawning clients'''
+        pass
+    
+    def prepare_run(self):
+        '''Prepare workers to distribute/receive work'''
         pass
                                 
     def prepare_iteration(self, n_iter, segments):
@@ -34,6 +39,10 @@ class WEMDWorkManager:
         '''Clean up at the end of an iteration.  If overridden, this must call
         propagator.finalize_iteration().'''
         self.sim_manager.propagator.finalize_iteration(n_iter, segments)
+        
+    def finalize_run(self):
+        '''Clean up at the normal end of a run'''
+        pass
         
     def shutdown(self, exit_code=0):
         '''Cleanly shut down any active workers.'''

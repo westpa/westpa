@@ -120,10 +120,20 @@ class WEMDSystem:
         and so on. This function must be overridden by the user in his/her system class.
         '''
         raise NotImplementedError
+    
+    def prepare_run(self):
+        '''Prepare this system for use in a simulation run'''
+        pass
+    
+    def finalize_run(self):
+        '''A hook for system-specific processing for the end of a simulation run
+        (as defined by such things as maximum wallclock time, rather than perhaps
+        more scientifically-significant definitions of "the end of a simulation run")'''
+        pass
 
     def new_pcoord_array(self):
         '''Return an appropriately-sized and -typed pcoord array. Used by the sim manager to 
-        create new segments.'''
+        and data manager to create new segments.'''
         return numpy.zeros((self.pcoord_len, self.pcoord_ndim), self.pcoord_dtype)
 
     def add_initial_state(self, label, initial_prob, recycle_prob, pcoord, bin = None):
@@ -178,30 +188,4 @@ class WEMDSystem:
                 
                 self.add_initial_state(label, iprob, rprob, pcoord, bin)
         
-    def preprocess_iteration(self, n_iter, segments):
-        '''Perform pre-processing on all segments for a new iteration.  This is
-        run by the sim manager immediately prior to propagation.  Segment-based
-        preprocessing (with preprocess_segments()) is to be preferred to this.'''
-        pass
-    
-    def postprocess_iteration(self, n_iter, segments):
-        '''Perform post-processing on all segments for an iteration.  This is
-        run by the sim manager after propagation and prior to weighted
-        ensemble.  Segment-based postprocessing (with postprocess_segments())
-        is to be preferred to this.'''
-        pass
-
-    def preprocess_segments(self, segments):
-        '''Perform pre-processing on a given set of segments.  This is run by a
-        worker immediately before propagation of those segments.  Pre-processing
-        of an entire iteration's set of segments at once should occur in
-        preprocess_iteration().'''
-        pass
-        
-    def postprocess_segments(self, segments):
-        '''Perform post-processing on a given set of segments.  This is run by 
-        a worker immediately after propagation of those segments.  Post-processing
-        of an entire iteration's set of segments at once should occur in
-        postprocess_iteration().'''
-        pass
     

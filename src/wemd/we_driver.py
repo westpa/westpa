@@ -30,7 +30,8 @@ class WEMDWEDriver:
     def run_we(self, segments, region_set):
         '''Run the weighted ensemble algorithm on the given segments, binning on their final
         positions.  The endpoint_type field of each segment is updated appropriately.  Returns the
-        new set of segments to be propagated.'''
+        new set of segments to be propagated. Segments must already be in appropriate bins in the
+        provided region_set prior to calling this function.'''
         
         segments = list(segments)
         
@@ -40,13 +41,7 @@ class WEMDWEDriver:
 
         self.recycle_from = [[0, 0.0] for istate in xrange(0, len(self.sim_manager.system.target_states))]
         self.recycle_to   = [[0, 0.0] for istate in xrange(0, len(self.sim_manager.system.initial_states))]  
-                        
-        # Distribute segments into bins based on their endpoints 
-        region_set.clear()
-        endpoint_coords = [segment.pcoord[-1] for segment in segments]
-        for (segment, bin) in izip(segments, region_set.map_to_bins(endpoint_coords)):
-            bin.add(segment)
-            
+                                    
         bins = numpy.array(region_set.get_all_bins(), numpy.object_)
         
         # Determine which segments terminate in recycling events

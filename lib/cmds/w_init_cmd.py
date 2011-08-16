@@ -24,6 +24,8 @@ sim_manager = wemd.rc.load_sim_manager(runtime_config)
 
 sim_manager.load_data_manager()
 sim_manager.load_we_driver()
+system = sim_manager.load_system_driver()
+sim_manager.load_plugins()
 
 sim_manager.runtime_config.require('data.h5file')
 h5file = sim_manager.runtime_config.get_path('data.h5file')
@@ -34,13 +36,13 @@ if os.path.exists(h5file):
     else:
         sys.stderr.write('HDF5 file {!r} already exists; exiting.\n'.format(h5file))
         sys.exit(os.EX_OSFILE)
-
+        
+# Prepare HDF5 file
 sys.stdout.write('Creating HDF5 file {!r}.\n'.format(h5file))
 sim_manager.data_manager.prepare_backing()
 
-# Load system driver and report a few initial statistics
-sim_manager.load_system_driver()
-system = sim_manager.system
+# Prepare simulation
+system.prepare_run()
 region_set = system.region_set
 
 tiprob = 0.0
@@ -82,22 +84,20 @@ iprobtot = region_set.weight
 all_bins = region_set.get_all_bins()
 bin_occupancies = numpy.array(map(operator.attrgetter('count'), all_bins))
 target_occupancies = numpy.array(map(operator.attrgetter('target_count'), all_bins))
-    
+
 sys.stdout.write('''
-Total bins:             {:d}
-Initial particles:      {:d} in {:d} bins, total weight = {:g}
-Total target particles: {:d}
-'''.format(len(all_bins),
-       sum(bin_occupancies), len(bin_occupancies[bin_occupancies > 0]), iprobtot, 
-       sum(target_occupancies)))
+Total bins:            {total_bins:d}
+Initial replicas:      {init_replicas:d} in {occ_bins:d} bins, total weight = {weight:g}
+Total target replicas: {total_replicas:d}
+'''.format(total_bins=len(all_bins), init_replicas=sum(bin_occupancies), occ_bins=len(bin_occupancies[bin_occupancies > 0]),
+           weight = iprobtot, total_replicas = sum(target_occupancies)))
 
 # The user-side check for this was above; this is an assertion that the above assignment to bins 
 # and division of probability is correct
 assert abs(sim_manager.system.region_set.weight - tiprob) < MACHEPS*sum(bin_occupancies)
 
 # Send the segments over to the data manager to commit to disk            
-sim_manager.data_manager.prepare_iteration(1, segments, system.pcoord_ndim, system.pcoord_len,
-                                           system.pcoord_dtype)
+sim_manager.data_manager.prepare_iteration(1, segments)
 sim_manager.data_manager.flush_backing()
 
 sim_manager.system.region_set.clear()    

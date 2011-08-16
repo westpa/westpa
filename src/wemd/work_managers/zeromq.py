@@ -520,7 +520,7 @@ class ZMQWorkManager(ZMQBase, WEMDWorkManager):
                     self.mode = 'nodeworker'
                 return
             
-    def prepare(self):
+    def startup(self):
         
         # Assign paths for local IPC endpoints; these will be carried across fork()s
         self.local_ann_endpoint = self.make_ipc_endpoint()

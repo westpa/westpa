@@ -9,16 +9,14 @@ from itertools import imap
 import numpy
 import h5py
 
-from wemd.util.rtracker import ResourceTracker
-
 import logging
 log = logging.getLogger(__name__)
 
 from wemd.util.miscfn import vattrgetter
 from wemd import Segment
 
-file_format_version = 1
-SUMMARY_TABLE = 'summary'
+file_format_version = 3
+
 summary_table_dtype = numpy.dtype( [ ('n_iter', numpy.uint),
                                      ('n_particles', numpy.uint),
                                      ('norm', numpy.float64),
@@ -64,7 +62,7 @@ class WEMDDataManager:
     
     # field width of numeric portion of iteration group names
     iter_prec = 8
-    
+        
     def __init__(self, sim_manager, backing_file = None):
         self.sim_manager = sim_manager
         
@@ -89,8 +87,6 @@ class WEMDDataManager:
         # A few functions for extracting vectors of attributes from vectors of segments
         self._attrgetters = dict((key, vattrgetter(key)) for key in 
                                  ('seg_id', 'status', 'endpoint_type', 'weight', 'walltime', 'cputime'))
-        
-        self.rtracker = ResourceTracker()
             
     def _get_iter_group_name(self, n_iter):
         return 'iter_%0*d' % (self.iter_prec, n_iter)
@@ -100,7 +96,7 @@ class WEMDDataManager:
 
     def get_iter_group(self, n_iter):
         return self.h5file['/iter_%0*d' % (self.iter_prec, n_iter)]
-   
+        
     @property
     def current_iteration(self):
         return self.h5file['/'].attrs['wemd_current_iteration']
@@ -122,12 +118,11 @@ class WEMDDataManager:
         self.current_iteration = 1
         assert self.h5file['/'].attrs['wemd_current_iteration'] == 1
         
-        self.h5file['/'].create_dataset(SUMMARY_TABLE,
+        self.h5file['/'].create_dataset('summary',
                                         shape=(1,), 
                                         dtype=summary_table_dtype,
                                         maxshape=(None,),
                                         chunks=(100,))
-        
         
     def close_backing(self):
         if self.h5file is not None:
@@ -138,7 +133,7 @@ class WEMDDataManager:
         if self.h5file is not None:
             self.h5file.flush()
                 
-    def prepare_iteration(self, n_iter, segments, pcoord_ndim, pcoord_len, pcoord_dtype):
+    def prepare_iteration(self, n_iter, segments, pcoord_ndim = None, pcoord_len = None, pcoord_dtype = None):
         """Prepare for a new iteration by creating space to store the new iteration's data.
         The number of segments, their IDs, and their lineage must be determined and included
         in the set of segments passed in."""
@@ -146,12 +141,17 @@ class WEMDDataManager:
         log.debug('preparing HDF5 group for iteration %d (%d segments)' % (n_iter, len(segments)))
         
         n_particles = len(segments)
+        system = self.sim_manager.system
+        pcoord_ndim = pcoord_ndim if pcoord_ndim is not None else system.pcoord_ndim
+        pcoord_len = pcoord_len if pcoord_len is not None else system.pcoord_len
+        pcoord_dtype = pcoord_dtype if pcoord_dtype is not None else system.pcoord_dtype
+        n_bins = len(system.region_set.get_all_bins())
         
         # Ensure we have a list for guaranteed ordering
         segments = list(segments)
-        
+                
         # Create a table of summary information about each iteration
-        summary_table = self.h5file[SUMMARY_TABLE]
+        summary_table = self.h5file['summary']
         if len(summary_table) < n_iter:
             summary_table.resize((n_iter+1,))
         
@@ -178,6 +178,12 @@ class WEMDDataManager:
                                               shape=(n_particles, pcoord_len, pcoord_ndim), 
                                               dtype=pcoord_dtype)
         pcoord = pcoord_ds[...]
+        
+        assignments_ds = iter_group.create_dataset('bin_assignments', shape=(n_particles, pcoord_len), dtype=numpy.uint32)
+        populations_ds = iter_group.create_dataset('bin_populations', shape=(pcoord_len, n_bins), dtype=numpy.float64)
+        n_trans_ds = iter_group.create_dataset('bin_ntrans', shape=(n_bins,n_bins), dtype=numpy.uint32)
+        fluxes_ds = iter_group.create_dataset('bin_fluxes', shape=(n_bins,n_bins), dtype=numpy.float64)
+        rates_ds = iter_group.create_dataset('bin_rates', shape=(n_bins,n_bins), dtype=numpy.float64)
         
         for (seg_id, segment) in enumerate(segments):
             if segment.seg_id is not None:
@@ -244,27 +250,22 @@ class WEMDDataManager:
         # the changes out to HDF5
         seg_index_table_ds[:] = seg_index_table
         pcoord_ds[...] = pcoord
+        
+        # A few explicit deletes
+        del seg_index_table, pcoord
+        
     
     def get_iter_summary(self,n_iter):
         summary_row = numpy.zeros((1,), dtype=summary_table_dtype)
-        summary_row[:] = self.h5file[SUMMARY_TABLE][n_iter-1]
+        summary_row[:] = self.h5file['summary'][n_iter-1]
         return summary_row
         
     def update_iter_summary(self,n_iter,summary):
-        self.h5file[SUMMARY_TABLE][n_iter-1] = summary
+        self.h5file['summary'][n_iter-1] = summary
 
     def del_iter_summary(self, min_iter): #delete the iterations starting at min_iter      
-        self.h5file[SUMMARY_TABLE].resize((min_iter - 1,))
-             
-    def write_bin_data(self, n_iter, bin_counts, bin_probabilities):
-        assert len(bin_counts) == len(bin_probabilities)
-        iter_group = self.get_iter_group(n_iter)
-        bin_count_ds = iter_group.require_dataset('bin_counts', (len(bin_counts),), numpy.uint)
-        bin_prob_ds  = iter_group.require_dataset('bin_probs', (len(bin_probabilities),), numpy.float64)
-        
-        bin_count_ds[:] = bin_counts
-        bin_prob_ds[:]  = bin_probabilities
-        
+        self.h5file['summary'].resize((min_iter - 1,))
+                     
     def write_recycling_data(self, n_iter, rec_summary):
         iter_group = self.get_iter_group(n_iter)
         rec_data_ds = iter_group.require_dataset('recycling', (len(rec_summary),), dtype=rec_summary_dtype)
@@ -274,12 +275,19 @@ class WEMDDataManager:
             rec_data[itarget]['count'] = count
             rec_data[itarget]['weight'] = weight
         rec_data_ds[...] = rec_data
-    
-    
+        
+    def write_bin_data(self, n_iter, assignments, populations, n_trans, fluxes, rates):
+        iter_group = self.get_iter_group(n_iter)
+        iter_group['bin_assignments'][...] = assignments
+        iter_group['bin_populations'][...] = populations
+        iter_group['bin_ntrans'][...] = n_trans
+        iter_group['bin_fluxes'][...] = fluxes
+        iter_group['bin_rates'][...] = rates
+        
     def update_segments(self, n_iter, segments):
         """Update "mutable" fields (status, endpoint type, pcoord, timings, weights) in the HDF5 file
         and update the summary table accordingly.  Note that this DOES NOT update other fields,
-        notably the family tree.
+        notably the family tree, which is set at iteration preparation and cannot change.
                 
         Fields updated:
           * status
@@ -340,9 +348,11 @@ class WEMDDataManager:
             for name in segment.data:
                 datasets[name][seg_id] = segment.data[name]
         
+        
+        
         iter_group['seg_index'][...] = seg_index_table
         iter_group['pcoord'][...] = pcoords
-                        
+            
     def get_segments(self, n_iter):
         '''Return the segments from a given iteration.  This function is optimized for the 
         case of retrieving (nearly) all segments for a given iteration as quickly as possible, 
@@ -377,44 +387,37 @@ class WEMDDataManager:
     def get_segments_by_id(self, n_iter, seg_ids):
         if len(seg_ids) == 0: return []
         
-        with self.rtracker.tracking('gsid_get_group'):
-            iter_group = self.get_iter_group(n_iter)
-        with self.rtracker.tracking('gsid_get_seg_index'):
-            seg_index = iter_group['seg_index'][...]
-        with self.rtracker.tracking('gsid_get_pcoord_ds'):
-            pcoord_ds = iter_group['pcoord']
-        #pcoords = iter_group['pcoord'][...]
-        with self.rtracker.tracking('gsid_get_parent_ids'):
-            all_parent_ids = iter_group['parents'][...] 
+
+        iter_group = self.get_iter_group(n_iter)
+        seg_index = iter_group['seg_index'][...]
+        pcoord_ds = iter_group['pcoord']
+        all_parent_ids = iter_group['parents'][...] 
         
-        with self.rtracker.tracking('gsid_construct_segs'):
-            segments = []
-            seg_ids = list(seg_ids)
-            for seg_id in seg_ids:
-                row = seg_index[seg_id]
-                parents_offset = row['parents_offset']
-                n_parents = row['n_parents']            
-                segment = Segment(seg_id = seg_id,
-                                  n_iter = n_iter,
-                                  status = row['status'],
-                                  n_parents = n_parents,
-                                  endpoint_type = row['endpoint_type'],
-                                  walltime = row['walltime'],
-                                  cputime = row['cputime'],
-                                  weight = row['weight'],)
-                                  #pcoord = pcoords[seg_id,...])
-                parent_ids = all_parent_ids[parents_offset:parents_offset+n_parents]
-                segment.p_parent_id = long(parent_ids[0])
-                segment.parent_ids = set(imap(long,parent_ids))
-                segments.append(segment)
+        segments = []
+        seg_ids = list(seg_ids)
+        for seg_id in seg_ids:
+            row = seg_index[seg_id]
+            parents_offset = row['parents_offset']
+            n_parents = row['n_parents']            
+            segment = Segment(seg_id = seg_id,
+                              n_iter = n_iter,
+                              status = row['status'],
+                              n_parents = n_parents,
+                              endpoint_type = row['endpoint_type'],
+                              walltime = row['walltime'],
+                              cputime = row['cputime'],
+                              weight = row['weight'],)
+            parent_ids = all_parent_ids[parents_offset:parents_offset+n_parents]
+            segment.p_parent_id = long(parent_ids[0])
+            segment.parent_ids = set(imap(long,parent_ids))
+            segments.append(segment)
             
         # Use a pointwise selection from pcoord_ds to get only the
         # data we care about
-        with self.rtracker.tracking('gsid_store_pcoords'):
-            pcoords_by_seg = pcoord_ds[seg_ids,...]
-            for (iseg,segment) in enumerate(segments):
-                segment.pcoord = pcoords_by_seg[iseg]
-                assert segment.seg_id is not None
+        pcoords_by_seg = pcoord_ds[seg_ids,...]
+        for (iseg,segment) in enumerate(segments):
+            segment.pcoord = pcoords_by_seg[iseg]
+            assert segment.seg_id is not None
         
         return segments        
     
@@ -427,14 +430,10 @@ class WEMDDataManager:
         # as a parent.  We don't need to worry about the number of parents each segment
         # has, since each has at least one, and indexing on the offset into the parents array 
         # gives the primary parent ID
-    
-        with self.rtracker.tracking('gc_get_iter_group'):
-            iter_group = self.get_iter_group(segment.n_iter+1)
-        with self.rtracker.tracking('gc_get_parent_ids'):
-            all_parent_ids = iter_group['parents'][...]
-        with self.rtracker.tracking('gc_get_parent_offsets'):
-            seg_index = iter_group['seg_index'][...]
-            parent_offsets = seg_index['parents_offset'][...]
+        iter_group = self.get_iter_group(segment.n_iter+1)
+        all_parent_ids = iter_group['parents'][...]
+        seg_index = iter_group['seg_index'][...]
+        parent_offsets = seg_index['parents_offset'][...]
 
 
         # This is one of the slowest pieces of code I've ever written...
@@ -442,26 +441,20 @@ class WEMDDataManager:
         #seg_ids = [seg_id for (seg_id,row) in enumerate(seg_index) 
         #           if all_parent_ids[row['parents_offset']] == segment.seg_id]
         #return self.get_segments_by_id(segment.n_iter+1, seg_ids)
+        p_parents = all_parent_ids[parent_offsets]
+        all_seg_ids = numpy.arange(len(parent_offsets), dtype=numpy.uintp)
+        seg_ids = all_seg_ids[p_parents == segment.seg_id]
+        try:
+            len(seg_ids)
+        except TypeError:
+            seg_ids = [seg_ids]
         
+        return self.get_segments_by_id(segment.n_iter+1, seg_ids)
 
-        with self.rtracker.tracking('gc_filter'):
-            p_parents = all_parent_ids[parent_offsets]
-            all_seg_ids = numpy.arange(len(parent_offsets), dtype=numpy.uintp)
-            seg_ids = all_seg_ids[p_parents == segment.seg_id]
-            try:
-                len(seg_ids)
-            except TypeError:
-                seg_ids = [seg_ids]
-        
-        with self.rtracker.tracking('gc_get_segments'):
-            return self.get_segments_by_id(segment.n_iter+1, seg_ids)
-        
-        
-        
-    
-        
-
-        
-            
-        
+    # The following are dictated by the SimManager interface
+    def prepare_run(self):
+        self.open_backing()
+                
+    def finalize_run(self):
+        self.close_backing()
         

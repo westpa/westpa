@@ -23,7 +23,8 @@ def load_module(module_name, path = None):
             parent = None
 
         # This will raise ImportError if next_component is not found
-        # (as one would hope)    
+        # (as one would hope)
+        log.debug('find_module({!r},{!r})'.format(next_component,path))    
         (fp, pathname, desc) = imp.find_module(next_component, path)
         
         qname = '.'.join(qname_components)
@@ -37,6 +38,7 @@ def load_module(module_name, path = None):
             
         # make the module appear in sys.modules
         sys.modules[qname] = module
+        mod_chain.append(module)
         
         # Make the module appear in the parent module's namespace
         if parent:

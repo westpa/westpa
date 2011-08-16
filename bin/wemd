@@ -36,6 +36,11 @@ else
     export PYTHONWARNINGS="$PYTHONWARNINGS,d"
 fi
 
+if [ "$SCRIPT" == "wemd" ] ; then
+    echo "Entering Python shell using $WEMD_PYTHON"
+    exec $WEMD_PYTHON "$@"
+fi
+
 if [ "$1" == "--profile" ]; then
     shift
     pfile=wemd_profile_$$.dat

@@ -27,34 +27,45 @@ parser.add_argument('--help-work-manager', dest='do_work_manager_help', action='
 wemd.rc.config_logging(args, 'w_run')
 runtime_config = wemd.rc.read_config(args.run_config_file)
 runtime_config.update_from_object(args)
-sim_manager = wemd.rc.load_sim_manager(runtime_config)
-sim_manager.load_work_manager()
 
-# Have the work manager parse unknown arguments
-aux_args = sim_manager.work_manager.parse_aux_args(aux_args, do_help=args.do_work_manager_help)
+# Load the sim manager
+sim_manager = wemd.rc.load_sim_manager(runtime_config)
+
+# Load the work manager and have it parse remaining arguments
+work_manager = sim_manager.load_work_manager()
+aux_args = work_manager.parse_aux_args(aux_args, do_help=args.do_work_manager_help)
 if aux_args:
     sys.stderr.write('unexpected command line argument(s) encountered: {}\n'.format(aux_args))
     sys.exit(os.EX_USAGE)
 
+# Load remaining drivers
 sim_manager.load_data_manager()
 sim_manager.load_system_driver()
 sim_manager.load_we_driver()
 sim_manager.load_propagator()
+sim_manager.load_plugins()
 
-# Have the work manager perform any preparation (spawning clients, etc)
-log.debug('preparing work manager')
-sim_manager.work_manager.prepare()
-log.debug('dispatching to sim manager')
+# Have the work manager perform any preparation prior to simulation (spawning clients, etc)
+work_manager.startup()
+
+# Have the sim manager perform an
+log.debug('preparing run')
+sim_manager.prepare_run()
+
 try:
+    log.debug('beginning run')
     sim_manager.run()
+    
+    log.debug('finalizing run')
+    sim_manager.finalize_run()
 finally:
     log.debug('back from sim manager')
-    log.debug('calling work_manager.shutdown()')
-    sim_manager.work_manager.shutdown()
-    log.debug('back from work_manager.shutdown()')
+    if not work_manager.shutdown_called:
+        log.debug('work_manager.shutdown() not called -- calling directly')
+        work_manager.shutdown()
 
 if args.debug_mode:
     import threading, thread
     for thread in threading.enumerate():
         if 'MainThread' not in thread.name:
-            sys.stderr.write('thread {!r} is still alive\n'.format(thread))
+            log.debug('thread {!r} is still alive'.format(thread))

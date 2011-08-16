@@ -51,7 +51,5 @@ class WorkerThread(threading.Thread):
         log.debug('propagating %d segment(s)' % len(segments))
         for segment in segments:
             assert segment is not None
-            system_driver.preprocess_segments([segment])
             propagator.propagate([segment])
-            system_driver.postprocess_segments([segment])
         log.debug('propagation complete')
