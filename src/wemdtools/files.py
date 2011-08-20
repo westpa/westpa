@@ -1,5 +1,6 @@
 from __future__ import division, print_function; __metaclass__ = type
 
+import warnings
 import numpy
 
 def load_npy_or_text(filename):
@@ -22,7 +23,10 @@ def load_npy_or_text(filename):
     # File is seekable
     try:
         # try to mmap it
-        return numpy.load(filename, 'r')
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            return numpy.load(filename, 'r')
+        
     except IOError as e:
         if 'Failed to interpret' in str(e):
             pass

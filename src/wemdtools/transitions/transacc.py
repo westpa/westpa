@@ -189,7 +189,11 @@ class TransitionEventAccumulator:
             
             for iibin in iibins[iibdisc]:                
                 duration = trans_ti - last_exit[iibin]
-                fpt      = trans_ti - last_completion[iibin,fbin]
+                if last_completion[iibin,fbin] > 0:
+                    fpt      = trans_ti - last_completion[iibin,fbin]
+                else:
+                    fpt = 0
+
                 if iibin != fbin or record_self_transitions:
                     tdat.append((trans_ti, iibin, fbin, weight, bin_pops_last_exit[iibin], duration, fpt))
                 last_completion[iibin,fbin] = trans_ti
