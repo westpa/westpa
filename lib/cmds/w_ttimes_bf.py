@@ -1,7 +1,8 @@
 from __future__ import print_function, division; __metaclass__=type
 import os, sys, argparse, math, warnings
-import numpy, h5py
-import wemd, wemdtools
+import numpy, scipy, h5py
+import scipy.stats
+import wemdtools
 from wemdtools.transitions.transacc import TransitionEventAccumulator
 from wemdtools.files import load_npy_or_text
 
@@ -26,6 +27,8 @@ parser.add_argument('input_files', nargs='*', metavar='INPUT_FILE',
                     help='Input data. Specify one or more text files or numpy (.npy) files.')
 parser.add_argument('--usecols', metavar='COLS',
                     help='Use only COLS (a comma-separated list of zero-based column indices) from the given input.')
+parser.add_argument('--stride', type=long, default=1,
+                    help='Use STRIDE for processing input data (default: 1).')
 parser.add_argument('--chunksize', type=long, default=100000,
                     help='Process each input in chunks of not more than CHUNKSIZE data points (default: %(default)s). '
                         +'This will only decrease memory use when using numpy (.npy) input files.')
@@ -35,12 +38,12 @@ parser.add_argument('-H', '--h5', metavar='H5FILE:H5GROUP', default='analysis.h5
                         +'(Default: analysis.h5:/w_ttimes)')
 parser.add_argument('--statistics-only', action='store_true',
                     help='Do not determine transitions; only process existing data in the HDF5 file.')
-parser.add_argument('--record-all-crossings', action='store_true',
-                    help='Record all boundary crossing events in the HDF5 file. This dramatically increases processing '
-                        +'time and disk space. Boundary crossing counts are calculated regardless of this option.')
-parser.add_argument('--record-self-transitions', action='store_true',
-                    help='Record all self-transition events (i->j->...->i) in the HDF5 file. This dramatically increases processing '
-                        +'time and disk space. Self-transition event counts are calculated regardless of this option.')
+#parser.add_argument('--record-all-crossings', action='store_true',
+#                    help='Record all boundary crossing events in the HDF5 file. This dramatically increases processing '
+#                        +'time and disk space. Boundary crossing counts are calculated regardless of this option.')
+#parser.add_argument('--record-self-transitions', action='store_true',
+#                    help='Record all self-transition events (i->j->...->i) in the HDF5 file. This dramatically increases processing '
+#                        +'time and disk space. Self-transition event counts are calculated regardless of this option.')
 parser.add_argument('--dt', type=float, default=1.0,
                     help='Assume input data has a time spacing of DT (default: 1.0)')
 
@@ -86,8 +89,8 @@ if not args.statistics_only:
     n_bins = len(region_set.get_all_bins())
     
     transacc = TransitionEventAccumulator(n_bins, h5group)
-    transacc.record_all_crossings = bool(args.record_all_crossings)
-    transacc.record_self_transitions = bool(args.record_self_transitions)
+    #transacc.record_all_crossings = bool(args.record_all_crossings)
+    #transacc.record_self_transitions = bool(args.record_self_transitions)
         
     for input_file in args.input_files:
         pstatus('Processing', input_file)
@@ -99,9 +102,9 @@ if not args.statistics_only:
             pstatus('\r  Processing {:d}/{:d}'.format(ii,len(pcoords)), end='')
             
             if args.usecols:
-                pcoord_chunk = pcoords[ii:ii+args.chunksize, args.usecols]
+                pcoord_chunk = pcoords[ii:ii+args.chunksize:args.stride, args.usecols]
             else:
-                pcoord_chunk = pcoords[ii:ii+args.chunksize]
+                pcoord_chunk = pcoords[ii:ii+args.chunksize:args.stride]
             
             assignments = numpy.empty((len(pcoord_chunk),), dtype=numpy.min_scalar_type(n_bins))
             assignments[:] = region_set.map_to_all_indices(pcoord_chunk)
@@ -118,6 +121,8 @@ if not args.statistics_only:
         pstatus('')
         
     h5group['n_trans'] = transacc.n_trans
+    transacc.clear()
+    del pcoords
 else:
     h5group = h5file[h5gn]
     region_set = None
@@ -144,36 +149,56 @@ pstatus('  {:g}% confidence interval (alpha={:g}) requested [bounding indices ({
                                                                                                   ubi))
 
 transdat_ds = h5group['transitions']
-transdat_ibin = transdat_ds['initial_bin'][:]
-transdat_fbin = transdat_ds['final_bin'][:]
+transdat_ibin = transdat_ds['initial_bin']
 
+# Final results
 durations = numpy.zeros((n_bins,n_bins), ciinfo_dtype)
 fpts = numpy.zeros((n_bins,n_bins), ciinfo_dtype)
+
+INFINITY = float('inf')
+
+dt = args.dt
+stride = args.stride
 
 for ibin in xrange(n_bins):
     trans_ibin = transdat_ds[transdat_ibin == ibin]
     for fbin in xrange(n_bins):
-        pstatus('\r  Bin {:d}->{:d}'.format(ibin,fbin), end='')
         trans_ifbins = trans_ibin[trans_ibin['final_bin'] == fbin]
+        
+        trans_durations = trans_ifbins['duration']
+        trans_fpts      = trans_ifbins['fpt']
 
         # Suppress divide-by-zero errors; we actually want the NaNs        
         with warnings.catch_warnings():
             warnings.simplefilter('ignore')
             
-            durations[ibin,fbin]['expectation'] = trans_ifbins['duration'].mean() * args.dt
-            fpts[ibin,fbin]['expectation'] =      trans_ifbins['fpt'].mean() * args.dt
+            durations[ibin,fbin]['expectation'] = trans_durations.mean() * dt * stride
+            fpts[ibin,fbin]['expectation'] =      trans_fpts.mean() * dt * stride
         
         dlen = len(trans_ifbins)
         if not dlen:
             continue # with next fbin
         
         for iset in xrange(n_sets):
+            pstatus('\r  {:d}->{:d} set {:d}/{:d} set size {:d}'.format(ibin,fbin,iset+1,n_sets,dlen), end='')
             indices = numpy.random.randint(dlen, size=(dlen,))
-            syn_trans = trans_ifbins[indices]
-            with_fpts = syn_trans[syn_trans['fpt'] > 0]
+            #syn_trans = trans_ifbins[indices]
             
-            syn_avg_durations[iset] = syn_trans['duration'].mean() * args.dt
-            syn_avg_fpts[iset] = with_fpts['fpt'].mean() * args.dt
+            # this is slow
+            #with_fpts = syn_trans[syn_trans['fpt'] > 0]
+            #syn_avg_fpts[iset] = with_fpts['fpt'].mean() * args.dt * args.stride
+            
+            # Using the following call to tmean, we obtain a twofold improvement over the previous two lines
+            #syn_avg_durations[iset] = syn_trans['duration'].mean() * args.dt * args.stride
+            #syn_avg_fpts[iset] = scipy.stats.tmean(syn_trans['fpt'], (0, INFINITY), inclusive=(False,False)) * args.dt * args.stride
+            
+            # By pulling the durations and fpts out in the outer loop, even though we select by index twice here, we get a four-fold 
+            # speed improvement -- dereferencing record arrays by column is slow
+            syn_durations = trans_durations[indices]
+            syn_fpts = trans_fpts[indices]
+            
+            syn_avg_durations[iset] = syn_durations.mean() * dt * stride
+            syn_avg_fpts[iset] = scipy.stats.tmean(syn_fpts, (0, INFINITY), inclusive=(False,False)) * dt * stride
             
         syn_avg_durations.sort()
         syn_avg_fpts.sort()
@@ -183,7 +208,14 @@ for ibin in xrange(n_bins):
         
         fpts[ibin,fbin]['ci_lower'] = syn_avg_fpts[lbi]
         fpts[ibin,fbin]['ci_upper'] = syn_avg_fpts[ubi]
-pstatus('')
+        
+        # These explicit deletes are crucial to keep memory consumption down; otherwise, we're at the
+        # mercy of when the garbage collector decides to run
+        del indices, syn_durations, syn_fpts
+        del trans_ifbins, trans_durations, trans_fpts
+        
+        pstatus('')
+    del trans_ibin
 for dsname in ('duration', 'fpt'):
     try:
         del h5group[dsname]

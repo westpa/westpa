@@ -35,8 +35,8 @@ class TransitionEventAccumulator:
         self.tdat_buffer_offset = 0
         self.output_tdat_offset = 0
         self.output_tdat_ds = None
-        self.record_all_crossings = False
-        self.record_self_transitions = False
+        #self.record_all_crossings = False
+        #self.record_self_transitions = False
                         
         # Accumulators/counters
         self.n_trans           = None # shape (n_bins,n_bins)
@@ -103,7 +103,8 @@ class TransitionEventAccumulator:
             
             self.output_tdat_ds = self.output_group.create_dataset('transitions', shape=(1,), 
                                                                    dtype=self.tdat_dtype, maxshape=(None,), 
-                                                                   chunks=(self.output_tdat_chunksize,),)
+                                                                   chunks=(self.output_tdat_chunksize,),
+                                                                   compression='gzip')
             
         # If the amount of data to write exceeds our remaining buffer space, flush the buffer, then
         # write data directly to HDF5, otherwise just add to the buffer and wait for the last flush
@@ -175,35 +176,33 @@ class TransitionEventAccumulator:
         iibdisc = self.iibdisc
         iibins = self.iibins
         tdat_maxlen = self.tdat_buffersize / 10
-        record_all_crossings = self.record_all_crossings
-        record_self_transitions = self.record_self_transitions
+        #record_all_crossings = self.record_all_crossings
+        #record_self_transitions = self.record_self_transitions
         for (trans_ti, weight, ibin, fbin, ibinpops) in izip(trans_timepoints, trans_weights, trans_ibin, trans_fbin, trans_ibinpops):
             # Record this crossing event's data
             
-            if record_all_crossings:
-                tdat.append((trans_ti, ibin, fbin, weight, ibinpops[ibin], 0, 0))
+            bin_pops_last_exit[ibin] = ibinpops[ibin]            
+            last_exit[ibin] = trans_ti
+            last_entry[fbin] = trans_ti
             
             iibdisc[:] = last_exit > 0
-            iibdisc[ibin] = False
             iibdisc &= last_entry > last_completion[:,fbin]
             
             for iibin in iibins[iibdisc]:                
-                duration = trans_ti - last_exit[iibin]
-                if last_completion[iibin,fbin] > 0:
-                    fpt      = trans_ti - last_completion[iibin,fbin]
+                duration = trans_ti - last_exit[iibin] + 1
+                lcif = last_completion[iibin,fbin]
+                if lcif > 0:
+                    fpt = trans_ti - lcif
                 else:
                     fpt = 0
 
-                if iibin != fbin or record_self_transitions:
-                    tdat.append((trans_ti, iibin, fbin, weight, bin_pops_last_exit[iibin], duration, fpt))
+                tdat.append((trans_ti, iibin, fbin, weight, bin_pops_last_exit[iibin], duration, fpt))
                 last_completion[iibin,fbin] = trans_ti
                 n_trans[iibin,fbin] += 1
 
-            last_exit[ibin] = trans_ti
-            last_entry[fbin] = trans_ti
-            last_completion[ibin,fbin] = trans_ti
-            n_trans[ibin,fbin] += 1
-            bin_pops_last_exit[ibin] = ibinpops[ibin]
+            #last_exit[ibin] = trans_ti
+            #last_entry[fbin] = trans_ti
+            #last_completion[ibin,fbin] = trans_ti
             
             if len(tdat) > tdat_maxlen:
                 self.record_transition_data(tdat)
