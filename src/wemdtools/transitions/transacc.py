@@ -35,8 +35,6 @@ class TransitionEventAccumulator:
         self.tdat_buffer_offset = 0
         self.output_tdat_offset = 0
         self.output_tdat_ds = None
-        #self.record_all_crossings = False
-        #self.record_self_transitions = False
                         
         # Accumulators/counters
         self.n_trans           = None # shape (n_bins,n_bins)
@@ -176,8 +174,6 @@ class TransitionEventAccumulator:
         iibdisc = self.iibdisc
         iibins = self.iibins
         tdat_maxlen = self.tdat_buffersize / 10
-        #record_all_crossings = self.record_all_crossings
-        #record_self_transitions = self.record_self_transitions
         for (trans_ti, weight, ibin, fbin, ibinpops) in izip(trans_timepoints, trans_weights, trans_ibin, trans_fbin, trans_ibinpops):
             # Record this crossing event's data
             

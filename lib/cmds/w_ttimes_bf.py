@@ -38,12 +38,6 @@ parser.add_argument('-H', '--h5', metavar='H5FILE:H5GROUP', default='analysis.h5
                         +'(Default: analysis.h5:/w_ttimes)')
 parser.add_argument('--statistics-only', action='store_true',
                     help='Do not determine transitions; only process existing data in the HDF5 file.')
-#parser.add_argument('--record-all-crossings', action='store_true',
-#                    help='Record all boundary crossing events in the HDF5 file. This dramatically increases processing '
-#                        +'time and disk space. Boundary crossing counts are calculated regardless of this option.')
-#parser.add_argument('--record-self-transitions', action='store_true',
-#                    help='Record all self-transition events (i->j->...->i) in the HDF5 file. This dramatically increases processing '
-#                        +'time and disk space. Self-transition event counts are calculated regardless of this option.')
 parser.add_argument('--dt', type=float, default=1.0,
                     help='Assume input data has a time spacing of DT (default: 1.0)')
 
@@ -89,8 +83,6 @@ if not args.statistics_only:
     n_bins = len(region_set.get_all_bins())
     
     transacc = TransitionEventAccumulator(n_bins, h5group)
-    #transacc.record_all_crossings = bool(args.record_all_crossings)
-    #transacc.record_self_transitions = bool(args.record_self_transitions)
         
     for input_file in args.input_files:
         pstatus('Processing', input_file)
@@ -229,7 +221,7 @@ for dataset in (h5group['duration'], h5group['fpt']):
     dataset.attrs['dt'] = args.dt
     dataset.attrs['alpha'] = alpha
 
-max_ibin_width = len(str(n_bins))-1
+max_ibin_width = len(str(n_bins-1))
 format_2d = '{ibin:{mw}d}    {fbin:{mw}d}    {0:20.15g}    {1:20.15g}    {2:20.15g}    {3:20.15g}    {4:20.15g}    {5:20.15g}\n'
 for (filename, data, title) in ((args.ed_stats, durations, 'event duration'),
                                 (args.fpt_stats, fpts, 'first passage time')):

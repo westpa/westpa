@@ -7,46 +7,57 @@ resulting rates.
 
 import os, sys, operator, argparse
 import numpy
-import wemd
+import wemd, wemdtools
+from wemdtools.stats.mcbs import bootstrap_ci
 from math import floor, ceil, log10
 from itertools import izip
 
 import logging
 log = logging.getLogger('w_fluxanl')
 
-from collections import namedtuple
-
 parser = wemd.rc.common_arg_parser('w_fluxanl', description='''Obtain rate constants from flux into target states.''')
-parser.add_argument('-o', '--output', dest='output_file',
-                    help='Store output in OUTPUT_FILE (default: write to standard output).',
-                    type=argparse.FileType('wt'), default=sys.stdout)
-parser.add_argument('--output-fluxes', dest='flux_output_file', type=argparse.FileType('wt'),
-                    help='Store target flux and number of target hits for each iteration in FLUX_OUTPUT_FILE '
-                        +'(default: no output).')
+parser.add_argument('-o', '--output', dest='output_pattern', default='avgflux_%s.txt',
+                    help='Store output in OUTPUT_PATTERN, which must contain a printf-style pattern '
+                        +'which will be replaced by the name/index of the target state to which results correspond '
+                        +' (default: %(default)s).')
+parser.add_argument('--output-fluxes', dest='flux_output_pattern',
+                    help='Store target flux and number of target hits for each iteration in FLUX_OUTPUT_PATTERN, '
+                        +'which must contain a printf-style pattern which will be replaced by the name/index of a '
+                        +'target state (default: no output).')
+parser.add_argument('--noheaders', dest='suppress_headers', action='store_true',
+                    help='Do not write headers to output files (default: write headers).')
+
 parser.add_argument('-t', '--tau', dest='tau', type=float, default=1.0,
                     help='Propagation/resampling timestep (default: 1.0).')
 parser.add_argument('-b', '--begin', '--start', dest='start', type=int, default=1,
                     help='Begin flux averaging at iteration START (default: 1)')
 parser.add_argument('-e', '--end', '--stop', dest='stop', type=int,
                     help='Stop flux averaging at iteration STOP (default: last completed iteration).')
-parser.add_argument('-s', '--step', dest='step', type=int,
-                    help='Report rate every STEP resampling steps (default: report only final estimate).')
-parser.add_argument('--confidence', dest='confidence', type=float, default=0.95,
-                    help='Construct a confidence interval of width CONFIDENCE (default: 0.95=95%%)')
-parser.add_argument('--bssize', dest='bssize', type=int,
-                    help='Use a bootstrap of BSSIZE samples to calculate error (default: chosen from confidence)')
-parser.add_argument('--noheaders', dest='suppress_headers', action='store_true',
-                    help='Do not write headers to output files (default: write headers).')
-args = parser.parse_args()
-output_file = args.output_file
+parser.add_argument('-s', '--step', dest='step', type=int, default=1,
+                    help='Report rate every STEP resampling steps (default: 1).')
 
-wemd.rc.config_logging(args)
-runtime_config = wemd.rc.read_config(args.run_config_file)
+wemdtools.stats.mcbs.add_mcbs_options(parser)
+
+parser.add_argument('datafile', nargs='*',
+                    help='Read flux information from DATAFILE(s) (default: load WEMD HDF5 file specified in wemd.cfg).')
+
+args = parser.parse_args()
+
+if args.datafile:
+    from wemd.util.config_dict import ConfigDict
+    runtime_config = ConfigDict()
+    runtime_config['data.h5file'] = args.datafile[0]
+    print('reading WEMD data from', args.datafile[0])
+else:
+    print('reading data from WEMD simulation')
+    runtime_config = wemd.rc.read_config(args.run_config_file)
+    
 runtime_config.update_from_object(args)
+wemd.rc.config_logging(args, 'w_fluxanl')
 sim_manager = wemd.rc.load_sim_manager(runtime_config)
 sim_manager.load_data_manager()
 sim_manager.data_manager.open_backing()
-h5file = sim_manager.data_manager.h5file
+data_manager = wemdtools.data_manager.CachingDataReader(sim_manager.data_manager)
 
 confidence = args.confidence
 alpha = 1 - confidence
@@ -64,65 +75,79 @@ if args.stop:
     stop_iter = min(max_iter, args.stop)
 else:
     stop_iter = max_iter
+max_iter_width = max(8,len(str(max_iter)))
+    
+n_iters = stop_iter - start_iter + 1
+if n_iters == 0:
+    sys.stdout.write('No data to analyze; exiting.  If this seems wrong, check --start and --stop.\n')
+    sys.exit(0)
+    
+n_targets = len(data_manager.get_iter_group(start_iter)['recycling'])
+fluxes = numpy.empty((n_iters,), numpy.float64)
+counts = numpy.empty((n_iters,), numpy.uint)
+for itarget in xrange(n_targets):
+    for (iiter, n_iter) in enumerate(xrange(start_iter, stop_iter+1)):
+        recycling = data_manager.get_iter_group(n_iter)['recycling'][itarget]
+        fluxes[iiter] = recycling['weight']
+        counts[iiter] = recycling['count']
 
-summary_table = h5file['/summary']
-all_fluxes = summary_table['target_flux'][:max_iter] / args.tau
-all_counts = summary_table['target_hits'][:max_iter]
-
-max_iter_width = max(10, int(ceil(log10(max_iter))))
-max_count_width = max(6, int(ceil(log10(all_counts.max()))))
-
-if args.flux_output_file is not None:
-    if not args.suppress_headers:
-        args.flux_output_file.write('{:<{max_iter_width}s}  {:<24s}  {}\n'.format('#Iteration', 'Flux', 'Counts',
-                                                                                max_iter_width = max_iter_width))
-    for (iiter, (flux, count)) in enumerate(izip(all_fluxes, all_counts)):
-        args.flux_output_file.write('{n_iter:<{max_iter_width}d}  {flux:<24.16g}  {count:>{max_count_width}d}\n'\
-                                    .format(n_iter = iiter+1, flux = flux, count=long(count),
-                                            max_iter_width=max_iter_width, max_count_width=max_count_width))
-
-if args.step:
-    ub_taus = range(start_iter, stop_iter, args.step)
-    if ub_taus[-1] < stop_iter:
-        ub_taus.append(stop_iter)
-else:
-    ub_taus = [stop_iter]
-
-if not args.suppress_headers:
-    args.output_file.write('''\
-# WE flux analysis
-# tau: {tau:g}
-# first flux value considered: iteration {start_iter}
-# confidence level: {confidence}
-# number of bootstrap data sets: {bssize} 
+    fluxes /= args.tau
+    
+    # Write per-iteration fluxes, if requested        
+    if args.flux_output_pattern:
+        flux_output = file(args.flux_output_pattern % itarget, 'wt')
+        if not args.suppress_headers:
+            flux_output.write('''\
+# Weighted ensemble flux values
+# Target index: {itarget:d}
+# tau:          {tau:g}
 # ----
-# column 0:  last iteration considered
-# column 1:  average flux
-# column 2:  lower bound of confidence interval
-# column 3:  upper bound of confidence interval
-# column 4:  width of confidence interval
-# column 5:  relative width of confidence interval (width/average)
-# column 6:  symmetrized error [max(upper - average, average-lower)]
-'''.format(tau=args.tau, start_iter=start_iter, confidence=confidence, bssize=bssize))
+# column 0: iteration
+# column 1: flux
+# column 2: count
+# ----            
+'''.format(itarget=itarget,tau=args.tau))
+        for (iiter, (flux, count)) in enumerate(izip(fluxes,counts)):
+            n_iter = iiter + start_iter
+            flux_output.write('{n_iter:<{max_iter_width}d}    {flux:<24.16g}    {count:d}\n'.format(max_iter_width = max_iter_width,
+                                                                                                    n_iter = long(n_iter),
+                                                                                                    flux = float(flux), 
+                                                                                                    count = long(count)))
+
+        flux_output.close()
+
+    # Perform Monte Carlo bootstrapping on fluxes if requested
+    if args.output_pattern:
+        stats_output = file(args.output_pattern % itarget, 'wt')
+        
+        if not args.suppress_headers:
+            stats_output.write('''\
+# Weighted ensemble flux values
+# Target index:      {itarget:d}
+# tau:               {tau:g}
+# Initial iteration: {start_iter:d}
+# Confidence level:  {confidence:g}%
+# ----
+# column 0: iteration
+# column 1: average flux
+# column 2: lower bound of CI
+# column 3: upper bound of CI
+# column 4: width of CI
+# column 5: relative width of CI [abs(width/average)]
+# column 6: symmetrized error [max(upper bound - average, average - lower bound)]
+# ----            
+'''.format(itarget=itarget, tau=args.tau, start_iter=start_iter,confidence=args.confidence*100))
     
-for ub_tau in ub_taus:
-    fluxes = all_fluxes[start_iter-1:ub_tau]
-    counts = all_counts[start_iter-1:ub_tau]
     
-    mean_flux = fluxes.mean()
-    bsmean = numpy.empty((bssize,), numpy.float64)
-    for i in xrange(0, bssize):
-        indices = numpy.random.randint(len(fluxes), size=(len(fluxes),))
-        bsmean[i] = fluxes[indices].mean() 
-    bsmean.sort()
-    lb = bsmean[int(floor(bssize*alpha/2))]
-    ub = bsmean[int(ceil(bssize*(1-alpha/2)))] 
-    rel_width = (ub-lb)/mean_flux if mean_flux != 0 else 0.0
+        linefmt = '    '.join(['{n_iter:<8d}'] + ['{:24.16g}']*6 + ['\n'])
+        for imaxiter in xrange(args.step, n_iters+args.step-1, args.step):
+            imaxiter = min(imaxiter, n_iters - 1) 
+            
+            cidata = bootstrap_ci(numpy.mean, fluxes[:imaxiter], alpha, bssize, extended_output = True)
+            
+            stats_output.write(linefmt.format(*map(float,cidata), n_iter = start_iter + imaxiter))
+        
+        stats_output.close()
+
     
-    args.output_file.write(('{ub_tau:<{max_iter_width}d}  {avg_flux:10.6e}  {lb:10.6e}  {ub:10.6e}  '
-                            +'{ci_width:10.6e}  {rel_ci_width:<10.6e}  {symm_error:<10.6e}\n')\
-                           .format(start_iter = start_iter, ub_tau = ub_tau, avg_flux = mean_flux, lb = lb, ub = ub,
-                                   ci_width = ub-lb, rel_ci_width = rel_width, 
-                                   symm_error=max(ub - mean_flux, mean_flux - lb),
-                                   max_iter_width=max_iter_width))
-    
+

@@ -32,9 +32,9 @@ def bootstrap_ci(estimator, data, alpha, n_sets=None, args=(), kwargs={}, sort=n
     function to be used on arrays of multidimensional data.
     
     If ``extended_output`` is True (by default not), instead of returning (fhat, lb, ub), this function returns
-    (fhat, lb, ub, ub-lb, abs((ub-lb)/fhat), and 2*max(ub-fhat,fhat-lb)) (that is, the estimated value, the
+    (fhat, lb, ub, ub-lb, abs((ub-lb)/fhat), and max(ub-fhat,fhat-lb)) (that is, the estimated value, the
     lower and upper bounds of the confidence interval, the width of the confidence interval, the relative
-    width of the confidence interval, and the symmetrized width of the confidence interval).'''
+    width of the confidence interval, and the symmetrized error bar of the confidence interval).'''
     
     data = numpy.asanyarray(data)
     
@@ -65,13 +65,12 @@ def bootstrap_ci(estimator, data, alpha, n_sets=None, args=(), kwargs={}, sort=n
     lb = f_synth_sorted[lbi]
     ub = f_synth_sorted[ubi]
     
-    if extended_output:
-        retval = (fhat, lb, ub, ub-lb, abs((ub-lb)/fhat), 2*max(ub-fhat,fhat-lb))
-    else:
-        retval = (fhat, lb, ub)
-        
-    # Do a little explicit memory management
-    del f_synth, f_synth_sorted
-    
-    return retval
+    try:
+        if extended_output:
+            return (fhat, lb, ub, ub-lb, abs((ub-lb)/fhat) if fhat else 0, max(ub-fhat,fhat-lb))
+        else:
+            return (fhat, lb, ub)
+    finally:
+        # Do a little explicit memory management
+        del f_synth, f_synth_sorted
     
