@@ -5,12 +5,11 @@ Monte Carlo bootstrapping is used to obtain confidence intervals on the
 resulting rates.
 '''
 
-import os, sys, operator, argparse
+import sys
 import numpy
+from itertools import izip
 import wemd, wemdtools
 from wemdtools.stats.mcbs import bootstrap_ci
-from math import floor, ceil, log10
-from itertools import izip
 
 import logging
 log = logging.getLogger('w_fluxanl')
@@ -64,7 +63,7 @@ alpha = 1 - confidence
 if args.bssize:
     bssize = args.bssize
 else:
-    bssize = int(10**(ceil(-log10(alpha)) + 1))
+    bssize = wemdtools.stats.mcbs.get_bssize(alpha)
 sys.stdout.write('tau: {:g}\n'.format(args.tau))
 sys.stdout.write('{:g}% confidence interval requested\n'.format(confidence*100))
 sys.stdout.write('using bootstrap of {:d} samples to estimate confidence interval\n'.format(bssize))
@@ -83,9 +82,14 @@ if n_iters == 0:
     sys.exit(0)
     
 n_targets = len(data_manager.get_iter_group(start_iter)['recycling'])
+if n_targets == 1:
+    sys.stdout.write('There is one target state.\n')
+else:
+    sys.stdout.write('There are {:d} target states.\n'.format(n_targets))
 fluxes = numpy.empty((n_iters,), numpy.float64)
 counts = numpy.empty((n_iters,), numpy.uint)
 for itarget in xrange(n_targets):
+    sys.stdout.write('Processing target {:d}\n'.format(itarget))
     for (iiter, n_iter) in enumerate(xrange(start_iter, stop_iter+1)):
         recycling = data_manager.get_iter_group(n_iter)['recycling'][itarget]
         fluxes[iiter] = recycling['weight']
