@@ -1,6 +1,5 @@
 from __future__ import division, print_function
-import os, sys, argparse
-from math import ceil, floor, log10
+import os, sys, warnings
 import numpy
 
 import logging
@@ -34,8 +33,7 @@ else:
     cmap_data /= 255.0
     cm_hovmol   = matplotlib.colors.LinearSegmentedColormap.from_list('hovmol', cmap_data)
     cm_hovmol_r = matplotlib.colors.LinearSegmentedColormap.from_list('hovmol_r', numpy.flipud(cmap_data))
-    
-    from matplotlib.backends.backend_pdf import PdfPages
+
         
 parser = wemd.rc.common_arg_parser(description = '''\
 Calculate the probability distribution of progress coordinates. Separate output is generated
@@ -56,8 +54,8 @@ parser.add_argument('-B', '--bins', dest='nbins', type=int, default=1000,
 
 # Output options
 parser.add_argument('-o', '--output', dest='output_pattern', default='pcprob_%d.txt',
-                    help='Store output in OUTPUT_PATTERN, which must contain a formatting code which will be replaced by '
-                        +'the index of the progress coordinate dimension (default: pcprob_%%d.txt).')
+                    help='Store average distributions in OUTPUT_PATTERN, which must contain a formatting code which will be '
+                        +'replaced by the index of the progress coordinate dimension (default: pcprob_%%d.txt).')
 parser.add_argument('--noheaders', dest='suppress_headers', action='store_true',
                     help='Do not write headers to output files (default: write headers).')
 parser.add_argument('--quiet', dest='quiet_mode', action='store_true',
@@ -72,17 +70,22 @@ if pyplot:
                         help='Store a plot of the probability distribution of each progress coordinate dimension '
                             +'in PLOT_PATTERN, which must contain a formatting code which will be '
                             +'replaced by the progress coordinate dimension (default: pcprob_%%d.pdf)')
-    parser.add_argument('--timeplot', dest='timeplot_pattern', default='pcprob_evol_%d.pdf',
-                        help='Store a colormapt plot of the evolution of the probability distribution of '
-                            +'each coordinate dimension in TIMEPLOT_PATTERN, which must contain a formatting ' 
-                            +'code which will be replaced by the progress coordinate dimension '
-                            +'(default: pcprob_evol_%%d.pdf)')
+    parser.add_argument('--timeplot-lin', dest='timeplot_pattern_lin', default='pcprob_evol_%d_lin.pdf',
+                        help='Store a colormap plot of the evolution of the probability distribution of '
+                            +'each coordinate dimension in TIMEPLOT_PATTERN_LIN, which must contain a formatting ' 
+                            +'code which will be replaced by the progress coordinate dimension  '
+                            +'(default: pcprob_evol_%%d_lin.pdf)')
+    parser.add_argument('--timeplot-log', dest='timeplot_pattern_log', default='pcprob_evol_%d_log.pdf',
+                        help='Store a colormap plot of the evolution of the log of the probability distribution of '
+                            +'each coordinate dimension in TIMEPLOT_PATTERN_LOG, which must contain a formatting ' 
+                            +'code which will be replaced by the progress coordinate dimension  '
+                            +'(default: pcprob_evol_%%d_log.pdf)')    
     parser.add_argument('--vrange', dest='linear_vrange',
                         help='Use LINEAR_VRANGE (a comma-separated pair of values) as the range for the color bar '
                             +'for the linear-scale probability evolution plot. (Default: range of probability density.)')
     parser.add_argument('--lvrange', dest='log_vrange',
                         help='Use LOG_VRANGE (a comma-separated pair of values) as the range for the color bar '
-                            +'for the log-scale probability evolution plot. (Default: range of nonzero probability density)')    
+                            +'for the log-scale probability evolution plot. (Default: range of log of nonzero probability density)')    
 
 args = parser.parse_args()
 
@@ -116,7 +119,7 @@ n_iters = stop_iter - start_iter + 1
 
 pcoord_dtype = data_manager.get_pcoord_dataset(start_iter).dtype
 # 1 dim of seg_id, 1 dim of time, remaining dims are pcoord
-pcoord_ndim  = len(data_manager.get_pcoord_dataset(start_iter).shape)-2
+pcoord_ndim  = data_manager.get_pcoord_dataset(start_iter).shape[2]
 
 # For each dimension...
 #    Find min and max pcoord value
@@ -128,7 +131,7 @@ min_pcoord = numpy.empty((pcoord_ndim,), dtype=pcoord_dtype)
 max_pcoord = numpy.empty((pcoord_ndim,), dtype=pcoord_dtype)
 #var_pcoord = numpy.empty((pcoord_ndim,), dtype=numpy.float64)
 n_pcoord_points = numpy.empty((pcoord_ndim,), dtype=numpy.uint64)
-n_hist_bins = 1000
+n_hist_bins = args.nbins
 
 hist_binbounds = numpy.empty((pcoord_ndim,n_hist_bins+1), dtype=numpy.float64)
 hist = numpy.zeros((pcoord_ndim, n_iters, n_hist_bins), numpy.float64)
@@ -139,15 +142,14 @@ for idim in xrange(0, pcoord_ndim):
     for n_iter in xrange(start_iter, stop_iter+1):
         pcoords = data_manager.get_pcoord_array(n_iter)
         if n_iter == start_iter:
-            n_pcoord_points[idim] = pcoords.size
-            min_pcoord[idim] = pcoords.min()
-            max_pcoord[idim] = pcoords.max()
-            #var_pcoord[idim] = pcoords.std()**2        
+            n_pcoord_points[idim] = pcoords[:,:,idim].size
+            min_pcoord[idim] = pcoords[:,:,idim].min()
+            max_pcoord[idim] = pcoords[:,:,idim].max()        
         else:
-            n_pcoord_points[idim] += pcoords.size
-            min_pcoord[idim] = min(min_pcoord[idim], pcoords.min())
-            max_pcoord[idim] = max(max_pcoord[idim], pcoords.max())
-            #var_pcoord[idim] = var_pcoord[idim] + pcoords.std()**2
+            n_pcoord_points[idim] += pcoords[:,:,idim].size
+            min_pcoord[idim] = min(min_pcoord[idim], pcoords[:,:,idim].min())
+            max_pcoord[idim] = max(max_pcoord[idim], pcoords[:,:,idim].max())
+        del pcoords
             
     hist_binbounds[idim] = numpy.linspace(min_pcoord[idim], max_pcoord[idim], n_hist_bins+1)
 
@@ -161,7 +163,7 @@ for idim in xrange(0, pcoord_ndim):
         if not args.quiet_mode and sys.stdout.isatty():
             sys.stdout.write("\r  iteration {}".format(n_iter))
             sys.stdout.flush()
-        pcoords = data_manager.get_pcoord_array(n_iter)
+        pcoords = data_manager.get_iter_group(n_iter)['pcoord'][:,:,idim]
         weights = data_manager.get_seg_index(n_iter)['weight']
         
         for iseg in xrange(0, pcoords.shape[0]):
@@ -169,6 +171,8 @@ for idim in xrange(0, pcoord_ndim):
             tweight = weights[iseg] / lhist.sum()
             hist[idim,i_iter,:] += tweight * lhist
             hist_weights[idim,i_iter] += tweight
+            
+            del tweight, lhist, hist_bins
         
         # Normalize    
         hist[idim,i_iter] /= hist_weights[idim,i_iter]
@@ -176,57 +180,52 @@ for idim in xrange(0, pcoord_ndim):
         hist[idim,i_iter] /= I
         assert abs(1 - (hist[idim,i_iter]*dx).sum()) <= 1.0e-15*n_pcoord_points[idim]
         
+        del pcoords, weights
+        
     if not args.quiet_mode and sys.stdout.isatty():
         sys.stdout.write('\n')
-    
+            
     # Plot time course
-    if pyplot and args.timeplot_pattern:
+    if pyplot:
         extent = (min_pcoord[idim], max_pcoord[idim], start_iter, stop_iter)
-        
-        #pyplot.subplot(211)
-        #aspect = hist[idim].shape[1]/(hist[idim].shape[0] * (max_pcoord[idim]-min_pcoord[idim]))
-        
-        
-        pages = PdfPages(args.timeplot_pattern % idim)
-        if args.linear_vrange:
-            norm = matplotlib.colors.Normalize(vmin=vmin,vmax=vmax)
-        else:
-            norm = None
-        pyplot.figure()
-        pyplot.imshow(hist[idim,::-1], aspect='auto', extent=extent, norm=norm, cmap=matplotlib.cm.jet)#, cmap=cm_hovmol)
-        pyplot.xlabel('Progress Coordinate (dimension {})'.format(idim))
-        pyplot.ylabel('Iteration')
-        cb = pyplot.colorbar()
-        cb.set_label(r'$P$')
-        pages.savefig()
-        
-        #TODO: need option to clip to a given dynamic range for colorbars
 
-        pyplot.figure()
-        if args.log_vrange:
-            lnorm = matplotlib.colors.Normalize(vmin=lvmin, vmax=lvmax)
-        else:
-            lnorm = None
-        lhist = numpy.ma.masked_array(numpy.log10(hist[idim]))
-        lhist.mask = ~numpy.isfinite(lhist)
-        pyplot.imshow(lhist[::-1], aspect = 'auto', extent=extent, norm=lnorm, cmap=matplotlib.cm.jet)#, cmap=cm_hovmol)
-        pyplot.xlabel('Progress Coordinate (dimension {})'.format(idim))
-        pyplot.ylabel('Iteration')
-        cb = pyplot.colorbar()
-        cb.set_label(r'$\log_{10}\ P$')
-        
-        #pyplot.subplot(212)
-        #pyplot.imshow(numpy.log(hist[idim]), norm=matplotlib.colors.LogNorm(), extent=extent)
-        pages.savefig()
-        pages.close()
+        if args.timeplot_pattern_lin:
+            if args.linear_vrange:
+                norm = matplotlib.colors.Normalize(vmin=vmin,vmax=vmax)
+            else:
+                norm = None
+            pyplot.figure()
+            pyplot.imshow(hist[idim,::-1], aspect='auto', extent=extent, norm=norm, cmap=matplotlib.cm.jet)#, cmap=cm_hovmol)
+            pyplot.xlabel('Progress Coordinate (dimension {})'.format(idim))
+            pyplot.ylabel('Iteration')
+            cb = pyplot.colorbar()
+            cb.set_label(r'$P$')
+            pyplot.savefig(args.timeplot_pattern_lin % idim)
+
+        if args.timeplot_pattern_log:
+            if args.log_vrange:
+                lnorm = matplotlib.colors.Normalize(vmin=lvmin, vmax=lvmax)
+            else:
+                lnorm = None
+                
+            with warnings.catch_warnings():
+                warnings.simplefilter('ignore')
+                lhist = numpy.ma.masked_array(numpy.log10(hist[idim]))
+            lhist.mask = ~numpy.isfinite(lhist)
+            
+            pyplot.figure()
+            pyplot.imshow(lhist[::-1], aspect = 'auto', extent=extent, norm=lnorm, cmap=matplotlib.cm.jet)#, cmap=cm_hovmol)
+            pyplot.xlabel('Progress Coordinate (dimension {})'.format(idim))
+            pyplot.ylabel('Iteration')
+            cb = pyplot.colorbar()
+            cb.set_label(r'$\log_{10}\ P$')
+            pyplot.savefig(args.timeplot_pattern_log % idim)            
     
+    # Now produce average distribution histogram
     # Normalize histogram
     chist = hist[idim].sum(axis=0) / n_iters
     assert abs(1-(chist*dx).sum()) <= 1.0e-15*n_pcoord_points[idim]
     
-    #I = (chist * dx).sum()
-    #chist /= I
-
     # Save histogram
     lb = hist_binbounds[idim, :-1]
     ub = hist_binbounds[idim, 1:]
@@ -239,7 +238,7 @@ for idim in xrange(0, pcoord_ndim):
             output_file.write('# column 0: lower bound of bin\n')
             output_file.write('# column 1: upper bound of bin\n')
             output_file.write('# column 2: midpoint of bin\n')
-            output_file.write('# column 3: probability density [P(q)dq]\n')
+            output_file.write('# column 3: probability density\n')
         numpy.savetxt(output_file, numpy.column_stack([lb,ub,midpoints,chist]))
     
     if pyplot and args.plot_pattern:
