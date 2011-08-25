@@ -19,10 +19,12 @@ class TransitionEventAccumulator:
         
         self.bin_index_dtype = numpy.min_scalar_type(n_bins)
         
-        self.tdat_dtype = numpy.dtype( [('timepoint',       self.index_dtype),
+        self.tdat_dtype = numpy.dtype( [('block',           self.index_dtype),
+                                        ('timepoint',       self.index_dtype),
                                         ('initial_bin',     self.bin_index_dtype),
                                         ('final_bin',       self.bin_index_dtype),
-                                        ('weight',          self.weight_dtype),
+                                        ('initial_weight',  self.weight_dtype),
+                                        ('final_weight',    self.weight_dtype),
                                         ('initial_bin_pop', self.weight_dtype),
                                         ('duration',        self.index_dtype),
                                         ('fpt',             self.index_dtype),
@@ -40,9 +42,10 @@ class TransitionEventAccumulator:
         self.n_trans           = None # shape (n_bins,n_bins)
 
         # Time points and per-timepoint data
-        self.last_exit         = None # (n_bins,)
-        self.last_entry        = None # (n_bins,)
-        self.last_completion   = None # (n_bins,n_bins) 
+        self.last_exit          = None # (n_bins,)
+        self.last_entry         = None # (n_bins,)
+        self.last_completion    = None # (n_bins,n_bins)
+        self.weight_last_exit   = None # (n_bins) 
         self.bin_pops_last_exit = None # (n_bins,)       
         
         # Analysis continuation information
@@ -64,6 +67,7 @@ class TransitionEventAccumulator:
         self.last_exit          = numpy.zeros((self.n_bins,), self.index_dtype)
         self.last_entry         = numpy.zeros((self.n_bins,), self.index_dtype)
         self.last_completion    = numpy.zeros((self.n_bins,self.n_bins), self.index_dtype)
+        self.weight_last_exit   = numpy.zeros((self.n_bins,), self.weight_dtype)
         self.bin_pops_last_exit = numpy.zeros((self.n_bins,), self.weight_dtype)        
         self.timepoint          = 0
         self.last_bin           = None
@@ -73,6 +77,7 @@ class TransitionEventAccumulator:
         return {'last_entry':           self.last_entry.copy(),
                 'last_exit':            self.last_exit.copy(),
                 'last_completion':      self.last_completion.copy(),
+                'weight_last_exit':     self.weight_last_exit.copy(),
                 'bin_pops_last_exit':   self.bin_pops_last_exit.copy(),
                 'timepoint':            self.timepoint,
                 'last_bin':             self.last_bin,
@@ -83,6 +88,7 @@ class TransitionEventAccumulator:
         self.last_entry = state_dict['last_entry']
         self.last_exit = state_dict['last_exit']
         self.last_completion = state_dict['last_completion']
+        self.weight_last_exit = state_dict['weight_last_exit']
         self.bin_pops_last_exit = state_dict['bin_pops_last_exit']
         self.timepoint = state_dict['timepoint']
         self.last_bin = state_dict['last_bin']
@@ -133,12 +139,12 @@ class TransitionEventAccumulator:
         self.output_tdat_offset += nbuf
         self.tdat_buffer_offset = 0
         
-    def start_accumulation(self, assignments, weights, bin_pops):
+    def start_accumulation(self, assignments, weights, bin_pops, block=0):
         self.clear_state()
         timepoints = numpy.arange(len(assignments))
-        self._accumulate_transitions(timepoints, assignments, weights, bin_pops)
+        self._accumulate_transitions(timepoints, assignments, weights, bin_pops, block)
     
-    def continue_accumulation(self, assignments, weights, bin_pops):
+    def continue_accumulation(self, assignments, weights, bin_pops, block=0):
         aug_assign = numpy.empty((len(assignments)+1,), assignments.dtype)
         aug_assign[0] = self.last_bin
         aug_assign[1:] = assignments
@@ -150,18 +156,22 @@ class TransitionEventAccumulator:
         aug_pops = numpy.empty((len(bin_pops)+1, len(bin_pops[0])), self.weight_dtype)
         aug_pops[0,:] = 0
         aug_pops[0, self.last_bin] = self.last_bin_pop
+        aug_pops[1:] = bin_pops
         
         timepoints = numpy.arange(self.timepoint, self.timepoint+len(aug_assign))
         
-        self._accumulate_transitions(timepoints, aug_assign, aug_weights, aug_pops)
+        self._accumulate_transitions(timepoints, aug_assign, aug_weights, aug_pops, block)
         
     
-    def _accumulate_transitions(self, timepoints, assignments, weights, bin_pops):
+    def _accumulate_transitions(self, timepoints, assignments, weights, bin_pops, block):
         tdat = []
         
-        trans_occur = assignments[1:] != assignments[:-1]
-        trans_ibin  = assignments[:-1][trans_occur]
-        trans_fbin  = assignments[1:][trans_occur]
+        assignments_from_1 = assignments[1:]
+        assignments_to_1   = assignments[:-1]
+        
+        trans_occur = assignments_from_1 != assignments_to_1
+        trans_ibin  = assignments_to_1[trans_occur]
+        trans_fbin  = assignments_from_1[trans_occur]
         trans_timepoints = timepoints[1:][trans_occur]
         trans_weights   = weights[1:][trans_occur] # arrival weights
         trans_ibinpops = bin_pops[:-1][trans_occur]
@@ -170,16 +180,19 @@ class TransitionEventAccumulator:
         last_entry = self.last_entry
         last_completion = self.last_completion
         bin_pops_last_exit = self.bin_pops_last_exit
+        weight_last_exit = self.weight_last_exit
         n_trans = self.n_trans
         iibdisc = self.iibdisc
         iibins = self.iibins
         tdat_maxlen = self.tdat_buffersize / 10
-        for (trans_ti, weight, ibin, fbin, ibinpops) in izip(trans_timepoints, trans_weights, trans_ibin, trans_fbin, trans_ibinpops):
+        for (trans_ti, weight, ibin, fbin, ibinpops) in izip(trans_timepoints, trans_weights, 
+                                                             trans_ibin, trans_fbin, trans_ibinpops):
             # Record this crossing event's data
             
             bin_pops_last_exit[ibin] = ibinpops[ibin]            
             last_exit[ibin] = trans_ti
             last_entry[fbin] = trans_ti
+            weight_last_exit[ibin] = weight
             
             iibdisc[:] = last_exit > 0
             iibdisc &= last_entry > last_completion[:,fbin]
@@ -192,7 +205,9 @@ class TransitionEventAccumulator:
                 else:
                     fpt = 0
 
-                tdat.append((trans_ti, iibin, fbin, weight, bin_pops_last_exit[iibin], duration, fpt))
+                tdat.append((block, trans_ti, iibin, fbin, 
+                             weight_last_exit[iibin], weight, bin_pops_last_exit[iibin], 
+                             duration, fpt))
                 last_completion[iibin,fbin] = trans_ti
                 n_trans[iibin,fbin] += 1
 

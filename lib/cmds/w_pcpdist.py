@@ -1,5 +1,5 @@
 from __future__ import division, print_function
-import os, sys
+import os, sys, warnings
 import numpy
 
 import logging
@@ -119,7 +119,7 @@ n_iters = stop_iter - start_iter + 1
 
 pcoord_dtype = data_manager.get_pcoord_dataset(start_iter).dtype
 # 1 dim of seg_id, 1 dim of time, remaining dims are pcoord
-pcoord_ndim  = len(data_manager.get_pcoord_dataset(start_iter).shape)-2
+pcoord_ndim  = data_manager.get_pcoord_dataset(start_iter).shape[2]
 
 # For each dimension...
 #    Find min and max pcoord value
@@ -142,15 +142,14 @@ for idim in xrange(0, pcoord_ndim):
     for n_iter in xrange(start_iter, stop_iter+1):
         pcoords = data_manager.get_pcoord_array(n_iter)
         if n_iter == start_iter:
-            n_pcoord_points[idim] = pcoords.size
-            min_pcoord[idim] = pcoords.min()
-            max_pcoord[idim] = pcoords.max()
-            #var_pcoord[idim] = pcoords.std()**2        
+            n_pcoord_points[idim] = pcoords[:,:,idim].size
+            min_pcoord[idim] = pcoords[:,:,idim].min()
+            max_pcoord[idim] = pcoords[:,:,idim].max()        
         else:
-            n_pcoord_points[idim] += pcoords.size
-            min_pcoord[idim] = min(min_pcoord[idim], pcoords.min())
-            max_pcoord[idim] = max(max_pcoord[idim], pcoords.max())
-            #var_pcoord[idim] = var_pcoord[idim] + pcoords.std()**2
+            n_pcoord_points[idim] += pcoords[:,:,idim].size
+            min_pcoord[idim] = min(min_pcoord[idim], pcoords[:,:,idim].min())
+            max_pcoord[idim] = max(max_pcoord[idim], pcoords[:,:,idim].max())
+        del pcoords
             
     hist_binbounds[idim] = numpy.linspace(min_pcoord[idim], max_pcoord[idim], n_hist_bins+1)
 
@@ -164,7 +163,7 @@ for idim in xrange(0, pcoord_ndim):
         if not args.quiet_mode and sys.stdout.isatty():
             sys.stdout.write("\r  iteration {}".format(n_iter))
             sys.stdout.flush()
-        pcoords = data_manager.get_pcoord_array(n_iter)
+        pcoords = data_manager.get_iter_group(n_iter)['pcoord'][:,:,idim]
         weights = data_manager.get_seg_index(n_iter)['weight']
         
         for iseg in xrange(0, pcoords.shape[0]):
@@ -172,12 +171,16 @@ for idim in xrange(0, pcoord_ndim):
             tweight = weights[iseg] / lhist.sum()
             hist[idim,i_iter,:] += tweight * lhist
             hist_weights[idim,i_iter] += tweight
+            
+            del tweight, lhist, hist_bins
         
         # Normalize    
         hist[idim,i_iter] /= hist_weights[idim,i_iter]
         I = (hist[idim,i_iter] * dx).sum()
         hist[idim,i_iter] /= I
         assert abs(1 - (hist[idim,i_iter]*dx).sum()) <= 1.0e-15*n_pcoord_points[idim]
+        
+        del pcoords, weights
         
     if not args.quiet_mode and sys.stdout.isatty():
         sys.stdout.write('\n')
@@ -204,8 +207,12 @@ for idim in xrange(0, pcoord_ndim):
                 lnorm = matplotlib.colors.Normalize(vmin=lvmin, vmax=lvmax)
             else:
                 lnorm = None
-            lhist = numpy.ma.masked_array(numpy.log10(hist[idim]))
+                
+            with warnings.catch_warnings():
+                warnings.simplefilter('ignore')
+                lhist = numpy.ma.masked_array(numpy.log10(hist[idim]))
             lhist.mask = ~numpy.isfinite(lhist)
+            
             pyplot.figure()
             pyplot.imshow(lhist[::-1], aspect = 'auto', extent=extent, norm=lnorm, cmap=matplotlib.cm.jet)#, cmap=cm_hovmol)
             pyplot.xlabel('Progress Coordinate (dimension {})'.format(idim))

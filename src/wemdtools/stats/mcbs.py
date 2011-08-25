@@ -8,9 +8,10 @@ import math, numpy
 def add_mcbs_options(parser):
     '''Add arguments concerning Monte Carlo bootstrap (``confidence`` and ``bssize``) to the given parser'''
     
-    parser.add_argument('--confidence', dest='confidence', type=float, default=0.95,
+    group = parser.add_argument_group('bootstrapping options')
+    group.add_argument('--confidence', dest='confidence', type=float, default=0.95,
                         help='Construct a confidence interval of width CONFIDENCE (default: 0.95=95%%)')
-    parser.add_argument('--bssize', dest='bssize', type=int,
+    group.add_argument('--bssize', dest='bssize', type=int,
                         help='Use a bootstrap of BSSIZE samples to calculate error (default: chosen from confidence)')
 
 def get_bssize(alpha):

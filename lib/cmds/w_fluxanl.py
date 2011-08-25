@@ -37,7 +37,7 @@ parser.add_argument('-s', '--step', dest='step', type=int, default=1,
 
 wemdtools.stats.mcbs.add_mcbs_options(parser)
 
-parser.add_argument('datafile', nargs='*',
+parser.add_argument('datafile', nargs='?',
                     help='Read flux information from DATAFILE(s) (default: load WEMD HDF5 file specified in wemd.cfg).')
 
 args = parser.parse_args()
@@ -45,8 +45,8 @@ args = parser.parse_args()
 if args.datafile:
     from wemd.util.config_dict import ConfigDict
     runtime_config = ConfigDict()
-    runtime_config['data.h5file'] = args.datafile[0]
-    print('reading WEMD data from', args.datafile[0])
+    runtime_config['data.h5file'] = args.datafile
+    print('reading WEMD data from', args.datafile)
 else:
     print('reading data from WEMD simulation')
     runtime_config = wemd.rc.read_config(args.run_config_file)

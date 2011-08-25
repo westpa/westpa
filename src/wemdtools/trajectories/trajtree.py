@@ -8,9 +8,12 @@ import logging
 log = logging.getLogger(__name__)
 
 class TrajTree:
-    def __init__(self, data_manager, cache_pcoords = False):
-        self.data_manager = CachingDataReader(data_manager, cache_pcoords)
-        self.data_manager.include_pcoords = True
+    def __init__(self, data_manager, include_pcoords = False, cache_pcoords = False):
+        if not isinstance(data_manager,CachingDataReader):
+            self.data_manager = CachingDataReader(data_manager, cache_pcoords)
+        else:
+            self.data_manager = data_manager
+        self.data_manager.include_pcoords = include_pcoords
         
         self.history_chunksize = 32        
         self.segments_to_visit = 0

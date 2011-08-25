@@ -62,17 +62,18 @@ def add_region_set_options(parser):
     '''Add options relating to obtaining region sets to the given argparse
     parser.  The resulting arguments can be passed to get_region_set_from_args.'''
     
-    group = parser.add_mutually_exclusive_group()
-    group.add_argument('--binfile', dest='binfile',
-                       help='''Execute the Python script BINFILE to construct bins for analysis; must contain an assignment to
-                       a variable called "region_set" (default: load from system file).''')
-    group.add_argument('--binexpr', dest='binexpr',
-                        help='''Use the Python code BINEXPR to construct bins for analysis; must contain an assignment to 
+    bingroup = parser.add_argument_group('binning options')
+    egroup = bingroup.add_mutually_exclusive_group()
+    egroup.add_argument('--binfile', dest='binfile',
+                        help='''Execute the Python script BINFILE to construct bins for analysis; must contain an assignment to
                         a variable called "region_set" (default: load from system file).''')
-    group.add_argument('--binbounds', dest='binbounds',
-                       help='''Construct rectilinear bins from BINBOUNDS, which will be parsed as a list of lists
-                       of bin boundaries.  The text 'inf' will be replaced by infinity.
-                       (Default: load from system file.)''')
+    egroup.add_argument('--binexpr', dest='binexpr',
+                         help='''Use the Python code BINEXPR to construct bins for analysis; must contain an assignment to 
+                         a variable called "region_set" (default: load from system file).''')
+    egroup.add_argument('--binbounds', dest='binbounds',
+                        help='''Construct rectilinear bins from BINBOUNDS, which will be parsed as a list of lists
+                        of bin boundaries.  The text 'inf' will be replaced by infinity.
+                        (Default: load from system file.)''')
 
 def get_region_set_from_args(args, status_stream = None, print_labels=False, print_labels_dest=None):
     '''Get a region set from parsed command-line arguments [as added to an argparse parser by

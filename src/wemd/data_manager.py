@@ -87,6 +87,8 @@ class WEMDDataManager:
         # A few functions for extracting vectors of attributes from vectors of segments
         self._attrgetters = dict((key, vattrgetter(key)) for key in 
                                  ('seg_id', 'status', 'endpoint_type', 'weight', 'walltime', 'cputime'))
+        
+        log.debug('Backing file is {}'.format(self.backing_file))
             
     def _get_iter_group_name(self, n_iter):
         return 'iter_%0*d' % (self.iter_prec, n_iter)
