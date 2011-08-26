@@ -112,7 +112,7 @@ class TestPiecewiseRegionSet:
         coords = [[-0.5], [0.0], [0.5]]
         fr1 = (lambda x: x<0)
         fr2 = (lambda x: x>=0)
-        prs = wemd.pcoords.PiecewiseRegionSet([fr1,fr2])
+        prs = wemd.pcoords.PiecewiseRegionSet([fr1,fr2], [float('-inf'),float('inf')], 1)
         bins = prs.get_all_bins()
         mapped_bins = prs.map_to_bins(coords)
         assert list(mapped_bins) == [bins[0], bins[1], bins[1]]

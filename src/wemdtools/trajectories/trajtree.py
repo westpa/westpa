@@ -2,15 +2,15 @@ from __future__ import print_function, division; __metaclass__=type
 from itertools import imap
 import numpy
 from wemd import Segment
-from wemdtools.data_manager import CachingDataReader
+from wemdtools.data_manager import CachingWEMDDataReader
 
 import logging
 log = logging.getLogger(__name__)
 
 class TrajTree:
     def __init__(self, data_manager, include_pcoords = False, cache_pcoords = False):
-        if not isinstance(data_manager,CachingDataReader):
-            self.data_manager = CachingDataReader(data_manager, cache_pcoords)
+        if not isinstance(data_manager,CachingWEMDDataReader):
+            self.data_manager = CachingWEMDDataReader(data_manager, cache_pcoords)
         else:
             self.data_manager = data_manager
         self.data_manager.include_pcoords = include_pcoords

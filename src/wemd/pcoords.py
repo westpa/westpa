@@ -5,12 +5,16 @@ import logging
 log = logging.getLogger(__name__)
 
 class ParticleCollection:
-    def __init__(self, target_count = None, label = None):
+    def __init__(self, target_count = None, label = None, center = None):
         # How many particles should live here
         self.target_count = target_count
         
         # A descriptive label
         self.label = label
+        
+        # The "center" of this bin, used only for detecting changes to bin
+        # topologies
+        self.center = center
         
     def map_to_bins(self, coords):
         # Degenerate case to terminate recursive descent
@@ -18,6 +22,9 @@ class ParticleCollection:
     
     def get_all_bins(self):
         return [self]
+    
+    def get_all_centers(self):
+        return [self.center]
 
     def reweight(self, new_weight):
         """Reweight all particles in this collection so that the total weight is new_weight"""
@@ -77,7 +84,11 @@ class ParticleList(list, ParticleCollection):
         self[:] = []
                 
 class RegionSet:    
-    def __init__(self):
+    def __init__(self, coord_ndim, coord_dtype = None):
+        
+        # Expected dimensionality of coordinates
+        self.n_dim = coord_ndim
+        self.coord_dtype = coord_dtype
         
         # Regions (RegionSets or ParticleSets)
         self.regions = None
@@ -211,8 +222,18 @@ class RegionSet:
         bins = []
         for region in self.regions:
             bins.extend(region.get_all_bins())
-        return bins        
-
+        return bins
+    
+    def get_all_centers(self):
+        """Get an array of shape (n_regions, pcoord_ndim) containing the centers of each region"""
+        centers = []
+        for region in self.regions:
+            centers.extend(region.get_all_centers())
+        if self.coord_dtype is not None:
+            return numpy.array(centers, dtype=self.coord_dtype)
+        else:
+            return numpy.array(centers)
+        
     def map_to_all_indices(self, coords):
         """Map sets of coordinates to indices into the list of bins returned by `get_all_bins()`.
         This works correctly for nested topologies and quickly and correctly for non-nested 
@@ -246,21 +267,38 @@ class RegionSet:
         idx = self._map_to_indices(self.prep_coords([coord]))[0]
         self.regions[idx] = new_container
         self._stale_topology = True
+        
+    def identity_hash(self):
+        '''Return a hash object uniquely identifying the topology and boundaries of this region set'''
+        import hashlib
+        all_centers = self.get_all_centers()
+        hashval = hashlib.sha256(memoryview(all_centers).tobytes())
+        return hashval
+        
 
 class PiecewiseRegionSet(RegionSet):
     """A multidimensional RegionSet which uses a set of functions to map coordinates to regions.
     In the event multiple functions match for a given coordinate set, the first one matched (which in turn
     is the first one passed to the constructor) takes precedence."""
     
-    def __init__(self, functions, regions = None, container_class = ParticleSet):
-        super(PiecewiseRegionSet,self).__init__()
+    def __init__(self, functions, centers, coord_ndim, labels=None, container_class = ParticleSet):
+        super(PiecewiseRegionSet,self).__init__(coord_ndim)        
         self.functions = list(functions)
+        self.centers = numpy.asarray(centers)
+        assert len(functions) == len(centers)
+        #assert self.centers.shape[1] == coord_ndim
+        
         self.regions = numpy.empty((len(functions),), numpy.object_)
-        if regions is not None:
-            self.regions[:] = regions
-        for (ireg, region) in enumerate(self.regions):
-            if region is None:
-                self.regions[ireg] = container_class()            
+        for ireg in xrange(len(self.regions)):
+            bin = container_class()
+            try:
+                label = labels[ireg]
+            except (IndexError,KeyError,TypeError):
+                label = 'function {:d}'.format(ireg)
+                
+            bin.center = self.centers[ireg]
+            bin.label  = label
+            self.regions[ireg] = bin
 
     def _map_to_indices(self, coords):
         assert coords.ndim == 2
@@ -288,22 +326,18 @@ class RectilinearRegionSet(RegionSet):
         
         # because of the accessor for region, region_array must be set before
         # calling our parent's __init__
-        super(RectilinearRegionSet,self).__init__()
+        super(RectilinearRegionSet,self).__init__(None)
                    
-        self.ndim = None
-        
         # A list of lists of bin boundaries
         # First dimension: dimension of coord
         # Remaining dimensions: bin boundaries
         # e.g. for 2-d boundaries at -1, 0, 1:
         # [ [-1, 0, 1], [-1, 0, 1] ]
         self.boundaries = None
-                
-        if boundaries is not None:
-            self.construct_regions(boundaries, container_class)
+        self.construct_regions(boundaries, container_class)
                                 
     def construct_regions(self, boundaries, container_class):
-        self.ndim = len(boundaries)
+        self.n_dim = len(boundaries)
         self.region_array = numpy.empty(tuple(len(boundary_entry)-1 for boundary_entry in boundaries), numpy.object_)
         self.boundaries = [numpy.array(boundary_set) for boundary_set in boundaries]
         
@@ -318,8 +352,9 @@ class RectilinearRegionSet(RegionSet):
             #    ub = boundaries[idim][index[idim]+1]
             #    bounds.append[(lb,ub)]
             bounds = [(boundaries[idim][index[idim]], boundaries[idim][index[idim]+1])
-                      for idim in xrange(0,self.ndim)]
+                      for idim in xrange(0,self.n_dim)] 
             bin.label = repr(bounds)
+            bin.center = numpy.mean(bounds, axis=1) 
             self.region_array[index] = bin
             
         # flat iterators, like self.regions, always index in C order
@@ -345,15 +380,15 @@ class RectilinearRegionSet(RegionSet):
     def _map_to_indices(self, coords):
         assert coords.ndim == 2
 
-        if coords.shape[1] != self.ndim:
+        if coords.shape[1] != self.n_dim:
             raise TypeError('length of coordinate tuples ({}) does not match the dimensionality of this region set ({})'
-                            .format(coords.shape[1], self.ndim))
+                            .format(coords.shape[1], self.n_dim))
 
         flat_indices   = numpy.zeros((len(coords),), numpy.uintp)
         dim_indices = numpy.empty((len(coords),), numpy.uintp)
         extents = self._extents
         
-        for idim in xrange(0, self.ndim):
+        for idim in xrange(0, self.n_dim):
             dim_indices[:] = numpy.digitize(coords[:,idim], self.boundaries[idim])
             if ( (dim_indices == len(self.boundaries[idim])) | (dim_indices == 0) ).any():
                 # Beyond the bin limits
@@ -367,11 +402,10 @@ class RectilinearRegionSet(RegionSet):
 class VoronoiRegionSet(RegionSet):
     """A one-dimensional RegionSet that assigns a multidimensional pcoord to the closest center based on a distance metric"""
     def __init__(self, distfunc, centers, container_class = ParticleSet):
-        super(VoronoiRegionSet, self).__init__()
+        super(VoronoiRegionSet, self).__init__(None)
         
         self.centers = None
         self.ncenters = None
-        self.ndim = None
         self.regions = None
         self.dfunc = None
         
@@ -382,11 +416,14 @@ class VoronoiRegionSet(RegionSet):
     def construct_regions(self, distfunc, centers, container_class):
         self.centers = numpy.asarray(centers)
         self.ncenters = self.centers.shape[0]
-        self.ndim = self.centers.shape[1]
+        self.n_dim = self.centers.shape[1]
         
         self.regions = numpy.empty((self.ncenters,), numpy.object_)
         for index in xrange(self.ncenters):
-            self.regions[index] = container_class()
+            bin = container_class()
+            bin.label = 'center={}'.format(self.centers[index])
+            bin.center = self.centers[index]
+            self.regions[index] = bin
         
         # dfunc is a callable function supplied by the user that returns the distance between a point and 
         # each of the M centers as a (M,) shaped numpy array D, where D[i] is the distance between the
@@ -401,9 +438,9 @@ class VoronoiRegionSet(RegionSet):
     def _map_to_indices(self, coords):
         assert coords.ndim == 2
         
-        if coords.shape[1] != self.ndim:
+        if coords.shape[1] != self.n_dim:
             raise TypeError('length of coordinate tuples ({}) does not match the dimensionality of this region set ({})'
-                            .format(coords.shape[1], self.ndim))
+                            .format(coords.shape[1], self.n_dim))
                             
         region_indices = numpy.zeros((len(coords),), numpy.uintp)
         for k in xrange(coords.shape[0]):

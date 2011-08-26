@@ -16,7 +16,7 @@ fi
 
 # Make sure the WEMD Python package can be found, and do a quick and dirty 
 # check to (try to) avoid duplicating something that's already on $PYTHONPATH
-if echo "$PYTHONPATH" | grep -v "$WEMD_PYTHONPATH" ; then
+if echo "$PYTHONPATH" | grep -v "$WEMD_PYTHONPATH" &> /dev/null; then
     if [ -z "$PYTHONPATH" ] ; then
         export PYTHONPATH="$WEMD_PYTHONPATH"
     else

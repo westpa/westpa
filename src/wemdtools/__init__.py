@@ -1,1 +1,1 @@
-import stats, transitions, trajectories, data_manager, convert, files, bins
+import stats, transitions, trajectories, data_manager, convert, files

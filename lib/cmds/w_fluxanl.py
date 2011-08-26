@@ -56,7 +56,7 @@ wemd.rc.config_logging(args, 'w_fluxanl')
 sim_manager = wemd.rc.load_sim_manager(runtime_config)
 sim_manager.load_data_manager()
 sim_manager.data_manager.open_backing()
-data_manager = wemdtools.data_manager.CachingDataReader(sim_manager.data_manager)
+data_manager = wemdtools.data_manager.CachingWEMDDataReader(sim_manager.data_manager)
 
 confidence = args.confidence
 alpha = 1 - confidence

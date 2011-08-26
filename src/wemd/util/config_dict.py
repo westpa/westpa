@@ -7,6 +7,13 @@ log = logging.getLogger('wemd.util.config_dict')
 
 NotProvided = object()
 
+class ConfigItemMissing(KeyError):
+    def __init__(self, key, message=None):
+        self.missing_key = key
+        if message is None:
+            message = 'configuration item missing: {!r}'.format(key)
+        super(ConfigItemMissing,self).__init__(message)
+
 class ConfigDict(OrderedDict):
     true_values = set(('1', 'true', 't', 'yes', 'y'))
     false_values = set(('0', 'false', 'f', 'no', 'n'))
@@ -60,10 +67,7 @@ class ConfigDict(OrderedDict):
         try:
             return self[key]
         except KeyError:
-            (section, name) = key.split('.', 1)
-            raise KeyError(("entry %r in section %r is required in "
-                              +"configuration file %r")
-                              % (name, section, self['__file__']))
+            raise ConfigItemMissing(key)
     
     def require_all(self, keys):
         return map(self.require, keys)

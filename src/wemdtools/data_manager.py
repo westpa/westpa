@@ -6,7 +6,7 @@ from wemd import Segment
 import logging
 log = logging.getLogger(__name__)
 
-class CachingDataReader:
+class CachingWEMDDataReader:
     def __init__(self, data_manager, cache_pcoords = False):
         self._data_manager = data_manager
         self._data_manager.open_backing(mode='r')

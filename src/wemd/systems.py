@@ -3,6 +3,8 @@ from __future__ import division; __metaclass__ = type
 import logging, warnings
 log = logging.getLogger(__name__)
 
+
+from abc import ABCMeta, abstractmethod
 import re
 import numpy
 import wemd
@@ -91,7 +93,10 @@ class WEMDSystem:
                           and final progress coordinate values for a segment are
                           returned from propagation).
                           
-    '''        
+    '''
+    
+    __metaclass__ = ABCMeta
+            
     def __init__(self):
         # The progress coordinate region set
         self.region_set = None
@@ -110,13 +115,19 @@ class WEMDSystem:
         
         # Data type of progress coordinate
         self.pcoord_dtype = numpy.float64
-        
+    
+    @abstractmethod    
     def initialize(self):
         '''Prepare this system object for use in simulation or analysis,
         creating a bin space, setting initial and target states, replicas per bin, 
         and so on. This function must be overridden by the user in his/her system class.
         '''
-        raise NotImplementedError
+        pass
+    
+    @abstractmethod
+    def new_region_set(self):
+        '''Construct and return an empty RegionSet for the bin topology for this system.'''
+        pass
     
     def prepare_run(self):
         '''Prepare this system for use in a simulation run'''

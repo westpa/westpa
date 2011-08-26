@@ -109,7 +109,7 @@ else:
         runtime_config = wemd.rc.read_config(args.run_config_file)
 sim_manager = wemd.rc.load_sim_manager(runtime_config)
 sim_manager.load_data_manager()
-data_manager = wemdtools.data_manager.CachingDataReader(sim_manager.data_manager)
+data_manager = wemdtools.data_manager.CachingWEMDDataReader(sim_manager.data_manager)
 
 start_iter = args.start_iter
 stop_iter = data_manager.current_iteration - 1

@@ -5,7 +5,7 @@ from __future__ import division, print_function; __metaclass__ = type
 import logging
 log = logging.getLogger('wemd.rc')
 
-import os, sys, argparse
+import os, sys, argparse, errno
 import wemd
 from wemd.util.config_dict import ConfigDict
 from wemd.util import extloader
@@ -49,43 +49,44 @@ class _WEMDRC:
     @classmethod
     def get_exit_code_name(cls, code):
         return cls._ex_names.get(code, 'error %d' % code)
-
+    
     @classmethod
-    def common_arg_parser(cls,prog=None,description=None):
-        '''Return an argparse.ArgumentParser pre-loaded with --rcfile, --quiet, --verbose, --debug,
-        and --version'''
-        parser = argparse.ArgumentParser(prog=prog,description=description)
-        parser.add_argument('-r', '--rcfile', metavar='RCFILE', dest='rcfile',
+    def add_common_args(cls, parser):
+        group = parser.add_argument_group('general options')
+        group.add_argument('-r', '--rcfile', metavar='RCFILE', dest='rcfile',
                             default=(os.environ.get(cls.ENV_RUNTIME_CONFIG) or cls.RC_DEFAULT_FILENAME),
                             help='use RCFILE as the WEMD run-time configuration file (default: %(default)s)')
-        parser.add_argument('--quiet', dest='quiet_mode', action='store_true',
-                            help='emit only essential information')
-        parser.add_argument('--verbose', dest='verbose_mode', action='store_true',
-                            help='emit extra information')
-        parser.add_argument('--debug', dest='debug_mode', action='store_true',
+        egroup = group.add_mutually_exclusive_group()
+        egroup.add_argument('--quiet', dest='verbosity', action='store_const', const='quiet',
+                             help='emit only essential information')
+        egroup.add_argument('--verbose', dest='verbosity', action='store_const', const='verbose',
+                             help='emit extra information')
+        egroup.add_argument('--debug', dest='verbosity', action='store_const', const='debug',
                             help='enable extra checks and emit copious information')
-        parser.add_argument('--version', action='version', version='WEMD version %s' % wemd.version)
-        return parser
+        group.add_argument('--version', action='version', version='WEMD version %s' % wemd.version)
+        
     
     def __init__(self):        
-        self.quiet_mode = None
-        self.verbose_mode = None
-        self.debug_mode = None
+        self.verbosity = None
         self.rcfile = os.environ.get(self.ENV_RUNTIME_CONFIG) or self.RC_DEFAULT_FILENAME
 
         self.config = ConfigDict()
         self.process_name = os.path.splitext(os.path.basename(sys.argv[0]))[0]
                             
-    def process_common_args(self, args):
+    def process_common_args(self, args, config_required = True):
         self.cmdline_args = args
+        self.verbosity = args.verbosity
         
-        self.quiet_mode = args.quiet_mode
-        self.verbose_mode = args.verbose_mode
-        self.debug_mode = args.debug_mode
         if args.rcfile:
             self.rcfile = args.rcfile
         
-        self.read_config()
+        try:
+            self.read_config()
+        except IOError as e:
+            if e.errno == errno.ENOENT and not config_required:
+                pass
+            else:
+                raise
         self.config_logging()
         self.config.update_from_object(args)
                     
@@ -112,10 +113,10 @@ class _WEMDRC:
         
         logging_config['loggers'][self.process_name] = {'handlers': ['console'], 'propagate': False}
             
-        if self.debug_mode:
+        if self.verbosity == 'debug':
             logging_config['root']['level'] = 'DEBUG'
             logging_config['handlers']['console']['formatter'] = 'debug'
-        elif self.verbose_mode:
+        elif self.verbosity == 'verbose':
             logging_config['root']['level'] = 'INFO'
         else:
             logging_config['root']['level'] = 'WARNING'
@@ -124,7 +125,7 @@ class _WEMDRC:
         logging_config['incremental'] = True
         
     def pstatus(self, *args, **kwargs):
-        if self.quiet_mode:
+        if self.verbosity != 'quiet':
             print(*args, **kwargs)
         
     def get_sim_manager(self):
@@ -192,8 +193,16 @@ class _WEMDRC:
     def get_system_driver(self):
         sysdrivername = self.config.require('system.system_driver')
         log.info('loading system driver %r' % sysdrivername)
-        pathinfo = self.config.get_pathlist('system.module_path', default=None)        
-        system = extloader.get_object(sysdrivername, pathinfo)()
+        pathinfo = self.config.get_pathlist('system.module_path', default=None)
+        try:        
+            system = extloader.get_object(sysdrivername, pathinfo)()
+        except ImportError:
+            try:
+                system = extloader.get_object(sysdrivername, ['.'])()
+            except ImportError:
+                raise ImportError('could not load system driver')
+            else:
+                log.warning('using system driver from current directory')
         log.debug('loaded system driver {!r}'.format(system))
         
         log.debug('initializing system driver')

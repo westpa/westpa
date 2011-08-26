@@ -61,9 +61,4 @@ def get_object(object_name, path=None):
     module = load_module(modspec, path)
     
     # This will raise AttributeError (as expected) if the symbol is not in the module
-    return getattr(module, symbol)    
-
-if __name__ == '__main__':
-    
-    print get_object('numpy.array')
-    
+    return getattr(module, symbol)

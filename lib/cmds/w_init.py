@@ -1,11 +1,12 @@
 from __future__ import division, print_function
 
-import os, sys, logging, numpy, operator
+import os, sys, logging, numpy, operator, argparse
 log = logging.getLogger('w_init')
 
 import wemd
 
-parser = wemd.rc.common_arg_parser(prog='w_init', description='initialize a new WEMD simulation')
+parser = argparse.ArgumentParser('w_init', description='initialize a new WEMD simulation')
+wemd.rc.add_common_args(parser)
 parser.add_argument('--force', dest='force', action='store_true',
                          help='overwrite any existing simulation data')
 parser.add_argument('--ptol', dest='ptol', type=float, default=1.0e-8,

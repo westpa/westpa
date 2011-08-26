@@ -331,7 +331,7 @@ h5file = h5py.File(h5fn)
 h5group = h5file.require_group(h5gn)
     
 sim_manager = wemdtools.files.sim_manager_from_args(args, 'datafile', status_stream=sys.stdout)
-data_manager = wemdtools.data_manager.CachingDataReader(sim_manager.load_data_manager(), cache_pcoords=False)
+data_manager = wemdtools.data_manager.CachingWEMDDataReader(sim_manager.load_data_manager(), cache_pcoords=False)
 region_set = wemdtools.bins.get_region_set_from_args(args, status_stream=sys.stdout)
 
 first_iter = args.first_iter
