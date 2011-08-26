@@ -17,6 +17,7 @@ from wemdtools.aframe import AnalysisMixin, ArgumentError
 
 class WEMDAnalysisTool:
     def __init__(self):
+        super(WEMDAnalysisTool,self).__init__()
         self.config_required = False
         self.anal_h5name = None
         self.anal_h5file = None
@@ -48,7 +49,7 @@ class WEMDAnalysisTool:
 
     def open_analysis_backing(self):
         if self.anal_h5file is None:
-            self.anal_h5file = h5py.File(self.h5name)
+            self.anal_h5file = h5py.File(self.anal_h5name)
     
     def close_analysis_backing(self):
         try:

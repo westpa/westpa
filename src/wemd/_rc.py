@@ -128,6 +128,10 @@ class _WEMDRC:
         if self.verbosity != 'quiet':
             print(*args, **kwargs)
         
+    def pflush(self):
+        sys.stdout.flush()
+        sys.stderr.flush()
+        
     def get_sim_manager(self):
         drivername = self.config.get('drivers.sim_manager', 'default')
         if drivername.lower() == 'default':

@@ -7,6 +7,9 @@ class ArgumentError(RuntimeError):
         super(ArgumentError,self).__init__(*args,**kwargs)
 
 class AnalysisMixin:
+    def __init__(self):
+        super(AnalysisMixin,self).__init__()
+        
     def add_common_args(self, parser, upcall = True):
         if upcall:
             try:
@@ -27,5 +30,6 @@ class AnalysisMixin:
     
 import atool
 from atool import WEMDAnalysisTool
-from default_mixins import IterRangeMixin, DataManagerMixin
+from default_mixins import IterRangeMixin
+from data_reader import DataReaderMixin
 from binning import BinnerMixin

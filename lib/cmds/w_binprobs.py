@@ -7,9 +7,12 @@ log = logging.getLogger('w_binprobs')
 
 import wemd, wemdtools
 
-from wemdtools.aframe import WEMDAnalysisTool, BinnerMixin, DataManagerMixin, IterRangeMixin
+from wemdtools.aframe import WEMDAnalysisTool, BinnerMixin, DataReaderMixin, IterRangeMixin
 
-class WBinprobs(BinnerMixin, DataManagerMixin, IterRangeMixin, WEMDAnalysisTool):
+# Upcalls move left to right
+# If some complex dependencies exist, one can always override the process_common_args function and
+# call parent classes' process_common_args() manually in an order that makes sense.
+class WBinprobs(BinnerMixin, DataReaderMixin, IterRangeMixin, WEMDAnalysisTool):
     pass
 
 wbp = WBinprobs()
@@ -23,6 +26,9 @@ args = parser.parse_args()
 wemd.rc.process_common_args(args, config_required=False)
 wbp.process_common_args(args)
 wbp.check_iter_range()
+wbp.open_analysis_backing()
+wbp.check_bin_data()
+wbp.require_bin_assignments()
 
         
 
