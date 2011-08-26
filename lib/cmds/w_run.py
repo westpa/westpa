@@ -23,26 +23,35 @@ parser.add_argument('--help-work-manager', dest='do_work_manager_help', action='
                     help='display help specific to the given work manager')
 
 (args, aux_args) = parser.parse_known_args()
-
-wemd.rc.config_logging(args, 'w_run')
-runtime_config = wemd.rc.read_config(args.run_config_file)
-runtime_config.update_from_object(args)
+wemd.rc.process_common_args(args)
 
 # Load the sim manager
-sim_manager = wemd.rc.load_sim_manager(runtime_config)
+sim_manager = wemd.rc.get_sim_manager()
 
 # Load the work manager and have it parse remaining arguments
-work_manager = sim_manager.load_work_manager()
+work_manager = wemd.rc.get_work_manager()
 aux_args = work_manager.parse_aux_args(aux_args, do_help=args.do_work_manager_help)
 if aux_args:
     sys.stderr.write('unexpected command line argument(s) encountered: {}\n'.format(aux_args))
     sys.exit(os.EX_USAGE)
 
 # Load remaining drivers
-sim_manager.load_data_manager()
-sim_manager.load_system_driver()
-sim_manager.load_we_driver()
-sim_manager.load_propagator()
+system = wemd.rc.get_system_driver()
+data_manager = wemd.rc.get_data_manager()
+we_driver = wemd.rc.get_we_driver()
+propagator = wemd.rc.get_propagator()
+
+work_manager.propagator = propagator
+propagator.system = system
+data_manager.system = system
+we_driver.system = system
+
+sim_manager.work_manager = work_manager
+sim_manager.data_manager = data_manager
+sim_manager.system = system
+sim_manager.propagator = propagator
+sim_manager.we_driver = we_driver
+
 sim_manager.load_plugins()
 
 # Have the work manager perform any preparation prior to simulation (spawning clients, etc)

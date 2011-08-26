@@ -7,6 +7,7 @@ log = logging.getLogger(__name__)
 SIGNAL_NAMES = {getattr(signal, name): name for name in dir(signal) 
                 if name.startswith('SIG') and not name.startswith('SIG_')}
 
+import wemd
 from wemd import Segment
 from wemd.propagators import WEMDPropagator
 from wemd.util.rtracker import ResourceTracker
@@ -45,8 +46,8 @@ class ExecutablePropagator(WEMDPropagator):
     ENV_RAND128              = 'WEMD_RAND128'
     ENV_RAND1                = 'WEMD_RAND1'
         
-    def __init__(self, sim_manager):
-        super(ExecutablePropagator,self).__init__(sim_manager)
+    def __init__(self, system = None):
+        super(ExecutablePropagator,self).__init__(system)
         
         self.rtracker = ResourceTracker()
         
@@ -69,7 +70,7 @@ class ExecutablePropagator(WEMDPropagator):
                                      'cwd': None}
         
         # Process configuration file information
-        runtime_config = self.sim_manager.runtime_config
+        runtime_config = wemd.rc.config
         runtime_config.require('executable.propagator')
         self.segment_dir    = runtime_config.require('executable.segment_dir')
         self.parent_dir     = runtime_config.require('executable.parent_dir')
@@ -98,7 +99,7 @@ class ExecutablePropagator(WEMDPropagator):
             child_info['child_type'] = child_type
             executable = child_info['executable'] = runtime_config.get('executable.%s' % child_type, None)            
             if executable:
-                stdout = child_info['stdout'] = runtime_config.get('executable.%s.stdout' % child_type, None)
+                child_info['stdout'] = runtime_config.get('executable.%s.stdout' % child_type, None)
                 stderr = child_info['stderr'] = runtime_config.get('executable.%s.stderr' % child_type, None)
                 if stderr == 'stdout':
                     log.info('merging %s standard error with standard output' % child_type)
@@ -198,7 +199,7 @@ class ExecutablePropagator(WEMDPropagator):
         
         if segment.p_parent_id < 0:
             # (Re)starting from an initial state
-            system = self.sim_manager.system
+            system = self.system
             istate = -segment.p_parent_id - 1
             parent_segment = Segment(seg_id = istate,
                                      n_iter = 0)
@@ -209,11 +210,6 @@ class ExecutablePropagator(WEMDPropagator):
             parent_segment = Segment(seg_id = segment.p_parent_id, n_iter = segment.n_iter - 1)
 
         template_args['parent'] = parent_segment
-        #log.debug('template args: %r' % template_args)
-        #log.debug('segment fields: %r' % {k: v for k,v in template_args['segment'].__dict__.viewitems()
-        #                                  if not k.startswith('_')})
-        #log.debug('parent fields: %r' % {k: v for k,v in template_args['parent'].__dict__.viewitems()
-        #                                  if not k.startswith('_')})
         
         return template_args
     

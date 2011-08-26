@@ -18,8 +18,8 @@ class WEMDWEDriver:
     weight_split_threshold = 2.0
     weight_merge_cutoff = 1.0
         
-    def __init__(self, sim_manager):
-        self.sim_manager = sim_manager
+    def __init__(self, system=None):
+        self.system = system
         
         # (count recycled, probability recycled) tuples
         self.recycle_from = list()
@@ -39,13 +39,13 @@ class WEMDWEDriver:
         for segment in segments:
             segment.endpoint_type = Segment.SEG_ENDPOINT_TYPE_CONTINUES
 
-        self.recycle_from = [[0, 0.0] for istate in xrange(0, len(self.sim_manager.system.target_states))]
-        self.recycle_to   = [[0, 0.0] for istate in xrange(0, len(self.sim_manager.system.initial_states))]  
+        self.recycle_from = [[0, 0.0] for istate in xrange(0, len(self.system.target_states))]
+        self.recycle_to   = [[0, 0.0] for istate in xrange(0, len(self.system.initial_states))]  
                                     
         bins = numpy.array(region_set.get_all_bins(), numpy.object_)
         
         # Determine which segments terminate in recycling events
-        self.recycle_particles(segments, self.sim_manager.system.target_states)
+        self.recycle_particles(segments, self.system.target_states)
 
         # Sanity check
         bin_counts = vgetattr('count', bins)
@@ -71,7 +71,7 @@ class WEMDWEDriver:
         self.recycle_from = [RecyclingInfo(*src) for src in self.recycle_from]
             
         new_segments = []
-        new_pcoord_array = self.sim_manager.system.new_pcoord_array
+        new_pcoord_array = self.system.new_pcoord_array
         for segment in chain(*bins):
             if segment.seg_id is not None:
                 # A simple continuation; we need to create a new segment for it here
@@ -113,7 +113,7 @@ class WEMDWEDriver:
         '''Create new particles with the weight of the given particles whose progress coordinates are 
         chosen probabilistically from the set of initial states.'''
         
-        system = self.sim_manager.system
+        system = self.system
         for (itarget, target_state) in enumerate(target_states):
             bin = target_state.bin
             
@@ -175,7 +175,7 @@ class WEMDWEDriver:
                 new_segment = Segment(weight = new_weight,
                                       p_parent_id = new_parent_id,
                                       parent_ids = [new_parent_id],
-                                      pcoord = self.sim_manager.system.new_pcoord_array())
+                                      pcoord = self.system.new_pcoord_array())
                 new_segment.pcoord[0] = new_pcoord
                 new_segments.append(new_segment)
             
@@ -201,7 +201,7 @@ class WEMDWEDriver:
         assert cumul_weight[len(to_merge)-1] == sum(weights[:len(to_merge)])
         glom = Segment(weight = cumul_weight[len(to_merge)-1],
                        parent_ids = set(to_merge_ids),
-                       pcoord = self.sim_manager.system.new_pcoord_array())
+                       pcoord = self.system.new_pcoord_array())
         # This selects the proper parent, randomly, according to the relative weights of the
         # particles to be merged. To prove empirically that this works (if logical proof isn't
         # satisfying), do the following:
@@ -257,7 +257,7 @@ class WEMDWEDriver:
             children = [None] * 2
             for i in xrange(0,2):
                 child = Segment(weight = parent.weight/2,
-                                pcoord = self.sim_manager.system.new_pcoord_array())
+                                pcoord = self.system.new_pcoord_array())
                 if parent.seg_id is not None:
                     # This is a simple continuation
                     child.p_parent_id = parent.seg_id
@@ -286,7 +286,7 @@ class WEMDWEDriver:
             assert None not in parent_ids
             glom = Segment(weight = glom_weight,
                            parent_ids = set(parent_ids),
-                           pcoord = self.sim_manager.system.new_pcoord_array()
+                           pcoord = self.system.new_pcoord_array()
                           )
             if random.uniform(0, glom_weight) < parents[0].weight:
                 iparent = 0

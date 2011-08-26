@@ -21,8 +21,8 @@ class ConfigDict(OrderedDict):
         self.update(self.defaults)
         super(ConfigDict,self).__init__(*args, **kwargs)
         
-    def update_from_object(self, obj):
-        udict = {'args.{}'.format(key): val for (key,val) in obj.__dict__.viewitems() if not key.startswith('_')}
+    def update_from_object(self, obj, prefix='args'):
+        udict = {'{}.{}'.format(prefix,key): val for (key,val) in obj.__dict__.viewitems() if not key.startswith('_')}
         if log.isEnabledFor(logging.DEBUG):
             log.debug('updating with {!r}'.format(udict))
         self.update(udict)

@@ -4,6 +4,7 @@ import sys, os, tempfile, logging, socket, multiprocessing, cPickle, threading, 
 import argparse
 import collections
 import zmq
+import wemd
 from wemd.work_managers import WEMDWorkManager
 
 log = logging.getLogger(__name__)
@@ -408,12 +409,12 @@ class Node(ZMQBase):
     
                 
 class ZMQWorkManager(ZMQBase, WEMDWorkManager):
-    def __init__(self, sim_manager):
+    def __init__(self, propagator=None):
         
         ZMQBase.__init__(self,context=None)
-        WEMDWorkManager.__init__(self,sim_manager)
+        WEMDWorkManager.__init__(self,propagator)
         
-        runtime_config = sim_manager.runtime_config
+        runtime_config = wemd.rc.config
         self.upstream_host  = runtime_config.get('zmq_work_manager.master', socket.gethostname())
         self.ann_port  = runtime_config.get_int('zmq_work_manager.ann_port', DEFAULT_ANN_PORT)
         self.task_port    = runtime_config.get_int('zmq_work_manager.task_port', DEFAULT_TASK_PORT)
@@ -438,7 +439,7 @@ class ZMQWorkManager(ZMQBase, WEMDWorkManager):
         parser = argparse.ArgumentParser(usage='%(prog)s [NON_WORK_MANAGER_OPTIONS] [OPTIONS]',
                                          add_help=False)
         
-        runtime_config = self.sim_manager.runtime_config
+        runtime_config = wemd.rc.config
         parser.add_argument('-n', '-np', '-nw', type=int, dest='n_workers', default=multiprocessing.cpu_count(),
                             help='Number of worker processes to run on this host. Use 0 for a dedicated server '
                                 +' or forwarder process. (Default: %(default)s)')
@@ -555,12 +556,12 @@ class ZMQWorkManager(ZMQBase, WEMDWorkManager):
             self.zdev.start_forward_loop()
         elif self.mode == 'worker':
             log.debug('PID {} is worker'.format(os.getpid()))
-            self.zdev = Worker(self.context, self.remote_ann_endpoint, self.sim_manager.propagator)
+            self.zdev = Worker(self.context, self.remote_ann_endpoint, self.propagator)
             # Listen for work immediately; run_worker() then joins the worker thread to await termination
             self.zdev.listen()
         elif self.mode == 'nodeworker':
             log.debug('PID {} is node worker'.format(os.getpid()))
-            self.zdev = Worker(self.context, self.local_ann_endpoint, self.sim_manager.propagator)
+            self.zdev = Worker(self.context, self.local_ann_endpoint, self.propagator)
             self.zdev.listen()
         else:
             raise NotImplementedError

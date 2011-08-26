@@ -13,9 +13,7 @@ from wemd import Segment
 from wemd.util.miscfn import vgetattr
 
 class WESimManager:
-    def __init__(self, runtime_config = None):
-        self.runtime_config = runtime_config or {}
-        
+    def __init__(self):        
         self.data_manager = None
         self.we_driver = None
         self.work_manager = None        
@@ -57,94 +55,9 @@ class WESimManager:
         sorted_callbacks = list(sorted(callbacks))
         for (priority, name, fn) in sorted_callbacks:
             fn(*args, **kwargs)
-
-    def load_data_manager(self):
-        drivername = self.runtime_config.get('drivers.data_manager', 'hdf5')
-        if drivername.lower() in ('hdf5', 'default'):
-            self.data_manager = wemd.data_manager.WEMDDataManager(self)
-        else:
-            pathinfo = self.runtime_config.get_pathlist('drivers.module_path', default=None)
-            self.data_manager = extloader.get_object(drivername, pathinfo)(self)
-        log.debug('data manager is %r' % self.data_manager)
-        return self.data_manager
-            
-    def load_we_driver(self):
-        drivername = self.runtime_config.get('drivers.we_driver', 'default')
-        if drivername.lower() == 'default':
-            self.we_driver = wemd.we_driver.WEMDWEDriver(self)
-        else:
-            pathinfo = self.runtime_config.get_pathlist('drivers.module_path', default=None)
-            self.work_manager = extloader.get_object(drivername, pathinfo)(self)
-        log.debug('WE algorithm driver is %r' % self.we_driver)
-        return self.we_driver
-    
-    def load_work_manager(self):
-        drivername = self.runtime_config.get('args.work_manager_name')
-        if not drivername:
-            drivername = self.runtime_config.get('drivers.work_manager', 'threads')
-        if drivername.lower() == 'serial':
-            import wemd.work_managers.serial
-            self.work_manager = wemd.work_managers.serial.SerialWorkManager(self)
-        elif drivername.lower() == 'processes':
-            import wemd.work_managers.processes
-            self.work_manager = wemd.work_managers.processes.ProcessWorkManager(self)                    
-        elif drivername.lower() in ('threads', 'default'):
-            import wemd.work_managers.threads
-            self.work_manager = wemd.work_managers.threads.ThreadedWorkManager(self)
-        elif drivername.lower() == 'tcpip':
-            import wemd.work_managers.tcpip
-            self.work_manager = wemd.work_managers.tcpip.TCPWorkManager(self)
-        elif drivername.lower() in ('zmq', 'zeromq'):
-            import wemd.work_managers.zeromq
-            self.work_manager = wemd.work_managers.zeromq.ZMQWorkManager(self)
-        else:
-            pathinfo = self.runtime_config.get_pathlist('drivers.module_path', default=None)
-            self.work_manager = extloader.get_object(drivername, pathinfo)(self)
-        log.debug('work manager is %r' % self.work_manager)
-        return self.work_manager
-        
-    def load_propagator(self):
-        drivername = self.runtime_config.require('drivers.propagator')
-        if drivername.lower() == 'executable':
-            import wemd.propagators.executable
-            self.propagator = wemd.propagators.executable.ExecutablePropagator(self)
-        else:
-            pathinfo = self.runtime_config.get_pathlist('drivers.module_path', default=None)
-            self.propagator = extloader.get_object(drivername, pathinfo)(self)
-        log.debug('propagator is %r' % self.propagator)
-        return self.propagator
-        
-    def load_system_driver(self):
-        sysdrivername = self.runtime_config.require('system.system_driver')
-        log.info('loading system driver %r' % sysdrivername)
-        pathinfo = self.runtime_config.get_pathlist('system.module_path', default=None)        
-        self.system = extloader.get_object(sysdrivername, pathinfo)(self)
-        log.debug('system driver is %r' % self.system)
-        log.debug('initializing system driver')
-        
-        # Initialize the system driver
-        try:
-            self.system.initialize()
-        except NotImplementedError:
-            msg = 'WEMD systems must now override the initialize() method, not the __init__() method'
-            import warnings
-            warnings.warn(msg, DeprecationWarning)
-            
-            # This is really critical, so make sure it gets logged even if DeprecationWarnings are
-            # suppressed            
-            log.warn(msg)
-            
-        # Catch a couple loose problems, which will eventually be made illegal but
-        # for a transition period will be allowed.
-        if self.system.target_states is None:
-            msg ='system target_states is None; resetting to []' 
-            log.warning(msg)
-            warnings.warn(msg, DeprecationWarning)
-            self.system.target_states = []
-        return self.system
     
     def load_plugins(self):
-        plugin_text = self.runtime_config.get('plugins.enable','')
+        plugin_text = wemd.rc.config.get('plugins.enable','')
         plugin_names = re.split(r'\s*,\s*', plugin_text.strip())
         for plugin_name in plugin_names:
             if not plugin_name: continue
@@ -175,6 +88,11 @@ class WESimManager:
     # various hooks are called.
     def prepare_run(self):
         '''Prepare a new run.'''
+        self.propagator.system = self.system
+        self.work_manager.propagator = self.propagator
+        self.data_manager.system = self.system
+        self.we_driver.system = self.system
+        
         self.work_manager.prepare_run()
         self.data_manager.prepare_run()
         self.system.prepare_run()
@@ -233,7 +151,7 @@ class WESimManager:
         # Set up internal timing
         self.rtracker.begin('run')
         run_starttime = time.time()
-        max_walltime = self.runtime_config.get_interval('limits.max_wallclock', default=None, type=float)
+        max_walltime = wemd.rc.config.get_interval('limits.max_wallclock', default=None, type=float)
         if max_walltime:
             run_killtime = run_starttime + max_walltime
             self.status_stream.write('Maximum wallclock time: %s\n' % timedelta(seconds=max_walltime or 0))
@@ -249,7 +167,7 @@ class WESimManager:
                         
             # Get segments
             n_iter = self.data_manager.current_iteration
-            max_iter = self.runtime_config.get_int('limits.max_iterations', n_iter+1)
+            max_iter = wemd.rc.config.get_int('limits.max_iterations', n_iter+1)
                          
             # Guaranteed ordering by seg_id, so segments[seg_id] works for any valid seg_id for this iteration
             segments = self.data_manager.get_segments(n_iter)
@@ -333,7 +251,7 @@ class WESimManager:
                 
                 # Allow the user to run only one segment to aid in debugging propagators
                 log.debug('propagating iteration {:d}'.format(n_iter))
-                if self.runtime_config.get('args.only_one_segment',False):
+                if wemd.rc.config.get('args.only_one_segment',False):
                     log.info('propagating only one segment')
                     self._propagate(n_iter, segs_to_run[0:1])                
                     if len(segs_to_run) > 1:
@@ -565,7 +483,7 @@ class WESimManager:
         self.status_stream.write(('\nRun wallclock: {intervals.walltime}, CPU time (WEMD only): {intervals.cputime},'
                                  +' system time: {intervals.systime}\n').format(intervals=intervals))
         
-        if self.runtime_config['args.verbose_mode']:
+        if wemd.rc.verbose_mode:
             self.status_stream.write('Internal timing information:\n')
             self.rtracker.dump_differences(self.status_stream)
     # end WESimManager.run()

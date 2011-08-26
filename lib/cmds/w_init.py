@@ -17,18 +17,13 @@ if aux_args:
     sys.stderr.write('unexpected command line argument(s) encountered: {}\n'.format(aux_args))
     sys.exit(os.EX_USAGE)
 
-wemd.rc.config_logging(args, 'w_init')
-runtime_config = wemd.rc.read_config(args.run_config_file)
-runtime_config.update_from_object(args)
-sim_manager = wemd.rc.load_sim_manager(runtime_config)
+wemd.rc.process_common_args(args)
+system = wemd.rc.get_system_driver()
+h5file = wemd.rc.config.get_path('data.h5file')
+data_manager = wemd.rc.get_data_manager()
+data_manager.backing_file = h5file
+data_manager.system = system
 
-sim_manager.load_data_manager()
-sim_manager.load_we_driver()
-system = sim_manager.load_system_driver()
-sim_manager.load_plugins()
-
-sim_manager.runtime_config.require('data.h5file')
-h5file = sim_manager.runtime_config.get_path('data.h5file')
 if os.path.exists(h5file):
     if args.force:
         sys.stdout.write('Deleting existing HDF5 file {!r}.\n'.format(h5file))
@@ -39,7 +34,7 @@ if os.path.exists(h5file):
         
 # Prepare HDF5 file
 sys.stdout.write('Creating HDF5 file {!r}.\n'.format(h5file))
-sim_manager.data_manager.prepare_backing()
+data_manager.prepare_backing()
 
 # Prepare simulation
 system.prepare_run()
@@ -94,11 +89,11 @@ Total target replicas: {total_replicas:d}
 
 # The user-side check for this was above; this is an assertion that the above assignment to bins 
 # and division of probability is correct
-assert abs(sim_manager.system.region_set.weight - tiprob) < MACHEPS*sum(bin_occupancies)
+assert abs(system.region_set.weight - tiprob) < MACHEPS*sum(bin_occupancies)
 
 # Send the segments over to the data manager to commit to disk            
-sim_manager.data_manager.prepare_iteration(1, segments)
-sim_manager.data_manager.flush_backing()
+data_manager.prepare_iteration(1, segments)
+data_manager.flush_backing()
 
-sim_manager.system.region_set.clear()    
+system.region_set.clear()    
 sys.stdout.write('Simulation prepared.\n')

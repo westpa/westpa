@@ -6,10 +6,12 @@ import time
 import sys
 log = logging.getLogger(__name__)
 
+import wemd
+
 class WEMDWorkManager:
-    def __init__(self, sim_manager):
-        self.sim_manager = sim_manager
-        self.mode=sim_manager.runtime_config.get('args.mode', 'master')
+    def __init__(self, propagator=None):
+        self.propagator = propagator
+        self.mode=wemd.rc.config.get('args.mode', 'master')
         self.shutdown_called = False
                 
     def parse_aux_args(self, aux_args, do_help = False):
@@ -29,7 +31,7 @@ class WEMDWorkManager:
         '''Prepare this work manager to run a new iteration. If overridden, this
         must call propagator.prepare_iteration().'''
         self.n_iter = n_iter
-        self.sim_manager.propagator.prepare_iteration(n_iter, segments)
+        self.propagator.prepare_iteration(n_iter, segments)
                         
     def propagate(self, segments):
         '''Propagate the given segments.'''
@@ -38,7 +40,7 @@ class WEMDWorkManager:
     def finalize_iteration(self, n_iter, segments):
         '''Clean up at the end of an iteration.  If overridden, this must call
         propagator.finalize_iteration().'''
-        self.sim_manager.propagator.finalize_iteration(n_iter, segments)
+        self.propagator.finalize_iteration(n_iter, segments)
         
     def finalize_run(self):
         '''Clean up at the normal end of a run'''

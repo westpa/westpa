@@ -4,15 +4,16 @@ import multiprocessing, logging, math, itertools, numpy
 
 log = logging.getLogger(__name__)
 
+import wemd
 from wemd.work_managers import WEMDWorkManager
 
 class ProcessWorkManager(WEMDWorkManager):
-    def __init__(self, sim_manager):
+    def __init__(self, propagator=None):
         log.debug('initializing threaded work manager')
-        super(ProcessWorkManager,self).__init__(sim_manager)
+        super(ProcessWorkManager,self).__init__(propagator)
         self.cpu_count = multiprocessing.cpu_count()
         log.debug('cpu count: %d' % self.cpu_count)
-        self.n_procs = sim_manager.runtime_config.get_int('work_manager.n_threads', self.cpu_count)
+        self.n_procs = wemd.rc.config.get_int('work_manager.n_threads', self.cpu_count)
         self.n_iter = None
     
         log.info('using %d processes for parallel propagation' % self.n_procs)
@@ -29,7 +30,7 @@ class ProcessWorkManager(WEMDWorkManager):
         # the call to fork().  Queues are used to return segments to the
         # master.        
         queues = [multiprocessing.Queue() for i in xrange(0, self.n_procs)]
-        processes = [WorkerProcess(self.sim_manager, segarray[iproc,:], queues[iproc])
+        processes = [WorkerProcess(self.propagator, segarray[iproc,:], queues[iproc])
                      for iproc in xrange(0, self.n_procs)]
             
         for process in processes:
@@ -59,15 +60,15 @@ class ProcessWorkManager(WEMDWorkManager):
             orig_segment.pcoord[...] = propagated_seg.pcoord[...]
         
 class WorkerProcess(multiprocessing.Process):
-    def __init__(self, sim_manager, segments, queue):
+    def __init__(self, propagator, segments, queue):
         multiprocessing.Process.__init__(self)
-        self.sim_manager = sim_manager
+        self.propagator = propagator
         self.segments = segments
         self.queue = queue
         
     def run(self):
 
-        propagator = self.sim_manager.propagator
+        propagator = self.propagator
         
         log.debug('propagating %d segments' % len(self.segments))
         for i in xrange(0,len(self.segments)):

@@ -1,6 +1,6 @@
 from __future__ import division; __metaclass__ = type
 
-import numpy, math, logging
+import logging
 
 log = logging.getLogger(__name__)
 
@@ -10,13 +10,11 @@ from wemd.work_managers import WEMDWorkManager
 # global interpreter lock doesn't get in the way.
 
 class SerialWorkManager(WEMDWorkManager):
-    def __init__(self, sim_manager):
+    def __init__(self, propagator=None):
         log.debug('initializing serial work manager')
-        super(SerialWorkManager,self).__init__(sim_manager)
-        self.n_iter = None        
+        super(SerialWorkManager,self).__init__(propagator)
         
     def propagate(self, segments):
-        propagator = self.sim_manager.propagator
-        system_driver = self.sim_manager.system
+        propagator = self.propagator
         for segment in segments:
             propagator.propagate([segment])

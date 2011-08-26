@@ -4,18 +4,19 @@ import multiprocessing, threading, numpy, math, logging
 
 log = logging.getLogger(__name__)
 
+import wemd
 from wemd.work_managers import WEMDWorkManager
 
 # This is mostly for demonstration; serious parallelism probably needs processes, so that the
 # global interpreter lock doesn't get in the way.
 
 class ThreadedWorkManager(WEMDWorkManager):
-    def __init__(self, sim_manager):
+    def __init__(self, propagator=None):
         log.debug('initializing threaded work manager')
-        super(ThreadedWorkManager,self).__init__(sim_manager)
+        super(ThreadedWorkManager,self).__init__(propagator)
         self.cpu_count = multiprocessing.cpu_count()
         log.debug('cpu count: %d' % self.cpu_count)
-        self.n_threads = sim_manager.runtime_config.get_int('work_manager.n_threads', self.cpu_count)
+        self.n_threads = wemd.rc.config.get_int('work_manager.n_threads', self.cpu_count)
         self.n_iter = None
         
         log.info('using %d threads for parallel propagation' % self.n_threads)
@@ -29,8 +30,7 @@ class ThreadedWorkManager(WEMDWorkManager):
         # corresponding thread to run
         segarray = numpy.empty((self.n_threads, n_rounds), numpy.object_)
         segarray.flat[0:len(segments)] = segments
-        log.debug('segarray: %r' % segarray)
-        threads = [WorkerThread(self.sim_manager, segarray[ithread,:]) for ithread in xrange(0, self.n_threads)]
+        threads = [WorkerThread(self.propagator, segarray[ithread,:]) for ithread in xrange(0, self.n_threads)]
         for thread in threads:
             # Spawn threads, begin propagation in each
             thread.start()
@@ -39,14 +39,13 @@ class ThreadedWorkManager(WEMDWorkManager):
             thread.join()            
         
 class WorkerThread(threading.Thread):
-    def __init__(self, sim_manager, segments):
+    def __init__(self, propagator, segments):
         threading.Thread.__init__(self)
-        self.sim_manager = sim_manager
+        self.propagator = propagator
         self.segments = segments
         
     def run(self):
-        propagator = self.sim_manager.propagator
-        system_driver = self.sim_manager.system
+        propagator = self.propagator
         segments = [segment for segment in self.segments if segment is not None]
         log.debug('propagating %d segment(s)' % len(segments))
         for segment in segments:

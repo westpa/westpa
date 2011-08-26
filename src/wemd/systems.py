@@ -69,7 +69,6 @@ class WEMDSystem:
     :method:`initialize` method to set ``self.region_set`` (i.e. define bins)
     and add at least one initial state using :method:`add_initial_state`.
     
-    :ivar sim_manager:    The :class:`SimManager` handling the current simulation.
     :ivar region_set:     An instance of :class:`RegionSet` defining the bin space
                           for this system.
     :ivar initial_states: A list of :class:`InitialState` objects describing the
@@ -93,9 +92,7 @@ class WEMDSystem:
                           returned from propagation).
                           
     '''        
-    def __init__(self, sim_manager):
-        self.sim_manager = sim_manager
-        
+    def __init__(self):
         # The progress coordinate region set
         self.region_set = None
         
@@ -136,11 +133,7 @@ class WEMDSystem:
         and data manager to create new segments.'''
         return numpy.zeros((self.pcoord_len, self.pcoord_ndim), self.pcoord_dtype)
 
-    def add_initial_state(self, label, initial_prob, recycle_prob, pcoord, bin = None):
-        if self.initial_states is None:
-            warn_deprecated_usage('initial_states appears to be None; change system to use initialize() instead of __init__()')
-            self.initial_states = []
-            
+    def add_initial_state(self, label, initial_prob, recycle_prob, pcoord, bin = None):            
         if bin is None:
             bin = self.region_set.get_bin_containing(pcoord)
         istate = InitialState(label, initial_prob, recycle_prob, pcoord, bin)
@@ -148,10 +141,6 @@ class WEMDSystem:
         self.initial_states.append(istate)
         
     def add_target_state(self, label, bin_or_pcoord):
-        if self.target_states is None:
-            warn_deprecated_usage('target_states appears to be None; change system to use initialize() instead of __init__()')
-            self.target_states = []
-            
         if isinstance(bin_or_pcoord, wemd.pcoords.ParticleCollection):
             warn_deprecated_usage('add_target_state() should be called with a pcoord, not a bin')
             bin = bin_or_pcoord
