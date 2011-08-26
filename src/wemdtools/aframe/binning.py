@@ -9,24 +9,25 @@ import numpy
 import wemd
 from wemdtools.aframe import AnalysisMixin
 
-class BinnerMixin(AnalysisMixin):
+class BinningMixin(AnalysisMixin):
     '''A mixin for performing binning on WEMD data.'''
     def __init__(self):
-        super(BinnerMixin,self).__init__()
+        super(BinningMixin,self).__init__()
         
         self.region_set = None
         self.n_bins = None
         self.n_dim = None
         
         self.__discard_bin_assignments = False
-        self.__h5gname = 'binning'
-        self.__h5group = None
+        self.__bins_checked = False
+        self.binning_h5gname = 'binning'
+        self.binning_h5group = None
         self.__region_set_hash = None
 
     def add_common_args(self, parser, upcall = True):
         if upcall:
             try:
-                upfunc = super(BinnerMixin,self).add_common_args
+                upfunc = super(BinningMixin,self).add_common_args
             except AttributeError:
                 pass
             else:
@@ -60,7 +61,7 @@ class BinnerMixin(AnalysisMixin):
         
         if upcall:
             try:
-                upfunc = super(BinnerMixin,self).process_common_args
+                upfunc = super(BinningMixin,self).process_common_args
             except AttributeError:
                 pass
             else:
@@ -92,13 +93,13 @@ class BinnerMixin(AnalysisMixin):
             dest.write(format.format(bin_index=ibin, label=bin.label, max_iwidth=max_iwidth))
     
     def __require_group(self):
-        if self.__h5group is None:
-            self.__h5group = self.anal_h5file.require_group(self.__h5gname)
-        return self.__h5group
+        if self.binning_h5group is None:
+            self.binning_h5group = self.anal_h5file.require_group(self.binning_h5gname)
+        return self.binning_h5group
     
     def __delete_group(self):
-        self.__h5group = None
-        del self.anal_h5file[self.__h5gname]
+        self.binning_h5group = None
+        del self.anal_h5file[self.binning_h5gname]
             
     def check_bin_data(self, first_iter=None, last_iter=None):
         '''Check to see that existing binning data corresponds to the same bin topology and iteration range as requested'''
@@ -107,11 +108,11 @@ class BinnerMixin(AnalysisMixin):
         
         self.__require_group()
 
-        if self.__h5group.attrs:
-            if (self.__h5group.attrs['first_iter'] != first_iter or self.__h5group.attrs['last_iter'] != last_iter):
+        if self.binning_h5group.attrs:
+            if (self.binning_h5group.attrs['first_iter'] != first_iter or self.binning_h5group.attrs['last_iter'] != last_iter):
                 wemd.rc.pstatus('Existing binning data is for different first/last iterations; deleting.')
                 self.__delete_group()
-            elif (self.__h5group.attrs['binhash'] != self.__region_set_hash.digest()):
+            elif (self.binning_h5group.attrs['binhash'] != self.__region_set_hash.digest()):
                 wemd.rc.pstatus('Bin definitions have changed; deleting existing binning data.')
                 self.__delete_group()
             elif self.__discard_bin_assignments:
@@ -121,10 +122,11 @@ class BinnerMixin(AnalysisMixin):
         
         self.__require_group()
         
-        self.__h5group.attrs['first_iter'] = first_iter
-        self.__h5group.attrs['last_iter']  = last_iter
-        self.__h5group.attrs['binhash'] = self.__region_set_hash.digest()
+        self.binning_h5group.attrs['first_iter'] = first_iter
+        self.binning_h5group.attrs['last_iter']  = last_iter
+        self.binning_h5group.attrs['binhash'] = self.__region_set_hash.digest()
     
+        self.__bins_checked = True
                     
     def assign_to_bins(self, first_iter = None, last_iter = None, max_n_segs = None):
         '''Requires the DataReader mixin to be in the inheritance tree'''
@@ -145,38 +147,39 @@ class BinnerMixin(AnalysisMixin):
         for (iiter, n_iter) in enumerate(xrange(first_iter, last_iter+1)):
             wemd.rc.pstatus('\r  Iteration {:d}'.format(n_iter), end='')
             seg_index = self.get_seg_index(n_iter)
-            pcoords = self.get_pcoord_array(n_iter)
+            pcoords = self.get_iter_group(n_iter)['pcoord'][...]
             weights = seg_index['weight']
             
             for seg_id in xrange(len(seg_index)):
                 assignments[iiter,seg_id,:] = self.region_set.map_to_all_indices(pcoords[seg_id,:,:])
-                
+            
             for it in xrange(pcoord_len):
                 populations[iiter, it, :] = numpy.bincount(assignments[iiter,:len(seg_index),it], weights, minlength=self.n_bins)
-            
+        
             wemd.rc.pflush()
             del pcoords, weights, seg_index
-
-        # Compress bin assignments; there are probably lots of zero bits involved            
-        self.__h5group.create_dataset('bin_assignments', data=assignments, compression='gzip')
-        # The same is probably not true of bin populations, so don't worry about compression there
-        self.__h5group['bin_populations'] = populations
+         
+        self.binning_h5group.create_dataset('bin_assignments', data=assignments, compression='gzip')
+        self.binning_h5group.create_dataset('bin_populations', data=populations, compression='gzip')
         
         wemd.rc.pstatus()
             
         
     def require_bin_assignments(self, first_iter = None, last_iter = None):
         self.__require_group()
+
         first_iter = first_iter or self.first_iter
         last_iter = last_iter or self.last_iter        
         
+        if not self.__bins_checked:
+            self.check_bin_data(first_iter, last_iter)
+                
         # The group will be empty if the user requested the data to go away, or if the data is not conformant
         # with the current bins and iteration range, so the following lets us know if we need
         # to recalculate 
-        if not ('bin_assignments' in self.__h5group and 'bin_populations' in self.__h5group):
+        if not ('bin_assignments' in self.binning_h5group and 'bin_populations' in self.binning_h5group):
             self.assign_to_bins(first_iter, last_iter)
+        else:
+            wemd.rc.pstatus('Using existing binning data.')
             
-        
-        
-    
         

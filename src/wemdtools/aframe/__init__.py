@@ -32,4 +32,4 @@ import atool
 from atool import WEMDAnalysisTool
 from default_mixins import IterRangeMixin
 from data_reader import DataReaderMixin
-from binning import BinnerMixin
+from binning import BinningMixin
