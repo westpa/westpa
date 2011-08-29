@@ -57,3 +57,13 @@ class WEMDAnalysisTool:
             self.anal_h5file = None
         except AttributeError:
             pass
+        
+    def require_analysis_group(self, groupname, replace=False):
+        self.open_analysis_backing()
+        if replace:
+            try:
+                del self.anal_h5file[groupname]
+            except KeyError:
+                pass
+        return self.anal_h5file.require_group(groupname)
+    

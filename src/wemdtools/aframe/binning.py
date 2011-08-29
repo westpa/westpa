@@ -100,7 +100,7 @@ class BinningMixin(AnalysisMixin):
     def __delete_group(self):
         self.binning_h5group = None
         del self.anal_h5file[self.binning_h5gname]
-            
+                
     def check_bin_data(self, first_iter=None, last_iter=None):
         '''Check to see that existing binning data corresponds to the same bin topology and iteration range as requested'''
         first_iter = first_iter or self.first_iter
@@ -159,8 +159,11 @@ class BinningMixin(AnalysisMixin):
             wemd.rc.pflush()
             del pcoords, weights, seg_index
          
-        self.binning_h5group.create_dataset('bin_assignments', data=assignments, compression='gzip')
-        self.binning_h5group.create_dataset('bin_populations', data=populations, compression='gzip')
+        assignments_ds = self.binning_h5group.create_dataset('bin_assignments', data=assignments, compression='gzip')
+        populations_ds = self.binning_h5group.create_dataset('bin_populations', data=populations, compression='gzip')
+        
+        assignments_ds.attrs['first_iter'] = first_iter
+        populations_ds.attrs['first_iter'] = first_iter
         
         wemd.rc.pstatus()
             

@@ -33,3 +33,4 @@ from atool import WEMDAnalysisTool
 from default_mixins import IterRangeMixin
 from data_reader import DataReaderMixin
 from binning import BinningMixin
+from mcbs import MCBSMixin

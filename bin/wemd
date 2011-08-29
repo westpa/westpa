@@ -14,6 +14,10 @@ if [ -z "$WEMD_PYTHONPATH" ]; then
     export WEMD_PYTHONPATH="$WEMD_ROOT/src"
 fi
 
+if [ -z "$WEMD_KERNPROF" ]; then
+    WEMD_KERNPROF=kernprof.py
+fi
+
 # Make sure the WEMD Python package can be found, and do a quick and dirty 
 # check to (try to) avoid duplicating something that's already on $PYTHONPATH
 if echo "$PYTHONPATH" | grep -v "$WEMD_PYTHONPATH" &> /dev/null; then
@@ -47,6 +51,11 @@ if [ "$1" == "--profile" ]; then
     echo >&2 "Saving profiling information to $pfile"
     $WEMD_PYTHON -m cProfile -o $pfile $WEMD_ROOT/lib/cmds/${SCRIPT}.py "$@"
     $WEMD_PYTHON -c "import sys, pstats; ps = pstats.Stats('$pfile', stream=sys.stderr); ps.sort_stats('time').print_stats(100);"
+elif [ "$1" == "--lprofile" ]; then
+    shift
+    pfile=wemd_lprofile_$$.dat
+    echo >&2 "Saving line_profiler information to $pfile"
+    $WEMD_KERNPROF -l -o $pfile -v $WEMD_ROOT/lib/cmds/${SCRIPT}.py "$@"
 else
     exec $WEMD_PYTHON $WEMD_ROOT/lib/cmds/${SCRIPT}.py "$@"
 fi
