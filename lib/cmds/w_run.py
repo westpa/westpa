@@ -6,7 +6,7 @@ log = logging.getLogger('w_run')
 import wemd
 
 parser = argparse.ArgumentParser('w_run', 'start/continue a WEMD simulation')
-wemd.rc.add_common_args(parser)
+wemd.rc.add_args(parser)
 parser.add_argument('--work-manager', dest='work_manager_name',
                     help='use the given work manager to distribute work among processors (serial, threads, processes, tcpip, zmq, '
                         +'or name a Python class; default: threads)')
@@ -24,7 +24,7 @@ parser.add_argument('--help-work-manager', dest='do_work_manager_help', action='
                     help='display help specific to the given work manager')
 
 (args, aux_args) = parser.parse_known_args()
-wemd.rc.process_common_args(args)
+wemd.rc.process_args(args)
 
 # Load the sim manager
 sim_manager = wemd.rc.get_sim_manager()

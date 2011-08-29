@@ -24,10 +24,10 @@ class BinningMixin(AnalysisMixin):
         self.binning_h5group = None
         self.__region_set_hash = None
 
-    def add_common_args(self, parser, upcall = True):
+    def add_args(self, parser, upcall = True):
         if upcall:
             try:
-                upfunc = super(BinningMixin,self).add_common_args
+                upfunc = super(BinningMixin,self).add_args
             except AttributeError:
                 pass
             else:
@@ -42,7 +42,7 @@ class BinningMixin(AnalysisMixin):
         group.add_argument('--discard-bin-assignments', dest='discard_bin_assignments', action='store_true',
                            help='''Discard any existing bin assignments stored in the analysis HDF5 file.''')
     
-    def process_common_args(self, args, upcall = True):        
+    def process_args(self, args, upcall = True):        
         if args.binexpr:
             wemd.rc.pstatus("Constructing rectilinear bin boundaries from the following expression: '{}'".format(args.binexpr))
             self.region_set = self.region_set_from_expr(args.binexpr)
@@ -61,7 +61,7 @@ class BinningMixin(AnalysisMixin):
         
         if upcall:
             try:
-                upfunc = super(BinningMixin,self).process_common_args
+                upfunc = super(BinningMixin,self).process_args
             except AttributeError:
                 pass
             else:

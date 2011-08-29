@@ -30,10 +30,10 @@ class DataReaderMixin(AnalysisMixin):
         self.__c_pcoord_arrays = dict()
         self.__c_pcoord_datasets = dict()
         
-    def add_common_args(self, parser, upcall = True):
+    def add_args(self, parser, upcall = True):
         if upcall:
             try:
-                upcall = super(DataReaderMixin,self).add_common_args
+                upcall = super(DataReaderMixin,self).add_args
             except AttributeError:
                 pass
             else:
@@ -45,7 +45,7 @@ class DataReaderMixin(AnalysisMixin):
         group.add_argument('run_h5name', nargs='?', metavar='WEMD_H5FILE',
                            help='''Take data from WEMD_H5FILE (default: read from the HDF5 file specified in wemd.cfg).''')
 
-    def process_common_args(self, args, upcall = True):            
+    def process_args(self, args, upcall = True):            
         if args.run_h5name:
             self.run_h5name = args.run_h5name
         else:
@@ -60,7 +60,7 @@ class DataReaderMixin(AnalysisMixin):
         
         if upcall:
             try:
-                upfunc = super(DataReaderMixin,self).process_common_args
+                upfunc = super(DataReaderMixin,self).process_args
             except AttributeError:
                 pass
             else:

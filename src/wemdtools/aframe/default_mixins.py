@@ -18,10 +18,10 @@ class IterRangeMixin(AnalysisMixin):
         self.last_iter = None
         self.iter_step = None
 
-    def add_common_args(self, parser, upcall = True):
+    def add_args(self, parser, upcall = True):
         if upcall:
             try:
-                upfunc = super(IterRangeMixin,self).add_common_args
+                upfunc = super(IterRangeMixin,self).add_args
             except AttributeError:
                 pass
             else:
@@ -35,14 +35,14 @@ class IterRangeMixin(AnalysisMixin):
         group.add_argument('--step', dest='iter_step', type=int, metavar='STEP',
                            help='''Analyze/report in blocks of STEP iterations.''')
     
-    def process_common_args(self, args, upcall = True):
+    def process_args(self, args, upcall = True):
         self.first_iter = args.first_iter or 1
         self.last_iter = args.last_iter
         self.iter_step = args.iter_step or 1
 
         if upcall:
             try:
-                upfunc = super(IterRangeMixin,self).process_common_args
+                upfunc = super(IterRangeMixin,self).process_args
             except AttributeError:
                 pass
             else:

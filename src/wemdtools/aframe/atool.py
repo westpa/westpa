@@ -22,11 +22,11 @@ class WEMDAnalysisTool:
         self.anal_h5name = None
         self.anal_h5file = None
 
-    def add_common_args(self, parser, upcall = True):
+    def add_args(self, parser, upcall = True):
         '''Add arguments to a parser common to all analyses of this type.'''
         if upcall:
             try:
-                upfunc = super(WEMDAnalysisTool,self).add_common_args
+                upfunc = super(WEMDAnalysisTool,self).add_args
             except AttributeError:
                 pass
             else:
@@ -36,12 +36,12 @@ class WEMDAnalysisTool:
         group.add_argument('-A', '--analysis-file', dest='anal_h5name', metavar='H5FILE', default='analysis.h5',
                             help='Store intermediate and final results in H5FILE (default: %(default)s).')
         
-    def process_common_args(self, args, upcall = True):
+    def process_args(self, args, upcall = True):
         self.anal_h5name = args.anal_h5name
         
         if upcall:
             try:
-                upfunc = super(WEMDAnalysisTool,self).process_common_args
+                upfunc = super(WEMDAnalysisTool,self).process_args
             except AttributeError:
                 pass
             else:

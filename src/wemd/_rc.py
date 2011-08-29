@@ -51,7 +51,7 @@ class _WEMDRC:
         return cls._ex_names.get(code, 'error %d' % code)
     
     @classmethod
-    def add_common_args(cls, parser):
+    def add_args(cls, parser):
         group = parser.add_argument_group('general options')
         group.add_argument('-r', '--rcfile', metavar='RCFILE', dest='rcfile',
                             default=(os.environ.get(cls.ENV_RUNTIME_CONFIG) or cls.RC_DEFAULT_FILENAME),
@@ -73,7 +73,7 @@ class _WEMDRC:
         self.config = ConfigDict()
         self.process_name = os.path.splitext(os.path.basename(sys.argv[0]))[0]
                             
-    def process_common_args(self, args, config_required = True):
+    def process_args(self, args, config_required = True):
         self.cmdline_args = args
         self.verbosity = args.verbosity
         

@@ -20,10 +20,10 @@ class MCBSMixin(AnalysisMixin):
         self.mcbs_nsets = None
         self.mcbs_display_confidence = None
         
-    def add_common_args(self, parser, upcall = True):
+    def add_args(self, parser, upcall = True):
         if upcall:
             try:
-                upfunc=super(MCBSMixin,self).add_common_args
+                upfunc=super(MCBSMixin,self).add_args
             except AttributeError:
                 pass
             else:
@@ -35,7 +35,7 @@ class MCBSMixin(AnalysisMixin):
                            help='''Use NSETS synthetic data sets to calculate confidence intervals (default:
                                    calculated based on confidence level, but not less than 1000).''' )
         
-    def process_common_args(self, args, upcall = True):
+    def process_args(self, args, upcall = True):
         self.mcbs_alpha = 1-args.mcbs_confidence
         self.mcbs_nsets = args.mcbs_size if args.mcbs_nsets else min(1000,calc_mcbs_nsets(self.mcbs_alpha))
         self.mcbs_display_confidence = '{:.{cp}f}'.format(100*args.mcbs_confidence,
@@ -45,7 +45,7 @@ class MCBSMixin(AnalysisMixin):
 
         if upcall:
             try:
-                upfunc = super(MCBSMixin,self).process_common_args
+                upfunc = super(MCBSMixin,self).process_args
             except AttributeError:
                 pass
             else:

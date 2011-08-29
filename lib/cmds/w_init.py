@@ -6,7 +6,7 @@ log = logging.getLogger('w_init')
 import wemd
 
 parser = argparse.ArgumentParser('w_init', description='initialize a new WEMD simulation')
-wemd.rc.add_common_args(parser)
+wemd.rc.add_args(parser)
 parser.add_argument('--force', dest='force', action='store_true',
                          help='overwrite any existing simulation data')
 parser.add_argument('--ptol', dest='ptol', type=float, default=1.0e-8,
@@ -18,7 +18,7 @@ if aux_args:
     sys.stderr.write('unexpected command line argument(s) encountered: {}\n'.format(aux_args))
     sys.exit(os.EX_USAGE)
 
-wemd.rc.process_common_args(args)
+wemd.rc.process_args(args)
 system = wemd.rc.get_system_driver()
 h5file = wemd.rc.config.get_path('data.h5file')
 data_manager = wemd.rc.get_data_manager()
