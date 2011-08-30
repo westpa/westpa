@@ -1,13 +1,12 @@
 from __future__ import division, print_function
-import argparse, numpy, warnings
+import argparse, numpy, math
 
 import logging
 log = logging.getLogger('w_binprobs')
 
 import wemd
 
-from wemdtools.aframe import WEMDAnalysisTool, BinningMixin, DataReaderMixin, IterRangeMixin, MCBSMixin
-from wemdtools.aframe.mcbs import calc_ci_bound_indices
+from wemdtools.aframe import WEMDAnalysisTool, BinningMixin, DataReaderMixin, IterRangeMixin
 
 ciinfo_dtype = numpy.dtype([('expectation', numpy.float64),
                             ('ci_lower', numpy.float64),
@@ -17,31 +16,27 @@ ciinfo_dtype = numpy.dtype([('expectation', numpy.float64),
 # Upcalls move left to right
 # If some complex dependencies exist, one can always override the process_args function and
 # call parent classes' process_args() manually in an order that makes sense.
-class WBinprobs(MCBSMixin, BinningMixin, IterRangeMixin, DataReaderMixin, WEMDAnalysisTool):
-    def calc_average_binprobs(self):
+class WBinprobs(BinningMixin, IterRangeMixin, DataReaderMixin, WEMDAnalysisTool):
+    def calc_binprobs_cis(self):
         '''Calculate average bin populations over blocks of iterations, with MCBS error bars.'''
         
-        lbi, ubi = calc_ci_bound_indices(self.mcbs_nsets, self.mcbs_alpha)
         if self.iter_step == 1:
-            wemd.rc.pstatus('Calculating per-iteration average bin populations...')
+            wemd.rc.pstatus('Calculating per-iteration bin population confidence intervals...')
         else:
-            wemd.rc.pstatus('Calculating average bin populations in blocks of {:d} iterations...'.format(self.iter_step))
+            wemd.rc.pstatus('Calculating bin population confidence intervals in blocks of {:d} iterations...'.format(self.iter_step))
         all_pops = self.binning_h5group['bin_populations'][...]
         pcoord_len = self.get_pcoord_len(self.first_iter)
-        syn_avg_pops = numpy.empty((self.mcbs_nsets, self.n_bins), numpy.float64)
-
+                
         first_n_iters = xrange(self.first_iter, 
-                               self.last_iter+self.iter_step if self.last_iter % self.iter_step else self.last_iter, 
+                               self.last_iter+self.iter_step if (self.iter_step ==1 or self.last_iter % self.iter_step) 
+                                                             else self.last_iter, 
                                self.iter_step)
 
         populations = numpy.empty((len(first_n_iters), self.n_bins), dtype=ciinfo_dtype)
         iter_bounds = numpy.empty((len(first_n_iters), 2), numpy.min_scalar_type(self.last_iter))
         
         # Iterate over blocks
-        mw = len(str(self.last_iter))
         for iblock, n_iter in enumerate(first_n_iters):
-            wemd.rc.pstatus('\r  Iterations {:{mw}d} -- {:<{mw}d}'.format(n_iter,n_iter+self.iter_step-1,mw=mw), end='')
-            
             iifirst = n_iter-self.first_iter
             iilast  = iifirst+self.iter_step
             
@@ -60,37 +55,30 @@ class WBinprobs(MCBSMixin, BinningMixin, IterRangeMixin, DataReaderMixin, WEMDAn
             blockpops[(n_iters_block-1)*(pcoord_len-1):,:] = iter_pops[n_iters_block-1]
             dlen = len(blockpops)
             
+            # We actually want not the standard error of the mean, but the (1-alpha) CI
+            # on the *quantity* called bin population 
+            
             populations[iblock]['expectation'] = blockpops.mean(axis=0) # per-bin average populations for this block
-
-            for iset in xrange(self.mcbs_nsets):
-                indices = numpy.random.randint(dlen,size=(dlen,))
-                syn_pops = blockpops[indices]
-                syn_avg_pops[iset, :] = syn_pops.mean(axis=0)
+            lbi, ubi = (max(int(math.floor(dlen*self.alpha/2)),0), min(int(math.ceil(dlen*(1-self.alpha/2))),dlen-1))
             
             for ibin in xrange(self.n_bins):
-                syn_avg_pops[:,ibin].sort()
-            
-            populations[iblock]['ci_lower'] = syn_avg_pops[lbi,:]
-            populations[iblock]['ci_upper'] = syn_avg_pops[ubi,:]
-            
-            wemd.rc.pflush()
-            
+                sort_pops = numpy.sort(blockpops[:,ibin])
+                populations[iblock,ibin]['ci_lower'] = sort_pops[lbi]
+                populations[iblock,ibin]['ci_upper'] = sort_pops[ubi]
+                        
         group = self.anal_h5file['w_binprobs']
-        group.attrs['mcbs_alpha'] = self.mcbs_alpha
-        group.attrs['mcbs_nsets'] = self.mcbs_nsets
+        group.attrs['alpha'] = self.alpha
         
         # Write a numerically-friendly matrix of bin probabilities to the HDF5 file
-        group['average_binprobs'] = populations
+        group['binprobs'] = populations
         group.create_dataset('iter_bounds', data=iter_bounds)
-        dsattrs = group['average_binprobs'].attrs
+        dsattrs = group['binprobs'].attrs
         dsattrs['first_iter'] = self.first_iter
         dsattrs['iter_step'] = self.iter_step
-        
-        wemd.rc.pstatus()
 
         # Explicit deletes so that memory is returned to the system immediately
         # instead of at the next garbage collection            
-        del populations, iter_bounds, all_pops, iter_pops, blockpops, syn_avg_pops
+        del populations, iter_bounds, all_pops, blockpops, sort_pops
         
     def write_output(self):
         if not self.output_filename:
@@ -100,13 +88,11 @@ class WBinprobs(MCBSMixin, BinningMixin, IterRangeMixin, DataReaderMixin, WEMDAn
         
         if not self.suppress_headers:
             output_file.write('''\
-# Average WEMD bin probabilities
+# WEMD bin probabilities
 # Iterations {first_iter} -- {last_iter} (inclusive)
 # Confidence level: {confidence}%
-# Number of bootstrap data sets: {mcbs_nsets}
 # ----
-'''.format(first_iter=self.first_iter, last_iter=self.last_iter, confidence=self.mcbs_display_confidence,
-           mcbs_nsets = self.mcbs_nsets))
+'''.format(first_iter=self.first_iter, last_iter=self.last_iter, confidence=self.display_confidence))
             
             if self.do_write_bin_labels:
                 self.write_bin_labels(output_file)
@@ -128,7 +114,7 @@ class WBinprobs(MCBSMixin, BinningMixin, IterRangeMixin, DataReaderMixin, WEMDAn
         
         group = self.anal_h5file['w_binprobs']
         iter_bounds = group['iter_bounds'][...]
-        populations = group['average_binprobs'][...]
+        populations = group['binprobs'][...]
         last_iter = iter_bounds[-1,-1]
         
         iw = len(str(last_iter))
@@ -160,10 +146,16 @@ class WBinprobs(MCBSMixin, BinningMixin, IterRangeMixin, DataReaderMixin, WEMDAn
         
 wbp = WBinprobs()
 
-parser = argparse.ArgumentParser('w_binprobs')
+parser = argparse.ArgumentParser('w_binprobs', description='''\
+Compute per-bin population confidence intervals as a function of simulation
+time.  Useful to determine when a simulation has "settled" to steady-state. 
+''')
 wemd.rc.add_args(parser)
 wbp.add_args(parser)
 
+cgroup = parser.add_argument_group('confidence interval options')
+cgroup.add_argument('--confidence', type=float, default=0.95,
+                    help='''Confidence level for bin population estimation (default: 0.95=95%%).''')
 ogroup = parser.add_argument_group('output options')
 ogroup.add_argument('-o', '--output', default='binprobs.txt', 
                     help='''Write average bin probabilities to OUTPUT (default: %(default)s).''')
@@ -180,12 +172,16 @@ wbp.process_args(args)
 wbp.output_filename = args.output
 wbp.suppress_headers = bool(args.suppress_headers)
 wbp.do_write_bin_labels = bool(args.write_bin_labels)
+wbp.confidence = args.confidence
+wbp.alpha = 1-args.confidence
+wbp.display_confidence = '{:.{cp}f}'.format(100*args.confidence,
+                                            cp = -int(math.floor(math.log10(wbp.alpha)))-2) 
 
 wbp.check_iter_range()
 wbp.open_analysis_backing()
 wbp.require_bin_assignments()
 wbp.require_analysis_group('w_binprobs', replace=True)
-wbp.calc_average_binprobs()
+wbp.calc_binprobs_cis()
 wbp.write_output()
 
 
