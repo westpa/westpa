@@ -36,7 +36,7 @@ class WBinprobs(BinningMixin, IterRangeMixin, DataReaderMixin, WEMDAnalysisTool)
         iter_bounds = numpy.empty((len(first_n_iters), 2), numpy.min_scalar_type(self.last_iter))
         
         # Iterate over blocks
-        for iblock, n_iter in enumerate(first_n_iters):
+        for iblock, (n_iter, last_n_iter) in enumerate(self.iter_block_iter()):
             iifirst = n_iter-self.first_iter
             iilast  = iifirst+self.iter_step
             

@@ -30,7 +30,7 @@ class MCBSMixin(AnalysisMixin):
                 upfunc(parser)
         group = parser.add_argument_group('Monte Carlo bootstrap options')
         group.add_argument('--confidence', dest='mcbs_confidence', type=float, default=0.95, metavar='P',
-                           help='''Construct a confidence interval of width P (default: %(default)f).''')
+                           help='''Construct a confidence interval of width P (default: 0.95=95%%).''')
         group.add_argument('--bssize', dest='mcbs_nsets', type=int, metavar='NSETS',
                            help='''Use NSETS synthetic data sets to calculate confidence intervals (default:
                                    calculated based on confidence level, but not less than 1000).''' )
@@ -50,6 +50,16 @@ class MCBSMixin(AnalysisMixin):
                 pass
             else:
                 upfunc(args)
+                
+    def calc_mcbs_nsets(self, alpha = None):
+        alpha = alpha or self.mcbs_alpha
+        return calc_mcbs_nsets(alpha)
+
+    def calc_ci_bound_indices(self, n_sets=None, alpha=None):
+        n_sets = n_sets or self.mcbs_nsets
+        alpha = alpha or self.mcbs_alpha
+        return calc_ci_bound_indices(n_sets, alpha)
+            
 
 ciinfo_dtype = numpy.dtype([('expectation', numpy.float64),
                             ('ci_lower', numpy.float64),

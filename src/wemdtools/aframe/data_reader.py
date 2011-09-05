@@ -40,8 +40,8 @@ class DataReaderMixin(AnalysisMixin):
                 upcall(parser)
         
         group = parser.add_argument_group('WEMD HDF5 options')
-        group.add_argument('--no-cache', dest='no_cache_rundata', action='store_true',
-                            help='''Disable all caching of WEMD run data.''')
+        #group.add_argument('--no-cache', dest='no_cache_rundata', action='store_true',
+        #                    help='''Disable all caching of WEMD run data.''')
         group.add_argument('run_h5name', nargs='?', metavar='WEMD_H5FILE',
                            help='''Take data from WEMD_H5FILE (default: read from the HDF5 file specified in wemd.cfg).''')
 
