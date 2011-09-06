@@ -56,6 +56,10 @@ elif [ "$1" == "--lprofile" ]; then
     pfile=wemd_lprofile_$$.dat
     echo >&2 "Saving line_profiler information to $pfile"
     $WEMD_KERNPROF -l -o $pfile -v $WEMD_ROOT/lib/cmds/${SCRIPT}.py "$@"
+elif [ "$1" == "--strace" ]; then
+    shift
+    echo >&2 "Running $SCRIPT under strace"
+    strace $WEMD_PYTHON $WEMD_ROOT/lib/cmds/${SCRIPT}.py "$@"
 else
     exec $WEMD_PYTHON $WEMD_ROOT/lib/cmds/${SCRIPT}.py "$@"
 fi

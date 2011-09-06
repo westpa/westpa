@@ -431,6 +431,10 @@ class ZMQWorkManager(ZMQBase, WEMDWorkManager):
         self.remote_task_endpoint = None
         self.remote_results_endpoint = None
         
+        # Use TCP instead of Unix sockets for local communication?
+        self.tcp_only = False
+        
+        
         # The ZMQ widget (Master, Worker, or Node) associated with this
         # process
         self.zdev = None
@@ -452,6 +456,9 @@ class ZMQWorkManager(ZMQBase, WEMDWorkManager):
                             help='Port where remote workers contact the master to receive work (default: %(default)s)')
         parser.add_argument('--rport', type=int, default=DEFAULT_RESULTS_PORT,
                             help='Port where remote workers return completed tasks to the master (default: %(default)s)')
+        parser.add_argument('--tcponly', dest='tcp_only', action='store_true',
+                            help='''Use TCP for all communications, even within a node (default: use Unix-domain sockets for
+                            communication within a node).''')
         
         master_opts = parser.add_argument_group('options for WEMD master processes')
         master_opts.add_argument('-b', '--blocksize', type=int, dest='blocksize', default=1,
@@ -469,13 +476,14 @@ class ZMQWorkManager(ZMQBase, WEMDWorkManager):
         args, extra_args = parser.parse_known_args(aux_args)
         
         # zmq expects an IP address, not a hostname, for TCP transports
-        # otherwise, the cryptic "no such device" error happens
+        # otherwise, a cryptic "no such device" error happens
         self.upstream_host =  runtime_config['zmq_work_manager.upstream_host'] = socket.gethostbyname(args.host)
         self.ann_port =       runtime_config['zmq_work_manager.ann_port'] = args.aport
         self.task_port =      runtime_config['zmq_work_manager.task_port'] = args.tport
         self.results_port =   runtime_config['zmq_work_manager.results_port'] = args.rport
         self.n_workers =      runtime_config['zmq_work_manager.n_workers'] = args.n_workers
         self.blocksize =      runtime_config['zmq_work_manager.blocksize'] = args.blocksize
+        self.tcp_only  =      runtime_config['zmq_work_manager.tcp_only'] = args.tcp_only
         
         return extra_args
         
@@ -524,9 +532,15 @@ class ZMQWorkManager(ZMQBase, WEMDWorkManager):
     def startup(self):
         
         # Assign paths for local IPC endpoints; these will be carried across fork()s
-        self.local_ann_endpoint = self.make_ipc_endpoint()
-        self.local_task_endpoint = self.make_ipc_endpoint()
-        self.local_results_endpoint = self.make_ipc_endpoint()
+        
+        if self.tcp_only:
+            self.local_ann_endpoint = 'tcp://localhost:{}'.format(self.ann_port)
+            self.local_task_endpoint = 'tcp://localhost:{}'.format(self.task_port)
+            self.local_results_endpoint = 'tcp://localhost:{}'.format(self.results_port)
+        else:
+            self.local_ann_endpoint = self.make_ipc_endpoint()
+            self.local_task_endpoint = self.make_ipc_endpoint()
+            self.local_results_endpoint = self.make_ipc_endpoint()
         
         # Connect to a specific remote host for now; maybe add wildcards for the master later
         self.remote_ann_endpoint = 'tcp://{}:{}'.format(self.upstream_host, self.ann_port)

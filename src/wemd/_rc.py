@@ -72,6 +72,18 @@ class _WEMDRC:
 
         self.config = ConfigDict()
         self.process_name = os.path.splitext(os.path.basename(sys.argv[0]))[0]
+        
+    @property
+    def verbose_mode(self):
+        return self.verbosity == 'verbose'
+    
+    @property
+    def debug_mode(self):
+        return self.verbosity == 'debug'
+    
+    @property
+    def quiet_mode(self):
+        return self.verbosity == 'quiet'
                             
     def process_args(self, args, config_required = True):
         self.cmdline_args = args

@@ -74,7 +74,7 @@ finally:
         log.debug('work_manager.shutdown() not called -- calling directly')
         work_manager.shutdown()
 
-if args.debug_mode:
+if wemd.rc.verbosity == 'debug':
     import threading, thread
     for thread in threading.enumerate():
         if 'MainThread' not in thread.name:
