@@ -61,17 +61,16 @@ class IterRangeMixin(AnalysisMixin):
         wemd.rc.pstatus('Processing iterations from {self.first_iter:d} to {self.last_iter:d}, inclusive (step size {self.iter_step:d})'.format(self=self))
         
     def iter_block_iter(self):
-        '''Return an iterable of (block_begin,block_end) over the blocks of iterations
+        '''Return an iterable of (block_begin,past_block_end) over the blocks of iterations
         selected by --first/--last/--step.'''
                             
         for blkfirst in xrange(self.first_iter, self.last_iter+1, self.iter_step):
-            yield (blkfirst, min(blkfirst+self.iter_step,self.last_iter+1)) 
+            yield(blkfirst, min(self.last_iter, blkfirst+self.iter_step-1)+1)
+             
         
     def n_iter_blocks(self):
-        if self.iter_step == 1 or self.last_iter % self.iter_step > 0:
-            xrend = self.last_iter + self.iter_step
+        npoints = self.last_iter - self.first_iter + 1
+        if npoints % self.iter_step == 0:
+            return npoints // self.iter_step
         else:
-            xrend = self.last_iter
-            
-        nblocks = (xrend - self.first_iter + 1) // self.iter_step
-        return nblocks
+            return npoints // self.iter_step + 1

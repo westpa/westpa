@@ -1,6 +1,6 @@
 from __future__ import division, print_function; __metaclass__ = type
 
-import sys, os, tempfile, logging, socket, multiprocessing, cPickle, threading, time, uuid, signal
+import sys, os, tempfile, logging, socket, multiprocessing, threading, time, uuid
 import argparse
 import collections
 import zmq
@@ -53,6 +53,7 @@ class ZMQBase:
         os.close(fd)
         endpoint = 'ipc://{}'.format(socket_path)
         self._ipc_endpoints.append(endpoint)
+        log.debug('created IPC endpoint {!r}'.format(socket_path))
         return endpoint
         
     def remove_ipc_endpoints(self):
@@ -62,7 +63,7 @@ class ZMQBase:
             try:
                 os.unlink(socket_path)
             except OSError as e:
-                log.debug('could not unlink IPC endpoint {!r}: {}'.format(socket_path, e))
+                log.warning('could not unlink IPC endpoint {!r}: {}'.format(socket_path, e))
             else:
                 log.debug('unlinked IPC endpoint {!r}'.format(socket_path))
                 
@@ -534,9 +535,9 @@ class ZMQWorkManager(ZMQBase, WEMDWorkManager):
         # Assign paths for local IPC endpoints; these will be carried across fork()s
         
         if self.tcp_only:
-            self.local_ann_endpoint = 'tcp://localhost:{}'.format(self.ann_port)
-            self.local_task_endpoint = 'tcp://localhost:{}'.format(self.task_port)
-            self.local_results_endpoint = 'tcp://localhost:{}'.format(self.results_port)
+            self.local_ann_endpoint = 'tcp://127.0.0.1:{}'.format(self.ann_port)
+            self.local_task_endpoint = 'tcp://127.0.0.1:{}'.format(self.task_port)
+            self.local_results_endpoint = 'tcp://127.0.0.1:{}'.format(self.results_port)
         else:
             self.local_ann_endpoint = self.make_ipc_endpoint()
             self.local_task_endpoint = self.make_ipc_endpoint()

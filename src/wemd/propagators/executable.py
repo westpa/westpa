@@ -161,7 +161,11 @@ class ExecutablePropagator(WEMDPropagator):
             os.dup2(stderr_fd,2)
                         
             # Execute
-            os.execlpe(exename, 'wemd_worker[%s]' % os.path.basename(exename), child_environ)
+            try:
+                os.execlpe(exename, 'wemd_worker[%s]' % os.path.basename(exename), child_environ)
+            except Exception as e:
+                log.debug('could not execute {!r}: {!s}'.format(exename, e))
+                raise
     
     def _iter_env(self, n_iter):
         addtl_environ = {self.ENV_CURRENT_ITER: str(n_iter)}
@@ -218,15 +222,21 @@ class ExecutablePropagator(WEMDPropagator):
     
     def _run_pre_post(self, child_info, env_func, template_func, args=(), kwargs={}):
         if child_info['executable']:
-            rc, rusage = self._exec(child_info, env_func(*args, **kwargs), template_func(*args, **kwargs))
-            if rc != 0:
-                log.warning('%s executable %r returned %s'
-                            % (child_info['child_type'], 
-                               child_info['executable'],
-                               rc))
+            try:
+                rc, rusage = self._exec(child_info, env_func(*args, **kwargs), template_func(*args, **kwargs))
+            except OSError as e:
+                log.warning('could not execute {} program {!r}: {}'.format(child_info['child_type'],
+                                                                           child_info['executable'],
+                                                                           e))
             else:
-                log.debug('%s executable exited successfully' 
-                          % child_info['child_type'])
+                if rc != 0:
+                    log.warning('%s executable %r returned %s'
+                                % (child_info['child_type'], 
+                                   child_info['executable'],
+                                   rc))
+                else:
+                    log.debug('%s executable exited successfully' 
+                              % child_info['child_type'])
         
     def pre_iter(self, n_iter):
         self.rtracker.begin('pre_iter')
