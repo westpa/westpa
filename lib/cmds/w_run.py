@@ -64,15 +64,12 @@ if work_manager.mode == 'master':
         
         log.debug('finalizing run')
         sim_manager.finalize_run()
+        
+        work_manager.shutdown(0)
     finally:
         log.debug('back from sim manager')
-        if sys.exc_info != (None, None, None):
-            log.error('unhandled exception; traceback follows')
-            if not work_manager.shutdown_called:
-                work_manager.shutdown(4)
-        else:
-            if not work_manager.shutdown_called:
-                work_manager.shutdown(0)
+        if not work_manager.shutdown_called:
+            work_manager.shutdown(4)
                             
 else:
     log.debug('running worker loop')
@@ -83,11 +80,3 @@ if wemd.rc.verbosity == 'debug':
     for thread in threading.enumerate():
         if 'MainThread' not in thread.name:
             log.debug('thread {!r} is still alive'.format(thread))
-
-if args.do_kill_children:
-    log.warning('killing children')
-    prev_handler = signal.signal(signal.SIGTERM, signal.SIG_IGN)
-    try:
-        os.kill(-os.getpid(), signal.SIGTERM)
-    finally:
-        signal.signal(signal.SIGTERM, prev_handler)

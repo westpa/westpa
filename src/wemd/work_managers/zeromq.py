@@ -1,6 +1,6 @@
 from __future__ import division, print_function; __metaclass__ = type
 
-import sys, os, logging, socket, multiprocessing, threading, time, uuid
+import sys, os, logging, socket, multiprocessing, threading, time, uuid, numpy
 import argparse
 import collections
 import zmq
@@ -10,15 +10,7 @@ from wemd.work_managers import WEMDWorkManager
 log = logging.getLogger(__name__)
 
 DEFAULT_ANN_PORT     = 23811
-DEFAULT_TASK_PORT    = 23812
-
-def _do_task(propagator, task):
-    if task.task_type == 'propagate':
-        propagator.propagate(task.operand)
-        return Result(task.task_id, task.task_type, task.operand)
-    else:
-        log.error('invalid task type {!r}'.format(task.task_type))
-    
+DEFAULT_TASK_PORT    = 23812    
 
 class Task:        
     def __init__(self, task_type, operand, task_id = None):
@@ -52,7 +44,7 @@ class Result:
             
 class ZMQBase:
     def __init__(self, context=None):
-        self.context = context or zmq.Context(4)
+        self.context = context or zmq.Context(multiprocessing.cpu_count())
         log.debug('ZMQ context {!r}'.format(self.context))
 
 class ZMaster(ZMQBase):
@@ -75,6 +67,7 @@ class ZMaster(ZMQBase):
         
         # Shutdown at next opportunity?
         self.shutdown_flag = False
+        self.shutdown_exit_code = 0
         
         # incoming tasks, undispatched
         self.task_queue = collections.deque()
@@ -108,10 +101,17 @@ class ZMaster(ZMQBase):
                 
     def announce_tasks(self):
         current_time = time.time()
-        if current_time - self.last_announcement >= self.announce_interval:
+        qlen = len(self.task_queue)
+        if qlen and (current_time - self.last_announcement >= self.announce_interval):
             log.debug('announcing tasks available')
             self.ann_socket.send_pyobj(('taskavail', self.task_endpoint))
-        self.last_announcement = time.time()
+            self.last_announcement = time.time()
+        else:
+            self.last_announcement = 0
+        
+    def reset_announce_timer(self):
+        if not len(self.task_queue):
+            self.last_announcement = 0
         
     def announce_shutdown(self, exit_code=0):
         '''Announce shutdown and close sockets'''
@@ -158,6 +158,8 @@ class ZMaster(ZMQBase):
                     # Timeout
                     if self.task_queue:
                         self.announce_tasks()
+            else:
+                self.announce_shutdown(self.shutdown_exit_code)
                     
         except KeyboardInterrupt:
             self.announce_shutdown(2) 
@@ -184,8 +186,9 @@ class ZMaster(ZMQBase):
         if tasks:
             self.announce_tasks()
             
-    def shutdown(self):
+    def shutdown(self, exit_code=0):
         self.shutdown_flag = True
+        self.shutdown_exit_code = exit_code
             
 class ZWorker(ZMQBase):
     def __init__(self, ann_endpoint, propagator, n_procs = 1):
@@ -216,12 +219,7 @@ class ZWorker(ZMQBase):
         self.listen_thread = threading.Thread(target=self.listen_loop)
         self.listen_thread.daemon = False
         self.listen_thread.start()
-        
-        self.work_thread = threading.Thread(target=self.work_loop)
-        self.work_thread.daemon = True
-        self.work_thread.start()
-        
-                        
+                                
     def listen_loop(self):
         '''Receive announcements and commands from the master'''
         
@@ -243,31 +241,66 @@ class ZWorker(ZMQBase):
                     log.debug('shutdown received')
                     return
                 elif msg == 'taskavail':
-                    # Push the task endpoint onto the end of the deque that the dispatch thread examines
-                    self.incoming_task_anns.put(payload)
+                    # For as long as we have tasks to do, do them, then await the next "work available" message
+                    task_endpoint = payload
+                    task_socket = self.context.socket(zmq.REQ)
+                    task_socket.connect(task_endpoint)
+                    tasks = True
+                    try:
+                        while tasks:
+                            task_socket.send_pyobj(('request', self.n_procs))
+                            tasks = task_socket.recv_pyobj()
+                            if tasks:
+                                results = self.do_tasks(tasks)
+                                task_socket.send_pyobj(('results', results))
+                                task_socket.recv()
+                    finally:
+                        task_socket.close()
+                        del task_socket
                 else:
                     log.error('unknown message received')
+        else:
+            log.debug('shutting down')
                     
         self.ann_socket.close()
         self.process_pool.close()
         self.process_pool.join()
-                    
-    def work_loop(self):
-        log.debug('worker awaiting tasks')
-        while True:
-            task_endpoint = self.incoming_task_anns.get(True)
-            task_socket = self.context.socket(zmq.REQ)
-            task_socket.connect(task_endpoint)
-            try:
-                task_socket.send_pyobj(('request', self.n_procs))
-                tasks = task_socket.recv_pyobj()
-                results = self.process_pool.map(self.do_task, tasks)
-                task_socket.send_pyobj(('results', results))
-                task_socket.recv()
-            finally:
-                task_socket.close()
-                del task_socket    
+                            
+    def do_tasks(self, tasks):
+        if len(tasks) % self.n_procs == 0:
+            n_blocks = len(tasks) // self.n_procs
+        else:
+            n_blocks = len(tasks) // self.n_procs + 1
+        log.debug('performing {:d} task(s) in {:d} block(s) of size {:d}'.format(len(tasks), n_blocks, self.n_procs))
+        taskarray = numpy.empty((self.n_procs, n_blocks), numpy.object_)
+        taskarray.flat[0:len(tasks)] = tasks
+        threads = [TaskThread(self.propagator, taskarray[ithread,:]) for ithread in xrange(self.n_procs)]
+        for thread in threads:
+            thread.start()
         
+        results = []
+        for thread in threads:
+            thread.join()
+            results.extend(thread.results)
+
+        return results
+    
+class TaskThread(threading.Thread):
+    def __init__(self, propagator, tasks):
+        super(TaskThread,self).__init__()
+        self.propagator = propagator
+        self.tasks = tasks
+        self.results = []
+        
+    def run(self):
+        for task in self.tasks:
+            if task.task_type == 'propagate':
+                segments = task.operand
+                log.debug('propagating {:d} segment(s)'.format(len(segments)))
+                self.propagator.propagate(segments)
+                self.results.append(Result(task.task_id, task.task_type, segments))
+            else:
+                log.error('unsupported task type {!r}'.format(task.task_type))
 
 class ZMQWorkManager(WEMDWorkManager):
     def __init__(self, propagator=None):
@@ -334,13 +367,9 @@ class ZMQWorkManager(WEMDWorkManager):
         
     def shutdown(self, exit_code = 0):
         self.shutdown_called = True
-        log.debug('shutting down with code {}; stack trace follows'.format(exit_code))
-        if wemd.rc.debug_mode:
-            import traceback
-            traceback.print_stack(file=sys.stderr)
         if self.mode == 'master':
             try:
-                self.zdev.shutdown()
+                self.zdev.shutdown(exit_code)
             except Exception as e:
                 log.error('ignorning exception {!r} during shutdown()'.format(e))
                 
@@ -405,10 +434,12 @@ class ZMQWorkManager(WEMDWorkManager):
                     results.append(self.zdev.results_queue.popleft())
                 except IndexError:
                     break
-                
+
+        self.zdev.reset_announce_timer()
+                        
         incoming_segments = []
-        for block in results:
-            incoming_segments.extend(block)
+        for result in results:
+            incoming_segments.extend(result.result)
         
         outgoing_by_id = {segment.seg_id: segment for segment in segments}
         incoming_by_id = {segment.seg_id: segment for segment in incoming_segments}
