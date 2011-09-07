@@ -194,18 +194,12 @@ class ZWorker(ZMQBase):
     def __init__(self, ann_endpoint, propagator, n_procs = 1):
         log.debug('initializing ZWorker with ann_endpoint={!r}, propagator={!r}, n_procs={:d}'
                   .format(ann_endpoint, propagator, n_procs))
-        # Initialize the pool of workers prior to initializing the ZeroMQ context
-        self.n_procs = n_procs
-        self.propagator = propagator
-        self.incoming_task_anns = multiprocessing.Queue()
-        self.outgoing_results = multiprocessing.Queue()
-        
-        self.process_pool = multiprocessing.Pool(n_procs)
-        log.debug('process pool is {!r}'.format(self.process_pool))
-        
         # Initialize our base class to initialize the ZeroMQ context
         ZMQBase.__init__(self)
         
+        self.n_procs = n_procs
+        self.propagator = propagator
+                
         self.ann_endpoint = ann_endpoint
         self.listen_thread = None
         self.work_thread = None        
