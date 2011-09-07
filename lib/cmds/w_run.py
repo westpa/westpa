@@ -1,6 +1,6 @@
 from __future__ import division, print_function
 
-import os, sys, logging, argparse, traceback
+import os, sys, logging, argparse, traceback, signal
 log = logging.getLogger('w_run')
 
 import wemd
@@ -10,16 +10,11 @@ wemd.rc.add_args(parser)
 parser.add_argument('--work-manager', dest='work_manager_name',
                     help='use the given work manager to distribute work among processors (serial, threads, processes, tcpip, zmq, '
                         +'or name a Python class; default: threads)')
-mode_group = parser.add_mutually_exclusive_group()
-mode_group.add_argument('--master', dest='mode', action='store_const', const='master',
-                        help='Run as a WEMD master (responsible for coordinating WE and parallel propagation')
-mode_group.add_argument('--node', dest='mode', action='store_const', const='node',
-                        help='Run as a WEMD node coordinator (a communications broker between a remote master and local workers)')
-mode_group.add_argument('--worker', dest='mode', action='store_const', const='worker',
-                        help='Run as a WEMD worker (listening for work from a master)')
-mode_group.set_defaults(mode='master') 
 parser.add_argument('--oneseg', dest='only_one_segment', action='store_true',
                     help='only propagate one segment (useful for debugging propagators)')
+parser.add_argument('--kill-children', dest='do_kill_children', action='store_true',
+                    help='''Forcibly kill child processes at program termination. (Risks data corruption; should only be used
+                    for debugging.''')
 parser.add_argument('--help-work-manager', dest='do_work_manager_help', action='store_true',
                     help='display help specific to the given work manager')
 
@@ -56,26 +51,43 @@ sim_manager.we_driver = we_driver
 sim_manager.load_plugins()
 
 # Have the work manager perform any preparation prior to simulation (spawning clients, etc)
+log.debug('calling work_manager.startup()')
 work_manager.startup()
 
-# Have the sim manager perform an
-log.debug('preparing run')
-sim_manager.prepare_run()
-
-try:
-    log.debug('beginning run')
-    sim_manager.run()
+if work_manager.mode == 'master':
+    log.debug('preparing run')
+    sim_manager.prepare_run()
     
-    log.debug('finalizing run')
-    sim_manager.finalize_run()
-finally:
-    log.debug('back from sim manager')
-    if not work_manager.shutdown_called:
-        log.debug('work_manager.shutdown() not called -- calling directly')
-        work_manager.shutdown()
+    try:
+        log.debug('beginning run')
+        sim_manager.run()
+        
+        log.debug('finalizing run')
+        sim_manager.finalize_run()
+    finally:
+        log.debug('back from sim manager')
+        if sys.exc_info != (None, None, None):
+            log.error('unhandled exception; traceback follows')
+            if not work_manager.shutdown_called:
+                work_manager.shutdown(4)
+        else:
+            if not work_manager.shutdown_called:
+                work_manager.shutdown(0)
+                            
+else:
+    log.debug('running worker loop')
+    work_manager.run_worker()
 
 if wemd.rc.verbosity == 'debug':
     import threading, thread
     for thread in threading.enumerate():
         if 'MainThread' not in thread.name:
             log.debug('thread {!r} is still alive'.format(thread))
+
+if args.do_kill_children:
+    log.warning('killing children')
+    prev_handler = signal.signal(signal.SIGTERM, signal.SIG_IGN)
+    try:
+        os.kill(-os.getpid(), signal.SIGTERM)
+    finally:
+        signal.signal(signal.SIGTERM, prev_handler)

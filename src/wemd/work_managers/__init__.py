@@ -11,8 +11,8 @@ import wemd
 class WEMDWorkManager:
     def __init__(self, propagator=None):
         self.propagator = propagator
-        self.mode=wemd.rc.config.get('args.mode', 'master')
         self.shutdown_called = False
+        self.mode = 'master'
                 
     def parse_aux_args(self, aux_args, do_help = False):
         '''Parse any unprocessed command-line arguments, returning any arguments not proccessed

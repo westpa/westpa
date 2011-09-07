@@ -134,19 +134,11 @@ class WESimManager:
         self.work_manager.shutdown(exit_code)
                             
     def run(self):
-        """Begin (or continue) running a simulation
-        
-        If ``mode`` is 'master' (the default), runs the entire WE simulation loop. If
-        ``mode`` is 'worker', drops straight into a work manager's "receive-work" loop, if
-        supported
+        """Begin (or continue) running a simulation.  Must only be called in processes whose 
+        work manager has ``mode=='master'``.
         """
         
-        if self.work_manager.mode in ('worker', 'nodeworker'):
-            self.work_manager.run_worker()
-            return
-        elif self.work_manager.mode == 'node':
-            self.work_manager.run_node()
-            return
+        assert self.work_manager.mode == 'master'
         
         # Set up internal timing
         self.rtracker.begin('run')
