@@ -78,7 +78,7 @@ class BinningMixin(AnalysisMixin):
         
     def write_bin_labels(self, dest, region_set = None, 
                          header='# bin labels:\n', 
-                         format='# bin {bin_index:{max_iwidth}d -- {label!s}\n'):
+                         format='# bin {bin_index:{max_iwidth}d} -- {label!s}\n'):
         '''Print labels for all bins in the given RegionSet (or ``self.region_set``) to ``dest``.  If provided, ``header`` 
         is printed before any labels.   The ``format`` string specifies how bin labels are to be printed.  Valid entries are:
           * ``bin_index`` -- the zero-based index of the bin

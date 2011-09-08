@@ -4,7 +4,7 @@ import logging
 
 log = logging.getLogger(__name__)
 
-import wemd, wemdtools
+import wemd
 
 from wemdtools.aframe import AnalysisMixin, ArgumentError
                     
@@ -69,6 +69,7 @@ class IterRangeMixin(AnalysisMixin):
              
         
     def n_iter_blocks(self):
+        '''Return the number of blocks of iterations (as returned by ``iter_block_iter``) selected by --first/--last/--step.'''
         npoints = self.last_iter - self.first_iter + 1
         if npoints % self.iter_step == 0:
             return npoints // self.iter_step

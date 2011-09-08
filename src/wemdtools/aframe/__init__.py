@@ -34,3 +34,5 @@ from default_mixins import IterRangeMixin
 from data_reader import DataReaderMixin
 from binning import BinningMixin
 from mcbs import MCBSMixin
+from trajwalker import TrajWalker
+from transacc import TransitionAnalysisMixin, TransitionEventAccumulator

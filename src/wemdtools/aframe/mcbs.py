@@ -75,7 +75,7 @@ def calc_ci_bound_indices(n_sets, alpha):
 
 def bootstrap_ci_ll(estimator, data, alpha, n_sets, storage, sort, eargs=(), ekwargs={}, fhat=None):
     '''Low-level routine for calculating bootstrap error estimates.  Arguments and return values are as those for
-    ``bootstrap_ci``, except that no argument is optional except additional arguments for the estimator.
+    ``bootstrap_ci``, except that no argument is optional except additional arguments for the estimator (``eargs``, ``ekwargs``).
     ``data`` must be an array (or subclass), and an additional array ``storage`` must be provided, which
     must be appropriately shaped and typed to hold ``n_sets`` results from ``estimator``.  Further, if the
     value ``fhat`` of the estimator must be pre-calculated to allocate ``storage``, then its value may be

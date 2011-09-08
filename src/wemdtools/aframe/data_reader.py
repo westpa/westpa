@@ -113,7 +113,7 @@ class DataReaderMixin(AnalysisMixin):
     
     def get_segments(self, n_iter, include_pcoords = None):
         '''Return all segments present in iteration n_iter'''
-        return self.get_segments_by_id(n_iter, self.get_seg_ids_where(n_iter, None), include_pcoords)
+        return self.get_segments_by_id(n_iter, self.get_seg_ids(n_iter, None), include_pcoords)
     
     def get_segments_by_id(self, n_iter, seg_ids, include_pcoords = True):
         '''Get segments from the data manager, employing caching where possible'''
@@ -154,10 +154,10 @@ class DataReaderMixin(AnalysisMixin):
 
         return segments        
     
-    def get_children(self, segment):
+    def get_children(self, segment, include_pcoords=True):
         p_parents = self.get_p_parent_array(segment.n_iter+1)
-        seg_ids = self.get_seg_ids_where(segment.n_iter+1, p_parents == segment.seg_id)
-        return self.get_segments_by_id(segment.n_iter+1, seg_ids)
+        seg_ids = self.get_seg_ids(segment.n_iter+1, p_parents == segment.seg_id)
+        return self.get_segments_by_id(segment.n_iter+1, seg_ids, include_pcoords)
 
     def get_seg_index(self, n_iter):
         try:
@@ -203,7 +203,7 @@ class DataReaderMixin(AnalysisMixin):
         else:
             return self.get_pcoord_dataset(n_iter)[list(seg_ids),...]
         
-    def get_seg_ids_where(self, n_iter, bool_array = None):
+    def get_seg_ids(self, n_iter, bool_array = None):
         try:
             all_ids = self.__c_seg_id_ranges[n_iter]
         except KeyError:
@@ -221,6 +221,15 @@ class DataReaderMixin(AnalysisMixin):
                 return [seg_ids]
             else:
                 return seg_ids
+    
+    def get_created_seg_ids(self, n_iter):
+        '''Return a list of seg_ids corresponding to segments which were created for the given iteration (are not
+        continuations).'''
+        
+        # Created segments have p_parent_id < 0
+        p_parent_ids = self.get_p_parent_array(n_iter)        
+        return self.get_seg_ids(n_iter, p_parent_ids < 0)
+
 
     def max_iter_segs_in_range(self, first_iter, last_iter):
         '''Return the maximum number of segments present in any iteration in the range selected'''

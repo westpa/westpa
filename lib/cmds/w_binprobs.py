@@ -31,9 +31,10 @@ class WBinprobs(BinningMixin, IterRangeMixin, DataReaderMixin, WEMDAnalysisTool)
                                self.last_iter+self.iter_step if (self.iter_step ==1 or self.last_iter % self.iter_step) 
                                                              else self.last_iter, 
                                self.iter_step)
-
-        populations = numpy.empty((len(first_n_iters), self.n_bins), dtype=ciinfo_dtype)
-        iter_bounds = numpy.empty((len(first_n_iters), 2), numpy.min_scalar_type(self.last_iter))
+        
+        n_blocks = self.n_iter_blocks()
+        populations = numpy.empty((n_blocks, self.n_bins), dtype=ciinfo_dtype)
+        iter_bounds = numpy.empty((n_blocks, 2), numpy.min_scalar_type(self.last_iter))
         
         # Iterate over blocks
         for iblock, (n_iter, last_n_iter) in enumerate(self.iter_block_iter()):
@@ -161,7 +162,7 @@ ogroup.add_argument('-o', '--output', default='binprobs.txt',
                     help='''Write average bin probabilities to OUTPUT (default: %(default)s).''')
 ogroup.add_argument('--no-headers', dest='suppress_headers', action='store_true',
                     help='''Do not write (commented) headers to output files.''')
-ogroup.add_argument('--bin-labels', dest='write_bin_labels', action='store_true',
+ogroup.add_argument('--binlabels', dest='write_bin_labels', action='store_true',
                     help='''Write bin labels to output files.''')
 
 args = parser.parse_args()

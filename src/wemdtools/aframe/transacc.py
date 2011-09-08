@@ -1,9 +1,15 @@
-from __future__ import division; __metaclass__ = type
+from __future__ import division, print_function; __metaclass__ = type
+
+import logging
+
+log = logging.getLogger(__name__)
+
 import numpy
 from itertools import izip
 
-import logging
-log = logging.getLogger(__name__)
+import wemd
+from wemdtools.aframe import AnalysisMixin
+from wemdtools.aframe.trajwalker import TrajWalker
 
 class TransitionEventAccumulator:
     index_dtype  = numpy.uintp
@@ -139,11 +145,13 @@ class TransitionEventAccumulator:
         self.output_tdat_offset += nbuf
         self.tdat_buffer_offset = 0
         
+    @profile
     def start_accumulation(self, assignments, weights, bin_pops, block=0):
         self.clear_state()
         timepoints = numpy.arange(len(assignments))
         self._accumulate_transitions(timepoints, assignments, weights, bin_pops, block)
     
+    @profile
     def continue_accumulation(self, assignments, weights, bin_pops, block=0):
         aug_assign = numpy.empty((len(assignments)+1,), assignments.dtype)
         aug_assign[0] = self.last_bin
@@ -162,7 +170,8 @@ class TransitionEventAccumulator:
         
         self._accumulate_transitions(timepoints, aug_assign, aug_weights, aug_pops, block)
         
-    
+
+    @profile    
     def _accumulate_transitions(self, timepoints, assignments, weights, bin_pops, block):
         tdat = []
         
@@ -222,4 +231,116 @@ class TransitionEventAccumulator:
         self.timepoint = timepoints[-1]
         self.last_bin = assignments[-1]
         self.last_bin_pop = bin_pops[-1,assignments[-1]]
+
+class TransitionAnalysisMixin(AnalysisMixin):
+    def __init__(self):
+        super(TransitionAnalysisMixin,self).__init__()
+        self.__discard_transition_data = False
+        
+        self.ed_stats_filename = None
+        self.flux_stats_filename = None
+        self.rate_stats_filename = None
+        self.suppress_headers = None
+        self.print_bin_labels = None
+        
+        self.trans_h5gname = 'transitions'
+        self.trans_h5group = None
+
+    def __require_group(self):
+        if self.trans_h5group is None:
+            self.trans_h5group = self.anal_h5file.require_group(self.trans_h5gname)
+        return self.trans_h5group
+
+    def add_args(self, parser, upcall = True):
+        if upcall:
+            try:
+                upfunc = super(TransitionAnalysisMixin,self).add_args
+            except AttributeError:
+                pass
+            else:
+                upfunc(parser)
+        
+        group = parser.add_argument_group('transition analysis options')
+        group.add_argument('--discard-transition-data', dest='discard_transition_data', action='store_true',
+                           help='''Discard any existing transition data stored in the analysis HDF5 file.''')
+        group.add_argument('--dt', dest='dt', type=float, default=1.0,
+                           help='Assume input data has a time spacing of DT (default: %(default)s).')
+
+        output_options = parser.add_argument_group('transition analysis output options')        
+        output_options.add_argument('--edstats', dest='ed_stats', default='edstats.txt',
+                                    help='Store event duration statistics in ED_STATS (default: edstats.txt)')
+        output_options.add_argument('--fluxstats', dest='flux_stats', default='fluxstats.txt',
+                                    help='Store flux statistics in FLUX_STATS (default: fluxstats.txt)')
+        output_options.add_argument('--ratestats', dest='rate_stats', default='ratestats.txt',
+                                    help='Store rate statistics in RATE_STATS (default: ratestats.txt)')
+        output_options.add_argument('--noheaders', dest='suppress_headers', action='store_true',
+                                    help='Do not include headers in text output files (default: include headers)')
+        output_options.add_argument('--binlabels', dest='print_bin_labels', action='store_true',
+                                    help='Print bin labels in output files, if available (default: do not print bin labels)')
+
+        
+    
+    def process_args(self, args, upcall = True):                
+        self.__discard_transition_data = args.discard_transition_data
+        
+        self.ed_stats_filename = args.ed_stats
+        self.flux_stats_filename = args.flux_stats
+        self.rate_stats_filename = args.rate_stats
+        self.suppress_headers = args.suppress_headers
+        self.print_bin_labels = args.print_bin_labels
+        
+        if upcall:
+            try:
+                upfunc = super(TransitionAnalysisMixin,self).process_args
+            except AttributeError:
+                pass
+            else:
+                upfunc(args)
+
+    def find_transitions(self):
+        wemd.rc.pstatus('Finding transitions...')
+        output_group = self.__require_group()
+            
+        self.n_segs_visited = 0
+        self.n_total_segs = self.total_segs_in_range(self.first_iter,self.last_iter)
+        self.accumulator = TransitionEventAccumulator(self.n_bins, output_group)        
+        self.bin_assignments = self.binning_h5group['bin_assignments'][...]
+        self.bin_populations = self.binning_h5group['bin_populations'][...]
+        
+        walker = TrajWalker(data_reader = self)
+        walker.trace_trajectories(self.first_iter, self.last_iter, callable=self._segment_callback)
+        self.accumulator.flush_transition_data()
+        try:
+            del output_group['n_trans']
+        except KeyError:
+            pass
+        output_group['n_trans'] = self.accumulator.n_trans
+        self.accumulator.clear()
+        wemd.rc.pstatus()
+        
+        del self.assignments, self.populations
+        self.assignments = self.populations = None
+                
+    def _segment_callback(self, segment, children, history):
+        iiter = segment.n_iter - self.first_iter
+        seg_id = segment.seg_id
+        weights = numpy.empty((self.get_pcoord_len(segment.n_iter),), numpy.float64)
+        weights[:] = segment.weight
+        bin_pops = self.bin_populations[iiter, :, :]
+        
+        if len(history) == 0:
+            # New trajectory
+            self.accumulator.start_accumulation(self.bin_assignments[iiter, seg_id, :], weights, bin_pops, block=segment.n_iter)
+        else:
+            # Continuing trajectory
+            self.accumulator.continue_accumulation(self.bin_assignments[iiter, seg_id, :], weights, bin_pops, block=segment.n_iter)
+            
+        self.n_segs_visited += 1
+        
+        if not wemd.rc.quiet_mode and (self.n_segs_visited % 1000 == 0 or self.n_segs_visited == self.n_total_segs):
+            pct_visited = self.n_segs_visited / self.n_total_segs * 100
+            wemd.rc.pstatus('\r  {:d} of {:d} segments ({:.1f}%) analyzed'.format(long(self.n_segs_visited), 
+                                                                                  long(self.n_total_segs), 
+                                                                                  float(pct_visited)), end='')
+            wemd.rc.pflush()
         
