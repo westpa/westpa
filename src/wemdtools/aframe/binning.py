@@ -79,7 +79,7 @@ class BinningMixin(AnalysisMixin):
         
         return RectilinearRegionSet(eval(expr, namespace))
         
-    def write_bin_labels(self, dest, region_set = None, 
+    def write_bin_labels(self, dest, 
                          header='# bin labels:\n', 
                          format='# bin {bin_index:{max_iwidth}d} -- {label!s}\n'):
         '''Print labels for all bins in the given RegionSet (or ``self.region_set``) to ``dest``.  If provided, ``header`` 
@@ -88,9 +88,8 @@ class BinningMixin(AnalysisMixin):
           * ``label`` -- the label, as obtained by ``bin.label``
           * ``max_iwidth`` -- the maximum width (in characters) of the bin index, for pretty alignment
         '''
-        region_set = region_set or self.region_set
         dest.write(header or '')
-        bins = region_set.get_all_bins()
+        bins = self.region_set.get_all_bins()
         max_iwidth = len(str(len(bins)-1))
         for (ibin, bin) in enumerate(bins):
             dest.write(format.format(bin_index=ibin, label=bin.label, max_iwidth=max_iwidth))

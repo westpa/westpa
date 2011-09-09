@@ -236,11 +236,6 @@ class TransitionAnalysisMixin(AnalysisMixin):
         super(TransitionAnalysisMixin,self).__init__()
         self.__discard_transition_data = False
         
-        self.ed_stats_filename = None
-        self.flux_stats_filename = None
-        self.rate_stats_filename = None
-        self.suppress_headers = None
-        self.print_bin_labels = None
         
         self.trans_h5gname = 'transitions'
         self.trans_h5group = None
@@ -280,32 +275,11 @@ class TransitionAnalysisMixin(AnalysisMixin):
         
         group = parser.add_argument_group('transition analysis options')
         group.add_argument('--discard-transition-data', dest='discard_transition_data', action='store_true',
-                           help='''Discard any existing transition data stored in the analysis HDF5 file.''')
-        group.add_argument('--dt', dest='dt', type=float, default=1.0,
-                           help='Assume input data has a time spacing of DT (default: %(default)s).')
-
-        output_options = parser.add_argument_group('transition analysis output options')        
-        output_options.add_argument('--edstats', dest='ed_stats', default='edstats.txt',
-                                    help='Store event duration statistics in ED_STATS (default: edstats.txt)')
-        output_options.add_argument('--fluxstats', dest='flux_stats', default='fluxstats.txt',
-                                    help='Store flux statistics in FLUX_STATS (default: fluxstats.txt)')
-        output_options.add_argument('--ratestats', dest='rate_stats', default='ratestats.txt',
-                                    help='Store rate statistics in RATE_STATS (default: ratestats.txt)')
-        output_options.add_argument('--noheaders', dest='suppress_headers', action='store_true',
-                                    help='Do not include headers in text output files (default: include headers)')
-        output_options.add_argument('--binlabels', dest='print_bin_labels', action='store_true',
-                                    help='Print bin labels in output files, if available (default: do not print bin labels)')
-
-        
+                           help='''Discard any existing transition data stored in the analysis HDF5 file.''')        
     
     def process_args(self, args, upcall = True):                
         self.__discard_transition_data = args.discard_transition_data
         
-        self.ed_stats_filename = args.ed_stats
-        self.flux_stats_filename = args.flux_stats
-        self.rate_stats_filename = args.rate_stats
-        self.suppress_headers = args.suppress_headers
-        self.print_bin_labels = args.print_bin_labels
         
         if upcall:
             try:
@@ -344,9 +318,11 @@ class TransitionAnalysisMixin(AnalysisMixin):
         except KeyError:
             pass
         output_group['n_trans'] = self.accumulator.n_trans
-        output_group.attrs['first_iter'] = self.first_iter
-        output_group.attrs['last_iter']  = self.last_iter
-        output_group.attrs['binhash'] = self.region_set_hash.digest()
+        
+        for h5object in (output_group, output_group['n_trans'], output_group['transitions']):
+            self.record_data_iter_range(h5object)
+            self.record_data_binhash(h5object)
+        
         self.accumulator.clear()
         wemd.rc.pstatus()
         
