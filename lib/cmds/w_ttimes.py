@@ -192,7 +192,7 @@ wtt.check_iter_range()
 wtt.open_analysis_backing()
 wtt.ttimes_group = wtt.require_analysis_group('w_ttimes', replace=False)
 wtt.require_bin_assignments()
-wtt.find_transitions()
+wtt.require_transitions()
 
 
 

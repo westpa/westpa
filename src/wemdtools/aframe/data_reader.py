@@ -111,7 +111,7 @@ class DataReaderMixin(AnalysisMixin):
             iter_group = self.data_manager.get_iter_group(n_iter)
             return iter_group
     
-    def get_segments(self, n_iter, include_pcoords = None):
+    def get_segments(self, n_iter, include_pcoords = True):
         '''Return all segments present in iteration n_iter'''
         return self.get_segments_by_id(n_iter, self.get_seg_ids(n_iter, None), include_pcoords)
     
@@ -127,8 +127,6 @@ class DataReaderMixin(AnalysisMixin):
 
         if include_pcoords:
             pcoords = self.get_pcoords(n_iter, seg_ids)
-            #for (segment, pcoord_set) in izip(segments, pcoords):
-            #    segment.pcoord = pcoord_set
         
         for (isegid, seg_id) in enumerate(seg_ids):
             row = seg_index[seg_id]
@@ -150,7 +148,6 @@ class DataReaderMixin(AnalysisMixin):
             segment.parent_ids = {long(parent_id) for parent_id in parent_ids}
             segment.p_parent_id = long(parent_ids[0])
             segments.append(segment)
-            
 
         return segments        
     
