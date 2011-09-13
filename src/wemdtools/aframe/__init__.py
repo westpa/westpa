@@ -36,3 +36,4 @@ from binning import BinningMixin
 from mcbs import MCBSMixin
 from trajwalker import TrajWalker
 from transacc import TransitionAnalysisMixin, TransitionEventAccumulator
+from kinetics import KineticsAnalysisMixin

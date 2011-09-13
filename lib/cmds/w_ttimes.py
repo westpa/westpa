@@ -2,8 +2,6 @@ from __future__ import print_function, division; __metaclass__=type
 import os, sys, argparse, math, warnings, re
 import numpy, h5py
 import wemd, wemdtools
-#from wemdtools.transitions.transacc import TransitionEventAccumulator
-#from wemdtools.trajectories.trajtree import TrajTree
 
 import logging
 log = logging.getLogger('w_ttimes')
@@ -117,13 +115,13 @@ class WTTimes(MCBSMixin,TransitionAnalysisMixin,BinningMixin,IterRangeMixin,Data
                 pass
             
             ds = self.ttimes_group.create_dataset(dsname, data=data)
-            ds.attrs['dt'] = dt
-            ds.attrs['total_time'] = total_time
-            ds.attrs['ci_alpha'] = self.mcbs_alpha
-            ds.attrs['ci_n_sets'] = self.mcbs_nsets
+            ds.attrs.update({'dt': dt, 'total_time': total_time, 'ci_alpha': self.mcbs_alpha, 'ci_n_sets': self.mcbs_nsets})
             
             self.record_data_iter_range(ds)
             self.record_data_binhash(ds)
+
+        self.ttimes_group.attrs.update({'dt': dt, 'total_time': total_time, 
+                                        'ci_alpha': self.mcbs_alpha, 'ci_n_sets': self.mcbs_nsets})
             
         self.durations = durations
         self.fluxes = fluxes
@@ -261,13 +259,3 @@ wtt.require_transitions()
 wtt.gen_stats()
 wtt.summarize_stats()
 
-
-
-#if args.limit_calc_to in (None, 'statistics'):
-#    alpha = 1.0 - args.confidence
-#    n_sets = args.bssize or wemdtools.stats.mcbs.get_bssize(alpha)    
-#    helper.gen_stats(n_sets, alpha, args.dt)    
-#    
-#if args.limit_calc_to in (None, 'summary'):
-#    helper.summarize_stats(args)
-        

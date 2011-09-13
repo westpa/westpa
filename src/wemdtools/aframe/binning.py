@@ -4,6 +4,7 @@ import logging
 
 log = logging.getLogger(__name__)
 
+import re
 import numpy
 
 import wemd
@@ -183,4 +184,7 @@ class BinningMixin(AnalysisMixin):
 
     def get_bin_populations(self, first_iter = None, last_iter = None):
         return self.slice_per_iter_data(self.binning_h5group['bin_populations'], first_iter, last_iter)
+    
+        
+        
         

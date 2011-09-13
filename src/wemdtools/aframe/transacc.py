@@ -5,7 +5,7 @@ import logging
 log = logging.getLogger(__name__)
 
 import numpy
-from itertools import izip
+from itertools import izip, imap
 
 import wemd
 from wemdtools.aframe import AnalysisMixin
@@ -236,9 +236,9 @@ class TransitionAnalysisMixin(AnalysisMixin):
         super(TransitionAnalysisMixin,self).__init__()
         self.__discard_transition_data = False
         
-        
         self.trans_h5gname = 'transitions'
         self.trans_h5group = None
+        self.__transitions_ds = None
 
     def __require_group(self):
         if self.trans_h5group is None:
@@ -263,7 +263,14 @@ class TransitionAnalysisMixin(AnalysisMixin):
             self.__delete_group()
                 
         self.__require_group()
-
+        
+    def get_transitions_ds(self):
+        if self.__transitions_ds is not None:
+            return self.__transitions_ds
+        else:
+            self.__transitions_ds = self.trans_h5group['transitions']
+            return self.__transitions_ds
+    
     def add_args(self, parser, upcall = True):
         if upcall:
             try:
