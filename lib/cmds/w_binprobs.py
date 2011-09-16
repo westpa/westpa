@@ -6,7 +6,7 @@ log = logging.getLogger('w_binprobs')
 
 import wemd
 
-from wemdtools.aframe import WEMDAnalysisTool, BinningMixin, DataReaderMixin, IterRangeMixin
+from wemdtools.aframe import WEMDAnalysisTool, BinningMixin, WEMDDataReaderMixin, IterRangeMixin
 
 ciinfo_dtype = numpy.dtype([('expectation', numpy.float64),
                             ('ci_lower', numpy.float64),
@@ -16,7 +16,7 @@ ciinfo_dtype = numpy.dtype([('expectation', numpy.float64),
 # Upcalls move left to right
 # If some complex dependencies exist, one can always override the process_args function and
 # call parent classes' process_args() manually in an order that makes sense.
-class WBinprobs(BinningMixin, IterRangeMixin, DataReaderMixin, WEMDAnalysisTool):
+class WBinprobs(BinningMixin, IterRangeMixin, WEMDDataReaderMixin, WEMDAnalysisTool):
     def calc_binprobs_cis(self):
         '''Calculate average bin populations over blocks of iterations, with MCBS error bars.'''
         

@@ -39,7 +39,10 @@ class KineticsAnalysisMixin(AnalysisMixin):
                              comma-separated list of integers or ranges, as in "0,2-4,5,9"''')
     
     def process_args(self, args, upcall = True):
+        
         self.dt = args.dt
+        wemd.rc.pstatus('Assuming input data timestep of {:g}'.format(self.dt))
+        
         if args.ibins_string:
             self.analysis_initial_bins = self.parse_bin_range(args.ibins_string)
             wemd.rc.pstatus('Will calculate based on transitions beginning in the following bins:\n{!s}'
@@ -85,13 +88,13 @@ class KineticsAnalysisMixin(AnalysisMixin):
         n_bins = n_bins or self.n_bins
         
         if self.analysis_initial_bins:
-            if (numpy.array(self.analysis_initial_bins) >= n_bins).any():
+            if (numpy.array(list(self.analysis_initial_bins)) >= n_bins).any():
                 raise ValueError('One or more initial bin indices is out of range.')
         else:
             self.analysis_initial_bins = set(xrange(n_bins))
         
         if self.analysis_final_bins:
-            if (numpy.array(self.analysis_final_bins) >= n_bins).any():
+            if (numpy.array(list(self.analysis_final_bins)) >= n_bins).any():
                 raise ValueError('One or more final bin indices is out of range.')
         else:
             self.analysis_final_bins = set(xrange(n_bins))

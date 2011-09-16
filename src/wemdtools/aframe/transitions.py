@@ -234,35 +234,34 @@ class TransitionEventAccumulator:
 class TransitionAnalysisMixin(AnalysisMixin):
     def __init__(self):
         super(TransitionAnalysisMixin,self).__init__()
-        self.__discard_transition_data = False
+        self.discard_transition_data = False
         
         self.trans_h5gname = 'transitions'
         self.trans_h5group = None
         self.__transitions_ds = None
-
-    def __require_group(self):
+        
+    def require_transitions_group(self):
         if self.trans_h5group is None:
             self.trans_h5group = self.anal_h5file.require_group(self.trans_h5gname)
-        return self.trans_h5group
 
-    def __delete_group(self):
+    def delete_transitions_group(self):
         self.trans_h5group = None
         del self.anal_h5file[self.trans_h5gname]
         
     def check_transitions(self):
-        self.__require_group()
+        self.require_transitions_group()
         
-        if self.__discard_transition_data:
+        if self.discard_transition_data:
             wemd.rc.pstatus('Discarding existing transition data.')
-            self.__delete_group()
+            self.delete_transitions_group()
         elif not self.check_data_binhash(self.trans_h5group):
             wemd.rc.pstatus('Bin definitions have changed; deleting existing transition data.')
-            self.__delete_group()
+            self.delete_transitions_group()
         elif 'transitions' in self.trans_h5group and not self.check_data_iter_range_least(self.trans_h5group): 
             wemd.rc.pstatus('Existing transition data is for different first/last iterations; deleting.')
-            self.__delete_group()
+            self.delete_transitions_group()
                 
-        self.__require_group()
+        self.require_transitions_group()
         
     def get_transitions_ds(self):
         if self.__transitions_ds is not None:
@@ -285,7 +284,7 @@ class TransitionAnalysisMixin(AnalysisMixin):
                            help='''Discard any existing transition data stored in the analysis HDF5 file.''')        
     
     def process_args(self, args, upcall = True):                
-        self.__discard_transition_data = args.discard_transition_data
+        self.discard_transition_data = args.discard_transition_data
         
         
         if upcall:
@@ -305,7 +304,7 @@ class TransitionAnalysisMixin(AnalysisMixin):
 
     def find_transitions(self):
         wemd.rc.pstatus('Finding transitions...')
-        output_group = self.__require_group()
+        output_group = self.require_transitions_group()
             
         self.n_segs_visited = 0
         self.n_total_segs = self.total_segs_in_range(self.first_iter,self.last_iter)
@@ -333,9 +332,6 @@ class TransitionAnalysisMixin(AnalysisMixin):
         self.accumulator.clear()
         wemd.rc.pstatus()
         
-        del self.assignments, self.populations
-        self.assignments = self.populations = None
-
     def _segment_callback(self, segment, children, history):
         iiter = segment.n_iter - self.first_iter
         seg_id = segment.seg_id
@@ -358,4 +354,3 @@ class TransitionAnalysisMixin(AnalysisMixin):
                                                                                   long(self.n_total_segs), 
                                                                                   float(pct_visited)), end='')
             wemd.rc.pflush()
-        

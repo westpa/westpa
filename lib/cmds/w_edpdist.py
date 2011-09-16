@@ -2,29 +2,36 @@ from __future__ import print_function, division; __metaclass__=type
 import os, sys, argparse
 import numpy
 import wemd
+from wemdtools.stats.edfs import EDF
 
 import logging
 log = logging.getLogger('w_edpdist')
 
-from wemdtools.aframe import (WEMDAnalysisTool,DataReaderMixin,IterRangeMixin,TransitionAnalysisMixin,BinningMixin,
+from wemdtools.aframe import (WEMDAnalysisTool,WEMDDataReaderMixin,IterRangeMixin,TransitionAnalysisMixin,BinningMixin,
                               KineticsAnalysisMixin)
                               
-class WEDPDist(KineticsAnalysisMixin,TransitionAnalysisMixin,BinningMixin,IterRangeMixin,DataReaderMixin,WEMDAnalysisTool):
+class WEDPDist(KineticsAnalysisMixin,TransitionAnalysisMixin,BinningMixin,IterRangeMixin,WEMDDataReaderMixin,WEMDAnalysisTool):
     def __init__(self):
         super(WEDPDist,self).__init__()
         
     def calc_cdfs(self):
         transitions_ds = self.get_transitions_ds()
-        transition_iters = transitions_ds['block']
-        for (block_first_iter,block_past_last) in self.iter_block_iter():
-            wemd.rc.pstatus('\r  Iterations [{:d},{:d}): '.format(block_first_iter,block_past_last), end='')
-            wemd.rc.pflush()
-            transitions = transitions_ds[(transition_iters >= block_first_iter) & (transition_iters < block_past_last)]
-            transitions = transitions[numpy.in1d(transitions['initial_bin'], self.analysis_initial_bins)]
-            transitions = transitions[numpy.in1d(transitions['final_bin'], self.analysis_final_bins)]
-            
-            wemd.rc.pflush()
-        wemd.rc.pstatus()
+        #transitions_iter = transitions_ds['block']
+        transitions_ibin = transitions_ds['initial_bin']
+        transitions_fbin = transitions_ds['final_bin']
+        for ibin in self.analysis_initial_bins:
+            for fbin in self.analysis_final_bins:
+                transitions = transitions_ds[(transitions_ibin == ibin) & (transitions_fbin == fbin)]
+                wemd.rc.pstatus('  {:d}->{:d}: {:d} transitions'.format(ibin,fbin,len(transitions)),end='')
+                if len(transitions):
+                    edf = EDF(transitions['duration'], weights=transitions['final_weight'])
+                    edf_array = edf.as_array()
+                    edf_array[:,0] *= self.dt
+                    wemd.rc.pstatus('; max duration = {:g}'.format(float(edf_array[-1,0])), end='')
+                    numpy.savetxt('ed_{:d}_{:d}.txt'.format(ibin,fbin), edf_array)
+                    del edf
+                del transitions
+                wemd.rc.pstatus()
 
 
         

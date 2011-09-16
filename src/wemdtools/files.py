@@ -1,9 +1,7 @@
 from __future__ import division, print_function; __metaclass__ = type
 
-import os, sys, warnings
+import warnings
 import numpy
-import wemd
-from wemd.util.config_dict import ConfigDict
 
 def load_npy_or_text(filename):
     '''Load an array from an existing .npy file, or read a text file and

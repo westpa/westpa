@@ -13,7 +13,7 @@ import scipy.signal
 from itertools import izip
 import wemd, wemdtools
 
-from wemdtools.aframe import WEMDAnalysisTool,DataReaderMixin,IterRangeMixin,MCBSMixin
+from wemdtools.aframe import WEMDAnalysisTool,WEMDDataReaderMixin,IterRangeMixin,MCBSMixin
 
 import logging
 log = logging.getLogger('w_fluxanl')
@@ -21,7 +21,7 @@ log = logging.getLogger('w_fluxanl')
 rstat_dtype = numpy.dtype([('flux', numpy.float64),
                            ('count', numpy.uint)])
 
-class WFluxanl(MCBSMixin,IterRangeMixin,DataReaderMixin,WEMDAnalysisTool):
+class WFluxanl(MCBSMixin,IterRangeMixin,WEMDDataReaderMixin,WEMDAnalysisTool):
     def __init__(self):
         super(WFluxanl,self).__init__()
         

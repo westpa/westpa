@@ -31,9 +31,9 @@ class AnalysisMixin:
 import atool
 from atool import WEMDAnalysisTool
 from iter_range import IterRangeMixin
-from data_reader import DataReaderMixin
+from data_reader import WEMDDataReaderMixin
 from binning import BinningMixin
 from mcbs import MCBSMixin
 from trajwalker import TrajWalker
-from transacc import TransitionAnalysisMixin, TransitionEventAccumulator
+from transitions import TransitionAnalysisMixin, TransitionEventAccumulator
 from kinetics import KineticsAnalysisMixin

@@ -4,16 +4,13 @@ import numpy
 
 class EDF:
     '''A class for creating and manipulating empirical distribution functions (cumulative 
-    distribution functions derived from sample data).
-    
-    Note that, like ``numpy.histogram()``, all intervals are half-open except for the
-    right-most.  That is, the maximum abcissa has an ordinate of 1.0.
+    distribution functions derived from sample data).    
     '''
     
     def __init__(self, values, weights = None):
         '''Construct a new EDF from the given values and (optionally) weights.'''
         
-        if values = None:
+        if values is None:
             self.abcissae = None
             self.edf = None
             return
@@ -34,9 +31,19 @@ class EDF:
         weights = weights[sort_indices]
         
         # Determine unique abcissae; this is essentially stolen from numpy.lib.arraysetops.unique()         
-        abcissae = values[numpy.concatenate(([True], values[1:] != values[:-1]))]        
-        (hist,binbounds) = numpy.histogram(values, bins=abcissae, weights=weights)
-        edf = numpy.add.accumulate(hist)
+        abcissae = values[numpy.concatenate(([True], values[1:] != values[:-1]))]
+        edf = numpy.empty((len(abcissae),), numpy.float64)
+        
+        # ``values`` is arranged in increasing order, so we can walk along it and add up weights
+        # as we go 
+        ival_last = 0
+        ival = 0
+        for ibin in xrange(0, len(abcissae)):
+            while ival < len(values) and values[ival] <= abcissae[ibin]:
+                ival+=1
+            edf[ibin] = weights[ival_last:ival].sum()
+            ival_last = ival
+        edf = numpy.add.accumulate(edf)
         edf /= edf[-1]
         
         self.abcissae = abcissae
@@ -55,11 +62,10 @@ class EDF:
         the constructor.  Numpy type casting rules are applied (so, for instance, integral abcissae
         are converted to floating-point values).'''
         
-        result = numpy.empty((len(self.edf),), dtype=numpy.result_type(self.abcissae, self.edf))
+        result = numpy.empty((len(self.edf),2), dtype=numpy.result_type(self.abcissae, self.edf))
         result[:,0] = self.abcissae
         result[:,1] = self.edf
         return result
-    
     
     
         

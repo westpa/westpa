@@ -4,7 +4,6 @@ import logging
 
 log = logging.getLogger(__name__)
 
-import re
 import numpy
 
 import wemd
@@ -22,8 +21,7 @@ class BinningMixin(AnalysisMixin):
         self.n_bins = None
         self.n_dim = None
         
-        self.__discard_bin_assignments = False
-        self.__bins_checked = False
+        self.discard_bin_assignments = False
         self.binning_h5gname = 'binning'
         self.binning_h5group = None
         self.region_set_hash = None
@@ -61,7 +59,7 @@ class BinningMixin(AnalysisMixin):
         wemd.rc.pstatus('  {:d} bins in {:d} dimension(s)'.format(self.n_bins, self.n_dim))
         wemd.rc.pstatus('  identity hash {}'.format(self.region_set_hash.hexdigest()))
         
-        self.__discard_bin_assignments = bool(args.discard_bin_assignments)
+        self.discard_bin_assignments = bool(args.discard_bin_assignments)
         
         if upcall:
             try:
@@ -78,7 +76,11 @@ class BinningMixin(AnalysisMixin):
                      'PiecewiseRegionSet': PiecewiseRegionSet,
                      'inf': float('inf')}
         
-        return RectilinearRegionSet(eval(expr, namespace))
+        try:
+            return RectilinearRegionSet(eval(expr, namespace))
+        except TypeError as e:
+            if 'has no len' in str(e):
+                raise ValueError('invalid bin boundary specification; you probably forgot to make a list of lists')
         
     def write_bin_labels(self, dest, 
                          header='# bin labels:\n', 
@@ -95,12 +97,12 @@ class BinningMixin(AnalysisMixin):
         for (ibin, bin) in enumerate(bins):
             dest.write(format.format(bin_index=ibin, label=bin.label, max_iwidth=max_iwidth))
     
-    def __require_group(self):
+    def require_binning_group(self):
         if self.binning_h5group is None:
             self.binning_h5group = self.anal_h5file.require_group(self.binning_h5gname)
         return self.binning_h5group
     
-    def __delete_group(self):
+    def delete_binning_group(self):
         self.binning_h5group = None
         del self.anal_h5file[self.binning_h5gname]
 
@@ -115,24 +117,26 @@ class BinningMixin(AnalysisMixin):
     def check_bin_data(self):
         '''Check to see that existing binning data corresponds to the same bin topology and iteration range as requested'''
         
-        self.__require_group()
+        self.require_binning_group()
         
-        if self.__discard_bin_assignments:
-            wemd.rc.pstatus('Discarding existing binning data.')
-            self.__delete_group()
+        if self.discard_bin_assignments:
+            wemd.rc.pstatus('Discarding existing bin assignments.')
+            self.delete_binning_group()
         elif 'bin_assignments' in self.binning_h5group:
             if not self.check_data_iter_range_least(self.binning_h5group):
-                wemd.rc.pstatus('Existing binning data is for incompatible first/last iterations; deleting.')
-                self.__delete_group()
+                wemd.rc.pstatus('Existing bin assignments are for incompatible first/last iterations; deleting.')
+                self.delete_binning_group()
             elif not self.check_data_binhash(self.binning_h5group):
-                wemd.rc.pstatus('Bin definitions have changed; deleting existing binning data.')
-                self.__delete_group()
+                wemd.rc.pstatus('Bin definitions have changed; deleting existing bin assignments.')
+                self.delete_binning_group()
+        else:
+            wemd.rc.pstatus('Using existing bin assignments.')
         
-        self.__require_group()
+        self.require_binning_group()
         
     def assign_to_bins(self):
         '''Requires the DataReader mixin to be in the inheritance tree'''
-        self.__require_group()        
+        self.require_binning_group()        
         
         n_iters = self.last_iter - self.first_iter + 1
         max_n_segs = self.max_iter_segs_in_range(self.first_iter, self.last_iter)

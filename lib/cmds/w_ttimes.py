@@ -6,14 +6,14 @@ import wemd, wemdtools
 import logging
 log = logging.getLogger('w_ttimes')
 
-from wemdtools.aframe import WEMDAnalysisTool,BinningMixin,DataReaderMixin,IterRangeMixin,MCBSMixin,TransitionAnalysisMixin
+from wemdtools.aframe import WEMDAnalysisTool,BinningMixin,WEMDDataReaderMixin,IterRangeMixin,MCBSMixin,TransitionAnalysisMixin
 
 ciinfo_dtype = numpy.dtype([('expectation', numpy.float64),
                             ('ci_lower', numpy.float64),
                             ('ci_upper', numpy.float64),
                             ])
 
-class WTTimes(MCBSMixin,TransitionAnalysisMixin,BinningMixin,IterRangeMixin,DataReaderMixin,WEMDAnalysisTool):
+class WTTimes(MCBSMixin,TransitionAnalysisMixin,BinningMixin,IterRangeMixin,WEMDDataReaderMixin,WEMDAnalysisTool):
     def __init__(self):
         super(WTTimes,self).__init__()
         
@@ -115,13 +115,22 @@ class WTTimes(MCBSMixin,TransitionAnalysisMixin,BinningMixin,IterRangeMixin,Data
                 pass
             
             ds = self.ttimes_group.create_dataset(dsname, data=data)
-            ds.attrs.update({'dt': dt, 'total_time': total_time, 'ci_alpha': self.mcbs_alpha, 'ci_n_sets': self.mcbs_nsets})
+            attrs = ds.attrs
+            attrs['dt'] = dt
+            attrs['total_time'] = total_time
+            attrs['ci_alpha'] = self.mcbs_alpha
+            attrs['ci_n_sets'] = self.mcbs_nsets
             
             self.record_data_iter_range(ds)
             self.record_data_binhash(ds)
 
-        self.ttimes_group.attrs.update({'dt': dt, 'total_time': total_time, 
-                                        'ci_alpha': self.mcbs_alpha, 'ci_n_sets': self.mcbs_nsets})
+        attrs = self.ttimes_group.attrs
+        attrs = ds.attrs
+        attrs['dt'] = dt
+        attrs['total_time'] = total_time
+        attrs['ci_alpha'] = self.mcbs_alpha
+        attrs['ci_n_sets'] = self.mcbs_nsets
+        
             
         self.durations = durations
         self.fluxes = fluxes

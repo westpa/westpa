@@ -5,14 +5,15 @@ log = logging.getLogger(__name__)
 
 import wemd, wemdtools
 from wemdtools.aframe import AnalysisMixin, ArgumentError
+from wemdtools.miscfn import parse_int_list
 import numpy
 from wemd import Segment
 
-class DataReaderMixin(AnalysisMixin):
+class WEMDDataReaderMixin(AnalysisMixin):
     '''A mixin for analysis requiring access to the HDF5 files generated during a WEMD run.'''
 
     def __init__(self):
-        super(DataReaderMixin,self).__init__()
+        super(WEMDDataReaderMixin,self).__init__()
         
         self.data_manager = None
         self.run_h5name = None
@@ -33,7 +34,7 @@ class DataReaderMixin(AnalysisMixin):
     def add_args(self, parser, upcall = True):
         if upcall:
             try:
-                upcall = super(DataReaderMixin,self).add_args
+                upcall = super(WEMDDataReaderMixin,self).add_args
             except AttributeError:
                 pass
             else:
@@ -60,7 +61,7 @@ class DataReaderMixin(AnalysisMixin):
         
         if upcall:
             try:
-                upfunc = super(DataReaderMixin,self).process_args
+                upfunc = super(WEMDDataReaderMixin,self).process_args
             except AttributeError:
                 pass
             else:
