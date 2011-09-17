@@ -13,22 +13,49 @@ from wemdtools.aframe import (WEMDAnalysisTool,WEMDDataReaderMixin,IterRangeMixi
 class WEDPDist(KineticsAnalysisMixin,TransitionAnalysisMixin,BinningMixin,IterRangeMixin,WEMDDataReaderMixin,WEMDAnalysisTool):
     def __init__(self):
         super(WEDPDist,self).__init__()
+        self.edp_group = None
+        self.edfs_group = None
+        
+    def require_edf_group(self):
+        self.edfs_group = self.edp_group.require_group('edfs')
+        for (k,v) in self.get_transitions_ds().attrs.iteritems():
+            self.edfs_group.attrs[k] = v
+        
+    def store_edf(self, ibin, fbin, first_iter, last_iter, edf):
+        '''Store the given EDF, which is for ibin->fbin transitions, in the HDF5 file.'''
+        ibin_group = self.edfs_group.require_group(str(ibin))
+        ibin_group.attrs['initial_bin'] = ibin
+        fbin_group = ibin_group.require_group(str(fbin))
+        fbin_group.attrs['final_bin'] = fbin
+        fbin_group['edf_iters_{:d}_{:d}'.format(first_iter, last_iter)] = edf.as_array()
         
     def calc_cdfs(self):
+        wemd.rc.pstatus('Calculating event duration CDFs...')
         transitions_ds = self.get_transitions_ds()
-        #transitions_iter = transitions_ds['block']
+        transitions_niter = transitions_ds['n_iter']
         transitions_ibin = transitions_ds['initial_bin']
         transitions_fbin = transitions_ds['final_bin']
         for ibin in self.analysis_initial_bins:
             for fbin in self.analysis_final_bins:
-                transitions = transitions_ds[(transitions_ibin == ibin) & (transitions_fbin == fbin)]
+                tdisc = (transitions_ibin == ibin) & (transitions_fbin == fbin)
+                tdisc &= (transitions_niter >= self.first_iter) & (transitions_niter <= self.last_iter)
+                transitions = transitions_ds[tdisc]
                 wemd.rc.pstatus('  {:d}->{:d}: {:d} transitions'.format(ibin,fbin,len(transitions)),end='')
                 if len(transitions):
-                    edf = EDF(transitions['duration'], weights=transitions['final_weight'])
+                    durations = transitions['duration'] * self.dt
+                    weights = transitions['final_weight']
+                    edf = EDF(durations, weights)
                     edf_array = edf.as_array()
-                    edf_array[:,0] *= self.dt
-                    wemd.rc.pstatus('; max duration = {:g}'.format(float(edf_array[-1,0])), end='')
-                    numpy.savetxt('ed_{:d}_{:d}.txt'.format(ibin,fbin), edf_array)
+                    wemd.rc.pstatus('; N_e = {:d}, mean = {:g}, stdev = {:g}, median = {:g}, 95th percentile = {:g}, max = {:g}'
+                                    .format(len(edf),
+                                            float(edf.mean()),
+                                            float(edf.std()),
+                                            float(edf.quantile(0.5)),
+                                            float(edf.quantile(0.95)),
+                                            float(edf_array[-1,0])), 
+                                    end='')
+                    self.store_edf(ibin, fbin, self.first_iter, self.last_iter, edf)
+                    #numpy.savetxt('ed_{:d}_{:d}.txt'.format(ibin,fbin), edf_array)
                     del edf
                 del transitions
                 wemd.rc.pstatus()
@@ -57,4 +84,5 @@ wedp.open_analysis_backing()
 wedp.edp_group = wedp.require_analysis_group('w_edpdist', replace=True)
 wedp.require_bin_assignments()
 wedp.require_transitions()
+wedp.require_edf_group()
 wedp.calc_cdfs()

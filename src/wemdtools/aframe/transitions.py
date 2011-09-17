@@ -26,7 +26,8 @@ class TransitionEventAccumulator:
         
         self.bin_index_dtype = numpy.min_scalar_type(n_bins)
         
-        self.tdat_dtype = numpy.dtype( [('block',           self.index_dtype),
+        self.tdat_dtype = numpy.dtype( [('traj',            self.index_dtype),
+                                        ('n_iter',           self.index_dtype),
                                         ('timepoint',       self.index_dtype),
                                         ('initial_bin',     self.bin_index_dtype),
                                         ('final_bin',       self.bin_index_dtype),
@@ -146,12 +147,12 @@ class TransitionEventAccumulator:
         self.output_tdat_offset += nbuf
         self.tdat_buffer_offset = 0
         
-    def start_accumulation(self, assignments, weights, bin_pops, block=0):
+    def start_accumulation(self, assignments, weights, bin_pops, traj=0, n_iter=0):
         self.clear_state()
         timepoints = numpy.arange(len(assignments))
-        self._accumulate_transitions(timepoints, assignments, weights, bin_pops, block)
+        self._accumulate_transitions(timepoints, assignments, weights, bin_pops, traj, n_iter)
     
-    def continue_accumulation(self, assignments, weights, bin_pops, block=0):
+    def continue_accumulation(self, assignments, weights, bin_pops, traj=0, n_iter=0):
         aug_assign = numpy.empty((len(assignments)+1,), assignments.dtype)
         aug_assign[0] = self.last_bin
         aug_assign[1:] = assignments
@@ -165,11 +166,10 @@ class TransitionEventAccumulator:
         aug_pops[0, self.last_bin] = self.last_bin_pop
         aug_pops[1:] = bin_pops
         
-        timepoints = numpy.arange(self.timepoint, self.timepoint+len(aug_assign))
-        
-        self._accumulate_transitions(timepoints, aug_assign, aug_weights, aug_pops, block)
+        timepoints = numpy.arange(self.timepoint, self.timepoint+len(aug_assign))        
+        self._accumulate_transitions(timepoints, aug_assign, aug_weights, aug_pops, traj, n_iter)
     
-    def _accumulate_transitions(self, timepoints, assignments, weights, bin_pops, block):
+    def _accumulate_transitions(self, timepoints, assignments, weights, bin_pops, traj, n_iter):        
         tdat = []
         
         assignments_from_1 = assignments[1:]
@@ -212,11 +212,11 @@ class TransitionEventAccumulator:
                 fpts[last_completion[:,fbin]==0] = 0
             
                 for iibin in iibins[iibdisc]:
-                    tdat.append((block,trans_ti,iibin,fbin,weight_last_exit[iibin], 
+                    tdat.append((traj, n_iter,trans_ti,iibin,fbin,weight_last_exit[iibin], 
                                  weight, bin_pops_last_exit[iibin],durations[iibin], fpts[iibin]))
             else:
                 for iibin in iibins[iibdisc]:
-                    tdat.append((block,trans_ti,iibin,fbin,weight_last_exit[iibin], 
+                    tdat.append((traj, n_iter,trans_ti,iibin,fbin,weight_last_exit[iibin], 
                                  weight, bin_pops_last_exit[iibin],durations[iibin], 0))    
             
             # Update tracking and statistics                    
@@ -239,10 +239,12 @@ class TransitionAnalysisMixin(AnalysisMixin):
         self.trans_h5gname = 'transitions'
         self.trans_h5group = None
         self.__transitions_ds = None
+        self.n_trajs = 0
         
     def require_transitions_group(self):
         if self.trans_h5group is None:
             self.trans_h5group = self.anal_h5file.require_group(self.trans_h5gname)
+        return self.trans_h5group
 
     def delete_transitions_group(self):
         self.trans_h5group = None
@@ -260,6 +262,9 @@ class TransitionAnalysisMixin(AnalysisMixin):
         elif 'transitions' in self.trans_h5group and not self.check_data_iter_range_least(self.trans_h5group): 
             wemd.rc.pstatus('Existing transition data is for different first/last iterations; deleting.')
             self.delete_transitions_group()
+        else:
+            wemd.rc.pstatus('Using existing transition data (calculated from {:d} segments comprising {:d} unique trajectories).'
+                            .format(long(self.trans_h5group.attrs['n_segs']), long(self.trans_h5group.attrs['n_trajs'])))
                 
         self.require_transitions_group()
         
@@ -299,8 +304,6 @@ class TransitionAnalysisMixin(AnalysisMixin):
         self.check_transitions()
         if not 'transitions' in self.trans_h5group:
             self.find_transitions()
-        else:
-            wemd.rc.pstatus('Using existing transition data.')
 
     def find_transitions(self):
         wemd.rc.pstatus('Finding transitions...')
@@ -317,7 +320,8 @@ class TransitionAnalysisMixin(AnalysisMixin):
         self.__pcoord_len = self.get_pcoord_len(self.first_iter)
         self.__quiet_mode = wemd.rc.quiet_mode
         
-        walker.trace_trajectories(self.first_iter, self.last_iter, callable=self._segment_callback, include_pcoords=False)
+        walker.trace_trajectories(self.first_iter, self.last_iter, callable=self._segment_callback, include_pcoords=False,
+                                  get_state = self.accumulator.get_state, set_state = self.accumulator.set_state)
         self.accumulator.flush_transition_data()
         try:
             del output_group['n_trans']
@@ -328,6 +332,8 @@ class TransitionAnalysisMixin(AnalysisMixin):
         for h5object in (output_group, output_group['n_trans'], output_group['transitions']):
             self.record_data_iter_range(h5object)
             self.record_data_binhash(h5object)
+            h5object.attrs['n_trajs'] = self.n_trajs
+            h5object.attrs['n_segs'] = self.n_segs_visited
         
         self.accumulator.clear()
         wemd.rc.pstatus()
@@ -341,16 +347,19 @@ class TransitionAnalysisMixin(AnalysisMixin):
         
         if len(history) == 0:
             # New trajectory
-            self.accumulator.start_accumulation(self.bin_assignments[iiter, seg_id, :], weights, bin_pops, block=segment.n_iter)
+            self.n_trajs += 1
+            self.accumulator.start_accumulation(self.bin_assignments[iiter, seg_id, :], weights, bin_pops, 
+                                                traj=self.n_trajs, n_iter=segment.n_iter)
         else:
             # Continuing trajectory
-            self.accumulator.continue_accumulation(self.bin_assignments[iiter, seg_id, :], weights, bin_pops, block=segment.n_iter)
+            self.accumulator.continue_accumulation(self.bin_assignments[iiter, seg_id, :], weights, bin_pops, 
+                                                   traj=self.n_trajs, n_iter=segment.n_iter)
             
         self.n_segs_visited += 1
         
         if not self.__quiet_mode and (self.n_segs_visited % 1000 == 0 or self.n_segs_visited == self.n_total_segs):
             pct_visited = self.n_segs_visited / self.n_total_segs * 100
-            wemd.rc.pstatus('\r  {:d} of {:d} segments ({:.1f}%) analyzed'.format(long(self.n_segs_visited), 
-                                                                                  long(self.n_total_segs), 
-                                                                                  float(pct_visited)), end='')
+            wemd.rc.pstatus('\r  {:d} of {:d} segments ({:.1f}%) analyzed ({:d} independent trajectories)'
+                            .format(long(self.n_segs_visited), long(self.n_total_segs), float(pct_visited), self.n_trajs), 
+                            end='')
             wemd.rc.pflush()

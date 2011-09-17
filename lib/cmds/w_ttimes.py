@@ -45,8 +45,8 @@ class WTTimes(MCBSMixin,TransitionAnalysisMixin,BinningMixin,IterRangeMixin,WEMD
                 
         transdat_ds = self.trans_h5group['transitions']
         transdat_ibin = transdat_ds['initial_bin']
-        transdat_nblock = transdat_ds['block']
-        transdat_in_range = (transdat_nblock >= self.first_iter) & (transdat_nblock <= self.last_iter) 
+        transdat_niter = transdat_ds['n_iter']
+        transdat_in_range = (transdat_niter >= self.first_iter) & (transdat_niter <= self.last_iter) 
         
         durations = numpy.zeros((self.n_bins,self.n_bins), ciinfo_dtype)
         fluxes    = numpy.zeros((self.n_bins,self.n_bins), ciinfo_dtype)
