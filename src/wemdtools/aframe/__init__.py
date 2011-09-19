@@ -37,3 +37,5 @@ from mcbs import MCBSMixin
 from trajwalker import TrajWalker
 from transitions import TransitionAnalysisMixin, TransitionEventAccumulator
 from kinetics import KineticsAnalysisMixin
+from output import CommonOutputMixin
+from plotting import PlottingMixin

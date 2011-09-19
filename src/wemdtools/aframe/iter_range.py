@@ -4,6 +4,7 @@ import logging
 
 log = logging.getLogger(__name__)
 
+import numpy
 import wemd
 
 from wemdtools.aframe import AnalysisMixin, ArgumentError
@@ -76,7 +77,7 @@ class IterRangeMixin(AnalysisMixin):
             return npoints // self.iter_step
         else:
             return npoints // self.iter_step + 1
-        
+            
     def record_data_iter_range(self, h5object, first_iter = None, last_iter = None):
         '''Store attributes ``first_iter`` and ``last_iter`` on the given HDF5 object (group/dataset)'''
         first_iter = first_iter or self.first_iter
@@ -157,5 +158,14 @@ class IterRangeMixin(AnalysisMixin):
         data = dataset[dimslices]
         log.debug('resulting data is of shape {!r}'.format(data.shape))
         return data        
+        
+    
+    def iter_range(self, first_iter = None, last_iter = None, iter_step = None):
+        first_iter = first_iter or self.first_iter
+        last_iter = last_iter or self.last_iter
+        iter_step = iter_step or self.iter_step
+        
+        return numpy.arange(first_iter, last_iter + 1, iter_step)
+        
         
         

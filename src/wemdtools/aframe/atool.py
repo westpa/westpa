@@ -21,6 +21,7 @@ class WEMDAnalysisTool:
         self.config_required = False
         self.anal_h5name = None
         self.anal_h5file = None
+        self.include_args = {}
 
     def add_args(self, parser, upcall = True):
         '''Add arguments to a parser common to all analyses of this type.'''

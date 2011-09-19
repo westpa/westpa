@@ -288,7 +288,9 @@ class TaskThread(threading.Thread):
         
     def run(self):
         for task in self.tasks:
-            if task.task_type == 'propagate':
+            if task is None:
+                continue
+            elif task.task_type == 'propagate':
                 segments = task.operand
                 log.debug('propagating {:d} segment(s)'.format(len(segments)))
                 self.propagator.propagate(segments)

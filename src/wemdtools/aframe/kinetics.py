@@ -6,6 +6,7 @@ log = logging.getLogger(__name__)
 
 import re
 import numpy
+import itertools
 from itertools import izip, imap
 
 import wemd
@@ -99,6 +100,8 @@ class KineticsAnalysisMixin(AnalysisMixin):
         else:
             self.analysis_final_bins = set(xrange(n_bins))
         
-        
+    @property
+    def selected_bin_pair_iter(self):
+        return (tuple(pair) for pair in itertools.product(self.analysis_initial_bins,self.analysis_final_bins))
         
         

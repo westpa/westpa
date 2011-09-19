@@ -12,6 +12,16 @@ class EDF:
         edf = EDF(None,None)
         edf.x = array[:,0]
         edf.F = array[:,1]
+        edf.dF = numpy.diff(edf.F)
+        return edf
+        
+    @staticmethod
+    def from_arrays(x, F):
+        edf = EDF(None,None)
+        edf.x = x
+        edf.F = F
+        edf.dF = numpy.diff(edf.F)
+        return edf
     
     def __init__(self, values, weights = None):
         '''Construct a new EDF from the given values and (optionally) weights.'''
@@ -62,11 +72,10 @@ class EDF:
                 
     def __call__(self, x):
         '''Evaluate this EDF at the given abcissae.'''
-        results = numpy.empty((len(x),), numpy.float64)
         indices = numpy.digitize(x, self.x)
-        results[indices >= len(self.x)] = 1.0
-        results[indices < len(self.x)] = self.F[indices]
-        return results
+        indices[indices >= len(self.x)] = len(self.x) - 1
+        return self.F[indices]
+
     
     def as_array(self):
         '''Return this EDF as a (N,2) array, where N is the number of unique values passed to
@@ -82,10 +91,15 @@ class EDF:
         '''Treating the EDF as a quantile function, return the values of the (statistical) variable whose
         probabilities are at least p.  That is, Q(p) = inf {x: p <= F(x) }.'''
         
-        return self.x[numpy.searchsorted(self.F, p)]
+        indices = numpy.searchsorted(self.F, p)
+        indices[indices >= len(self.x)] = len(self.x) - 1
+        return self.x[indices]
     
     def quantile(self, p):
         return self.quantiles([p])[0]
+    
+    def median(self):
+        return self.quantiles([0.5])[0]
     
     def moment(self, n):
         '''Calculate the nth moment of this probability distribution

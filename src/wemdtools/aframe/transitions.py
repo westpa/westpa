@@ -17,6 +17,7 @@ class TransitionEventAccumulator:
     weight_dtype = numpy.float64
     output_tdat_chunksize = 4096      # HDF5 chunksize for transition data (~300 KiB)
     tdat_buffersize = 524288          # Internal buffer length (~38 MiB)
+    max_acc = 32768
     
     def __init__(self, n_bins, output_group, calc_fpts = True):
         self.calc_fpts = calc_fpts
@@ -192,7 +193,7 @@ class TransitionEventAccumulator:
         n_trans = self.n_trans
         iibdisc = self.iibdisc
         iibins = self.iibins
-        tdat_maxlen = self.tdat_buffersize / 10
+        tdat_maxlen = self.max_acc
         for (trans_ti, weight, ibin, fbin, ibinpops) in izip(trans_timepoints, trans_weights, 
                                                              trans_ibin, trans_fbin, trans_ibinpops):
             # Record this crossing event's data
