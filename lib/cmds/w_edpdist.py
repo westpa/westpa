@@ -8,6 +8,7 @@ from wemdtools.stats.edfs import EDF
 import logging
 log = logging.getLogger('w_edpdist')
 
+import wemdtools
 from wemdtools.aframe import (WEMDAnalysisTool,WEMDDataReaderMixin,IterRangeMixin,TransitionAnalysisMixin,BinningMixin,
                               KineticsAnalysisMixin,CommonOutputMixin,PlottingMixin)
                               
@@ -225,31 +226,30 @@ class WEDPDist(PlottingMixin,CommonOutputMixin,KineticsAnalysisMixin,TransitionA
             interp_edfs = numpy.empty((len(edfs), len(interp_durations)), numpy.float64)
             means = numpy.empty(len(edfs), numpy.float64)
             medians = numpy.empty(len(edfs), numpy.float64)
-            q95 = numpy.empty(len(edfs), numpy.float64)
-            q05 = numpy.empty(len(edfs), numpy.float64)
+            quantiles = numpy.empty((len(edfs), 5), numpy.float64)
+            #q95 = numpy.empty(len(edfs), numpy.float64)
+            #q05 = numpy.empty(len(edfs), numpy.float64)
             for iblock in xrange(len(edfs)):
                 iter_edf = EDF.from_arrays(durations, edfs[iblock])
                 interp_edfs[iblock,:] = iter_edf(interp_durations)
                 means[iblock] = iter_edf.mean()
-                medians[iblock] = iter_edf.median()
-                q95[iblock] = iter_edf.quantile(0.95)
-                q05[iblock] = iter_edf.quantile(0.05)
+                quantiles[iblock,:] = iter_edf.quantiles([0.05, 0.25, 0.5, 0.75, 0.95])
+                #medians[iblock] = iter_edf.median()
+                #q95[iblock] = iter_edf.quantile(0.95)
+                #q05[iblock] = iter_edf.quantile(0.05)
             
             # Do the plot
             gs = gridspec.GridSpec(2,2, width_ratios = [5,1], height_ratios = [1,15], hspace=0.10, wspace=0.10)
             ax1 = pyplot.subplot(gs[2])
             extent = (durations[0], durations[-1], self.first_iter, self.last_iter)
-            im1 = pyplot.imshow(interp_edfs[::-1], aspect='auto', extent=extent, cmap=matplotlib.cm.jet)#, cmap=cm_hovmol)
+            im1 = pyplot.imshow(interp_edfs[::-1], aspect='auto', extent=extent, cmap='Spectral')
             
             # poor-man's contour plot, because it's faster
             iter_range = self.iter_range()
-            for ds in (q05, medians, q95):
-                pyplot.plot(ds, iter_range, color='white', linewidth=1.5)
-                pyplot.plot(ds, iter_range, color='black', linewidth=0.5)
-            
-            #cs = pyplot.contour(interp_durations, iter_range, interp_edfs, [0.05, 0.5, 0.95], colors='k')
-            #pyplot.clabel(cs, fmt='%.2f')
-            
+            for iquant in xrange(quantiles.shape[-1]):
+                #pyplot.plot(quantiles[:,iquant], iter_range, color='white', linewidth=1.5)
+                pyplot.plot(quantiles[:,iquant], iter_range, color='black', linewidth=0.75)#, linewidth=0.5)
+                        
             pyplot.xlabel(r'${:d} \rightarrow {:d}$ transition duration $t_\mathrm{{ed}}$'.format(ibin,fbin))
             pyplot.ylabel('Iteration')
             pyplot.xlim(durations[0], durations[-1])
@@ -269,9 +269,11 @@ class WEDPDist(PlottingMixin,CommonOutputMixin,KineticsAnalysisMixin,TransitionA
             ax0 = pyplot.subplot(gs[0])
             cb = pyplot.colorbar(im1, orientation='horizontal', cax=ax0)
             #cb.set_label(r'$F\left(t_\mathrm{ed}\right)$')
-            ax0.tick_params(labelbottom=False, labeltop=True, labelsize=10)
-            cb.set_ticks([0.0,0.2,0.4,0.6,0.8,1.0])
+            ax0.tick_params(labelbottom=False, labeltop=True, labelsize=8)
+            cb.set_ticks([0.0,0.25,0.5,0.75,0.9,0.95,1.0])
             ax0.set_ylabel(r'$F(t_\mathrm{ed})$', rotation=0)
+            for label in ax0.get_xticklabels():
+                label.set_rotation(90)
                         
             pyplot.savefig(output_filename)
             pyplot.clf()
