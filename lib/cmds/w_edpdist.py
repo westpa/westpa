@@ -225,18 +225,12 @@ class WEDPDist(PlottingMixin,CommonOutputMixin,KineticsAnalysisMixin,TransitionA
             # while preserving the ED scale            
             interp_edfs = numpy.empty((len(edfs), len(interp_durations)), numpy.float64)
             means = numpy.empty(len(edfs), numpy.float64)
-            medians = numpy.empty(len(edfs), numpy.float64)
             quantiles = numpy.empty((len(edfs), 5), numpy.float64)
-            #q95 = numpy.empty(len(edfs), numpy.float64)
-            #q05 = numpy.empty(len(edfs), numpy.float64)
             for iblock in xrange(len(edfs)):
                 iter_edf = EDF.from_arrays(durations, edfs[iblock])
                 interp_edfs[iblock,:] = iter_edf(interp_durations)
                 means[iblock] = iter_edf.mean()
                 quantiles[iblock,:] = iter_edf.quantiles([0.05, 0.25, 0.5, 0.75, 0.95])
-                #medians[iblock] = iter_edf.median()
-                #q95[iblock] = iter_edf.quantile(0.95)
-                #q05[iblock] = iter_edf.quantile(0.05)
             
             # Do the plot
             gs = gridspec.GridSpec(2,2, width_ratios = [5,1], height_ratios = [1,15], hspace=0.10, wspace=0.10)
@@ -249,6 +243,8 @@ class WEDPDist(PlottingMixin,CommonOutputMixin,KineticsAnalysisMixin,TransitionA
             for iquant in xrange(quantiles.shape[-1]):
                 #pyplot.plot(quantiles[:,iquant], iter_range, color='white', linewidth=1.5)
                 pyplot.plot(quantiles[:,iquant], iter_range, color='black', linewidth=0.75)#, linewidth=0.5)
+                
+            pyplot.plot(means[:], iter_range, color='black', linestyle='dashed', linewidth=0.75)
                         
             pyplot.xlabel(r'${:d} \rightarrow {:d}$ transition duration $t_\mathrm{{ed}}$'.format(ibin,fbin))
             pyplot.ylabel('Iteration')
@@ -279,7 +275,7 @@ class WEDPDist(PlottingMixin,CommonOutputMixin,KineticsAnalysisMixin,TransitionA
             pyplot.clf()
             wemd.rc.pstatus('  {:{mbw}d}->{:<{mbw}d} to {:s}'.format(ibin,fbin,output_filename,mbw=mbw))
             
-            del ks_probs, durations, interp_durations, interp_edfs, edfs, edf_group
+            del ks_probs, durations, interp_durations, interp_edfs, quantiles, means, edfs, edf_group
         
 wedp = WEDPDist()
 

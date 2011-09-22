@@ -117,22 +117,6 @@ class BinningMixin(AnalysisMixin):
     def check_bin_data(self):
         '''Check to see that existing binning data corresponds to the same bin topology and iteration range as requested'''
         
-        self.require_binning_group()
-        
-        if self.discard_bin_assignments:
-            wemd.rc.pstatus('Discarding existing bin assignments.')
-            self.delete_binning_group()
-        elif 'bin_assignments' in self.binning_h5group:
-            if not self.check_data_iter_range_least(self.binning_h5group):
-                wemd.rc.pstatus('Existing bin assignments are for incompatible first/last iterations; deleting.')
-                self.delete_binning_group()
-            elif not self.check_data_binhash(self.binning_h5group):
-                wemd.rc.pstatus('Bin definitions have changed; deleting existing bin assignments.')
-                self.delete_binning_group()
-        else:
-            wemd.rc.pstatus('Using existing bin assignments.')
-        
-        self.require_binning_group()
         
     def assign_to_bins(self):
         '''Requires the DataReader mixin to be in the inheritance tree'''
@@ -173,16 +157,27 @@ class BinningMixin(AnalysisMixin):
         wemd.rc.pstatus()
             
     def require_bin_assignments(self):
-        self.check_bin_data()
-                
-        # The group will be empty if the user requested the data to go away, or if the data is not conformant
-        # with the current bins and iteration range, so the following lets us know if we need
-        # to recalculate 
-        if not ('bin_assignments' in self.binning_h5group and 'bin_populations' in self.binning_h5group):
+        self.require_binning_group()
+        do_assign = False
+        if self.discard_bin_assignments:
+            wemd.rc.pstatus('Discarding existing bin assignments.')
+            do_assign = True
+        elif 'bin_assignments' in self.binning_h5group:
+            # Cannot check for iteration ranges for brute force analyses
+            if not self.bf_mode:
+                if not self.check_data_iter_range_least(self.binning_h5group):
+                    wemd.rc.pstatus('Existing bin assignments are for incompatible first/last iterations; deleting assignments.')
+                    do_assign = True
+            if not self.check_data_binhash(self.binning_h5group):
+                wemd.rc.pstatus('Bin definitions have changed; deleting existing bin assignments.')
+                do_assign = True
+        
+        if do_assign:
+            self.delete_binning_group()
             self.assign_to_bins()
         else:
-            wemd.rc.pstatus('Using existing binning data.')
-    
+            wemd.rc.pstatus('Using existing bin assignments.')
+            
     def get_bin_assignments(self, first_iter = None, last_iter = None):
         return self.slice_per_iter_data(self.binning_h5group['bin_assignments'], first_iter, last_iter)
 

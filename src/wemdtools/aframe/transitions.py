@@ -250,25 +250,7 @@ class TransitionAnalysisMixin(AnalysisMixin):
     def delete_transitions_group(self):
         self.trans_h5group = None
         del self.anal_h5file[self.trans_h5gname]
-        
-    def check_transitions(self):
-        self.require_transitions_group()
-        
-        if self.discard_transition_data:
-            wemd.rc.pstatus('Discarding existing transition data.')
-            self.delete_transitions_group()
-        elif not self.check_data_binhash(self.trans_h5group):
-            wemd.rc.pstatus('Bin definitions have changed; deleting existing transition data.')
-            self.delete_transitions_group()
-        elif 'transitions' in self.trans_h5group and not self.check_data_iter_range_least(self.trans_h5group): 
-            wemd.rc.pstatus('Existing transition data is for different first/last iterations; deleting.')
-            self.delete_transitions_group()
-        else:
-            wemd.rc.pstatus('Using existing transition data (calculated from {:d} segments comprising {:d} unique trajectories).'
-                            .format(long(self.trans_h5group.attrs['n_segs']), long(self.trans_h5group.attrs['n_trajs'])))
                 
-        self.require_transitions_group()
-        
     def get_transitions_ds(self):
         if self.__transitions_ds is not None:
             return self.__transitions_ds
@@ -302,9 +284,25 @@ class TransitionAnalysisMixin(AnalysisMixin):
                 upfunc(args)
                 
     def require_transitions(self):
-        self.check_transitions()
-        if not 'transitions' in self.trans_h5group:
+        self.require_transitions_group()
+        do_trans = False
+        if self.discard_transition_data:
+            wemd.rc.pstatus('Discarding existing transition data.')
+            do_trans = True
+        elif not self.check_data_binhash(self.trans_h5group):
+            wemd.rc.pstatus('Bin definitions have changed; deleting existing transition data.')
+            do_trans = True
+        elif 'transitions' in self.trans_h5group:
+            if not self.bf_mode:
+                if not self.check_data_iter_range_least(self.trans_h5group): 
+                    wemd.rc.pstatus('Existing transition data is for different first/last iterations; deleting.')
+                    do_trans = True        
+        if do_trans:
+            self.delete_transitions_group()
             self.find_transitions()
+        else:
+            wemd.rc.pstatus('Using existing transition data (calculated from {:d} segments comprising {:d} unique trajectories).'
+                            .format(long(self.trans_h5group.attrs['n_segs']), long(self.trans_h5group.attrs['n_trajs'])))
 
     def find_transitions(self):
         wemd.rc.pstatus('Finding transitions...')

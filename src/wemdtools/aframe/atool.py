@@ -18,9 +18,18 @@ from wemdtools.aframe import AnalysisMixin, ArgumentError
 class WEMDAnalysisTool:
     def __init__(self):
         super(WEMDAnalysisTool,self).__init__()
+        # Whether a wemd.cfg is required to run a program based on this tool
         self.config_required = False
+        
+        # Analysis HDF5 filename and object
         self.anal_h5name = None
         self.anal_h5file = None
+        
+        # Whether this is being used in a brute analysis
+        self.bf_mode = False
+        
+        # A way to override some arguments on a per-mixin basis without having to subclass
+        # (messy, but it doesn't seem crucial enough so far to make it cleaner)
         self.include_args = {}
 
     def add_args(self, parser, upcall = True):

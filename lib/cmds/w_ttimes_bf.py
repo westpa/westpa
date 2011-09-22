@@ -19,6 +19,8 @@ ciinfo_dtype = numpy.dtype([('expectation', numpy.float64),
 class WTTimesBF(KineticsAnalysisMixin,MCBSMixin,TransitionAnalysisMixin,BinningMixin,WEMDAnalysisTool):
     def __init__(self):
         super(WTTimesBF,self).__init__()
+        self.bf_mode = True
+        self.config_required = False
                 
         self.ed_stats_filename = None
         self.fpt_stats_filename = None
@@ -33,37 +35,7 @@ class WTTimesBF(KineticsAnalysisMixin,MCBSMixin,TransitionAnalysisMixin,BinningM
 
         self.durations = None
         self.fpts = None
-
-    def check_bin_data(self):
-        '''Check to see that existing binning data corresponds to the same bin topology and iteration range as requested'''
         
-        self.require_binning_group()
-        
-        if self.discard_bin_assignments:
-            #wemd.rc.pstatus('Discarding existing binning data.')
-            self.delete_binning_group()
-        elif 'bin_assignments' in self.binning_h5group:
-            if not self.check_data_binhash(self.binning_h5group):
-                wemd.rc.pstatus('Bin definitions have changed; deleting existing binning data.')
-                self.delete_binning_group()
-        else:
-            wemd.rc.pstatus('Using existing bin assignments.')
-        self.require_binning_group()
-        
-    def check_transitions(self):
-        self.require_transitions_group()
-        
-        if self.discard_transition_data:
-            wemd.rc.pstatus('Discarding existing transition data.')
-            self.delete_transitions_group()
-        elif not self.check_data_binhash(self.trans_h5group):
-            wemd.rc.pstatus('Bin definitions have changed; deleting existing transition data.')
-            self.delete_transitions_group()
-        else:
-            wemd.rc.pstatus('Using existing transition data.')
-                
-        self.require_transitions_group()
-
     def assign_to_bins(self):
         wemd.rc.pstatus('Assigning to bins...')
         
@@ -101,15 +73,6 @@ class WTTimesBF(KineticsAnalysisMixin,MCBSMixin,TransitionAnalysisMixin,BinningM
             self.record_data_binhash(h5object)
                 
         wemd.rc.pstatus()
-            
-    def require_bin_assignments(self):
-        self.check_bin_data()
-                
-        # The group will be empty if the user requested the data to go away, or if the data is not conformant
-        # with the current bins and iteration range, so the following lets us know if we need
-        # to recalculate 
-        if not 'bin_assignments' in self.binning_h5group:
-            self.assign_to_bins()
 
     def find_transitions(self):
         wemd.rc.pstatus('Finding transitions...')
