@@ -191,73 +191,65 @@ class WTTimes(WTTimesStats,MCBSMixin,KineticsAnalysisMixin,TransitionAnalysisMix
         super(WTTimes,self).__init__()
         
         
-
-     
-
-###################################################################################################################################
-
-
-if __name__ == '__main__':
-    wtt = WTTimes()
-    parser = argparse.ArgumentParser('w_ttimes', description='''\
-    Trace the WEMD trajectory tree and report on transition kinetics.
-    ''')
-    wemd.rc.add_args(parser)
-    wtt.add_args(parser)
-    
-    agroup = parser.add_argument_group('kinetics analysis options')
-    agroup.add_argument('--dt', dest='dt', type=float, default=1.0,
-                        help='Assume input data has a time spacing of DT (default: %(default)s).')
-    agroup.add_argument('-i', '--initial-bins', dest='ibins_string', metavar='I',
-                         help='''Only calculate statistics for transitions starting in bin I.  This may be specified as a
-                         comma-separated list of integers or ranges, as in "0,2-4,5,9"''')
-    agroup.add_argument('-j', '--final-bins', dest='fbins_string', metavar='J',
-                        help='''Only calculate statistics for transitions ending in bin J.  This may be specified as a
-                         comma-separated list of integers or ranges, as in "0,2-4,5,9"''')
-    
-    output_options = parser.add_argument_group('kinetics analysis output options')        
-    output_options.add_argument('--edstats', dest='ed_stats', default='edstats.txt',
-                                help='Store event duration statistics in ED_STATS (default: edstats.txt)')
-    output_options.add_argument('--fluxstats', dest='flux_stats', default='fluxstats.txt',
-                                help='Store flux statistics in FLUX_STATS (default: fluxstats.txt)')
-    output_options.add_argument('--ratestats', dest='rate_stats', default='ratestats.txt',
-                                help='Store rate statistics in RATE_STATS (default: ratestats.txt)')
-    output_options.add_argument('--noheaders', dest='suppress_headers', action='store_true',
-                                help='Do not include headers in text output files (default: include headers)')
-    output_options.add_argument('--binlabels', dest='print_bin_labels', action='store_true',
-                                help='Print bin labels in output files, if available (default: do not print bin labels)')
-    
-    
-    args = parser.parse_args()
-    wemd.rc.process_args(args, config_required = False)
-    wtt.process_args(args)
-    
-    wtt.dt = args.dt
-    wtt.ed_stats_filename = args.ed_stats
-    wtt.flux_stats_filename = args.flux_stats
-    wtt.rate_stats_filename = args.rate_stats
-    wtt.suppress_headers = args.suppress_headers
-    wtt.print_bin_labels = args.print_bin_labels
-    
-    if args.ibins_string:
-        wtt.initial_bins = wtt.parse_simple_int_range(args.ibins_string)
-        wemd.rc.pstatus('Will report statistics for transitions beginning in the following bins:\n{!s}'.format(wtt.initial_bins))
-    else:
-        wemd.rc.pstatus('Will report statistics for transitions beginning in any bin.')
-        wtt.initial_bins = range(wtt.n_bins)
+    def main(self):
+        parser = argparse.ArgumentParser('w_ttimes', description='''\
+        Trace the WEMD trajectory tree and report on transition kinetics.
+        ''')
+        wemd.rc.add_args(parser)
+        wtt.add_args(parser)
         
-    if args.fbins_string:
-        wtt.final_bins = wtt.parse_simple_int_range(args.fbins_string)
-        wemd.rc.pstatus('Will report statistics for transitions ending in the following bins:\n{!s}'.format(wtt.final_bins))
-    else:
-        wemd.rc.pstatus('Will report statistics for transitions ending in any bin.')
-        wtt.final_bins = range(wtt.n_bins) 
-    
-    wtt.check_iter_range()
-    wtt.open_analysis_backing()
-    wtt.ttimes_group = wtt.require_analysis_group('w_ttimes', replace=False)
-    wtt.require_bin_assignments()
-    wtt.require_transitions()
-    wtt.gen_stats()
-    wtt.summarize_stats()
-
+        agroup = parser.add_argument_group('kinetics analysis options')
+        agroup.add_argument('--dt', dest='dt', type=float, default=1.0,
+                            help='Assume input data has a time spacing of DT (default: %(default)s).')
+        agroup.add_argument('-i', '--initial-bins', dest='ibins_string', metavar='I',
+                             help='''Only calculate statistics for transitions starting in bin I.  This may be specified as a
+                             comma-separated list of integers or ranges, as in "0,2-4,5,9"''')
+        agroup.add_argument('-j', '--final-bins', dest='fbins_string', metavar='J',
+                            help='''Only calculate statistics for transitions ending in bin J.  This may be specified as a
+                             comma-separated list of integers or ranges, as in "0,2-4,5,9"''')
+        
+        output_options = parser.add_argument_group('kinetics analysis output options')        
+        output_options.add_argument('--edstats', dest='ed_stats', default='edstats.txt',
+                                    help='Store event duration statistics in ED_STATS (default: edstats.txt)')
+        output_options.add_argument('--fluxstats', dest='flux_stats', default='fluxstats.txt',
+                                    help='Store flux statistics in FLUX_STATS (default: fluxstats.txt)')
+        output_options.add_argument('--ratestats', dest='rate_stats', default='ratestats.txt',
+                                    help='Store rate statistics in RATE_STATS (default: ratestats.txt)')
+        output_options.add_argument('--noheaders', dest='suppress_headers', action='store_true',
+                                    help='Do not include headers in text output files (default: include headers)')
+        output_options.add_argument('--binlabels', dest='print_bin_labels', action='store_true',
+                                    help='Print bin labels in output files, if available (default: do not print bin labels)')
+        
+        
+        args = parser.parse_args()
+        wemd.rc.process_args(args, config_required = False)
+        wtt.process_args(args)
+        
+        wtt.dt = args.dt
+        wtt.ed_stats_filename = args.ed_stats
+        wtt.flux_stats_filename = args.flux_stats
+        wtt.rate_stats_filename = args.rate_stats
+        wtt.suppress_headers = args.suppress_headers
+        wtt.print_bin_labels = args.print_bin_labels
+        
+        if args.ibins_string:
+            wtt.initial_bins = wtt.parse_simple_int_range(args.ibins_string)
+            wemd.rc.pstatus('Will report statistics for transitions beginning in the following bins:\n{!s}'.format(wtt.initial_bins))
+        else:
+            wemd.rc.pstatus('Will report statistics for transitions beginning in any bin.')
+            wtt.initial_bins = range(wtt.n_bins)
+            
+        if args.fbins_string:
+            wtt.final_bins = wtt.parse_simple_int_range(args.fbins_string)
+            wemd.rc.pstatus('Will report statistics for transitions ending in the following bins:\n{!s}'.format(wtt.final_bins))
+        else:
+            wemd.rc.pstatus('Will report statistics for transitions ending in any bin.')
+            wtt.final_bins = range(wtt.n_bins) 
+        
+        wtt.check_iter_range()
+        wtt.open_analysis_backing()
+        wtt.ttimes_group = wtt.require_analysis_group('w_ttimes', replace=False)
+        wtt.require_bin_assignments()
+        wtt.require_transitions()
+        wtt.gen_stats()
+        wtt.summarize_stats()
