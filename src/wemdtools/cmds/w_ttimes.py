@@ -1,24 +1,25 @@
 from __future__ import print_function, division; __metaclass__=type
-import os, sys, argparse, math, warnings, re
-import numpy, h5py
+import argparse, math
+import numpy
 import wemd, wemdtools
 
 import logging
 log = logging.getLogger('w_ttimes')
 
 from wemdtools.aframe import (WEMDAnalysisTool,BinningMixin,WEMDDataReaderMixin,IterRangeMixin,MCBSMixin,TransitionAnalysisMixin,
-                              KineticsAnalysisMixin)
+                              KineticsAnalysisMixin,CommonOutputMixin,BFBinningMixin,BFDataManager,BFTransitionAnalysisMixin)
 
 ciinfo_dtype = numpy.dtype([('expectation', numpy.float64),
                             ('ci_lower', numpy.float64),
                             ('ci_upper', numpy.float64),
                             ])
 
-class WTTimesStats:
+class WTTimesBase:
     def __init__(self):
-        super(WTTimesStats,self).__init__()
+        super(WTTimesBase,self).__init__()
         
         self.ed_stats_filename = None
+        self.fpt_stats_filename = None
         self.flux_stats_filename = None
         self.rate_stats_filename = None
         self.suppress_headers = None
@@ -27,38 +28,85 @@ class WTTimesStats:
         self.ttimes_group = None        
 
         self.durations = None
+        self.fpts = None
         self.fluxes = None
         self.rates = None
         
+        
+    def add_args(self, parser, upcall = True):
+        '''Add arguments to a parser common to all analyses of this type.'''
+        if upcall:
+            try:
+                upfunc = super(WTTimesBase,self).add_args
+            except AttributeError:
+                pass
+            else:
+                upfunc(parser)
+
+        output_options = parser.add_argument_group('kinetics analysis output options')        
+        output_options.add_argument('--edstats', dest='ed_stats', default='edstats.txt',
+                                    help='Store event duration statistics in ED_STATS (default: edstats.txt)')
+        output_options.add_argument('--fptstats', dest='fpt_stats', default='fptstats.txt',
+                                    help='Store first passage time statistics in FPT_STATS (default: fptstats.txt).')
+        output_options.add_argument('--fluxstats', dest='flux_stats', default='fluxstats.txt',
+                                    help='Store flux statistics in FLUX_STATS (default: fluxstats.txt)')
+        output_options.add_argument('--ratestats', dest='rate_stats', default='ratestats.txt',
+                                    help='Store rate statistics in RATE_STATS (default: ratestats.txt)')
+        self.add_common_output_args(output_options)
+        
+    def process_args(self, args, upcall = True):
+        
+        self.ed_stats_filename = args.ed_stats
+        self.fpt_stats_filename = args.fpt_stats
+        self.flux_stats_filename = args.flux_stats
+        self.rate_stats_filename = args.rate_stats
+        self.process_common_output_args(args)
+        self.calc_fpts = bool(args.fpt_stats)
+        
+        if upcall:
+            try:
+                upfunc = super(WTTimesBase,self).process_args
+            except AttributeError:
+                pass
+            else:
+                upfunc(args)        
+                
     def gen_stats(self):
+        self.require_transitions_group()
         wemd.rc.pstatus('Analyzing transition statistics...')
 
         dt = self.dt
         n_sets = self.mcbs_nsets
-        n_iters = self.last_iter - self.first_iter + 1
         lbi, ubi = self.calc_ci_bound_indices()
-        pcoord_len = self.get_pcoord_len(self.first_iter)        
-        total_time = n_iters * (pcoord_len - 1) * dt 
-                
+
+        total_time = self.get_total_time()                
         transdat_ds = self.trans_h5group['transitions']
         transdat_ibin = transdat_ds['initial_bin']
-        transdat_niter = transdat_ds['n_iter']
-        transdat_in_range = (transdat_niter >= self.first_iter) & (transdat_niter <= self.last_iter) 
+        
+        if not self.bf_mode:
+            transdat_niter = transdat_ds['n_iter']
+            transdat_in_range = (transdat_niter >= self.first_iter) & (transdat_niter <= self.last_iter) 
         
         durations = numpy.zeros((self.n_bins,self.n_bins), ciinfo_dtype)
+        fpts      = numpy.zeros((self.n_bins,self.n_bins), ciinfo_dtype)
         fluxes    = numpy.zeros((self.n_bins,self.n_bins), ciinfo_dtype)
         rates     = numpy.zeros((self.n_bins,self.n_bins), ciinfo_dtype)
         
         syn_avg_durations = numpy.empty((n_sets,), numpy.float64)
+        syn_avg_fpts      = numpy.empty((n_sets,), numpy.float64)
         syn_avg_fluxes    = numpy.empty((n_sets,), numpy.float64)
         syn_avg_rates     = numpy.empty((n_sets,), numpy.float64)
         
         w_n_bins = len(str(self.n_bins))
         w_n_sets = len(str(n_sets))
         
-        for ibin in self.initial_bins:
-            trans_ibin = transdat_ds[(transdat_ibin == ibin) & transdat_in_range]
-            for fbin in self.final_bins:
+        for ibin in self.analysis_initial_bins:
+            if self.bf_mode:
+                trans_ibin = transdat_ds[transdat_ibin == ibin]
+            else:
+                trans_ibin = transdat_ds[(transdat_ibin == ibin) & transdat_in_range]
+                
+            for fbin in self.analysis_final_bins:
                 trans_ifbins = trans_ibin[trans_ibin['final_bin'] == fbin]
                 dlen = len(trans_ifbins)
                 
@@ -66,9 +114,11 @@ class WTTimesStats:
                 
                 trans_weights = trans_ifbins['final_weight']
                 trans_durations = trans_ifbins['duration']
+                trans_fpts      = trans_ifbins['fpt']
                 trans_ibinprobs = trans_ifbins['initial_bin_pop']
                                     
                 durations[ibin,fbin]['expectation'] = numpy.average(trans_durations, weights=trans_weights) * dt
+                fpts[ibin,fbin]['expectation'] = numpy.average(trans_fpts, weights=trans_weights) * dt
                 avg_flux = trans_weights.sum() / total_time
                 fluxes[ibin,fbin]['expectation']    = avg_flux
                 rates[ibin,fbin]['expectation']     = avg_flux / trans_ibinprobs.mean()
@@ -80,20 +130,26 @@ class WTTimesStats:
                     indices = numpy.random.randint(dlen, size=(dlen,))
                     syn_weights   = trans_weights[indices]
                     syn_durations = trans_durations[indices]
+                    syn_fpts      = trans_fpts[indices]
                     syn_ibinprobs = trans_ibinprobs[indices]
                     
                     syn_avg_durations[iset] = numpy.average(syn_durations, weights=syn_weights) * dt
+                    syn_avg_fpts[iset] = numpy.average(syn_fpts, weights=syn_weights) * dt
                     syn_avg_fluxes[iset] = syn_weights.sum() / total_time
                     syn_avg_rates[iset] = syn_avg_fluxes[iset] / syn_ibinprobs.mean()
                     
-                    del indices, syn_weights, syn_durations, syn_ibinprobs
+                    del indices, syn_weights, syn_durations, syn_ibinprobs, syn_fpts
                     
                 syn_avg_durations.sort()
+                syn_avg_fpts.sort()
                 syn_avg_fluxes.sort()
                 syn_avg_rates.sort()
                 
                 durations[ibin,fbin]['ci_lower'] = syn_avg_durations[lbi]
                 durations[ibin,fbin]['ci_upper'] = syn_avg_durations[ubi]
+                
+                fpts[ibin,fbin]['ci_lower'] = syn_avg_fpts[lbi]
+                fpts[ibin,fbin]['ci_upper'] = syn_avg_fpts[ubi]
                 
                 fluxes[ibin,fbin]['ci_lower'] = syn_avg_fluxes[lbi]
                 fluxes[ibin,fbin]['ci_upper'] = syn_avg_fluxes[ubi]
@@ -101,11 +157,11 @@ class WTTimesStats:
                 rates[ibin,fbin]['ci_lower'] = syn_avg_rates[lbi]
                 rates[ibin,fbin]['ci_upper'] = syn_avg_rates[ubi]
                     
-                del trans_weights, trans_durations, trans_ibinprobs, trans_ifbins
+                del trans_weights, trans_durations, trans_ibinprobs, trans_ifbins, trans_fpts
             wemd.rc.pstatus()
             del trans_ibin
             
-        for (dsname, data) in (('duration', durations), ('flux', fluxes), ('rate', rates)):
+        for (dsname, data) in (('duration', durations), ('fpt', fpts), ('flux', fluxes), ('rate', rates)):
             try:
                 del self.ttimes_group[dsname]
             except KeyError:
@@ -118,7 +174,8 @@ class WTTimesStats:
             attrs['ci_alpha'] = self.mcbs_alpha
             attrs['ci_n_sets'] = self.mcbs_nsets
             
-            self.record_data_iter_range(ds)
+            if not self.bf_mode:
+                self.record_data_iter_range(ds)
             self.record_data_binhash(ds)
 
         attrs = self.ttimes_group.attrs
@@ -133,21 +190,29 @@ class WTTimesStats:
         self.fluxes = fluxes
         self.rates = rates
         
-        self.record_data_iter_range(self.ttimes_group)
+        if not self.bf_mode:
+            self.record_data_iter_range(self.ttimes_group)
         self.record_data_binhash(self.ttimes_group)
             
     def summarize_stats(self):
-        for (array, dsname, argname, title) in ((self.durations, 'duration', 'ed_stats', 'event duration'),
-                                                (self.fluxes, 'flux', 'flux_stats', 'flux'),
-                                                (self.rates, 'rate', 'rate_stats', 'rate')):
-            if array is None:
-                array = self.ttimes_group[dsname]
-            self.summarize_ci(getattr(args,argname), array, title, self.mcbs_display_confidence,
-                              headers=(not self.suppress_headers), labels=self.print_bin_labels)
+        for (array, dsname, argname, title) in ((self.durations, 'duration', 'ed_stats_filename', 'event duration'),
+                                                (self.fpts, 'fpt', 'fpt_stats_filename', 'first passage time'),
+                                                (self.fluxes, 'flux', 'flux_stats_filename', 'flux'),
+                                                (self.rates, 'rate', 'rate_stats_filename', 'rate')):
+            filename = getattr(self,argname)
+            if filename:
+                if array is None:
+                    try:
+                        array = self.ttimes_group[dsname]
+                    except KeyError:
+                        wemd.rc.pstatus('{} data not found in {}'.format(title, self.anal_h5name))
+                        continue
+
+                self.summarize_ci(filename, array, title, self.mcbs_display_confidence,
+                                  headers=(not self.suppress_headers), labels=self.print_bin_labels)
         
             
     def summarize_ci(self, filename, array, title, confidence, headers, labels):
-        if not filename: return
         
         format_2d = '{ibin:{mw}d}    {fbin:{mw}d}    {0:20.15g}    {1:20.15g}    {2:20.15g}    {3:20.15g}    {4:20.15g}    {5:20.15g}\n'
         max_ibin_width = len(str(self.n_bins-1))
@@ -171,8 +236,8 @@ class WTTimesStats:
                 self.write_bin_labels(outfile)
                 outfile.write('----\n')
 
-        for ibin in self.initial_bins:
-            for fbin in self.final_bins:
+        for ibin in self.analysis_initial_bins:
+            for fbin in self.analysis_final_bins:
                 mean = array[ibin,fbin]['expectation']
                 lb = array[ibin,fbin]['ci_lower']
                 ub = array[ibin,fbin]['ci_upper']
@@ -183,73 +248,53 @@ class WTTimesStats:
                 outfile.write(format_2d.format(*map(float,(mean,lb,ub,ciwidth,relciwidth,symmerr)),
                                                ibin=ibin,fbin=fbin,mw=max_ibin_width))
 
-
-
-class WTTimes(WTTimesStats,MCBSMixin,KineticsAnalysisMixin,TransitionAnalysisMixin,
-               BinningMixin,IterRangeMixin,WEMDDataReaderMixin,WEMDAnalysisTool):
-    def __init__(self):
-        super(WTTimes,self).__init__()
-        
-        
-    def main(self):
-        parser = argparse.ArgumentParser('w_ttimes', description='''\
-        Trace the WEMD trajectory tree and report on transition kinetics.
-        ''')
+    def main(self):            
+        parser = argparse.ArgumentParser('w_ttimes', description=self.description)
         wemd.rc.add_args(parser)
-        wtt.add_args(parser)
-        
-        agroup = parser.add_argument_group('kinetics analysis options')
-        agroup.add_argument('--dt', dest='dt', type=float, default=1.0,
-                            help='Assume input data has a time spacing of DT (default: %(default)s).')
-        agroup.add_argument('-i', '--initial-bins', dest='ibins_string', metavar='I',
-                             help='''Only calculate statistics for transitions starting in bin I.  This may be specified as a
-                             comma-separated list of integers or ranges, as in "0,2-4,5,9"''')
-        agroup.add_argument('-j', '--final-bins', dest='fbins_string', metavar='J',
-                            help='''Only calculate statistics for transitions ending in bin J.  This may be specified as a
-                             comma-separated list of integers or ranges, as in "0,2-4,5,9"''')
-        
-        output_options = parser.add_argument_group('kinetics analysis output options')        
-        output_options.add_argument('--edstats', dest='ed_stats', default='edstats.txt',
-                                    help='Store event duration statistics in ED_STATS (default: edstats.txt)')
-        output_options.add_argument('--fluxstats', dest='flux_stats', default='fluxstats.txt',
-                                    help='Store flux statistics in FLUX_STATS (default: fluxstats.txt)')
-        output_options.add_argument('--ratestats', dest='rate_stats', default='ratestats.txt',
-                                    help='Store rate statistics in RATE_STATS (default: ratestats.txt)')
-        output_options.add_argument('--noheaders', dest='suppress_headers', action='store_true',
-                                    help='Do not include headers in text output files (default: include headers)')
-        output_options.add_argument('--binlabels', dest='print_bin_labels', action='store_true',
-                                    help='Print bin labels in output files, if available (default: do not print bin labels)')
-        
-        
+        self.add_args(parser)
+                
         args = parser.parse_args()
         wemd.rc.process_args(args, config_required = False)
-        wtt.process_args(args)
-        
-        wtt.dt = args.dt
-        wtt.ed_stats_filename = args.ed_stats
-        wtt.flux_stats_filename = args.flux_stats
-        wtt.rate_stats_filename = args.rate_stats
-        wtt.suppress_headers = args.suppress_headers
-        wtt.print_bin_labels = args.print_bin_labels
-        
-        if args.ibins_string:
-            wtt.initial_bins = wtt.parse_simple_int_range(args.ibins_string)
-            wemd.rc.pstatus('Will report statistics for transitions beginning in the following bins:\n{!s}'.format(wtt.initial_bins))
-        else:
-            wemd.rc.pstatus('Will report statistics for transitions beginning in any bin.')
-            wtt.initial_bins = range(wtt.n_bins)
+        self.process_args(args)
+                        
+        self.check_iter_range()
+        self.check_bin_selection()
+        self.open_analysis_backing()
+        self.ttimes_group = self.require_analysis_group('w_ttimes', replace=False)
+        self.require_bin_assignments()
+        self.require_transitions()
+        self.gen_stats()
+        self.summarize_stats()
+
+
+class WTTimesWE(WTTimesBase,CommonOutputMixin,MCBSMixin,KineticsAnalysisMixin,TransitionAnalysisMixin,BinningMixin,
+              IterRangeMixin,WEMDDataReaderMixin,
+              WEMDAnalysisTool):
+    description = 'Trace the WEMD trajectory tree and report on transition kinetics.'
+    
+    def __init__(self):
+        super(WTTimesWE,self).__init__()
             
-        if args.fbins_string:
-            wtt.final_bins = wtt.parse_simple_int_range(args.fbins_string)
-            wemd.rc.pstatus('Will report statistics for transitions ending in the following bins:\n{!s}'.format(wtt.final_bins))
-        else:
-            wemd.rc.pstatus('Will report statistics for transitions ending in any bin.')
-            wtt.final_bins = range(wtt.n_bins) 
+                
+
+class WTTimesBF(WTTimesBase,CommonOutputMixin,MCBSMixin,KineticsAnalysisMixin,BFTransitionAnalysisMixin,BFBinningMixin,
+                 BFDataManager,WEMDAnalysisTool):
+    description = 'Trace one or more brute force trajectories and report on transition kinetics.'
+    default_chunksize = 65536*4
+    
+    def __init__(self):
+        super(WTTimesBF,self).__init__()
+        self.bf_mode = True
+        self.config_required = False
+                        
+        self.chunksize = None
+        self.usecols = None
+        self.input_files = None
+                
+    def check_iter_range(self):
+        pass # do nothing, since we don't do iteration ranges for brute force
+    
+    def get_total_time(self):
+        self.require_bf_h5file()
+        return numpy.add.reduce([self.get_traj_len(traj_id)-1 for traj_id in xrange(self.get_n_trajs())]) * self.dt
         
-        wtt.check_iter_range()
-        wtt.open_analysis_backing()
-        wtt.ttimes_group = wtt.require_analysis_group('w_ttimes', replace=False)
-        wtt.require_bin_assignments()
-        wtt.require_transitions()
-        wtt.gen_stats()
-        wtt.summarize_stats()

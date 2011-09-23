@@ -10,9 +10,7 @@ import wemd
 from wemdtools.aframe import AnalysisMixin
 
 class BinningMixin(AnalysisMixin):
-    '''A mixin for performing binning on WEMD data.
-    
-    Requires: IterRangeMixin'''
+    '''A mixin for performing binning on WEMD data.'''
     
     def __init__(self):
         super(BinningMixin,self).__init__()
@@ -113,13 +111,9 @@ class BinningMixin(AnalysisMixin):
     def check_data_binhash(self, h5object):
         '''Check whether the recorded bin identity hash on the given HDF5 object matches the identity hash for self.region_set'''
         return h5object.attrs.get('binhash') == self.region_set_hash.digest() 
-                
-    def check_bin_data(self):
-        '''Check to see that existing binning data corresponds to the same bin topology and iteration range as requested'''
-        
-        
+            
     def assign_to_bins(self):
-        '''Requires the DataReader mixin to be in the inheritance tree'''
+        '''Assign WEMD segment data to bins.  Requires the DataReader mixin to be in the inheritance tree'''
         self.require_binning_group()        
         
         n_iters = self.last_iter - self.first_iter + 1
@@ -162,16 +156,15 @@ class BinningMixin(AnalysisMixin):
         if self.discard_bin_assignments:
             wemd.rc.pstatus('Discarding existing bin assignments.')
             do_assign = True
-        elif 'bin_assignments' in self.binning_h5group:
-            # Cannot check for iteration ranges for brute force analyses
-            if not self.bf_mode:
-                if not self.check_data_iter_range_least(self.binning_h5group):
-                    wemd.rc.pstatus('Existing bin assignments are for incompatible first/last iterations; deleting assignments.')
-                    do_assign = True
-            if not self.check_data_binhash(self.binning_h5group):
-                wemd.rc.pstatus('Bin definitions have changed; deleting existing bin assignments.')
-                do_assign = True
-        
+        elif 'bin_assignments' not in self.binning_h5group:
+            do_assign = True
+        elif not self.check_data_iter_range_least(self.binning_h5group):
+            wemd.rc.pstatus('Existing bin assignments are for incompatible first/last iterations; deleting assignments.')
+            do_assign = True
+        elif not self.check_data_binhash(self.binning_h5group):
+            wemd.rc.pstatus('Bin definitions have changed; deleting existing bin assignments.')
+            do_assign = True
+    
         if do_assign:
             self.delete_binning_group()
             self.assign_to_bins()
@@ -184,6 +177,52 @@ class BinningMixin(AnalysisMixin):
     def get_bin_populations(self, first_iter = None, last_iter = None):
         return self.slice_per_iter_data(self.binning_h5group['bin_populations'], first_iter, last_iter)
     
+class BFBinningMixin(BinningMixin):
+    '''Modifications of BinningMixin to do binning on brute force data (as stored in an HDF5 file
+    created by BFDataManager).'''
+    
+    def assign_to_bins(self, chunksize=65536):
+        '''Assign brute force trajectory data to bins.'''
+        self.require_bf_h5file()
+        self.require_binning_group()
+        n_trajs = self.get_n_trajs()
+        max_traj_len = self.get_max_traj_len()
         
+        assignments_ds = self.binning_h5group.create_dataset('bin_assignments', 
+                                                             shape=(n_trajs,max_traj_len),
+                                                             dtype=numpy.min_scalar_type(self.n_bins),
+                                                             chunks=(1,chunksize),
+                                                            compression='gzip')                
+        wemd.rc.pstatus('Assigning to bins...')
         
+        for traj_id in xrange(n_trajs):
+            pcoord_ds = self.get_pcoord_dataset(traj_id)
+            pclen = pcoord_ds.len()
+            for istart in xrange(0,pclen,chunksize):
+                iend = min(istart+chunksize,pclen)
+                pcchunk = pcoord_ds[istart:iend]
+                assignments_ds[traj_id,istart:iend] = self.region_set.map_to_all_indices(pcchunk)
+                wemd.rc.pstatus('\r  Trajectory {:d}:  {:d}/{:d}'.format(traj_id,iend,pclen), end='')
+                wemd.rc.pflush()
+                del pcchunk
+            wemd.rc.pstatus()
+            del pcoord_ds
         
+        for h5object in (self.binning_h5group, assignments_ds):
+            self.record_data_binhash(h5object)
+                            
+    def require_bin_assignments(self):
+        self.require_binning_group()
+        do_assign = False
+        if self.discard_bin_assignments:
+            wemd.rc.pstatus('Discarding existing bin assignments.')
+            do_assign = True
+        elif 'bin_assignments' not in self.binning_h5group:
+            do_assign = True
+        elif not self.check_data_binhash(self.binning_h5group):
+            wemd.rc.pstatus('Bin definitions have changed; deleting existing bin assignments.')
+            do_assign = True
+        
+        if do_assign:
+            self.delete_binning_group()
+            self.assign_to_bins()

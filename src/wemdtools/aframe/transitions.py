@@ -27,16 +27,16 @@ class TransitionEventAccumulator:
         
         self.bin_index_dtype = numpy.min_scalar_type(n_bins)
         
-        self.tdat_dtype = numpy.dtype( [('traj',            self.index_dtype),
+        self.tdat_dtype = numpy.dtype( [('traj',             self.index_dtype),
                                         ('n_iter',           self.index_dtype),
-                                        ('timepoint',       self.index_dtype),
-                                        ('initial_bin',     self.bin_index_dtype),
-                                        ('final_bin',       self.bin_index_dtype),
-                                        ('initial_weight',  self.weight_dtype),
-                                        ('final_weight',    self.weight_dtype),
-                                        ('initial_bin_pop', self.weight_dtype),
-                                        ('duration',        self.index_dtype),
-                                        ('fpt',             self.index_dtype),
+                                        ('timepoint',        self.index_dtype),
+                                        ('initial_bin',      self.bin_index_dtype),
+                                        ('final_bin',        self.bin_index_dtype),
+                                        ('initial_weight',   self.weight_dtype),
+                                        ('final_weight',     self.weight_dtype),
+                                        ('initial_bin_pop',  self.weight_dtype),
+                                        ('duration',         self.index_dtype),
+                                        ('fpt',              self.index_dtype),
                                         ])
         
         
@@ -284,6 +284,7 @@ class TransitionAnalysisMixin(AnalysisMixin):
                 upfunc(args)
                 
     def require_transitions(self):
+        self.require_bin_assignments()
         self.require_transitions_group()
         do_trans = False
         if self.discard_transition_data:
@@ -292,17 +293,13 @@ class TransitionAnalysisMixin(AnalysisMixin):
         elif not self.check_data_binhash(self.trans_h5group):
             wemd.rc.pstatus('Bin definitions have changed; deleting existing transition data.')
             do_trans = True
-        elif 'transitions' in self.trans_h5group:
-            if not self.bf_mode:
-                if not self.check_data_iter_range_least(self.trans_h5group): 
-                    wemd.rc.pstatus('Existing transition data is for different first/last iterations; deleting.')
-                    do_trans = True        
+        elif 'transitions' in self.trans_h5group and not self.check_data_iter_range_least(self.trans_h5group): 
+            wemd.rc.pstatus('Existing transition data is for different first/last iterations; deleting.')
+            do_trans = True
+                    
         if do_trans:
             self.delete_transitions_group()
             self.find_transitions()
-        else:
-            wemd.rc.pstatus('Using existing transition data (calculated from {:d} segments comprising {:d} unique trajectories).'
-                            .format(long(self.trans_h5group.attrs['n_segs']), long(self.trans_h5group.attrs['n_trajs'])))
 
     def find_transitions(self):
         wemd.rc.pstatus('Finding transitions...')
@@ -362,3 +359,64 @@ class TransitionAnalysisMixin(AnalysisMixin):
                             .format(long(self.n_segs_visited), long(self.n_total_segs), float(pct_visited), self.n_trajs), 
                             end='')
             wemd.rc.pflush()
+
+class BFTransitionAnalysisMixin(TransitionAnalysisMixin):
+    
+    def require_transitions(self):
+        self.require_bin_assignments()
+        self.require_transitions_group()
+        do_trans = False
+        if self.discard_transition_data:
+            wemd.rc.pstatus('Discarding existing transition data.')
+            do_trans = True
+        elif not self.check_data_binhash(self.trans_h5group):
+            wemd.rc.pstatus('Bin definitions have changed; deleting existing transition data.')
+            do_trans = True
+        
+        if do_trans:
+            self.delete_transitions_group()
+            self.find_transitions()
+
+    def find_transitions(self,chunksize=65536):
+        self.require_bf_h5file()
+        self.require_binning_group()
+        wemd.rc.pstatus('Finding transitions...')
+        output_group = self.require_analysis_group('transitions')
+            
+        self.accumulator = TransitionEventAccumulator(self.n_bins, output_group, calc_fpts = True)
+        assignments_ds = self.binning_h5group['bin_assignments']
+        
+        max_nrows = assignments_ds.len()
+        maxwidth_nrows = len(str(max_nrows))
+        
+        for traj_id in xrange(self.get_n_trajs()):
+            nrows = self.get_traj_len(traj_id)
+            for istart in xrange(0, nrows, chunksize):
+                iend = min(istart+chunksize,nrows)
+                assignments = assignments_ds[traj_id,istart:iend]
+                weights = numpy.ones((len(assignments),))
+                binpops = numpy.ones((len(assignments),self.n_bins))
+                
+                if istart == 0:
+                    self.accumulator.start_accumulation(assignments, weights, binpops, traj=traj_id)
+                else:
+                    self.accumulator.continue_accumulation(assignments, weights, binpops, traj=traj_id)
+                    
+                wemd.rc.pstatus('\r  Trajectory {:d}: {:{mwnr}d}/{:<{mwnr}d} ({:.2f}%)'
+                                .format(int(traj_id), long(iend), long(nrows), iend/nrows*100,mwnr=maxwidth_nrows), 
+                                end='')
+                wemd.rc.pflush()
+                self.accumulator.flush_transition_data()
+                del assignments, weights, binpops
+            wemd.rc.pstatus()                 
+                
+        try:
+            del output_group['n_trans']
+        except KeyError:
+            pass
+        output_group['n_trans'] = self.accumulator.n_trans
+        
+        for h5object in (output_group, output_group['n_trans'], output_group['transitions']):
+            self.record_data_binhash(h5object)
+        
+        self.accumulator.clear()

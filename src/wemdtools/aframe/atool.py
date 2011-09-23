@@ -1,8 +1,3 @@
-'''
-Created on Aug 25, 2011
-
-@author: mzwier
-'''
 from __future__ import division, print_function; __metaclass__ = type
 
 import logging
@@ -30,7 +25,7 @@ class WEMDAnalysisTool:
         
         # A way to override some arguments on a per-mixin basis without having to subclass
         # (messy, but it doesn't seem crucial enough so far to make it cleaner)
-        self.include_args = {}
+        self.include_args = {} 
 
     def add_args(self, parser, upcall = True):
         '''Add arguments to a parser common to all analyses of this type.'''

@@ -26,6 +26,10 @@ def lazy_loaded(backing_name, loader, docstring = None):
     return property(getter, setter, deleter, docstring)
 
 class _WEMDRC:
+    '''A class, an instance of which is accessible as ``wemd.rc``, to handle global issues for WEMD code,
+    such as loading modules and plugins, writing output based on verbosity level, adding default command line options,
+    and so on.'''
+    
     # Runtime config file management
     ENV_RUNTIME_CONFIG  = 'WEMDRC'
     RC_DEFAULT_FILENAME = 'wemd.cfg'
@@ -137,6 +141,9 @@ class _WEMDRC:
         logging_config['incremental'] = True
         
     def pstatus(self, *args, **kwargs):
+        fileobj = kwargs.get('file', sys.stdout)
+        if kwargs.get('termonly', False) and not fileobj.isatty():
+            return
         if self.verbosity != 'quiet':
             print(*args, **kwargs)
         

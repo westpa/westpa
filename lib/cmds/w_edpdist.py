@@ -307,13 +307,13 @@ pgroup.add_argument('--evol-plot-pattern', default='edf_ed_evol_%d_%d.pdf',
                     which must contain two printf-style escape sequences which will be replaced with the indices of the
                     initial and final bins whose duration EDF is being considered (default: %(default)s).''')
 
-wedp.add_output_args(ogroup)
+wedp.add_common_output_args(ogroup)
 
 args = parser.parse_args()
 
 wemd.rc.process_args(args, config_required=False)
 wedp.process_args(args)
-wedp.process_output_args(args)
+wedp.process_common_output_args(args)
 wedp.dt = args.dt
 wedp.discard_edf_data = args.discard_edf_data
 wedp.summary_output_pattern = args.summary_output_pattern

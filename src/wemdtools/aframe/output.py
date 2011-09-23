@@ -18,7 +18,7 @@ class CommonOutputMixin(AnalysisMixin):
         self.output_suppress_headers = False
         self.output_print_bin_labels = False
         
-    def add_output_args(self, parser_or_group):
+    def add_common_output_args(self, parser_or_group):
         if self.include_args['CommonOutputMixin']['suppress_headers']:
             parser_or_group.add_argument('--noheaders', dest='suppress_headers', action='store_true',
                                 help='Do not include headers in text output files (default: include headers)')
@@ -27,7 +27,7 @@ class CommonOutputMixin(AnalysisMixin):
                                 help='Print bin labels in output files, if available (default: do not print bin labels)')
                 
         
-    def process_output_args(self, args):
+    def process_common_output_args(self, args):
         self.output_suppress_headers = bool(args.suppress_headers)
         self.output_print_bin_labels = bool(args.print_bin_labels)
         
