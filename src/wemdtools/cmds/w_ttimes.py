@@ -286,8 +286,6 @@ class WTTimesBF(WTTimesBase,CommonOutputMixin,MCBSMixin,KineticsAnalysisMixin,BF
         super(WTTimesBF,self).__init__()
         self.bf_mode = True
         self.config_required = False
-                        
-        self.chunksize = None
         self.usecols = None
         self.input_files = None
                 

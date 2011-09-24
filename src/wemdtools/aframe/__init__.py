@@ -1,4 +1,4 @@
-"""WEMD Analyis framework"""
+"""WEMD Analyis framework -- an unholy mess of classes exploiting each other"""
 
 from __future__ import division, print_function; __metaclass__ = type
 
