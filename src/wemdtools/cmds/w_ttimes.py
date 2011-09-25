@@ -46,8 +46,12 @@ class WTTimesBase:
         output_options = parser.add_argument_group('kinetics analysis output options')        
         output_options.add_argument('--edstats', dest='ed_stats', default='edstats.txt',
                                     help='Store event duration statistics in ED_STATS (default: edstats.txt)')
-        output_options.add_argument('--fptstats', dest='fpt_stats', default='fptstats.txt',
-                                    help='Store first passage time statistics in FPT_STATS (default: fptstats.txt).')
+        if self.bf_mode:
+            output_options.add_argument('--fptstats', dest='fpt_stats', default='fptstats.txt',
+                                        help='Store first passage time statistics in FPT_STATS (default: fptstats.txt).')
+        else:
+            output_options.add_argument('--fptstats', dest='fpt_stats',
+                                        help='Store first passage time statistics in FPT_STATS (default: do not store).')
         output_options.add_argument('--fluxstats', dest='flux_stats', default='fluxstats.txt',
                                     help='Store flux statistics in FLUX_STATS (default: fluxstats.txt)')
         output_options.add_argument('--ratestats', dest='rate_stats', default='ratestats.txt',

@@ -236,7 +236,7 @@ class TransitionAnalysisMixin(AnalysisMixin):
     def __init__(self):
         super(TransitionAnalysisMixin,self).__init__()
         self.discard_transition_data = False
-        
+        self.calc_fpts = False
         self.trans_h5gname = 'transitions'
         self.trans_h5group = None
         self.__transitions_ds = None
@@ -307,7 +307,7 @@ class TransitionAnalysisMixin(AnalysisMixin):
             
         self.n_segs_visited = 0
         self.n_total_segs = self.total_segs_in_range(self.first_iter,self.last_iter)
-        self.accumulator = TransitionEventAccumulator(self.n_bins, output_group, calc_fpts = False)        
+        self.accumulator = TransitionEventAccumulator(self.n_bins, output_group, calc_fpts = self.calc_fpts)        
         self.bin_assignments = self.get_bin_assignments(self.first_iter,self.last_iter)
         self.bin_populations = self.get_bin_populations(self.first_iter,self.last_iter)
         
