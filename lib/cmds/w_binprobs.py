@@ -97,7 +97,7 @@ class WBinprobs(BinningMixin, IterRangeMixin, WEMDDataReaderMixin, WEMDAnalysisT
             
             if self.do_write_bin_labels:
                 self.write_bin_labels(output_file)
-                output_file.write('----\n')
+                output_file.write('# ----\n')
                 
             output_file.write('''\
 # column 0: first iteration of averaging window
@@ -176,7 +176,7 @@ wbp.do_write_bin_labels = bool(args.write_bin_labels)
 wbp.confidence = args.confidence
 wbp.alpha = 1-args.confidence
 wbp.display_confidence = '{:.{cp}f}'.format(100*args.confidence,
-                                            cp = -int(math.floor(math.log10(wbp.alpha)))-2) 
+                                            cp = max(0,-int(math.floor(math.log10(wbp.alpha)))-2)) 
 
 wbp.check_iter_range()
 wbp.open_analysis_backing()

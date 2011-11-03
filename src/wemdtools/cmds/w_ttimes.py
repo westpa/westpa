@@ -111,7 +111,8 @@ class WTTimesBase:
                 trans_ibin = transdat_ds[(transdat_ibin == ibin) & transdat_in_range]
                 
             for fbin in self.analysis_final_bins:
-                trans_ifbins = trans_ibin[trans_ibin['final_bin'] == fbin]
+                #trans_ifbins = trans_ibin[trans_ibin['final_bin'] == fbin]
+                trans_ifbins = numpy.extract(trans_ibin['final_bin'] == fbin, trans_ibin)
                 dlen = len(trans_ifbins)
                 
                 if not dlen: continue
@@ -132,10 +133,14 @@ class WTTimesBase:
                             .format(ibin,fbin,iset+1,n_sets,dlen, w_n_bins=w_n_bins, w_n_sets=w_n_sets), end='')
                     wemd.rc.pflush()
                     indices = numpy.random.randint(dlen, size=(dlen,))
-                    syn_weights   = trans_weights[indices]
-                    syn_durations = trans_durations[indices]
-                    syn_fpts      = trans_fpts[indices]
-                    syn_ibinprobs = trans_ibinprobs[indices]
+                    #syn_weights   = trans_weights[indices]
+                    #syn_durations = trans_durations[indices]
+                    #syn_fpts      = trans_fpts[indices]
+                    #syn_ibinprobs = trans_ibinprobs[indices]
+                    syn_weights    = trans_weights.take(indices)
+                    syn_durations  = trans_durations.take(indices)
+                    syn_fpts       = trans_fpts.take(indices)
+                    syn_ibinprobs  = trans_ibinprobs.take(indices)
                     
                     syn_avg_durations[iset] = numpy.average(syn_durations, weights=syn_weights) * dt
                     syn_avg_fpts[iset] = numpy.average(syn_fpts, weights=syn_weights) * dt
