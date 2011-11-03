@@ -1,4 +1,4 @@
-import os, sys, time, contextlib, signal, random
+import os, sys, contextlib, signal, random, subprocess, resource
 import numpy
 import logging
 log = logging.getLogger(__name__)
@@ -125,7 +125,6 @@ class ExecutablePropagator(WEMDPropagator):
         template_args = template_args or dict()
                 
         exename = self.makepath(child_info['executable'], template_args)
-        child_type = child_info['child_type']
         child_environ = dict(os.environ)
         child_environ.update(self.child_environ)
         child_environ.update(addtl_environ or {})
@@ -147,25 +146,20 @@ class ExecutablePropagator(WEMDPropagator):
                 stderr_path = self.makepath(child_info['stderr'], template_args)
                 log.debug('redirecting standard error to %r' % stderr_path)
                 stderr = open(stderr_path, 'wb')
-                    
-        pid = os.fork()
-        if pid:
-            (id, rc, rusage) = os.wait4(pid, 0)    
-            return (rc, rusage)
-        else:
-            # in child process
-            # redirect stdout/stderr
-            stdout_fd = stdout.fileno()
-            stderr_fd = stderr.fileno()
-            os.dup2(stdout_fd,1)
-            os.dup2(stderr_fd,2)
-                        
-            # Execute
-            try:
-                os.execlpe(exename, 'wemd_worker[%s]' % os.path.basename(exename), child_environ)
-            except Exception as e:
-                log.debug('could not execute {!r}: {!s}'.format(exename, e))
-                raise
+
+        ci = sys.getcheckinterval()
+        sys.setcheckinterval(2**30)
+        try:
+            proc = subprocess.Popen([exename], 
+                                    stdout=stdout, stderr=stderr if stderr is not stdout else subprocess.STDOUT,
+                                    close_fds=True, env=child_environ)
+        finally:
+            sys.setcheckinterval(ci)
+            
+        rc = proc.wait()
+        rusage = resource.getrusage(resource.RUSAGE_CHILDREN)
+        return (rc, rusage)
+    
     
     def _iter_env(self, n_iter):
         addtl_environ = {self.ENV_CURRENT_ITER: str(n_iter)}
@@ -178,11 +172,6 @@ class ExecutablePropagator(WEMDPropagator):
         else:
             parent_template = self.initial_state_dir
    
-        #ENV_RAND16               = 'WEMD_RAND16'
-        #ENV_RAND32               = 'WEMD_RAND32'
-        #ENV_RAND64               = 'WEMD_RAND64'
-        #ENV_RAND_1               = 'WEMD_RAND1'
-
         addtl_environ = {self.ENV_CURRENT_ITER: str(segment.n_iter),
                          self.ENV_CURRENT_SEG_ID: str(segment.seg_id),
                          self.ENV_PARENT_SEG_ID: str(segment.p_parent_id),
@@ -278,6 +267,8 @@ class ExecutablePropagator(WEMDPropagator):
         for segment in segments:
             # Record start timing info
             self.rtracker.begin('propagation')
+            
+            cputime_pre = resource.getrusage(resource.RUSAGE_CHILDREN).ru_utime
 
             # Fork the new process
             with changed_cwd(self.propagator_info['cwd']):
@@ -305,17 +296,12 @@ class ExecutablePropagator(WEMDPropagator):
                     log.debug('child process for segment %d exited successfully'
                               % segment.seg_id)
                     segment.status = Segment.SEG_STATUS_COMPLETE
+                elif rc < 0:
+                    log.error('child process for segment %d exited on signal %d (%s)' % (segment.seg_id, -rc, SIGNAL_NAMES[-rc]))
+                    segment.status = Segment.SEG_STATUS_FAILED
+                    return
                 else:
-                    if os.WIFEXITED(rc):
-                        log.error('child process for segment %d exited with code %s' 
-                                 % (segment.seg_id, os.WEXITSTATUS(rc)))
-                    elif os.WIFSIGNALED(rc):
-                        sig = os.WTERMSIG(rc)
-                        log.error('child process exited on signal %d (%s)'
-                                  % (sig, SIGNAL_NAMES[sig]))
-                    else:
-                        log.error('child process exited with (16-bit) status %d' % rc)
-                        
+                    log.error('child process for segment %d exited with code %d' % (segment.seg_id, rc))
                     segment.status = Segment.SEG_STATUS_FAILED
                     return
                 
@@ -345,4 +331,4 @@ class ExecutablePropagator(WEMDPropagator):
             self.rtracker.end('propagation')            
             elapsed = self.rtracker.difference['propagation']
             segment.walltime = elapsed.walltime
-            segment.cputime = rusage.ru_utime
+            segment.cputime = rusage.ru_utime - cputime_pre

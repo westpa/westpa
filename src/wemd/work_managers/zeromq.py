@@ -380,8 +380,6 @@ class ZMQWorkManager(WEMDWorkManager):
                 self.mode = 'worker'
                 self.start_worker()
                 return
-            else:
-                log.debug('forked worker process {:d}'.format(pid))
         
         # We should never reach this point in a child process
         assert self.mode == 'master'

@@ -79,15 +79,15 @@ class _WEMDRC:
         
     @property
     def verbose_mode(self):
-        return self.verbosity == 'verbose'
+        return (self.verbosity == 'verbose')
     
     @property
     def debug_mode(self):
-        return self.verbosity == 'debug'
+        return (self.verbosity == 'debug')
     
     @property
     def quiet_mode(self):
-        return self.verbosity == 'quiet'
+        return (self.verbosity == 'quiet')
                             
     def process_args(self, args, config_required = True):
         self.cmdline_args = args
@@ -183,17 +183,11 @@ class _WEMDRC:
     def get_work_manager(self):
         drivername = self.config.get('args.work_manager_name')
         if not drivername:
-            drivername = self.config.get('drivers.work_manager', 'threads')
+            drivername = self.config.get('drivers.work_manager', 'zmq')
         if drivername.lower() == 'serial':
             import wemd.work_managers.serial
             work_manager = wemd.work_managers.serial.SerialWorkManager()
-        elif drivername.lower() == 'processes':
-            import wemd.work_managers.processes
-            work_manager = wemd.work_managers.processes.ProcessWorkManager()                    
-        elif drivername.lower() in ('threads', 'default'):
-            import wemd.work_managers.threads
-            work_manager = wemd.work_managers.threads.ThreadedWorkManager()
-        elif drivername.lower() in ('zmq', 'zeromq'):
+        elif drivername.lower() in ('zmq', 'zeromq', 'default'):
             import wemd.work_managers.zeromq
             work_manager = wemd.work_managers.zeromq.ZMQWorkManager()
         else:
