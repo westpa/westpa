@@ -1,50 +1,22 @@
 from __future__ import division, print_function; __metaclass__ = type
 
-import sys, os, logging, socket, multiprocessing, threading, time, uuid, numpy
+import sys, os, logging, socket, multiprocessing, threading, time, numpy
 import argparse
 import collections
 import zmq
 import wemd
-from wemd.work_managers import WEMDWorkManager
+from wemd.work_managers import WEMDWorkManager, Task, Result
 
 log = logging.getLogger(__name__)
 
 DEFAULT_ANN_PORT     = 23811
-DEFAULT_TASK_PORT    = 23812    
+DEFAULT_TASK_PORT    = 23812
 
-class Task:        
-    def __init__(self, task_type, operand, task_id = None):
-        self.task_id = task_id or uuid.uuid4()
-        self.task_type = task_type
-        self.operand = operand
-                
-    def __hash__(self):
-        return hash(self.task_id)
-        
-    def __eq__(self, other):
-        return self.task_id == other.task_id
-
-    def __repr__(self):
-        return '<Task 0x{id:x}: {self.task_id!s} {self.task_type!r} operand={self.operand!r}>'.format(id=id(self), self=self)
-    
-class Result:
-    def __init__(self, task_id, task_type, result):
-        self.task_id = task_id
-        self.task_type = task_type
-        self.result = result
-                
-    def __hash__(self):
-        return hash(self.task_id)
-        
-    def __eq__(self, other):
-        return self.task_id == other.task_id
-
-    def __repr__(self):
-        return '<Result 0x{id:x}: {self.task_id!s} {self.task_type!r} result={self.result!r}>'.format(id=id(self), self=self)
-            
 class ZMQBase:
     def __init__(self, context=None):
         self.context = context or zmq.Context(multiprocessing.cpu_count())
+        # Time (in s) for sockets to settle
+        self.socket_delay = 0.1
         log.debug('ZMQ context {!r}'.format(self.context))
 
 class ZMaster(ZMQBase):
@@ -58,7 +30,14 @@ class ZMaster(ZMQBase):
         self.ann_socket = None
         self.task_socket = None
         
-        # How often to announce that work is available (for slow joiners)
+        # When to give up under the assumption that no clients are available
+        self.abort_interval = 600
+        self.last_contact = 0
+        
+        # How often (in seconds) to wake up and check for new work or the shutdown signal 
+        self.check_interval = 0.1
+        
+        # How often (in seconds) to announce that work is available (for slow joiners)
         self.announce_interval = 10
         self.last_announcement = 0
         
@@ -79,6 +58,7 @@ class ZMaster(ZMQBase):
         
     def handle_request(self, n_tasks):
         log.debug('receiving task request')
+        self.last_contact = time.time()
         to_send = []
         while len(to_send) < n_tasks:
             try:
@@ -91,6 +71,7 @@ class ZMaster(ZMQBase):
 
     def handle_results(self, payload):
         log.debug('receiving results')
+        self.last_contact = time.time()
         results = list(payload)
         self.task_socket.send('')
         for result in results:
@@ -98,21 +79,7 @@ class ZMaster(ZMQBase):
             self.results_queue.append(result)
         with self.results_avail:
             self.results_avail.notify_all()
-                
-    def announce_tasks(self):
-        current_time = time.time()
-        qlen = len(self.task_queue)
-        if qlen and (current_time - self.last_announcement >= self.announce_interval):
-            log.debug('announcing tasks available')
-            self.ann_socket.send_pyobj(('taskavail', self.task_endpoint))
-            self.last_announcement = time.time()
-        else:
-            self.last_announcement = 0
-        
-    def reset_announce_timer(self):
-        if not len(self.task_queue):
-            self.last_announcement = 0
-        
+                        
     def announce_shutdown(self, exit_code=0):
         '''Announce shutdown and close sockets'''
         log.debug('announcing shutdown')
@@ -135,12 +102,13 @@ class ZMaster(ZMQBase):
         poller.register(self.task_socket, zmq.POLLIN)
                 
         log.debug('waiting for sockets to settle')
-        time.sleep(1)
+        time.sleep(self.socket_delay)
         
+        self.last_contact = time.time()
         try:
             while not self.shutdown_flag:            
                 # Wait on messages from clients (or the shutdown signal)
-                poll_results = set(fd for (fd,_flag) in poller.poll(self.announce_interval*1000))
+                poll_results = set(fd for (fd,_flag) in poller.poll(self.check_interval*1000))
                 
                 if self.task_socket in poll_results:
                     reqtype, payload = self.task_socket.recv_pyobj()
@@ -156,6 +124,9 @@ class ZMaster(ZMQBase):
                         log.error('invalid request received')
                 else:
                     # Timeout
+                    if time.time() - self.last_contact >= self.abort_interval:
+                        raise RuntimeError('no clients contacted server in {:d} seconds'.format(self.abort_interval))
+                    
                     if self.task_queue:
                         self.announce_tasks()
             else:
@@ -173,6 +144,20 @@ class ZMaster(ZMQBase):
             self.thread = threading.Thread(target=self.main_loop)
             self.thread.daemon = False
             self.thread.start()
+
+    def announce_tasks(self):
+        current_time = time.time()
+        qlen = len(self.task_queue)
+        if qlen and (current_time - self.last_announcement >= self.announce_interval):
+            log.debug('announcing tasks available')
+            self.ann_socket.send_pyobj(('taskavail', self.task_endpoint))
+            self.last_announcement = time.time()
+        else:
+            self.last_announcement = 0
+        
+    def reset_announce_timer(self):
+        if not len(self.task_queue):
+            self.last_announcement = 0
                 
     def dispatch(self, task=None):        
         if task is not None:
@@ -180,25 +165,25 @@ class ZMaster(ZMQBase):
             self.announce_tasks()
             
     def dispatch_all(self, tasks):
-        for task in tasks:
-            # Atomic append; extend() is probably not a good idea here
-            self.task_queue.append(task)
         if tasks:
-            self.announce_tasks()
+            for task in tasks:
+                # Atomic append; extend() is probably not a good idea here
+                self.task_queue.append(task)
+            self.last_task_added = time.time()
             
     def shutdown(self, exit_code=0):
         self.shutdown_flag = True
         self.shutdown_exit_code = exit_code
-            
+                    
 class ZWorker(ZMQBase):
-    def __init__(self, ann_endpoint, propagator, n_procs = 1):
-        log.debug('initializing ZWorker with ann_endpoint={!r}, propagator={!r}, n_procs={:d}'
+    def __init__(self, ann_endpoint, propagator, n_procs=1):
+        log.debug('initializing ZWorker with ann_endpoint={!r}, propagator={!r}, n_procs={!r}'
                   .format(ann_endpoint, propagator, n_procs))
         # Initialize our base class to initialize the ZeroMQ context
         ZMQBase.__init__(self)
-        
-        self.n_procs = n_procs
+    
         self.propagator = propagator
+        self.n_procs = n_procs
                 
         self.ann_endpoint = ann_endpoint
         self.listen_thread = None
@@ -299,8 +284,8 @@ class TaskThread(threading.Thread):
                 log.error('unsupported task type {!r}'.format(task.task_type))
 
 class ZMQWorkManager(WEMDWorkManager):
-    def __init__(self, propagator=None):
-        WEMDWorkManager.__init__(self,propagator)
+    def __init__(self):
+        WEMDWorkManager.__init__()
         
         runtime_config = wemd.rc.config
         # Where we will run the master ZMQ device 
@@ -415,33 +400,48 @@ class ZMQWorkManager(WEMDWorkManager):
         blocks = [segments[i:i+self.blocksize] for i in xrange(0,len(segments),self.blocksize)]
         log.debug('dispatching {} segment(s) in {} block(s)'.format(len(segments), len(blocks)))
         
+        outgoing_by_id = {segment.seg_id: segment for segment in segments}
+        outgoing_ids = set(outgoing_by_id)
+        completed_ids = set()
+        
+        
         # label deterministically to save a little system entropy
         tasks = [Task('propagate', block, task_id=('propagate', block[0].n_iter, block[0].seg_id)) for block in blocks]
         self.zdev.dispatch_all(tasks)
-        results = []
-        while len(results) < len(tasks):
+        while len(completed_ids) < len(segments):
             self.zdev.results_avail.acquire()
             log.debug('waiting on results')
             self.zdev.results_avail.wait()
             while True:
                 try:
-                    results.append(self.zdev.results_queue.popleft())
+                    incoming_segments = list(self.zdev.results_queue.popleft().result)                    
                 except IndexError:
                     break
+                else:
+                    incoming_by_id = {segment.seg_id: segment for segment in incoming_segments}
+                    incoming_ids = set(incoming_by_id)
+                    
+                    # Make sure we didn't get back something we didn't send out
+                    assert (outgoing_ids & incoming_ids) == incoming_ids
+                    
+                    # Make sure we didn't get back a second copy of something
+                    assert len(incoming_ids & completed_ids) == 0
+                    
+                    # Record incoming segment IDs for future checks
+                    completed_ids |= incoming_ids
+                    
+                    for incoming_segment in incoming_segments:
+                        orig_segment = outgoing_by_id[incoming_segment.seg_id]
+                        orig_segment.status = incoming_segment.status
+                        orig_segment.walltime = incoming_segment.walltime
+                        orig_segment.cputime  = incoming_segment.cputime
+                        orig_segment.pcoord[...] = incoming_segment.pcoord[...]
+                    
+                    if incoming_segments:
+                        self.data_manager.open_backing()
+                        self.data_manager.update_segments(incoming_segments[0].n_iter, incoming_segments)
+                        self.data_manager.close_backing()                    
 
         self.zdev.reset_announce_timer()
                         
-        incoming_segments = []
-        for result in results:
-            incoming_segments.extend(result.result)
         
-        outgoing_by_id = {segment.seg_id: segment for segment in segments}
-        incoming_by_id = {segment.seg_id: segment for segment in incoming_segments}
-        assert set(outgoing_by_id) == set(incoming_by_id)
-        
-        for incoming_segment in incoming_segments:
-            orig_segment = outgoing_by_id[incoming_segment.seg_id]
-            orig_segment.status = incoming_segment.status
-            orig_segment.walltime = incoming_segment.walltime
-            orig_segment.cputime  = incoming_segment.cputime
-            orig_segment.pcoord[...] = incoming_segment.pcoord[...]

@@ -76,7 +76,7 @@ class _WEMDRC:
 
         self.config = ConfigDict()
         self.process_name = os.path.splitext(os.path.basename(sys.argv[0]))[0]
-        
+                
     @property
     def verbose_mode(self):
         return (self.verbosity == 'verbose')
@@ -108,7 +108,12 @@ class _WEMDRC:
                     
     def read_config(self, filename = None):
         if filename:
-            self.rcfile = filename            
+            self.rcfile = filename
+
+        if 'SIM_ROOT' not in os.environ:
+            sys.stderr.write('  -- WARNING  -- setting $SIM_ROOT to current directory ({})\n'.format(os.getcwd()))
+            os.environ['SIM_ROOT'] = os.getcwd()
+                                    
         self.config.read_config_file(self.rcfile)
                     
     def config_logging(self):
@@ -124,7 +129,7 @@ class _WEMDRC:
                                                    'formatter': 'standard'}},
                           'loggers': {'wemd': {'handlers': ['console'], 'propagate': False},
                                       'wemdtools': {'handlers': ['console'], 'propagate': False},
-                                      'wemd_cli': {'handlers': ['console'], 'propagate': False}},
+                                      'wemdext': {'handlers': ['console'], 'propagate': False}},
                           'root': {'handlers': ['console']}}
         
         logging_config['loggers'][self.process_name] = {'handlers': ['console'], 'propagate': False}
@@ -184,15 +189,23 @@ class _WEMDRC:
         drivername = self.config.get('args.work_manager_name')
         if not drivername:
             drivername = self.config.get('drivers.work_manager', 'zmq')
-        if drivername.lower() == 'serial':
+        ldrivername = drivername.lower()
+        if ldrivername == 'serial':
             import wemd.work_managers.serial
             work_manager = wemd.work_managers.serial.SerialWorkManager()
-        elif drivername.lower() in ('zmq', 'zeromq', 'default'):
+        elif ldrivername == 'processes':
+            import wemd.work_managers.processes
+            work_manager = wemd.work_managers.processes.ProcessWorkManager()
+        elif ldrivername in ('zmq', 'zeromq', 'default'):
             import wemd.work_managers.zeromq
             work_manager = wemd.work_managers.zeromq.ZMQWorkManager()
-        else:
+        elif '.' in ldrivername:
             pathinfo = self.config.get_pathlist('drivers.module_path', default=None)
             work_manager = extloader.get_object(drivername, pathinfo)()
+        elif ldrivername == 'threads' or ldrivername == 'processes':
+            raise ValueError('work manager "{}" has been removed'.format(drivername))
+        else:
+            raise ValueError('unknown work manager {!r}'.format(drivername))
         log.debug('loaded work manager: {!r}'.format(work_manager))
         return work_manager
     

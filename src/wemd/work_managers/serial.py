@@ -6,13 +6,10 @@ log = logging.getLogger(__name__)
 
 from wemd.work_managers import WEMDWorkManager
 
-# This is mostly for demonstration; serious parallelism probably needs processes, so that the
-# global interpreter lock doesn't get in the way.
-
 class SerialWorkManager(WEMDWorkManager):
-    def __init__(self, propagator=None):
+    def __init__(self):
         log.debug('initializing serial work manager')
-        super(SerialWorkManager,self).__init__(propagator)
+        super(SerialWorkManager,self).__init__()
         
     def propagate(self, segments):
         propagator = self.propagator

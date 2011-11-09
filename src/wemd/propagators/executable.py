@@ -155,12 +155,14 @@ class ExecutablePropagator(WEMDPropagator):
                                     close_fds=True, env=child_environ)
         finally:
             sys.setcheckinterval(ci)
-            
+
+        # Wait on child and get resource usage
+        (pid, status, rusage) = os.wait4(proc.pid, 0)
+        # Do a subprocess.Popen.wait() to let the Popen instance (and subprocess module) know that
+        # we are done with the process
         rc = proc.wait()
-        rusage = resource.getrusage(resource.RUSAGE_CHILDREN)
         return (rc, rusage)
-    
-    
+        
     def _iter_env(self, n_iter):
         addtl_environ = {self.ENV_CURRENT_ITER: str(n_iter)}
         return addtl_environ
@@ -177,11 +179,11 @@ class ExecutablePropagator(WEMDPropagator):
                          self.ENV_PARENT_SEG_ID: str(segment.p_parent_id),
                          self.ENV_CURRENT_SEG_DATA_REF: self.makepath(self.segment_dir, template_args),
                          self.ENV_PARENT_SEG_DATA_REF: self.makepath(parent_template, template_args),
-                         self.ENV_RAND16: str(random.randint(0,2**16)),
-                         self.ENV_RAND32: str(random.randint(0,2**32)),
-                         self.ENV_RAND64: str(random.randint(0,2**64)),
+                         self.ENV_RAND16:  str(random.randint(0,2**16)),
+                         self.ENV_RAND32:  str(random.randint(0,2**32)),
+                         self.ENV_RAND64:  str(random.randint(0,2**64)),
                          self.ENV_RAND128: str(random.randint(0,2**128)),
-                         self.ENV_RAND1:  str(random.random())}
+                         self.ENV_RAND1:   str(random.random())}
         return addtl_environ
     
     def segment_template_args(self, segment):
@@ -268,8 +270,6 @@ class ExecutablePropagator(WEMDPropagator):
             # Record start timing info
             self.rtracker.begin('propagation')
             
-            cputime_pre = resource.getrusage(resource.RUSAGE_CHILDREN).ru_utime
-
             # Fork the new process
             with changed_cwd(self.propagator_info['cwd']):
                 log.debug('iteration {segment.n_iter}, propagating segment {segment.seg_id}'.format(segment=segment))
@@ -331,4 +331,4 @@ class ExecutablePropagator(WEMDPropagator):
             self.rtracker.end('propagation')            
             elapsed = self.rtracker.difference['propagation']
             segment.walltime = elapsed.walltime
-            segment.cputime = rusage.ru_utime - cputime_pre
+            segment.cputime = rusage.ru_utime

@@ -12,9 +12,6 @@ parser.add_argument('--work-manager', dest='work_manager_name',
                         +'or name a Python class; default: threads)')
 parser.add_argument('--oneseg', dest='only_one_segment', action='store_true',
                     help='only propagate one segment (useful for debugging propagators)')
-parser.add_argument('--kill-children', dest='do_kill_children', action='store_true',
-                    help='''Forcibly kill child processes at program termination. (Risks data corruption; should only be used
-                    for debugging.''')
 parser.add_argument('--help-work-manager', dest='do_work_manager_help', action='store_true',
                     help='display help specific to the given work manager')
 
@@ -38,6 +35,7 @@ we_driver = wemd.rc.get_we_driver()
 propagator = wemd.rc.get_propagator()
 
 work_manager.propagator = propagator
+work_manager.data_manager = data_manager
 propagator.system = system
 data_manager.system = system
 we_driver.system = system
@@ -54,6 +52,8 @@ sim_manager.load_plugins()
 log.debug('calling work_manager.startup()')
 work_manager.startup()
 
+
+# This should be something more global, like wemd.rc.mode == 'master'
 if work_manager.mode == 'master':
     log.debug('preparing run')
     sim_manager.prepare_run()
@@ -72,6 +72,7 @@ if work_manager.mode == 'master':
             work_manager.shutdown(4)
                             
 else:
+    # This should be subsumed into work_manager.startup()
     log.debug('running worker loop')
     work_manager.run_worker()
 
