@@ -1,4 +1,4 @@
-import os, sys, contextlib, signal, random, subprocess, resource
+import os, sys, contextlib, signal, random, subprocess
 import numpy
 import logging
 log = logging.getLogger(__name__)
@@ -332,3 +332,4 @@ class ExecutablePropagator(WEMDPropagator):
             elapsed = self.rtracker.difference['propagation']
             segment.walltime = elapsed.walltime
             segment.cputime = rusage.ru_utime
+        return segments

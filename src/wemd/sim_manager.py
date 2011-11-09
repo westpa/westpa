@@ -12,6 +12,21 @@ from wemd.util.rtracker import ResourceTracker, ResourceUsage
 from wemd import Segment
 from wemd.util.miscfn import vgetattr
 
+def wm_prep_iter(propagator, n_iter):
+    propagator.pre_iter(n_iter)
+
+def wm_post_iter(propagator, n_iter):
+    propagator.post_iter(n_iter)
+
+def wm_propagate(propagator, segments):
+    '''Propagate the given segments with the given propagator. This has to be a top-level
+    function for the current incarnation of the work manager.'''
+    outgoing_ids = [segment.seg_id for segment in segments]
+    incoming_segments = {segment.seg_id: segment for segment in propagator.propagate(segments)}
+    log.debug('received {!r}'.format(incoming_segments))
+    return [incoming_segments[seg_id] for seg_id in outgoing_ids]
+
+
 class WESimManager:
     def __init__(self):        
         self.data_manager = None
@@ -51,7 +66,6 @@ class WESimManager:
         
     def _invoke_callbacks(self, hook, *args, **kwargs):
         callbacks = self._callback_table.get(hook, [])
-        #log.debug('callbacks: {!r}'.format(callbacks))
         sorted_callbacks = list(sorted(callbacks))
         for (priority, name, fn) in sorted_callbacks:
             fn(*args, **kwargs)
@@ -72,15 +86,22 @@ class WESimManager:
         except AttributeError:
             pass
         
-    def _propagate(self, n_iter, segments):
+    def propagate(self, n_iter, segments):
         # Propagate segments            
         self.rtracker.begin('propagation')
         self.flush_status()
-        self.data_manager.close_backing()
-        self.work_manager.propagate(segments)
-        self.data_manager.open_backing()
-        self.data_manager.update_segments(n_iter, segments)
+
+        futures = [self.work_manager.submit(wm_propagate, self.propagator, [segment]) for segment in segments]
+        completed = []
+        for finished in self.work_manager.as_completed(futures):
+            incoming = finished.get_result()
+            self.data_manager.update_segments(n_iter, incoming)
+            completed.extend(incoming)
+        
         self.rtracker.end('propagation')
+        return completed
+        
+        
 
     # The functions prepare_run(), finalize_run(), run(), and shutdown() are
     # designed to be called by scripts which are actually performing runs.
@@ -93,7 +114,7 @@ class WESimManager:
         self.data_manager.system = self.system
         self.we_driver.system = self.system
         
-        self.work_manager.prepare_run()
+        #self.work_manager.prepare_run()
         self.data_manager.prepare_run()
         self.system.prepare_run()
         self._invoke_callbacks(self.prepare_run)
@@ -102,13 +123,13 @@ class WESimManager:
         '''Perform cleanup at the normal end of a run'''
         self.system.finalize_run()
         self.data_manager.finalize_run()
-        self.work_manager.finalize_run()
+        #self.work_manager.finalize_run()
         self._invoke_callbacks(self.finalize_run)
         
     def prepare_iteration(self, n_iter, segments, partial):
         '''Perform customized processing/setup prior to propagation. Argument ``partial`` (True or False)
         indicates whether this is a partially-complete iteration (i.e. a restart)'''
-        self.work_manager.prepare_iteration(n_iter, segments)
+        self.work_manager.submit(wm_prep_iter, self.propagator, n_iter).wait()
         
     def prepare_propagation(self, n_iter, segments):
         '''Prepare to propagate a group of segments'''
@@ -120,7 +141,7 @@ class WESimManager:
     
     def finalize_iteration(self, n_iter, segments):
         '''Perform customized processing/cleanup on just-completed segments at the end of an iteration'''
-        self.work_manager.finalize_iteration(n_iter, segments)
+        self.work_manager.submit(wm_post_iter, self.propagator, n_iter).wait()
         
     def prepare_we(self, n_iter, segments):
         '''Perform customized processing after propagation and before WE'''
@@ -245,13 +266,13 @@ class WESimManager:
                 log.debug('propagating iteration {:d}'.format(n_iter))
                 if wemd.rc.config.get('args.only_one_segment',False):
                     log.info('propagating only one segment')
-                    self._propagate(n_iter, segs_to_run[0:1])                
+                    segments = self.propagate(n_iter, segs_to_run[0:1])                
                     if len(segs_to_run) > 1:
                         # Exit cleanly after one segment, but only if we haven't finished the last segment in an iteration
                         # In that case, go ahead and run WE
                         break
                 else:
-                    self._propagate(n_iter, segs_to_run)
+                    segments = self.propagate(n_iter, segs_to_run)
                 log.debug('propagation complete')
                                 
                 # Check to ensure that all segments have been propagated                    

@@ -18,29 +18,7 @@ class WEMDWorkManager:
     def __init__(self):
         self.shutdown_called = False
         self.mode = 'master'
-        
-        # Active requests (those whose results have not been received)
-        self.active = dict()
                                 
-    def _register_future(self, future):
-        '''Record a future whose result should be pending.'''
-        # Dict assignment is atomic; no lock required
-        self.active[future.task_id] = future
-                
-    def _remove_future(self, future):
-        '''Remove a future from the list of those pending results'''
-        assert future.done
-        # No lock required, since dict.pop is an atomic operation (implemented as a C func)
-        self.active.pop(future.task_id, None)
-        
-    def _receive_result_into(self, future, result):
-        future._set_result(result)
-        self._remove_future(future)
-
-    def _receive_exception_into(self, future, exception):
-        future._set_exception(exception)
-        self._remove_future(future)
-                        
     def parse_aux_args(self, aux_args, do_help = False):
         '''Parse any unprocessed command-line arguments, returning any arguments not proccessed
         by this object. By default, this does nothing except return the input.'''
@@ -49,22 +27,7 @@ class WEMDWorkManager:
     def startup(self):
         '''Perform any necessary startup work, such as spawning clients'''
         pass
-                                    
-#    def prepare_iteration(self, n_iter, segments):
-#        '''Prepare this work manager to run a new iteration. If overridden, this
-#        must call propagator.prepare_iteration().'''
-#        self.n_iter = n_iter
-#        self.propagator.prepare_iteration(n_iter, segments)
-#                        
-#    def propagate(self, segments):
-#        '''Propagate the given segments.'''
-#        raise NotImplementedError
-#    
-#    def finalize_iteration(self, n_iter, segments):
-#        '''Clean up at the end of an iteration.  If overridden, this must call
-#        propagator.finalize_iteration().'''
-#        self.propagator.finalize_iteration(n_iter, segments)
-        
+                                            
     def shutdown(self, exit_code=0):
         '''Cleanly shut down any active workers.'''
         pass
@@ -138,7 +101,6 @@ class FutureWatcher:
             self.completed.append(future)
             if len(self.completed) >= self.threshold:
                 self.event.set()
-            assert self not in future._watchers
                 
     def wait(self):
         return self.event.wait()
@@ -154,8 +116,9 @@ class FutureWatcher:
                     
 class WMFuture:
     
-    @contextmanager
+    
     @staticmethod
+    @contextmanager
     def all_acquired(futures):
         futures = list(futures)
         for future in futures:
@@ -202,7 +165,8 @@ class WMFuture:
                     # This may need to be a simple print to stderr, depending on the locking
                     # semantics of the logger.
                     log.exception('ignoring exception in result callback')
-            self._update_callbacks.clear()
+            del self._update_callbacks
+            self._update_callbacks = []
     
     def _add_watcher(self, watcher):
         '''Add the given update watcher  to the internal list of watchers. If a result is available,
@@ -229,26 +193,18 @@ class WMFuture:
     def _set_result(self, result):
         with self._condition:
             self._result = result
-            self._returned = True
+            self._done = True
             self._condition.notify_all()
-        self._invoke_callbacks()
-        self._notify_watchers()
-        for cb in self._done_callbacks:
-            try:
-                cb(self)
-            except Exception:
-                log.exception('ignoring exception in result callback')
+            self._invoke_callbacks()
+            self._notify_watchers()
         
     def _set_exception(self, exception):
         with self._condition:
             self._exception = exception
-            self._returned = True
+            self._done = True
             self._condition.notify_all()
-        for cb in self._done_callbacks:
-            try:
-                cb(self)
-            except Exception:
-                log.exception('ignoring exception in result callback')
+            self._invoke_callbacks()
+            self._notify_watchers()
     
     def get_result(self):
         with self._condition:
@@ -267,6 +223,10 @@ class WMFuture:
     result = property(get_result, None, None, 
                       'Get the result associated with this future (may block if this future is being updated).')
     
+    def wait(self):
+        self.get_result()
+        return None
+    
     def get_exception(self):
         with self._condition:
             if self._returned:
@@ -280,9 +240,10 @@ class WMFuture:
         
     def is_done(self):
         with self._condition:
-            return self._returned
+            return self._done
     done = property(is_done, None, None, 
                     'Indicates whether this future is done executing (may block if this future is being updated).')    
     
-import serial, zeromq
+#import serial, zeromq
+import serial
 

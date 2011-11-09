@@ -1,11 +1,9 @@
 from __future__ import division, print_function; __metaclass__ = type
 
-import sys, os, logging, socket, multiprocessing, threading, time, numpy
+import sys, logging, multiprocessing
 import argparse
-import collections
 from functools import partial
 import wemd
-#from wemd.work_managers import WEMDWorkManager, Task, Result
 from wemd.work_managers import WEMDWorkManager, WMFuture
 
 log = logging.getLogger(__name__)
@@ -17,18 +15,20 @@ class ProcessWorkManager(WEMDWorkManager):
         super(ProcessWorkManager,self).__init__()
         self.n_workers = None
         self.pool = None
-                
         
-    def _result_callback(self, task_id, asyncresult):
-        future = self.futures[task_id]
-        with future._condition:
-            try:
-                result = asyncresult.get()
-            except Exception as e:
-                future._set_exception(e)
-            else:
-                future._set_result(result)
-        self._remove_future(future)
+        self.pending = dict()        
+
+    def submit(self, fn, *args, **kwargs):
+        ft = WMFuture()
+        self.pool.apply_async(fn, args=args, kwds=kwargs, callback=partial(self._result_callback, ft.task_id))
+        self.pending[ft.task_id] = ft
+        return ft
+
+    def _result_callback(self, task_id, result):
+        log.debug('receiving result for {!s}: {!r}'.format(task_id,result))
+        future = self.pending[task_id]
+        future._set_result(result)
+        del self.pending[task_id]
         
     def parse_aux_args(self, aux_args, do_help = False):
         parser = argparse.ArgumentParser(usage='%(prog)s [NON_WORK_MANAGER_OPTIONS] [OPTIONS]',
@@ -37,7 +37,7 @@ class ProcessWorkManager(WEMDWorkManager):
         runtime_config = wemd.rc.config
         group = parser.add_argument_group('processes work manager options')
                 
-        group.add_argument('-n', '-np', '-nw', type=int, dest='n_workers', default=multiprocessing.cpu_count(),
+        group.add_argument('-n', type=int, dest='n_workers', default=multiprocessing.cpu_count(),
                             help='Number of worker processes to run. (Default: %(default)s)')
         if do_help:
             parser.print_help()
@@ -50,20 +50,14 @@ class ProcessWorkManager(WEMDWorkManager):
         
     def startup(self):
         self.pool = multiprocessing.Pool(self.n_workers)
-        self.dispatch_queue = collections.deque
-        self.result_queue = collections.deque
         
     def shutdown(self, exit_code = 0):
-        self.pool.terminate()
-        self.pool.join()
-        self.pool = None
+        if self.pool:
+            self.pool.terminate()
+            self.pool.join()
+            self.pool = None
         self.dispatch_queue = None
         self.result_queue = None
         
-    def submit(self, fn, *args, **kwargs):
-        ft = WMFuture()
-        self.pool.apply_async(fn, args=args, kwds=kwargs, callback=partial(self._result_callback, ft.task_id))
-        self._register_future(ft)
-        return ft
     
     
