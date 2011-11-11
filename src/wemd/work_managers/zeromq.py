@@ -2,10 +2,10 @@ from __future__ import division, print_function; __metaclass__ = type
 
 import sys, os, logging, socket, multiprocessing, threading, time, numpy
 import argparse
-import collections
+from collections import deque
 import zmq
 import wemd
-from wemd.work_managers import WEMDWorkManager, Task, Result
+from wemd.work_managers import WEMDWorkManager
 
 log = logging.getLogger(__name__)
 
@@ -49,11 +49,11 @@ class ZMaster(ZMQBase):
         self.shutdown_exit_code = 0
         
         # incoming tasks, undispatched
-        self.task_queue = collections.deque()
+        self.task_queue = deque()
                         
         # Mapping of task_id to results (i.e. returned results)
         # the main loop inserts items, and wait() removes them
-        self.results_queue = collections.deque()
+        self.results_queue = deque()
         self.results_avail = threading.Condition()
         
     def handle_request(self, n_tasks):
@@ -174,6 +174,24 @@ class ZMaster(ZMQBase):
     def shutdown(self, exit_code=0):
         self.shutdown_flag = True
         self.shutdown_exit_code = exit_code
+
+class Task:
+    def __init__(self, fn, args, kwargs):
+        self.fn = fn
+        self.args = args
+        self.kwargs = kwargs
+        self.completed = False
+        self.result = None
+        self.exception = None
+        
+    def run(self):
+        try:
+            self.result = self.fn(*self.args, **self.kwargs)
+        except Exception as e:
+            self.exception = e
+        self.completed = True
+        
+ShutdownSentinel = object()
                     
 class ZWorker(ZMQBase):
     def __init__(self, ann_endpoint, propagator, n_procs=1):
@@ -187,8 +205,9 @@ class ZWorker(ZMQBase):
                 
         self.ann_endpoint = ann_endpoint
         self.listen_thread = None
-        self.work_thread = None        
+        self.work_threads = None        
         self.shutdown_flag = False
+        self.task_queue = deque()
                                 
     def shutdown(self):
         log.debug('worker shutting down')
@@ -242,8 +261,6 @@ class ZWorker(ZMQBase):
             log.debug('shutting down')
                     
         self.ann_socket.close()
-        self.process_pool.close()
-        self.process_pool.join()
                             
     def do_tasks(self, tasks):
         if len(tasks) % self.n_procs == 0:
@@ -264,25 +281,6 @@ class ZWorker(ZMQBase):
 
         return results
     
-class TaskThread(threading.Thread):
-    def __init__(self, propagator, tasks):
-        super(TaskThread,self).__init__()
-        self.propagator = propagator
-        self.tasks = tasks
-        self.results = []
-        
-    def run(self):
-        for task in self.tasks:
-            if task is None:
-                continue
-            elif task.task_type == 'propagate':
-                segments = task.operand
-                log.debug('propagating {:d} segment(s)'.format(len(segments)))
-                self.propagator.propagate(segments)
-                self.results.append(Result(task.task_id, task.task_type, segments))
-            else:
-                log.error('unsupported task type {!r}'.format(task.task_type))
-
 class ZMQWorkManager(WEMDWorkManager):
     def __init__(self):
         WEMDWorkManager.__init__()

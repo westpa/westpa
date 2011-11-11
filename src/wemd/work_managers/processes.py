@@ -56,8 +56,6 @@ class ProcessWorkManager(WEMDWorkManager):
             self.pool.terminate()
             self.pool.join()
             self.pool = None
-        self.dispatch_queue = None
-        self.result_queue = None
         
     
     

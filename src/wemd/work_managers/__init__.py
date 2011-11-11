@@ -205,7 +205,7 @@ class WMFuture:
             self._condition.notify_all()
             self._invoke_callbacks()
             self._notify_watchers()
-    
+
     def get_result(self):
         with self._condition:
             if self._done:
@@ -227,6 +227,7 @@ class WMFuture:
         self.get_result()
         return None
     
+
     def get_exception(self):
         with self._condition:
             if self._returned:
@@ -237,13 +238,12 @@ class WMFuture:
                 return self._exception
     exception = property(get_exception, None, None, 
                          'Get the exception associated with this future (may block if this future is being updated).')            
-        
+    
     def is_done(self):
         with self._condition:
             return self._done
     done = property(is_done, None, None, 
                     'Indicates whether this future is done executing (may block if this future is being updated).')    
     
-#import serial, zeromq
 import serial
 

@@ -14,10 +14,10 @@ from wemd.util.miscfn import vgetattr
 
 def wm_prep_iter(propagator, n_iter):
     propagator.pre_iter(n_iter)
-
+    
 def wm_post_iter(propagator, n_iter):
     propagator.post_iter(n_iter)
-
+    
 def wm_propagate(propagator, segments):
     '''Propagate the given segments with the given propagator. This has to be a top-level
     function for the current incarnation of the work manager.'''
@@ -85,7 +85,7 @@ class WESimManager:
             self.status_stream.flush()
         except AttributeError:
             pass
-        
+    
     def propagate(self, n_iter, segments):
         # Propagate segments            
         self.rtracker.begin('propagation')
@@ -93,8 +93,10 @@ class WESimManager:
 
         futures = [self.work_manager.submit(wm_propagate, self.propagator, [segment]) for segment in segments]
         completed = []
-        for finished in self.work_manager.as_completed(futures):
-            incoming = finished.get_result()
+        #self.work_manager.wait_all(futures)
+        for future in self.work_manager.as_completed(futures):
+        #for future in futures:
+            incoming = future.get_result()
             self.data_manager.update_segments(n_iter, incoming)
             completed.extend(incoming)
         

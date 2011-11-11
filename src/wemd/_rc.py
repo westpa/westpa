@@ -193,6 +193,9 @@ class _WEMDRC:
         if ldrivername == 'serial':
             import wemd.work_managers.serial
             work_manager = wemd.work_managers.serial.SerialWorkManager()
+        elif ldrivername == 'threads':
+            import wemd.work_managers.threads
+            work_manager = wemd.work_managers.threads.ThreadsWorkManager()
         elif ldrivername == 'processes':
             import wemd.work_managers.processes
             work_manager = wemd.work_managers.processes.ProcessWorkManager()
@@ -202,8 +205,6 @@ class _WEMDRC:
         elif '.' in ldrivername:
             pathinfo = self.config.get_pathlist('drivers.module_path', default=None)
             work_manager = extloader.get_object(drivername, pathinfo)()
-        elif ldrivername == 'threads' or ldrivername == 'processes':
-            raise ValueError('work manager "{}" has been removed'.format(drivername))
         else:
             raise ValueError('unknown work manager {!r}'.format(drivername))
         log.debug('loaded work manager: {!r}'.format(work_manager))
