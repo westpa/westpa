@@ -132,6 +132,7 @@ class ZMQWorkManager(WEMDWorkManager):
                     return                
             self.make_master()
             self.start_threads()
+            log.info('pid {:d} is master'.format(os.getpid()))
         elif self.mode == self.MODE_WORKER:
             self.start_workers()
             self.wait_workers()
@@ -140,8 +141,6 @@ class ZMQWorkManager(WEMDWorkManager):
         
         log.debug('pid {:d} has mode {!r}'.format(os.getpid(), self.mode))
         return self.mode
-        
-        
                 
     def start_workers(self):
         for n in xrange(self.n_workers):
@@ -270,6 +269,7 @@ class ZMQMasterWorkManager(ZMQWorkManager):
                 elif message == 'ping':
                     task_socket.send('ack')
                     self.client_avail = True
+                    self.signal_thread(self.ann_ctl_endpoint)
                 else:
                     log.error('unknown message received from {!s}: {!r}'.format(sender, message))
                 
