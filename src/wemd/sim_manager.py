@@ -157,12 +157,8 @@ class WESimManager:
         self.work_manager.shutdown(exit_code)
                             
     def run(self):
-        """Begin (or continue) running a simulation.  Must only be called in processes whose 
-        work manager has ``mode=='master'``.
+        """Begin (or continue) running a simulation.  Must only be called in master processes.
         """
-        
-        assert self.work_manager.mode == 'master'
-        
         # Set up internal timing
         self.rtracker.begin('run')
         run_starttime = time.time()

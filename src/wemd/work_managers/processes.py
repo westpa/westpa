@@ -25,6 +25,7 @@ class ProcessWorkManager(WEMDWorkManager):
         return ft
 
     def _result_callback(self, task_id, result):
+        # TODO: how do exceptions get set properly?
         log.debug('receiving result for {!s}: {!r}'.format(task_id,result))
         future = self.pending[task_id]
         future._set_result(result)
@@ -44,12 +45,14 @@ class ProcessWorkManager(WEMDWorkManager):
             sys.exit(0)
         args, extra_args = parser.parse_known_args(aux_args)
         
-        self.n_workers = runtime_config['processes_work_manager.n_workers'] = args.n_workers
+        self.n_workers = runtime_config['work_manager.n_workers'] = args.n_workers
         
         return extra_args
         
     def startup(self):
         self.pool = multiprocessing.Pool(self.n_workers)
+        self.mode = self.MODE_MASTER
+        return self.MODE_MASTER
         
     def shutdown(self, exit_code = 0):
         if self.pool:

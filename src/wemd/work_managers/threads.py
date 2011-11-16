@@ -62,7 +62,7 @@ class ThreadsWorkManager(WEMDWorkManager):
             sys.exit(0)
         args, extra_args = parser.parse_known_args(aux_args)
         
-        self.n_workers = runtime_config['threads_work_manager.n_workers'] = args.n_workers
+        self.n_workers = runtime_config['work_manager.n_workers'] = args.n_workers
         
         return extra_args
         
@@ -72,6 +72,8 @@ class ThreadsWorkManager(WEMDWorkManager):
         for thread in self.workers:
             log.debug('starting thread {!r}'.format(thread))
             thread.start()
+        self.mode = self.MODE_MASTER
+        return self.MODE_MASTER
         
     def shutdown(self, exit_code = 0):
         # Put one sentinel on the queue per worker, then wait for threads to terminate

@@ -1,6 +1,8 @@
 '''A system for parallel, remote execution of multiple arbitrary tasks.
-Much of this, both in concept and execution, was inspired by (and in some cases based heavily on) the
-``concurrent.futures`` package from Python 3.2 (thanks to Brian Quinlan and his futures implementation).
+Much of this, both in concept and execution, was inspired by (and in some 
+cases based heavily on) the ``concurrent.futures`` package from Python 3.2,
+with some simplifications and adaptations (thanks to Brian Quinlan and his
+futures implementation).
 '''
 
 import cPickle as pickle
@@ -15,9 +17,12 @@ log = logging.getLogger(__name__)
 import wemd
 
 class WEMDWorkManager:
+    MODE_MASTER = 1
+    MODE_WORKER = 2
+    
     def __init__(self):
+        self.mode = None
         self.shutdown_called = False
-        self.mode = 'master'
                                 
     def parse_aux_args(self, aux_args, do_help = False):
         '''Parse any unprocessed command-line arguments, returning any arguments not proccessed
@@ -25,16 +30,16 @@ class WEMDWorkManager:
         return aux_args
     
     def startup(self):
-        '''Perform any necessary startup work, such as spawning clients'''
-        pass
+        '''Perform any necessary startup work, such as spawning clients, and return either MODE_MASTER or MODE_WORKER 
+        depending on whether this work manager is a master (capable of distributing work) or a worker (capable only
+        of performing work distributed by a master).'''
+        self.mode = self.MODE_MASTER
+        return self.MODE_MASTER
                                             
     def shutdown(self, exit_code=0):
         '''Cleanly shut down any active workers.'''
-        pass
-    
-    def run_worker(self):
-        raise NotImplementedError('this work manager does not support dedicated workers; run as master')
-    
+        self.shutdown_called = True
+        
     def submit(self, fn, *args, **kwargs):
         raise NotImplementedError
     
