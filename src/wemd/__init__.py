@@ -1,4 +1,3 @@
-#import util.extlogger
 import logging
 logging.getLogger('')
 log = logging.getLogger('wemd')
@@ -10,7 +9,7 @@ from segment import Segment
 import propagators, work_managers, data_manager, pcoords, sim_manager, we_driver, systems
 from systems import WEMDSystem, InitialState, TargetState
 
-version = '0.6'
+version = '0.7'
 
 rc = _rc._WEMDRC()
 

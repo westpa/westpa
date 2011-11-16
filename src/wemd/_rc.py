@@ -34,29 +34,8 @@ class _WEMDRC:
     ENV_RUNTIME_CONFIG  = 'WEMDRC'
     RC_DEFAULT_FILENAME = 'wemd.cfg'
     
-    # Exit codes
-    EX_SUCCESS           = 0
-    EX_ERROR             = 1
-    EX_USAGE_ERROR       = 2
-    EX_ENVIRONMENT_ERROR = 3
-    EX_RTC_ERROR         = 4
-    EX_DB_ERROR          = 5
-    EX_STATE_ERROR       = 6
-    EX_CALC_ERROR        = 7
-    EX_COMM_ERROR        = 8
-    EX_DATA_ERROR        = 9
-    EX_EXCEPTION_ERROR   = 10
-    
-    DEFAULT_WORK_MANAGER = 'processes'
-    
-    _ex_names = dict((code, name) for (name, code) in locals().iteritems()
-                     if name.startswith('EX_'))
-    
-    @classmethod
-    def get_exit_code_name(cls, code):
-        return cls._ex_names.get(code, 'error %d' % code)
-    
-    
+    DEFAULT_WORK_MANAGER = 'zmq'
+        
     def __init__(self):        
         self.verbosity = None
         self.rcfile = os.environ.get(self.ENV_RUNTIME_CONFIG) or self.RC_DEFAULT_FILENAME
@@ -219,6 +198,9 @@ class _WEMDRC:
             if not drivername:
                 drivername = self.config.get('drivers.work_manager', 'default')
             ldrivername = drivername.lower()
+            if ldrivername == 'default':
+                ldrivername = self.DEFAULT_WORK_MANAGER
+                
             if ldrivername == 'serial':
                 import wemd.work_managers.serial
                 work_manager = wemd.work_managers.serial.SerialWorkManager()
@@ -228,7 +210,7 @@ class _WEMDRC:
             elif ldrivername == 'processes':
                 import wemd.work_managers.processes
                 work_manager = wemd.work_managers.processes.ProcessWorkManager()
-            elif ldrivername in ('zmq', 'zeromq', 'default'):
+            elif ldrivername in ('zmq', 'zeromq', '0mq'):
                 import wemd.work_managers.zeromq
                 work_manager = wemd.work_managers.zeromq.ZMQWorkManager()
             elif '.' in ldrivername:

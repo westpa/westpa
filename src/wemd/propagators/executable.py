@@ -1,4 +1,4 @@
-import os, sys, contextlib, signal, random, subprocess
+import os, sys, contextlib, signal, random, subprocess, time
 import numpy
 import logging
 log = logging.getLogger(__name__)
@@ -10,7 +10,6 @@ SIGNAL_NAMES = {getattr(signal, name): name for name in dir(signal)
 import wemd
 from wemd import Segment
 from wemd.propagators import WEMDPropagator
-from wemd.util.rtracker import ResourceTracker
 
 @contextlib.contextmanager
 def changed_cwd(target_dir):
@@ -19,7 +18,7 @@ def changed_cwd(target_dir):
         log.debug('chdir(%r)' % target_dir)
         os.chdir(target_dir)
         
-    yield # to with block
+    yield # to "with" block
     
     if target_dir:
         log.debug('chdir(%r)' % init_dir)
@@ -49,8 +48,6 @@ class ExecutablePropagator(WEMDPropagator):
     def __init__(self, system = None):
         super(ExecutablePropagator,self).__init__(system)
         
-        self.rtracker = ResourceTracker()
-        
         self.exename = None
     
         # Common environment variables for all child processes;
@@ -72,14 +69,14 @@ class ExecutablePropagator(WEMDPropagator):
         # Process configuration file information
         runtime_config = wemd.rc.config
         runtime_config.require('executable.propagator')
-        self.segment_dir    = runtime_config.require('executable.segment_dir')
-        self.parent_dir     = runtime_config.require('executable.parent_dir')
+        self.segment_ref    = runtime_config.require('executable.segment_data_ref')
+        self.parent_ref     = runtime_config.require('executable.parent_data_ref')
         
         self.pcoord_file    = runtime_config.require('executable.pcoord_file')
         self.coord_file     = runtime_config.get('executable.coord_file', '')
         self.velocity_file  = runtime_config.get('executable.velocity_file', '')
         
-        self.initial_state_dir = runtime_config.get('executable.initial_state_dir', self.parent_dir)
+        self.initial_state_ref = runtime_config.get('executable.initial_state_data_ref', self.parent_ref)
                 
         if 'executable.pcoord_loader' in runtime_config:
             from wemd.util import extloader
@@ -94,8 +91,9 @@ class ExecutablePropagator(WEMDPropagator):
                 self.child_environ[evname] = v                
                 log.info('including environment variable %s=%r for all child processes' % (evname, v))
         
-        for child_type in ('propagator', 'pre_iteration', 'post_iteration'):
-            child_info = getattr(self, child_type + '_info')
+        for child_type, child_info in (('propagator', self.propagator_info),
+                                       ('pre_iteration', self.pre_iteration_info),
+                                       ('post_iteration', self.post_iteration_info)):
             child_info['child_type'] = child_type
             executable = child_info['executable'] = runtime_config.get('executable.%s' % child_type, None)            
             if executable:
@@ -106,7 +104,6 @@ class ExecutablePropagator(WEMDPropagator):
                         
     def makepath(self, template, template_args = None,
                   expanduser = True, expandvars = True, abspath = False, realpath = False):
-        #log.debug('formatting path {!r} with arguments {!r}'.format(template, template_args))
         path = template.format(**template_args)
         if expandvars: path = os.path.expandvars(path)
         if expanduser: path = os.path.expanduser(path)
@@ -148,8 +145,10 @@ class ExecutablePropagator(WEMDPropagator):
                 stderr = open(stderr_path, 'wb')
 
         ci = sys.getcheckinterval()
+        # XXX DIRTY HACK -- try to keep Python from relinquishing the GIL during the fork
         sys.setcheckinterval(2**30)
         try:
+            # close_fds is critical for preventing out-of-file errors
             proc = subprocess.Popen([exename], 
                                     stdout=stdout, stderr=stderr if stderr is not stdout else subprocess.STDOUT,
                                     close_fds=True, env=child_environ)
@@ -157,27 +156,31 @@ class ExecutablePropagator(WEMDPropagator):
             sys.setcheckinterval(ci)
 
         # Wait on child and get resource usage
-        (pid, status, rusage) = os.wait4(proc.pid, 0)
+        (_pid, _status, rusage) = os.wait4(proc.pid, 0)
         # Do a subprocess.Popen.wait() to let the Popen instance (and subprocess module) know that
-        # we are done with the process
+        # we are done with the process, and to get a more friendly return code
         rc = proc.wait()
         return (rc, rusage)
         
     def _iter_env(self, n_iter):
+        '''Return a dictionary of additional environment variables to be added to the environment of 
+        per-iteration child processes (pre-iteration and post-iteration scripts, for instance).'''
         addtl_environ = {self.ENV_CURRENT_ITER: str(n_iter)}
         return addtl_environ
     
     def _segment_env(self, segment):
+        '''Return a dictionary of additional environment variables to be added to the environment of
+        per-segment child processes (propagation, for instance).'''
         template_args = self.segment_template_args(segment)
-        if segment.p_parent_id >= 0 or not self.initial_state_dir:
-            parent_template = self.parent_dir
+        if segment.p_parent_id >= 0 or not self.initial_state_ref:
+            parent_template = self.parent_ref
         else:
-            parent_template = self.initial_state_dir
+            parent_template = self.initial_state_ref
    
         addtl_environ = {self.ENV_CURRENT_ITER: str(segment.n_iter),
                          self.ENV_CURRENT_SEG_ID: str(segment.seg_id),
                          self.ENV_PARENT_SEG_ID: str(segment.p_parent_id),
-                         self.ENV_CURRENT_SEG_DATA_REF: self.makepath(self.segment_dir, template_args),
+                         self.ENV_CURRENT_SEG_DATA_REF: self.makepath(self.segment_ref, template_args),
                          self.ENV_PARENT_SEG_DATA_REF: self.makepath(parent_template, template_args),
                          self.ENV_RAND16:  str(random.randint(0,2**16)),
                          self.ENV_RAND32:  str(random.randint(0,2**32)),
@@ -187,6 +190,7 @@ class ExecutablePropagator(WEMDPropagator):
         return addtl_environ
     
     def segment_template_args(self, segment):
+        '''Return a dictionary with which per-segment data refs are substituted.'''
         phony_segment = Segment(n_iter = segment.n_iter,
                                 seg_id = segment.seg_id,
                                 p_parent_id = segment.p_parent_id)
@@ -209,12 +213,13 @@ class ExecutablePropagator(WEMDPropagator):
         return template_args
     
     def iter_template_args(self, n_iter):
+        '''Return a dictionary with which per-iteration data refs are substituted'''
         return {'n_iter': n_iter}
     
-    def _run_pre_post(self, child_info, env_func, template_func, args=(), kwargs={}):
+    def _run_pre_post(self, child_info, env_func, template_func, args=(), kwargs={}): 
         if child_info['executable']:
             try:
-                rc, rusage = self._exec(child_info, env_func(*args, **kwargs), template_func(*args, **kwargs))
+                rc, _rusage = self._exec(child_info, env_func(*args, **kwargs), template_func(*args, **kwargs))
             except OSError as e:
                 log.warning('could not execute {} program {!r}: {}'.format(child_info['child_type'],
                                                                            child_info['executable'],
@@ -228,24 +233,14 @@ class ExecutablePropagator(WEMDPropagator):
                 else:
                     log.debug('%s executable exited successfully' 
                               % child_info['child_type'])
-        
-    def pre_iter(self, n_iter):
-        self.rtracker.begin('pre_iter')
+                    
+    def prepare_iteration(self, n_iter, segments):
         with changed_cwd(self.pre_iteration_info['cwd']):
             self._run_pre_post(self.pre_iteration_info, self._iter_env, self.iter_template_args, args=(n_iter,))
-        self.rtracker.end('pre_iter')
-
-    def post_iter(self, n_iter):
-        self.rtracker.begin('post_iter')
-        with changed_cwd(self.post_iteration_info['cwd']):
-            self._run_pre_post(self.post_iteration_info, self._iter_env, self.iter_template_args, args=(n_iter,))
-        self.rtracker.end('post_iter')
-            
-    def prepare_iteration(self, n_iter, segments):
-        self.pre_iter(n_iter)
         
     def finalize_iteration(self, n_iter, segments):
-        self.post_iter(n_iter)
+        with changed_cwd(self.post_iteration_info['cwd']):
+            self._run_pre_post(self.post_iteration_info, self._iter_env, self.iter_template_args, args=(n_iter,))
         
     def pcoord_loader(self, pcoord_return_filename, segment):
         """Read progress coordinate data. An exception will be raised if there are 
@@ -267,8 +262,7 @@ class ExecutablePropagator(WEMDPropagator):
                 
     def propagate(self, segments):
         for segment in segments:
-            # Record start timing info
-            self.rtracker.begin('propagation')
+            starttime = time.time()
             
             # Fork the new process
             with changed_cwd(self.propagator_info['cwd']):
@@ -299,11 +293,11 @@ class ExecutablePropagator(WEMDPropagator):
                 elif rc < 0:
                     log.error('child process for segment %d exited on signal %d (%s)' % (segment.seg_id, -rc, SIGNAL_NAMES[-rc]))
                     segment.status = Segment.SEG_STATUS_FAILED
-                    return
+                    continue
                 else:
                     log.error('child process for segment %d exited with code %d' % (segment.seg_id, rc))
                     segment.status = Segment.SEG_STATUS_FAILED
-                    return
+                    continue
                 
                 # Extract progress coordinate
                 try:
@@ -326,10 +320,7 @@ class ExecutablePropagator(WEMDPropagator):
                         log.error('could not read velocity data from %r: %s' % (velocity_filename, e))
                         segment.status = Segment.SEG_STATUS_FAILED
                     
-            
             # Record end timing info
-            self.rtracker.end('propagation')            
-            elapsed = self.rtracker.difference['propagation']
-            segment.walltime = elapsed.walltime
+            segment.walltime = time.time() - starttime
             segment.cputime = rusage.ru_utime
         return segments

@@ -41,9 +41,16 @@ class WEMDWorkManager:
         self.shutdown_called = True
         
     def submit(self, fn, *args, **kwargs):
+        '''Submit a task to the work manager, returning a `WMFuture` object representing the pending
+        result. ``fn(*args,**kwargs)`` will be executed by a worker, and the return value assigned as the
+        result of the returned future.  The function ``fn`` and all arguments must be picklable; note
+        particularly that off-path modules (like the system module and any active plugins) are not
+        picklable unless pre-loaded in the worker.''' 
         raise NotImplementedError
     
     def as_completed(self, futures):
+        '''Return a generator which yields results from the given ``futures`` as they become
+        available.'''
         pending = set(futures)
         
         # See which futures have results, and install a watcher on those that do not
@@ -66,6 +73,8 @@ class WEMDWorkManager:
                 pending.remove(future)
     
     def wait_any(self, futures):
+        '''Wait on any of the given ``futures`` and return the first one which has a result available.
+        If more than one result is or becomes available simultaneously, any completed future may be returned.'''
         pending = set(futures)
         with WMFuture.all_acquired(pending):
             completed = {future for future in futures if future.done}
@@ -82,13 +91,18 @@ class WEMDWorkManager:
         return completed.pop()        
             
     def wait_all(self, futures):
-        '''A convenience function which waits on all the given futures, then returns a list of the results.'''
+        '''A convenience function which waits on all the given ``futures`` in order.  This function returns
+        the same ``futures`` as submitted to the function as a list, indicating the order in which waits
+        occurred.'''
+        futures = list(futures)
         results = []
         for future in futures:
             results.append(future.result)
-        return results
+        return futures
 
 class FutureWatcher:
+    '''A device to wait on multiple results and/or exceptions with only one lock.'''
+    
     def __init__(self, futures, threshold = 1):
         self.event = threading.Event()
         self.lock = threading.RLock()
@@ -120,11 +134,12 @@ class FutureWatcher:
             return completed
                     
 class WMFuture:
-    
+    '''A "future", representing work which has been dispatched for completion asynchronously.'''
     
     @staticmethod
     @contextmanager
     def all_acquired(futures):
+        '''Acquire all locks on the given ``futures``. Primarily for internal use.'''
         futures = list(futures)
         for future in futures:
             future._condition.acquire()
@@ -162,6 +177,8 @@ class WMFuture:
             self._watchers.clear()
 
     def _invoke_callbacks(self):
+        '''Invoke all callbacks which have been registered on this future. Exceptions in callbacks
+        will be logged and ignored.'''
         with self._condition:
             for callback in self._update_callbacks:
                 try:
@@ -196,6 +213,8 @@ class WMFuture:
                 self._update_callbacks.append(callback)
                 
     def _set_result(self, result):
+        '''Set the result of this future to the given value, invoke on-completion callbacks, and notify
+        watchers.'''
         with self._condition:
             self._result = result
             self._done = True
@@ -204,6 +223,9 @@ class WMFuture:
             self._notify_watchers()
         
     def _set_exception(self, exception):
+        '''Set the exception of this future to the given value, invoke on-completion callbacks, and notify
+        watchers.'''
+        
         with self._condition:
             self._exception = exception
             self._done = True
@@ -212,6 +234,7 @@ class WMFuture:
             self._notify_watchers()
 
     def get_result(self):
+        '''Get the result associated with this future, blocking until it is available.'''
         with self._condition:
             if self._done:
                 if self._exception:
@@ -225,15 +248,20 @@ class WMFuture:
                     raise self._exception
                 else:
                     return self._result
-    result = property(get_result, None, None, 
-                      'Get the result associated with this future (may block if this future is being updated).')
+    result = property(get_result, None, None, get_result.__doc__)
     
     def wait(self):
-        self.get_result()
-        return None
-    
+        '''Wait until this future has a result or exception available.'''
+        with self._condition:
+            if self._done:
+                return
+            else:
+                self._condition.wait()
+                assert self._done
+                return    
 
     def get_exception(self):
+        '''Get the exception associated with this future, blocking until it is available.'''
         with self._condition:
             if self._returned:
                 return self._exception
@@ -241,8 +269,7 @@ class WMFuture:
                 assert self._done
                 self._condition.wait()
                 return self._exception
-    exception = property(get_exception, None, None, 
-                         'Get the exception associated with this future (may block if this future is being updated).')            
+    exception = property(get_exception, None, None, get_exception.__doc__)            
     
     def is_done(self):
         with self._condition:

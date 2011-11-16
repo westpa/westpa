@@ -8,7 +8,6 @@ log = logging.getLogger(__name__)
 
 import wemd
 from wemd.util import extloader
-from wemd.util.rtracker import ResourceTracker, ResourceUsage
 from wemd import Segment
 from wemd.util.miscfn import vgetattr
 
@@ -37,8 +36,6 @@ class WESimManager:
         self.system = None
                         
         self.status_stream = sys.stdout
-        
-        self.rtracker = ResourceTracker()
                 
         # A table of function -> list of (priority, name, callback) tuples
         self._callback_table = {}
@@ -86,21 +83,14 @@ class WESimManager:
         except AttributeError:
             pass
     
-    def propagate(self, n_iter, segments):
-        # Propagate segments            
-        self.rtracker.begin('propagation')
+    def propagate(self, n_iter, segments):            
         self.flush_status()
-
         futures = [self.work_manager.submit(wm_propagate, self.propagator, [segment]) for segment in segments]
         completed = []
-        #self.work_manager.wait_all(futures)
         for future in self.work_manager.as_completed(futures):
-        #for future in futures:
             incoming = future.get_result()
             self.data_manager.update_segments(n_iter, incoming)
             completed.extend(incoming)
-        
-        self.rtracker.end('propagation')
         return completed
         
         
@@ -112,11 +102,9 @@ class WESimManager:
     def prepare_run(self):
         '''Prepare a new run.'''
         self.propagator.system = self.system
-        self.work_manager.propagator = self.propagator
         self.data_manager.system = self.system
         self.we_driver.system = self.system
         
-        #self.work_manager.prepare_run()
         self.data_manager.prepare_run()
         self.system.prepare_run()
         self._invoke_callbacks(self.prepare_run)
@@ -125,7 +113,6 @@ class WESimManager:
         '''Perform cleanup at the normal end of a run'''
         self.system.finalize_run()
         self.data_manager.finalize_run()
-        #self.work_manager.finalize_run()
         self._invoke_callbacks(self.finalize_run)
         
     def prepare_iteration(self, n_iter, segments, partial):
@@ -160,7 +147,6 @@ class WESimManager:
         """Begin (or continue) running a simulation.  Must only be called in master processes.
         """
         # Set up internal timing
-        self.rtracker.begin('run')
         run_starttime = time.time()
         max_walltime = wemd.rc.config.get_interval('limits.max_wallclock', default=None, type=float)
         if max_walltime:
@@ -183,8 +169,6 @@ class WESimManager:
             # Guaranteed ordering by seg_id, so segments[seg_id] works for any valid seg_id for this iteration
             segments = self.data_manager.get_segments(n_iter)
             while n_iter <= max_iter:
-                self.rtracker.begin('iteration')
-                
                 # Check to see if we will exceed the allowable wallclock time
                 if max_walltime and time.time() + 1.1*iteration_elapsed >= run_killtime:
                     self.status_stream.write('Iteration %d would require more than the allotted time. Ending run.\n'
@@ -344,9 +328,7 @@ class WESimManager:
                 bin_probs  = vgetattr('weight', bins, numpy.float64)
                 assert abs(seg_probs.sum() - 1) < 1.0e-15*len(segments)
                                         
-                self.rtracker.begin('we_prep')
                 self.prepare_we(n_iter, segments)
-                self.rtracker.end('we_prep')
 
                 seg_probs  = vgetattr('weight', segments, numpy.float64)
                 bin_probs  = vgetattr('weight', bins, numpy.float64)
@@ -355,9 +337,7 @@ class WESimManager:
                 assert abs(seg_probs.sum() - 1) < 1.0e-15*len(segments)
                 
                 # Run the weighted ensemble algorithm
-                self.rtracker.begin('we_core')
                 next_iter_segments = self.we_driver.run_we(segments, self.system.region_set)
-                self.rtracker.end('we_core')
                 
                 next_seg_probs  = vgetattr('weight', next_iter_segments, numpy.float64)
                 bin_probs = vgetattr('weight', bins, numpy.float64)
@@ -368,8 +348,6 @@ class WESimManager:
                                 
                 # ``segments`` is still set of segments in just-completed iteration, 
                 # but now ``region_set`` contains next iteration's segments
-    
-                self.rtracker.begin('we_postprocess')
                                 
                 # Report recycling statistics
                 n_recycled = sum(dest.count for dest in self.we_driver.recycle_to)
@@ -406,9 +384,6 @@ class WESimManager:
                                 
                 log.debug('work manager finalizing iteration')
                 self.finalize_iteration(n_iter, segments)
-                self.rtracker.end('we_postprocess')
-                
-                self.rtracker.begin('prep_next_iter')
                 # For use in debugging
                 seg_debug_fmt = '\n            '.join(['created segment {segment!r}', 
                                                  'n_iter: {segment.n_iter}, seg_id: {segment.seg_id}, weight: {segment.weight}',
@@ -437,22 +412,17 @@ class WESimManager:
                         
                 # Create new iteration group in HDF5            
                 self.data_manager.prepare_iteration(n_iter+1, next_iter_segments)
-                self.rtracker.end('prep_next_iter')
                 
-                # Store timing information
-                self.rtracker.end('iteration')
-                iteration_endtime = self.rtracker.final['iteration'].walltime
-                iteration_elapsed = iteration_endtime - iteration_starttime
-                                
-                iter_walltime = self.rtracker.difference['iteration'].walltime
+                # Store timing information 
+                iter_walltime = time.time() - iteration_starttime
                 iter_cputime = sum(segment.cputime or 0.0 for segment in segments)
                 
                 iter_summary['walltime'] += iter_walltime
                 iter_summary['cputime'] = iter_cputime
                 self.data_manager.update_iter_summary(n_iter, iter_summary)
                 
-                #This may give NaN if starting a truncated simulation
                 try:
+                    #This may give NaN if starting a truncated simulation
                     walltime = timedelta(seconds=float(iter_summary['walltime']))
                 except ValueError:
                     walltime = 0.0 
@@ -466,7 +436,6 @@ class WESimManager:
                                           .format(walltime,
                                                   cputime))
                 
-    
                 # Update HDF5 and flush the status output buffer in preparation for
                 # the next iteration
                 n_iter += 1
@@ -483,20 +452,9 @@ class WESimManager:
             # is saved
             self.data_manager.flush_backing()
             self.data_manager.close_backing()
-
         
         self.status_stream.write('\n%s\n' % time.asctime())
         self.status_stream.write('WEMD run complete.\n')
-        self.rtracker.end('run')
-        
-        # dump resource statistics
-        intervals = ResourceUsage(*[timedelta(seconds=field) for field in self.rtracker.difference['run']])
-        self.status_stream.write(('\nRun wallclock: {intervals.walltime}, CPU time (WEMD only): {intervals.cputime},'
-                                 +' system time: {intervals.systime}\n').format(intervals=intervals))
-        
-        if wemd.rc.verbose_mode:
-            self.status_stream.write('Internal timing information:\n')
-            self.rtracker.dump_differences(self.status_stream)
     # end WESimManager.run()
-    
+# end SimManager
     

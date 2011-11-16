@@ -1,3 +1,24 @@
+2011-11-16 -- Matt Zwier <mczwier@gmail.com>
+ * Generalized the work manager framework to support more than just propagation:
+   - The pattern for dispatching work and waiting on results now closely
+     follows that from the ``concurrent.futures`` module from Python 3.2,
+     particularly in providing an ``as_completed`` iterator over a set of
+     futures.
+   - Much of the functionality of the work managers have been abstracted into
+     the WEMDWorkManager base class.
+   - The ZeroMQ work manager has been rewritten from the ground up, and wound
+     up being nearly identical to the last version, with a few optimizations
+     (form follows function?).
+   - Work is now dispatched as picklable functions and their arguments, rather
+     than a hard-coded string identifying what to do remotely; this may be
+     expanded at a future date to allow dispatch of pre-compiled Python code,
+     perhaps somewhat loosening the "picklability" requirement of functions
+     to be dispatched.
+ * Resurrected the ``threads`` and ``processes`` work managers, which may
+   be useful in some work loads (and were very useful in testing the work 
+   manager framework).
+ * Made ZeroMQ the default work manager.
+
 2011-11-03 -- Matt Zwier <mczwier@gmail.com>
  * Removed the ``threads`` and ``processes`` work managers, which have been
    superseded by the ZeroMQ work manager until they can be made more stable.
@@ -5,6 +26,7 @@
    a manual fork()/exec(). This resolves ``too many open files`` errors on
    NICS Kraken, and may help to eliminate the futex deadlocks seen by
    some users.
+ * Started a migration to a mixin-based set of analysis routines.
 
 2011-08-16 -- Matt Zwier <mczwier@gmail.com>
  * Renamed everything in lib/ to remove the ``_cmd``...finally.
