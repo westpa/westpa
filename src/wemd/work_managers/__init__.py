@@ -22,7 +22,6 @@ class WEMDWorkManager:
     
     def __init__(self):
         self.mode = None
-        self.shutdown_called = False
                                 
     def parse_aux_args(self, aux_args, do_help = False):
         '''Parse any unprocessed command-line arguments, returning any arguments not proccessed
@@ -38,14 +37,14 @@ class WEMDWorkManager:
                                             
     def shutdown(self, exit_code=0):
         '''Cleanly shut down any active workers.'''
-        self.shutdown_called = True
+        pass
         
     def submit(self, fn, *args, **kwargs):
         '''Submit a task to the work manager, returning a `WMFuture` object representing the pending
         result. ``fn(*args,**kwargs)`` will be executed by a worker, and the return value assigned as the
         result of the returned future.  The function ``fn`` and all arguments must be picklable; note
         particularly that off-path modules (like the system module and any active plugins) are not
-        picklable unless pre-loaded in the worker.''' 
+        picklable unless pre-loaded in the worker process (i.e. prior to forking the master).''' 
         raise NotImplementedError
     
     def as_completed(self, futures):
@@ -122,6 +121,7 @@ class FutureWatcher:
                 self.event.set()
                 
     def wait(self):
+        '''Wait on one or more futures.'''
         return self.event.wait()
             
     def reset(self):
@@ -139,7 +139,7 @@ class WMFuture:
     @staticmethod
     @contextmanager
     def all_acquired(futures):
-        '''Acquire all locks on the given ``futures``. Primarily for internal use.'''
+        '''Context manager to acquire all locks on the given ``futures``. Primarily for internal use.'''
         futures = list(futures)
         for future in futures:
             future._condition.acquire()
@@ -167,6 +167,9 @@ class WMFuture:
                         
     def __repr__(self):
         return '<WMFuture 0x{id:x}: {self.task_id!s}>'.format(id=id(self), self=self)
+    
+    def __hash__(self):
+        return hash(self.task_id)
 
     def _notify_watchers(self):
         '''Notify all watchers that this future has been updated, then deletes the list of update watchers.'''
@@ -272,10 +275,12 @@ class WMFuture:
     exception = property(get_exception, None, None, get_exception.__doc__)            
     
     def is_done(self):
+        'Indicates whether this future is done executing (may block if this future is being updated).'
         with self._condition:
             return self._done
-    done = property(is_done, None, None, 
-                    'Indicates whether this future is done executing (may block if this future is being updated).')    
+    done = property(is_done, None, None, is_done.__doc__)
+    
+# end class WMFuture
     
 import serial
 

@@ -15,13 +15,11 @@ from wemd.propagators import WEMDPropagator
 def changed_cwd(target_dir):
     if target_dir:
         init_dir = os.getcwd()
-        log.debug('chdir(%r)' % target_dir)
         os.chdir(target_dir)
         
     yield # to "with" block
     
     if target_dir:
-        log.debug('chdir(%r)' % init_dir)
         os.chdir(init_dir)
     
 class ExecutablePropagator(WEMDPropagator):
@@ -125,27 +123,21 @@ class ExecutablePropagator(WEMDPropagator):
         child_environ = dict(os.environ)
         child_environ.update(self.child_environ)
         child_environ.update(addtl_environ or {})
-        child_environ.update(child_info['environ'])
-        
-        log.debug('preparing to execute %r (%s) in %r' % (exename, child_info['child_type'], 
-                                                          os.getcwd()))
-        
+        child_environ.update(child_info['environ'])        
         stdout = sys.stdout
         stderr = sys.stderr
         if child_info['stdout']:
             stdout_path = self.makepath(child_info['stdout'], template_args)
-            log.debug('redirecting stdout to %r' % stdout_path)
             stdout = open(stdout_path, 'wb')
         if child_info['stderr']:
             if child_info['stderr'] == 'stdout':
                 stderr = stdout
             else:
                 stderr_path = self.makepath(child_info['stderr'], template_args)
-                log.debug('redirecting standard error to %r' % stderr_path)
                 stderr = open(stderr_path, 'wb')
 
         ci = sys.getcheckinterval()
-        # XXX DIRTY HACK -- try to keep Python from relinquishing the GIL during the fork
+        # XXX DIRTY HACK -- try to keep this thread from relinquishing the GIL during the fork
         sys.setcheckinterval(2**30)
         try:
             # close_fds is critical for preventing out-of-file errors
@@ -177,16 +169,16 @@ class ExecutablePropagator(WEMDPropagator):
         else:
             parent_template = self.initial_state_ref
    
-        addtl_environ = {self.ENV_CURRENT_ITER: str(segment.n_iter),
-                         self.ENV_CURRENT_SEG_ID: str(segment.seg_id),
-                         self.ENV_PARENT_SEG_ID: str(segment.p_parent_id),
+        addtl_environ = {self.ENV_CURRENT_ITER:         str(segment.n_iter),
+                         self.ENV_CURRENT_SEG_ID:       str(segment.seg_id),
+                         self.ENV_PARENT_SEG_ID:        str(segment.p_parent_id),
                          self.ENV_CURRENT_SEG_DATA_REF: self.makepath(self.segment_ref, template_args),
-                         self.ENV_PARENT_SEG_DATA_REF: self.makepath(parent_template, template_args),
-                         self.ENV_RAND16:  str(random.randint(0,2**16)),
-                         self.ENV_RAND32:  str(random.randint(0,2**32)),
-                         self.ENV_RAND64:  str(random.randint(0,2**64)),
-                         self.ENV_RAND128: str(random.randint(0,2**128)),
-                         self.ENV_RAND1:   str(random.random())}
+                         self.ENV_PARENT_SEG_DATA_REF:  self.makepath(parent_template, template_args),
+                         self.ENV_RAND16:               str(random.randint(0,2**16)),
+                         self.ENV_RAND32:               str(random.randint(0,2**32)),
+                         self.ENV_RAND64:               str(random.randint(0,2**64)),
+                         self.ENV_RAND128:              str(random.randint(0,2**128)),
+                         self.ENV_RAND1:                str(random.random())}
         return addtl_environ
     
     def segment_template_args(self, segment):
@@ -230,9 +222,6 @@ class ExecutablePropagator(WEMDPropagator):
                                 % (child_info['child_type'], 
                                    child_info['executable'],
                                    rc))
-                else:
-                    log.debug('%s executable exited successfully' 
-                              % child_info['child_type'])
                     
     def prepare_iteration(self, n_iter, segments):
         with changed_cwd(self.pre_iteration_info['cwd']):
@@ -246,14 +235,12 @@ class ExecutablePropagator(WEMDPropagator):
         """Read progress coordinate data. An exception will be raised if there are 
         too many fields on a line, or too many lines, too few lines, or improperly formatted fields"""
         
-        pcoord = numpy.zeros_like(segment.pcoord)
-        log.debug('expecting progress coordinate of shape {!r}'.format(segment.pcoord.shape))
-        iline = 0
-        with open(pcoord_return_filename, 'rt') as pcfile:
-            for (iline,line) in enumerate(pcfile):
-                pcoord[iline,:] = map(pcoord.dtype.type,line.split())
-        if iline != pcoord.shape[0]-1:
-            raise ValueError('not enough lines in pcoord file')
+        pcoord = numpy.loadtxt(pcoord_return_filename, dtype=segment.pcoord.dtype)
+        if pcoord.ndim == 1:
+            pcoord.shape = (len(pcoord),1)
+        if pcoord.shape != segment.pcoord.shape:
+            raise ValueError('progress coordinate data has incorrect shape {!r} [expected {!r}]'.format(pcoord.shape,
+                                                                                                        segment.pcoord.shape))
         segment.pcoord = pcoord
     
     def data_loader(self, fieldname, data_filename, segment):
@@ -265,14 +252,11 @@ class ExecutablePropagator(WEMDPropagator):
             starttime = time.time()
             
             # Fork the new process
-            with changed_cwd(self.propagator_info['cwd']):
-                log.debug('iteration {segment.n_iter}, propagating segment {segment.seg_id}'.format(segment=segment))
-                
+            with changed_cwd(self.propagator_info['cwd']):                
                 seg_template_args = self.segment_template_args(segment)
                 
                 addtl_env = self._segment_env(segment)
                 pc_return_filename = self.makepath(self.pcoord_file, seg_template_args)
-                log.debug('expecting return information in %r' % pc_return_filename)
                 addtl_env[self.ENV_PCOORD_RETURN] = pc_return_filename
                 
                 if self.coord_file:
@@ -287,8 +271,6 @@ class ExecutablePropagator(WEMDPropagator):
                 rc, rusage = self._exec(self.propagator_info, addtl_env, seg_template_args)
                 
                 if rc == 0:
-                    log.debug('child process for segment %d exited successfully'
-                              % segment.seg_id)
                     segment.status = Segment.SEG_STATUS_COMPLETE
                 elif rc < 0:
                     log.error('child process for segment %d exited on signal %d (%s)' % (segment.seg_id, -rc, SIGNAL_NAMES[-rc]))
