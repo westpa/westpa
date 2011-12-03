@@ -1,3 +1,6 @@
+2011-12-02 -- Matt Zwier <mczwier@gmail.com>
+ * Added the Zuckerman group's WEED code to the repository.
+
 2011-11-03 -- Matt Zwier <mczwier@gmail.com>
  * Removed the ``threads`` and ``processes`` work managers, which have been
    superseded by the ZeroMQ work manager until they can be made more stable.
