@@ -53,4 +53,4 @@ class WEMDWorkManager:
     def run_worker(self):
         raise NotImplementedError('this work manager does not support dedicated workers; run as master')
     
-import serial, threads, processes
+import serial
