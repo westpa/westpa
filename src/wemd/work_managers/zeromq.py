@@ -1,447 +1,389 @@
 from __future__ import division, print_function; __metaclass__ = type
 
-import sys, os, logging, socket, multiprocessing, threading, time, uuid, numpy
+import sys, os, logging, socket, multiprocessing, threading, time
 import argparse
-import collections
+from collections import deque
+from copy import deepcopy
 import zmq
 import wemd
-from wemd.work_managers import WEMDWorkManager
+from wemd.work_managers import WEMDWorkManager, WMFuture
 
 log = logging.getLogger(__name__)
 
-DEFAULT_ANN_PORT     = 23811
-DEFAULT_TASK_PORT    = 23812    
-
-class Task:        
-    def __init__(self, task_type, operand, task_id = None):
-        self.task_id = task_id or uuid.uuid4()
-        self.task_type = task_type
-        self.operand = operand
-                
-    def __hash__(self):
-        return hash(self.task_id)
-        
-    def __eq__(self, other):
-        return self.task_id == other.task_id
-
-    def __repr__(self):
-        return '<Task 0x{id:x}: {self.task_id!s} {self.task_type!r} operand={self.operand!r}>'.format(id=id(self), self=self)
-    
-class Result:
-    def __init__(self, task_id, task_type, result):
-        self.task_id = task_id
-        self.task_type = task_type
-        self.result = result
-                
-    def __hash__(self):
-        return hash(self.task_id)
-        
-    def __eq__(self, other):
-        return self.task_id == other.task_id
-
-    def __repr__(self):
-        return '<Result 0x{id:x}: {self.task_id!s} {self.task_type!r} result={self.result!r}>'.format(id=id(self), self=self)
-            
-class ZMQBase:
-    def __init__(self, context=None):
-        self.context = context or zmq.Context(multiprocessing.cpu_count())
-        log.debug('ZMQ context {!r}'.format(self.context))
-
-class ZMaster(ZMQBase):
-    def __init__(self, task_endpoint, ann_endpoint):
-        log.debug('initializing ZMaster with task_endpoint={!r}, ann_endpoint={!r}'.format(task_endpoint, ann_endpoint))
-        ZMQBase.__init__(self)
-                
-        self.task_endpoint = task_endpoint
-        self.ann_endpoint = ann_endpoint
-        
-        self.ann_socket = None
-        self.task_socket = None
-        
-        # How often to announce that work is available (for slow joiners)
-        self.announce_interval = 10
-        self.last_announcement = 0
-        
-        # Main loop thread
-        self.thread = None
-        
-        # Shutdown at next opportunity?
-        self.shutdown_flag = False
-        self.shutdown_exit_code = 0
-        
-        # incoming tasks, undispatched
-        self.task_queue = collections.deque()
-                        
-        # Mapping of task_id to results (i.e. returned results)
-        # the main loop inserts items, and wait() removes them
-        self.results_queue = collections.deque()
-        self.results_avail = threading.Condition()
-        
-    def handle_request(self, n_tasks):
-        log.debug('receiving task request')
-        to_send = []
-        while len(to_send) < n_tasks:
-            try:
-                # Atomic pops from task_queue
-                to_send.append(self.task_queue.popleft())
-            except IndexError:
-                break
-        log.debug('sending {} task(s)'.format(len(to_send)))
-        self.task_socket.send_pyobj(to_send)
-
-    def handle_results(self, payload):
-        log.debug('receiving results')
-        results = list(payload)
-        self.task_socket.send('')
-        for result in results:
-            log.debug('received results for task {!r}'.format(result.task_id))
-            self.results_queue.append(result)
-        with self.results_avail:
-            self.results_avail.notify_all()
-                
-    def announce_tasks(self):
-        current_time = time.time()
-        qlen = len(self.task_queue)
-        if qlen and (current_time - self.last_announcement >= self.announce_interval):
-            log.debug('announcing tasks available')
-            self.ann_socket.send_pyobj(('taskavail', self.task_endpoint))
-            self.last_announcement = time.time()
-        else:
-            self.last_announcement = 0
-        
-    def reset_announce_timer(self):
-        if not len(self.task_queue):
-            self.last_announcement = 0
-        
-    def announce_shutdown(self, exit_code=0):
-        '''Announce shutdown and close sockets'''
-        log.debug('announcing shutdown')
-        self.ann_socket.send_pyobj(('shutdown', exit_code))
-        log.debug('shutting down')
-        self.ann_socket.close()
-        self.task_socket.close()
-        self.ann_socket = None
-        self.task_socket = None
-        
-    def main_loop(self):
-        log.debug('starting main loop')
-        self.ann_socket = self.context.socket(zmq.PUB)
-        self.task_socket = self.context.socket(zmq.REP)
-        
-        self.ann_socket.bind(self.ann_endpoint)
-        self.task_socket.bind(self.task_endpoint)
-                
-        poller = zmq.Poller()
-        poller.register(self.task_socket, zmq.POLLIN)
-                
-        log.debug('waiting for sockets to settle')
-        time.sleep(1)
-        
+def recvall(socket):
+    messages = []
+    while True:
         try:
-            while not self.shutdown_flag:            
-                # Wait on messages from clients (or the shutdown signal)
-                poll_results = set(fd for (fd,_flag) in poller.poll(self.announce_interval*1000))
-                
-                if self.task_socket in poll_results:
-                    reqtype, payload = self.task_socket.recv_pyobj()
-                    
-                    if reqtype == 'request':
-                        self.handle_request(payload)
-                    elif reqtype == 'results':
-                        self.handle_results(payload)
-                    elif reqtype == 'shutdown':
-                        self.announce_shutdown()
-                        return
-                    else:
-                        log.error('invalid request received')
-                else:
-                    # Timeout
-                    if self.task_queue:
-                        self.announce_tasks()
+            messages.append(socket.recv(flags=zmq.NOBLOCK))
+        except zmq.ZMQError as err:
+            if err.errno == zmq.EAGAIN:
+                return messages
             else:
-                self.announce_shutdown(self.shutdown_exit_code)
-                    
-        except KeyboardInterrupt:
-            self.announce_shutdown(2) 
-        except Exception as e:
-            log.error('Unhandled exception: {!s}'.format(e))
-            self.announce_shutdown(4)
-            raise
+                raise
         
-    def start_threads(self):
-        if self.thread is None:
-            self.thread = threading.Thread(target=self.main_loop)
-            self.thread.daemon = False
-            self.thread.start()
-                
-    def dispatch(self, task=None):        
-        if task is not None:
-            self.task_queue.append(task)
-            self.announce_tasks()
-            
-    def dispatch_all(self, tasks):
-        for task in tasks:
-            # Atomic append; extend() is probably not a good idea here
-            self.task_queue.append(task)
-        if tasks:
-            self.announce_tasks()
-            
-    def shutdown(self, exit_code=0):
-        self.shutdown_flag = True
-        self.shutdown_exit_code = exit_code
-            
-class ZWorker(ZMQBase):
-    def __init__(self, ann_endpoint, propagator, n_procs = 1):
-        log.debug('initializing ZWorker with ann_endpoint={!r}, propagator={!r}, n_procs={:d}'
-                  .format(ann_endpoint, propagator, n_procs))
-        # Initialize our base class to initialize the ZeroMQ context
-        ZMQBase.__init__(self)
-        
-        self.n_procs = n_procs
-        self.propagator = propagator
-                
-        self.ann_endpoint = ann_endpoint
-        self.listen_thread = None
-        self.work_thread = None        
-        self.shutdown_flag = False
-                                
-    def shutdown(self):
-        log.debug('worker shutting down')
-        self.shutdown_flag = False
-        
-    def start_threads(self):
-        self.listen_thread = threading.Thread(target=self.listen_loop)
-        self.listen_thread.daemon = False
-        self.listen_thread.start()
-                                
-    def listen_loop(self):
-        '''Receive announcements and commands from the master'''
-        
-        log.debug('worker listening for announcements')
-        
-        self.ann_socket = self.context.socket(zmq.SUB)
-        self.ann_socket.setsockopt(zmq.SUBSCRIBE,'')
-        self.ann_socket.connect(self.ann_endpoint)
-        
-        poller = zmq.Poller()
-        poller.register(self.ann_socket, zmq.POLLIN)
-        
-        while not self.shutdown_flag:
-            poll_results = set(fd for (fd,_flag) in poller.poll())
-                                    
-            if self.ann_socket in poll_results:
-                msg, payload = self.ann_socket.recv_pyobj()
-                if msg == 'shutdown':
-                    log.debug('shutdown received')
-                    return
-                elif msg == 'taskavail':
-                    # For as long as we have tasks to do, do them, then await the next "work available" message
-                    task_endpoint = payload
-                    task_socket = self.context.socket(zmq.REQ)
-                    task_socket.connect(task_endpoint)
-                    tasks = True
-                    try:
-                        while tasks:
-                            task_socket.send_pyobj(('request', self.n_procs))
-                            tasks = task_socket.recv_pyobj()
-                            if tasks:
-                                results = self.do_tasks(tasks)
-                                task_socket.send_pyobj(('results', results))
-                                task_socket.recv()
-                    finally:
-                        task_socket.close()
-                        del task_socket
-                else:
-                    log.error('unknown message received')
-        else:
-            log.debug('shutting down')
-                    
-        self.ann_socket.close()
-        self.process_pool.close()
-        self.process_pool.join()
-                            
-    def do_tasks(self, tasks):
-        if len(tasks) % self.n_procs == 0:
-            n_blocks = len(tasks) // self.n_procs
-        else:
-            n_blocks = len(tasks) // self.n_procs + 1
-        log.debug('performing {:d} task(s) in {:d} block(s) of size {:d}'.format(len(tasks), n_blocks, self.n_procs))
-        taskarray = numpy.empty((self.n_procs, n_blocks), numpy.object_)
-        taskarray.flat[0:len(tasks)] = tasks
-        threads = [TaskThread(self.propagator, taskarray[ithread,:]) for ithread in xrange(self.n_procs)]
-        for thread in threads:
-            thread.start()
-        
-        results = []
-        for thread in threads:
-            thread.join()
-            results.extend(thread.results)
+def recvall_pyobjs(socket):
+    objs = []
+    while True:
+        try:
+            objs.append(socket.recv_pyobj(flags=zmq.NOBLOCK))
+        except zmq.ZMQError as err:
+            if err.errno == zmq.EAGAIN:
+                return objs
+            else:
+                raise
 
-        return results
+DEFAULT_ANN_PORT      = 23811 # Upstream-to-downstream announcements
+DEFAULT_TASK_PORT     = 23812 # Task and result distribution
     
-class TaskThread(threading.Thread):
-    def __init__(self, propagator, tasks):
-        super(TaskThread,self).__init__()
-        self.propagator = propagator
-        self.tasks = tasks
-        self.results = []
-        
-    def run(self):
-        for task in self.tasks:
-            if task is None:
-                continue
-            elif task.task_type == 'propagate':
-                segments = task.operand
-                log.debug('propagating {:d} segment(s)'.format(len(segments)))
-                self.propagator.propagate(segments)
-                self.results.append(Result(task.task_id, task.task_type, segments))
-            else:
-                log.error('unsupported task type {!r}'.format(task.task_type))
-
 class ZMQWorkManager(WEMDWorkManager):
-    def __init__(self, propagator=None):
-        WEMDWorkManager.__init__(self,propagator)
+            
+    def __init__(self):
+        super(ZMQWorkManager,self).__init__()
+         
+        # Upstream hostname and IP
+        self.upstream_hostname  = None
+        self.upstream_host      = None
         
-        runtime_config = wemd.rc.config
-        # Where we will run the master ZMQ device 
-        self.master_hostname  = runtime_config.get('zmq_work_manager.master', socket.gethostname())
-        # Port to which the master will make announcements (like "work available" or "exit now")
-        self.ann_port  = runtime_config.get_int('zmq_work_manager.ann_port', DEFAULT_ANN_PORT)
-        # Port to which clients will connect on the master to receive tasks or return results
-        self.task_port    = runtime_config.get_int('zmq_work_manager.task_port', DEFAULT_TASK_PORT)
+        # Ports
+        self.ann_port           = None
+        self.task_port          = None
         
-        self.mode = None
+        # (upstream) endpoints
+        self.ann_endpoint       = None
+        self.task_endpoint      = None
+                        
+        # ZeroMQ context
+        self.context            = None
         
-        # ZMQ communications device (Master or Worker, as appropriate for this process)
-        self.zdev = None
+        # Information about this host
+        self.this_hostname      = socket.gethostname()
         
-        self.blocksize = 1
+        # Spawned processes
+        self.spawned_pids       = list()
         
+    def get_id_str(self):
+        return '{:s}-{:d}'.format(self.this_hostname, os.getpid())
+    
+    id_str = property(get_id_str,None,None,None)
+        
+    def bind_thread_ctl(self, endpoint):
+        ctlsocket = self.context.socket(zmq.PULL)
+        ctlsocket.bind(endpoint)
+        return ctlsocket
+    
+    def signal_thread(self, endpoint, message=''):
+        ctlsocket = self.context.socket(zmq.PUSH)
+        ctlsocket.setsockopt(zmq.HWM,1)
+        ctlsocket.connect(endpoint)
+        ctlsocket.send(message)
+        ctlsocket.close()
+                
+                
     def parse_aux_args(self, aux_args, do_help = False):
         parser = argparse.ArgumentParser(usage='%(prog)s [NON_WORK_MANAGER_OPTIONS] [OPTIONS]',
                                          add_help=False)
         
-        runtime_config = wemd.rc.config
-        group = parser.add_argument_group('work manager options')
+        group = parser.add_argument_group('zmq work manager options')
+
+        mgroup = group.add_mutually_exclusive_group()
+        mgroup.add_argument('--master', dest='mode', action='store_const', const=self.MODE_MASTER,
+                            help='Run as a master process (which generates and distributes computational tasks; default).')
+        mgroup.add_argument('--worker', dest='mode', action='store_const', const=self.MODE_WORKER,
+                            help='Run as a worker process')
+                        
+        group.add_argument('-n',  type=int, dest='n_workers', default=multiprocessing.cpu_count(),
+                           help='Number of worker processes to run on this host. Use 0 for a dedicated server '
+                               +' or forwarder process. (Default: %(default)s)')
+        group.add_argument('-H', '--host', default=wemd.rc.config.get('work_manager.zmq.master', socket.gethostname()),
+                           help='Upstream (master/coordinator) host (default: %(default)s)')
+        group.add_argument('--annport', type=int, 
+                           default=wemd.rc.config.get_int('work_manager.zmq.ann_port', DEFAULT_ANN_PORT),
+                           help='Port on which master makes announcements (default: %(default)s)')
+        group.add_argument('--taskport', type=int, 
+                           default=wemd.rc.config.get_int('work_manager.zmq.task_port', DEFAULT_TASK_PORT),
+                           help='Port on master which remote workers contact to receive work (default: %(default)s)')
         
-        mode_group = group.add_mutually_exclusive_group()
-        mode_group.add_argument('--master', dest='mode', action='store_const', const='master',
-                                help='Run as a WEMD master (responsible for coordinating WE and parallel propagation')
-        mode_group.add_argument('--worker', dest='mode', action='store_const', const='worker',
-                                help='Run as a WEMD worker (listening for work from a master)')
-        mode_group.set_defaults(mode='master') 
-        
-        group.add_argument('-n', '-np', '-nw', type=int, dest='n_workers', default=multiprocessing.cpu_count(),
-                            help='Number of worker processes to run on this host. Use 0 for a dedicated server '
-                                +' or forwarder process. (Default: %(default)s)')
-        group.add_argument('-H', '--host', default=socket.gethostname(),
-                            help='Upstream (master) host (default: %(default)s)')
-        group.add_argument('--aport', type=int, default=DEFAULT_ANN_PORT,
-                            help='Port on which remote workers receive announcements (default: %(default)s)')
-        group.add_argument('--tport', type=int, default=DEFAULT_TASK_PORT,
-                            help='Port on which remote workers contact the master to receive work (default: %(default)s)')
+        parser.set_defaults(mode=self.MODE_MASTER)
 
         if do_help:
             parser.print_help()
             sys.exit(0)
         args, extra_args = parser.parse_known_args(aux_args)
         
-        # zmq expects an IP address, not a hostname, for TCP transports
-        # otherwise, a cryptic "no such device" error happens
-        self.upstream_host =  runtime_config['zmq_work_manager.upstream_host'] = socket.gethostbyname(args.host)
-        self.ann_port =       runtime_config['zmq_work_manager.ann_port'] = args.aport
-        self.task_port =      runtime_config['zmq_work_manager.task_port'] = args.tport
-        self.n_workers =      runtime_config['zmq_work_manager.n_workers'] = args.n_workers
-        self.mode = args.mode
+        self.mode              = args.mode
+        self.upstream_hostname = args.host
+        self.upstream_host     = socket.gethostbyname(args.host)
+        self.ann_port          = args.annport
+        self.task_port         = args.taskport
+        self.n_workers         = args.n_workers
+        
+        self.ann_endpoint = 'tcp://{:s}:{:d}'.format(self.upstream_host, self.ann_port)
+        self.task_endpoint = 'tcp://{:s}:{:d}'.format(self.upstream_host, self.task_port)
         
         return extra_args
-                        
-    def run_worker(self):
-        assert self.mode == 'worker'
-        assert self.zdev is not None
-        return self.zdev.listen_thread.join()
-        
-    def shutdown(self, exit_code = 0):
-        self.shutdown_called = True
-        if self.mode == 'master':
-            try:
-                self.zdev.shutdown(exit_code)
-            except Exception as e:
-                log.error('ignorning exception {!r} during shutdown()'.format(e))
-                
-    def start_master(self):
-        assert self.mode == 'master'
-        
-        if self.n_workers:
-            # Need to fork and set up the child as a worker
-            pid = os.fork()
-            if pid == 0:
-                # in child
-                self.mode = 'worker'
-                self.start_worker()
-                return
-        
-        # We should never reach this point in a child process
-        assert self.mode == 'master'
-        assert self.zdev is None
-        self.zdev = ZMaster(self.task_endpoint, self.ann_endpoint)
-        self.zdev.start_threads()
-
-    def start_worker(self):
-        assert self.mode == 'worker'
-        if not self.n_workers:
-            raise ValueError('attempting to start a dedicated worker with no subprocesses')            
-        self.zdev = ZWorker(self.ann_endpoint, self.propagator, self.n_workers)
-        self.zdev.start_threads()
-            
-    def startup(self):        
-        # Connect to a specific remote host for now; maybe add wildcards for the master later
-        self.ann_endpoint = 'tcp://{}:{}'.format(self.upstream_host, self.ann_port)
-        self.task_endpoint = 'tcp://{}:{}'.format(self.upstream_host, self.task_port)
-        
-        if self.mode == 'master':
-            self.start_master()
-        else:
-            self.start_worker()
-        
-        log.debug('process {:d} zdev is {!r}'.format(os.getpid(), self.zdev))
-        assert self.zdev is not None
     
-    def propagate(self, segments):
-        log.debug('zeromq propagate() called; mode={!r}, zdev={!r}'.format(self.mode, self.zdev))
-        assert self.mode == 'master'
-        assert self.zdev is not None
+    def startup(self):
+        # do all the forking here, and reassign either the master or worker to self.__class__ prior to
+        # invoking start_threads()
         
-        blocks = [segments[i:i+self.blocksize] for i in xrange(0,len(segments),self.blocksize)]
-        log.debug('dispatching {} segment(s) in {} block(s)'.format(len(segments), len(blocks)))
+        if self.mode == self.MODE_MASTER:
+            if self.n_workers:
+                # Not a dedicated master, so start workers
+                self.start_workers()
+                if self.mode == self.MODE_WORKER: 
+                    return                
+            self.make_master()
+            self.start_threads()
+            log.info('pid {:d} is master'.format(os.getpid()))
+        elif self.mode == self.MODE_WORKER:
+            self.start_workers()
+            self.wait_workers()
+        else:
+            raise AssertionError('invalid mode {!r}'.format(self.mode))
         
-        # label deterministically to save a little system entropy
-        tasks = [Task('propagate', block, task_id=('propagate', block[0].n_iter, block[0].seg_id)) for block in blocks]
-        self.zdev.dispatch_all(tasks)
-        results = []
-        while len(results) < len(tasks):
-            self.zdev.results_avail.acquire()
-            log.debug('waiting on results')
-            self.zdev.results_avail.wait()
-            while True:
-                try:
-                    results.append(self.zdev.results_queue.popleft())
-                except IndexError:
-                    break
+        log.debug('pid {:d} has mode {!r}'.format(os.getpid(), self.mode))
+        return self.mode
+                
+    def start_workers(self):
+        for n in xrange(self.n_workers):
+            log.info('forking worker process {:d} of {:d}'.format(n+1,self.n_workers))
+            pid = os.fork()
+            if not pid:
+                log.info('pid {:d} is worker'.format(os.getpid()))
+                self.make_worker()
+                self.start_threads()
+                self.spawned_pids = []
+                break
+            else:
+                self.spawned_pids.append(pid)
+    
+    def wait_workers(self):
+        for pid in self.spawned_pids:
+            os.waitpid(pid, 0)
+    
+    # These functions are defined in subclasses, which we magically transmute to
+    # at the appropriate time
+    def shutdown(self, exit_code=0):
+        raise NotImplementedError
+    
+    def start_threads(self):
+        raise NotImplementedError
+    
+    # Transmutation -- think of these as subsidiary __init__ functions
+    def make_master(self):
+        self.__class__ = ZMQMasterWorkManager
+        self.task_queue = deque()
+        self.pending_futures = dict()
+        self.dr_ctl_endpoint = 'inproc://dr_ctl_{:x}'.format(id(self))
+        self.ann_ctl_endpoint = 'inproc://ann_ctl_{:x}'.format(id(self))
+        self.dr_thread = None
+        self.ann_thread = None
+        self.client_avail = False
+        self.client_avail_check = 0.01
+        self.work_avail_interval = 2
+        self.context = zmq.Context.instance()
+        self.mode = self.MODE_MASTER
+        
+    def make_worker(self):
+        self.__class__ = ZMQWorkerWorkManager
+        self.rdp_ctl_endpoint = 'inproc://rdp_ctl_{:x}'.format(id(self))
+        self.rdp_thread = None
+        self.al_thread = None
+        self.context = zmq.Context.instance()
+        self.mode = self.MODE_WORKER
+                
+class ZMQMasterWorkManager(ZMQWorkManager):
+    
+    def start_threads(self):
+        self.ann_thread = threading.Thread(target=self.announcer,name='zmq_announce')
+        self.dr_thread = threading.Thread(target=self.dispatch_receive,name='zmq_dr')
+        self.dr_thread.start() 
+        self.ann_thread.start()
+                    
+    def announcer(self):
+        ann_ctl = self.bind_thread_ctl(self.ann_ctl_endpoint)
+        ann_socket = self.context.socket(zmq.PUB)
+        ann_socket.bind(self.ann_endpoint)
+        poller = zmq.Poller()
+        poller.register(ann_ctl,zmq.POLLIN)
+        
+        timeout = self.client_avail_check
+        while True:
+            poll_results = {fd: _flag for (fd, _flag) in poller.poll(timeout*1000)}
+            
+            if ann_ctl in poll_results:
+                messages = recvall(ann_ctl)
+                if 'shutdown' in messages:
+                    log.debug('shutdown received for master')
+                    if self.client_avail:
+                        log.debug('sending shutdown signal to clients')
+                        ann_socket.send('shutdown')
+                    return
+                    
+            # The only other use for this is to announce work available, so just
+            # wake up and send work available if there is any work and there are
+            # any clients
+            if self.client_avail:
+                timeout = self.work_avail_interval
+                if self.task_queue:
+                    log.debug('sending tasks available signal')
+                    ann_socket.send('task_avail')
+            
 
-        self.zdev.reset_announce_timer()
+    def dispatch_receive(self):        
+        dr_ctl = self.bind_thread_ctl(self.dr_ctl_endpoint)
+        
+        task_socket = self.context.socket(zmq.REP)
+        task_socket.bind(self.task_endpoint)
+        
+        poller = zmq.Poller()
+        poller.register(dr_ctl, zmq.POLLIN)
+        poller.register(task_socket, zmq.POLLIN)
+        while True:
+            poll_results = {fd: _flag for (fd, _flag) in poller.poll()}
+
+            if dr_ctl in poll_results:
+                messages = recvall(dr_ctl)
+                for message in messages:
+                    if message == 'shutdown':
+                        return
+                    
+            if task_socket in poll_results:
+                ts_tuple = task_socket.recv_pyobj()
+                message = ts_tuple[0]
+                sender  = ts_tuple[1]
+                payload = ts_tuple[2]
+                
+                if message == 'task':
+                    log.debug('task request received')
+                    try:
+                        task = self.task_queue.popleft()
+                    except IndexError:
+                        task_socket.send_pyobj(None)
+                    else:
+                        log.debug('dispatching {!r}'.format(task))
+                        task_socket.send_pyobj(deepcopy(task))
+                        self.work_last_dispatched = time.time()
+                elif message == 'result':
+                    log.debug('result/exception received')
+                    task_socket.send('ack')
+                    task_id, result_type = payload[0:2]
+                    ft = self.pending_futures.pop(task_id)                
+                    if result_type == 'result':
+                        ft._set_result(deepcopy(payload[2]))
+                    elif result_type == 'exception':
+                        ft._set_exception(deepcopy(payload[2]))
+                elif message == 'ping':
+                    log.debug('received ping from {!r}'.format(sender))
+                    task_socket.send('ack')
+                    self.client_avail = True
+                    self.signal_thread(self.ann_ctl_endpoint)
+                else:
+                    log.error('unknown message received from {!s}: {!r}'.format(sender, message))
+                
+    def submit(self, fn, *args, **kwargs):
+        ft = WMFuture()
+        task_id = ft.task_id
+        tasktuple = (task_id, fn, args, kwargs)
+        self.pending_futures[task_id] = ft
+        self.task_queue.append(tasktuple)
+        self.signal_thread(self.ann_ctl_endpoint)
+        return ft
+    
+    def shutdown(self, exit_code=0):
+        log.debug('signalling shutdown')
+        self.signal_thread(self.dr_ctl_endpoint, 'shutdown')
+        self.signal_thread(self.ann_ctl_endpoint, 'shutdown')
+        self.wait_workers()
+
+class ZMQWorkerWorkManager(ZMQWorkManager):
+    
+    def start_threads(self):
+        self.rdp_thread = threading.Thread(target=self.request_perform_dispatch, name='zmq_rdp')
+        self.la_thread = threading.Thread(target=self.listen_announcements, name='zmq_la')
+        self.rdp_thread.start()
+        self.la_thread.start()
+        self.la_thread.join()
+        self.rdp_thread.join()       
+        
+    def listen_announcements(self):
+        ann_socket = self.context.socket(zmq.SUB)
+        ann_socket.setsockopt(zmq.SUBSCRIBE,'')
+        ann_socket.connect(self.ann_endpoint)
+        poller = zmq.Poller()
+        poller.register(ann_socket,zmq.POLLIN)
+
+        # Before doing anything else, contact the master and announce our presence
+        # This will block until the master comes up
+        task_socket = self.context.socket(zmq.REQ)
+        task_socket.connect(self.task_endpoint)
+        task_socket.send_pyobj(('ping', self.id_str, None))
+        task_socket.recv()
+        task_socket.close()
+        del task_socket
+        
+        # Now that we have opened our announcement mailbox and informed the master we are here, we can start to
+        # listen for work                
+        while True:
+            poll_results = {fd: _flag for (fd, _flag) in poller.poll()}
+            
+            if ann_socket in poll_results:
+                announcements = set(recvall(ann_socket))
+                if 'shutdown' in announcements:
+                    self.signal_thread(self.rdp_ctl_endpoint, 'shutdown')
+                    return
+                elif 'task_avail' in announcements:
+                    self.signal_thread(self.rdp_ctl_endpoint, 'task_avail')
+    
+    def request_perform_dispatch(self):
+        rdp_ctl_socket = self.bind_thread_ctl(self.rdp_ctl_endpoint)
+        
+        poller = zmq.Poller()
+        poller.register(rdp_ctl_socket,zmq.POLLIN)
+                
+        while True:
+            poll_results = {fd: _flag for (fd, _flag) in poller.poll()}
+                          
+            if rdp_ctl_socket in poll_results:
+                messages = recvall(rdp_ctl_socket)
+                if 'shutdown' in messages:
+                    log.debug('shutdown message received')
+                    return
+                elif 'task_avail' in messages:
+                    log.debug('task available message received')            
+                    while True:
+                        task_socket = self.context.socket(zmq.REQ)
+                        task_socket.connect(self.task_endpoint)
+                        try:
+                            log.debug('sending request for task')                        
+                            task_socket.send_pyobj(('task', self.id_str, None))
+                            task = task_socket.recv_pyobj()
+                            task_socket.close()
+                        finally:
+                            del task_socket
+                            
+                        if task is None:
+                            log.debug('no further task available')
+                            break
                         
-        incoming_segments = []
-        for result in results:
-            incoming_segments.extend(result.result)
-        
-        outgoing_by_id = {segment.seg_id: segment for segment in segments}
-        incoming_by_id = {segment.seg_id: segment for segment in incoming_segments}
-        assert set(outgoing_by_id) == set(incoming_by_id)
-        
-        for incoming_segment in incoming_segments:
-            orig_segment = outgoing_by_id[incoming_segment.seg_id]
-            orig_segment.status = incoming_segment.status
-            orig_segment.walltime = incoming_segment.walltime
-            orig_segment.cputime  = incoming_segment.cputime
-            orig_segment.pcoord[...] = incoming_segment.pcoord[...]
+                        log.debug('task received: {!r}'.format(task))
+                        (task_id, fn, args, kwargs) = task
+                        try:
+                            result = fn(*args, **kwargs)
+                        except Exception as exception:
+                            result_tuple = (task_id, 'exception', exception)
+                        else:
+                            result_tuple = (task_id, 'result', result)
+                                
+                        result_socket = self.context.socket(zmq.REQ)
+                        result_socket.connect(self.task_endpoint)
+                        try:
+                            log.debug('dispatching result')
+                            result_socket.send_pyobj(('result', self.id_str, result_tuple))
+                            result_socket.recv()
+                            result_socket.close()
+                        finally:
+                            del result_socket
+                            
+    def shutdown(self, exit_code):
+        return 

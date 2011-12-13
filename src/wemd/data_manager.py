@@ -5,6 +5,7 @@ Original HDF5 implementation: Joe Kaus
 Current implementation: Matt Zwier
 """
 from __future__ import division; __metaclass__ = type
+from operator import attrgetter
 from itertools import imap
 import numpy
 import h5py
@@ -295,56 +296,60 @@ class WEMDDataManager:
           * parents
         """
         
-        segments = list(segments)
+        segments = sorted(list(segments), key=attrgetter('seg_id'))
+        seg_ids = [segment.seg_id for segment in segments]
+        
         iter_group = self.get_iter_group(n_iter)
-        seg_index_table = iter_group['seg_index'][...]
+        seg_index_entries = iter_group['seg_index'][seg_ids]
+        pcoord_entries = iter_group['pcoord'][seg_ids]
         
-        # For speed, particularly for fast-propagating systems, we assume 
-        # we can cache an entire iteration's pcoords in RAM
-        pcoords = iter_group['pcoord'][...]
+        assert len(seg_index_entries) == len(pcoord_entries) == len(seg_ids)
         
-        # Collect names of generic data sets to create
-        data_shapes = {}
-        data_types = {}
-        for segment in segments:
-            for (key, value) in segment.data.iteritems():
-                try:
-                    if value.shape != data_shapes[key]:
-                        raise ValueError('segment %r has incorrect shape for supplementary data field %r' % (segment, key))
-                    if value.dtype != data_types[key]:
-                        raise ValueError('segment %r has incorrect data type for supplementary data field %r' % (segment, key))
-                except KeyError:
-                    data_shapes[key] = value.shape
-                    data_types[key] = value.dtype
-            
-        # Create generic data sets
-        datasets = {}
-        for (name, shape) in data_shapes.iteritems():
-            datasets[name] = iter_group.require_dataset(name, (len(seg_index_table),) + shape, data_types[name])
+#        # Collect names of generic data sets to create
+#        data_shapes = {}
+#        data_types = {}
+#        for segment in segments:
+#            for (key, value) in segment.data.iteritems():
+#                try:
+#                    if value.shape != data_shapes[key]:
+#                        raise ValueError('segment %r has incorrect shape for supplementary data field %r' % (segment, key))
+#                    if value.dtype != data_types[key]:
+#                        raise ValueError('segment %r has incorrect data type for supplementary data field %r' % (segment, key))
+#                except KeyError:
+#                    data_shapes[key] = value.shape
+#                    data_types[key] = value.dtype
+#            
+#        # Create generic data sets
+#        datasets = {}
+#        for (name, shape) in data_shapes.iteritems():
+#            datasets[name] = iter_group.require_dataset(name, (len(seg_index_table),) + shape, data_types[name])
         
         row = numpy.empty((1,), seg_index_dtype)
-        for segment in segments:
-            seg_id = segment.seg_id
-            row[:] = seg_index_table[seg_id]
+        for (iseg, segment) in enumerate(segments):
+            row[:] = seg_index_entries[iseg]
+            #assert row['seg_id'] == segment.seg_id
             row['status'] = segment.status
             row['endpoint_type'] = segment.endpoint_type or Segment.SEG_ENDPOINT_TYPE_NOTSET
             row['cputime'] = segment.cputime
             row['walltime'] = segment.walltime
             row['weight'] = segment.weight
             
-            seg_index_table[seg_id] = row
+            seg_index_entries[iseg] = row
             
-            pcoords[seg_id] = segment.pcoord
+            #pcoords[seg_id] = segment.pcoord
+            pcoord_entries[iseg] = segment.pcoord
             
             # We probably can't assume we can fit auxiliary data like coordinates in RAM, so the
             # existence of supplementary data will likely slow down updates significantly
-            for name in segment.data:
-                datasets[name][seg_id] = segment.data[name]
+            #for name in segment.data:
+            #    datasets[name][seg_id] = segment.data[name]
         
         
-        
-        iter_group['seg_index'][...] = seg_index_table
-        iter_group['pcoord'][...] = pcoords
+        iter_group['seg_index'][seg_ids] = seg_index_entries
+        iter_group['pcoord'][seg_ids] = pcoord_entries
+
+        #iter_group['seg_index'][...] = seg_index_table
+        #iter_group['pcoord'][...] = pcoords
             
     def get_segments(self, n_iter):
         '''Return the segments from a given iteration.  This function is optimized for the 

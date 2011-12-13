@@ -34,32 +34,25 @@ class _WEMDRC:
     ENV_RUNTIME_CONFIG  = 'WEMDRC'
     RC_DEFAULT_FILENAME = 'wemd.cfg'
     
-    # Exit codes
-    EX_SUCCESS           = 0
-    EX_ERROR             = 1
-    EX_USAGE_ERROR       = 2
-    EX_ENVIRONMENT_ERROR = 3
-    EX_RTC_ERROR         = 4
-    EX_DB_ERROR          = 5
-    EX_STATE_ERROR       = 6
-    EX_CALC_ERROR        = 7
-    EX_COMM_ERROR        = 8
-    EX_DATA_ERROR        = 9
-    EX_EXCEPTION_ERROR   = 10
+    DEFAULT_WORK_MANAGER = 'zmq'
+        
+    def __init__(self):        
+        self.verbosity = None
+        self.rcfile = os.environ.get(self.ENV_RUNTIME_CONFIG) or self.RC_DEFAULT_FILENAME
+
+        self.config = ConfigDict()
+        self.process_name = os.path.splitext(os.path.basename(sys.argv[0]))[0]
     
-    _ex_names = dict((code, name) for (name, code) in locals().iteritems()
-                     if name.startswith('EX_'))
-    
-    @classmethod
-    def get_exit_code_name(cls, code):
-        return cls._ex_names.get(code, 'error %d' % code)
-    
-    @classmethod
-    def add_args(cls, parser):
+        self._work_manager_args_added = False
+        self.work_manager = None
+                
+
+    def add_args(self, parser):
         group = parser.add_argument_group('general options')
         group.add_argument('-r', '--rcfile', metavar='RCFILE', dest='rcfile',
-                            default=(os.environ.get(cls.ENV_RUNTIME_CONFIG) or cls.RC_DEFAULT_FILENAME),
+                            default=(os.environ.get(self.ENV_RUNTIME_CONFIG) or self.RC_DEFAULT_FILENAME),
                             help='use RCFILE as the WEMD run-time configuration file (default: %(default)s)')
+        
         egroup = group.add_mutually_exclusive_group()
         egroup.add_argument('--quiet', dest='verbosity', action='store_const', const='quiet',
                              help='emit only essential information')
@@ -67,16 +60,19 @@ class _WEMDRC:
                              help='emit extra information')
         egroup.add_argument('--debug', dest='verbosity', action='store_const', const='debug',
                             help='enable extra checks and emit copious information')
+        
         group.add_argument('--version', action='version', version='WEMD version %s' % wemd.version)
         
+    def add_work_manager_args(self, parser):
+        self._work_manager_args_added = True
+        group = parser.add_argument_group('work manager options')
+        group.add_argument('--work-manager', dest='work_manager_name', default=self.DEFAULT_WORK_MANAGER,
+                            help='''use the given work manager to distribute work among processors (serial, threads, processes, 
+                            zmq, or name a Python class as ``module.name``; default: %(default)s)''')
+        group.add_argument('--help-work-manager', dest='do_work_manager_help', action='store_true',
+                            help='display help specific to the given work manager')
+                
     
-    def __init__(self):        
-        self.verbosity = None
-        self.rcfile = os.environ.get(self.ENV_RUNTIME_CONFIG) or self.RC_DEFAULT_FILENAME
-
-        self.config = ConfigDict()
-        self.process_name = os.path.splitext(os.path.basename(sys.argv[0]))[0]
-        
     @property
     def verbose_mode(self):
         return (self.verbosity == 'verbose')
@@ -89,9 +85,11 @@ class _WEMDRC:
     def quiet_mode(self):
         return (self.verbosity == 'quiet')
                             
-    def process_args(self, args, config_required = True):
+    def process_args(self, args, aux_args=[], config_required = True):
         self.cmdline_args = args
         self.verbosity = args.verbosity
+        if self._work_manager_args_added:
+            self.work_manager_name = args.work_manager_name 
         
         if args.rcfile:
             self.rcfile = args.rcfile
@@ -105,10 +103,22 @@ class _WEMDRC:
                 raise
         self.config_logging()
         self.config.update_from_object(args)
+        
+        if self._work_manager_args_added:
+            work_manager = self.get_work_manager()
+            aux_args = work_manager.parse_aux_args(aux_args, do_help=args.do_work_manager_help)
+            if aux_args:
+                sys.stderr.write('unexpected command line argument(s) encountered: {}\n'.format(aux_args))
+                sys.exit(os.EX_USAGE)
                     
     def read_config(self, filename = None):
         if filename:
-            self.rcfile = filename            
+            self.rcfile = filename
+
+        if 'SIM_ROOT' not in os.environ:
+            sys.stderr.write('  -- WARNING  -- setting $SIM_ROOT to current directory ({})\n'.format(os.getcwd()))
+            os.environ['SIM_ROOT'] = os.getcwd()
+                                    
         self.config.read_config_file(self.rcfile)
                     
     def config_logging(self):
@@ -124,7 +134,7 @@ class _WEMDRC:
                                                    'formatter': 'standard'}},
                           'loggers': {'wemd': {'handlers': ['console'], 'propagate': False},
                                       'wemdtools': {'handlers': ['console'], 'propagate': False},
-                                      'wemd_cli': {'handlers': ['console'], 'propagate': False}},
+                                      'wemdext': {'handlers': ['console'], 'propagate': False}},
                           'root': {'handlers': ['console']}}
         
         logging_config['loggers'][self.process_name] = {'handlers': ['console'], 'propagate': False}
@@ -181,20 +191,36 @@ class _WEMDRC:
         return we_driver
 
     def get_work_manager(self):
-        drivername = self.config.get('args.work_manager_name')
-        if not drivername:
-            drivername = self.config.get('drivers.work_manager', 'zmq')
-        if drivername.lower() == 'serial':
-            import wemd.work_managers.serial
-            work_manager = wemd.work_managers.serial.SerialWorkManager()
-        elif drivername.lower() in ('zmq', 'zeromq', 'default'):
-            import wemd.work_managers.zeromq
-            work_manager = wemd.work_managers.zeromq.ZMQWorkManager()
+        if self.work_manager:
+            return self.work_manager
         else:
-            pathinfo = self.config.get_pathlist('drivers.module_path', default=None)
-            work_manager = extloader.get_object(drivername, pathinfo)()
-        log.debug('loaded work manager: {!r}'.format(work_manager))
-        return work_manager
+            drivername = self.config.get('args.work_manager_name')
+            if not drivername:
+                drivername = self.config.get('drivers.work_manager', 'default')
+            ldrivername = drivername.lower()
+            if ldrivername == 'default':
+                ldrivername = self.DEFAULT_WORK_MANAGER
+                
+            if ldrivername == 'serial':
+                import wemd.work_managers.serial
+                work_manager = wemd.work_managers.serial.SerialWorkManager()
+            elif ldrivername == 'threads':
+                import wemd.work_managers.threads
+                work_manager = wemd.work_managers.threads.ThreadsWorkManager()
+            elif ldrivername == 'processes':
+                import wemd.work_managers.processes
+                work_manager = wemd.work_managers.processes.ProcessWorkManager()
+            elif ldrivername in ('zmq', 'zeromq', '0mq'):
+                import wemd.work_managers.zeromq
+                work_manager = wemd.work_managers.zeromq.ZMQWorkManager()
+            elif '.' in ldrivername:
+                pathinfo = self.config.get_pathlist('drivers.module_path', default=None)
+                work_manager = extloader.get_object(drivername, pathinfo)()
+            else:
+                raise ValueError('unknown work manager {!r}'.format(drivername))
+            log.debug('loaded work manager: {!r}'.format(work_manager))
+            self.work_manager = work_manager
+            return work_manager
     
     def get_propagator(self):
         drivername = self.config.require('drivers.propagator')
