@@ -50,6 +50,9 @@ if work_manager.mode == work_manager.MODE_MASTER:
         
         work_manager.shutdown(0)
     except:
+        import traceback
+        wemd.rc.pstatus('exception caught; shutting down')
+        log.error(traceback.format_exc())
         work_manager.shutdown(4)
 
 if wemd.rc.debug_mode:

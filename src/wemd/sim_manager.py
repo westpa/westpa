@@ -22,7 +22,7 @@ def wm_propagate(propagator, segments):
     function for the current incarnation of the work manager.'''
     outgoing_ids = [segment.seg_id for segment in segments]
     incoming_segments = {segment.seg_id: segment for segment in propagator.propagate(segments)}
-    log.debug('received {!r}'.format(incoming_segments))
+    log.debug('propagated {!r}'.format(incoming_segments))
     return [incoming_segments[seg_id] for seg_id in outgoing_ids]
 
 
@@ -85,12 +85,16 @@ class WESimManager:
     
     def propagate(self, n_iter, segments):            
         self.flush_status()
+        log.debug('propagating {:d} segments'.format(len(segments)))
         futures = [self.work_manager.submit(wm_propagate, self.propagator, [segment]) for segment in segments]
         completed = []
         for future in self.work_manager.as_completed(futures):
             incoming = future.get_result()
+            log.debug('recording results for {!r}'.format(incoming))
             self.data_manager.update_segments(n_iter, incoming)
             completed.extend(incoming)
+        log.debug('done with propagation')
+        assert len(completed) == len(segments)
         return completed
         
         
@@ -169,6 +173,8 @@ class WESimManager:
             # Guaranteed ordering by seg_id, so segments[seg_id] works for any valid seg_id for this iteration
             segments = self.data_manager.get_segments(n_iter)
             while n_iter <= max_iter:
+                log.debug('beginning iteration {:d}'.format(n_iter))
+                
                 # Check to see if we will exceed the allowable wallclock time
                 if max_walltime and time.time() + 1.1*iteration_elapsed >= run_killtime:
                     self.status_stream.write('Iteration %d would require more than the allotted time. Ending run.\n'
@@ -242,7 +248,6 @@ class WESimManager:
                     iter_summary['max_seg_prob'] = max_seg_prob
                     iter_summary['seg_dyn_range'] = seg_drange
                     self.data_manager.update_iter_summary(n_iter, iter_summary)
-                    
                 
                 # Allow the user to run only one segment to aid in debugging propagators
                 log.debug('propagating iteration {:d}'.format(n_iter))

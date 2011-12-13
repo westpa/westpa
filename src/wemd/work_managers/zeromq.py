@@ -1,8 +1,9 @@
 from __future__ import division, print_function; __metaclass__ = type
 
-import sys, os, logging, socket, multiprocessing, threading
+import sys, os, logging, socket, multiprocessing, threading, time
 import argparse
 from collections import deque
+from copy import deepcopy
 import zmq
 import wemd
 from wemd.work_managers import WEMDWorkManager, WMFuture
@@ -75,7 +76,8 @@ class ZMQWorkManager(WEMDWorkManager):
         ctlsocket.setsockopt(zmq.HWM,1)
         ctlsocket.connect(endpoint)
         ctlsocket.send(message)
-        ctlsocket.close()        
+        ctlsocket.close()
+                
                 
     def parse_aux_args(self, aux_args, do_help = False):
         parser = argparse.ArgumentParser(usage='%(prog)s [NON_WORK_MANAGER_OPTIONS] [OPTIONS]',
@@ -178,7 +180,7 @@ class ZMQWorkManager(WEMDWorkManager):
         self.ann_thread = None
         self.client_avail = False
         self.client_avail_check = 0.01
-        self.work_avail_interval = 5
+        self.work_avail_interval = 2
         self.context = zmq.Context.instance()
         self.mode = self.MODE_MASTER
         
@@ -207,12 +209,14 @@ class ZMQMasterWorkManager(ZMQWorkManager):
         
         timeout = self.client_avail_check
         while True:
-            poll_results = {fd for (fd, _flag) in poller.poll(timeout*1000)}
+            poll_results = {fd: _flag for (fd, _flag) in poller.poll(timeout*1000)}
             
             if ann_ctl in poll_results:
                 messages = recvall(ann_ctl)
                 if 'shutdown' in messages:
+                    log.debug('shutdown received for master')
                     if self.client_avail:
+                        log.debug('sending shutdown signal to clients')
                         ann_socket.send('shutdown')
                     return
                     
@@ -220,10 +224,9 @@ class ZMQMasterWorkManager(ZMQWorkManager):
             # wake up and send work available if there is any work and there are
             # any clients
             if self.client_avail:
-                # Switch to a less frequent wakeup which will broadcast work available
-                # to newly-joined clients, though less frequently
                 timeout = self.work_avail_interval
                 if self.task_queue:
+                    log.debug('sending tasks available signal')
                     ann_socket.send('task_avail')
             
 
@@ -237,7 +240,7 @@ class ZMQMasterWorkManager(ZMQWorkManager):
         poller.register(dr_ctl, zmq.POLLIN)
         poller.register(task_socket, zmq.POLLIN)
         while True:
-            poll_results = {fd for (fd, _flag) in poller.poll()}
+            poll_results = {fd: _flag for (fd, _flag) in poller.poll()}
 
             if dr_ctl in poll_results:
                 messages = recvall(dr_ctl)
@@ -252,21 +255,26 @@ class ZMQMasterWorkManager(ZMQWorkManager):
                 payload = ts_tuple[2]
                 
                 if message == 'task':
+                    log.debug('task request received')
                     try:
                         task = self.task_queue.popleft()
                     except IndexError:
                         task_socket.send_pyobj(None)
                     else:
-                        task_socket.send_pyobj(task)
+                        log.debug('dispatching {!r}'.format(task))
+                        task_socket.send_pyobj(deepcopy(task))
+                        self.work_last_dispatched = time.time()
                 elif message == 'result':
+                    log.debug('result/exception received')
                     task_socket.send('ack')
                     task_id, result_type = payload[0:2]
                     ft = self.pending_futures.pop(task_id)                
                     if result_type == 'result':
-                        ft._set_result(payload[2])
+                        ft._set_result(deepcopy(payload[2]))
                     elif result_type == 'exception':
-                        ft._set_exception(payload[2])
+                        ft._set_exception(deepcopy(payload[2]))
                 elif message == 'ping':
+                    log.debug('received ping from {!r}'.format(sender))
                     task_socket.send('ack')
                     self.client_avail = True
                     self.signal_thread(self.ann_ctl_endpoint)
@@ -283,6 +291,7 @@ class ZMQMasterWorkManager(ZMQWorkManager):
         return ft
     
     def shutdown(self, exit_code=0):
+        log.debug('signalling shutdown')
         self.signal_thread(self.dr_ctl_endpoint, 'shutdown')
         self.signal_thread(self.ann_ctl_endpoint, 'shutdown')
         self.wait_workers()
@@ -316,7 +325,8 @@ class ZMQWorkerWorkManager(ZMQWorkManager):
         # Now that we have opened our announcement mailbox and informed the master we are here, we can start to
         # listen for work                
         while True:
-            poll_results = {fd for (fd, _flag) in poller.poll()}
+            poll_results = {fd: _flag for (fd, _flag) in poller.poll()}
+            
             if ann_socket in poll_results:
                 announcements = set(recvall(ann_socket))
                 if 'shutdown' in announcements:
@@ -332,17 +342,20 @@ class ZMQWorkerWorkManager(ZMQWorkManager):
         poller.register(rdp_ctl_socket,zmq.POLLIN)
                 
         while True:
-            poll_results = {fd for (fd, _flag) in poller.poll()}
+            poll_results = {fd: _flag for (fd, _flag) in poller.poll()}
                           
             if rdp_ctl_socket in poll_results:
                 messages = recvall(rdp_ctl_socket)
                 if 'shutdown' in messages:
+                    log.debug('shutdown message received')
                     return
-                elif 'task_avail' in messages:            
+                elif 'task_avail' in messages:
+                    log.debug('task available message received')            
                     while True:
                         task_socket = self.context.socket(zmq.REQ)
                         task_socket.connect(self.task_endpoint)
-                        try:                        
+                        try:
+                            log.debug('sending request for task')                        
                             task_socket.send_pyobj(('task', self.id_str, None))
                             task = task_socket.recv_pyobj()
                             task_socket.close()
@@ -350,8 +363,10 @@ class ZMQWorkerWorkManager(ZMQWorkManager):
                             del task_socket
                             
                         if task is None:
+                            log.debug('no further task available')
                             break
-                            
+                        
+                        log.debug('task received: {!r}'.format(task))
                         (task_id, fn, args, kwargs) = task
                         try:
                             result = fn(*args, **kwargs)
@@ -363,6 +378,7 @@ class ZMQWorkerWorkManager(ZMQWorkManager):
                         result_socket = self.context.socket(zmq.REQ)
                         result_socket.connect(self.task_endpoint)
                         try:
+                            log.debug('dispatching result')
                             result_socket.send_pyobj(('result', self.id_str, result_tuple))
                             result_socket.recv()
                             result_socket.close()
