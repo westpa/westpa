@@ -253,14 +253,22 @@ class WESimManager:
                 log.debug('propagating iteration {:d}'.format(n_iter))
                 if wemd.rc.config.get('args.only_one_segment',False):
                     log.info('propagating only one segment')
-                    segments = self.propagate(n_iter, segs_to_run[0:1])                
+                    segments_run = self.propagate(n_iter, segs_to_run[0:1])                
                     if len(segs_to_run) > 1:
                         # Exit cleanly after one segment, but only if we haven't finished the last segment in an iteration
                         # In that case, go ahead and run WE
                         break
                 else:
-                    segments = self.propagate(n_iter, segs_to_run)
+                    segments_run = self.propagate(n_iter, segs_to_run)
+                del segs_to_run
                 log.debug('propagation complete')
+                
+                # Collect segments into one place again
+                segs_by_id = {segment.seg_id: segment for segment in segments}
+                for segment in segments_run:
+                    segs_by_id[segment.seg_id] = segment
+                segments = sorted(segs_by_id.itervalues(), key=operator.attrgetter('seg_id'))
+                assert all(segment.seg_id == i for i, segment in enumerate(segments))
                                 
                 # Check to ensure that all segments have been propagated                    
                 failed_segments = [segment for segment in segments if segment.status != Segment.SEG_STATUS_COMPLETE]
@@ -269,10 +277,6 @@ class WESimManager:
                     for failed_segment in failed_segments:
                         self.status_stream.write('  %d\n' % failed_segment.seg_id)
                     raise RuntimeError('propagation failed for %d segments' % len(failed_segments))
-                
-                # Sort segments by id
-                segments = sorted(segments, key=operator.attrgetter('seg_id'))
-                assert all(segment.seg_id == i for i, segment in enumerate(segments))
                 
                 region_set = self.system.region_set
                 region_set.clear()

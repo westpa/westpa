@@ -138,14 +138,14 @@ class ExecutablePropagator(WEMDPropagator):
 
         ci = sys.getcheckinterval()
         # XXX DIRTY HACK -- try to keep this thread from relinquishing the GIL during the fork
-        sys.setcheckinterval(2**30)
-        try:
-            # close_fds is critical for preventing out-of-file errors
-            proc = subprocess.Popen([exename], 
-                                    stdout=stdout, stderr=stderr if stderr is not stdout else subprocess.STDOUT,
-                                    close_fds=True, env=child_environ)
-        finally:
-            sys.setcheckinterval(ci)
+        #sys.setcheckinterval(2**30)
+        #try:
+        # close_fds is critical for preventing out-of-file errors
+        proc = subprocess.Popen([exename], 
+                                stdout=stdout, stderr=stderr if stderr is not stdout else subprocess.STDOUT,
+                                close_fds=True, env=child_environ)
+        #finally:
+        #    sys.setcheckinterval(ci)
 
         # Wait on child and get resource usage
         (_pid, _status, rusage) = os.wait4(proc.pid, 0)

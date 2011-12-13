@@ -115,9 +115,9 @@ class _WEMDRC:
         if filename:
             self.rcfile = filename
 
-        if 'SIM_ROOT' not in os.environ:
-            sys.stderr.write('  -- WARNING  -- setting $SIM_ROOT to current directory ({})\n'.format(os.getcwd()))
-            os.environ['SIM_ROOT'] = os.getcwd()
+        if 'WEMD_SIM_ROOT' not in os.environ:
+            sys.stderr.write('  -- WARNING  -- setting $WEMD_SIM_ROOT to current directory ({})\n'.format(os.getcwd()))
+            os.environ['WEMD_SIM_ROOT'] = os.getcwd()
                                     
         self.config.read_config_file(self.rcfile)
                     
