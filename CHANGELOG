@@ -1,3 +1,9 @@
+2011-12-13 -- Matt Zwier <mczwier@gmail.com>
+ * Changed all ``(*)_dir`` config file options for the executable propagator to
+   reflect the fact that they are not necessarily directories.
+ * Added a workaround for an apparent reference counting bug in pyzmq that 
+   manifests as segfaults, bus errors, or "GC object already tracked" aborts.
+
 2011-11-16 -- Matt Zwier <mczwier@gmail.com>
  * Generalized the work manager framework to support more than just propagation:
    - The pattern for dispatching work and waiting on results now closely
