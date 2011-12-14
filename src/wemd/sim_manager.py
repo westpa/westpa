@@ -1,7 +1,7 @@
 from __future__ import division; __metaclass__ = type
 
 import sys, time, operator, math, numpy, re
-from itertools import izip, imap
+from itertools import izip
 from datetime import timedelta
 import logging
 log = logging.getLogger(__name__)
@@ -11,11 +11,11 @@ from wemd.util import extloader
 from wemd import Segment
 from wemd.util.miscfn import vgetattr
 
-def wm_prep_iter(propagator, n_iter):
-    propagator.pre_iter(n_iter)
+def wm_prep_iter(propagator, n_iter, segments):
+    propagator.prepare_iteration(n_iter, segments)
     
-def wm_post_iter(propagator, n_iter):
-    propagator.post_iter(n_iter)
+def wm_post_iter(propagator, n_iter, segments):
+    propagator.prepare_iteration(n_iter, segments)
     
 def wm_propagate(propagator, segments):
     '''Propagate the given segments with the given propagator. This has to be a top-level
@@ -122,7 +122,7 @@ class WESimManager:
     def prepare_iteration(self, n_iter, segments, partial):
         '''Perform customized processing/setup prior to propagation. Argument ``partial`` (True or False)
         indicates whether this is a partially-complete iteration (i.e. a restart)'''
-        self.work_manager.submit(wm_prep_iter, self.propagator, n_iter).wait()
+        self.work_manager.submit(wm_prep_iter, self.propagator, n_iter, segments).get_result()
         
     def prepare_propagation(self, n_iter, segments):
         '''Prepare to propagate a group of segments'''
@@ -134,7 +134,7 @@ class WESimManager:
     
     def finalize_iteration(self, n_iter, segments):
         '''Perform customized processing/cleanup on just-completed segments at the end of an iteration'''
-        self.work_manager.submit(wm_post_iter, self.propagator, n_iter).wait()
+        self.work_manager.submit(wm_post_iter, self.propagator, n_iter, segments).get_result()
         
     def prepare_we(self, n_iter, segments):
         '''Perform customized processing after propagation and before WE'''
