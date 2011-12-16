@@ -162,7 +162,7 @@ class steady_state(object):
             #match child with parent and update Cij
             for j in xrange(0,len(initial_linbin)):
                 
-                if endpoint_types[j] != Segment.SEG_ENDPOINT_TYPE_CONTINUES and endpoint_types[j] != Segment.SEG_ENDPOINT_TYPE_RECYCLED:    
+                if endpoint_types[j] != Segment.SEG_ENDPOINT_CONTINUES and endpoint_types[j] != Segment.SEG_ENDPOINT_RECYCLED:    
                     continue
                 
                 Cj = final_linbin[j] #final state 

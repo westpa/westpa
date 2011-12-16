@@ -22,9 +22,7 @@ def wm_propagate(propagator, segments):
     function for the current incarnation of the work manager.'''
     outgoing_ids = [segment.seg_id for segment in segments]
     incoming_segments = {segment.seg_id: segment for segment in propagator.propagate(segments)}
-    log.debug('propagated {!r}'.format(incoming_segments))
     return [incoming_segments[seg_id] for seg_id in outgoing_ids]
-
 
 class WESimManager:
     def __init__(self):        
@@ -63,7 +61,7 @@ class WESimManager:
         
     def _invoke_callbacks(self, hook, *args, **kwargs):
         callbacks = self._callback_table.get(hook, [])
-        sorted_callbacks = list(sorted(callbacks))
+        sorted_callbacks = sorted(callbacks)
         for (priority, name, fn) in sorted_callbacks:
             fn(*args, **kwargs)
     

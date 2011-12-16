@@ -55,9 +55,9 @@ for n_iter in xrange(1, max_iter+1):
     seg_index[:] = seg_index_raw[:]
     
     n_segs = len(seg_index)
-    n_continues = (seg_index['endpoint_type'] == wemd.Segment.SEG_ENDPOINT_TYPE_CONTINUES).sum()
-    n_merges    = (seg_index['endpoint_type'] == wemd.Segment.SEG_ENDPOINT_TYPE_MERGED).sum()
-    n_recycles  = (seg_index['endpoint_type'] == wemd.Segment.SEG_ENDPOINT_TYPE_RECYCLED).sum()
+    n_continues = (seg_index['endpoint_type'] == wemd.Segment.SEG_ENDPOINT_CONTINUES).sum()
+    n_merges    = (seg_index['endpoint_type'] == wemd.Segment.SEG_ENDPOINT_MERGED).sum()
+    n_recycles  = (seg_index['endpoint_type'] == wemd.Segment.SEG_ENDPOINT_RECYCLED).sum()
     avg_cpu     = seg_index['cputime'].mean()
     std_cpu     = seg_index['cputime'].std()
     avg_wall    = seg_index['walltime'].mean()

@@ -1,4 +1,4 @@
-import os, sys, contextlib, signal, random, subprocess, time
+import os, sys, signal, random, subprocess, time, tempfile
 import numpy
 import logging
 log = logging.getLogger(__name__)
@@ -11,97 +11,137 @@ import wemd
 from wemd import Segment
 from wemd.propagators import WEMDPropagator
 
-@contextlib.contextmanager
-def changed_cwd(target_dir):
-    if target_dir:
-        init_dir = os.getcwd()
-        os.chdir(target_dir)
-        
-    yield # to "with" block
+def pcoord_loader(fieldname, pcoord_return_filename, segment):
+    """Read progress coordinate data. An exception will be raised if there are 
+    too many fields on a line, or too many lines, too few lines, or improperly formatted fields"""
     
-    if target_dir:
-        os.chdir(init_dir)
+    assert fieldname == 'pcoord'
+    
+    expected_shape = segment.pcoord.shape
+    pcoord = numpy.loadtxt(pcoord_return_filename, dtype=segment.pcoord.dtype)
+    if pcoord.ndim == 1:
+        pcoord.shape = (len(pcoord),1)
+    if pcoord.shape != expected_shape:
+        raise ValueError('progress coordinate data has incorrect shape {!r} [expected {!r}]'.format(pcoord.shape,
+                                                                                                    expected_shape))
+    segment.pcoord = pcoord
+
+def aux_data_loader(fieldname, data_filename, segment):
+    data = numpy.loadtxt(data_filename)
+    segment.data[fieldname] = data
+    if data.nbytes == 0:
+        raise ValueError('could not read any data for {}'.format(fieldname))
+    
     
 class ExecutablePropagator(WEMDPropagator):
-    EXTRA_ENVIRONMENT_PREFIX = 'executable.env.'
-
     ENV_CURRENT_ITER         = 'WEMD_CURRENT_ITER'
 
     ENV_CURRENT_SEG_ID       = 'WEMD_CURRENT_SEG_ID'
     ENV_CURRENT_SEG_DATA_REF = 'WEMD_CURRENT_SEG_DATA_REF'
+    ENV_CURRENT_SEG_INITPOINT= 'WEMD_CURRENT_SEG_INITPOINT_TYPE'
     
     ENV_PARENT_SEG_ID        = 'WEMD_PARENT_SEG_ID'
     ENV_PARENT_SEG_DATA_REF  = 'WEMD_PARENT_SEG_DATA_REF'
     
     ENV_PCOORD_RETURN        = 'WEMD_PCOORD_RETURN'
-    ENV_COORD_RETURN         = 'WEMD_COORD_RETURN'
-    ENV_VELOCITY_RETURN      = 'WEMD_VELOCITY_RETURN'
     
     ENV_RAND16               = 'WEMD_RAND16'
     ENV_RAND32               = 'WEMD_RAND32'
     ENV_RAND64               = 'WEMD_RAND64'
     ENV_RAND128              = 'WEMD_RAND128'
-    ENV_RAND1                = 'WEMD_RAND1'
+    ENV_RANDF                = 'WEMD_RANDFLOAT'
         
     def __init__(self, system = None):
         super(ExecutablePropagator,self).__init__(system)
-        
-        self.exename = None
     
-        # Common environment variables for all child processes;
-        # overridden by those specified per-executable
-        self.child_environ = dict()
-
-        # Information about child programs (executables, output redirections,
-        # etc)
-        self.propagator_info =      {'executable': None,
-                                     'environ': dict(),
-                                     'cwd': None}
-        self.pre_iteration_info =   {'executable': None,
-                                     'environ': dict(),
-                                     'cwd': None}
-        self.post_iteration_info =  {'executable': None,
-                                     'environ': dict(),
-                                     'cwd': None}
+        # A mapping of environment variables to template strings which will be
+        # added to the environment of all children launched.
+        self.addtl_child_environ = dict()
         
+        # A mapping of executable name ('propagator', 'pre_iteration', 'post_iteration') to 
+        # a dictionary of attributes like 'executable', 'stdout', 'stderr', 'environ', etc.
+        self.exe_info = {}
+        self.exe_info['propagator'] = {}
+        self.exe_info['pre_iteration'] = {}
+        self.exe_info['post_iteration'] = {}
+        
+        # A mapping of data set name ('pcoord', 'coord', 'com', etc) to a dictionary of
+        # attributes like 'loader', 'dtype', etc
+        self.data_info = {}
+        self.data_info['pcoord'] = {}
+ 
         # Process configuration file information
-        runtime_config = wemd.rc.config
-        runtime_config.require('executable.propagator')
-        self.segment_ref    = runtime_config.require('executable.segment_data_ref')
-        self.parent_ref     = runtime_config.require('executable.parent_data_ref')
+        # Check in advance for keys we know we need
+        for key in ('propagator', 'segment_data_ref', 'parent_data_ref', 'initial_state_data_ref'):
+            wemd.rc.config.require('executable.{}'.format(key))
+
+        self.exe_info['propagator']['executable'] = wemd.rc.config.get_path('executable.propagator')
+        self.segment_ref_template = wemd.rc.config.get('executable.segment_data_ref')
+        self.parent_ref_template  = wemd.rc.config.get('executable.parent_data_ref')
+        self.initial_state_ref_template = wemd.rc.config.get('executable.initial_state_data_ref')
         
-        self.pcoord_file    = runtime_config.require('executable.pcoord_file')
-        self.coord_file     = runtime_config.get('executable.coord_file', '')
-        self.velocity_file  = runtime_config.get('executable.velocity_file', '')
+        # Load configuration items related to all child processes
+        for (key,value) in wemd.rc.config.iteritems():
+            if key.startswith('executable.env.'):
+                self.addtl_child_environ[key[len('executable.env.'):]] = value
+        log.debug('addtl_child_environ: {!r}'.format(self.addtl_child_environ))
         
-        self.initial_state_ref = runtime_config.get('executable.initial_state_data_ref', self.parent_ref)
+        # Load configuration items relating to child processes
+        for child_type in ('propagator', 'pre_iteration', 'post_iteration'):
+            child_key_prefix = 'executable.{}'.format(child_type)
+            child_info = {key: value for (key,value) in wemd.rc.config.iteritems() if key.startswith(child_key_prefix)}
+            if child_key_prefix in wemd.rc.config:
+                self.exe_info[child_type]['executable'] = wemd.rc.config.get(child_key_prefix)
+                self.exe_info[child_type]['stdin']  = wemd.rc.config.get('{}.stdin'.format(child_key_prefix, os.devnull))
+                self.exe_info[child_type]['stdout'] = wemd.rc.config.get('{}.stdout'.format(child_key_prefix), None)
+                self.exe_info[child_type]['stderr'] = wemd.rc.config.get('{}.stderr'.format(child_key_prefix), None)
+                self.exe_info[child_type]['cwd'] = wemd.rc.config.get('{}.cwd'.format(child_key_prefix), None)
                 
-        if 'executable.pcoord_loader' in runtime_config:
-            from wemd.util import extloader
-            pathinfo = runtime_config.get_pathlist('executable.module_path', default=None)
-            self.pcoord_loader = extloader.get_object(runtime_config['executable.pcoord_loader'], 
-                                                      pathinfo)        
+                if {key for key in child_info if key.startswith('{}.env.'.format(child_key_prefix))}:
+                    # Strip leading 'executable.CHILD_TYPE.env.' from leading edge of entries
+                    offset = len('{}.env.'.format(child_key_prefix))
+                    self.exe_info[child_type]['environ'] = {key[offset:]: value 
+                                                            for (key,value) in child_info 
+                                                            if key.startswith('{}.env.'.format(child_key_prefix))}                                                            
+        log.debug('exe_info: {!r}'.format(self.exe_info))
         
-        prefixlen = len(self.EXTRA_ENVIRONMENT_PREFIX)
-        for (k,v) in runtime_config.iteritems():
-            if k.startswith(self.EXTRA_ENVIRONMENT_PREFIX):
-                evname = k[prefixlen:]                
-                self.child_environ[evname] = v                
-                log.info('including environment variable %s=%r for all child processes' % (evname, v))
+        # Load configuration items relating to data return
+        data_info = {key: value for (key, value) in wemd.rc.config.iteritems() if key.startswith('executable.data.')}
+        for (key, value) in data_info.iteritems():
+            fields = key.split('.')
+            try:
+                dsname = fields[2]
+                spec = fields[3]
+            except IndexError:
+                raise ValueError('invalid data specifier {!r}'.format(key))
+            else:
+                if spec not in ('enabled', 'filename', 'loader'):
+                    raise ValueError('invalid dataset option {!r}'.format(spec))
+            
+            try:
+                self.data_info[dsname][spec] = value
+            except KeyError:
+                self.data_info[dsname] = {spec: value}
         
-        for child_type, child_info in (('propagator', self.propagator_info),
-                                       ('pre_iteration', self.pre_iteration_info),
-                                       ('post_iteration', self.post_iteration_info)):
-            child_info['child_type'] = child_type
-            executable = child_info['executable'] = runtime_config.get('executable.%s' % child_type, None)            
-            if executable:
-                child_info['stdout'] = runtime_config.get('executable.%s.stdout' % child_type, None)
-                stderr = child_info['stderr'] = runtime_config.get('executable.%s.stderr' % child_type, None)
-                if stderr == 'stdout':
-                    log.info('merging %s standard error with standard output' % child_type)
+        for dsname in self.data_info:
+            if 'enabled' not in self.data_info[dsname]:
+                self.data_info[dsname]['enabled'] = True
+            else:
+                self.data_info[dsname]['enabled'] = wemd.rc.config.get_bool('executable.data.{}.enabled'.format(dsname))
+                
+            if 'loader' not in self.data_info[dsname]:
+                self.data_info[dsname]['loader'] = pcoord_loader if dsname == 'pcoord' else aux_data_loader
+                
+        if not self.data_info['pcoord']['enabled']:
+            log.warning('configuration file requests disabling pcoord data collection; overriding')
+            self.data_info['pcoord']['enabled'] = True
                         
-    def makepath(self, template, template_args = None,
+        log.debug('data_info: {!r}'.format(self.data_info))
+
+    @staticmethod                        
+    def makepath(template, template_args = None,
                   expanduser = True, expandvars = True, abspath = False, realpath = False):
+        template_args = template_args or {}
         path = template.format(**template_args)
         if expandvars: path = os.path.expandvars(path)
         if expanduser: path = os.path.expanduser(path)
@@ -110,42 +150,23 @@ class ExecutablePropagator(WEMDPropagator):
         path = os.path.normpath(path)
         return path
         
-    
-    def _exec(self, child_info, addtl_environ = None, template_args = None):
-        """Create a subprocess.Popen object for the appropriate child
-        process, passing it the appropriate environment and setting up proper
-        output redirections
-        """
+    def exec_child(self, executable, environ, stdin=None, stdout=None, stderr=None, cwd=None):
+        '''Execute a child process with the given environment, optionally redirecting stdin/stdout/stderr,
+        and collecting resource usage. Waits on the child process to finish, then returns
+        (rc, rusage), where rc is the child's return code and rusage is the resource usage tuple.'''
         
-        template_args = template_args or dict()
+        stdin  = file(stdin, 'wb') if stdin else sys.stdin        
+        stdout = file(stdout, 'wb') if stdout else sys.stdout
+        if stderr == 'stdout':
+            stderr = stdout
+        else:
+            stderr = file(stderr, 'wb') if stderr else sys.stderr
                 
-        exename = self.makepath(child_info['executable'], template_args)
-        child_environ = dict(os.environ)
-        child_environ.update(self.child_environ)
-        child_environ.update(addtl_environ or {})
-        child_environ.update(child_info['environ'])        
-        stdout = sys.stdout
-        stderr = sys.stderr
-        if child_info['stdout']:
-            stdout_path = self.makepath(child_info['stdout'], template_args)
-            stdout = open(stdout_path, 'wb')
-        if child_info['stderr']:
-            if child_info['stderr'] == 'stdout':
-                stderr = stdout
-            else:
-                stderr_path = self.makepath(child_info['stderr'], template_args)
-                stderr = open(stderr_path, 'wb')
-
-        ci = sys.getcheckinterval()
-        # XXX DIRTY HACK -- try to keep this thread from relinquishing the GIL during the fork
-        #sys.setcheckinterval(2**30)
-        #try:
         # close_fds is critical for preventing out-of-file errors
-        proc = subprocess.Popen([exename], 
-                                stdout=stdout, stderr=stderr if stderr is not stdout else subprocess.STDOUT,
-                                close_fds=True, env=child_environ)
-        #finally:
-        #    sys.setcheckinterval(ci)
+        proc = subprocess.Popen([executable],
+                                cwd = cwd,
+                                stdin=stdin, stdout=stdout, stderr=stderr if stderr != stdout else subprocess.STDOUT,
+                                close_fds=True, env=environ)
 
         # Wait on child and get resource usage
         (_pid, _status, rusage) = os.wait4(proc.pid, 0)
@@ -153,156 +174,161 @@ class ExecutablePropagator(WEMDPropagator):
         # we are done with the process, and to get a more friendly return code
         rc = proc.wait()
         return (rc, rusage)
-        
-    def _iter_env(self, n_iter):
-        '''Return a dictionary of additional environment variables to be added to the environment of 
-        per-iteration child processes (pre-iteration and post-iteration scripts, for instance).'''
-        addtl_environ = {self.ENV_CURRENT_ITER: str(n_iter)}
-        return addtl_environ
-    
-    def _segment_env(self, segment):
-        '''Return a dictionary of additional environment variables to be added to the environment of
-        per-segment child processes (propagation, for instance).'''
-        template_args = self.segment_template_args(segment)
-        if segment.p_parent_id >= 0 or not self.initial_state_ref:
-            parent_template = self.parent_ref
-        else:
-            parent_template = self.initial_state_ref
-   
-        addtl_environ = {self.ENV_CURRENT_ITER:         str(segment.n_iter),
-                         self.ENV_CURRENT_SEG_ID:       str(segment.seg_id),
-                         self.ENV_PARENT_SEG_ID:        str(segment.p_parent_id),
-                         self.ENV_CURRENT_SEG_DATA_REF: self.makepath(self.segment_ref, template_args),
-                         self.ENV_PARENT_SEG_DATA_REF:  self.makepath(parent_template, template_args),
-                         self.ENV_RAND16:               str(random.randint(0,2**16)),
-                         self.ENV_RAND32:               str(random.randint(0,2**32)),
-                         self.ENV_RAND64:               str(random.randint(0,2**64)),
-                         self.ENV_RAND128:              str(random.randint(0,2**128)),
-                         self.ENV_RAND1:                str(random.random())}
-        return addtl_environ
     
     def segment_template_args(self, segment):
-        '''Return a dictionary with which per-segment data refs are substituted.'''
-        phony_segment = Segment(n_iter = segment.n_iter,
-                                seg_id = segment.seg_id,
-                                p_parent_id = segment.p_parent_id)
-        template_args = {'segment': phony_segment}
+        template_args = {'segment': segment}
         
-        if segment.p_parent_id < 0:
-            # (Re)starting from an initial state
+        if segment.initpoint_type == Segment.SEG_INITPOINT_NEWTRAJ or segment.p_parent_id < 0:
+            # Parent is set to the appropriate initial state
             system = self.system
             istate = -segment.p_parent_id - 1
-            parent_segment = Segment(seg_id = istate,
-                                     n_iter = 0)
             template_args['initial_region_name'] = system.initial_states[istate].label
             template_args['initial_region_index'] = istate
         else:
-            # Continuing from another segment
-            parent_segment = Segment(seg_id = segment.p_parent_id, n_iter = segment.n_iter - 1)
-
-        template_args['parent'] = parent_segment
+            # Parent is set to the appropriate parent 
+            template_args['parent'] = Segment(n_iter = segment.n_iter - 1,
+                                              seg_id = segment.p_parent_id)
         
         return template_args
     
-    def iter_template_args(self, n_iter):
-        '''Return a dictionary with which per-iteration data refs are substituted'''
-        return {'n_iter': n_iter}
+    def exec_for_segment(self, child_info, segment, addtl_env = None):
+        template_args = self.segment_template_args(segment)
+        
+        env = os.environ.copy()
+        env.update(self.addtl_child_environ)
+        for (key, value) in child_info.get('environ', {}).iteritems():
+            env[key] = self.makepath[value]
+            
+        if segment.initpoint_type == Segment.SEG_INITPOINT_NEWTRAJ or segment.p_parent_id < 0:
+            parent_template = self.initial_state_ref_template
+        else:
+            parent_template = self.parent_ref_template
+            
+            
+        env.update({self.ENV_CURRENT_ITER:         str(segment.n_iter),
+                    self.ENV_CURRENT_SEG_ID:       str(segment.seg_id),
+                    self.ENV_PARENT_SEG_ID:        str(segment.p_parent_id),
+                    self.ENV_CURRENT_SEG_DATA_REF: self.makepath(self.segment_ref_template, template_args),
+                    self.ENV_PARENT_SEG_DATA_REF:  self.makepath(parent_template, template_args),
+                    self.ENV_RAND16:               str(random.randint(0,2**16)),
+                    self.ENV_RAND32:               str(random.randint(0,2**32)),
+                    self.ENV_RAND64:               str(random.randint(0,2**64)),
+                    self.ENV_RAND128:              str(random.randint(0,2**128)),
+                    self.ENV_RANDF:                str(random.random())})
+        
+        env.update(addtl_env or {})
+        
+        return self.exec_child(executable = self.makepath(child_info['executable'], template_args),
+                               environ = env,
+                               cwd = self.makepath(child_info['cwd'], template_args) if child_info['cwd'] else None,
+                               stdin = self.makepath(child_info['stdin'], template_args) if child_info['stdin'] else os.devnull,
+                               stdout= self.makepath(child_info['stdout'], template_args) if child_info['stdout'] else None,
+                               stderr= self.makepath(child_info['stderr'], template_args) if child_info['stderr'] else None)        
     
-    def _run_pre_post(self, child_info, env_func, template_func, args=(), kwargs={}): 
-        if child_info['executable']:
-            try:
-                rc, _rusage = self._exec(child_info, env_func(*args, **kwargs), template_func(*args, **kwargs))
-            except OSError as e:
-                log.warning('could not execute {} program {!r}: {}'.format(child_info['child_type'],
-                                                                           child_info['executable'],
-                                                                           e))
-            else:
-                if rc != 0:
-                    log.warning('%s executable %r returned %s'
-                                % (child_info['child_type'], 
-                                   child_info['executable'],
-                                   rc))
-                    
+    def exec_for_iteration(self, child_info, n_iter, addtl_env = None):
+        template_args = {'n_iter': n_iter}
+        env = os.environ.copy()
+        env.update(self.addtl_child_environ)
+        for (key, value) in child_info.get('environ', {}).iteritems():
+            env[key] = self.makepath[value]
+        
+        env.update({self.ENV_CURRENT_ITER:         str(n_iter),
+                    self.ENV_RAND16:               str(random.randint(0,2**16)),
+                    self.ENV_RAND32:               str(random.randint(0,2**32)),
+                    self.ENV_RAND64:               str(random.randint(0,2**64)),
+                    self.ENV_RAND128:              str(random.randint(0,2**128)),
+                    self.ENV_RANDF:                str(random.random())})
+        
+        env.update(addtl_env or None)
+    
+        return self.exec_child(executable = self.makepath(child_info['executable'], template_args),
+                               environ = env,
+                               stdin = self.makepath(child_info['stdin'], template_args) if child_info['stdin'] else os.devnull,
+                               stdout= self.makepath(child_info['stdout'], template_args) if child_info['stdout'] else None,
+                               stderr= self.makepath(child_info['stderr'], template_args) if child_info['stderr'] else None)        
+                        
     def prepare_iteration(self, n_iter, segments):
-        with changed_cwd(self.pre_iteration_info['cwd']):
-            self._run_pre_post(self.pre_iteration_info, self._iter_env, self.iter_template_args, args=(n_iter,))
+        child_info = self.exe_info.get('pre_iteration')
+        if child_info:
+            try:
+                rc, rusage = self.exec_for_iteration(child_info, n_iter)
+            except OSError as e:
+                log.warning('could not execute pre-iteration program {!r}: {}'.format(child_info['executable'], e))
+            else:
+                log.info('pre-iteration rusage: {!r}'.format(rusage))
+                if rc != 0:
+                    log.warning('pre-iteration executable {!r} returned {:s}'.format(child_info['executable'], rc))
         
     def finalize_iteration(self, n_iter, segments):
-        with changed_cwd(self.post_iteration_info['cwd']):
-            self._run_pre_post(self.post_iteration_info, self._iter_env, self.iter_template_args, args=(n_iter,))
+        child_info = self.exe_info.get('post_iteration')
+        if child_info:
+            try:
+                rc, rusage = self.exec_for_iteration(child_info, n_iter)
+            except OSError as e:
+                log.warning('could not execute post-iteration program {!r}: {}'.format(child_info['executable'], e))
+            else:
+                log.info('post-iteration rusage: {!r}'.format(rusage))
+                if rc != 0:
+                    log.warning('post-iteration executable {!r} returned {:s}'.format(child_info['executable'], rc))
         
-    def pcoord_loader(self, pcoord_return_filename, segment):
-        """Read progress coordinate data. An exception will be raised if there are 
-        too many fields on a line, or too many lines, too few lines, or improperly formatted fields"""
-        
-        pcoord = numpy.loadtxt(pcoord_return_filename, dtype=segment.pcoord.dtype)
-        if pcoord.ndim == 1:
-            pcoord.shape = (len(pcoord),1)
-        if pcoord.shape != segment.pcoord.shape:
-            raise ValueError('progress coordinate data has incorrect shape {!r} [expected {!r}]'.format(pcoord.shape,
-                                                                                                        segment.pcoord.shape))
-        segment.pcoord = pcoord
-    
-    def data_loader(self, fieldname, data_filename, segment):
-        data = numpy.loadtxt(data_filename)
-        segment.data[fieldname] = data
                 
     def propagate(self, segments):
+        child_info = self.exe_info['propagator']
+        
         for segment in segments:
             starttime = time.time()
+
+            addtl_env = {}
             
-            # Fork the new process
-            with changed_cwd(self.propagator_info['cwd']):                
-                seg_template_args = self.segment_template_args(segment)
-                
-                addtl_env = self._segment_env(segment)
-                pc_return_filename = self.makepath(self.pcoord_file, seg_template_args)
-                addtl_env[self.ENV_PCOORD_RETURN] = pc_return_filename
-                
-                if self.coord_file:
-                    coord_filename = self.makepath(self.coord_file, seg_template_args)
-                    addtl_env[self.ENV_COORD_RETURN] = coord_filename
-                
-                if self.velocity_file:
-                    velocity_filename = self.makepath(self.velocity_file, seg_template_args)
-                    addtl_env[self.ENV_VELOCITY_RETURN] = velocity_filename
-                
-                # Spawn propagator and wait for its completion
-                rc, rusage = self._exec(self.propagator_info, addtl_env, seg_template_args)
-                
-                if rc == 0:
-                    segment.status = Segment.SEG_STATUS_COMPLETE
-                elif rc < 0:
-                    log.error('child process for segment %d exited on signal %d (%s)' % (segment.seg_id, -rc, SIGNAL_NAMES[-rc]))
-                    segment.status = Segment.SEG_STATUS_FAILED
-                    continue
-                else:
-                    log.error('child process for segment %d exited with code %d' % (segment.seg_id, rc))
-                    segment.status = Segment.SEG_STATUS_FAILED
-                    continue
-                
-                # Extract progress coordinate
+            # A mappping of data set name to (filename, delete) pairs, where delete is a bool
+            # indicating whether the file should be deleted (i.e. it's a temporary file) or not
+            return_files = {}
+            for dataset in self.data_info:
                 try:
-                    self.pcoord_loader(pc_return_filename, segment)
+                    return_files[dataset] = (self.makepath(self.data_info[dataset]['filename'], 
+                                                           self.segment_template_args(segment)) , False)
+                except KeyError:
+                    (fd, rfname) = tempfile.mkstemp()
+                    os.close(fd)
+                    return_files[dataset] = (rfname, True)
+
+                addtl_env['WEMD_{}_RETURN'.format(dataset.upper())] = return_files[dataset][0]
+                                        
+            # Spawn propagator and wait for its completion
+            rc, rusage = self.exec_for_segment(child_info, segment, addtl_env) 
+            
+            if rc == 0:
+                segment.status = Segment.SEG_STATUS_COMPLETE
+            elif rc < 0:
+                log.error('child process for segment %d exited on signal %d (%s)' % (segment.seg_id, -rc, SIGNAL_NAMES[-rc]))
+                segment.status = Segment.SEG_STATUS_FAILED
+                continue
+            else:
+                log.error('child process for segment %d exited with code %d' % (segment.seg_id, rc))
+                segment.status = Segment.SEG_STATUS_FAILED
+                continue
+            
+            # Extract data and store on segment for recording in the master thread/process/node
+            for dataset in self.data_info:
+                filename, do_delete = return_files[dataset]
+                loader = self.data_info[dataset]['loader']
+                try:
+                    loader(dataset, filename, segment)
                 except Exception as e:
-                    log.error('could not read progress coordinate from %r: %s' % (pc_return_filename, e))
-                    segment.status = Segment.SEG_STATUS_FAILED
-                    
-                if self.coord_file:
-                    try:
-                        self.data_loader('coord', coord_filename, segment)
-                    except Exception as e:
-                        log.error('could not read coordinate data from %r: %s' % (coord_filename, e))
-                        segment.status = Segment.SEG_STATUS_FAILED
-                
-                if self.velocity_file:
-                    try:
-                        self.data_loader('velocity', velocity_filename, segment)
-                    except Exception as e:
-                        log.error('could not read velocity data from %r: %s' % (velocity_filename, e))
-                        segment.status = Segment.SEG_STATUS_FAILED
-                    
-            # Record end timing info
+                    log.error('could not read {} from {!r}: {}'.format(dataset, filename, e))
+                    segment.status = Segment.SEG_STATUS_FAILED 
+                    break
+                else:
+                    if do_delete:
+                        try:
+                            os.unlink(filename)
+                        except Exception as e:
+                            log.warning('could not delete {} file {!r}: {}'.format(dataset, filename, e))
+                            
+            if segment.status == Segment.SEG_STATUS_FAILED:
+                continue
+                                        
+            # Record timing info
             segment.walltime = time.time() - starttime
             segment.cputime = rusage.ru_utime
         return segments

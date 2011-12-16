@@ -15,8 +15,8 @@ class ConfigItemMissing(KeyError):
         super(ConfigItemMissing,self).__init__(message)
 
 class ConfigDict(OrderedDict):
-    true_values = set(('1', 'true', 't', 'yes', 'y'))
-    false_values = set(('0', 'false', 'f', 'no', 'n'))
+    true_values = set(('1', 'true', 't', 'yes', 'y', 'on'))
+    false_values = set(('0', 'false', 'f', 'no', 'n', 'off'))
     default_list_split = re.compile(r'\s*,?\s*')
     
     re_interval_float_unit = re.compile(r'((?:\d+\.)?\d+)\s+(second|minute|hour|day|sec|min|hr|s|m|h|d)s?')

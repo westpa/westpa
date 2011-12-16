@@ -3,23 +3,33 @@ import numpy
 from math import isnan
 
 class Segment:
-    SEG_STATUS_UNSET = None
+    SEG_STATUS_UNSET    = 0
     SEG_STATUS_PREPARED = 1
     SEG_STATUS_RUNNING  = 2
     SEG_STATUS_COMPLETE = 3
     SEG_STATUS_FAILED   = 4
     
-    SEG_ENDPOINT_TYPE_NOTSET = 0
-    SEG_ENDPOINT_TYPE_CONTINUES = 1
-    SEG_ENDPOINT_TYPE_MERGED = 2
-    SEG_ENDPOINT_TYPE_RECYCLED = 3
+    SEG_INITPOINT_UNSET = 0
+    SEG_INITPOINT_CONTINUES = 1
+    SEG_INITPOINT_NEWTRAJ = 2
+    
+    SEG_ENDPOINT_UNSET = 0
+    SEG_ENDPOINT_CONTINUES = 1
+    SEG_ENDPOINT_MERGED = 2
+    SEG_ENDPOINT_RECYCLED = 3
+    
+    statuses = {}
+    initpoint_types = {}
+    endpoint_types = {}
     
     status_names = {}
+    initpoint_type_names = {}
     endpoint_type_names = {}
     
     def __init__(self, n_iter = None, seg_id = None, status = None, 
                  n_parents = None, p_parent_id = None, parent_ids = None,
-                 endpoint_type = None, weight = None, pcoord = None, walltime = None, cputime = None,
+                 initpoint_type = None, endpoint_type = None, 
+                 weight = None, pcoord = None, walltime = None, cputime = None,
                  data = None):
         # NaNs appear sometimes if a WEMD program is terminated unexpectedly; replace with zero
         walltime = 0.0 if walltime is None or isnan(walltime) else walltime
@@ -34,7 +44,9 @@ class Segment:
         self.p_parent_id = long(p_parent_id) if p_parent_id is not None else None
         self.parent_ids = set(map(long,parent_ids)) if parent_ids else set()
         self.n_parents = int(n_parents) if n_parents else len(self.parent_ids)
-        self.endpoint_type = int(endpoint_type) if endpoint_type is not None else None
+        self.initpoint_type = int(initpoint_type) if initpoint_type else self.SEG_INITPOINT_UNSET
+        self.endpoint_type = int(endpoint_type) if endpoint_type else self.SEG_ENDPOINT_UNSET
+        
         self.weight = float(weight) if weight is not None else None
         self.pcoord = numpy.asarray(pcoord) if pcoord is not None else None
         self.walltime = walltime
@@ -48,12 +60,15 @@ class Segment:
             
     status_text = property((lambda s: s.status_names[s.status]))
     endpoint_type_text = property((lambda s: s.endpoint_type_names[s.endpoint_type]))
-        
-for _attr in (attr for attr in dir(Segment) if attr.startswith('SEG_STATUS_')):
-    _val = getattr(Segment, _attr)
-    Segment.status_names[_val] = _attr[11:].lower()
-for _attr in (attr for attr in dir(Segment) if attr.startswith('SEG_ENDPOINT_TYPE_')):
-    _val = getattr(Segment, _attr)
-    Segment.endpoint_type_names[_val] = _attr[18:].lower()    
+    
+Segment.statuses.update({_attr: getattr(Segment,_attr) for _attr in dir(Segment) if _attr.startswith('SEG_STATUS_')})
+Segment.initpoint_types.update({_attr: getattr(Segment,_attr) for _attr in dir(Segment) if _attr.startswith('SEG_INITPOINT_')})
+Segment.endpoint_types.update({_attr: getattr(Segment,_attr) for _attr in dir(Segment) if _attr.startswith('SEG_ENDPOINT_')})
+    
+Segment.status_names.update({getattr(Segment, _attr): _attr for _attr in dir(Segment) 
+                             if _attr.startswith('SEG_STATUS_')})
+Segment.initpoint_type_names.update({getattr(Segment, _attr): _attr for _attr in dir(Segment) 
+                                     if _attr.startswith('SEG_INITPOINT_')})
+Segment.endpoint_type_names.update({getattr(Segment, _attr): _attr for _attr in dir(Segment) 
+                                    if _attr.startswith('SEG_ENDPOINT_')})
 
-del _attr, _val

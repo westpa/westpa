@@ -46,6 +46,6 @@ for n_iter in xrange(1, max_iter+1):
     seg_index = numpy.empty((len(seg_index_raw),), dtype=wemd.data_manager.seg_index_dtype)
     seg_index[:] = seg_index_raw[:]
     for (seg_id, seg_info) in enumerate(seg_index):
-        if seg_info['endpoint_type'] == wemd.Segment.SEG_ENDPOINT_TYPE_RECYCLED:
+        if seg_info['endpoint_type'] == wemd.Segment.SEG_ENDPOINT_RECYCLED:
             output_file.write('{n_iter:10d}    {seg_id:10d}    {weight!r:<24s}\n'
                               .format(n_iter = n_iter, seg_id = seg_id, weight = seg_info['weight']))

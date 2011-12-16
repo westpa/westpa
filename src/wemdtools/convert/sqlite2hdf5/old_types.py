@@ -8,10 +8,10 @@ class OldSegment:
     SEG_STATUS_FAILED   = 4
     SEG_STATUS_DELETED  = 5
     
-    SEG_ENDPOINT_TYPE_UNKNOWN = 0
-    SEG_ENDPOINT_TYPE_CONTINUATION = 1
-    SEG_ENDPOINT_TYPE_MERGED = 2
-    SEG_ENDPOINT_TYPE_RECYCLED = 3
+    SEG_ENDPOINT_UNKNOWN = 0
+    SEG_ENDPOINT_CONTINUATION = 1
+    SEG_ENDPOINT_MERGED = 2
+    SEG_ENDPOINT_RECYCLED = 3
     
     status_names = {}
     endpoint_type_names = {}
@@ -56,7 +56,7 @@ class OldSegment:
 for _attr in (attr for attr in dir(OldSegment) if attr.startswith('SEG_STATUS_')):
     _val = getattr(OldSegment, _attr)
     OldSegment.status_names[_val] = _attr[11:].lower()
-for _attr in (attr for attr in dir(OldSegment) if attr.startswith('SEG_ENDPOINT_TYPE_')):
+for _attr in (attr for attr in dir(OldSegment) if attr.startswith('SEG_ENDPOINT_')):
     _val = getattr(OldSegment, _attr)
     OldSegment.endpoint_type_names[_val] = _attr[18:].lower()    
 
