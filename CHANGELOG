@@ -1,3 +1,7 @@
+2011-12-26 -- Joshua Adelman <joshua.adelman@gmail.com>
+ * Fixed bug (issue #5) in which enabled plugins did not initialize properly
+ * Added config option to weed plugin to explicity set plugin priority
+
 2011-12-13 -- Matt Zwier <mczwier@gmail.com>
  * Changed all ``(*)_dir`` config file options for the executable propagator to
    reflect the fact that they are not necessarily directories.
@@ -112,7 +116,7 @@
    output option to write output to file, and a mode where the calculated bin
    probabilities are not pushed to storage, and an option to symmetrize the 
    count matrix. 
-   
+
 2011-04-27 -- Matt Zwier <mczwier@gmail.com>
  * Modified w_ttimes and wemdtools.trajectories.trajtree to support analyzing
    not only entire trajectories, but all trajectories alive at a specified
