@@ -3,49 +3,72 @@ import sys, argparse
 import numpy
 import wemd
 
+from wemdtools.aframe import WEMDAnalysisTool, WEMDDataReaderMixin, CommonOutputMixin, BinningMixin, IterRangeMixin
+
 import logging
 log = logging.getLogger('w_succ')
 
-parser = wemd.rc.common_arg_parser('w_succ', 
-                                   description='''List segments which successfully reach a target state''')
-parser.add_argument('-o', '--output', dest='output_file',
-                    help='Store output in OUTPUT_FILE (default: write to standard output).',
-                    type=argparse.FileType('wt'), default=sys.stdout)
-parser.add_argument('--noheaders', dest='suppress_headers', action='store_true',
-                    help='Do not write headers to output files (default: write headers).')
-parser.add_argument('h5file', nargs='?',
-                    help='WEMD HDF5 file to examine (default: determine from wemd.cfg)')
-args = parser.parse_args()
-output_file = args.output_file
-wemd.rc.config_logging(args, tool_logger_name = 'w_succ')
-
-if args.h5file:
-    from wemd.util.config_dict import ConfigDict
-    runtime_config = ConfigDict()
-    runtime_config['data.h5file'] = args.h5file
-else:
-    # Load from wemd.cfg
-    runtime_config = wemd.rc.read_config(args.run_config_file)
-    
-runtime_config.update_from_object(args)
-sim_manager = wemd.rc.load_sim_manager(runtime_config)
-sim_manager.load_data_manager()
-sim_manager.data_manager.open_backing()
-
-if not args.suppress_headers:
-    output_file.write('''\
+class WSucc(CommonOutputMixin,WEMDDataReaderMixin,WEMDAnalysisTool):
+    def __init__(self):
+        super(WSucc,self).__init__()
+        self.include_args['CommonOutputMixin']['print_bin_labels'] = False
+        self.output_file = sys.stdout
+        
+    def find_successful_trajs(self):
+        pcoord_formats = {'u8': '%20d',
+                          'i8': '%20d',
+                          'u4': '%10d',
+                          'i4': '%11d',
+                          'u2': '%5d',
+                          'i2': '%6d',
+                          'f4': '%14.7g',
+                          'f8': '%23.15g'}
+        
+        if not self.output_suppress_headers:
+            self.output_file.write('''\
 # successful (recycled) segments 
 # column 0:    iteration
 # column 1:    seg_id
 # column 2:    weight
-'''.format())
-    
-max_iter = sim_manager.data_manager.current_iteration - 1
-for n_iter in xrange(1, max_iter+1):
-    seg_index_raw = sim_manager.data_manager.get_iter_group(n_iter)['seg_index'][...]
-    seg_index = numpy.empty((len(seg_index_raw),), dtype=wemd.data_manager.seg_index_dtype)
-    seg_index[:] = seg_index_raw[:]
-    for (seg_id, seg_info) in enumerate(seg_index):
-        if seg_info['endpoint_type'] == wemd.Segment.SEG_ENDPOINT_TYPE_RECYCLED:
-            output_file.write('{n_iter:10d}    {seg_id:10d}    {weight!r:<24s}\n'
-                              .format(n_iter = n_iter, seg_id = seg_id, weight = seg_info['weight']))
+# column>2:    final progress coordinate value
+''')
+        for n_iter in xrange(1, self.data_manager.current_iteration):
+            seg_index = self.get_seg_index(n_iter)
+            all_seg_ids = numpy.arange(len(seg_index), dtype=numpy.int_)
+            recycled_seg_ids = all_seg_ids[seg_index[:]['endpoint_type'] == wemd.Segment.SEG_ENDPOINT_TYPE_RECYCLED]
+
+            if len(recycled_seg_ids) == 0:
+                # Attemping to retrieve a 0-length selection from HDF5 (the pcoords below) fails
+                continue
+            
+            pcoord_ds = self.get_pcoord_dataset(n_iter)
+            pcoord_len = pcoord_ds.shape[1]
+            pcoord_ndim = pcoord_ds.shape[2]
+            final_pcoords = self.get_pcoord_dataset(n_iter)[recycled_seg_ids,pcoord_len-1,:]
+            # The above HDF5 selection always returns a vector; we want a 2-d array
+            final_pcoords.shape = (len(recycled_seg_ids),pcoord_ndim)
+            
+            for (ipc, seg_id) in enumerate(recycled_seg_ids):
+                self.output_file.write('%8d    %8d    %20.14g' % (n_iter, seg_id, seg_index[seg_id]['weight']))
+                fields = ['']
+                for field in final_pcoords[ipc]:
+                    fields.append(pcoord_formats.get(field.dtype.str[1:], '%s') % field)
+                self.output_file.write('    '.join(fields))
+                self.output_file.write('\n')                    
+                        
+wsucc = WSucc()
+
+parser = argparse.ArgumentParser('w_succ', description='''\
+List segments which successfully reach a target state''')
+wemd.rc.add_args(parser)
+wsucc.add_args(parser)
+
+parser.add_argument('-o', '--output', dest='output_file',
+                    help='Store output in OUTPUT_FILE (default: write to standard output).',
+                    type=argparse.FileType('wt'), default=sys.stdout)
+args = parser.parse_args()
+wemd.rc.process_args(args, config_required=False)
+wsucc.process_args(args)
+wsucc.output_file = args.output_file
+
+wsucc.find_successful_trajs()

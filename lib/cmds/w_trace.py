@@ -3,51 +3,116 @@ import sys, argparse
 import numpy
 import wemd, wemdtools
 
+from wemd import Segment
+from wemdtools.aframe import WEMDAnalysisTool, WEMDDataReaderMixin, CommonOutputMixin
+
 import logging
 log = logging.getLogger('w_trace')
 
-parser = wemd.rc.common_arg_parser('w_trace', 
-                                   description='''Trace trajectories''')
-parser.add_argument('-o', '--output', dest='output_file',
-                    help='Store output in OUTPUT_FILE (default: write to standard output).',
-                    type=argparse.FileType('wt'), default=sys.stdout)
-parser.add_argument('--noheaders', dest='suppress_headers', action='store_true',
-                    help='Do not write headers to output files (default: write headers).')
-parser.add_argument('-i', '--input', '--datafile', dest='datafile',
-                    help='WEMD HDF5 file to examine (default: determine from wemd.cfg)')
-parser.add_argument('segment', nargs='+',
-                    help='Segments to trace, specified as "n_iter:seg_id"')
+class WTrace(CommonOutputMixin,WEMDDataReaderMixin,WEMDAnalysisTool):
+    def __init__(self):
+        super(WTrace,self).__init__()
+        self.output_pattern = None
+        self.terminal_segments = []
+    
+    def trace_trajs(self):
+        
+        report_format = '    '.join(['{segment.n_iter:8d}',
+                                     '{segment.seg_id:8d}',
+                                     '{segment.weight:20.14g}',
+                                     ])
+        
+        # DAMMIT NUMPY GET YOUR ACT TOGETHER WITH STRING FORMATTING
+#        pcoord_formats = {'u8': '{:20d}',
+#                          'i8': '{:20d}',
+#                          'u4': '{:10d}',
+#                          'i4': '{:11d}',
+#                          'u2': '{:5d}',
+#                          'i2': '{:6d}',
+#                          'f4': '{:14.7g}',
+#                          'f8': '{:23.15g}'}
+
+        pcoord_formats = {'u8': '%20d',
+                          'i8': '%20d',
+                          'u4': '%10d',
+                          'i4': '%11d',
+                          'u2': '%5d',
+                          'i2': '%6d',
+                          'f4': '%14.7g',
+                          'f8': '%23.15g'}
+
+                         
+        for (n_iter,traj_seg_id) in self.terminal_segments:
+            output_file = file(self.output_pattern.format(n_iter=n_iter,seg_id=traj_seg_id),'wt')
+            if not self.output_suppress_headers:
+                output_file.write('''\
+# Trace of trajectory terminated by segment {n_iter:d}:{traj_seg_id:d}
+# column 0:    n_iter (0 represents initial position)
+# column 1:    seg_id
+# column 2:    weight
+# column>2:    final progress coordinate value in given segment
+'''.format(n_iter=n_iter,traj_seg_id=traj_seg_id))
+
+
+            segments = []
+            seg_id = traj_seg_id
+            while n_iter > 0:                
+                iter_group = self.get_iter_group(n_iter)
+                seg_info = iter_group['seg_index'][seg_id] 
+                final_pcoord = iter_group['pcoord'][seg_id,-1,:]
+                p_parent_id = self.get_parent_array(n_iter)[seg_info['parents_offset']]                 
+                segments.append(Segment(n_iter=n_iter, seg_id=seg_id, 
+                                        weight=seg_info['weight'],
+                                        p_parent_id=p_parent_id,
+                                        pcoord=final_pcoord))                
+                seg_id = p_parent_id
+                n_iter -= 1
+            
+            # Add a fictitious segment for the initial position
+            segments.append(Segment(n_iter=0, seg_id=seg_id, weight=segments[-1].weight,
+                                    pcoord=iter_group['pcoord'][segments[-1].seg_id,0,:]))    
+            
+            # for segment in segments: print
+            for segment in reversed(segments):
+                output_file.write(report_format.format(segment=segment))
+                fields = ['']
+                for field in segment.pcoord:
+                    fields.append(pcoord_formats.get(field.dtype.str[1:], '%s') % field)
+                output_file.write('    '.join(fields))
+                output_file.write('\n')
+
+wtrace = WTrace()
+
+parser = argparse.ArgumentParser('w_trace', description='''\
+Trace trajectories. One or more trajectories must be specified, each as n_iter:seg_id''')
+wemd.rc.add_args(parser)
+wtrace.add_args(parser)
+parser.add_argument('-o', '--output', dest='output_pattern', default='traj_{n_iter:06d}_{seg_id:06d}.txt',
+                    help='''Store output in OUTPUT_PATTERN, which must be a Python3-style format
+                         containing the named fields 'n_iter' and 'seg_id' (default: '%(default)s').''')
+parser.add_argument('segments', nargs='+', metavar='SEGMENT',
+                    help='Segment(s) to trace, each specified as "n_iter:seg_id"')
 args = parser.parse_args()
-output_file = args.output_file
-wemd.rc.config_logging(args, tool_logger_name = 'w_trace')
+wemd.rc.process_args(args, config_required=False)
+wtrace.process_args(args)
 
-runtime_config = None
-sim_manager = None
-data_manager = None
-if args.datafile:
-    # Reading some other HDF5 file
-    data_manager = wemd.data_manager.WEMDDataManager(sim_manager = None, backing_file = args.datafile)
-else:
-    # Reading from HDF5 file specified in wemd.cfg
-    runtime_config = wemd.rc.read_config(args.run_config_file)
-    runtime_config.update_from_object(args)
-    sim_manager = wemd.rc.load_sim_manager(runtime_config)
-    sim_manager.load_data_manager()
-    data_manager = sim_manager.data_manager
+wtrace.output_pattern = args.output_pattern
 
-data_manager.open_backing(mode='r')
-if not args.suppress_headers:
-    output_file.write('''\
-# column 0:    terminal segment (formatted as "n_iter:seg_id")
-# column 1:    n_iter
-# column 2:    seg_id 
-''')
+for segspec in args.segments:
+    try:
+        n_iter,seg_id = map(long,segspec.split(':'))
+    except Exception as e:
+        sys.stderr.write('Invalid terminal segment specification {!r}\n'.format(segspec))
+        sys.exit(3)
+    else:
+        wtrace.terminal_segments.append((n_iter,seg_id))
+wtrace.trace_trajs()
 
-ttree = wemdtools.trajectories.trajtree.TrajTree(data_manager)
-for segspec in args.segment:
-    n_iter, seg_id = map(int, segspec.split(':'))
-    trajectory = ttree.trace_to_root(n_iter, seg_id)
-    osegspec = '{n_iter:d}:{seg_id:d}'.format(n_iter = n_iter, seg_id = seg_id)
-    for segment in trajectory:
-        output_file.write('{osegspec:20s}    {segment.n_iter:10d}    {segment.seg_id:10d}\n'
-                          .format(osegspec = osegspec, segment = segment))     
+#ttree = wemdtools.trajectories.trajtree.TrajTree(data_manager)
+#for segspec in args.segment:
+#    n_iter, seg_id = map(int, segspec.split(':'))
+#    trajectory = ttree.trace_to_root(n_iter, seg_id)
+#    osegspec = '{n_iter:d}:{seg_id:d}'.format(n_iter = n_iter, seg_id = seg_id)
+#    for segment in trajectory:
+#        output_file.write('{osegspec:20s}    {segment.n_iter:10d}    {segment.seg_id:10d}\n'
+#                          .format(osegspec = osegspec, segment = segment))     
