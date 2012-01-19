@@ -22,7 +22,8 @@ def wm_propagate(propagator, segments):
     function for the current incarnation of the work manager.'''
     outgoing_ids = [segment.seg_id for segment in segments]
     incoming_segments = {segment.seg_id: segment for segment in propagator.propagate(segments)}
-    log.debug('propagated {!r}'.format(incoming_segments))
+    if log.isEnabledFor(logging.DEBUG):
+        log.debug('propagated {!r}'.format(incoming_segments))
     return [incoming_segments[seg_id] for seg_id in outgoing_ids]
 
 

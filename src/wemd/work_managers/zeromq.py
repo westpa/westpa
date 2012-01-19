@@ -61,24 +61,39 @@ class ZMQWorkManager(WEMDWorkManager):
         # Spawned processes
         self.spawned_pids       = list()
         
+        # Thread-local storage
+        self._tls = threading.local()
+        
     def get_id_str(self):
         return '{:s}-{:d}'.format(self.this_hostname, os.getpid())
     
     id_str = property(get_id_str,None,None,None)
         
     def bind_thread_ctl(self, endpoint):
+        #log.debug('binding new socket for {}'.format(endpoint))
         ctlsocket = self.context.socket(zmq.PULL)
         ctlsocket.bind(endpoint)
         return ctlsocket
     
     def signal_thread(self, endpoint, message=''):
-        ctlsocket = self.context.socket(zmq.PUSH)
-        ctlsocket.setsockopt(zmq.HWM,1)
-        ctlsocket.connect(endpoint)
+        try:
+            ctlsocket = self._tls.signal_sockets[endpoint]
+        except AttributeError:
+            #log.debug('connecting new socket for {}'.format(endpoint))
+            ctlsocket = self.context.socket(zmq.PUSH)
+            ctlsocket.connect(endpoint)
+            self._tls.signal_sockets = {endpoint: ctlsocket}
+        except KeyError:
+            #log.debug('connecting new socket for {}'.format(endpoint))            
+            ctlsocket = self.context.socket(zmq.PUSH)
+            ctlsocket.connect(endpoint)
+            self._tls.signal_sockets[endpoint] = ctlsocket
+        else:
+            #log.debug('using already-open socket')
+            pass
+        
         ctlsocket.send(message)
-        ctlsocket.close()
-                
-                
+                        
     def parse_aux_args(self, aux_args, do_help = False):
         parser = argparse.ArgumentParser(usage='%(prog)s [NON_WORK_MANAGER_OPTIONS] [OPTIONS]',
                                          add_help=False)
@@ -261,7 +276,8 @@ class ZMQMasterWorkManager(ZMQWorkManager):
                     except IndexError:
                         task_socket.send_pyobj(None)
                     else:
-                        log.debug('dispatching {!r}'.format(task))
+                        if log.isEnabledFor(logging.DEBUG):
+                            log.debug('dispatching {!r}'.format(task))
                         task_socket.send_pyobj(deepcopy(task))
                         self.work_last_dispatched = time.time()
                 elif message == 'result':
