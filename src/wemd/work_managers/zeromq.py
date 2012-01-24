@@ -81,11 +81,13 @@ class ZMQWorkManager(WEMDWorkManager):
         except AttributeError:
             #log.debug('connecting new socket for {}'.format(endpoint))
             ctlsocket = self.context.socket(zmq.PUSH)
+            #ctlsocket.setsockopt(zmq.HWM,1)
             ctlsocket.connect(endpoint)
             self._tls.signal_sockets = {endpoint: ctlsocket}
         except KeyError:
             #log.debug('connecting new socket for {}'.format(endpoint))            
             ctlsocket = self.context.socket(zmq.PUSH)
+            #ctlsocket.setsockopt(zmq.HWM,1)
             ctlsocket.connect(endpoint)
             self._tls.signal_sockets[endpoint] = ctlsocket
         else:
@@ -262,9 +264,10 @@ class ZMQMasterWorkManager(ZMQWorkManager):
                 for message in messages:
                     if message == 'shutdown':
                         return
+                del messages
                     
             if task_socket in poll_results:
-                ts_tuple = task_socket.recv_pyobj()
+                ts_tuple = deepcopy(task_socket.recv_pyobj())
                 message = ts_tuple[0]
                 sender  = ts_tuple[1]
                 payload = ts_tuple[2]
@@ -278,17 +281,19 @@ class ZMQMasterWorkManager(ZMQWorkManager):
                     else:
                         if log.isEnabledFor(logging.DEBUG):
                             log.debug('dispatching {!r}'.format(task))
-                        task_socket.send_pyobj(deepcopy(task))
+                        ctask = deepcopy(task)
+                        task_socket.send_pyobj(ctask)
                         self.work_last_dispatched = time.time()
+                        del task, ctask
                 elif message == 'result':
                     log.debug('result/exception received')
                     task_socket.send('ack')
                     task_id, result_type = payload[0:2]
                     ft = self.pending_futures.pop(task_id)                
                     if result_type == 'result':
-                        ft._set_result(deepcopy(payload[2]))
+                        ft._set_result(payload[2])
                     elif result_type == 'exception':
-                        ft._set_exception(deepcopy(payload[2]))
+                        ft._set_exception(payload[2])
                 elif message == 'ping':
                     log.debug('received ping from {!r}'.format(sender))
                     task_socket.send('ack')
@@ -296,6 +301,7 @@ class ZMQMasterWorkManager(ZMQWorkManager):
                     self.signal_thread(self.ann_ctl_endpoint)
                 else:
                     log.error('unknown message received from {!s}: {!r}'.format(sender, message))
+                del ts_tuple, message, sender, payload
                 
     def submit(self, fn, *args, **kwargs):
         ft = WMFuture()
