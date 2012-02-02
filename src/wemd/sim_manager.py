@@ -56,7 +56,7 @@ class WESimManager:
                 raise KeyError('invalid hook {!r}'.format(hook))
             
         try:
-            self._callback_table[hook].add([(priority,function.__name__,function)])
+            self._callback_table[hook].add((priority,function.__name__,function))
         except KeyError:
             self._callback_table[hook] = set([(priority,function.__name__,function)])
         
