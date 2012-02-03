@@ -117,7 +117,7 @@ class ExecutablePropagator(WEMDPropagator):
             else:
                 if spec not in ('enabled', 'filename', 'loader'):
                     raise ValueError('invalid dataset option {!r}'.format(spec))
-            
+                            
             try:
                 self.data_info[dsname][spec] = value
             except KeyError:
@@ -131,6 +131,8 @@ class ExecutablePropagator(WEMDPropagator):
                 
             if 'loader' not in self.data_info[dsname]:
                 self.data_info[dsname]['loader'] = pcoord_loader if dsname == 'pcoord' else aux_data_loader
+            else:
+                self.data_info[dsname]['loader'] = wemd.rc.config.get_python_callable('executable.data.{}.loader'.format(dsname))
                 
         if not self.data_info['pcoord']['enabled']:
             log.warning('configuration file requests disabling pcoord data collection; overriding')

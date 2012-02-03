@@ -102,7 +102,7 @@ class WEMDDataReaderMixin(AnalysisMixin):
             
     def get_summary_table(self):
         if self.__c_summary is None:
-            self.__c_summary = self.data_manager.h5file['/summary'][...]
+            self.__c_summary = self.data_manager.we_h5file['/summary'][...]
         return self.__c_summary
 
     def get_iter_group(self, n_iter):

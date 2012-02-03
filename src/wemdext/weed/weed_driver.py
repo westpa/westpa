@@ -86,7 +86,7 @@ class WEEDDriver:
         weed_iter_group = iter_group.create_group('weed')
         avg_rates_ds = weed_iter_group.create_dataset('avg_rates', shape=(n_bins,n_bins), dtype=numpy.float64)
         unc_rates_ds = weed_iter_group.create_dataset('unc_rates', shape=(n_bins,n_bins), dtype=numpy.float64)
-        weed_global_group = self.data_manager.h5file.require_group('weed')
+        weed_global_group = self.data_manager.we_h5file.require_group('weed')
         last_reweighting = long(weed_global_group.attrs.get('last_reweighting', 0))
         
         if n_iter - last_reweighting < self.reweight_period:

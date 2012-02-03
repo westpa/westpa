@@ -11,6 +11,7 @@ in a manner that is relatively straightforward for other analysis tools
 
 """
 from __future__ import division; __metaclass__ = type
+import warnings
 from operator import attrgetter
 from itertools import imap
 import numpy
@@ -23,7 +24,7 @@ import wemd
 from wemd.util.miscfn import vattrgetter
 from wemd import Segment
 
-file_format_version = 3
+file_format_version = 4
 
 summary_table_dtype = numpy.dtype( [ ('n_iter', numpy.uint),
                                      ('n_particles', numpy.uint),
@@ -39,6 +40,8 @@ summary_table_dtype = numpy.dtype( [ ('n_iter', numpy.uint),
                                      ('cputime', numpy.float64),
                                      ('walltime', numpy.float64)] )
 
+# Using true HDF5 enums here seems to lead to segfaults, so hold off until h5py 
+# gets its act together on enums
 #seg_status_dtype    = h5py.special_dtype(enum=(numpy.uint8, Segment.statuses))
 #seg_initpoint_dtype = h5py.special_dtype(enum=(numpy.uint8, Segment.initpoint_types))
 #seg_endpoint_dtype  = h5py.special_dtype(enum=(numpy.uint8, Segment.endpoint_types))
@@ -59,7 +62,8 @@ seg_index_dtype = numpy.dtype( [ ('weight', numpy.float64),
 rec_summary_dtype = numpy.dtype( [ ('count', numpy.uint),
                                    ('weight', numpy.float64) ] )
 
-
+def warn_deprecated_usage(msg, category=DeprecationWarning, stacklevel=1):
+    warnings.warn('deprecated data manager interface use: {}'.format(msg), category, stacklevel+1)
 
 class WEMDDataManager:
     """Data manager for assisiting the reading and writing of WEMD data from/to HDF5 files."""
@@ -68,6 +72,7 @@ class WEMDDataManager:
     default_iter_prec = 8
     default_we_h5filename      = 'wemd.h5'
     default_we_h5file_driver   = None
+    # Compress any auxiliary dataset whose total size is more than 1MB
     default_aux_compression_threshold = 1048576
         
     def __init__(self):
@@ -84,6 +89,10 @@ class WEMDDataManager:
         self.iter_prec = self.default_iter_prec
         self.aux_compression_threshold = self.default_aux_compression_threshold
         
+        # Do not load auxiliary data sets by default, as this can potentially take as much space in RAM
+        # as there is auxiliary data stored for a given iteration.
+        self.auto_load_auxdata = False
+        
         # Backing store h5py.File objects
         self.we_h5file = None
         
@@ -98,10 +107,16 @@ class WEMDDataManager:
             self.iter_prec      = wemd.rc.config.get_int('data.default_iter_prec', self.default_iter_prec)
             self.aux_compression_threshold = wemd.rc.config.get_int('data.default_aux_compression_threshold', 
                                                                     self.default_aux_compression_threshold)
+            self.auto_load_auxdata = wemd.rc.config.get_bool('data.load_auxdata', False)
                  
         # A few functions for extracting vectors of attributes from vectors of segments
         self._attrgetters = dict((key, vattrgetter(key)) for key in 
                                  ('seg_id', 'status', 'endpoint_type', 'weight', 'walltime', 'cputime'))
+    
+    @property
+    def h5file(self):
+        warn_deprecated_usage('WEMDDataManager.h5file is deprecated in favor of WEMDDataManager.we_h5file')
+        return self.we_h5file
         
     def _get_iter_group_name(self, n_iter):
         return 'iter_%0*d' % (self.iter_prec, n_iter)
@@ -314,12 +329,15 @@ class WEMDDataManager:
         
     def write_bin_data(self, n_iter, assignments, populations, n_trans, fluxes, rates):
         iter_group = self.get_iter_group(n_iter)
-        iter_group['bin_assignments'][...] = assignments
-        iter_group['bin_populations'][...] = populations
-        iter_group['bin_ntrans'][...] = n_trans
-        iter_group['bin_fluxes'][...] = fluxes
-        iter_group['bin_rates'][...] = rates
-        
+        try:
+            iter_group['bin_assignments'][...] = assignments
+            iter_group['bin_populations'][...] = populations
+            iter_group['bin_ntrans'][...] = n_trans
+            iter_group['bin_fluxes'][...] = fluxes
+            iter_group['bin_rates'][...] = rates
+        except (KeyError,IndexError,TypeError):
+            log.warning('could not write bin data (e.g. assignments/populations/fluxes) for iteration {}'.format(n_iter))
+                
     def update_segments(self, n_iter, segments):
         """Update "mutable" fields (status, endpoint type, pcoord, timings, weights) in the HDF5 file
         and update the summary table accordingly.  Note that this DOES NOT update other fields,
@@ -384,11 +402,20 @@ class WEMDDataManager:
                     dset[segment.seg_id] = adata
                     
             
-    def get_segments(self, n_iter):
+    def get_segments(self, n_iter, load_auxdata=None):
         '''Return the segments from a given iteration.  This function is optimized for the 
         case of retrieving all segments for a given iteration as quickly as possible, 
         and as such effectively loads all data for the given iteration into memory (which
-        is what is currently required for running a WE iteration).'''
+        is what is currently required for running a WE iteration).
+        
+        If the optional parameter ``load_auxdata`` is true, then all auxiliary datasets
+        available are loaded and mapped onto the ``data`` dictionary of each segment. If 
+        ``load_auxdata`` is None, then use the default ``self.auto_load_auxdata``, which can
+        be set by the option ``load_auxdata`` in the ``[data]`` section of ``wemd.cfg``. This
+        essentially requires as much RAM as there is per-iteration auxiliary data, so this
+        behavior is not on by default.'''
+        
+        if load_auxdata is None: load_auxdata = self.auto_load_auxdata
         
         iter_group = self.get_iter_group(n_iter)
         seg_index_table = iter_group['seg_index'][...]
@@ -413,9 +440,28 @@ class WEMDDataManager:
             segment.parent_ids = set(imap(long,parent_ids))
             assert len(segment.parent_ids) == n_parents
             segments.append(segment)
+        del pcoords
+        
+        # If any auxiliary data sets are available, load them as well
+        if load_auxdata and 'auxdata' in iter_group:
+            for (dsname, ds) in iter_group['auxdata'].iteritems():
+                for (seg_id, segment) in enumerate(segments):
+                    segment.data[dsname] = ds[seg_id]
+        
         return segments
     
-    def get_segments_by_id(self, n_iter, seg_ids):
+    def get_segments_by_id(self, n_iter, seg_ids, load_auxdata=None):
+        '''Return the given segments from a given iteration.  
+        
+        If the optional parameter ``load_auxdata`` is true, then all auxiliary datasets
+        available are loaded and mapped onto the ``data`` dictionary of each segment. If 
+        ``load_auxdata`` is None, then use the default ``self.auto_load_auxdata``, which can
+        be set by the option ``load_auxdata`` in the ``[data]`` section of ``wemd.cfg``. This
+        essentially requires as much RAM as there is per-iteration auxiliary data, so this
+        behavior is not on by default.'''
+        
+        if load_auxdata is None: load_auxdata = self.auto_load_auxdata
+
         if len(seg_ids) == 0: return []
         
         iter_group = self.get_iter_group(n_iter)
@@ -448,6 +494,11 @@ class WEMDDataManager:
         for (iseg,segment) in enumerate(segments):
             segment.pcoord = pcoords_by_seg[iseg]
             assert segment.seg_id is not None
+            
+        if load_auxdata and 'auxdata' in iter_group:
+            for (dsname, ds) in iter_group['auxdata'].iteritems():
+                for segment in segments:
+                    segment.data[dsname] = ds[segment.seg_id]
         
         return segments
         

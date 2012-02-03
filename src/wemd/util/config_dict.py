@@ -313,5 +313,5 @@ class ConfigDict(OrderedDict):
         fn = extloader.get_object(qualname, path)
         if not callable(fn):
             raise TypeError('%s is not callable' % qualname)
-
+        return fn
         
