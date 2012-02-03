@@ -31,10 +31,10 @@ sim_manager.system = system
 sim_manager.propagator = propagator
 sim_manager.we_driver = we_driver
 
-sim_manager.load_plugins()
-
 work_manager = wemd.rc.get_work_manager()
 mode = work_manager.startup()
+
+sim_manager.load_plugins()
 
 if work_manager.mode == work_manager.MODE_MASTER:
     

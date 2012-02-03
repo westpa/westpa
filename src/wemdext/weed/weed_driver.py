@@ -12,7 +12,7 @@ from wemdext.weed.ProbAdjustEquil import probAdjustEquil
 
 class WEEDDriver:
     def __init__(self, sim_manager):
-        if sim_manager.work_manager.mode != 'master':
+        if sim_manager.work_manager.mode != sim_manager.work_manager.MODE_MASTER: 
             return
 
         self.sim_manager = sim_manager
@@ -22,11 +22,13 @@ class WEEDDriver:
         self.windowsize = wemd.rc.config.get_int('weed.window_size', 0)
         self.reweight_period = wemd.rc.config.get_int('weed.reweight_period', 0)
         
+        self.priority = wemd.rc.config.get_int('weed.priority',0)
+        
         if sim_manager.system.target_states and self.do_reweight:
             log.warning('equilibrium reweighting requested but target states (sinks) present; reweighting disabled')
             self.do_reweight = False 
         else:
-            sim_manager.register_callback(sim_manager.prepare_new_segments, self.prepare_new_segments)    
+            sim_manager.register_callback(sim_manager.prepare_new_segments, self.prepare_new_segments, self.priority)    
         
             
     def get_rates(self, n_iter, bins):

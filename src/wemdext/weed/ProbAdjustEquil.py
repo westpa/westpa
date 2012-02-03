@@ -132,45 +132,40 @@ def probAdjustEquil( binProb, rates, uncert ):  # this function adjusts bin pops
         ii = ijSort[0][1] # ii, jj are bins to be clustered
         jj = ijSort[0][2]
         # omit bin from clustering if zero prob -- 8/17/2011
-        if fullCalcClust==1:
-            flag = clusters.join( ii, jj )
-        else:
-            flag = clusters.joinSimple( ii, jj )
-        #print 'flag=',flag
-        #clusters.display()
-        ifClust[ ii ] = 1  # note that bin has been clustered (8/17/2011: does not seem to be used)
-        ifClust[ jj ] = 1  # note that bin has been clustered
+        yesno = 'yes'
+        for bb in zeroes:
+            if ii==bb or jj==bb:
+                yesno = 'no'
+        #print 'yesno clustering? ii, jj, yesno', ii, jj, yesno
+        if yesno=='yes':
+            if fullCalcClust==1:
+                flag = clusters.join( ii, jj )
+            else:
+                flag = clusters.joinSimple( ii, jj )
+            #print 'flag=',flag
+            #clusters.display()
+            ifClust[ ii ] = 1  # note that bin has been clustered (8/17/2011: does not seem to be used)
+            ifClust[ jj ] = 1  # note that bin has been clustered
         #print ifClust
         del ijSort[0]
     
     # Bin populations must be re-normalized -- each cluster separately to equal sum originally in cluster
     clustList = clusters.getList()
     #print clustList
-    probInClust = 0.0  # total prob in *all* clusters
+    probSum = 0.0
+    probInClust = 0.0
     for binList in clustList:  # loop over each cluster - most will be empty after full cluster combination process
         probSum = 0.0  # for summing prob in each cluster
-        probZeroes = 0.0  # prob assigned to previously empty bins in this cluster 
         #print 'Next cluster:', binList
         if len(binList)>0:
             #print 'list of bins:', binList
             for bin in binList:  # calculate old sum of bin probabilities
                 probSum = probSum + binProb[bin]
             probInClust = probInClust + probSum
-            for bin in binList:  # find sum of prob in empty bins - 9/12/2011
-                for bb in zeroes:
-                    if bin==bb:
-                        #print '### found zero: bin', bin
-                        probZeroes = probZeroes + clusters[bin][2]
-                        #print 'probZeroes =', probZeroes, '  clusters[bin][2] =', clusters[bin][2]
-            newFac = 1.0 / ( 1.0 - probZeroes )  # non-zero bins will receive extra prob
             for bin in binList:  # re-normalize to maintain old sum of bin probabilities
                 newBinPop = clusters[bin][2]  # new prob, but not normalized
                 #print '... bin', bin, '  old prob =', binProb[bin], '  probSum = ', probSum
-                binProb[bin] = newFac * probSum * newBinPop  # normalized using prob in cluster & newFac
-                for bb in zeroes:  # zero out zero bins
-                    if bin==bb:
-                        #print '### found zero: bin', bin
-                        binProb[bin] = 0.0
+                binProb[bin] = probSum * newBinPop  # normalized using prob in cluster
                 #print '... ... old new prob =', newBinPop, '   new new prob =', binProb[bin]
     print '... Prob in clusters =', probInClust
         

@@ -46,8 +46,7 @@ class _WEMDRC:
         self._work_manager_args_added = False
         self.work_manager = None
         self.system = None
-                
-
+        
     def add_args(self, parser):
         group = parser.add_argument_group('general options')
         group.add_argument('-r', '--rcfile', metavar='RCFILE', dest='rcfile',
@@ -67,7 +66,7 @@ class _WEMDRC:
     def add_work_manager_args(self, parser):
         self._work_manager_args_added = True
         group = parser.add_argument_group('work manager options')
-        group.add_argument('--work-manager', dest='work_manager_name', default=self.DEFAULT_WORK_MANAGER,
+        group.add_argument('--work-manager', dest='work_manager_name',
                             help='''use the given work manager to distribute work among processors (serial, threads, processes, 
                             zmq, or name a Python class as ``module.name``; default: %(default)s)''')
         group.add_argument('--help-work-manager', dest='do_work_manager_help', action='store_true',

@@ -32,7 +32,7 @@ class steady_state(object):
             import h5py
             self.debug = h5py.File(args.ss_h5,'w')
             
-        self.quiet_mode = args.quiet_mode
+        self.quiet_mode = wemd.rc.quiet_mode
         self.symmetrize = args.symmetrize
 
     def get_new_weights(self):                    
@@ -239,12 +239,7 @@ class steady_state(object):
         return P, sactive
   
 def cmd_steady_state(sim_manager, args):
-    sim_manager.load_data_manager()
     sim_manager.data_manager.open_backing()
-        
-    sim_manager.load_system_driver()
-    sim_manager.load_we_driver()
-    sim_manager.load_propagator()
     
     dm = sim_manager.data_manager    
     n_iter = dm.current_iteration
@@ -355,7 +350,9 @@ def cmd_steady_state(sim_manager, args):
 
 #to allow others to use the steady_state class if desired 
 if __name__ == "__main__":
-    parser = wemd.rc.common_arg_parser('w_steady_state', description='''Reweight a simulation to help achieve steady state''')
+    parser = argparse.ArgumentParser('w_steady_state', description='''Reweight a simulation to help achieve steady state''')
+    wemd.rc.add_args(parser)
+    
 
     eps = numpy.finfo(numpy.float64).eps
     # Subset options
@@ -383,18 +380,17 @@ if __name__ == "__main__":
                         help='Number of significant figures for probability display (default: 6)',
                         default=6)
     parser.add_argument('--ss-h5', dest='ss_h5', default=None, help='write debugging info to this h5 file')
-    parser.add_argument('--quiet', dest='quiet_mode', action='store_true',
-                        help='''Do not emit periodic status messages (default: emit status messages if standard output
-                        is a terminal)''')
         
     # Parse command line arguments
     args = parser.parse_args()
-    wemd.rc.config_logging(args)
-    runtime_config = wemd.rc.read_config(args.run_config_file)
-    runtime_config.update_from_object(args)
-    sim_manager = wemd.rc.load_sim_manager(runtime_config)
-    
-    if sys.stdout.isatty() and not args.quiet_mode:
+    wemd.rc.process_args(args, config_required=False)
+    sim_manager = wemd.rc.get_sim_manager()
+    sim_manager.data_manager = wemd.rc.get_data_manager()
+    sim_manager.system = wemd.rc.get_system_driver()
+    sim_manager.we_driver = wemd.rc.get_we_driver()
+    sim_manager.we_driver.system = sim_manager.system
+        
+    if sys.stdout.isatty() and not wemd.rc.quiet_mode:
         sys.stdout.write('Pushing new weights to storage: {}\n'.format(not args.no_reweight))
         sys.stdout.write('Symmetrizing count matrix: {}\n'.format(args.symmetrize))
 
