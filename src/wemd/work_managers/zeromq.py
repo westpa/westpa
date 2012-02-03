@@ -1,6 +1,7 @@
 from __future__ import division, print_function; __metaclass__ = type
 
 import sys, os, logging, socket, multiprocessing, threading, time
+import cPickle as pickle
 import argparse
 from collections import deque
 from copy import deepcopy
@@ -267,7 +268,10 @@ class ZMQMasterWorkManager(ZMQWorkManager):
                 del messages
                     
             if task_socket in poll_results:
-                ts_tuple = deepcopy(task_socket.recv_pyobj())
+                task_msg = task_socket.recv(copy=False)
+                ts_tuple = pickle.loads(deepcopy(task_msg.bytes))
+                del task_msg
+                
                 message = ts_tuple[0]
                 sender  = ts_tuple[1]
                 payload = ts_tuple[2]
@@ -294,6 +298,7 @@ class ZMQMasterWorkManager(ZMQWorkManager):
                         ft._set_result(payload[2])
                     elif result_type == 'exception':
                         ft._set_exception(payload[2])
+                    del task_id, result_type, ft
                 elif message == 'ping':
                     log.debug('received ping from {!r}'.format(sender))
                     task_socket.send('ack')
@@ -301,6 +306,7 @@ class ZMQMasterWorkManager(ZMQWorkManager):
                     self.signal_thread(self.ann_ctl_endpoint)
                 else:
                     log.error('unknown message received from {!s}: {!r}'.format(sender, message))
+                    
                 del ts_tuple, message, sender, payload
                 
     def submit(self, fn, *args, **kwargs):
