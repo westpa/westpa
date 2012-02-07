@@ -399,7 +399,7 @@ class WEMDDataManager:
             for (iseg, segment) in enumerate(segments):
                 row[:] = seg_index_entries[iseg]
                 row['status'] = segment.status
-                row['endpoint_type'] = segment.endpoint_type or Segment.SEG_ENDPOINT_TYPE_NOTSET
+                row['endpoint_type'] = segment.endpoint_type or Segment.SEG_ENDPOINT_UNSET
                 row['cputime'] = segment.cputime
                 row['walltime'] = segment.walltime
                 row['weight'] = segment.weight
@@ -439,7 +439,7 @@ class WEMDDataManager:
             seg_index = self.get_seg_index(n_iter)
             row = seg_index[segment.seg_id]
             row['status'] = segment.status
-            row['endpoint_type'] = segment.endpoint_type or Segment.SEG_ENDPOINT_TYPE_NOTSET
+            row['endpoint_type'] = segment.endpoint_type or Segment.SEG_ENDPOINT_UNSET
             row['cputime'] = segment.cputime
             row['walltime'] = segment.walltime
             row['weight'] = segment.weight
