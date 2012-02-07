@@ -45,6 +45,7 @@ class _WEMDRC:
     
         self._work_manager_args_added = False
         self.work_manager = None
+        self.system = None
         
     def add_args(self, parser):
         group = parser.add_argument_group('general options')
@@ -118,7 +119,7 @@ class _WEMDRC:
             sys.stderr.write('  -- WARNING  -- setting $WEMD_SIM_ROOT to current directory ({})\n'.format(os.getcwd()))
             os.environ['WEMD_SIM_ROOT'] = os.getcwd()
                                     
-        self.config.read_config_file(self.rcfile)
+        self.config.read_config_file(self.rcfile) 
                     
     def config_logging(self):
         import logging.config
@@ -233,21 +234,23 @@ class _WEMDRC:
         return propagator
     
     def get_system_driver(self):
-        sysdrivername = self.config.require('system.system_driver')
-        log.info('loading system driver %r' % sysdrivername)
-        pathinfo = self.config.get_pathlist('system.module_path', default=None)
-        try:        
-            system = extloader.get_object(sysdrivername, pathinfo)()
-        except ImportError:
-            try:
-                system = extloader.get_object(sysdrivername, ['.'])()
+        if self.system is None:
+            sysdrivername = self.config.require('system.system_driver')
+            log.info('loading system driver %r' % sysdrivername)
+            pathinfo = self.config.get_pathlist('system.module_path', default=None)
+            try:        
+                system = extloader.get_object(sysdrivername, pathinfo)()
             except ImportError:
-                raise ImportError('could not load system driver')
-            else:
-                log.warning('using system driver from current directory')
-        log.debug('loaded system driver {!r}'.format(system))
-        
-        log.debug('initializing system driver')
-        system.initialize()
-
-        return system
+                extra_path = os.environ.get('WEMD_SIM_ROOT', '.')
+                try:
+                    system = extloader.get_object(sysdrivername, [extra_path])()
+                except ImportError:
+                    raise ImportError('could not load system driver')
+                else:
+                    log.warning('using system driver from {!r}'.format(extra_path))
+            log.debug('loaded system driver {!r}'.format(system))
+            
+            log.debug('initializing system driver')
+            system.initialize()
+            self.system = system
+        return self.system

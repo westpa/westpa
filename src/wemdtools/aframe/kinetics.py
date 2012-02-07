@@ -47,14 +47,14 @@ class KineticsAnalysisMixin(AnalysisMixin):
         if args.ibins_string:
             self.analysis_initial_bins = self.parse_bin_range(args.ibins_string)
             wemd.rc.pstatus('Will calculate kinetics data from transitions beginning in the following bins: {!s}'
-                            .format(list(sorted(self.analysis_initial_bins))))
+                            .format(sorted(self.analysis_initial_bins)))
         else:
             wemd.rc.pstatus('Will calculate kinetics data from transitions beginning in any bin.')
             
         if args.fbins_string:
             self.analysis_final_bins   = self.parse_bin_range(args.fbins_string)
             wemd.rc.pstatus('Will calculate kinetics data from transitions ending in the following bins: {!s}'
-                            .format(list(sorted(self.analysis_final_bins))))
+                            .format(sorted(self.analysis_final_bins)))
         else:
             wemd.rc.pstatus('Will calculate kinetics data from transitions ending in any bin.')
 

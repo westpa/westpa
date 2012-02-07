@@ -37,7 +37,7 @@ class WEMDWEDriver:
         
         # Everything continues unless it gets split, merged, or recycled
         for segment in segments:
-            segment.endpoint_type = Segment.SEG_ENDPOINT_TYPE_CONTINUES
+            segment.endpoint_type = Segment.SEG_ENDPOINT_CONTINUES
 
         self.recycle_from = [[0, 0.0] for istate in xrange(0, len(self.system.target_states))]
         self.recycle_to   = [[0, 0.0] for istate in xrange(0, len(self.system.initial_states))]  
@@ -127,7 +127,7 @@ class WEMDWEDriver:
             
             new_segments = []
             for segment in bin:
-                segment.endpoint_type = Segment.SEG_ENDPOINT_TYPE_RECYCLED
+                segment.endpoint_type = Segment.SEG_ENDPOINT_RECYCLED
                 new_segment = Segment(weight = segment.weight,
                                       pcoord = system.new_pcoord_array())
                 new_segments.append(new_segment)
@@ -161,7 +161,7 @@ class WEMDWEDriver:
         weights = numpy.array(map(operator.attrgetter('weight'), segments))
         
         for segment in segments[weights > self.weight_split_threshold * ideal_weight]:
-            segment.endpoint_type = Segment.SEG_ENDPOINT_TYPE_CONTINUES
+            segment.endpoint_type = Segment.SEG_ENDPOINT_CONTINUES
             bin.remove(segment)
             m = int(ceil(segment.weight / ideal_weight))
             new_segments = []
@@ -236,9 +236,9 @@ class WEMDWEDriver:
         # The primary parent is marked as continuing; others are marked as ending in a merge
         for (iseg, segment) in enumerate(to_merge):
             if iseg != iparent:
-                segment.endpoint_type = Segment.SEG_ENDPOINT_TYPE_MERGED
+                segment.endpoint_type = Segment.SEG_ENDPOINT_MERGED
             else:
-                segment.endpoint_type = Segment.SEG_ENDPOINT_TYPE_CONTINUES
+                segment.endpoint_type = Segment.SEG_ENDPOINT_CONTINUES
                 
         bin.difference_update(to_merge)
         bin.add(glom)
@@ -250,7 +250,7 @@ class WEMDWEDriver:
         # split
         while bin.count < bin.target_count:
             # Always split the highest probability particle into two
-            particles = list(sorted(bin, key=weight_getter))
+            particles = sorted(bin, key=weight_getter)
             parent = particles[-1]
             # If the highest-weight particle is newly-created, it will not have a seg_id;
             # In that case, we essentially replace that segment with two new ones
@@ -278,7 +278,7 @@ class WEMDWEDriver:
         # merge
         while bin.count > bin.target_count:
             # Always merge the two lowest-probability particles
-            segments = list(sorted(bin, key=weight_getter))
+            segments = sorted(bin, key=weight_getter)
             parents = segments[0:2]
             glom_weight = parents[0].weight + parents[1].weight
             parent_ids = [segment.seg_id if segment.seg_id is not None else segment.p_parent_id
@@ -295,8 +295,8 @@ class WEMDWEDriver:
             
             glom.p_parent_id = parent_ids[iparent]
             iother = 1 if iparent == 0 else 0
-            parents[iparent].endpoint_type = Segment.SEG_ENDPOINT_TYPE_CONTINUES
-            parents[iother].endpoint_type  = Segment.SEG_ENDPOINT_TYPE_MERGED
+            parents[iparent].endpoint_type = Segment.SEG_ENDPOINT_CONTINUES
+            parents[iother].endpoint_type  = Segment.SEG_ENDPOINT_MERGED
 
             if parents[iparent].seg_id is not None:
                 glom.pcoord[0] = parents[iparent].pcoord[-1]

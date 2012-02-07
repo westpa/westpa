@@ -74,7 +74,7 @@ for (iseg, bin) in enumerate(bin_assignments):
 # bin index, index_in_bin, seg_id, weight, pcoord
 ntop = []
 for (ibin, bin) in enumerate(bins):
-    sorted_segs = list(sorted(bin, key=(lambda segment: (segment.weight, segment.seg_id))))
+    sorted_segs = sorted(bin, key=(lambda segment: (segment.weight, segment.seg_id)))
     log.debug('sorted_segs: {!r}'.format(sorted_segs))
     for (iseg, segment) in enumerate(sorted_segs[:n_replicas]):
         ntop.append( (ibin, iseg, long(segment.seg_id), long(segment.p_parent_id), segment.weight, tuple(segment.pcoord[0]) ) )

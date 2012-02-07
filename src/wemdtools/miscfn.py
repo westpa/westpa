@@ -19,6 +19,6 @@ def parse_int_list(list_string):
     except (ValueError,TypeError):
         raise ValueError('invalid integer range string {!r}'.format(list_string))
     else:
-        return list(sorted(entries))
+        return sorted(entries)
     
     

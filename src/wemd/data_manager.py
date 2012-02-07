@@ -3,8 +3,15 @@ HDF5 data manager for WEMD.
 
 Original HDF5 implementation: Joe Kaus
 Current implementation: Matt Zwier
+
+WEMD exclusively uses the cross-platform, self-describing file format HDF5
+for data storage. This ensures that data is stored efficiently and portably
+in a manner that is relatively straightforward for other analysis tools 
+(perhaps written in C/C++/Fortran) to access.
+
 """
 from __future__ import division; __metaclass__ = type
+import warnings
 from operator import attrgetter
 from itertools import imap
 import numpy
@@ -18,7 +25,7 @@ import wemd
 from wemd.util.miscfn import vattrgetter
 from wemd import Segment
 
-file_format_version = 3
+file_format_version = 4
 
 class dummy_lock:
     def __init__(self):
@@ -47,56 +54,97 @@ summary_table_dtype = numpy.dtype( [ ('n_iter', numpy.uint),
                                      ('max_seg_prob', numpy.float64),
                                      ('seg_dyn_range', numpy.float64),
                                      ('cputime', numpy.float64),
-                                     ('walltime', numpy.float64),
-                                     ('status', numpy.byte) ] )
-ITER_STATUS_INCOMPLETE = 0
-ITER_STATUS_COMPLETE   = 1
+                                     ('walltime', numpy.float64)] )
+
+# Using true HDF5 enums here seems to lead to segfaults, so hold off until h5py 
+# gets its act together on enums
+#seg_status_dtype    = h5py.special_dtype(enum=(numpy.uint8, Segment.statuses))
+#seg_initpoint_dtype = h5py.special_dtype(enum=(numpy.uint8, Segment.initpoint_types))
+#seg_endpoint_dtype  = h5py.special_dtype(enum=(numpy.uint8, Segment.endpoint_types))
+seg_status_dtype = numpy.uint8
+seg_initpoint_dtype = numpy.uint8
+seg_endpoint_dtype = numpy.uint8
+
 
 seg_index_dtype = numpy.dtype( [ ('weight', numpy.float64),
                                  ('cputime', numpy.float64),
                                  ('walltime', numpy.float64),
                                  ('parents_offset', numpy.uint32),
                                  ('n_parents', numpy.uint32),                                 
-                                 ('status', numpy.uint8),
-                                 ('endpoint_type', numpy.uint8), ] )
-SEG_INDEX_WEIGHT = 0
-SEG_INDEX_CPUTIME = 1
-SEG_INDEX_WALLTIME = 2
-SEG_INDEX_PARENTS_OFFSET = 3
-SEG_INDEX_N_PARENTS = 4
-SEG_INDEX_STATUS = 5
-SEG_INDEX_ENDPOINT_TYPE = 6
+                                 ('status', seg_status_dtype),
+                                 ('initpoint_type', seg_initpoint_dtype),
+                                 ('endpoint_type', seg_endpoint_dtype), ] )
 
 rec_summary_dtype = numpy.dtype( [ ('count', numpy.uint),
                                    ('weight', numpy.float64) ] )
 
-class WEMDDataManager:
-    """Data manager for assisiting the reading and writing of WEMD HDF5 files."""
-    
-    # field width of numeric portion of iteration group names
-    iter_prec = 8
-        
-    def __init__(self, backing_file = None, system = None):
+def warn_deprecated_usage(msg, category=DeprecationWarning, stacklevel=1):
+    warnings.warn('deprecated data manager interface use: {}'.format(msg), category, stacklevel+1)
 
-        self.h5file = None
-        self.backing_file = backing_file
-        self.system = system
+class WEMDDataManager:
+    """Data manager for assisiting the reading and writing of WEMD data from/to HDF5 files."""
+    
+    # defaults for various options
+    default_iter_prec = 8
+    default_we_h5filename      = 'wemd.h5'
+    default_we_h5file_driver   = None
+    # Compress any auxiliary dataset whose total size is more than 1MB
+    default_aux_compression_threshold = 1048576
+        
+    def __init__(self):
+
+        #self.h5file = None
+        #self.backing_file = backing_file
+        #self.system = system
+        
+        # Backing store filenames; setting these attributes is the only way to specify that
+        # a given file should be opened
+        self.we_h5filename = self.default_we_h5filename
+        self.we_h5file_driver = self.default_we_h5file_driver
+        self.h5_access_mode = 'r+'
+        self.iter_prec = self.default_iter_prec
+        self.aux_compression_threshold = self.default_aux_compression_threshold
+        
+        # Do not load auxiliary data sets by default, as this can potentially take as much space in RAM
+        # as there is auxiliary data stored for a given iteration.
+        self.auto_load_auxdata = False
+        
+        # Backing store h5py.File objects
+        self.we_h5file = None
+        
+        # System description
+        self.system = None
+        
+        # If a configuration file is present, read values from there, otherwise use
+        # sensible defaults
+        if wemd.rc.config:
+            self.we_h5filename  = wemd.rc.config.get_path('data.wemd_data_file', self.default_we_h5filename)
+            self.we_h5file_driver = wemd.rc.config.get('data.wemd_data_file_driver', self.default_we_h5file_driver)
+            self.iter_prec      = wemd.rc.config.get_int('data.default_iter_prec', self.default_iter_prec)
+            self.aux_compression_threshold = wemd.rc.config.get_int('data.default_aux_compression_threshold', 
+                                                                    self.default_aux_compression_threshold)
+            self.auto_load_auxdata = wemd.rc.config.get_bool('data.load_auxdata', False)
         self.lock = threading.RLock()
                  
         # A few functions for extracting vectors of attributes from vectors of segments
         self._attrgetters = dict((key, vattrgetter(key)) for key in 
                                  ('seg_id', 'status', 'endpoint_type', 'weight', 'walltime', 'cputime'))
+    
+    @property
+    def h5file(self):
+        warn_deprecated_usage('WEMDDataManager.h5file is deprecated in favor of WEMDDataManager.we_h5file')
+        return self.we_h5file
         
     def _get_iter_group_name(self, n_iter):
         return 'iter_%0*d' % (self.iter_prec, n_iter)
 
     def del_iter_group(self, n_iter):
         with self.lock:
-            del self.h5file['/iter_%0*d' % (self.iter_prec, n_iter)]
+            del self.we_h5file['/iter_%0*d' % (self.iter_prec, n_iter)]
 
     def get_iter_group(self, n_iter):
         with self.lock:
-            return self.h5file['/iter_%0*d' % (self.iter_prec, n_iter)]
+            return self.we_h5file['/iter_%0*d' % (self.iter_prec, n_iter)]
             
     def get_seg_index(self, n_iter):
         with self.lock:
@@ -106,57 +154,55 @@ class WEMDDataManager:
     @property
     def current_iteration(self):
         with self.lock:
-            return self.h5file['/'].attrs['wemd_current_iteration']
+            return self.we_h5file['/'].attrs['wemd_current_iteration']
     
     @current_iteration.setter
     def current_iteration(self, n_iter):
         with self.lock:
-            self.h5file['/'].attrs['wemd_current_iteration'] = n_iter
+            self.we_h5file['/'].attrs['wemd_current_iteration'] = n_iter
         
-    def open_backing(self, backing_file = None, **kwargs):
-        '''Open the HDF5 file. All keyword arguments are passed to h5py.File(), permitting
-        use of different access modes or different I/O drivers.'''
-        if not self.h5file:
-            if not self.backing_file:
-                if not backing_file:
-                    self.backing_file = wemd.rc.config['data.h5file']
-                    try:
-                        self.iter_prec = wemd.rc.config.get_int('data.iter_prec')
-                    except (AttributeError,KeyError):
-                        # class attribute will fill in when self.iter_prec is dereferenced
-                        pass
-                else:
-                    self.backing_file = backing_file
-                
-            log.debug('Backing file is {}'.format(self.backing_file))
-            self.h5file = h5py.File(self.backing_file, **kwargs)
-        
+    def open_backing(self):
+        '''Open the (already-created) HDF5 file named in self.wemd_h5filename.'''
+        if not self.we_h5file:
+            # Check to see that the specified file exists and is readable by the HDF5 library
+            # throws RuntimeError otherwise; this is not an assert because it should run even
+            # when using optimized bytecode (python -O strips "assert" statements).
+            h5py.h5f.is_hdf5(self.we_h5filename)
+            self.we_h5file = h5py.File(self.we_h5filename, self.h5_access_mode, driver=self.we_h5file_driver)
+            try:
+                recorded_iter_prec = self.we_h5file['/'].attrs['wemd_iter_prec']
+            except KeyError:
+                log.info('iteration precision not stored in HDF5; using {:d}'.format(self.iter_prec))
+            else:
+                log.debug('iteration precision found: {:d}'.format(recorded_iter_prec))
+                self.iter_prec = int(recorded_iter_prec)
+                    
     def prepare_backing(self):
-        self.open_backing()
+        '''Create new HDF5 file'''
         
         with self.lock:
-            self.h5file['/'].attrs['wemd_file_format_version'] = file_format_version
+            self.we_h5file['/'].attrs['wemd_file_format_version'] = file_format_version
             self.current_iteration = 1
-            assert self.h5file['/'].attrs['wemd_current_iteration'] == 1
+            assert self.we_h5file['/'].attrs['wemd_current_iteration'] == 1
             
-            self.h5file['/'].create_dataset('summary',
-                                            shape=(1,), 
-                                            dtype=summary_table_dtype,
-                                            maxshape=(None,),
-                                            chunks=(100,))
+            self.we_h5file['/'].create_dataset('summary',
+                                               shape=(1,), 
+                                               dtype=summary_table_dtype,
+                                               maxshape=(None,),
+                                               chunks=(100,))
         
     def close_backing(self):
-        if self.h5file is not None:
+        if self.we_h5file is not None:
             with self.lock:
-                self.h5file.close()
-            self.h5file = None
+                self.we_h5file.close()
+            self.we_h5file = None
         
     def flush_backing(self):
-        if self.h5file is not None:
+        if self.we_h5file is not None:
             with self.lock:
-                self.h5file.flush()
+                self.we_h5file.flush()
                 
-    def prepare_iteration(self, n_iter, segments, pcoord_ndim = None, pcoord_len = None, pcoord_dtype = None):
+    def prepare_iteration(self, n_iter, segments, system=None):
         """Prepare for a new iteration by creating space to store the new iteration's data.
         The number of segments, their IDs, and their lineage must be determined and included
         in the set of segments passed in."""
@@ -164,10 +210,10 @@ class WEMDDataManager:
         log.debug('preparing HDF5 group for iteration %d (%d segments)' % (n_iter, len(segments)))
         
         n_particles = len(segments)
-        system = self.system
-        pcoord_ndim = pcoord_ndim if pcoord_ndim is not None else system.pcoord_ndim
-        pcoord_len = pcoord_len if pcoord_len is not None else system.pcoord_len
-        pcoord_dtype = pcoord_dtype if pcoord_dtype is not None else system.pcoord_dtype
+        system = system or self.system
+        pcoord_ndim = system.pcoord_ndim
+        pcoord_len = system.pcoord_len
+        pcoord_dtype = system.pcoord_dtype
         n_bins = len(system.region_set.get_all_bins())
         
         with self.lock:
@@ -176,11 +222,11 @@ class WEMDDataManager:
             segments = list(segments)
                     
             # Create a table of summary information about each iteration
-            summary_table = self.h5file['summary']
+            summary_table = self.we_h5file['summary']
             if len(summary_table) < n_iter:
                 summary_table.resize((n_iter+1,))
             
-            iter_group = self.h5file.create_group(self._get_iter_group_name(n_iter))
+            iter_group = self.we_h5file.create_group(self._get_iter_group_name(n_iter))
             iter_group.attrs['n_iter'] = n_iter
             
             # everything indexed by [particle] goes in an index table
@@ -195,7 +241,6 @@ class WEMDDataManager:
             summary_row['n_iter'] = n_iter
             summary_row['n_particles'] = n_particles
             summary_row['norm'] = numpy.add.reduce(map(self._attrgetters['weight'], segments))
-            summary_row['status'] = ITER_STATUS_INCOMPLETE
             summary_table[n_iter-1] = summary_row
             
             # pcoord is indexed as [particle, time, dimension]
@@ -283,16 +328,16 @@ class WEMDDataManager:
     def get_iter_summary(self,n_iter):
         with self.lock:
             summary_row = numpy.zeros((1,), dtype=summary_table_dtype)
-            summary_row[:] = self.h5file['summary'][n_iter-1]
+            summary_row[:] = self.we_h5file['summary'][n_iter-1]
             return summary_row
         
     def update_iter_summary(self,n_iter,summary):
         with self.lock:
-            self.h5file['summary'][n_iter-1] = summary
+            self.we_h5file['summary'][n_iter-1] = summary
 
     def del_iter_summary(self, min_iter): #delete the iterations starting at min_iter      
         with self.lock:
-            self.h5file['summary'].resize((min_iter - 1,))
+            self.we_h5file['summary'].resize((min_iter - 1,))
                      
     def write_recycling_data(self, n_iter, rec_summary):
         with self.lock:
@@ -307,12 +352,15 @@ class WEMDDataManager:
         
     def write_bin_data(self, n_iter, assignments, populations, n_trans, fluxes, rates):
         with self.lock:
-            iter_group = self.get_iter_group(n_iter)
-            iter_group['bin_assignments'][...] = assignments
-            iter_group['bin_populations'][...] = populations
-            iter_group['bin_ntrans'][...] = n_trans
-            iter_group['bin_fluxes'][...] = fluxes
-            iter_group['bin_rates'][...] = rates
+            try:
+                iter_group = self.get_iter_group(n_iter)
+                iter_group['bin_assignments'][...] = assignments
+                iter_group['bin_populations'][...] = populations
+                iter_group['bin_ntrans'][...] = n_trans
+                iter_group['bin_fluxes'][...] = fluxes
+                iter_group['bin_rates'][...] = rates
+            except (KeyError,IndexError,TypeError):
+                log.warning('could not write bin data (e.g. assignments/populations/fluxes) for iteration {}'.format(n_iter))
         
     def update_segments(self, n_iter, segments):
         """Update "mutable" fields (status, endpoint type, pcoord, timings, weights) in the HDF5 file
@@ -332,7 +380,7 @@ class WEMDDataManager:
           * parents
         """
         
-        segments = sorted(list(segments), key=attrgetter('seg_id'))
+        segments = sorted(segments, key=attrgetter('seg_id'))
         
         if len(segments) == 1:
             self._update_segment(n_iter, segments[0])
@@ -364,6 +412,27 @@ class WEMDDataManager:
             iter_group['seg_index'][seg_ids] = seg_index_entries
             iter_group['pcoord'][seg_ids] = pcoord_entries
             
+            # Now, to deal with auxiliary data
+            # If any segment has any auxiliary data, then the aux dataset must spring into
+            # existence. Each is named according to the name in segment.data, and has shape
+            # (n_total_segs, ...) where the ... is the shape of the data in segment.data (and may be empty
+            # in the case of scalar data) and dtype is taken from the data type of the data entry
+            # compression is on by default for datasets that will be more than 1MiB          
+            if any(segment.data for segment in segments):
+                n_total_segs = len(iter_group['seg_index'])
+                aux_group = iter_group.require_group('auxdata')
+                for segment in segments:
+                    for (dsname, data) in segment.data.iteritems():
+                        adata = numpy.asarray(data)
+                        shape = (n_total_segs,)+adata.shape
+                        nbytes = numpy.multiply.reduce(shape)
+                        dset = aux_group.require_dataset(dsname,
+                                                         shape=shape,
+                                                         dtype=adata.dtype,
+                                                         compression='gzip' if nbytes > self.aux_compression_threshold else None)
+                        dset[segment.seg_id] = adata
+            
+            
     def _update_segment(self, n_iter, segment):
         with self.lock:
             iter_group = self.get_iter_group(n_iter)
@@ -376,12 +445,27 @@ class WEMDDataManager:
             row['weight'] = segment.weight
             seg_index[segment.seg_id] = row
             iter_group['pcoord'][segment.seg_id] = segment.pcoord
+            
+            if segment.data:
+                aux_group = iter_group.require_group('auxdata')
+                for (dsname, data) in segment.data.iteritems():
+                    adata = numpy.asarray(data)
+                    shape = (len(seg_index),)+adata.shape
+                    nbytes = numpy.multiply.reduce(shape)
+                    dset = aux_group.require_dataset(dsname,
+                                                     shape=shape,
+                                                     dtype=adata.dtype,
+                                                     compression='gzip' if nbytes > self.aux_compression_threshold else None)
+                    dset[segment.seg_id] = adata
+            
                 
-    def get_segments(self, n_iter):
+    def get_segments(self, n_iter, load_auxdata=None):
         '''Return the segments from a given iteration.  This function is optimized for the 
         case of retrieving (nearly) all segments for a given iteration as quickly as possible, 
         and as such effectively loads all data for the given iteration into memory (which
         is what is currently required for running a WE iteration).'''
+        
+        if load_auxdata is None: load_auxdata = self.auto_load_auxdata
         
         with self.lock:
             iter_group = self.get_iter_group(n_iter)
@@ -407,9 +491,28 @@ class WEMDDataManager:
                 segment.parent_ids = set(imap(long,parent_ids))
                 assert len(segment.parent_ids) == n_parents
                 segments.append(segment)
-            return segments
+            del pcoords
+        
+            # If any auxiliary data sets are available, load them as well
+            if load_auxdata and 'auxdata' in iter_group:
+                for (dsname, ds) in iter_group['auxdata'].iteritems():
+                    for (seg_id, segment) in enumerate(segments):
+                        segment.data[dsname] = ds[seg_id]
+        
+        return segments
     
-    def get_segments_by_id(self, n_iter, seg_ids):
+    def get_segments_by_id(self, n_iter, seg_ids, load_auxdata=None):
+        '''Return the given segments from a given iteration.  
+        
+        If the optional parameter ``load_auxdata`` is true, then all auxiliary datasets
+        available are loaded and mapped onto the ``data`` dictionary of each segment. If 
+        ``load_auxdata`` is None, then use the default ``self.auto_load_auxdata``, which can
+        be set by the option ``load_auxdata`` in the ``[data]`` section of ``wemd.cfg``. This
+        essentially requires as much RAM as there is per-iteration auxiliary data, so this
+        behavior is not on by default.'''
+        
+        if load_auxdata is None: load_auxdata = self.auto_load_auxdata
+
         if len(seg_ids) == 0: return []
         
         with self.lock:
@@ -443,6 +546,11 @@ class WEMDDataManager:
             for (iseg,segment) in enumerate(segments):
                 segment.pcoord = pcoords_by_seg[iseg]
                 assert segment.seg_id is not None
+            
+            if load_auxdata and 'auxdata' in iter_group:
+                for (dsname, ds) in iter_group['auxdata'].iteritems():
+                    for segment in segments:
+                        segment.data[dsname] = ds[segment.seg_id]
             
             return segments        
     

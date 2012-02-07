@@ -1,3 +1,14 @@
+2011-02-03 -- Matt Zwier <mczwier@gmail.com>
+ * Added preliminary support for arbitrary data sets stored in HDF5. This
+   resurrects the prior functionality of a ``segment.data`` dictionary that
+   "just works". The config file entry ``data.load_auxdata`` (boolean) controls
+   whether this auxiliary data needs to be present on Segment objects during
+   the simulation loop or not.
+ * As a side-effect of the support for arbitrary data sets, the ability to
+   use temporary files for progress coordinate return is back.
+ * Custom functions for reading data in the executable work manager seem to
+   actually work now!
+   
 2011-02-02 -- Matt Zwier <mczwier@gmail.com>
  * Fixed bug (issue #8) where the work manager setting in wemd.cfg was ignored.
  * Updated w_truncate, w_succ, and w_trace to run with new wemd.rc framework.
@@ -121,7 +132,7 @@
    output option to write output to file, and a mode where the calculated bin
    probabilities are not pushed to storage, and an option to symmetrize the 
    count matrix. 
-
+   
 2011-04-27 -- Matt Zwier <mczwier@gmail.com>
  * Modified w_ttimes and wemdtools.trajectories.trajtree to support analyzing
    not only entire trajectories, but all trajectories alive at a specified
