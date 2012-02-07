@@ -20,6 +20,7 @@ def wm_post_iter(propagator, n_iter, segments):
 def wm_propagate(propagator, segments):
     '''Propagate the given segments with the given propagator. This has to be a top-level
     function for the current incarnation of the work manager.'''
+    assert len(segments) == 1
     outgoing_ids = [segment.seg_id for segment in segments]
     incoming_segments = {segment.seg_id: segment for segment in propagator.propagate(segments)}
     if log.isEnabledFor(logging.DEBUG):
@@ -44,6 +45,7 @@ class WESimManager:
                                      self.finalize_iteration, self.prepare_we,
                                      self.prepare_new_segments))
         self._callbacks_by_name = {fn.__name__: fn for fn in self._valid_callbacks}
+        self._n_propagated = 0
         
     def register_callback(self, hook, function, priority=0):
         '''Registers a callback to execute during the given ``hook`` into the simulation loop. The optional
@@ -87,19 +89,23 @@ class WESimManager:
     def propagate(self, n_iter, segments):            
         self.flush_status()
         log.debug('propagating {:d} segments'.format(len(segments)))
-        futures = [self.work_manager.submit(wm_propagate, self.propagator, [segment]) for segment in segments]
+        futures = []
+        for segment in segments:
+            future = self.work_manager.submit(wm_propagate, self.propagator, [segment])
+            log.debug('segment {:d} is task {!r}'.format(segment.seg_id, future.task_id))
+            futures.append(future)
         completed = []
         for future in self.work_manager.as_completed(futures):
             incoming = future.get_result()
-            log.debug('recording results for {!r}'.format(incoming))
+            self._n_propagated += 1
+            log.debug('recording results for {!r}, {:d} for this run'.format(incoming, self._n_propagated))
             self.data_manager.update_segments(n_iter, incoming)
+            self.data_manager.flush_backing()
             completed.extend(incoming)
         log.debug('done with propagation')
         assert len(completed) == len(segments)
-        return completed
+        return completed        
         
-        
-
     # The functions prepare_run(), finalize_run(), run(), and shutdown() are
     # designed to be called by scripts which are actually performing runs.
     # Specifically, prepare_run() and finalize_run() define the order in which
@@ -151,6 +157,7 @@ class WESimManager:
     def run(self):
         """Begin (or continue) running a simulation.  Must only be called in master processes.
         """
+                
         # Set up internal timing
         run_starttime = time.time()
         max_walltime = wemd.rc.config.get_interval('limits.max_wallclock', default=None, type=float)
@@ -164,9 +171,7 @@ class WESimManager:
         # Wrap everything in try/finally to ensure that the data manager gets things written
         # correctly (should work without this, but the h5py documentation is a little hazy
         # on how wise it is)
-        try:
-            self.data_manager.open_backing()
-                        
+        try:            
             # Get segments
             n_iter = self.data_manager.current_iteration
             max_iter = wemd.rc.config.get_int('limits.max_iterations', n_iter+1)

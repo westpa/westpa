@@ -268,31 +268,32 @@ class ZMQMasterWorkManager(ZMQWorkManager):
                 del messages
                     
             if task_socket in poll_results:
-                task_msg = task_socket.recv(copy=False)
-                ts_tuple = pickle.loads(deepcopy(task_msg.bytes))
-                del task_msg
+                #task_msg = task_socket.recv(copy=False)
+                #ts_tuple = pickle.loads(deepcopy(task_msg.bytes))
+                #del task_msg
+                ts_tuple = task_socket.recv_pyobj()
                 
                 message = ts_tuple[0]
                 sender  = ts_tuple[1]
                 payload = ts_tuple[2]
                 
                 if message == 'task':
-                    log.debug('task request received')
+                    log.debug('task request received from {!r}'.format(sender))
                     try:
                         task = self.task_queue.popleft()
+                        task_id = task[0]
                     except IndexError:
+                        log.debug('no task to send to {!r}'.format(sender))
                         task_socket.send_pyobj(None)
                     else:
-                        if log.isEnabledFor(logging.DEBUG):
-                            log.debug('dispatching {!r}'.format(task))
-                        ctask = deepcopy(task)
-                        task_socket.send_pyobj(ctask)
+                        log.debug('dispatching {!r} to {!r}'.format(task_id, sender))
+                        task_socket.send_pyobj(task)
                         self.work_last_dispatched = time.time()
-                        del task, ctask
+                        del task, task_id
                 elif message == 'result':
-                    log.debug('result/exception received')
                     task_socket.send('ack')
                     task_id, result_type = payload[0:2]
+                    log.debug('result/exception received for task {!r} from {!r}'.format(task_id, sender))
                     ft = self.pending_futures.pop(task_id)                
                     if result_type == 'result':
                         ft._set_result(payload[2])
@@ -357,6 +358,7 @@ class ZMQWorkerWorkManager(ZMQWorkManager):
             
             if ann_socket in poll_results:
                 announcements = set(recvall(ann_socket))
+                log.debug('received {:d} announcements'.format(len(announcements)))
                 if 'shutdown' in announcements:
                     self.signal_thread(self.rdp_ctl_endpoint, 'shutdown')
                     return
@@ -378,8 +380,9 @@ class ZMQWorkerWorkManager(ZMQWorkManager):
                     log.debug('shutdown message received')
                     return
                 elif 'task_avail' in messages:
-                    log.debug('task available message received')            
-                    while True:
+                    log.debug('task available message received')
+                    task_avail = True            
+                    while task_avail:
                         task_socket = self.context.socket(zmq.REQ)
                         task_socket.connect(self.task_endpoint)
                         try:
@@ -392,26 +395,27 @@ class ZMQWorkerWorkManager(ZMQWorkManager):
                             
                         if task is None:
                             log.debug('no further task available')
-                            break
-                        
-                        log.debug('task received: {!r}'.format(task))
-                        (task_id, fn, args, kwargs) = task
-                        try:
-                            result = fn(*args, **kwargs)
-                        except Exception as exception:
-                            result_tuple = (task_id, 'exception', exception)
+                            task_avail = False
                         else:
-                            result_tuple = (task_id, 'result', result)
-                                
-                        result_socket = self.context.socket(zmq.REQ)
-                        result_socket.connect(self.task_endpoint)
-                        try:
-                            log.debug('dispatching result')
-                            result_socket.send_pyobj(('result', self.id_str, result_tuple))
-                            result_socket.recv()
-                            result_socket.close()
-                        finally:
-                            del result_socket
+                            log.debug('task received: {!r}'.format(task))
+                            (task_id, fn, args, kwargs) = task
+                            try:
+                                result = fn(*args, **kwargs)
+                            except Exception as exception:
+                                result_tuple = (task_id, 'exception', exception)
+                            else:
+                                result_tuple = (task_id, 'result', result)
+                                    
+                            result_socket = self.context.socket(zmq.REQ)
+                            result_socket.connect(self.task_endpoint)
+                            try:
+                                log.debug('dispatching result')
+                                result_socket.send_pyobj(('result', self.id_str, result_tuple))
+                                result_socket.recv()
+                                result_socket.close()
+                            finally:
+                                del result_socket
+                del messages
                             
     def shutdown(self, exit_code):
         return 
