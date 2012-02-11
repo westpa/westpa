@@ -11,7 +11,8 @@ class Segment:
     
     SEG_INITPOINT_UNSET = 0
     SEG_INITPOINT_CONTINUES = 1
-    SEG_INITPOINT_NEWTRAJ = 2
+    SEG_INITPOINT_BASIS = 2
+    SEG_INITPOINT_GENERATED = 3
     
     SEG_ENDPOINT_UNSET = 0
     SEG_ENDPOINT_CONTINUES = 1
@@ -25,6 +26,17 @@ class Segment:
     status_names = {}
     initpoint_type_names = {}
     endpoint_type_names = {}
+    
+    # convenience functions for binning
+    @staticmethod
+    def initial_pcoord(segment):
+        'Return the initial progress coordinate point of this segment.'
+        return segment.pcoord[0]
+    
+    @staticmethod
+    def final_pcoord(segment):
+        'Return the final progress coordinate point of this segment.'
+        return segment.pcoord[-1]
     
     def __init__(self, n_iter = None, seg_id = None, status = None, 
                  n_parents = None, p_parent_id = None, parent_ids = None,

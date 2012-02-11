@@ -1,3 +1,16 @@
+2011-02-1X -- Matt Zwier <mczwier@gmail.com>
+ * Removed support for saving data return files in the executable propagator;
+   have the various executables save a copy manually if necessary. Temporary
+   files for data return are now required.
+ * Added an ``assign_to_bins()`` function on ``RegionSet``, which composes the
+   common operation of mapping segments to bins and then placing them in the
+   bin.
+ * Changed the public interface for executable propagator data readers to
+   include a new 'single_point' argument, which specifies whether the function
+   is being called in a context expected to read an entire segment's worth
+   of data (single_point is false) or only a single time point (single_point
+   is true). 
+
 2011-02-03 -- Matt Zwier <mczwier@gmail.com>
  * Added preliminary support for arbitrary data sets stored in HDF5. This
    resurrects the prior functionality of a ``segment.data`` dictionary that

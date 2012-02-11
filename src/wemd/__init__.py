@@ -6,8 +6,9 @@ import util
 import _rc
 import segment 
 from segment import Segment
-import propagators, work_managers, data_manager, pcoords, sim_manager, we_driver, systems
-from systems import WEMDSystem, InitialState, TargetState
+import propagators, work_managers, data_manager, pcoords, sim_manager, we_driver, states, systems
+from systems import WEMDSystem
+from states import BasisState, TargetState
 
 version = '0.7'
 

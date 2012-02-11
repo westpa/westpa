@@ -216,6 +216,17 @@ class RegionSet:
             raise ValueError('one or more coords could not be mapped to bins')
         
         return bins
+    
+    def assign_to_bins(self, items, key):
+        '''Assign the given ``items`` to bins, using the callable ``key`` to get the 
+        coordinates from each item. This will typically be called with a list of segment objects
+        and key=Segment.final_pcoord. Returns the bins to which each item is assigned.'''
+        
+        coords = map(key,items)
+        bins = self.map_to_bins(coords)
+        for bin, item in zip(bins, items):
+            bin.add(item)
+        return bins
 
     def get_all_bins(self):
         """Get a list of all bins contained in this RegionSet, descending depth-first"""
@@ -251,17 +262,11 @@ class RegionSet:
             # No nesting, so we can delegate to _map_to_indices() and avoid some recusion
             return self._map_to_indices(self.prep_coords(coords))
         else:
-            return [self._binmap[id(bin)] for bin in self.map_to_bins(coords)]
+            return [self._binmap[id(_bin)] for _bin in self.map_to_bins(coords)]
                 
     def get_bin_containing(self, coord):
         return self.map_to_bins(self.prep_coords([coord]))[0]
-    
-    def replace_region(self, coord, new_container):
-        """Deprecated synonym for replace_region_containing()"""
-        import warnings
-        warnings.warn('replace_region() is deprecated in favor of replace_region_containing()', DeprecationWarning,2)
-        self.replace_region_containing(coord, new_container)
-        
+            
     def replace_region_containing(self, coord, new_container):
         """Replace the region containing coord with new_container"""
         idx = self._map_to_indices(self.prep_coords([coord]))[0]

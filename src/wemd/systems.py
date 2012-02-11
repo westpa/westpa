@@ -3,60 +3,7 @@ from __future__ import division; __metaclass__ = type
 import logging, warnings
 log = logging.getLogger(__name__)
 
-
-from abc import ABCMeta, abstractmethod
-import re
 import numpy
-import wemd
-
-def warn_deprecated_usage(msg, category=DeprecationWarning, stacklevel=1):
-    warnings.warn('deprecated system interface use: {}'.format(msg), category, stacklevel+1)
-
-class InitialState:
-    '''Describes an initial (micro)state.
-    
-    :ivar label:        A descriptive label for this microstate
-    :ivar initial_prob: Probability of this state in the initial distribution
-                        (the distribution created when ``wemd init`` is called).
-    :ivar recycle_prob: Probability of this state being selected as the destination
-                        for a recycling event.
-    :ivar pcoord:       The representative progress coordinate of this state.
-    :ivar bin:          The bin containing this state. 
-    '''
-    def __init__(self, label, initial_prob, recycle_prob, pcoord = None, bin = None):
-        self.label = label 
-        self.initial_prob = initial_prob
-        self.recycle_prob = recycle_prob
-        self.pcoord = pcoord
-        self.bin = bin
-        
-    def __repr__(self):
-        basestr = object.__repr__(self)[:-1]
-        return ('{} label={self.label!r} iprob={self.initial_prob!r} rprob={self.recycle_prob!r} pcoord={self.pcoord!r}>'
-                .format(basestr, self=self))
-
-class TargetState:
-    '''Describes a target state.
-    
-    :ivar label:  A descriptive label for this state.
-    :ivar pcoord: The representative progress coordinate of this state.
-    :ivar bin:    The bin corresponding to this target state.
-    '''
-    def __init__(self, label, bin_or_pcoord, bin=None):
-        self.label = label
-        
-        if isinstance(bin_or_pcoord, wemd.pcoords.ParticleCollection):
-            warn_deprecated_usage('TargetState constructor should be called as TargetState(label, pcoord, bin)')
-            self.bin = bin_or_pcoord
-            self.pcoord = None
-        else:
-            self.pcoord = bin_or_pcoord
-            self.bin = bin
-
-        
-    def __repr__(self):
-        basestr = object.__repr__(self)[:-1]
-        return ('{} label={self.label!r} bin={self.bin!r}>'.format(basestr, self=self))
         
 class WEMDSystem:
     '''A description of the system being simulated, including the dimensionality and
@@ -67,19 +14,11 @@ class WEMDSystem:
     override a few member functions to provide advanced functionality, such as
     randomized initial states or recycling targets.
     
-    At a minimum, the user must subclass ``WEMDSystem`` and  override the 
-    :method:`initialize` method to set ``self.region_set`` (i.e. define bins)
-    and add at least one initial state using :method:`add_initial_state`.
+    At a minimum, the user must subclass ``WEMDSystem`` and  override  
+    :method:`new_region_set` to define a bin space for the system. If desired,
+    the user should also override :method:`initialize` to set the data type
+    and dimensionality of progress coordinate data.
     
-    :ivar region_set:     An instance of :class:`RegionSet` defining the bin space
-                          for this system.
-    :ivar initial_states: A list of :class:`InitialState` objects describing the
-                          distribution(s) for beginning the simulation and
-                          recycling during the simulation. This list must contain
-                          at least one such state (for preparing the first
-                          iteration of a simulation).
-    :ivar target_states:  A list of :class:`TargetState` objects describing any
-                          "sink" states. This list may be empty.
     :ivar pcoord_ndim:    The number of dimensions in the progress coordinate.
                           Defaults to 1 (i.e. a one-dimensional progress 
                           coordinate).
@@ -92,21 +31,9 @@ class WEMDSystem:
                           and final values.  Defaults to 2 (i.e. only the initial
                           and final progress coordinate values for a segment are
                           returned from propagation).
-                          
     '''
     
-    __metaclass__ = ABCMeta
-            
     def __init__(self):
-        # The progress coordinate region set
-        self.region_set = None
-        
-        # The initial distribution, a list of InitialState objects
-        self.initial_states = []
-        
-        # Target states, a list of TargetState objects
-        self.target_states = []
-        
         # Number of dimentions in progress coordinate data
         self.pcoord_ndim = 1
         
@@ -115,22 +42,37 @@ class WEMDSystem:
         
         # Data type of progress coordinate
         self.pcoord_dtype = numpy.float64
+        
+    @property
+    def region_set(self):
+        raise DeprecationWarning('WEMDSystem.region_set has been removed')
     
-    @abstractmethod    
+    @region_set.setter
+    def region_set(self, rset):
+        raise DeprecationWarning('WEMDSystem.region_set has been removed')
+        
     def initialize(self):
         '''Prepare this system object for use in simulation or analysis,
         creating a bin space, setting initial and target states, replicas per bin, 
-        and so on. This function must be overridden by the user in his/her system class.
+        and so on. Called whenever a WEMD tool creates an instance of the system
+        driver. 
         '''
         pass
     
-    @abstractmethod
     def new_region_set(self):
-        '''Construct and return an empty RegionSet for the bin topology for this system.'''
+        '''Construct and return an empty RegionSet for the bin topology for this system.
+        This function must be overridden by the user in his/her system class.'''
+        raise NotImplementedError
+    
+    # NOTE:  These hooks are not really well-integrated yet.
+    def initialize_sim(self):
+        '''Prepare this system for use in a newly-created simulation. Called by w_init.
+        Useful for creating files, writing stuff to HDF5, etc.'''
         pass
     
     def prepare_run(self):
-        '''Prepare this system for use in a simulation run'''
+        '''Prepare this system for use in a simulation run. Called by w_run in
+        all worker processes.'''
         pass
     
     def finalize_run(self):
@@ -140,52 +82,21 @@ class WEMDSystem:
         pass
 
     def new_pcoord_array(self):
-        '''Return an appropriately-sized and -typed pcoord array. Used by the sim manager to 
-        and data manager to create new segments.'''
+        '''Return an appropriately-sized and -typed pcoord array for a segment.
+        Used by the sim manager to and data manager to create new segments.'''
         return numpy.zeros((self.pcoord_len, self.pcoord_ndim), self.pcoord_dtype)
-
-    def add_initial_state(self, label, initial_prob, recycle_prob, pcoord, bin = None):            
-        if bin is None:
-            bin = self.region_set.get_bin_containing(pcoord)
-        istate = InitialState(label, initial_prob, recycle_prob, pcoord, bin)
-        log.debug('adding initial state {!r}'.format(istate))
-        self.initial_states.append(istate)
-        
-    def add_target_state(self, label, bin_or_pcoord):
-        if isinstance(bin_or_pcoord, wemd.pcoords.ParticleCollection):
-            warn_deprecated_usage('add_target_state() should be called with a pcoord, not a bin')
-            bin = bin_or_pcoord
-            pcoord = None
-        else:
-            pcoord = bin_or_pcoord
-            bin = self.region_set.get_bin_containing(pcoord)
+    
+    def new_pcoord_value(self, value=None):
+        '''Return an appropriately-sized and -typed array representing a progress coordinate
+        for a single point.'''
+        pcval = numpy.zeros((self.pcoord_ndim,), self.pcoord_dtype)
+        if value is not None:
+            pcval[:] = value
+        return pcval
             
-        bin.target_count = 0
-        tstate = TargetState(label, pcoord, bin)
-        log.debug('adding target state {!r}'.format(tstate))
-        self.target_states.append(tstate)
-        
-            
-    def read_initial_states(self, istate_filename):
-        '''Read a list of initial states from a file. Each line describes an initial (micro)state,
-        and contains whitespace-separated fields for (in order) the state label, initial probability,
-        recycling probability, and progress coordinate (with further fields for each additional
-        pcoord dimension).'''
-        re_strip_comments = re.compile(r'\s*#.*$')
-        with open(istate_filename, 'rt') as istate_file:
-            for line in istate_file:
-                if line.startswith('#'): continue
-                line = re_strip_comments.sub('',line)
-                if not line: continue
-                (label, iprob, rprob, pcoord_txt) = line.split(None,3)
-                iprob = float(iprob)
-                rprob = float(rprob)
-                
-                # Here is where we could change things to support multiple random recycling, etc
-                # Just test to see if we get anything at all, or if it's a string
-                pcoord = list(map(self.pcoord_dtype, pcoord_txt.split()))
-                bin = self.region_set.get_bin_containing(pcoord)
-                
-                self.add_initial_state(label, iprob, rprob, pcoord, bin)
-        
+#    def new_trajectory(self, parent=None):
+#        '''Return a new Segment object representing the first segment of a new trajectory,
+#        with the given parent. If this method returns None (as is the default), then it is
+#        up to the propagator to create a new trajectory.'''
+#        return None
     

@@ -8,6 +8,7 @@ from math import ceil
 from copy import copy
 import random
 
+import wemd
 from collections import namedtuple
 from wemd.util.miscfn import vgetattr
 from wemd import Segment
@@ -18,8 +19,8 @@ class WEMDWEDriver:
     weight_split_threshold = 2.0
     weight_merge_cutoff = 1.0
         
-    def __init__(self, system=None):
-        self.system = system
+    def __init__(self):
+        self.system = wemd.rc.get_system_driver()
         
         # (count recycled, probability recycled) tuples
         self.recycle_from = list()
@@ -38,15 +39,9 @@ class WEMDWEDriver:
         # Everything continues unless it gets split, merged, or recycled
         for segment in segments:
             segment.endpoint_type = Segment.SEG_ENDPOINT_CONTINUES
-
-        self.recycle_from = [[0, 0.0] for istate in xrange(0, len(self.system.target_states))]
-        self.recycle_to   = [[0, 0.0] for istate in xrange(0, len(self.system.initial_states))]  
                                     
         bins = numpy.array(region_set.get_all_bins(), numpy.object_)
         
-        # Determine which segments terminate in recycling events
-        self.recycle_particles(segments, self.system.target_states)
-
         # Sanity check
         bin_counts = vgetattr('count', bins)
         target_counts = vgetattr('target_count', bins)            
@@ -65,11 +60,7 @@ class WEMDWEDriver:
             self._log_bin_stats(bin, 'after merge by weight')
             self.adjust_count(bin)
             self._log_bin_stats(bin, 'after count adjustment')
-                
-        # Replace these simple lists with named tuples to make others' lives easier        
-        self.recycle_to = [RecyclingInfo(*dest) for dest in self.recycle_to]
-        self.recycle_from = [RecyclingInfo(*src) for src in self.recycle_from]
-            
+                            
         new_segments = []
         new_pcoord_array = self.system.new_pcoord_array
         for segment in chain(*bins):
