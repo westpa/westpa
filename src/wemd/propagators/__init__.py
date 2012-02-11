@@ -7,8 +7,8 @@ def blocked_iter(blocksize, iterable, fillvalue = None):
     return itertools.izip_longest(fillvalue=fillvalue, *args)
 
 class WEMDPropagator:
-    def __init__(self, system = None):
-        self.system = system
+    def __init__(self):
+        pass
         
     def prepare_iteration(self, n_iter, segments):
         """Perform any necessary per-iteration preparation.  This is run by the work manager."""

@@ -11,6 +11,14 @@ from wemd.util import extloader
 from wemd import Segment
 from wemd.util.miscfn import vgetattr
 
+def wm_get_pcoord(propagator, state):
+    propagator.get_pcoord(state)
+    return state
+    
+def wm_gen_istate(propagator, basis_state, initial_state):
+    propagator.gen_istate(basis_state, initial_state)
+    return basis_state, initial_state
+    
 def wm_prep_iter(propagator, n_iter, segments):
     propagator.prepare_iteration(n_iter, segments)
     

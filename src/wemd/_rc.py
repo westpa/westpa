@@ -34,7 +34,7 @@ class _WEMDRC:
     ENV_RUNTIME_CONFIG  = 'WEMDRC'
     RC_DEFAULT_FILENAME = 'wemd.cfg'
     
-    DEFAULT_WORK_MANAGER = 'zmq'
+    DEFAULT_WORK_MANAGER = 'threads'
         
     def __init__(self):        
         self.verbosity = None

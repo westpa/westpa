@@ -73,8 +73,20 @@ class ExecutablePropagator(WEMDPropagator):
     ENV_RAND128              = 'WEMD_RAND128'
     ENV_RANDFLOAT            = 'WEMD_RANDFLOAT'
         
-    def __init__(self, system = None):
-        super(ExecutablePropagator,self).__init__(system)
+    def __init__(self):
+        super(ExecutablePropagator,self).__init__()
+        
+        # For maximum flexibility, the basis states and initial states valid
+        # at the point in the simulation when the propgator is used must be
+        # available in several routines, and it is inconvenient to pass them
+        # to every routine that needs them. A currently-reasonable-seeming solution
+        # is to store at least the basis states and initial states necessary for
+        # the current operation (propagation, etc). The set_basis_initial_states() function 
+        # accomplishes this. They are stored as dictionaries of state_id -> state,
+        # so they can be looked up by ID without needing to store them all (and 
+        # thus potentially send them all over the wire when only one of them is needed, e.g.)
+        self.initial_states = {}
+        self.basis_states = {}
     
         # A mapping of environment variables to template strings which will be
         # added to the environment of all children launched.
@@ -165,7 +177,35 @@ class ExecutablePropagator(WEMDPropagator):
             self.data_info['pcoord']['enabled'] = True
                         
         log.debug('data_info: {!r}'.format(self.data_info))
+        
+    def set_basis_initial_states(self, basis_states, initial_states, segments=None):
+        '''Store the given basis states and initial states internally. If a list
+        of segments is given, only the basis states and initial states used by those
+        segments are stored, so that if only one or a few segments are involved, only 
+        their basis/initial state data need be transmitted by the work manager.'''
 
+        
+        bstates_map = {state.state_id: state for state in basis_states}
+        istates_map = {state.state_id: state for state in initial_states}
+                
+        if not segments:
+            self.basis_states = bstates_map
+            self.initial_states = istates_map
+        else:
+            self.basis_states = {}
+            self.initial_states = {}
+            for segment in segments:
+                if segment.initpoint_type == Segment.SEG_INITPOINT_BASIS:
+                    # p_parent_id is a basis state ID
+                    bstate = bstates_map[segment.p_parent_id]
+                    self.basis_states[bstate.state_id] = bstate
+                elif segment.initpoint_type == Segment.SEG_INITPOINT_GENERATED:
+                    # p_parent_id is an initial state ID
+                    istate = istates_map[segment.p_parent_id]
+                    bstate = bstates_map[istate.basis_state_id]
+                    self.initial_states[istate.state_id] = istate
+                    self.basis_states[bstate.state_id] = bstate
+        
     @staticmethod                        
     def makepath(template, template_args = None,
                   expanduser = True, expandvars = True, abspath = False, realpath = False):
@@ -177,11 +217,30 @@ class ExecutablePropagator(WEMDPropagator):
         if abspath:    path = os.path.abspath(path)
         path = os.path.normpath(path)
         return path
+
+    def random_val_env_vars(self):
+        '''Return a set of environment variables containing random seeds. These are returned
+        as a dictionary, suitable for use in ``os.environ.update()`` or as the ``env`` argument to
+        ``subprocess.Popen()``. Every child process executed by ``exec_child()`` gets these.'''
         
-    def exec_child(self, executable, environ, stdin=None, stdout=None, stderr=None, cwd=None):
-        '''Execute a child process with the given environment, optionally redirecting stdin/stdout/stderr,
-        and collecting resource usage. Waits on the child process to finish, then returns
-        (rc, rusage), where rc is the child's return code and rusage is the resource usage tuple.'''
+        return {self.ENV_RAND16:               str(random.randint(0,2**16)),
+                self.ENV_RAND32:               str(random.randint(0,2**32)),
+                self.ENV_RAND64:               str(random.randint(0,2**64)),
+                self.ENV_RAND128:              str(random.randint(0,2**128)),
+                self.ENV_RANDFLOAT:            str(random.random())}
+        
+    def exec_child(self, executable, environ=None, stdin=None, stdout=None, stderr=None, cwd=None):
+        '''Execute a child process with the environment set from the current environment, the
+        values of self.addtl_child_environ, the random numbers returned by self.random_val_env_vars, and
+        the given ``environ`` (applied in that order). stdin/stdout/stderr are optionally redirected.
+        
+        This function waits on the child process to finish, then returns
+        (rc, rusage), where rc is the child's return code and rusage is the resource usage tuple from os.wait4()'''
+        
+        all_environ = dict(os.environ)
+        all_environ.update(self.addtl_child_environ)
+        all_environ.update(self.random_val_env_vars())
+        all_environ.update(environ or {})
         
         stdin  = file(stdin, 'rb') if stdin else sys.stdin        
         stdout = file(stdout, 'wb') if stdout else sys.stdout
@@ -194,7 +253,7 @@ class ExecutablePropagator(WEMDPropagator):
         proc = subprocess.Popen([executable],
                                 cwd = cwd,
                                 stdin=stdin, stdout=stdout, stderr=stderr if stderr != stdout else subprocess.STDOUT,
-                                close_fds=True, env=environ)
+                                close_fds=True, env=all_environ)
 
         # Wait on child and get resource usage
         (_pid, _status, rusage) = os.wait4(proc.pid, 0)
@@ -203,143 +262,144 @@ class ExecutablePropagator(WEMDPropagator):
         rc = proc.wait()
         return (rc, rusage)
     
-    def segment_template_args(self, segment):
-        template_args = {'segment': segment}
-        
-        if segment.initpoint_type == Segment.SEG_INITPOINT_INITIAL or segment.p_parent_id < 0:
-            # Parent is set to the appropriate initial state
-            system = self.system
-            istate = -segment.p_parent_id - 1
-            template_args['initial_region_name'] = system.initial_states[istate].label
-            template_args['initial_region_index'] = istate
-        else:
-            # Parent is set to the appropriate parent 
-            template_args['parent'] = Segment(n_iter = segment.n_iter - 1,
-                                              seg_id = segment.p_parent_id)
-        
-        return template_args
-    
-    def basis_state_template_args(self, state):
-        template_args = {'state': state}
-        return template_args
-    
-    def initial_state_template_args(self, state):
-        template_args = {'state': state}
-        return template_args
-    
-    def get_seeds(self):
-        '''Return a set of environment variables containing random seeds. These are returned
-        as a dictionary, suitable for use in ``os.environ.update()`` or as the ``env`` argument to
-        ``subprocess.Popen()``.'''
-        
-        return {self.ENV_RAND16:               str(random.randint(0,2**16)),
-                self.ENV_RAND32:               str(random.randint(0,2**32)),
-                self.ENV_RAND64:               str(random.randint(0,2**64)),
-                self.ENV_RAND128:              str(random.randint(0,2**128)),
-                self.ENV_RANDFLOAT:            str(random.random())}
-    
-    def exec_for_segment(self, child_info, segment, addtl_env = None):
-        template_args = self.segment_template_args(segment)
-        
-        env = os.environ.copy()
-        env.update(self.get_seeds())
-        env.update(self.addtl_child_environ)
+    def exec_child_from_child_info(self, child_info, template_args, environ):
         for (key, value) in child_info.get('environ', {}).iteritems():
-            env[key] = self.makepath(value)
-            
-        if segment.initpoint_type == Segment.SEG_INITPOINT_INITIAL or segment.p_parent_id < 0:
-            parent_template = self.initial_state_ref_template
-        else:
-            parent_template = self.parent_ref_template
-            
-            
-        env.update({self.ENV_CURRENT_ITER:         str(segment.n_iter),
-                    self.ENV_CURRENT_SEG_ID:       str(segment.seg_id),
-                    self.ENV_PARENT_SEG_ID:        str(segment.p_parent_id),
-                    self.ENV_CURRENT_SEG_DATA_REF: self.makepath(self.segment_ref_template, template_args),
-                    self.ENV_PARENT_SEG_DATA_REF:  self.makepath(parent_template, template_args),
-                    })
-        
-        env.update(addtl_env or {})
-        
+            environ[key] = self.makepath(value)        
         return self.exec_child(executable = self.makepath(child_info['executable'], template_args),
-                               environ = env,
+                               environ = environ,
                                cwd = self.makepath(child_info['cwd'], template_args) if child_info['cwd'] else None,
                                stdin = self.makepath(child_info['stdin'], template_args) if child_info['stdin'] else os.devnull,
                                stdout= self.makepath(child_info['stdout'], template_args) if child_info['stdout'] else None,
                                stderr= self.makepath(child_info['stderr'], template_args) if child_info['stderr'] else None)        
+        
     
+    # Functions to create template arguments and environment values for child processes
+    def update_args_env_basis_state(self, template_args, environ, basis_state):
+        new_template_args = {'basis_state': basis_state}
+        new_env = {self.ENV_BSTATE_ID: str(basis_state.state_id or -1),
+                   self.ENV_BSTATE_DATA_REF: self.makepath(self.basis_state_ref_template, new_template_args)}
+        template_args.update(new_template_args)
+        environ.update(new_env)
+        return template_args, environ
+    
+    def update_args_env_initial_state(self, template_args, environ, initial_state):
+        new_template_args = {'initial_state': initial_state}
+        new_env = {self.ENV_ISTATE_ID: str(initial_state.state_id or -1),
+                   self.ENV_ISTATE_DATA_REF: self.makepath(self.initial_state_ref_template, new_template_args)}
+        
+        if initial_state.basis_state is not None:
+            basis_state = initial_state.basis_state
+        else:
+            basis_state = self.basis_states[initial_state.basis_state_id]
+        
+        print(basis_state)  
+        self.update_args_env_basis_state(new_template_args, new_env, basis_state)
+        
+        template_args.update(new_template_args)
+        environ.update(new_env)
+        return template_args, environ
+    
+    def update_args_env_iter(self, template_args, environ, n_iter):
+        environ[self.ENV_CURRENT_ITER] = template_args['n_iter'] = str(n_iter if n_iter is not None else -1)
+        return template_args, n_iter
+    
+    def update_args_env_segment(self, template_args, environ, segment):
+        template_args['segment'] = segment
+        
+        if segment.initpoint_type == Segment.SEG_INITPOINT_CONTINUES:
+            # Could use actual parent object here if the work manager cared to pass that much data
+            # to us (we'd need at least the subset of parents for all segments sent in the call to propagate)
+            # that may make a good wemd.cfg option for future crazy extensibility, but for now,
+            # just populate the bare minimum
+            parent = Segment(n_iter=segment.n_iter-1, seg_id=segment.p_parent_id)
+            template_args['parent'] = parent
+            
+            environ[self.ENV_PARENT_SEG_ID] = str(segment.p_parent_id)            
+            environ[self.ENV_PARENT_SEG_DATA_REF] = self.makepath(self.parent_ref_template, template_args)
+        elif segment.initpoint_type == Segment.SEG_INITPOINT_BASIS:
+            # This segment is initiated from a basis state; WEMD_PARENT_SEG_ID and WEMD_PARENT_DATA_REF are
+            # set to the basis state ID and data ref
+            try:
+                environ[self.ENV_PARENT_SEG_ID] = environ[self.ENV_BSTATE_ID]
+                environ[self.ENV_PARENT_SEG_DATA_REF] = environ[self.ENV_BSTATE_DATA_REF]
+            except KeyError:
+                basis_state = self.basis_states[segment.p_parent_id]
+                self.update_args_env_basis_state(template_args, environ, basis_state)
+        elif segment.initpoint_type == Segment.SEG_INITPOINT_GENERATED:
+            # This segment is initiated from a non-basis initial state
+            # WEMD_PARENT_SEG_ID and WEMD_PARENT_SEG_DATA_REF are set to the initial
+            # state ID and data ref
+            try:
+                environ[self.ENV_PARENT_SEG_ID] = environ[self.ENV_ISTATE_ID]
+                environ[self.ENV_PARENT_SEG_DATA_REF] = environ[self.ENV_ISTATE_DATA_REF]
+            except KeyError:
+                initial_state = self.initial_states[segment.p_parent_id]
+                self.update_args_env_initial_state(template_args, environ, initial_state)
+
+        environ[self.ENV_CURRENT_SEG_ID] = str(segment.seg_id or -1)
+        environ[self.ENV_CURRENT_SEG_DATA_REF] = self.makepath(self.segment_ref_template, template_args)
+        return template_args, environ
+    
+    def exec_for_segment(self, child_info, segment, addtl_env = None):
+        '''Execute a child process with environment and template expansion from the given
+        segment.'''
+        template_args, environ = {}, {}
+        self.update_args_env_iter(template_args, environ, segment.n_iter)
+        self.update_args_env_segment(template_args, environ, segment)        
+        environ.update(addtl_env or {})
+        return self.exec_child_from_child_info(child_info, template_args, environ)
+            
     def exec_for_iteration(self, child_info, n_iter, addtl_env = None):
-        template_args = {'n_iter': n_iter}
-        env = os.environ.copy()
-        env.update(self.get_seeds())
-        env.update(self.addtl_child_environ)
-        for (key, value) in child_info.get('environ', {}).iteritems():
-            env[key] = self.makepath(value)
-        
-        env.update({self.ENV_CURRENT_ITER: str(n_iter)})
-        env.update(addtl_env or {})
-    
-        return self.exec_child(executable = self.makepath(child_info['executable'], template_args),
-                               environ = env,
-                               stdin = self.makepath(child_info['stdin'], template_args) if child_info['stdin'] else os.devnull,
-                               stdout= self.makepath(child_info['stdout'], template_args) if child_info['stdout'] else None,
-                               stderr= self.makepath(child_info['stderr'], template_args) if child_info['stderr'] else None)        
+        '''Execute a child process with environment and template expansion from the given
+        iteration number.'''
+        template_args, environ = {}, {}
+        self.update_args_env_iter(template_args, environ, n_iter)
+        environ.update(addtl_env or {})
+        return self.exec_child_from_child_info(child_info, template_args, environ)
 
-    def exec_for_basis_state(self, child_info, state, addtl_env = None):
-        template_args = self.basis_state_template_args(state)
-        env = os.environ.copy()
-        env.update(self.get_seeds())
-        env.update(self.addtl_child_environ)
-        for (key, value) in child_info.get('environ', {}).iteritems():
-            env[key] = self.makepath(value)
-        env.update({self.ENV_BSTATE_ID: str(state.state_id) if state.state_id else '', # state_id can be None during w_init
-                    self.ENV_BSTATE_DATA_REF: self.makepath(self.basis_state_ref_template, template_args),
-                    self.ENV_STRUCT_DATA_REF: self.makepath(self.basis_state_ref_template, template_args)})
-        env.update(addtl_env or {})
+    def exec_for_basis_state(self, child_info, basis_state, addtl_env = None):
+        '''Execute a child process with environment and template expansion from the
+        given basis state'''
+        template_args, environ = {}, {}
+        self.update_args_env_basis_state(template_args, environ, basis_state)
+        environ.update(addtl_env or {})
+        return self.exec_child_from_child_info(child_info, template_args, environ)
         
-        return self.exec_child(executable = self.makepath(child_info['executable'], template_args),
-                               environ = env,
-                               stdin = self.makepath(child_info['stdin'], template_args) if child_info['stdin'] else os.devnull,
-                               stdout= self.makepath(child_info['stdout'], template_args) if child_info['stdout'] else None,
-                               stderr= self.makepath(child_info['stderr'], template_args) if child_info['stderr'] else None)
-        
-    def exec_for_initial_state(self, child_info, state, addtl_env = None):
-        template_args = self.initial_state_template_args(state)
-        env = os.environ.copy()
-        env.update(self.get_seeds())
-        env.update(self.addtl_child_environ)
-        for (key, value) in child_info.get('environ', {}).iteritems():
-            env[key] = self.makepath(value)
-        env.update({self.ENV_ISTATE_ID: str(state.state_id),
-                    self.ENV_ISTATE_DATA_REF: self.makepath(self.initial_state_ref_template, template_args),
-                    self.ENV_STRUCT_DATA_REF: self.makepath(self.initial_state_ref_template, template_args)})
-        env.update(addtl_env or {})
-        
-        return self.exec_child(executable = self.makepath(child_info['executable'], template_args),
-                               environ = env,
-                               stdin = self.makepath(child_info['stdin'], template_args) if child_info['stdin'] else os.devnull,
-                               stdout= self.makepath(child_info['stdout'], template_args) if child_info['stdout'] else None,
-                               stderr= self.makepath(child_info['stderr'], template_args) if child_info['stderr'] else None)                 
+    def exec_for_initial_state(self, child_info, initial_state,  addtl_env = None):
+        '''Execute a child process with environment and template expansion from the given
+        initial state.'''
+        template_args, environ = {}, {}
+        self.update_args_env_initial_state(template_args, environ, initial_state)
+        environ.update(addtl_env or {})
+        return self.exec_child_from_child_info(child_info, template_args, environ)
 
+
+    # Specific functions required by the WEMD framework
     def get_pcoord(self, state):
         '''Get the progress coordinate of the given basis or initial state.'''
         
+        template_args, environ = {}, {}
+        
         if isinstance(state, BasisState):
             execfn = self.exec_for_basis_state
+            self.update_args_env_basis_state(template_args, environ, state)
+            struct_ref = environ[self.ENV_BSTATE_DATA_REF]
         elif isinstance(state, InitialState):
             execfn = self.exec_for_initial_state
+            self.update_args_env_initial_state(template_args, environ, state)
+            struct_ref = environ[self.ENV_ISTATE_DATA_REF]
         else:
             raise TypeError('state must be a BasisState or InitialState')
         
         child_info = self.exe_info.get('get_pcoord')
         fd, rfname = tempfile.mkstemp()
         os.close(fd)
-        addtl_env = {self.ENV_PCOORD_RETURN: rfname}
+        
+        addtl_env = {self.ENV_PCOORD_RETURN: rfname,
+                     self.ENV_STRUCT_DATA_REF: struct_ref}
 
         try:
             rc, rusage = execfn(child_info, state, addtl_env)
-            log.info('get_pcoord rusage: {!r}'.format(rusage))
             if rc != 0:
                 log.error('get_pcoord executable {!r} returned {}'.format(child_info['executable'], rc))
                 
@@ -354,11 +414,7 @@ class ExecutablePropagator(WEMDPropagator):
     def gen_istate(self, basis_state, initial_state):
         '''Generate a new initial state from the given basis state.'''
         child_info = self.exe_info.get('gen_istate')
-        bstate_template_args = self.basis_state_template_args(basis_state)
-        addtl_env = {self.ENV_BSTATE_ID: str(basis_state.state_id),
-                     self.ENV_BSTATE_DATA_REF: self.makepath(self.basis_state_ref_template, bstate_template_args),}
-        rc, rusage = self.exec_for_initial_state(child_info, initial_state, addtl_env)
-        log.info('gen_istate rusage: {!r}'.format(rusage))
+        rc, rusage = self.exec_for_initial_state(child_info, initial_state)
         if rc != 0:
             log.error('gen_istate executable {!r} returned {}'.format(child_info['executable'], rc))            
     
@@ -373,7 +429,6 @@ class ExecutablePropagator(WEMDPropagator):
             except OSError as e:
                 log.warning('could not execute pre-iteration program {!r}: {}'.format(child_info['executable'], e))
             else:
-                log.info('pre-iteration rusage: {!r}'.format(rusage))
                 if rc != 0:
                     log.warning('pre-iteration executable {!r} returned {}'.format(child_info['executable'], rc))
         
@@ -385,7 +440,6 @@ class ExecutablePropagator(WEMDPropagator):
             except OSError as e:
                 log.warning('could not execute post-iteration program {!r}: {}'.format(child_info['executable'], e))
             else:
-                log.info('post-iteration rusage: {!r}'.format(rusage))
                 if rc != 0:
                     log.warning('post-iteration executable {!r} returned {}'.format(child_info['executable'], rc))
         

@@ -80,21 +80,23 @@ class InitialState:
                             data manager.
     :ivar basis_state_id:   Identifier of the basis state from which this state was
                             generated.
+    :ivar basis_state:      The `BasisState` from which this state was generated.
     :ivar iter_gen:         Iteration in which this state was generated (0 for
                             simulation initialization).
     :ivar iter_used:        Iteration in which this state was used to initiate a
                             trajectory (None for unused).
     :ivar pcoord:       The representative progress coordinate of this state.
     '''
-    def __init__(self, state_id, basis_state_id, iter_created, iter_used=None, pcoord=None):
+    def __init__(self, state_id, basis_state_id, iter_created, iter_used=None, pcoord=None, basis_state=None):
         self.state_id = state_id
         self.basis_state_id = basis_state_id
+        self.basis_state=basis_state
         self.iter_created = iter_created
         self.iter_used = iter_used         
         self.pcoord = pcoord
         
     def __repr__(self): 
-        return ('{} state_id={self.state_id!r} basis_state_id={self.basis_state_id!r} iter_gen={self.iter_gen!r}>'
+        return ('{} state_id={self.state_id!r} basis_state_id={self.basis_state_id!r} iter_created={self.iter_created!r}>'
                 .format(object.__repr__(self)[:-1], self=self))
 
 class TargetState:

@@ -6,6 +6,7 @@ log = logging.getLogger('w_init')
 
 import wemd
 from wemd.segment import Segment
+from wemd.sim_manager import wm_get_pcoord, wm_gen_istate
 from wemd.states import BasisState, TargetState, InitialState
 
 EPS = numpy.finfo(numpy.float64).eps
@@ -24,6 +25,7 @@ by one or more --tstate arguments. If neither --tstates-from nor at least one --
 simulation (without any sinks) will be performed. 
 ''')
 wemd.rc.add_args(parser)
+wemd.rc.add_work_manager_args(parser)
 parser.add_argument('--force', dest='force', action='store_true',
                          help='Overwrite any existing simulation data')
 parser.add_argument('--bstates-from', metavar='BSTATE_FILE',
@@ -41,167 +43,189 @@ parser.add_argument('--tstate', action='append', dest='tstates',
                     This argument may be specified more than once, in which case the given states are appended
                     in the order they appear on the command line.''')
 parser.add_argument('--segs-per-state', type=int, metavar='N', default=1,
-                    help='''Initialize N segments from each basis state (default: %(default)).''')
+                    help='''Initialize N segments from each basis state (default: %(default)s).''')
 parser.add_argument('--run-we', action='store_true',
                     help='''Run the weighted ensemble bin/split/merge algorithm on newly-created segments.''')
 
 (args, aux_args) = parser.parse_known_args()
-
-if aux_args:
-    sys.stderr.write('unexpected command line argument(s) encountered: {}\n'.format(aux_args))
-    sys.exit(os.EX_USAGE)
-
-wemd.rc.process_args(args)
+wemd.rc.process_args(args, aux_args)
 system = wemd.rc.get_system_driver()
+sim_manager = wemd.rc.get_sim_manager()
 propagator = wemd.rc.get_propagator()
 h5file = wemd.rc.config.get_path('data.h5file')
 data_manager = wemd.rc.get_data_manager()
 data_manager.we_h5filename = h5file
 data_manager.system = system
 we_driver = wemd.rc.get_we_driver()
-gen_istates = wemd.rc.config.get_bool('system.gen_istates', False)
 
-# Process target states
-target_states = []
-if args.tstates_from:
-    target_states.extend(TargetState.states_from_file(args.tstates_from, system.pcoord_dtype))
-if args.tstates:
-    tstates_strio = cStringIO.StringIO('\n'.join(args.tstates).replace(',', ' '))
-    target_states.extend(TargetState.states_from_file(tstates_strio, system.pcoord_dtype))
-    del tstates_strio
+work_manager = wemd.rc.get_work_manager()
+mode = work_manager.startup()
 
-# Process basis states
-basis_states = []
-if args.bstates_from:
-    basis_states.extend(BasisState.states_from_file(args.bstates_from))
-if args.bstates:
-    for bstate_str in args.bstates:
-        fields = bstate_str.split(',')
-        label=fields[0]
-        probability=float(fields[1])
-        try:
-            auxref = fields[2]
-        except IndexError:
-            auxref = None
-        basis_states.append(BasisState(label=label,probability=probability,auxref=auxref))
-
-# Check that the total probability of basis states adds to one
-tprob = sum(bstate.probability for bstate in basis_states)
-if abs(1.0 - tprob) > len(basis_states) * EPS:
-    pscale = 1/tprob
-    log.warning('Basis state probabilities do not add to unity; rescaling by {:g}'.format(pscale))
-    for bstate in basis_states:
-        bstate.probability *= pscale
-
-# Calculate progress coordinates
-log.info('Calculating progress coordinate values for basis states')
-for basis_state in basis_states:
-    propagator.get_pcoord(basis_state)
-
-if os.path.exists(h5file):
-    if args.force:
-        sys.stdout.write('Deleting existing HDF5 file {!r}.\n'.format(h5file))
-        os.unlink(h5file)
-    else:
-        sys.stderr.write('HDF5 file {!r} already exists; exiting.\n'.format(h5file))
-        sys.exit(os.EX_OSFILE)
-
-# Prepare HDF5 file
-sys.stdout.write('Creating HDF5 file {!r}.\n'.format(h5file))
-data_manager.prepare_backing()        
-data_manager.save_basis_states(basis_states)
-data_manager.save_target_states(target_states)
-
-sys.stdout.write('{:d} basis state(s) present'.format(len(basis_states)))
-if wemd.rc.verbose_mode:
-    sys.stdout.write(':\n')
-    sys.stdout.write('{:6s}    {:12s}    {:20s}    {:20s}    {}\n'
-                     .format('ID', 'Label', 'Probability', 'Aux Reference', 'Progress Coordinate'))
-    for basis_state in basis_states:
-        sys.stdout.write('{:<6d}    {:12s}    {:<20.14g}    {:20s}    {}\n'.
-                         format(basis_state.state_id, basis_state.label, basis_state.probability, basis_state.auxref or '',
-                                ', '.join(map(str,basis_state.pcoord))))
-sys.stdout.write('\n')
-
-sys.stdout.write('{:d} target state(s) present'.format(len(target_states)))    
-if wemd.rc.verbose_mode and target_states:
-    sys.stdout.write(':\n')
-    sys.stdout.write('{:6s}    {:12s}    {}\n'.format('ID', 'Label', 'Progress Coordinate'))
-    for target_state in target_states:
-        sys.stdout.write('{:<6d}    {:12s}    {}\n'
-                         .format(target_state.state_id, target_state.label, ','.join(map(str,target_state.pcoord))))
-sys.stdout.write('\n')
-
-# Prepare simulation
-region_set = system.new_region_set()
-
-segs_per_state = args.segs_per_state
-segments = []
-for basis_state in basis_states:
-    initial_states = []
-    for iseg in xrange(segs_per_state):
-        init_state_id = data_manager.alloc_initial_states(1)[0]
-        segment = Segment(weight=basis_state.probability/segs_per_state,pcoord=system.new_pcoord_array(),
-                          p_parent_id=init_state_id, n_parents=1, parent_ids=(init_state_id,))
-        initial_state = InitialState(state_id=init_state_id, basis_state_id=basis_state.state_id, iter_created=0)
+if work_manager.mode == work_manager.MODE_MASTER: 
+    try:
+        gen_istates = wemd.rc.config.get_bool('system.gen_istates', False)
+        
+        # Process target states
+        target_states = []
+        if args.tstates_from:
+            target_states.extend(TargetState.states_from_file(args.tstates_from, system.pcoord_dtype))
+        if args.tstates:
+            tstates_strio = cStringIO.StringIO('\n'.join(args.tstates).replace(',', ' '))
+            target_states.extend(TargetState.states_from_file(tstates_strio, system.pcoord_dtype))
+            del tstates_strio
+        
+        # Process basis states
+        basis_states = []
+        if args.bstates_from:
+            basis_states.extend(BasisState.states_from_file(args.bstates_from))
+        if args.bstates:
+            for bstate_str in args.bstates:
+                fields = bstate_str.split(',')
+                label=fields[0]
+                probability=float(fields[1])
+                try:
+                    auxref = fields[2]
+                except IndexError:
+                    auxref = None
+                basis_states.append(BasisState(label=label,probability=probability,auxref=auxref))
+        
+        # Check that the total probability of basis states adds to one
+        tprob = sum(bstate.probability for bstate in basis_states)
+        if abs(1.0 - tprob) > len(basis_states) * EPS:
+            pscale = 1/tprob
+            log.warning('Basis state probabilities do not add to unity; rescaling by {:g}'.format(pscale))
+            for bstate in basis_states:
+                bstate.probability *= pscale
+        
+        # Calculate progress coordinates
+        sys.stdout.write('Calculating progress coordinate values for basis states.\n')
+        #for basis_state in basis_states:
+        #    propagator.get_pcoord(basis_state)
+        futures = [work_manager.submit(wm_get_pcoord, propagator, basis_state) for basis_state in basis_states]
+        fmap = {future: i for i,future in enumerate(futures)}
+        for future in work_manager.as_completed(futures):
+            updated_basis_state = future.get_result()
+            basis_states[fmap[future]].pcoord = updated_basis_state.pcoord
+        
+        if os.path.exists(h5file):
+            if args.force:
+                sys.stdout.write('Deleting existing HDF5 file {!r}.\n'.format(h5file))
+                os.unlink(h5file)
+            else:
+                sys.stderr.write('HDF5 file {!r} already exists; exiting.\n'.format(h5file))
+                sys.exit(os.EX_OSFILE)
+        
+        # Prepare HDF5 file
+        sys.stdout.write('Creating HDF5 file {!r}.\n'.format(h5file))
+        data_manager.prepare_backing()        
+        data_manager.save_basis_states(basis_states)
+        data_manager.save_target_states(target_states)
+        
+        sys.stdout.write('{:d} basis state(s) present'.format(len(basis_states)))
+        if wemd.rc.verbose_mode:
+            sys.stdout.write(':\n')
+            sys.stdout.write('{:6s}    {:12s}    {:20s}    {:20s}    {}\n'
+                             .format('ID', 'Label', 'Probability', 'Aux Reference', 'Progress Coordinate'))
+            for basis_state in basis_states:
+                sys.stdout.write('{:<6d}    {:12s}    {:<20.14g}    {:20s}    {}\n'.
+                                 format(basis_state.state_id, basis_state.label, basis_state.probability, basis_state.auxref or '',
+                                        ', '.join(map(str,basis_state.pcoord))))
+        sys.stdout.write('\n')
+        
+        sys.stdout.write('{:d} target state(s) present'.format(len(target_states)))    
+        if wemd.rc.verbose_mode and target_states:
+            sys.stdout.write(':\n')
+            sys.stdout.write('{:6s}    {:12s}    {}\n'.format('ID', 'Label', 'Progress Coordinate'))
+            for target_state in target_states:
+                sys.stdout.write('{:<6d}    {:12s}    {}\n'
+                                 .format(target_state.state_id, target_state.label, ','.join(map(str,target_state.pcoord))))
+        sys.stdout.write('\n')
+        
+        # Prepare simulation
+        region_set = system.new_region_set()
+        
+        segs_per_state = args.segs_per_state
+        segments = []
+        futures = []
+        initial_states = []
+        for basis_state in basis_states:
+            for iseg in xrange(segs_per_state):
+                init_state_id = data_manager.alloc_initial_states(1)[0]
+                segment = Segment(weight=basis_state.probability/segs_per_state,pcoord=system.new_pcoord_array(),
+                                  p_parent_id=init_state_id, n_parents=1, parent_ids=(init_state_id,))
+                initial_state = InitialState(state_id=init_state_id, basis_state_id=basis_state.state_id, iter_created=0)
+                
+                if gen_istates:
+                    propagator.set_basis_initial_states([basis_state], [initial_state])
+                    propagator.gen_istate(basis_state, initial_state)
+                    segment.pcoord[0] = initial_state.pcoord
+                else:
+                    initial_state.pcoord = basis_state.pcoord
+                    segment.pcoord[0] = basis_state.pcoord
+                    
+                initial_states.append(initial_state)
+                segments.append(segment)
+                
+        for future in work_manager.as_completed(futures):
+            ristate = future.result()
+            initial_states[ristate.state_id].pcoord = ristate.pcoord
+        data_manager.save_initial_states(initial_states)
+        
+                
+        # Make sure we have a norm of 1
+        tprob = sum(segment.weight for segment in segments)
+        if abs(1.0 - tprob) > len(segments) * EPS:
+            pscale = 1.0/tprob
+            log.warning('Weights of initial segments do not sum to unity; scaling by {:g}'.format(pscale))
+            for segment in segments:
+                segment.weight *= pscale
+        
+        all_bins = region_set.get_all_bins()
+        region_set.assign_to_bins(segments, key=Segment.initial_pcoord)
+                
+        if args.run_we:
+            # TODO: what to do if something winds up in a recycling region?
+            # At the moment, fail with an exception
+            segments = we_driver.run_we(segments, region_set)
+        
+        bin_occupancies = numpy.array(map(operator.attrgetter('count'), all_bins))
+        target_occupancies = numpy.array(map(operator.attrgetter('target_count'), all_bins))
         
         if gen_istates:
-            propagator.gen_istate(basis_state, initial_state)
-            segment.pcoord[0] = initial_state.pcoord
+            initpoint_type = Segment.SEG_INITPOINT_GENERATED
         else:
-            initial_state.pcoord = basis_state.pcoord
-            segment.pcoord[0] = basis_state.pcoord
+            initpoint_type = Segment.SEG_INITPOINT_BASIS
             
-        initial_states.append(initial_state)
-        segments.append(segment)
-    data_manager.save_initial_states(initial_states)
+        for segment in segments:
+            segment.n_iter = 1
+            segment.status = Segment.SEG_STATUS_PREPARED
+            segment.initpoint_type = initpoint_type
+            assert segment.p_parent_id is not None
+            initial_states[segment.p_parent_id].iter_used = 1
+                    
+        data_manager.prepare_iteration(1, segments)
+        data_manager.save_initial_states(initial_states)
+                    
+        if wemd.rc.verbose_mode:
+            sys.stdout.write('\nSegments generated:\n')
+            for segment in segments:
+                sys.stdout.write('{!r}\n'.format(segment))
         
-# Make sure we have a norm of 1
-tprob = sum(segment.weight for segment in segments)
-if abs(1.0 - tprob) > len(segments) * EPS:
-    pscale = 1.0/tprob
-    log.warning('Weights of initial segments do not sum to unity; scaling by {:g}'.format(pscale))
-    for segment in segments:
-        segment.weight *= pscale
-
-all_bins = region_set.get_all_bins()
-region_set.assign_to_bins(segments, key=Segment.initial_pcoord)
         
-if args.run_we:
-    segments = we_driver.run_we(segments, region_set)
-
-bin_occupancies = numpy.array(map(operator.attrgetter('count'), all_bins))
-target_occupancies = numpy.array(map(operator.attrgetter('target_count'), all_bins))
-
-if gen_istates:
-    initpoint_type = Segment.SEG_INITPOINT_GENERATED
-else:
-    initpoint_type = Segment.SEG_INITPOINT_BASIS
+        sys.stdout.write('''
+        Total bins:            {total_bins:d}
+        Initial replicas:      {init_replicas:d} in {occ_bins:d} bins, total weight = {weight:g}
+        Total target replicas: {total_replicas:d}
+        '''.format(total_bins=len(all_bins), init_replicas=sum(bin_occupancies), occ_bins=len(bin_occupancies[bin_occupancies > 0]),
+                   weight = sum(segment.weight for segment in segments), total_replicas = sum(target_occupancies)))
+        
+        # Send the segments over to the data manager to commit to disk            
+        #data_manager.prepare_iteration(1, segments)
+        data_manager.flush_backing()    
+        sys.stdout.write('Simulation prepared.\n')
+        work_manager.shutdown(0)
+    except:
+        work_manager.shutdown(4)
+        raise
     
-for segment in segments:
-    segment.n_iter = 1
-    segment.status = Segment.SEG_STATUS_PREPARED
-    segment.initpoint_type = initpoint_type
-    assert segment.p_parent_id is not None
-    initial_states[segment.p_parent_id].iter_used = 1
-            
-data_manager.prepare_iteration(1, segments)
-data_manager.save_initial_states(initial_states)
-            
-if wemd.rc.verbose_mode:
-    sys.stdout.write('\nSegments generated:\n')
-    for segment in segments:
-        sys.stdout.write('{!r}\n'.format(segment))
-
-
-sys.stdout.write('''
-Total bins:            {total_bins:d}
-Initial replicas:      {init_replicas:d} in {occ_bins:d} bins, total weight = {weight:g}
-Total target replicas: {total_replicas:d}
-'''.format(total_bins=len(all_bins), init_replicas=sum(bin_occupancies), occ_bins=len(bin_occupancies[bin_occupancies > 0]),
-           weight = sum(segment.weight for segment in segments), total_replicas = sum(target_occupancies)))
-
-# Send the segments over to the data manager to commit to disk            
-#data_manager.prepare_iteration(1, segments)
-data_manager.flush_backing()    
-sys.stdout.write('Simulation prepared.\n')
+    
