@@ -179,32 +179,8 @@ class ExecutablePropagator(WEMDPropagator):
         log.debug('data_info: {!r}'.format(self.data_info))
         
     def set_basis_initial_states(self, basis_states, initial_states, segments=None):
-        '''Store the given basis states and initial states internally. If a list
-        of segments is given, only the basis states and initial states used by those
-        segments are stored, so that if only one or a few segments are involved, only 
-        their basis/initial state data need be transmitted by the work manager.'''
-
-        
-        bstates_map = {state.state_id: state for state in basis_states}
-        istates_map = {state.state_id: state for state in initial_states}
-                
-        if not segments:
-            self.basis_states = bstates_map
-            self.initial_states = istates_map
-        else:
-            self.basis_states = {}
-            self.initial_states = {}
-            for segment in segments:
-                if segment.initpoint_type == Segment.SEG_INITPOINT_BASIS:
-                    # p_parent_id is a basis state ID
-                    bstate = bstates_map[segment.p_parent_id]
-                    self.basis_states[bstate.state_id] = bstate
-                elif segment.initpoint_type == Segment.SEG_INITPOINT_GENERATED:
-                    # p_parent_id is an initial state ID
-                    istate = istates_map[segment.p_parent_id]
-                    bstate = bstates_map[istate.basis_state_id]
-                    self.initial_states[istate.state_id] = istate
-                    self.basis_states[bstate.state_id] = bstate
+        self.basis_states = {state.state_id: state for state in basis_states}
+        self.initial_states = {state.state_id: state for state in initial_states}  
         
     @staticmethod                        
     def makepath(template, template_args = None,
@@ -291,8 +267,7 @@ class ExecutablePropagator(WEMDPropagator):
             basis_state = initial_state.basis_state
         else:
             basis_state = self.basis_states[initial_state.basis_state_id]
-        
-        print(basis_state)  
+          
         self.update_args_env_basis_state(new_template_args, new_env, basis_state)
         
         template_args.update(new_template_args)

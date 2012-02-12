@@ -283,3 +283,4 @@ class WMFuture:
 # end class WMFuture
     
 import serial
+import ops

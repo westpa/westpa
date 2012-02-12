@@ -11,28 +11,9 @@ from wemd.util import extloader
 from wemd import Segment
 from wemd.util.miscfn import vgetattr
 
-def wm_get_pcoord(propagator, state):
-    propagator.get_pcoord(state)
-    return state
-    
-def wm_gen_istate(propagator, basis_state, initial_state):
-    propagator.gen_istate(basis_state, initial_state)
-    return basis_state, initial_state
-    
-def wm_prep_iter(propagator, n_iter, segments):
-    propagator.prepare_iteration(n_iter, segments)
-    
-def wm_post_iter(propagator, n_iter, segments):
-    propagator.prepare_iteration(n_iter, segments)
-    
-def wm_propagate(propagator, segments):
-    '''Propagate the given segments with the given propagator. This has to be a top-level
-    function for the current incarnation of the work manager.'''
-    outgoing_ids = [segment.seg_id for segment in segments]
-    incoming_segments = {segment.seg_id: segment for segment in propagator.propagate(segments)}
-    if log.isEnabledFor(logging.DEBUG):
-        log.debug('propagated {!r}'.format(incoming_segments))
-    return [incoming_segments[seg_id] for seg_id in outgoing_ids]
+from wemd.work_managers.ops import propagate as wm_propagate
+from wemd.work_managers.ops import prep_iter as wm_prep_iter
+from wemd.work_managers.ops import post_iter as wm_post_iter 
 
 class WESimManager:
     def __init__(self):        

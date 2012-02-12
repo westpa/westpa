@@ -2,12 +2,13 @@ from __future__ import division, print_function
 
 import os, sys, logging, numpy, operator, argparse
 import cStringIO
+from itertools import izip
 log = logging.getLogger('w_init')
 
 import wemd
 from wemd.segment import Segment
-from wemd.sim_manager import wm_get_pcoord, wm_gen_istate
-from wemd.states import BasisState, TargetState, InitialState
+from wemd.work_managers import ops
+from wemd.states import BasisState, TargetState, InitialState, pare_basis_initial_states
 
 EPS = numpy.finfo(numpy.float64).eps
 
@@ -101,7 +102,7 @@ if work_manager.mode == work_manager.MODE_MASTER:
         sys.stdout.write('Calculating progress coordinate values for basis states.\n')
         #for basis_state in basis_states:
         #    propagator.get_pcoord(basis_state)
-        futures = [work_manager.submit(wm_get_pcoord, propagator, basis_state) for basis_state in basis_states]
+        futures = [work_manager.submit(ops.get_pcoord, propagator, basis_state) for basis_state in basis_states]
         fmap = {future: i for i,future in enumerate(futures)}
         for future in work_manager.as_completed(futures):
             updated_basis_state = future.get_result()
@@ -144,33 +145,34 @@ if work_manager.mode == work_manager.MODE_MASTER:
         # Prepare simulation
         region_set = system.new_region_set()
         
+        sys.stdout.write('Preparing initial states\n')
         segs_per_state = args.segs_per_state
         segments = []
-        futures = []
         initial_states = []
         for basis_state in basis_states:
             for iseg in xrange(segs_per_state):
                 init_state_id = data_manager.alloc_initial_states(1)[0]
                 segment = Segment(weight=basis_state.probability/segs_per_state,pcoord=system.new_pcoord_array(),
                                   p_parent_id=init_state_id, n_parents=1, parent_ids=(init_state_id,))
-                initial_state = InitialState(state_id=init_state_id, basis_state_id=basis_state.state_id, iter_created=0)
-                
-                if gen_istates:
-                    propagator.set_basis_initial_states([basis_state], [initial_state])
-                    propagator.gen_istate(basis_state, initial_state)
-                    segment.pcoord[0] = initial_state.pcoord
-                else:
-                    initial_state.pcoord = basis_state.pcoord
-                    segment.pcoord[0] = basis_state.pcoord
-                    
+                initial_state = InitialState(state_id=init_state_id, basis_state_id=basis_state.state_id, iter_created=0,
+                                             basis_state=basis_state)
                 initial_states.append(initial_state)
                 segments.append(segment)
                 
-        for future in work_manager.as_completed(futures):
-            ristate = future.result()
-            initial_states[ristate.state_id].pcoord = ristate.pcoord
+        if gen_istates:
+            futures = [work_manager.submit(ops.gen_istate, propagator, initial_state.basis_state, initial_state)
+                       for initial_state in initial_states]
+            for future in work_manager.as_completed(futures):
+                rbstate, ristate = future.get_result()
+                initial_states[ristate.state_id].pcoord = ristate.pcoord
+                segments[ristate.state_id].pcoord[0] = ristate.pcoord            
+        else:
+            for segment, initial_state in izip(segments, initial_states):
+                initial_state.pcoord = basis_state.pcoord
+                segment.pcoord[0] = basis_state.pcoord
+                    
+                
         data_manager.save_initial_states(initial_states)
-        
                 
         # Make sure we have a norm of 1
         tprob = sum(segment.weight for segment in segments)

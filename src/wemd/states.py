@@ -149,3 +149,24 @@ class TargetState:
             pcoord_values.shape = (pcoord_values.shape[0], 1)
             
         return [cls(label=label, pcoord=pcoord) for label,pcoord in zip(labels,pcoord_values)]
+
+def pare_basis_initial_states(basis_states, initial_states, segments=None):
+    '''Given iterables of basis and initial states (and optionally segments that use them),
+    return minimal sets (as in __builtins__.set) of states needed to describe the history of the given 
+    segments an initial states.'''
+    
+    bstatemap = {state.state_id: state for state in basis_states}
+    istatemap = {state.state_id: state for state in initial_states}
+    
+    if segments is not None:
+        segments = list(segments)
+        return_bstates = set(bstatemap[segment.p_parent_id] for segment in segments
+                             if segment.initpoint_type == segment.SEG_INITPOINT_BASIS)
+        return_istates = set(istatemap[segment.p_parent_id] for segment in segments 
+                             if segment.initpoint_type == segment.SEG_INITPOINT_GENERATED)
+        return_bstates.update(bstatemap[istate.basis_state_id] for istate in return_istates)
+    else:
+        return_istates = set(initial_states)
+        return_bstates = set(bstatemap[istate.basis_state_id] for istate in return_istates)
+        
+    return return_bstates, return_istates
