@@ -1,6 +1,6 @@
 from __future__ import division; __metaclass__ = type
 
-import logging
+import logging, sys
 
 log = logging.getLogger(__name__)
 
@@ -16,7 +16,7 @@ class SerialWorkManager(WEMDWorkManager):
         try:
             result = fn(*args, **kwargs)
         except Exception as e:
-            ft._set_exception(e)
+            ft._set_exception(e, sys.exc_info()[2])
         else:
             ft._set_result(result)
         return ft

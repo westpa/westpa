@@ -19,7 +19,7 @@ class Task:
         try:
             result = self.fn(*self.args, **self.kwargs)
         except Exception as e:
-            self.future._set_exception(e)
+            self.future._set_exception(e, sys.exc_info()[2])
         else:
             self.future._set_result(result)
             

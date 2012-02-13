@@ -1,6 +1,6 @@
 from __future__ import division, print_function; __metaclass__ = type
 
-import sys, logging, multiprocessing, threading
+import sys, logging, multiprocessing, threading, traceback
 import argparse
 import wemd
 from wemd.work_managers import WEMDWorkManager, WMFuture
@@ -39,7 +39,7 @@ class ProcessWorkManager(WEMDWorkManager):
             try:
                 result = fn(*args, **kwargs)
             except Exception as e:
-                result_tuple = ('exception', task_id, e)
+                result_tuple = ('exception', task_id, (e, traceback.format_exc()))
             else:
                 result_tuple = ('result', task_id, result)
             self.result_queue.put(result_tuple)
@@ -53,7 +53,7 @@ class ProcessWorkManager(WEMDWorkManager):
                 return
             elif message == 'exception':
                 future = self.pending.pop(task_id)
-                future._set_exception(payload)
+                future._set_exception(*payload)
             elif message == 'result':
                 future = self.pending.pop(task_id)
                 future._set_result(payload)

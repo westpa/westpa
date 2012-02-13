@@ -156,6 +156,7 @@ class WMFuture:
         self._done = False
         self._result = None
         self._exception = None
+        self._traceback = None
 
         # a set of Events representing who is waiting on results from this future
         # this set will be cleared after the result is updated and watchers are notified        
@@ -225,12 +226,13 @@ class WMFuture:
             self._invoke_callbacks()
             self._notify_watchers()
         
-    def _set_exception(self, exception):
+    def _set_exception(self, exception, traceback=None):
         '''Set the exception of this future to the given value, invoke on-completion callbacks, and notify
         watchers.'''
         
         with self._condition:
             self._exception = exception
+            self._traceback = traceback
             self._done = True
             self._condition.notify_all()
             self._invoke_callbacks()
@@ -241,14 +243,23 @@ class WMFuture:
         with self._condition:
             if self._done:
                 if self._exception:
-                    raise self._exception
+                    if isinstance(self._traceback, basestring):
+                        if self._traceback:
+                            log.error('uncaught exception in remote function\n{}'.format(self._traceback))
+                        raise self._exception
+                    else:
+                        raise self._exception, None, self._traceback                    
                 else:
                     return self._result
             else:
                 self._condition.wait()
                 assert self._done
                 if self._exception:
-                    raise self._exception
+                    if isinstance(self._traceback, str):
+                        log.error('uncaught exception in remote function\n{}'.format(self._traceback))
+                        raise self._exception
+                    else:
+                        raise self._exception, None, self._traceback
                 else:
                     return self._result
     result = property(get_result, None, None, get_result.__doc__)
@@ -272,7 +283,18 @@ class WMFuture:
                 assert self._done
                 self._condition.wait()
                 return self._exception
-    exception = property(get_exception, None, None, get_exception.__doc__)            
+    exception = property(get_exception, None, None, get_exception.__doc__)
+    
+    def get_traceback(self):
+        '''Get the traceback object associated with this future, if any.'''
+        with self._condition:
+            if self._returned:
+                return self._traceback
+            else:
+                assert self._done
+                self._condition.wait()
+                return self._traceback
+    traceback = property(get_traceback, None, None, get_traceback.__doc__)
     
     def is_done(self):
         'Indicates whether this future is done executing (may block if this future is being updated).'

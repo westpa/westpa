@@ -1,10 +1,8 @@
 from __future__ import division, print_function; __metaclass__ = type
 
-import sys, os, logging, socket, multiprocessing, threading, time
-import cPickle as pickle
+import sys, os, logging, socket, multiprocessing, threading, time, traceback
 import argparse
 from collections import deque
-from copy import deepcopy
 import zmq
 import wemd
 from wemd.work_managers import WEMDWorkManager, WMFuture
@@ -298,7 +296,7 @@ class ZMQMasterWorkManager(ZMQWorkManager):
                     if result_type == 'result':
                         ft._set_result(payload[2])
                     elif result_type == 'exception':
-                        ft._set_exception(payload[2])
+                        ft._set_exception(*payload[2])
                     del task_id, result_type, ft
                 elif message == 'ping':
                     log.debug('received ping from {!r}'.format(sender))
@@ -402,7 +400,7 @@ class ZMQWorkerWorkManager(ZMQWorkManager):
                             try:
                                 result = fn(*args, **kwargs)
                             except Exception as exception:
-                                result_tuple = (task_id, 'exception', exception)
+                                result_tuple = (task_id, 'exception', (exception, traceback.format_exc()))
                             else:
                                 result_tuple = (task_id, 'result', result)
                                     
