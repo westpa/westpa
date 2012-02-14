@@ -53,7 +53,7 @@ log = logging.getLogger(__name__)
 import wemd
 from wemd.util.miscfn import vattrgetter
 from wemd.segment import Segment
-from wemd.states import BasisState, TargetState
+from wemd.states import BasisState, TargetState, InitialState
 
 file_format_version = 5
 
@@ -85,7 +85,10 @@ class flushing_lock:
         self.lock.release()
 
 # Data types for use in the HDF5 file
-
+seg_id_dtype = numpy.int64  # Up to 9 quintillion segments per iteration; signed so that initial states can be stored negative
+n_iter_dtype = numpy.uint32 # Up to 4 billion iterations
+weight_dtype = numpy.float64  # about 15 digits of precision in weights
+utime_dtype = numpy.float64  # ("u" for Unix time) Up to ~10^300 cpu-seconds 
 vstr_dtype = h5py.new_vlen(str)
 h5ref_dtype = h5py.special_dtype(ref=h5py.Reference)
 
@@ -97,49 +100,55 @@ h5ref_dtype = h5py.special_dtype(ref=h5py.Reference)
 seg_status_dtype = numpy.uint8
 seg_initpoint_dtype = numpy.uint8
 seg_endpoint_dtype = numpy.uint8
+istate_type_dtype = numpy.uint8
     
-summary_table_dtype = numpy.dtype( [ ('n_particles', numpy.uint),      # Number of live trajectories in this iteration
-                                     ('norm', numpy.float64),          # Norm of probability, to watch for errors or drift
-                                     ('min_bin_prob', numpy.float64),  # Per-bin minimum probability
-                                     ('max_bin_prob', numpy.float64),  # Per-bin maximum probability
-                                     ('min_seg_prob', numpy.float64),  # Per-segment minimum probability
-                                     ('max_seg_prob', numpy.float64),  # Per-segment maximum probability
-                                     ('cputime', numpy.float64),       # Total CPU time for this iteration
-                                     ('walltime', numpy.float64)] )    # Total wallclock time for this iteration
+summary_table_dtype = numpy.dtype( [ ('n_particles', seg_id_dtype),    # Number of live trajectories in this iteration
+                                     ('norm', weight_dtype),          # Norm of probability, to watch for errors or drift
+                                     ('min_bin_prob', weight_dtype),  # Per-bin minimum probability
+                                     ('max_bin_prob', weight_dtype),  # Per-bin maximum probability
+                                     ('min_seg_prob', weight_dtype),  # Per-segment minimum probability
+                                     ('max_seg_prob', weight_dtype),  # Per-segment maximum probability
+                                     ('cputime', utime_dtype),       # Total CPU time for this iteration
+                                     ('walltime', utime_dtype)] )    # Total wallclock time for this iteration
 
 
-seg_index_dtype = numpy.dtype( [ ('weight', numpy.float64),               # Statistical weight of this segment
-                                 ('cputime', numpy.float64),              # CPU time used in propagating this segment
-                                 ('walltime', numpy.float64),             # Wallclock time used in propagating this segment
-                                 ('parents_offset', numpy.uint32),  # Offset into the parents array for the parents of this segment
-                                 ('n_parents', numpy.uint32),             # Number of parents this segment has
-                                 ('status', seg_status_dtype),            # Status of propagation of this segment
-                                 ('initpoint_type', seg_initpoint_dtype), # Initial point type (basis/initial state or continuation)
+# The HDF5 file tracks related histories: 
+#    (1) the evolution of the trajectory, which requires only an identifier 
+#        of where a segment's initial state comes from (the "history graph");
+#    (2) the flow of probability due to splits, merges, and recycling events,
+#        which can be thought of as an adjacency list (the "weight graph")
+# segment ID is implied by the row in the index table, and so is not stored
+# initpoint_type remains implicitly stored as negative IDs (if parent_id < 0, then init_state_id = -(parent_id+1) 
+seg_index_dtype = numpy.dtype( [ ('weight', weight_dtype),               # Statistical weight of this segment
+                                 ('parent_id', seg_id_dtype),             # ID of parent (for trajectory history)
+                                 ('n_wtg_parents', numpy.uint), # number of parents this segment has in the weight transfer graph
+                                 ('cputime', utime_dtype),              # CPU time used in propagating this segment
+                                 ('walltime', utime_dtype),             # Wallclock time used in propagating this segment
                                  ('endpoint_type', seg_endpoint_dtype),   # Endpoint type (will continue, merged, or recycled)
+                                 ('status', seg_status_dtype),            # Status of propagation of this segment
                                  ] )
 
+# Recycling summary, used for recording per-target flux
 rec_summary_dtype = numpy.dtype( [ ('count', numpy.uint),        # Number of transitions into this state
-                                   ('flux', numpy.float64) ] )   # Probability flux into this state
+                                   ('flux', weight_dtype) ] )   # Probability flux into this state
 
+# Index to basis/initial states
+ibstate_index_dtype = numpy.dtype([('iter_created', numpy.uint),
+                                   ('group_ref', h5ref_dtype)])
 
-bstate_index_dtype = numpy.dtype( [('iter_created', numpy.uint),# When this basis state set was created (i.e. when it is valid)
-                                   ('group_ref', h5ref_dtype)]) # A reference to the group containing the state info
-
+# Basis state index type
 bstate_dtype = numpy.dtype( [ ('label', vstr_dtype),            # An optional descriptive label
-                              ('probability', numpy.float64),   # Probability that this state will be selected 
+                              ('probability', weight_dtype),   # Probability that this state will be selected 
                               ('auxref', vstr_dtype),           # An optional auxiliar data reference 
                               ])
 
-
 # Even when initial state generation is off and basis states are passed through directly, an initial state entry
-# is created, as that allows precise tracing of where the initial state information came from (since basis states can
-# change from iteration to iteration, only the combination of iter_created and basis_state_id is unique, and storing
-# that here avoids having to put more fields in the segment index to track that case).
-
+# is created, as that allows precise tracing of the history of a given state in the most complex case of
+# a new initial state for every new trajectory.
 istate_dtype = numpy.dtype( [('iter_created', numpy.uint),      # Iteration during which this state was generated (0 for at w_init)
-                             ('iter_used', numpy.uint),         # When this state was used to start a new trajectory 
-                                                                # (1 for iteration 1, etc)
-                             ('basis_state_id', numpy.uint)])   # Which basis state this state was generated from
+                             ('iter_used', numpy.uint),           # When this state was used to start a new trajectory 
+                             ('basis_state_id', seg_id_dtype),    # Which basis state this state was generated from
+                             ('istate_type', istate_type_dtype)]) # What type this initial state is (generated or basis)
 
 tstate_index_dtype = numpy.dtype([('iter_created', numpy.uint), # Iteration when this state list is valid
                                   ('group_ref', h5ref_dtype)])  # Reference to a group containing further data; this will be the
@@ -260,6 +269,7 @@ class WEMDDataManager:
                                                dtype=summary_table_dtype,
                                                maxshape=(None,))
             self.we_h5file.create_group('/iterations')
+            self.create_iter_group(0)
         
     def close_backing(self):
         if self.we_h5file is not None:
@@ -272,72 +282,10 @@ class WEMDDataManager:
             with self.lock:
                 self.we_h5file.flush()
 
-    def save_basis_states(self, bstates):
-        '''Save the given basis states in the HDF5 file; they will be used for the next iteration to
-        be propagated.  A complete set is required, even if nominally appending to an existing set;
-        no processing is done of previously-existing basis states except to update their 
-        valid-until field, which simplifies the mapping of IDs to the table.'''
-        
-        system = wemd.rc.get_system_driver()
-        
-        # Assemble all the important data before we start to modify the HDF5 file
-        bstates = list(bstates)
-        assert bstates, 'non-empty state list required'
-        state_table = numpy.empty((len(bstates),), dtype=bstate_dtype)
-        state_pcoords = numpy.empty((len(bstates),system.pcoord_ndim), dtype=system.pcoord_dtype)
-        for i, state in enumerate(bstates):
-            state.state_id = i
-            state_table[i]['label'] = state.label
-            state_table[i]['probability'] = state.probability
-            state_table[i]['auxref'] = state.auxref or ''
-            state_pcoords[i] = state.pcoord
-        
-        # Commit changes to HDF5
-        with self.lock:
-            try:
-                master_bstates_group = self.we_h5file['/basis_states']
-            except KeyError:
-                master_bstates_group = self.we_h5file.create_group('/basis_states')
-                master_index = master_bstates_group.create_dataset('index', shape=(1,), maxshape=(None,), dtype=bstate_index_dtype)
-                n_sets = 1
-            else:
-                master_index = master_bstates_group['index'][...]
-                n_sets = len(master_index) + 1
-                master_index.resize((n_sets,))
-            
-            n_iter = self.current_iteration
-            state_group = master_bstates_group.create_group(self.iter_group_name(n_iter, absolute=False))                
-            master_index_row = numpy.empty((), dtype=bstate_index_dtype)
-            master_index_row['iter_created'] = n_iter
-            master_index_row['group_ref'] = state_group.ref            
-            state_group['index'] = state_table
-            state_group['pcoord'] = state_pcoords
-            master_bstates_group['index'][n_sets-1] = master_index_row
-
-    def get_basis_states(self, n_iter):
-        '''Return a list of BasisState objects representing the basis states that are in use for iteration n_iter.'''
-        
-        with self.lock:
-            master_index = self.we_h5file['/basis_states/index'][...]
-            
-            i = 0
-            while i < len(master_index) and master_index[i]['iter_created'] < n_iter:
-                i += 1
-            
-            bstate_group = self.we_h5file[master_index[i]['group_ref']]
-            bstate_index = bstate_group['index']
-            bstate_pcoords = bstate_group['pcoord']
-            
-            bstates = [BasisState(state_id=i, label=row['label'], probability=row['probability'],
-                                  auxref = row['auxref'] or None, pcoord=pcoord)
-                       for (i, (row, pcoord))  in enumerate(izip(bstate_index, bstate_pcoords))]
-            return bstates
-            
     def save_target_states(self, tstates):
-        '''Save the given basis states in the HDF5 file; they will be used for the next iteration to
-        be propagated.  A complete set is required, even if nominally appending to an existing set;
-        no processing is done of previously-existing basis states except to update their 
-        valid-until field, which simplifies the mapping of IDs to the table.'''
+        '''Save the given target states in the HDF5 file; they will be used for the next iteration to
+        be propagated.  A complete set is required, even if nominally appending to an existing set,
+        which simplifies the mapping of IDs to the table.'''
         
         system = wemd.rc.get_system_driver()
 
@@ -357,78 +305,139 @@ class WEMDDataManager:
         # Commit changes to HDF5
         with self.lock:
             try:
-                master_tstates_group = self.we_h5file['/target_states']
+                master_index = self.we_h5file['target_state_index']
             except KeyError:
-                master_tstates_group = self.we_h5file.create_group('/target_states')
-                master_index = master_tstates_group.create_dataset('index', shape=(1,), maxshape=(None,), dtype=tstate_index_dtype)
+                master_index = self.we_h5file.create_dataset('target_state_index', shape=(1,), maxshape=(None,),
+                                                             dtype=tstate_index_dtype)
                 n_sets = 1
             else:
-                master_index = master_tstates_group['index'][...]
                 n_sets = len(master_index) + 1
                 master_index.resize((n_sets,))
             
             n_iter = self.current_iteration
-            master_index_row = numpy.empty((), dtype=bstate_index_dtype)
+            master_index_row = numpy.empty((), dtype=tstate_index_dtype)
             master_index_row['iter_created'] = n_iter
             
             if tstates:
-                state_group = master_tstates_group.create_group(self.iter_group_name(n_iter, absolute=False))                
+                state_group = self.get_iter_group(n_iter).create_group('target_states')
                 master_index_row['group_ref'] = state_group.ref            
                 state_group['index'] = state_table
                 state_group['pcoord'] = state_pcoords
             else:
                 master_index_row['group_ref'] = None # this is the sentinel that no target states exist for this time frame
                 
-            master_tstates_group['index'][n_sets-1] = master_index_row
+            master_index[n_sets-1] = master_index_row
 
     def get_target_states(self, n_iter):
         '''Return a list of Target objects representing the target (sink) states that are in use for iteration n_iter.'''
         
         with self.lock:
-            master_index = self.we_h5file['/target_states/index'][...]
+            iter_group = self.get_iter_group(n_iter)
+            tstate_group = iter_group['target_states'] 
+            tstate_index = tstate_group['index']
+            tstate_pcoords = tstate_group['pcoord']
             
-            i = 0
-            while i < len(master_index) and master_index[i]['iter_created'] < n_iter:
-                i += 1
-            
-            group_ref = master_index[i]['group_ref']
-            if not group_ref:
-                # No states for this iteration
-                return []
-            else:
-                tstate_group = self.we_h5file[master_index[i]['group_ref']]
-                tstate_index = tstate_group['index']
-                tstate_pcoords = tstate_group['pcoord']
+            tstates = [TargetState(state_id=i, label=row['label'], pcoord=pcoord)
+                        for (i, (row, pcoord))  in enumerate(izip(tstate_index, tstate_pcoords))]
+            return tstates
                 
-                tstates = [TargetState(state_id=i, label=row['label'], pcoord=pcoord)
-                           for (i, (row, pcoord))  in enumerate(izip(tstate_index, tstate_pcoords))]
-                return tstates
-            
-    def alloc_initial_states(self,n_states):
-        '''Reserve space for ``n_states`` initial states, and return their IDs'''
-        
-        system = wemd.rc.get_system_driver()
+    def create_ibstate_group(self, n_iter):
+        '''Create the group used to store basis states and initial states (whose definitions are always
+        coupled).  This group is hard-linked into all iteration groups that use these basis and 
+        initial states.'''        
         with self.lock:
             try:
-                istate_group = self.we_h5file['/initial_states']
+                master_index = self.we_h5file['ibstate_index']
             except KeyError:
-                istate_group = self.we_h5file.create_group('/initial_states')
-                index_ds = istate_group.create_dataset('index', shape=(n_states,), maxshape=(None,),
-                                                       dtype=istate_dtype)
-                pcoord_ds = istate_group.create_dataset('pcoord', 
-                                                        shape=(n_states,system.pcoord_ndim),
-                                                        maxshape=(None,system.pcoord_ndim),
-                                                        dtype=system.pcoord_dtype)
-                n_current_states = 0
+                master_index = self.we_h5file.create_dataset('ibstate_index', dtype=ibstate_index_dtype,
+                                                             shape=(1,), maxshape=(None,))
+                n_sets = 1
             else:
-                index_ds = istate_group['index']
-                pcoord_ds = istate_group['pcoord']
-                n_current_states = len(index_ds)
-                index_ds.resize((n_current_states+n_states,))
-                pcoord_ds.resize((n_current_states+n_states,system.pcoord_ndim))
-        return range(n_current_states,n_current_states+n_states)
+                n_sets = len(master_index)+1
+                master_index.resize((n_sets),)
             
-    def save_initial_states(self, initial_states):
+            state_group = self.get_iter_group(n_iter).create_group('ibstates')
+            master_index_row = numpy.empty((), dtype=ibstate_index_dtype)
+            master_index_row['iter_created'] = n_iter
+            master_index_row['group_ref'] = state_group.ref
+            master_index[n_sets-1] = master_index_row
+            return state_group
+ 
+    def save_basis_states(self, bstates):
+        '''Save the given basis states in the HDF5 file; they will be used for the next iteration to
+        be propagated.  A complete set is required, even if nominally appending to an existing set,
+        which simplifies the mapping of IDs to the table.'''
+        
+        system = wemd.rc.get_system_driver()
+        
+        # Assemble all the important data before we start to modify the HDF5 file
+        bstates = list(bstates)
+        assert bstates, 'non-empty state list required'
+        state_table = numpy.empty((len(bstates),), dtype=bstate_dtype)
+        state_pcoords = numpy.empty((len(bstates),system.pcoord_ndim), dtype=system.pcoord_dtype)
+        for i, state in enumerate(bstates):
+            state.state_id = i
+            state_table[i]['label'] = state.label
+            state_table[i]['probability'] = state.probability
+            state_table[i]['auxref'] = state.auxref or ''
+            state_pcoords[i] = state.pcoord
+            
+        n_iter = self.current_iteration
+        state_group = self.create_ibstate_group(n_iter)
+        state_group['bstate_index'] = state_table
+        state_group['bstate_pcoord'] = state_pcoords
+
+    def get_basis_states(self, n_iter):
+        '''Return a list of BasisState objects representing the basis states that are in use for iteration n_iter.'''
+        
+        with self.lock:
+            iter_group = self.get_iter_group(n_iter)
+            ibstate_group = iter_group['ibstates'] 
+            bstate_index = ibstate_group['bstate_index']
+            bstate_pcoords = ibstate_group['bstate_pcoord']
+            
+            bstates = [BasisState(state_id=i, label=row['label'], probability=row['probability'],
+                                  auxref = row['auxref'] or None, pcoord=pcoord)
+                       for (i, (row, pcoord))  in enumerate(izip(bstate_index, bstate_pcoords))]
+            return bstates
+            
+
+    def create_initial_states(self, n_iter, n_states):
+        '''Create storage for ``n_states`` initial states associated with iteration ``n_iter``, and
+        return bare InitialState objects with only state_id set.'''
+        
+        system = wemd.rc.get_system_driver()        
+        with self.lock:
+            iter_group = self.get_iter_group(n_iter)
+            ibstate_group = iter_group['ibstates']
+            
+            try:
+                istate_index = ibstate_group['istate_index']
+            except KeyError:
+                istate_index = ibstate_group.create_dataset('istate_index', dtype=istate_dtype, 
+                                                            shape=(n_states,), maxshape=(None,))
+                istate_pcoords = ibstate_group.create_dataset('istate_pcoord', dtype=system.pcoord_dtype,
+                                                              shape=(n_states,system.pcoord_ndim),
+                                                              maxshape=(None,system.pcoord_ndim))
+                len_index = len(istate_index)
+                first_id = 0
+            else:
+                first_id = len(istate_index)
+                len_index = len(istate_index) + n_states
+                istate_index.resize((len_index,))
+                istate_pcoords = ibstate_group['istate_pcoord']
+                istate_pcoords.resize((len_index,system.pcoord_ndim))
+                
+
+        index_entries = istate_index[first_id:len_index]
+        new_istates = []                
+        for irow, row in enumerate(index_entries):
+            row['iter_created'] = n_iter
+            new_istates.append(InitialState(state_id=first_id+irow, basis_state_id=None, iter_created=n_iter))
+        istate_index[first_id:len_index] = index_entries
+        return new_istates
+            
+    def update_initial_states(self, initial_states, n_iter = None):
         '''Save the given initial states in the HDF5 file'''
         
         system = wemd.rc.get_system_driver()
@@ -439,14 +448,16 @@ class WEMDDataManager:
         pcoord_vals = numpy.empty((len(initial_states), system.pcoord_ndim), dtype=system.pcoord_dtype)
         for i, initial_state in enumerate(initial_states):
             index_entries[i]['iter_created'] = initial_state.iter_created
-            index_entries[i]['iter_used'] = initial_state.iter_used or 0
+            index_entries[i]['iter_used'] = initial_state.iter_used or InitialState.ISTATE_UNUSED
             index_entries[i]['basis_state_id'] = initial_state.basis_state_id
+            index_entries[i]['istate_type'] = initial_state.istate_type or InitialState.ISTATE_TYPE_UNSET
             pcoord_vals[i] = initial_state.pcoord
         
+        n_iter = n_iter or self.current_iteration
         with self.lock:
-            init_state_group = self.we_h5file['/initial_states']
-            init_state_group['index'][state_ids] = index_entries
-            init_state_group['pcoord'][state_ids] = pcoord_vals        
+            ibstate_group = self.get_iter_group(n_iter)['ibstates']
+            ibstate_group['istate_index'][state_ids] = index_entries
+            ibstate_group['istate_pcoord'][state_ids] = pcoord_vals        
                 
     def prepare_iteration(self, n_iter, segments):
         """Prepare for a new iteration by creating space to store the new iteration's data.
@@ -490,8 +501,8 @@ class WEMDDataManager:
             pcoord_ds = iter_group.create_dataset('pcoord', 
                                                   shape=(n_particles, pcoord_len, pcoord_ndim), 
                                                   dtype=pcoord_dtype)
-            pcoord = pcoord_ds[...]
-            
+            pcoord = numpy.empty((n_particles, pcoord_len, pcoord_ndim), pcoord_dtype)
+                                    
             _assignments_ds = iter_group.create_dataset('bin_assignments', shape=(n_particles, pcoord_len), dtype=numpy.uint32)
             _populations_ds = iter_group.create_dataset('bin_populations', shape=(pcoord_len, n_bins), dtype=numpy.float64)
             _n_trans_ds = iter_group.create_dataset('bin_ntrans', shape=(n_bins,n_bins), dtype=numpy.uint32)
@@ -504,16 +515,15 @@ class WEMDDataManager:
                 else:
                     segment.seg_id = seg_id
                 # Parent must be set, though what it means depends on initpoint_type
-                assert segment.p_parent_id is not None
-                assert segment.initpoint_type is not None
+                assert segment.parent_id is not None
                 segment.seg_id = seg_id
                 seg_index_table[seg_id]['status'] = segment.status
                 seg_index_table[seg_id]['weight'] = segment.weight
-                seg_index_table[seg_id]['n_parents'] = len(segment.parent_ids)
-                seg_index_table[seg_id]['initpoint_type'] = segment.initpoint_type
+                seg_index_table[seg_id]['parent_id'] = segment.parent_id                
+                seg_index_table[seg_id]['n_wtg_parents'] = len(segment.wtg_parent_ids)
     
                 # Assign progress coordinate if any exists
-                if segment.pcoord is not None:
+                if segment.pcoord is not None: 
                     if len(segment.pcoord) == 1:
                         # Initial pcoord
                         pcoord[seg_id,0,:] = segment.pcoord[0,:]
@@ -522,55 +532,48 @@ class WEMDDataManager:
                                          % (segment.pcoord.shape, pcoord.shape[1:]))
                     else:
                         pcoord[seg_id,...] = segment.pcoord
-                        
-            # family tree is stored as two things: a big vector of ints containing parent seg_ids, 
-            # and an index (into this vector) and extent pair
+                    
+            # Since we accumulated many of these changes in RAM (and not directly in HDF5), propagate
+            # the changes out to HDF5
+            seg_index_table_ds[:] = seg_index_table
+            pcoord_ds[...] = pcoord
             
             # voodoo by induction!
             # offset[0] = 0
             # offset[1:] = numpy.add.accumulate(n_parents[:-1])
-            seg_index_table[0]['parents_offset'] = 0
-            seg_index_table[1:]['parents_offset'] = numpy.add.accumulate(seg_index_table[:-1]['n_parents'])
+            extents = seg_index_table['n_wtg_parents']
+            offsets = numpy.add.accumulate(extents)
+            offsets = offsets[:1] - offsets[0]
+            total_parents = offsets[-1]
             
-            total_parents = numpy.sum(seg_index_table[:]['n_parents'])
             if total_parents > 0:
-                parents_ds = iter_group.create_dataset('parents', (total_parents,), numpy.int32)
-                parents = parents_ds[:]
-            
-                # Don't directly index an HDF5 data set in a loop
-                offsets = seg_index_table[:]['parents_offset']
-                extents = seg_index_table[:]['n_parents']
-                
-                for (iseg, segment) in enumerate(segments):
-                    offset = offsets[iseg]
-                    extent = extents[iseg]
-                    assert extent == len(segment.parent_ids)
+                wtgraph_ds = iter_group.create_dataset('wtgraph', (total_parents,), seg_id_dtype,
+                                                       compression='gzip', shuffle=True)
+                parents = numpy.empty((total_parents,), seg_id_dtype)
+                            
+                for (seg_id, segment) in enumerate(segments):
+                    offset = offsets[seg_id-1]
+                    extent = extents[seg_id]
+                    assert extent == len(segment.wtg_parent_ids)
                     assert extent > 0
-                    assert None not in segment.parent_ids
-                    assert segment.p_parent_id in segment.parent_ids
+                    assert None not in segment.wtg_parent_ids
                     
                     # Ensure that the primary parent is first in the list
-                    parents[offset] = segment.p_parent_id                
+                    parents[offset] = segment.parent_id                
                     if extent > 1:
-                        parent_ids = set(segment.parent_ids)
-                        parent_ids.remove(segment.p_parent_id)
+                        parent_ids = set(segment.wtg_parent_ids)
+                        parent_ids.remove(segment.parent_id)
                         parent_ids = list(sorted(parent_ids))
                         if extent == 2:
                             assert len(parent_ids) == 1
                             parents[offset+1] = parent_ids[0]
                         else:
                             parents[offset+1:offset+extent] = parent_ids
-                    assert set(parents[offset:offset+extent]) == segment.parent_ids
+                    assert set(parents[offset:offset+extent]) == set(segment.wtg_parent_ids)
                 
-                parents_ds[:] = parents                    
+                wtgraph_ds[:] = parents                    
     
-            # Since we accumulated many of these changes in RAM (and not directly in HDF5), propagate
-            # the changes out to HDF5
-            seg_index_table_ds[:] = seg_index_table
-            pcoord_ds[...] = pcoord
             
-            # A few explicit deletes
-            del seg_index_table, pcoord
         
     
     def get_iter_summary(self,n_iter):

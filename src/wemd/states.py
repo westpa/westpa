@@ -85,18 +85,29 @@ class InitialState:
                             simulation initialization).
     :ivar iter_used:        Iteration in which this state was used to initiate a
                             trajectory (None for unused).
-    :ivar pcoord:       The representative progress coordinate of this state.
+    :ivar type:             Integer describing the type of this initial state
+                            (ISTATE_TYPE_BASIS for direct use of a basis state, 
+                            ISTATE_TYPE_GENERATED for a state generated from a basis state).
+    :ivar pcoord:           The representative progress coordinate of this state.
     '''
-    def __init__(self, state_id, basis_state_id, iter_created, iter_used=None, pcoord=None, basis_state=None):
+    
+    ISTATE_TYPE_UNSET = 0
+    ISTATE_TYPE_BASIS = 1
+    ISTATE_TYPE_GENERATED = 2
+    
+    ISTATE_UNUSED = 0
+    
+    def __init__(self, state_id, basis_state_id, iter_created, iter_used=None, istate_type=None, pcoord=None, basis_state=None):
         self.state_id = state_id
         self.basis_state_id = basis_state_id
         self.basis_state=basis_state
+        self.istate_type = istate_type
         self.iter_created = iter_created
         self.iter_used = iter_used         
         self.pcoord = pcoord
         
     def __repr__(self): 
-        return ('{} state_id={self.state_id!r} basis_state_id={self.basis_state_id!r} iter_created={self.iter_created!r}>'
+        return ('{} state_id={self.state_id!r} type={self.type!r} basis_state_id={self.basis_state_id!r} iter_created={self.iter_created!r}>'
                 .format(object.__repr__(self)[:-1], self=self))
 
 class TargetState:

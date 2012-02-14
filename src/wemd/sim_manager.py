@@ -13,19 +13,18 @@ from wemd.util.miscfn import vgetattr
 
 from wemd.work_managers.ops import propagate as wm_propagate
 from wemd.work_managers.ops import prep_iter as wm_prep_iter
-from wemd.work_managers.ops import post_iter as wm_post_iter 
+from wemd.work_managers.ops import post_iter as wm_post_iter
+
+EPS = numpy.finfo(numpy.float64).eps 
 
 class WESimManager:
     def __init__(self):        
-        self.data_manager = None
-        self.we_driver = None
-        self.work_manager = None        
-        self.propagator = None
-        
-        self.system = None
-                        
-        self.status_stream = sys.stdout
-                
+        self.data_manager = wemd.rc.data_manager
+        self.we_driver = wemd.rc.we_driver
+        self.work_manager = wemd.rc.work_manager
+        self.propagator = wemd.rc.propagator
+        self.system = wemd.rc.system
+                                
         # A table of function -> list of (priority, name, callback) tuples
         self._callback_table = {}
         self._valid_callbacks = set((self.prepare_run, self.finalize_run,
@@ -33,6 +32,16 @@ class WESimManager:
                                      self.prepare_new_segments))
         self._callbacks_by_name = {fn.__name__: fn for fn in self._valid_callbacks}
         self._n_propagated = 0
+        
+        
+        self.n_iter = None
+        # List of target states
+        self.target_states = []
+        # A RegionSet describing the binning of segments on initial points
+        self.initial_binning = None
+        # A RegionSet describing the binning of segments on final points
+        self.final_binning = None
+        
         
     def register_callback(self, hook, function, priority=0):
         '''Registers a callback to execute during the given ``hook`` into the simulation loop. The optional
@@ -66,15 +75,40 @@ class WESimManager:
             log.info('loading plugin {!r}'.format(plugin_name))
             plugin = extloader.get_object(plugin_name)(self)
             log.debug('loaded plugin {!r}'.format(plugin))
+
+    def _init_run(self):
+        self.n_iter = self.data_manager.current_iteration
         
-    def flush_status(self):
-        try:
-            self.status_stream.flush()
-        except AttributeError:
-            pass
+    def _finalize_run(self):
+        pass
+
+    def _init_iteration(self):
+        
+        self.target_states = self.data_manager.get_target_states(self.n_iter)
+        self.initial_binning = self.system.new_region_set()
+        self.final_binning = self.system.new_region_set()
+                
+        segments = self.data_manager.get_segments(self.n_iter)
+        completed_segments = []
+        incomplete_segments = []
+        
+        for segment in segments:
+            if segment.status == Segment.SEG_STATUS_COMPLETE:
+                completed_segments.append(segment)
+            else:
+                incomplete_segments.append(segment)        
+        
+        self.initial_binning.assign_to_bins(segments, key=Segment.initial_pcoord)
+        self.final_binning.assign_to_bins(completed_segments, key=Segment.final_pcoord)
+        
     
-    def propagate(self, n_iter, segments):            
-        self.flush_status()
+    def _commit_iteration(self):
+        pass
+    
+
+            
+    def _propagate(self, n_iter, segments):            
+        wemd.rc.pflush()
         log.debug('propagating {:d} segments'.format(len(segments)))
         futures = []
         for segment in segments:
@@ -99,19 +133,15 @@ class WESimManager:
     # various hooks are called.
     def prepare_run(self):
         '''Prepare a new run.'''
-        self.propagator.system = self.system
-        self.data_manager.system = self.system
-        self.we_driver.system = self.system
-        
         self.data_manager.prepare_run()
         self.system.prepare_run()
         self._invoke_callbacks(self.prepare_run)
     
     def finalize_run(self):
         '''Perform cleanup at the normal end of a run'''
+        self._invoke_callbacks(self.finalize_run)
         self.system.finalize_run()
         self.data_manager.finalize_run()
-        self._invoke_callbacks(self.finalize_run)
         
     def prepare_iteration(self, n_iter, segments, partial):
         '''Perform customized processing/setup prior to propagation. Argument ``partial`` (True or False)
@@ -150,7 +180,7 @@ class WESimManager:
         max_walltime = wemd.rc.config.get_interval('limits.max_wallclock', default=None, type=float)
         if max_walltime:
             run_killtime = run_starttime + max_walltime
-            self.status_stream.write('Maximum wallclock time: %s\n' % timedelta(seconds=max_walltime or 0))
+            wemd.rc.pstatus('Maximum wallclock time: %s' % timedelta(seconds=max_walltime or 0))
         else:
             run_killtime = None
         iteration_elapsed = 0
@@ -170,26 +200,26 @@ class WESimManager:
                 
                 # Check to see if we will exceed the allowable wallclock time
                 if max_walltime and time.time() + 1.1*iteration_elapsed >= run_killtime:
-                    self.status_stream.write('Iteration %d would require more than the allotted time. Ending run.\n'
+                    wemd.rc.pstatus('Iteration %d would require more than the allotted time. Ending run.'
                                              % n_iter)
                     self.shutdown(0)
                     return
                 
                 # Record/report time and iteration number    
                 iteration_starttime = time.time()
-                self.status_stream.write('\n%s\n' % time.asctime())
-                self.status_stream.write('Iteration %d (%d requested)\n' % (n_iter, max_iter))
+                wemd.rc.pstatus('\n%s' % time.asctime())
+                wemd.rc.pstatus('Iteration %d (%d requested)' % (n_iter, max_iter))
                 
                 # Check probabilities and report
                 seg_weights = vgetattr('weight', segments, numpy.float64)
                 assert not (seg_weights == 0).any()
                 norm = seg_weights.sum()
-                self.status_stream.write('norm: %g, error in norm: %g\n' % (norm, norm-1))
+                wemd.rc.pstatus('norm: %g, error in norm: %g' % (norm, norm-1))
                 
                 # Determine how many segments remain in this iteration
                 segs_to_run = [segment for segment in segments if segment.status != Segment.SEG_STATUS_COMPLETE]
-                self.status_stream.write('%d of %d segments remain in iteration %d\n' % (len(segs_to_run), len(segments), n_iter))
-                partial_iteration = bool(not (len(segs_to_run) == len(segments)))
+                wemd.rc.pstatus('%d of %d segments remain in iteration %d' % (len(segs_to_run), len(segments), n_iter))
+                partial_iteration = (len(segs_to_run) != len(segments))
                 
                 self.prepare_iteration(n_iter, segments, partial_iteration)
                 
@@ -213,7 +243,7 @@ class WESimManager:
                     seg_probs  = vgetattr('weight', segments, numpy.float64)
                     bin_probs  = vgetattr('weight', bins, numpy.float64)
                     
-                    assert abs(1 - seg_probs.sum()) < 1.0e-15*len(segments)
+                    assert abs(1 - seg_probs.sum()) < EPS*len(segments)
                     
                     min_seg_prob = seg_probs[seg_probs!=0].min()
                     max_seg_prob = seg_probs.max()
@@ -222,24 +252,22 @@ class WESimManager:
                     max_bin_prob = bin_probs.max()
                     bin_drange = math.log(max_bin_prob/min_bin_prob)
                     n_pop = len(bin_counts[bin_counts!=0])
-                    self.status_stream.write('{:d} of {:d} ({:%}) active bins are populated\n'.format(n_pop, n_active_bins, 
+                    wemd.rc.pstatus('{:d} of {:d} ({:%}) active bins are populated'.format(n_pop, n_active_bins, 
                                                                                                       n_pop/n_active_bins))
-                    self.status_stream.write('per-bin minimum non-zero probability:       {:g}\n'.format(min_bin_prob))
-                    self.status_stream.write('per-bin maximum probability:                {:g}\n'.format(max_bin_prob))
-                    self.status_stream.write('per-bin probability dynamic range (kT):     {:g}\n'.format(bin_drange))
-                    self.status_stream.write('per-segment minimum non-zero probability:   {:g}\n'.format(min_seg_prob))
-                    self.status_stream.write('per-segment maximum non-zero probability:   {:g}\n'.format(max_seg_prob))
-                    self.status_stream.write('per-segment probability dynamic range (kT): {:g}\n'.format(seg_drange))
+                    wemd.rc.pstatus('per-bin minimum non-zero probability:       {:g}'.format(min_bin_prob))
+                    wemd.rc.pstatus('per-bin maximum probability:                {:g}'.format(max_bin_prob))
+                    wemd.rc.pstatus('per-bin probability dynamic range (kT):     {:g}'.format(bin_drange))
+                    wemd.rc.pstatus('per-segment minimum non-zero probability:   {:g}'.format(min_seg_prob))
+                    wemd.rc.pstatus('per-segment maximum non-zero probability:   {:g}'.format(max_seg_prob))
+                    wemd.rc.pstatus('per-segment probability dynamic range (kT): {:g}'.format(seg_drange))
                                         
                     iter_summary = self.data_manager.get_iter_summary(n_iter)
                     iter_summary['n_particles'] = len(segments)
                     iter_summary['norm'] = norm
                     iter_summary['min_bin_prob'] = min_bin_prob
                     iter_summary['max_bin_prob'] = max_bin_prob
-                    iter_summary['bin_dyn_range'] = bin_drange
                     iter_summary['min_seg_prob'] = min_seg_prob
                     iter_summary['max_seg_prob'] = max_seg_prob
-                    iter_summary['seg_dyn_range'] = seg_drange
                     self.data_manager.update_iter_summary(n_iter, iter_summary)
                 
                 # Allow the user to run only one segment to aid in debugging propagators
@@ -249,7 +277,7 @@ class WESimManager:
                     segments_run = self.propagate(n_iter, segs_to_run[0:1])                
                     if len(segs_to_run) > 1:
                         # Exit cleanly after one segment, but only if we haven't finished the last segment in an iteration
-                        # In that case, go ahead and run WE
+                        # In the latter case, go ahead and run WE
                         break
                 else:
                     segments_run = self.propagate(n_iter, segs_to_run)
@@ -266,9 +294,9 @@ class WESimManager:
                 # Check to ensure that all segments have been propagated                    
                 failed_segments = [segment for segment in segments if segment.status != Segment.SEG_STATUS_COMPLETE]
                 if failed_segments:
-                    self.status_stream.write('Propagation FAILED for %d segments:\n' % len(failed_segments))
+                    wemd.rc.pstatus('Propagation FAILED for %d segments:' % len(failed_segments))
                     for failed_segment in failed_segments:
-                        self.status_stream.write('  %d\n' % failed_segment.seg_id)
+                        wemd.rc.pstatus('  %d' % failed_segment.seg_id)
                     raise RuntimeError('propagation failed for %d segments' % len(failed_segments))
                 
                 region_set = self.system.region_set
@@ -328,7 +356,7 @@ class WESimManager:
                 
                 seg_probs  = vgetattr('weight', segments, numpy.float64)
                 bin_probs  = vgetattr('weight', bins, numpy.float64)
-                assert abs(seg_probs.sum() - 1) < 1.0e-15*len(segments)
+                assert abs(seg_probs.sum() - 1) < EPS*len(segments)
                                         
                 self.prepare_we(n_iter, segments)
 
@@ -336,7 +364,7 @@ class WESimManager:
                 bin_probs  = vgetattr('weight', bins, numpy.float64)
                 log.debug('norm of seg probs prior to WE: {:20.16f}'.format(seg_probs.sum()))
                 log.debug('norm of bin probs prior to WE: {:20.16f}'.format(bin_probs.sum()))
-                assert abs(seg_probs.sum() - 1) < 1.0e-15*len(segments)
+                assert abs(seg_probs.sum() - 1) < EPS*len(segments)
                 
                 # Run the weighted ensemble algorithm
                 next_iter_segments = self.we_driver.run_we(segments, self.system.region_set)
@@ -346,7 +374,7 @@ class WESimManager:
                 log.debug('norm of seg probs after WE: {:20.16f}'.format(next_seg_probs.sum()))
                 log.debug('norm of bin probs after WE: {:20.16f}'.format(bin_probs.sum()))
                 
-                assert abs(next_seg_probs.sum() - 1) < 1.0e-15*len(next_iter_segments)
+                assert abs(next_seg_probs.sum() - 1) < EPS*len(next_iter_segments)
                                 
                 # ``segments`` is still set of segments in just-completed iteration, 
                 # but now ``region_set`` contains next iteration's segments
@@ -356,22 +384,22 @@ class WESimManager:
                 P_recycled = sum(dest.weight for dest in self.we_driver.recycle_to)                            
                 if n_recycled > 0:
                     P_recycled = sum(dest.weight for dest in self.we_driver.recycle_to)
-                    self.status_stream.write('%d particles (%g probability) recycled\n' % (n_recycled, P_recycled))
+                    wemd.rc.pstatus('%d particles (%g probability) recycled' % (n_recycled, P_recycled))
                     log.debug('from: %r' % self.we_driver.recycle_from)
                     log.debug('to:   %r' % self.we_driver.recycle_to)
                     for isrc,src in enumerate(self.we_driver.recycle_from):
-                        self.status_stream.write("  {0.count:d} ({0.weight:g} probability) from region {1:d} '{2}'\n"\
+                        wemd.rc.pstatus("  {0.count:d} ({0.weight:g} probability) from region {1:d} '{2}'"\
                                                  .format(src,isrc,self.system.target_states[isrc].label))
                         
                     for idest, dest in enumerate(self.we_driver.recycle_to):
-                        self.status_stream.write(("  {0.count:d} ({0.weight:g} probability,"
-                                                  +" {1:%} of recycled particles) to state '{2}'\n")\
+                        wemd.rc.pstatus(("  {0.count:d} ({0.weight:g} probability,"
+                                                  +" {1:%} of recycled particles) to state '{2}'")\
                                                  .format(dest, dest.count/n_recycled,
                                                          self.system.initial_states[idest].label))
                 else:
-                    self.status_stream.write('0 particles recycled\n')
+                    wemd.rc.pstatus('0 particles recycled')
                     
-                self.status_stream.write('%d trajectory segments in next iteration\n' % len(next_iter_segments))
+                wemd.rc.pstatus('%d trajectory segments in next iteration' % len(next_iter_segments))
                 
                 # Store recycling information in HDF5, but only if we actually have targets
                 iter_summary = self.data_manager.get_iter_summary(n_iter)                
@@ -434,7 +462,7 @@ class WESimManager:
                 except ValueError:
                     cputime = 0.0                     
                     
-                self.status_stream.write('Iteration wallclock: {0!s}, cputime: {1!s}\n'\
+                wemd.rc.pstatus('Iteration wallclock: {0!s}, cputime: {1!s}'\
                                           .format(walltime,
                                                   cputime))
                 
@@ -443,7 +471,7 @@ class WESimManager:
                 n_iter += 1
                 self.data_manager.current_iteration = n_iter
                 self.data_manager.flush_backing()
-                self.flush_status()
+                wemd.rc.pflush()
                 
                 # Update segments list for next iteration
                 segments = next_iter_segments            
@@ -455,8 +483,8 @@ class WESimManager:
             self.data_manager.flush_backing()
             self.data_manager.close_backing()
         
-        self.status_stream.write('\n%s\n' % time.asctime())
-        self.status_stream.write('WEMD run complete.\n')
+        wemd.rc.pstatus('\n%s' % time.asctime())
+        wemd.rc.pstatus('WEMD run complete.')
     # end WESimManager.run()
 # end SimManager
     

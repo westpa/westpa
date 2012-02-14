@@ -3,16 +3,19 @@ import numpy
 from math import isnan
 
 class Segment:
+    '''A class wrapping segment data that must be passed through the work manager or data manager.
+    Most fields are self-explanatory.  One item worth noting is that a negative parent ID means that
+    the segment starts from the initial state with ID -(segment.parent_id+1)
+    '''
+    
     SEG_STATUS_UNSET    = 0
     SEG_STATUS_PREPARED = 1
-    SEG_STATUS_RUNNING  = 2
-    SEG_STATUS_COMPLETE = 3
-    SEG_STATUS_FAILED   = 4
+    SEG_STATUS_COMPLETE = 2
+    SEG_STATUS_FAILED   = 3
     
     SEG_INITPOINT_UNSET = 0
     SEG_INITPOINT_CONTINUES = 1
-    SEG_INITPOINT_BASIS = 2
-    SEG_INITPOINT_GENERATED = 3
+    SEG_INITPOINT_NEWTRAJ = 2
     
     SEG_ENDPOINT_UNSET = 0
     SEG_ENDPOINT_CONTINUES = 1
@@ -38,10 +41,11 @@ class Segment:
         'Return the final progress coordinate point of this segment.'
         return segment.pcoord[-1]
     
-    def __init__(self, n_iter = None, seg_id = None, status = None, 
-                 n_parents = None, p_parent_id = None, parent_ids = None,
-                 initpoint_type = None, endpoint_type = None, 
-                 weight = None, pcoord = None, walltime = None, cputime = None,
+    def __init__(self, n_iter = None, seg_id = None, weight = None, 
+                 endpoint_type = None,
+                 parent_id = None,  wtg_parent_ids = None, 
+                 pcoord = None, 
+                 status = None, walltime = None, cputime = None,
                  data = None):
         # NaNs appear sometimes if a WEMD program is terminated unexpectedly; replace with zero
         walltime = 0.0 if walltime is None or isnan(walltime) else walltime
@@ -53,22 +57,35 @@ class Segment:
         self.n_iter = int(n_iter)  if n_iter is not None else None
         self.seg_id = long(seg_id) if seg_id is not None else None
         self.status = int(status)  if status is not None else None
-        self.p_parent_id = long(p_parent_id) if p_parent_id is not None else None
-        self.parent_ids = set(map(long,parent_ids)) if parent_ids else set()
-        self.n_parents = int(n_parents) if n_parents else len(self.parent_ids)
-        self.initpoint_type = int(initpoint_type) if initpoint_type else self.SEG_INITPOINT_UNSET
+        self.parent_id = long(parent_id) if parent_id is not None else None
         self.endpoint_type = int(endpoint_type) if endpoint_type else self.SEG_ENDPOINT_UNSET
         
         self.weight = float(weight) if weight is not None else None
+        self.wtg_parent_ids = set(wtg_parent_ids or ())
+        
         self.pcoord = numpy.asarray(pcoord) if pcoord is not None else None
         self.walltime = walltime
         self.cputime = cputime
         self.data = data if data else {}
 
     def __repr__(self):
-        return '<%s(%s) n_iter=%r seg_id=%r weight=%r p_parent_id=%r parent_ids=%r>' \
+        return '<%s(%s) n_iter=%r seg_id=%r weight=%r parent_id=%r wtg_parent_ids=%r>' \
                % (self.__class__.__name__, hex(id(self)),
-                  self.n_iter, self.seg_id, self.weight, self.p_parent_id, tuple(sorted(self.parent_ids)))
+                  self.n_iter, self.seg_id, self.weight, self.parent_id, tuple(self.wtg_parent_ids or ()))
+               
+    @property
+    def initpoint_type(self):
+        if self.seg_id < 0:
+            return Segment.SEG_INITPOINT_NEWTRAJ
+        else:
+            return Segment.SEG_INITPOINT_CONTINUES
+        
+    @property
+    def initial_state_id(self):
+        if self.parent_id < 0:
+            return -(self.parent_id+1)
+        else:
+            return None        
             
     status_text = property((lambda s: s.status_names[s.status]))
     endpoint_type_text = property((lambda s: s.endpoint_type_names[s.endpoint_type]))

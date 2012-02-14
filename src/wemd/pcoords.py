@@ -20,6 +20,10 @@ class ParticleCollection:
         # Degenerate case to terminate recursive descent
         return [self] * len(coords)
     
+    @property
+    def bins(self):
+        return [self]
+    
     def get_all_bins(self):
         return [self]
     
@@ -227,6 +231,19 @@ class RegionSet:
         for bin, item in zip(bins, items):
             bin.add(item)
         return bins
+    
+    @property
+    def bins(self):
+        for region in self.regions:
+            for bin in region.bins:
+                yield bin
+                
+    @property
+    def particles(self):
+        for region in self.regions:
+            for bin in region.bins:
+                for particle in bin:
+                    yield particle
 
     def get_all_bins(self):
         """Get a list of all bins contained in this RegionSet, descending depth-first"""
@@ -321,7 +338,7 @@ class PiecewiseRegionSet(RegionSet):
                 raise ValueError('coordinate ({!r}) outside of bin space'.format(coord))
 
         return region_indices
-        
+            
 class RectilinearRegionSet(RegionSet):
     """A multidimensional RegionSet divided by rectilinear (interior) boundaries"""
     

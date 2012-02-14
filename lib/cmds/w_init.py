@@ -100,8 +100,6 @@ if work_manager.mode == work_manager.MODE_MASTER:
         
         # Calculate progress coordinates
         sys.stdout.write('Calculating progress coordinate values for basis states.\n')
-        #for basis_state in basis_states:
-        #    propagator.get_pcoord(basis_state)
         futures = [work_manager.submit(ops.get_pcoord, propagator, basis_state) for basis_state in basis_states]
         fmap = {future: i for i,future in enumerate(futures)}
         for future in work_manager.as_completed(futures):
@@ -143,19 +141,26 @@ if work_manager.mode == work_manager.MODE_MASTER:
         sys.stdout.write('\n')
         
         # Prepare simulation
-        region_set = system.new_region_set()
+        
         
         sys.stdout.write('Preparing initial states\n')
         segs_per_state = args.segs_per_state
         segments = []
         initial_states = []
+        if gen_istates:
+            istate_type = InitialState.ISTATE_TYPE_GENERATED
+        else:
+            istate_type = InitialState.ISTATE_TYPE_BASIS
+            
         for basis_state in basis_states:
             for iseg in xrange(segs_per_state):
-                init_state_id = data_manager.alloc_initial_states(1)[0]
+                initial_state = data_manager.create_initial_states(0,1)[0]
+                initial_state.basis_state_id =  basis_state.state_id
+                initial_state.basis_state = basis_state
+                initial_state.istate_type = istate_type
                 segment = Segment(weight=basis_state.probability/segs_per_state,pcoord=system.new_pcoord_array(),
-                                  p_parent_id=init_state_id, n_parents=1, parent_ids=(init_state_id,))
-                initial_state = InitialState(state_id=init_state_id, basis_state_id=basis_state.state_id, iter_created=0,
-                                             basis_state=basis_state)
+                                  parent_id=-(initial_state.state_id+1), wtg_parent_ids=(-(initial_state.state_id+1),),
+                                  )
                 initial_states.append(initial_state)
                 segments.append(segment)
                 
@@ -172,8 +177,8 @@ if work_manager.mode == work_manager.MODE_MASTER:
                 segment.pcoord[0] = basis_state.pcoord
                     
                 
-        data_manager.save_initial_states(initial_states)
-                
+        data_manager.update_initial_states(initial_states, n_iter=0)
+        
         # Make sure we have a norm of 1
         tprob = sum(segment.weight for segment in segments)
         if abs(1.0 - tprob) > len(segments) * EPS:
@@ -182,31 +187,30 @@ if work_manager.mode == work_manager.MODE_MASTER:
             for segment in segments:
                 segment.weight *= pscale
         
-        all_bins = region_set.get_all_bins()
-        region_set.assign_to_bins(segments, key=Segment.initial_pcoord)
-                
+        
         if args.run_we:
             # TODO: what to do if something winds up in a recycling region?
             # At the moment, fail with an exception
-            segments = we_driver.run_we(segments, region_set)
+            region_set = system.new_region_set()
+            new_region_set = we_driver.run_we(region_set, segments)
+            all_bins = new_region_set.get_all_bins()
+        else:
+            new_region_set = system.new_region_set()
+            new_region_set.assign_to_bins(segments, key=Segment.initial_pcoord)
         
+        all_bins = new_region_set.get_all_bins()
         bin_occupancies = numpy.array(map(operator.attrgetter('count'), all_bins))
         target_occupancies = numpy.array(map(operator.attrgetter('target_count'), all_bins))
-        
-        if gen_istates:
-            initpoint_type = Segment.SEG_INITPOINT_GENERATED
-        else:
-            initpoint_type = Segment.SEG_INITPOINT_BASIS
-            
+        segments = list(new_region_set.particles)
+                    
         for segment in segments:
             segment.n_iter = 1
             segment.status = Segment.SEG_STATUS_PREPARED
-            segment.initpoint_type = initpoint_type
-            assert segment.p_parent_id is not None
-            initial_states[segment.p_parent_id].iter_used = 1
+            assert segment.parent_id < 0
+            initial_states[segment.initial_state_id].iter_used = 1
                     
         data_manager.prepare_iteration(1, segments)
-        data_manager.save_initial_states(initial_states)
+        data_manager.update_initial_states(initial_states, n_iter=0)
                     
         if wemd.rc.verbose_mode:
             sys.stdout.write('\nSegments generated:\n')

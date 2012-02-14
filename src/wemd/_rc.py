@@ -44,8 +44,15 @@ class _WEMDRC:
         self.process_name = os.path.splitext(os.path.basename(sys.argv[0]))[0]
     
         self._work_manager_args_added = False
-        self.work_manager = None
-        self.system = None
+
+        self._work_manager = None
+        self._system = None
+        self._data_manager = None
+        self._sim_manager = None
+        self._we_driver = None
+        self._propagator = None
+        
+        self.status_stream = sys.stdout
         
     def add_args(self, parser):
         group = parser.add_argument_group('general options')
@@ -151,26 +158,41 @@ class _WEMDRC:
         logging_config['incremental'] = True
         
     def pstatus(self, *args, **kwargs):
-        fileobj = kwargs.get('file', sys.stdout)
+        fileobj = kwargs.pop('file', self.status_stream)
         if kwargs.get('termonly', False) and not fileobj.isatty():
             return
         if self.verbosity != 'quiet':
-            print(*args, **kwargs)
+            print(*args, file=fileobj, **kwargs)
+            
+    def pstatus_term(self, *args, **kwargs):
+        fileobj = kwargs.pop('file', self.status_stream)
+        if fileobj.isatty() and self.verbosity != 'quiet':
+            print(*args, file=fileobj, **kwargs)
         
     def pflush(self):
-        sys.stdout.flush()
-        sys.stderr.flush()
-        
-    def get_sim_manager(self):
+        for stream in (self.status_stream, sys.stdout, sys.stderr):
+            try:
+                stream.flush()
+            except AttributeError:
+                pass
+            
+    def new_sim_manager(self):
         drivername = self.config.get('drivers.sim_manager', 'default')
         if drivername.lower() == 'default':
             from wemd.sim_manager import WESimManager
-            return WESimManager()
+            sim_manager = WESimManager()
         else:
             pathinfo = self.config.get_pathlist('drivers.module_path')
-            return extloader.get_object(drivername,pathinfo)()
+            sim_manager = extloader.get_object(drivername,pathinfo)()
+        log.debug('loaded simulation manager {!r}'.format(sim_manager))
+        return sim_manager
         
-    def get_data_manager(self):
+    def get_sim_manager(self):
+        if self._sim_manager is None:
+            self._sim_manager = self.new_sim_manager()
+        return self._sim_manager
+
+    def new_data_manager(self):
         drivername = self.config.get('drivers.data_manager', 'hdf5')
         if drivername.lower() in ('hdf5', 'default'):
             data_manager = wemd.data_manager.WEMDDataManager()
@@ -179,8 +201,13 @@ class _WEMDRC:
             data_manager = extloader.get_object(drivername, pathinfo)()
         log.debug('loaded data manager: {!r}'.format(data_manager))
         return data_manager
-
-    def get_we_driver(self):
+        
+    def get_data_manager(self):
+        if self._data_manager is None:
+            self._data_manager = self.new_data_manager()
+        return self._data_manager
+    
+    def new_we_driver(self):
         drivername = self.config.get('drivers.we_driver', 'default')
         if drivername.lower() == 'default':
             we_driver = wemd.we_driver.WEMDWEDriver()
@@ -189,40 +216,45 @@ class _WEMDRC:
             we_driver = extloader.get_object(drivername, pathinfo)()
         log.debug('loaded WE algorithm driver: {!r}'.format(we_driver))
         return we_driver
-
-    def get_work_manager(self):
-        if self.work_manager:
-            return self.work_manager
-        else:
-            drivername = self.config.get('args.work_manager_name')
-            if not drivername:
-                drivername = self.config.get('drivers.work_manager', 'default')
-            ldrivername = drivername.lower()
-            if ldrivername == 'default':
-                ldrivername = self.DEFAULT_WORK_MANAGER
-                
-            if ldrivername == 'serial':
-                import wemd.work_managers.serial
-                work_manager = wemd.work_managers.serial.SerialWorkManager()
-            elif ldrivername == 'threads':
-                import wemd.work_managers.threads
-                work_manager = wemd.work_managers.threads.ThreadsWorkManager()
-            elif ldrivername == 'processes':
-                import wemd.work_managers.processes
-                work_manager = wemd.work_managers.processes.ProcessWorkManager()
-            elif ldrivername in ('zmq', 'zeromq', '0mq'):
-                import wemd.work_managers.zeromq
-                work_manager = wemd.work_managers.zeromq.ZMQWorkManager()
-            elif '.' in ldrivername:
-                pathinfo = self.config.get_pathlist('drivers.module_path', default=None)
-                work_manager = extloader.get_object(drivername, pathinfo)()
-            else:
-                raise ValueError('unknown work manager {!r}'.format(drivername))
-            log.debug('loaded work manager: {!r}'.format(work_manager))
-            self.work_manager = work_manager
-            return work_manager
+        
+    def get_we_driver(self):
+        if self._we_driver is None:
+            self._we_driver = self.new_we_driver()
+        return self._we_driver
     
-    def get_propagator(self):
+    def new_work_manager(self):
+        drivername = self.config.get('args.work_manager_name')
+        if not drivername:
+            drivername = self.config.get('drivers.work_manager', 'default')
+        ldrivername = drivername.lower()
+        if ldrivername == 'default':
+            ldrivername = self.DEFAULT_WORK_MANAGER
+        if ldrivername == 'serial':
+            import wemd.work_managers.serial
+            work_manager = wemd.work_managers.serial.SerialWorkManager()
+        elif ldrivername == 'threads':
+            import wemd.work_managers.threads
+            work_manager = wemd.work_managers.threads.ThreadsWorkManager()
+        elif ldrivername == 'processes':
+            import wemd.work_managers.processes
+            work_manager = wemd.work_managers.processes.ProcessWorkManager()
+        elif ldrivername in ('zmq', 'zeromq', '0mq'):
+            import wemd.work_managers.zeromq
+            work_manager = wemd.work_managers.zeromq.ZMQWorkManager()
+        elif '.' in ldrivername:
+            pathinfo = self.config.get_pathlist('drivers.module_path', default=None)
+            work_manager = extloader.get_object(drivername, pathinfo)()
+        else:
+            raise ValueError('unknown work manager {!r}'.format(drivername))
+        log.debug('loaded work manager: {!r}'.format(work_manager))
+        return work_manager
+        
+    def get_work_manager(self):
+        if self._work_manager is None:
+            self._work_manager = self.new_work_manager()
+        return self._work_manager
+    
+    def new_propagator(self):
         drivername = self.config.require('drivers.propagator')
         if drivername.lower() == 'executable':
             import wemd.propagators.executable
@@ -232,19 +264,31 @@ class _WEMDRC:
             propagator = extloader.get_object(drivername, pathinfo)()
         log.debug('loaded propagator {!r}'.format(propagator))
         return propagator
+        
+    def get_propagator(self):
+        if self._propagator is None:
+            self._propagator = self.new_propagator()
+        return self._propagator
+            
+    def new_system_driver(self):
+        sysdrivername = self.config.require('system.system_driver')
+        log.info('loading system driver %r' % sysdrivername)
+        pathinfo = self.config.get_pathlist('system.module_path', default=None)
+        pathinfo.append(os.environ.get('WEMD_SIM_ROOT', '.'))
+
+        system = extloader.get_object(sysdrivername, pathinfo)()
+        system.initialize()
+        log.debug('loaded system driver {!r}'.format(system))        
+        return system
     
     def get_system_driver(self):
-        if self.system is None:
-            sysdrivername = self.config.require('system.system_driver')
-            log.info('loading system driver %r' % sysdrivername)
-            pathinfo = self.config.get_pathlist('system.module_path', default=None)
-            pathinfo.append(os.environ.get('WEMD_SIM_ROOT', '.'))
+        if self._system is None:
+            self._system = self.new_system_driver()
+        return self._system
     
-            system = extloader.get_object(sysdrivername, pathinfo)()
-
-            log.debug('loaded system driver {!r}'.format(system))
-            
-            log.debug('initializing system driver')
-            system.initialize()
-            self.system = system
-        return self.system
+    work_manager = property(get_work_manager)
+    propagator = property(get_propagator)
+    we_driver = property(get_we_driver)
+    system = property(get_system_driver)
+    data_manager = property(get_data_manager)
+    sim_manager = property(get_sim_manager)

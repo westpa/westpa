@@ -22,35 +22,73 @@ class WEMDWEDriver:
     def __init__(self):
         self.system = wemd.rc.get_system_driver()
         
-        # (count recycled, probability recycled) tuples
-        self.recycle_from = list()
+        # RegionSet containing binned segments from concluded iteration (reset on entry to run_we)
+        # These segments will have their endpoint_type field set appropriately on exit from run_we()
+        self.completed_segs_rset = None
         
-        # (count_recycled, probability recycled) lists
-        self.recycle_to = list()
+        # A mapping of seg_id to the corresponding segment among those from self.completed_segs_rset
+        self.completed_segs_map = None
+        
+        # RegionSet containing binned segments for new iteration, with parent_ids (corresponding to segments
+        # in self.completed_segs_rset set) describing how the new segments were constructed (i.e. continuation/split/merge)
+        # These segments have their initpoint_type field set appropriately on exit from run_we()
+        # reset on entry to run_we()
+        self.new_iter_rset = None
+        
+        
                         
-    def run_we(self, segments, region_set):
-        '''Run the weighted ensemble algorithm on the given segments, binning on their final
-        positions.  The endpoint_type field of each segment is updated appropriately.  Returns the
-        new set of segments to be propagated. Segments must already be in appropriate bins in the
-        provided region_set prior to calling this function.'''
+    def run_we(self, region_set, new_trajectory_segs):
+        '''Run weighted ensemble split/merge on the segments in the given ``region_set``, setting their
+        ``endpoint_type`` field appropriately.  The region set must not contain any segments in regions
+        with zero target count, so recycling must be handled prior to calling this function. To 
+        assist in recycling probability to newly-created trajectoryies, the given ``new_trajectory_segs``
+        are assumed to start new trajectories for the next iteration, and will be considered in particles-per-bin
+        and weight calculations. 
         
-        segments = list(segments)
+        Note that clever use of ``new_trajectory_segs`` could be used to inject new
+        trajectories into a running weighted ensemble simulation -- e.g. simulating pulses of reactants being
+        added -- if proper normalization (sum of weights in region_set + sum of weights in new_trajectory_segs = 1)
+        occurs prior to calling this function.
+        '''
         
-        # Everything continues unless it gets split, merged, or recycled
-        for segment in segments:
-            segment.endpoint_type = Segment.SEG_ENDPOINT_CONTINUES
-                                    
-        bins = numpy.array(region_set.get_all_bins(), numpy.object_)
+        del self.completed_segs_rset, self.new_iter_rset, self.completed_segs_map
+        self.completed_segs_rset = region_set
+        self.new_iter_rset = self.system.new_region_set()
+        completed_segs_map = self.completed_segs_map = dict()
         
-        # Sanity check
-        bin_counts = vgetattr('count', bins)
-        target_counts = vgetattr('target_count', bins)            
-        if bin_counts[target_counts == 0].any():
-            raise ValueError('simulation in forbidden region')
+        prev_iter_bins = region_set.get_all_bins()
+        next_iter_bins = self.new_iter_rset.get_all_bins()
+        
+        # Check to make sure that no simulations exist where there should not be any.
+        for bin in region_set.bins:
+            if bin.target_count == 0 and bin.weight > 0:
+                raise ValueError('a forbidden region ({!r}) is populated'.format(bin))
+        
+        # Assume until splits/merges that everything from the last propagation phase will continue in the next
+        # propagation phase.
+        for ibin, bin in enumerate(prev_iter_bins):
+            for segment in bin:
+                segment.endpoint_type = Segment.SEG_ENDPOINT_CONTINUES
+                
+                new_segment = Segment(parent_id=segment.seg_id,
+                                      weight=segment.weight,
+                                      wtg_parent_ids=[segment.seg_id],
+                                      pcoord=self.system.new_pcoord_array())
+                new_segment.pcoord[0,:] = segment.pcoord[-1,:]
+                
+                next_iter_bins[ibin].add(new_segment)
+                completed_segs_map[segment.seg_id] = segment
+                
+        # New trajectory segments should be ready to go, with appropriate values set
+        # for initpoint_type
+        if __debug__:
+            for segment in new_trajectory_segs:
+                assert segment.initpoint_type == Segment.SEG_INITPOINT_NEWTRAJ 
+        self.new_iter_rset.assign_to_bins(new_trajectory_segs, key=Segment.initial_pcoord)
         
         # Regardless of current particle count, always split overweight particles and merge underweight particles
         # Then and only then adjust for correct particle count
-        for (ibin,bin) in enumerate(bins):
+        for (ibin,bin) in enumerate(next_iter_bins):
             if bin.count == 0: continue
             if bin.label is None: bin.label = str(ibin)
             self._log_bin_stats(bin, 'entering WE')
@@ -60,26 +98,9 @@ class WEMDWEDriver:
             self._log_bin_stats(bin, 'after merge by weight')
             self.adjust_count(bin)
             self._log_bin_stats(bin, 'after count adjustment')
+            
+        return self.new_iter_rset
                             
-        new_segments = []
-        new_pcoord_array = self.system.new_pcoord_array
-        for segment in chain(*bins):
-            if segment.seg_id is not None:
-                # A simple continuation; we need to create a new segment for it here
-                new_segment = Segment(weight = segment.weight,
-                                      pcoord = new_pcoord_array(),
-                                      p_parent_id = segment.seg_id,
-                                      parent_ids = [segment.seg_id])
-                new_segment.pcoord[0] = segment.pcoord[-1]
-                new_segments.append(new_segment)
-            else:
-                # A segment resulting from recycling, splitting, or merging;
-                # There is no need to create a new segment
-                assert segment.p_parent_id is not None
-                assert segment.p_parent_id in segment.parent_ids
-                assert segment.pcoord is not None
-                new_segments.append(segment)
-        return new_segments
     
     def _log_bin_stats(self, bin, heading=None, level=logging.DEBUG):
         if log.isEnabledFor(level):
@@ -99,50 +120,7 @@ class WEMDWEDriver:
                                      mean_weight = weights.mean(), stdev_weight = weights.std(),
                                      min_weight = weights[0], median_weight=numpy.median(weights), max_weight=weights[-1])
             log.log(level, log_msg)
-        
-    def recycle_particles(self, segments, target_states):
-        '''Create new particles with the weight of the given particles whose progress coordinates are 
-        chosen probabilistically from the set of initial states.'''
-        
-        system = self.system
-        for (itarget, target_state) in enumerate(target_states):
-            bin = target_state.bin
-            
-            if log.isEnabledFor(logging.DEBUG):
-                log.debug('{0.count:d} particles recycled from bin {0!r}'.format(bin))
-            
-            if bin.count == 0:
-                continue
-            
-            self.recycle_from[itarget] = (bin.count, bin.weight)
-            
-            new_segments = []
-            for segment in bin:
-                segment.endpoint_type = Segment.SEG_ENDPOINT_RECYCLED
-                new_segment = Segment(weight = segment.weight,
-                                      pcoord = system.new_pcoord_array())
-                new_segments.append(new_segment)
-            
-            rstates = [(istate, state) for (istate,state) in enumerate(system.initial_states) if state.recycle_prob > 0]
-            
-            # Sequentially add probabilities for initial states.
-            state_disc = numpy.add.accumulate([state.recycle_prob for (istate,state) in rstates])
-            
-            # Generate one random number for each segment being recycled from this bin
-            # Bin on (0, state_disc[-1]) in case probabilities don't sum to exactly one
-            irstates = numpy.digitize(numpy.random.uniform(0, state_disc[-1], size=bin.count),state_disc)
-            
-            for (new_segment,irstate) in izip(new_segments,irstates):
-                iistate, istate = rstates[irstate]
-                p_parent_id = -(iistate+1)
-                new_segment.pcoord[0] = istate.pcoord[:]
-                new_segment.p_parent_id = p_parent_id
-                new_segment.parent_ids = set((p_parent_id,))
-                self.recycle_to[iistate][0] += 1
-                self.recycle_to[iistate][1] += new_segment.weight
-                istate.bin.add(new_segment)
-            bin.clear()
-            
+                    
     def split_by_weight(self, bin):
         '''Split overweight particles'''
         target_count = bin.target_count
@@ -150,24 +128,18 @@ class WEMDWEDriver:
         
         segments = numpy.array(sorted(bin, key=operator.attrgetter('weight')), dtype=numpy.object_)
         weights = numpy.array(map(operator.attrgetter('weight'), segments))
+        to_split = segments[weights > self.weight_split_threshold*ideal_weight]
         
-        for segment in segments[weights > self.weight_split_threshold * ideal_weight]:
-            segment.endpoint_type = Segment.SEG_ENDPOINT_CONTINUES
+        for segment in to_split:
             bin.remove(segment)
             m = int(ceil(segment.weight / ideal_weight))
             new_segments = []
-            new_weight = segment.weight / m
-            if segment.seg_id is not None:
-                new_pcoord = segment.pcoord[-1]
-            else:
-                new_pcoord = segment.pcoord[0]
-            new_parent_id = segment.seg_id if segment.seg_id is not None else segment.p_parent_id
             for inew in xrange(0,m):
-                new_segment = Segment(weight = new_weight,
-                                      p_parent_id = new_parent_id,
-                                      parent_ids = [new_parent_id],
-                                      pcoord = self.system.new_pcoord_array())
-                new_segment.pcoord[0] = new_pcoord
+                new_segment = Segment(weight = segment.weight / m,
+                                      parent_id = segment.parent_id,
+                                      wtg_parent_ids = set(segment.wtg_parent_ids),
+                                      pcoord = segment.pcoord.copy())
+                new_segment.pcoord[0,:] = segment.pcoord[0,:]
                 new_segments.append(new_segment)
             
             if log.isEnabledFor(logging.DEBUG):
@@ -179,60 +151,62 @@ class WEMDWEDriver:
         target_count = bin.target_count
         ideal_weight = bin.weight / target_count
         
-        segments = numpy.array(sorted(bin, key=operator.attrgetter('weight')), dtype=numpy.object_)
-        weights = numpy.array(map(operator.attrgetter('weight'), segments))
-        cumul_weight = numpy.add.accumulate(weights)
         
-        to_merge = segments[cumul_weight <= ideal_weight*self.weight_merge_cutoff]
-        if len(to_merge) < 2:
-            return
-        else:
-            to_merge_ids = [segment.seg_id if segment.seg_id is not None else segment.p_parent_id for segment in to_merge]
+        while True:
+            segments = numpy.array(sorted(bin, key=operator.attrgetter('weight')), dtype=numpy.object_)
+            weights = numpy.array(map(operator.attrgetter('weight'), segments))
+            cumul_weight = numpy.add.accumulate(weights)
+            
+            to_merge = segments[cumul_weight <= ideal_weight*self.weight_merge_cutoff]
+            if len(to_merge) < 2:
+                return
+            
+            assert cumul_weight[len(to_merge)-1] == sum(weights[:len(to_merge)])
+            glom = Segment(weight = cumul_weight[len(to_merge)-1])
+            # This selects the proper parent, randomly, according to the relative weights of the
+            # particles to be merged. To prove empirically that this works (if logical proof isn't
+            # satisfying), do the following:
+            #>>> weights = numpy.array([0.01,0.02,0.04,0.2,0.2])
+            #>>> weights
+            #array([ 0.01,  0.02,  0.04,  0.2 ,  0.2 ])
+            #>>> cumul_weight = numpy.add.accumulate(weights)
+            #>>> cumul_weight
+            #array([ 0.01,  0.03,  0.07,  0.27,  0.47])
+            #>>> glom_weight = cumul_weight[3-1]
+            #>>> glom_weight
+            #0.070000000000000007
+            #>>> for i in xrange(0,700000): idx = numpy.digitize((random.uniform(0,glom_weight),),cumul_weight[:3])[0]; counts[idx] += 1;
+            #>>> 
+            #>>> counts / float(sum(counts))
+            #array([ 0.142598,  0.285781,  0.571621])
+            #>>> 1/7.0, 2/7.0, 4/7.0
+            #(0.14285714285714285, 0.2857142857142857, 0.5714285714285714)
+    
+            iparent = numpy.digitize((random.uniform(0,glom.weight),),cumul_weight[:len(to_merge)])[0]
+            glom.pcoord = to_merge[iparent].pcoord.copy()
+            # Set the parent_id field, which tracks trajectory history
+            glom.parent_id = to_merge[iparent].parent_id
+            # Set the wtg_parent_ids field, which tracks probability flow
+            glom.wtg_parent_ids = set()
+            for parent in to_merge:
+                glom.wtg_parent_ids |= parent.wtg_parent_ids
+            
+            if log.isEnabledFor(logging.DEBUG):
+                log.debug('merging ({:d}) {!r} into {!r}'.format(len(to_merge), to_merge, glom))
+            
+            for merged in to_merge:
+                if merged.initpoint_type == Segment.SEG_INITPOINT_CONTINUES: 
+                    self.completed_segs_map[merged.parent_id].endpoint_type = Segment.SEG_ENDPOINT_MERGED
+            
+            if glom.initpoint_type == Segment.SEG_INITPOINT_CONTINUES:
+                self.completed_segs_map[glom.parent_id].endpoint_type = Segment.SEG_ENDPOINT_CONTINUES
+                            
+            # Remove all particles involved in the merge from the bin
+            bin.difference_update(to_merge)
+            
+            # Add the conglomerate particle resulting from the merge back to the bin
+            bin.add(glom)
         
-        assert cumul_weight[len(to_merge)-1] == sum(weights[:len(to_merge)])
-        glom = Segment(weight = cumul_weight[len(to_merge)-1],
-                       parent_ids = set(to_merge_ids),
-                       pcoord = self.system.new_pcoord_array())
-        # This selects the proper parent, randomly, according to the relative weights of the
-        # particles to be merged. To prove empirically that this works (if logical proof isn't
-        # satisfying), do the following:
-        #>>> weights = numpy.array([0.01,0.02,0.04,0.2,0.2])
-        #>>> weights
-        #array([ 0.01,  0.02,  0.04,  0.2 ,  0.2 ])
-        #>>> cumul_weight = numpy.add.accumulate(weights)
-        #>>> cumul_weight
-        #array([ 0.01,  0.03,  0.07,  0.27,  0.47])
-        #>>> glom_weight = cumul_weight[3-1]
-        #>>> glom_weight
-        #0.070000000000000007
-        #>>> for i in xrange(0,700000): idx = numpy.digitize((random.uniform(0,glom_weight),),cumul_weight[:3])[0]; counts[idx] += 1;
-        #>>> 
-        #>>> counts / float(sum(counts))
-        #array([ 0.142598,  0.285781,  0.571621])
-        #>>> 1/7.0, 2/7.0, 4/7.0
-        #(0.14285714285714285, 0.2857142857142857, 0.5714285714285714)
-
-        iparent = numpy.digitize((random.uniform(0,glom.weight),),cumul_weight[:len(to_merge)])[0]
-        
-        # This bit accounts for merging of previously-split or -recycled particles
-        if to_merge[iparent].seg_id is not None:
-            glom.pcoord[0] = to_merge[iparent].pcoord[-1]
-        else:
-            glom.pcoord[0] = to_merge[iparent].pcoord[0]
-        glom.p_parent_id = to_merge_ids[iparent]
-        
-        if log.isEnabledFor(logging.DEBUG):
-            log.debug('merging {:d} {!r} into {!r}'.format(len(to_merge), to_merge, glom))
-        
-        # The primary parent is marked as continuing; others are marked as ending in a merge
-        for (iseg, segment) in enumerate(to_merge):
-            if iseg != iparent:
-                segment.endpoint_type = Segment.SEG_ENDPOINT_MERGED
-            else:
-                segment.endpoint_type = Segment.SEG_ENDPOINT_CONTINUES
-                
-        bin.difference_update(to_merge)
-        bin.add(glom)
     
     def adjust_count(self, bin):
         '''Adjust the particle count of a bin (by splits/merges) so that it exactly equals the target count'''
@@ -248,17 +222,9 @@ class WEMDWEDriver:
             children = [None] * 2
             for i in xrange(0,2):
                 child = Segment(weight = parent.weight/2,
-                                pcoord = self.system.new_pcoord_array())
-                if parent.seg_id is not None:
-                    # This is a simple continuation
-                    child.p_parent_id = parent.seg_id
-                    child.parent_ids = set([parent.seg_id])
-                    child.pcoord[0] = parent.pcoord[-1]
-                else:
-                    # The parent segment is the result of a recycling, split, or merge
-                    child.p_parent_id = parent.p_parent_id
-                    child.parent_ids = set([parent.p_parent_id])
-                    child.pcoord[0] = parent.pcoord[0]
+                                pcoord = parent.pcoord.copy(),
+                                parent_id = parent.parent_id,
+                                wtg_parent_ids = set(parent.wtg_parent_ids))
                 children[i] = child              
 
             if log.isEnabledFor(logging.DEBUG):
@@ -272,28 +238,28 @@ class WEMDWEDriver:
             segments = sorted(bin, key=weight_getter)
             parents = segments[0:2]
             glom_weight = parents[0].weight + parents[1].weight
-            parent_ids = [segment.seg_id if segment.seg_id is not None else segment.p_parent_id
-                          for segment in parents]
-            assert None not in parent_ids
+            parent_ids = [parent.parent_id for parent in parents]
             glom = Segment(weight = glom_weight,
-                           parent_ids = set(parent_ids),
-                           pcoord = self.system.new_pcoord_array()
+                           wtg_parent_ids = set(parent_ids),
                           )
-            if random.uniform(0, glom_weight) < parents[0].weight:
-                iparent = 0
-            else:
-                iparent = 1
             
-            glom.p_parent_id = parent_ids[iparent]
-            iother = 1 if iparent == 0 else 0
-            parents[iparent].endpoint_type = Segment.SEG_ENDPOINT_CONTINUES
-            parents[iother].endpoint_type  = Segment.SEG_ENDPOINT_MERGED
-
-            if parents[iparent].seg_id is not None:
-                glom.pcoord[0] = parents[iparent].pcoord[-1]
-            else:
-                glom.pcoord[0] = parents[iparent].pcoord[0]
-
+            # Boolean trick: 
+            # random(0, glom_weight) < parents[0].weight should map to 0,
+            # so just do random(0, glom_weight) >= parents[0].weight
+            iparent = (random.uniform(0, glom_weight) >= parents[0].weight)
+              
+            glom.parent_id = parent_ids[iparent]
+            glom.wtg_parent_ids = set(parents[0].wtg_parent_ids) | set(parents[1].wtg_parent_ids)
+            glom.pcoord = parents[iparent].pcoord.copy()
+            
+            if glom.initpoint_type == Segment.SEG_INITPOINT_CONTINUES:
+                self.completed_segs_map[glom.parent_id].endpoint_type = Segment.SEG_ENDPOINT_CONTINUES
+                
+            # another boolean trick: if index of the selected particle is 0, then the one that gets merged is 1,
+            # and vice versa, so just take logical not of iparent as the index
+            if parents[~iparent].initpoint_type == Segment.SEG_INITPOINT_CONTINUES:
+                self.completed_segs.map[parents[~iparent].p_parent_id].endpoint_type = Segment.SEG_ENDPOINT_MERGED
+            
             if log.isEnabledFor(logging.DEBUG):
                 log.debug('merging {:d} {!r} into {!r}'.format(len(parents), parents, glom))
                 

@@ -53,7 +53,7 @@ class ExecutablePropagator(WEMDPropagator):
     ENV_CURRENT_SEG_DATA_REF = 'WEMD_CURRENT_SEG_DATA_REF'
     ENV_CURRENT_SEG_INITPOINT= 'WEMD_CURRENT_SEG_INITPOINT_TYPE'
     ENV_PARENT_SEG_ID        = 'WEMD_PARENT_SEG_ID'
-    ENV_PARENT_SEG_DATA_REF  = 'WEMD_PARENT_SEG_DATA_REF'
+    ENV_PARENT_DATA_REF      = 'WEMD_PARENT_DATA_REF'
     
     # Environment variables set during propagation and state generation
     ENV_BSTATE_ID            = 'WEMD_BSTATE_ID'
@@ -178,7 +178,7 @@ class ExecutablePropagator(WEMDPropagator):
                         
         log.debug('data_info: {!r}'.format(self.data_info))
         
-    def set_basis_initial_states(self, basis_states, initial_states, segments=None):
+    def set_basis_initial_states(self, basis_states, initial_states):
         self.basis_states = {state.state_id: state for state in basis_states}
         self.initial_states = {state.state_id: state for state in initial_states}  
         
@@ -281,6 +281,8 @@ class ExecutablePropagator(WEMDPropagator):
     def update_args_env_segment(self, template_args, environ, segment):
         template_args['segment'] = segment
         
+        environ[self.ENV_CURRENT_SEG_INITPOINT] = Segment.initpoint_type_names[segment.initpoint_type]
+        
         if segment.initpoint_type == Segment.SEG_INITPOINT_CONTINUES:
             # Could use actual parent object here if the work manager cared to pass that much data
             # to us (we'd need at least the subset of parents for all segments sent in the call to propagate)
@@ -290,27 +292,24 @@ class ExecutablePropagator(WEMDPropagator):
             template_args['parent'] = parent
             
             environ[self.ENV_PARENT_SEG_ID] = str(segment.p_parent_id)            
-            environ[self.ENV_PARENT_SEG_DATA_REF] = self.makepath(self.parent_ref_template, template_args)
-        elif segment.initpoint_type == Segment.SEG_INITPOINT_BASIS:
+            environ[self.ENV_PARENT_DATA_REF] = self.makepath(self.parent_ref_template, template_args)
+        elif segment.initpoint_type == Segment.SEG_INITPOINT_NEWTRAJ:
             # This segment is initiated from a basis state; WEMD_PARENT_SEG_ID and WEMD_PARENT_DATA_REF are
             # set to the basis state ID and data ref
-            try:
-                environ[self.ENV_PARENT_SEG_ID] = environ[self.ENV_BSTATE_ID]
-                environ[self.ENV_PARENT_SEG_DATA_REF] = environ[self.ENV_BSTATE_DATA_REF]
-            except KeyError:
-                basis_state = self.basis_states[segment.p_parent_id]
+            initial_state = self.initial_states[segment.initial_state_id]
+            basis_state = self.initial_states[initial_state.basis_state_id]
+            
+            if self.ENV_BSTATE_ID not in environ:
                 self.update_args_env_basis_state(template_args, environ, basis_state)
-        elif segment.initpoint_type == Segment.SEG_INITPOINT_GENERATED:
-            # This segment is initiated from a non-basis initial state
-            # WEMD_PARENT_SEG_ID and WEMD_PARENT_SEG_DATA_REF are set to the initial
-            # state ID and data ref
-            try:
-                environ[self.ENV_PARENT_SEG_ID] = environ[self.ENV_ISTATE_ID]
-                environ[self.ENV_PARENT_SEG_DATA_REF] = environ[self.ENV_ISTATE_DATA_REF]
-            except KeyError:
-                initial_state = self.initial_states[segment.p_parent_id]
+            if self.ENV_ISTATE_ID not in environ:
                 self.update_args_env_initial_state(template_args, environ, initial_state)
-
+            
+            assert initial_state.type in (InitialState.ISTATE_TYPE_BASIS, InitialState.ISTATE_TYPE_GENERATED)
+            if initial_state.type == InitialState.ISTATE_TYPE_BASIS:
+                environ[self.ENV_PARENT_DATA_REF] = environ[self.ENV_BSTATE_DATA_REF]
+            else: # initial_state.type == InitialState.ISTATE_TYPE_GENERATED  
+                environ[self.ENV_PARENT_DATA_REF] = environ[self.ENV_ISTATE_DATA_REF]
+            
         environ[self.ENV_CURRENT_SEG_ID] = str(segment.seg_id or -1)
         environ[self.ENV_CURRENT_SEG_DATA_REF] = self.makepath(self.segment_ref_template, template_args)
         return template_args, environ
