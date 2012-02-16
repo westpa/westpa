@@ -75,19 +75,7 @@ class ExecutablePropagator(WEMDPropagator):
         
     def __init__(self):
         super(ExecutablePropagator,self).__init__()
-        
-        # For maximum flexibility, the basis states and initial states valid
-        # at the point in the simulation when the propgator is used must be
-        # available in several routines, and it is inconvenient to pass them
-        # to every routine that needs them. A currently-reasonable-seeming solution
-        # is to store at least the basis states and initial states necessary for
-        # the current operation (propagation, etc). The set_basis_initial_states() function 
-        # accomplishes this. They are stored as dictionaries of state_id -> state,
-        # so they can be looked up by ID without needing to store them all (and 
-        # thus potentially send them all over the wire when only one of them is needed, e.g.)
-        self.initial_states = {}
-        self.basis_states = {}
-    
+            
         # A mapping of environment variables to template strings which will be
         # added to the environment of all children launched.
         self.addtl_child_environ = dict()
@@ -179,13 +167,7 @@ class ExecutablePropagator(WEMDPropagator):
             self.data_info['pcoord']['enabled'] = True
                         
         log.debug('data_info: {!r}'.format(self.data_info))
-        
-    def set_basis_initial_states(self, basis_states, initial_states):
-        self.basis_states = {state.state_id: state for state in basis_states}
-        self.initial_states = {state.state_id: state for state in initial_states}
-        log.debug('self.initial_states: {!r}'.format(self.initial_states))
-        log.debug('self.basis_states: {!r}'.format(self.basis_states))  
-        
+                
     @staticmethod                        
     def makepath(template, template_args = None,
                   expanduser = True, expandvars = True, abspath = False, realpath = False):
@@ -351,7 +333,6 @@ class ExecutablePropagator(WEMDPropagator):
         environ.update(addtl_env or {})
         return self.exec_child_from_child_info(child_info, template_args, environ)
 
-
     # Specific functions required by the WEMD framework
     def get_pcoord(self, state):
         '''Get the progress coordinate of the given basis or initial state.'''
@@ -394,10 +375,18 @@ class ExecutablePropagator(WEMDPropagator):
         child_info = self.exe_info.get('gen_istate')
         rc, rusage = self.exec_for_initial_state(child_info, initial_state)
         if rc != 0:
-            log.error('gen_istate executable {!r} returned {}'.format(child_info['executable'], rc))            
+            log.error('gen_istate executable {!r} returned {}'.format(child_info['executable'], rc))
+            initial_state.istate_status = InitialState.ISTATE_STATUS_FAILED
+            return            
     
         # Determine and load the progress coordinate value for this state
-        self.get_pcoord(initial_state)
+        try:
+            self.get_pcoord(initial_state)
+        except:
+            log.exception('could not get progress coordinate for initial state')
+            initial_state.istate_status = InitialState.ISTATE_STATUS_FAILED
+        else:
+            initial_state.istate_status = InitialState.ISTATE_STATUS_PREPARED
                         
     def prepare_iteration(self, n_iter, segments):
         child_info = self.exe_info.get('pre_iteration')

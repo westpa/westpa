@@ -68,17 +68,25 @@ class ParticleCollection:
         return len(self)
     
     def __repr__(self):
-        return '<{classname} at 0x{id:x}, label={label!r}>'.format(classname=self.__class__.__name__, 
-                                                                   id=id(self), 
-                                                                   label=self.label)
+        return '<{classname} at 0x{id:x}, label={label!r}, containing {count:d}>'.format(classname=self.__class__.__name__, 
+                                                                                         id=id(self), 
+                                                                                         label=self.label,
+                                                                                         count=len(self))
+    def __str__(self):
+        return '<{classname} at 0x{id:x}, label={label!r}, containing {count:d}>'.format(classname=self.__class__.__name__, 
+                                                                                         id=id(self), 
+                                                                                         label=self.label,
+                                                                                         count=len(self))
     
-class ParticleSet(set, ParticleCollection):
+    
+class ParticleSet(ParticleCollection, set):
     def __init__(self, iterable = None, target_count = None, label = None):
         ParticleCollection.__init__(self, target_count, label)
         if iterable is not None:
             set.__init__(self, iterable)
+
         
-class ParticleList(list, ParticleCollection):
+class ParticleList(ParticleCollection, list):
     def __init__(self, iterable = None, target_count = None, label = None):
         ParticleCollection.__init__(self, target_count, label)
         if iterable is not None:
@@ -86,6 +94,7 @@ class ParticleList(list, ParticleCollection):
         
     def clear(self):
         self[:] = []
+
                 
 class RegionSet:    
     def __init__(self, coord_ndim, coord_dtype = None):

@@ -83,8 +83,9 @@ class WEMDWEDriver:
         # for initpoint_type
         if __debug__:
             for segment in new_trajectory_segs:
-                assert segment.initpoint_type == Segment.SEG_INITPOINT_NEWTRAJ 
-        self.new_iter_rset.assign_to_bins(new_trajectory_segs, key=Segment.initial_pcoord)
+                assert segment.initpoint_type == Segment.SEG_INITPOINT_NEWTRAJ
+        if new_trajectory_segs:
+            self.new_iter_rset.assign_to_bins(new_trajectory_segs, key=Segment.initial_pcoord)
         
         # Regardless of current particle count, always split overweight particles and merge underweight particles
         # Then and only then adjust for correct particle count

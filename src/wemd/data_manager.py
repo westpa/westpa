@@ -101,6 +101,7 @@ seg_status_dtype = numpy.uint8
 seg_initpoint_dtype = numpy.uint8
 seg_endpoint_dtype = numpy.uint8
 istate_type_dtype = numpy.uint8
+istate_status_dtype = numpy.uint8
     
 summary_table_dtype = numpy.dtype( [ ('n_particles', seg_id_dtype),    # Number of live trajectories in this iteration
                                      ('norm', weight_dtype),          # Norm of probability, to watch for errors or drift
@@ -149,7 +150,9 @@ bstate_dtype = numpy.dtype( [ ('label', vstr_dtype),            # An optional de
 istate_dtype = numpy.dtype( [('iter_created', numpy.uint),      # Iteration during which this state was generated (0 for at w_init)
                              ('iter_used', numpy.uint),           # When this state was used to start a new trajectory 
                              ('basis_state_id', seg_id_dtype),    # Which basis state this state was generated from
-                             ('istate_type', istate_type_dtype)]) # What type this initial state is (generated or basis)
+                             ('istate_type', istate_type_dtype),  # What type this initial state is (generated or basis)
+                             ('istate_status', istate_status_dtype), # Whether this initial state is ready to go
+                             ]) 
 
 tstate_index_dtype = numpy.dtype([('iter_created', numpy.uint), # Iteration when this state list is valid
                                   ('group_ref', h5ref_dtype)])  # Reference to a group containing further data; this will be the
@@ -436,7 +439,9 @@ class WEMDDataManager:
         new_istates = []                
         for irow, row in enumerate(index_entries):
             row['iter_created'] = n_iter
-            new_istates.append(InitialState(state_id=first_id+irow, basis_state_id=None, iter_created=n_iter))
+            row['istate_status'] = InitialState.ISTATE_STATUS_PENDING
+            new_istates.append(InitialState(state_id=first_id+irow, basis_state_id=None,
+                                            iter_created=n_iter, istate_status=InitialState.ISTATE_STATUS_PENDING))
         istate_index[first_id:len_index] = index_entries
         return new_istates
             
@@ -457,6 +462,7 @@ class WEMDDataManager:
                 index_entries[i]['iter_used'] = initial_state.iter_used or InitialState.ISTATE_UNUSED
                 index_entries[i]['basis_state_id'] = initial_state.basis_state_id
                 index_entries[i]['istate_type'] = initial_state.istate_type or InitialState.ISTATE_TYPE_UNSET
+                index_entries[i]['istate_status'] = initial_state.istate_status or InitialState.ISTATE_STATUS_PENDING
                 pcoord_vals[i] = initial_state.pcoord
             
             ibstate_group['istate_index'][state_ids] = index_entries
@@ -502,7 +508,9 @@ class WEMDDataManager:
                 istate_chunk = istate_index[istart:istop]
                 state_ids = numpy.arange(istart,istop,dtype=numpy.uint)
                 
-                unused = istate_chunk['iter_used'] == 0
+                unused = (  (istate_chunk['iter_used'] == InitialState.ISTATE_UNUSED) 
+                          & (istate_chunk['istate_status'] == InitialState.ISTATE_STATUS_PREPARED ) )
+                # TODO: add a check for invalid statuses and purge -- w_lint?
                 ids_of_unused = list(state_ids[unused])
                 if len(ids_of_unused):
                     pcoords = istate_pcoords[ids_of_unused]

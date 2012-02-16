@@ -8,26 +8,27 @@ import logging
 log = logging.getLogger(__name__)
 
 def get_pcoord(propagator, state):
+    log.debug('getting progress coordinate for {!r}'.format(state))
     propagator.get_pcoord(state)
     return state
     
 def gen_istate(propagator, basis_state, initial_state):
+    log.debug('generating initial state from {!r} (into {!r})'.format(basis_state, initial_state))
     propagator.gen_istate(basis_state, initial_state)
     return basis_state, initial_state
     
 def prep_iter(propagator, n_iter, segments):
+    log.debug('propagator.prepare_iteration(...)')
     propagator.prepare_iteration(n_iter, segments)
     
 def post_iter(propagator, n_iter, segments):
-    propagator.prepare_iteration(n_iter, segments)
+    log.debug('propagator.finalize_iteration(...)')
+    propagator.finalize_iteration(n_iter, segments)
     
 def propagate(propagator, basis_states, initial_states, segments):
     '''Propagate the given segments with the given propagator. This has to be a top-level
     function for the current incarnation of the work manager.'''
-    log.debug('segments: {!r}'.format(segments))
-    log.debug('basis_states: {!r}'.format(basis_states))
-    log.debug('initial_states: {!r}'.format(initial_states))
-    propagator.set_basis_initial_states(basis_states, initial_states)
+    propagator.update_basis_initial_states(basis_states, initial_states)
     outgoing_ids = [segment.seg_id for segment in segments]
     incoming_segments = {segment.seg_id: segment for segment in propagator.propagate(segments)}
     if log.isEnabledFor(logging.DEBUG):

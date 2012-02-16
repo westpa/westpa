@@ -88,6 +88,8 @@ class InitialState:
     :ivar istate_type:      Integer describing the type of this initial state
                             (ISTATE_TYPE_BASIS for direct use of a basis state, 
                             ISTATE_TYPE_GENERATED for a state generated from a basis state).
+    :ivar istate_status:    Integer describing whether this initial state has been properly
+                            prepared.
     :ivar pcoord:           The representative progress coordinate of this state.
     '''
     
@@ -97,11 +99,19 @@ class InitialState:
     
     ISTATE_UNUSED = 0
     
-    def __init__(self, state_id, basis_state_id, iter_created, iter_used=None, istate_type=None, pcoord=None, basis_state=None):
+    ISTATE_STATUS_PENDING  = 0
+    ISTATE_STATUS_PREPARED = 1
+    ISTATE_STATUS_FAILED = 2
+    
+    def __init__(self, state_id, basis_state_id, iter_created, iter_used=None, 
+                 istate_type=None, istate_status=None,
+                 pcoord=None, 
+                 basis_state=None):
         self.state_id = state_id
         self.basis_state_id = basis_state_id
         self.basis_state=basis_state
         self.istate_type = istate_type
+        self.istate_status = istate_status
         self.iter_created = iter_created
         self.iter_used = iter_used         
         self.pcoord = pcoord
