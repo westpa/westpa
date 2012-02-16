@@ -40,7 +40,7 @@ Version history:
         - added in-HDF5 storage for basis states, target states, and generated states
 """        
 from __future__ import division; __metaclass__ = type
-import warnings
+import warnings, sys
 from operator import attrgetter
 from itertools import imap, izip
 import numpy
@@ -121,7 +121,8 @@ summary_table_dtype = numpy.dtype( [ ('n_particles', seg_id_dtype),    # Number 
 # initpoint_type remains implicitly stored as negative IDs (if parent_id < 0, then init_state_id = -(parent_id+1) 
 seg_index_dtype = numpy.dtype( [ ('weight', weight_dtype),               # Statistical weight of this segment
                                  ('parent_id', seg_id_dtype),             # ID of parent (for trajectory history)
-                                 ('n_wtg_parents', numpy.uint), # number of parents this segment has in the weight transfer graph
+                                 ('wtg_n_parents', numpy.uint), # number of parents this segment has in the weight transfer graph
+                                 ('wtg_offset', numpy.uint),    # offset into the weight transfer graph dataset
                                  ('cputime', utime_dtype),              # CPU time used in propagating this segment
                                  ('walltime', utime_dtype),             # Wallclock time used in propagating this segment
                                  ('endpoint_type', seg_endpoint_dtype),   # Endpoint type (will continue, merged, or recycled)
@@ -180,6 +181,8 @@ class WEMDDataManager:
         self.iter_prec = self.default_iter_prec
         self.aux_compression_threshold = self.default_aux_compression_threshold
         
+        self.table_scan_chunksize = 256
+        
         # Do not load auxiliary data sets by default, as this can potentially take as much space in RAM
         # as there is auxiliary data stored for a given iteration.
         self.auto_load_auxdata = False
@@ -209,9 +212,9 @@ class WEMDDataManager:
 
     def iter_group_name(self, n_iter, absolute=True):
         if absolute:
-            return '/iterations/iter_{:0{prec}d}'.format(n_iter, prec=self.iter_prec)
+            return '/iterations/iter_{:0{prec}d}'.format(int(n_iter), prec=self.iter_prec)
         else:
-            return 'iter_{:0{prec}d}'.format(n_iter, prec=self.iter_prec)
+            return 'iter_{:0{prec}d}'.format(int(n_iter), prec=self.iter_prec)
 
     def create_iter_group(self, n_iter):
         with self.lock:
@@ -235,7 +238,7 @@ class WEMDDataManager:
     @property
     def current_iteration(self):
         with self.lock:
-            return self.we_h5file['/'].attrs['wemd_current_iteration']
+            return int(self.we_h5file['/'].attrs['wemd_current_iteration'])
     
     @current_iteration.setter
     def current_iteration(self, n_iter):
@@ -315,7 +318,7 @@ class WEMDDataManager:
                 master_index.resize((n_sets,))
             
             n_iter = self.current_iteration
-            master_index_row = numpy.empty((), dtype=tstate_index_dtype)
+            master_index_row = master_index[n_sets-1]
             master_index_row['iter_created'] = n_iter
             
             if tstates:
@@ -357,7 +360,7 @@ class WEMDDataManager:
                 master_index.resize((n_sets),)
             
             state_group = self.get_iter_group(n_iter).create_group('ibstates')
-            master_index_row = numpy.empty((), dtype=ibstate_index_dtype)
+            master_index_row = master_index[n_sets-1]
             master_index_row['iter_created'] = n_iter
             master_index_row['group_ref'] = state_group.ref
             master_index[n_sets-1] = master_index_row
@@ -441,23 +444,75 @@ class WEMDDataManager:
         '''Save the given initial states in the HDF5 file'''
         
         system = wemd.rc.get_system_driver()
-        
         initial_states = sorted(initial_states,key=attrgetter('state_id'))
-        state_ids = [state.state_id for state in initial_states]
-        index_entries = numpy.empty((len(initial_states),), dtype=istate_dtype)
-        pcoord_vals = numpy.empty((len(initial_states), system.pcoord_ndim), dtype=system.pcoord_dtype)
-        for i, initial_state in enumerate(initial_states):
-            index_entries[i]['iter_created'] = initial_state.iter_created
-            index_entries[i]['iter_used'] = initial_state.iter_used or InitialState.ISTATE_UNUSED
-            index_entries[i]['basis_state_id'] = initial_state.basis_state_id
-            index_entries[i]['istate_type'] = initial_state.istate_type or InitialState.ISTATE_TYPE_UNSET
-            pcoord_vals[i] = initial_state.pcoord
         
-        n_iter = n_iter or self.current_iteration
         with self.lock:
-            ibstate_group = self.get_iter_group(n_iter)['ibstates']
+            n_iter = n_iter or self.current_iteration     
+            ibstate_group = self.get_iter_group(n_iter)['ibstates']   
+            state_ids = [state.state_id for state in initial_states]
+            index_entries = ibstate_group['istate_index'][state_ids] 
+            pcoord_vals = numpy.empty((len(initial_states), system.pcoord_ndim), dtype=system.pcoord_dtype)
+            for i, initial_state in enumerate(initial_states):
+                index_entries[i]['iter_created'] = initial_state.iter_created
+                index_entries[i]['iter_used'] = initial_state.iter_used or InitialState.ISTATE_UNUSED
+                index_entries[i]['basis_state_id'] = initial_state.basis_state_id
+                index_entries[i]['istate_type'] = initial_state.istate_type or InitialState.ISTATE_TYPE_UNSET
+                pcoord_vals[i] = initial_state.pcoord
+            
             ibstate_group['istate_index'][state_ids] = index_entries
-            ibstate_group['istate_pcoord'][state_ids] = pcoord_vals        
+            ibstate_group['istate_pcoord'][state_ids] = pcoord_vals
+
+    def get_segment_initial_states(self, segments, n_iter=None):
+        '''Retrieve all initial states referenced by the given segments.'''
+        
+        with self.lock:
+            n_iter = n_iter or self.current_iteration
+            ibstate_group = self.get_iter_group(n_iter)['ibstates']
+            
+            istate_ids = {-(segment.parent_id+1) for segment in segments if segment.parent_id < 0}
+            sorted_istate_ids = sorted(istate_ids)
+            if not sorted_istate_ids:
+                return []
+            
+            istate_rows = ibstate_group['istate_index'][sorted_istate_ids]
+            istate_pcoords = ibstate_group['istate_pcoord'][sorted_istate_ids]
+            
+            return [InitialState(state_id=state_id, basis_state_id=state['basis_state_id'],
+                                 iter_created=state['iter_created'], iter_used=state['iter_used'],
+                                 istate_type=state['istate_type'], pcoord=pcoord)
+                    for state_id, state, pcoord in izip(sorted_istate_ids, istate_rows, istate_pcoords)] 
+            
+    def get_unused_initial_states(self, n_states = None, n_iter = None):
+        '''Retrieve any prepared but unused initial states applicable to the given iteration.
+        Up to ``n_states`` states are returned; if ``n_states`` is None, then all unused states
+        are returned.'''
+        n_states = n_states or sys.maxint
+        with self.lock:
+            n_iter = n_iter or self.current_iteration
+            ibstate_group = self.get_iter_group(n_iter)['ibstates']
+            istate_index = ibstate_group['istate_index']
+            istate_pcoords = ibstate_group['istate_pcoord']
+            n_index_entries = istate_index.len()
+            chunksize = self.table_scan_chunksize
+                        
+            states = []
+            istart = 0
+            while istart < n_index_entries and len(states) < n_states:
+                istop = min(istart+chunksize, n_index_entries)
+                istate_chunk = istate_index[istart:istop]
+                state_ids = numpy.arange(istart,istop,dtype=numpy.uint)
+                
+                unused = istate_chunk['iter_used'] == 0
+                ids_of_unused = list(state_ids[unused])
+                if len(ids_of_unused):
+                    pcoords = istate_pcoords[ids_of_unused]
+                    states.extend(InitialState(state_id=state_id, basis_state_id=state['basis_state_id'],
+                                               iter_created=state['iter_created'], iter_used=0, istate_type=state['istate_type'],
+                                               pcoord=pcoord)
+                                  for state_id,state,pcoord in izip(ids_of_unused,istate_chunk[unused],pcoords))
+                istart += chunksize
+            log.debug('found {:d} unused states'.format(len(states)))
+            return states[:n_states]
                 
     def prepare_iteration(self, n_iter, segments):
         """Prepare for a new iteration by creating space to store the new iteration's data.
@@ -520,7 +575,7 @@ class WEMDDataManager:
                 seg_index_table[seg_id]['status'] = segment.status
                 seg_index_table[seg_id]['weight'] = segment.weight
                 seg_index_table[seg_id]['parent_id'] = segment.parent_id                
-                seg_index_table[seg_id]['n_wtg_parents'] = len(segment.wtg_parent_ids)
+                seg_index_table[seg_id]['wtg_n_parents'] = len(segment.wtg_parent_ids)
     
                 # Assign progress coordinate if any exists
                 if segment.pcoord is not None: 
@@ -533,32 +588,26 @@ class WEMDDataManager:
                     else:
                         pcoord[seg_id,...] = segment.pcoord
                     
-            # Since we accumulated many of these changes in RAM (and not directly in HDF5), propagate
-            # the changes out to HDF5
-            seg_index_table_ds[:] = seg_index_table
-            pcoord_ds[...] = pcoord
             
-            # voodoo by induction!
-            # offset[0] = 0
-            # offset[1:] = numpy.add.accumulate(n_parents[:-1])
-            extents = seg_index_table['n_wtg_parents']
+            extents = seg_index_table['wtg_n_parents']
             offsets = numpy.add.accumulate(extents)
-            offsets = offsets[:1] - offsets[0]
             total_parents = offsets[-1]
+            offsets -= offsets[0]
             
             if total_parents > 0:
                 wtgraph_ds = iter_group.create_dataset('wtgraph', (total_parents,), seg_id_dtype,
                                                        compression='gzip', shuffle=True)
                 parents = numpy.empty((total_parents,), seg_id_dtype)
-                            
+            
                 for (seg_id, segment) in enumerate(segments):
-                    offset = offsets[seg_id-1]
+                    offset = offsets[seg_id]
                     extent = extents[seg_id]
                     assert extent == len(segment.wtg_parent_ids)
                     assert extent > 0
                     assert None not in segment.wtg_parent_ids
                     
                     # Ensure that the primary parent is first in the list
+                    seg_index_table[seg_id]['wtg_offset'] = offset
                     parents[offset] = segment.parent_id                
                     if extent > 1:
                         parent_ids = set(segment.wtg_parent_ids)
@@ -571,18 +620,26 @@ class WEMDDataManager:
                             parents[offset+1:offset+extent] = parent_ids
                     assert set(parents[offset:offset+extent]) == set(segment.wtg_parent_ids)
                 
-                wtgraph_ds[:] = parents                    
+                wtgraph_ds[:] = parents
+                
+            last_iter_group = self.get_iter_group(n_iter-1)
+            iter_group['ibstates'] = last_iter_group['ibstates']
+            iter_group['target_states'] = last_iter_group['target_states']
     
+            # Since we accumulated many of these changes in RAM (and not directly in HDF5), propagate
+            # the changes out to HDF5
+            seg_index_table_ds[:] = seg_index_table
+            pcoord_ds[...] = pcoord
             
         
     
-    def get_iter_summary(self,n_iter):
+    def get_iter_summary(self,n_iter=None):
+        n_iter = n_iter or self.current_iteration
         with self.lock:
-            summary_row = numpy.zeros((1,), dtype=summary_table_dtype)
-            summary_row[:] = self.we_h5file['summary'][n_iter-1]
-            return summary_row
+            return self.we_h5file['summary'][n_iter-1]
         
-    def update_iter_summary(self,n_iter,summary):
+    def update_iter_summary(self,summary,n_iter=None):
+        n_iter = n_iter or self.current_iteration
         with self.lock:
             self.we_h5file['summary'][n_iter-1] = summary
 
@@ -642,21 +699,18 @@ class WEMDDataManager:
 
         with self.lock:        
             iter_group = self.get_iter_group(n_iter)
+            
             seg_index_entries = iter_group['seg_index'][seg_ids]
             pcoord_entries = iter_group['pcoord'][seg_ids]
             
             assert len(seg_index_entries) == len(pcoord_entries) == len(seg_ids)
                         
-            row = numpy.empty((1,), seg_index_dtype)
-            for (iseg, segment) in enumerate(segments):
-                row[:] = seg_index_entries[iseg]
-                row['status'] = segment.status
-                row['endpoint_type'] = segment.endpoint_type or Segment.SEG_ENDPOINT_UNSET
-                row['cputime'] = segment.cputime
-                row['walltime'] = segment.walltime
-                row['weight'] = segment.weight
-                
-                seg_index_entries[iseg] = row
+            for (iseg, (segment, ientry)) in enumerate(izip(segments,seg_index_entries)):
+                ientry['status'] = segment.status
+                ientry['endpoint_type'] = segment.endpoint_type or Segment.SEG_ENDPOINT_UNSET
+                ientry['cputime'] = segment.cputime
+                ientry['walltime'] = segment.walltime
+                ientry['weight'] = segment.weight
                 
                 #pcoords[seg_id] = segment.pcoord
                 pcoord_entries[iseg] = segment.pcoord
@@ -711,38 +765,37 @@ class WEMDDataManager:
                     dset[segment.seg_id] = adata
             
                 
-    def get_segments(self, n_iter, load_auxdata=None):
+    def get_segments(self, n_iter=None, load_auxdata=None):
         '''Return the segments from a given iteration.  This function is optimized for the 
         case of retrieving (nearly) all segments for a given iteration as quickly as possible, 
         and as such effectively loads all data for the given iteration into memory (which
         is what is currently required for running a WE iteration).'''
         
+        n_iter = n_iter or self.current_iteration
         if load_auxdata is None: load_auxdata = self.auto_load_auxdata
         
         with self.lock:
             iter_group = self.get_iter_group(n_iter)
             seg_index_table = iter_group['seg_index'][...]
             pcoords = iter_group['pcoord'][...]
-            all_parent_ids = iter_group['parents'][...]
+            all_parent_ids = iter_group['wtgraph'][...]
             
             segments = []
             for (seg_id, row) in enumerate(seg_index_table):
-                parents_offset = row['parents_offset']
-                n_parents = row['n_parents']            
+                wtg_n_parents = row['wtg_n_parents']
+                wtg_offset = row['wtg_offset']  
                 segment = Segment(seg_id = seg_id,
                                   n_iter = n_iter,
-                                  status = row['status'],
-                                  n_parents = n_parents,
-                                  initpoint_type = row['initpoint_type'],
-                                  endpoint_type = row['endpoint_type'],
-                                  walltime = row['walltime'],
-                                  cputime = row['cputime'],
-                                  weight = row['weight'],
+                                  parent_id = long(row['parent_id']),
+                                  status = int(row['status']),
+                                  endpoint_type = int(row['endpoint_type']),
+                                  walltime = float(row['walltime']),
+                                  cputime = float(row['cputime']),
+                                  weight = float(row['weight']),
                                   pcoord = pcoords[seg_id])
-                parent_ids = all_parent_ids[parents_offset:parents_offset+n_parents]
-                segment.p_parent_id = long(parent_ids[0])
-                segment.parent_ids = set(imap(long,parent_ids))
-                assert len(segment.parent_ids) == n_parents
+                wtg_parent_ids = all_parent_ids[wtg_offset:wtg_offset+wtg_n_parents]
+                segment.wtg_parent_ids = set(imap(long,wtg_parent_ids))
+                assert len(segment.wtg_parent_ids) == wtg_n_parents
                 segments.append(segment)
             del pcoords
         
@@ -772,26 +825,27 @@ class WEMDDataManager:
             iter_group = self.get_iter_group(n_iter)
             seg_index = iter_group['seg_index'][...]
             pcoord_ds = iter_group['pcoord']
-            all_parent_ids = iter_group['parents'][...] 
+            all_parent_ids = iter_group['wtgraph'][...] 
             
             segments = []
             seg_ids = list(seg_ids)
             for seg_id in seg_ids:
                 row = seg_index[seg_id]
-                parents_offset = row['parents_offset']
-                n_parents = row['n_parents']            
+                
+                wtg_n_parents = row['wtg_n_parents']
+                wtg_offset = row['wtg_offset']  
                 segment = Segment(seg_id = seg_id,
                                   n_iter = n_iter,
-                                  status = row['status'],
-                                  n_parents = n_parents,
-                                  initpoint_type = row['initpoint_type'],
-                                  endpoint_type = row['endpoint_type'],
-                                  walltime = row['walltime'],
-                                  cputime = row['cputime'],
-                                  weight = row['weight'],)
-                parent_ids = all_parent_ids[parents_offset:parents_offset+n_parents]
-                segment.p_parent_id = long(parent_ids[0])
-                segment.parent_ids = set(imap(long,parent_ids))
+                                  parent_id = long(row['parent_id']),
+                                  status = int(row['status']),
+                                  endpoint_type = int(row['endpoint_type']),
+                                  walltime = float(row['walltime']),
+                                  cputime = float(row['cputime']),
+                                  weight = float(row['weight']),
+                                  )
+                wtg_parent_ids = all_parent_ids[wtg_offset:wtg_offset+wtg_n_parents]
+                segment.wtg_parent_ids = set(imap(long,wtg_parent_ids))
+                assert len(segment.wtg_parent_ids) == wtg_n_parents
                 segments.append(segment)
                 
             # Use a pointwise selection from pcoord_ds to get only the
@@ -820,18 +874,16 @@ class WEMDDataManager:
         
         with self.lock:
             iter_group = self.get_iter_group(segment.n_iter+1)
-            all_parent_ids = iter_group['parents'][...]
             seg_index = iter_group['seg_index'][...]
-            parent_offsets = seg_index['parents_offset'][...]    
     
             # This is one of the slowest pieces of code I've ever written...
             #seg_index = iter_group['seg_index'][...]
             #seg_ids = [seg_id for (seg_id,row) in enumerate(seg_index) 
             #           if all_parent_ids[row['parents_offset']] == segment.seg_id]
             #return self.get_segments_by_id(segment.n_iter+1, seg_ids)
-            p_parents = all_parent_ids[parent_offsets]
-            all_seg_ids = numpy.arange(len(parent_offsets), dtype=numpy.uintp)
-            seg_ids = all_seg_ids[p_parents == segment.seg_id]
+            parents = seg_index['parent_id']
+            all_seg_ids = numpy.arange(seg_index.len(), dtype=numpy.uintp)
+            seg_ids = all_seg_ids[parents == segment.seg_id]
             # the above will return a scalar if only one is found, so convert
             # to a list if necessary
             try:

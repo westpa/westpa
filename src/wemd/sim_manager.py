@@ -7,13 +7,12 @@ import logging
 log = logging.getLogger(__name__)
 
 import wemd
+from wemd.states import BasisState, InitialState, TargetState
 from wemd.util import extloader
 from wemd import Segment
 from wemd.util.miscfn import vgetattr
 
-from wemd.work_managers.ops import propagate as wm_propagate
-from wemd.work_managers.ops import prep_iter as wm_prep_iter
-from wemd.work_managers.ops import post_iter as wm_post_iter
+from wemd.work_managers import ops as wm_ops
 
 EPS = numpy.finfo(numpy.float64).eps 
 
@@ -33,15 +32,22 @@ class WESimManager:
         self._callbacks_by_name = {fn.__name__: fn for fn in self._valid_callbacks}
         self._n_propagated = 0
         
+        # Per-iteration variables
+        self.n_iter = None                  # current iteration
+        self.target_states = None           # TargetStates valid at this iteration
+        self.target_state_bins = None       # Bins (in self.final_binning) associated with each TargetState
+        self.basis_states = None            # BasisStates valid at this iteration
+        self.initial_states = None          # InitialStates used in this iteration
+        self.prepared_initial_states = None # InitialStates available for use next iteration
         
-        self.n_iter = None
-        # List of target states
-        self.target_states = []
-        # A RegionSet describing the binning of segments on initial points
-        self.initial_binning = None
-        # A RegionSet describing the binning of segments on final points
-        self.final_binning = None
+        self.initial_binning = None         # Binning of segments at beginning of this iteration
+        self.final_binning = None           # Binning of segments at the end of this iteration
+        self.segments = None                # Mapping of seg_id to segment for all segments in this iteration
+        self.completed_segments = None      # Mapping of seg_id to segment for all completed segments in this iteration
+        self.incomplete_segments = None     # Mapping of seg_id to segment for all incomplete segments in this iteration
+        self.recycled_segments = None       # Mapping of seg_id to segment for all completed segments to be recycled
         
+        self.next_iter_segments = None      # List of segments to be created for the next iteration
         
     def register_callback(self, hook, function, priority=0):
         '''Registers a callback to execute during the given ``hook`` into the simulation loop. The optional
@@ -59,7 +65,10 @@ class WESimManager:
             self._callback_table[hook] = set([(priority,function.__name__,function)])
         
         log.debug('registered callback {!r} for hook {!r}'.format(function, hook))
-        
+                
+
+
+
     def _invoke_callbacks(self, hook, *args, **kwargs):
         callbacks = self._callback_table.get(hook, [])
         sorted_callbacks = sorted(callbacks)
@@ -76,43 +85,292 @@ class WESimManager:
             plugin = extloader.get_object(plugin_name)(self)
             log.debug('loaded plugin {!r}'.format(plugin))
 
-    def _init_run(self):
-        self.n_iter = self.data_manager.current_iteration
+    def initialize_simulation(self, basis_states, target_states, segs_per_state=1, run_we=True):
+        '''Initialize a new weighted ensemble simulation, taking ``segs_per_state`` initial
+        states from each of the given ``basis_states``.
         
-    def _finalize_run(self):
-        pass
+        ``w_init`` is the forward-facing version of this function'''
+        
+        
+        data_manager = self.data_manager
+        work_manager = self.work_manager
+        propagator = self.propagator
+        pstatus = wemd.rc.pstatus
+        system = self.system
+        
+        gen_istates = wemd.rc.config.get_bool('system.gen_istates', False)
+        
+        pstatus('Calculating progress coordinate values for basis states.')
+        futures = [work_manager.submit(wm_ops.get_pcoord, self.propagator, basis_state)
+                   for basis_state in basis_states]
+        fmap = {future: i for (i, future) in enumerate(futures)}
+        for future in work_manager.as_completed(futures): 
+            basis_states[fmap[future]].pcoord = future.get_result().pcoord
+            
+        pstatus('Creating HDF5 file {!r}'.format(self.data_manager.we_h5filename))
+        data_manager.prepare_backing()
+        data_manager.save_basis_states(basis_states)
+        data_manager.save_target_states(target_states)
+        
+        pstatus('{:d} basis state(s) present'.format(len(basis_states)), end='')
+        if wemd.rc.verbose_mode:
+            pstatus(':')
+            pstatus('{:6s}    {:12s}    {:20s}    {:20s}    {}'
+                             .format('ID', 'Label', 'Probability', 'Aux Reference', 'Progress Coordinate'))
+            for basis_state in basis_states:
+                pstatus('{:<6d}    {:12s}    {:<20.14g}    {:20s}    {}'.
+                                 format(basis_state.state_id, basis_state.label, basis_state.probability, basis_state.auxref or '',
+                                        ', '.join(map(str,basis_state.pcoord))))
+        pstatus()
+        
+        pstatus('{:d} target state(s) present'.format(len(target_states)), end='')    
+        if wemd.rc.verbose_mode and target_states:
+            pstatus(':')
+            pstatus('{:6s}    {:12s}    {}'.format('ID', 'Label', 'Progress Coordinate'))
+            for target_state in target_states:
+                pstatus('{:<6d}    {:12s}    {}'
+                                 .format(target_state.state_id, target_state.label, ','.join(map(str,target_state.pcoord))))
+        pstatus()
 
-    def _init_iteration(self):
+        pstatus('Preparing initial states')
+        segments = []
+        initial_states = []
+        if gen_istates:
+            istate_type = InitialState.ISTATE_TYPE_GENERATED
+        else:
+            istate_type = InitialState.ISTATE_TYPE_BASIS
+            
+        for basis_state in basis_states:
+            for iseg in xrange(segs_per_state):
+                initial_state = data_manager.create_initial_states(0,1)[0]
+                initial_state.basis_state_id =  basis_state.state_id
+                initial_state.basis_state = basis_state
+                initial_state.istate_type = istate_type
+                segment = Segment(weight=basis_state.probability/segs_per_state,pcoord=system.new_pcoord_array(),
+                                  parent_id=-(initial_state.state_id+1), wtg_parent_ids=(-(initial_state.state_id+1),),
+                                  )
+                initial_states.append(initial_state)
+                log.debug('initial state created: {!r}'.format(initial_state))
+                segments.append(segment)
+                
+        if gen_istates:
+            futures = [work_manager.submit(wm_ops.gen_istate, propagator, initial_state.basis_state, initial_state)
+                       for initial_state in initial_states]
+            for future in work_manager.as_completed(futures):
+                rbstate, ristate = future.get_result()
+                initial_states[ristate.state_id].pcoord = ristate.pcoord
+                segments[ristate.state_id].pcoord[0] = ristate.pcoord            
+        else:
+            for segment, initial_state in izip(segments, initial_states):
+                initial_state.pcoord = basis_state.pcoord
+                segment.pcoord[0] = basis_state.pcoord
+
+        tprob = sum(segment.weight for segment in segments)
+        if abs(1.0 - tprob) > len(segments) * EPS:
+            pscale = 1.0/tprob
+            log.warning('Weights of initial segments do not sum to unity; scaling by {:g}'.format(pscale))
+            for segment in segments:
+                segment.weight *= pscale
+                    
+                
+        data_manager.update_initial_states(initial_states, n_iter=0)
         
-        self.target_states = self.data_manager.get_target_states(self.n_iter)
+        if run_we:
+            # TODO: what to do if something winds up in a recycling region?
+            # At the moment, fail with an exception
+            region_set = system.new_region_set()
+            new_region_set = self.we_driver.run_we(region_set, segments)
+        else:
+            new_region_set = system.new_region_set()
+            new_region_set.assign_to_bins(segments, key=Segment.initial_pcoord)
+        
+        all_bins = new_region_set.get_all_bins()
+        bin_occupancies = numpy.array(map(operator.attrgetter('count'), all_bins))
+        target_occupancies = numpy.array(map(operator.attrgetter('target_count'), all_bins))
+        segments = list(new_region_set.particles)
+
+        # Make sure we have a norm of 1
+        for segment in segments:
+            segment.n_iter = 1
+            segment.status = Segment.SEG_STATUS_PREPARED
+            assert segment.parent_id < 0
+            initial_states[segment.initial_state_id].iter_used = 1        
+                    
+                    
+        data_manager.prepare_iteration(1, segments)
+        data_manager.update_initial_states(initial_states, n_iter=0)
+                    
+        if wemd.rc.verbose_mode:
+            pstatus('\nSegments generated:')
+            for segment in segments:
+                pstatus('{!r}'.format(segment))
+        
+        
+        pstatus('''
+        Total bins:            {total_bins:d}
+        Initial replicas:      {init_replicas:d} in {occ_bins:d} bins, total weight = {weight:g}
+        Total target replicas: {total_replicas:d}
+        '''.format(total_bins=len(all_bins), init_replicas=sum(bin_occupancies), occ_bins=len(bin_occupancies[bin_occupancies > 0]),
+                   weight = sum(segment.weight for segment in segments), total_replicas = sum(target_occupancies)))
+        
+        # Send the segments over to the data manager to commit to disk            
+        data_manager.current_iteration = 1
+        
+        # Report statistics
+        pstatus('Simulation prepared.')
+        self.segments = {segment.seg_id: segment for segment in segments}
+        self.report_bin_statistics(new_region_set,save_summary=True)
+        data_manager.flush_backing()
+
+    def prepare_iteration(self):
+        log.debug('beginning iteration {:d}'.format(self.n_iter))
         self.initial_binning = self.system.new_region_set()
         self.final_binning = self.system.new_region_set()
-                
-        segments = self.data_manager.get_segments(self.n_iter)
-        completed_segments = []
-        incomplete_segments = []
+        self.target_states = self.data_manager.get_target_states(self.n_iter)
+        self.target_state_bins = [self.final_binning.map_to_bins([target_state.pcoord])
+                                  for target_state in self.target_states]
+        self.basis_states = self.data_manager.get_basis_states(self.n_iter)
         
-        for segment in segments:
+        segments = self.segments = {segment.seg_id: segment for segment in self.data_manager.get_segments()}
+        log.debug('loaded {:d} segments'.format(len(segments)))
+        
+        completed_segments = self.completed_segments = {}
+        incomplete_segments = self.incomplete_segments = {}
+        for segment in segments.itervalues():
             if segment.status == Segment.SEG_STATUS_COMPLETE:
-                completed_segments.append(segment)
+                completed_segments[segment.seg_id] = segment
             else:
-                incomplete_segments.append(segment)        
+                incomplete_segments[segment.seg_id] = segment
+        log.debug('{:d} segments are complete; {:d} are incomplete'.format(len(completed_segments), len(incomplete_segments)))
         
-        self.initial_binning.assign_to_bins(segments, key=Segment.initial_pcoord)
-        self.final_binning.assign_to_bins(completed_segments, key=Segment.final_pcoord)
+        if len(incomplete_segments) == len(segments):
+            # Starting a new iteration
+            wemd.rc.pstatus('Beginning iteration {:d}'.format(self.n_iter))
+        elif incomplete_segments:
+            wemd.rc.pstatus('Continuing iteration {:d}'.format(self.n_iter))
+        wemd.rc.pstatus('{:d} segments remain in iteration {:d}'.format(len(incomplete_segments), self.n_iter))
         
-    
-    def _commit_iteration(self):
-        pass
-    
+        self.initial_binning.assign_to_bins(segments.itervalues(), key=Segment.initial_pcoord)
+        self.report_bin_statistics(self.initial_binning, save_summary=True)
+        
+        self.recycled_segments = {}
+        if completed_segments:
+            self.final_binning.assign_to_bins(completed_segments.values(), key=Segment.final_pcoord)
+            
+            for bin, target_state in izip(self.target_state_bins, self.target_states):
+                log.debug('bin={!r}, target_state={!r}'.format(bin,target_state))
+                if len(bin):
+                    log.debug('{:d} replicas in target state {!r}'.format(len(bin), target_state))
+                    self.recycled_segments.update({segment.seg_id: segment for segment in bin})
+        log.debug('{:d} replicas in target states'.format(len(self.recycled_segments)))
+        
+        self.initial_states = self.data_manager.get_segment_initial_states(segments.values())
+                    
+        self.prepared_initial_states = self.data_manager.get_unused_initial_states()
+        log.debug('{:d} unused initial states found'.format(len(self.prepared_initial_states)))
+        
+        log.debug('dispatching propagator prep_iter to work manager')
+        self.work_manager.submit(wm_ops.prep_iter, self.propagator, self.n_iter, segments).get_result()
+        
+    def finalize_iteration(self, n_iter, segments):
+        '''Perform customized processing/cleanup on just-completed segments at the end of an iteration'''
+        self.work_manager.submit(wm_ops.post_iter, self.propagator, self.n_iter, self.segments.values()).get_result()        
+        
+    def propagate(self):
+        segments = self.segments.values()[0:1]
+        log.debug('iteration {:d}: propagating {:d} segments'.format(self.n_iter, len(segments)))
+        futures = []
+        for segment in segments:
+            pbstates, pistates = wemd.states.pare_basis_initial_states(self.basis_states, self.initial_states, [segment])
+            log.debug('segment: {!r}'.format(segment))
+            log.debug('bstates: {!r}'.format(pbstates))
+            log.debug('istates: {!r}'.format(pistates))
+            future = self.work_manager.submit(wm_ops.propagate, self.propagator, pbstates, pistates, [segment])
+            log.debug('segment {:d} is task {!r}'.format(segment.seg_id, future.task_id))
+            futures.append(future)
+        
+        for future in self.work_manager.as_completed(futures):
+            incoming = future.get_result()
+            self._n_propagated += 1
+            log.debug('recording results for {!r}, {:d} for this run'.format(incoming, self._n_propagated))
+            self.data_manager.update_segments(self.n_iter, incoming)
+            self.data_manager.flush_backing()
+            
+            self.segments.update({segment.seg_id: segment for segment in incoming})
+            self.completed_segments.update({segment.seg_id: segment for segment in incoming})
+                    
+        log.debug('done with propagation')
+        
 
+    def run(self):
+        
+        run_starttime = time.time()
+        max_walltime = wemd.rc.config.get_interval('limits.max_wallclock', default=None, type=float)
+        if max_walltime:
+            run_killtime = run_starttime + max_walltime
+            wemd.rc.pstatus('Maximum wallclock time: %s' % timedelta(seconds=max_walltime or 0))
+        else:
+            run_killtime = None
+        
+        self.n_iter = self.data_manager.current_iteration    
+        max_iter = wemd.rc.config.get_int('limits.max_iterations', self.n_iter+1)
+
+        while self.n_iter < max_iter:
+            self.prepare_iteration()
+            self.propagate()                            
+            
+            
+            break
+        
+    def report_bin_statistics(self, region_set, save_summary=False):
+        segments = self.segments.values()
+        bins = region_set.get_all_bins()
+        bin_counts = vgetattr('count', bins, numpy.uint)
+        target_counts = vgetattr('target_count', bins, numpy.uint)
+
+        # Do not include bins with target count zero (e.g. sinks, never-filled bins) in the (non)empty bins statistics
+        n_active_bins = len(target_counts[target_counts!=0])
+        seg_probs  = vgetattr('weight', segments, numpy.float64)
+        bin_probs  = vgetattr('weight', bins, numpy.float64)
+        norm = seg_probs.sum()
+        
+        log.debug('norm is {!r}'.format(norm))
+        assert abs(1 - norm) < EPS*len(segments)
+        
+        min_seg_prob = seg_probs[seg_probs!=0].min()
+        max_seg_prob = seg_probs.max()
+        seg_drange   = math.log(max_seg_prob/min_seg_prob)
+        min_bin_prob = bin_probs[bin_probs!=0].min()
+        max_bin_prob = bin_probs.max()
+        bin_drange = math.log(max_bin_prob/min_bin_prob)
+        n_pop = len(bin_counts[bin_counts!=0])
+        
+        wemd.rc.pstatus('{:d} of {:d} ({:%}) active bins are populated'.format(n_pop, n_active_bins,n_pop/n_active_bins))
+        wemd.rc.pstatus('per-bin minimum non-zero probability:       {:g}'.format(min_bin_prob))
+        wemd.rc.pstatus('per-bin maximum probability:                {:g}'.format(max_bin_prob))
+        wemd.rc.pstatus('per-bin probability dynamic range (kT):     {:g}'.format(bin_drange))
+        wemd.rc.pstatus('per-segment minimum non-zero probability:   {:g}'.format(min_seg_prob))
+        wemd.rc.pstatus('per-segment maximum non-zero probability:   {:g}'.format(max_seg_prob))
+        wemd.rc.pstatus('per-segment probability dynamic range (kT): {:g}'.format(seg_drange))
+        
+        if save_summary:
+            iter_summary = self.data_manager.get_iter_summary()
+            iter_summary['n_particles'] = len(segments)
+            iter_summary['norm'] = norm
+            iter_summary['min_bin_prob'] = min_bin_prob
+            iter_summary['max_bin_prob'] = max_bin_prob
+            iter_summary['min_seg_prob'] = min_seg_prob
+            iter_summary['max_seg_prob'] = max_seg_prob
+            if numpy.isnan(iter_summary['cputime']): iter_summary['cputime'] = 0.0
+            if numpy.isnan(iter_summary['walltime']): iter_summary['walltime'] = 0.0
+            self.data_manager.update_iter_summary(iter_summary)
             
     def _propagate(self, n_iter, segments):            
         wemd.rc.pflush()
         log.debug('propagating {:d} segments'.format(len(segments)))
         futures = []
         for segment in segments:
-            future = self.work_manager.submit(wm_propagate, self.propagator, [segment])
+            future = self.work_manager.submit(wm_ops.propagate, self.propagator, [segment])
             log.debug('segment {:d} is task {!r}'.format(segment.seg_id, future.task_id))
             futures.append(future)
         completed = []
@@ -142,11 +400,12 @@ class WESimManager:
         self._invoke_callbacks(self.finalize_run)
         self.system.finalize_run()
         self.data_manager.finalize_run()
-        
+    
+    """    
     def prepare_iteration(self, n_iter, segments, partial):
         '''Perform customized processing/setup prior to propagation. Argument ``partial`` (True or False)
         indicates whether this is a partially-complete iteration (i.e. a restart)'''
-        self.work_manager.submit(wm_prep_iter, self.propagator, n_iter, segments).get_result()
+        self.work_manager.submit(wm_ops.prep_iter, self.propagator, n_iter, segments).get_result()
         
     def prepare_propagation(self, n_iter, segments):
         '''Prepare to propagate a group of segments'''
@@ -158,8 +417,8 @@ class WESimManager:
     
     def finalize_iteration(self, n_iter, segments):
         '''Perform customized processing/cleanup on just-completed segments at the end of an iteration'''
-        self.work_manager.submit(wm_post_iter, self.propagator, n_iter, segments).get_result()
-        
+        self.work_manager.submit(wm_ops.post_iter, self.propagator, n_iter, segments).get_result()
+    """    
     def prepare_we(self, n_iter, segments):
         '''Perform customized processing after propagation and before WE'''
         self._invoke_callbacks(self.prepare_we, n_iter, segments)
@@ -170,8 +429,9 @@ class WESimManager:
     def shutdown(self, exit_code = 0):
         '''Shut down a simulation in an orderly way'''
         self.work_manager.shutdown(exit_code)
+        
                             
-    def run(self):
+    def old_run(self):
         """Begin (or continue) running a simulation.  Must only be called in master processes.
         """
                 

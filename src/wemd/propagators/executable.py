@@ -52,7 +52,7 @@ class ExecutablePropagator(WEMDPropagator):
     ENV_CURRENT_SEG_ID       = 'WEMD_CURRENT_SEG_ID'
     ENV_CURRENT_SEG_DATA_REF = 'WEMD_CURRENT_SEG_DATA_REF'
     ENV_CURRENT_SEG_INITPOINT= 'WEMD_CURRENT_SEG_INITPOINT_TYPE'
-    ENV_PARENT_SEG_ID        = 'WEMD_PARENT_SEG_ID'
+    ENV_PARENT_SEG_ID        = 'WEMD_PARENT_ID'
     ENV_PARENT_DATA_REF      = 'WEMD_PARENT_DATA_REF'
     
     # Environment variables set during propagation and state generation
@@ -137,9 +137,11 @@ class ExecutablePropagator(WEMDPropagator):
                 
                 if {key for key in child_info if key.startswith('{}.env.'.format(child_key_prefix))}:
                     # Strip leading 'executable.CHILD_TYPE.env.' from leading edge of entries
+                    #log.debug('child_key_prefix: {!r}'.format(child_key_prefix))
                     offset = len('{}.env.'.format(child_key_prefix))
+                    #log.debug('offset: {:d}'.format(offset))
                     self.exe_info[child_type]['environ'] = {key[offset:]: value 
-                                                            for (key,value) in child_info 
+                                                            for (key,value) in child_info.iteritems() 
                                                             if key.startswith('{}.env.'.format(child_key_prefix))}                                                            
         log.debug('exe_info: {!r}'.format(self.exe_info))
         
@@ -180,7 +182,9 @@ class ExecutablePropagator(WEMDPropagator):
         
     def set_basis_initial_states(self, basis_states, initial_states):
         self.basis_states = {state.state_id: state for state in basis_states}
-        self.initial_states = {state.state_id: state for state in initial_states}  
+        self.initial_states = {state.state_id: state for state in initial_states}
+        log.debug('self.initial_states: {!r}'.format(self.initial_states))
+        log.debug('self.basis_states: {!r}'.format(self.basis_states))  
         
     @staticmethod                        
     def makepath(template, template_args = None,
@@ -288,24 +292,24 @@ class ExecutablePropagator(WEMDPropagator):
             # to us (we'd need at least the subset of parents for all segments sent in the call to propagate)
             # that may make a good wemd.cfg option for future crazy extensibility, but for now,
             # just populate the bare minimum
-            parent = Segment(n_iter=segment.n_iter-1, seg_id=segment.p_parent_id)
+            parent = Segment(n_iter=segment.n_iter-1, seg_id=segment.parent_id)
             template_args['parent'] = parent
             
-            environ[self.ENV_PARENT_SEG_ID] = str(segment.p_parent_id)            
+            environ[self.ENV_PARENT_SEG_ID] = str(segment.parent_id)            
             environ[self.ENV_PARENT_DATA_REF] = self.makepath(self.parent_ref_template, template_args)
         elif segment.initpoint_type == Segment.SEG_INITPOINT_NEWTRAJ:
             # This segment is initiated from a basis state; WEMD_PARENT_SEG_ID and WEMD_PARENT_DATA_REF are
             # set to the basis state ID and data ref
             initial_state = self.initial_states[segment.initial_state_id]
-            basis_state = self.initial_states[initial_state.basis_state_id]
+            basis_state = self.basis_states[initial_state.basis_state_id]
             
             if self.ENV_BSTATE_ID not in environ:
                 self.update_args_env_basis_state(template_args, environ, basis_state)
             if self.ENV_ISTATE_ID not in environ:
                 self.update_args_env_initial_state(template_args, environ, initial_state)
             
-            assert initial_state.type in (InitialState.ISTATE_TYPE_BASIS, InitialState.ISTATE_TYPE_GENERATED)
-            if initial_state.type == InitialState.ISTATE_TYPE_BASIS:
+            assert initial_state.istate_type in (InitialState.ISTATE_TYPE_BASIS, InitialState.ISTATE_TYPE_GENERATED)
+            if initial_state.istate_type == InitialState.ISTATE_TYPE_BASIS:
                 environ[self.ENV_PARENT_DATA_REF] = environ[self.ENV_BSTATE_DATA_REF]
             else: # initial_state.type == InitialState.ISTATE_TYPE_GENERATED  
                 environ[self.ENV_PARENT_DATA_REF] = environ[self.ENV_ISTATE_DATA_REF]

@@ -226,6 +226,7 @@ class RegionSet:
         coordinates from each item. This will typically be called with a list of segment objects
         and key=Segment.final_pcoord. Returns the bins to which each item is assigned.'''
         
+        items=list(items)
         coords = map(key,items)
         bins = self.map_to_bins(coords)
         for bin, item in zip(bins, items):

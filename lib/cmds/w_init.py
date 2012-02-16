@@ -74,6 +74,9 @@ if work_manager.mode == work_manager.MODE_MASTER:
             tstates_strio = cStringIO.StringIO('\n'.join(args.tstates).replace(',', ' '))
             target_states.extend(TargetState.states_from_file(tstates_strio, system.pcoord_dtype))
             del tstates_strio
+            
+        if not target_states:
+            wemd.rc.pstatus('No target states specified; preparing equilibrium simulation.')
         
         # Process basis states
         basis_states = []
@@ -90,6 +93,11 @@ if work_manager.mode == work_manager.MODE_MASTER:
                     auxref = None
                 basis_states.append(BasisState(label=label,probability=probability,auxref=auxref))
         
+        if not basis_states:
+            log.error('At least one basis state is required')
+            work_manager.shutdown(3)
+            sys.exit(3)
+        
         # Check that the total probability of basis states adds to one
         tprob = sum(bstate.probability for bstate in basis_states)
         if abs(1.0 - tprob) > len(basis_states) * EPS:
@@ -98,137 +106,10 @@ if work_manager.mode == work_manager.MODE_MASTER:
             for bstate in basis_states:
                 bstate.probability *= pscale
         
-        # Calculate progress coordinates
-        sys.stdout.write('Calculating progress coordinate values for basis states.\n')
-        futures = [work_manager.submit(ops.get_pcoord, propagator, basis_state) for basis_state in basis_states]
-        fmap = {future: i for i,future in enumerate(futures)}
-        for future in work_manager.as_completed(futures):
-            updated_basis_state = future.get_result()
-            basis_states[fmap[future]].pcoord = updated_basis_state.pcoord
-        
-        if os.path.exists(h5file):
-            if args.force:
-                sys.stdout.write('Deleting existing HDF5 file {!r}.\n'.format(h5file))
-                os.unlink(h5file)
-            else:
-                sys.stderr.write('HDF5 file {!r} already exists; exiting.\n'.format(h5file))
-                sys.exit(os.EX_OSFILE)
-        
-        # Prepare HDF5 file
-        sys.stdout.write('Creating HDF5 file {!r}.\n'.format(h5file))
-        data_manager.prepare_backing()        
-        data_manager.save_basis_states(basis_states)
-        data_manager.save_target_states(target_states)
-        
-        sys.stdout.write('{:d} basis state(s) present'.format(len(basis_states)))
-        if wemd.rc.verbose_mode:
-            sys.stdout.write(':\n')
-            sys.stdout.write('{:6s}    {:12s}    {:20s}    {:20s}    {}\n'
-                             .format('ID', 'Label', 'Probability', 'Aux Reference', 'Progress Coordinate'))
-            for basis_state in basis_states:
-                sys.stdout.write('{:<6d}    {:12s}    {:<20.14g}    {:20s}    {}\n'.
-                                 format(basis_state.state_id, basis_state.label, basis_state.probability, basis_state.auxref or '',
-                                        ', '.join(map(str,basis_state.pcoord))))
-        sys.stdout.write('\n')
-        
-        sys.stdout.write('{:d} target state(s) present'.format(len(target_states)))    
-        if wemd.rc.verbose_mode and target_states:
-            sys.stdout.write(':\n')
-            sys.stdout.write('{:6s}    {:12s}    {}\n'.format('ID', 'Label', 'Progress Coordinate'))
-            for target_state in target_states:
-                sys.stdout.write('{:<6d}    {:12s}    {}\n'
-                                 .format(target_state.state_id, target_state.label, ','.join(map(str,target_state.pcoord))))
-        sys.stdout.write('\n')
-        
+                
         # Prepare simulation
+        sim_manager.initialize_simulation(basis_states, target_states, segs_per_state=args.segs_per_state, run_we=args.run_we)
         
-        
-        sys.stdout.write('Preparing initial states\n')
-        segs_per_state = args.segs_per_state
-        segments = []
-        initial_states = []
-        if gen_istates:
-            istate_type = InitialState.ISTATE_TYPE_GENERATED
-        else:
-            istate_type = InitialState.ISTATE_TYPE_BASIS
-            
-        for basis_state in basis_states:
-            for iseg in xrange(segs_per_state):
-                initial_state = data_manager.create_initial_states(0,1)[0]
-                initial_state.basis_state_id =  basis_state.state_id
-                initial_state.basis_state = basis_state
-                initial_state.istate_type = istate_type
-                segment = Segment(weight=basis_state.probability/segs_per_state,pcoord=system.new_pcoord_array(),
-                                  parent_id=-(initial_state.state_id+1), wtg_parent_ids=(-(initial_state.state_id+1),),
-                                  )
-                initial_states.append(initial_state)
-                segments.append(segment)
-                
-        if gen_istates:
-            futures = [work_manager.submit(ops.gen_istate, propagator, initial_state.basis_state, initial_state)
-                       for initial_state in initial_states]
-            for future in work_manager.as_completed(futures):
-                rbstate, ristate = future.get_result()
-                initial_states[ristate.state_id].pcoord = ristate.pcoord
-                segments[ristate.state_id].pcoord[0] = ristate.pcoord            
-        else:
-            for segment, initial_state in izip(segments, initial_states):
-                initial_state.pcoord = basis_state.pcoord
-                segment.pcoord[0] = basis_state.pcoord
-                    
-                
-        data_manager.update_initial_states(initial_states, n_iter=0)
-        
-        # Make sure we have a norm of 1
-        tprob = sum(segment.weight for segment in segments)
-        if abs(1.0 - tprob) > len(segments) * EPS:
-            pscale = 1.0/tprob
-            log.warning('Weights of initial segments do not sum to unity; scaling by {:g}'.format(pscale))
-            for segment in segments:
-                segment.weight *= pscale
-        
-        
-        if args.run_we:
-            # TODO: what to do if something winds up in a recycling region?
-            # At the moment, fail with an exception
-            region_set = system.new_region_set()
-            new_region_set = we_driver.run_we(region_set, segments)
-            all_bins = new_region_set.get_all_bins()
-        else:
-            new_region_set = system.new_region_set()
-            new_region_set.assign_to_bins(segments, key=Segment.initial_pcoord)
-        
-        all_bins = new_region_set.get_all_bins()
-        bin_occupancies = numpy.array(map(operator.attrgetter('count'), all_bins))
-        target_occupancies = numpy.array(map(operator.attrgetter('target_count'), all_bins))
-        segments = list(new_region_set.particles)
-                    
-        for segment in segments:
-            segment.n_iter = 1
-            segment.status = Segment.SEG_STATUS_PREPARED
-            assert segment.parent_id < 0
-            initial_states[segment.initial_state_id].iter_used = 1
-                    
-        data_manager.prepare_iteration(1, segments)
-        data_manager.update_initial_states(initial_states, n_iter=0)
-                    
-        if wemd.rc.verbose_mode:
-            sys.stdout.write('\nSegments generated:\n')
-            for segment in segments:
-                sys.stdout.write('{!r}\n'.format(segment))
-        
-        
-        sys.stdout.write('''
-        Total bins:            {total_bins:d}
-        Initial replicas:      {init_replicas:d} in {occ_bins:d} bins, total weight = {weight:g}
-        Total target replicas: {total_replicas:d}
-        '''.format(total_bins=len(all_bins), init_replicas=sum(bin_occupancies), occ_bins=len(bin_occupancies[bin_occupancies > 0]),
-                   weight = sum(segment.weight for segment in segments), total_replicas = sum(target_occupancies)))
-        
-        # Send the segments over to the data manager to commit to disk            
-        #data_manager.prepare_iteration(1, segments)
-        data_manager.flush_backing()    
-        sys.stdout.write('Simulation prepared.\n')
         work_manager.shutdown(0)
     except:
         work_manager.shutdown(4)

@@ -85,7 +85,7 @@ class InitialState:
                             simulation initialization).
     :ivar iter_used:        Iteration in which this state was used to initiate a
                             trajectory (None for unused).
-    :ivar type:             Integer describing the type of this initial state
+    :ivar istate_type:      Integer describing the type of this initial state
                             (ISTATE_TYPE_BASIS for direct use of a basis state, 
                             ISTATE_TYPE_GENERATED for a state generated from a basis state).
     :ivar pcoord:           The representative progress coordinate of this state.
@@ -107,7 +107,7 @@ class InitialState:
         self.pcoord = pcoord
         
     def __repr__(self): 
-        return ('{} state_id={self.state_id!r} type={self.type!r} basis_state_id={self.basis_state_id!r} iter_created={self.iter_created!r}>'
+        return ('{} state_id={self.state_id!r} istate_type={self.istate_type!r} basis_state_id={self.basis_state_id!r} iter_created={self.iter_created!r} pcoord={self.pcoord!r}>'
                 .format(object.__repr__(self)[:-1], self=self))
 
 class TargetState:
@@ -161,6 +161,8 @@ class TargetState:
             
         return [cls(label=label, pcoord=pcoord) for label,pcoord in zip(labels,pcoord_values)]
 
+from wemd.segment import Segment
+
 def pare_basis_initial_states(basis_states, initial_states, segments=None):
     '''Given iterables of basis and initial states (and optionally segments that use them),
     return minimal sets (as in __builtins__.set) of states needed to describe the history of the given 
@@ -171,13 +173,11 @@ def pare_basis_initial_states(basis_states, initial_states, segments=None):
     
     if segments is not None:
         segments = list(segments)
-        return_bstates = set(bstatemap[segment.p_parent_id] for segment in segments
-                             if segment.initpoint_type == segment.SEG_INITPOINT_BASIS)
-        return_istates = set(istatemap[segment.p_parent_id] for segment in segments 
-                             if segment.initpoint_type == segment.SEG_INITPOINT_GENERATED)
-        return_bstates.update(bstatemap[istate.basis_state_id] for istate in return_istates)
+        return_istates = set(istatemap[segment.initial_state_id] for segment in segments
+                             if segment.initpoint_type == Segment.SEG_INITPOINT_NEWTRAJ)
     else:
         return_istates = set(initial_states)
-        return_bstates = set(bstatemap[istate.basis_state_id] for istate in return_istates)
+    
+    return_bstates = set(bstatemap[istate.basis_state_id] for istate in return_istates)
         
     return return_bstates, return_istates

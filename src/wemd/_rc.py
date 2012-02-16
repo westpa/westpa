@@ -82,7 +82,7 @@ class _WEMDRC:
     
     @property
     def verbose_mode(self):
-        return (self.verbosity == 'verbose')
+        return (self.verbosity in ('verbose', 'debug'))
     
     @property
     def debug_mode(self):

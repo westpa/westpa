@@ -75,7 +75,7 @@ class Segment:
                
     @property
     def initpoint_type(self):
-        if self.seg_id < 0:
+        if self.parent_id < 0:
             return Segment.SEG_INITPOINT_NEWTRAJ
         else:
             return Segment.SEG_INITPOINT_CONTINUES
