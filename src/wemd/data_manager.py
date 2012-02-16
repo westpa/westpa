@@ -467,6 +467,20 @@ class WEMDDataManager:
             
             ibstate_group['istate_index'][state_ids] = index_entries
             ibstate_group['istate_pcoord'][state_ids] = pcoord_vals
+            
+    def get_initial_states(self, n_iter=None):
+        states = []
+        with self.lock:
+            n_iter = n_iter or self.current_iteration
+            ibstate_group = self.get_iter_group(n_iter)['ibstates']
+            istate_pcoords = ibstate_group['pcoord']
+            istate_index = ibstate_group['istate_index']
+            for state_id, (state, pcoord) in enumerate(izip(istate_index, istate_pcoords)):
+                states.append(InitialState(state_id=state_id, basis_state_id=state['basis_state_id'],
+                                           iter_created=state['iter_created'], iter_used=state['iter_used'],
+                                           istate_type=state['istate_type'], pcoord=pcoord))
+            return states
+                
 
     def get_segment_initial_states(self, segments, n_iter=None):
         '''Retrieve all initial states referenced by the given segments.'''
@@ -516,7 +530,8 @@ class WEMDDataManager:
                     pcoords = istate_pcoords[ids_of_unused]
                     states.extend(InitialState(state_id=state_id, basis_state_id=state['basis_state_id'],
                                                iter_created=state['iter_created'], iter_used=0, istate_type=state['istate_type'],
-                                               pcoord=pcoord)
+                                               pcoord=pcoord,
+                                               istate_status=state['istate_status'])
                                   for state_id,state,pcoord in izip(ids_of_unused,istate_chunk[unused],pcoords))
                 istart += chunksize
             log.debug('found {:d} unused states'.format(len(states)))
@@ -572,6 +587,7 @@ class WEMDDataManager:
             _fluxes_ds = iter_group.create_dataset('bin_fluxes', shape=(n_bins,n_bins), dtype=numpy.float64)
             _rates_ds = iter_group.create_dataset('bin_rates', shape=(n_bins,n_bins), dtype=numpy.float64)
             
+            total_parents = 0
             for (seg_id, segment) in enumerate(segments):
                 if segment.seg_id is not None:
                     assert segment.seg_id == seg_id
@@ -584,6 +600,8 @@ class WEMDDataManager:
                 seg_index_table[seg_id]['weight'] = segment.weight
                 seg_index_table[seg_id]['parent_id'] = segment.parent_id                
                 seg_index_table[seg_id]['wtg_n_parents'] = len(segment.wtg_parent_ids)
+                seg_index_table[seg_id]['wtg_offset'] = total_parents
+                total_parents += len(segment.wtg_parent_ids)
     
                 # Assign progress coordinate if any exists
                 if segment.pcoord is not None: 
@@ -596,36 +614,18 @@ class WEMDDataManager:
                     else:
                         pcoord[seg_id,...] = segment.pcoord
                     
-            
-            extents = seg_index_table['wtg_n_parents']
-            offsets = numpy.add.accumulate(extents)
-            total_parents = offsets[-1]
-            offsets -= offsets[0]
-            
+                        
             if total_parents > 0:
                 wtgraph_ds = iter_group.create_dataset('wtgraph', (total_parents,), seg_id_dtype,
                                                        compression='gzip', shuffle=True)
                 parents = numpy.empty((total_parents,), seg_id_dtype)
             
                 for (seg_id, segment) in enumerate(segments):
-                    offset = offsets[seg_id]
-                    extent = extents[seg_id]
-                    assert extent == len(segment.wtg_parent_ids)
-                    assert extent > 0
-                    assert None not in segment.wtg_parent_ids
+                    offset = seg_index_table[seg_id]['wtg_offset']
+                    extent = seg_index_table[seg_id]['wtg_n_parents']
+                    parent_list = list(segment.wtg_parent_ids)
+                    parents[offset:offset+extent] = parent_list[:]
                     
-                    # Ensure that the primary parent is first in the list
-                    seg_index_table[seg_id]['wtg_offset'] = offset
-                    parents[offset] = segment.parent_id                
-                    if extent > 1:
-                        parent_ids = set(segment.wtg_parent_ids)
-                        parent_ids.remove(segment.parent_id)
-                        parent_ids = list(sorted(parent_ids))
-                        if extent == 2:
-                            assert len(parent_ids) == 1
-                            parents[offset+1] = parent_ids[0]
-                        else:
-                            parents[offset+1:offset+extent] = parent_ids
                     assert set(parents[offset:offset+extent]) == set(segment.wtg_parent_ids)
                 
                 wtgraph_ds[:] = parents

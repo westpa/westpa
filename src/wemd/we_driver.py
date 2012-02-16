@@ -250,7 +250,9 @@ class WEMDWEDriver:
             iparent = (random.uniform(0, glom_weight) >= parents[0].weight)
               
             glom.parent_id = parent_ids[iparent]
-            glom.wtg_parent_ids = set(parents[0].wtg_parent_ids) | set(parents[1].wtg_parent_ids)
+            glom.wtg_parent_ids = set()
+            for parent in parents:
+                glom.wtg_parent_ids |= parent.wtg_parent_ids
             glom.pcoord = parents[iparent].pcoord.copy()
             
             if glom.initpoint_type == Segment.SEG_INITPOINT_CONTINUES:
@@ -259,7 +261,7 @@ class WEMDWEDriver:
             # another boolean trick: if index of the selected particle is 0, then the one that gets merged is 1,
             # and vice versa, so just take logical not of iparent as the index
             if parents[~iparent].initpoint_type == Segment.SEG_INITPOINT_CONTINUES:
-                self.completed_segs.map[parents[~iparent].p_parent_id].endpoint_type = Segment.SEG_ENDPOINT_MERGED
+                self.completed_segs_map[parents[~iparent].parent_id].endpoint_type = Segment.SEG_ENDPOINT_MERGED
             
             if log.isEnabledFor(logging.DEBUG):
                 log.debug('merging {:d} {!r} into {!r}'.format(len(parents), parents, glom))

@@ -42,6 +42,7 @@ class WESimManager:
         self.target_states = None           # TargetStates valid at this iteration
         self.target_state_bins = None       # Bins (in self.final_binning) associated with each TargetState
         self.basis_states = None            # BasisStates valid at this iteration
+        self.bstate_cumul_probs = None
         self.initial_states = None          # InitialStates used in this iteration
         self.spare_initial_states = None    # InitialStates available for use next iteration
         self.assigned_initial_states = None # InitialStates that were available or generated in this iteration but mapped to 
@@ -276,9 +277,11 @@ class WESimManager:
         self.initial_binning = self.system.new_region_set()
         self.final_binning = self.system.new_region_set()
         self.target_states = self.data_manager.get_target_states(self.n_iter)
-        self.target_state_bins = self.final_binning.map_to_bins([target_state.pcoord for target_state in self.target_states])
+        self.target_state_bins = list(self.final_binning.map_to_bins([target_state.pcoord for target_state in self.target_states]))
         log.debug('target_state_bins={!r}'.format(self.target_state_bins))
+        
         self.basis_states = self.data_manager.get_basis_states(self.n_iter)
+        self.bstate_cumul_probs = numpy.add.accumulate([bstate.probability for bstate in self.basis_states])
         
         segments = self.segments = {segment.seg_id: segment for segment in self.data_manager.get_segments()}
         log.debug('loaded {:d} segments'.format(len(segments)))
@@ -313,10 +316,11 @@ class WESimManager:
                     self.to_recycle.update({segment.seg_id: segment for segment in bin})
         log.debug('{:d} replicas in target states'.format(len(self.to_recycle)))
         
-        self.initial_states = self.data_manager.get_segment_initial_states(segments.values())
+        self.initial_states = {state.state_id: state for state in self.data_manager.get_segment_initial_states(segments.values())}
         
         self.assigned_initial_states = set()
         self.spare_initial_states = set(self.data_manager.get_unused_initial_states())
+        self.initial_states.update({state.state_id: state for state in self.spare_initial_states})
         log.debug('{:d} unused initial states found'.format(len(self.spare_initial_states)))
         
         log.debug('dispatching propagator prep_iter to work manager')
@@ -326,6 +330,42 @@ class WESimManager:
         '''Perform customized processing/cleanup on just-completed segments at the end of an iteration'''
         log.debug('finalizing iteration {:d}'.format(self.n_iter))
         self.work_manager.submit(wm_ops.post_iter, self.propagator, self.n_iter, self.segments.values()).get_result()
+
+
+    def get_istate_futures(self, n_states):
+        '''Add ``n_states`` initial states to the internal list of initial states assigned to
+        recycled particles.  Spare states are used if available, otherwise new states are created.
+        If created new initial states requires generation, then a set of futures is returned
+        representing work manager tasks corresponding to the necessary generation work.'''
+        
+        futures = set()
+        for i in xrange(n_states):
+            if self.spare_initial_states:
+                log.debug('assigning spare state')
+                self.assigned_initial_states.add(self.spare_initial_states.pop())
+            else:
+                # Select a basis state according to its weight
+                ibstate = numpy.digitize([random.random()], self.bstate_cumul_probs)
+                basis_state = self.basis_states[ibstate]
+                initial_state = self.data_manager.create_initial_states(self.n_iter,1)[0]
+                initial_state.iter_created = self.n_iter
+                initial_state.basis_state_id = basis_state.state_id
+                initial_state.istate_status = InitialState.ISTATE_STATUS_PENDING
+                
+                if self.do_gen_istates:
+                    log.debug('generating new initial state from basis state {!r}'.format(basis_state))
+                    initial_state.istate_type = InitialState.ISTATE_TYPE_GENERATED
+                    futures.add(self.work_manager.submit(wm_ops.gen_istate,self.propagator, basis_state, initial_state))
+                else:
+                    log.debug('using basis state {!r} directly'.format(basis_state))
+                    initial_state.istate_type = InitialState.ISTATE_TYPE_BASIS
+                    initial_state.pcoord = basis_state.pcoord.copy()
+                    self.assigned_initial_states.add(initial_state)
+                    self.initial_states[initial_state.state_id] = initial_state
+                self.data_manager.update_initial_states([initial_state])
+        return futures
+            
+            
 
 
     def ensure_istates(self):
@@ -339,6 +379,7 @@ class WESimManager:
         
         # Move as many spare states as necessary from the spare pool to the assigned pool
         while len(self.to_recycle) > len(self.assigned_initial_states) and self.spare_initial_states:
+            log.debug('assigning spare state')
             self.assigned_initial_states.add(self.spare_initial_states.pop())
             
         # If we still need more, we need to generate them
@@ -358,15 +399,18 @@ class WESimManager:
             ibstate = numpy.digitize([random.random()], cumul_probs)
             basis_state = self.basis_states[ibstate]
             initial_state = self.data_manager.create_initial_states(self.n_iter,1)[0]
+            initial_state.iter_created = self.n_iter
             initial_state.basis_state_id = basis_state.state_id
             initial_state.istate_type = istate_type
             initial_state.basis_state = basis_state
             
             if self.do_gen_istates:
                 # We need to dispatch a task to the work manager to generate a new state
+                log.debug('generating new initial state')
                 futures.add(self.work_manager.submit(wm_ops.gen_istate, self.propagator, initial_state.basis_state, initial_state))
             else:
                 # We can immediately generate a new state, mark it as ready, and save it
+                log.debug('using basis state')
                 initial_state.pcoord = basis_state.pcoord
                 initial_state.istate_status = InitialState.ISTATE_STATUS_PREPARED
                 self.data_manager.update_initial_states([initial_state])
@@ -384,7 +428,7 @@ class WESimManager:
         istate_gen_futures = set()
                 
         for segment in segments:
-            pbstates, pistates = wemd.states.pare_basis_initial_states(self.basis_states, self.initial_states, [segment])
+            pbstates, pistates = wemd.states.pare_basis_initial_states(self.basis_states, self.initial_states.values(), [segment])
             future = self.work_manager.submit(wm_ops.propagate, self.propagator, pbstates, pistates, [segment])
             futures.add(future)
             segment_futures.add(future)
@@ -406,22 +450,28 @@ class WESimManager:
                 
                 for segment in incoming:
                     final_bin = self.final_binning.map_to_bins([segment.pcoord[-1]])[0]
-                    log.debug('incoming segment {!r} mapped to bin {!r}'.format(segment, final_bin))
                     final_bin.add(segment)
-                    if final_bin in self.target_state_bins:
-                        # This particle must be recycled
-                        self.to_recycle[segment.seg_id: segment]
-                        new_futures = self.ensure_istates()
-                        istate_gen_futures.update(new_futures)
-                        futures.update(new_futures)
-                
+                    log.debug('incoming segment {!r} mapped to bin {!r}'.format(segment, final_bin))
+                    for target_bin in self.target_state_bins:
+                        if final_bin is target_bin:
+                            # This particle must be recycled
+                            final_bin.remove(segment)
+                            log.debug('segment {!r} will be recycled (assigned to {!r})'.format(segment, final_bin))
+                            self.to_recycle[segment.seg_id] = segment
+                            new_futures = self.get_istate_futures(1)
+                            if new_futures:
+                                log.debug('new futures created for initial state generation: {!r}'.format(new_futures))
+                            istate_gen_futures.update(new_futures)
+                            futures.update(new_futures)
+                            break
             elif future in istate_gen_futures:
                 istate_gen_futures.remove(future)
                 _basis_state, initial_state = future.get_result()
+                log.debug('received newly-prepared initial state {!r}'.format(initial_state))
                 initial_state.istate_status = InitialState.ISTATE_STATUS_PREPARED
                 self.data_manager.update_initial_states([initial_state])
                 self.assigned_initial_states.add(initial_state)
-                self.initial_states[initial_state.state_id: initial_state]
+                self.initial_states[initial_state.state_id] = initial_state
                 self.data_manager.flush_backing()
             else:
                 raise AssertionError('untracked future')                    
@@ -440,9 +490,10 @@ class WESimManager:
             
         failed_istates = [istate for istate in self.assigned_initial_states 
                           if istate.istate_status != InitialState.ISTATE_STATUS_PREPARED]
+        log.debug('{!r}'.format(failed_istates))
         if failed_istates:
             failed_ids = '  \n'.join(str(istate.state_id) for istate in failed_istates)
-            log.error('initial state generation failed for {:d} states:\n{}'.format(len(failed_istates, failed_ids)))
+            log.error('initial state generation failed for {:d} states:\n{}'.format(len(failed_istates), failed_ids))
             raise PropagationError('initial state generation failed for {:d} states'.format(len(failed_istates)))
         else:
             log.debug('initial state generation complete for iteration {:d}'.format(self.n_iter))
@@ -462,9 +513,11 @@ class WESimManager:
                                   wtg_parent_ids=[-(initial_state.state_id+1)],)
             new_segment.pcoord[0] = initial_state.pcoord
             init_segs.append(new_segment)
-                        
+        
+        log.debug('creating {:d} new particles due to recycling: {!r}'.format(len(init_segs), init_segs))                
         new_region_set = self.we_driver.run_we(self.final_binning, init_segs)
         new_segments = list(new_region_set.particles)
+        
         
         for segment in new_segments:
             segment.n_iter = self.n_iter+1

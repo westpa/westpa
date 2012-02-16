@@ -383,8 +383,9 @@ class ExecutablePropagator(WEMDPropagator):
         try:
             self.get_pcoord(initial_state)
         except:
-            log.exception('could not get progress coordinate for initial state')
+            log.exception('could not get progress coordinate for initial state {!r}'.format(initial_state))
             initial_state.istate_status = InitialState.ISTATE_STATUS_FAILED
+            raise
         else:
             initial_state.istate_status = InitialState.ISTATE_STATUS_PREPARED
                         
