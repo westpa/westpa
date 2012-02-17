@@ -395,9 +395,8 @@ class WEMDDataManager:
             
             assert len(seg_index_entries) == len(pcoord_entries) == len(seg_ids)
                         
-            row = numpy.empty((1,), seg_index_dtype)
             for (iseg, segment) in enumerate(segments):
-                row[:] = seg_index_entries[iseg]
+                row = seg_index_entries[iseg]
                 row['status'] = segment.status
                 row['endpoint_type'] = segment.endpoint_type or Segment.SEG_ENDPOINT_UNSET
                 row['cputime'] = segment.cputime
