@@ -3,6 +3,7 @@ from __future__ import division; __metaclass__ = type
 import sys, time, operator, math, numpy, re, random
 from itertools import izip
 from datetime import timedelta
+from collections import namedtuple
 import logging
 log = logging.getLogger(__name__)
 
@@ -13,8 +14,21 @@ from wemd import Segment
 from wemd.util.miscfn import vgetattr
 
 from wemd.work_managers import ops as wm_ops
+from wemd.data_manager import weight_dtype
+
+'''
+seg_id_dtype = numpy.int64  # Up to 9 quintillion segments per iteration; signed so that initial states can be stored negative
+n_iter_dtype = numpy.uint32 # Up to 4 billion iterations
+weight_dtype = numpy.float64  # about 15 digits of precision in weights
+utime_dtype = numpy.float64  # ("u" for Unix time) Up to ~10^300 cpu-seconds 
+vstr_dtype = h5py.new_vlen(str)
+h5ref_dtype = h5py.special_dtype(ref=h5py.Reference)
+
+'''
 
 EPS = numpy.finfo(numpy.float64).eps
+
+RecyclingInfo = namedtuple('RecyclingInfo', ['count', 'weight'])
 
 class PropagationError(RuntimeError):
     pass 
@@ -30,12 +44,13 @@ class WESimManager:
         # A table of function -> list of (priority, name, callback) tuples
         self._callback_table = {}
         self._valid_callbacks = set((self.prepare_run, self.finalize_run,
-                                     self.finalize_iteration, self.prepare_we,
-                                     self.prepare_new_segments))
+                                     self.prepare_iteration, self.finalize_iteration,
+                                     self.pre_propagation, self.post_propagation,
+                                     self.pre_we, self.post_we))
         self._callbacks_by_name = {fn.__name__: fn for fn in self._valid_callbacks}
         self._n_propagated = 0
         
-        self.do_gen_istates = wemd.rc.config.get_bool('system.gen_istates', False)
+        self.do_gen_istates = wemd.rc.config.get_bool('system.gen_istates', False) 
         
         # Per-iteration variables
         self.n_iter = None                  # current iteration
@@ -54,6 +69,7 @@ class WESimManager:
         self.completed_segments = None      # Mapping of seg_id to segment for all completed segments in this iteration
         self.incomplete_segments = None     # Mapping of seg_id to segment for all incomplete segments in this iteration
         self.to_recycle = None              # Mapping of seg_id to segment for all completed segments to be recycled
+        self.n_bins = None
         
         self.next_iter_segments = None      # List of segments to be created for the next iteration
         
@@ -74,7 +90,7 @@ class WESimManager:
         
         log.debug('registered callback {!r} for hook {!r}'.format(function, hook))
                 
-    def _invoke_callbacks(self, hook, *args, **kwargs):
+    def invoke_callbacks(self, hook, *args, **kwargs):
         callbacks = self._callback_table.get(hook, [])
         sorted_callbacks = sorted(callbacks)
         for (priority, name, fn) in sorted_callbacks:
@@ -102,8 +118,7 @@ class WESimManager:
         bin_probs  = vgetattr('weight', bins, numpy.float64)
         norm = seg_probs.sum()
         
-        log.debug('norm is {!r}'.format(norm))
-        assert abs(1 - norm) < EPS*len(segments)
+        assert abs(1 - norm) < EPS*(len(segments)+n_active_bins)
         
         min_seg_prob = seg_probs[seg_probs!=0].min()
         max_seg_prob = seg_probs.max()
@@ -120,6 +135,7 @@ class WESimManager:
         wemd.rc.pstatus('per-segment minimum non-zero probability:   {:g}'.format(min_seg_prob))
         wemd.rc.pstatus('per-segment maximum non-zero probability:   {:g}'.format(max_seg_prob))
         wemd.rc.pstatus('per-segment probability dynamic range (kT): {:g}'.format(seg_drange))
+        wemd.rc.pstatus('norm = {:g}, error in norm = {:g} ({:.2g}*epsilon)'.format(norm,(norm-1),(norm-1)/EPS))
         
         if save_summary:
             iter_summary = self.data_manager.get_iter_summary()
@@ -276,6 +292,7 @@ class WESimManager:
         log.debug('beginning iteration {:d}'.format(self.n_iter))
         self.initial_binning = self.system.new_region_set()
         self.final_binning = self.system.new_region_set()
+        self.n_bins = len(self.initial_binning.get_all_bins())
         self.target_states = self.data_manager.get_target_states(self.n_iter)
         self.target_state_bins = list(self.final_binning.map_to_bins([target_state.pcoord for target_state in self.target_states]))
         log.debug('target_state_bins={!r}'.format(self.target_state_bins))
@@ -323,12 +340,18 @@ class WESimManager:
         self.initial_states.update({state.state_id: state for state in self.spare_initial_states})
         log.debug('{:d} unused initial states found'.format(len(self.spare_initial_states)))
         
+        self.invoke_callbacks(self.prepare_iteration)
+        
         log.debug('dispatching propagator prep_iter to work manager')
         self.work_manager.submit(wm_ops.prep_iter, self.propagator, self.n_iter, segments).get_result()
         
-    def finalize_iteration(self, n_iter, segments):
+    def finalize_iteration(self):
         '''Perform customized processing/cleanup on just-completed segments at the end of an iteration'''
         log.debug('finalizing iteration {:d}'.format(self.n_iter))
+        
+        self.invoke_callbacks(self.finalize_iteration)
+        
+        log.debug('dispatching propagator post_iter to work manager')
         self.work_manager.submit(wm_ops.post_iter, self.propagator, self.n_iter, self.segments.values()).get_result()
 
 
@@ -364,62 +387,7 @@ class WESimManager:
                     self.initial_states[initial_state.state_id] = initial_state
                 self.data_manager.update_initial_states([initial_state])
         return futures
-            
-            
-
-
-    def ensure_istates(self):
-        '''Ensure that as many unused initial states are available as there are currently 
-        particles to be recycled.  This will select a basis state and (depending on whether
-        initial state generation is on) will either immediately make an initial state available
-        or dispatch a task to the work manager to generate a state from the basis state.
-        
-        Returns a set of futures corresponding to initial state generation tasks (if any)
-        '''
-        
-        # Move as many spare states as necessary from the spare pool to the assigned pool
-        while len(self.to_recycle) > len(self.assigned_initial_states) and self.spare_initial_states:
-            log.debug('assigning spare state')
-            self.assigned_initial_states.add(self.spare_initial_states.pop())
-            
-        # If we still need more, we need to generate them
-        n_needed = len(self.to_recycle) - len(self.assigned_initial_states)
-        if n_needed < 1:
-            return set()
-
-        if self.do_gen_istates:
-            istate_type = InitialState.ISTATE_TYPE_GENERATED
-        else:
-            istate_type = InitialState.ISTATE_TYPE_BASIS
-            
-        futures = set()
-        cumul_probs = numpy.add.accumulate([bstate.probability for bstate in self.basis_states])
-        for inew in xrange(n_needed):
-            # Select a basis state according to its weight
-            ibstate = numpy.digitize([random.random()], cumul_probs)
-            basis_state = self.basis_states[ibstate]
-            initial_state = self.data_manager.create_initial_states(self.n_iter,1)[0]
-            initial_state.iter_created = self.n_iter
-            initial_state.basis_state_id = basis_state.state_id
-            initial_state.istate_type = istate_type
-            initial_state.basis_state = basis_state
-            
-            if self.do_gen_istates:
-                # We need to dispatch a task to the work manager to generate a new state
-                log.debug('generating new initial state')
-                futures.add(self.work_manager.submit(wm_ops.gen_istate, self.propagator, initial_state.basis_state, initial_state))
-            else:
-                # We can immediately generate a new state, mark it as ready, and save it
-                log.debug('using basis state')
-                initial_state.pcoord = basis_state.pcoord
-                initial_state.istate_status = InitialState.ISTATE_STATUS_PREPARED
-                self.data_manager.update_initial_states([initial_state])
-                self.assigned_initial_states.add(initial_state)
-                self.initial_states[initial_state.state_id: initial_state]
-                
-        assert len(self.to_recycle) == len(self.assigned_initial_states) + len(futures)
-        return futures
-                        
+                                    
     def propagate(self):
         segments = self.incomplete_segments.values()
         log.debug('iteration {:d}: propagating {:d} segments'.format(self.n_iter, len(segments)))
@@ -455,7 +423,6 @@ class WESimManager:
                     for target_bin in self.target_state_bins:
                         if final_bin is target_bin:
                             # This particle must be recycled
-                            final_bin.remove(segment)
                             log.debug('segment {!r} will be recycled (assigned to {!r})'.format(segment, final_bin))
                             self.to_recycle[segment.seg_id] = segment
                             new_futures = self.get_istate_futures(1)
@@ -477,6 +444,47 @@ class WESimManager:
                 raise AssertionError('untracked future')                    
                     
         log.debug('done with propagation')
+        self.save_bin_data()
+        
+    def save_bin_data(self):
+        '''Calculate and write bin assignments, populations, transition counts, fluxes, etc to HDF5. The v0.7 code
+        saved this on a per-timepoint basis, but this requires essentially two copies of the progress coordinate
+        data for the entire set of segments to reside in RAM. This version saves only initial and final bin assignments,
+        '''
+        # save_bin_data(self, populations, n_trans, fluxes, rates, n_iter=None)
+        
+        n_segs = len(self.segments)
+        n_bins = self.n_bins
+        
+        assignments = numpy.empty((n_segs, 2), numpy.min_scalar_type(n_bins))
+        populations = numpy.zeros((n_bins,2), weight_dtype)
+        n_trans = numpy.zeros((n_bins,n_bins), numpy.uint)
+        fluxes = numpy.zeros((n_bins,n_bins), weight_dtype)
+        rates = numpy.zeros((n_bins,n_bins), weight_dtype)
+        
+        # Though already assigned to bins in self.initial_binning and self.final_binning, it's
+        # very likely faster to re-do the assignments than to search bins for segments
+        seg_ids = sorted(self.segments.iterkeys())
+        
+        assignments[:,0] = self.initial_binning.map_to_all_indices([self.segments[seg_id].pcoord[0] for seg_id in seg_ids])
+        assignments[:,-1] = self.final_binning.map_to_all_indices([self.segments[seg_id].pcoord[-1] for seg_id in seg_ids])
+        
+        segments = self.segments
+        for seg_id, init_assignment, final_assignment in izip(seg_ids, assignments[:,0], assignments[:,-1]):
+            segment = segments[seg_id]
+            weight = segment.weight
+            
+            populations[init_assignment,0] += weight
+            populations[final_assignment,-1] += weight
+            n_trans[init_assignment,final_assignment] += 1
+            fluxes[init_assignment,final_assignment] += weight
+        
+        for i in xrange(0,n_bins):
+            if populations[i,0] > 0:
+                rates[i,:] = fluxes[i,:] / populations[i,0] 
+        
+        self.data_manager.save_bin_data(assignments, populations, n_trans, fluxes, rates)
+                
 
     def check_propagation(self):
         failed_segments = [segment for segment in self.segments.itervalues() if segment.status != Segment.SEG_STATUS_COMPLETE]
@@ -501,8 +509,18 @@ class WESimManager:
 
     def run_we(self):
         '''Run the weighted ensemble algorithm based on the binning in self.final_bins and
-        the recycled particles in self.to_recycle.'''
+        the recycled particles in self.to_recycle, creating and committing the next iteration's
+        segments to storage as well.'''
 
+        # Remove recycled particles from target bins
+        recycled_segs = set(self.to_recycle.values())
+        
+        recycling_info = []
+        for target_bin in self.target_state_bins:
+            recycling_info.append(RecyclingInfo(len(target_bin), target_bin.weight))
+            target_bin.difference_update(recycled_segs)
+            assert len(target_bin) == 0
+        self.data_manager.save_recycling_data(recycling_info)
 
         # assign initial states to particles being recycled
         init_segs = []
@@ -518,7 +536,6 @@ class WESimManager:
         new_region_set = self.we_driver.run_we(self.final_binning, init_segs)
         new_segments = list(new_region_set.particles)
         
-        
         for segment in new_segments:
             segment.n_iter = self.n_iter+1
             segment.status = Segment.SEG_STATUS_PREPARED
@@ -531,13 +548,7 @@ class WESimManager:
         if used_initial_states:
             self.data_manager.update_initial_states(used_initial_states)
         
-                
-                
-            
-        
-
-    def run(self):
-        
+    def run(self):   
         run_starttime = time.time()
         max_walltime = wemd.rc.config.get_interval('limits.max_wallclock', default=None, type=float)
         if max_walltime:
@@ -549,43 +560,48 @@ class WESimManager:
         self.n_iter = self.data_manager.current_iteration    
         max_iter = wemd.rc.config.get_int('limits.max_iterations', self.n_iter+1)
 
-        
+        iter_elapsed = 0
         while self.n_iter < max_iter:
-            iter_start_time = time.time()
-            iter_summary = self.data_manager.get_iter_summary()
-            self.prepare_iteration()
-            self.propagate()
-            self.check_propagation()
-            self.run_we()
             
+            if max_walltime and time.time() + 1.1*iter_elapsed >= run_killtime:
+                wemd.rc.pstatus('Iteration {:d} would require more than the allotted time. Ending run.'
+                                .format(self.n_iter))
+                return
             
-            iter_elapsed = time.time() - iter_start_time
-            iter_summary['walltime'] += iter_elapsed
-            iter_summary['cputime'] = sum(segment.cputime for segment in self.segments.itervalues())
-            self.data_manager.update_iter_summary(iter_summary)
-
-            self.n_iter += 1
-            self.data_manager.current_iteration += 1        
+            try:
+                iter_start_time = time.time()
+                iter_summary = self.data_manager.get_iter_summary()
+                
+                wemd.rc.pstatus('\n%s' % time.asctime())
+                wemd.rc.pstatus('Iteration %d (%d requested)' % (self.n_iter, max_iter))
+                                
+                self.prepare_iteration()
+                
+                self.pre_propagation()
+                self.propagate()
+                self.check_propagation()
+                self.post_propagation()
+                 
+                self.pre_we()
+                self.run_we()
+                self.post_we()
+                
+                self.finalize_iteration()
+                
+                iter_elapsed = time.time() - iter_start_time
+                iter_summary['walltime'] += iter_elapsed
+                iter_summary['cputime'] = sum(segment.cputime for segment in self.segments.itervalues())
+                self.data_manager.update_iter_summary(iter_summary)
+    
+                self.n_iter += 1
+                self.data_manager.current_iteration += 1
+            finally:
+                self.data_manager.flush_backing()
+                
+        wemd.rc.pstatus('\n%s' % time.asctime())
+        wemd.rc.pstatus('WEMD run complete.')
+        
             
-    def _propagate(self, n_iter, segments):            
-        wemd.rc.pflush()
-        log.debug('propagating {:d} segments'.format(len(segments)))
-        futures = []
-        for segment in segments:
-            future = self.work_manager.submit(wm_ops.propagate, self.propagator, [segment])
-            log.debug('segment {:d} is task {!r}'.format(segment.seg_id, future.task_id))
-            futures.append(future)
-        completed = []
-        for future in self.work_manager.as_completed(futures):
-            incoming = future.get_result()
-            self._n_propagated += 1
-            log.debug('recording results for {!r}, {:d} for this run'.format(incoming, self._n_propagated))
-            self.data_manager.update_segments(n_iter, incoming)
-            self.data_manager.flush_backing()
-            completed.extend(incoming)
-        log.debug('done with propagation')
-        assert len(completed) == len(segments)
-        return completed        
         
     # The functions prepare_run(), finalize_run(), run(), and shutdown() are
     # designed to be called by scripts which are actually performing runs.
@@ -595,44 +611,26 @@ class WESimManager:
         '''Prepare a new run.'''
         self.data_manager.prepare_run()
         self.system.prepare_run()
-        self._invoke_callbacks(self.prepare_run)
+        self.invoke_callbacks(self.prepare_run)
     
     def finalize_run(self):
         '''Perform cleanup at the normal end of a run'''
-        self._invoke_callbacks(self.finalize_run)
+        self.invoke_callbacks(self.finalize_run)
         self.system.finalize_run()
         self.data_manager.finalize_run()
-    
-    """    
-    def prepare_iteration(self, n_iter, segments, partial):
-        '''Perform customized processing/setup prior to propagation. Argument ``partial`` (True or False)
-        indicates whether this is a partially-complete iteration (i.e. a restart)'''
-        self.work_manager.submit(wm_ops.prep_iter, self.propagator, n_iter, segments).get_result()
         
-    def prepare_propagation(self, n_iter, segments):
-        '''Prepare to propagate a group of segments'''
-        pass
-    
-    def finalize_propagation(self, n_iter, segments):
-        '''Clean up after propagation'''
-        pass
-    
-    def finalize_iteration(self, n_iter, segments):
-        '''Perform customized processing/cleanup on just-completed segments at the end of an iteration'''
-        self.work_manager.submit(wm_ops.post_iter, self.propagator, n_iter, segments).get_result()
-    """    
-    def prepare_we(self, n_iter, segments):
-        '''Perform customized processing after propagation and before WE'''
-        self._invoke_callbacks(self.prepare_we, n_iter, segments)
-    
-    def prepare_new_segments(self, n_iter, segments, next_iter_segments):
-        self._invoke_callbacks(self.prepare_new_segments, n_iter, segments, next_iter_segments)
-    
-    def shutdown(self, exit_code = 0):
-        '''Shut down a simulation in an orderly way'''
-        self.work_manager.shutdown(exit_code)
+    def pre_propagation(self):
+        self.invoke_callbacks(self.pre_propagation)
         
-                            
+    def post_propagation(self):
+        self.invoke_callbacks(self.post_propagation)
+        
+    def pre_we(self):
+        self.invoke_callbacks(self.pre_we)
+    
+    def post_we(self):
+        self.invoke_callbacks(self.post_we)
+                                        
     def old_run(self):
         """Begin (or continue) running a simulation.  Must only be called in master processes.
         """

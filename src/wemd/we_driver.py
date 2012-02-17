@@ -13,7 +13,6 @@ from collections import namedtuple
 from wemd.util.miscfn import vgetattr
 from wemd import Segment
 
-RecyclingInfo = namedtuple('RecyclingInfo', ['count', 'weight'])
 
 class WEMDWEDriver:
     weight_split_threshold = 2.0

@@ -219,9 +219,10 @@ class WEMDDataManager:
         else:
             return 'iter_{:0{prec}d}'.format(int(n_iter), prec=self.iter_prec)
 
-    def create_iter_group(self, n_iter):
+    def require_iter_group(self, n_iter):
+        '''Get the group associated with n_iter, creating it if necessary.'''
         with self.lock:
-            iter_group = self.we_h5file.create_group('/iterations/iter_{:0{prec}d}'.format(n_iter, prec=self.iter_prec))
+            iter_group = self.we_h5file.require_group('/iterations/iter_{:0{prec}d}'.format(n_iter, prec=self.iter_prec))
             iter_group.attrs['n_iter'] = n_iter
         return iter_group
             
@@ -275,7 +276,7 @@ class WEMDDataManager:
                                                dtype=summary_table_dtype,
                                                maxshape=(None,))
             self.we_h5file.create_group('/iterations')
-            self.create_iter_group(0)
+            self.require_iter_group(0)
         
     def close_backing(self):
         if self.we_h5file is not None:
@@ -559,7 +560,16 @@ class WEMDDataManager:
             if len(summary_table) < n_iter:
                 summary_table.resize((n_iter+1,))
             
-            iter_group = self.create_iter_group(n_iter)
+            iter_group = self.require_iter_group(n_iter)
+            
+            for linkname in ('seg_index', 'pcoord', 'wtgraph'):
+                try:
+                    del iter_group[linkname]
+                except KeyError:
+                    pass
+            
+            # Redundant, but this saves us having to parse the name to find the iteration number
+            # if we iterate over all the groups
             iter_group.attrs['n_iter'] = n_iter
             
             # everything indexed by [particle] goes in an index table
@@ -568,7 +578,7 @@ class WEMDDataManager:
             # unfortunately, h5py doesn't like in-place modification of individual fields; it expects
             # tuples. So, construct everything in a numpy array and then dump the whole thing into hdf5
             # In fact, this appears to be an h5py best practice (collect as much in ram as possible and then dump)
-            seg_index_table = numpy.zeros((n_particles,), dtype=seg_index_dtype)
+            seg_index_table = seg_index_table_ds[...]
                     
             summary_row = numpy.zeros((1,), dtype=summary_table_dtype)
             summary_row['n_particles'] = n_particles
@@ -581,11 +591,6 @@ class WEMDDataManager:
                                                   dtype=pcoord_dtype)
             pcoord = numpy.empty((n_particles, pcoord_len, pcoord_ndim), pcoord_dtype)
                                     
-            _assignments_ds = iter_group.create_dataset('bin_assignments', shape=(n_particles, pcoord_len), dtype=numpy.uint32)
-            _populations_ds = iter_group.create_dataset('bin_populations', shape=(pcoord_len, n_bins), dtype=numpy.float64)
-            _n_trans_ds = iter_group.create_dataset('bin_ntrans', shape=(n_bins,n_bins), dtype=numpy.uint32)
-            _fluxes_ds = iter_group.create_dataset('bin_fluxes', shape=(n_bins,n_bins), dtype=numpy.float64)
-            _rates_ds = iter_group.create_dataset('bin_rates', shape=(n_bins,n_bins), dtype=numpy.float64)
             
             total_parents = 0
             for (seg_id, segment) in enumerate(segments):
@@ -631,16 +636,17 @@ class WEMDDataManager:
                 wtgraph_ds[:] = parents
                 
             last_iter_group = self.get_iter_group(n_iter-1)
-            iter_group['ibstates'] = last_iter_group['ibstates']
-            iter_group['target_states'] = last_iter_group['target_states']
+            # Mid-simulation changes write these in advance
+            if 'ibstates' not in iter_group:
+                iter_group['ibstates'] = last_iter_group['ibstates']
+            if 'target_states' not in iter_group:
+                iter_group['target_states'] = last_iter_group['target_states']
     
             # Since we accumulated many of these changes in RAM (and not directly in HDF5), propagate
             # the changes out to HDF5
             seg_index_table_ds[:] = seg_index_table
             pcoord_ds[...] = pcoord
             
-        
-    
     def get_iter_summary(self,n_iter=None):
         n_iter = n_iter or self.current_iteration
         with self.lock:
@@ -655,28 +661,33 @@ class WEMDDataManager:
         with self.lock:
             self.we_h5file['summary'].resize((min_iter - 1,))
                      
-    def write_recycling_data(self, n_iter, rec_summary):
+    def save_recycling_data(self, rec_summary, n_iter=None):
         with self.lock:
+            n_iter = n_iter or self.current_iteration
             iter_group = self.get_iter_group(n_iter)
             rec_data_ds = iter_group.require_dataset('recycling', (len(rec_summary),), dtype=rec_summary_dtype)
-            rec_data = numpy.zeros((len(rec_summary),), dtype=rec_summary_dtype)
+            rec_data = rec_data_ds[...]
             for itarget, target in enumerate(rec_summary):
-                count, weight = target
+                count, flux = target
                 rec_data[itarget]['count'] = count
-                rec_data[itarget]['weight'] = weight
+                rec_data[itarget]['flux'] = flux
             rec_data_ds[...] = rec_data
         
-    def write_bin_data(self, n_iter, assignments, populations, n_trans, fluxes, rates):
+    def save_bin_data(self, assignments, populations, n_trans, fluxes, rates, n_iter=None):
         with self.lock:
-            try:
-                iter_group = self.get_iter_group(n_iter)
-                iter_group['bin_assignments'][...] = assignments
-                iter_group['bin_populations'][...] = populations
-                iter_group['bin_ntrans'][...] = n_trans
-                iter_group['bin_fluxes'][...] = fluxes
-                iter_group['bin_rates'][...] = rates
-            except (KeyError,IndexError,TypeError):
-                log.warning('could not write bin data (e.g. assignments/populations/fluxes) for iteration {}'.format(n_iter))
+            n_iter = n_iter or self.current_iteration
+            iter_group = self.get_iter_group(n_iter)
+            for dataset in ('bin_assignments', 'bin_populations', 'bin_ntrans', 'bin_fluxes', 'bin_rates'):
+                try:
+                    del iter_group[dataset]
+                except KeyError:
+                    pass
+
+            iter_group.create_dataset('bin_assignments', data=assignments, dtype=numpy.min_scalar_type(assignments.max()))                            
+            iter_group.create_dataset('bin_populations', data=populations, dtype=weight_dtype)
+            iter_group.create_dataset('bin_ntrans', data=n_trans, dtype=numpy.min_scalar_type(n_trans.max()))
+            iter_group.create_dataset('bin_fluxes', data=fluxes, dtype=weight_dtype)
+            iter_group.create_dataset('bin_rates', data=rates, dtype=weight_dtype)
         
     def update_segments(self, n_iter, segments):
         """Update "mutable" fields (status, endpoint type, pcoord, timings, weights) in the HDF5 file
@@ -906,5 +917,6 @@ class WEMDDataManager:
         self.open_backing()
                 
     def finalize_run(self):
+        self.flush_backing()
         self.close_backing()
         
