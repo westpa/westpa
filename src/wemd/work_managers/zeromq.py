@@ -168,6 +168,7 @@ class ZMQWorkManager(WEMDWorkManager):
             pid = os.fork()
             if not pid:
                 log.info('pid {:d} is worker'.format(os.getpid()))
+                os.environ['WEMD_PROCESS_INDEX'] = str(n)
                 self.make_worker()
                 self.start_threads()
                 self.spawned_pids = []

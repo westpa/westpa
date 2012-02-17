@@ -15,7 +15,7 @@ def wm_prep_iter(propagator, n_iter, segments):
     propagator.prepare_iteration(n_iter, segments)
     
 def wm_post_iter(propagator, n_iter, segments):
-    propagator.prepare_iteration(n_iter, segments)
+    propagator.finalize_iteration(n_iter, segments)
     
 def wm_propagate(propagator, segments):
     '''Propagate the given segments with the given propagator. This has to be a top-level
