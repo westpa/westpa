@@ -29,8 +29,8 @@ class WEMDDataReaderMixin(AnalysisMixin):
         self.__c_iter_groups = dict()
         self.__c_seg_id_ranges = dict()
         self.__c_seg_indices = dict()
+        self.__c_wtg_parent_arrays = dict()
         self.__c_parent_arrays = dict()
-        self.__c_p_parent_arrays = dict()
         self.__c_pcoord_arrays = dict()
         self.__c_pcoord_datasets = dict()
         
@@ -70,7 +70,7 @@ class WEMDDataReaderMixin(AnalysisMixin):
 
     def clear_run_cache(self):
         del self.__c_summary
-        del self.__c_iter_groups, self.__c_seg_id_ranges, self.__c_seg_indices, self.__c_parent_arrays, self.__c_p_parent_arrays
+        del self.__c_iter_groups, self.__c_seg_id_ranges, self.__c_seg_indices, self.__c_parent_arrays, self.__c_parent_arrays
         del self.__c_pcoord_arrays, self.__c_pcoord_datasets
         
         self.__c_summary = None
@@ -78,7 +78,7 @@ class WEMDDataReaderMixin(AnalysisMixin):
         self.__c_seg_id_ranges = dict()
         self.__c_seg_indices = dict()
         self.__c_parent_arrays = dict()
-        self.__c_p_parent_arrays = dict()
+        self.__c_wtg_parent_arrays = dict()
         self.__c_pcoord_arrays = dict()
         self.__c_pcoord_datasets = dict()
 
@@ -123,7 +123,7 @@ class WEMDDataReaderMixin(AnalysisMixin):
         if len(seg_ids) == 0: return []
         
         seg_index  = self.get_seg_index(n_iter)
-        all_parent_ids = self.get_parent_array(n_iter)
+        all_wtg_parent_ids = self.get_wtg_parent_array(n_iter)
         
         segments = []
 
@@ -132,12 +132,11 @@ class WEMDDataReaderMixin(AnalysisMixin):
         
         for (isegid, seg_id) in enumerate(seg_ids):
             row = seg_index[seg_id]
-            parents_offset = row['parents_offset']
-            n_parents = row['n_parents']
+            parents_offset = row['wtg_offset']
+            n_parents = row['wtg_n_parents']
             segment = Segment(seg_id = seg_id,
                               n_iter = n_iter,
                               status = row['status'],
-                              n_parents = n_parents,
                               endpoint_type = row['endpoint_type'],
                               walltime = row['walltime'],
                               cputime = row['cputime'],
@@ -146,16 +145,16 @@ class WEMDDataReaderMixin(AnalysisMixin):
             if include_pcoords:
                 segment.pcoord = pcoords[isegid]
 
-            parent_ids = all_parent_ids[parents_offset:parents_offset+n_parents]
-            segment.parent_ids = {long(parent_id) for parent_id in parent_ids}
-            segment.p_parent_id = long(parent_ids[0])
+            parent_ids = all_wtg_parent_ids[parents_offset:parents_offset+n_parents]
+            segment.wtg_parent_ids = {long(parent_id) for parent_id in parent_ids}
+            segment.parent_id = long(parent_ids[0])
             segments.append(segment)
 
         return segments        
     
     def get_children(self, segment, include_pcoords=True):
-        p_parents = self.get_p_parent_array(segment.n_iter+1)
-        seg_ids = self.get_seg_ids(segment.n_iter+1, p_parents == segment.seg_id)
+        parents = self.get_parent_array(segment.n_iter+1)
+        seg_ids = self.get_seg_ids(segment.n_iter+1, parents == segment.seg_id)
         return self.get_segments_by_id(segment.n_iter+1, seg_ids, include_pcoords)
 
     def get_seg_index(self, n_iter):
@@ -165,21 +164,20 @@ class WEMDDataReaderMixin(AnalysisMixin):
             seg_index = self.__c_seg_indices[n_iter] = self.get_iter_group(n_iter)['seg_index'][...]
             return seg_index
         
+    def get_wtg_parent_array(self, n_iter):
+        try:
+            return self.__c_wtg_parent_arrays[n_iter]
+        except KeyError:
+            parent_array = self.__c_wtg_parent_arrays[n_iter] = self.get_iter_group(n_iter)['wtgraph'][...]
+            return parent_array
+                
     def get_parent_array(self, n_iter):
         try:
             return self.__c_parent_arrays[n_iter]
         except KeyError:
-            parent_array = self.__c_parent_arrays[n_iter] = self.get_iter_group(n_iter)['parents'][...]
+            parent_array = self.get_seg_index(n_iter)['parent_id']
+            self.__c_parent_arrays[n_iter] = parent_array
             return parent_array
-                
-    def get_p_parent_array(self, n_iter):
-        try:
-            return self.__c_p_parent_arrays[n_iter]
-        except KeyError:
-            parent_offsets = self.get_seg_index(n_iter)['parents_offset'][:]
-            p_parent_array = self.get_parent_array(n_iter)[parent_offsets]
-            self.__c_p_parent_arrays[n_iter] = p_parent_array
-            return p_parent_array
                 
     def get_pcoord_array(self, n_iter):
         try:
@@ -225,9 +223,9 @@ class WEMDDataReaderMixin(AnalysisMixin):
         '''Return a list of seg_ids corresponding to segments which were created for the given iteration (are not
         continuations).'''
         
-        # Created segments have p_parent_id < 0
-        p_parent_ids = self.get_p_parent_array(n_iter)        
-        return self.get_seg_ids(n_iter, p_parent_ids < 0)
+        # Created segments have parent_id < 0
+        parent_ids = self.get_parent_array(n_iter)        
+        return self.get_seg_ids(n_iter, parent_ids < 0)
 
     def max_iter_segs_in_range(self, first_iter, last_iter):
         '''Return the maximum number of segments present in any iteration in the range selected'''

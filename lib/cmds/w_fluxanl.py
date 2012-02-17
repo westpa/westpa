@@ -18,8 +18,9 @@ from wemdtools.aframe import WEMDAnalysisTool,WEMDDataReaderMixin,IterRangeMixin
 import logging
 log = logging.getLogger('w_fluxanl')
 
-rstat_dtype = numpy.dtype([('flux', numpy.float64),
-                           ('count', numpy.uint)])
+rstat_dtype = numpy.dtype([('count', numpy.uint),
+                           ('flux', numpy.float64),
+                           ])
 
 class WFluxanl(MCBSMixin,IterRangeMixin,WEMDDataReaderMixin,WEMDAnalysisTool):
     def __init__(self):
@@ -41,7 +42,7 @@ class WFluxanl(MCBSMixin,IterRangeMixin,WEMDDataReaderMixin,WEMDAnalysisTool):
         for itarget in xrange(n_targets):
             for (iiter,n_iter) in enumerate(xrange(self.first_iter,self.last_iter+1)):
                 recycling = self.get_iter_group(n_iter)['recycling'][itarget]
-                rstats[iiter,itarget] = (recycling['weight'], recycling['count'])
+                rstats[iiter,itarget] = (recycling['count'], recycling['flux'])
                 
         rstats['flux'] /= self.tau
         rstats_ds = self.wfl_group.create_dataset('arrivals', data=rstats, compression='gzip')
@@ -63,7 +64,7 @@ class WFluxanl(MCBSMixin,IterRangeMixin,WEMDDataReaderMixin,WEMDAnalysisTool):
         acorr_ds = self.wfl_group.create_dataset('autocorrel', shape=(dlen,n_targets,3), dtype=numpy.float64)
         
         for itarget in xrange(n_targets):
-            fluxes = self.wfl_group['arrivals'][:,itarget]['flux']
+            fluxes = self.wfl_group['count'][:,itarget]['flux']
             ffluxes = fluxes - fluxes.mean()
             
             acorr = scipy.signal.correlate(ffluxes, ffluxes)[-dlen:]
