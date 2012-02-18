@@ -238,19 +238,12 @@ class _WEMDRC:
             sysdrivername = self.config.require('system.system_driver')
             log.info('loading system driver %r' % sysdrivername)
             pathinfo = self.config.get_pathlist('system.module_path', default=None)
-            try:        
-                system = extloader.get_object(sysdrivername, pathinfo)()
-            except ImportError:
-                extra_path = os.environ.get('WEMD_SIM_ROOT', '.')
-                try:
-                    system = extloader.get_object(sysdrivername, [extra_path])()
-                except ImportError:
-                    raise ImportError('could not load system driver')
-                else:
-                    log.warning('using system driver from {!r}'.format(extra_path))
-            log.debug('loaded system driver {!r}'.format(system))
-            
-            log.debug('initializing system driver')
+            pathinfo.append(os.environ.get('WEMD_SIM_ROOT', '.'))
+    
+            system = extloader.get_object(sysdrivername, pathinfo)()
             system.initialize()
-            self.system = system
-        return self.system
+            log.debug('loaded system driver {!r}'.format(system))
+            self.system = system        
+            return system
+        else:
+            return self.system
