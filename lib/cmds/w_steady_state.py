@@ -31,7 +31,8 @@ class steady_state(object):
         if args.ss_h5 is not None:
             import h5py
             self.debug = h5py.File(args.ss_h5,'w')
-            
+        
+        self.region_set = self._system_driver.new_region_set()
         self.quiet_mode = wemd.rc.quiet_mode
         self.symmetrize = args.symmetrize
 
@@ -56,12 +57,12 @@ class steady_state(object):
         if self.debug is not None:             
             self.debug.create_dataset('Q',data=Q)
                 
-        region_set = self._system_driver.region_set
+        region_set = self.region_set
     
         #Cij -> i or j is the index into bins
         bins = region_set.get_all_bins()
         
-        target_regions = self._system_driver.target_states
+        target_regions = self._data_manager.get_target_states(self._data_manager.current_iteration)
         
         flat_target_regions = []
         for target_region in target_regions:
@@ -125,7 +126,7 @@ class steady_state(object):
             sys.stdout.write('Calculating Count Matrix\n')
         
         
-        region_set = self._system_driver.region_set
+        region_set = self.region_set
         bins = region_set.get_all_bins()
         self._nstates = len(bins)
         self._Cij = numpy.zeros((self._nstates, self._nstates))
@@ -263,8 +264,11 @@ def cmd_steady_state(sim_manager, args):
         sim_manager.data_manager.current_iteration = n_iter - 1
         n_iter -= 1     
         segments = sim_manager.data_manager.get_segments(n_iter)
-               
-    new_segments = sim_manager.we_driver.run_we(segments, sim_manager.system.region_set)
+
+    ss = steady_state(sim_manager, args)
+    region_set = ss.region_set
+    region_set.assign_to_bins(segments, key=Segment.final_pcoord)               
+    new_segments = sim_manager.we_driver.run_we(ss.region_set, [])
     
     sim_manager.data_manager.update_segments(n_iter, segments)
         
@@ -272,7 +276,6 @@ def cmd_steady_state(sim_manager, args):
     new_weights = ss.get_new_weights()
     
     # Calculate pre-reweighting weights
-    region_set = sim_manager.system.region_set
     n_bins = new_weights.size
     binprobs = numpy.empty((n_bins,), numpy.float64)
     binprobs[:] = 0.0
