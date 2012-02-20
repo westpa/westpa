@@ -161,14 +161,15 @@ class WEMDDataManager:
         with self.lock:
             self.we_h5file['/'].attrs['wemd_current_iteration'] = n_iter
         
-    def open_backing(self):
+    def open_backing(self, mode=None):
         '''Open the (already-created) HDF5 file named in self.wemd_h5filename.'''
+        mode = mode or self.h5_access_mode
         if not self.we_h5file:
             # Check to see that the specified file exists and is readable by the HDF5 library
             # throws RuntimeError otherwise; this is not an assert because it should run even
             # when using optimized bytecode (python -O strips "assert" statements).
             h5py.h5f.is_hdf5(self.we_h5filename)
-            self.we_h5file = h5py.File(self.we_h5filename, self.h5_access_mode, driver=self.we_h5file_driver)
+            self.we_h5file = h5py.File(self.we_h5filename, mode, driver=self.we_h5file_driver)
             try:
                 recorded_iter_prec = self.we_h5file['/'].attrs['wemd_iter_prec']
             except KeyError:
@@ -179,6 +180,8 @@ class WEMDDataManager:
                     
     def prepare_backing(self):
         '''Create new HDF5 file'''
+        
+        self.we_h5file = h5py.File(self.we_h5filename, 'w', driver=self.we_h5file_driver)
         
         with self.lock:
             self.we_h5file['/'].attrs['wemd_file_format_version'] = file_format_version

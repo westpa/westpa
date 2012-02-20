@@ -17,7 +17,13 @@ class IterRangeMixin(AnalysisMixin):
         
         self.first_iter = None
         self.last_iter = None
-        self.iter_step = None
+        self.iter_step = 1
+
+        include_args = self.include_args.setdefault('IterRangeMixin',{})
+        include_args.setdefault('first_iter', True)
+        include_args.setdefault('last_iter', True)
+        include_args.setdefault('iter_step',True)
+
 
     def add_args(self, parser, upcall = True):
         if upcall:
@@ -29,17 +35,23 @@ class IterRangeMixin(AnalysisMixin):
                 upfunc(parser)
         
         group = parser.add_argument_group('analysis range')
-        group.add_argument('--start', '--begin', '--first', dest='first_iter', type=int, metavar='N_ITER', default=1,
-                           help='''Begin analysis at iteration N_ITER (default: %(default)d).''')
-        group.add_argument('--stop', '--end', '--last', dest='last_iter', type=int, metavar='N_ITER',
-                           help='''Conclude analysis with N_ITER, inclusive (default: last completed iteration).''')
-        group.add_argument('--step', dest='iter_step', type=int, metavar='STEP',
-                           help='''Analyze/report in blocks of STEP iterations.''')
+        if self.include_args['IterRangeMixin']['first_iter']:
+            group.add_argument('--start', '--begin', '--first', dest='first_iter', type=int, metavar='N_ITER', default=1,
+                               help='''Begin analysis at iteration N_ITER (default: %(default)d).''')
+        if self.include_args['IterRangeMixin']['last_iter']:
+            group.add_argument('--stop', '--end', '--last', dest='last_iter', type=int, metavar='N_ITER',
+                               help='''Conclude analysis with N_ITER, inclusive (default: last completed iteration).''')
+        if self.include_args['IterRangeMixin']['iter_step']:            
+            group.add_argument('--step', dest='iter_step', type=int, metavar='STEP',
+                               help='''Analyze/report in blocks of STEP iterations.''')
     
     def process_args(self, args, upcall = True):
-        self.first_iter = args.first_iter or 1
-        self.last_iter = args.last_iter
-        self.iter_step = args.iter_step or 1
+        if self.include_args['IterRangeMixin']['first_iter']:
+            self.first_iter = args.first_iter or 1
+        if self.include_args['IterRangeMixin']['last_iter']:
+            self.last_iter = args.last_iter
+        if self.include_args['IterRangeMixin']['iter_step']:
+            self.iter_step = args.iter_step or 1
 
         if upcall:
             try:
@@ -52,9 +64,9 @@ class IterRangeMixin(AnalysisMixin):
     def check_iter_range(self):
         assert hasattr(self, 'data_manager') and self.data_manager is not None
         
-        self.first_iter = max(self.first_iter, 1)
+        self.first_iter = int(max(self.first_iter, 1))
         if self.last_iter is None or self.last_iter > self.data_manager.current_iteration - 1:
-            self.last_iter = self.data_manager.current_iteration - 1
+            self.last_iter = int(self.data_manager.current_iteration - 1)
             
         if self.first_iter == self.last_iter:
             raise ArgumentError('first and last iterations are the same')
