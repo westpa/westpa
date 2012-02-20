@@ -35,6 +35,26 @@ class BasisState:
                 .format(object.__repr__(self)[:-1], self=self))
         
     @classmethod
+    def states_to_file(cls, states, fileobj):
+        '''Write a file defining basis states, which may then be read by `states_from_file()`.'''
+        
+        if isinstance(fileobj, basestring):
+            fileobj = open(fileobj, 'wt')
+        
+        max_label_len = max(8,max(len(state.label or '') for state in states))
+        max_auxref_len = max(8,max(len(state.auxref or '') for state in states))
+        fmt = ('{state.label:<{max_label_len}s}    {state.probability:12.7g}    {state.auxref:<{max_auxref_len}s}'
+               '    # state_id={state_id_str:s}    pcoord={pcoord_str}\n')
+        fileobj.write('# {:{max_label_len}s}    {:>12s}    {:{max_auxref_len}s}\n'
+                      .format('Label', 'Probability', 'Auxref', max_label_len=max_label_len-2, max_auxref_len=max_auxref_len))
+        for state in states:
+            state_id_str = str(state.state_id) if state.state_id is not None else 'None'
+            pcoord_str = str(list(state.pcoord))
+            fileobj.write(fmt.format(state=state, pcoord_str=pcoord_str, state_id_str=state_id_str,
+                                     max_label_len=max_label_len, max_auxref_len=max_auxref_len))
+        
+    
+    @classmethod
     def states_from_file(cls, filename):
         '''Read a file defining basis states.  Each line defines a state, and contains a label, the probability, 
         and optionally a data reference, separated by whitespace, as in::
@@ -103,7 +123,7 @@ class InitialState:
     ISTATE_STATUS_PREPARED = 1
     ISTATE_STATUS_FAILED = 2
     
-    def __init__(self, state_id, basis_state_id, iter_created, iter_used=None, 
+    def __init__(self, state_id, basis_state_id, iter_valid, iter_used=None, 
                  istate_type=None, istate_status=None,
                  pcoord=None, 
                  basis_state=None):
@@ -112,12 +132,12 @@ class InitialState:
         self.basis_state=basis_state
         self.istate_type = istate_type
         self.istate_status = istate_status
-        self.iter_created = iter_created
+        self.iter_valid = iter_valid
         self.iter_used = iter_used         
         self.pcoord = pcoord
         
     def __repr__(self): 
-        return ('{} state_id={self.state_id!r} istate_type={self.istate_type!r} basis_state_id={self.basis_state_id!r} iter_created={self.iter_created!r} pcoord={self.pcoord!r}>'
+        return ('{} state_id={self.state_id!r} istate_type={self.istate_type!r} basis_state_id={self.basis_state_id!r} iter_valid={self.iter_valid!r} pcoord={self.pcoord!r}>'
                 .format(object.__repr__(self)[:-1], self=self))
 
 class TargetState:
@@ -137,12 +157,26 @@ class TargetState:
     def __repr__(self): 
         return ('{} state_id={self.state_id!r} label={self.label!r} pcoord={self.pcoord!r}>'
                 .format(object.__repr__(self)[:-1], self=self))
-    
+
+    @classmethod
+    def states_to_file(cls, states, fileobj):
+        '''Write a file defining basis states, which may then be read by `states_from_file()`.'''
+        
+        if isinstance(fileobj, basestring):
+            fileobj = open(fileobj, 'wt')
+        
+        max_label_len = max(8,max(len(state.label or '') for state in states))
+        
+        fileobj.write('# {:{max_label_len}s}    {:s}\n'
+                      .format('Label', 'Pcoord', max_label_len=max_label_len-2))        
+        for state in states:
+            pcoord_str = '    '.join(str(field) for field in state.pcoord)
+            fileobj.write('{:{max_label_len}s}    {:s}\n'.format(state.label, pcoord_str, max_label_len=max_label_len))
+
     @classmethod
     def states_from_file(cls, statefile, dtype):
         '''Read a file defining target states.  Each line defines a state, and contains a label followed
-        by a representative progress coordinate value, separated by whitespace 
-        and optionally a data reference, separated by whitespace, as in::
+        by a representative progress coordinate value, separated by whitespace, as in::
         
             bound     0.02
         
@@ -154,6 +188,9 @@ class TargetState:
         for two targets and a two-dimensional progress coordinate.
         '''
         
+        # This complexity is to (eventually) support structured data pcoords (like float in dim 0, int in dim 1)
+        # However, this is the only place in the code that can handle this; notably, none of the data manager 
+        # routines can actually deal with this yet.
         targets = numpy.atleast_1d(numpy.genfromtxt(statefile, dtype=None))
         pcoord_values = numpy.empty((len(targets),), dtype)
         labels = [target[0] for target in targets]

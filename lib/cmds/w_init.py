@@ -29,14 +29,14 @@ wemd.rc.add_args(parser)
 wemd.rc.add_work_manager_args(parser)
 parser.add_argument('--force', dest='force', action='store_true',
                          help='Overwrite any existing simulation data')
-parser.add_argument('--bstates-from', metavar='BSTATE_FILE',
+parser.add_argument('--bstate-file', '--bstates-from', metavar='BSTATE_FILE',
                     help='Read basis state names, probabilities, and (optionally) data references from BSTATE_FILE.')
 parser.add_argument('--bstate', action='append', dest='bstates',
                     help='''Add the given basis state (specified as a string 'label,probability[,auxref]')
                     to the list of basis states (after those specified in --bstates-from, if any). This argument
                     may be specified more than once, in which case the given states are appended in the order
                     they are given on the command line.''')
-parser.add_argument('--tstates-from', metavar='TSTATE_FILE',
+parser.add_argument('--tstate-file', '--tstates-from', metavar='TSTATE_FILE', 
                     help='Read target state names and representative progress coordinates from TSTATE_FILE')
 parser.add_argument('--tstate', action='append', dest='tstates',
                     help='''Add the given target state (specified as a string 'label,pcoord0[,pcoord1[,...]]') to the
@@ -45,8 +45,8 @@ parser.add_argument('--tstate', action='append', dest='tstates',
                     in the order they appear on the command line.''')
 parser.add_argument('--segs-per-state', type=int, metavar='N', default=1,
                     help='''Initialize N segments from each basis state (default: %(default)s).''')
-parser.add_argument('--run-we', action='store_true',
-                    help='''Run the weighted ensemble bin/split/merge algorithm on newly-created segments.''')
+parser.add_argument('--no-we', '--shotgun', dest='shotgun', action='store_true',
+                    help='''Do not run the weighted ensemble bin/split/merge algorithm on newly-created segments.''')
 
 (args, aux_args) = parser.parse_known_args()
 wemd.rc.process_args(args, aux_args)
@@ -64,12 +64,10 @@ mode = work_manager.startup()
 
 if work_manager.mode == work_manager.MODE_MASTER: 
     try:
-        gen_istates = wemd.rc.config.get_bool('system.gen_istates', False)
-        
         # Process target states
         target_states = []
-        if args.tstates_from:
-            target_states.extend(TargetState.states_from_file(args.tstates_from, system.pcoord_dtype))
+        if args.tstate_file:
+            target_states.extend(TargetState.states_from_file(args.tstate_file, system.pcoord_dtype))
         if args.tstates:
             tstates_strio = cStringIO.StringIO('\n'.join(args.tstates).replace(',', ' '))
             target_states.extend(TargetState.states_from_file(tstates_strio, system.pcoord_dtype))
@@ -80,8 +78,8 @@ if work_manager.mode == work_manager.MODE_MASTER:
         
         # Process basis states
         basis_states = []
-        if args.bstates_from:
-            basis_states.extend(BasisState.states_from_file(args.bstates_from))
+        if args.bstate_file:
+            basis_states.extend(BasisState.states_from_file(args.bstate_file))
         if args.bstates:
             for bstate_str in args.bstates:
                 fields = bstate_str.split(',')
@@ -108,7 +106,8 @@ if work_manager.mode == work_manager.MODE_MASTER:
         
                 
         # Prepare simulation
-        sim_manager.initialize_simulation(basis_states, target_states, segs_per_state=args.segs_per_state, run_we=args.run_we)
+        sim_manager.initialize_simulation(basis_states, target_states, segs_per_state=args.segs_per_state,
+                                          suppress_we=args.shotgun)
         
         work_manager.shutdown(0)
     except:

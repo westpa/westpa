@@ -135,7 +135,7 @@ rec_summary_dtype = numpy.dtype( [ ('count', numpy.uint),        # Number of tra
                                    ('flux', weight_dtype) ] )   # Probability flux into this state
 
 # Index to basis/initial states
-ibstate_index_dtype = numpy.dtype([('iter_created', numpy.uint),
+ibstate_index_dtype = numpy.dtype([('iter_valid', numpy.uint),
                                    ('group_ref', h5ref_dtype)])
 
 # Basis state index type
@@ -147,14 +147,14 @@ bstate_dtype = numpy.dtype( [ ('label', vstr_dtype),            # An optional de
 # Even when initial state generation is off and basis states are passed through directly, an initial state entry
 # is created, as that allows precise tracing of the history of a given state in the most complex case of
 # a new initial state for every new trajectory.
-istate_dtype = numpy.dtype( [('iter_created', numpy.uint),      # Iteration during which this state was generated (0 for at w_init)
+istate_dtype = numpy.dtype( [('iter_valid', numpy.uint),      # Iteration during which this state was generated (0 for at w_init)
                              ('iter_used', numpy.uint),           # When this state was used to start a new trajectory 
                              ('basis_state_id', seg_id_dtype),    # Which basis state this state was generated from
                              ('istate_type', istate_type_dtype),  # What type this initial state is (generated or basis)
                              ('istate_status', istate_status_dtype), # Whether this initial state is ready to go
                              ]) 
 
-tstate_index_dtype = numpy.dtype([('iter_created', numpy.uint), # Iteration when this state list is valid
+tstate_index_dtype = numpy.dtype([('iter_valid', numpy.uint), # Iteration when this state list is valid
                                   ('group_ref', h5ref_dtype)])  # Reference to a group containing further data; this will be the
                                                                 # null reference if there is no target state for that timeframe.
 tstate_dtype = numpy.dtype( [('label', vstr_dtype),])           # An optional descriptive label for this state
@@ -277,7 +277,6 @@ class WEMDDataManager:
                                                dtype=summary_table_dtype,
                                                maxshape=(None,))
             self.we_h5file.create_group('/iterations')
-            self.require_iter_group(0)
         
     def close_backing(self):
         if self.we_h5file is not None:
@@ -290,12 +289,14 @@ class WEMDDataManager:
             with self.lock:
                 self.we_h5file.flush()
 
-    def save_target_states(self, tstates):
+    def save_target_states(self, tstates, n_iter=None):
         '''Save the given target states in the HDF5 file; they will be used for the next iteration to
         be propagated.  A complete set is required, even if nominally appending to an existing set,
         which simplifies the mapping of IDs to the table.'''
         
         system = wemd.rc.get_system_driver()
+        
+        n_iter = n_iter or self.current_iteration + 1
 
         # Assemble all the important data before we start to modify the HDF5 file
         tstates = list(tstates)
@@ -322,12 +323,11 @@ class WEMDDataManager:
                 n_sets = len(master_index) + 1
                 master_index.resize((n_sets,))
             
-            n_iter = self.current_iteration
             master_index_row = master_index[n_sets-1]
-            master_index_row['iter_created'] = n_iter
+            master_index_row['iter_valid'] = n_iter
             
             if tstates:
-                state_group = self.get_iter_group(n_iter).create_group('target_states')
+                state_group = self.require_iter_group(n_iter).create_group('target_states')
                 master_index_row['group_ref'] = state_group.ref            
                 state_group['index'] = state_table
                 state_group['pcoord'] = state_pcoords
@@ -349,11 +349,12 @@ class WEMDDataManager:
                         for (i, (row, pcoord))  in enumerate(izip(tstate_index, tstate_pcoords))]
             return tstates
                 
-    def create_ibstate_group(self, n_iter):
+    def create_ibstate_group(self, n_iter=None):
         '''Create the group used to store basis states and initial states (whose definitions are always
         coupled).  This group is hard-linked into all iteration groups that use these basis and 
         initial states.'''        
         with self.lock:
+            n_iter = n_iter or self.current_iteration + 1
             try:
                 master_index = self.we_h5file['ibstate_index']
             except KeyError:
@@ -364,19 +365,20 @@ class WEMDDataManager:
                 n_sets = len(master_index)+1
                 master_index.resize((n_sets),)
             
-            state_group = self.get_iter_group(n_iter).create_group('ibstates')
+            state_group = self.require_iter_group(n_iter).create_group('ibstates')
             master_index_row = master_index[n_sets-1]
-            master_index_row['iter_created'] = n_iter
+            master_index_row['iter_valid'] = n_iter
             master_index_row['group_ref'] = state_group.ref
             master_index[n_sets-1] = master_index_row
             return state_group
  
-    def save_basis_states(self, bstates):
+    def save_basis_states(self, bstates, n_iter = None):
         '''Save the given basis states in the HDF5 file; they will be used for the next iteration to
         be propagated.  A complete set is required, even if nominally appending to an existing set,
         which simplifies the mapping of IDs to the table.'''
         
         system = wemd.rc.get_system_driver()
+        
         
         # Assemble all the important data before we start to modify the HDF5 file
         bstates = list(bstates)
@@ -389,11 +391,12 @@ class WEMDDataManager:
             state_table[i]['probability'] = state.probability
             state_table[i]['auxref'] = state.auxref or ''
             state_pcoords[i] = state.pcoord
-            
-        n_iter = self.current_iteration
-        state_group = self.create_ibstate_group(n_iter)
-        state_group['bstate_index'] = state_table
-        state_group['bstate_pcoord'] = state_pcoords
+        
+        with self.lock:    
+            n_iter = n_iter or self.current_iteration
+            state_group = self.create_ibstate_group(n_iter)
+            state_group['bstate_index'] = state_table
+            state_group['bstate_pcoord'] = state_pcoords
 
     def get_basis_states(self, n_iter):
         '''Return a list of BasisState objects representing the basis states that are in use for iteration n_iter.'''
@@ -410,13 +413,14 @@ class WEMDDataManager:
             return bstates
             
 
-    def create_initial_states(self, n_iter, n_states):
+    def create_initial_states(self, n_states, n_iter=None):
         '''Create storage for ``n_states`` initial states associated with iteration ``n_iter``, and
         return bare InitialState objects with only state_id set.'''
         
         system = wemd.rc.get_system_driver()        
         with self.lock:
-            iter_group = self.get_iter_group(n_iter)
+            n_iter = n_iter or self.current_iteration
+            iter_group = self.require_iter_group(n_iter)
             ibstate_group = iter_group['ibstates']
             
             try:
@@ -440,10 +444,10 @@ class WEMDDataManager:
         index_entries = istate_index[first_id:len_index]
         new_istates = []                
         for irow, row in enumerate(index_entries):
-            row['iter_created'] = n_iter
+            row['iter_valid'] = n_iter
             row['istate_status'] = InitialState.ISTATE_STATUS_PENDING
             new_istates.append(InitialState(state_id=first_id+irow, basis_state_id=None,
-                                            iter_created=n_iter, istate_status=InitialState.ISTATE_STATUS_PENDING))
+                                            iter_valid=n_iter, istate_status=InitialState.ISTATE_STATUS_PENDING))
         istate_index[first_id:len_index] = index_entries
         return new_istates
             
@@ -460,7 +464,7 @@ class WEMDDataManager:
             index_entries = ibstate_group['istate_index'][state_ids] 
             pcoord_vals = numpy.empty((len(initial_states), system.pcoord_ndim), dtype=system.pcoord_dtype)
             for i, initial_state in enumerate(initial_states):
-                index_entries[i]['iter_created'] = initial_state.iter_created
+                index_entries[i]['iter_valid'] = initial_state.iter_valid
                 index_entries[i]['iter_used'] = initial_state.iter_used or InitialState.ISTATE_UNUSED
                 index_entries[i]['basis_state_id'] = initial_state.basis_state_id
                 index_entries[i]['istate_type'] = initial_state.istate_type or InitialState.ISTATE_TYPE_UNSET
@@ -479,7 +483,7 @@ class WEMDDataManager:
             istate_index = ibstate_group['istate_index']
             for state_id, (state, pcoord) in enumerate(izip(istate_index, istate_pcoords)):
                 states.append(InitialState(state_id=state_id, basis_state_id=state['basis_state_id'],
-                                           iter_created=state['iter_created'], iter_used=state['iter_used'],
+                                           iter_valid=state['iter_valid'], iter_used=state['iter_used'],
                                            istate_type=state['istate_type'], pcoord=pcoord))
             return states
                 
@@ -500,7 +504,7 @@ class WEMDDataManager:
             istate_pcoords = ibstate_group['istate_pcoord'][sorted_istate_ids]
             
             return [InitialState(state_id=state_id, basis_state_id=state['basis_state_id'],
-                                 iter_created=state['iter_created'], iter_used=state['iter_used'],
+                                 iter_valid=state['iter_valid'], iter_used=state['iter_used'],
                                  istate_type=state['istate_type'], pcoord=pcoord)
                     for state_id, state, pcoord in izip(sorted_istate_ids, istate_rows, istate_pcoords)] 
             
@@ -531,7 +535,7 @@ class WEMDDataManager:
                 if len(ids_of_unused):
                     pcoords = istate_pcoords[ids_of_unused]
                     states.extend(InitialState(state_id=state_id, basis_state_id=state['basis_state_id'],
-                                               iter_created=state['iter_created'], iter_used=0, istate_type=state['istate_type'],
+                                               iter_valid=state['iter_valid'], iter_used=0, istate_type=state['istate_type'],
                                                pcoord=pcoord,
                                                istate_status=state['istate_status'])
                                   for state_id,state,pcoord in izip(ids_of_unused,istate_chunk[unused],pcoords))
@@ -635,13 +639,14 @@ class WEMDDataManager:
                     assert set(parents[offset:offset+extent]) == set(segment.wtg_parent_ids)
                 
                 wtgraph_ds[:] = parents
-                
-            last_iter_group = self.get_iter_group(n_iter-1)
-            # Mid-simulation changes write these in advance
-            if 'ibstates' not in iter_group:
-                iter_group['ibstates'] = last_iter_group['ibstates']
-            if 'target_states' not in iter_group:
-                iter_group['target_states'] = last_iter_group['target_states']
+
+            if 'ibstates' not in iter_group or 'target_states' not in iter_group:                
+                last_iter_group = self.get_iter_group(n_iter-1)
+                # Mid-simulation changes write these in advance
+                if 'ibstates' not in iter_group:
+                    iter_group['ibstates'] = last_iter_group['ibstates']
+                if 'target_states' not in iter_group:
+                    iter_group['target_states'] = last_iter_group['target_states']
     
             # Since we accumulated many of these changes in RAM (and not directly in HDF5), propagate
             # the changes out to HDF5
