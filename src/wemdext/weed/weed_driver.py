@@ -19,7 +19,22 @@ class WEEDDriver:
         self.data_manager = sim_manager.data_manager
         
         self.do_reweight = wemd.rc.config.get_bool('weed.do_equilibrium_reweighting', False)
-        self.windowsize = wemd.rc.config.get_int('weed.window_size', 0)
+        self.windowsize = 0.5
+        self.windowtype = 'fraction'
+        
+        windowsize = wemd.rc.config.get('weed.window_size', None)
+        if windowsize is not None:
+            if '.' in windowsize:
+                self.windowsize = float(windowsize)
+                self.windowtype = 'fraction'
+                if self.windowsize <= 0 or self.windowsize > 1:
+                    raise ValueError('WEED parameter error -- fractional window size must be in (0,1]')
+                log.info('using fractional window size of {:g}*n_iter'.format(self.windowsize))
+            else:
+                self.windowsize = int(windowsize)
+                self.windowtype = 'fixed'
+                log.info('using fixed window size of {:d}'.format(self.windowsize))
+        
         self.reweight_period = wemd.rc.config.get_int('weed.reweight_period', 0)
         
         self.priority = wemd.rc.config.get_int('weed.priority',0)
@@ -37,7 +52,11 @@ class WEEDDriver:
         
         n_bins = len(bins)
         
-        eff_windowsize = min(n_iter,self.windowsize or n_iter)
+        if self.windowtype == 'fraction':
+            eff_windowsize = int(n_iter * self.windowsize)
+        else: # self.windowtype == 'fixed':
+            eff_windowsize = min(n_iter, self.windowsize or 0)
+        
         rates = numpy.empty((eff_windowsize,n_bins,n_bins), numpy.float64)
                 
         n_used = 0

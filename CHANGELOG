@@ -1,3 +1,8 @@
+2011-02-22 -- Matt Zwier <mczwier@gmail.com>
+ * Added "fraction of all iterations" window sizing to WEED plugin. Just set
+   ``window_size=0.5`` under ``[weed]`` in ``wemd.cfg`` to consider just the
+   latter half of all iterations.
+
 2011-02-17 -- Matt Zwier <mczwier@gmail.com>
  * Added a new ``WEMD_PROCESS_INDEX`` environment variable to ZeroMQ worker
    processes to aid in restricting certain resources to certain children.
