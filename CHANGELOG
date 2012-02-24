@@ -1,4 +1,18 @@
 2011-02-24 -- Matt Zwier <mczwier@gmail.com>
+ * Added support for generated initial states.  One or more "basis states" 
+   (the entities formerly known as initial states) are specified, and when
+   a new trajectory is to be started, a basis state is either used directly
+   (when configuration parameter system.gen_istates is false) or used to
+   generate a one-off initial state (when system.gen_istates is true).
+ * Target states are now stored in the HDF5 file as well, as a first step
+   in using the HDF5 file as a complete history of the simulation.
+ * Added w_states utility to modify the lists of target and basis states
+   after w_init.
+ * Modified executable propagator to handle initial state generation (with
+   gen_istate and get_pcoord child executables). 
+ * Restructured sim manager to encapsulate simulation initialization and
+   to better modularize the simulation loop (more short functions instead
+   of one huge run() function).
  * Removed support for saving data return files in the executable propagator;
    have the various executables save a copy manually if necessary. Temporary
    files for data return are now required.
@@ -10,6 +24,8 @@
    is being called in a context expected to read an entire segment's worth
    of data (single_point is false) or only a single time point (single_point
    is true). 
+ * Added lib/examples/methane_gmx as an example, and since it seems to be the
+   main source of documentation of the executable interface at the moment.
 
 2011-02-22 -- Matt Zwier <mczwier@gmail.com>
  * Added "fraction of all iterations" window sizing to WEED plugin. Just set

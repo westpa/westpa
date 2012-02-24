@@ -101,7 +101,7 @@ class InitialState:
     :ivar basis_state_id:   Identifier of the basis state from which this state was
                             generated.
     :ivar basis_state:      The `BasisState` from which this state was generated.
-    :ivar iter_gen:         Iteration in which this state was generated (0 for
+    :ivar iter_created:     Iteration in which this state was generated (0 for
                             simulation initialization).
     :ivar iter_used:        Iteration in which this state was used to initiate a
                             trajectory (None for unused).

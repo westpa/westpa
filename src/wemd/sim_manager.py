@@ -16,16 +16,6 @@ from wemd.util.miscfn import vgetattr
 from wemd.work_managers import ops as wm_ops
 from wemd.data_manager import weight_dtype
 
-'''
-seg_id_dtype = numpy.int64  # Up to 9 quintillion segments per iteration; signed so that initial states can be stored negative
-n_iter_dtype = numpy.uint32 # Up to 4 billion iterations
-weight_dtype = numpy.float64  # about 15 digits of precision in weights
-utime_dtype = numpy.float64  # ("u" for Unix time) Up to ~10^300 cpu-seconds 
-vstr_dtype = h5py.new_vlen(str)
-h5ref_dtype = h5py.special_dtype(ref=h5py.Reference)
-
-'''
-
 EPS = numpy.finfo(numpy.float64).eps
 
 RecyclingInfo = namedtuple('RecyclingInfo', ['count', 'weight'])
@@ -339,7 +329,6 @@ class WESimManager:
         # Get basis states used in this iteration
         self.current_iter_bstates = self.data_manager.get_basis_states(self.n_iter)
         
-        
         # Get the segments for this iteration and separate into complete and incomplete
         segments = self.segments = {segment.seg_id: segment for segment in self.data_manager.get_segments()}
         log.debug('loaded {:d} segments'.format(len(segments)))
@@ -363,6 +352,7 @@ class WESimManager:
         # Get the initial states active for this iteration (so that the propagator has them if necessary)
         self.current_iter_istates = {state.state_id: state for state in 
                                      self.data_manager.get_segment_initial_states(segments.values())}
+        log.debug('This iteration uses {:d} initial states'.format(len(self.current_iter_istates)))
         
         # Assign this iteration's segments' initial points to bins
         self.initial_binning.assign_to_bins(segments.itervalues(), key=Segment.initial_pcoord)

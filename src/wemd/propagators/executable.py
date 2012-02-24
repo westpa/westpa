@@ -420,8 +420,6 @@ class ExecutablePropagator(WEMDPropagator):
 
             addtl_env = {}
             
-            # A mappping of data set name to (filename, delete) pairs, where delete is a bool
-            # indicating whether the file should be deleted (i.e. it's a temporary file) or not
             return_files = {}
             for dataset in self.data_info:
                 (fd, rfname) = tempfile.mkstemp()
