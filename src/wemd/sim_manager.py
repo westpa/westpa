@@ -74,6 +74,7 @@ class WESimManager:
         self.n_bins = None
         
         self.next_iter_segments = None      # List of segments to be created for the next iteration
+        self.next_iter_binning = None       # Binning of next iteration's segments
         
     def register_callback(self, hook, function, priority=0):
         '''Registers a callback to execute during the given ``hook`` into the simulation loop. The optional
@@ -305,6 +306,12 @@ class WESimManager:
 
     def prepare_iteration(self):
         log.debug('beginning iteration {:d}'.format(self.n_iter))
+        
+        # Clean up from last iteration
+        # Explicit deletes are used to make sure that two iterations' worth of segment data don't wind up in RAM at once
+        del self.segments, self.next_iter_segments, self.initial_binning, self.final_binning, self.next_iter_binning
+        self.next_iter_segments = None
+        self.next_iter_binning = None
         
         # Prepare region sets (bins) for this iteration
         # Since we track transitions, it's easiest to have separate region sets for initial and final states of each segment
@@ -588,9 +595,15 @@ class WESimManager:
                 initial_state.iter_used = self.n_iter+1
                 used_initial_states.add(initial_state)            
                         
-        self.data_manager.prepare_iteration(self.n_iter+1, new_segments)
         if used_initial_states:
             self.data_manager.update_initial_states(used_initial_states)
+            
+        self.next_iter_segments = new_segments
+        self.next_iter_binning = new_region_set
+            
+    def prepare_new_segments(self):
+        self.invoke_callbacks(self.prepare_new_segments)
+        self.data_manager.prepare_iteration(self.n_iter+1, self.next_iter_segments)
         
     def run(self):   
         run_starttime = time.time()
@@ -628,6 +641,8 @@ class WESimManager:
                 self.pre_we()
                 self.run_we()
                 self.post_we()
+                
+                self.prepare_new_segments()
                 
                 self.finalize_iteration()
                 

@@ -43,16 +43,17 @@ class WEEDDriver:
         n_used = 0
         for n in xrange(n_iter, n_iter-eff_windowsize, -1):
             log.debug('considering iteration {:d}'.format(n))
-            iter_group = self.data_manager.get_iter_group(n)
-            rates_ds = iter_group['bin_rates']
-            if rates_ds.shape != rates.shape[1:]:
-                # A bin topology change means we can't go any farther back
-                self.sim_manager.status_stream.write(('Rate matrix for iteration {:d} is of the wrong shape; '
-                                                      +'stopping accumulation of average rate data.\n').format(n))
-                break
-            
-            rates[n_used] = rates_ds[...]
-            n_used += 1
+            with self.data_manager.lock:
+                iter_group = self.data_manager.get_iter_group(n)
+                rates_ds = iter_group['bin_rates']
+                if rates_ds.shape != rates.shape[1:]:
+                    # A bin topology change means we can't go any farther back
+                    self.sim_manager.status_stream.write(('Rate matrix for iteration {:d} is of the wrong shape; '
+                                                          +'stopping accumulation of average rate data.\n').format(n))
+                    break
+                
+                rates[n_used] = rates_ds[...]
+                n_used += 1
 
         avg_rates = rates[:n_used].mean(axis=0)
         if n_used == 1:
@@ -62,34 +63,31 @@ class WEEDDriver:
         return (avg_rates, unc_rates, n_used)
         
         
-    def prepare_new_segments(self, n_iter, old_segments, new_segments):
-        status_stream = self.sim_manager.status_stream
+    def prepare_new_segments(self):
+        n_iter = self.sim_manager.n_iter
         
         if not self.do_reweight:
             # Reweighting not requested (or not possible)
             log.debug('equilibrium reweighting not enabled') 
             return
 
-        iter_group = self.data_manager.get_iter_group(n_iter)
-        
-        region_set = self.sim_manager.system.region_set
-        region_set.clear()
-        bins = region_set.get_all_bins()
-        n_bins = len(bins)
-        initial_pcoords = [segment.pcoord[0] for segment in new_segments]
-        for (bin, segment) in izip(region_set.map_to_bins(initial_pcoords), new_segments):
-            bin.add(segment)
-        
-        try:
-            del iter_group['weed']
-        except KeyError:
-            pass
-        
-        weed_iter_group = iter_group.create_group('weed')
-        avg_rates_ds = weed_iter_group.create_dataset('avg_rates', shape=(n_bins,n_bins), dtype=numpy.float64)
-        unc_rates_ds = weed_iter_group.create_dataset('unc_rates', shape=(n_bins,n_bins), dtype=numpy.float64)
-        weed_global_group = self.data_manager.we_h5file.require_group('weed')
-        last_reweighting = long(weed_global_group.attrs.get('last_reweighting', 0))
+        # We already have initial and final binning information for the current iteration
+        # and initial binning for the new iteration (in self.next_iter_binning); no need to bin again
+        bins = self.sim_manager.next_iter_binning.get_all_bins()
+        n_bins = len(bins)         
+
+        with self.data_manager.lock:
+            iter_group = self.data_manager.get_iter_group(self.n_iter)
+            try:
+                del iter_group['weed']
+            except KeyError:
+                pass
+                
+            weed_iter_group = iter_group.create_group('weed')
+            avg_rates_ds = weed_iter_group.create_dataset('avg_rates', shape=(n_bins,n_bins), dtype=numpy.float64)
+            unc_rates_ds = weed_iter_group.create_dataset('unc_rates', shape=(n_bins,n_bins), dtype=numpy.float64)
+            weed_global_group = self.data_manager.we_h5file.require_group('weed')
+            last_reweighting = long(weed_global_group.attrs.get('last_reweighting', 0))
         
         if n_iter - last_reweighting < self.reweight_period:
             # Not time to reweight yet
@@ -98,18 +96,19 @@ class WEEDDriver:
         else:
             log.debug('reweighting')
         
-        avg_rates, unc_rates, eff_windowsize = self.get_rates(n_iter, bins)
-        avg_rates_ds[...] = avg_rates
-        unc_rates_ds[...] = unc_rates
+        with self.data_manager.lock:
+            avg_rates, unc_rates, eff_windowsize = self.get_rates(n_iter, bins)
+            avg_rates_ds[...] = avg_rates
+            unc_rates_ds[...] = unc_rates
+            
+            binprobs = iter_group['bin_populations'][-1,:]
+            assert numpy.allclose(binprobs, vgetattr('weight', bins, numpy.float64))
+            orig_binprobs = binprobs.copy()
         
-        binprobs = iter_group['bin_populations'][-1,:]
-        assert numpy.allclose(binprobs, vgetattr('weight', bins, numpy.float64))
-        orig_binprobs = binprobs.copy()
-        
-        status_stream.write('Calculating equilibrium reweighting using window size of {:d}\n'.format(eff_windowsize))
-        status_stream.write('\nBin probabilities prior to reweighting:\n{!s}\n'.format(binprobs))
-        self.sim_manager.flush_status()
-        
+        wemd.rc.pstatus('Calculating equilibrium reweighting using window size of {:d}'.format(eff_windowsize))
+        wemd.rc.pstatus('\nBin probabilities prior to reweighting:\n{!s}'.format(binprobs))
+        wemd.rc.pflush()
+
         probAdjustEquil(binprobs, avg_rates, unc_rates)
         
         # Check to see if reweighting has set non-zero bins to zero probability (should never happen)
@@ -118,15 +117,13 @@ class WEEDDriver:
         # Check to see if reweighting has set zero bins to nonzero probability (may happen)
         z2nz_mask = (orig_binprobs == 0) & (binprobs > 0) 
         if (z2nz_mask).any():
-            status_stream.write('Reweighting would assign nonzero probability to an empty bin; not reweighting this iteration.\n')
-            status_stream.write('Empty bins assigned nonzero probability: {!s}.\n'
+            wemd.rc.pstatus('Reweighting would assign nonzero probability to an empty bin; not reweighting this iteration.')
+            wemd.rc.pstatus('Empty bins assigned nonzero probability: {!s}.'
                                 .format(numpy.array_str(numpy.arange(n_bins)[z2nz_mask])))
         else:
-            status_stream.write('\nBin populations after reweighting:\n{!s}\n'.format(binprobs))
+            wemd.rc.pstatus('\nBin populations after reweighting:\n{!s}'.format(binprobs))
             for (bin, newprob) in izip(bins, binprobs):
                 bin.reweight(newprob)
             weed_global_group.attrs['last_reweighting'] = n_iter
-                
-        region_set.clear()
             
-        assert abs(1 - vgetattr('weight', new_segments, numpy.float64).sum()) < 1.0e-15*len(new_segments)
+        assert abs(1 - vgetattr('weight', self.sim_manager.next_iter_segments, numpy.float64).sum()) < 1.0e-15*len(self.sim_manager.next_iter_segments)
