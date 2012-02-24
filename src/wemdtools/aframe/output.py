@@ -28,6 +28,8 @@ class CommonOutputMixin(AnalysisMixin):
                 
         
     def process_common_output_args(self, args):
-        self.output_suppress_headers = bool(args.suppress_headers)
-        self.output_print_bin_labels = bool(args.print_bin_labels)
+        if self.include_args['CommonOutputMixin']['suppress_headers']:
+            self.output_suppress_headers = bool(args.suppress_headers)
+        if self.include_args['CommonOutputMixin']['print_bin_labels']:
+            self.output_print_bin_labels = bool(args.print_bin_labels)
         

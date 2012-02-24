@@ -1,4 +1,4 @@
-2011-02-1X -- Matt Zwier <mczwier@gmail.com>
+2011-02-24 -- Matt Zwier <mczwier@gmail.com>
  * Removed support for saving data return files in the executable propagator;
    have the various executables save a copy manually if necessary. Temporary
    files for data return are now required.
@@ -10,6 +10,16 @@
    is being called in a context expected to read an entire segment's worth
    of data (single_point is false) or only a single time point (single_point
    is true). 
+
+2011-02-22 -- Matt Zwier <mczwier@gmail.com>
+ * Added "fraction of all iterations" window sizing to WEED plugin. Just set
+   ``window_size=0.5`` under ``[weed]`` in ``wemd.cfg`` to consider just the
+   latter half of all iterations.
+
+2011-02-17 -- Matt Zwier <mczwier@gmail.com>
+ * Added a new ``WEMD_PROCESS_INDEX`` environment variable to ZeroMQ worker
+   processes to aid in restricting certain resources to certain children.
+ * Fixed broken post_iter handling.
 
 2011-02-03 -- Matt Zwier <mczwier@gmail.com>
  * Added preliminary support for arbitrary data sets stored in HDF5. This
