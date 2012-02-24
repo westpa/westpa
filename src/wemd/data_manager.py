@@ -110,7 +110,9 @@ summary_table_dtype = numpy.dtype( [ ('n_particles', seg_id_dtype),    # Number 
                                      ('min_seg_prob', weight_dtype),  # Per-segment minimum probability
                                      ('max_seg_prob', weight_dtype),  # Per-segment maximum probability
                                      ('cputime', utime_dtype),       # Total CPU time for this iteration
-                                     ('walltime', utime_dtype)] )    # Total wallclock time for this iteration
+                                     ('walltime', utime_dtype),# Total wallclock time for this iteration
+                                     ('binhash', '|S64'),
+                                     ] )    
 
 
 # The HDF5 file tracks related histories: 
@@ -136,6 +138,7 @@ rec_summary_dtype = numpy.dtype( [ ('count', numpy.uint),        # Number of tra
 
 # Index to basis/initial states
 ibstate_index_dtype = numpy.dtype([('iter_valid', numpy.uint),
+                                   ('n_bstates', numpy.uint),
                                    ('group_ref', h5ref_dtype)])
 
 # Basis state index type
@@ -147,7 +150,7 @@ bstate_dtype = numpy.dtype( [ ('label', vstr_dtype),            # An optional de
 # Even when initial state generation is off and basis states are passed through directly, an initial state entry
 # is created, as that allows precise tracing of the history of a given state in the most complex case of
 # a new initial state for every new trajectory.
-istate_dtype = numpy.dtype( [('iter_valid', numpy.uint),      # Iteration during which this state was generated (0 for at w_init)
+istate_dtype = numpy.dtype( [('iter_created', numpy.uint),      # Iteration during which this state was generated (0 for at w_init)
                              ('iter_used', numpy.uint),           # When this state was used to start a new trajectory 
                              ('basis_state_id', seg_id_dtype),    # Which basis state this state was generated from
                              ('istate_type', istate_type_dtype),  # What type this initial state is (generated or basis)
@@ -155,6 +158,7 @@ istate_dtype = numpy.dtype( [('iter_valid', numpy.uint),      # Iteration during
                              ]) 
 
 tstate_index_dtype = numpy.dtype([('iter_valid', numpy.uint), # Iteration when this state list is valid
+                                  ('n_states', numpy.uint),
                                   ('group_ref', h5ref_dtype)])  # Reference to a group containing further data; this will be the
                                                                 # null reference if there is no target state for that timeframe.
 tstate_dtype = numpy.dtype( [('label', vstr_dtype),])           # An optional descriptive label for this state
@@ -232,7 +236,10 @@ class WEMDDataManager:
 
     def get_iter_group(self, n_iter):
         with self.lock:
-            return self.we_h5file['/iterations/iter_{:0{prec}d}'.format(n_iter, prec=self.iter_prec)]
+            try:
+                return self.we_h5file['/iterations/iter_{:0{prec}d}'.format(n_iter, prec=self.iter_prec)]
+            except KeyError:
+                return self.we_h5file['/iter_{:0{prec}d}'.format(n_iter,prec=self.iter_prec)]
             
     def get_seg_index(self, n_iter):
         with self.lock:
@@ -296,7 +303,7 @@ class WEMDDataManager:
         
         system = wemd.rc.get_system_driver()
         
-        n_iter = n_iter or self.current_iteration + 1
+        n_iter = n_iter or self.current_iteration
 
         # Assemble all the important data before we start to modify the HDF5 file
         tstates = list(tstates)
@@ -313,100 +320,122 @@ class WEMDDataManager:
         
         # Commit changes to HDF5
         with self.lock:
+            master_group = self.we_h5file.require_group('tstates')
+            
             try:
-                master_index = self.we_h5file['target_state_index']
+                master_index = master_group['index']
             except KeyError:
-                master_index = self.we_h5file.create_dataset('target_state_index', shape=(1,), maxshape=(None,),
-                                                             dtype=tstate_index_dtype)
+                master_index = master_group.create_dataset('index', shape=(1,), maxshape=(None,),
+                                                            dtype=tstate_index_dtype)
                 n_sets = 1
             else:
                 n_sets = len(master_index) + 1
                 master_index.resize((n_sets,))
             
-            master_index_row = master_index[n_sets-1]
+            set_id = n_sets-1
+            master_index_row = master_index[set_id]
             master_index_row['iter_valid'] = n_iter
+            master_index_row['n_states'] = len(tstates)
             
             if tstates:
-                state_group = self.require_iter_group(n_iter).create_group('target_states')
+                state_group = master_group.create_group(str(set_id))
                 master_index_row['group_ref'] = state_group.ref            
                 state_group['index'] = state_table
                 state_group['pcoord'] = state_pcoords
             else:
-                master_index_row['group_ref'] = None # this is the sentinel that no target states exist for this time frame
+                master_index_row['group_ref'] = None 
                 
-            master_index[n_sets-1] = master_index_row
+            master_index[set_id] = master_index_row
+            
+    def _find_multi_iter_group(self, n_iter, master_group_name):
+        with self.lock:
+            master_group = self.we_h5file[master_group_name]
+            master_index = master_group['index'][...]
+            set_id = numpy.digitize([n_iter], master_index['iter_valid']) - 1
+            # This extra [0] is to work around a bug in h5py
+            group_ref = master_index[set_id]['group_ref']
+            try:
+                group = self.we_h5file[group_ref]
+            except AttributeError:
+                log.debug('working around h5py bug')
+                group = self.we_h5file[group_ref[0]]
+            else:
+                log.debug('h5py fixed; remove alternate code path')
+            log.debug('reference {!r} points to group {!r}'.format(group_ref, group))
+            return group
+            
+    def find_tstate_group(self, n_iter):
+        return self._find_multi_iter_group(n_iter, 'tstates')
+
+    def find_ibstate_group(self, n_iter):
+        return self._find_multi_iter_group(n_iter, 'ibstates')
 
     def get_target_states(self, n_iter):
-        '''Return a list of Target objects representing the target (sink) states that are in use for iteration n_iter.'''
-        
+        '''Return a list of Target objects representing the target (sink) states that are in use for iteration n_iter.
+        Future iterations are assumed to continue from the most recent set of states.'''
+
         with self.lock:
-            iter_group = self.get_iter_group(n_iter)
-            tstate_group = iter_group['target_states'] 
+            tstate_group = self.find_tstate_group(n_iter)         
             tstate_index = tstate_group['index']
             tstate_pcoords = tstate_group['pcoord']
             
             tstates = [TargetState(state_id=i, label=row['label'], pcoord=pcoord)
                         for (i, (row, pcoord))  in enumerate(izip(tstate_index, tstate_pcoords))]
             return tstates
-                
-    def create_ibstate_group(self, n_iter=None):
+          
+    def create_ibstate_group(self, basis_states, n_iter=None):
         '''Create the group used to store basis states and initial states (whose definitions are always
         coupled).  This group is hard-linked into all iteration groups that use these basis and 
-        initial states.'''        
+        initial states.'''
+                
         with self.lock:
-            n_iter = n_iter or self.current_iteration + 1
+            n_iter = n_iter or self.current_iteration
+            master_group = self.we_h5file.require_group('ibstates')
+            
             try:
-                master_index = self.we_h5file['ibstate_index']
+                master_index = master_group['index']
             except KeyError:
-                master_index = self.we_h5file.create_dataset('ibstate_index', dtype=ibstate_index_dtype,
+                master_index = master_group.create_dataset('index', dtype=ibstate_index_dtype,
                                                              shape=(1,), maxshape=(None,))
                 n_sets = 1
             else:
                 n_sets = len(master_index)+1
                 master_index.resize((n_sets),)
             
-            state_group = self.require_iter_group(n_iter).create_group('ibstates')
-            master_index_row = master_index[n_sets-1]
+            set_id = n_sets - 1
+            master_index_row = master_index[set_id]
             master_index_row['iter_valid'] = n_iter
+            master_index_row['n_bstates'] = len(basis_states)
+            state_group = master_group.create_group(str(set_id))
             master_index_row['group_ref'] = state_group.ref
-            master_index[n_sets-1] = master_index_row
+            
+            
+            if basis_states:
+                system = wemd.rc.get_system_driver()            
+                state_table = numpy.empty((len(basis_states),), dtype=bstate_dtype)
+                state_pcoords = numpy.empty((len(basis_states),system.pcoord_ndim), dtype=system.pcoord_dtype)
+                for i, state in enumerate(basis_states):
+                    state.state_id = i
+                    state_table[i]['label'] = state.label
+                    state_table[i]['probability'] = state.probability
+                    state_table[i]['auxref'] = state.auxref or ''
+                    state_pcoords[i] = state.pcoord
+                
+                state_group['bstate_index'] = state_table
+                state_group['bstate_pcoord'] = state_pcoords
+            
+            master_index[set_id] = master_index_row
             return state_group
- 
-    def save_basis_states(self, bstates, n_iter = None):
-        '''Save the given basis states in the HDF5 file; they will be used for the next iteration to
-        be propagated.  A complete set is required, even if nominally appending to an existing set,
-        which simplifies the mapping of IDs to the table.'''
-        
-        system = wemd.rc.get_system_driver()
-        
-        
-        # Assemble all the important data before we start to modify the HDF5 file
-        bstates = list(bstates)
-        assert bstates, 'non-empty state list required'
-        state_table = numpy.empty((len(bstates),), dtype=bstate_dtype)
-        state_pcoords = numpy.empty((len(bstates),system.pcoord_ndim), dtype=system.pcoord_dtype)
-        for i, state in enumerate(bstates):
-            state.state_id = i
-            state_table[i]['label'] = state.label
-            state_table[i]['probability'] = state.probability
-            state_table[i]['auxref'] = state.auxref or ''
-            state_pcoords[i] = state.pcoord
-        
-        with self.lock:    
-            n_iter = n_iter or self.current_iteration
-            state_group = self.create_ibstate_group(n_iter)
-            state_group['bstate_index'] = state_table
-            state_group['bstate_pcoord'] = state_pcoords
 
-    def get_basis_states(self, n_iter):
+
+    def get_basis_states(self, n_iter=None):
         '''Return a list of BasisState objects representing the basis states that are in use for iteration n_iter.'''
         
         with self.lock:
-            iter_group = self.get_iter_group(n_iter)
-            ibstate_group = iter_group['ibstates'] 
+            n_iter = n_iter or self.current_iteration
+            ibstate_group = self.find_ibstate_group(n_iter)
             bstate_index = ibstate_group['bstate_index']
             bstate_pcoords = ibstate_group['bstate_pcoord']
-            
             bstates = [BasisState(state_id=i, label=row['label'], probability=row['probability'],
                                   auxref = row['auxref'] or None, pcoord=pcoord)
                        for (i, (row, pcoord))  in enumerate(izip(bstate_index, bstate_pcoords))]
@@ -420,8 +449,7 @@ class WEMDDataManager:
         system = wemd.rc.get_system_driver()        
         with self.lock:
             n_iter = n_iter or self.current_iteration
-            iter_group = self.require_iter_group(n_iter)
-            ibstate_group = iter_group['ibstates']
+            ibstate_group = self.find_ibstate_group(n_iter)
             
             try:
                 istate_index = ibstate_group['istate_index']
@@ -444,10 +472,10 @@ class WEMDDataManager:
         index_entries = istate_index[first_id:len_index]
         new_istates = []                
         for irow, row in enumerate(index_entries):
-            row['iter_valid'] = n_iter
+            row['iter_created'] = n_iter
             row['istate_status'] = InitialState.ISTATE_STATUS_PENDING
             new_istates.append(InitialState(state_id=first_id+irow, basis_state_id=None,
-                                            iter_valid=n_iter, istate_status=InitialState.ISTATE_STATUS_PENDING))
+                                            iter_created=n_iter, istate_status=InitialState.ISTATE_STATUS_PENDING))
         istate_index[first_id:len_index] = index_entries
         return new_istates
             
@@ -459,12 +487,12 @@ class WEMDDataManager:
         
         with self.lock:
             n_iter = n_iter or self.current_iteration     
-            ibstate_group = self.get_iter_group(n_iter)['ibstates']   
+            ibstate_group = self.find_ibstate_group(n_iter)
             state_ids = [state.state_id for state in initial_states]
             index_entries = ibstate_group['istate_index'][state_ids] 
             pcoord_vals = numpy.empty((len(initial_states), system.pcoord_ndim), dtype=system.pcoord_dtype)
             for i, initial_state in enumerate(initial_states):
-                index_entries[i]['iter_valid'] = initial_state.iter_valid
+                index_entries[i]['iter_created'] = initial_state.iter_created
                 index_entries[i]['iter_used'] = initial_state.iter_used or InitialState.ISTATE_UNUSED
                 index_entries[i]['basis_state_id'] = initial_state.basis_state_id
                 index_entries[i]['istate_type'] = initial_state.istate_type or InitialState.ISTATE_TYPE_UNSET
@@ -478,12 +506,12 @@ class WEMDDataManager:
         states = []
         with self.lock:
             n_iter = n_iter or self.current_iteration
-            ibstate_group = self.get_iter_group(n_iter)['ibstates']
+            ibstate_group = self.find_ibstate_group(n_iter)
             istate_pcoords = ibstate_group['pcoord']
             istate_index = ibstate_group['istate_index']
             for state_id, (state, pcoord) in enumerate(izip(istate_index, istate_pcoords)):
                 states.append(InitialState(state_id=state_id, basis_state_id=state['basis_state_id'],
-                                           iter_valid=state['iter_valid'], iter_used=state['iter_used'],
+                                           iter_created=state['iter_created'], iter_used=state['iter_used'],
                                            istate_type=state['istate_type'], pcoord=pcoord))
             return states
                 
@@ -504,7 +532,7 @@ class WEMDDataManager:
             istate_pcoords = ibstate_group['istate_pcoord'][sorted_istate_ids]
             
             return [InitialState(state_id=state_id, basis_state_id=state['basis_state_id'],
-                                 iter_valid=state['iter_valid'], iter_used=state['iter_used'],
+                                 iter_created=state['iter_created'], iter_used=state['iter_used'],
                                  istate_type=state['istate_type'], pcoord=pcoord)
                     for state_id, state, pcoord in izip(sorted_istate_ids, istate_rows, istate_pcoords)] 
             
@@ -515,7 +543,7 @@ class WEMDDataManager:
         n_states = n_states or sys.maxint
         with self.lock:
             n_iter = n_iter or self.current_iteration
-            ibstate_group = self.get_iter_group(n_iter)['ibstates']
+            ibstate_group = self.find_ibstate_group(n_iter)
             istate_index = ibstate_group['istate_index']
             istate_pcoords = ibstate_group['istate_pcoord']
             n_index_entries = istate_index.len()
@@ -535,7 +563,7 @@ class WEMDDataManager:
                 if len(ids_of_unused):
                     pcoords = istate_pcoords[ids_of_unused]
                     states.extend(InitialState(state_id=state_id, basis_state_id=state['basis_state_id'],
-                                               iter_valid=state['iter_valid'], iter_used=0, istate_type=state['istate_type'],
+                                               iter_created=state['iter_created'], iter_used=0, istate_type=state['istate_type'],
                                                pcoord=pcoord,
                                                istate_status=state['istate_status'])
                                   for state_id,state,pcoord in izip(ids_of_unused,istate_chunk[unused],pcoords))
@@ -640,18 +668,31 @@ class WEMDDataManager:
                 
                 wtgraph_ds[:] = parents
 
-            if 'ibstates' not in iter_group or 'target_states' not in iter_group:                
-                last_iter_group = self.get_iter_group(n_iter-1)
-                # Mid-simulation changes write these in advance
-                if 'ibstates' not in iter_group:
-                    iter_group['ibstates'] = last_iter_group['ibstates']
-                if 'target_states' not in iter_group:
-                    iter_group['target_states'] = last_iter_group['target_states']
+            # Create convenient hard links
+            self.update_iter_group_links(n_iter)
+            
     
             # Since we accumulated many of these changes in RAM (and not directly in HDF5), propagate
             # the changes out to HDF5
             seg_index_table_ds[:] = seg_index_table
             pcoord_ds[...] = pcoord
+
+    def update_iter_group_links(self, n_iter):
+        '''Update the per-iteration hard links pointing to the tables of target and initial/basis states for the
+        given iteration.  These links are not used by this class, but are remarkably convenient for third-party
+        analysis tools and hdfview.'''
+        
+        with self.lock:
+            iter_group = self.require_iter_group(n_iter)
+            
+            for linkname in ('ibstates', 'tstates'):
+                try:
+                    del iter_group[linkname]
+                except KeyError:
+                    pass
+            
+            iter_group['ibstates'] = self.find_ibstate_group(n_iter)
+            iter_group['tstates'] = self.find_tstate_group(n_iter)
             
     def get_iter_summary(self,n_iter=None):
         n_iter = n_iter or self.current_iteration

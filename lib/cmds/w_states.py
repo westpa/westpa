@@ -6,6 +6,7 @@ from itertools import izip
 log = logging.getLogger('w_init')
 
 import wemd
+from wemd import Segment
 from wemd.states import BasisState, TargetState
 
 EPS = numpy.finfo(numpy.float64).eps
@@ -64,7 +65,7 @@ try:
     data_manager.open_backing(mode='a')
     sim_manager = wemd.rc.get_sim_manager()
     n_iter = data_manager.current_iteration
-    
+        
     assert args.mode in ('show', 'replace', 'append')
     if args.mode == 'show':
         bstate_file = sys.stdout if not args.bstate_file else open(args.bstate_file, 'wt') 
@@ -77,7 +78,10 @@ try:
         tstate_file.write('# Target states for iteration {:d}\n'.format(n_iter))
         TargetState.states_to_file(target_states, tstate_file)
     elif args.mode == 'replace':
-        n_iter += 1
+        seg_index = data_manager.get_seg_index(n_iter)
+        if (seg_index['status'] == Segment.SEG_STATUS_COMPLETE).any():
+            print('Iteration {:d} has completed segments; applying new states to iteration {:d}'.format(n_iter,n_iter+1))
+            n_iter += 1
         
         basis_states = []
         if args.bstate_file:
@@ -104,6 +108,7 @@ try:
             
             # Assign progress coordinates to basis states
             sim_manager.get_bstate_pcoords(basis_states, n_iter)
+            data_manager.create_ibstate_group(basis_states, n_iter)
             sim_manager.report_basis_states(basis_states)
             
         # Now handle target states
@@ -120,6 +125,8 @@ try:
         else:
             data_manager.save_target_states(target_states, n_iter)
             sim_manager.report_target_states(target_states)
+            
+        data_manager.update_iter_group_links(n_iter)
         
     else: # args.mode == 'append'
         if args.bstate_file or args.bstates:
@@ -127,7 +134,11 @@ try:
             sys.exit(2)
         
         target_states = data_manager.get_target_states(n_iter)
-        n_iter += 1
+        
+        seg_index = data_manager.get_seg_index(n_iter)
+        if (seg_index['status'] == Segment.SEG_STATUS_COMPLETE).any():
+            print('Iteration {:d} has completed segments; applying new states to iteration {:d}'.format(n_iter,n_iter+1))
+            n_iter += 1
         
         if args.tstate_file:
             target_states.extend(TargetState.states_from_file(args.tstate_file, system.pcoord_dtype))
@@ -141,6 +152,8 @@ try:
         else:
             data_manager.save_target_states(target_states, n_iter)
             sim_manager.report_target_states(target_states)
+            
+        data_manager.update_iter_group_links(n_iter)
 except:
     work_manager.shutdown(4)
     raise

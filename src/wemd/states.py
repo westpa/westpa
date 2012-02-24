@@ -123,7 +123,7 @@ class InitialState:
     ISTATE_STATUS_PREPARED = 1
     ISTATE_STATUS_FAILED = 2
     
-    def __init__(self, state_id, basis_state_id, iter_valid, iter_used=None, 
+    def __init__(self, state_id, basis_state_id, iter_created, iter_used=None, 
                  istate_type=None, istate_status=None,
                  pcoord=None, 
                  basis_state=None):
@@ -132,12 +132,12 @@ class InitialState:
         self.basis_state=basis_state
         self.istate_type = istate_type
         self.istate_status = istate_status
-        self.iter_valid = iter_valid
+        self.iter_created = iter_created
         self.iter_used = iter_used         
         self.pcoord = pcoord
         
     def __repr__(self): 
-        return ('{} state_id={self.state_id!r} istate_type={self.istate_type!r} basis_state_id={self.basis_state_id!r} iter_valid={self.iter_valid!r} pcoord={self.pcoord!r}>'
+        return ('{} state_id={self.state_id!r} istate_type={self.istate_type!r} basis_state_id={self.basis_state_id!r} iter_created={self.iter_created!r} pcoord={self.pcoord!r}>'
                 .format(object.__repr__(self)[:-1], self=self))
 
 class TargetState:
