@@ -188,24 +188,14 @@ class TargetState:
         for two targets and a two-dimensional progress coordinate.
         '''
         
-        # This complexity is to (eventually) support structured data pcoords (like float in dim 0, int in dim 1)
-        # However, this is the only place in the code that can handle this; notably, none of the data manager 
-        # routines can actually deal with this yet.
-        targets = numpy.atleast_1d(numpy.genfromtxt(statefile, dtype=None))
-        pcoord_values = numpy.empty((len(targets),), dtype)
-        labels = [target[0] for target in targets]
-        
-        if hasattr(dtype, 'fields'):
-            s = numpy.s_[1:]
-        else:
-            s = numpy.s_[1]
-            
-        for i, target in enumerate(targets):
-            pcoord_values[i] = target[s]
-            
-        if pcoord_values.ndim == 1:
-            pcoord_values.shape = (pcoord_values.shape[0], 1)
-            
+        labels = []
+        pcoord_values = []
+        for line in statefile:
+            fields = line.split()
+            labels.append(fields[0])
+            pcoord_values.append(numpy.array(map(dtype, fields[1:]),dtype=dtype))
+            print(labels[-1], pcoord_values[-1])
+                                
         return [cls(label=label, pcoord=pcoord) for label,pcoord in zip(labels,pcoord_values)]
 
 from wemd.segment import Segment
