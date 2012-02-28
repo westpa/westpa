@@ -184,6 +184,7 @@ class WEMDDataManager:
         # a given file should be opened
         self.we_h5filename = self.default_we_h5filename
         self.we_h5file_driver = self.default_we_h5file_driver
+        self.we_h5file_version = None
         self.h5_access_mode = 'r+'
         self.iter_prec = self.default_iter_prec
         self.aux_compression_threshold = self.default_aux_compression_threshold
@@ -202,8 +203,8 @@ class WEMDDataManager:
         if wemd.rc.config:
             self.we_h5filename  = wemd.rc.config.get_path('data.wemd_data_file', self.default_we_h5filename)
             self.we_h5file_driver = wemd.rc.config.get('data.wemd_data_file_driver', self.default_we_h5file_driver)
-            self.iter_prec      = wemd.rc.config.get_int('data.default_iter_prec', self.default_iter_prec)
-            self.aux_compression_threshold = wemd.rc.config.get_int('data.default_aux_compression_threshold', 
+            self.iter_prec      = wemd.rc.config.get_int('data.iter_prec', self.default_iter_prec)
+            self.aux_compression_threshold = wemd.rc.config.get_int('data.aux_compression_threshold', 
                                                                     self.default_aux_compression_threshold)
             self.auto_load_auxdata = wemd.rc.config.get_bool('data.load_auxdata', False)
         self.lock = threading.RLock()
@@ -260,9 +261,7 @@ class WEMDDataManager:
         '''Open the (already-created) HDF5 file named in self.wemd_h5filename.'''
         mode = mode or self.h5_access_mode
         if not self.we_h5file:
-            # Check to see that the specified file exists and is readable by the HDF5 library
-            # throws RuntimeError otherwise; this is not an assert because it should run even
-            # when using optimized bytecode (python -O strips "assert" statements).
+            log.debug('attempting to open {} with mode {}'.format(self.we_h5filename, mode))
             self.we_h5file = h5py.File(self.we_h5filename, mode, driver=self.we_h5file_driver)
             try:
                 recorded_iter_prec = self.we_h5file['/'].attrs['wemd_iter_prec']
@@ -271,6 +270,14 @@ class WEMDDataManager:
             else:
                 log.debug('iteration precision found: {:d}'.format(recorded_iter_prec))
                 self.iter_prec = int(recorded_iter_prec)
+                
+            try:
+                self.we_h5file_version = self.we_h5file['/'].attrs['wemd_file_format_version']
+            except KeyError:
+                log.info('WEMD HDF5 file format version not stored, assuming 0')
+                self.we_h5file_version
+            else:
+                log.debug('opened WEMD HDF5 file version {:d}'.format(self.we_h5file_version))
                     
     def prepare_backing(self): #istates):
         '''Create new HDF5 file'''
@@ -831,7 +838,7 @@ class WEMDDataManager:
                     dset[segment.seg_id] = adata
             
                 
-    def get_segments(self, n_iter=None, load_auxdata=None):
+    def get_segments_old(self, n_iter=None, load_auxdata=None):
         '''Return the segments from a given iteration.  This function is optimized for the 
         case of retrieving (nearly) all segments for a given iteration as quickly as possible, 
         and as such effectively loads all data for the given iteration into memory (which
@@ -839,31 +846,42 @@ class WEMDDataManager:
         
         n_iter = n_iter or self.current_iteration
         if load_auxdata is None: load_auxdata = self.auto_load_auxdata
+        file_version = self.we_h5file_version
         
         with self.lock:
             iter_group = self.get_iter_group(n_iter)
             seg_index_table = iter_group['seg_index'][...]
             pcoords = iter_group['pcoord'][...]
-            all_parent_ids = iter_group['wtgraph'][...]
+            if file_version < 5:            
+                all_parent_ids = iter_group['parents'][...]
+            else:
+                all_parent_ids = iter_group['wtgraph'][...]
             
             segments = []
+                
             for (seg_id, row) in enumerate(seg_index_table):
-                wtg_n_parents = row['wtg_n_parents']
-                wtg_offset = row['wtg_offset']  
                 segment = Segment(seg_id = seg_id,
                                   n_iter = n_iter,
-                                  parent_id = long(row['parent_id']),
                                   status = int(row['status']),
                                   endpoint_type = int(row['endpoint_type']),
                                   walltime = float(row['walltime']),
                                   cputime = float(row['cputime']),
                                   weight = float(row['weight']),
                                   pcoord = pcoords[seg_id])
-                wtg_parent_ids = all_parent_ids[wtg_offset:wtg_offset+wtg_n_parents]
+                if file_version < 5:
+                    wtg_n_parents = row['n_parents'] 
+                    wtg_offset = row['parents_offset']
+                    wtg_parent_ids = all_parent_ids[wtg_offset:wtg_offset+wtg_n_parents]
+                    segment.parent_id = long(wtg_parent_ids[0])
+                else:
+                    wtg_n_parents = row['wtg_n_parents']
+                    wtg_offset = row['wtg_offset']  
+                    wtg_parent_ids = all_parent_ids[wtg_offset:wtg_offset+wtg_n_parents]
+                    segment.parent_id = long(row['parent_id'])
                 segment.wtg_parent_ids = set(imap(long,wtg_parent_ids))
                 assert len(segment.wtg_parent_ids) == wtg_n_parents
                 segments.append(segment)
-            del pcoords
+            del pcoords, all_parent_ids
         
             # If any auxiliary data sets are available, load them as well
             if load_auxdata and 'auxdata' in iter_group:
@@ -873,8 +891,8 @@ class WEMDDataManager:
         
         return segments
     
-    def get_segments_by_id(self, n_iter, seg_ids, load_auxdata=None):
-        '''Return the given segments from a given iteration.  
+    def get_segments(self, n_iter=None, seg_ids=None, load_auxdata=None):
+        '''Return the given (or all) segments from a given iteration.  
         
         If the optional parameter ``load_auxdata`` is true, then all auxiliary datasets
         available are loaded and mapped onto the ``data`` dictionary of each segment. If 
@@ -883,50 +901,66 @@ class WEMDDataManager:
         essentially requires as much RAM as there is per-iteration auxiliary data, so this
         behavior is not on by default.'''
         
-        if load_auxdata is None: load_auxdata = self.auto_load_auxdata
 
-        if len(seg_ids) == 0: return []
+        n_iter = n_iter or self.current_iteration
+        if load_auxdata is None: load_auxdata = self.auto_load_auxdata
+        file_version = self.we_h5file_version
         
-        with self.lock:
+        with self.lock:            
             iter_group = self.get_iter_group(n_iter)
-            seg_index = iter_group['seg_index'][...]
-            pcoord_ds = iter_group['pcoord']
-            all_parent_ids = iter_group['wtgraph'][...] 
+            seg_index_ds = iter_group['seg_index']
             
+            if file_version < 5:
+                all_parent_ids = iter_group['parents'][...]
+            else:
+                all_parent_ids = iter_group['wtgraph'][...]
+            
+            if seg_ids is not None:
+                seg_ids = list(sorted(seg_ids))
+                seg_index_entries = seg_index_ds[seg_ids]
+                pcoord_entries = iter_group['pcoord'][seg_ids]
+            else:
+                seg_ids = range(len(seg_index_ds))
+                seg_index_entries = seg_index_ds[...]
+                pcoord_entries = iter_group['pcoord'][...]
+                            
             segments = []
-            seg_ids = list(seg_ids)
-            for seg_id in seg_ids:
-                row = seg_index[seg_id]
                 
-                wtg_n_parents = row['wtg_n_parents']
-                wtg_offset = row['wtg_offset']  
+            for seg_id, pcoord, row in izip(seg_ids, pcoord_entries, seg_index_entries):
                 segment = Segment(seg_id = seg_id,
                                   n_iter = n_iter,
-                                  parent_id = long(row['parent_id']),
                                   status = int(row['status']),
                                   endpoint_type = int(row['endpoint_type']),
                                   walltime = float(row['walltime']),
                                   cputime = float(row['cputime']),
                                   weight = float(row['weight']),
-                                  )
-                wtg_parent_ids = all_parent_ids[wtg_offset:wtg_offset+wtg_n_parents]
+                                  pcoord = pcoord)
+                if file_version < 5:
+                    wtg_n_parents = row['n_parents'] 
+                    wtg_offset = row['parents_offset']
+                    wtg_parent_ids = all_parent_ids[wtg_offset:wtg_offset+wtg_n_parents]
+                    segment.parent_id = long(wtg_parent_ids[0])
+                else:
+                    wtg_n_parents = row['wtg_n_parents']
+                    wtg_offset = row['wtg_offset']  
+                    wtg_parent_ids = all_parent_ids[wtg_offset:wtg_offset+wtg_n_parents]
+                    segment.parent_id = long(row['parent_id'])
                 segment.wtg_parent_ids = set(imap(long,wtg_parent_ids))
                 assert len(segment.wtg_parent_ids) == wtg_n_parents
                 segments.append(segment)
-                
-            # Use a pointwise selection from pcoord_ds to get only the
-            # data we care about
-            pcoords_by_seg = pcoord_ds[seg_ids,...]
-            for (iseg,segment) in enumerate(segments):
-                segment.pcoord = pcoords_by_seg[iseg]
-                assert segment.seg_id is not None
-            
+            del pcoord_entries, all_parent_ids
+        
+            # If any auxiliary data sets are available, load them as well
             if load_auxdata and 'auxdata' in iter_group:
                 for (dsname, ds) in iter_group['auxdata'].iteritems():
-                    for segment in segments:
-                        segment.data[dsname] = ds[segment.seg_id]
-            
-            return segments        
+                    for (seg_id, segment) in enumerate(segments):
+                        segment.data[dsname] = ds[seg_id]
+        
+        return segments
+        
+    def get_segments_by_id(self, n_iter, seg_ids, load_auxdata=None):
+        warn_deprecated_usage('get_segments_by_id is deprecated; use get_segments(seg_ids=...) instead')
+        return self.get_segments(n_iter, seg_ids, load_auxdata=load_auxdata)                    
     
     def get_children(self, segment):
         '''Return all segments which have the given segment as a parent'''
@@ -947,7 +981,10 @@ class WEMDDataManager:
             #seg_ids = [seg_id for (seg_id,row) in enumerate(seg_index) 
             #           if all_parent_ids[row['parents_offset']] == segment.seg_id]
             #return self.get_segments_by_id(segment.n_iter+1, seg_ids)
-            parents = seg_index['parent_id']
+            if self.we_h5file_version < 5:
+                parents = iter_group['parents'][seg_index['parent_offsets']] 
+            else:
+                parents = seg_index['parent_id']
             all_seg_ids = numpy.arange(seg_index.len(), dtype=numpy.uintp)
             seg_ids = all_seg_ids[parents == segment.seg_id]
             # the above will return a scalar if only one is found, so convert
@@ -957,7 +994,7 @@ class WEMDDataManager:
             except TypeError:
                 seg_ids = [seg_ids]
             
-            return self.get_segments_by_id(segment.n_iter+1, seg_ids)
+            return self.get_segments(segment.n_iter+1, seg_ids)
 
     # The following are dictated by the SimManager interface
     def prepare_run(self):

@@ -608,7 +608,7 @@ class WESimManager:
         max_iter = wemd.rc.config.get_int('limits.max_iterations', self.n_iter+1)
 
         iter_elapsed = 0
-        while self.n_iter < max_iter:
+        while self.n_iter <= max_iter:
             
             if max_walltime and time.time() + 1.1*iter_elapsed >= run_killtime:
                 wemd.rc.pstatus('Iteration {:d} would require more than the allotted time. Ending run.'
