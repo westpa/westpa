@@ -89,7 +89,7 @@ class BasisState:
             except IndexError:
                 data_ref = None
                 
-            states.append(cls(state_id=None,probability=probability,label=label,data_ref=data_ref))
+            states.append(cls(state_id=None,probability=probability,label=label,auxref=data_ref))
         return states
     
 class InitialState:
