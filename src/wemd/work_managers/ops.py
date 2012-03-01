@@ -14,11 +14,13 @@ def get_pcoord(propagator, state):
     
 def gen_istate(propagator, basis_state, initial_state):
     log.debug('generating initial state from {!r} (into {!r})'.format(basis_state, initial_state))
+    propagator.update_basis_initial_states([basis_state], [initial_state])
     propagator.gen_istate(basis_state, initial_state)
     return basis_state, initial_state
     
 def prep_iter(propagator, n_iter, segments):
     log.debug('propagator.prepare_iteration(...)')
+    propagator.clear_basis_initial_states()
     propagator.prepare_iteration(n_iter, segments)
     
 def post_iter(propagator, n_iter, segments):

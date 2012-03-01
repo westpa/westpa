@@ -32,6 +32,10 @@ class WEMDPropagator:
     def propagate(self, segments):
         """Propagate one or more segments, including any necessary per-iteration setup and teardown for this propagator."""
         raise NotImplementedError
+
+    def clear_basis_initial_states(self):
+        self.basis_states = {}
+        self.initial_states = {}
     
     def update_basis_initial_states(self, basis_states, initial_states):
         self.basis_states.update({state.state_id: state for state in basis_states})
