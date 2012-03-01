@@ -835,63 +835,9 @@ class WEMDDataManager:
                                                      shape=shape,
                                                      dtype=adata.dtype,
                                                      compression='gzip' if nbytes > self.aux_compression_threshold else None)
-                    dset[segment.seg_id] = adata
-            
-                
-    def get_segments_old(self, n_iter=None, load_auxdata=None):
-        '''Return the segments from a given iteration.  This function is optimized for the 
-        case of retrieving (nearly) all segments for a given iteration as quickly as possible, 
-        and as such effectively loads all data for the given iteration into memory (which
-        is what is currently required for running a WE iteration).'''
-        
-        n_iter = n_iter or self.current_iteration
-        if load_auxdata is None: load_auxdata = self.auto_load_auxdata
-        file_version = self.we_h5file_version
-        
-        with self.lock:
-            iter_group = self.get_iter_group(n_iter)
-            seg_index_table = iter_group['seg_index'][...]
-            pcoords = iter_group['pcoord'][...]
-            if file_version < 5:            
-                all_parent_ids = iter_group['parents'][...]
-            else:
-                all_parent_ids = iter_group['wtgraph'][...]
-            
-            segments = []
-                
-            for (seg_id, row) in enumerate(seg_index_table):
-                segment = Segment(seg_id = seg_id,
-                                  n_iter = n_iter,
-                                  status = int(row['status']),
-                                  endpoint_type = int(row['endpoint_type']),
-                                  walltime = float(row['walltime']),
-                                  cputime = float(row['cputime']),
-                                  weight = float(row['weight']),
-                                  pcoord = pcoords[seg_id])
-                if file_version < 5:
-                    wtg_n_parents = row['n_parents'] 
-                    wtg_offset = row['parents_offset']
-                    wtg_parent_ids = all_parent_ids[wtg_offset:wtg_offset+wtg_n_parents]
-                    segment.parent_id = long(wtg_parent_ids[0])
-                else:
-                    wtg_n_parents = row['wtg_n_parents']
-                    wtg_offset = row['wtg_offset']  
-                    wtg_parent_ids = all_parent_ids[wtg_offset:wtg_offset+wtg_n_parents]
-                    segment.parent_id = long(row['parent_id'])
-                segment.wtg_parent_ids = set(imap(long,wtg_parent_ids))
-                assert len(segment.wtg_parent_ids) == wtg_n_parents
-                segments.append(segment)
-            del pcoords, all_parent_ids
-        
-            # If any auxiliary data sets are available, load them as well
-            if load_auxdata and 'auxdata' in iter_group:
-                for (dsname, ds) in iter_group['auxdata'].iteritems():
-                    for (seg_id, segment) in enumerate(segments):
-                        segment.data[dsname] = ds[seg_id]
-        
-        return segments
+                    dset[segment.seg_id] = adata                
     
-    def get_segments(self, n_iter=None, seg_ids=None, load_auxdata=None):
+    def get_segments(self, n_iter=None, seg_ids=None, load_pcoords = True, load_auxdata=None):
         '''Return the given (or all) segments from a given iteration.  
         
         If the optional parameter ``load_auxdata`` is true, then all auxiliary datasets
@@ -918,23 +864,28 @@ class WEMDDataManager:
             if seg_ids is not None:
                 seg_ids = list(sorted(seg_ids))
                 seg_index_entries = seg_index_ds[seg_ids]
-                pcoord_entries = iter_group['pcoord'][seg_ids]
+                if load_pcoords:
+                    pcoord_entries = iter_group['pcoord'][seg_ids]
             else:
                 seg_ids = range(len(seg_index_ds))
                 seg_index_entries = seg_index_ds[...]
-                pcoord_entries = iter_group['pcoord'][...]
+                if load_pcoords:
+                    pcoord_entries = iter_group['pcoord'][...]
                             
             segments = []
                 
-            for seg_id, pcoord, row in izip(seg_ids, pcoord_entries, seg_index_entries):
+            for iseg, (seg_id, row) in enumerate(izip(seg_ids, seg_index_entries)):
                 segment = Segment(seg_id = seg_id,
                                   n_iter = n_iter,
                                   status = int(row['status']),
                                   endpoint_type = int(row['endpoint_type']),
                                   walltime = float(row['walltime']),
                                   cputime = float(row['cputime']),
-                                  weight = float(row['weight']),
-                                  pcoord = pcoord)
+                                  weight = float(row['weight']))
+                
+                if load_pcoords:
+                    segment.pcoord = pcoord_entries[iseg]
+                    
                 if file_version < 5:
                     wtg_n_parents = row['n_parents'] 
                     wtg_offset = row['parents_offset']
@@ -948,7 +899,9 @@ class WEMDDataManager:
                 segment.wtg_parent_ids = set(imap(long,wtg_parent_ids))
                 assert len(segment.wtg_parent_ids) == wtg_n_parents
                 segments.append(segment)
-            del pcoord_entries, all_parent_ids
+            del all_parent_ids
+            if load_pcoords:
+                del pcoord_entries
         
             # If any auxiliary data sets are available, load them as well
             if load_auxdata and 'auxdata' in iter_group:
