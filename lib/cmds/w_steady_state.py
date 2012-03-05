@@ -49,13 +49,13 @@ class steady_state(object):
         #prevents a problem due to a low # of transitions
         Rij += self.count_adjust
 
-        if self.debug is not None:          
-            self.debug.create_dataset('Rij',data=Rij)
+        if self.debug is not None:
+            self.debug['Rij'] = Rij
             
         Q = self.convCount2ProbMatrix(Rij)
         
-        if self.debug is not None:             
-            self.debug.create_dataset('Q',data=Q)
+        if self.debug is not None:
+            self.debug['Q'] = Q             
                 
         region_set = self.region_set
     
@@ -63,6 +63,8 @@ class steady_state(object):
         bins = region_set.get_all_bins()
         
         target_regions = self._data_manager.get_target_states(self._data_manager.current_iteration)
+        for tstate in target_regions:
+            tstate.bin = region_set.get_bin_containing(tstate.pcoord)
         
         flat_target_regions = []
         for target_region in target_regions:
@@ -145,7 +147,7 @@ class steady_state(object):
             #bin child and corresponding p parent to determine transition matrix
             initial_bins = region_set.map_to_bins(initial_pcoords)
             final_bins = region_set.map_to_bins(final_pcoords)
-            
+                        
             del segs
             
             initial_linbin = []
@@ -158,12 +160,12 @@ class steady_state(object):
             for final_bin in final_bins:
                 for ibin in xrange(0,len(bins)):
                     if bins[ibin] is final_bin:
-                        final_linbin.append(ibin)                                        
-                                  
+                        final_linbin.append(ibin)
+                                                          
             #match child with parent and update Cij
             for j in xrange(0,len(initial_linbin)):
                 
-                if endpoint_types[j] != Segment.SEG_ENDPOINT_CONTINUES and endpoint_types[j] != Segment.SEG_ENDPOINT_RECYCLED:    
+                if endpoint_types[j] != Segment.SEG_ENDPOINT_CONTINUES and endpoint_types[j] != Segment.SEG_ENDPOINT_RECYCLED:
                     continue
                 
                 Cj = final_linbin[j] #final state 
@@ -243,111 +245,67 @@ def cmd_steady_state(sim_manager, args):
     sim_manager.data_manager.open_backing()
     
     dm = sim_manager.data_manager    
-    n_iter = dm.current_iteration
+    n_iter = dm.current_iteration - 1
     
     # Adjust iteration start/stop to ensure that they are in storage
     args.start_iter = max(1,args.start_iter)
-    maxiter = sim_manager.data_manager.current_iteration - 1
+    maxiter = sim_manager.data_manager.current_iteration - 2
     if args.stop_iter:
         args.stop_iter = min(maxiter,args.stop_iter)
     else:
         args.stop_iter = maxiter
 
-    segments = sim_manager.data_manager.get_segments(n_iter)
+    # We will reweight the current iteration (even if it is partially complete)
+    next_segments = sim_manager.data_manager.get_segments(n_iter+1)
     
-    #If the segments are all incomplete, delete this iteration and re-run we in case the binning has changed
-    seg_status = numpy.array([s.status for s in segments],dtype=numpy.uint)
-    
-    if (seg_status != Segment.SEG_STATUS_COMPLETE).any():
-        dm.del_iter_group(n_iter)
-        dm.del_iter_summary(n_iter)
-        sim_manager.data_manager.current_iteration = n_iter - 1
-        n_iter -= 1     
-        segments = sim_manager.data_manager.get_segments(n_iter)
-
     ss = steady_state(sim_manager, args)
     region_set = ss.region_set
-    region_set.assign_to_bins(segments, key=Segment.final_pcoord)               
-    new_segments = sim_manager.we_driver.run_we(ss.region_set, [])
+    region_set.assign_to_bins(next_segments, key=Segment.initial_pcoord)
+    all_bins = region_set.get_all_bins()
+    orig_weights = [bin.weight for bin in all_bins]
     
-    sim_manager.data_manager.update_segments(n_iter, segments)
-        
-    ss = steady_state(sim_manager, args)
+    # Calculate new weights
     new_weights = ss.get_new_weights()
     
     # Calculate pre-reweighting weights
-    n_bins = new_weights.size
-    binprobs = numpy.empty((n_bins,), numpy.float64)
-    binprobs[:] = 0.0
-    try:
-        iter_group = sim_manager.data_manager.get_iter_group(dm.current_iteration)
-    except KeyError:
-        # current_iteration is set but segments don't exist
-        raise
-       
-    weights = iter_group['seg_index'][:, 'weight']
-
-    # Read only the initial point
-    pcoords = iter_group['pcoord'][:,0,:]
-    bin_indices = region_set.map_to_all_indices(pcoords)
-    for (seg_id, ibin) in enumerate(bin_indices):
-        binprobs[ibin] += weights[seg_id]
-
-    # Write new weights to storage
-    if args.no_reweight is False:
-        if sys.stdout.isatty() and not args.quiet_mode:
+    assert len(new_weights) == len(orig_weights)
+    
+    
+    if not args.no_reweight:
+        if sys.stdout.isatty() and not wemd.rc.quiet_mode:
             sys.stdout.write('\n')
             sys.stdout.write('Reweighting segments in storage\n')
-        #reweight bins
-        region_set = sim_manager.system.region_set
-    
-        region_set.clear()
-        bins = region_set.get_all_bins()    
-    
-        new_seg_coords = [segment.pcoord[0] for segment in new_segments]
-        for (seg, bin) in izip(new_segments, sim_manager.system.region_set.map_to_bins(new_seg_coords)):
-            bin.add(seg)
-
-        #actually reweight the particles in the bins                
-        for ibin in xrange(0,len(bins)):
-            bins[ibin].reweight(new_weights[ibin]) 
-
-        # Create new iteration group in HDF5
-        for new_segment in new_segments:
-            assert new_segment.weight is not None
-            assert new_segment.p_parent_id is not None
-            assert new_segment.parent_ids is not None and new_segment.p_parent_id in new_segment.parent_ids
-            new_segment.n_iter = n_iter+1
-            new_segment.status = Segment.SEG_STATUS_PREPARED
-            new_segment.n_parents = len(new_segment.parent_ids)
         
-        dm.prepare_iteration(n_iter+1, new_segments)
-
-        sim_manager.data_manager.current_iteration = n_iter + 1
-        dm.flush_backing()
-        dm.close_backing()
+        for bin,new_weight in zip(all_bins, new_weights):
+            bin.reweight(new_weight)
+            dm.open_backing()
+            dm.update_segments(n_iter+1, next_segments)
+            dm.flush_backing()
+            dm.close_backing()
         
     # Write original and new bin weights to output file
-    if not args.suppress_headers:
-        args.output_file.write('''\
-# WE re-weighting analysis
-# ----
-''')
-    
-        args.output_file.write('''\
-# column 0:  bin index
-# column 1:  Weight before re-weighting
-# column 2:  Weight calculated by analysis
-''')
-    
-        max_bin_width = int(ceil(log10(n_bins)))
+    if args.output_file:
+        if not args.suppress_headers:
+            args.output_file.write('''\
+    # WE re-weighting analysis
+    # ----
+    ''')
+        
+            args.output_file.write('''\
+    # column 0:  bin index
+    # column 1:  Weight before re-weighting
+    # column 2:  Weight calculated by analysis
+    ''')
+        n_bins = len(all_bins)
+        max_bin_width = len(str(n_bins))
         prob_width = min(12, args.precision+5)
         prob_fmt = '{:d}.{:d}e'.format(prob_width, args.precision)
         for ibin in xrange(0, n_bins):
-            prew = binprobs[ibin]
-            postw = new_weights[ibin]
+            prew = float(orig_weights[ibin])
+            postw= float(new_weights[ibin])
             args.output_file.write(( '{ibin:<{max_bin_width}d}    {prew:{prob_fmt}}    {postw:{prob_fmt}}\n')
-                                    .format(ibin=ibin, prew=prew, postw=postw, max_bin_width=max_bin_width, prob_fmt=prob_fmt))
+                                    .format(ibin=ibin, prew=prew, postw=postw, 
+                                            max_bin_width=max_bin_width, prob_fmt=prob_fmt))
     
     sys.exit(0)        
 

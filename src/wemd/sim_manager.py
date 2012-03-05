@@ -451,8 +451,6 @@ class WESimManager:
                 incoming = future.get_result()
                 self._n_propagated += 1
                 log.debug('recording results for {!r}, {:d} for this run'.format(incoming, self._n_propagated))
-                self.data_manager.update_segments(self.n_iter, incoming)
-                self.data_manager.flush_backing()
                 
                 self.segments.update({segment.seg_id: segment for segment in incoming})
                 self.completed_segments.update({segment.seg_id: segment for segment in incoming})
@@ -472,6 +470,10 @@ class WESimManager:
                             istate_gen_futures.update(new_futures)
                             futures.update(new_futures)
                             break
+                        
+                self.data_manager.update_segments(self.n_iter, incoming)
+                self.data_manager.flush_backing()
+
             elif future in istate_gen_futures:
                 istate_gen_futures.remove(future)
                 _basis_state, initial_state = future.get_result()
@@ -555,6 +557,8 @@ class WESimManager:
 
         # Remove recycled particles from target bins
         recycled_segs = set(self.to_recycle.values())
+        for recycled_seg in recycled_segs:
+            recycled_seg.endpoint_type = Segment.SEG_ENDPOINT_RECYCLED
         
         recycling_info = []
         for target_bin in self.target_state_bins:
@@ -590,6 +594,10 @@ class WESimManager:
             
         self.next_iter_segments = new_segments
         self.next_iter_binning = new_region_set
+        
+        # Update segment data to catch changes in endpoint type
+        self.data_manager.update_segments(self.n_iter,self.segments.values())
+        
             
     def prepare_new_segments(self):
         self.invoke_callbacks(self.prepare_new_segments)
