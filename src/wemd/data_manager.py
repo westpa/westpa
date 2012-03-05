@@ -15,20 +15,9 @@ The data is laid out in HDF5 as follows:
         - iter_00000001/ -- data for iteration 1
             - seg_index -- overall information about segments in the iteration, including weight
             - pcoord -- progress coordinate data organized as [seg_id][time][dimension]
-            - parents -- data used to reconstruct the split/merge history of trajectories
+            - wtg_parents -- data used to reconstruct the split/merge history of trajectories
             - recycling -- flux and event count for recycled particles, on a per-target-state basis
             - aux_data/ -- auxiliary datasets (data stored on the 'data' field of Segment objects)
-    - /basis_states -- data for basis states
-        - index -- index to basis states (weights, names, when they are valid in the simulation history, etc)
-        - pcoord_00000000 -- progress coordinate data for first set of basis states
-    - /initial_states -- data for initial/recycling states, generated from basis states
-        - index -- index to basis states (weights, names, when they were generated/used, etc); note that states for
-                   which iteration_generated == 0 are used for initial points, and those states with "0" for iteration_used
-                   have not been used.
-        - pcoord -- progress coordinate data for initial/recycling states
-    - /target_states -- data for target states
-        - index -- index to target states (names and when they are valid in the simulation history)
-        - pcoords -- progress coordinates which map to the bins of target states
 
 The file root object has an integer attribute 'wemd_file_format_version' which can be used to
 determine how to access data even as the file format (i.e. organization of data within HDF5 file)
@@ -115,9 +104,10 @@ summary_table_dtype = numpy.dtype( [ ('n_particles', seg_id_dtype),    # Number 
                                      ] )    
 
 
-# The HDF5 file tracks related histories: 
+# The HDF5 file tracks two distinct, but related, histories: 
 #    (1) the evolution of the trajectory, which requires only an identifier 
 #        of where a segment's initial state comes from (the "history graph");
+#        this is stored as the parent_id field of the seg index
 #    (2) the flow of probability due to splits, merges, and recycling events,
 #        which can be thought of as an adjacency list (the "weight graph")
 # segment ID is implied by the row in the index table, and so is not stored
