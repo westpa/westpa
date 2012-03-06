@@ -68,6 +68,7 @@ class EDF:
         self.dF = numpy.diff(F)
         
     def __len__(self):
+        '''Return the number of unique values in this EDF.'''
         return len(self.x)
                 
     def __call__(self, x):
@@ -76,7 +77,6 @@ class EDF:
         indices[indices >= len(self.x)] = len(self.x) - 1
         return self.F[indices]
 
-    
     def as_array(self):
         '''Return this EDF as a (N,2) array, where N is the number of unique values passed to
         the constructor.  Numpy type casting rules are applied (so, for instance, integral abcissae
@@ -96,9 +96,11 @@ class EDF:
         return self.x[indices]
     
     def quantile(self, p):
+        '''Calculate the given (single) quantile value.'''
         return self.quantiles([p])[0]
     
     def median(self):
+        '''Calculate the median (0.5th quantile) of this distribution.''' 
         return self.quantiles([0.5])[0]
     
     def moment(self, n):
@@ -120,6 +122,7 @@ class EDF:
         return ((self.x[:-1]-self.moment(1))**n * self.dF).sum()
     
     def mean(self): 
+        '''Return the mean of this probability distribution.'''
         return self.moment(1)
     
     def var(self):

@@ -1,2 +1,4 @@
-from core import WEMDTool, HDF5Storage
+from core import WEMDTool
+from hdf5_storage import HDF5Storage
 from data_reader import WEMDDataReader
+from stats import UsesMCBS

@@ -5,15 +5,6 @@ Tools for Monte Carlo bootstrap error analysis
 from __future__ import print_function, division; __metaclass__ = type
 import math, numpy
 
-def add_mcbs_options(parser):
-    '''Add arguments concerning Monte Carlo bootstrap (``confidence`` and ``bssize``) to the given parser'''
-    
-    group = parser.add_argument_group('bootstrapping options')
-    group.add_argument('--confidence', dest='confidence', type=float, default=0.95,
-                        help='Construct a confidence interval of width CONFIDENCE (default: 0.95=95%%)')
-    group.add_argument('--bssize', dest='bssize', type=int,
-                        help='Use a bootstrap of BSSIZE samples to calculate error (default: chosen from confidence)')
-
 def get_bssize(alpha):
     '''Return a bootstrap data set size appropriate for the given confidence level'''
     return int(10**(math.ceil(-math.log10(alpha)) + 1))
