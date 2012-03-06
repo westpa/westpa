@@ -311,7 +311,7 @@ class WESimManager:
                 
         # Store bin identity hash in HDF5 to detect when bins have changed
         # We directly modify an HDF5 object (the 'binhash' attribute on the iteration group), so obtain the lock first
-        binhash = self.initial_binning.identity_hash().digest()
+        binhash = self.initial_binning.identity_hash().hexdigest()
         with self.data_manager.lock:
             iter_summary = self.data_manager.get_iter_summary(self.n_iter)
             iter_summary['binhash'] = binhash
