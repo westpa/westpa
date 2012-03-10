@@ -210,27 +210,27 @@ class WEMDDataManager:
 
     def iter_group_name(self, n_iter, absolute=True):
         if absolute:
-            return '/iterations/iter_{:0{prec}d}'.format(int(n_iter), prec=self.iter_prec)
+            return '/iterations/iter_{:0{prec}d}'.format(long(n_iter), prec=self.iter_prec)
         else:
-            return 'iter_{:0{prec}d}'.format(int(n_iter), prec=self.iter_prec)
+            return 'iter_{:0{prec}d}'.format(long(n_iter), prec=self.iter_prec)
 
     def require_iter_group(self, n_iter):
         '''Get the group associated with n_iter, creating it if necessary.'''
         with self.lock:
-            iter_group = self.we_h5file.require_group('/iterations/iter_{:0{prec}d}'.format(n_iter, prec=self.iter_prec))
+            iter_group = self.we_h5file.require_group('/iterations/iter_{:0{prec}d}'.format(long(n_iter), prec=self.iter_prec))
             iter_group.attrs['n_iter'] = n_iter
         return iter_group
             
     def del_iter_group(self, n_iter):
         with self.lock:
-            del self.we_h5file['/iterations/iter_{:0{prec}d}'.format(n_iter, prec=self.iter_prec)]
+            del self.we_h5file['/iterations/iter_{:0{prec}d}'.format(long(n_iter), prec=self.iter_prec)]
 
     def get_iter_group(self, n_iter):
         with self.lock:
             try:
-                return self.we_h5file['/iterations/iter_{:0{prec}d}'.format(n_iter, prec=self.iter_prec)]
+                return self.we_h5file['/iterations/iter_{:0{prec}d}'.format(long(n_iter), prec=self.iter_prec)]
             except KeyError:
-                return self.we_h5file['/iter_{:0{prec}d}'.format(n_iter,prec=self.iter_prec)]
+                return self.we_h5file['/iter_{:0{prec}d}'.format(long(n_iter),prec=self.iter_prec)]
             
     def get_seg_index(self, n_iter):
         with self.lock:

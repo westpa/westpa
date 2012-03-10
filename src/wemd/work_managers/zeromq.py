@@ -69,7 +69,7 @@ class ZMQWorkManager(WEMDWorkManager):
     id_str = property(get_id_str,None,None,None)
         
     def bind_thread_ctl(self, endpoint):
-        #log.debug('binding new socket for {}'.format(endpoint))
+        log.debug('binding new socket for {}'.format(endpoint))
         ctlsocket = self.context.socket(zmq.PULL)
         ctlsocket.bind(endpoint)
         return ctlsocket
@@ -213,8 +213,9 @@ class ZMQMasterWorkManager(ZMQWorkManager):
     def start_threads(self):
         self.ann_thread = threading.Thread(target=self.announcer,name='zmq_announce')
         self.dr_thread = threading.Thread(target=self.dispatch_receive,name='zmq_dr')
-        self.dr_thread.start() 
         self.ann_thread.start()
+        time.sleep(0.01)
+        self.dr_thread.start()
                     
     def announcer(self):
         ann_ctl = self.bind_thread_ctl(self.ann_ctl_endpoint)

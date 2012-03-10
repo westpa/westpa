@@ -8,6 +8,7 @@ from __future__ import division; __metaclass__ = type
 
 import numpy
 
+
 class BasisState:
     '''Describes an basis (micro)state. These basis states are used to generate
     initial states for new trajectories, either at the beginning of the simulation
@@ -92,6 +93,21 @@ class BasisState:
             states.append(cls(state_id=None,probability=probability,label=label,auxref=auxref))
         return states
     
+    def as_numpy_record(self):
+        from wemd.data_manager import vstr_dtype, weight_dtype, seg_id_dtype
+        
+        '''Return the data for this state as a numpy record array.'''
+        bstate_dtype = numpy.dtype([('state_id', seg_id_dtype),
+                                    ('probability', weight_dtype),
+                                    ('pcoord', self.pcoord.dtype, (self.pcoord),),
+                                    ('label', vstr_dtype),
+                                    ('auxref', vstr_dtype),
+                                    ])
+        bstaterec = numpy.array([(self.state_id, self.probability, self.pcoord, self.label or '', self.auxref or '')],
+                                dtype=bstate_dtype)[0]
+        return bstaterec
+
+    
 class InitialState:
     '''Describes an initial state for a new trajectory. These are generally constructed by
     appropriate modification of a basis state. 
@@ -139,6 +155,21 @@ class InitialState:
     def __repr__(self): 
         return ('{} state_id={self.state_id!r} istate_type={self.istate_type!r} basis_state_id={self.basis_state_id!r} iter_created={self.iter_created!r} pcoord={self.pcoord!r}>'
                 .format(object.__repr__(self)[:-1], self=self))
+        
+    def as_numpy_record(self):
+        from wemd.data_manager import (seg_id_dtype, istate_type_dtype, istate_status_dtype)        
+        istate_dtype = numpy.dtype([('state_id', seg_id_dtype),
+                                    ('basis_state_id', seg_id_dtype),
+                                    ('iter_created', numpy.uint),
+                                    ('iter_used', numpy.uint),
+                                    ('istate_type', istate_type_dtype),
+                                    ('istate_status', istate_status_dtype),
+                                    ('pcoord', self.pcoord.dtype, (len(self.pcoord),))
+                                    ])
+        return numpy.array([(self.state_id, self.basis_state_id or 0, self.iter_created or 0, self.iter_used or 0,
+                             self.istate_type or 0, self.istate_status or 0, self.pcoord)],
+                           dtype=istate_dtype)[0]
+
 
 class TargetState:
     '''Describes a target state.
