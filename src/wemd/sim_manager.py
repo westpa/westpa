@@ -431,9 +431,13 @@ class WESimManager:
     def propagate(self):
         segments = self.incomplete_segments.values()
         log.debug('iteration {:d}: propagating {:d} segments'.format(self.n_iter, len(segments)))
-        futures = set()
+        futures = set()        
         segment_futures = set()
-        istate_gen_futures = set()
+        istate_gen_futures = self.get_istate_futures(len(self.to_recycle))
+        futures.update(istate_gen_futures)
+        
+        log.debug('there are {:d} segments in target regions, which require generation of {:d} initial states'
+                  .format(len(self.to_recycle),len(istate_gen_futures)))
                 
         for segment in segments:
             pbstates, pistates = wemd.states.pare_basis_initial_states(self.current_iter_bstates, 
@@ -470,9 +474,9 @@ class WESimManager:
                             istate_gen_futures.update(new_futures)
                             futures.update(new_futures)
                             break
-                        
-                self.data_manager.update_segments(self.n_iter, incoming)
-                self.data_manager.flush_backing()
+
+                with self.data_manager.flushing_lock():                        
+                    self.data_manager.update_segments(self.n_iter, incoming)
 
             elif future in istate_gen_futures:
                 istate_gen_futures.remove(future)

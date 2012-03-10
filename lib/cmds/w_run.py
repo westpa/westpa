@@ -1,6 +1,6 @@
 from __future__ import division, print_function
 
-import os, sys, logging, argparse, traceback, signal
+import os, sys, logging, argparse, traceback
 log = logging.getLogger('w_run')
 
 import wemd
@@ -49,8 +49,10 @@ if work_manager.mode == work_manager.MODE_MASTER:
         sim_manager.finalize_run()
         
         work_manager.shutdown(0)
+    except KeyboardInterrupt:
+        wemd.rc.pstatus('interrupted; shutting down work manager')
+        work_manager.shutdown(5)
     except:
-        import traceback
         wemd.rc.pstatus('exception caught; shutting down')
         log.error(traceback.format_exc())
         work_manager.shutdown(4)

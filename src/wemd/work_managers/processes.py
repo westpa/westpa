@@ -1,6 +1,6 @@
 from __future__ import division, print_function; __metaclass__ = type
 
-import sys, logging, multiprocessing, threading, traceback
+import sys, logging, multiprocessing, threading, traceback, signal, os
 import argparse
 import wemd
 from wemd.work_managers import WEMDWorkManager, WMFuture
@@ -26,31 +26,59 @@ class ProcessWorkManager(WEMDWorkManager):
         self.receive_thread = None
         self.pending = None
         
+        self.shutdown_received = False
         self.shutdown_timeout = 5
+            
+    def child_handle_interrupt(self, signum, frame):
+        # block sigint temporarily while we send it to child processes by sending it to
+        # our own process group
+        assert signum == signal.SIGINT
+        self.shutdown_received = True
+        prev_handler = signal.signal(signal.SIGINT, signal.SIG_IGN)
+        try:
+            log.info('interrupted')
+            pgid = os.getpgid(0)
+            log.debug('sending SIGINT to process group {:d}'.format(pgid))
+            # Kill child processes
+            os.killpg(pgid, signal.SIGINT)
+        finally:
+            # Restore signal handler
+            signal.signal(signal.SIGINT, prev_handler)
         
-    def task_loop(self): 
-        while True:
+    def task_loop(self):
+        try:
+            sys.stdin.close()
+        except Exception as e:
+            log.info("can't close stdin: {}".format(e))
+            
+        signal.signal(signal.SIGINT, self.child_handle_interrupt)
+        # Become our own process group
+        os.setpgid(0,0) 
+        while not self.shutdown_received:
             message, task_id, fn, args, kwargs = self.task_queue.get()[:5]
             
             if message == 'shutdown':
-                log.debug('shutting down worker loop')
-                return
+                break
             
             try:
                 result = fn(*args, **kwargs)
+            except KeyboardInterrupt:
+                log.debug('interrupt in task_loop')
             except Exception as e:
                 result_tuple = ('exception', task_id, (e, traceback.format_exc()))
             else:
                 result_tuple = ('result', task_id, result)
             self.result_queue.put(result_tuple)
+
+        log.debug('exiting task_loop')
+        return
         
     def results_loop(self):
-        while True:
+        while not self.shutdown_received:
             message, task_id, payload = self.result_queue.get()[:3]
             
             if message == 'shutdown':
-                log.debug('shutting down results collector')
-                return
+                break
             elif message == 'exception':
                 future = self.pending.pop(task_id)
                 future._set_exception(*payload)
@@ -59,6 +87,8 @@ class ProcessWorkManager(WEMDWorkManager):
                 future._set_result(payload)
             else:
                 raise AssertionError('unknown message {!r}'.format((message, task_id, payload)))
+
+        log.debug('exiting results_loop')
 
     def submit(self, fn, *args, **kwargs):
         ft = WMFuture()
@@ -98,20 +128,43 @@ class ProcessWorkManager(WEMDWorkManager):
         self.receive_thread.daemon = True
         self.receive_thread.start()        
         return self.MODE_MASTER
+    
+    def _empty_queues(self):
+        while not self.task_queue.empty():
+            try:
+                self.task_queue.get(block=False)
+            except multiprocessing.queues.Empty:
+                break
+            
+        while not self.result_queue.empty():
+            try:
+                self.result_queue.get(block=False)
+            except multiprocessing.queues.Empty:
+                break        
         
     def shutdown(self, exit_code = 0):
+        self._empty_queues()
+
+        # Send shutdown signal
         for _i in xrange(self.n_workers):
             self.task_queue.put(task_shutdown_sentinel, block=False)
-        
+                    
         for worker in self.workers:
-            log.debug('terminating process {:d}'.format(worker.pid))
             worker.join(self.shutdown_timeout)
-            if worker.is_alive():
-                log.warning('worker process {:d} did not exit; terminating'.format(worker.pid))
-                worker.terminate()
+            if worker.is_alive():            
+                log.debug('sending SIGINT to worker process {:d}'.format(worker.pid))
+                os.kill(worker.pid, signal.SIGINT)
+                worker.join(self.shutdown_timeout)
+                if worker.is_alive():
+                    log.warning('sending SIGKILL to worker process {:d}'.format(worker.pid))
+                    os.kill(worker.pid, signal.SIGKILL)
+                    worker.join()
+                    
+                log.debug('worker process {:d} terminated with code {:d}'.format(worker.pid, worker.exitcode))
             else:
                 log.debug('worker process {:d} terminated gracefully with code {:d}'.format(worker.pid, worker.exitcode))
         
+        self._empty_queues()
         self.result_queue.put(result_shutdown_sentinel)
                 
     
