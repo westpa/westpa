@@ -1,193 +1,183 @@
+import numpy as np
+from itertools import izip
+
 import UncertMath
 
-class ClusterList(): # list of lists, with each element = [bin, cluster index, relative prob in cluster]
-    # must pass prob ratios as second argument
-    # assumes that no clusters exist initially
-    def __init__(self, value1, value2):
-        self.data = value1
-        self.ratios = value2
-        self.Nbin = len( self.data )
-        #print 'For clustering, Nbin=',self.Nbin
-        self.clusterContents = []  # a list of the existing clusters
-        self.count = 0
-        self.flag = 'NotDone'
-    def __getitem__(self,index):
-        return [ self.data[index][0], self.data[index][1], self.data[index][2].num, self.data[index][2].min, self.data[index][2].max ]
-    def display(self):
-        print 'ClusterList:'
-        for x in self.data:
-            print 'bin', x[0], '  cluster', x[1]
-            x[2].display()
-        print 'Clusters so far:', self.clusterContents
-    def getList(self):
-        return self.clusterContents
-    def join(self, i, j):
-        print 'In join function: joining bins', i, j
-        # TO-DO: need to stop it if everything joined - could happen before all ratios considered
-        if self.data[i][1]==None and self.data[j][1]==None: # both bins previously unjoined
-            print '\n... New cluster being made'
-            self.data[i][1] = self.count  # create new cluster
-            self.data[j][1] = self.count
-            rij = self.ratios[i][j]  # ScalarUncert object
-            denom = rij.plusOne()
-            self.data[i][2] = rij / denom  # relative probability for bin i
-            self.data[j][2] = denom.recip()  # relative probability for bin j
-            self.count = self.count + 1
-            tmpList = [i,j]  # for sorting
-            tmpList.sort()
-            self.clusterContents.append( tmpList )
-        elif self.data[i][1]==None or self.data[j][1]==None: # only one bin previously unjoined 
-            print '\n... Singlet bin being joined to existing cluster'
-            if self.data[i][1]==None:  # determine which bin is unjoined
-                idum = i  # join idum to cluster containing jdum, by convention
-                jdum = j
-            else:
-                idum = j  # join idum to cluster containing jdum, by convention
-                jdum = i
-            print 'adding bin', idum
-            jClust = self.data[jdum][1]  # cluster to which bin idum will be joined
-            vecTmp = []
-            print 'Here1'
-            for k in self.clusterContents[jClust]:  # loop over bins already in cluster
-                rik = self.ratios[idum][k]
-                pk = self.data[k][2]
-                piTmp = rik * pk  # estimate for p_idum / P_cluster based on 'path' through bin k
-                                  # Note that here P_cluster is value before addition of bin idum
-                vecTmp.append( piTmp )
-            print 'Here2'
-            vecTmpUnc = UncertMath.VectorUncert( vecTmp )
-            print 'Here3'
-            #piTmpAvg = UncertMath.ScalarUncert( vecTmpUnc.WtAvgCent() )
-            piTmpAvg = UncertMath.ScalarUncert( vecTmpUnc.WtAvg() )
-            # now, compute relative prob of each in bin in *new* cluster (including bin idum)
-            denom = piTmpAvg.plusOne()
-            self.data[idum][2] = piTmpAvg / denom 
-            for k in self.clusterContents[jClust]:  # loop over bins already in cluster
-                self.data[k][2] = self.data[k][2] / denom
-            self.data[idum][1] = jClust # bookkeeping: joins cluster that jdum is already in
-            self.clusterContents[jClust].append( idum )  # continue bookkeeping for joining process
-            tmpList = self.clusterContents[jClust]  # for sorting
-            tmpList.sort()
-            self.clusterContents[jClust] = tmpList
-        elif not self.data[i][1]==self.data[j][1]:  # if both bins previously in DIFFERENT clusters
-            print '\n... Joining cluster to cluster ..........'
-            iClust = self.data[i][1]  # cluster identities
-            jClust = self.data[j][1]
-            # for now use a single value for ijClustRatio; NEED TO AVERAGE THIS
-            #rij = self.ratios[i][j]   # bin prob ratio
-            #pi =  self.data[i][2]     # current fractional pop of bin in cluster
-            #pj =  self.data[j][2]
-            #ijClustRatio = rij * pj / pi  # prob ratio of i to j cluster
-            # estimate ratio of cluster populations using all available bin pairs
-            ratioList = []
-            for k in self.clusterContents[iClust]:  # bins in iClust
-                pk = self.data[k][2]
-                for m in self.clusterContents[jClust]:  # bins in jClust
-                    pm = self.data[m][2]
-                    rkm = self.ratios[k][m]   # bin prob ratio
-                    ijClustRatioTmp = rkm * pm / pk
-                    print 'Cluster ratio estimate for', iClust, jClust, '=', ijClustRatioTmp.num, '   wt=', ijClustRatioTmp.wt
-                    ratioList.append( ijClustRatioTmp )
-            tmpVec = UncertMath.VectorUncert( ratioList )  # create vector object to use for weighted average
-            #ijClustRatio = UncertMath.ScalarUncert( tmpVec.WtAvgCent() )  # averaged scalar object
-            ijClustRatio = UncertMath.ScalarUncert( tmpVec.WtAvg() )  # averaged scalar object
-            print '.... Averaged estimate:', ijClustRatio.num, '   wt=', ijClustRatio.wt
-            # reassign relative prob of bins in each cluster 
-            iDenom = ( ijClustRatio.recip() ).plusOne()
-            for k in self.clusterContents[iClust]:  # loop over bins already in cluster
-                self.data[k][2] = self.data[k][2] / iDenom
-            jDenom = ijClustRatio.plusOne()
-            for k in self.clusterContents[jClust]:  # loop over bins already in cluster
-                self.data[k][2] = self.data[k][2] / jDenom
-            # bookkeeping: convention jClust bins join iClust cluster
-            for k in self.clusterContents[jClust]:  # loop over bins in jClust cluster
-                self.data[k][1] = iClust
-                self.clusterContents[iClust].append( k )
-            tmpList = self.clusterContents[iClust]  # for sorting
-            tmpList.sort()
-            self.clusterContents[iClust] = tmpList
-            length = len( self.clusterContents[iClust] )
-            print 'length=',length
-            if length == self.Nbin:
-                self.flag = 'Done'
-            self.clusterContents[jClust] = []       # 'zero out' jClust; removing it would change other indices
-        else:
-            print '\n... No joining.  Bins already in same cluster'
-            print 'i in', self.data[i][1], '   j in', self.data[j][1]
-        return self.flag
-    def joinSimple(self, i, j):
-        # SIMPLE VERSION: ONLY USES IJ PAIR WHEN TWO CLUSTERS ARE JOINED
-        #print 'In join function: joining bins', i, j
-        # TO-DO: need to stop it if everything joined - could happen before all ratios considered
-        if self.data[i][1]==None and self.data[j][1]==None: # both bins previously unjoined
-            #print '\n... New cluster being made'
-            self.data[i][1] = self.count  # create new cluster
-            self.data[j][1] = self.count
-            rij = self.ratios[i][j]  # ScalarUncert object
-            denom = rij.plusOne()
-            self.data[i][2] = rij / denom  # relative probability for bin i
-            self.data[j][2] = denom.recip()  # relative probability for bin j
-            self.count = self.count + 1
-            tmpList = [i,j]  # for sorting
-            tmpList.sort()
-            self.clusterContents.append( tmpList )
-        elif self.data[i][1]==None or self.data[j][1]==None: # only one bin previously unjoined 
-            #print '\n... Singlet bin being joined to existing cluster'
-            if self.data[i][1]==None:  # determine which bin is unjoined
-                idum = i  # join idum to cluster containing jdum, by convention
-                jdum = j
-            else:
-                idum = j  # join idum to cluster containing jdum, by convention
-                jdum = i
-            #print 'adding bin', idum
-            jClust = self.data[jdum][1]  # cluster to which bin idum will be joined
-            #print 'Here1'
-            # use only one 'k' value: k=jdum
-            rik = self.ratios[idum][jdum]
-            pk = self.data[jdum][2]
-            piTmp = rik * pk  # estimate for p_idum / P_cluster based on 'path' through bin k
-                              # Note that here P_cluster is value before addition of bin idum
-            #print 'Here3'
-            # now, compute relative prob of each bin in *new* cluster (including bin idum)
-            denom = piTmp.plusOne()
-            self.data[idum][2] = piTmp / denom 
-            for k in self.clusterContents[jClust]:  # loop over bins already in cluster
-                self.data[k][2] = self.data[k][2] / denom
-            self.data[idum][1] = jClust # bookkeeping: joins cluster that jdum is already in
-            self.clusterContents[jClust].append( idum )  # continue bookkeeping for joining process
-            tmpList = self.clusterContents[jClust]  # for sorting
-            tmpList.sort()
-            self.clusterContents[jClust] = tmpList
-        elif not self.data[i][1]==self.data[j][1]:  # if both bins previously in DIFFERENT clusters
-            #print '\n... Joining cluster to cluster ..........'
-            iClust = self.data[i][1]  # cluster identities
-            jClust = self.data[j][1]
-            # THE SIMPLE PART: just use a single value for ijClustRatio
-            rij = self.ratios[i][j]   # bin prob ratio
-            pi =  self.data[i][2]     # current fractional pop of bin in cluster
-            pj =  self.data[j][2]
-            ijClustRatio = rij * pj / pi  # prob ratio of i to j cluster
-            # reassign relative prob of bins in each cluster 
-            iDenom = ( ijClustRatio.recip() ).plusOne()
-            for k in self.clusterContents[iClust]:  # loop over bins already in cluster
-                self.data[k][2] = self.data[k][2] / iDenom
-            jDenom = ijClustRatio.plusOne()
-            for k in self.clusterContents[jClust]:  # loop over bins already in cluster
-                self.data[k][2] = self.data[k][2] / jDenom
-            # bookkeeping: convention jClust bins join iClust cluster
-            for k in self.clusterContents[jClust]:  # loop over bins in jClust cluster
-                self.data[k][1] = iClust
-                self.clusterContents[iClust].append( k )
-            tmpList = self.clusterContents[iClust]  # for sorting
-            tmpList.sort()
-            self.clusterContents[iClust] = tmpList
-            length = len( self.clusterContents[iClust] )
-            #print 'length=',length
-            if length == self.Nbin:
-                self.flag = 'Done'
-            self.clusterContents[jClust] = []       # 'zero out' jClust; removing it would change other indices
-        #else:
-            #print '\n... No joining.  Bins already in same cluster'
-            #print 'i in', self.data[i][1], '   j in', self.data[j][1]
-        return self.flag
+class ClusterList(object):
+    def __init__(self,ratios,nbins):
+        super(ClusterList, self).__init__()
+        self.nbins = nbins
+        self.ratios = ratios
 
+        # Create an array to hold bin assignments and initial set all to -1 == not clustered
+        self.bin_assign = np.empty((nbins,),dtype=np.int) 
+        self.bin_assign.fill(-1)                         
+
+        # Initialize an ucert container to hold per bin information; initially mask all elements
+        # note: masking is implicit since rates set to 0
+        dum_data = np.zeros((nbins,))
+        self.bin_data = UncertMath.UncertContainer(dum_data.copy(),dum_data.copy(),dum_data.copy())
+
+        self.cluster_id = 0                     # ID of newest cluster
+        self.cluster_contents = {}              # Dictionary containing sets of bin ids with keys = cluster ids
+    
+    def join(self,pairs):
+        """ Join clusters given a tuple (i,j) of bin pairs
+        """
+
+        for i,j in izip(*pairs):
+            # Both bins not joined
+            if self.bin_assign[i] == -1 and self.bin_assign[j] == -1:
+                # Create new cluster
+                self.bin_assign[i] = self.cluster_id
+                self.bin_assign[j] = self.cluster_id
+                
+                self.cluster_contents[self.cluster_id] = {i,j}
+                self.cluster_id += 1
+
+                rij = self.ratios[i,j]
+                denom = rij + 1.0
+                self.bin_data[i] = rij/denom          # relative probability for bin i
+                self.bin_data[j] = denom.recip()      # relative probability for bin j
+
+            # Only one bin previously assigned to a cluster
+            elif  self.bin_assign[i] == -1 or self.bin_assign[j] == -1:
+                if self.bin_assign[i] == -1:
+                    idum,jdum = i,j
+                else:
+                    idum,jdum = j,i
+                
+                jclust = self.bin_assign[jdum]
+                jclust_mid = np.where(self.bin_assign == jclust)[0]    # index of bins in jclust
+
+                rik = self.ratios[idum,jclust_mid]
+                pk = self.bin_data[jclust_mid]
+                piTmp = rik * pk     # estimate for p_idum / P_cluster based on 'path' through bin k
+                                     # Note that here P_cluster is value before addition of bin idum
+                piTmp_avg = piTmp.weighted_average(axis=0)
+
+                # now, compute relative prob of each bin in *new* cluster (including bin idum)   
+                denom = piTmp_avg + 1.0
+                self.bin_data[idum] = piTmp_avg / denom
+                
+                # Update bins already in cluster
+                self.bin_data[jclust_mid] = self.bin_data[jclust_mid] / denom
+
+                # Move bin idum into cluster jclust
+                self.bin_assign[idum] = jclust
+                self.cluster_contents[jclust].update({idum})
+
+            # Both bins previously assigned to different cluster; Join clusters
+            elif not self.bin_assign[i] == self.bin_assign[j]:
+                iclust = self.bin_assign[i]
+                jclust = self.bin_assign[j]
+
+                iclust_mid = np.where(self.bin_assign == iclust)[0]  # indx of bins in cluster i
+                jclust_mid = np.where(self.bin_assign == jclust)[0]  # indx of bins in cluster j
+                
+                niclust = iclust_mid.size
+                njclust = jclust_mid.size
+                
+                dum_data = np.zeros((niclust*njclust,))
+                ij_cluster_ratio = UncertMath.UncertContainer(dum_data.copy(),dum_data.copy(),dum_data.copy())
+                 
+                for count,im in enumerate(iclust_mid): 
+                    rij = self.ratios[im,jclust_mid]
+                    pi = self.bin_data[im]
+                    pj = self.bin_data[jclust_mid]
+
+                    ij_cluster_ratio[count*njclust:(count+1)*njclust] = rij * pj / pi
+
+                ij_cluster_ratio = ij_cluster_ratio.weighted_average(axis=0)
+
+                idenom = ij_cluster_ratio.recip() + 1.0
+                jdenom = ij_cluster_ratio + 1.0
+                
+                self.bin_data[iclust_mid] = self.bin_data[iclust_mid] / idenom
+                self.bin_data[jclust_mid] = self.bin_data[jclust_mid] / jdenom
+                
+                # Join all bins in cluster j into cluster iclust
+                self.bin_assign[jclust_mid] = iclust
+
+                # Move contents of jclust into iclust
+                self.cluster_contents[iclust].update(self.cluster_contents[jclust])
+                
+                # Clear contents of jclust
+                self.cluster_contents[jclust].clear()
+
+                if len(self.cluster_contents[iclust]) == self.nbins:
+                    break
+            
+    def join_simple(self,pairs):
+        """ Join clusters using direct ratios given a tuple (i,j) of bin pairs
+        """
+
+        for i,j in izip(*pairs):
+            # Both bins not joined
+            if self.bin_assign[i] == -1 and self.bin_assign[j] == -1:
+                # Create new cluster
+                self.bin_assign[i] = self.cluster_id
+                self.bin_assign[j] = self.cluster_id
+                
+                self.cluster_contents[self.cluster_id] = {i,j}
+                self.cluster_id += 1
+
+                rij = self.ratios[i,j]
+                denom = rij + 1.0
+                self.bin_data[i] = rij/denom          # relative probability for bin i
+                self.bin_data[j] = denom.recip()      # relative probability for bin j
+
+            # Only one bin previously assigned to a cluster
+            elif  self.bin_assign[i] == -1 or self.bin_assign[j] == -1:
+                if self.bin_assign[i] == -1:
+                    idum,jdum = i,j
+                else:
+                    idum,jdum = j,i
+                
+                jclust = self.bin_assign[jdum]
+                rik = self.ratios[idum,jdum]
+                pk = self.bin_data[jdum]
+                piTmp = rik * pk     # estimate for p_idum / P_cluster based on 'path' through bin k
+                                     # Note that here P_cluster is value before addition of bin idum
+                # now, compute relative prob of each bin in *new* cluster (including bin idum)   
+                denom = piTmp + 1.0
+                self.bin_data[idum] = piTmp / denom
+                
+                # Update bins already in cluster
+                jclust_mid = np.where(self.bin_assign == jclust)    # index of bins in jclust
+                self.bin_data[jclust_mid] = self.bin_data[jclust_mid] / denom
+
+                # Move bin idum into cluster jclust
+                self.bin_assign[idum] = jclust
+                self.cluster_contents[jclust].update({idum})
+
+            # Both bins previously assigned to different cluster; Join clusters
+            elif not self.bin_assign[i] == self.bin_assign[j]:
+                iclust = self.bin_assign[i]
+                jclust = self.bin_assign[j]
+                rij = self.ratios[i,j]
+                pi = self.bin_data[i]
+                pj = self.bin_data[j]
+                ij_cluster_ratio = rij * pj / pi
+                idenom = ij_cluster_ratio.recip() + 1.0
+                jdenom = ij_cluster_ratio + 1.0
+
+                iclust_mid = np.where(self.bin_assign == iclust)
+                self.bin_data[iclust_mid] = self.bin_data[iclust_mid] / idenom
+
+                jclust_mid = np.where(self.bin_assign == jclust)
+                self.bin_data[jclust_mid] = self.bin_data[jclust_mid] / jdenom
+                
+                # Join all bins in cluster j into cluster iclust
+                self.bin_assign[jclust_mid] = iclust
+
+                # Move contents of jclust into iclust
+                self.cluster_contents[iclust].update(self.cluster_contents[jclust])
+                
+                # Clear contents of jclust
+                self.cluster_contents[jclust].clear()
+
+                if len(self.cluster_contents[iclust]) == self.nbins:
+                    break
+            
+        

@@ -1,180 +1,105 @@
-#!/usr/bin/env python
+import numpy as np
+import numpy.ma as ma
 
-import sys
-import re
 import UncertMath
 import BinCluster
 
-def probAdjustEquil( binProb, rates, uncert ):  # this function adjusts bin pops in binProb using rates and uncert matrices
 
-    ### SWITCH BETWEEN SIMPLE CALCULATION AND WEIGHTED AVERAGE CALC
-    fullCalcBins = 0  # 1 for weighted avg, 0 for simple calc
-    fullCalcClust = 0 # 1 for weighted avg, 0 for simple calc
-    threshhold = 0.0  # minimum weight (relative to max) for another value to be averaged
-                      # only matters if fullCalcBins = 1 (or later perhaps if fullCalcClust = 1)
+def probAdjustEquil(binProb,rates,uncert,threshold=0.0,fullCalcClust=False,fullCalcBins=False):
+    """This function adjusts bin pops in binProb using rates and uncert matrices
+    fullCalcBins --> True for weighted avg, False for simple calc
+    fullCalcClust --> True for weighted avg, False for simple calc
+    threshold --> minimum weight (relative to max) for another value to be averaged
+            only matters if fullCalcBins == True (or later perhaps if fullCalcClust == True)
+    """
     
-    # check rate matrix is square
-    Ni = len(rates)
-    Nj = len(rates[0])
+    
+    # Check that rate matrix is square
+    Ni,Nj = rates.shape
     if Ni != Nj:
-        print '\nWARNING: Not a square matrix!\n'
+        print('\nWARNING: Not a square matrix!\n')
+
+    zi = np.where(binProb == 0.0)[0]  # indices of bins with zero probability
     
-    # create new object: rate matrix of scalars with uncertainties
-    ratesUncert = []
-    for i in range(Ni):
-        tmpRow = []
-        for j in range(Nj):
-            number = rates[i][j]
-            min = rates[i][j]-uncert[i][j]
-            max = rates[i][j]+uncert[i][j]
-            tmpRow.append(   UncertMath.ScalarUncert( [ number, min, max ] )   )
-        ratesUncert.append(tmpRow)
+    rates_uncert = UncertMath.UncertContainer(rates,rates - uncert,rates + uncert)
     
     # STEP 1a: Create matrix of ratios of probabilities based on DIRECT estimates
     # that is, ij element is p_i / p_j = k_ji / k_ij
-    #print'#######  STEP 1a'
-    ratiosDirect = [] 
-    for i in range(Ni):
-        tmpRow = []
-        for j in range(Nj):
-            ratio =  ratesUncert[j][i] / ratesUncert[i][j]  # ij element is p_i / p_j = k_ji / k_ij
-            tmpRow.append( ratio )
-        ratiosDirect.append(tmpRow)
     
-    
+    ratios_direct = rates_uncert.transpose() / rates_uncert  
+
     # STEP 1b: Create averaged matrix of ratios of probabilities based on both direct and indirect estimates
     # Indirect means '3rd bin' estimates: p_i / p_j = ( k_ki / k_ik ) ( k_jk / k_kj )
     # Turns out this is not helpful, so generally set fullCalcBins = 0 
-    #print'#######  STEP 1b'
-    ratiosAvg = [] 
-    for i in range(Ni):
-        tmpRow = []
-        for j in range(Nj):
-            #print 'i =', i, '  j =', j
-            ijTmp = []
-            maxWt = ratiosDirect[i][j].wt
-            if maxWt=='UnDef':
-                maxWt = 0.0
-            if fullCalcBins==1:
-                for k in range(Ni):
-                    ratioIndirect = ( ratesUncert[k][i] / ratesUncert[i][k] )   *   ( ratesUncert[j][k] / ratesUncert[k][j] )
-                    if not ratioIndirect.wt=='UnDef': 
-                        #print '\nindirect:', ratioIndirect.wt, '  vs  max*thold:', maxWt*threshhold
-                        if ratioIndirect.wt > (maxWt*threshhold): 
-                            #print '... bins', i, j, 'indirect above threshhold'
-                            #print '... compare values: indirect:', ratioIndirect.num, '  direct:', ratiosDirect[i][j].num
-                            ijTmp.append(   ratioIndirect   ) # add indirect
-            ijTmp.append(  ratiosDirect[i][j] ) # add direct estimate to the list
-            tmpVec = UncertMath.VectorUncert(ijTmp)  # create vector object to use for weighted average
-            ijAvg = UncertMath.ScalarUncert( tmpVec.WtAvg() )  # averaged scalar object
-            #ijAvg = UncertMath.ScalarUncert( tmpVec.WtAvgCent() )  # averaged scalar object
-            #print '\nFinal Average: i  j', i, j, ijAvg.num
-            tmpRow.append( ijAvg )
-        ratiosAvg.append( tmpRow )
-    
-    
-    # STEP 2: Form clusters
-    
-    #print'#######  STEP 2'
-    # STEP 2a: Sort probability ratios based on uncertainty
-    # create list for sorting
-    ijSort = []  # elements will be [uncertainty of ij or ji prob ratio, i or j, j or i]
-                 # order ij chosen so that p_i < p_j
-    for i in range(Ni):
-        for j in range(i+1,Nj): # exclude ii pairs
-            ijVal = ratiosAvg[i][j].num
-            ijUncert = ratiosAvg[i][j].uncert
-            jiVal = ratiosAvg[j][i].num
-            jiUncert = ratiosAvg[j][i].uncert
-            #print i, j, ijUncert, jiUncert
-            #ratiosAvg[i][j].display()
-            if ijVal < jiVal: # convention for sorting: only use ij pair for which ratio < 1
-                if not ijUncert == 'UnDef':
-                    ijSort.append( [ijUncert, i, j] )
-            else:
-                if not jiUncert == 'UnDef':
-                    ijSort.append( [jiUncert, j, i] )
-    
-    ### sort ratios from lowest to highest uncertainty
-    #print 'Before sort:'
-    #print ijSort
-    ijSort.sort()
-    #print 'After sort:'
-    #print ijSort
-    
-    # STEP 2b: Create initial ClusterList object for clustering
-    tmpList = []  # object used for clustering
-    ifClust = []  # track whether a bin has been clustered/group with other bins or not
-    for i in range(Ni):
-        tmpList.append( [ i, None, UncertMath.ScalarUncert( ['UnDef', 'UnDef', 'UnDef' ] ) ] )  # dummy value to start  
-            # [ bin, cluster index, relative probability of bin in cluster]
-            # last item is a place-holder ScalarUncert object which will get updated
-        ifClust.append( 0 )  # zero indicates all bins initially unclustered
-    #print '\nInitial Cluster List:'
-    clusters = BinCluster.ClusterList( tmpList, ratiosAvg )
-    #clusters.display()
+    if fullCalcBins:
+        # Calculate indirect ratios using Einstein Summation convention where
+        # ratios_indirect_kij  = ( k_ki / k_ik ) ( k_jk / k_kj ) = ratios_direct_ik * ratios_direct_kj
+        ri_vals = np.einsum('ik,kj->kij',ratios_direct.vals,ratios_direct.vals)
+        ri_min = np.einsum('ik,kj->kij',ratios_direct.dmin,ratios_direct.dmin)
+        ri_max = np.einsum('ik,kj->kij',ratios_direct.dmax,ratios_direct.dmax)
+        ratios_indirect = UncertMath.UncertContainer(ri_vals,ri_min,ri_max,mask=ratios_direct.vals.mask)
 
-    # note any bins with zero prob for omission from cluster process - 8/17/2011
-    zeroes = []
-    b = 0  # bin index
-    for p in binProb:
-        #print 'zero? bin',b,'  prob=',p
-        if p==0:
-            zeroes.append( b )
-        b = b+1
-    #print '... zeroes =', zeroes
+        # Threshold indirect ratios 
+        ti = ratios_indirect.wt < ratios_direct * threshold
+        ratios_indirect.mask = ti
+        ratios_indirect.update_mask()
+
+        ratios_indirect.concatenate(ratios_direct,axis=0) 
+        ratios_average = ratios_indirect.weighted_average(axis=0)
+ 
+    else:
+        ratios_average = ratios_direct.weighted_average(axis=0,expaxis=0)
     
-    # join the pair with lowest uncertainty
-    #print '\nJoining'
-    flag = 'NotDone'
-    while len(ijSort) > 0 and not flag=='Done':
-        #print '\n', ijSort[0]
-        ii = ijSort[0][1] # ii, jj are bins to be clustered
-        jj = ijSort[0][2]
-        # omit bin from clustering if zero prob -- 8/17/2011
-        yesno = 'yes'
-        for bb in zeroes:
-            if ii==bb or jj==bb:
-                yesno = 'no'
-        #print 'yesno clustering? ii, jj, yesno', ii, jj, yesno
-        if yesno=='yes':
-            if fullCalcClust==1:
-                flag = clusters.join( ii, jj )
-            else:
-                flag = clusters.joinSimple( ii, jj )
-            #print 'flag=',flag
-            #clusters.display()
-            ifClust[ ii ] = 1  # note that bin has been clustered (8/17/2011: does not seem to be used)
-            ifClust[ jj ] = 1  # note that bin has been clustered
-        #print ifClust
-        del ijSort[0]
+
+    # STEP 2: Form clusters
+
+    # STEP 2a: Sort probability ratios based on uncertainty
+    # Sort uncertainties of ratios_average subject to the convention that p_i < p_j
     
-    # Bin populations must be re-normalized -- each cluster separately to equal sum originally in cluster
-    clustList = clusters.getList()
-    #print clustList
-    probSum = 0.0
-    probInClust = 0.0
-    for binList in clustList:  # loop over each cluster - most will be empty after full cluster combination process
-        probSum = 0.0  # for summing prob in each cluster
-        #print 'Next cluster:', binList
-        if len(binList)>0:
-            #print 'list of bins:', binList
-            for bin in binList:  # calculate old sum of bin probabilities
-                probSum = probSum + binProb[bin]
-            probInClust = probInClust + probSum
-            for bin in binList:  # re-normalize to maintain old sum of bin probabilities
-                newBinPop = clusters[bin][2]  # new prob, but not normalized
-                #print '... bin', bin, '  old prob =', binProb[bin], '  probSum = ', probSum
-                binProb[bin] = probSum * newBinPop  # normalized using prob in cluster
-                #print '... ... old new prob =', newBinPop, '   new new prob =', binProb[bin]
-    print '... Prob in clusters =', probInClust
-        
-    # 7/18/2011 checking after Carsen's bug report - probabilities not normalized
-    print '\nChecking bin probabilities'
-    binCount = 0
-    probSum = 0.0
-    for p in binProb:
-       print 'bin', binCount, '  binProb = ', p
-       probSum = probSum + p
-       binCount = binCount + 1
-    print '..... Total Prob is', probSum
+    i,j = np.triu_indices(Ni,1) # indices of ij pairs where i != j
+
+    # Remove pairs that include a bin that has zero probability
+    nzi = (binProb[i] != 0.0) & (binProb[j] != 0.0)
+    i = i[nzi]
+    j = j[nzi]
+
+    vals = ma.vstack((ratios_average.vals[i,j],ratios_average.vals[j,i]))
+    ias = ma.argsort(vals,axis=0,fill_value=np.inf)
+    
+    ordered_ind = np.vstack((i,j))
+    flip_ind = np.nonzero(ias[0,:]) # Find pairs in which to select ji rather than ij
+    ordered_ind[:,flip_ind[0]] = ordered_ind[:,flip_ind[0]][::-1]
+    
+    iind = ordered_ind[0,:]
+    jind = ordered_ind[1,:]
+    uncertij = ratios_average.uncert[iind,jind] # Get the uncert for ij pairs
+
+    count = uncertij.count() # Count of the unmasked uncertainties
+    ias = ma.argsort(uncertij,fill_value=np.inf) # Get the indices that would sort uncertij
+    iind = iind[ias[:count]] # Sort the indices excluding masked/undefined values
+    jind = jind[ias[:count]]
+
+
+    # STEP 2b: Create ClusterList object and cluster bins
+    clusters = BinCluster.ClusterList(ratios_average,Ni)
+
+    if fullCalcClust:
+        clusters.join((iind,jind))
+    else:
+        clusters.join_simple((iind,jind))
+
+    total_prob = 0.0  # total probability in all clusters
+    for cid in clusters.cluster_contents:
+        binlist = list(clusters.cluster_contents[cid])
+        if len(binlist):
+            prob_cluster = binProb[binlist].sum()
+            total_prob += prob_cluster
+
+            binProb[binlist] = prob_cluster * clusters.bin_data[binlist].vals
+
+    binProb[zi] = 0.0 # re-zero bins that previously had zero prob
+    #for bi,p in enumerate(binProb):
+    #    print('bin: {} -- {}'.format(bi,p))
+    print('.........Total Probability: {}'.format(binProb.sum()))
+            
+    

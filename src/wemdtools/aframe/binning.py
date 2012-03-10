@@ -79,7 +79,28 @@ class BinningMixin(AnalysisMixin):
         except TypeError as e:
             if 'has no len' in str(e):
                 raise ValueError('invalid bin boundary specification; you probably forgot to make a list of lists')
-        
+
+    def update_region_set(self,rs_type, args, kwargs):
+        """ Update the region set to region set of type rs_type. All positional and keyword arguments for the specific region
+            set type should be passed as a list (args) and dict (kwargs) of parameters respectively. """
+        from wemd.pcoords import RectilinearRegionSet, PiecewiseRegionSet, VoronoiRegionSet
+
+        rsets = {'RectilinearRegionSet': RectilinearRegionSet,
+                 'PiecewiseRegionSet': PiecewiseRegionSet,
+                 'VoronoiRegionSet': VoronoiRegionSet}
+    
+        if not rs_type in rsets:
+            raise ValueError('invalid region set type {}; supported region set types: {}'.format(rs_type,rsets.keys()))
+        else:
+            wemd.rc.pstatus("Updating region set definition using {}".format(rs_type))
+            
+            self.region_set = rsets[rs_type](*args,**kwargs)
+            self.n_bins = len(self.region_set.get_all_bins())
+            self.n_dim = self.region_set.n_dim
+            self.region_set_hash = self.region_set.identity_hash()
+            wemd.rc.pstatus('  {:d} bins in {:d} dimension(s)'.format(self.n_bins, self.n_dim))
+            wemd.rc.pstatus('  identity hash {}'.format(self.region_set_hash.hexdigest()))
+
     def write_bin_labels(self, dest, 
                          header='# bin labels:\n', 
                          format='# bin {bin_index:{max_iwidth}d} -- {label!s}\n'):

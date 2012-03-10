@@ -1,271 +1,245 @@
-from math import sqrt
+import numpy as np
+import numpy.ma as ma
+import itertools
 
-class ScalarUncert():  # a 3-element array: ( x, x - dx(-), x + dx(+) )
-    # NOTE: ASYMMETRIC UNCERTAINTY BUILT IN
-    # ASSUMES ALL VALUES POSITIVE; WILL RE-SET MIN TO BE ABOVE ZERO
-    def __init__(self,value):
-        self.data = value
-        self.num = self.data[0]
-        self.min = self.data[1]
-        self.max = self.data[2]
-        self.neg = 0
-        self.tiny = 1e-6  # used for setting near-zero minimum values
-        if self.min <= 0.0:
-            self.data[1] = self.tiny * self.num
-            self.min = self.data[1]
-        if self.num<0 or self.max<0:
-            print 'Problem: Negative value!'
-            print 'num =', self.num, '   max =', self.max
-        if not self.min == self.max and not self.num==0:
-            self.wt = (  self.num / ( self.max - self.min )  )**2 # weight based on fractional uncertainty
-            # self.wt = 1.0 / ( self.max - self.min )**2
-            self.uncert = ( self.max - self.min ) / self.num
-        else: # if uncertainty not finite, assume data is worthless 
-            #print 'Problem in ScalarUncert: num=',self.num,'  min=',self.min,'  max=',self.max
-            self.wt = 'UnDef'
-            #self.wt = 0.0
-            self.uncert = 'UnDef'
-            self.data[0] = 'UnDef'  # explicitly un-define to avoid future math problems -- e.g., division by zero
-            self.data[1] = 'UnDef'
-            self.data[2] = 'UnDef'
-    # def __getitem__(self,i):
-        # return self.data[i]
-    def display(self):
-        print 'the ScalarUncert value is ', self.data
-    def __add__(self,other):
-        if self.num=='UnDef' or self.min=='UnDef' or self.max=='UnDef' or other.num=='UnDef' or other.min=='UnDef' or other.max=='UnDef':
-            number = 'UnDef'
-            lower = 'UnDef'
-            upper = 'UnDef'
+TOL=1.0E-6
+
+class UncertContainer(object):
+    """ Container to hold uncertainty measurements. Data is convert to np masked arrays
+        to avoid possible numerical problems
+    """
+    def __init__(self,vals,vals_dmin,vals_dmax,mask=ma.nomask):
+        super(UncertContainer, self).__init__()
+        
+        # If input data already masked arrays extract unmasked data
+        if ma.isMaskedArray(vals): 
+            vals = vals.data
+        if ma.isMaskedArray(vals_dmin):
+            vals_dmin = vals_dmin.data
+        if ma.isMaskedArray(vals_dmax):
+            vals_dmax = vals_dmax.data
+        
+        # Adjust negative values
+        ineg = np.where(vals_dmin <= 0.0)
+        vals_dmin[ineg] = TOL*vals[ineg]
+
+        # Calculate weight based on fractional uncertainty 
+        diff = vals_dmax - vals_dmin
+        diff_m = ma.masked_values(diff,0.0)
+        
+        self.vals = ma.masked_values(vals,0.0)
+
+        self.wt = (self.vals/diff_m)**2
+        self.uncert = diff_m/self.vals
+
+        self.wt.fill_value = np.inf
+        self.uncert.fill_vaule = np.inf
+
+        assert np.all(self.wt.mask == self.uncert.mask)
+        
+        # Mask data if uncertainty is not finite or if any of the inputs were
+        # already masked
+
+        mm = ma.mask_or(self.wt.mask,mask)
+        
+        self.vals.mask = mm
+        self.wt.mask = mm
+        self.uncert.mask = mm
+        self.dmin = ma.array(vals_dmin,mask=mm,fill_value=np.inf)
+        self.dmax = ma.array(vals_dmax,mask=mm,fill_value=np.inf)
+
+        self.mask = ma.getmaskarray(self.vals)
+
+    def __getitem__(self,indx):
+        vals = self.vals[indx]
+        dmin = self.dmin[indx]
+        dmax = self.dmax[indx]
+        
+        if type(vals) is ma.core.MaskedConstant:
+            dum = np.zeros((1,))
+            return UncertContainer(dum.copy(),dum.copy(),dum.copy())
+        elif isinstance(vals,(float,int,np.float,np.int)):
+            return UncertContainer(np.array([vals,]),np.array([dmin,]),np.array([dmax,]))
+        elif isinstance(vals,np.ndarray):
+            return UncertContainer(vals,dmin,dmax,mask=vals.mask)
         else:
-            number = self.num + other.num  # simple addition
-            lower = self.min + other.min   # simple minimum value
-            upper = self.max + other.max   # simple maximum value
-        if self.neg==0:
-            if number<0 or lower<0 or upper<0:
-                self.neg = 1
-                print 'Add: Negative result found:', number, lower, upper
-                print 'Self:', self.num, self.min, self.max
-                print 'Other:', other.num, other.min, other.max
-        return ScalarUncert([number,lower,upper])
-    def __sub__(self,other):
-        if self.num=='UnDef' or self.min=='UnDef' or self.max=='UnDef' or other.num=='UnDef' or other.min=='UnDef' or other.max=='UnDef':
-            number = 'UnDef'
-            lower = 'UnDef'
-            upper = 'UnDef'
+            raise TypeError
+
+    def __setitem__(self,indx,value):
+        if isinstance(value,UncertContainer):
+            self.vals[indx] = value.vals
+            self.dmin[indx] = value.dmin
+            self.dmax[indx] = value.dmax
+            self.wt[indx] = value.wt
+            self.uncert[indx] = value.uncert
         else:
-            number = self.num - other.num  # simple subtraction
-            lower = self.min - other.max   # simple minimum value
-            upper = self.max - other.min   # simple maximum value
-        if self.neg==0:
-            if number<0 or lower<0 or upper<0:
-                self.neg = 1
-                print 'Sub: Negative result found:', number, lower, upper
-                print 'Self:', self.num, self.min, self.max
-                print 'Other:', other.num, other.min, other.max
-        return ScalarUncert([number,lower,upper])
-    def __mul__(self,other):
-        if self.num=='UnDef' or self.min=='UnDef' or self.max=='UnDef' or other.num=='UnDef' or other.min=='UnDef' or other.max=='UnDef':
-            number = 'UnDef'
-            lower = 'UnDef'
-            upper = 'UnDef'
+            raise TypeError('Can only set values with an UncertContainer object')
+
+
+    def __repr__(self):
+        return 'shape={} vals={} dmin={} dmax={} vals.mask={}'.format(self.vals.shape,self.vals,self.dmin,self.dmax,self.vals.mask)
+
+    def __add__(self,value):
+        if isinstance(value,UncertContainer):
+            vals = self.vals + value.vals
+            dmin = self.dmin + value.dmin
+            dmax = self.dmax + value.dmax
+
+            return UncertContainer(vals,dmin,dmax,mask=vals.mask)
+        elif isinstance(value,(float,int,np.float,np.int)):
+            vals = self.vals + value
+            dmin = self.dmin + value
+            dmax = self.dmax + value
+
+            return UncertContainer(vals,dmin,dmax,mask=vals.mask)
         else:
-            number = self.num * other.num  # simple multiplication
-            lower = self.min * other.min   # simple minimum value
-            upper = self.max * other.max   # simple maximum value
-        if self.neg==0:
-            if number<0 or lower<0 or upper<0:
-                self.neg = 1
-                print 'Mul: Negative result found:', number, lower, upper
-                print 'Self:', self.num, self.min, self.max
-                print 'Other:', other.num, other.min, other.max
-        return ScalarUncert([number,lower,upper])
-    def __div__(self,other):
-        if self.num=='UnDef' or self.min=='UnDef' or self.max=='UnDef' or other.num=='UnDef' or other.min=='UnDef' or other.max=='UnDef':
-            number = 'UnDef'
-            lower = 'UnDef'
-            upper = 'UnDef'
-        elif other.num==0 or other.min==0 or other.max==0:
-            number = 'UnDef'
-            lower = 'UnDef'
-            upper = 'UnDef'
+            raise TypeError('Attempt to add value of unsupported type')
+
+    def __sub__(self,value):
+        if isinstance(value,UncertContainer):
+            vals = self.vals - value.vals
+            dmin = self.dmin - value.dmin
+            dmax = self.dmax - value.dmax
+
+            return UncertContainer(vals,dmin,dmax,mask=vals.mask)
         else:
-            number = self.num / other.num  # simple division
-            lower = self.min / other.max   # simple minimum value
-            upper = self.max / other.min   # simple maximum value
-        if self.neg==0:
-            if number<0 or lower<0 or upper<0:
-                self.neg = 1
-                print 'Div: Negative result found:', number, lower, upper
-                print 'Self:', self.num, self.min, self.max
-                print 'Other:', other.num, other.min, other.max
-        return ScalarUncert([number,lower,upper])
-    def plusOne(self):
-        # adds one to number and uncertainties -- i.e., adds unity that has no uncertainty
-        if self.num=='UnDef' or self.min=='UnDef' or self.max=='UnDef':
-            number = 'UnDef'
-            lower = 'UnDef'
-            upper = 'UnDef'
+            raise TypeError ('Attempted to subtract by value of unsupported type')
+
+    def __mul__(self,value):
+        if isinstance(value,UncertContainer):
+            vals = self.vals * value.vals
+            dmin = self.dmin * value.dmin
+            dmax = self.dmax * value.dmax
+
+            return UncertContainer(vals,dmin,dmax,mask=vals.mask)
+        
+        elif isinstance(value,(float,int,np.float,np.int)):
+            vals = self.vals * value
+            dmin = self.dmin * value
+            dmax = self.dmax * value
+
+            return UncertContainer(vals,dmin,dmax,mask=vals.mask)
         else:
-            number = self.num + 1.0  # simple addition
-            lower = self.min + 1.0   # simple minimum value
-            upper = self.max + 1.0   # simple maximum value
-        return ScalarUncert([number,lower,upper])
+            raise TypeError('Attempted to multiply by value of unsupported type')
+
+    def __div__(self,value):
+        if isinstance(value,UncertContainer):
+            vals = self.vals / value.vals
+            dmin = self.dmin / value.dmax
+            dmax = self.dmax / value.dmin
+
+            return UncertContainer(vals,dmin,dmax,mask=vals.mask)
+        else:
+            raise TypeError('Attempted to divide by unsupported type')
+
+    def transpose(self):
+        vals = self.vals.T
+        dmin = self.dmin.T
+        dmax = self.dmax.T
+
+        return UncertContainer(vals,dmin,dmax,mask=vals.mask)
+        
     def recip(self):
-        # takes reciprocal
-        if self.num=='UnDef' or self.min=='UnDef' or self.max=='UnDef':
-            number = 'UnDef'
-            lower = 'UnDef'
-            upper = 'UnDef'
-        else:
-            number = 1.0 / self.num  # simple addition
-            lower = 1.0 / self.max   # simple minimum value
-            upper = 1.0 / self.min   # simple maximum value
-        return ScalarUncert([number,lower,upper])
+        vals = 1.0 / self.vals
+        dmin = 1.0 / self.dmax
+        dmax = 1.0 / self.dmin
 
-class VectorUncert():  # an array of numbers and uncertainties: ( x1, x1 - dx1(-), x1 + dx1(+)  ,  x2, x2 - dx2(-), x2 + dx2(+)  , ...   )
-    # NOTE: ASYMMETRIC UNCERTAINTY BUILT IN
-    def __init__(self,value):
-        self.data = value
-    def WtAvg(self):
-        #print 'in WtAvg function ....'
-        norm = 0
-        sum = 0
-        wtmax = 0
-        dsum = 0
-        count = 0
-        self.tiny = 1e-6
+        return UncertContainer(vals,dmin,dmax,mask=vals.mask)
 
-        # first obtain average and also check that at least one value was defined
-        for x in self.data:               # simple weighted averages: number, lower, upper
-            # MATT: I'm not sure if I used if syntax as intended below:
-            if not x.wt=='UnDef' and not x.num=='UnDef' and not x.min=='UnDef' and not x.max=='UnDef':
-                #x.display()
-                #print 'count=',count,'  wt=',x.wt,'  num=',x.num,'  min=',x.min,'  max=',x.max
-                count = count + 1
-                norm = norm + x.wt            # normalization for weighted average
-                sum = sum + x.wt * x.num      # sum for weighted average
-        #print 'count of nonUnDef =', count
-        if count > 0: # be sure at least one value was defined
-            #print 'sum=',sum,'  norm=',norm
-            avg = sum / norm
-            #print 'avg=', avg
-            # average is used to calculate weighted uncertainty
-            for x in self.data:
-                #x.display()
-                #print 'count=',count,'  wt=',x.wt,'  num=',x.num,'  min=',x.min,'  max=',x.max
-                if not x.wt=='UnDef' and not x.num=='UnDef' and not x.min=='UnDef' and not x.max=='UnDef':
-                    #print 'count=',count,'  wt=',x.wt,'  num=',x.num,'  min=',x.min,'  max=',x.max
-                    if x.num > avg:                # seeking max deviation from average
-                        term = ( x.max - avg )**2  # if above average, use max
-                    else:
-                        term = ( avg - x.min )**2  # if below average, use min
-                    #print 'wt =', x.wt, '   term =', term
-                    dsum = dsum + x.wt * term      # sum for weighted average of deviations
-                    if x.wt > wtmax:                 # maximum weight for effective n
-                        wtmax = x.wt
-            #print 'wtmax=', wtmax
-            neff = norm / wtmax  # effective number of samples based on uncertainties
-            #print 'avg=', avg, '   norm=', norm, '   neff =', neff
-            dev = 0.5 * sqrt( dsum / ( norm * neff ) )
-            tmpMin = avg-dev
-            if tmpMin < 0:
-                tmpMin = self.tiny * avg  # a tiny fraction of average, so as to be > 0
-            tmpMax = avg+dev
-            return [avg, tmpMin, tmpMax ]  # just a list, not a ScalarUncert as written
-        else:
-            #print 'Problem in WtAvg due to count=0'
-            return ['UnDef', 'UnDef', 'UnDef']
-    def WtAvgCent(self):
-        # modified weighted average which accounts not only for weights but range of possible values
-        # Initially, a 'centralized' weighted average is calculated, which emphasizes high-weight values.
-        # Then, modified values are re-averaged: values are moved closer to initial avg, within uncertainty range
-        #print 'in WtAvg function ....'
-        wtmax = 0
-        dsum = 0
-        count = 0
-        self.tiny = 1e-6
+    def update_mask(self):
+        self.vals.mask = self.mask
+        self.dmin.mask = self.mask
+        self.dmax.mask = self.mask
+        self.wt.mask = self.mask
+        self.uncert.mask = self.mask
 
-        norm = 0
-        sum = 0
-        normCent = 0
-        sumCent = 0
-        # first obtain centralized average and also check that at least one value was defined
-        wtList = []
-        for x in self.data:               # simple weighted averages: number, lower, upper
-            if (not x.wt=='UnDef') and (not x.num=='UnDef') and (not x.min=='UnDef') and (not x.max=='UnDef'):
-                #x.display()
-                #print 'count=',count,'  wt=',x.wt,'  num=',x.num,'  min=',x.min,'  max=',x.max
-                count = count + 1
-                norm = norm + x.wt            # normalization for weighted average
-                sum = sum + x.wt * x.num      # sum for weighted average
-                wtsq = x.wt**8
-                normCent = normCent + wtsq            # normalization for weighted average
-                sumCent = sumCent + wtsq * x.num      # sum for weighted average
-                wtList.append( [ x.wt, wtsq, x.wt, x.num, x.min, x.max, 0.0 ] )
-        #print 'count of nonUnDef =', count
-        if count > 0: # be sure at least one value was defined
-            #print '\nNormalized list: [ wtNorm, wtsqNorm, wt, num, min, max ]:'
-            wtList.sort()
-            for z in wtList:
-                z[0] = z[0] / norm
-                z[1] = z[1] / normCent
-                #print 'after:', z 
-            tmpList = []
-            #print 'sum=',sum,'  norm=',norm
-            avg = sum / norm
-            avgCent = sumCent / normCent
-            #print 'In weighted avg function: avg=', avg, '   avgCent = ', avgCent
-            # values are now modified and average is re-calculated
-            norm = 0
-            sum = 0
-            #print '\n... Now re-averaging'
-            for x in self.data:               # go through values again
-                if (not x.wt=='UnDef') and (not x.num=='UnDef') and (not x.min=='UnDef') and (not x.max=='UnDef'):
-                    #x.display()
-                    #print 'count=',count,'  wt=',x.wt,'  num=',x.num,'  min=',x.min,'  max=',x.max
-                    norm = norm + x.wt            # normalization for weighted average
-                    # change values based on avgInit
-                    if x.max > avgCent and x.min < avgCent:  # centralized avg in range
-                        numCent = avgCent           # use centralized value as representative value
-                    elif x.max <= avgCent:          # centralized avg bigger than max
-                        numCent =  x.max            # use max
-                    elif x.min >= avgCent:          # centralized avg smaller than min
-                        numCent = x.min             # use min
-                    else:
-                        print 'DANGER: unknown case'
-                    tmpList.append( [ x.wt, x.num, x.min, x.max, numCent ] )
-                    sum = sum + x.wt * numCent
-            tmpList.sort()
-            #print '... sorted items [ wt, num, min, max, numCent]:'
-            #for y in tmpList:
-                #print '*', y
-            avg = sum / norm  # the new average based on values shifted centrally, within their ranges
-            #print '... Final centralized average =', avg, '\n'
-            # average is used to calculate weighted uncertainty
-            for x in self.data:
-                #x.display()
-                #print 'count=',count,'  wt=',x.wt,'  num=',x.num,'  min=',x.min,'  max=',x.max
-                if not x.wt=='UnDef' and not x.num=='UnDef' and not x.min=='UnDef' and not x.max=='UnDef':
-                    #print 'count=',count,'  wt=',x.wt,'  num=',x.num,'  min=',x.min,'  max=',x.max
-                    if x.num > avg:                # seeking max deviation from average
-                        term = ( x.max - avg )**2  # if above average, use max
-                    else:
-                        term = ( avg - x.min )**2  # if below average, use min
-                    #print 'wt =', x.wt, '   term =', term
-                    dsum = dsum + x.wt * term      # sum for weighted average of deviations
-                    if x.wt > wtmax:                 # maximum weight for effective n
-                        wtmax = x.wt
-            #print 'wtmax=', wtmax
-            neff = norm / wtmax  # effective number of samples based on uncertainties
-            #print 'avg=', avg, '   norm=', norm, '   neff =', neff
-            dev = 0.5 * sqrt( dsum / ( norm * neff ) )
-            tmpMin = avg-dev
-            if tmpMin < 0:
-                tmpMin = self.tiny * avg  # a tiny fraction of average, so as to be > 0
-            tmpMax = avg+dev
-            return [avg, tmpMin, tmpMax ]  # just a list, not a ScalarUncert as written
+    def concatenate(self,value,axis=0):
+        """ Concatentate UncertContainer value to self.
+            Assumes that if dimensions of self and value do not match, to 
+            add a np.newaxis along axis of value
+        """
+
+        if isinstance(value,UncertContainer):
+            if value.vals.ndim == self.vals.ndim:
+                vals = value.vals
+                dmin = value.dmin
+                dmax = value.dmax
+                wt = value.wt
+                uncert = value.uncert
+                mask = value.mask
+            elif (value.vals.ndim + 1) == self.vals.ndim:
+                vals =  ma.expand_dims(value.vals,axis)
+                dmin =  ma.expand_dims(value.dmin,axis)
+                dmax =  ma.expand_dims(value.dmax,axis)
+                wt =  ma.expand_dims(value.wt,axis)
+                uncert =  ma.expand_dims(value.uncert,axis)
+                mask =  np.expand_dims(value.mask,axis)
+            else:
+                raise ValueError('Could not propery match dimensionality')
+                
+            self.vals = ma.concatenate((self.vals,vals),axis=axis)
+            self.dmin = ma.concatenate((self.dmin,dmin),axis=axis)
+            self.dmax = ma.concatenate((self.dmax,dmax),axis=axis)
+            self.wt = ma.concatenate((self.wt,wt),axis=axis)
+            self.uncert = ma.concatenate((self.uncert,uncert),axis=axis)
+            
+            self.mask = np.concatenate((self.mask,mask),axis=axis)
         else:
-            #print 'Problem in WtAvg due to count=0'
-            return ['UnDef', 'UnDef', 'UnDef']
+            raise ValueError('Can only concatenate with an UncertContainer object')
+
+    def weighted_average(self,axis=0,expaxis=None):
+        """ Calculate weighted average of data along axis
+            after optionally inserting a new dimension into the
+            shape array at position expaxis
+        """
+
+        if expaxis is not None:
+            vals = ma.expand_dims(self.vals,expaxis)
+            dmin = ma.expand_dims(self.dmin,expaxis)
+            dmax = ma.expand_dims(self.dmax,expaxis)
+            wt = ma.expand_dims(self.wt,expaxis)
+        else:
+            vals = self.vals
+            wt = self.wt
+            dmin = self.dmin
+            dmax = self.dmax
+        
+        # Get average value
+        avg,norm = ma.average(vals,axis=axis,weights=wt,returned=True)
+        avg_ex = ma.expand_dims(avg,0)
+
+        # Calculate weighted uncertainty
+        wtmax = ma.max(wt,axis=axis)
+        neff = norm/wtmax       # Effective number of samples based on uncertainties
+
+        # Seeking max deviation from the average; if above avg use max, if below use min
+        term = np.empty_like(vals)
+        
+        indices = np.where(vals > avg_ex)
+        i0 = indices[0]
+        irest = indices[1:]
+        ii = tuple(x for x in itertools.chain([i0],irest))
+        jj = tuple(x for x in itertools.chain([np.zeros_like(i0)],irest))
+        term[ii] = (dmax[ii] - avg_ex[jj])**2
+        
+        indices = np.where(vals <= avg_ex)
+        i0 = indices[0]
+        irest = indices[1:]
+        ii = tuple(x for x in itertools.chain([i0],irest))
+        jj = tuple(x for x in itertools.chain([np.zeros_like(i0)],irest))
+        term[ii] = (avg_ex[jj] - dmin[ii])**2
+        
+        dsum = ma.sum(term*wt,axis=0)     # Sum for weighted average of deviations
+
+        dev = 0.5*np.sqrt(dsum/(norm*neff))
+        
+        if isinstance(avg,(float,np.float)):
+            avg = avg_ex
+
+        tmp_min = avg - dev
+        ii = np.where(tmp_min < 0)
+        tmp_min[ii] = TOL*avg[ii]
+        
+        return UncertContainer(avg,tmp_min,avg+dev)
+
 

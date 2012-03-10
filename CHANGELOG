@@ -1,3 +1,7 @@
+2012-03-09 -- Joshua Adelman <joshua.adelman@gmail.com>
+ * Updated weed extension to refactored version that leverages numpy and 
+   masked arrays for better performance and scaling.  
+
 2011-02-24 -- Matt Zwier <mczwier@gmail.com>
  * Added support for generated initial states.  One or more "basis states" 
    (the entities formerly known as initial states) are specified, and when
