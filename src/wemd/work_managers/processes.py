@@ -62,8 +62,6 @@ class ProcessWorkManager(WEMDWorkManager):
             
             try:
                 result = fn(*args, **kwargs)
-            except KeyboardInterrupt:
-                log.debug('interrupt in task_loop')
             except Exception as e:
                 result_tuple = ('exception', task_id, (e, traceback.format_exc()))
             else:

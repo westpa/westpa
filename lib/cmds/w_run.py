@@ -37,6 +37,7 @@ mode = work_manager.startup()
 sim_manager.load_plugins()
 
 if work_manager.mode == work_manager.MODE_MASTER:
+    work_manager.install_sigint_handler()
     
     log.debug('preparing run')
     sim_manager.prepare_run()
@@ -50,8 +51,7 @@ if work_manager.mode == work_manager.MODE_MASTER:
         
         work_manager.shutdown(0)
     except KeyboardInterrupt:
-        wemd.rc.pstatus('interrupted; shutting down work manager')
-        work_manager.shutdown(5)
+        wemd.rc.pstatus('interrupted; shutting down')
     except:
         wemd.rc.pstatus('exception caught; shutting down')
         log.error(traceback.format_exc())

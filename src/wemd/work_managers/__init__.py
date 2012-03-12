@@ -9,7 +9,7 @@ import cPickle as pickle
 __metaclass__ = type
 
 import logging
-import sys, time, uuid, threading
+import sys, time, uuid, threading, signal
 from collections import deque
 from contextlib import contextmanager
 log = logging.getLogger(__name__)
@@ -22,6 +22,7 @@ class WEMDWorkManager:
     
     def __init__(self):
         self.mode = None
+        self._prior_sigint_handler = None
                                 
     def parse_aux_args(self, aux_args, do_help = False):
         '''Parse any unprocessed command-line arguments, returning any arguments not proccessed
@@ -98,7 +99,18 @@ class WEMDWorkManager:
         for future in futures:
             results.append(future.result)
         return futures
-
+    
+    def sigint_handler(self, signum, frame):
+        log.info('SIGINT received; signaling work manager shutdown')
+        self.shutdown(2)
+        if self._prior_sigint_handler:
+            self._prior_sigint_handler(signum, frame)
+        else:
+            raise KeyboardInterrupt
+    
+    def install_sigint_handler(self):
+        self._prior_sigint_handler = signal.signal(signal.SIGINT, self.sigint_handler)
+        
 class FutureWatcher:
     '''A device to wait on multiple results and/or exceptions with only one lock.'''
     
@@ -303,6 +315,7 @@ class WMFuture:
     done = property(is_done, None, None, is_done.__doc__)
     
 # end class WMFuture
+
     
-import serial
+import serial, threads
 import ops
