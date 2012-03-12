@@ -55,7 +55,7 @@ class WEEDDriver:
         if self.windowtype == 'fraction':
             eff_windowsize = int(n_iter * self.windowsize)
         else: # self.windowtype == 'fixed':
-            eff_windowsize = min(n_iter, self.windowsize or 0)
+            eff_windowsize = max(n_iter, self.windowsize or 0)
         
         rates = numpy.empty((eff_windowsize,n_bins,n_bins), numpy.float64)
                 
