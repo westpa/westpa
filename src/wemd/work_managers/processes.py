@@ -1,6 +1,6 @@
 from __future__ import division, print_function; __metaclass__ = type
 
-import sys, logging, multiprocessing, threading, traceback, signal, os
+import sys, logging, multiprocessing, threading, traceback, signal, os, random
 import argparse
 import wemd
 from wemd.work_managers import WEMDWorkManager, WMFuture
@@ -46,14 +46,21 @@ class ProcessWorkManager(WEMDWorkManager):
             signal.signal(signal.SIGINT, prev_handler)
         
     def task_loop(self):
+        # Close standard input, so we don't get SIGINT from ^C
         try:
             sys.stdin.close()
         except Exception as e:
             log.info("can't close stdin: {}".format(e))
-            
+
+        # Handle SIGINT
         signal.signal(signal.SIGINT, self.child_handle_interrupt)
+                    
         # Become our own process group
         os.setpgid(0,0) 
+
+        # (re)initialize random number generator in this process
+        random.seed()
+        
         while not self.shutdown_received:
             message, task_id, fn, args, kwargs = self.task_queue.get()[:5]
             

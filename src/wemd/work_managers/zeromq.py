@@ -1,6 +1,6 @@
 from __future__ import division, print_function; __metaclass__ = type
 
-import sys, os, logging, socket, multiprocessing, threading, time, traceback, signal
+import sys, os, logging, socket, multiprocessing, threading, time, traceback, signal, random
 import argparse
 from collections import deque
 import zmq
@@ -166,6 +166,10 @@ class ZMQWorkManager(WEMDWorkManager):
             pid = os.fork()
             if not pid:
                 log.info('pid {:d} is worker'.format(os.getpid()))
+                
+                # (re)initialize random number generator in this process
+                random.seed()
+                
                 self.make_worker()
                 self.start_threads()
                 self.spawned_pids = []
