@@ -129,6 +129,7 @@ class WESimManager:
         wemd.rc.pstatus('per-segment maximum non-zero probability:   {:g}'.format(max_seg_prob))
         wemd.rc.pstatus('per-segment probability dynamic range (kT): {:g}'.format(seg_drange))
         wemd.rc.pstatus('norm = {:g}, error in norm = {:g} ({:.2g}*epsilon)'.format(norm,(norm-1),(norm-1)/EPS))
+        wemd.rc.pflush()
         
         if save_summary:
             iter_summary = self.data_manager.get_iter_summary()
@@ -165,6 +166,7 @@ class WESimManager:
                                  format(basis_state.state_id, basis_state.label, basis_state.probability, basis_state.auxref or '',
                                         ', '.join(map(str,basis_state.pcoord))))
         pstatus()
+        wemd.rc.pflush()
         
     def report_target_states(self, target_states):
         pstatus = wemd.rc.pstatus
@@ -176,6 +178,7 @@ class WESimManager:
                 pstatus('{:<6d}    {:12s}    {}'
                                  .format(target_state.state_id, target_state.label, ','.join(map(str,target_state.pcoord))))        
         pstatus()
+        wemd.rc.pflush()
         
     def initialize_simulation(self, basis_states, target_states, segs_per_state=1, suppress_we=False):
         '''Initialize a new weighted ensemble simulation, taking ``segs_per_state`` initial
@@ -382,7 +385,7 @@ class WESimManager:
         # Invoke callbacks
         self.invoke_callbacks(self.prepare_iteration)
         
-        log.debug('dispatching propagator prep_iter to work manager')
+        log.debug('dispatching propagator prep_iter to work manager')        
         self.work_manager.submit(wm_ops.prep_iter, self.propagator, self.n_iter, segments).get_result()
         
     def finalize_iteration(self):
@@ -634,15 +637,20 @@ class WESimManager:
                 wemd.rc.pstatus('Iteration %d (%d requested)' % (self.n_iter, max_iter))
                                 
                 self.prepare_iteration()
+                wemd.rc.pflush()
                 
                 self.pre_propagation()
                 self.propagate()
+                wemd.rc.pflush()
                 self.check_propagation()
+                wemd.rc.pflush()
                 self.post_propagation()
-                 
+                
+                wemd.rc.pflush()
                 self.pre_we()
                 self.run_we()
                 self.post_we()
+                wemd.rc.pflush()
                 
                 self.prepare_new_segments()
                 
@@ -656,6 +664,7 @@ class WESimManager:
     
                 self.n_iter += 1
                 self.data_manager.current_iteration += 1
+                wemd.rc.pflush()
             finally:
                 self.data_manager.flush_backing()
                 
