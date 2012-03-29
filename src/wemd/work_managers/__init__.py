@@ -19,7 +19,7 @@ import wemd
 class WEMDWorkManager:
     MODE_MASTER = 1
     MODE_WORKER = 2
-    
+
     def __init__(self):
         self.mode = None
         self._prior_sigint_handler = None
@@ -104,7 +104,10 @@ class WEMDWorkManager:
         log.info('SIGINT received; signaling work manager shutdown')
         self.shutdown(2)
         if self._prior_sigint_handler:
-            self._prior_sigint_handler(signum, frame)
+            try:
+                self._prior_sigint_handler(signum, frame)
+            except TypeError:
+                pass
         else:
             raise KeyboardInterrupt
     

@@ -35,6 +35,7 @@ DEFAULT_ANN_PORT      = 23811 # Upstream-to-downstream announcements
 DEFAULT_TASK_PORT     = 23812 # Task and result distribution
     
 class ZMQWorkManager(WEMDWorkManager):
+    MODE_NEXUS = 101    
             
     def __init__(self):
         super(ZMQWorkManager,self).__init__()
@@ -43,13 +44,20 @@ class ZMQWorkManager(WEMDWorkManager):
         self.upstream_hostname  = None
         self.upstream_host      = None
         
+        # Downstream hostname and IP
+        self.downstream_hostname = None
+        self.downstream_host = None
+        
         # Ports
         self.ann_port           = None
         self.task_port          = None
         
-        # (upstream) endpoints
-        self.ann_endpoint       = None
-        self.task_endpoint      = None
+        # upstream endpoints
+        self.upstream_ann_endpoint       = None
+        self.upstream_task_endpoint      = None
+        
+        self.downstream_ann_endpoint     = None
+        self.downstream_task_endpoint    = None
                         
         # ZeroMQ context
         self.context            = None
@@ -103,15 +111,26 @@ class ZMQWorkManager(WEMDWorkManager):
 
         mgroup = group.add_mutually_exclusive_group()
         mgroup.add_argument('--master', dest='mode', action='store_const', const=self.MODE_MASTER,
-                            help='Run as a master process (which generates and distributes computational tasks; default).')
+                            help='''Run as a master process (which generates and distributes computational tasks; default).
+                            Specify "-n 0" for a dedicated master; otherwise, N_WORKERS worker processes are also started
+                            on this host.''')
         mgroup.add_argument('--worker', dest='mode', action='store_const', const=self.MODE_WORKER,
-                            help='Run as a worker process')
+                            help='Run as worker process(es).  ')
+        mgroup.add_argument('--node', '--nexus', dest='mode', action='store_const', const=self.MODE_NEXUS,
+                            help='''Coalesce communications at this node. Specify "-n 0" for a dedicated forwarder;
+                            otherwise, N_WORKERS worker processes are also started on this host.
+                            ''')
                         
         group.add_argument('-n',  type=int, dest='n_workers', default=multiprocessing.cpu_count(),
                            help='Number of worker processes to run on this host. Use 0 for a dedicated server '
                                +' or forwarder process. (Default: %(default)s)')
-        group.add_argument('-H', '--host', default=wemd.rc.config.get('work_manager.zmq.master', socket.gethostname()),
-                           help='Upstream (master/coordinator) host (default: %(default)s)')
+        
+        group.add_argument('-H', '--host', '-U', '--upstream', dest='upstream', 
+                           default=wemd.rc.config.get('work_manager.zmq.master', socket.gethostname()),
+                           help='Upstream host (the master or next-higher nexus; default: %(default)s).')
+        group.add_argument('-D', '--downstream', default='localhost',
+                           help='''Address at which downstream (clients/coordinators) access this host
+                           (currently only honored for --nexus; default: %(default)s).''')
         group.add_argument('--annport', type=int, 
                            default=wemd.rc.config.get_int('work_manager.zmq.ann_port', DEFAULT_ANN_PORT),
                            help='Port on which master makes announcements (default: %(default)s)')
@@ -127,14 +146,18 @@ class ZMQWorkManager(WEMDWorkManager):
         args, extra_args = parser.parse_known_args(aux_args)
         
         self.mode              = args.mode
-        self.upstream_hostname = args.host
-        self.upstream_host     = socket.gethostbyname(args.host)
+        self.upstream_hostname = args.upstream
+        self.upstream_host     = socket.gethostbyname(args.upstream)
+        self.downstream_hostname = args.downstream,
+        self.downstream_host   = socket.gethostbyname(args.downstream)
         self.ann_port          = args.annport
         self.task_port         = args.taskport
         self.n_workers         = args.n_workers
         
-        self.ann_endpoint = 'tcp://{:s}:{:d}'.format(self.upstream_host, self.ann_port)
-        self.task_endpoint = 'tcp://{:s}:{:d}'.format(self.upstream_host, self.task_port)
+        self.upstream_ann_endpoint = 'tcp://{:s}:{:d}'.format(self.upstream_host, self.ann_port)
+        self.upstream_task_endpoint = 'tcp://{:s}:{:d}'.format(self.upstream_host, self.task_port)
+        self.downstream_ann_endpoint = 'tcp://{:s}:{:d}'.format(self.downstream_host, self.ann_port)
+        self.downstream_task_endpoint = 'tcp://{:s}:{:d}'.format(self.downstream_host, self.task_port)
         
         return extra_args
     
@@ -151,7 +174,19 @@ class ZMQWorkManager(WEMDWorkManager):
             self.make_master()
             self.start_threads()
             log.info('pid {:d} is master'.format(os.getpid()))
+        elif self.mode == self.MODE_NEXUS:
+            # Start workers, but make sure they look to the addresses we've bound instead of directly
+            # to the master process
+            self.start_workers(upstream_ann_endpoint=self.downstream_ann_endpoint, 
+                               upstream_task_endpoint=self.downstream_task_endpoint)
+            if self.mode == self.MODE_WORKER:
+                return
+            self.make_nexus()
+            log.info('pid {:d} is nexus'.format(os.getpid()))
+            self.start_threads()
+            self.wait_workers()
         elif self.mode == self.MODE_WORKER:
+            # TODO: something doesn't look right here, at least for the parent process of w_run --worker
             self.start_workers()
             self.wait_workers()
         else:
@@ -160,9 +195,9 @@ class ZMQWorkManager(WEMDWorkManager):
         log.debug('pid {:d} has mode {!r}'.format(os.getpid(), self.mode))
         return self.mode
                 
-    def start_workers(self):
+    def start_workers(self, upstream_ann_endpoint=None, upstream_task_endpoint=None):
         for n in xrange(self.n_workers):
-            log.info('forking worker process {:d} of {:d}'.format(n+1,self.n_workers))
+            log.debug('forking worker process {:d} of {:d}'.format(n+1,self.n_workers))
             pid = os.fork()
             if not pid:
                 log.info('pid {:d} is worker'.format(os.getpid()))
@@ -170,7 +205,7 @@ class ZMQWorkManager(WEMDWorkManager):
                 # (re)initialize random number generator in this process
                 random.seed()
                 
-                self.make_worker()
+                self.make_worker(upstream_ann_endpoint, upstream_task_endpoint)
                 self.start_threads()
                 self.spawned_pids = []
                 break
@@ -178,6 +213,7 @@ class ZMQWorkManager(WEMDWorkManager):
                 self.spawned_pids.append(pid)
     
     def wait_workers(self):
+        log.debug('waiting on worker processes')
         for pid in self.spawned_pids:
             os.waitpid(pid, 0)
     
@@ -205,9 +241,12 @@ class ZMQWorkManager(WEMDWorkManager):
         self.mode = self.MODE_MASTER
         self.shutdown_called = False
         
-    def make_worker(self):
+    def make_worker(self, upstream_ann_endpoint=None, upstream_task_endpoint=None):
         self.__class__ = ZMQWorkerWorkManager
-        sys.stdin.close() # so we don't get Ctrl-C
+        try:
+            sys.stdin.close() # so we don't get Ctrl-C
+        except:
+            pass
         signal.signal(signal.SIGINT, signal.SIG_IGN) # so we can send SIGINT to a process group we lead
         os.setpgid(0,0) # make all children exist within the same process group
         self.rdp_ctl_endpoint = 'inproc://rdp_ctl_{:x}'.format(id(self))
@@ -216,8 +255,25 @@ class ZMQWorkManager(WEMDWorkManager):
         self.context = zmq.Context.instance()
         self.mode = self.MODE_WORKER
         self.shutdown_called = False
+        if upstream_ann_endpoint:
+            self.upstream_ann_endpoint = upstream_ann_endpoint
+        if upstream_task_endpoint:
+            self.upstream_task_endpoint = upstream_task_endpoint
+        
+    def make_nexus(self):
+        self.__class__ = ZMQNexusWorkManager
+        try:
+            sys.stdin.close()
+        except:
+            pass
+        self.context = zmq.Context.instance()
+        self.mode = self.MODE_NEXUS
+        self.shutdown_called = False
+        self.queue_device = zmq.devices.ThreadDevice(zmq.QUEUE, zmq.REP, zmq.REQ)
+        self.forward_thread = None        
                 
 class ZMQMasterWorkManager(ZMQWorkManager):
+    '''The master process'''
     
     def start_threads(self):
         self.ann_thread = threading.Thread(target=self.announcer,name='zmq_announce')
@@ -229,7 +285,7 @@ class ZMQMasterWorkManager(ZMQWorkManager):
     def announcer(self):
         ann_ctl = self.bind_thread_ctl(self.ann_ctl_endpoint)
         ann_socket = self.context.socket(zmq.PUB)
-        ann_socket.bind(self.ann_endpoint)
+        ann_socket.bind(self.upstream_ann_endpoint)
         poller = zmq.Poller()
         poller.register(ann_ctl,zmq.POLLIN)
         
@@ -262,7 +318,7 @@ class ZMQMasterWorkManager(ZMQWorkManager):
         dr_ctl = self.bind_thread_ctl(self.dr_ctl_endpoint)
         
         task_socket = self.context.socket(zmq.REP)
-        task_socket.bind(self.task_endpoint)
+        task_socket.bind(self.upstream_task_endpoint)
         
         poller = zmq.Poller()
         poller.register(dr_ctl, zmq.POLLIN)
@@ -335,6 +391,7 @@ class ZMQMasterWorkManager(ZMQWorkManager):
         self.wait_workers()
 
 class ZMQWorkerWorkManager(ZMQWorkManager):
+    '''A worker process.'''
     
     def start_threads(self):
         self.rdp_thread = threading.Thread(target=self.request_perform_dispatch, name='zmq_rdp')
@@ -353,14 +410,14 @@ class ZMQWorkerWorkManager(ZMQWorkManager):
     def listen_announcements(self):
         ann_socket = self.context.socket(zmq.SUB)
         ann_socket.setsockopt(zmq.SUBSCRIBE,'')
-        ann_socket.connect(self.ann_endpoint)
+        ann_socket.connect(self.upstream_ann_endpoint)
         poller = zmq.Poller()
         poller.register(ann_socket,zmq.POLLIN)
 
         # Before doing anything else, contact the master and announce our presence
         # This will block until the master comes up
         task_socket = self.context.socket(zmq.REQ)
-        task_socket.connect(self.task_endpoint)
+        task_socket.connect(self.upstream_task_endpoint)
         task_socket.send_pyobj(('ping', self.id_str, None))
         task_socket.recv()
         task_socket.close()
@@ -403,7 +460,7 @@ class ZMQWorkerWorkManager(ZMQWorkManager):
                     task_avail = True            
                     while task_avail and not self.shutdown_called:
                         task_socket = self.context.socket(zmq.REQ)
-                        task_socket.connect(self.task_endpoint)
+                        task_socket.connect(self.upstream_task_endpoint)
                         try:
                             log.debug('sending request for task')                        
                             task_socket.send_pyobj(('task', self.id_str, None))
@@ -429,7 +486,7 @@ class ZMQWorkerWorkManager(ZMQWorkManager):
                             # result (that will hang)
                             if not self.shutdown_called:
                                 result_socket = self.context.socket(zmq.REQ)
-                                result_socket.connect(self.task_endpoint)
+                                result_socket.connect(self.upstream_task_endpoint)
                                 try:
                                     log.debug('dispatching result')
                                     result_socket.send_pyobj(('result', self.id_str, result_tuple))
@@ -442,3 +499,48 @@ class ZMQWorkerWorkManager(ZMQWorkManager):
                             
     def shutdown(self, exit_code):
         return 
+
+class ZMQNexusWorkManager(ZMQWorkManager):
+    '''A communication coordination process.'''
+    
+    def start_threads(self):
+        self.queue_device.bind_in(self.downstream_task_endpoint)
+        self.queue_device.connect_out(self.upstream_task_endpoint)
+        log.debug('starting task forwarder')
+        self.queue_device.start()
+        self.forward_thread = threading.Thread(target=self.forward_loop, name='zmq_forward')
+        log.debug('starting announcement forwarder')
+        self.forward_thread.start()
+        self.forward_thread.join()
+            
+    def forward_loop(self):
+        assert self.upstream_ann_endpoint != self.downstream_ann_endpoint
+        
+        log.debug('connecting {!r}'.format(self.upstream_ann_endpoint))
+        upstream_ann = self.context.socket(zmq.SUB)
+        upstream_ann.setsockopt(zmq.SUBSCRIBE,'')
+        upstream_ann.connect(self.upstream_ann_endpoint)
+        downstream_ann = self.context.socket(zmq.PUB)
+        log.debug('binding {!r}'.format(self.downstream_ann_endpoint))
+        downstream_ann.bind(self.downstream_ann_endpoint)
+        
+        poller = zmq.Poller()
+        poller.register(upstream_ann, zmq.POLLIN)
+        while True:
+            poll_results = {fd:flag for (fd, flag) in poller.poll()}
+            
+            if upstream_ann in poll_results:
+                msg = upstream_ann.recv()
+                downstream_ann.send(msg)
+                
+                if msg == 'shutdown':
+                    log.debug('shutdown received')
+                    break
+        
+        log.debug('exiting forward_loop')
+        self.shutdown()
+        
+    def shutdown(self, exit_code=0):
+        self.wait_workers()
+        
+    
