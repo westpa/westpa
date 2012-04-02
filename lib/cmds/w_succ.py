@@ -35,7 +35,7 @@ class WSucc(CommonOutputMixin,WEMDDataReaderMixin,WEMDAnalysisTool):
         for n_iter in xrange(1, self.data_manager.current_iteration):
             seg_index = self.get_seg_index(n_iter)
             all_seg_ids = numpy.arange(len(seg_index), dtype=numpy.int_)
-            recycled_seg_ids = all_seg_ids[seg_index[:]['endpoint_type'] == wemd.Segment.SEG_ENDPOINT_TYPE_RECYCLED]
+            recycled_seg_ids = all_seg_ids[seg_index[:]['endpoint_type'] == wemd.Segment.SEG_ENDPOINT_RECYCLED]
 
             if len(recycled_seg_ids) == 0:
                 # Attemping to retrieve a 0-length selection from HDF5 (the pcoords below) fails
