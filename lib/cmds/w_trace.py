@@ -63,7 +63,7 @@ class WTrace(CommonOutputMixin,WEMDDataReaderMixin,WEMDAnalysisTool):
                 p_parent_id = seg_info['parent_id']                 
                 segments.append(Segment(n_iter=n_iter, seg_id=seg_id, 
                                         weight=seg_info['weight'],
-                                        p_parent_id=p_parent_id,
+                                        parent_id=p_parent_id,
                                         pcoord=final_pcoord))                
                 seg_id = p_parent_id
                 n_iter -= 1
