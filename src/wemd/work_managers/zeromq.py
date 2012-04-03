@@ -247,8 +247,8 @@ class ZMQWorkManager(WEMDWorkManager):
             sys.stdin.close() # so we don't get Ctrl-C
         except:
             pass
-        signal.signal(signal.SIGINT, signal.SIG_IGN) # so we can send SIGINT to a process group we lead
-        os.setpgid(0,0) # make all children exist within the same process group
+        #signal.signal(signal.SIGINT, signal.SIG_IGN) # so we can send SIGINT to a process group we lead
+        #os.setpgid(0,0) # make all children exist within the same process group
         self.rdp_ctl_endpoint = 'inproc://rdp_ctl_{:x}'.format(id(self))
         self.rdp_thread = None
         self.al_thread = None
@@ -401,11 +401,11 @@ class ZMQWorkerWorkManager(ZMQWorkManager):
         self.la_thread.join()
         self.rdp_thread.join()
         
-    def interrupt_children(self):
-        pgid = os.getpgid(0)
-        log.debug('sending SIGINT to process group {:d}'.format(pgid))
-        # Kill child processes
-        os.killpg(pgid, signal.SIGINT)
+#    def interrupt_children(self):
+#        pgid = os.getpgid(0)
+#        log.debug('sending SIGINT to process group {:d}'.format(pgid))
+#        # Kill child processes
+#        os.killpg(pgid, signal.SIGINT)
         
     def listen_announcements(self):
         ann_socket = self.context.socket(zmq.SUB)
@@ -433,7 +433,7 @@ class ZMQWorkerWorkManager(ZMQWorkManager):
                 log.debug('received {:d} announcements'.format(len(announcements)))
                 if 'shutdown' in announcements:
                     log.debug('shutdown message received at client')
-                    self.interrupt_children()
+                    #self.interrupt_children()
                     self.shutdown_called = True
                     self.signal_thread(self.rdp_ctl_endpoint, 'shutdown')
                     break
