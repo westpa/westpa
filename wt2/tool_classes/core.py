@@ -11,7 +11,7 @@ class WEMDTool:
     
     def __init__(self):
         self.config_required = False
-    
+            
     def add_args(self, parser):
         '''Add arguments specific to this tool to the given argparse parser.'''
         wemd.rc.add_args(parser)
