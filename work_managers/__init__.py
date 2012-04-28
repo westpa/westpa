@@ -14,21 +14,22 @@ from collections import deque
 from contextlib import contextmanager
 log = logging.getLogger(__name__)
 
-import wemd
-
-class WEMDWorkManager:
+#class WEMDWorkManager:
+class WorkManager:
     MODE_MASTER = 1
     MODE_WORKER = 2
 
     def __init__(self):
         self.mode = None
-        self._prior_sigint_handler = None
-                                
-    def parse_aux_args(self, aux_args, do_help = False):
-        '''Parse any unprocessed command-line arguments, returning any arguments not proccessed
-        by this object. By default, this does nothing except return the input.'''
-        return aux_args
-    
+        
+    def __enter__(self):
+        self.startup()
+        return self
+        
+    def __exit__(self, exc_type, exc_val, exc_traceback):
+        self.shutdown()
+        return False
+                                    
     def startup(self):
         '''Perform any necessary startup work, such as spawning clients, and return either MODE_MASTER or MODE_WORKER 
         depending on whether this work manager is a master (capable of distributing work) or a worker (capable only
@@ -36,7 +37,7 @@ class WEMDWorkManager:
         self.mode = self.MODE_MASTER
         return self.MODE_MASTER
                                             
-    def shutdown(self, exit_code=0):
+    def shutdown(self):
         '''Cleanly shut down any active workers.'''
         pass
         
@@ -47,6 +48,15 @@ class WEMDWorkManager:
         particularly that off-path modules (like the system module and any active plugins) are not
         picklable unless pre-loaded in the worker process (i.e. prior to forking the master).''' 
         raise NotImplementedError
+    
+    def submit_many(self, tasks):
+        '''Submit a set of tasks to the work manager, returning a list of `WMFuture` objects representing
+        pending results. Each entry in ``tasks`` should be a triple (fn, args, kwargs), which will result in
+        fn(*args, **kwargs) being executed by a worker. The function ``fn`` and all arguments must be
+        picklable; note particularly that off-path modules are not picklable unless pre-loaded in the worker
+        process.'''
+        
+        return [self.submit(fn,*args,**kwargs) for (fn,args,kwargs) in tasks]
     
     def as_completed(self, futures):
         '''Return a generator which yields results from the given ``futures`` as they become
@@ -99,21 +109,7 @@ class WEMDWorkManager:
         for future in futures:
             results.append(future.result)
         return futures
-    
-    def sigint_handler(self, signum, frame):
-        log.info('SIGINT received; signaling work manager shutdown')
-        self.shutdown(2)
-        if self._prior_sigint_handler:
-            try:
-                self._prior_sigint_handler(signum, frame)
-            except TypeError:
-                pass
-        else:
-            raise KeyboardInterrupt
-    
-    def install_sigint_handler(self):
-        self._prior_sigint_handler = signal.signal(signal.SIGINT, self.sigint_handler)
-        
+            
 class FutureWatcher:
     '''A device to wait on multiple results and/or exceptions with only one lock.'''
     
@@ -292,11 +288,11 @@ class WMFuture:
     def get_exception(self):
         '''Get the exception associated with this future, blocking until it is available.'''
         with self._condition:
-            if self._returned:
+            if self._done:
                 return self._exception
             else:
-                assert self._done
                 self._condition.wait()
+                assert self._done
                 return self._exception
     exception = property(get_exception, None, None, get_exception.__doc__)
     
@@ -306,8 +302,8 @@ class WMFuture:
             if self._returned:
                 return self._traceback
             else:
-                assert self._done
                 self._condition.wait()
+                assert self._done
                 return self._traceback
     traceback = property(get_traceback, None, None, get_traceback.__doc__)
     

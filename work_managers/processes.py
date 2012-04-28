@@ -1,9 +1,7 @@
 from __future__ import division, print_function; __metaclass__ = type
 
 import sys, logging, multiprocessing, threading, traceback, signal, os, random
-import argparse
-import wemd
-from wemd.work_managers import WEMDWorkManager, WMFuture
+from . import WorkManager, WMFuture
 
 log = logging.getLogger(__name__)
 
@@ -14,12 +12,12 @@ log = logging.getLogger(__name__)
 task_shutdown_sentinel   = ('shutdown', None, None, (), {})
 result_shutdown_sentinel = ('shutdown', None, None)
 
-class ProcessWorkManager(WEMDWorkManager):
+class ProcessWorkManager(WorkManager):
     '''A work manager using the ``multiprocessing`` module.'''
     
-    def __init__(self):
+    def __init__(self, n_workers = None, shutdown_timeout = 1):
         super(ProcessWorkManager,self).__init__()
-        self.n_workers = None
+        self.n_workers = n_workers or multiprocessing.cpu_count()
         self.workers = None
         self.task_queue = multiprocessing.Queue()
         self.result_queue = multiprocessing.Queue()
@@ -27,23 +25,15 @@ class ProcessWorkManager(WEMDWorkManager):
         self.pending = None
         
         self.shutdown_received = False
-        self.shutdown_timeout = 5
-            
-    def child_handle_interrupt(self, signum, frame):
-        # block sigint temporarily while we send it to child processes by sending it to
-        # our own process group
-        assert signum == signal.SIGINT
-        self.shutdown_received = True
-        prev_handler = signal.signal(signal.SIGINT, signal.SIG_IGN)
-        try:
-            log.info('interrupted')
-            pgid = os.getpgid(0)
-            log.debug('sending SIGINT to process group {:d}'.format(pgid))
-            # Kill child processes
-            os.killpg(pgid, signal.SIGINT)
-        finally:
-            # Restore signal handler
-            signal.signal(signal.SIGINT, prev_handler)
+        self.shutdown_timeout = shutdown_timeout or 1
+        self.prior_sigint_handler = None
+        
+    def sigint_handler(self, signum, frame):
+        self.shutdown()
+        raise KeyboardInterrupt
+        
+    def install_sigint_handler(self):
+        self.prior_sigint_handler = signal.signal(signal.SIGINT, self.sigint_handler)
         
     def task_loop(self):
         # Close standard input, so we don't get SIGINT from ^C
@@ -51,12 +41,6 @@ class ProcessWorkManager(WEMDWorkManager):
             sys.stdin.close()
         except Exception as e:
             log.info("can't close stdin: {}".format(e))
-
-        # Handle SIGINT
-        signal.signal(signal.SIGINT, self.child_handle_interrupt)
-                    
-        # Become our own process group
-        os.setpgid(0,0) 
 
         # (re)initialize random number generator in this process
         random.seed()
@@ -69,7 +53,7 @@ class ProcessWorkManager(WEMDWorkManager):
             
             try:
                 result = fn(*args, **kwargs)
-            except Exception as e:
+            except BaseException as e:
                 result_tuple = ('exception', task_id, (e, traceback.format_exc()))
             else:
                 result_tuple = ('result', task_id, result)
@@ -101,25 +85,7 @@ class ProcessWorkManager(WEMDWorkManager):
         self.pending[ft.task_id] = ft
         self.task_queue.put(('task', ft.task_id, fn, args, kwargs))        
         return ft
-        
-    def parse_aux_args(self, aux_args, do_help = False):
-        parser = argparse.ArgumentParser(usage='%(prog)s [NON_WORK_MANAGER_OPTIONS] [OPTIONS]',
-                                         add_help=False)
-        
-        runtime_config = wemd.rc.config
-        group = parser.add_argument_group('processes work manager options')
                 
-        group.add_argument('-n', type=int, dest='n_workers', default=multiprocessing.cpu_count(),
-                            help='Number of worker processes to run. (Default: %(default)s)')
-        if do_help:
-            parser.print_help()
-            sys.exit(0)
-        args, extra_args = parser.parse_known_args(aux_args)
-        
-        self.n_workers = runtime_config['work_manager.n_workers'] = args.n_workers
-        
-        return extra_args
-        
     def startup(self):
         self.workers = [multiprocessing.Process(target=self.task_loop, 
                                                 name='worker-{:d}'.format(i)) for i in xrange(self.n_workers)]
@@ -127,6 +93,7 @@ class ProcessWorkManager(WEMDWorkManager):
             worker.start()
             
         self.mode = self.MODE_MASTER
+        self.install_sigint_handler()
         self.pending = dict()
 
         self.receive_thread = threading.Thread(target=self.results_loop, name='receiver')
@@ -147,7 +114,7 @@ class ProcessWorkManager(WEMDWorkManager):
             except multiprocessing.queues.Empty:
                 break        
         
-    def shutdown(self, exit_code = 0):
+    def shutdown(self):
         self._empty_queues()
 
         # Send shutdown signal

@@ -2,9 +2,7 @@ from __future__ import division, print_function; __metaclass__ = type
 
 import sys, logging, threading, multiprocessing
 import Queue
-import argparse
-import wemd
-from wemd.work_managers import WEMDWorkManager, WMFuture
+from . import WorkManager, WMFuture
 
 log = logging.getLogger(__name__)
 
@@ -25,12 +23,12 @@ class Task:
             
 ShutdownSentinel = object()
 
-class ThreadsWorkManager(WEMDWorkManager):
+class ThreadsWorkManager(WorkManager):
     '''A work manager using threads.'''
     
-    def __init__(self):
+    def __init__(self, n_workers = None):
         super(ThreadsWorkManager,self).__init__()
-        self.n_workers = None
+        self.n_workers = n_workers or multiprocessing.cpu_count()
         self.workers = []
         self.task_queue = Queue.Queue()
         
@@ -47,25 +45,7 @@ class ThreadsWorkManager(WEMDWorkManager):
         task = Task(fn, args, kwargs, ft)
         self.task_queue.put(task)
         return ft
-        
-    def parse_aux_args(self, aux_args, do_help = False):
-        parser = argparse.ArgumentParser(usage='%(prog)s [NON_WORK_MANAGER_OPTIONS] [OPTIONS]',
-                                         add_help=False)
-        
-        runtime_config = wemd.rc.config
-        group = parser.add_argument_group('threads work manager options')
                 
-        group.add_argument('-n', type=int, dest='n_workers', default=multiprocessing.cpu_count(),
-                            help='Number of worker threads to run. (Default: %(default)s)')
-        if do_help:
-            parser.print_help()
-            sys.exit(0)
-        args, extra_args = parser.parse_known_args(aux_args)
-        
-        self.n_workers = runtime_config['work_manager.n_workers'] = args.n_workers
-        
-        return extra_args
-        
     def startup(self):
         self.workers = [threading.Thread(target=self.runtask, args=[self.task_queue], name='worker-{:d}'.format(i)) 
                         for i in xrange(0, self.n_workers)]
@@ -75,7 +55,7 @@ class ThreadsWorkManager(WEMDWorkManager):
         self.mode = self.MODE_MASTER
         return self.MODE_MASTER
         
-    def shutdown(self, exit_code = 0):
+    def shutdown(self):
         # Put one sentinel on the queue per worker, then wait for threads to terminate
         for i in xrange(0, self.n_workers):
             self.task_queue.put(ShutdownSentinel)

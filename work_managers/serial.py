@@ -4,9 +4,9 @@ import logging, sys
 
 log = logging.getLogger(__name__)
 
-from wemd.work_managers import WEMDWorkManager, WMFuture
+from . import WorkManager, WMFuture
 
-class SerialWorkManager(WEMDWorkManager):
+class SerialWorkManager(WorkManager):
     def __init__(self):
         log.debug('initializing serial work manager')
         super(SerialWorkManager,self).__init__()
