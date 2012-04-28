@@ -147,11 +147,13 @@ class ZMQWMMaster(ZMQWorkManager):
         
         ctlsocket.close()
         
-    def _signal_startup_ctl(self):
-        socket = self.context.socket(zmq.PUSH)
-        socket.connect(self._startup_ctl_endpoint)
-        socket.send('')
+    def _signal_thread(self, endpoint, message='', socket_type=zmq.PUSH):
+        socket = self.context.socket(socket_type)
+        socket.connect(endpoint)
+        socket.send(message)
         socket.close()
+        del socket
+
                         
     def _dispatch_loop(self):
         # a 1-1 mapping between items added to the task queue and ZMQ sends
@@ -162,10 +164,11 @@ class ZMQWMMaster(ZMQWorkManager):
         master_task_socket.bind(self.master_task_endpoint)
 
         # Create a control socket to wake up the loop        
-        ctlsocket = self.context.socket(zmq.PAIR)
+        ctlsocket = self.context.socket(zmq.PULL)
         ctlsocket.bind(self._dispatch_thread_ctl_endpoint)
         
-        self._signal_startup_ctl()
+        #self._signal_startup_ctl()
+        self._signal_thread(self._startup_ctl_endpoint, socket_type=zmq.PUSH)
 
         poller = zmq.Poller()
         poller.register(ctlsocket, zmq.POLLIN)
@@ -199,10 +202,12 @@ class ZMQWMMaster(ZMQWorkManager):
         master_result_socket.bind(self.master_result_endpoint)
 
         # Create a control socket to wake up the loop        
-        ctlsocket = self.context.socket(zmq.PAIR)
+        ctlsocket = self.context.socket(zmq.PULL)
         ctlsocket.bind(self._receive_thread_ctl_endpoint)
         
-        self._signal_startup_ctl()
+        #self._signal_startup_ctl()
+        self._signal_thread(self._startup_ctl_endpoint, socket_type=zmq.PUSH)
+
 
         poller = zmq.Poller()
         poller.register(ctlsocket, zmq.POLLIN)
@@ -253,10 +258,11 @@ class ZMQWMMaster(ZMQWorkManager):
         master_announce_socket.bind(self.master_announce_endpoint)
 
         # Create a control socket to wake up the loop        
-        ctlsocket = self.context.socket(zmq.PAIR)
+        ctlsocket = self.context.socket(zmq.PULL)
         ctlsocket.bind(self._announce_endpoint)
         
-        self._signal_startup_ctl()
+        #self._signal_startup_ctl()
+        self._signal_thread(self._startup_ctl_endpoint, socket_type=zmq.PUSH)
 
         poller = zmq.Poller()
         poller.register(ctlsocket, zmq.POLLIN)
@@ -291,14 +297,25 @@ class ZMQWMMaster(ZMQWorkManager):
             ctlsocket.close()
             
         log.debug('exiting _announce_loop()')
-    
-    def submit(self, fn, *args, **kwargs):
+        
+    def _make_append_task(self, fn, args, kwargs):
         ft = WMFuture()
         task_id = ft.task_id
         task_tuple = (self.instance_id, task_id, fn, args, kwargs)
         self.pending_futures[task_id] = ft
         self.task_queue.append(task_tuple)
         return ft
+    
+    def submit(self, fn, *args, **kwargs):
+        ft = self._make_append_task(fn, args, kwargs)
+        # wake up the dispatch loop
+        self._signal_thread(self._dispatch_thread_ctl_endpoint, socket_type=zmq.PUSH)
+        return ft
+    
+    def submit_many(self, tasks):
+        futures = [self._make_append_task(fn, args, kwargs) for (fn,args,kwargs) in tasks]
+        self._signal_thread(self._dispatch_thread_ctl_endpoint, socket_type=zmq.PUSH)
+        return futures
         
     def shutdown(self):
         if not self._shutdown_signaled:
@@ -306,12 +323,7 @@ class ZMQWMMaster(ZMQWorkManager):
             self._shutdown_signaled = True
             
             for endpoint in (self._dispatch_thread_ctl_endpoint,self._receive_thread_ctl_endpoint,self._announce_endpoint):
-                socket = self.context.socket(zmq.PAIR)
-                socket.connect(endpoint)
-                socket.send('shutdown')
-                socket.close()
-                del socket
-            
+                self._signal_thread(endpoint, 'shutdown', socket_type=zmq.PUSH)            
         
 atexit.register(ZMQWorkManager.remove_ipc_endpoints)
       
