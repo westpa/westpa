@@ -26,14 +26,6 @@ class ProcessWorkManager(WorkManager):
         
         self.shutdown_received = False
         self.shutdown_timeout = shutdown_timeout or 1
-        self.prior_sigint_handler = None
-        
-    def sigint_handler(self, signum, frame):
-        self.shutdown()
-        raise KeyboardInterrupt
-        
-    def install_sigint_handler(self):
-        self.prior_sigint_handler = signal.signal(signal.SIGINT, self.sigint_handler)
         
     def task_loop(self):
         # Close standard input, so we don't get SIGINT from ^C

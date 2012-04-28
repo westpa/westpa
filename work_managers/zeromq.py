@@ -1,6 +1,6 @@
 from __future__ import division, print_function; __metaclass__ = type
 
-import sys, os, logging, socket, multiprocessing, threading, time, traceback, signal, random, tempfile, atexit
+import sys, os, logging, socket, multiprocessing, threading, time, traceback, signal, random, tempfile, atexit, uuid
 import argparse
 from collections import deque
 from Queue import Queue
@@ -39,10 +39,14 @@ class ZMQWorkManager(WorkManager):
         # ZeroMQ context
         self.context = None
         
+        # number of seconds between announcements of where to connect to the master
+        self.master_heartbeat_interval = 10
+        
         # This hostname
         self.hostname = socket.gethostname()
         self.host_id = '{:s}-{:d}'.format(self.hostname, os.getpid())
-        
+        self.instance_id = uuid.uuid4()
+                
         self._ipc_endpoints = []
 
     @classmethod    
@@ -65,7 +69,6 @@ class ZMQWorkManager(WorkManager):
                 log.debug('could not unlink IPC endpoint {!r}: {}'.format(socket_path, e))
             else:
                 log.debug('unlinked IPC endpoint {!r}'.format(socket_path))
-         
     
     def startup(self):
         raise NotImplementedError('this work manager must be made a master or worker before startup')
@@ -84,6 +87,10 @@ class ZMQWorkManager(WorkManager):
 SHUTDOWN_SENTINEL = ('shutdown',)
 
 class ZMQWMMaster(ZMQWorkManager):
+    
+    # tasks are tuples of (task_id, function, args, keyword args)
+    # results are tuples of (task_id, {'result', 'exception'}, value)
+    
     def __init__(self, n_workers, 
                  master_announce_endpoint, master_task_endpoint, master_result_endpoint):
         super(ZMQWMMaster,self).__init__(n_workers)
@@ -98,6 +105,7 @@ class ZMQWMMaster(ZMQWorkManager):
         
         # Where we receive results
         self.master_result_endpoint = master_result_endpoint
+ 
                         
         # tasks awaiting dispatch
         self.task_queue = deque()
@@ -109,8 +117,11 @@ class ZMQWMMaster(ZMQWorkManager):
 
         self._startup_ctl_endpoint = 'inproc://_startup_ctl_{:x}'.format(id(self))
         self._dispatch_thread_ctl_endpoint = 'inproc://_dispatch_thread_ctl_{:x}'.format(id(self))        
-
+        self._receive_thread_ctl_endpoint = 'inproc://_receive_thread_ctl_{:x}'.format(id(self))
+        self._announce_endpoint = 'inproc://_announce_{:x}'.format(id(self))
+        
     def startup(self):
+        # start up server threads, blocking until their sockets are ready
         
         # create an inproc socket to sequence the startup of worker threads
         # each thread needs to write an empty message to this endpoint so
@@ -121,9 +132,18 @@ class ZMQWMMaster(ZMQWorkManager):
         
         #proper use here is to start a thread, then recv, and in the thread func
         #use _signal_startup_ctl() once all its sockets are bound
-        self._dispatch_thread = threading.Thread(target=self._dispatch_loop_zmq)
+        self._dispatch_thread = threading.Thread(target=self._dispatch_loop)
         self._dispatch_thread.start()        
-        ctlsocket.recv()
+        
+        self._receive_thread = threading.Thread(target=self._receive_loop)
+        self._receive_thread.start()
+        
+        self._announce_thread = threading.Thread(target=self._announce_loop)
+        self._announce_thread.start()
+        
+        ctlsocket.recv() # dispatch
+        ctlsocket.recv() # receive
+        ctlsocket.recv() # announce
         
         ctlsocket.close()
         
@@ -171,15 +191,113 @@ class ZMQWMMaster(ZMQWorkManager):
             master_task_socket.close(linger=0)
             ctlsocket.close()
             
-        log.debug('exiting _dispatch_loop()')        
+        log.debug('exiting _dispatch_loop()')
+        
+    def _receive_loop(self):
+        # Bind the result receptor socket
+        master_result_socket = self.context.socket(zmq.PULL)
+        master_result_socket.bind(self.master_result_endpoint)
+
+        # Create a control socket to wake up the loop        
+        ctlsocket = self.context.socket(zmq.PAIR)
+        ctlsocket.bind(self._receive_thread_ctl_endpoint)
+        
+        self._signal_startup_ctl()
+
+        poller = zmq.Poller()
+        poller.register(ctlsocket, zmq.POLLIN)
+        poller.register(master_result_socket, zmq.POLLIN)
+        
+        try:
+            while True:
+                poll_results = dict(poller.poll())
+                if poll_results.get(ctlsocket) == zmq.POLLIN:
+                    messages = recvall(ctlsocket)
+                    if 'shutdown' in messages:
+                        return
+                
+                # results are tuples of (instance_id, task_id, {'result', 'exception'}, value)
+                if poll_results.get(master_result_socket) == zmq.POLLIN:
+                    try:
+                        (instance_id, task_id, result_type, payload) = master_result_socket.recv_pyobj()
+                    except ValueError:
+                        log.error('received malformed result; ignorning')
+                    else:
+                        if instance_id != self.instance_id:
+                            log.error('received result for instance {!s} but this is instance {!s}; zombie process?'
+                                      .format(instance_id, self.instance_id))
+                        
+                        try:
+                            ft = self.pending_futures.pop(task_id)
+                        except KeyError:
+                            log.error('received result for nonexistent task {!s}; zombie client?'.format(task_id))
+                        else: 
+                            if result_type == 'result':
+                                ft._set_result(payload)
+                            elif result_type == 'exception':
+                                ft._set_exception(*payload)
+                            else:
+                                log.error('received unknown result type {!r} for task {!s}; incompatible/zombie client?'
+                                          .format(result_type, task_id))
+        finally:
+            poller.unregister(ctlsocket)
+            poller.unregister(master_result_socket)
+            master_result_socket.close(linger=0)
+            ctlsocket.close()
+            
+        log.debug('exiting _receive_loop()')
+                
+    def _announce_loop(self):
+        # Bind the result receptor socket
+        master_announce_socket = self.context.socket(zmq.PUB)
+        master_announce_socket.bind(self.master_announce_endpoint)
+
+        # Create a control socket to wake up the loop        
+        ctlsocket = self.context.socket(zmq.PAIR)
+        ctlsocket.bind(self._announce_endpoint)
+        
+        self._signal_startup_ctl()
+
+        poller = zmq.Poller()
+        poller.register(ctlsocket, zmq.POLLIN)
+        
+        last_announce = 0
+        remaining_interval = self.master_heartbeat_interval
+        try:
+            while True:
+                poll_results = dict(poller.poll(remaining_interval*1000))
+                if poll_results.get(ctlsocket) == zmq.POLLIN:
+                    messages = recvall(ctlsocket)
+                    if 'shutdown' in messages:
+                        master_announce_socket.send('shutdown')
+                        return
+                    else:
+                        for message in messages:
+                            master_announce_socket.send(message)
+                else:
+                    # timeout
+                    last_announce = time.time()
+                    master_announce_socket.send('ping')
+                   
+                now = time.time() 
+                if now - last_announce < self.master_heartbeat_interval:
+                    remaining_interval = now - last_announce
+                else:
+                    remaining_interval = self.master_heartbeat_interval
+                
+        finally:
+            poller.unregister(ctlsocket)
+            master_announce_socket.close(linger=0)
+            ctlsocket.close()
+            
+        log.debug('exiting _announce_loop()')
     
     def submit(self, fn, *args, **kwargs):
         ft = WMFuture()
         task_id = ft.task_id
-        task_tuple = (task_id, fn, args, kwargs)
+        task_tuple = (self.instance_id, task_id, fn, args, kwargs)
         self.pending_futures[task_id] = ft
         self.task_queue.append(task_tuple)
-        #self.task_queue.put(task_tuple)
         return ft
         
     def shutdown(self):
@@ -187,7 +305,7 @@ class ZMQWMMaster(ZMQWorkManager):
             #self.master_announce_socket.send('shutdown')
             self._shutdown_signaled = True
             
-            for endpoint in (self._dispatch_thread_ctl_endpoint,):
+            for endpoint in (self._dispatch_thread_ctl_endpoint,self._receive_thread_ctl_endpoint,self._announce_endpoint):
                 socket = self.context.socket(zmq.PAIR)
                 socket.connect(endpoint)
                 socket.send('shutdown')

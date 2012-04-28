@@ -21,6 +21,7 @@ class WorkManager:
 
     def __init__(self):
         self.mode = None
+        self.prior_sigint_handler = None
         
     def __enter__(self):
         self.startup()
@@ -29,6 +30,14 @@ class WorkManager:
     def __exit__(self, exc_type, exc_val, exc_traceback):
         self.shutdown()
         return False
+
+    def sigint_handler(self, signum, frame):
+        self.shutdown()
+        raise KeyboardInterrupt
+        
+    def install_sigint_handler(self):
+        self.prior_sigint_handler = signal.signal(signal.SIGINT, self.sigint_handler)
+
                                     
     def startup(self):
         '''Perform any necessary startup work, such as spawning clients, and return either MODE_MASTER or MODE_WORKER 

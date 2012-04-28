@@ -1,27 +1,49 @@
-import os, signal, tempfile, time
+from __future__ import division, print_function; __metaclass__ = type
+import os, signal, tempfile, time, sys
 
 from work_managers import WMFuture
-from work_managers.zeromq import ZMQWorkManager, ZMQWMMaster
+from work_managers.zeromq import ZMQWorkManager, ZMQWMMaster, recvall
 from tsupport import *
 
 import zmq
 
 import nose.tools
-from nose.tools import raises, nottest
+from nose.tools import raises, nottest, timed
 
-class BaseTestZMQWorkManager:                
-    @nose.tools.timed(2)
+class BaseTestZMQWorkManager:
+                    
+    @timed(2)
     def test_shutdown(self):
         work_manager = self.test_master
         work_manager.startup()
-        #time.sleep(0.1)
         work_manager.shutdown()
         time.sleep(0.1)
         work_manager.remove_ipc_endpoints()
         assert not work_manager._dispatch_thread.is_alive(), 'dispatch thread still alive'
+        assert not work_manager._receive_thread.is_alive(), 'receive thread still alive'
+        assert not work_manager._announce_thread.is_alive(), 'announcement thread still alive'
         assert not work_manager._ipc_endpoints, 'IPC endpoints not deleted'
         
-    @nose.tools.timed(2)
+    @timed(2)
+    def test_shutdown_announced(self):
+        work_manager = self.test_master
+        ann_socket = self.test_client_context.socket(zmq.SUB)
+        ann_socket.setsockopt(zmq.SUBSCRIBE,'')        
+        
+        try:
+            work_manager.startup()
+            ann_socket.connect(work_manager.master_announce_endpoint)
+            time.sleep(0.1)
+            work_manager.shutdown()
+            
+            #announcements = recvall(ann_socket)
+            ann = ann_socket.recv()
+            #assert 'shutdown' in announcements
+            assert ann == 'shutdown'
+        finally:
+            ann_socket.close(linger=0)
+        
+    @timed(2)
     def test_submit(self):
         work_manager = self.test_master
         work_manager.startup()
@@ -29,14 +51,17 @@ class BaseTestZMQWorkManager:
         task_socket = self.test_client_context.socket(zmq.PULL)
         task_socket.connect(task_endpoint)
         
-        future = work_manager.submit(identity, 1)
-        assert isinstance(future, WMFuture)
-        task_object = task_socket.recv_pyobj()
-        assert task_object[1] == identity
-        assert tuple(task_object[2]) == (1,)
-        task_socket.close()
+        try:
+            future = work_manager.submit(identity, 1)
+            assert isinstance(future, WMFuture)
+            task_object = task_socket.recv_pyobj()
+            assert task_object[0] == work_manager.instance_id
+            assert task_object[2] == identity
+            assert tuple(task_object[3]) == (1,)
+        finally:
+            task_socket.close(linger=0)
 
-    @nose.tools.timed(2)
+    @timed(2)
     def test_multi_submit(self):
         work_manager = self.test_master
         work_manager.startup()
@@ -44,14 +69,82 @@ class BaseTestZMQWorkManager:
         task_socket = self.test_client_context.socket(zmq.PULL)
         task_socket.connect(task_endpoint)
         
-        futures = [work_manager.submit(identity, i) for i in xrange(5)]
-        params = set()
-        for i in xrange(5):
-            (task_id, fn, args, kwargs) = task_socket.recv_pyobj()
-            assert fn == identity
-            params.add(args)
-        assert params == set((i,) for i in xrange(5))
-        task_socket.close()
+        try:
+            futures = [work_manager.submit(identity, i) for i in xrange(5)]
+            params = set()
+            for i in xrange(5):
+                (instance_id, task_id, fn, args, kwargs) = task_socket.recv_pyobj()
+                assert fn == identity
+                params.add(args)
+            assert params == set((i,) for i in xrange(5))
+        finally:
+            task_socket.close(linger=0)
+    
+    @timed(2)
+    def test_receive_result(self):
+        work_manager = self.test_master
+        work_manager.startup()
+        task_endpoint = work_manager.master_task_endpoint
+        result_endpoint = work_manager.master_result_endpoint
+        task_socket = self.test_client_context.socket(zmq.PULL)
+        result_socket = self.test_client_context.socket(zmq.PUSH)
+        task_socket.connect(task_endpoint)
+        result_socket.connect(result_endpoint)
+        
+        try:
+            future = work_manager.submit(will_succeed)
+            
+            (instance_id, task_id, fn, args, kwargs) = task_socket.recv_pyobj()
+            result_tuple = (instance_id, task_id, 'result', 1)
+            result_socket.send_pyobj(result_tuple)
+            
+            assert future.get_result() == 1
+        finally:        
+            task_socket.close(linger=0)
+            result_socket.close(linger=0)
+        
+    @timed(2)
+    def test_server_heartbeat(self):
+        work_manager = self.test_master
+        work_manager.master_heartbeat_interval = 0.1
+        ann_socket = self.test_client_context.socket(zmq.SUB)
+        ann_socket.setsockopt(zmq.SUBSCRIBE,'')        
+        
+        try:
+            work_manager.startup()
+            ann_socket.connect(work_manager.master_announce_endpoint)
+            time.sleep(0.2)
+            
+            ann = ann_socket.recv()
+            assert ann == 'ping'
+            work_manager.shutdown()
+            
+        finally:
+            ann_socket.close(linger=0)
+
+    @nose.tools.timed(2)
+    def test_sigint_shutdown(self):
+        ann_socket = self.test_client_context.socket(zmq.SUB)
+        ann_socket.setsockopt(zmq.SUBSCRIBE,'')        
+        work_manager = self.test_master
+        work_manager.install_sigint_handler()
+        
+        work_manager.startup()
+        ann_socket.connect(work_manager.master_announce_endpoint)
+        time.sleep(0.1)
+    
+        try:
+            os.kill(os.getpid(), signal.SIGINT)
+        except KeyboardInterrupt:
+            time.sleep(0.1)
+            announcements = [ann_socket.recv()]
+            announcements.extend(recvall(ann_socket))
+            assert 'shutdown' in announcements            
+            assert not work_manager._dispatch_thread.is_alive(), 'dispatch thread still alive'
+            assert not work_manager._receive_thread.is_alive(), 'receive thread still alive'
+            assert not work_manager._announce_thread.is_alive(), 'announcement thread still alive'
+        finally:
+            ann_socket.close(linger=0)
 
 class TestZMQWorkManagerIPC(BaseTestZMQWorkManager):
     def setUp(self):
@@ -67,6 +160,7 @@ class TestZMQWorkManagerIPC(BaseTestZMQWorkManager):
         self.test_client_context.term()
         del self.test_master, self.test_client_context
 
+#@nose.SkipTest
 class TestZMQWorkManagerTCP(BaseTestZMQWorkManager):
     def setUp(self):
         self.test_client_context = zmq.Context()
