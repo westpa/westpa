@@ -2,7 +2,7 @@ from __future__ import division, print_function; __metaclass__ = type
 import os, signal, tempfile, time, sys
 
 from work_managers import WMFuture
-from work_managers.zeromq import ZMQWorkManager, ZMQWMMaster, recvall
+from work_managers.zeromq import ZMQMaster, ZMQBase, ZMQWorkManager, recvall
 from tsupport import *
 
 import zmq
@@ -149,10 +149,10 @@ class BaseTestZMQWorkManager:
 class TestZMQWorkManagerIPC(BaseTestZMQWorkManager):
     def setUp(self):
         self.test_client_context = zmq.Context()
-        task_endpoint = ZMQWorkManager.make_ipc_endpoint()
-        result_endpoint = ZMQWorkManager.make_ipc_endpoint()
-        ann_endpoint = ZMQWorkManager.make_ipc_endpoint()
-        self.test_master = ZMQWMMaster(None, ann_endpoint, task_endpoint, result_endpoint)
+        task_endpoint = ZMQBase.make_ipc_endpoint()
+        result_endpoint = ZMQBase.make_ipc_endpoint()
+        ann_endpoint = ZMQBase.make_ipc_endpoint()
+        self.test_master = ZMQWorkManager(None, ann_endpoint, task_endpoint, result_endpoint)
         
     def tearDown(self):
         self.test_master.shutdown()
@@ -167,7 +167,7 @@ class TestZMQWorkManagerTCP(BaseTestZMQWorkManager):
         ann_endpoint = 'tcp://127.0.0.1:23811'
         task_endpoint = 'tcp://127.0.0.1:23812'
         result_endpoint = 'tcp://127.0.0.1:23813'
-        self.test_master = ZMQWMMaster(None, ann_endpoint, task_endpoint, result_endpoint)
+        self.test_master = ZMQWorkManager(None, ann_endpoint, task_endpoint, result_endpoint)
 
     def tearDown(self):
         self.test_master.shutdown()

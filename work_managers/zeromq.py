@@ -26,16 +26,11 @@ def recvall(socket):
                 return messages
             else:
                 raise
-    
-class ZMQWorkManager(WorkManager):
+            
+class ZMQBase:
     _ipc_endpoints = []
-    
-    def __init__(self, n_workers = None):
-        super(ZMQWorkManager,self).__init__()
-        
-        # Number of worker processes
-        self.n_workers = n_workers or multiprocessing.cpu_count()
-                
+
+    def __init__(self):
         # ZeroMQ context
         self.context = None
         
@@ -46,8 +41,6 @@ class ZMQWorkManager(WorkManager):
         self.hostname = socket.gethostname()
         self.host_id = '{:s}-{:d}'.format(self.hostname, os.getpid())
         self.instance_id = uuid.uuid4()
-                
-        self._ipc_endpoints = []
 
     @classmethod    
     def make_ipc_endpoint(cls):
@@ -71,11 +64,11 @@ class ZMQWorkManager(WorkManager):
                 log.debug('unlinked IPC endpoint {!r}'.format(socket_path))
     
     def startup(self):
-        raise NotImplementedError('this work manager must be made a master or worker before startup')
+        raise NotImplementedError
     
     def shutdown(self):
         raise NotImplementedError
-    
+
     def __enter__(self):
         self.startup()
         return self
@@ -83,19 +76,20 @@ class ZMQWorkManager(WorkManager):
     def __exit__(self, exc_type, exc_val, exc_traceback):
         self.shutdown()
         return False
-    
-SHUTDOWN_SENTINEL = ('shutdown',)
 
-class ZMQWMMaster(ZMQWorkManager):
+class ZMQMaster(ZMQBase):
     
     # tasks are tuples of (task_id, function, args, keyword args)
     # results are tuples of (task_id, {'result', 'exception'}, value)
     
     def __init__(self, n_workers, 
                  master_announce_endpoint, master_task_endpoint, master_result_endpoint):
-        super(ZMQWMMaster,self).__init__(n_workers)
+        super(ZMQMaster, self).__init__()
+        
         
         self.context = zmq.Context.instance()
+        
+        self.n_workers = n_workers or multiprocessing.cpu_count()
         
         # Where we send out announcements
         self.master_announce_endpoint = master_announce_endpoint
@@ -167,7 +161,6 @@ class ZMQWMMaster(ZMQWorkManager):
         ctlsocket = self.context.socket(zmq.PULL)
         ctlsocket.bind(self._dispatch_thread_ctl_endpoint)
         
-        #self._signal_startup_ctl()
         self._signal_thread(self._startup_ctl_endpoint, socket_type=zmq.PUSH)
 
         poller = zmq.Poller()
@@ -324,6 +317,12 @@ class ZMQWMMaster(ZMQWorkManager):
             
             for endpoint in (self._dispatch_thread_ctl_endpoint,self._receive_thread_ctl_endpoint,self._announce_endpoint):
                 self._signal_thread(endpoint, 'shutdown', socket_type=zmq.PUSH)            
+
+class ZMQWorkManager(ZMQMaster,WorkManager):
+    pass
+
+class ZMQWMClient(ZMQBase):
+    pass
         
-atexit.register(ZMQWorkManager.remove_ipc_endpoints)
+atexit.register(ZMQBase.remove_ipc_endpoints)
       
