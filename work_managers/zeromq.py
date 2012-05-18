@@ -1,3 +1,49 @@
+"""
+A work manager which uses ZeroMQ messaging over TCP or Unix sockets to 
+distribute tasks and collect results.
+
+The server master process streams out tasks via a PUSH socket to clients,
+then receives results through a PULL socket. A PUB socket is used
+to send critical messages -- currently, "shutdown" and "ping" (master is
+alive) messages.
+
+The client process is more complex.  A "master client" is responsible
+for starting a number of worker processes, then forwarding tasks and
+results beween them and the server.  The master client is also
+responsible for detecting hung workers and killing them, reporting
+a failure to the server. Further, each client listens for periodic
+pings from the server, and will shut down if a ping is not received
+in a specific time frame (indicating a crashed master).
+
+Task messages are pickled tuples of the form::
+
+  (instance_id, task_id, fn, args, kwargs)
+  
+where ``instance_id`` is an identifier indicating the server which has
+dispatched the instance (for detecting duplicate servers), ``task_id`` is
+an ID uniquely identifying the task, and the remaining elements are the
+task itself, which is executed as ``fn(*args,**kwargs)``.
+
+Results messages are pickled tuples of the form::
+
+  (instance_id, task_id, result_type, payload)
+
+where ``instance_id`` must be the instance identifier of the originating
+server process (to check for crashed and restarted master processes),
+``task_id`` is the task to which the result corresponts, ``result_type``
+is either 'result' indicating a successful invocation of the task 
+function, or 'exception' indicating that an exception occurred executing the
+task function. ``payload`` is either the return value of the task function,
+or an ``(exception, traceback_str)`` tuple, where ``exception`` is the 
+exception raised while calling the task function, and ``traceback_str`` is
+a formatted traceback.
+
+Announcement messages are simple strings, either 'shutdown' to direct clients
+to shut down, or 'ping' to announce that the server is still alive.
+
+"""
+
+
 from __future__ import division, print_function; __metaclass__ = type
 
 import sys, os, logging, socket, multiprocessing, threading, time, traceback, signal, random, tempfile, atexit, uuid
@@ -35,7 +81,7 @@ class ZMQBase:
         self.context = None
         
         # number of seconds between announcements of where to connect to the master
-        self.master_heartbeat_interval = 10
+        self.server_heartbeat_interval = 10
         
         # This hostname
         self.hostname = socket.gethostname()
@@ -76,30 +122,34 @@ class ZMQBase:
     def __exit__(self, exc_type, exc_val, exc_traceback):
         self.shutdown()
         return False
-
-class ZMQMaster(ZMQBase):
+    
+    def _signal_thread(self, endpoint, message='', socket_type=zmq.PUSH):
+        socket = self.context.socket(socket_type)
+        socket.connect(endpoint)
+        socket.send(message)
+        socket.close()
+        del socket
+    
+class ZMQWMServer(ZMQBase):
     
     # tasks are tuples of (task_id, function, args, keyword args)
     # results are tuples of (task_id, {'result', 'exception'}, value)
     
-    def __init__(self, n_workers, 
-                 master_announce_endpoint, master_task_endpoint, master_result_endpoint):
-        super(ZMQMaster, self).__init__()
+    def __init__(self, master_task_endpoint, master_result_endpoint, master_announce_endpoint):
+        super(ZMQWMServer, self).__init__()
         
         
         self.context = zmq.Context.instance()
-        
-        self.n_workers = n_workers or multiprocessing.cpu_count()
-        
-        # Where we send out announcements
-        self.master_announce_endpoint = master_announce_endpoint
-        
+                        
         # where we send out work
         self.master_task_endpoint = master_task_endpoint
         
         # Where we receive results
         self.master_result_endpoint = master_result_endpoint
  
+         # Where we send out announcements
+        self.master_announce_endpoint = master_announce_endpoint
+
                         
         # tasks awaiting dispatch
         self.task_queue = deque()
@@ -141,13 +191,6 @@ class ZMQMaster(ZMQBase):
         
         ctlsocket.close()
         
-    def _signal_thread(self, endpoint, message='', socket_type=zmq.PUSH):
-        socket = self.context.socket(socket_type)
-        socket.connect(endpoint)
-        socket.send(message)
-        socket.close()
-        del socket
-
                         
     def _dispatch_loop(self):
         # a 1-1 mapping between items added to the task queue and ZMQ sends
@@ -261,7 +304,7 @@ class ZMQMaster(ZMQBase):
         poller.register(ctlsocket, zmq.POLLIN)
         
         last_announce = 0
-        remaining_interval = self.master_heartbeat_interval
+        remaining_interval = self.server_heartbeat_interval
         try:
             while True:
                 poll_results = dict(poller.poll(remaining_interval*1000))
@@ -279,10 +322,10 @@ class ZMQMaster(ZMQBase):
                     master_announce_socket.send('ping')
                    
                 now = time.time() 
-                if now - last_announce < self.master_heartbeat_interval:
+                if now - last_announce < self.server_heartbeat_interval:
                     remaining_interval = now - last_announce
                 else:
-                    remaining_interval = self.master_heartbeat_interval
+                    remaining_interval = self.server_heartbeat_interval
                 
         finally:
             poller.unregister(ctlsocket)
@@ -318,11 +361,100 @@ class ZMQMaster(ZMQBase):
             for endpoint in (self._dispatch_thread_ctl_endpoint,self._receive_thread_ctl_endpoint,self._announce_endpoint):
                 self._signal_thread(endpoint, 'shutdown', socket_type=zmq.PUSH)            
 
-class ZMQWorkManager(ZMQMaster,WorkManager):
+class ZMQWMClient(ZMQBase):
+    '''A multiplexing client, responsible for spawning worker processes,
+    monitoring them, and forwarding traffic between workers and the server.
+    Also will shut down if the server disappears.'''
+    
+    def __init__(self, n_workers,
+                 upstream_task_endpoint, upstream_result_endpoint, upstream_announce_endpoint, 
+                 downstream_task_endpoint, downstream_result_endpoint):
+        super(ZMQWMClient, self).__init__()
+        
+        self.n_workers = n_workers or multiprocessing.cpu_count()
+        
+        # cannot initialize context until after forks
+        #self.context = zmq.Context.instance()
+        self.context = None
+        
+        # Where we receive work, dispatch results, and receive announcements
+        self.upstream_announce_endpoint = upstream_announce_endpoint
+        self.upstream_task_endpoint = upstream_task_endpoint
+        self.upstream_result_endpoint = upstream_result_endpoint
+        
+        # Where we forward work, and collect results
+        self.downstream_task_endpoint = downstream_task_endpoint
+        self.downstream_result_endpoint = downstream_result_endpoint
+        
+        # Queues of tasks and results
+        #self.task_queue = deque()
+        #self.pending_results = dict()
+        
+        # Information about worker processes
+        self.workers = []
+        
+        
+        
+    def startup(self):
+        pass
+    
+    def shutdown(self):
+        pass
+
+class ZMQWMClientWorkerProcess(ZMQBase):
+    '''A worker process'''
+    
+    def __init__(self, upstream_task_endpoint, upstream_result_endpoint):
+        self.upstream_task_endpoint = upstream_task_endpoint
+        self.upstream_result_endpoint = upstream_result_endpoint
+        
+    def run(self):
+        '''Run the receive-perform-dispatch loop, which is terminated only
+        by SIGINT'''
+        
+        self.context = zmq.Context.instance()
+        
+        # reinitialize random number generator in this process
+        random.seed()
+        
+        task_socket = self.context.socket(zmq.PULL)
+        result_socket = self.context.socket(zmq.PUSH)
+        task_socket.connect(self.upstream_task_endpoint)
+        result_socket.connect(self.upstream_result_endpoint)
+        
+        associated_server = None
+        try:
+            while True:
+                (server_id, task_id, fn, args, kwargs) = task_socket.recv_pyobj()
+                if associated_server is None:
+                    associated_server = server_id
+                elif server_id != associated_server:
+                    log.error('received task from {} when expecting task from {} (zombie process?); exiting'
+                              .format(server_id, associated_server))
+                    sys.exit(2)
+                    
+                try:
+                    result = fn(*args, **kwargs)
+                except Exception as e:
+                    result_tuple = (server_id, task_id, 'exception', (e, traceback.format_exc()))
+                else:
+                    result_tuple = (server_id, task_id, 'result', result)
+                result_socket.send_pyobj(result_tuple)
+        except KeyboardInterrupt:
+            log.info('received SIGINT; shutting down cleanly')
+            sys.exit(0)
+        finally:
+            pass
+            #task_socket.close(linger=0)
+            #result_socket.close(linger=0)
+            
+    startup = run
+        
+
+
+class ZMQWorkManager(ZMQWMServer,WorkManager):
     pass
 
-class ZMQWMClient(ZMQBase):
-    pass
         
 atexit.register(ZMQBase.remove_ipc_endpoints)
       

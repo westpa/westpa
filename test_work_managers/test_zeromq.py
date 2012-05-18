@@ -1,8 +1,8 @@
 from __future__ import division, print_function; __metaclass__ = type
-import os, signal, tempfile, time, sys
+import os, signal, tempfile, time, sys, multiprocessing, uuid
 
 from work_managers import WMFuture
-from work_managers.zeromq import ZMQMaster, ZMQBase, ZMQWorkManager, recvall
+from work_managers.zeromq import ZMQBase, ZMQWorkManager, ZMQWMClientWorkerProcess, recvall
 from tsupport import *
 
 import zmq
@@ -10,7 +10,7 @@ import zmq
 import nose.tools
 from nose.tools import raises, nottest, timed
 
-class BaseTestZMQWorkManager:
+class BaseTestZMQWMServer:
                     
     @timed(2)
     def test_shutdown(self):
@@ -106,7 +106,7 @@ class BaseTestZMQWorkManager:
     @timed(2)
     def test_server_heartbeat(self):
         work_manager = self.test_master
-        work_manager.master_heartbeat_interval = 0.1
+        work_manager.server_heartbeat_interval = 0.1
         ann_socket = self.test_client_context.socket(zmq.SUB)
         ann_socket.setsockopt(zmq.SUBSCRIBE,'')        
         
@@ -146,13 +146,13 @@ class BaseTestZMQWorkManager:
         finally:
             ann_socket.close(linger=0)
 
-class TestZMQWorkManagerIPC(BaseTestZMQWorkManager):
+class TestZMQWMServerIPC(BaseTestZMQWMServer):
     def setUp(self):
         self.test_client_context = zmq.Context()
         task_endpoint = ZMQBase.make_ipc_endpoint()
         result_endpoint = ZMQBase.make_ipc_endpoint()
         ann_endpoint = ZMQBase.make_ipc_endpoint()
-        self.test_master = ZMQWorkManager(None, ann_endpoint, task_endpoint, result_endpoint)
+        self.test_master = ZMQWorkManager(task_endpoint, result_endpoint, ann_endpoint)
         
     def tearDown(self):
         self.test_master.shutdown()
@@ -161,17 +161,58 @@ class TestZMQWorkManagerIPC(BaseTestZMQWorkManager):
         del self.test_master, self.test_client_context
 
 #@nose.SkipTest
-class TestZMQWorkManagerTCP(BaseTestZMQWorkManager):
+class TestZMQWMServerTCP(BaseTestZMQWMServer):
     def setUp(self):
         self.test_client_context = zmq.Context()
         ann_endpoint = 'tcp://127.0.0.1:23811'
         task_endpoint = 'tcp://127.0.0.1:23812'
         result_endpoint = 'tcp://127.0.0.1:23813'
-        self.test_master = ZMQWorkManager(None, ann_endpoint, task_endpoint, result_endpoint)
+        self.test_master = ZMQWorkManager(task_endpoint, result_endpoint, ann_endpoint)
 
     def tearDown(self):
         self.test_master.shutdown()
         self.test_client_context.term()
         del self.test_master, self.test_client_context
-
+        
+class TestZMQZClientWorkerProcess:
+    def setUp(self):
+        
+        task_endpoint = 'tcp://127.0.0.1:23812'
+        result_endpoint = 'tcp://127.0.0.1:23813'
+        self.fake_server_id = uuid.uuid4()
+        self.test_client = ZMQWMClientWorkerProcess(task_endpoint, result_endpoint)
+        self.test_process = multiprocessing.Process(target=self.test_client.startup)
+        self.test_process.start()
+        self.test_context = zmq.Context()
             
+    def tearDown(self):
+        os.kill(self.test_process.pid, signal.SIGINT)
+        self.test_process.join(timeout=1000)
+        if self.test_process.is_alive():
+            # kill the entire process group
+            pgid = os.getpgid(self.test_process.pid)
+            os.killpg(pgid, signal.SIGTERM)
+            self.test_process.join()
+
+    def test_task(self):
+        assert True
+        return
+    
+        task_socket = self.test_context.socket(zmq.PUSH)
+        result_socket = self.test_context.socket(zmq.PULL)
+        task_socket.bind(self.test_client.upstream_task_endpoint)
+        result_socket.bind(self.test_client.upstream_result_endpoint)
+        
+        task_id = uuid.uuid4()
+        task_tuple = (self.fake_server_id, task_id, identity, 1)
+        
+        try:
+            task_socket.send_pyobj(task_tuple)
+            result_tuple = result_socket.recv_pyobj()
+            assert result_tuple == (self.fake_server_id, task_id, 1)
+        finally:
+            task_socket.close(linger=0)
+            result_socket.close(linger=0)
+        
+        
+        
