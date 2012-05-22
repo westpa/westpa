@@ -1,8 +1,8 @@
 from __future__ import division, print_function; __metaclass__ = type
-import os, signal, tempfile, time, sys, multiprocessing, uuid
+import os, signal, tempfile, time, sys, multiprocessing, uuid, errno
 
 from work_managers import WMFuture
-from work_managers.zeromq import ZMQBase, ZMQWorkManager, ZMQWMClientWorkerProcess, recvall
+from work_managers.zeromq import ZMQBase, ZMQWorkManager, ZMQWMClientWorker, recvall
 from tsupport import *
 
 import zmq
@@ -161,43 +161,54 @@ class TestZMQWMServerIPC(BaseTestZMQWMServer):
         del self.test_master, self.test_client_context
 
 #@nose.SkipTest
-class TestZMQWMServerTCP(BaseTestZMQWMServer):
+class TestZMQWMServerTCP(BaseTestZMQWMServer,TCPSupport):
     def setUp(self):
         self.test_client_context = zmq.Context()
-        ann_endpoint = 'tcp://127.0.0.1:23811'
-        task_endpoint = 'tcp://127.0.0.1:23812'
-        result_endpoint = 'tcp://127.0.0.1:23813'
+        ann_endpoint = 'tcp://127.0.0.1:{}'.format(self.getport())
+        task_endpoint = 'tcp://127.0.0.1:{}'.format(self.getport())
+        result_endpoint = 'tcp://127.0.0.1:{}'.format(self.getport())
         self.test_master = ZMQWorkManager(task_endpoint, result_endpoint, ann_endpoint)
 
     def tearDown(self):
         self.test_master.shutdown()
         self.test_client_context.term()
         del self.test_master, self.test_client_context
-        
-class TestZMQZClientWorkerProcess:
+
+@nose.SkipTest        
+class TestZMQZClientWorkerProcess(TCPSupport):
     def setUp(self):
         
-        task_endpoint = 'tcp://127.0.0.1:23812'
-        result_endpoint = 'tcp://127.0.0.1:23813'
+        task_endpoint = 'tcp://127.0.0.1:{}'.format(self.getport())
+        result_endpoint = 'tcp://127.0.0.1:{}'.format(self.getport())
         self.fake_server_id = uuid.uuid4()
-        self.test_client = ZMQWMClientWorkerProcess(task_endpoint, result_endpoint)
+        self.test_client = ZMQWMClientWorker(task_endpoint, result_endpoint)
         self.test_process = multiprocessing.Process(target=self.test_client.startup)
         self.test_process.start()
         self.test_context = zmq.Context()
             
-    def tearDown(self):
-        os.kill(self.test_process.pid, signal.SIGINT)
-        self.test_process.join(timeout=1000)
+    def tearDown(self):        
         if self.test_process.is_alive():
-            # kill the entire process group
+            # kill the entire process group, but not before
+            # the worker gets a chance to setsid()
+            while os.getpgid(self.test_process.pid) == os.getpgrp():
+                continue
             pgid = os.getpgid(self.test_process.pid)
-            os.killpg(pgid, signal.SIGTERM)
-            self.test_process.join()
-
+            assert pgid != os.getpgrp()
+            try:
+                os.killpg(pgid, signal.SIGINT)
+            except OSError as e:
+                if e.errno != errno.ESRCH:
+                    raise
+                
+            self.test_process.join(1)
+            
+            try:
+                os.killpg(pgid, signal.SIGTERM)
+            except OSError as e:
+                if e.errno != errno.ESRCH:
+                    raise
+    @timed(2)    
     def test_task(self):
-        assert True
-        return
-    
         task_socket = self.test_context.socket(zmq.PUSH)
         result_socket = self.test_context.socket(zmq.PULL)
         task_socket.bind(self.test_client.upstream_task_endpoint)

@@ -9,7 +9,7 @@ alive) messages.
 
 The client process is more complex.  A "master client" is responsible
 for starting a number of worker processes, then forwarding tasks and
-results beween them and the server.  The master client is also
+results between them and the server.  The master client is also
 responsible for detecting hung workers and killing them, reporting
 a failure to the server. Further, each client listens for periodic
 pings from the server, and will shut down if a ping is not received
@@ -108,6 +108,15 @@ class ZMQBase:
                 log.debug('could not unlink IPC endpoint {!r}: {}'.format(socket_path, e))
             else:
                 log.debug('unlinked IPC endpoint {!r}'.format(socket_path))
+                
+    def get_port(self, host='127.0.0.1'):
+        '''Get an unused port. This is not atomic, but may be sufficient in certain 
+        cases.'''
+        s = socket.socket()
+        s.bind((host,0))
+        port = s.getsockname()[1]
+        s.close()
+        return port
     
     def startup(self):
         raise NotImplementedError
@@ -367,8 +376,8 @@ class ZMQWMClient(ZMQBase):
     Also will shut down if the server disappears.'''
     
     def __init__(self, n_workers,
-                 upstream_task_endpoint, upstream_result_endpoint, upstream_announce_endpoint, 
-                 downstream_task_endpoint, downstream_result_endpoint):
+                 upstream_task_endpoint, upstream_result_endpoint, upstream_announce_endpoint,
+                 downstream_mode = 'ipc'):
         super(ZMQWMClient, self).__init__()
         
         self.n_workers = n_workers or multiprocessing.cpu_count()
@@ -381,11 +390,10 @@ class ZMQWMClient(ZMQBase):
         self.upstream_announce_endpoint = upstream_announce_endpoint
         self.upstream_task_endpoint = upstream_task_endpoint
         self.upstream_result_endpoint = upstream_result_endpoint
-        
-        # Where we forward work, and collect results
-        self.downstream_task_endpoint = downstream_task_endpoint
-        self.downstream_result_endpoint = downstream_result_endpoint
-        
+
+        self._startup_ctl_endpoint = 'inproc://_startup_ctl_{:x}'.format(id(self))
+        self._announce_ctl_endpoint = 'inproc://_announce_{:x}'.format(id(self))
+                
         # Queues of tasks and results
         #self.task_queue = deque()
         #self.pending_results = dict()
@@ -393,27 +401,87 @@ class ZMQWMClient(ZMQBase):
         # Information about worker processes
         self.workers = []
         
+    def task_streamer_loop(self):
+        '''Receive tasks from the server on behalf of clients.'''
         
+    def result_streamer_loop(self):
+        '''Dispatch results to the server on behalf of clients.'''
+        
+    def monitor_announcements_loop(self):
+        '''Listen for announcements from the server (and internally about
+        worker processes).'''
+        
+        ann_socket = self.context.socket(zmq.SUB)
+        ann_socket.setsockopt(zmq.SUBSCRIBE,'')
+        ann_socket.connect(self.upstream_announce_endpoint)
+        
+        ctlsocket = self.context.socket(zmq.PULL)
+        ctlsocket.bind(self._announce_ctl_endpoint)
+        
+        poller = zmq.Poller()
+        poller.register(ctlsocket, zmq.POLLIN)
+        poller.register(ann_socket, zmq.POLLIN)
+        
+        last_announce = None
+        remaining_interval = None
+        try:
+            while True:
+                poll_results = dict(poller.poll(remaining_interval))
+                if poll_results.get(ann_socket) == zmq.POLLIN:
+                    message = ann_socket.recv()
+                    if message == 'shutdown':
+                        self.shutdown()
+                        return
+                    elif message == 'ping':
+                        last_announce = time.time()
+                        remaining_interval = self.server_heartbeat_interval * 1000
+                                           
+                now = time.time() 
+                if now - last_announce < self.server_heartbeat_interval:
+                    remaining_interval = (now - last_announce) * 1000
+                else:
+                    remaining_interval = self.server_heartbeat_interval * 1000
+                
+        finally:
+            poller.unregister(ctlsocket)
+            poller.unregister(ann_socket)
+            ann_socket.close(linger=0)
+            ctlsocket.close()
+            
+        
+    def monitor_worker_loop(self):
+        '''Spawn a worker process and monitor it.'''
         
     def startup(self):
-        pass
+        '''Fork worker processes and begin monitoring the server.'''
     
     def shutdown(self):
-        pass
+        '''Terminate worker processes and shut down'''
+                
 
-class ZMQWMClientWorkerProcess(ZMQBase):
+class ZMQWMClientWorker(ZMQBase):
     '''A worker process'''
     
     def __init__(self, upstream_task_endpoint, upstream_result_endpoint):
         self.upstream_task_endpoint = upstream_task_endpoint
         self.upstream_result_endpoint = upstream_result_endpoint
         
-    def run(self):
-        '''Run the receive-perform-dispatch loop, which is terminated only
-        by SIGINT'''
-        
-        self.context = zmq.Context.instance()
-        
+    def startup(self):
+        # Become a session leader so that we can kill child processes with this
+        # process by killing the process group
+        os.setsid()
+        os.setpgrp()
+        self.context = zmq.Context()
+        rc = 4
+        try:
+            rc = self._rpd_loop()
+        finally:
+            self.context.destroy(linger=0)
+            del self.context
+            sys.exit(rc)
+            
+    def _rpd_loop(self):
+        '''Run the receive-perform-dispatch loop'''
         # reinitialize random number generator in this process
         random.seed()
         
@@ -421,7 +489,6 @@ class ZMQWMClientWorkerProcess(ZMQBase):
         result_socket = self.context.socket(zmq.PUSH)
         task_socket.connect(self.upstream_task_endpoint)
         result_socket.connect(self.upstream_result_endpoint)
-        
         associated_server = None
         try:
             while True:
@@ -431,8 +498,8 @@ class ZMQWMClientWorkerProcess(ZMQBase):
                 elif server_id != associated_server:
                     log.error('received task from {} when expecting task from {} (zombie process?); exiting'
                               .format(server_id, associated_server))
-                    sys.exit(2)
-                    
+                    return 2
+    
                 try:
                     result = fn(*args, **kwargs)
                 except Exception as e:
@@ -442,14 +509,10 @@ class ZMQWMClientWorkerProcess(ZMQBase):
                 result_socket.send_pyobj(result_tuple)
         except KeyboardInterrupt:
             log.info('received SIGINT; shutting down cleanly')
-            sys.exit(0)
+            return 0
         finally:
-            pass
-            #task_socket.close(linger=0)
-            #result_socket.close(linger=0)
-            
-    startup = run
-        
+            task_socket.close(linger=0)
+            result_socket.close(linger=0)
 
 
 class ZMQWorkManager(ZMQWMServer,WorkManager):
