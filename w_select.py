@@ -37,10 +37,11 @@ def find_matching_segments(predicate, invert_predicate=False, ancestors=True, da
             
             match_pairs.extend((n_iter, seg_id) for seg_id in matching_ids)
             
+        del iter_group
+            
     return match_pairs
         
     
-
 class WSelectTool(WEMDTool):
     prog='w_select'
     description = '''\

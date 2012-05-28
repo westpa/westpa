@@ -11,6 +11,21 @@ class WEMDTool:
     
     def __init__(self):
         self.config_required = False
+        self.include_args = {}
+        
+    def include_arg(self, argname):
+        self.include_args[argname] = True
+        
+    def exclude_arg(self, argname):
+        self.include_args[argname] = False
+        
+    def get_arg_group(self, groupname, parser):
+        try:
+            return self.arg_group[groupname]
+        except KeyError:
+            group = parser.add_argument_group(groupname)
+            self.arg_group[groupname] = group
+            return group
             
     def add_args(self, parser):
         '''Add arguments specific to this tool to the given argparse parser.'''
