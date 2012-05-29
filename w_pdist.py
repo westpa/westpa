@@ -81,14 +81,26 @@ class HistogramHelper:
         for n_iter in xrange(start_iter, stop_iter):
             seg_ids = sorted(self.segment_selection.from_iter(n_iter))
             weights = self.data_manager.get_weights(n_iter, seg_ids)
-            for iseg, seg_id in enumerate(seg_ids):
-                values = numpy.asarray(dsspec[n_iter,seg_id], dtype=numpy.float64)
-                try:
-                    hist(values, binbounds, out=whist, cweight=weights[iseg], binbound_check=False)
-                except:
-                    log.exception('exception for segment {}:{}'.format(n_iter,seg_id))
-                    raise
-                del values
+            if dsspec.indexed:
+                for iseg, seg_id in enumerate(seg_ids):
+                    values = numpy.asarray(dsspec[n_iter,seg_id], dtype=numpy.float64)
+                    try:
+                        hist(values, binbounds, out=whist, cweight=weights[iseg], binbound_check=False)
+                    except:
+                        log.exception('exception for segment {}:{}'.format(n_iter,seg_id))
+                        raise
+                    del values
+            else:
+                all_values = dsspec[n_iter]
+                for iseg, seg_id in enumerate(seg_ids):
+                    values = numpy.asarray(all_values[seg_id], dtype=numpy.float64)
+                    try:
+                        hist(values, binbounds, out=whist, cweight=weights[iseg], binbound_check=False)
+                    except:
+                        log.exception('exception for segment {}:{}'.format(n_iter,seg_id))
+                        raise
+                    del values
+                del all_values
             
             del seg_ids, weights
 

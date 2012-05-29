@@ -8,5 +8,6 @@ numpy_include = numpy.get_include()
 setup(cmdclass = {'build_ext': build_ext},
       ext_modules = [Extension("fasthist._fasthist", 
                                ["fasthist/_fasthist.pyx"], #,"fasthist/_fasthist_supp.c"], 
-                               include_dirs=['.', numpy_include])])
+                               include_dirs=['.', numpy_include],
+                               extra_compile_args=['-O2'])])
 

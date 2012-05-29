@@ -207,7 +207,9 @@ class ByIterDataSelection(DataSelection):
         iter_group = self._get_iter_group(n_iter)
         return iter_group[self.source_dsname][itpl]
         
-    
+    @property
+    def indexed(self):
+        return bool(self.index)
     
     
     

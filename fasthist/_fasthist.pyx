@@ -18,8 +18,8 @@ def hist(values, binbounds, out = None,
             raise ValueError('binbounds is not strictly monotonically increasing')
     
     cdef numpy.uint64_t ival, nval
-    cdef numpy.int32_t ibb, nbb, ibb0, ibboff
-    cdef double val, minbound, maxbound, lb, ub
+    cdef numpy.int32_t ibb, nbb, ibb0, ibbu, ibbl
+    cdef double val, minbound, maxbound, pivot_up, pivot_down
     
     cdef numpy.ndarray[numpy.float64_t,ndim=1] _values = numpy.array(values, numpy.float64, copy=False)
     cdef numpy.ndarray[numpy.float64_t,ndim=1] _binbounds = numpy.array(binbounds, numpy.float64, copy=False)
@@ -38,17 +38,53 @@ def hist(values, binbounds, out = None,
         _histout = numpy.array(out, dtype=numpy.float64, copy=False)
     
     with nogil:
+        ibb = nbb >> 1
         for ival in xrange(nval):
             val = _values[ival]
             if val < minbound or val > maxbound:
                 with gil:
                     raise ValueError('element {:d} outside bin range'.format(ival))
-
-            for ibb in xrange(0,nbb-1):                
-                if val >= _binbounds[ibb] and val < _binbounds[ibb+1]:
-                    break
             
-            _histout[ibb] += cweight * (_binbounds[ibb+1] - _binbounds[ibb])
+            if val >= _binbounds[ibb] and val < _binbounds[ibb+1]:
+                # found in current bin
+                pass
+            else:
+                for ibb in xrange(0,nbb-1):                
+                    if val >= _binbounds[ibb] and val < _binbounds[ibb+1]:
+                        break
+
+#                ibb0 = ibb
+#                pivot_up = _binbounds[ibb0+1]
+#                pivot_down = _binbounds[ibb]
+#                
+#                if val >= pivot_up:
+#                    # need to search higher
+#                    while ibb < nbb-2:
+#                        if val >= _binbounds[ibb] and val < _binbounds[ibb]:
+#                            break
+#                        ibb+=1
+#                    else:
+#                        # val == maxbound                        
+#                        if val > maxbound:
+#                            with gil:
+#                                raise ValueError('element {:d} outside bin range'.format(ival))
+#                elif val < pivot_down:
+#                    # need to search lower
+#                    while ibb >= 1:
+#                        if val >= _binbounds[ibb] and val < _binbounds[ibb+1]:
+#                            break
+#                        ibb -= 1
+#                    else:
+#                        if val < minbound:
+#                            with gil:
+#                                raise ValueError('element {:d} outside bin range'.format(ival))
+#                else:
+#                    with gil:
+#                        raise AssertionError('impossible branch')
+                
+                
+            
+            _histout[ibb] += cweight #* (_binbounds[ibb+1] - _binbounds[ibb])
                                 
     return _histout
 
