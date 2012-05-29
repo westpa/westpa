@@ -149,17 +149,30 @@ class ByIterDataSelection(DataSelection):
             return iter_group        
         
     def __getitem__(self, pair):
-        '''Retrieve data for the given (n_iter,seg_id) pair from datasets split by iteration.'''
+        '''Retrieve data for the given iteration or (n_iter,seg_id) pair from datasets split by iteration.'''
         
-        (n_iter, seg_id) = pair
-                    
-        if self.index:
-            return self._getitem_indexed(n_iter,seg_id)
-        else:
-            return self._getitem_unindexed(n_iter, seg_id)
+        try:
+            (n_iter, seg_id) = pair
+        except TypeError:
+            n_iter = pair
+            seg_id = None
+        except ValueError:
+            n_iter = pair[0]
+            seg_id = None
+        
+        if seg_id is None:
+            if self.index:
+                return self._getiter_indexed(n_iter)
+            else:
+                return self._getiter_unindexed(n_iter)
+        else:    
+            if self.index:
+                return self._getseg_indexed(n_iter,seg_id)
+            else:
+                return self._getseg_unindexed(n_iter, seg_id)
             
             
-    def _getitem_indexed(self, n_iter, seg_id):
+    def _getseg_indexed(self, n_iter, seg_id):
         if self._index_data is None:
             self._index_data = self.h5file[self.index][...]
             
@@ -171,12 +184,29 @@ class ByIterDataSelection(DataSelection):
         
         itpl = (i,) + self.slice
         return self.h5file[self.source_dsname][itpl]
+    
+    def _getiter_indexed(self, n_iter):
+        if self._index_data is None:
+            self._index_data = self.h5file[self.index][...]
+            
+        indices = []
+        for i, (i_n_iter, _i_seg_id) in enumerate(self._index_data):
+            if i_n_iter == n_iter:
+                indices.append(i)
+        indices.sort()
+        itpl = (indices,) + self.slice
+        return self.h5file[self.source_dsname][itpl]
         
-    def _getitem_unindexed(self, n_iter, seg_id):
+    def _getseg_unindexed(self, n_iter, seg_id):
         itpl = (seg_id,) + self.slice
         iter_group = self._get_iter_group(n_iter)
         return iter_group[self.source_dsname][itpl]
     
+    def _getiter_unindexed(self, n_iter):
+        itpl = numpy.index_exp[:] + self.slice
+        iter_group = self._get_iter_group(n_iter)
+        return iter_group[self.source_dsname][itpl]
+        
     
     
     
