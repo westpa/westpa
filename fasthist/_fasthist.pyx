@@ -37,38 +37,16 @@ def hist(values, binbounds, out = None,
             raise TypeError('incompatible dimensions for binbounds and out')        
         _histout = numpy.array(out, dtype=numpy.float64, copy=False)
     
-        
     with nogil:
-        ibb = nbb // 2
-        
         for ival in xrange(nval):
             val = _values[ival]
             if val < minbound or val > maxbound:
                 with gil:
                     raise ValueError('element {:d} outside bin range'.format(ival))
-            
-            if val >= _binbounds[ibb] and val < _binbounds[ibb+1]:
-                pass
-            else:
-                
-                ibb0 = ibb
-                for ibboff in xrange(1,nbb-1):
-                    ibb = ibb0 - ibboff
-                    
-                    if ibb >= 0 and val >= _binbounds[ibb] and val < _binbounds[ibb+1]:
-                        # found it down ibboff from ibb0
-                        break
-                    
-                    # down by ibboff didn't work, try up by ibboff    
-                    ibb = ibb0 + ibboff
-                    if ibb < nbb-1 and val >= _binbounds[ibb] and val < _binbounds[ibb+1]:
-                        # found it up by ibboff
-                        break
-                    
-                    # found it neither down nor up by ibboff; go to next offset 
-            
-#            with gil:
-#                assert ibb >= 0 and ibb < nbb
+
+            for ibb in xrange(0,nbb-1):                
+                if val >= _binbounds[ibb] and val < _binbounds[ibb+1]:
+                    break
             
             _histout[ibb] += cweight * (_binbounds[ibb+1] - _binbounds[ibb])
                                 
@@ -134,8 +112,6 @@ def hist2d(values, binbounds, out = None,
         _histout = numpy.array(out, dtype=numpy.float64, copy=False)
     
     with nogil:
-        ibbx = nbbx // 2
-        ibby = nbby // 2
         for ival in xrange(nval):
             val_x = _values[ival,0]
             val_y = _values[ival,1]

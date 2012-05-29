@@ -23,7 +23,7 @@ class SegmentSelection:
                 add(pair)
 
     def __len__(self):
-        return len(self.segments)
+        return len(self._segments)
     
     def __contains__(self, pair):
         return pair in self._segments

@@ -9,7 +9,7 @@ import wemd
 from wemd.data_manager import (weight_dtype, n_iter_dtype, seg_id_dtype, utime_dtype, vstr_dtype, 
                                istate_type_dtype, istate_status_dtype)
 
-log = logging.getLogger(__name__)
+log = logging.getLogger('wemdtools.' + __name__)
 
 def parse_binspec(binspec):
     namespace = {'inf': float('inf'),
@@ -28,13 +28,17 @@ class HistogramHelper:
         self.segment_selection = segment_selection
         
         if numpy.isscalar(bins):
+            log.debug('finding minimum and maximum values')
             minbound, maxbound = self.get_min_max()
-            self.binbounds = numpy.linspace(minbound, maxbound, bins)
+            self.binbounds = numpy.linspace(minbound, maxbound, bins+1)
+            log.info('using {:d} bins on [{:g},{:g}]'.format(bins, minbound, maxbound))
         else:
             self.binbounds = numpy.asarray(bins)
+            log.info('using {:d} manually-specified bins'.format(len(self.binbounds)-1))
             
         self.midpoints = (self.binbounds[:-1] + self.binbounds[1:]) / 2.0
-        self.nbins = len(self.midpoints)
+        self.nbins = len(self.binbounds)-1
+        assert len(self.midpoints) ==  self.nbins
         self.hist = None
         self.normfactor = None
             
@@ -47,9 +51,14 @@ class HistogramHelper:
         maxval = numpy.finfo(numpy.float64).min
         
         for n_iter in xrange(self.segment_selection.start_iter, self.segment_selection.stop_iter):
+            # Retrieve entire iteration's values
             values = self.dsspec[n_iter]
-            minval = min(minval,values.min())
-            maxval = max(maxval,values.max())
+            
+            # But only consider those segments we've been asked to
+            for seg_id in self.segment_selection.from_iter(n_iter):
+                minval = min(minval,values[seg_id].min())
+                maxval = max(maxval,values[seg_id].max())
+                
             del values
         
         return minval, maxval
@@ -63,7 +72,13 @@ class HistogramHelper:
         if (dx <= 0.0).any():
             raise ValueError('bin bounds are not strictly monotonic')
         
-        for n_iter in xrange(self.segment_selection.start_iter, self.segment_selection.stop_iter):
+        start_iter = self.segment_selection.start_iter
+        stop_iter  = self.segment_selection.stop_iter
+        
+        log.info('constructing histogram over {1:d} segments spanning {0:d} iterations'
+                 .format(stop_iter-start_iter, len(self.segment_selection)))
+        
+        for n_iter in xrange(start_iter, stop_iter):
             seg_ids = sorted(self.segment_selection.from_iter(n_iter))
             weights = self.data_manager.get_weights(n_iter, seg_ids)
             for iseg, seg_id in enumerate(seg_ids):
@@ -76,7 +91,7 @@ class HistogramHelper:
                 del values
             
             del seg_ids, weights
-        
+
         I = (whist * dx).sum()
         self.normfactor = 1.0/I
         whist /= I
@@ -86,41 +101,6 @@ class WPDistTool(WEMDTool):
     prog='w_pdist'
     description = '''\
 Calculate probability distributions over a weighted ensemble data set. 
-
-Individual datasets can be selected for writing using the -d/--dataset option
-(which may be specified more than once). The simplest form is ``-d dsname``,
-which causes data from dataset ``dsname`` along the trace to be stored to
-HDF5.  The dataset is assumed to be stored on a per-iteration basis, with
-the first dimension corresponding to seg_id and the second dimension
-corresponding to time within the segment.  Further options are specified
-as comma-separated key=value pairs after the data set name, as in
-
-    -d dsname;alias=newname;index=idsname;file=otherfile.h5;slice=[100,...]
-    
-The following options for datasets are supported:
-
-    alias=newname
-        When writing this data to HDF5 or text files, use ``newname``
-        instead of ``dsname`` to identify the dataset. This is mostly of
-        use in conjunction with the ``slice`` option in order, e.g., to
-        retrieve two different slices of a dataset and store then with
-        different names for future use.
-
-    index=idsname
-        The dataset is not stored on a per-iteration basis for all
-        segments, but instead is stored as a single dataset whose
-        first dimension indexes n_iter/seg_id pairs. The index to
-        these n_iter/seg_id pairs is ``idsname``.
-    
-    file=otherfile.h5
-        Instead of reading data from the main WEMD HDF5 file (usually
-        ``wemd.h5``), read data from ``otherfile.h5``.
-        
-    slice=[100,...]
-        Retrieve only the given slice from the dataset. This can be
-        used to pick a subset of interest to minimize I/O.
-        
--------------------------------------------------------------------------------
 '''
     
     def __init__(self):
@@ -169,7 +149,8 @@ The following options for datasets are supported:
             self.bins = parse_binspec(args.binexpr)
     
     def go(self):
-        hh = HistogramHelper(self.dsspec, self.bins, self.segselector.segment_selection, self.data_reader.data_manager)
+        hh = HistogramHelper(self.dsspec, self.bins, self.segselector.segment_selection, 
+                             self.data_reader.data_manager)
         hh.construct_histogram()        
         self.output_file['binbounds'] = hh.binbounds
         self.output_file['midpoints'] = hh.midpoints
