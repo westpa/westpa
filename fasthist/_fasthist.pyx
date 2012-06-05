@@ -49,42 +49,15 @@ def hist(values, binbounds, out = None,
                 # found in current bin
                 pass
             else:
+                # A "radial" search outward from the current bin was attempted, but
+                # actually slower, presumably due to cache locality issues.
                 for ibb in xrange(0,nbb-1):                
                     if val >= _binbounds[ibb] and val < _binbounds[ibb+1]:
                         break
-
-#                ibb0 = ibb
-#                pivot_up = _binbounds[ibb0+1]
-#                pivot_down = _binbounds[ibb]
-#                
-#                if val >= pivot_up:
-#                    # need to search higher
-#                    while ibb < nbb-2:
-#                        if val >= _binbounds[ibb] and val < _binbounds[ibb]:
-#                            break
-#                        ibb+=1
-#                    else:
-#                        # val == maxbound                        
-#                        if val > maxbound:
-#                            with gil:
-#                                raise ValueError('element {:d} outside bin range'.format(ival))
-#                elif val < pivot_down:
-#                    # need to search lower
-#                    while ibb >= 1:
-#                        if val >= _binbounds[ibb] and val < _binbounds[ibb+1]:
-#                            break
-#                        ibb -= 1
-#                    else:
-#                        if val < minbound:
-#                            with gil:
-#                                raise ValueError('element {:d} outside bin range'.format(ival))
-#                else:
-#                    with gil:
-#                        raise AssertionError('impossible branch')
-                
-                
+                # note that termination with ibb == nbb -1 makes the last interval fully closed
+                # i.e. final bin is [bin_lb, bin_ub] instead of [bin_lb, bin_ub), by design. 
             
-            _histout[ibb] += cweight #* (_binbounds[ibb+1] - _binbounds[ibb])
+            _histout[ibb] += cweight
                                 
     return _histout
 
@@ -164,7 +137,6 @@ def hist2d(values, binbounds, out = None,
                 if val_y >= _binbounds_y[ibby] and val_y < _binbounds_y[ibby+1]:
                     break
                                             
-            _histout[ibbx,ibby] += cweight * ( (_binbounds_x[ibbx+1] - _binbounds_x[ibbx]) 
-                                             * (_binbounds_y[ibby+1] - _binbounds_y[ibby]) )
+            _histout[ibbx,ibby] += cweight
                 
     return _histout

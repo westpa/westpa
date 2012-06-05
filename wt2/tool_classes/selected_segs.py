@@ -20,13 +20,13 @@ class SegmentSelection:
         if iterable is not None:
             add = self.add
             for pair in iterable:
-                add(pair)
+                add(tuple(pair))
 
     def __len__(self):
         return len(self._segments)
     
     def __contains__(self, pair):
-        return pair in self._segments
+        return tuple(pair) in self._segments
 
     def add(self, pair):
         

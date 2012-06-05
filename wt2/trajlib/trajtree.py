@@ -2,16 +2,30 @@ __metaclass__ = type
 import numpy
 import wemd
 
+import gc
 from itertools import izip
 from collections import namedtuple, deque
+from wemd import Segment
 
 TrajID = namedtuple('TrajID', ['n_iter', 'seg_id'])
 
+def all_endpoints(n_iter, iter_group, max_iter = None):
+    '''Return all trajectory endpoints (recycled or merged) in the given iteration.
+    If the optional ``max_iter`` is supplied, treat all trajectories alive in that iteration
+    as endpoints (to facilitate walking the entire tree).'''
+    
+    assert n_iter > 0    
+    if max_iter is not None and n_iter == max_iter:
+        return numpy.arange(iter_group['seg_index'].len(), dtype=numpy.int)
+    else:
+        return (iter_group['seg_index']['endpoint_type'] != Segment.SEG_ENDPOINT_CONTINUES).nonzero()[0]
+        
+
 class TrajNode:
     def __init__(self, n_iter, seg_id, parent_id = None, prev = None, next = None, weight=None):
-        self.n_iter = n_iter
-        self.seg_id = seg_id
-        self.parent_id = parent_id
+        self.n_iter = int(n_iter)
+        self.seg_id = long(seg_id)
+        self.parent_id = long(parent_id) if parent_id is not None else None
         self.weight = None
         
         # A reference to the previous segment's node, or None if this is a 
@@ -114,20 +128,21 @@ class TrajTree:
                 
         dotfile.write('}\n')        
         
-def construct_tree(max_iter, get_matching_segs, data_manager = None):
+def construct_tree(get_matching_segs = all_endpoints, max_iter = None, data_manager = None):
     '''Construct a trajectory tree whose highest iteration is max_iter and whose
     trajectory endpoints in a given iteration are returned by the supplied 
     ``get_matching_segs(n_iter, iter_group)`` function, which takes the iteration 
     number and HDF5 group and returns a sequence of seg_ids.'''
     
     data_manager = data_manager or wemd.rc.get_data_manager()
+    max_iter = max_iter or data_manager.current_iteration - 1
         
     tree = TrajTree()
     # a mapping of seg_id in n_iter to parents (seg_id in n_iter-1)
     
-    
     next_iter_nodes = []    
     for n_iter in xrange(max_iter, 0, -1):
+        print('building nodes for iteration {:d}'.format(n_iter))
         iter_group = data_manager.get_iter_group(n_iter)
         
         leaf_seg_ids = list(get_matching_segs(n_iter, iter_group))
@@ -153,12 +168,14 @@ def construct_tree(max_iter, get_matching_segs, data_manager = None):
             parent_ids = data_manager.get_parent_ids(n_iter, seg_ids)
             weights = data_manager.get_weights(n_iter,seg_ids)
             for node, parent_id, weight in izip(this_iter_nodes, parent_ids, weights):
-                node.parent_id = parent_id
-                node.weight = weight
-            del parent_ids
+                node.parent_id = long(parent_id) if parent_id is not None else None
+                node.weight = float(weight)
+            del seg_ids, weights, parent_ids
             
         next_iter_nodes = this_iter_nodes
-        del new_nodes, leaf_nodes
+        
+        del iter_group, leaf_seg_ids, leaf_nodes, this_iter_nodes, new_nodes
+        #gc.collect()
         
         
     # roots at the beginning of the simulation are not recorded above, so do that now

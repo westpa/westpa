@@ -1,1 +1,1 @@
-import traj, trajtree
+import traj, trajtree, treewalker
