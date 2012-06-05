@@ -1,6 +1,5 @@
 from __future__ import print_function
 import sys
-import h5py
 from wt2.trajlib.treewalker import trace_trajectories
 from wt2.tool_classes.selected_segs import AllSegmentSelection
 from wemd.data_manager import WEMDDataManager
@@ -14,22 +13,17 @@ data_manager.open_backing(mode='r')
 segsel = AllSegmentSelection(data_manager = data_manager)
 print('There are {:d} segments selected.\n'.format(len(segsel)))
 
-#tts = TrajTreeSet(segsel, data_manager)
-tts = FakeTrajTreeSet()
+tts = TrajTreeSet(segsel, data_manager)
+#tts = FakeTrajTreeSet()
 print('There are {:d} segments in the tree map'.format(len(tts)))
 print('  Roots: {:d}, leaves: {:d}'.format(tts.count_roots(), tts.count_leaves()))
-
-debug_h5 = h5py.File('debug.h5', 'w')
-debug_h5['trajtable'] = tts.trajtable
-debug_h5['childtable'] = tts.childtable
-debug_h5.close()
 
 visited = set()
 def visit(n_iter, seg_id, visited):
     #raise StopIteration()
-    print('Visiting {:>6d}:{:<6d}'.format(n_iter,seg_id))
+    #print('Visiting {:>6d}:{:<6d}'.format(n_iter,seg_id))
     if (n_iter,seg_id) in visited:
-        print('WARNING: {:d}:{:d} already seen'.format(n_iter,seg_id))
+        raise ValueError('{:d}:{:d} already seen'.format(n_iter,seg_id))
     else:
         visited.add((n_iter,seg_id))
     

@@ -20,37 +20,10 @@ class TrajTreeSet(_trajtree_base):
                 
     def __len__(self):
         return len(self.trajtable)
-    
-    def count_roots(self):
-        return self._count_roots()
-    
-    def count_leaves(self):
-        return self._count_leaves()
-    
+        
     def get_roots(self):
         return [trajnode(root['n_iter'], root['seg_id']) for root in self._get_roots()]
     
-    def get_child_ids(self, n_iter, seg_id):
-        tt_offset = self.iter_offsets[n_iter]
-        trajtable = self.trajtable
-        
-        while trajtable[tt_offset]['seg_id'] != seg_id:
-            tt_offset += 1
-            
-        offset = trajtable[tt_offset]['children_offset']
-        n_children = trajtable[tt_offset]['n_children']
-        if n_children == 0:
-            return []
-        
-        return trajtable['seg_id'][self.childtable[offset:offset+n_children]]
-        
-    
-#    def count_roots(self):
-#        return (self.trajtable['parent_offset'] == -1).sum()
-#    
-#    def count_leaves(self):
-#        return (self.trajtable['n_children'] == 0).sum()
-
     def trace_trajectories(self, visit, get_visitor_state = None, set_visitor_state = None, vargs=None, vkwargs=None):
         
         if (get_visitor_state or set_visitor_state) and not (get_visitor_state and set_visitor_state):
