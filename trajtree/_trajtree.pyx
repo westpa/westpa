@@ -1,6 +1,7 @@
 # cython: profile=True
 from __future__ import division, print_function; __metaclass__ = type
 from itertools import izip
+from collections import deque
 
 cimport cython
 import numpy
@@ -21,14 +22,6 @@ cdef packed struct _tt_rec:
     int64_t   parent_id
     int64_t   parent_offset
     float64_t weight
-
-    
-node_dtype = numpy.dtype([('n_iter', numpy.uint32),
-                          ('seg_id', numpy.int64)])
-
-cdef packed struct _node_rec:
-    uint32_t n_iter
-    int64_t  seg_id     
 
 cdef int64_t NO_PARENT = -1  #indicates that no parent is contained in the table; segment is a root
 cdef uint32_t CT_CHUNKSIZE = 512
@@ -102,7 +95,7 @@ cdef class _trajtree_base:
                         childtable[parent_offset].append(tt_offset)
                 tt_offset += 1
                 
-            del last_iter_indices                                 
+            del last_iter_indices, seg_index                                 
             last_iter_indices = this_iter_indices
         
         for tt_offset in range(len(trajtable)):
@@ -131,55 +124,10 @@ cdef class _trajtree_base:
             if childtable[i] is None:
                 leaf_count += 1
         return leaf_count
-    
-    cpdef object _get_roots(self):
-        cdef int64_t i=0, n_roots=0
-        cdef numpy.ndarray[_tt_rec, ndim=1] trajtable = self.trajtable        
-        roots = numpy.empty((NODE_CHUNKSIZE,), dtype=node_dtype)
-        
-        for i in range(0, len(trajtable)):
-            if trajtable[i].parent_offset == NO_PARENT:
-                if n_roots == len(roots):
-                    roots.resize((n_roots+NODE_CHUNKSIZE,))
-                roots[n_roots] = trajtable[i].n_iter, trajtable[i].seg_id
-                n_roots += 1
-        
-        roots.resize((n_roots,))
-        #roots = numpy.resize(roots , (n_roots,))
-        return roots
-            
-    cpdef object get_child_ids(self, uint32_t n_iter, int64_t seg_id):
-        cdef int64_t tt_offset = self.iter_offsets[n_iter], n_children = 0, i = 0
-        cdef numpy.ndarray[_tt_rec, ndim=1] trajtable = self.trajtable
-        cdef numpy.ndarray[object, ndim=1] childtable = self.childtable
-        cdef numpy.ndarray[int64_t, ndim=1] child_offsets=None, child_ids=None
-        
-        try:
-            while trajtable[tt_offset].seg_id != seg_id:
-                tt_offset += 1
-        except IndexError:
-            print('{:d}:{:d} not found'.format(n_iter,seg_id))
-            
-        if childtable[tt_offset] is None:
+
+    cpdef get_child_indices(self, int64_t index):
+        child_indices = self.childtable[index]
+        if child_indices is None:
             return []
         else:
-            child_offsets = childtable[tt_offset]
-            child_ids = numpy.empty_like(child_offsets)
-            n_children = len(child_offsets)
-            for i in range(n_children):
-                child_ids[i] = trajtable[child_offsets[i]].seg_id
-            return child_ids
-            
-#        offset = trajtable[tt_offset].children_offset
-#        n_children = trajtable[tt_offset].n_children
-#        if n_children == 0:
-#            return []
-#        
-#        return self.trajtable[self.childtable[offset:offset+n_children]]['seg_id']
-    
-               
-                
-            
-            
-        
-        
+            return child_indices
