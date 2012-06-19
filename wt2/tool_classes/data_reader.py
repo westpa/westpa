@@ -174,25 +174,20 @@ class ByIterDataSelection(DataSelection):
             
     def _getseg_indexed(self, n_iter, seg_id):
         if self._index_data is None:
-            self._index_data = self.h5file[self.index][...]
+            self._index_data = {(int(_iter), long(_seg)): i for (i, (_iter, _seg)) in enumerate(self.h5file[self.index][...])}
             
-        for i, (i_n_iter, i_seg_id) in enumerate(self._index_data):
-            if (i_n_iter,i_seg_id) == (n_iter,seg_id):
-                break
-        else:
-            raise KeyError((n_iter,seg_id))
-        
+        i = self._index_data[int(n_iter), long(seg_id)]
         itpl = (i,) + self.slice
         return self.h5file[self.source_dsname][itpl]
     
     def _getiter_indexed(self, n_iter):
         if self._index_data is None:
-            self._index_data = self.h5file[self.index][...]
+            self._index_data = {(int(_iter), long(_seg)): i for (i, (_iter, _seg)) in enumerate(self.h5file[self.index][...])}
             
+        segspecs = [(_n_iter, seg_id) for (_n_iter,seg_id) in self._index_data.iterkeys() if _n_iter==n_iter]
         indices = []
-        for i, (i_n_iter, _i_seg_id) in enumerate(self._index_data):
-            if i_n_iter == n_iter:
-                indices.append(i)
+        for (n_iter, seg_id) in segspecs:
+            indices.append(self._index_data[int(n_iter), long(seg_id)])
         indices.sort()
         itpl = (indices,) + self.slice
         return self.h5file[self.source_dsname][itpl]

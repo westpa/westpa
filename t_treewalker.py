@@ -13,15 +13,17 @@ data_manager.open_backing(mode='r')
 segsel = AllSegmentSelection(data_manager = data_manager)
 print('There are {:d} segments selected.\n'.format(len(segsel)))
 
-tts = TrajTreeSet(segsel, data_manager)
-#tts = FakeTrajTreeSet()
+#tts = TrajTreeSet(segsel, data_manager)
+tts = FakeTrajTreeSet()
 print('There are {:d} segments in the tree map'.format(len(tts)))
 print('  Roots: {:d}, leaves: {:d}'.format(tts.count_roots(), tts.count_leaves()))
 
 visited = set()
-def visit(n_iter, seg_id, visited):
+def visit(n_iter, seg_id, weight, visited):
     #raise StopIteration()
     #print('Visiting {:>6d}:{:<6d}'.format(n_iter,seg_id))
+    if seg_id == 9: raise StopIteration
+    else: print('visiting {:d}:{:d}'.format(n_iter,seg_id))
     if (n_iter,seg_id) in visited:
         raise ValueError('{:d}:{:d} already seen'.format(n_iter,seg_id))
     else:

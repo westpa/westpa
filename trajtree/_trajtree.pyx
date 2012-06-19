@@ -58,7 +58,7 @@ cdef class _trajtree_base:
             iter_offsets[n_iter] = tt_offset
             this_iter_indices = {}
             
-            seg_ids = numpy.array(segsel.from_iter(n_iter), dtype=numpy.int64)
+            seg_ids = numpy.fromiter(segsel.from_iter(n_iter), dtype=numpy.int64)
             iter_group = data_manager.get_iter_group(n_iter)
             seg_index = iter_group['seg_index']
             weights = seg_index['weight']
@@ -82,9 +82,9 @@ cdef class _trajtree_base:
                     # note that this will raise KeyError if a segment required for proper connectivity is
                     # missing from the input segment set
                     parent_offset = last_iter_indices[trajtable[tt_offset].parent_id]
-                    assert parent_offset != 1 and parent_offset < tt_offset
-                    assert trajtable[parent_offset].seg_id == trajtable[tt_offset].parent_id
-                    assert trajtable[parent_offset].n_iter == n_iter-1
+                    #assert parent_offset != -1 and parent_offset < tt_offset
+                    #assert trajtable[parent_offset].seg_id == trajtable[tt_offset].parent_id
+                    #assert trajtable[parent_offset].n_iter == n_iter-1
                     trajtable[tt_offset].parent_offset = parent_offset
                     
                     # all first-iteration segments are roots for the purposes of analysis

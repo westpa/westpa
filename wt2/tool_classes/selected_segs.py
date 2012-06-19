@@ -53,6 +53,29 @@ class SegmentSelection:
     def stop_iter(self):
         return self._stop_iter
     
+    @classmethod
+    def from_text(cls, filename):
+        segsel = cls()
+                
+        segfile = open(filename, 'rt')
+        for line in segfile:
+            wline = line.strip()
+            if wline[0] == '#' or wline == '':
+                continue
+            
+            fields = re_split_segspec.split(wline)
+            if len(fields) != 2:
+                raise ValueError('malformed segment selection {!r}'.format(line))
+            
+            try:
+                n_iter, seg_id = map(long,fields)
+            except ValueError:
+                raise ValueError('malformed segment selection {!r}'.format(line))
+            
+            segsel.add((n_iter,seg_id))
+        return segsel
+        
+    
 class AllSegmentSelection(SegmentSelection):
     def __init__(self, start_iter = None, stop_iter = None, data_manager = None):
         self.data_manager = data_manager or wemd.rc.get_data_manager()

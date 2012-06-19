@@ -49,13 +49,16 @@ class TrajTreeSet(_trajtree_base):
                 index = subtrees.popleft()
                 node = trajtable[index]
                 n_visits += 1
-                visit(node['n_iter'], node['seg_id'], *vargs, **vkwargs)
                 
-                state_stack.append({'subtrees': subtrees,
-                                    'vstate': get_visitor_state() if get_visitor_state else None})
-                
-                #subtrees = deque(trajnode(node.n_iter+1, child_id) for child_id in self.get_child_ids(node.n_iter, node.seg_id))
-                subtrees = deque(self.get_child_indices(index))
+                try:
+                    visit(node['n_iter'], node['seg_id'], node['weight'], *vargs, **vkwargs)
+                except StopIteration:
+                    continue # to next sibling
+                else:
+                    state_stack.append({'subtrees': subtrees,
+                                        'vstate': get_visitor_state() if get_visitor_state else None})
+                    
+                    subtrees = deque(self.get_child_indices(index))
         
         return n_visits
             
@@ -69,36 +72,43 @@ class FakeTrajTreeSet(TrajTreeSet):
 #                         ('seg_id', numpy.int64),
 #                         ('parent_id', numpy.int64),
 #                         ('parent_offset', numpy.int64),  # offset of parent segment into this table
-#                         ('n_children', numpy.uint32),     # number of children
-#                         ('children_offset', numpy.int64),# offset of child segments into child table
 #                         ('weight', numpy.float64)])       # weight of this segment
 
         
-        self.trajtable = numpy.array([(1, 1,-1,-1,3, 0,1.0), #0
-                                      (1,11,-1,-1,2, 3,1.0), #1
-                                      (2, 2, 1, 0,1, 5,1.0), #2
-                                      (2, 3, 1, 0,1, 6,1.0), #3
-                                      (2, 4, 1, 0,2, 7,1.0), #4
-                                      (2,12,11, 1,2, 9,1.0), #5
-                                      (2,13,11, 1,0, 0,1.0), #6
-                                      (3, 5, 2, 2,2,11,1.0), #7
-                                      (3, 6, 3, 3,0, 0,1.0), #8
-                                      (3, 7, 4, 4,0, 0,1.0), #9
-                                      (3, 8, 4, 4,0, 0,1.0), #10
-                                      (3,14,12, 5,0, 0,1.0), #11
-                                      (3,15,12, 5,0, 0,1.0), #12
-                                      (4, 9, 5, 7,0, 0,1.0), #13
-                                      (4,10, 5, 7,0, 0,1.0), #14
+        self.trajtable = numpy.array([(1, 1,-1,-1,1.0), #0
+                                      (1,11,-1,-1,1.0), #1
+                                      (2, 2, 1, 0,1.0), #2
+                                      (2, 3, 1, 0,1.0), #3
+                                      (2, 4, 1, 0,1.0), #4
+                                      (2,12,11, 1,1.0), #5
+                                      (2,13,11, 1,1.0), #6
+                                      (3, 5, 2, 2,1.0), #7
+                                      (3, 6, 3, 3,1.0), #8
+                                      (3, 7, 4, 4,1.0), #9
+                                      (3, 8, 4, 4,1.0), #10
+                                      (3,14,12, 5,1.0), #11
+                                      (3,15,12, 5,1.0), #12
+                                      (4, 9, 5, 7,1.0), #13
+                                      (4,10, 5, 7,1.0), #14
                                       ], dtype=_trajtree._tt_dtype)
 
-        self.childtable = numpy.array([2, 3, 4, # 0: segment 1
-                                       5, 6,    # 3: segment 11
-                                       7,       # 5: segment 2
-                                       8,       # 6: segment 3
-                                       9, 10,   # 7: segment 4
-                                       11, 12,  # 9: segment 12
-                                       13, 14,  #11: segment 5
-                                       ], dtype=numpy.uint64)
+        empty_array = numpy.array([])
+        self.childtable = numpy.array([numpy.array([2, 3, 4]), # segment 1
+                                       numpy.array([5, 6]),    # segment 11
+                                       numpy.array([7]),       # segment 2
+                                       numpy.array([8]),       # segment 3
+                                       numpy.array([9, 10]),   # segment 4
+                                       numpy.array([11, 12]),  # segment 12
+                                       empty_array,            # segment 13
+                                       numpy.array([13, 14]),  # segment 5
+                                       empty_array,            # segment 6
+                                       empty_array,            # segment 7
+                                       empty_array,            # segment 8
+                                       empty_array,            # segment 14
+                                       empty_array,            # segment 15
+                                       empty_array,            # segment 9
+                                       empty_array,            # segment 10
+                                       ], dtype=numpy.object_)
         self.iter_offsets = {1: 0,
                              2: 2,
                              3: 7,

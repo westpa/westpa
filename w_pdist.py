@@ -51,15 +51,22 @@ class HistogramHelper:
         maxval = numpy.finfo(numpy.float64).min
         
         for n_iter in xrange(self.segment_selection.start_iter, self.segment_selection.stop_iter):
-            # Retrieve entire iteration's values
-            values = self.dsspec[n_iter]
             
-            # But only consider those segments we've been asked to
-            for seg_id in self.segment_selection.from_iter(n_iter):
-                minval = min(minval,values[seg_id].min())
-                maxval = max(maxval,values[seg_id].max())
+            if self.dsspec.indexed:
+                for seg_id in self.segment_selection.from_iter(n_iter):
+                    val = self.dsspec[n_iter,seg_id]
+                    minval = min(minval, val.min())
+                    maxval = max(maxval, val.max())
+            else:
+                # Retrieve entire iteration's values
+                values = self.dsspec[n_iter]
                 
-            del values
+                # But only consider those segments we've been asked to
+                for seg_id in self.segment_selection.from_iter(n_iter):
+                    minval = min(minval,values[seg_id].min())
+                    maxval = max(maxval,values[seg_id].max())
+                    
+                del values
         
         return minval, maxval
     
