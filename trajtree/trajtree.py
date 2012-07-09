@@ -48,21 +48,20 @@ class TrajTreeSet(_trajtree_base):
             while subtrees:
                 index = subtrees.popleft()
                 node = trajtable[index]
-                n_visits += 1
+
+                state_stack.append({'subtrees': subtrees,
+                                    'vstate': get_visitor_state() if get_visitor_state else None})
                 
+                subtrees = deque(self.get_child_indices(index))
+                
+                n_visits += 1
                 try:
-                    visit(node['n_iter'], node['seg_id'], node['weight'], *vargs, **vkwargs)
+                    visit(node['n_iter'], node['seg_id'], node['weight'], has_children = (len(subtrees) > 0), *vargs, **vkwargs)
                 except StopIteration:
+                    subtrees = deque()
                     continue # to next sibling
-                else:
-                    state_stack.append({'subtrees': subtrees,
-                                        'vstate': get_visitor_state() if get_visitor_state else None})
-                    
-                    subtrees = deque(self.get_child_indices(index))
         
         return n_visits
-            
-
 
 
 class FakeTrajTreeSet(TrajTreeSet):

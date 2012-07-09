@@ -16,13 +16,13 @@ class FPPWalker:
                          ByIterDataSelection(aux_h5file, 'dssp', numpy.index_exp[:,94,'accessibility'], 'L26_sas', 'index'),
                          ]
         
-        self.thresholds = [0.05*222.8, 0.18*266.3, 0.10*193.1]
+        self.thresholds = [(1-0.946)*222.8, (1-0.876)*266.3, (1-0.865)*193.1]
         self.first_transitions = numpy.zeros((3,), n_iter_dtype)
         self.transition_weights = numpy.zeros((3,), weight_dtype)
         self.p_first = numpy.zeros((3,), weight_dtype)
         self.n_first = numpy.zeros((3,), numpy.uint)
                 
-    def visit(self, n_iter, seg_id, weight):
+    def visit(self, n_iter, seg_id, weight, has_children):
         sas_traces = numpy.array([dataset[n_iter, seg_id][:] for dataset in self.datasets], dtype=numpy.float32)
         ttimes = numpy.zeros((3,), numpy.int16)
         for (i, threshold) in enumerate(self.thresholds):

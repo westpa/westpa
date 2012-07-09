@@ -33,6 +33,9 @@ class WEMDDataReader(WEMDTool):
         
     def close(self):
         self.data_manager.close_backing()
+        
+    def __getattr__(self, key):
+        return getattr(self.data_manager, key)
 
     def parse_dssel_str(self, dsstr):
         '''Parse a data set specification field, as in::

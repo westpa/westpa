@@ -11,9 +11,13 @@ setup(cmdclass = {'build_ext': build_ext},
                                include_dirs=['.', numpy_include],
                                
                                # hack-ish; included since my dev box has trouble
-                               extra_compile_args=['-O2']),
+                               extra_compile_args=['-O3']),
                      Extension("trajtree._trajtree",
                                ["trajtree/_trajtree.pyx"],
                                include_dirs=['.', numpy_include],
-                               extra_compile_args=['-O2'])])
+                               extra_compile_args=['-O3']),
+                     Extension("mclib._mclib",
+                               ["mclib/_mclib.pyx"],
+                               include_dirs=['.', numpy_include],
+                               extra_compile_args=['-O3'])])
 

@@ -86,6 +86,7 @@ def trace_trajectories(visit, get_visitor_state = None, set_visitor_state = None
             except StopIteration:
                 # Do not descend any further
                 del children[:]
+                continue
                 
             if children:
                 node = children.pop(-1)
