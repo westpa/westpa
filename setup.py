@@ -19,5 +19,5 @@ setup(cmdclass = {'build_ext': build_ext},
                      Extension("mclib._mclib",
                                ["mclib/_mclib.pyx"],
                                include_dirs=['.', numpy_include],
-                               extra_compile_args=['-O3'])])
+                               extra_compile_args=['-O3', '-march=native'])])
 

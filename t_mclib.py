@@ -1,10 +1,6 @@
 from __future__ import print_function, division
-import sys, math
 import numpy
-#from mclib._mclib import mcbs_ci
-from mclib import mcbs_ci, mcbs_ci_correl# mcbs_correltime, mcbs_correltime_small
-#from mclib import mcbs_correltime
-from mclib import mcbs_correltime_small as mcbs_correltime
+from mclib import mcbs_ci, mcbs_ci_correl, mcbs_correltime
 
 #N = 10000
 #correl_len = 16
@@ -39,8 +35,8 @@ print('  width ratio c/u: {}'.format((n_correl_width/n_uncorrel_width)))
 print('blocked MCBS:')
 #uncorrel_mean, uncorrel_lb, uncorrel_ub = mcbs_ci(ds_uncorrel[::k_uncorrel+1], numpy.mean, 0.05, n_sets=1000, sort=numpy.msort)
 #correl_mean, correl_lb, correl_ub = mcbs_ci(ds_correl[::k_correl+1], numpy.mean, 0.05, n_sets=1000, sort=numpy.msort)
-uncorrel_mean, uncorrel_lb, uncorrel_ub = mcbs_ci_correl(ds_uncorrel, numpy.mean, 0.05, n_sets=100000, sort=numpy.sort, decorrel=numpy.mean)
-correl_mean, correl_lb, correl_ub = mcbs_ci_correl(ds_correl, numpy.mean, 0.05, n_sets=100000, sort=numpy.sort, decorrel=numpy.mean)
+uncorrel_mean, uncorrel_lb, uncorrel_ub, k_ = mcbs_ci_correl(ds_uncorrel, numpy.mean, 0.05, n_sets=100000, sort=numpy.sort, decimator=numpy.mean)
+correl_mean, correl_lb, correl_ub, k_ = mcbs_ci_correl(ds_correl, numpy.mean, 0.05, n_sets=100000, sort=numpy.sort, decimator=numpy.mean)
 b_uncorrel_width = uncorrel_ub - uncorrel_lb
 b_correl_width   = correl_ub - correl_lb
 print('  uncorrelated:    {} ({},{})'.format(uncorrel_mean, uncorrel_lb,uncorrel_ub))
