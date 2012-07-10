@@ -1,4 +1,3 @@
-# cython: profile=True
 from __future__ import division
 import numpy, sys, math, os
 cimport numpy, cython
@@ -19,6 +18,7 @@ ctypedef fused _fptype:
 @cython.boundscheck(False)
 @cython.wraparound(False)
 cdef _fptype _autocorrel_elem(numpy.ndarray[_fptype,ndim=1] xs, long k):
+    '''Calculate the ``k``-lag sample autocorrelation of ``xs``'''
     cdef long N = xs.shape[0]
     cdef long i
     cdef double cdif

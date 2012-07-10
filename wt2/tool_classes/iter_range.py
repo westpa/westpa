@@ -39,6 +39,8 @@ class IterRangeSelection(WEMDTool):
         # Step 
         self.iter_step = 1
         
+        self.iter_count = None
+        
         self.include_args.update({'iter_start': True,
                                   'iter_stop':  True,
                                   'iter_step':  False})
@@ -69,6 +71,9 @@ class IterRangeSelection(WEMDTool):
                 self.iter_stop = (self.data_manager or wemd.rc.get_data_manager()).current_iteration
         if self.include_args['iter_step']:
             self.iter_step = args.iter_step or 1
+            
+        if self.include_args['iter_start'] and self.include_args['iter_stop']:
+            self.iter_count = self.iter_stop - self.iter_start
 
             
 #    def check_iter_range(self, data_manager = None):

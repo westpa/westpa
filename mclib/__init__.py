@@ -4,6 +4,12 @@ statistics.'''
 from __future__ import print_function, division
 import math, numpy
 
+#class OvercorrelationError(ValueError):
+#    '''Raised by bootstrapping routines for time-correlated data when
+#    the correlation length is too large to take correlation into account
+#    meaningfully.'''
+#    pass
+
 # Number of bytes in a dataset above which correlation time estimates are 
 # not performed by generating synthetic data sets once and then evaluating 
 # the autocorrelation elements on them, but rather by generating a new
@@ -21,6 +27,7 @@ try:
     from _mclib import autocorrel_elem
 except ImportError:
     def autocorrel_elem(xs, k):
+        '''Calculate the ``k``-lag sample autocorrelation of ``xs``'''
         xsmm = xs - xs.mean()
         N = len(xs)
         return N/(N-k) * (xsmm[k:]*xsmm[:-k]).sum() / (xsmm*xsmm).sum()
@@ -45,7 +52,7 @@ def mcbs_ci(dataset, estimator, alpha, n_sets=None, args=None, kwargs=None, sort
       * numpy.std -- calculate a confidence interval on the standard deviation of ``datset``.
 
     ``n_sets`` is the number of synthetic data sets to generate using the given ``estimator``,
-    which will be chosen using `get_bssize()`_ if ``n_sets`` is not given.
+    which will be chosen using `get_bssize()`_ if ``n_sets`` is not given. 
     
     ``sort`` can be used
     to override the sorting routine used to calculate the confidence interval, which should
@@ -94,7 +101,8 @@ def mcbs_correltime(dataset, alpha, n_sets = None):
     '''Calculate the correlation time of the given ``dataset``, significant to the
     (1-``alpha``) level, using the method described in Huber & Kim, "Weighted-ensemble
     Brownian dynamics simulations for protein association reactions" (1996), 
-    doi:10.1016/S0006-3495(96)79552-8.'''
+    doi:10.1016/S0006-3495(96)79552-8. An appropriate balance between space and speed
+    is chosen based on the size of the input data.'''
     
     n_sets = n_sets or get_bssize(alpha)
     if dataset.nbytes * n_sets > CORRELTIME_CROSSOVER:
@@ -115,12 +123,13 @@ def mcbs_correltime_fullauto(dataset, alpha, n_sets=None):
         if data_rho > synrho_lb and data_rho < synrho_ub:
             return k-1
     else:
-        raise ValueError('correlation length exceeds half the data set length')
+        return len(dataset)
+        #raise ValueError('correlation length exceeds half the data set length')
 
 def mcbs_correltime_small(dataset, alpha, n_sets=None):
     '''Specialization of `mcbs_correltime`_ for small-to-mediam datasets, where ``n_sets``
     synthetic datasets are generated and stored, and then autocorrelation elements
-    calculated on them.'''
+    calculated on them. This implementation trades space for time.'''
     
     if alpha > 0.5:
         raise ValueError('alpha ({}) > 0.5'.format(alpha))    
@@ -147,23 +156,24 @@ def mcbs_correltime_small(dataset, alpha, n_sets=None):
         if data_rho > synth_acf_elems[lbi] and data_rho < synth_acf_elems[ubi]:
             return k-1
     else:
-        raise ValueError('correlation length exceeds half the data set length')
+        #raise ValueError('correlation length exceeds half the data set length')
+        return len(dataset)
 
-def mcbs_ci_correl(dataset, estimator, alpha, n_sets=None, args=None, kwargs=None, sort=numpy.msort,
-                   autocorrel_alpha = None, decimator=None):
+def mcbs_ci_correl(dataset, estimator, alpha, n_sets=None, args=None, kwargs=None,
+                   autocorrel_alpha = None, subsample=None):
     '''Perform a Monte Carlo bootstrap estimate for the (1-``alpha``) confidence interval
     on the given ``dataset`` with the given ``estimator``.  This routine is appropriate
     for time-correlated data, using the method described in Huber & Kim, "Weighted-ensemble
     Brownian dynamics simulations for protein association reactions" (1996), 
     doi:10.1016/S0006-3495(96)79552-8 to determine a statistically-significant correlation time
-    and then reducing the dataset by a factor of that correlation time before running "classic"
-    Monte Carlo bootstrapping.
+    and then reducing the dataset by a factor of that correlation time before running a "classic"
+    Monte Carlo bootstrap.
 
     Returns ``(estimate, ci_lb, ci_ub, correl_time)`` where ``estimate`` is the application of the
-    given ``estimator`` to the input ``dataset``, and ``ci_lb`` and ``ci_ub`` are the
+    given ``estimator`` to the input ``dataset``, ``ci_lb`` and ``ci_ub`` are the
     lower and upper limits, respectively, of the (1-``alpha``) confidence interval on 
     ``estimate``, and ``correl_time`` is the correlation time of the dataset, significant to
-    (1-``alpha``).
+    (1-``autocorrel_alpha``).
     
     ``estimator`` is called as ``estimator(dataset, *args, **kwargs)``. Common estimators include:
       * numpy.mean -- calculate the confidence interval on the mean of ``dataset``
@@ -172,23 +182,18 @@ def mcbs_ci_correl(dataset, estimator, alpha, n_sets=None, args=None, kwargs=Non
 
     ``n_sets`` is the number of synthetic data sets to generate using the given ``estimator``,
     which will be chosen using `get_bssize()`_ if ``n_sets`` is not given.
-    
-    ``sort`` can be used
-    to override the sorting routine used to calculate the confidence interval, which should
-    only be necessary for estimators returning vectors rather than scalars.
-    
+        
     ``autocorrel_alpha`` (which defaults to ``alpha``) can be used to adjust the significance
     level of the autocorrelation calculation. Note that too high a significance level (too low an
     alpha) for evaluating the significance of autocorrelation values can result in a failure to
     detect correlation if the autocorrelation function is noisy.    
     
-    The given ``decimator`` is used, if provided, to subsample the dataset prior to running the
-    full Monte Carlo bootstrap. If none is provided, then a random entry from each correlated
+    The given ``subsample`` function is used, if provided, to subsample the dataset prior to running
+    the full Monte Carlo bootstrap. If none is provided, then a random entry from each correlated
     block is used as the value for that block.  Other reasonable choices include ``numpy.mean``,
     ``numpy.median``, ``(lambda x: x[0])`` or ``(lambda x: x[-1])``.  In particular, using
-    ``decimator=numpy.mean`` will converge to the block averaged mean and standard error,
-    while accounting for any physical restrictions on the mean (such as it being physically
-    unable to be less than zero).
+    ``subsample=numpy.mean`` will converge to the block averaged mean and standard error,
+    while accounting for any non-normality in the distribution of the mean.
     '''
     
     if alpha > 0.5:
@@ -204,17 +209,22 @@ def mcbs_ci_correl(dataset, estimator, alpha, n_sets=None, args=None, kwargs=Non
     n_sets = n_sets or get_bssize(alpha)
     
     correl_len = mcbs_correltime(dataset, autocorrel_alpha, n_sets)
+    if correl_len == len(dataset):
+        # too correlated for meaningful calculations
+        return estimator(dataset, *(args or ()), **(kwargs or {})), dataset.min(), dataset.max(), correl_len
+        
+    # else, do a blocked bootstrap
     stride = correl_len + 1
     
     if stride == 1:
-        return mcbs_ci(dataset, estimator, alpha, n_sets, args, kwargs, sort)
+        return mcbs_ci(dataset, estimator, alpha, n_sets, args, kwargs, numpy.msort) + (correl_len,)
     else:
         n_slices = dlen // stride
         #if dlen % stride > 0: n_slices += 1
-        decimator = decimator or (lambda x: x[numpy.random.randint(len(x))])
+        subsample = subsample or (lambda x: x[numpy.random.randint(len(x))])
         decim_set = numpy.empty((n_slices,), dtype=dataset.dtype)
         for iout, istart in enumerate(xrange(0,dlen-stride+1,stride)):
             sl = dataset[istart:istart+stride]
-            decim_set[iout] = decimator(sl)
+            decim_set[iout] = subsample(sl)
         
-        return mcbs_ci(decim_set, estimator, alpha, n_sets, args, kwargs, sort) + (correl_len,)
+        return mcbs_ci(decim_set, estimator, alpha, n_sets, args, kwargs, numpy.msort) + (correl_len,)
