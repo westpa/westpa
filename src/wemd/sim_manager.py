@@ -1,7 +1,7 @@
 from __future__ import division; __metaclass__ = type
 
 import sys, time, operator, math, numpy, re, random
-from itertools import izip
+from itertools import izip, izip_longest
 from datetime import timedelta
 from collections import namedtuple
 import logging
@@ -19,6 +19,12 @@ from wemd.data_manager import weight_dtype
 EPS = numpy.finfo(numpy.float64).eps
 
 RecyclingInfo = namedtuple('RecyclingInfo', ['count', 'weight'])
+
+def grouper(n, iterable, fillvalue=None):
+    "Collect data into fixed-length chunks or blocks"
+    # grouper(3, 'ABCDEFG', 'x') --> ABC DEF Gxx
+    args = [iter(iterable)] * n
+    return izip_longest(fillvalue=fillvalue, *args)
 
 class PropagationError(RuntimeError):
     pass 
@@ -41,6 +47,8 @@ class WESimManager:
         self._n_propagated = 0
         
         self.do_gen_istates = wemd.rc.config.get_bool('system.gen_istates', False) 
+
+        self.propagator_block_size = wemd.rc.config.get_int('drivers.propagator_block_size',1)
         
         # Per-iteration variables
         self.n_iter = None                  # current iteration
@@ -448,10 +456,11 @@ class WESimManager:
         log.debug('there are {:d} segments in target regions, which require generation of {:d} initial states'
                   .format(len(self.to_recycle),len(istate_gen_futures)))
                 
-        for segment in segments:
+        for segment_block in grouper(self.propagator_block_size, segments):
+            segment_block = filter(None, segment_block)
             pbstates, pistates = wemd.states.pare_basis_initial_states(self.current_iter_bstates, 
-                                                                       self.current_iter_istates.values(), [segment])
-            future = self.work_manager.submit(wm_ops.propagate, self.propagator, pbstates, pistates, [segment])
+                                                                       self.current_iter_istates.values(), segment_block)
+            future = self.work_manager.submit(wm_ops.propagate, self.propagator, pbstates, pistates, segment_block)
             futures.add(future)
             segment_futures.add(future)
         
