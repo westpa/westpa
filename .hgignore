@@ -4,6 +4,8 @@ syntax: glob
 *.pyc
 *.pyo
 *~
+*.swp
+*.swo
 .DS_Store
 
 syntax: regexp
