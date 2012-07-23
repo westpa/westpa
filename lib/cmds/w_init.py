@@ -53,7 +53,7 @@ wemd.rc.process_args(args, aux_args)
 system = wemd.rc.get_system_driver()
 sim_manager = wemd.rc.get_sim_manager()
 propagator = wemd.rc.get_propagator()
-h5file = wemd.rc.config.get_path('data.h5file')
+h5file = wemd.rc.config.get_path('data.wemd_data_file')
 data_manager = wemd.rc.get_data_manager()
 data_manager.we_h5filename = h5file
 data_manager.system = system
