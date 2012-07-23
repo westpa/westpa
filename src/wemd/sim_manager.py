@@ -258,8 +258,11 @@ class WESimManager:
             new_region_set.assign_to_bins(segments, key=Segment.initial_pcoord)
         
         all_bins = new_region_set.get_all_bins()
-        for target_index in new_region_set.map_to_all_indices([target.pcoord for target in target_states]):
-            all_bins[target_index].target_count = 0
+
+        if target_states:
+            for target_index in new_region_set.map_to_all_indices([target.pcoord for target in target_states]):
+                all_bins[target_index].target_count = 0
+
         bin_occupancies = numpy.array(map(operator.attrgetter('count'), all_bins))
         target_occupancies = numpy.array(map(operator.attrgetter('target_count'), all_bins))
         segments = list(new_region_set.particles)
@@ -324,10 +327,12 @@ class WESimManager:
         
         # Get target states and map them to bins
         self.target_states = self.data_manager.get_target_states(self.n_iter)
-        self.target_state_bins = list(self.final_binning.map_to_bins([target_state.pcoord for target_state in self.target_states]))
-        for bin in self.target_state_bins:
-            bin.target_count = 0
-        log.debug('target_state_bins={!r}'.format(self.target_state_bins))
+
+        if self.target_states:
+            self.target_state_bins = list(self.final_binning.map_to_bins([target_state.pcoord for target_state in self.target_states]))
+            for bin in self.target_state_bins:
+                bin.target_count = 0
+            log.debug('target_state_bins={!r}'.format(self.target_state_bins))
         
         # Get basis states used in this iteration
         self.current_iter_bstates = self.data_manager.get_basis_states(self.n_iter)
@@ -366,11 +371,12 @@ class WESimManager:
         if completed_segments:
             self.final_binning.assign_to_bins(completed_segments.values(), key=Segment.final_pcoord)
             
-            for bin, target_state in izip(self.target_state_bins, self.target_states):
-                log.debug('bin={!r}, target_state={!r}'.format(bin,target_state))
-                if len(bin):
-                    log.debug('{:d} replicas in target state {!r}'.format(len(bin), target_state))
-                    self.to_recycle.update({segment.seg_id: segment for segment in bin})
+            if self.target_states:
+                for bin, target_state in izip(self.target_state_bins, self.target_states):
+                    log.debug('bin={!r}, target_state={!r}'.format(bin,target_state))
+                    if len(bin):
+                        log.debug('{:d} replicas in target state {!r}'.format(len(bin), target_state))
+                        self.to_recycle.update({segment.seg_id: segment for segment in bin})
         log.debug('{:d} replicas in target states'.format(len(self.to_recycle)))
         
         # Get the basis states and initial states for the next iteration, necessary for doing on-the-fly recycling 
@@ -466,7 +472,8 @@ class WESimManager:
                     final_bin = self.final_binning.map_to_bins([segment.pcoord[-1]])[0]
                     final_bin.add(segment)
                     log.debug('incoming segment {!r} mapped to bin {!r}'.format(segment, final_bin))
-                    for target_bin in self.target_state_bins:
+
+                    for target_bin in self.target_state_bins or []:
                         if final_bin is target_bin:
                             # This particle must be recycled
                             log.debug('segment {!r} will be recycled (assigned to {!r})'.format(segment, final_bin))
@@ -568,11 +575,13 @@ class WESimManager:
             recycled_seg.endpoint_type = Segment.SEG_ENDPOINT_RECYCLED
         
         recycling_info = []
-        for target_bin in self.target_state_bins:
-            recycling_info.append(RecyclingInfo(len(target_bin), target_bin.weight))
-            target_bin.difference_update(recycled_segs)
-            assert len(target_bin) == 0
-        self.data_manager.save_recycling_data(recycling_info)
+
+        if self.target_state_bins:
+            for target_bin in self.target_state_bins:
+                recycling_info.append(RecyclingInfo(len(target_bin), target_bin.weight))
+                target_bin.difference_update(recycled_segs)
+                assert len(target_bin) == 0
+            self.data_manager.save_recycling_data(recycling_info)
 
         # assign initial states to particles being recycled
         init_segs = []

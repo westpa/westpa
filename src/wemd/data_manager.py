@@ -351,6 +351,11 @@ class WEMDDataManager:
             set_id = numpy.digitize([n_iter], master_index['iter_valid']) - 1
             # This extra [0] is to work around a bug in h5py
             group_ref = master_index[set_id]['group_ref']
+
+            # Check if reference is Null
+            if not bool(group_ref):
+                return None
+
             try:
                 group = self.we_h5file[group_ref]
             except AttributeError:
@@ -373,11 +378,16 @@ class WEMDDataManager:
 
         with self.lock:
             tstate_group = self.find_tstate_group(n_iter)         
-            tstate_index = tstate_group['index']
-            tstate_pcoords = tstate_group['pcoord']
-            
-            tstates = [TargetState(state_id=i, label=row['label'], pcoord=pcoord)
-                        for (i, (row, pcoord))  in enumerate(izip(tstate_index, tstate_pcoords))]
+
+            if tstate_group is not None:
+                tstate_index = tstate_group['index']
+                tstate_pcoords = tstate_group['pcoord']
+                
+                tstates = [TargetState(state_id=i, label=row['label'], pcoord=pcoord)
+                            for (i, (row, pcoord))  in enumerate(izip(tstate_index, tstate_pcoords))]
+            else:
+                tstates = []
+
             return tstates
           
     def create_ibstate_group(self, basis_states, n_iter=None):
@@ -689,7 +699,10 @@ class WEMDDataManager:
                     pass
             
             iter_group['ibstates'] = self.find_ibstate_group(n_iter)
-            iter_group['tstates'] = self.find_tstate_group(n_iter)
+
+            tstate_group = self.find_tstate_group(n_iter)
+            if tstate_group is not None:
+                iter_group['tstates'] = tstate_group
             
     def get_iter_summary(self,n_iter=None):
         n_iter = n_iter or self.current_iteration
