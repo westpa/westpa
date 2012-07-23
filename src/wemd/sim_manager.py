@@ -673,6 +673,21 @@ class WESimManager:
     
                 self.n_iter += 1
                 self.data_manager.current_iteration += 1
+
+                try:
+                    #This may give NaN if starting a truncated simulation
+                    walltime = timedelta(seconds=float(iter_summary['walltime']))
+                except ValueError:
+                    walltime = 0.0 
+                
+                try:
+                    cputime = timedelta(seconds=float(iter_summary['cputime']))
+                except ValueError:
+                    cputime = 0.0      
+
+                wemd.rc.pstatus('Iteration wallclock: {0!s}, cputime: {1!s}\n'\
+                                          .format(walltime,
+                                                  cputime))
                 wemd.rc.pflush()
             finally:
                 self.data_manager.flush_backing()
