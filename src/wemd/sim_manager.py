@@ -42,7 +42,7 @@ class WESimManager:
         self._valid_callbacks = set((self.prepare_run, self.finalize_run,
                                      self.prepare_iteration, self.finalize_iteration,
                                      self.pre_propagation, self.post_propagation,
-                                     self.pre_we, self.post_we))
+                                     self.pre_we, self.post_we, self.prepare_new_segments))
         self._callbacks_by_name = {fn.__name__: fn for fn in self._valid_callbacks}
         self._n_propagated = 0
         
@@ -243,6 +243,7 @@ class WESimManager:
                 segments[ristate.state_id].pcoord[0] = ristate.pcoord
         else:
             for segment, initial_state in izip(segments, initial_states):
+                basis_state = initial_state.basis_state
                 initial_state.pcoord = basis_state.pcoord
                 initial_state.istate_status = InitialState.ISTATE_STATUS_PREPARED
                 segment.pcoord[0] = basis_state.pcoord
