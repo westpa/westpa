@@ -905,31 +905,59 @@ class WEMDDataManager:
         warn_deprecated_usage('get_segments_by_id is deprecated; use get_segments(seg_ids=...) instead')
         return self.get_segments(n_iter, seg_ids, load_auxdata=load_auxdata)
     
+    def get_all_parent_ids(self, n_iter):
+        file_version = self.we_h5file_version
+        with self.lock:
+            iter_group = self.get_iter_group(n_iter)
+            seg_index = iter_group['seg_index']
+            
+            if file_version < 5:
+                offsets = seg_index['parents_offset']
+                all_parents = iter_group['parents'][...]
+                return all_parents.take(offsets)
+            else:
+                return seg_index['parent_id']
+    
     def get_parent_ids(self, n_iter, seg_ids=None):
         '''Return a sequence of the parent IDs of the given seg_ids.'''
         
         file_version = self.we_h5file_version
-        
-        
+                
         with self.lock:
             iter_group = self.get_iter_group(n_iter)
+            seg_index = iter_group['seg_index']
 
-            if seg_ids is not None:
-                unique_ids = sorted(set(seg_ids))
-                if not unique_ids:
-                    return []
-            else:
-                seg_ids = unique_ids = range(iter_group['seg_index'].shape[0])            
+            if seg_ids is None:
+                seg_ids = xrange(len(seg_index))
+
             
-            index_subset = iter_group['seg_index'][unique_ids]
-            
+            # pointwise selection is slow!
+#            if seg_ids is not None:
+#                unique_ids = sorted(set(seg_ids))
+#                if not unique_ids:
+#                    return []
+#            else:
+#                seg_ids = unique_ids = range(iter_group['seg_index'].shape[0])            
+#            
+#            index_subset = iter_group['seg_index'][unique_ids]
+#            
+#            if file_version < 5:
+#                offsets = list(index_subset['parents_offset'])
+#                parent_map = dict(izip(unique_ids, iter_group['parents'][offsets]))                
+#            else:
+#                parent_map = dict(izip(unique_ids, index_subset['parent_id']))
+#        return [parent_map[seg_id] for seg_id in seg_ids]
+    
             if file_version < 5:
-                offsets = list(index_subset['parents_offset'])
-                parent_map = dict(izip(unique_ids, iter_group['parents'][offsets]))                
+                offsets = seg_index['parents_offset']
+                all_parents = iter_group['parents'][...]
+                return [all_parents[offsets[seg_id]] for seg_id in seg_ids]
             else:
-                parent_map = dict(izip(unique_ids, index_subset['parent_id']))
+                all_parents = seg_index['parent_id']
+                return [all_parents[seg_id] for seg_id in seg_ids]
+            
                 
-        return [parent_map[seg_id] for seg_id in seg_ids]
+        
     
     def get_weights(self, n_iter, seg_ids):
         '''Return the weights associated with the given seg_ids'''
@@ -942,6 +970,25 @@ class WEMDDataManager:
             index_subset = iter_group['seg_index'][unique_ids]
             weight_map = dict(izip(unique_ids, index_subset['weight']))
             return [weight_map[seg_id] for seg_id in seg_ids]
+        
+    def get_child_ids(self, n_iter, seg_id):
+        '''Return the seg_ids of segments who have the given segment as a parent.'''
+        
+        with self.lock:
+            if n_iter == self.current_iteration: return []
+            
+            iter_group = self.get_iter_group(n_iter+1)
+            seg_index = iter_group['seg_index']
+            seg_ids = numpy.arange(len(seg_index), dtype=seg_id_dtype)
+            
+            if self.we_h5file_version < 5:
+                offsets = seg_index['parents_offset']
+                all_parent_ids = iter_group['parents'][...]
+                parent_ids = numpy.array([all_parent_ids[offset] for offset in offsets])
+            else:
+                parent_ids = seg_index['parent_id']
+                
+            return seg_ids[parent_ids == seg_id]
                     
     def get_children(self, segment):
         '''Return all segments which have the given segment as a parent'''
