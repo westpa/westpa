@@ -1,7 +1,7 @@
 from __future__ import division; __metaclass__ = type
 
 import sys, time, operator, math, numpy, re, random
-from itertools import izip
+from itertools import izip, izip_longest
 from datetime import timedelta
 from collections import namedtuple
 import logging
@@ -20,6 +20,12 @@ EPS = numpy.finfo(numpy.float64).eps
 
 RecyclingInfo = namedtuple('RecyclingInfo', ['count', 'weight'])
 
+def grouper(n, iterable, fillvalue=None):
+    "Collect data into fixed-length chunks or blocks"
+    # grouper(3, 'ABCDEFG', 'x') --> ABC DEF Gxx
+    args = [iter(iterable)] * n
+    return izip_longest(fillvalue=fillvalue, *args)
+
 class PropagationError(RuntimeError):
     pass 
 
@@ -36,11 +42,13 @@ class WESimManager:
         self._valid_callbacks = set((self.prepare_run, self.finalize_run,
                                      self.prepare_iteration, self.finalize_iteration,
                                      self.pre_propagation, self.post_propagation,
-                                     self.pre_we, self.post_we))
+                                     self.pre_we, self.post_we, self.prepare_new_segments))
         self._callbacks_by_name = {fn.__name__: fn for fn in self._valid_callbacks}
         self._n_propagated = 0
         
         self.do_gen_istates = wemd.rc.config.get_bool('system.gen_istates', False) 
+
+        self.propagator_block_size = wemd.rc.config.get_int('drivers.propagator_block_size',1)
         
         # Per-iteration variables
         self.n_iter = None                  # current iteration
@@ -235,6 +243,7 @@ class WESimManager:
                 segments[ristate.state_id].pcoord[0] = ristate.pcoord
         else:
             for segment, initial_state in izip(segments, initial_states):
+                basis_state = initial_state.basis_state
                 initial_state.pcoord = basis_state.pcoord
                 initial_state.istate_status = InitialState.ISTATE_STATUS_PREPARED
                 segment.pcoord[0] = basis_state.pcoord
@@ -258,8 +267,11 @@ class WESimManager:
             new_region_set.assign_to_bins(segments, key=Segment.initial_pcoord)
         
         all_bins = new_region_set.get_all_bins()
-        for target_index in new_region_set.map_to_all_indices([target.pcoord for target in target_states]):
-            all_bins[target_index].target_count = 0
+
+        if target_states:
+            for target_index in new_region_set.map_to_all_indices([target.pcoord for target in target_states]):
+                all_bins[target_index].target_count = 0
+
         bin_occupancies = numpy.array(map(operator.attrgetter('count'), all_bins))
         target_occupancies = numpy.array(map(operator.attrgetter('target_count'), all_bins))
         segments = list(new_region_set.particles)
@@ -324,10 +336,12 @@ class WESimManager:
         
         # Get target states and map them to bins
         self.target_states = self.data_manager.get_target_states(self.n_iter)
-        self.target_state_bins = list(self.final_binning.map_to_bins([target_state.pcoord for target_state in self.target_states]))
-        for bin in self.target_state_bins:
-            bin.target_count = 0
-        log.debug('target_state_bins={!r}'.format(self.target_state_bins))
+
+        if self.target_states:
+            self.target_state_bins = list(self.final_binning.map_to_bins([target_state.pcoord for target_state in self.target_states]))
+            for bin in self.target_state_bins:
+                bin.target_count = 0
+            log.debug('target_state_bins={!r}'.format(self.target_state_bins))
         
         # Get basis states used in this iteration
         self.current_iter_bstates = self.data_manager.get_basis_states(self.n_iter)
@@ -366,11 +380,12 @@ class WESimManager:
         if completed_segments:
             self.final_binning.assign_to_bins(completed_segments.values(), key=Segment.final_pcoord)
             
-            for bin, target_state in izip(self.target_state_bins, self.target_states):
-                log.debug('bin={!r}, target_state={!r}'.format(bin,target_state))
-                if len(bin):
-                    log.debug('{:d} replicas in target state {!r}'.format(len(bin), target_state))
-                    self.to_recycle.update({segment.seg_id: segment for segment in bin})
+            if self.target_states:
+                for bin, target_state in izip(self.target_state_bins, self.target_states):
+                    log.debug('bin={!r}, target_state={!r}'.format(bin,target_state))
+                    if len(bin):
+                        log.debug('{:d} replicas in target state {!r}'.format(len(bin), target_state))
+                        self.to_recycle.update({segment.seg_id: segment for segment in bin})
         log.debug('{:d} replicas in target states'.format(len(self.to_recycle)))
         
         # Get the basis states and initial states for the next iteration, necessary for doing on-the-fly recycling 
@@ -442,10 +457,11 @@ class WESimManager:
         log.debug('there are {:d} segments in target regions, which require generation of {:d} initial states'
                   .format(len(self.to_recycle),len(istate_gen_futures)))
                 
-        for segment in segments:
+        for segment_block in grouper(self.propagator_block_size, segments):
+            segment_block = filter(None, segment_block)
             pbstates, pistates = wemd.states.pare_basis_initial_states(self.current_iter_bstates, 
-                                                                       self.current_iter_istates.values(), [segment])
-            future = self.work_manager.submit(wm_ops.propagate, self.propagator, pbstates, pistates, [segment])
+                                                                       self.current_iter_istates.values(), segment_block)
+            future = self.work_manager.submit(wm_ops.propagate, self.propagator, pbstates, pistates, segment_block)
             futures.add(future)
             segment_futures.add(future)
         
@@ -466,7 +482,8 @@ class WESimManager:
                     final_bin = self.final_binning.map_to_bins([segment.pcoord[-1]])[0]
                     final_bin.add(segment)
                     log.debug('incoming segment {!r} mapped to bin {!r}'.format(segment, final_bin))
-                    for target_bin in self.target_state_bins:
+
+                    for target_bin in self.target_state_bins or []:
                         if final_bin is target_bin:
                             # This particle must be recycled
                             log.debug('segment {!r} will be recycled (assigned to {!r})'.format(segment, final_bin))
@@ -568,11 +585,13 @@ class WESimManager:
             recycled_seg.endpoint_type = Segment.SEG_ENDPOINT_RECYCLED
         
         recycling_info = []
-        for target_bin in self.target_state_bins:
-            recycling_info.append(RecyclingInfo(len(target_bin), target_bin.weight))
-            target_bin.difference_update(recycled_segs)
-            assert len(target_bin) == 0
-        self.data_manager.save_recycling_data(recycling_info)
+
+        if self.target_state_bins:
+            for target_bin in self.target_state_bins:
+                recycling_info.append(RecyclingInfo(len(target_bin), target_bin.weight))
+                target_bin.difference_update(recycled_segs)
+                assert len(target_bin) == 0
+            self.data_manager.save_recycling_data(recycling_info)
 
         # assign initial states to particles being recycled
         init_segs = []
@@ -664,6 +683,21 @@ class WESimManager:
     
                 self.n_iter += 1
                 self.data_manager.current_iteration += 1
+
+                try:
+                    #This may give NaN if starting a truncated simulation
+                    walltime = timedelta(seconds=float(iter_summary['walltime']))
+                except ValueError:
+                    walltime = 0.0 
+                
+                try:
+                    cputime = timedelta(seconds=float(iter_summary['cputime']))
+                except ValueError:
+                    cputime = 0.0      
+
+                wemd.rc.pstatus('Iteration wallclock: {0!s}, cputime: {1!s}\n'\
+                                          .format(walltime,
+                                                  cputime))
                 wemd.rc.pflush()
             finally:
                 self.data_manager.flush_backing()

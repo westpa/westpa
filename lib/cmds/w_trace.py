@@ -56,7 +56,7 @@ class WTrace(CommonOutputMixin,WEMDDataReaderMixin,WEMDAnalysisTool):
 
             segments = []
             seg_id = traj_seg_id
-            while n_iter > 0:                
+            while seg_id >= 0:                
                 iter_group = self.get_iter_group(n_iter)
                 seg_info = iter_group['seg_index'][seg_id] 
                 final_pcoord = iter_group['pcoord'][seg_id,-1,:]

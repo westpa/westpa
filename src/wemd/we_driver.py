@@ -20,7 +20,9 @@ class WEMDWEDriver:
         
     def __init__(self):
         self.system = wemd.rc.get_system_driver()
-        
+        self.do_adjust_counts = wemd.rc.config.get_bool('we.adjust_counts', True)
+        log.info('Adjust counts to exactly match target_counts: {}'.format(self.do_adjust_counts))
+
         # RegionSet containing binned segments from concluded iteration (reset on entry to run_we)
         # These segments will have their endpoint_type field set appropriately on exit from run_we()
         self.completed_segs_rset = None
@@ -96,8 +98,9 @@ class WEMDWEDriver:
             self._log_bin_stats(bin, 'after split by weight')
             self.merge_by_weight(bin)
             self._log_bin_stats(bin, 'after merge by weight')
-            self.adjust_count(bin)
-            self._log_bin_stats(bin, 'after count adjustment')
+            if self.do_adjust_counts:
+                self.adjust_count(bin)
+                self._log_bin_stats(bin, 'after count adjustment')
             
         return self.new_iter_rset
                             

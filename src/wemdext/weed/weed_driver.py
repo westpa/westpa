@@ -39,7 +39,7 @@ class WEEDDriver:
         
         self.priority = wemd.rc.config.get_int('weed.priority',0)
         
-        if sim_manager.system.target_states and self.do_reweight:
+        if sim_manager.target_states and self.do_reweight:
             log.warning('equilibrium reweighting requested but target states (sinks) present; reweighting disabled')
             self.do_reweight = False 
         else:

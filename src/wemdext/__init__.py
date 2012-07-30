@@ -1,1 +1,2 @@
 import weed
+import stringmethod
