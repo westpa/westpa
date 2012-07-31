@@ -237,14 +237,14 @@ wpcp.plot_pattern = args.plot_pattern
 wpcp.timeplot_pattern_lin = args.timeplot_pattern_lin
 wpcp.timeplot_pattern_log = args.timeplot_pattern_log
 try:
-    wpcp.vmin, wpcp.vmax = map(float(args.linear_vrange.split(',')))
+    wpcp.vmin, wpcp.vmax = map(float,args.linear_vrange.split(','))
 except (ValueError, IndexError, TypeError):
     sys.stderr.write('invalid argument for --vrange: {!r}\n'.format(args.linear_vrange))
 except AttributeError:
     wpcp.vmin = None
     wpcp.vmax = None
 try:
-    wpcp.lvmin, wpcp.lvmax = map(float(args.log_vrange.split(',')))
+    wpcp.lvmin, wpcp.lvmax = map(float,args.log_vrange.split(','))
 except (ValueError, IndexError, TypeError):
     sys.stderr.write('invalid argument for --lvrange: {!r}\n'.format(args.log_vrange))
 except AttributeError:
