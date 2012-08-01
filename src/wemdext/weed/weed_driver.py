@@ -96,7 +96,7 @@ class WEEDDriver:
         n_bins = len(bins)         
 
         with self.data_manager.lock:
-            iter_group = self.data_manager.get_iter_group(self.n_iter)
+            iter_group = self.data_manager.get_iter_group(n_iter)
             try:
                 del iter_group['weed']
             except KeyError:
@@ -120,7 +120,7 @@ class WEEDDriver:
             avg_rates_ds[...] = avg_rates
             unc_rates_ds[...] = unc_rates
             
-            binprobs = iter_group['bin_populations'][-1,:]
+            binprobs = iter_group['bin_populations'][:,-1]
             assert numpy.allclose(binprobs, vgetattr('weight', bins, numpy.float64))
             orig_binprobs = binprobs.copy()
         
