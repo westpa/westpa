@@ -7,9 +7,9 @@ then receives results through a PULL socket. A PUB socket is used
 to send critical messages -- currently, "shutdown" and "ping" (master is
 alive) messages.
 
-The client process is more complex.  A "master client" is responsible
+The client is more complex.  A client process is responsible
 for starting a number of worker processes, then forwarding tasks and
-results beween them and the server.  The master client is also
+results beween them and the server.  The client is also
 responsible for detecting hung workers and killing them, reporting
 a failure to the server. Further, each client listens for periodic
 pings from the server, and will shut down if a ping is not received
@@ -133,7 +133,7 @@ class ZMQBase:
 class ZMQWMServer(ZMQBase):
     
     # tasks are tuples of (task_id, function, args, keyword args)
-    # results are tuples of (task_id, {'result', 'exception'}, value)
+    # results are tuples of (task_id, 'result' or 'exception', value)
     
     def __init__(self, master_task_endpoint, master_result_endpoint, master_announce_endpoint):
         super(ZMQWMServer, self).__init__()
@@ -147,7 +147,7 @@ class ZMQWMServer(ZMQBase):
         # Where we receive results
         self.master_result_endpoint = master_result_endpoint
  
-         # Where we send out announcements
+        # Where we send out announcements
         self.master_announce_endpoint = master_announce_endpoint
 
                         
@@ -265,7 +265,7 @@ class ZMQWMServer(ZMQBase):
                         log.error('received malformed result; ignorning')
                     else:
                         if instance_id != self.instance_id:
-                            log.error('received result for instance {!s} but this is instance {!s}; zombie process?'
+                            log.error('received result for instance {!s} but this is instance {!s}; ignoring. Zombie client?'
                                       .format(instance_id, self.instance_id))
                         
                         try:
@@ -278,7 +278,7 @@ class ZMQWMServer(ZMQBase):
                             elif result_type == 'exception':
                                 ft._set_exception(*payload)
                             else:
-                                log.error('received unknown result type {!r} for task {!s}; incompatible/zombie client?'
+                                log.error('received unknown result type {!r} for task {!s}; ignoring. Incompatible/zombie client?'
                                           .format(result_type, task_id))
         finally:
             poller.unregister(ctlsocket)
@@ -361,96 +361,65 @@ class ZMQWMServer(ZMQBase):
             for endpoint in (self._dispatch_thread_ctl_endpoint,self._receive_thread_ctl_endpoint,self._announce_endpoint):
                 self._signal_thread(endpoint, 'shutdown', socket_type=zmq.PUSH)            
 
-class ZMQWMClient(ZMQBase):
-    '''A multiplexing client, responsible for spawning worker processes,
-    monitoring them, and forwarding traffic between workers and the server.
-    Also will shut down if the server disappears.'''
-    
-    def __init__(self, n_workers,
-                 upstream_task_endpoint, upstream_result_endpoint, upstream_announce_endpoint, 
-                 downstream_task_endpoint, downstream_result_endpoint):
-        super(ZMQWMClient, self).__init__()
-        
-        self.n_workers = n_workers or multiprocessing.cpu_count()
-        
-        # cannot initialize context until after forks
-        #self.context = zmq.Context.instance()
-        self.context = None
-        
-        # Where we receive work, dispatch results, and receive announcements
-        self.upstream_announce_endpoint = upstream_announce_endpoint
-        self.upstream_task_endpoint = upstream_task_endpoint
-        self.upstream_result_endpoint = upstream_result_endpoint
-        
-        # Where we forward work, and collect results
-        self.downstream_task_endpoint = downstream_task_endpoint
-        self.downstream_result_endpoint = downstream_result_endpoint
-        
-        # Queues of tasks and results
-        #self.task_queue = deque()
-        #self.pending_results = dict()
-        
-        # Information about worker processes
-        self.workers = []
-        
-        
-        
-    def startup(self):
-        pass
-    
-    def shutdown(self):
-        pass
-
-class ZMQWMClientWorkerProcess(ZMQBase):
-    '''A worker process'''
+class ZMQWMProcess(ZMQBase,multiprocessing.Process):
+    '''A worker process, meant to be run via multiprocessing.Process()'''
     
     def __init__(self, upstream_task_endpoint, upstream_result_endpoint):
+        ZMQBase.__init__(self)
+        multiprocessing.Process.__init__(self)
+                
         self.upstream_task_endpoint = upstream_task_endpoint
         self.upstream_result_endpoint = upstream_result_endpoint
-        
+                
     def run(self):
-        '''Run the receive-perform-dispatch loop, which is terminated only
-        by SIGINT'''
+        '''Run a recieve work/do work/dispatch result loop. This is designed to hang
+        in the event of a hung task function, as the parent process is responsible
+        for managing the worker process pool, forcefully if necessary.'''
         
         self.context = zmq.Context.instance()
-        
-        # reinitialize random number generator in this process
-        random.seed()
-        
+                
         task_socket = self.context.socket(zmq.PULL)
-        result_socket = self.context.socket(zmq.PUSH)
         task_socket.connect(self.upstream_task_endpoint)
+        
+        result_socket = self.context.socket(zmq.PUSH)
         result_socket.connect(self.upstream_result_endpoint)
         
-        associated_server = None
+        last_seen_server_id = None
+                
         try:
             while True:
-                (server_id, task_id, fn, args, kwargs) = task_socket.recv_pyobj()
-                if associated_server is None:
-                    associated_server = server_id
-                elif server_id != associated_server:
-                    log.error('received task from {} when expecting task from {} (zombie process?); exiting'
-                              .format(server_id, associated_server))
-                    sys.exit(2)
-                    
+                task_tuple = task_socket.recv_pyobj()
+                
+                # task tuple is constructed on the server as:
+                # (self.instance_id, task_id, fn, args, kwargs)
+                
                 try:
-                    result = fn(*args, **kwargs)
-                except Exception as e:
-                    result_tuple = (server_id, task_id, 'exception', (e, traceback.format_exc()))
+                    server_id, task_id, fn, args, kwargs = task_tuple[:5]
+                except ValueError:
+                    log.error('malformed task received; ignoring')
                 else:
-                    result_tuple = (server_id, task_id, 'result', result)
-                result_socket.send_pyobj(result_tuple)
-        except KeyboardInterrupt:
-            log.info('received SIGINT; shutting down cleanly')
-            sys.exit(0)
+                    
+                    # check to see if there's a zombie server about
+                    if last_seen_server_id is None:
+                        last_seen_server_id = server_id
+                    elif last_seen_server_id != server_id:
+                        raise ValueError('received task from server {} when expecting task from server {}'
+                                         .format(server_id, last_seen_server_id))
+                    
+                    # result tuple is:
+                    # (instance_id, task_id, result_type, payload)
+                        
+                    try:
+                        result = fn(*args, **kwargs)
+                    except Exception as e:
+                        result_tuple = (server_id, task_id, 'exception', (e, traceback.format_exc()))
+                    else:
+                        result_tuple = (server_id, task_id, 'result', result)
+                        
+                    result_socket.send_pyobj(result_tuple)
         finally:
-            pass
-            #task_socket.close(linger=0)
-            #result_socket.close(linger=0)
-            
-    startup = run
-        
-
+            result_socket.close(linger=0)
+            task_socket.close(linger=0)
 
 class ZMQWorkManager(ZMQWMServer,WorkManager):
     pass
