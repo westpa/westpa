@@ -1,8 +1,9 @@
 from __future__ import division, print_function; __metaclass__ = type
 import os, signal, tempfile, time, sys, multiprocessing, uuid
+import cPickle as pickle
 
 from work_managers import WMFuture
-from work_managers.zeromq import ZMQBase, ZMQWorkManager, ZMQWMProcess, recvall
+from work_managers.zeromq import Task, Result, ZMQBase, ZMQWorkManager, ZMQWMProcess, ZMQClient, recvall
 from tsupport import *
 
 import zmq
@@ -54,10 +55,12 @@ class BaseTestZMQWMServer:
         try:
             future = work_manager.submit(identity, 1)
             assert isinstance(future, WMFuture)
-            task_object = task_socket.recv_pyobj()
-            assert task_object[0] == work_manager.instance_id
-            assert task_object[2] == identity
-            assert tuple(task_object[3]) == (1,)
+            
+            task = Task.from_zmq_frames(task_socket.recv_multipart(copy=False))
+            assert task.server_id == work_manager.instance_id
+            assert task.fn == identity
+            assert task.args == (1,)
+            
         finally:
             task_socket.close(linger=0)
 
@@ -70,12 +73,15 @@ class BaseTestZMQWMServer:
         task_socket.connect(task_endpoint)
         
         try:
-            futures = [work_manager.submit(identity, i) for i in xrange(5)]
+            for i in xrange(5):
+                work_manager.submit(identity,i)
+
             params = set()
             for i in xrange(5):
-                (instance_id, task_id, fn, args, kwargs) = task_socket.recv_pyobj()
-                assert fn == identity
-                params.add(args)
+                task = Task.from_zmq_frames(task_socket.recv_multipart(copy=False))
+                assert task.server_id == work_manager.instance_id
+                assert task.fn == identity
+                params.add(task.args)
             assert params == set((i,) for i in xrange(5))
         finally:
             task_socket.close(linger=0)
@@ -93,11 +99,9 @@ class BaseTestZMQWMServer:
         
         try:
             future = work_manager.submit(will_succeed)
-            
-            (instance_id, task_id, fn, args, kwargs) = task_socket.recv_pyobj()
-            result_tuple = (instance_id, task_id, 'result', 1)
-            result_socket.send_pyobj(result_tuple)
-            
+            task = Task.from_zmq_frames(task_socket.recv_multipart(copy=False))
+            result = Result(task.server_id, task.task_id, value = 1)
+            result_socket.send_multipart(result.to_zmq_frames())                        
             assert future.get_result() == 1
         finally:        
             task_socket.close(linger=0)
@@ -176,69 +180,186 @@ class TestZMQWMServerTCP(BaseTestZMQWMServer):
         
 class TestZMQWMProcess:
     def setUp(self):
-        self.context = zmq.Context()
         self.task_endpoint = 'tcp://127.0.0.1:23812'
         self.result_endpoint = 'tcp://127.0.0.1:23813'
+                
+        self.wmproc = ZMQWMProcess(self.task_endpoint, self.result_endpoint)
+        self.wmproc.start()
         
-        self.task_socket = self.context.socket(zmq.PUSH)
-        self.result_socket = self.context.socket(zmq.PULL)
+        self.context = zmq.Context()
         
+        self.task_socket = self.context.socket(zmq.REP)
         self.task_socket.bind(self.task_endpoint)
+        
+        self.result_socket = self.context.socket(zmq.PULL)
         self.result_socket.bind(self.result_endpoint)
         
-        self.wmproc = ZMQWMProcess(self.task_endpoint,self.result_endpoint)
-        self.wmproc.start()
+        self.server_id = uuid.uuid4()
+        self.node_id =  uuid.uuid4()
+                
 
     def tearDown(self):
         self.context.destroy(linger=0)
         self.wmproc.terminate()
-        del self.context, self.wmproc
+        del self.context, self.wmproc, self.server_id, self.node_id
     
     @nose.tools.timed(2)
-    def test_task(self):        
-        server_id = uuid.uuid4()
+    def test_task(self):
         task_id = uuid.uuid4()
-                
-        task_tuple = (server_id, task_id, identity, (1,), {})
-        self.task_socket.send_pyobj(task_tuple)
-        result_tuple = self.result_socket.recv_pyobj()
-        assert result_tuple == (server_id, task_id, 'result', 1)
+        task = Task(self.server_id, task_id, identity, (1,), {})
+        
+        # admit request
+        frames = self.task_socket.recv_multipart(copy=False)
+        (node_id, client_id, message) = pickle.loads(frames[0].buffer.tobytes())
+        assert node_id is None
+        assert message == 'task'
+        
+        # reply to request for task
+        self.task_socket.send_pyobj((self.node_id, client_id, 'task'), flags=zmq.SNDMORE)
+        self.task_socket.send_multipart(task.to_zmq_frames())
+        
+        # receive result
+        frames = self.result_socket.recv_multipart(copy=False)
+        (node_id, client_id_2, message) = pickle.loads(frames[0].buffer.tobytes())
+        
+        
+        assert node_id == self.node_id
+        assert client_id_2 == client_id
+        assert message == 'result'
+        
+        result = Result.from_zmq_frames(frames[1:])
+        assert result.server_id == self.server_id
+        assert result.task_id == task_id
+        assert result.is_result
+        assert result.value == 1
+            
+    @nose.tools.timed(2)
+    def test_multiple_tasks(self):  
+        
+        result_values = set()
+        for n in xrange(4):
+            task_id = uuid.uuid4()
+            task = Task(self.server_id, task_id, identity, (n,), {})
+            
+            # admit request
+            frames = self.task_socket.recv_multipart(copy=False)
+            (node_id, client_id, message) = pickle.loads(frames[0].buffer.tobytes())
+            if n == 0:
+                assert node_id is None
+            else:
+                assert node_id == self.node_id
+            assert message == 'task'
+            
+            # reply to request for task
+            self.task_socket.send_pyobj((self.node_id, client_id, 'task'), flags=zmq.SNDMORE)
+            self.task_socket.send_multipart(task.to_zmq_frames())
+            
+            # receive result
+            frames = self.result_socket.recv_multipart(copy=False)
+            (node_id, client_id_2, message) = pickle.loads(frames[0].buffer.tobytes())
+            
+            
+            assert node_id == self.node_id
+            assert client_id_2 == client_id
+            assert message == 'result'
+            
+            result = Result.from_zmq_frames(frames[1:])
+            assert result.server_id == self.server_id
+            assert result.task_id == task_id
+            assert result.is_result
+            result_values.add(result.value)
+            
+        assert result_values == set(xrange(4))
 
     @nose.tools.timed(2)
-    def test_failed_task(self):
-        server_id = uuid.uuid4()
+    def test_task_exception(self):
         task_id = uuid.uuid4()
-                
-        task_tuple = (server_id, task_id, will_fail, (), {})
-        self.task_socket.send_pyobj(task_tuple)
-        result_tuple = self.result_socket.recv_pyobj()
-        assert result_tuple[:3] == (server_id, task_id, 'exception')
-        assert isinstance(result_tuple[3][0], ExceptionForTest)
+        task = Task(self.server_id, task_id, will_fail, (), {})
         
+        # admit request
+        frames = self.task_socket.recv_multipart(copy=False)
+        (node_id, client_id, message) = pickle.loads(frames[0].buffer.tobytes())
+        assert node_id is None
+        assert message == 'task'
+        
+        # reply to request
+        self.task_socket.send_pyobj((self.node_id, client_id, 'task'), flags=zmq.SNDMORE)
+        self.task_socket.send_multipart(task.to_zmq_frames())
+        
+        # receive result
+        frames = self.result_socket.recv_multipart(copy=False)
+        (node_id, client_id_2, message) = pickle.loads(frames[0].buffer.tobytes())
+        
+        
+        assert node_id == self.node_id
+        assert client_id_2 == client_id
+        assert message == 'result'
+        
+        result = Result.from_zmq_frames(frames[1:])
+        assert result.server_id == self.server_id
+        assert result.task_id == task_id
+        assert result.is_exception
+        assert isinstance(result.exception, ExceptionForTest)
+ 
+class TestZMQClient:
+    def setUp(self):
+        self.ann_endpoint = 'tcp://127.0.0.1:23811'
+        self.task_endpoint = 'tcp://127.0.0.1:23812'
+        self.result_endpoint = 'tcp://127.0.0.1:23813'
+                
+        self.server_id = uuid.uuid4()
+        self.node_id =  uuid.uuid4()
+        
+        self.test_client = ZMQClient(self.task_endpoint, self.result_endpoint, self.ann_endpoint, 4)
+        
+        self.context = zmq.Context()
+                
+    def tearDown(self):
+        #self.test_client.shutdown_workers()
+        self.context.destroy(linger=0)
+        del self.context, self.server_id, self.node_id
+    
     @nose.tools.timed(2)
-    def test_multiple_tasks(self):        
-        server_id = uuid.uuid4()
+    def test_spawn_workers(self):
+        self.test_client.spawn_workers()
+        time.sleep(0.1)
         
-        for _n in xrange(4):
-            task_id = uuid.uuid4()
-            task_tuple = (server_id, task_id, identity, (1,), {})
-            self.task_socket.send_pyobj(task_tuple)
-            result_tuple = self.result_socket.recv_pyobj()
-            assert result_tuple == (server_id, task_id, 'result', 1)
-                
-#    @nose.tools.timed(2)
-#    @nose.tools.raises(ValueError)
-#    def test_server_mismatch(self):
-#        server_id = uuid.uuid4()
-#        bad_server_id = uuid.uuid4()
-#        task_id = uuid.uuid4()
-#                
-#        task_tuple = (server_id, task_id, identity, (1,), {})
-#        self.task_socket.send_pyobj(task_tuple)
-#        result_tuple = self.result_socket.recv_pyobj()
-#        assert result_tuple == (server_id, task_id, 'result', 1)
-#                
-#        task_tuple = (bad_server_id, task_id, identity, (1,), {})
-#        self.task_socket.send_pyobj(task_tuple)
+        try:
+            for proc in self.test_client.workers:
+                assert proc.is_alive()
+        finally:        
+            self.test_client.shutdown_workers()
+        
+    @nose.tools.timed(2)    
+    def test_shutdown_workers(self):
+        self.test_client.spawn_workers()
+        time.sleep(0.1)
+        self.test_client.shutdown_workers()
+        time.sleep(0.1)
+        assert not self.test_client.workers
+
+    @timed(2)
+    def test_startup(self):
+        self.test_client.startup()
+        
+        try:
+            assert self.test_client.workers
+            assert self.test_client._taskfwd_thread is not None and self.test_client._taskfwd_thread.is_alive()
+            assert self.test_client._rslfwd_thread is not None and self.test_client._rslfwd_thread.is_alive()
+            assert self.test_client._monitor_thread is not None and self.test_client._monitor_thread.is_alive()
+        finally:
+            self.test_client.shutdown()
+                 
+    @timed(2)
+    def test_shutdown(self):
+        self.test_client.startup()
+        time.sleep(0.1)
+        self.test_client.shutdown()
+        time.sleep(0.1)
+        
+        assert not self.test_client.workers
+        assert self.test_client._monitor_thread is not None and not self.test_client._monitor_thread.is_alive()
+        # cannot test task forwarder, as it deliberately blocks
+        assert self.test_client._rslfwd_thread is not None and not self.test_client._rslfwd_thread.is_alive()
         
         

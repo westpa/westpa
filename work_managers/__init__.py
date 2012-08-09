@@ -33,7 +33,12 @@ class WorkManager:
 
     def sigint_handler(self, signum, frame):
         self.shutdown()
-        raise KeyboardInterrupt
+        if self.prior_sigint_handler in (signal.SIG_IGN,None):
+            pass
+        elif self.prior_sigint_handler == signal.SIG_DFL:
+            raise KeyboardInterrupt
+        else:
+            self.prior_sigint_handler(signum, frame)
         
     def install_sigint_handler(self):
         self.prior_sigint_handler = signal.signal(signal.SIGINT, self.sigint_handler)
