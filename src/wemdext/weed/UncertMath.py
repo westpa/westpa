@@ -25,9 +25,9 @@ class UncertContainer(object):
 
         # Calculate weight based on fractional uncertainty 
         diff = vals_dmax - vals_dmin
-        diff_m = ma.masked_values(diff,0.0)
-        
-        self.vals = ma.masked_values(vals,0.0)
+        diff_m = ma.masked_where(vals_dmax == vals_dmin,diff)        
+
+        self.vals = ma.masked_where(vals == 0.0,vals)
 
         self.wt = (self.vals/diff_m)**2
         self.uncert = diff_m/self.vals
