@@ -11,6 +11,10 @@ import zmq
 import nose.tools
 from nose.tools import raises, nottest, timed
 
+def sockdelay():
+    '''Delay for slightly longer than the default auto-reconnect time for ZeroMQ (100 ms)'''
+    time.sleep(0.11)
+
 class BaseTestZMQWMServer:
                     
     @timed(2)
@@ -18,7 +22,7 @@ class BaseTestZMQWMServer:
         work_manager = self.test_master
         work_manager.startup()
         work_manager.shutdown()
-        time.sleep(0.1)
+        sockdelay()
         work_manager.remove_ipc_endpoints()
         assert not work_manager._dispatch_thread.is_alive(), 'dispatch thread still alive'
         assert not work_manager._receive_thread.is_alive(), 'receive thread still alive'
@@ -34,7 +38,7 @@ class BaseTestZMQWMServer:
         try:
             work_manager.startup()
             ann_socket.connect(work_manager.master_announce_endpoint)
-            time.sleep(0.1)
+            sockdelay()
             work_manager.shutdown()
             
             #announcements = recvall(ann_socket)
@@ -135,12 +139,12 @@ class BaseTestZMQWMServer:
         
         work_manager.startup()
         ann_socket.connect(work_manager.master_announce_endpoint)
-        time.sleep(0.1)
+        sockdelay()
     
         try:
             os.kill(os.getpid(), signal.SIGINT)
         except KeyboardInterrupt:
-            time.sleep(0.1)
+            sockdelay()
             announcements = [ann_socket.recv()]
             announcements.extend(recvall(ann_socket))
             assert 'shutdown' in announcements            
@@ -301,28 +305,11 @@ class TestZMQWMProcess:
         assert result.is_exception
         assert isinstance(result.exception, ExceptionForTest)
  
-class TestZMQClient:
-    def setUp(self):
-        self.ann_endpoint = 'tcp://127.0.0.1:23811'
-        self.task_endpoint = 'tcp://127.0.0.1:23812'
-        self.result_endpoint = 'tcp://127.0.0.1:23813'
-                
-        self.server_id = uuid.uuid4()
-        self.node_id =  uuid.uuid4()
-        
-        self.test_client = ZMQClient(self.task_endpoint, self.result_endpoint, self.ann_endpoint, 4)
-        
-        self.context = zmq.Context()
-                
-    def tearDown(self):
-        #self.test_client.shutdown_workers()
-        self.context.destroy(linger=0)
-        del self.context, self.server_id, self.node_id
-    
+class BaseTestZMQClient:    
     @nose.tools.timed(2)
     def test_spawn_workers(self):
         self.test_client.spawn_workers()
-        time.sleep(0.1)
+        sockdelay()
         
         try:
             for proc in self.test_client.workers:
@@ -333,9 +320,9 @@ class TestZMQClient:
     @nose.tools.timed(2)    
     def test_shutdown_workers(self):
         self.test_client.spawn_workers()
-        time.sleep(0.1)
+        sockdelay()
         self.test_client.shutdown_workers()
-        time.sleep(0.1)
+        sockdelay()
         assert not self.test_client.workers
 
     @timed(2)
@@ -351,15 +338,190 @@ class TestZMQClient:
             self.test_client.shutdown()
                  
     @timed(2)
-    def test_shutdown(self):
+    def test_shutdown_internal(self):
         self.test_client.startup()
-        time.sleep(0.1)
+        sockdelay()
         self.test_client.shutdown()
-        time.sleep(0.1)
+        sockdelay()
         
         assert not self.test_client.workers
         assert self.test_client._monitor_thread is not None and not self.test_client._monitor_thread.is_alive()
         # cannot test task forwarder, as it deliberately blocks
         assert self.test_client._rslfwd_thread is not None and not self.test_client._rslfwd_thread.is_alive()
+    
+    @timed(2)    
+    def test_shutdown_external(self):
+        
+        self.test_client.startup()
+        sockdelay()
+        
+        assert self.test_client.workers
+        assert self.test_client._taskfwd_thread is not None and self.test_client._taskfwd_thread.is_alive()
+        assert self.test_client._rslfwd_thread is not None and self.test_client._rslfwd_thread.is_alive()
+        assert self.test_client._monitor_thread is not None and self.test_client._monitor_thread.is_alive()
+
+        ann_socket = self.context.socket(zmq.PUB)
+        ann_socket.bind(self.ann_endpoint)
+        # this delay is critical, as it allows the auto-reconnect logic to connect this socket to the
+        # client; otherwise, an immediate send will result in discard of the shutdown message
+        sockdelay() 
+        ann_socket.send('shutdown')
+        ann_socket.close()
+        sockdelay()
+        
+        assert self.test_client._shutdown_signaled
+        assert not self.test_client.workers
+        assert self.test_client._monitor_thread is not None and not self.test_client._monitor_thread.is_alive()
+        # cannot test task forwarder, as it deliberately blocks
+        assert self.test_client._rslfwd_thread is not None and not self.test_client._rslfwd_thread.is_alive()
+        
+    @nose.tools.timed(2)        
+    def test_task_forward(self):
+        outgoing_task_socket = self.context.socket(zmq.PUSH)
+        outgoing_task_socket.setsockopt(zmq.HWM,1)
+        outgoing_task_socket.bind(self.task_endpoint)
+                
+        self.test_client.startup(spawn_workers=False)
+        
+        fake_worker_task_socket = self.context.socket(zmq.REQ)
+        fake_worker_task_socket.connect(self.test_client.worker_task_endpoint)
+        
+        try:
+            # make task available as the server would
+            task_id = uuid.uuid4()
+            outgoing_task = Task(self.server_id, task_id, identity, (1,), {})
+            outgoing_task_socket.send_multipart(outgoing_task.to_zmq_frames(),copy=False)
+            
+            # request task as worker would
+            fake_worker_task_socket.send_pyobj((None, os.getpid(), 'task'))
+            
+            # receive task as worker would
+            frames = fake_worker_task_socket.recv_multipart(copy=False)
+            incoming_task = Task.from_zmq_frames(frames[1:])
+            
+            assert incoming_task.fn == identity
+            assert incoming_task.args == (1,)
+            assert incoming_task.kwargs == {}
+            assert os.getpid() in self.test_client.worker_last_contact
+            
+        finally:
+            outgoing_task_socket.close(linger=0)
+            fake_worker_task_socket.close(linger=0)
+            self.test_client.shutdown()
+
+    @nose.tools.timed(2)            
+    def test_result_forward(self):
+        self.test_client.startup(spawn_workers=False)
+        worker_result_socket = self.context.socket(zmq.PUSH)
+        worker_result_socket.setsockopt(zmq.HWM,1)
+        worker_result_socket.connect(self.test_client.worker_result_endpoint)
+        
+        master_result_socket = self.context.socket(zmq.PULL)
+        master_result_socket.bind(self.test_client.upstream_result_endpoint)
+        sockdelay()
+        
+        try:
+            task_id = uuid.uuid4()
+            outgoing_result = Result(self.server_id, task_id, value=1)
+            worker_result_socket.send_pyobj((self.test_client.node_id, os.getpid(), 'result'), flags=zmq.SNDMORE)
+            worker_result_socket.send_multipart(outgoing_result.to_zmq_frames(), copy=False)
+            sockdelay()
+            sockdelay()
+            
+            incoming_result = Result.from_zmq_frames(master_result_socket.recv_multipart(copy=False, flags=zmq.NOBLOCK))
+            assert incoming_result.server_id == outgoing_result.server_id
+            assert incoming_result.task_id == outgoing_result.task_id
+            assert incoming_result.value == outgoing_result.value
+            
+        finally:
+            master_result_socket.close(linger=0)
+            worker_result_socket.close(linger=0)
+            self.test_client.shutdown()
+    
+    def test_dispatch(self):
+        master_task_socket = self.context.socket(zmq.PUSH)
+        master_task_socket.bind(self.task_endpoint)
+        
+        master_result_socket = self.context.socket(zmq.PULL)
+        master_result_socket.bind(self.result_endpoint)
+        
+        self.test_client.startup()
+        
+        try:
+            task_id = uuid.uuid4()
+            task = Task(self.server_id, task_id, identity, (1,), {})
+             
+            master_task_socket.send_multipart(task.to_zmq_frames())
+            
+            result = Result.from_zmq_frames(master_result_socket.recv_multipart(copy=False))
+            assert result.value == 1
+            
+        finally:
+            master_result_socket.close()
+            master_task_socket.close()
+            self.test_client.shutdown()
+    
+    def test_dispatch_multiple(self):
+        master_task_socket = self.context.socket(zmq.PUSH)
+        master_task_socket.bind(self.task_endpoint)
+        
+        master_result_socket = self.context.socket(zmq.PULL)
+        master_result_socket.bind(self.result_endpoint)
+        
+        self.test_client.startup()
         
         
+        try:
+            tasks = [Task(self.server_id, task_id=uuid.uuid4(), fn=identity, args=(n,), kwargs={})
+                     for n in xrange(4)]
+            
+            for task in tasks:
+                master_task_socket.send_multipart(task.to_zmq_frames(),copy=False)
+                
+            result_values = set()
+            for _n in xrange(4):
+                result = Result.from_zmq_frames(master_result_socket.recv_multipart(copy=False))
+                result_values.add(result.value)
+                
+            assert result_values == set(xrange(4))
+            
+        finally:
+            master_result_socket.close()
+            master_task_socket.close()
+            self.test_client.shutdown()
+    
+class TestZMQClientTCP(BaseTestZMQClient):
+    def setUp(self):
+        self.ann_endpoint = 'tcp://127.0.0.1:23811'
+        self.task_endpoint = 'tcp://127.0.0.1:23812'
+        self.result_endpoint = 'tcp://127.0.0.1:23813'
+                
+        self.server_id = uuid.uuid4()
+        self.node_id =  uuid.uuid4()
+        
+        self.test_client = ZMQClient(self.task_endpoint, self.result_endpoint, self.ann_endpoint, 2)
+        
+        self.context = zmq.Context()
+                
+    def tearDown(self):
+        self.test_client.shutdown_workers()
+        self.context.destroy(linger=0)
+        del self.context, self.server_id, self.node_id
+
+class TestZMQClientIPC(BaseTestZMQClient):
+    def setUp(self):
+        self.ann_endpoint = ZMQBase.make_ipc_endpoint()
+        self.task_endpoint = ZMQBase.make_ipc_endpoint()
+        self.result_endpoint = ZMQBase.make_ipc_endpoint()
+                
+        self.server_id = uuid.uuid4()
+        self.node_id =  uuid.uuid4()
+        
+        self.test_client = ZMQClient(self.task_endpoint, self.result_endpoint, self.ann_endpoint, 2)
+        
+        self.context = zmq.Context()
+                
+    def tearDown(self):
+        self.test_client.shutdown_workers()
+        self.context.destroy(linger=0)
+        del self.context, self.server_id, self.node_id

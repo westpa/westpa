@@ -404,12 +404,12 @@ class ZMQWMServer(ZMQBase):
     def submit(self, fn, *args, **kwargs):
         ft = self._make_append_task(fn, args, kwargs)
         # wake up the dispatch loop
-        self._signal_thread(self._dispatch_thread_ctl_endpoint, socket_type=zmq.PUSH)
+        self._signal_thread(self._dispatch_thread_ctl_endpoint)
         return ft
     
     def submit_many(self, tasks):
         futures = [self._make_append_task(fn, args, kwargs) for (fn,args,kwargs) in tasks]
-        self._signal_thread(self._dispatch_thread_ctl_endpoint, socket_type=zmq.PUSH)
+        self._signal_thread(self._dispatch_thread_ctl_endpoint)
         return futures
         
     def shutdown(self):
@@ -439,6 +439,7 @@ class ZMQWMProcess(ZMQBase,multiprocessing.Process):
         task_socket.connect(self.upstream_task_endpoint)
         
         result_socket = self.context.socket(zmq.PUSH)
+        result_socket.setsockopt(zmq.HWM,1) # block, rather than queue, when waiting to dispatch results
         result_socket.connect(self.upstream_result_endpoint)
                         
         associated_server_id = None
@@ -536,8 +537,13 @@ class ZMQClient(ZMQBase):
         
         self._shutdown_signaled = False
         
-    def startup(self):
-        self.spawn_workers()
+    def startup(self, spawn_workers=True):
+        if spawn_workers:
+            self.spawn_workers()
+        else:
+            # primarily for testing
+            self.worker_task_endpoint = self.make_ipc_endpoint()
+            self.worker_result_endpoint = self.make_ipc_endpoint()            
         
         self.context = zmq.Context()
         #ctlsocket = self.context.socket(zmq.PULL)
@@ -549,11 +555,11 @@ class ZMQClient(ZMQBase):
         self._taskfwd_thread.start()
         
         self._rslfwd_thread = threading.Thread(target=self._rslfwd_loop)
-        self._rslfwd_thread.daemon = True
+        #self._rslfwd_thread.daemon = True
         self._rslfwd_thread.start()
         
         self._monitor_thread = threading.Thread(target=self._monitor_loop)
-        self._monitor_thread.daemon = True
+        #self._monitor_thread.daemon = True
         self._monitor_thread.start()
         
         # Wait on all three threads starting up before returning to caller
@@ -571,7 +577,7 @@ class ZMQClient(ZMQBase):
                 self._signal_thread(endpoint, 'shutdown')
             
             # you may think it's a good idea to close the context here.
-            # IT'S NOT.
+            # IT'S NOT -- aborts left and right
             
     
     def spawn_workers(self):
@@ -629,7 +635,6 @@ class ZMQClient(ZMQBase):
                     announcements = recvall(upstream_announce_socket)
                     if 'shutdown' in announcements:
                         self.shutdown()
-                        return
                     elif 'ping' in announcements:
                         last_server_ping = now
         finally:
@@ -675,9 +680,10 @@ class ZMQClient(ZMQBase):
     def _rslfwd_loop(self):
         ctlsocket = self._make_signal_socket(self._rslfwd_ctl_endpoint)
         upstream_result_socket = self.context.socket(zmq.PUSH)
+        upstream_result_socket.setsockopt(zmq.HWM, 1)
         upstream_result_socket.connect(self.upstream_result_endpoint)
         worker_result_socket = self.context.socket(zmq.PULL)
-        worker_result_socket.connect(self.worker_result_endpoint)
+        worker_result_socket.bind(self.worker_result_endpoint)
         
         self._signal_thread(self._startup_ctl_endpoint)
         
@@ -694,9 +700,10 @@ class ZMQClient(ZMQBase):
                     if 'shutdown' in recvall(ctlsocket):
                         return
                 
-                if poll_results.get(worker_result_socket) == zmq.POLLIN:
+                if poll_results.get(worker_result_socket) == zmq.POLLIN:                    
                     frames = worker_result_socket.recv_multipart(copy=False)
                     (node_id, client_id, message) = pickle.loads(frames[0].buffer.tobytes())
+                    
                     
                     if node_id != self.node_id:
                         log.error('received result destined for node {} but this is node {}; ignoring'
@@ -705,7 +712,7 @@ class ZMQClient(ZMQBase):
                     self.worker_last_contact[client_id] = now                        
                         
                     if message == 'result':
-                        result_meta = Result.from_zmq_frames(frames, include_payload=False)
+                        result_meta = Result.from_zmq_frames(frames[1:], include_payload=False)
                         # here is where we note that a task has successfully finished
                         upstream_result_socket.send_multipart(frames[1:])
                         
