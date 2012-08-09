@@ -130,7 +130,7 @@ class BaseTestZMQWMServer:
         finally:
             ann_socket.close(linger=0)
 
-    @nose.tools.timed(2)
+    @timed(2)
     def test_sigint_shutdown(self):
         ann_socket = self.test_client_context.socket(zmq.SUB)
         ann_socket.setsockopt(zmq.SUBSCRIBE,'')        
@@ -207,7 +207,7 @@ class TestZMQWMProcess:
         self.wmproc.terminate()
         del self.context, self.wmproc, self.server_id, self.node_id
     
-    @nose.tools.timed(2)
+    @timed(2)
     def test_task(self):
         task_id = uuid.uuid4()
         task = Task(self.server_id, task_id, identity, (1,), {})
@@ -237,7 +237,7 @@ class TestZMQWMProcess:
         assert result.is_result
         assert result.value == 1
             
-    @nose.tools.timed(2)
+    @timed(2)
     def test_multiple_tasks(self):  
         
         result_values = set()
@@ -275,7 +275,7 @@ class TestZMQWMProcess:
             
         assert result_values == set(xrange(4))
 
-    @nose.tools.timed(2)
+    @timed(2)
     def test_task_exception(self):
         task_id = uuid.uuid4()
         task = Task(self.server_id, task_id, will_fail, (), {})
@@ -306,7 +306,7 @@ class TestZMQWMProcess:
         assert isinstance(result.exception, ExceptionForTest)
  
 class BaseTestZMQClient:    
-    @nose.tools.timed(2)
+    @timed(2)
     def test_spawn_workers(self):
         self.test_client.spawn_workers()
         sockdelay()
@@ -317,7 +317,7 @@ class BaseTestZMQClient:
         finally:        
             self.test_client.shutdown_workers()
         
-    @nose.tools.timed(2)    
+    @timed(2)    
     def test_shutdown_workers(self):
         self.test_client.spawn_workers()
         sockdelay()
@@ -344,9 +344,10 @@ class BaseTestZMQClient:
         self.test_client.shutdown()
         sockdelay()
         
+        assert self.test_client._shutdown_signaled
         assert not self.test_client.workers
         assert self.test_client._monitor_thread is not None and not self.test_client._monitor_thread.is_alive()
-        # cannot test task forwarder, as it deliberately blocks
+        assert self.test_client._taskfwd_thread is not None and not self.test_client._taskfwd_thread.is_alive()
         assert self.test_client._rslfwd_thread is not None and not self.test_client._rslfwd_thread.is_alive()
     
     @timed(2)    
@@ -355,11 +356,6 @@ class BaseTestZMQClient:
         self.test_client.startup()
         sockdelay()
         
-        assert self.test_client.workers
-        assert self.test_client._taskfwd_thread is not None and self.test_client._taskfwd_thread.is_alive()
-        assert self.test_client._rslfwd_thread is not None and self.test_client._rslfwd_thread.is_alive()
-        assert self.test_client._monitor_thread is not None and self.test_client._monitor_thread.is_alive()
-
         ann_socket = self.context.socket(zmq.PUB)
         ann_socket.bind(self.ann_endpoint)
         # this delay is critical, as it allows the auto-reconnect logic to connect this socket to the
@@ -367,15 +363,30 @@ class BaseTestZMQClient:
         sockdelay() 
         ann_socket.send('shutdown')
         ann_socket.close()
-        sockdelay()
+        self.test_client.wait_for_shutdown()
         
         assert self.test_client._shutdown_signaled
         assert not self.test_client.workers
         assert self.test_client._monitor_thread is not None and not self.test_client._monitor_thread.is_alive()
-        # cannot test task forwarder, as it deliberately blocks
+        assert self.test_client._taskfwd_thread is not None and not self.test_client._taskfwd_thread.is_alive()
         assert self.test_client._rslfwd_thread is not None and not self.test_client._rslfwd_thread.is_alive()
         
-    @nose.tools.timed(2)        
+    # the critical feature of this test is the @timed(2); if the wait hangs, then this test
+    # times out
+    @timed(2)
+    def test_wait_shutdown(self):
+        self.test_client.startup()
+        sockdelay()
+        self.test_client.shutdown()
+        self.test_client.wait_for_shutdown()
+        
+        assert self.test_client._shutdown_signaled
+        assert not self.test_client.workers
+        assert self.test_client._monitor_thread is not None and not self.test_client._monitor_thread.is_alive()
+        assert self.test_client._taskfwd_thread is not None and not self.test_client._taskfwd_thread.is_alive()
+        assert self.test_client._rslfwd_thread is not None and not self.test_client._rslfwd_thread.is_alive()
+                
+    @timed(2)        
     def test_task_forward(self):
         outgoing_task_socket = self.context.socket(zmq.PUSH)
         outgoing_task_socket.setsockopt(zmq.HWM,1)
@@ -409,7 +420,7 @@ class BaseTestZMQClient:
             fake_worker_task_socket.close(linger=0)
             self.test_client.shutdown()
 
-    @nose.tools.timed(2)            
+    @timed(2)            
     def test_result_forward(self):
         self.test_client.startup(spawn_workers=False)
         worker_result_socket = self.context.socket(zmq.PUSH)
@@ -460,7 +471,8 @@ class BaseTestZMQClient:
             master_result_socket.close()
             master_task_socket.close()
             self.test_client.shutdown()
-    
+            
+    @timed(2)
     def test_dispatch_multiple(self):
         master_task_socket = self.context.socket(zmq.PUSH)
         master_task_socket.bind(self.task_endpoint)
@@ -489,6 +501,44 @@ class BaseTestZMQClient:
             master_result_socket.close()
             master_task_socket.close()
             self.test_client.shutdown()
+            
+    @timed(5)
+    def test_kill_hung(self):
+        master_task_socket = self.context.socket(zmq.PUSH)
+        master_task_socket.bind(self.task_endpoint)
+
+
+        self.test_client.startup()
+        
+        try:
+            # dispatch a pathological task
+            task = Task(self.server_id, uuid.uuid4(), will_busyhang_uninterruptible, (), {})
+            master_task_socket.send_multipart(task.to_zmq_frames(), copy=False)
+            sockdelay()
+                
+            self.test_client.shutdown()
+            self.test_client.wait_for_shutdown()
+            assert not self.test_client.workers
+        finally:
+            master_task_socket.close()
+        
+    @timed(2)
+    def test_missing_server_shutdown(self):
+        announce_socket = self.context.socket(zmq.PUB)
+        announce_socket.bind(self.ann_endpoint)
+        
+        try:
+            self.test_client.server_heartbeat_interval = 0.1
+            self.test_client.startup()
+            sockdelay()
+            announce_socket.send('ping')
+            sockdelay()
+            self.test_client.wait_for_shutdown()
+        finally:
+            announce_socket.close(linger=0)
+        
+        
+        
     
 class TestZMQClientTCP(BaseTestZMQClient):
     def setUp(self):
