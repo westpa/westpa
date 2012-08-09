@@ -55,7 +55,7 @@ class Task:
         self.fn = fn
         self.args = args
         self.kwargs = kwargs
-        
+                
     def to_zmq_frames(self):
         header_data = {'server_id': self.server_id,
                        'task_id': self.task_id}
@@ -327,7 +327,7 @@ class ZMQWMServer(ZMQBase):
                     
                     if result.server_id != self.instance_id:
                         log.error('received result for instance {!s} but this is instance {!s}; ignoring. Zombie client?'
-                                  .format(result.instance_id, self.instance_id))
+                                  .format(result.server_id, self.instance_id))
                     
                     try:
                         ft = self.pending_futures.pop(result.task_id)
@@ -516,15 +516,27 @@ class ZMQClient(ZMQBase):
         
         self.nprocs = nprocs or multiprocessing.cpu_count()
         
-        self.workers = [] # list of worker Process objects
-        self.worker_task_endpoint = None
-        self.worker_result_endpoint = None
-        self.active_tasks = {} # mapping of PID to active tasks
-        self.worker_last_contact = {} # mapping of PID to workers
+        self.worker_task_endpoint = self.make_ipc_endpoint()
+        self.worker_result_endpoint = self.make_ipc_endpoint()
+                
+        self.worker_lock = threading.RLock()
+        self.workers = {} # mapping of PID to Process objects
+        self.worker_active_tasks = {} # mapping of PID to Task objects (without payloads)
+        self.worker_last_dispatch = {} # mapping of PID to time when last dispatch occurred
         
+        # How long we wait for worker processes to shutdown on SIGTERM
+        # before moving on with SIGKILL
         self.shutdown_timeout = 1
         
+        # How long we wait for a response from a worker process before
+        # declaring it hung and terminating it -- None means do not check.
+        self.worker_task_timeout = None
+        
+        # How often we check for a lost server or hung worker
+        self.hangcheck = 15
+                
         self.node_id = uuid.uuid4()
+        self.associated_server_id = None
         
         self._startup_ctl_endpoint = 'inproc://_startup_ctl_{:x}'.format(id(self))
         self._taskfwd_ctl_endpoint = 'inproc://_taskfwd_ctl_{:x}'.format(id(self))
@@ -537,14 +549,12 @@ class ZMQClient(ZMQBase):
         
         self._shutdown_signaled = False
         
-    def startup(self, spawn_workers=True):
+    def startup(self, spawn_workers=True):        
         if spawn_workers:
-            self.spawn_workers()
-        else:
-            # primarily for testing
-            self.worker_task_endpoint = self.make_ipc_endpoint()
-            self.worker_result_endpoint = self.make_ipc_endpoint()            
-        
+            with self.worker_lock:
+                for _n in xrange(self.nprocs):
+                    self._spawn_worker()
+            
         self.context = zmq.Context()
         ctlsocket = self._make_signal_socket(self._startup_ctl_endpoint)
         
@@ -558,54 +568,77 @@ class ZMQClient(ZMQBase):
             self._monitor_thread = threading.Thread(target=self._monitor_loop)
             self._monitor_thread.start()
             
-            # Wait on all three threads starting up before returning to caller
+            # Wait on all three threads starting up before continuing
             ctlsocket.recv()
             ctlsocket.recv()
             ctlsocket.recv()
+
         finally:
-            ctlsocket.close()
-    
+            ctlsocket.close()            
+                
     def shutdown(self):
-        if not self._shutdown_signaled:
-            self._shutdown_signaled = True
-            self.shutdown_workers()
-            for endpoint in (self._monitor_ctl_endpoint, self._rslfwd_ctl_endpoint, self._taskfwd_ctl_endpoint):
-                self._signal_thread(endpoint, 'shutdown')
-            
-            # you may think it's a good idea to close the context here.
-            # IT'S NOT -- aborts left and right
+        for endpoint in (self._monitor_ctl_endpoint, self._rslfwd_ctl_endpoint, self._taskfwd_ctl_endpoint):
+            self._signal_thread(endpoint, 'shutdown')
             
     def wait_for_shutdown(self):
         self._monitor_thread.join()
         self._rslfwd_thread.join()
         self._taskfwd_thread.join()
-    
-    def spawn_workers(self):
-        self.worker_task_endpoint = self.make_ipc_endpoint()
-        self.worker_result_endpoint = self.make_ipc_endpoint()
-        for _n in xrange(self.nprocs):
+        
+    def _spawn_worker(self):
+        with self.worker_lock:
             proc = ZMQWMProcess(self.worker_task_endpoint, self.worker_result_endpoint)
-            self.workers.append(proc)
             proc.start()
+            assert proc.pid is not None
+            self.workers[proc.pid] = proc        
     
     def shutdown_workers(self):
         
         # Right here is where we would implement zombie child process slaying
         # e.g. using psutil package
         
-        for proc in self.workers:
-            proc.terminate()
+        worker_procs = self.workers.values()
+        shutdown_threads = []
+        
+        for proc in worker_procs:
+            thread = threading.Thread(target=self._shutdown_worker, args=(proc,))
+            thread.start()
+            shutdown_threads.append(thread)
             
-        while self.workers:
-            proc = self.workers.pop()
+        for thread in shutdown_threads:
+            thread.join()
+            
+        assert not self.workers
+                
+    def _shutdown_worker(self, proc):
+        with self.worker_lock:
+            assert proc.is_alive()
+            proc.terminate()
             proc.join(self.shutdown_timeout)
             if proc.is_alive():
                 log.warning('sending SIGKILL to PID {}'.format(proc.pid))
                 os.kill(proc.pid, signal.SIGKILL)
                 proc.join()
-                
             assert not proc.is_alive()
-        
+    
+            # these are all atomic operations
+            assert proc.pid in self.workers
+            del self.workers[proc.pid]
+            active_task = self.worker_active_tasks.pop(proc.pid,None)
+            self.worker_last_dispatch.pop(proc.pid,None)
+            
+            if active_task:
+                upstream_result_socket = self.context.socket(zmq.PUSH)
+                upstream_result_socket.connect(self.upstream_result_endpoint)
+                
+                try:
+                    result = Result(active_task.server_id, active_task.task_id,
+                                    exception=WorkerTerminated('worker performing this task was terminated'),
+                                    traceback='')
+                    upstream_result_socket.send_multipart(result.to_zmq_frames())
+                finally:
+                    upstream_result_socket.close()
+            
         
     def _monitor_loop(self):
         ctlsocket = self._make_signal_socket(self._monitor_ctl_endpoint)
@@ -624,19 +657,21 @@ class ZMQClient(ZMQBase):
         
         try:
             while True:
-                if last_server_ping:
-                    expected_server_ping = last_server_ping + self.server_heartbeat_interval
-                    timeout = 1.1*(expected_server_ping - time.time())*1000
-                else:
-                    timeout = None
-
-                poll_results = dict(poller.poll(timeout))
+                poll_results = dict(poller.poll(min(self.hangcheck,self.server_heartbeat_interval)*1000))
                 now = time.time()
                 
                 if poll_results.get(ctlsocket) == zmq.POLLIN:
-                    if 'shutdown' in recvall(ctlsocket):
-                        # this occurs during the shutdown sequence for this object, to catch
+                    messages = recvall(ctlsocket)
+                    if 'shutdown' in messages:
+                        self.shutdown_workers()
                         return
+                    # other messages are directives to manage workers
+                    for message in messages:
+                        fields = message.split(':')
+                        if fields[0] == 'terminate':
+                            self._shutdown_worker(self.workers[int(fields[1])])
+                        elif fields[1] == 'spawn':
+                            self._spawn_worker()
                                 
                 if poll_results.get(upstream_announce_socket) == zmq.POLLIN:
                     announcements = recvall(upstream_announce_socket)
@@ -644,11 +679,23 @@ class ZMQClient(ZMQBase):
                         self.shutdown()
                     elif 'ping' in announcements:
                         last_server_ping = now
-                        
-                if not poll_results and last_server_ping and (now-last_server_ping) > self.server_heartbeat_interval:
-                    # timeout
+                
+                if last_server_ping is not None and (now-last_server_ping) > self.server_heartbeat_interval:
                     log.error('no communication from server; shutting down')
                     self.shutdown()
+                    
+                if self.worker_task_timeout:
+                    # this is not atomic, so borderline cases undergoing updates may trigger
+                    # false positive hangs...but only borderline cases, which is sufficient
+                    # for us
+                    last_dispatches = self.worker_last_dispatch.copy()
+                    for (pid,last_dispatch) in last_dispatches.iteritems():
+                        if (now - last_dispatch) > self.worker_task_timeout:
+                            log.error('worker at PID {} has hung; terminating and starting new worker'
+                                      .format(pid))
+                            self._signal_thread(self._monitor_ctl_endpoint, 'terminate:{}'.format(pid))
+                            self._signal_thread(self._monitor_ctl_endpoint, 'spawn:')                            
+                                        
         finally:
             poller.unregister(upstream_announce_socket)
             upstream_announce_socket.close(linger=0)
@@ -682,12 +729,10 @@ class ZMQClient(ZMQBase):
                     
                 if worker_poll_status.get(worker_task_socket) == zmq.POLLIN:
                     req_frames = worker_task_socket.recv_multipart(copy=False)
-                    now = time.time()
                     (node_id, client_id, message) = pickle.loads(req_frames[0].buffer.tobytes())
                     if node_id is not None and node_id != self.node_id:
                         log.error('received request for node {}, but this is node {}'
                                   .format(node_id, self.node_id))
-                    self.worker_last_contact[client_id] = now
                     
                     if message == 'task':
                         upstream_poll_status = dict(upstream_poller.poll())
@@ -699,9 +744,14 @@ class ZMQClient(ZMQBase):
                         assert upstream_poll_status.get(upstream_task_socket) == zmq.POLLIN
                         
                         task_frames = upstream_task_socket.recv_multipart(copy=False)
-                        # here is where we note what client gets what task
+                        task_meta = Task.from_zmq_frames(task_frames, include_payload=False)
+                                                
                         worker_task_socket.send_pyobj((self.node_id, client_id, message), flags=zmq.SNDMORE)
                         worker_task_socket.send_multipart(task_frames)
+                        
+                        self.worker_active_tasks[client_id] = task_meta
+                        self.worker_last_dispatch[client_id] = time.time()
+                        
                         del task_frames
                     else:
                         log.error('received invalid request from worker {!r}: {!r}'.format(client_id, message))
@@ -743,19 +793,12 @@ class ZMQClient(ZMQBase):
                     frames = worker_result_socket.recv_multipart(copy=False)
                     (node_id, client_id, message) = pickle.loads(frames[0].buffer.tobytes())
                     
-                    
                     if node_id != self.node_id:
                         log.error('received result destined for node {} but this is node {}; ignoring'
-                                  .format(node_id, self.node_id))
-                        
-                    self.worker_last_contact[client_id] = now                        
-                        
+                                  .format(node_id, self.node_id))                            
                     if message == 'result':
-                        result_meta = Result.from_zmq_frames(frames[1:], include_payload=False)
-                        # here is where we note that a task has successfully finished,
-                        # in support of reporting hung tasks as exceptions
+                        result_meta = Result.from_zmq_frames(frames[1:], include_payload=False)                        
                         upstream_result_socket.send_multipart(frames[1:])
-                        
                     else:
                         log.error('received invalid response from worker {!r}: {!r}'
                                   .format(client_id, message))
@@ -767,7 +810,7 @@ class ZMQClient(ZMQBase):
             worker_result_socket.close(linger=0)
             ctlsocket.close(linger=0)
             
-        
+
 class ZMQWorkManager(ZMQWMServer,WorkManager):
     pass
 

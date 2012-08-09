@@ -329,6 +329,4 @@ class WMFuture:
     
 # end class WMFuture
 
-    
 import serial, threads
-import ops
