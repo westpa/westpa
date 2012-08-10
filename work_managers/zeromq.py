@@ -55,6 +55,10 @@ class Task:
         self.fn = fn
         self.args = args
         self.kwargs = kwargs
+        
+    def __repr__(self):
+        return '<Task {self.task_id} from server {self.server_id}: {self.fn!r}(*{self.args!r}, **{self.kwargs!r})>'\
+               .format(self=self)
                 
     def to_zmq_frames(self):
         header_data = {'server_id': self.server_id,
@@ -85,6 +89,15 @@ class Result:
         self.value = value
         self.exception = exception
         self.traceback = traceback
+
+    def __repr__(self):
+        if self.exception is not None:
+            return '<Result {self.task_id} for server {self.server_id}: {self.value!r})>'\
+                   .format(self=self)
+        else:
+            return '<Result (exception) {self.task_id} for server {self.server_id}: {self.exception!r})>'\
+                   .format(self=self)
+
         
     @property
     def is_exception(self):
@@ -197,7 +210,7 @@ class ZMQWMServer(ZMQBase):
         super(ZMQWMServer, self).__init__()
         
         
-        self.context = zmq.Context.instance()
+        self.context = zmq.Context()
                         
         # where we send out work
         self.master_task_endpoint = master_task_endpoint
@@ -574,13 +587,20 @@ class ZMQClient(ZMQBase):
             ctlsocket.recv()
 
         finally:
-            ctlsocket.close()            
-                
-    def shutdown(self):
-        for endpoint in (self._monitor_ctl_endpoint, self._rslfwd_ctl_endpoint, self._taskfwd_ctl_endpoint):
-            self._signal_thread(endpoint, 'shutdown')
+            ctlsocket.close()
             
-    def wait_for_shutdown(self):
+    def _shutdown(self):
+        if not self._shutdown_signaled:
+            self._shutdown_signaled = True
+            for endpoint in (self._monitor_ctl_endpoint, self._rslfwd_ctl_endpoint, self._taskfwd_ctl_endpoint):
+                self._signal_thread(endpoint, 'shutdown')
+                    
+    def shutdown(self):
+        self._shutdown()
+        self._wait_for_shutdown()
+        #self.context.term()
+            
+    def _wait_for_shutdown(self):
         self._monitor_thread.join()
         self._rslfwd_thread.join()
         self._taskfwd_thread.join()
@@ -592,7 +612,7 @@ class ZMQClient(ZMQBase):
             assert proc.pid is not None
             self.workers[proc.pid] = proc        
     
-    def shutdown_workers(self):
+    def _shutdown_all_workers(self):
         
         # Right here is where we would implement zombie child process slaying
         # e.g. using psutil package
@@ -635,6 +655,7 @@ class ZMQClient(ZMQBase):
                     result = Result(active_task.server_id, active_task.task_id,
                                     exception=WorkerTerminated('worker performing this task was terminated'),
                                     traceback='')
+
                     upstream_result_socket.send_multipart(result.to_zmq_frames())
                 finally:
                     upstream_result_socket.close()
@@ -663,7 +684,7 @@ class ZMQClient(ZMQBase):
                 if poll_results.get(ctlsocket) == zmq.POLLIN:
                     messages = recvall(ctlsocket)
                     if 'shutdown' in messages:
-                        self.shutdown_workers()
+                        self._shutdown_all_workers()
                         return
                     # other messages are directives to manage workers
                     for message in messages:
@@ -676,13 +697,13 @@ class ZMQClient(ZMQBase):
                 if poll_results.get(upstream_announce_socket) == zmq.POLLIN:
                     announcements = recvall(upstream_announce_socket)
                     if 'shutdown' in announcements:
-                        self.shutdown()
+                        self._shutdown()
                     elif 'ping' in announcements:
                         last_server_ping = now
                 
                 if last_server_ping is not None and (now-last_server_ping) > self.server_heartbeat_interval:
                     log.error('no communication from server; shutting down')
-                    self.shutdown()
+                    self._shutdown()
                     
                 if self.worker_task_timeout:
                     # this is not atomic, so borderline cases undergoing updates may trigger
@@ -783,7 +804,6 @@ class ZMQClient(ZMQBase):
         try:
             while True:
                 poll_results = dict(poller.poll())
-                now = time.time()
                 
                 if poll_results.get(ctlsocket) == zmq.POLLIN:
                     if 'shutdown' in recvall(ctlsocket):
