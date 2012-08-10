@@ -3,7 +3,8 @@ import os, signal, tempfile, time, sys, multiprocessing, uuid, socket
 import cPickle as pickle
 
 from work_managers import WMFuture
-from work_managers.zeromq import Task, Result, ZMQBase, ZMQWorkManager, ZMQWMProcess, ZMQClient, recvall, WorkerTerminated
+from work_managers.zeromq import Task, Result, ZMQBase, ZMQWorkManager, ZMQWMProcess, ZMQClient, recvall, WorkerTerminated,\
+    ZMQWMServer
 from tsupport import *
 
 import zmq
@@ -137,42 +138,17 @@ class BaseTestZMQWMServer:
         finally:
             ann_socket.close(linger=0)
 
-    @timed(2)
-    def test_sigint_shutdown(self):
-        ann_socket = self.test_client_context.socket(zmq.SUB)
-        ann_socket.setsockopt(zmq.SUBSCRIBE,'')        
-        work_manager = self.test_master
-        work_manager.install_sigint_handler()
-        
-        work_manager.startup()
-        ann_socket.connect(work_manager.master_announce_endpoint)
-        sockdelay()
-    
-        try:
-            os.kill(os.getpid(), signal.SIGINT)
-        except KeyboardInterrupt:
-            sockdelay()
-            announcements = [ann_socket.recv()]
-            announcements.extend(recvall(ann_socket))
-            assert 'shutdown' in announcements            
-            assert not work_manager._dispatch_thread.is_alive(), 'dispatch thread still alive'
-            assert not work_manager._receive_thread.is_alive(), 'receive thread still alive'
-            assert not work_manager._announce_thread.is_alive(), 'announcement thread still alive'
-        finally:
-            ann_socket.close(linger=0)
-
 class TestZMQWMServerIPC(BaseTestZMQWMServer):
     def setUp(self):
         self.test_client_context = zmq.Context()
         task_endpoint = ZMQBase.make_ipc_endpoint()
         result_endpoint = ZMQBase.make_ipc_endpoint()
         ann_endpoint = ZMQBase.make_ipc_endpoint()
-        self.test_master = ZMQWorkManager(task_endpoint, result_endpoint, ann_endpoint)
+        self.test_master = ZMQWMServer(task_endpoint, result_endpoint, ann_endpoint)
         
     def tearDown(self):
         self.test_master.shutdown()
         self.test_master.remove_ipc_endpoints()
-        self.test_client_context.destroy(linger=0)
         del self.test_master, self.test_client_context
 
 #@nose.SkipTest
@@ -182,7 +158,7 @@ class TestZMQWMServerTCP(BaseTestZMQWMServer):
         ann_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
         task_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
         result_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
-        self.test_master = ZMQWorkManager(task_endpoint, result_endpoint, ann_endpoint)
+        self.test_master = ZMQWMServer(task_endpoint, result_endpoint, ann_endpoint)
 
     def tearDown(self):
         self.test_master.shutdown()
@@ -207,10 +183,8 @@ class TestZMQWMProcess:
         
         self.server_id = uuid.uuid4()
         self.node_id =  uuid.uuid4()
-                
 
     def tearDown(self):
-        self.context.destroy(linger=0)
         self.wmproc.terminate()
         del self.context, self.wmproc, self.server_id, self.node_id
     
@@ -565,7 +539,6 @@ class TestZMQClientTCP(BaseTestZMQClient):
         #self.test_client.shutdown_workers()
         if self.test_client._monitor_thread is not None and self.test_client._monitor_thread.is_alive():
             self.test_client.shutdown()
-        self.context.term()
         del self.context, self.server_id, self.node_id
 
 class TestZMQClientIPC(BaseTestZMQClient):
@@ -582,7 +555,82 @@ class TestZMQClientIPC(BaseTestZMQClient):
         self.context = zmq.Context()
                 
     def tearDown(self):
-        #self.test_client.shutdown_workers()
-        #self.context.destroy(linger=0)
-        self.context.term()
         del self.context, self.server_id, self.node_id
+        
+class BaseTestCoordinated(CommonParallelTests,CommonWorkManagerTests):
+    
+    @timed(2)
+    def test_sigint_shutdown(self):
+        ann_socket = self.context.socket(zmq.SUB)
+        ann_socket.setsockopt(zmq.SUBSCRIBE,'')        
+        work_manager = self.work_manager
+        work_manager.install_sigint_handler()
+        
+        ann_socket.connect(work_manager.master_announce_endpoint)
+        sockdelay()
+    
+        try:
+            os.kill(os.getpid(), signal.SIGINT)
+        except KeyboardInterrupt:
+            sockdelay()
+            announcements = [ann_socket.recv()]
+            announcements.extend(recvall(ann_socket))
+            assert 'shutdown' in announcements            
+            assert not work_manager._dispatch_thread.is_alive(), 'dispatch thread still alive'
+            assert not work_manager._receive_thread.is_alive(), 'receive thread still alive'
+            assert not work_manager._announce_thread.is_alive(), 'announcement thread still alive'
+        finally:
+            ann_socket.close(linger=0)
+   
+                
+    
+class TestCoordinatedIPC(BaseTestCoordinated):
+    def setUp(self):
+        self.nprocs = 4        
+        
+        self.ann_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
+        self.task_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
+        self.result_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
+        
+        self.test_master = ZMQWorkManager(self.nprocs, self.task_endpoint, self.result_endpoint, self.ann_endpoint)
+        self.test_master.startup()
+        
+        self.test_client = ZMQClient(self.task_endpoint, self.result_endpoint, self.ann_endpoint, self.nprocs)
+        self.test_client.startup()
+        
+        self.work_manager = self.test_master
+        
+        self.context = zmq.Context()
+    
+    def tearDown(self):
+        self.test_client.shutdown()
+        self.test_master.shutdown()
+        
+class TestCoordinatedTCP(BaseTestCoordinated):
+    def setUp(self):
+        self.nprocs = 4
+        
+        self.ann_endpoint = ZMQBase.make_ipc_endpoint()
+        self.task_endpoint = ZMQBase.make_ipc_endpoint()
+        self.result_endpoint = ZMQBase.make_ipc_endpoint()
+        
+        self.test_master = ZMQWorkManager(self.nprocs, self.task_endpoint, self.result_endpoint, self.ann_endpoint)
+        self.test_master.startup()
+        
+        self.test_client = ZMQClient(self.task_endpoint, self.result_endpoint, self.ann_endpoint, self.nprocs)
+        self.test_client.startup()
+        
+        self.work_manager = self.test_master        
+
+        self.context = zmq.Context()
+    
+    def tearDown(self):
+        self.test_client.shutdown()
+        self.test_master.shutdown()
+    
+class TestAutoLocal:
+    def test_auto(self):
+        with ZMQWorkManager() as work_manager:
+            future = work_manager.submit(will_succeed)
+            future.get_result()
+    

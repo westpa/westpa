@@ -84,14 +84,12 @@ class ProcessWorkManager(WorkManager):
         for worker in self.workers:
             worker.start()
             
-        self.mode = self.MODE_MASTER
         self.install_sigint_handler()
         self.pending = dict()
 
         self.receive_thread = threading.Thread(target=self.results_loop, name='receiver')
         self.receive_thread.daemon = True
         self.receive_thread.start()        
-        return self.MODE_MASTER
     
     def _empty_queues(self):
         while not self.task_queue.empty():

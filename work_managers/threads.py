@@ -52,8 +52,6 @@ class ThreadsWorkManager(WorkManager):
         for thread in self.workers:
             log.debug('starting thread {!r}'.format(thread))
             thread.start()
-        self.mode = self.MODE_MASTER
-        return self.MODE_MASTER
         
     def shutdown(self):
         # Put one sentinel on the queue per worker, then wait for threads to terminate

@@ -14,13 +14,8 @@ from collections import deque
 from contextlib import contextmanager
 log = logging.getLogger(__name__)
 
-#class WEMDWorkManager:
 class WorkManager:
-    MODE_MASTER = 1
-    MODE_WORKER = 2
-
     def __init__(self):
-        self.mode = None
         self.prior_sigint_handler = None
         
     def __enter__(self):
@@ -45,11 +40,8 @@ class WorkManager:
 
                                     
     def startup(self):
-        '''Perform any necessary startup work, such as spawning clients, and return either MODE_MASTER or MODE_WORKER 
-        depending on whether this work manager is a master (capable of distributing work) or a worker (capable only
-        of performing work distributed by a master).'''
-        self.mode = self.MODE_MASTER
-        return self.MODE_MASTER
+        '''Perform any necessary startup work, such as spawning clients.'''
+        pass
                                             
     def shutdown(self):
         '''Cleanly shut down any active workers.'''
@@ -123,6 +115,7 @@ class WorkManager:
         for future in futures:
             results.append(future.result)
         return futures
+    
             
 class FutureWatcher:
     '''A device to wait on multiple results and/or exceptions with only one lock.'''

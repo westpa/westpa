@@ -832,7 +832,42 @@ class ZMQClient(ZMQBase):
             
 
 class ZMQWorkManager(ZMQWMServer,WorkManager):
-    pass
+    def __init__(self, n_workers = None, 
+                 master_task_endpoint = None, master_result_endpoint = None, master_announce_endpoint = None):
+        WorkManager.__init__(self)
+        
+        if n_workers is None:
+            n_workers = multiprocessing.cpu_count()
+        self.n_workers = n_workers
+        self.internal_client = None
+        
+        argtests = [master_task_endpoint is None, master_result_endpoint is None, master_announce_endpoint is None]
+        if any(argtests) and not all(argtests):
+            raise ValueError('endpoints must all be either specified or None (not mixed)')
+        else:
+            assign_endpoints = all(argtests)
+            
+        if assign_endpoints:
+            master_task_endpoint = self.make_ipc_endpoint()
+            master_result_endpoint = self.make_ipc_endpoint()
+            master_announce_endpoint = self.make_ipc_endpoint()
+
+        ZMQWMServer.__init__(self, master_task_endpoint, master_result_endpoint, master_announce_endpoint)            
+        
+        if n_workers > 0:
+            # this node is both a master and a client; start workers
+            self.internal_client = ZMQClient(master_task_endpoint, master_result_endpoint, master_announce_endpoint,
+                                             self.n_workers)
+                    
+    def startup(self):
+        ZMQWMServer.startup(self)
+        if self.internal_client is not None:
+            self.internal_client.startup()
+            
+    def shutdown(self):
+        if self.internal_client is not None:
+            self.internal_client.shutdown()
+        ZMQWMServer.shutdown(self)
 
 
 atexit.register(ZMQBase.remove_ipc_endpoints)
