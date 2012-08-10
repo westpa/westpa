@@ -1,6 +1,7 @@
 from __future__ import division, print_function; __metaclass__ = type
 
 import sys, logging, multiprocessing, threading, traceback, signal, os, random
+import work_managers
 from . import WorkManager, WMFuture
 
 log = logging.getLogger(__name__)
@@ -14,6 +15,10 @@ result_shutdown_sentinel = ('shutdown', None, None)
 
 class ProcessWorkManager(WorkManager):
     '''A work manager using the ``multiprocessing`` module.'''
+    
+    @classmethod
+    def from_environ(cls):
+        return cls(work_managers.environment.get_worker_count())        
     
     def __init__(self, n_workers = None, shutdown_timeout = 1):
         super(ProcessWorkManager,self).__init__()

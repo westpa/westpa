@@ -32,13 +32,19 @@ try:
 except ImportError:
     from zmq.core.message import Message as Frame
 
+import work_managers
 from work_managers import WorkManager, WMFuture
+
 
 log = logging.getLogger(__name__)
 
-default_ann_port     = 23811 # announcements: PUB master, SUB clients
-default_task_port    = 23812 # task distribution: PUSH master, PULL clients
-default_results_port = 23813 # results reception: PULL master, PUSH clients
+def randport():
+    s = socket.socket()
+    s.bind(('127.0.0.1',0))
+    port = s.getsockname()[1]
+    s.close()
+    return port
+
 
 class ZMQWMException(Exception):
     pass
@@ -832,6 +838,35 @@ class ZMQClient(ZMQBase):
             
 
 class ZMQWorkManager(ZMQWMServer,WorkManager):
+    @staticmethod
+    def canonicalize_endpoint(endpoint):
+        if endpoint.startswith('ipc://'):
+            return endpoint
+        elif endpoint.startswith('tcp://'):
+            fields = endpoint[6:].split(':')
+            
+            # get IP address
+            ipaddr = socket.gethostbyname(fields[0])
+            
+            # get/generate port
+            try:
+                port = fields[1]
+            except IndexError:
+                # no port given; select one
+                port = randport()
+            else:
+                port = int(fields[1])
+                
+            return 'tcp://{}:{}'.format(ipaddr,port)
+        else:
+            raise ValueError('unrecognized/unsupported endpoint: {!r}'.format(endpoint))
+                
+    
+    @classmethod
+    def from_environ(cls):
+        n_workers = work_managers.environment.get_worker_count()
+        
+    
     def __init__(self, n_workers = None, 
                  master_task_endpoint = None, master_result_endpoint = None, master_announce_endpoint = None):
         WorkManager.__init__(self)

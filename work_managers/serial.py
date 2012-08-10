@@ -7,6 +7,10 @@ log = logging.getLogger(__name__)
 from . import WorkManager, WMFuture
 
 class SerialWorkManager(WorkManager):
+    @classmethod
+    def from_environ(cls):
+        return cls()
+    
     def __init__(self):
         log.debug('initializing serial work manager')
         super(SerialWorkManager,self).__init__()

@@ -3,10 +3,11 @@ from __future__ import division, print_function; __metaclass__ = type
 import sys, logging, threading, multiprocessing
 import Queue
 from . import WorkManager, WMFuture
+import work_managers
 
 log = logging.getLogger(__name__)
 
-class Task:
+class Task:        
     def __init__(self, fn, args, kwargs, future):
         self.fn = fn
         self.args = args
@@ -25,6 +26,9 @@ ShutdownSentinel = object()
 
 class ThreadsWorkManager(WorkManager):
     '''A work manager using threads.'''
+    @classmethod
+    def from_environ(cls): 
+        return cls(work_managers.environment.get_worker_count())
     
     def __init__(self, n_workers = None):
         super(ThreadsWorkManager,self).__init__()
