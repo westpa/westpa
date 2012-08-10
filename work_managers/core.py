@@ -112,7 +112,12 @@ class WorkManager:
         for future in futures:
             results.append(future.result)
         return futures
-    
+
+    @property
+    def is_master(self):
+        '''True if this is the master process for task distribution. This is necessary, e.g., for
+        MPI, where all processes start identically and then must branch depending on rank.'''
+        return True
             
 class FutureWatcher:
     '''A device to wait on multiple results and/or exceptions with only one lock.'''

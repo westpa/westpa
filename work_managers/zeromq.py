@@ -19,12 +19,9 @@ in a specific time frame (indicating a crashed master).
 
 from __future__ import division, print_function; __metaclass__ = type
 
-import sys, os, logging, socket, multiprocessing, threading, time, traceback, signal, random, tempfile, atexit, uuid
+import os, logging, socket, multiprocessing, threading, time, traceback, signal, tempfile, atexit, uuid, json, re
 import cPickle as pickle
-import argparse
 from collections import deque
-from Queue import Queue
-from Queue import Empty 
 import zmq
 from zmq import ZMQError
 try:
@@ -44,7 +41,6 @@ def randport():
     port = s.getsockname()[1]
     s.close()
     return port
-
 
 class ZMQWMException(Exception):
     pass
@@ -160,6 +156,35 @@ class ZMQBase:
         self.host_id = '{:s}-{:d}'.format(self.hostname, os.getpid())
         self.instance_id = uuid.uuid4()
 
+    @staticmethod
+    def canonicalize_endpoint(endpoint, allow_wildcard_host = True):
+        if endpoint.startswith('ipc://'):
+            return endpoint
+        elif endpoint.startswith('tcp://'):
+            fields = endpoint[6:].split(':')
+            
+            # get IP address
+            if fields[0] != '*':
+                ipaddr = socket.gethostbyname(fields[0])
+            else:
+                if allow_wildcard_host:
+                    ipaddr = '*'
+                else:
+                    raise ValueError('wildcard host not permitted')
+            
+            # get/generate port
+            try:
+                port = fields[1]
+            except IndexError:
+                # no port given; select one
+                port = randport()
+            else:
+                port = int(fields[1])
+                
+            return 'tcp://{}:{}'.format(ipaddr,port)
+        else:
+            raise ValueError('unrecognized/unsupported endpoint: {!r}'.format(endpoint))
+
     @classmethod    
     def make_ipc_endpoint(cls):
         (fd, socket_path) = tempfile.mkstemp()
@@ -240,6 +265,9 @@ class ZMQWMServer(ZMQBase):
         self._dispatch_thread_ctl_endpoint = 'inproc://_dispatch_thread_ctl_{:x}'.format(id(self))        
         self._receive_thread_ctl_endpoint = 'inproc://_receive_thread_ctl_{:x}'.format(id(self))
         self._announce_endpoint = 'inproc://_announce_{:x}'.format(id(self))
+
+    def write_server_info(self, filename):
+        pass
         
     def startup(self):
         # start up server threads, blocking until their sockets are ready
@@ -523,8 +551,41 @@ class ZMQWMProcess(ZMQBase,multiprocessing.Process):
             result_socket.close(linger=0)
 
 class ZMQClient(ZMQBase):
+    @classmethod
+    def from_environ(cls):
+        n_workers = work_managers.environment.get_worker_count()
+
+
+        tests = [not bool(os.environ.get('WWMGR_ZMQ_TASK_ENDPOINT')),
+                 not bool(os.environ.get('WWMGR_ZMQ_RESULT_ENDPOINT')),
+                 not bool(os.environ.get('WWMGR_ZMQ_ANNOUNCE_ENDPOINT'))]
+        if all(tests):
+            # No endpoints specified; use server info file
+            try:
+                server_info_filename = os.environ['WWMGR_ZMQ_SERVER_INFO']
+            except KeyError:
+                raise EnvironmentError('neither endpoints (WWMGR_ZMQ_*_ENDPOINT) nor server info '
+                                       'file (WWMGR_ZMQ_SERVER_INFO) specified')
+            else:
+                try:
+                    server_info = json.load(open(server_info_filename,'rt'))
+                    task_endpoint = server_info['task_endpoint']
+                    result_endpoint = server_info['result_endpoint']
+                    announce_endpoint = server_info['announce_endpoint']    
+                except Exception as e:
+                    raise EnvironmentError('cannot load server info file {!r}: {}'.format(server_info_filename,e))                
+        elif any(tests):
+            raise ValueError('either none or all three endpoints must be specified')
+        else:
+            task_endpoint = cls.canonicalize_endpoint(os.environ['WWMGR_ZMQ_TASK_ENDPOINT'],allow_wildcard_host=False)
+            result_endpoint = cls.canonicalize_endpoint(os.environ['WWMGR_ZMQ_RESULT_ENDPOINT'],allow_wildcard_host=False)
+            announce_endpoint = cls.canonicalize_endpoint(os.environ['WWMGR_ZMQ_ANNOUNCE_ENDPOINT'],allow_wildcard_host=False)
+        
+        return cls(task_endpoint, result_endpoint, announce_endpoint, n_workers)
+                     
+    
     def __init__(self, upstream_task_endpoint, upstream_result_endpoint, upstream_announce_endpoint,
-                 nprocs = None):
+                 n_workers = None):
         super(ZMQClient,self).__init__()
         
         self.upstream_task_endpoint = upstream_task_endpoint
@@ -533,7 +594,7 @@ class ZMQClient(ZMQBase):
         
         self.context = None # this really shouldn't be instantiated until after forks, just to be safe
         
-        self.nprocs = nprocs or multiprocessing.cpu_count()
+        self.n_workers = n_workers or multiprocessing.cpu_count()
         
         self.worker_task_endpoint = self.make_ipc_endpoint()
         self.worker_result_endpoint = self.make_ipc_endpoint()
@@ -571,7 +632,7 @@ class ZMQClient(ZMQBase):
     def startup(self, spawn_workers=True):        
         if spawn_workers:
             with self.worker_lock:
-                for _n in xrange(self.nprocs):
+                for _n in xrange(self.n_workers):
                     self._spawn_worker()
             
         self.context = zmq.Context()
@@ -835,40 +896,76 @@ class ZMQClient(ZMQBase):
             poller.unregister(ctlsocket)
             worker_result_socket.close(linger=0)
             ctlsocket.close(linger=0)
+
+    @property
+    def is_master(self):
+        '''True if this is the master process for task distribution. This is necessary, e.g., for
+        MPI, where all processes start identically and then must branch depending on rank.'''
+        return False
             
 
 class ZMQWorkManager(ZMQWMServer,WorkManager):
-    @staticmethod
-    def canonicalize_endpoint(endpoint):
-        if endpoint.startswith('ipc://'):
-            return endpoint
-        elif endpoint.startswith('tcp://'):
-            fields = endpoint[6:].split(':')
+    write_server_info = True
             
-            # get IP address
-            ipaddr = socket.gethostbyname(fields[0])
-            
-            # get/generate port
-            try:
-                port = fields[1]
-            except IndexError:
-                # no port given; select one
-                port = randport()
-            else:
-                port = int(fields[1])
-                
-            return 'tcp://{}:{}'.format(ipaddr,port)
-        else:
-            raise ValueError('unrecognized/unsupported endpoint: {!r}'.format(endpoint))
-                
-    
     @classmethod
     def from_environ(cls):
         n_workers = work_managers.environment.get_worker_count()
         
+        # if individual endpoints are named, we use these
+        tests = [not bool(os.environ.get('WWMGR_ZMQ_TASK_ENDPOINT')),
+                 not bool(os.environ.get('WWMGR_ZMQ_RESULT_ENDPOINT')),
+                 not bool(os.environ.get('WWMGR_ZMQ_ANNOUNCE_ENDPOINT'))]
+        if all(tests):
+            # No endpoints specified; see if we have been instructed to choose TCP or IPC
+            comm_mode = os.environ.get('WWMGR_ZMQ_COMM_MODE')
+            if not comm_mode: comm_mode = 'ipc'
+            comm_mode = comm_mode.lower()
+            if comm_mode not in ('tcp', 'ipc'):
+                raise ValueError('invalid ZMQ communications mode: {!r}'.format(comm_mode))
+            elif comm_mode == 'tcp':
+                # Choose random ports
+                task_endpoint = cls.canonicalize_endpoint('tcp://*')
+                result_endpoint = cls.canonicalize_endpoint('tcp://*')
+                announce_endpoint = cls.canonicalize_endpoint('tcp://*')
+            else: # ipc
+                task_endpoint = cls.make_ipc_endpoint()
+                result_endpoint = cls.make_ipc_endpoint()
+                announce_endpoint = cls.make_ipc_endpoint()
+        elif any(tests):
+            raise ValueError('either none or all three endpoints must be specified')
+        else:
+            task_endpoint = cls.canonicalize_endpoint(os.environ['WWMGR_ZMQ_TASK_ENDPOINT'])
+            result_endpoint = cls.canonicalize_endpoint(os.environ['WWMGR_ZMQ_RESULT_ENDPOINT'])
+            announce_endpoint = cls.canonicalize_endpoint(os.environ['WWMGR_ZMQ_ANNOUNCE_ENDPOINT'])
+            
+        return cls(n_workers, task_endpoint, result_endpoint, announce_endpoint)
+    
+    def get_server_info_filename(self):
+        '''Get server info filename from the environment'''
+        return os.path.abspath(os.environ.get('WWMGR_ZMQ_SERVER_INFO', 'zmq_server_info_{:d}_{:x}.json'.format(os.getpid(),id(self))))
+    
+    def remove_server_info_file(self):
+        filename = self.get_server_info_filename()
+        try:
+            os.unlink(filename)
+        except OSError as e:
+            log.info('could not remove server info file {!r}: {}'.format(filename, e))
+        else:
+            log.debug('removed server info file {!r}'.format(filename))
+    
+    def write_server_info(self, filename=None):
+        filename = filename or self.get_server_info_filename()
+        hostname = socket.gethostname()
+        with open(filename, 'wt') as infofile:
+            json.dump({'task_endpoint': re.sub(r'\*', hostname, self.master_task_endpoint),
+                       'result_endpoint': re.sub(r'\*', hostname, self.master_result_endpoint),
+                       'announce_endpoint': re.sub(r'\*', hostname, self.master_announce_endpoint)},
+                      infofile)
+        os.chmod(filename, 0600)
     
     def __init__(self, n_workers = None, 
-                 master_task_endpoint = None, master_result_endpoint = None, master_announce_endpoint = None):
+                 master_task_endpoint = None, master_result_endpoint = None, master_announce_endpoint = None,
+                 write_server_info = True, server_info_filename=None):
         WorkManager.__init__(self)
         
         if n_workers is None:
@@ -893,6 +990,12 @@ class ZMQWorkManager(ZMQWMServer,WorkManager):
             # this node is both a master and a client; start workers
             self.internal_client = ZMQClient(master_task_endpoint, master_result_endpoint, master_announce_endpoint,
                                              self.n_workers)
+        
+        if write_server_info:
+            server_info_filename = server_info_filename or self.get_server_info_filename()
+            self.write_server_info(server_info_filename)
+            atexit.register(self.remove_server_info_file)
+                
                     
     def startup(self):
         ZMQWMServer.startup(self)
@@ -903,6 +1006,7 @@ class ZMQWorkManager(ZMQWMServer,WorkManager):
         if self.internal_client is not None:
             self.internal_client.shutdown()
         ZMQWMServer.shutdown(self)
+        self.remove_server_info_file()
 
 
 atexit.register(ZMQBase.remove_ipc_endpoints)

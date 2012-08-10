@@ -1,5 +1,5 @@
 from __future__ import division, print_function; __metaclass__ = type
-import os, signal, tempfile, time, sys, multiprocessing, uuid, socket
+import os, signal, tempfile, time, sys, multiprocessing, uuid, socket, json, re
 import cPickle as pickle
 
 from work_managers import WMFuture
@@ -22,6 +22,13 @@ def randport():
     port = s.getsockname()[1]
     s.close()
     return port
+
+def randipc():
+    (fd, socket_path) = tempfile.mkstemp()
+    os.close(fd)
+    endpoint = 'ipc://{}'.format(socket_path)
+    return endpoint
+    
 
 class BaseTestZMQWMServer:
                     
@@ -627,10 +634,144 @@ class TestCoordinatedTCP(BaseTestCoordinated):
     def tearDown(self):
         self.test_client.shutdown()
         self.test_master.shutdown()
+        
+class TestZMQWorkManager:
+    sanitize_vars = ('WWMGR_WORK_MANAGER', 'WWMGR_N_WORKERS',
+                     'WWMGR_ZMQ_SERVER_INFO', 'WWMGR_ZMQ_COMM_MODE',
+                     'WWMGR_ZMQ_TASK_ENDPOINT', 'WWMGR_ZMQ_RESULT_ENDPOINT', 'WWMGR_ZMQ_ANNOUNCE_ENDPOINT')
     
-class TestAutoLocal:
-    def test_auto(self):
+    def setUp(self):
+        for varname in self.sanitize_vars:
+            assert varname not in os.environ
+    
+    def tearDown(self):
+        for varname in self.sanitize_vars:
+            os.environ.pop(varname, None)
+                    
+    def test_auto_local(self):
         with ZMQWorkManager() as work_manager:
             future = work_manager.submit(will_succeed)
             future.get_result()
+            
+    def test_server_info_ipc(self):
+        with ZMQWorkManager() as work_manager:
+            server_info_filename = work_manager.get_server_info_filename()
+            assert os.path.exists(server_info_filename)
+            assert os.stat(server_info_filename).st_mode & 0777 == 0600
+            server_info = json.load(open(work_manager.get_server_info_filename(), 'rt'))
+            assert re.sub(r'\*', socket.gethostname(), work_manager.master_task_endpoint) == server_info['task_endpoint']
+            assert re.sub(r'\*', socket.gethostname(), work_manager.master_result_endpoint) == server_info['result_endpoint']
+            assert re.sub(r'\*', socket.gethostname(), work_manager.master_announce_endpoint) == server_info['announce_endpoint']
+        assert not os.path.exists(server_info_filename)
+        
+    def test_environ_empty(self):
+        with ZMQWorkManager.from_environ() as work_manager:
+            future = work_manager.submit(will_succeed)
+            future.get_result()
+
+    def test_environ_mode_ipc(self):
+        os.environ['WWMGR_ZMQ_COMM_MODE'] = 'ipc'
+        with ZMQWorkManager.from_environ() as work_manager:
+            assert work_manager.master_task_endpoint.startswith('ipc:///')
+            assert work_manager.master_result_endpoint.startswith('ipc:///')
+            assert work_manager.master_announce_endpoint.startswith('ipc:///')
+            future = work_manager.submit(will_succeed)
+            future.get_result()
     
+    def test_environ_mode_tcp(self):
+        os.environ['WWMGR_ZMQ_COMM_MODE'] = 'tcp'
+        with ZMQWorkManager.from_environ() as work_manager:
+            assert work_manager.master_task_endpoint.startswith('tcp://*')
+            assert work_manager.master_result_endpoint.startswith('tcp://*')
+            assert work_manager.master_announce_endpoint.startswith('tcp://*')
+            future = work_manager.submit(will_succeed)
+            future.get_result()
+
+    def test_environ_ipc_endpoints(self):
+        task_endpoint = randipc()
+        result_endpoint = randipc()
+        announce_endpoint = randipc()
+        
+        os.environ['WWMGR_ZMQ_TASK_ENDPOINT'] = task_endpoint
+        os.environ['WWMGR_ZMQ_RESULT_ENDPOINT'] = result_endpoint
+        os.environ['WWMGR_ZMQ_ANNOUNCE_ENDPOINT'] = announce_endpoint
+        
+        with ZMQWorkManager.from_environ() as work_manager:
+            assert work_manager.master_task_endpoint == task_endpoint
+            assert work_manager.master_result_endpoint == result_endpoint
+            assert work_manager.master_announce_endpoint == announce_endpoint
+            future = work_manager.submit(will_succeed)
+            future.get_result()
+
+    def test_environ_tcp_endpoints(self):
+        # note that this tests not only that the work manager honor our environment settings, but that
+        # the hostname-to-ip mapping succeeded
+        task_endpoint = 'tcp://localhost:{}'.format(randport())
+        result_endpoint = 'tcp://localhost:{}'.format(randport())
+        announce_endpoint = 'tcp://localhost:{}'.format(randport())
+
+        os.environ['WWMGR_ZMQ_TASK_ENDPOINT'] = task_endpoint
+        os.environ['WWMGR_ZMQ_RESULT_ENDPOINT'] = result_endpoint
+        os.environ['WWMGR_ZMQ_ANNOUNCE_ENDPOINT'] = announce_endpoint
+        
+        with ZMQWorkManager.from_environ() as work_manager:
+            assert work_manager.master_task_endpoint == re.sub('localhost','127.0.0.1', task_endpoint)
+            assert work_manager.master_result_endpoint == re.sub('localhost','127.0.0.1', result_endpoint)
+            assert work_manager.master_announce_endpoint == re.sub('localhost','127.0.0.1', announce_endpoint)
+            future = work_manager.submit(will_succeed)
+            future.get_result()
+
+    def test_environ_nworkers(self):
+        os.environ['WWMGR_N_WORKERS'] = str(2)
+        with ZMQWorkManager.from_environ() as work_manager:
+            assert work_manager.internal_client.n_workers == 2
+            future = work_manager.submit(will_succeed)
+            future.get_result()
+
+    def test_environ_noworkers(self):
+        os.environ['WWMGR_N_WORKERS'] = str(0)
+        with ZMQWorkManager.from_environ() as work_manager:
+            assert work_manager.internal_client is None
+
+    @timed(2)
+    @raises(ValueError)
+    def test_client_from_bad_environ(self):
+        os.environ['WWMGR_N_WORKERS'] = str(0)
+        task_endpoint = 'tcp://*:{}'.format(randport())
+        result_endpoint = 'tcp://*:{}'.format(randport())
+        announce_endpoint = 'tcp://*:{}'.format(randport())
+
+        os.environ['WWMGR_ZMQ_TASK_ENDPOINT'] = task_endpoint
+        os.environ['WWMGR_ZMQ_RESULT_ENDPOINT'] = result_endpoint
+        os.environ['WWMGR_ZMQ_ANNOUNCE_ENDPOINT'] = announce_endpoint
+        
+        with ZMQWorkManager() as work_manager:
+            os.environ['WWMGR_N_WORKERS'] = str(2)
+            test_client = ZMQClient.from_environ()
+            test_client.startup()            
+            try:
+                future = work_manager.submit(will_succeed)
+                future.get_result()                
+            finally:
+                test_client.shutdown()
+                
+    @timed(2)
+    def test_client_from_environ(self):
+        os.environ['WWMGR_N_WORKERS'] = str(0)
+        task_endpoint = 'tcp://localhost:{}'.format(randport())
+        result_endpoint = 'tcp://localhost:{}'.format(randport())
+        announce_endpoint = 'tcp://localhost:{}'.format(randport())
+
+        os.environ['WWMGR_ZMQ_TASK_ENDPOINT'] = task_endpoint
+        os.environ['WWMGR_ZMQ_RESULT_ENDPOINT'] = result_endpoint
+        os.environ['WWMGR_ZMQ_ANNOUNCE_ENDPOINT'] = announce_endpoint
+        
+        with ZMQWorkManager() as work_manager:
+            os.environ['WWMGR_N_WORKERS'] = str(2)
+            test_client = ZMQClient.from_environ()
+            test_client.startup()            
+            try:
+                future = work_manager.submit(will_succeed)
+                future.get_result()                
+            finally:
+                test_client.shutdown()        

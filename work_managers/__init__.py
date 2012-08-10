@@ -6,4 +6,10 @@ futures implementation).
 '''
 
 from core import WorkManager, WMFuture, FutureWatcher
-import serial, threads
+import environment
+import serial, threads, processes, zeromq
+
+from serial import SerialWorkManager
+from threads import ThreadsWorkManager
+from processes import ProcessWorkManager
+from zeromq import ZMQWorkManager, ZMQClient
