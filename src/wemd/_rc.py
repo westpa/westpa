@@ -43,9 +43,6 @@ class _WEMDRC:
         self.config = ConfigDict()
         self.process_name = os.path.splitext(os.path.basename(sys.argv[0]))[0]
     
-        self._work_manager_args_added = False
-
-        self._work_manager = None
         self._system = None
         self._data_manager = None
         self._sim_manager = None
@@ -70,16 +67,6 @@ class _WEMDRC:
         
         group.add_argument('--version', action='version', version='WEMD version %s' % wemd.version)
         
-    def add_work_manager_args(self, parser):
-        self._work_manager_args_added = True
-        group = parser.add_argument_group('work manager options')
-        group.add_argument('--work-manager', dest='work_manager_name',
-                            help='''use the given work manager to distribute work among processors (serial, threads, processes, 
-                            zmq, or name a Python class as ``module.name``; default: %(default)s)''')
-        group.add_argument('--help-work-manager', dest='do_work_manager_help', action='store_true',
-                            help='display help specific to the given work manager')
-                
-    
     @property
     def verbose_mode(self):
         return (self.verbosity in ('verbose', 'debug'))
@@ -92,11 +79,9 @@ class _WEMDRC:
     def quiet_mode(self):
         return (self.verbosity == 'quiet')
                             
-    def process_args(self, args, aux_args=[], config_required = True):
+    def process_args(self, args, config_required = True):
         self.cmdline_args = args
         self.verbosity = args.verbosity
-        if self._work_manager_args_added:
-            self.work_manager_name = args.work_manager_name 
         
         if args.rcfile:
             self.rcfile = args.rcfile
@@ -110,14 +95,7 @@ class _WEMDRC:
                 raise
         self.config_logging()
         self.config.update_from_object(args)
-        
-        if self._work_manager_args_added:
-            work_manager = self.get_work_manager()
-            aux_args = work_manager.parse_aux_args(aux_args, do_help=args.do_work_manager_help)
-            if aux_args:
-                sys.stderr.write('unexpected command line argument(s) encountered: {}\n'.format(aux_args))
-                sys.exit(os.EX_USAGE)
-                    
+                            
     def read_config(self, filename = None):
         if filename:
             self.rcfile = filename
@@ -176,20 +154,20 @@ class _WEMDRC:
             except AttributeError:
                 pass
             
-    def new_sim_manager(self):
+    def new_sim_manager(self, work_manager=None):
         drivername = self.config.get('drivers.sim_manager', 'default')
         if drivername.lower() == 'default':
             from wemd.sim_manager import WESimManager
-            sim_manager = WESimManager()
+            sim_manager = WESimManager(work_manager)
         else:
             pathinfo = self.config.get_pathlist('drivers.module_path')
-            sim_manager = extloader.get_object(drivername,pathinfo)()
+            sim_manager = extloader.get_object(drivername,pathinfo)(work_manager)
         log.debug('loaded simulation manager {!r}'.format(sim_manager))
         return sim_manager
         
-    def get_sim_manager(self):
+    def get_sim_manager(self, work_manager=None):
         if self._sim_manager is None:
-            self._sim_manager = self.new_sim_manager()
+            self._sim_manager = self.new_sim_manager(work_manager)
         return self._sim_manager
 
     def new_data_manager(self):
@@ -220,39 +198,7 @@ class _WEMDRC:
     def get_we_driver(self):
         if self._we_driver is None:
             self._we_driver = self.new_we_driver()
-        return self._we_driver
-    
-    def new_work_manager(self):
-        drivername = self.config.get('args.work_manager_name')
-        if not drivername:
-            drivername = self.config.get('drivers.work_manager', 'default')
-        ldrivername = drivername.lower()
-        if ldrivername == 'default':
-            ldrivername = self.DEFAULT_WORK_MANAGER
-        if ldrivername == 'serial':
-            import wemd.work_managers.serial
-            work_manager = wemd.work_managers.serial.SerialWorkManager()
-        elif ldrivername == 'threads':
-            import wemd.work_managers.threads
-            work_manager = wemd.work_managers.threads.ThreadsWorkManager()
-        elif ldrivername == 'processes':
-            import wemd.work_managers.processes
-            work_manager = wemd.work_managers.processes.ProcessWorkManager()
-        elif ldrivername in ('zmq', 'zeromq', '0mq'):
-            import wemd.work_managers.zeromq
-            work_manager = wemd.work_managers.zeromq.ZMQWorkManager()
-        elif '.' in ldrivername:
-            pathinfo = self.config.get_pathlist('drivers.module_path', default=None)
-            work_manager = extloader.get_object(drivername, pathinfo)()
-        else:
-            raise ValueError('unknown work manager {!r}'.format(drivername))
-        log.debug('loaded work manager: {!r}'.format(work_manager))
-        return work_manager
-        
-    def get_work_manager(self):
-        if self._work_manager is None:
-            self._work_manager = self.new_work_manager()
-        return self._work_manager
+        return self._we_driver    
     
     def new_propagator(self):
         drivername = self.config.require('drivers.propagator')
@@ -286,7 +232,6 @@ class _WEMDRC:
             self._system = self.new_system_driver()
         return self._system
     
-    work_manager = property(get_work_manager)
     propagator = property(get_propagator)
     we_driver = property(get_we_driver)
     system = property(get_system_driver)

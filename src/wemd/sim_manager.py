@@ -13,7 +13,7 @@ from wemd.util import extloader
 from wemd import Segment
 from wemd.util.miscfn import vgetattr
 
-from wemd.work_managers import ops as wm_ops
+from wemd import wm_ops
 from wemd.data_manager import weight_dtype
 
 EPS = numpy.finfo(numpy.float64).eps
@@ -30,10 +30,17 @@ class PropagationError(RuntimeError):
     pass 
 
 class WESimManager:
-    def __init__(self):        
+    def __init__(self, work_manager=None):        
         self.data_manager = wemd.rc.data_manager
         self.we_driver = wemd.rc.we_driver
-        self.work_manager = wemd.rc.work_manager
+        
+        if work_manager is None:
+            from work_managers import make_work_manager
+            self.work_manager = make_work_manager()
+            self.work_manager.startup()
+        else:
+            self.work_manager = work_manager
+            
         self.propagator = wemd.rc.propagator
         self.system = wemd.rc.system
                                 

@@ -5,9 +5,10 @@ import cStringIO
 from itertools import izip
 log = logging.getLogger('w_init')
 
+from work_managers import make_work_manager
+
 import wemd
 from wemd.segment import Segment
-from wemd.work_managers import ops
 from wemd.states import BasisState, TargetState, InitialState, pare_basis_initial_states
 
 EPS = numpy.finfo(numpy.float64).eps
@@ -26,7 +27,6 @@ by one or more --tstate arguments. If neither --tstates-from nor at least one --
 simulation (without any sinks) will be performed. 
 ''')
 wemd.rc.add_args(parser)
-wemd.rc.add_work_manager_args(parser)
 parser.add_argument('--force', dest='force', action='store_true',
                          help='Overwrite any existing simulation data')
 parser.add_argument('--bstate-file', '--bstates-from', metavar='BSTATE_FILE',
@@ -49,21 +49,23 @@ parser.add_argument('--no-we', '--shotgun', dest='shotgun', action='store_true',
                     help='''Do not run the weighted ensemble bin/split/merge algorithm on newly-created segments.''')
 
 (args, aux_args) = parser.parse_known_args()
+work_manager = make_work_manager()
+
 wemd.rc.process_args(args, aux_args)
 system = wemd.rc.get_system_driver()
-sim_manager = wemd.rc.get_sim_manager()
+
+sim_manager = wemd.rc.get_sim_manager(work_manager)
 propagator = wemd.rc.get_propagator()
-h5file = wemd.rc.config.get_path('data.wemd_data_file')
 data_manager = wemd.rc.get_data_manager()
-data_manager.we_h5filename = h5file
+h5file = data_manager.we_h5filename
+
 data_manager.system = system
 we_driver = wemd.rc.get_we_driver()
 
-work_manager = wemd.rc.get_work_manager()
-mode = work_manager.startup()
+work_manager.startup()
 
-if work_manager.mode == work_manager.MODE_MASTER: 
-    try:
+try:
+    if work_manager.is_master:    
         # Process target states
         target_states = []
         if args.tstate_file:
@@ -108,10 +110,8 @@ if work_manager.mode == work_manager.MODE_MASTER:
         # Prepare simulation
         sim_manager.initialize_simulation(basis_states, target_states, segs_per_state=args.segs_per_state,
                                           suppress_we=args.shotgun)
-        
-        work_manager.shutdown(0)
-    except:
-        work_manager.shutdown(4)
-        raise
-    
-    
+    else:
+        work_manager.run()    
+finally:
+    work_manager.shutdown()
+

@@ -5,6 +5,7 @@ import cStringIO
 from itertools import izip
 log = logging.getLogger('w_init')
 
+from work_managers import make_work_manager
 import wemd
 from wemd import Segment
 from wemd.states import BasisState, TargetState
@@ -23,7 +24,6 @@ and then edit the resulting ``bstates.txt`` file to include the new desired basi
 ``w_states --replace --bstate-file=bstates.txt`` to update the WEMD HDF5 file appropriately. 
 ''')
 wemd.rc.add_args(parser)
-wemd.rc.add_work_manager_args(parser)
 smgroup = parser.add_argument_group('modes of operation')
 mode_group = smgroup.add_mutually_exclusive_group()
 mode_group.add_argument('--show', dest='mode', action='store_const', const='show',
@@ -54,112 +54,104 @@ wemd.rc.process_args(args)
 system = wemd.rc.get_system_driver()
 
 
-work_manager = wemd.rc.get_work_manager()
-mode = work_manager.startup()
-if mode != work_manager.MODE_MASTER:
-    sys.stderr.write('this utility cannot run as a work manager client\n')
-    sys.exit(2)
-
+work_manager = make_work_manager()
+work_manager.startup()
 try:
-    data_manager = wemd.rc.get_data_manager()
-    data_manager.open_backing(mode='a')
-    sim_manager = wemd.rc.get_sim_manager()
-    n_iter = data_manager.current_iteration
-        
-    assert args.mode in ('show', 'replace', 'append')
-    if args.mode == 'show':
-        bstate_file = sys.stdout if not args.bstate_file else open(args.bstate_file, 'wt') 
-        basis_states = data_manager.get_basis_states(n_iter)
-        bstate_file.write('# Basis states for iteration {:d}\n'.format(n_iter))
-        BasisState.states_to_file(basis_states, bstate_file)
-        
-        tstate_file = sys.stdout if not args.tstate_file else open(args.tstate_file, 'wt')
-        target_states = data_manager.get_target_states(n_iter)
-        tstate_file.write('# Target states for iteration {:d}\n'.format(n_iter))
-        TargetState.states_to_file(target_states, tstate_file)
-    elif args.mode == 'replace':
-        seg_index = data_manager.get_seg_index(n_iter)
-        if (seg_index['status'] == Segment.SEG_STATUS_COMPLETE).any():
-            print('Iteration {:d} has completed segments; applying new states to iteration {:d}'.format(n_iter,n_iter+1))
-            n_iter += 1
-        
-        basis_states = []
-        if args.bstate_file:
-            basis_states.extend(BasisState.states_from_file(args.bstate_file))
-        if args.bstates:
-            for bstate_str in args.bstates:
-                fields = bstate_str.split(',')
-                label=fields[0]
-                probability=float(fields[1])
-                try:
-                    auxref = fields[2]
-                except IndexError:
-                    auxref = None
-                basis_states.append(BasisState(label=label,probability=probability,auxref=auxref))
+    if work_manager.is_master:
+        data_manager = wemd.rc.get_data_manager()
+        data_manager.open_backing(mode='a')
+        sim_manager = wemd.rc.get_sim_manager()
+        n_iter = data_manager.current_iteration
+            
+        assert args.mode in ('show', 'replace', 'append')
+        if args.mode == 'show':
+            bstate_file = sys.stdout if not args.bstate_file else open(args.bstate_file, 'wt') 
+            basis_states = data_manager.get_basis_states(n_iter)
+            bstate_file.write('# Basis states for iteration {:d}\n'.format(n_iter))
+            BasisState.states_to_file(basis_states, bstate_file)
+            
+            tstate_file = sys.stdout if not args.tstate_file else open(args.tstate_file, 'wt')
+            target_states = data_manager.get_target_states(n_iter)
+            tstate_file.write('# Target states for iteration {:d}\n'.format(n_iter))
+            TargetState.states_to_file(target_states, tstate_file)
+        elif args.mode == 'replace':
+            seg_index = data_manager.get_seg_index(n_iter)
+            if (seg_index['status'] == Segment.SEG_STATUS_COMPLETE).any():
+                print('Iteration {:d} has completed segments; applying new states to iteration {:d}'.format(n_iter,n_iter+1))
+                n_iter += 1
+            
+            basis_states = []
+            if args.bstate_file:
+                basis_states.extend(BasisState.states_from_file(args.bstate_file))
+            if args.bstates:
+                for bstate_str in args.bstates:
+                    fields = bstate_str.split(',')
+                    label=fields[0]
+                    probability=float(fields[1])
+                    try:
+                        auxref = fields[2]
+                    except IndexError:
+                        auxref = None
+                    basis_states.append(BasisState(label=label,probability=probability,auxref=auxref))
+                    
+            if basis_states:
+                # Check that the total probability of basis states adds to one
+                tprob = sum(bstate.probability for bstate in basis_states)
+                if abs(1.0 - tprob) > len(basis_states) * EPS:
+                    pscale = 1/tprob
+                    log.warning('Basis state probabilities do not add to unity; rescaling by {:g}'.format(pscale))
+                    for bstate in basis_states:
+                        bstate.probability *= pscale        
                 
-        if basis_states:
-            # Check that the total probability of basis states adds to one
-            tprob = sum(bstate.probability for bstate in basis_states)
-            if abs(1.0 - tprob) > len(basis_states) * EPS:
-                pscale = 1/tprob
-                log.warning('Basis state probabilities do not add to unity; rescaling by {:g}'.format(pscale))
-                for bstate in basis_states:
-                    bstate.probability *= pscale        
+                # Assign progress coordinates to basis states
+                sim_manager.get_bstate_pcoords(basis_states, n_iter)
+                data_manager.create_ibstate_group(basis_states, n_iter)
+                sim_manager.report_basis_states(basis_states)
+                
+            # Now handle target states
+            target_states = []
+            if args.tstate_file:
+                target_states.extend(TargetState.states_from_file(args.tstate_file, system.pcoord_dtype))
+            if args.tstates:
+                tstates_strio = cStringIO.StringIO('\n'.join(args.tstates).replace(',', ' '))
+                target_states.extend(TargetState.states_from_file(tstates_strio, system.pcoord_dtype))
+                del tstates_strio
+                
+            if not target_states:
+                wemd.rc.pstatus('No target states specified.')
+            else:
+                data_manager.save_target_states(target_states, n_iter)
+                sim_manager.report_target_states(target_states)
+                
+            data_manager.update_iter_group_links(n_iter)
             
-            # Assign progress coordinates to basis states
-            sim_manager.get_bstate_pcoords(basis_states, n_iter)
-            data_manager.create_ibstate_group(basis_states, n_iter)
-            sim_manager.report_basis_states(basis_states)
+        else: # args.mode == 'append'
+            if args.bstate_file or args.bstates:
+                sys.stderr.write('refusing to append basis states; use --show followed by --replace instead\n')
+                sys.exit(2)
             
-        # Now handle target states
-        target_states = []
-        if args.tstate_file:
-            target_states.extend(TargetState.states_from_file(args.tstate_file, system.pcoord_dtype))
-        if args.tstates:
-            tstates_strio = cStringIO.StringIO('\n'.join(args.tstates).replace(',', ' '))
-            target_states.extend(TargetState.states_from_file(tstates_strio, system.pcoord_dtype))
-            del tstates_strio
+            target_states = data_manager.get_target_states(n_iter)
             
-        if not target_states:
-            wemd.rc.pstatus('No target states specified.')
-        else:
-            data_manager.save_target_states(target_states, n_iter)
-            sim_manager.report_target_states(target_states)
+            seg_index = data_manager.get_seg_index(n_iter)
+            if (seg_index['status'] == Segment.SEG_STATUS_COMPLETE).any():
+                print('Iteration {:d} has completed segments; applying new states to iteration {:d}'.format(n_iter,n_iter+1))
+                n_iter += 1
             
-        data_manager.update_iter_group_links(n_iter)
-        
-    else: # args.mode == 'append'
-        if args.bstate_file or args.bstates:
-            sys.stderr.write('refusing to append basis states; use --show followed by --replace instead\n')
-            sys.exit(2)
-        
-        target_states = data_manager.get_target_states(n_iter)
-        
-        seg_index = data_manager.get_seg_index(n_iter)
-        if (seg_index['status'] == Segment.SEG_STATUS_COMPLETE).any():
-            print('Iteration {:d} has completed segments; applying new states to iteration {:d}'.format(n_iter,n_iter+1))
-            n_iter += 1
-        
-        if args.tstate_file:
-            target_states.extend(TargetState.states_from_file(args.tstate_file, system.pcoord_dtype))
-        if args.tstates:
-            tstates_strio = cStringIO.StringIO('\n'.join(args.tstates).replace(',', ' '))
-            target_states.extend(TargetState.states_from_file(tstates_strio, system.pcoord_dtype))
-            del tstates_strio
-            
-        if not target_states:
-            wemd.rc.pstatus('No target states specified.')
-        else:
-            data_manager.save_target_states(target_states, n_iter)
-            sim_manager.report_target_states(target_states)
-            
-        data_manager.update_iter_group_links(n_iter)
-except:
-    work_manager.shutdown(4)
-    raise
-else:
-    work_manager.shutdown(0)
-    
-    
-
-
+            if args.tstate_file:
+                target_states.extend(TargetState.states_from_file(args.tstate_file, system.pcoord_dtype))
+            if args.tstates:
+                tstates_strio = cStringIO.StringIO('\n'.join(args.tstates).replace(',', ' '))
+                target_states.extend(TargetState.states_from_file(tstates_strio, system.pcoord_dtype))
+                del tstates_strio
+                
+            if not target_states:
+                wemd.rc.pstatus('No target states specified.')
+            else:
+                data_manager.save_target_states(target_states, n_iter)
+                sim_manager.report_target_states(target_states)
+                
+            data_manager.update_iter_group_links(n_iter)
+    else:
+        work_manager.run()
+finally:
+    work_manager.shutdown()    
