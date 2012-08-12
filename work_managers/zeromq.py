@@ -666,6 +666,9 @@ class ZMQClient(ZMQBase):
         self._shutdown()
         self._wait_for_shutdown()
         #self.context.term()
+        
+    def run(self):
+        self._wait_for_shutdown()
             
     def _wait_for_shutdown(self):
         self._monitor_thread.join()
@@ -909,6 +912,9 @@ class ZMQWorkManager(ZMQWMServer,WorkManager):
             
     @classmethod
     def from_environ(cls):
+        if os.environ.get('WWMGR_ZMQ_MODE','server').lower() == 'client':
+            return ZMQClient.from_environ()
+        
         n_workers = work_managers.environment.get_worker_count()
         
         # if individual endpoints are named, we use these

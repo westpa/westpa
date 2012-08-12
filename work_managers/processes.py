@@ -89,7 +89,6 @@ class ProcessWorkManager(WorkManager):
         for worker in self.workers:
             worker.start()
             
-        self.install_sigint_handler()
         self.pending = dict()
 
         self.receive_thread = threading.Thread(target=self.results_loop, name='receiver')

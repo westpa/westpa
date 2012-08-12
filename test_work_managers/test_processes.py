@@ -48,6 +48,7 @@ class TestProcessWorkManagerAux:
     @raises(KeyboardInterrupt)
     def test_sigint_shutdown(self):
         work_manager = ProcessWorkManager()
+        work_manager.install_sigint_handler()
         work_manager.shutdown_timeout = 0.1
         work_manager.startup()
         for i in xrange(5):

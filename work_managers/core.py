@@ -13,6 +13,7 @@ class WorkManager:
         raise NotImplementedError
     
     def __init__(self):
+        self._sigint_handler_installed = False
         self.prior_sigint_handler = None
         
     def __enter__(self):
@@ -33,8 +34,9 @@ class WorkManager:
             self.prior_sigint_handler(signum, frame)
         
     def install_sigint_handler(self):
-        self.prior_sigint_handler = signal.signal(signal.SIGINT, self.sigint_handler)
-
+        if not self._sigint_handler_installed:
+            self._sigint_handler_installed = True
+            self.prior_sigint_handler = signal.signal(signal.SIGINT, self.sigint_handler)
                                     
     def startup(self):
         '''Perform any necessary startup work, such as spawning clients.'''
@@ -42,6 +44,10 @@ class WorkManager:
                                             
     def shutdown(self):
         '''Cleanly shut down any active workers.'''
+        pass
+    
+    def run(self):
+        '''Run the worker loop (in clients only).'''
         pass
         
     def submit(self, fn, *args, **kwargs):
