@@ -5,7 +5,7 @@ from __future__ import division, print_function; __metaclass__ = type
 import logging
 log = logging.getLogger('wemd.rc')
 
-import os, sys, argparse, errno
+import os, sys, errno
 import wemd
 from wemd.util.config_dict import ConfigDict
 from wemd.util import extloader
