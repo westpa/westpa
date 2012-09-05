@@ -51,8 +51,8 @@ class WEMDDataReaderMixin(AnalysisMixin):
         if args.wemd_h5name:
             self.wemd_h5name = args.wemd_h5name
         else:
-            wemd.rc.config.require('data.h5file')
-            self.wemd_h5name = wemd.rc.config.get_path('data.h5file') 
+            wemd.rc.config.require('data.wemd_data_file')
+            self.wemd_h5name = wemd.rc.config.get_path('data.wemd_data_file') 
         
         wemd.rc.pstatus("Using WEMD data from '{}'".format(self.wemd_h5name))
         

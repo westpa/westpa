@@ -119,7 +119,8 @@ class _WEMDRC:
                                                    'formatter': 'standard'}},
                           'loggers': {'wemd': {'handlers': ['console'], 'propagate': False},
                                       'wemdtools': {'handlers': ['console'], 'propagate': False},
-                                      'wemdext': {'handlers': ['console'], 'propagate': False}},
+                                      'wemdext': {'handlers': ['console'], 'propagate': False},
+                                      'work_managers': {'handlers': ['console'], 'propagate': False}},
                           'root': {'handlers': ['console']}}
         
         logging_config['loggers'][self.process_name] = {'handlers': ['console'], 'propagate': False}

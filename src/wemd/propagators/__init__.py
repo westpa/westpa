@@ -28,6 +28,15 @@ class WEMDPropagator:
     def finalize_iteration(self, n_iter, segments):
         """Perform any necessary post-iteration cleanup.  This is run by the work manager."""
         pass
+
+    # Specific functions required by the WEMD framework
+    def get_pcoord(self, state):
+        '''Get the progress coordinate of the given basis or initial state.'''
+        raise NotImplementedError
+                
+    def gen_istate(self, basis_state, initial_state):
+        '''Generate a new initial state from the given basis state.'''
+        raise NotImplementedError
                         
     def propagate(self, segments):
         """Propagate one or more segments, including any necessary per-iteration setup and teardown for this propagator."""

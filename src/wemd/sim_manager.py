@@ -449,7 +449,8 @@ class WESimManager:
                     log.debug('using basis state {!r} directly'.format(basis_state))
                     initial_state.istate_type = InitialState.ISTATE_TYPE_BASIS
                     initial_state.pcoord = basis_state.pcoord.copy()
-                    self.assigned_initial_states.add(initial_state)
+                    initial_state.istate_status = InitialState.ISTATE_STATUS_PREPARED
+                    self.next_iter_assigned_istates.add(initial_state)
                 self.data_manager.update_initial_states([initial_state], n_iter=self.n_iter+1)
         return futures
                                     

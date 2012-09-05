@@ -12,6 +12,8 @@ fi
 
 if [ -z "$WEMD_PYTHONPATH" ]; then
     export WEMD_PYTHONPATH="$WEMD_ROOT/src"
+else
+    export WEMD_PYTHONPATH="$WEMD_PYTHONPATH:$WEMD_ROOT/src"
 fi
 
 if [ -z "$WEMD_KERNPROF" ]; then

@@ -3,16 +3,11 @@ import logging
 log = logging.getLogger(__name__)
 import numpy
 import operator
-from itertools import izip, chain
 from math import ceil
-from copy import copy
 import random
 
 import wemd
-from collections import namedtuple
-from wemd.util.miscfn import vgetattr
 from wemd import Segment
-
 
 class WEMDWEDriver:
     weight_split_threshold = 2.0
@@ -42,7 +37,7 @@ class WEMDWEDriver:
         '''Run weighted ensemble split/merge on the segments in the given ``region_set``, setting their
         ``endpoint_type`` field appropriately.  The region set must not contain any segments in regions
         with zero target count, so recycling must be handled prior to calling this function. To 
-        assist in recycling probability to newly-created trajectoryies, the given ``new_trajectory_segs``
+        assist in recycling probability to newly-created trajectories, the given ``new_trajectory_segs``
         are assumed to start new trajectories for the next iteration, and will be considered in particles-per-bin
         and weight calculations. 
         
