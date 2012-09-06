@@ -10,7 +10,7 @@ import propagators, work_managers, data_manager, pcoords, sim_manager, we_driver
 from systems import WEMDSystem
 from states import BasisState, TargetState
 
-version = '0.8'
+version = '0.9'
 
 rc = _rc._WEMDRC()
 

@@ -12,11 +12,22 @@ from wemd import Segment
 class WEMDWEDriver:
     weight_split_threshold = 2.0
     weight_merge_cutoff = 1.0
+    _testing = False
         
     def __init__(self):
         self.system = wemd.rc.get_system_driver()
+        self.data_manager = wemd.rc.get_data_manager()
+                
         self.do_adjust_counts = wemd.rc.config.get_bool('we.adjust_counts', True)
         log.info('Adjust counts to exactly match target_counts: {}'.format(self.do_adjust_counts))
+        
+        if 'we.weight_split_threshold' in wemd.rc.config:
+            self.weight_split_threshold = wemd.rc.config.get_float('we.weight_split_threshold')
+        log.info('Split threshold: {}'.format(self.weight_split_threshold))
+        
+        if 'we.weight_merge_cutoff' in wemd.rc.config:
+            self.weight_merge_cutoff = wemd.rc.config.get_float('we.weight_merge_cutoff')
+        log.info('Merge cutoff: {}'.format(self.weight_merge_cutoff))
 
         # RegionSet containing binned segments from concluded iteration (reset on entry to run_we)
         # These segments will have their endpoint_type field set appropriately on exit from run_we()
