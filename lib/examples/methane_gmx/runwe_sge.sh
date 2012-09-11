@@ -4,6 +4,7 @@
 #$ -l h_rt=36:00:00
 #$ -pe 48way 48
 #$ -V
+#$ -cwd
 
 # Set this to "1" if using multiple nodes; otherwise 0
 MULTINODE=0
@@ -14,7 +15,7 @@ source env.sh
 master=$(hostname)
 
 # Switch depending on whether we are using multiple nodes
-if [[ $MULTINODE == "1"]] ; then
+if [[ $MULTINODE == "1" ]] ; then
     # spawn workers
     for host in $(cat $TMPDIR/machines | uniq); do
         echo "starting WEMD node worker on $host"
