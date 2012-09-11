@@ -203,7 +203,8 @@ class ByIterDataSelection(DataSelection):
     def _getiter_unindexed(self, n_iter):
         itpl = numpy.index_exp[:] + self.slice
         iter_group = self._get_iter_group(n_iter)
-        return iter_group[self.source_dsname][itpl]
+        arr = iter_group[self.source_dsname][itpl]
+        return arr 
         
     @property
     def indexed(self):

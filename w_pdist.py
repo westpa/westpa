@@ -58,15 +58,22 @@ class HistogramHelper:
                     minval = min(minval, val.min())
                     maxval = max(maxval, val.max())
             else:
+                seg_ids = self.segment_selection.from_iter(n_iter)
+                if seg_ids:
+                    values = numpy.array([self.dsspec[n_iter,seg_id] for seg_id in seg_ids])
+                    minval = min(minval,values.min())
+                    maxval = max(maxval,values.max())
+                
+                
                 # Retrieve entire iteration's values
-                values = self.dsspec[n_iter]
+                #values = self.dsspec[n_iter]
                 
                 # But only consider those segments we've been asked to
-                for seg_id in self.segment_selection.from_iter(n_iter):
-                    minval = min(minval,values[seg_id].min())
-                    maxval = max(maxval,values[seg_id].max())
-                    
-                del values
+                #for seg_id in self.segment_selection.from_iter(n_iter):
+                #    minval = min(minval,values[seg_id].min())
+                #    maxval = max(maxval,values[seg_id].max())
+                    del values
+                del seg_ids
         
         return minval, maxval
     
