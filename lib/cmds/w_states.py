@@ -5,7 +5,9 @@ import cStringIO
 from itertools import izip
 log = logging.getLogger('w_init')
 
+import work_managers
 from work_managers import make_work_manager
+
 import wemd
 from wemd import Segment
 from wemd.states import BasisState, TargetState
@@ -49,14 +51,16 @@ parser.add_argument('--tstate', action='append', dest='tstates',
                     This argument may be specified more than once, in which case the given states are appended
                     in the order they appear on the command line.''')
 parser.set_defaults(mode='show')
+
+work_managers.environment.add_wm_args(parser)
 args = parser.parse_args()
 wemd.rc.process_args(args)
+work_managers.environment.process_wm_args(args)
+work_manager = make_work_manager()
+
 system = wemd.rc.get_system_driver()
 
-
-work_manager = make_work_manager()
-work_manager.startup()
-try:
+with work_manager:
     if work_manager.is_master:
         data_manager = wemd.rc.get_data_manager()
         data_manager.open_backing(mode='a')
@@ -153,5 +157,3 @@ try:
             data_manager.update_iter_group_links(n_iter)
     else:
         work_manager.run()
-finally:
-    work_manager.shutdown()    

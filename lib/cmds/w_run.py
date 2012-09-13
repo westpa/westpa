@@ -4,25 +4,22 @@ import os, sys, logging, argparse, traceback
 log = logging.getLogger('w_run')
 
 import wemd
+import work_managers
 from work_managers import make_work_manager
-
-#def remote_initialize(args):
-#    import wemd
-#    wemd.rc.process_args(args)
-#    propagator = wemd.rc.get_propagator()
-#    system = wemd.rc.get_system_driver()
-#    propagator.system = system
 
 parser = argparse.ArgumentParser('w_run', 'start/continue a WEMD simulation')
 wemd.rc.add_args(parser)
 parser.add_argument('--oneseg', dest='only_one_segment', action='store_true',
                     help='only propagate one segment (useful for debugging propagators)')
 
-(args, aux_args) = parser.parse_known_args()
-wemd.rc.process_args(args, aux_args)
+work_managers.environment.add_wm_args(parser)
+
+args = parser.parse_args()
+wemd.rc.process_args(args)
+work_managers.environment.process_wm_args(args)
+work_manager = make_work_manager()
 
 # Load the sim manager and other drivers
-work_manager = make_work_manager()
 sim_manager = wemd.rc.get_sim_manager(work_manager)
 system = wemd.rc.get_system_driver()
 data_manager = wemd.rc.get_data_manager()
@@ -38,8 +35,7 @@ sim_manager.system = system
 sim_manager.propagator = propagator
 sim_manager.we_driver = we_driver
 
-work_manager.startup()
-try:
+with work_manager:
     if work_manager.is_master:
         work_manager.install_sigint_handler()
         sim_manager.load_plugins()
@@ -60,5 +56,3 @@ try:
             log.error(traceback.format_exc())
     else:
         work_manager.run()
-finally:
-    work_manager.shutdown()

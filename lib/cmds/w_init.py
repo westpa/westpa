@@ -5,6 +5,7 @@ import cStringIO
 from itertools import izip
 log = logging.getLogger('w_init')
 
+import work_managers
 from work_managers import make_work_manager
 
 import wemd
@@ -48,12 +49,13 @@ parser.add_argument('--segs-per-state', type=int, metavar='N', default=1,
 parser.add_argument('--no-we', '--shotgun', dest='shotgun', action='store_true',
                     help='''Do not run the weighted ensemble bin/split/merge algorithm on newly-created segments.''')
 
-(args, aux_args) = parser.parse_known_args()
+work_managers.environment.add_wm_args(parser)
+args = parser.parse_args()
+wemd.rc.process_args(args)
+work_managers.environment.process_wm_args(args)
 work_manager = make_work_manager()
 
-wemd.rc.process_args(args, aux_args)
 system = wemd.rc.get_system_driver()
-
 sim_manager = wemd.rc.get_sim_manager(work_manager)
 propagator = wemd.rc.get_propagator()
 data_manager = wemd.rc.get_data_manager()
@@ -62,9 +64,8 @@ h5file = data_manager.we_h5filename
 data_manager.system = system
 we_driver = wemd.rc.get_we_driver()
 
-work_manager.startup()
 
-try:
+with work_manager:
     if work_manager.is_master:    
         # Process target states
         target_states = []
@@ -95,7 +96,6 @@ try:
         
         if not basis_states:
             log.error('At least one basis state is required')
-            work_manager.shutdown(3)
             sys.exit(3)
         
         # Check that the total probability of basis states adds to one
@@ -112,6 +112,4 @@ try:
                                           suppress_we=args.shotgun)
     else:
         work_manager.run()    
-finally:
-    work_manager.shutdown()
 
