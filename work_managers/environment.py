@@ -65,8 +65,9 @@ class WMEnvironment:
         wm_group = parser.add_argument_group('work manager options')
         wm_group.add_argument(self.arg_flag('work_manager'), metavar='WORK_MANAGER',
                               choices=self.valid_work_managers,
-                              help='use the given work manager for parallel task distribution (default: {})'
-                                   .format(self.default_work_manager))
+                              help='''use the given work manager for parallel task distribution. Available
+                                   work managers are {!r}; default is {!r}
+                                   '''.format(tuple(self.valid_work_managers), self.default_work_manager))
         wm_group.add_argument(self.arg_flag('n_workers'), metavar='N_WORKERS', type=int,
                               help='''Use up to N_WORKERS on this host, for work managers which support this option.
                                       Use 0 for a dedicated server. (Ignored by work managers which do not support
