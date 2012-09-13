@@ -19,7 +19,7 @@ in a specific time frame (indicating a crashed master).
 
 from __future__ import division, print_function; __metaclass__ = type
 
-import os, logging, socket, multiprocessing, threading, time, traceback, signal, tempfile, atexit, uuid, json, re
+import os, logging, socket, multiprocessing, threading, time, traceback, signal, tempfile, atexit, uuid, json, re, random
 import cPickle as pickle
 from collections import deque
 import zmq
@@ -480,6 +480,11 @@ class ZMQWMProcess(ZMQBase,multiprocessing.Process):
         in the event of a hung task function, as the parent process is responsible
         for managing the worker process pool, forcefully if necessary.'''
         
+        # block SIGINT, so that we can only shut down if told so by an announcement, or
+        # if we are sent SIGQUIT. This avoids some hangs when running on only one node
+        # and the user presses CTRL-C
+        signal.signal(signal.SIGINT, signal.SIG_IGN)
+        
         self.context = zmq.Context()
         
         task_socket = self.context.socket(zmq.REQ)
@@ -552,20 +557,41 @@ class ZMQWMProcess(ZMQBase,multiprocessing.Process):
 
 class ZMQClient(ZMQBase):
     @classmethod
-    def from_environ(cls):
-        n_workers = work_managers.environment.get_worker_count()
+    def add_wm_args(cls, parser, wmenv=None):
+        if wmenv is None:
+            wmenv = work_managers.environment.default_env 
+
+        wm_group = parser.add_argument_group('options for ZeroMQ ("zmq") client')
+        wm_group.add_argument(wmenv.arg_flag('zmq_server_info'), metavar='SERVER_INFO_FILE',
+                              help='Store server information (if master) or obtain server information (if client) '
+                                   'from SERVER_INFO_FILE. This is helpful if running server and clients on multiple '
+                                   'machines which share a filesystem, as explicit hostnames/ports are not required')
+        wm_group.add_argument(wmenv.arg_flag('zmq_task_endpoint'), metavar='TASK_ENDPOINT',
+                              help='''Use the given ZeroMQ endpoint for task distribution. (Use {argname} over
+                                      explicit endpoints, if possible.)'''.format(argname=wmenv.arg_flag('zmq_comm_mode')))
+        wm_group.add_argument(wmenv.arg_flag('zmq_result_endpoint'), metavar='RESULT_ENDPOINT',
+                              help='''Use the given ZeroMQ endpoint for result collection. (Use {argname} over
+                                      explicit endpoints, if possible.)'''.format(argname=wmenv.arg_flag('zmq_comm_mode')))
+        wm_group.add_argument(wmenv.arg_flag('zmq_announce_endpoint'), metavar='ANNOUNCE_ENDPOINT',
+                              help='''Use the given ZeroMQ endpoint for task distribution. (Use {argname} over
+                                      explicit endpoints, if possible.)'''.format(argname=wmenv.arg_flag('zmq_comm_mode')))
+    
+    @classmethod
+    def from_environ(cls, wmenv=None):
+        if wmenv is None:
+            wmenv = work_managers.environment.default_env 
+        
+        n_workers = wmenv.get_val('n_workers', multiprocessing.cpu_count(), int)
 
 
-        tests = [not bool(os.environ.get('WWMGR_ZMQ_TASK_ENDPOINT')),
-                 not bool(os.environ.get('WWMGR_ZMQ_RESULT_ENDPOINT')),
-                 not bool(os.environ.get('WWMGR_ZMQ_ANNOUNCE_ENDPOINT'))]
+        tests = [not bool(wmenv.get_val('zmq_task_endpoint')),
+                 not bool(wmenv.get_val('zmq_result_endpoint')),
+                 not bool(wmenv.get_val('zmq_announce_endpoint'))]
         if all(tests):
             # No endpoints specified; use server info file
-            try:
-                server_info_filename = os.environ['WWMGR_ZMQ_SERVER_INFO']
-            except KeyError:
-                raise EnvironmentError('neither endpoints (WWMGR_ZMQ_*_ENDPOINT) nor server info '
-                                       'file (WWMGR_ZMQ_SERVER_INFO) specified')
+            server_info_filename = wmenv.get_val('zmq_server_info')
+            if server_info_filename is None:
+                raise EnvironmentError('neither endpoints nor server info file specified')
             else:
                 try:
                     server_info = json.load(open(server_info_filename,'rt'))
@@ -577,9 +603,9 @@ class ZMQClient(ZMQBase):
         elif any(tests):
             raise ValueError('either none or all three endpoints must be specified')
         else:
-            task_endpoint = cls.canonicalize_endpoint(os.environ['WWMGR_ZMQ_TASK_ENDPOINT'],allow_wildcard_host=False)
-            result_endpoint = cls.canonicalize_endpoint(os.environ['WWMGR_ZMQ_RESULT_ENDPOINT'],allow_wildcard_host=False)
-            announce_endpoint = cls.canonicalize_endpoint(os.environ['WWMGR_ZMQ_ANNOUNCE_ENDPOINT'],allow_wildcard_host=False)
+            task_endpoint = cls.canonicalize_endpoint(wmenv.get_val('zmq_task_endpoint'),allow_wildcard_host=False)
+            result_endpoint = cls.canonicalize_endpoint(wmenv.get_val('zmq_result_endpoint'),allow_wildcard_host=False)
+            announce_endpoint = cls.canonicalize_endpoint(wmenv.get_val('zmq_announce_endpoint'),allow_wildcard_host=False)
         
         return cls(task_endpoint, result_endpoint, announce_endpoint, n_workers)
                      
@@ -909,22 +935,54 @@ class ZMQClient(ZMQBase):
 
 class ZMQWorkManager(ZMQWMServer,WorkManager):
     write_server_info = True
+    
+    @classmethod
+    def add_wm_args(cls, parser, wmenv=None):
+        if wmenv is None:
+            wmenv = work_managers.environment.default_env 
+
+        wm_group = parser.add_argument_group('options for ZeroMQ ("zmq") work manager')
+        wm_group.add_argument(wmenv.arg_flag('zmq_mode'), metavar='MODE', choices=('server', 'client'),
+                              help='Operate as a server (MODE=server) or a client (MODE=client).')
+        wm_group.add_argument(wmenv.arg_flag('zmq_server_info'), metavar='SERVER_INFO_FILE',
+                              help='Store server information (if master) or obtain server information (if client) '
+                                   'from SERVER_INFO_FILE. This is helpful if running server and clients on multiple '
+                                   'machines which share a filesystem, as explicit hostnames/ports are not required')
+        wm_group.add_argument(wmenv.arg_flag('zmq_comm_mode'), metavar='COMM_MODE', choices=('tcp', 'ipc'),
+                              help='''Use TCP/IP ({argname}=tcp) or Unix ({argname}=ipc) sockets for communication.
+                                    IPC sockets are more efficient for single-node communication, but do not allow 
+                                    communication between nodes. Default is TCP.'''.format(argname=wmenv.arg_flag('zmq_comm_mode')))
+        wm_group.add_argument(wmenv.arg_flag('zmq_task_endpoint'), metavar='TASK_ENDPOINT',
+                              help='''Use the given ZeroMQ endpoint for task distribution. (Use {argname} over
+                                      explicit endpoints, if possible.)'''.format(argname=wmenv.arg_flag('zmq_comm_mode')))
+        wm_group.add_argument(wmenv.arg_flag('zmq_result_endpoint'), metavar='RESULT_ENDPOINT',
+                              help='''Use the given ZeroMQ endpoint for result collection. (Use {argname} over
+                                      explicit endpoints, if possible.)'''.format(argname=wmenv.arg_flag('zmq_comm_mode')))
+        wm_group.add_argument(wmenv.arg_flag('zmq_announce_endpoint'), metavar='ANNOUNCE_ENDPOINT',
+                              help='''Use the given ZeroMQ endpoint for task distribution. (Use {argname} over
+                                      explicit endpoints, if possible.)'''.format(argname=wmenv.arg_flag('zmq_comm_mode')))
+            
             
     @classmethod
-    def from_environ(cls):
-        if os.environ.get('WWMGR_ZMQ_MODE','server').lower() == 'client':
+    def from_environ(cls, wmenv=None):
+        if wmenv is None:
+            wmenv = work_managers.environment.default_env 
+         
+        if wmenv.get_val('zmq_mode','server').lower() == 'client':
             return ZMQClient.from_environ()
         
-        n_workers = work_managers.environment.get_worker_count()
+        n_workers = wmenv.get_val('n_workers', multiprocessing.cpu_count(), int)
+        
+        server_info_filename = wmenv.get_val('zmq_server_info', 'zmq_server_info_{}.json'.format(uuid.uuid4().hex))
         
         # if individual endpoints are named, we use these
-        tests = [not bool(os.environ.get('WWMGR_ZMQ_TASK_ENDPOINT')),
-                 not bool(os.environ.get('WWMGR_ZMQ_RESULT_ENDPOINT')),
-                 not bool(os.environ.get('WWMGR_ZMQ_ANNOUNCE_ENDPOINT'))]
+        tests = [not bool(wmenv.get_val('zmq_task_endpoint')),
+                 not bool(wmenv.get_val('zmq_result_endpoint')),
+                 not bool(wmenv.get_val('zmq_announce_endpoint'))]
         if all(tests):
             # No endpoints specified; see if we have been instructed to choose TCP or IPC
-            comm_mode = os.environ.get('WWMGR_ZMQ_COMM_MODE')
-            if not comm_mode: comm_mode = 'ipc'
+            comm_mode = wmenv.get_val('zmq_comm_mode')
+            if not comm_mode: comm_mode = 'tcp'
             comm_mode = comm_mode.lower()
             if comm_mode not in ('tcp', 'ipc'):
                 raise ValueError('invalid ZMQ communications mode: {!r}'.format(comm_mode))
@@ -940,18 +998,14 @@ class ZMQWorkManager(ZMQWMServer,WorkManager):
         elif any(tests):
             raise ValueError('either none or all three endpoints must be specified')
         else:
-            task_endpoint = cls.canonicalize_endpoint(os.environ['WWMGR_ZMQ_TASK_ENDPOINT'])
-            result_endpoint = cls.canonicalize_endpoint(os.environ['WWMGR_ZMQ_RESULT_ENDPOINT'])
-            announce_endpoint = cls.canonicalize_endpoint(os.environ['WWMGR_ZMQ_ANNOUNCE_ENDPOINT'])
+            task_endpoint = cls.canonicalize_endpoint(wmenv.get_val('zmq_task_endpoint'))
+            result_endpoint = cls.canonicalize_endpoint(wmenv.get_val('zmq_result_endpoint'))
+            announce_endpoint = cls.canonicalize_endpoint(wmenv.get_val('zmq_announce_endpoint'))
             
-        return cls(n_workers, task_endpoint, result_endpoint, announce_endpoint)
-    
-    def get_server_info_filename(self):
-        '''Get server info filename from the environment'''
-        return os.path.abspath(os.environ.get('WWMGR_ZMQ_SERVER_INFO', 'zmq_server_info_{:d}_{:x}.json'.format(os.getpid(),id(self))))
-    
+        return cls(n_workers, task_endpoint, result_endpoint, announce_endpoint, server_info_filename = server_info_filename)
+        
     def remove_server_info_file(self):
-        filename = self.get_server_info_filename()
+        filename = self.server_info_filename
         try:
             os.unlink(filename)
         except OSError as e:
@@ -960,7 +1014,7 @@ class ZMQWorkManager(ZMQWMServer,WorkManager):
             log.debug('removed server info file {!r}'.format(filename))
     
     def write_server_info(self, filename=None):
-        filename = filename or self.get_server_info_filename()
+        filename = filename or self.server_info_filename
         hostname = socket.gethostname()
         with open(filename, 'wt') as infofile:
             json.dump({'task_endpoint': re.sub(r'\*', hostname, self.master_task_endpoint),
@@ -998,8 +1052,8 @@ class ZMQWorkManager(ZMQWMServer,WorkManager):
                                              self.n_workers)
         
         if write_server_info:
-            server_info_filename = server_info_filename or self.get_server_info_filename()
-            self.write_server_info(server_info_filename)
+            self.server_info_filename = server_info_filename or 'zmq_server_info_{}.json'.format(uuid.uuid4().hex)
+            self.write_server_info(self.server_info_filename)
             atexit.register(self.remove_server_info_file)
                 
                     

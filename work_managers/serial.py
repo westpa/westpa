@@ -8,7 +8,7 @@ from . import WorkManager, WMFuture
 
 class SerialWorkManager(WorkManager):
     @classmethod
-    def from_environ(cls):
+    def from_environ(cls, wmenv=None):
         return cls()
     
     def __init__(self):

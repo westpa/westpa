@@ -9,8 +9,12 @@ log = logging.getLogger(__name__)
 
 class WorkManager:
     @classmethod
-    def from_environ(cls):
+    def from_environ(cls, wmenv=None):
         raise NotImplementedError
+    
+    @classmethod
+    def add_wm_args(cls, parser, wmenv=None):
+        return
     
     def __init__(self):
         self._sigint_handler_installed = False

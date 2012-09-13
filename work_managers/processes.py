@@ -17,8 +17,10 @@ class ProcessWorkManager(WorkManager):
     '''A work manager using the ``multiprocessing`` module.'''
     
     @classmethod
-    def from_environ(cls):
-        return cls(work_managers.environment.get_worker_count())        
+    def from_environ(cls, wmenv=None): 
+        if wmenv is None:
+            wmenv = work_managers.environment.default_env 
+        return cls(wmenv.get_val('n_workers', multiprocessing.cpu_count(), int))
     
     def __init__(self, n_workers = None, shutdown_timeout = 1):
         super(ProcessWorkManager,self).__init__()
