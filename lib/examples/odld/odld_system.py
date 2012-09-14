@@ -1,8 +1,8 @@
 from __future__ import print_function, division
 import numpy
-from wemd.propagators import WEMDPropagator
-from wemd.systems import WEMDSystem
-from wemd.pcoords import PiecewiseRegionSet, RectilinearRegionSet
+from west.propagators import WESTPropagator
+from west.systems import WESTSystem
+from west.pcoords import PiecewiseRegionSet, RectilinearRegionSet
 
 PI = numpy.pi
 from numpy import sin, cos, exp
@@ -11,7 +11,7 @@ from numpy.random import normal as random_normal
 pcoord_len = 21
 pcoord_dtype = numpy.float32    
 
-class ODLDPropagator(WEMDPropagator):
+class ODLDPropagator(WESTPropagator):
     def __init__(self):
         super(ODLDPropagator,self).__init__()
         
@@ -73,7 +73,7 @@ class ODLDPropagator(WEMDPropagator):
     
         return segments
 
-class ODLDSystem(WEMDSystem):
+class ODLDSystem(WESTSystem):
     def new_region_set(self):
         region_set = RectilinearRegionSet([[0,1.4] + list(numpy.arange(1.5, 10.1, 0.1)) + [float('inf')]])
         for bin in region_set.get_all_bins():

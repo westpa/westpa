@@ -2,5 +2,5 @@
 
 source env.sh
 
-rm -f wemd.log
-$WEMD_ROOT/bin/w_run --verbose &> wemd.log
+rm -f west.log
+$WEST_ROOT/bin/w_run --verbose &> west.log

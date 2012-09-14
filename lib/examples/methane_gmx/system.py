@@ -1,15 +1,15 @@
 from __future__ import division, print_function; __metaclass__ = type
 import os, sys, math, itertools
 import numpy
-import wemd
-from wemd import WEMDSystem
-from wemd.pcoords import PiecewiseRegionSet, ParticleSet, RectilinearRegionSet
+import west
+from west import WESTSystem
+from west.pcoords import PiecewiseRegionSet, ParticleSet, RectilinearRegionSet
 
 import logging
 log = logging.getLogger(__name__)
 log.debug('loading module %r' % __name__)
 
-class System(WEMDSystem):
+class System(WESTSystem):
 
     def new_region_set(self):
         binbounds = [0.0] + [4.0+1.0*i for i in xrange(0,13)] + [30,float('inf')]

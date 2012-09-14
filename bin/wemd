@@ -1,32 +1,32 @@
 #!/bin/bash
 
-# If $WEMD_ROOT is not set, then set it based on the path to this script
-if [ -z "$WEMD_ROOT" ]; then
-    export WEMD_ROOT=$(readlink -f $(dirname $0)/..)
+# If $WEST_ROOT is not set, then set it based on the path to this script
+if [ -z "$WEST_ROOT" ]; then
+    export WEST_ROOT=$(readlink -f $(dirname $0)/..)
 fi
 
 # In the absence of other information, use whatever Python v2.7 is on the path
-if [ -z "$WEMD_PYTHON" ]; then
-    export WEMD_PYTHON=python2.7
+if [ -z "$WEST_PYTHON" ]; then
+    export WEST_PYTHON=python2.7
 fi
 
-if [ -z "$WEMD_PYTHONPATH" ]; then
-    export WEMD_PYTHONPATH="$WEMD_ROOT/src"
+if [ -z "$WEST_PYTHONPATH" ]; then
+    export WEST_PYTHONPATH="$WEST_ROOT/src"
 else
-    export WEMD_PYTHONPATH="$WEMD_PYTHONPATH:$WEMD_ROOT/src"
+    export WEST_PYTHONPATH="$WEST_PYTHONPATH:$WEST_ROOT/src"
 fi
 
-if [ -z "$WEMD_KERNPROF" ]; then
-    WEMD_KERNPROF=kernprof.py
+if [ -z "$WEST_KERNPROF" ]; then
+    WEST_KERNPROF=kernprof.py
 fi
 
-# Make sure the WEMD Python package can be found, and do a quick and dirty 
+# Make sure the WEST Python package can be found, and do a quick and dirty 
 # check to (try to) avoid duplicating something that's already on $PYTHONPATH
-if echo "$PYTHONPATH" | grep -v "$WEMD_PYTHONPATH" &> /dev/null; then
+if echo "$PYTHONPATH" | grep -v "$WEST_PYTHONPATH" &> /dev/null; then
     if [ -z "$PYTHONPATH" ] ; then
-        export PYTHONPATH="$WEMD_PYTHONPATH"
+        export PYTHONPATH="$WEST_PYTHONPATH"
     else
-        export PYTHONPATH="$WEMD_PYTHONPATH:$PYTHONPATH"
+        export PYTHONPATH="$WEST_PYTHONPATH:$PYTHONPATH"
     fi
 fi  
 
@@ -42,26 +42,26 @@ else
     export PYTHONWARNINGS="$PYTHONWARNINGS,d"
 fi
 
-if [ "$SCRIPT" == "wemd" ] ; then
-    echo "Entering Python shell using $WEMD_PYTHON"
-    exec $WEMD_PYTHON "$@"
+if [ "$SCRIPT" == "west" ] ; then
+    echo "Entering Python shell using $WEST_PYTHON"
+    exec $WEST_PYTHON "$@"
 fi
 
 if [ "$1" == "--profile" ]; then
     shift
-    pfile=wemd_profile_$$.dat
+    pfile=west_profile_$$.dat
     echo >&2 "Saving profiling information to $pfile"
-    $WEMD_PYTHON -m cProfile -o $pfile $WEMD_ROOT/lib/cmds/${SCRIPT}.py "$@"
-    $WEMD_PYTHON -c "import sys, pstats; ps = pstats.Stats('$pfile', stream=sys.stderr); ps.sort_stats('time').print_stats(100);"
+    $WEST_PYTHON -m cProfile -o $pfile $WEST_ROOT/lib/cmds/${SCRIPT}.py "$@"
+    $WEST_PYTHON -c "import sys, pstats; ps = pstats.Stats('$pfile', stream=sys.stderr); ps.sort_stats('time').print_stats(100);"
 elif [ "$1" == "--lprofile" ]; then
     shift
-    pfile=wemd_lprofile_$$.dat
+    pfile=west_lprofile_$$.dat
     echo >&2 "Saving line_profiler information to $pfile"
-    $WEMD_KERNPROF -l -o $pfile -v $WEMD_ROOT/lib/cmds/${SCRIPT}.py "$@"
+    $WEST_KERNPROF -l -o $pfile -v $WEST_ROOT/lib/cmds/${SCRIPT}.py "$@"
 elif [ "$1" == "--strace" ]; then
     shift
     echo >&2 "Running $SCRIPT under strace"
-    strace $WEMD_PYTHON $WEMD_ROOT/lib/cmds/${SCRIPT}.py "$@"
+    strace $WEST_PYTHON $WEST_ROOT/lib/cmds/${SCRIPT}.py "$@"
 else
-    exec $WEMD_PYTHON $WEMD_ROOT/lib/cmds/${SCRIPT}.py "$@"
+    exec $WEST_PYTHON $WEST_ROOT/lib/cmds/${SCRIPT}.py "$@"
 fi

@@ -1,16 +1,16 @@
 from __future__ import print_function, division; __metaclass__=type
 import os, sys, argparse, math, itertools, warnings
 import numpy
-import wemd
+import west
 
 import logging
 log = logging.getLogger('w_pcpdist')
 
-import wemdtools
-from wemdtools.aframe import (WEMDAnalysisTool,WEMDDataReaderMixin,IterRangeMixin,CommonOutputMixin,PlottingMixin)
+import westtools
+from westtools.aframe import (WESTAnalysisTool,WESTDataReaderMixin,IterRangeMixin,CommonOutputMixin,PlottingMixin)
                               
 class WPCPDist(PlottingMixin,CommonOutputMixin,
-                 IterRangeMixin,WEMDDataReaderMixin,WEMDAnalysisTool):
+                 IterRangeMixin,WESTDataReaderMixin,WESTAnalysisTool):
 
     def __init__(self):
         super(WPCPDist,self).__init__()
@@ -60,7 +60,7 @@ class WPCPDist(PlottingMixin,CommonOutputMixin,
                 self.record_data_iter_range(dimgroup)
                 self.calc_pdist(idim, dimgroup)
             else:
-                wemd.rc.pstatus('histogram for dimension {:d} already prepared'.format(idim))
+                west.rc.pstatus('histogram for dimension {:d} already prepared'.format(idim))
                 
     def do_plots(self):
         for idim in self.dims:
@@ -77,7 +77,7 @@ class WPCPDist(PlottingMixin,CommonOutputMixin,
                 self.plot_pdist(idim, dimgroup, ofn)
                     
     def calc_pdist(self, idim, dimgroup):
-        wemd.rc.pstatus('calculating histograms for dimension {:d}'.format(idim))
+        west.rc.pstatus('calculating histograms for dimension {:d}'.format(idim))
         
         min_pcoord = None
         max_pcoord = None
@@ -129,7 +129,7 @@ class WPCPDist(PlottingMixin,CommonOutputMixin,
         self.record_data_iter_range(dimgroup['histogram'])
              
     def plot_evol_lin(self, idim, dimgroup, ofn):
-        wemd.rc.pstatus('Saving time evolution of dimension {:d} density (linear scale) to "{:s}"'.format(idim, ofn))
+        west.rc.pstatus('Saving time evolution of dimension {:d} density (linear scale) to "{:s}"'.format(idim, ofn))
         matplotlib = self.require_matplotlib()
         from matplotlib import pyplot
         binbounds = dimgroup['binbounds'][:]
@@ -149,7 +149,7 @@ class WPCPDist(PlottingMixin,CommonOutputMixin,
         pyplot.savefig(ofn)
         
     def plot_evol_log(self, idim, dimgroup, ofn):
-        wemd.rc.pstatus('Saving time evolution of dimension {:d} density (log scale) to "{:s}"'.format(idim, ofn))
+        west.rc.pstatus('Saving time evolution of dimension {:d} density (log scale) to "{:s}"'.format(idim, ofn))
         matplotlib = self.require_matplotlib()
         from matplotlib import pyplot
         binbounds = dimgroup['binbounds'][:]
@@ -174,7 +174,7 @@ class WPCPDist(PlottingMixin,CommonOutputMixin,
         pyplot.savefig(ofn)
         
     def plot_pdist(self, idim, dimgroup, ofn):
-        wemd.rc.pstatus('Plotting average distribution of dimension {:d} to "{:s}"'.format(idim, ofn))
+        west.rc.pstatus('Plotting average distribution of dimension {:d} to "{:s}"'.format(idim, ofn))
         matplotlib = self.require_matplotlib()
         from matplotlib import pyplot
         binbounds = dimgroup['binbounds'][:]
@@ -192,7 +192,7 @@ wpcp = WPCPDist()
 parser = argparse.ArgumentParser('w_pcpdist', description='''\
 Calculate and plot probability distributions of progress coordinate values. 
 ''')
-wemd.rc.add_args(parser)
+west.rc.add_args(parser)
 wpcp.add_args(parser)
 
 hgroup = parser.add_argument_group('histogram options')
@@ -228,7 +228,7 @@ ogroup.add_argument('--lvrange', dest='log_vrange',
 wpcp.add_common_output_args(ogroup)
 
 args = parser.parse_args()
-wemd.rc.process_args(args, config_required=False)
+west.rc.process_args(args, config_required=False)
 wpcp.process_args(args)
 wpcp.process_common_output_args(args)
 

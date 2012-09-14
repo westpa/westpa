@@ -11,9 +11,9 @@ import argparse
 import numpy
 import scipy.signal
 from itertools import izip
-import wemd, wemdtools
+import west, westtools
 
-from wemdtools.aframe import WEMDAnalysisTool,WEMDDataReaderMixin,IterRangeMixin,MCBSMixin
+from westtools.aframe import WESTAnalysisTool,WESTDataReaderMixin,IterRangeMixin,MCBSMixin
 
 import logging
 log = logging.getLogger('w_fluxanl')
@@ -22,7 +22,7 @@ rstat_dtype = numpy.dtype([('count', numpy.uint),
                            ('flux', numpy.float64),
                            ])
 
-class WFluxanl(MCBSMixin,IterRangeMixin,WEMDDataReaderMixin,WEMDAnalysisTool):
+class WFluxanl(MCBSMixin,IterRangeMixin,WESTDataReaderMixin,WESTAnalysisTool):
     def __init__(self):
         super(WFluxanl,self).__init__()
         
@@ -36,7 +36,7 @@ class WFluxanl(MCBSMixin,IterRangeMixin,WEMDDataReaderMixin,WEMDAnalysisTool):
         n_iters = self.last_iter - self.first_iter + 1
         n_targets = self.get_iter_group(self.first_iter)['recycling'].shape[0]
         
-        wemd.rc.pstatus('Collecting fluxes and counts for {:d} target state(s).'.format(n_targets))
+        west.rc.pstatus('Collecting fluxes and counts for {:d} target state(s).'.format(n_targets))
         rstats = numpy.empty((n_iters,n_targets), dtype=rstat_dtype)
 
         for itarget in xrange(n_targets):
@@ -56,7 +56,7 @@ class WFluxanl(MCBSMixin,IterRangeMixin,WEMDDataReaderMixin,WEMDAnalysisTool):
         '''Calculate the autocorrelation function of flux values and report the estimated
         time required to reach steady state.'''
         
-        wemd.rc.pstatus('Calculating flux autocorrelation time...')
+        west.rc.pstatus('Calculating flux autocorrelation time...')
         n_targets = self.wfl_group.attrs['n_targets']
         lbi, ubi = self.calc_ci_bound_indices()
         dlen = self.wfl_group['arrivals'].shape[0]
@@ -73,14 +73,14 @@ class WFluxanl(MCBSMixin,IterRangeMixin,WEMDDataReaderMixin,WEMDAnalysisTool):
             syn_acorr = numpy.empty((self.mcbs_nsets, len(acorr)), numpy.float64)
             
             for iset in xrange(self.mcbs_nsets):
-                wemd.rc.pstatus('\r  Set {:d}/{:d}'.format(iset+1,self.mcbs_nsets), end='')
+                west.rc.pstatus('\r  Set {:d}/{:d}'.format(iset+1,self.mcbs_nsets), end='')
                 indices = numpy.random.randint(dlen, size=(dlen,))
                 syn_fluxes = ffluxes[indices]
                 syn_acorr[iset,:] = scipy.signal.correlate(syn_fluxes,syn_fluxes)[-dlen:]
                 syn_acorr[iset,:] /= syn_acorr[iset,:].max()
-                wemd.rc.pflush()
+                west.rc.pflush()
                 
-            wemd.rc.pstatus()
+            west.rc.pstatus()
             for ilag in xrange(1,dlen):
                 syn_acorr[:,ilag].sort()
                 acorr_bounds[ilag,0] = syn_acorr[lbi,ilag]
@@ -99,13 +99,13 @@ class WFluxanl(MCBSMixin,IterRangeMixin,WEMDDataReaderMixin,WEMDAnalysisTool):
         lbi, ubi = self.calc_ci_bound_indices()
         
         block_bounds = numpy.empty((n_blocks,2), numpy.min_scalar_type(self.last_iter))
-        flux_cis = numpy.empty((n_blocks,n_targets), dtype=wemdtools.aframe.mcbs.ciinfo_dtype)
+        flux_cis = numpy.empty((n_blocks,n_targets), dtype=westtools.aframe.mcbs.ciinfo_dtype)
         
         all_fluxes = self.wfl_group['arrivals']['flux']
         
-        wemd.rc.pstatus('Calculating flux confidence intervals...')
+        west.rc.pstatus('Calculating flux confidence intervals...')
         for iblock, (blk_begin, blk_end) in enumerate(self.iter_block_iter()):
-            wemd.rc.pstatus('\r  Iterations [{:d},{:d})'.format(blk_begin, blk_end), end='')
+            west.rc.pstatus('\r  Iterations [{:d},{:d})'.format(blk_begin, blk_end), end='')
             #print("Averaging over iterations [{:d},{:d}).".format(blk_begin,blk_end))
             block_bounds[iblock] = blk_begin,blk_end-1
             iibegin = blk_begin - self.first_iter
@@ -128,7 +128,7 @@ class WFluxanl(MCBSMixin,IterRangeMixin,WEMDDataReaderMixin,WEMDAnalysisTool):
                 flux_cis[iblock,itarget]['ci_lower'] = syn_avg_flux[lbi,itarget]
                 flux_cis[iblock,itarget]['ci_upper'] = syn_avg_flux[ubi,itarget]
 
-            wemd.rc.pflush()
+            west.rc.pflush()
         
         self.wfl_group['blocked_fluxes'] = flux_cis
         self.wfl_group['blocked_iter_bounds'] = block_bounds
@@ -136,7 +136,7 @@ class WFluxanl(MCBSMixin,IterRangeMixin,WEMDDataReaderMixin,WEMDAnalysisTool):
         self.wfl_group['blocked_fluxes'].attrs['mcbs_alpha'] = self.mcbs_alpha
         self.wfl_group['blocked_fluxes'].attrs['mcsb_nsets'] = self.mcbs_nsets
         
-        wemd.rc.pstatus()
+        west.rc.pstatus()
         
     def calc_cumul_flux_cis(self):
         '''Calculate confidence intervals of average flux as a simulation progresses'''
@@ -147,13 +147,13 @@ class WFluxanl(MCBSMixin,IterRangeMixin,WEMDDataReaderMixin,WEMDAnalysisTool):
         
         block_bounds = numpy.empty((n_blocks,2), numpy.min_scalar_type(self.last_iter))
         block_bounds[:,0] = self.first_iter
-        flux_cis = numpy.empty((n_blocks,n_targets), dtype=wemdtools.aframe.mcbs.ciinfo_dtype)
+        flux_cis = numpy.empty((n_blocks,n_targets), dtype=westtools.aframe.mcbs.ciinfo_dtype)
         
         all_fluxes = self.wfl_group['arrivals']['flux']
         
-        wemd.rc.pstatus('Calculating cumulative flux confidence intervals...')
+        west.rc.pstatus('Calculating cumulative flux confidence intervals...')
         for iblock, (blk_begin, blk_end) in enumerate(self.iter_block_iter()):
-            wemd.rc.pstatus('\r  Iterations [{:d},{:d})'.format(blk_begin, blk_end), end='')
+            west.rc.pstatus('\r  Iterations [{:d},{:d})'.format(blk_begin, blk_end), end='')
             block_bounds[iblock] = self.first_iter,blk_end-1
             iiend   = blk_end - self.first_iter
             fluxes = all_fluxes[:iiend]
@@ -172,7 +172,7 @@ class WFluxanl(MCBSMixin,IterRangeMixin,WEMDDataReaderMixin,WEMDAnalysisTool):
                 flux_cis[iblock,itarget]['ci_lower'] = syn_avg_flux[lbi,itarget]
                 flux_cis[iblock,itarget]['ci_upper'] = syn_avg_flux[ubi,itarget]
 
-            wemd.rc.pflush()
+            west.rc.pflush()
         
         self.wfl_group['cumul_fluxes'] = flux_cis
         self.wfl_group['cumul_iter_bounds'] = block_bounds
@@ -180,7 +180,7 @@ class WFluxanl(MCBSMixin,IterRangeMixin,WEMDDataReaderMixin,WEMDAnalysisTool):
         self.wfl_group['cumul_fluxes'].attrs['mcbs_alpha'] = self.mcbs_alpha
         self.wfl_group['cumul_fluxes'].attrs['mcsb_nsets'] = self.mcbs_nsets
         
-        wemd.rc.pstatus()
+        west.rc.pstatus()
         
         
             
@@ -229,7 +229,7 @@ class WFluxanl(MCBSMixin,IterRangeMixin,WEMDDataReaderMixin,WEMDAnalysisTool):
 wfl = WFluxanl()
 
 parser = argparse.ArgumentParser('w_fluxanl')
-wemd.rc.add_args(parser)
+west.rc.add_args(parser)
 wfl.add_args(parser)
 
 cgroup = parser.add_argument_group('calculation options')
@@ -251,7 +251,7 @@ ogroup.add_argument('--noheaders', dest='suppress_headers', action='store_true',
                     help='Do not write headers to output files (default: write headers).')
 
 args = parser.parse_args()
-wemd.rc.process_args(args, config_required=False)
+west.rc.process_args(args, config_required=False)
 wfl.process_args(args)
 wfl.tau = args.tau
 wfl.suppress_headers = args.suppress_headers

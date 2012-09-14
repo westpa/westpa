@@ -2,7 +2,7 @@ from __future__ import division, print_function
 
 '''Enhanced steady state sampling (Bhatt, Zhang, Zuckerman, 2010) for WE,
 originally implemented by Joshua L. Adelman (2010), re-implemented for this version
-of WEMD by Joe Kaus (February 2011) and updated by Joshua L. Adelman (May 2011).'''
+of WEST by Joe Kaus (February 2011) and updated by Joshua L. Adelman (May 2011).'''
 
 import os, sys
 
@@ -10,8 +10,8 @@ import logging
 log = logging.getLogger('w_steady_state')
 import argparse
 
-import wemd, wemdtools
-from wemd import Segment
+import west, westtools
+from west import Segment
 import numpy, operator, itertools
 from itertools import izip
 from math import ceil, floor, log10
@@ -33,7 +33,7 @@ class steady_state(object):
             self.debug = h5py.File(args.ss_h5,'w')
         
         self.region_set = self._system_driver.new_region_set()
-        self.quiet_mode = wemd.rc.quiet_mode
+        self.quiet_mode = west.rc.quiet_mode
         self.symmetrize = args.symmetrize
 
     def get_new_weights(self):                    
@@ -272,7 +272,7 @@ def cmd_steady_state(sim_manager, args):
     
     
     if not args.no_reweight:
-        if sys.stdout.isatty() and not wemd.rc.quiet_mode:
+        if sys.stdout.isatty() and not west.rc.quiet_mode:
             sys.stdout.write('\n')
             sys.stdout.write('Reweighting segments in storage\n')
         
@@ -312,7 +312,7 @@ def cmd_steady_state(sim_manager, args):
 #to allow others to use the steady_state class if desired 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser('w_steady_state', description='''Reweight a simulation to help achieve steady state''')
-    wemd.rc.add_args(parser)
+    west.rc.add_args(parser)
     
 
     eps = numpy.finfo(numpy.float64).eps
@@ -344,14 +344,14 @@ if __name__ == "__main__":
         
     # Parse command line arguments
     args = parser.parse_args()
-    wemd.rc.process_args(args, config_required=False)
-    sim_manager = wemd.rc.get_sim_manager()
-    sim_manager.data_manager = wemd.rc.get_data_manager()
-    sim_manager.system = wemd.rc.get_system_driver()
-    sim_manager.we_driver = wemd.rc.get_we_driver()
+    west.rc.process_args(args, config_required=False)
+    sim_manager = west.rc.get_sim_manager()
+    sim_manager.data_manager = west.rc.get_data_manager()
+    sim_manager.system = west.rc.get_system_driver()
+    sim_manager.we_driver = west.rc.get_we_driver()
     sim_manager.we_driver.system = sim_manager.system
         
-    if sys.stdout.isatty() and not wemd.rc.quiet_mode:
+    if sys.stdout.isatty() and not west.rc.quiet_mode:
         sys.stdout.write('Pushing new weights to storage: {}\n'.format(not args.no_reweight))
         sys.stdout.write('Symmetrizing count matrix: {}\n'.format(args.symmetrize))
 

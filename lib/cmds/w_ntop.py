@@ -2,13 +2,13 @@ from __future__ import division, print_function
 from itertools import chain, starmap, izip
 import os, sys, operator, argparse
 import numpy
-import wemd
+import west
 from math import ceil, log10
 
 import logging
 log = logging.getLogger('w_ntop')
 
-parser = wemd.rc.common_arg_parser('w_ntop', description='''Retrieve a number of high-weight replicas from each bin.''')
+parser = west.rc.common_arg_parser('w_ntop', description='''Retrieve a number of high-weight replicas from each bin.''')
 parser.add_argument('-N', '--perbin', dest='perbin', type=int,
                     help='Retrieve the PERBIN highest weighted replicas from each bin (default: 1)',
                     default=1)
@@ -30,10 +30,10 @@ output_file = args.output_file
 istates_file = args.istates_file
 
 
-wemd.rc.config_logging(args, tool_logger_name = 'w_ntop')
-runtime_config = wemd.rc.read_config(args.run_config_file)
+west.rc.config_logging(args, tool_logger_name = 'w_ntop')
+runtime_config = west.rc.read_config(args.run_config_file)
 runtime_config.update_from_object(args)
-sim_manager = wemd.rc.load_sim_manager(runtime_config)
+sim_manager = west.rc.load_sim_manager(runtime_config)
 sim_manager.load_data_manager()
 sim_manager.data_manager.open_backing()
 sim_manager.load_system_driver()

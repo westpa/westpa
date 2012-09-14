@@ -4,9 +4,9 @@ import argparse, numpy, math
 import logging
 log = logging.getLogger('w_binprobs')
 
-import wemd
+import west
 
-from wemdtools.aframe import WEMDAnalysisTool, BinningMixin, WEMDDataReaderMixin, IterRangeMixin
+from westtools.aframe import WESTAnalysisTool, BinningMixin, WESTDataReaderMixin, IterRangeMixin
 
 ciinfo_dtype = numpy.dtype([('expectation', numpy.float64),
                             ('ci_lower', numpy.float64),
@@ -16,14 +16,14 @@ ciinfo_dtype = numpy.dtype([('expectation', numpy.float64),
 # Upcalls move left to right
 # If some complex dependencies exist, one can always override the process_args function and
 # call parent classes' process_args() manually in an order that makes sense.
-class WBinprobs(BinningMixin, IterRangeMixin, WEMDDataReaderMixin, WEMDAnalysisTool):
+class WBinprobs(BinningMixin, IterRangeMixin, WESTDataReaderMixin, WESTAnalysisTool):
     def calc_binprobs_cis(self):
         '''Calculate average bin populations over blocks of iterations, with MCBS error bars.'''
         
         if self.iter_step == 1:
-            wemd.rc.pstatus('Calculating per-iteration bin population confidence intervals...')
+            west.rc.pstatus('Calculating per-iteration bin population confidence intervals...')
         else:
-            wemd.rc.pstatus('Calculating bin population confidence intervals in blocks of {:d} iterations...'.format(self.iter_step))
+            west.rc.pstatus('Calculating bin population confidence intervals in blocks of {:d} iterations...'.format(self.iter_step))
         all_pops = self.binning_h5group['bin_populations'][...]
         pcoord_len = self.get_pcoord_len(self.first_iter)
                 
@@ -89,7 +89,7 @@ class WBinprobs(BinningMixin, IterRangeMixin, WEMDDataReaderMixin, WEMDAnalysisT
         
         if not self.suppress_headers:
             output_file.write('''\
-# WEMD bin probabilities
+# WEST bin probabilities
 # Iterations {first_iter} -- {last_iter} (inclusive)
 # Confidence level: {confidence}%
 # ----
@@ -151,7 +151,7 @@ parser = argparse.ArgumentParser('w_binprobs', description='''\
 Compute per-bin population confidence intervals as a function of simulation
 time.  Useful to determine when a simulation has "settled" to steady-state. 
 ''')
-wemd.rc.add_args(parser)
+west.rc.add_args(parser)
 wbp.add_args(parser)
 
 cgroup = parser.add_argument_group('confidence interval options')
@@ -167,7 +167,7 @@ ogroup.add_argument('--binlabels', dest='write_bin_labels', action='store_true',
 
 args = parser.parse_args()
 
-wemd.rc.process_args(args, config_required=False)
+west.rc.process_args(args, config_required=False)
 wbp.process_args(args)
 
 wbp.output_filename = args.output

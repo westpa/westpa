@@ -1,14 +1,14 @@
 from __future__ import division, print_function
 import sys, argparse
 import numpy
-import wemd
+import west
 
-from wemdtools.aframe import WEMDAnalysisTool, WEMDDataReaderMixin, CommonOutputMixin, BinningMixin, IterRangeMixin
+from westtools.aframe import WESTAnalysisTool, WESTDataReaderMixin, CommonOutputMixin, BinningMixin, IterRangeMixin
 
 import logging
 log = logging.getLogger('w_succ')
 
-class WSucc(CommonOutputMixin,WEMDDataReaderMixin,WEMDAnalysisTool):
+class WSucc(CommonOutputMixin,WESTDataReaderMixin,WESTAnalysisTool):
     def __init__(self):
         super(WSucc,self).__init__()
         self.include_args['CommonOutputMixin']['print_bin_labels'] = False
@@ -35,7 +35,7 @@ class WSucc(CommonOutputMixin,WEMDDataReaderMixin,WEMDAnalysisTool):
         for n_iter in xrange(1, self.data_manager.current_iteration):
             seg_index = self.get_seg_index(n_iter)
             all_seg_ids = numpy.arange(len(seg_index), dtype=numpy.int_)
-            recycled_seg_ids = all_seg_ids[seg_index[:]['endpoint_type'] == wemd.Segment.SEG_ENDPOINT_RECYCLED]
+            recycled_seg_ids = all_seg_ids[seg_index[:]['endpoint_type'] == west.Segment.SEG_ENDPOINT_RECYCLED]
 
             if len(recycled_seg_ids) == 0:
                 # Attemping to retrieve a 0-length selection from HDF5 (the pcoords below) fails
@@ -60,14 +60,14 @@ wsucc = WSucc()
 
 parser = argparse.ArgumentParser('w_succ', description='''\
 List segments which successfully reach a target state''')
-wemd.rc.add_args(parser)
+west.rc.add_args(parser)
 wsucc.add_args(parser)
 
 parser.add_argument('-o', '--output', dest='output_file',
                     help='Store output in OUTPUT_FILE (default: write to standard output).',
                     type=argparse.FileType('wt'), default=sys.stdout)
 args = parser.parse_args()
-wemd.rc.process_args(args, config_required=False)
+west.rc.process_args(args, config_required=False)
 wsucc.process_args(args)
 wsucc.output_file = args.output_file
 

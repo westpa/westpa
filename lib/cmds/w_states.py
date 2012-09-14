@@ -8,14 +8,14 @@ log = logging.getLogger('w_init')
 import work_managers
 from work_managers import make_work_manager
 
-import wemd
-from wemd import Segment
-from wemd.states import BasisState, TargetState
+import west
+from west import Segment
+from west.states import BasisState, TargetState
 
 EPS = numpy.finfo(numpy.float64).eps
 
 parser = argparse.ArgumentParser('w_states', description='''\
-Display or manipulate basis (initial) or target (recycling) states for a WEMD simulation.  By default, states are
+Display or manipulate basis (initial) or target (recycling) states for a WEST simulation.  By default, states are
 displayed (or dumped to files).  If ``--replace`` is specified, all basis/target states are replaced for the
 next iteration.  If ``--append`` is specified, the given target state(s) are appended to the list for the
 next iteration.
@@ -23,9 +23,9 @@ next iteration.
 Appending basis states is not permitted, as this would require renormalizing basis state
 probabilities in ways that may be error-prone. Instead, use ``w_states --show --bstate-file=bstates.txt``
 and then edit the resulting ``bstates.txt`` file to include the new desired basis states, then use
-``w_states --replace --bstate-file=bstates.txt`` to update the WEMD HDF5 file appropriately. 
+``w_states --replace --bstate-file=bstates.txt`` to update the WEST HDF5 file appropriately. 
 ''')
-wemd.rc.add_args(parser)
+west.rc.add_args(parser)
 smgroup = parser.add_argument_group('modes of operation')
 mode_group = smgroup.add_mutually_exclusive_group()
 mode_group.add_argument('--show', dest='mode', action='store_const', const='show',
@@ -54,17 +54,17 @@ parser.set_defaults(mode='show')
 
 work_managers.environment.add_wm_args(parser)
 args = parser.parse_args()
-wemd.rc.process_args(args)
+west.rc.process_args(args)
 work_managers.environment.process_wm_args(args)
 work_manager = make_work_manager()
 
-system = wemd.rc.get_system_driver()
+system = west.rc.get_system_driver()
 
 with work_manager:
     if work_manager.is_master:
-        data_manager = wemd.rc.get_data_manager()
+        data_manager = west.rc.get_data_manager()
         data_manager.open_backing(mode='a')
-        sim_manager = wemd.rc.get_sim_manager()
+        sim_manager = west.rc.get_sim_manager()
         n_iter = data_manager.current_iteration
             
         assert args.mode in ('show', 'replace', 'append')
@@ -122,7 +122,7 @@ with work_manager:
                 del tstates_strio
                 
             if not target_states:
-                wemd.rc.pstatus('No target states specified.')
+                west.rc.pstatus('No target states specified.')
             else:
                 data_manager.save_target_states(target_states, n_iter)
                 sim_manager.report_target_states(target_states)
@@ -149,7 +149,7 @@ with work_manager:
                 del tstates_strio
                 
             if not target_states:
-                wemd.rc.pstatus('No target states specified.')
+                west.rc.pstatus('No target states specified.')
             else:
                 data_manager.save_target_states(target_states, n_iter)
                 sim_manager.report_target_states(target_states)

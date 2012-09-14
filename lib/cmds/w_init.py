@@ -8,14 +8,14 @@ log = logging.getLogger('w_init')
 import work_managers
 from work_managers import make_work_manager
 
-import wemd
-from wemd.segment import Segment
-from wemd.states import BasisState, TargetState, InitialState, pare_basis_initial_states
+import west
+from west.segment import Segment
+from west.states import BasisState, TargetState, InitialState, pare_basis_initial_states
 
 EPS = numpy.finfo(numpy.float64).eps
 
 parser = argparse.ArgumentParser('w_init', description='''\
-Initialize a new WEMD simulation, creating the WEMD HDF5 file and preparing the first
+Initialize a new WEST simulation, creating the WEST HDF5 file and preparing the first
 iteration's segments.
 
 Initial states are generated from one or more "basis states" which are specified either in a file specified with --bstates-from, or
@@ -27,7 +27,7 @@ Target states for (non-equilibrium) steady-state simulations are specified eithe
 by one or more --tstate arguments. If neither --tstates-from nor at least one --tstate argument is provided, then an equilibrium
 simulation (without any sinks) will be performed. 
 ''')
-wemd.rc.add_args(parser)
+west.rc.add_args(parser)
 parser.add_argument('--force', dest='force', action='store_true',
                          help='Overwrite any existing simulation data')
 parser.add_argument('--bstate-file', '--bstates-from', metavar='BSTATE_FILE',
@@ -51,18 +51,18 @@ parser.add_argument('--no-we', '--shotgun', dest='shotgun', action='store_true',
 
 work_managers.environment.add_wm_args(parser)
 args = parser.parse_args()
-wemd.rc.process_args(args)
+west.rc.process_args(args)
 work_managers.environment.process_wm_args(args)
 work_manager = make_work_manager()
 
-system = wemd.rc.get_system_driver()
-sim_manager = wemd.rc.get_sim_manager(work_manager)
-propagator = wemd.rc.get_propagator()
-data_manager = wemd.rc.get_data_manager()
+system = west.rc.get_system_driver()
+sim_manager = west.rc.get_sim_manager(work_manager)
+propagator = west.rc.get_propagator()
+data_manager = west.rc.get_data_manager()
 h5file = data_manager.we_h5filename
 
 data_manager.system = system
-we_driver = wemd.rc.get_we_driver()
+we_driver = west.rc.get_we_driver()
 
 
 with work_manager:
@@ -77,7 +77,7 @@ with work_manager:
             del tstates_strio
             
         if not target_states:
-            wemd.rc.pstatus('No target states specified; preparing equilibrium simulation.')
+            west.rc.pstatus('No target states specified; preparing equilibrium simulation.')
         
         # Process basis states
         basis_states = []

@@ -1,15 +1,15 @@
 from __future__ import division, print_function
 import sys, argparse
 import numpy
-import wemd, wemdtools
+import west, westtools
 
-from wemd import Segment
-from wemdtools.aframe import WEMDAnalysisTool, WEMDDataReaderMixin, CommonOutputMixin
+from west import Segment
+from westtools.aframe import WESTAnalysisTool, WESTDataReaderMixin, CommonOutputMixin
 
 import logging
 log = logging.getLogger('w_trace')
 
-class WTrace(CommonOutputMixin,WEMDDataReaderMixin,WEMDAnalysisTool):
+class WTrace(CommonOutputMixin,WESTDataReaderMixin,WESTAnalysisTool):
     def __init__(self):
         super(WTrace,self).__init__()
         self.output_pattern = None
@@ -85,7 +85,7 @@ wtrace = WTrace()
 
 parser = argparse.ArgumentParser('w_trace', description='''\
 Trace trajectories. One or more trajectories must be specified, each as n_iter:seg_id''')
-wemd.rc.add_args(parser)
+west.rc.add_args(parser)
 wtrace.add_args(parser)
 parser.add_argument('-o', '--output', dest='output_pattern', default='traj_{n_iter:06d}_{seg_id:06d}.txt',
                     help='''Store output in OUTPUT_PATTERN, which must be a Python3-style format
@@ -93,7 +93,7 @@ parser.add_argument('-o', '--output', dest='output_pattern', default='traj_{n_it
 parser.add_argument('segments', nargs='+', metavar='SEGMENT',
                     help='Segment(s) to trace, each specified as "n_iter:seg_id"')
 args = parser.parse_args()
-wemd.rc.process_args(args, config_required=False)
+west.rc.process_args(args, config_required=False)
 wtrace.process_args(args)
 
 wtrace.output_pattern = args.output_pattern
@@ -108,7 +108,7 @@ for segspec in args.segments:
         wtrace.terminal_segments.append((n_iter,seg_id))
 wtrace.trace_trajs()
 
-#ttree = wemdtools.trajectories.trajtree.TrajTree(data_manager)
+#ttree = westtools.trajectories.trajtree.TrajTree(data_manager)
 #for segspec in args.segment:
 #    n_iter, seg_id = map(int, segspec.split(':'))
 #    trajectory = ttree.trace_to_root(n_iter, seg_id)

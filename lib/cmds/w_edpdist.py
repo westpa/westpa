@@ -2,18 +2,18 @@ from __future__ import print_function, division; __metaclass__=type
 import os, sys, argparse, math, itertools
 import numpy
 from scipy.stats import kstwobign
-import wemd
-from wemdtools.stats.edfs import EDF
+import west
+from westtools.stats.edfs import EDF
 
 import logging
 log = logging.getLogger('w_edpdist')
 
-import wemdtools
-from wemdtools.aframe import (WEMDAnalysisTool,WEMDDataReaderMixin,IterRangeMixin,TransitionAnalysisMixin,BinningMixin,
+import westtools
+from westtools.aframe import (WESTAnalysisTool,WESTDataReaderMixin,IterRangeMixin,TransitionAnalysisMixin,BinningMixin,
                               KineticsAnalysisMixin,CommonOutputMixin,PlottingMixin)
                               
 class WEDPDist(PlottingMixin,CommonOutputMixin,KineticsAnalysisMixin,TransitionAnalysisMixin,
-                BinningMixin,IterRangeMixin,WEMDDataReaderMixin,WEMDAnalysisTool):
+                BinningMixin,IterRangeMixin,WESTDataReaderMixin,WESTAnalysisTool):
     def __init__(self):
         super(WEDPDist,self).__init__()
         self.edp_group = None
@@ -38,7 +38,7 @@ class WEDPDist(PlottingMixin,CommonOutputMixin,KineticsAnalysisMixin,TransitionA
     def require_cdfs(self):
         all_pairs = set(self.selected_bin_pair_iter)
         if self.discard_edf_data:
-            wemd.rc.pstatus('Discarding existing EDFs')
+            west.rc.pstatus('Discarding existing EDFs')
             self.delete_edf_group()
             remaining_pairs = all_pairs
         elif self.edfs_gname in self.edp_group:
@@ -47,10 +47,10 @@ class WEDPDist(PlottingMixin,CommonOutputMixin,KineticsAnalysisMixin,TransitionA
 
         self.require_edf_group()
         if remaining_pairs:
-            wemd.rc.pstatus('Calculating {:d} EDFs...'.format(len(remaining_pairs)))
+            west.rc.pstatus('Calculating {:d} EDFs...'.format(len(remaining_pairs)))
             self.calc_cdfs(remaining_pairs)
         else:
-            wemd.rc.pstatus('All required EDFs present.')        
+            west.rc.pstatus('All required EDFs present.')        
         
     def store_edf_data(self, ibin, fbin, durations, F_all, N_e, ks_probs):
         try:
@@ -114,9 +114,9 @@ class WEDPDist(PlottingMixin,CommonOutputMixin,KineticsAnalysisMixin,TransitionA
                 ks_probs = numpy.empty((n_blocks,), numpy.float64)
                 
                 for iblock, (block_first, block_past_last) in enumerate(self.iter_block_iter()):
-                    wemd.rc.pstatus('\r  {:d}->{:d}: {:d} transitions: iterations [{:d},{:d}]'
+                    west.rc.pstatus('\r  {:d}->{:d}: {:d} transitions: iterations [{:d},{:d}]'
                                     .format(ibin,fbin,len(transitions),self.first_iter, block_past_last-1), end='')
-                    wemd.rc.pflush()
+                    west.rc.pflush()
                     last_iters[iblock] = block_past_last - 1
                     if iblock == n_blocks - 1:
                         F_all[iblock] = full_edf.F
@@ -145,7 +145,7 @@ class WEDPDist(PlottingMixin,CommonOutputMixin,KineticsAnalysisMixin,TransitionA
                 ks_probs[ks_probs < 0] = 0.0                       
                 self.store_edf_data(ibin, fbin, all_durations, F_all, N_e, ks_probs)
                 
-                wemd.rc.pstatus('; N_e = {:d}, mean = {:g}, stdev = {:g}, median = {:g}, 95th percentile = {:g}, max = {:g}'
+                west.rc.pstatus('; N_e = {:d}, mean = {:g}, stdev = {:g}, median = {:g}, 95th percentile = {:g}, max = {:g}'
                                 .format(len(full_edf),
                                         float(full_edf.mean()),
                                         float(full_edf.std()),
@@ -154,14 +154,14 @@ class WEDPDist(PlottingMixin,CommonOutputMixin,KineticsAnalysisMixin,TransitionA
                                         float(full_edf.quantile(1.0))), 
                                 end='')
             del transitions, all_durations, full_edf
-            wemd.rc.pstatus()
+            west.rc.pstatus()
 
     def write_edfs(self):
         if not self.edf_output_pattern:
-            wemd.rc.pstatus('Not writing any EDFs in text format.')
+            west.rc.pstatus('Not writing any EDFs in text format.')
             return
         else:
-            wemd.rc.pstatus('Writing EDFs to text files...')
+            west.rc.pstatus('Writing EDFs to text files...')
         
         bins = self.region_set.get_all_bins()
         mbw = len(str(len(bins)))
@@ -171,7 +171,7 @@ class WEDPDist(PlottingMixin,CommonOutputMixin,KineticsAnalysisMixin,TransitionA
             durations = edf_group['durations'][...]
             #ks_probs = edf_group['ks_probs'][...]
             outfile_name = self.edf_output_pattern % (ibin,fbin)
-            wemd.rc.pstatus('  {:{mbw}d}->{:<{mbw}d} to {:s}'.format(ibin,fbin,outfile_name,mbw=mbw))
+            west.rc.pstatus('  {:{mbw}d}->{:<{mbw}d} to {:s}'.format(ibin,fbin,outfile_name,mbw=mbw))
             outfile = open(outfile_name,'wt')
             
             if not self.output_suppress_headers:
@@ -195,10 +195,10 @@ class WEDPDist(PlottingMixin,CommonOutputMixin,KineticsAnalysisMixin,TransitionA
     
     def plot_evol(self):
         if not self.evol_plot_pattern:
-            wemd.rc.pstatus('Not plotting evolution of duration distribution.')
+            west.rc.pstatus('Not plotting evolution of duration distribution.')
             return
         else:
-            wemd.rc.pstatus('Plotting evolution of duration distributions...')
+            west.rc.pstatus('Plotting evolution of duration distributions...')
         
         matplotlib = self.require_matplotlib()
         from matplotlib import pyplot
@@ -273,7 +273,7 @@ class WEDPDist(PlottingMixin,CommonOutputMixin,KineticsAnalysisMixin,TransitionA
                         
             pyplot.savefig(output_filename)
             pyplot.clf()
-            wemd.rc.pstatus('  {:{mbw}d}->{:<{mbw}d} to {:s}'.format(ibin,fbin,output_filename,mbw=mbw))
+            west.rc.pstatus('  {:{mbw}d}->{:<{mbw}d} to {:s}'.format(ibin,fbin,output_filename,mbw=mbw))
             
             del ks_probs, durations, interp_durations, interp_edfs, quantiles, means, edfs, edf_group
         
@@ -281,9 +281,9 @@ wedp = WEDPDist()
 
 parser = argparse.ArgumentParser('w_edpdist', description='''\
 Calculate the transition event duration probability distribution as a function of number of iterations,
-and evaluate WEMD simulation convergence. 
+and evaluate WEST simulation convergence. 
 ''')
-wemd.rc.add_args(parser)
+west.rc.add_args(parser)
 wedp.add_args(parser)
 
 edfgroup = parser.add_argument_group('EDF options')
@@ -311,7 +311,7 @@ wedp.add_common_output_args(ogroup)
 
 args = parser.parse_args()
 
-wemd.rc.process_args(args, config_required=False)
+west.rc.process_args(args, config_required=False)
 wedp.process_args(args)
 wedp.process_common_output_args(args)
 wedp.dt = args.dt
@@ -341,5 +341,5 @@ wedp.write_edfs()
 if wedp.matplotlib_avail:
     wedp.plot_evol()
 else:
-    wemd.rc.pstatus('matplotlib not available; not generating plots')
+    west.rc.pstatus('matplotlib not available; not generating plots')
 

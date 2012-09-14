@@ -1,2 +1,2 @@
-from wemdtools.cmds.w_ttimes import WTTimesBF
+from westtools.cmds.w_ttimes import WTTimesBF
 WTTimesBF().main()

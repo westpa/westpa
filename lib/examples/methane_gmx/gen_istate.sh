@@ -5,14 +5,14 @@ if [ -n "$SEG_DEBUG" ] ; then
     env | sort
 fi
 
-cd $WEMD_SIM_ROOT
+cd $WEST_SIM_ROOT
 
-mkdir -p $(dirname $WEMD_ISTATE_DATA_REF)
+mkdir -p $(dirname $WEST_ISTATE_DATA_REF)
 
 # Simply copy in the basis state
-#cp -v $WEMD_BSTATE_DATA_REF $WEMD_ISTATE_DATA_REF
+#cp -v $WEST_BSTATE_DATA_REF $WEST_ISTATE_DATA_REF
 
 
-./move_methane.py -o $WEMD_ISTATE_DATA_REF $(echo "$WEMD_RANDFLOAT*10.0" | bc) $WEMD_BSTATE_DATA_REF
+./move_methane.py -o $WEST_ISTATE_DATA_REF $(echo "$WEST_RANDFLOAT*10.0" | bc) $WEST_BSTATE_DATA_REF
 
 
