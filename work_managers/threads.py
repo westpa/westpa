@@ -53,17 +53,21 @@ class ThreadsWorkManager(WorkManager):
         return ft
                 
     def startup(self):
-        self.workers = [threading.Thread(target=self.runtask, args=[self.task_queue], name='worker-{:d}'.format(i)) 
-                        for i in xrange(0, self.n_workers)]
-        for thread in self.workers:
-            log.debug('starting thread {!r}'.format(thread))
-            thread.start()
+        if not self.running:
+            self.running = True
+            self.workers = [threading.Thread(target=self.runtask, args=[self.task_queue], name='worker-{:d}'.format(i)) 
+                            for i in xrange(0, self.n_workers)]
+            for thread in self.workers:
+                log.debug('starting thread {!r}'.format(thread))
+                thread.start()
         
     def shutdown(self):
-        # Put one sentinel on the queue per worker, then wait for threads to terminate
-        for i in xrange(0, self.n_workers):
-            self.task_queue.put(ShutdownSentinel)
-        for thread in self.workers:
-            thread.join()
+        if self.running:
+            # Put one sentinel on the queue per worker, then wait for threads to terminate
+            for i in xrange(0, self.n_workers):
+                self.task_queue.put(ShutdownSentinel)
+            for thread in self.workers:
+                thread.join()
+            self.running = False
     
     

@@ -86,16 +86,19 @@ class ProcessWorkManager(WorkManager):
         return ft
                 
     def startup(self):
-        self.workers = [multiprocessing.Process(target=self.task_loop, 
-                                                name='worker-{:d}'.format(i)) for i in xrange(self.n_workers)]
-        for worker in self.workers:
-            worker.start()
-            
-        self.pending = dict()
-
-        self.receive_thread = threading.Thread(target=self.results_loop, name='receiver')
-        self.receive_thread.daemon = True
-        self.receive_thread.start()        
+        if not self.running:
+            log.debug('starting up work manager {!r}'.format(self))
+            self.running = True
+            self.workers = [multiprocessing.Process(target=self.task_loop, 
+                                                    name='worker-{:d}-{:x}'.format(i,id(self))) for i in xrange(self.n_workers)]
+            for worker in self.workers:
+                worker.start()
+                
+            self.pending = dict()
+    
+            self.receive_thread = threading.Thread(target=self.results_loop, name='receiver')
+            self.receive_thread.daemon = True
+            self.receive_thread.start()        
     
     def _empty_queues(self):
         while not self.task_queue.empty():
@@ -111,29 +114,32 @@ class ProcessWorkManager(WorkManager):
                 break        
         
     def shutdown(self):
-        self._empty_queues()
-
-        # Send shutdown signal
-        for _i in xrange(self.n_workers):
-            self.task_queue.put(task_shutdown_sentinel, block=False)
-                    
-        for worker in self.workers:
-            worker.join(self.shutdown_timeout)
-            if worker.is_alive():            
-                log.debug('sending SIGINT to worker process {:d}'.format(worker.pid))
-                os.kill(worker.pid, signal.SIGINT)
+        if self.running:
+            log.debug('shutting down {!r}'.format(self))
+            self._empty_queues()
+    
+            # Send shutdown signal
+            for _i in xrange(self.n_workers):
+                self.task_queue.put(task_shutdown_sentinel, block=False)
+                        
+            for worker in self.workers:
                 worker.join(self.shutdown_timeout)
-                if worker.is_alive():
-                    log.warning('sending SIGKILL to worker process {:d}'.format(worker.pid))
-                    os.kill(worker.pid, signal.SIGKILL)
-                    worker.join()
-                    
-                log.debug('worker process {:d} terminated with code {:d}'.format(worker.pid, worker.exitcode))
-            else:
-                log.debug('worker process {:d} terminated gracefully with code {:d}'.format(worker.pid, worker.exitcode))
+                if worker.is_alive():            
+                    log.debug('sending SIGINT to worker process {:d}'.format(worker.pid))
+                    os.kill(worker.pid, signal.SIGINT)
+                    worker.join(self.shutdown_timeout)
+                    if worker.is_alive():
+                        log.warning('sending SIGKILL to worker process {:d}'.format(worker.pid))
+                        os.kill(worker.pid, signal.SIGKILL)
+                        worker.join()
+                        
+                    log.debug('worker process {:d} terminated with code {:d}'.format(worker.pid, worker.exitcode))
+                else:
+                    log.debug('worker process {:d} terminated gracefully with code {:d}'.format(worker.pid, worker.exitcode))
+            
+            self._empty_queues()
+            self.result_queue.put(result_shutdown_sentinel)
+            self.running = False
         
-        self._empty_queues()
-        self.result_queue.put(result_shutdown_sentinel)
-                
     
     

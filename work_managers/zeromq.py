@@ -575,6 +575,9 @@ class ZMQClient(ZMQBase):
         wm_group.add_argument(wmenv.arg_flag('zmq_announce_endpoint'), metavar='ANNOUNCE_ENDPOINT',
                               help='''Use the given ZeroMQ endpoint for task distribution. (Use {argname} over
                                       explicit endpoints, if possible.)'''.format(argname=wmenv.arg_flag('zmq_comm_mode')))
+        wm_group.add_argument(wmenv.arg_flag('zmq_task_timeout'), metavar='TIMEOUT', type=int,
+                              help='''Kill worker processes that take longer than TIMEOUT seconds''')
+                                             
     
     @classmethod
     def from_environ(cls, wmenv=None):
@@ -582,6 +585,7 @@ class ZMQClient(ZMQBase):
             wmenv = work_managers.environment.default_env 
         
         n_workers = wmenv.get_val('n_workers', multiprocessing.cpu_count(), int)
+        hangcheck = wmenv.get_val('zmq_task_timeout', 60, int)
 
 
         tests = [not bool(wmenv.get_val('zmq_task_endpoint')),
@@ -607,11 +611,11 @@ class ZMQClient(ZMQBase):
             result_endpoint = cls.canonicalize_endpoint(wmenv.get_val('zmq_result_endpoint'),allow_wildcard_host=False)
             announce_endpoint = cls.canonicalize_endpoint(wmenv.get_val('zmq_announce_endpoint'),allow_wildcard_host=False)
         
-        return cls(task_endpoint, result_endpoint, announce_endpoint, n_workers)
+        return cls(task_endpoint, result_endpoint, announce_endpoint, n_workers, hangcheck)
                      
     
     def __init__(self, upstream_task_endpoint, upstream_result_endpoint, upstream_announce_endpoint,
-                 n_workers = None):
+                 n_workers = None, hangcheck=60):
         super(ZMQClient,self).__init__()
         
         self.upstream_task_endpoint = upstream_task_endpoint
@@ -638,8 +642,8 @@ class ZMQClient(ZMQBase):
         # declaring it hung and terminating it -- None means do not check.
         self.worker_task_timeout = None
         
-        # How often we check for a lost server or hung worker
-        self.hangcheck = 15
+        # How often (in s) we check for a hung worker
+        self.hangcheck = hangcheck
                 
         self.node_id = uuid.uuid4()
         self.associated_server_id = None
@@ -655,32 +659,36 @@ class ZMQClient(ZMQBase):
         
         self._shutdown_signaled = False
         
-    def startup(self, spawn_workers=True):        
-        if spawn_workers:
-            with self.worker_lock:
-                for _n in xrange(self.n_workers):
-                    self._spawn_worker()
-            
-        self.context = zmq.Context()
-        ctlsocket = self._make_signal_socket(self._startup_ctl_endpoint)
+        self.running = False
         
-        try:
-            self._taskfwd_thread = threading.Thread(target=self._taskfwd_loop)
-            self._taskfwd_thread.start()
+    def startup(self, spawn_workers=True):     
+        if not self.running:
+            self.running = True   
+            if spawn_workers:
+                with self.worker_lock:
+                    for _n in xrange(self.n_workers):
+                        self._spawn_worker()
+                
+            self.context = zmq.Context()
+            ctlsocket = self._make_signal_socket(self._startup_ctl_endpoint)
             
-            self._rslfwd_thread = threading.Thread(target=self._rslfwd_loop)
-            self._rslfwd_thread.start()
-            
-            self._monitor_thread = threading.Thread(target=self._monitor_loop)
-            self._monitor_thread.start()
-            
-            # Wait on all three threads starting up before continuing
-            ctlsocket.recv()
-            ctlsocket.recv()
-            ctlsocket.recv()
-
-        finally:
-            ctlsocket.close()
+            try:
+                self._taskfwd_thread = threading.Thread(target=self._taskfwd_loop)
+                self._taskfwd_thread.start()
+                
+                self._rslfwd_thread = threading.Thread(target=self._rslfwd_loop)
+                self._rslfwd_thread.start()
+                
+                self._monitor_thread = threading.Thread(target=self._monitor_loop)
+                self._monitor_thread.start()
+                
+                # Wait on all three threads starting up before continuing
+                ctlsocket.recv()
+                ctlsocket.recv()
+                ctlsocket.recv()
+    
+            finally:
+                ctlsocket.close()
             
     def _shutdown(self):
         if not self._shutdown_signaled:
@@ -689,9 +697,10 @@ class ZMQClient(ZMQBase):
                 self._signal_thread(endpoint, 'shutdown')
                     
     def shutdown(self):
-        self._shutdown()
-        self._wait_for_shutdown()
-        #self.context.term()
+        if self.running:
+            self._shutdown()
+            self._wait_for_shutdown()
+            self.running = False
         
     def run(self):
         self._wait_for_shutdown()
@@ -961,6 +970,8 @@ class ZMQWorkManager(ZMQWMServer,WorkManager):
         wm_group.add_argument(wmenv.arg_flag('zmq_announce_endpoint'), metavar='ANNOUNCE_ENDPOINT',
                               help='''Use the given ZeroMQ endpoint for task distribution. (Use {argname} over
                                       explicit endpoints, if possible.)'''.format(argname=wmenv.arg_flag('zmq_comm_mode')))
+        wm_group.add_argument(wmenv.arg_flag('zmq_task_timeout'), metavar='TIMEOUT', type=int,
+                              help='''Kill worker processes that take longer than TIMEOUT seconds''')
             
             
     @classmethod
@@ -972,7 +983,7 @@ class ZMQWorkManager(ZMQWMServer,WorkManager):
             return ZMQClient.from_environ()
         
         n_workers = wmenv.get_val('n_workers', multiprocessing.cpu_count(), int)
-        
+        hangcheck = wmenv.get_val('zmq_task_timeout', 60, int)
         server_info_filename = wmenv.get_val('zmq_server_info', 'zmq_server_info_{}.json'.format(uuid.uuid4().hex))
         
         # if individual endpoints are named, we use these
@@ -1002,14 +1013,15 @@ class ZMQWorkManager(ZMQWMServer,WorkManager):
             result_endpoint = cls.canonicalize_endpoint(wmenv.get_val('zmq_result_endpoint'))
             announce_endpoint = cls.canonicalize_endpoint(wmenv.get_val('zmq_announce_endpoint'))
             
-        return cls(n_workers, task_endpoint, result_endpoint, announce_endpoint, server_info_filename = server_info_filename)
+        return cls(n_workers, task_endpoint, result_endpoint, announce_endpoint, server_info_filename = server_info_filename,
+                   hangcheck=hangcheck)
         
     def remove_server_info_file(self):
         filename = self.server_info_filename
         try:
             os.unlink(filename)
         except OSError as e:
-            log.info('could not remove server info file {!r}: {}'.format(filename, e))
+            log.debug('could not remove server info file {!r}: {}'.format(filename, e))
         else:
             log.debug('removed server info file {!r}'.format(filename))
     
@@ -1025,13 +1037,14 @@ class ZMQWorkManager(ZMQWMServer,WorkManager):
     
     def __init__(self, n_workers = None, 
                  master_task_endpoint = None, master_result_endpoint = None, master_announce_endpoint = None,
-                 write_server_info = True, server_info_filename=None):
+                 write_server_info = True, server_info_filename=None, hangcheck=60):
         WorkManager.__init__(self)
         
         if n_workers is None:
             n_workers = multiprocessing.cpu_count()
         self.n_workers = n_workers
         self.internal_client = None
+        self.hangcheck = hangcheck
         
         argtests = [master_task_endpoint is None, master_result_endpoint is None, master_announce_endpoint is None]
         if any(argtests) and not all(argtests):
@@ -1049,7 +1062,7 @@ class ZMQWorkManager(ZMQWMServer,WorkManager):
         if n_workers > 0:
             # this node is both a master and a client; start workers
             self.internal_client = ZMQClient(master_task_endpoint, master_result_endpoint, master_announce_endpoint,
-                                             self.n_workers)
+                                             self.n_workers, hangcheck)
         
         if write_server_info:
             self.server_info_filename = server_info_filename or 'zmq_server_info_{}.json'.format(uuid.uuid4().hex)
@@ -1058,15 +1071,19 @@ class ZMQWorkManager(ZMQWMServer,WorkManager):
                 
                     
     def startup(self):
-        ZMQWMServer.startup(self)
-        if self.internal_client is not None:
-            self.internal_client.startup()
+        if not self.running:
+            self.running = True
+            ZMQWMServer.startup(self)
+            if self.internal_client is not None:
+                self.internal_client.startup()
             
     def shutdown(self):
-        if self.internal_client is not None:
-            self.internal_client.shutdown()
-        ZMQWMServer.shutdown(self)
-        self.remove_server_info_file()
+        if self.running:
+            if self.internal_client is not None:
+                self.internal_client.shutdown()
+            ZMQWMServer.shutdown(self)
+            self.remove_server_info_file()
+            self.running = False
 
 
 atexit.register(ZMQBase.remove_ipc_endpoints)

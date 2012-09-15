@@ -16,9 +16,13 @@ class WorkManager:
     def add_wm_args(cls, parser, wmenv=None):
         return
     
+    def __repr__(self):
+        return '<{classname} at 0x{id:x}>'.format(classname=self.__class__.__name__, id=id(self))
+    
     def __init__(self):
         self._sigint_handler_installed = False
         self.prior_sigint_handler = None
+        self.running = False
         
     def __enter__(self):
         self.startup()
@@ -44,11 +48,12 @@ class WorkManager:
                                     
     def startup(self):
         '''Perform any necessary startup work, such as spawning clients.'''
-        pass
+        self.running = True
                                             
     def shutdown(self):
         '''Cleanly shut down any active workers.'''
-        pass
+        self.running = False
+        
     
     def run(self):
         '''Run the worker loop (in clients only).'''
