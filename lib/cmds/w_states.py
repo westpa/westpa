@@ -64,7 +64,7 @@ with work_manager:
     if work_manager.is_master:
         data_manager = west.rc.get_data_manager()
         data_manager.open_backing(mode='a')
-        sim_manager = west.rc.get_sim_manager()
+        sim_manager = west.rc.get_sim_manager(work_manager)
         n_iter = data_manager.current_iteration
             
         assert args.mode in ('show', 'replace', 'append')

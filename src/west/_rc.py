@@ -101,7 +101,7 @@ class _WESTRC:
             self.rcfile = filename
 
         if 'WEST_SIM_ROOT' not in os.environ:
-            sys.stderr.write('  -- WARNING  -- setting $WEST_SIM_ROOT to current directory ({})\n'.format(os.getcwd()))
+            sys.stderr.write('-- WARNING -- setting $WEST_SIM_ROOT to current directory ({})\n'.format(os.getcwd()))
             os.environ['WEST_SIM_ROOT'] = os.getcwd()
                                     
         self.config.read_config_file(self.rcfile) 
@@ -109,24 +109,31 @@ class _WESTRC:
     def config_logging(self):
         import logging.config
         logging_config = {'version': 1, 'incremental': False,
-                          'formatters': {'standard': {'format': '  -- %(levelname)-8s -- %(message)s'},
+                          'formatters': {'standard': {'format': '-- %(levelname)-8s [%(name)s] -- %(message)s'},
                                          'debug':    {'format': '''\
-          -- %(levelname)-8s %(asctime)24s PID %(process)-12d TID %(thread)-20d 
-             %(pathname)s:%(lineno)d [%(funcName)s()] 
-               %(message)s'''}},
+-- %(levelname)-8s %(asctime)24s PID %(process)-12d TID %(thread)-20d
+   from logger "%(name)s" 
+   at location %(pathname)s:%(lineno)d [%(funcName)s()] 
+   ::
+   %(message)s
+'''}},
                           'handlers': {'console': {'class': 'logging.StreamHandler',
                                                    'stream': 'ext://sys.stdout',
                                                    'formatter': 'standard'}},
                           'loggers': {'west': {'handlers': ['console'], 'propagate': False},
                                       'westtools': {'handlers': ['console'], 'propagate': False},
                                       'westext': {'handlers': ['console'], 'propagate': False},
-                                      'work_managers': {'handlers': ['console'], 'propagate': False}},
+                                      'work_managers': {'handlers': ['console'], 'propagate': False},
+                                      'multiprocessing': {'handlers': ['console'], 'propagate': False}},
                           'root': {'handlers': ['console']}}
         
         logging_config['loggers'][self.process_name] = {'handlers': ['console'], 'propagate': False}
             
         if self.verbosity == 'debug':
-            logging_config['root']['level'] = 'DEBUG'
+            import multiprocessing
+            multiprocessing.log_to_stderr(multiprocessing.SUBDEBUG)
+            logging_config['root']['level'] = 5 #'DEBUG'
+            logging_config['loggers']['multiprocessing']['level'] = 'DEBUG'
             logging_config['handlers']['console']['formatter'] = 'debug'
         elif self.verbosity == 'verbose':
             logging_config['root']['level'] = 'INFO'

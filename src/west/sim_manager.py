@@ -7,6 +7,8 @@ from collections import namedtuple
 import logging
 log = logging.getLogger(__name__)
 
+import work_managers
+
 import west
 from west.states import BasisState, InitialState, TargetState
 from west.util import extloader
@@ -30,19 +32,18 @@ class PropagationError(RuntimeError):
     pass 
 
 class WESimManager:
-    def __init__(self, work_manager=None):        
-        self.data_manager = west.rc.data_manager
-        self.we_driver = west.rc.we_driver
+    def __init__(self, work_manager=None):
         
-        if work_manager is None:
-            from work_managers import make_work_manager
-            self.work_manager = make_work_manager()
-            self.work_manager.startup()
-        else:
-            self.work_manager = work_manager
-            
-        self.propagator = west.rc.propagator
-        self.system = west.rc.system
+        # a work manager is optional, if one is only using the sim manager for helping to
+        # create segments, etc. (probably a bad idea, but whatever)
+        # However, using a work manager that requires clean-up can
+        # cause hangs on exit, so if none is provided, then use a simple SerialWorkManager
+        self.work_manager = work_manager or work_managers.SerialWorkManager()
+                
+        self.data_manager = west.rc.get_data_manager()
+        self.we_driver = west.rc.get_we_driver()
+        self.propagator = west.rc.get_propagator()
+        self.system = west.rc.get_system_driver()
                                 
         # A table of function -> list of (priority, name, callback) tuples
         self._callback_table = {}
