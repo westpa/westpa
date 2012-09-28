@@ -1,8 +1,8 @@
 from __future__ import print_function, division; __metaclass__ = type
-from wt2.tool_classes.core import WEMDTool
+from wt2.tool_classes.core import WESTTool
 import h5py
 
-class HDF5Storage(WEMDTool):
+class HDF5Storage(WESTTool):
     '''Class/mixin for storing data in an HDF5 file.'''
     def __init__(self):
         self.analysis_h5filename = None

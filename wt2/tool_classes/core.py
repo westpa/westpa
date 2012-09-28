@@ -1,8 +1,8 @@
 from __future__ import print_function, division; __metaclass__ = type
 
-import wemd
+import west
 
-class WEMDTool:
+class WESTTool:
     
     prog = None
     usage = None
@@ -29,12 +29,12 @@ class WEMDTool:
             
     def add_args(self, parser):
         '''Add arguments specific to this tool to the given argparse parser.'''
-        wemd.rc.add_args(parser)
+        west.rc.add_args(parser)
     
     def process_args(self, args):
         '''Take argparse-processed arguments associated with this tool and deal
         with them appropriately (setting instance variables, etc)'''
-        wemd.rc.process_args(args, config_required = self.config_required)
+        west.rc.process_args(args, config_required = self.config_required)
         
     def add_all_args(self, parser):
         '''Add arguments for all tools to the given parser.'''

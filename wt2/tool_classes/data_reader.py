@@ -1,26 +1,26 @@
 from __future__ import division, print_function; __metaclass__ = type
-from core import WEMDTool
+from core import WESTTool
 import os
 import numpy, h5py
-import wemd
+import west
 
-class WEMDDataReader(WEMDTool):
-    '''Tool for reading data from WEMD-related HDF5 files. Coordinates finding
-    the main HDF5 file from wemd.cfg or command line arguments, caching of certain
+class WESTDataReader(WESTTool):
+    '''Tool for reading data from WEST-related HDF5 files. Coordinates finding
+    the main HDF5 file from west.cfg or command line arguments, caching of certain
     kinds of data (eventually), and retrieving auxiliary data sets from various
     places.'''
     
     def __init__(self):
-        super(WEMDDataReader,self).__init__()
-        self.data_manager = wemd.rc.get_data_manager() 
+        super(WESTDataReader,self).__init__()
+        self.data_manager = west.rc.get_data_manager() 
         self.we_h5filename = None
         
         self._h5files = {}
 
     def add_args(self, parser):
-        group = parser.add_argument_group('WEMD input data options')
-        group.add_argument('-W', '--wemd-data', dest='we_h5filename', metavar='WEMD_H5FILE',
-                           help='''Take WEMD data from WEMD_H5FILE (default: read from the HDF5 file specified in wemd.cfg).''')
+        group = parser.add_argument_group('WEST input data options')
+        group.add_argument('-W', '--west-data', dest='we_h5filename', metavar='WEST_H5FILE',
+                           help='''Take WEST data from WEST_H5FILE (default: read from the HDF5 file specified in west.cfg).''')
         
     def process_args(self, args):
         if args.we_h5filename:
@@ -60,8 +60,8 @@ class WEMDDataReader(WEMDTool):
                 these n_iter/seg_id pairs is ``idsname``. 
             
             file=otherfile.h5
-                Instead of reading data from the main WEMD HDF5 file (usually
-                ``wemd.h5``), read data from ``otherfile.h5``.
+                Instead of reading data from the main WEST HDF5 file (usually
+                ``west.h5``), read data from ``otherfile.h5``.
                 
             slice=[100,...]
                 Retrieve only the given slice from the dataset. This can be
@@ -138,7 +138,7 @@ class ByIterDataSelection(DataSelection):
             return self._iter_groups[n_iter]
         except KeyError:
             if self._iter_prec is None:
-                self._iter_prec = self.h5file['/'].attrs.get('wemd_iter_prec',8)
+                self._iter_prec = self.h5file['/'].attrs.get('west_iter_prec',8)
             
             try:
                 iter_group = self.h5file['/iterations/iter_{:0{prec}d}'.format(n_iter,prec=self._iter_prec,)]

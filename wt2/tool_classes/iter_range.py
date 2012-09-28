@@ -1,5 +1,5 @@
 from __future__ import print_function, division; __metaclass__ = type
-from wt2.tool_classes.core import WEMDTool
+from wt2.tool_classes.core import WESTTool
 
 
 import logging
@@ -7,9 +7,9 @@ import logging
 log = logging.getLogger(__name__)
 
 import numpy
-import wemd
+import west
 
-class IterRangeSelection(WEMDTool):
+class IterRangeSelection(WESTTool):
     '''Select and record limits on iterations used in analysis and/or reporting.
     This class provides both the user-facing command-line options and parsing, and
     the application-side API for recording limits in HDF5.
@@ -68,7 +68,7 @@ class IterRangeSelection(WEMDTool):
             if args.last_iter:
                 self.iter_stop = args.last_iter+1
             else:
-                self.iter_stop = (self.data_manager or wemd.rc.get_data_manager()).current_iteration
+                self.iter_stop = (self.data_manager or west.rc.get_data_manager()).current_iteration
         if self.include_args['iter_step']:
             self.iter_step = args.iter_step or 1
             
@@ -77,7 +77,7 @@ class IterRangeSelection(WEMDTool):
 
             
 #    def check_iter_range(self, data_manager = None):
-#        data_manager = data_manager or wemd.rc.get_data_manager()
+#        data_manager = data_manager or west.rc.get_data_manager()
 #        dm_current_iteration = data_manager.current_iteration
 #        
 #        self.iter_start = int(max(self.iter_start, 1))
@@ -86,7 +86,7 @@ class IterRangeSelection(WEMDTool):
 #            
 #        if self.iter_start == self.iter_stop:
 #            raise ValueError('first and last iterations are the same')
-#        wemd.rc.pstatus('Processing iterations from {self.iter_start:d} to {self.iter_stop:d}, inclusive (step size {self.iter_step:d})'.format(self=self))
+#        west.rc.pstatus('Processing iterations from {self.iter_start:d} to {self.iter_stop:d}, inclusive (step size {self.iter_step:d})'.format(self=self))
 #        
 #    def iter_block_iter(self):
 #        '''Return an iterable of (block_start,block_end) over the blocks of iterations

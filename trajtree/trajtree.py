@@ -3,14 +3,14 @@ from collections import namedtuple
 import numpy
 trajnode = namedtuple('trajnode', ('n_iter', 'seg_id'))
 from collections import deque
-import wemd
+import west
 from wt2.tool_classes.selected_segs import AllSegmentSelection
 import _trajtree
 from _trajtree import _trajtree_base
 
 class TrajTreeSet(_trajtree_base):    
     def __init__(self, segsel = None, data_manager = None):
-        self.data_manager = data_manager or wemd.rc.get_data_manager()
+        self.data_manager = data_manager or west.rc.get_data_manager()
         self.segsel = segsel or AllSegmentSelection(data_manager = self.data_manager)
         self._build_table(self.segsel, self.data_manager)
                         

@@ -1,15 +1,15 @@
 from __future__ import print_function, division; __metaclass__ = type
 import sys, os, logging
-from wt2.tool_classes import WEMDTool, WEMDDataReader, SegSelector
+from wt2.tool_classes import WESTTool, WESTDataReader, SegSelector
 import numpy, h5py
 from fasthist import hist
 
 
-import wemd
-from wemd.data_manager import (weight_dtype, n_iter_dtype, seg_id_dtype, utime_dtype, vstr_dtype, 
+import west
+from west.data_manager import (weight_dtype, n_iter_dtype, seg_id_dtype, utime_dtype, vstr_dtype, 
                                istate_type_dtype, istate_status_dtype)
 
-log = logging.getLogger('wemdtools.' + __name__)
+log = logging.getLogger('westtools.' + __name__)
 
 def parse_binspec(binspec):
     namespace = {'inf': float('inf'),
@@ -23,7 +23,7 @@ def parse_binspec(binspec):
     
 class HistogramHelper:
     def __init__(self, dsspec, bins, segment_selection=None, data_manager = None):
-        self.data_manager = data_manager or wemd.rc.get_data_manager()
+        self.data_manager = data_manager or west.rc.get_data_manager()
         self.dsspec = dsspec
         self.segment_selection = segment_selection
         
@@ -123,7 +123,7 @@ class HistogramHelper:
         whist /= I
         
 
-class WPDistTool(WEMDTool):
+class WPDistTool(WESTTool):
     prog='w_pdist'
     description = '''\
 Calculate probability distributions over a weighted ensemble data set. 
@@ -132,7 +132,7 @@ Calculate probability distributions over a weighted ensemble data set.
     def __init__(self):
         super(WPDistTool,self).__init__()
         
-        self.data_reader = WEMDDataReader()
+        self.data_reader = WESTDataReader()
         self.segselector = SegSelector()
         
         self.dsspec = None
@@ -149,7 +149,7 @@ Calculate probability distributions over a weighted ensemble data set.
                             metavar='DSNAME',
                             help='''Calculate distributions for the dataset named DSNAME. An extended form like
                             DSNAME[;alias=ALIAS][;index=INDEX][;file=FILE][;slice=SLICE] will
-                            obtain the dataset from the given FILE instead of the main WEMD HDF5 file,
+                            obtain the dataset from the given FILE instead of the main WEST HDF5 file,
                             slice it by SLICE, call it ALIAS in output, and/or access per-segment data by a n_iter,seg_id
                             INDEX instead of a seg_id indexed dataset in the group for iteration n_iter.''')
         

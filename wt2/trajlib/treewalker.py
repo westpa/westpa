@@ -2,9 +2,9 @@ from __future__ import print_function, division; __metaclass__ = type
 from itertools import izip
 from collections import namedtuple
 import numpy
-import wemd
+import west
 from wt2.tool_classes.selected_segs import AllSegmentSelection
-from wemd.data_manager import seg_id_dtype
+from west.data_manager import seg_id_dtype
 
 trajnode = namedtuple('trajnode', ('n_iter', 'seg_id'))
 
@@ -12,7 +12,7 @@ def get_roots(start_iter=1, stop_iter = None, segsel = None, data_manager = None
     '''Return a sequence of (n_iter,seg_id) pairs of segments which initiate new trajectories
     in iterations between start_iter and stop_iter.'''
     
-    data_manager = data_manager or wemd.rc.get_data_manager()
+    data_manager = data_manager or west.rc.get_data_manager()
     stop_iter = stop_iter or data_manager.current_iteration
     segsel = segsel or AllSegmentSelection(start_iter, stop_iter, data_manager)
     roots = []
@@ -52,7 +52,7 @@ def trace_trajectories(visit, get_visitor_state = None, set_visitor_state = None
     if (get_visitor_state or set_visitor_state) and not (get_visitor_state and set_visitor_state):
         raise ValueError('either both or neither of get_visitor_state and set_visitor_state must be specified')
     
-    data_manager = data_manager or wemd.rc.get_data_manager()
+    data_manager = data_manager or west.rc.get_data_manager()
     
     cbargs = cbargs or ()
     cbkwargs = cbkwargs or {}

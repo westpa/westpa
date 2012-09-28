@@ -1,13 +1,13 @@
 from __future__ import print_function, division; __metaclass__ = type
 import sys
-from wt2.tool_classes import WEMDTool, HDF5Storage, WEMDDataReader
+from wt2.tool_classes import WESTTool, HDF5Storage, WESTDataReader
 import numpy, h5py, operator, time
-import wemd
+import west
 
 
-from wemd import Segment
-from wemd.states import InitialState
-from wemd.data_manager import (weight_dtype, n_iter_dtype, seg_id_dtype, utime_dtype, vstr_dtype, 
+from west import Segment
+from west.states import InitialState
+from west.data_manager import (weight_dtype, n_iter_dtype, seg_id_dtype, utime_dtype, vstr_dtype, 
                                istate_type_dtype, istate_status_dtype)
 
 class Trace:
@@ -18,7 +18,7 @@ class Trace:
         self.endpoint_type = endpoint_type
         self.basis_state = basis_state
         self.initial_state = initial_state
-        self.data_manager = data_manager or wemd.rc.get_data_manager()
+        self.data_manager = data_manager or west.rc.get_data_manager()
         
         # A mapping from aux file names to open h5py.File objects, to minimize time
         
@@ -41,7 +41,7 @@ class Trace:
         '''Construct and return a trajectory trace whose last segment is identified
         by ``seg_id`` in the iteration number ``n_iter``.'''
         
-        data_manager = data_manager or wemd.rc.get_data_manager()
+        data_manager = data_manager or west.rc.get_data_manager()
         
         # These values are used later on
         endpoint_type = None
@@ -147,7 +147,7 @@ class Trace:
             return dataset[itpl]
         else:
             if not iter_prec:
-                iter_prec = datafile.attrs.get('wemd_iter_prec', self.data_manager.default_iter_prec)
+                iter_prec = datafile.attrs.get('west_iter_prec', self.data_manager.default_iter_prec)
             igname_tail = 'iter_{:0{iter_prec:d}d}'.format(int(n_iter),iter_prec=int(iter_prec))
             try:
                 iter_group = datafile['/iterations/' + igname_tail]
@@ -273,10 +273,10 @@ class Trace:
         return tracedata, traceweight
     """
         
-class WTraceTool(WEMDTool):
+class WTraceTool(WESTTool):
     prog='w_trace'
     description = '''\
-Trace individual WEMD trajectories and emit (or calculate) quantities along the
+Trace individual WEST trajectories and emit (or calculate) quantities along the
 trajectory.
 
 Trajectories are specified as N_ITER:SEG_ID pairs. Each segment is traced back
@@ -315,8 +315,8 @@ The following options for datasets are supported:
         these n_iter/seg_id pairs is ``idsname``.
     
     file=otherfile.h5
-        Instead of reading data from the main WEMD HDF5 file (usually
-        ``wemd.h5``), read data from ``otherfile.h5``.
+        Instead of reading data from the main WEST HDF5 file (usually
+        ``west.h5``), read data from ``otherfile.h5``.
         
     slice=[100,...]
         Retrieve only the given slice from the dataset. This can be
@@ -338,7 +338,7 @@ The following options for datasets are supported:
     def __init__(self):
         super(WTraceTool,self).__init__()
         
-        self.data_reader = WEMDDataReader()
+        self.data_reader = WESTDataReader()
         self.h5storage = HDF5Storage()
         self.output_pattern = None
         self.endpoints = None
@@ -356,7 +356,7 @@ The following options for datasets are supported:
                             action='append',
                             help='''Include the dataset named DSNAME in trace output. An extended form like
                             DSNAME[,alias=ALIAS][,index=INDEX][,file=FILE][,slice=SLICE] will
-                            obtain the dataset from the given FILE instead of the main WEMD HDF5 file,
+                            obtain the dataset from the given FILE instead of the main WEST HDF5 file,
                             slice it by SLICE, call it ALIAS in output, and/or access per-segment data by a n_iter,seg_id
                             INDEX instead of a seg_id indexed dataset in the group for n_iter.''')
         parser.add_argument('endpoints',  metavar='N_ITER:SEG_ID', nargs='+',

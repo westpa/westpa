@@ -1,19 +1,19 @@
 from __future__ import print_function, division; __metaclass__ = type
 import sys
-from wt2.tool_classes import WEMDTool, HDF5Storage, WEMDDataReader
+from wt2.tool_classes import WESTTool, HDF5Storage, WESTDataReader
 from itertools import imap
 import numpy, h5py, operator, functools
 
-import wemd
-from wemd.data_manager import (weight_dtype, n_iter_dtype, seg_id_dtype, utime_dtype, vstr_dtype, 
+import west
+from west.data_manager import (weight_dtype, n_iter_dtype, seg_id_dtype, utime_dtype, vstr_dtype, 
                                istate_type_dtype, istate_status_dtype)
-from wemd.util.extloader import get_object
+from west.util.extloader import get_object
 
 def all_segments(n_iter, iter_group):
     return numpy.arange(0, iter_group['seg_index'].shape[0], 1, dtype=seg_id_dtype)
     
 def find_matching_segments(predicate, invert_predicate=False, ancestors=True, data_manager=None):
-    data_manager = data_manager or wemd.rc.get_data_manager()
+    data_manager = data_manager or west.rc.get_data_manager()
     
     match_pairs = []    
     parent_ids = set()
@@ -42,7 +42,7 @@ def find_matching_segments(predicate, invert_predicate=False, ancestors=True, da
     return match_pairs
         
     
-class WSelectTool(WEMDTool):
+class WSelectTool(WESTTool):
     prog='w_select'
     description = '''\
 Select dynamics segments matching various criteria, such as "all segments
@@ -56,7 +56,7 @@ N_ITER:SEG_ID pairs, separated by newlines.
     def __init__(self):
         super(WSelectTool,self).__init__()
         
-        self.data_reader = WEMDDataReader()
+        self.data_reader = WESTDataReader()
         self.output_file = None
         self.predicate = None
         self.invert = False

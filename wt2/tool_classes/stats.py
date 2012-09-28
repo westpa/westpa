@@ -1,8 +1,8 @@
-from core import WEMDTool
+from core import WESTTool
 
 from wt2.stats.mcbs import get_bssize
 
-class UsesMCBS(WEMDTool):
+class UsesMCBS(WESTTool):
     def __init__(self):
         super(UsesMCBS,self).__init__()
         self.bssize = None

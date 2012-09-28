@@ -1,13 +1,13 @@
 from __future__ import print_function, division
 import argparse, numpy
 import cPickle as pickle
-import wemd
+import west
 from wt2.trajlib import trajtree
 
 parser = argparse.ArgumentParser()
-wemd.rc.add_args(parser)
+west.rc.add_args(parser)
 args = parser.parse_args()
-wemd.rc.process_args(args)
+west.rc.process_args(args)
 
 def get_leaves(n_iter, iter_group):
     seg_index = iter_group['seg_index']
@@ -23,7 +23,7 @@ def get_all_leaves(n_iter, iter_group):
     else:
         return (iter_group['seg_index']['endpoint_type'] == 3).nonzero()[0]
     
-data_manager = wemd.rc.get_data_manager()
+data_manager = west.rc.get_data_manager()
 data_manager.open_backing('r')
 
 tree = trajtree.construct_tree(data_manager.current_iteration-1, get_leaves, data_manager)
@@ -77,6 +77,6 @@ for (root, leaves) in leftovers_by_root.iteritems():
 #    F[i,:] = C[i,:] / C[i,i]
 #    B[i,:] = C[i,i] - C[i,:]
 #rleaves = [(node.n_iter, node.seg_id) for node in leaves]
-#pickle.dump(rleaves, open('wemd_test_common_leaves.pkl', 'wb'), pickle.HIGHEST_PROTOCOL)
-#numpy.save('wemd_test_common.npy', C)
-#numpy.save('wemd_test_common_F.npy', F)
+#pickle.dump(rleaves, open('west_test_common_leaves.pkl', 'wb'), pickle.HIGHEST_PROTOCOL)
+#numpy.save('west_test_common.npy', C)
+#numpy.save('west_test_common_F.npy', F)

@@ -1,11 +1,11 @@
 from __future__ import print_function, division; __metaclass__ = type
 import sys, os, logging
 import h5py, numpy
-import wemd
-from wt2.tool_classes import WEMDTool, WEMDDataReader, SegSelector
+import west
+from wt2.tool_classes import WESTTool, WESTDataReader, SegSelector
 from wt2.tool_classes.data_reader import ByIterDataSelection
 from wt2.tool_classes.selected_segs import SegmentSelection
-from wemd.data_manager import n_iter_dtype, seg_id_dtype, weight_dtype
+from west.data_manager import n_iter_dtype, seg_id_dtype, weight_dtype
 from trajtree import TrajTreeSet
 import numpy, h5py
 
@@ -37,7 +37,7 @@ class FPPWalker:
             self.n_first[first] += 1
             raise StopIteration
                     
-data_manager = wemd.rc.get_data_manager()
+data_manager = west.rc.get_data_manager()
 data_manager.we_h5filename = 'system.h5'
 data_manager.open_backing(mode='r')
 

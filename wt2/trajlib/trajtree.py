@@ -1,11 +1,11 @@
 __metaclass__ = type
 import numpy
-import wemd
+import west
 
 import gc
 from itertools import izip
 from collections import namedtuple, deque
-from wemd import Segment
+from west import Segment
 
 TrajID = namedtuple('TrajID', ['n_iter', 'seg_id'])
 
@@ -134,7 +134,7 @@ def construct_tree(get_matching_segs = all_endpoints, max_iter = None, data_mana
     ``get_matching_segs(n_iter, iter_group)`` function, which takes the iteration 
     number and HDF5 group and returns a sequence of seg_ids.'''
     
-    data_manager = data_manager or wemd.rc.get_data_manager()
+    data_manager = data_manager or west.rc.get_data_manager()
     max_iter = max_iter or data_manager.current_iteration - 1
         
     tree = TrajTree()

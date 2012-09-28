@@ -1,13 +1,13 @@
 from __future__ import print_function, division; __metaclass__ = type
 import sys
-from wt2.tool_classes import WEMDTool, HDF5Storage, WEMDDataReader, IterRangeSelection
+from wt2.tool_classes import WESTTool, HDF5Storage, WESTDataReader, IterRangeSelection
 from itertools import imap
 import numpy, h5py, operator, functools
 import scipy.signal
 from scipy.signal import fftconvolve
 
-import wemd
-from wemd.data_manager import (weight_dtype, n_iter_dtype)
+import west
+from west.data_manager import (weight_dtype, n_iter_dtype)
 
 import mclib
 
@@ -21,15 +21,15 @@ iter_range_dtype = numpy.dtype([('iter_start', n_iter_dtype),
 
 
 def extract_fluxes(iter_start=None, iter_stop=None, data_manager=None):
-    '''Extract flux values from the WEMD HDF5 file for iterations >=iter_start
+    '''Extract flux values from the WEST HDF5 file for iterations >=iter_start
     and <iter_stop, optionally using another data manager instance instead of the
-    global one returned by ``wemd.rc.get_data_manager()``.  Returns a triplet
+    global one returned by ``west.rc.get_data_manager()``.  Returns a triplet
     ``(iters, fluxes, counts)`` where ``iters`` is an array of the iterations
     considered, ``fluxes`` is an array of flux values, indexed as
     ``fluxes[n_iter][itarget]``, and ``counts`` is an array of recycling 
     counts, indexed as ``counts[n_iter][itarget]``.'''
     
-    data_manager = data_manager or wemd.rc.get_data_manager()
+    data_manager = data_manager or west.rc.get_data_manager()
     iter_start = iter_start or 1
     iter_stop = iter_stop or data_manager.current_iteration
     iter_count = iter_stop - iter_start
@@ -52,10 +52,10 @@ def extract_fluxes(iter_start=None, iter_stop=None, data_manager=None):
         
     return (iters,fluxes,counts)
 
-class WFluxanlTool(WEMDTool):
+class WFluxanlTool(WESTTool):
     prog='w_fluxanl'
     description = '''\
-Extract fluxes into pre-defined target states from WEMD data,
+Extract fluxes into pre-defined target states from WEST data,
 average, and construct confidence intervals. Monte Carlo bootstrapping
 is used to account for the correlated and possibly non-Gaussian statistical
 error in flux measurements.
@@ -68,7 +68,7 @@ the true value of ``tau``.
 
     def __init__(self):
         super(WFluxanlTool,self).__init__()
-        self.data_reader = WEMDDataReader()
+        self.data_reader = WESTDataReader()
         self.iter_range = IterRangeSelection()
         self.output_h5file = None
         
@@ -123,7 +123,7 @@ the true value of ``tau``.
         self.evol_step = args.evol_step or 1
                 
     def calc_store_flux_data(self):         
-        wemd.rc.pstatus('Extracting fluxes and transition counts for iterations [{},{})'
+        west.rc.pstatus('Extracting fluxes and transition counts for iterations [{},{})'
                         .format(self.iter_range.iter_start, self.iter_range.iter_stop))
         
         iters, fluxes, counts = extract_fluxes(self.iter_range.iter_start, self.iter_range.iter_stop, self.data_reader)
@@ -165,7 +165,7 @@ the true value of ``tau``.
         self.iter_range.record_data_iter_range(h5ds)
         
     def calc_overall_avg_flux(self):
-        wemd.rc.pstatus('Calculating alpha={} confidence interval on mean flux for {} target states'
+        west.rc.pstatus('Calculating alpha={} confidence interval on mean flux for {} target states'
                         .format(self.alpha, self.n_targets))
         
         cis = numpy.empty((self.n_targets,), ci_dtype)
@@ -174,9 +174,9 @@ the true value of ``tau``.
             cis[target]   = avg, lb_ci, ub_ci, correl_len \
                           = mclib.mcbs_ci_correl(self.fluxes[:,target], numpy.mean, self.alpha, self.n_sets,
                                                  autocorrel_alpha=self.autocorrel_alpha, subsample=numpy.mean)
-            wemd.rc.pstatus('  target {}:'.format(target))
-            wemd.rc.pstatus('    correlation length = {} tau'.format(correl_len))
-            wemd.rc.pstatus('    mean flux and CI   = {} ({},{}) tau^(-1)'.format(avg, lb_ci, ub_ci))
+            west.rc.pstatus('  target {}:'.format(target))
+            west.rc.pstatus('    correlation length = {} tau'.format(correl_len))
+            west.rc.pstatus('    mean flux and CI   = {} ({},{}) tau^(-1)'.format(avg, lb_ci, ub_ci))
             
         h5ds = self.output_h5file.create_dataset('overall_average', data=cis)
         self.iter_range.record_data_iter_range(h5ds)
@@ -187,7 +187,7 @@ the true value of ``tau``.
         h5ds.attrs['mcbs_n_sets'] = self.n_sets
          
     def calc_evol_flux(self):
-        wemd.rc.pstatus('Calculating cumulative evolution of flux confidence intervals every {} iteration(s)'
+        west.rc.pstatus('Calculating cumulative evolution of flux confidence intervals every {} iteration(s)'
                         .format(self.evol_step))
         
         

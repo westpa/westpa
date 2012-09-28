@@ -2,11 +2,11 @@ from __future__ import print_function
 import sys
 from wt2.trajlib.treewalker import trace_trajectories
 from wt2.tool_classes.selected_segs import AllSegmentSelection
-from wemd.data_manager import WEMDDataManager
+from west.data_manager import WESTDataManager
 from trajtree import TrajTreeSet
 from trajtree.trajtree import FakeTrajTreeSet
 
-data_manager = WEMDDataManager()
+data_manager = WESTDataManager()
 data_manager.we_h5filename = 'system.h5'
 data_manager.open_backing(mode='r')
 
