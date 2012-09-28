@@ -527,6 +527,8 @@ class BaseTestZMQClient:
         finally:
             master_result_socket.close()
             master_task_socket.close()
+            
+    
 
 #@nose.SkipTest            
 class TestZMQClientTCP(BaseTestZMQClient):
@@ -774,4 +776,14 @@ class TestZMQWorkManager:
                 future = work_manager.submit(will_succeed)
                 future.get_result()                
             finally:
-                test_client.shutdown()        
+                test_client.shutdown()
+                
+    @nose.tools.timed(2)                    
+    def test_worker_ids(self):
+        work_manager = ZMQWorkManager()
+        with work_manager:
+            futures = work_manager.submit_many([(get_process_index, (), {})] * work_manager.n_workers)
+            work_manager.wait_all(futures)
+            results = set(future.get_result() for future in futures)
+            assert results == set(str(n) for n in xrange(work_manager.n_workers))
+        

@@ -663,11 +663,18 @@ class ZMQClient(ZMQBase):
         
     def startup(self, spawn_workers=True):     
         if not self.running:
+            from work_managers import environment
             self.running = True   
             if spawn_workers:
                 with self.worker_lock:
-                    for _n in xrange(self.n_workers):
+                    pi_name = '{}_PROCESS_INDEX'.format(environment.WMEnvironment.env_prefix)
+                    for n in xrange(self.n_workers):
+                        os.environ[pi_name] = str(n)
                         self._spawn_worker()
+                    try:
+                        del os.environ[pi_name]
+                    except KeyError:
+                        pass
                 
             self.context = zmq.Context()
             ctlsocket = self._make_signal_socket(self._startup_ctl_endpoint)

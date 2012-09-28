@@ -86,13 +86,21 @@ class ProcessWorkManager(WorkManager):
         return ft
                 
     def startup(self):
+        from work_managers import environment
         if not self.running:
             log.debug('starting up work manager {!r}'.format(self))
             self.running = True
             self.workers = [multiprocessing.Process(target=self.task_loop, 
                                                     name='worker-{:d}-{:x}'.format(i,id(self))) for i in xrange(self.n_workers)]
-            for worker in self.workers:
+            
+            pi_name = '{}_PROCESS_INDEX'.format(environment.WMEnvironment.env_prefix)
+            for iworker,worker in enumerate(self.workers):
+                os.environ[pi_name] = str(iworker)
                 worker.start()
+            try:
+                del os.environ[pi_name]
+            except KeyError:
+                pass
                 
             self.pending = dict()
     

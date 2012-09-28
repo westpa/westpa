@@ -60,4 +60,14 @@ class TestProcessWorkManagerAux:
             for worker in work_manager.workers:
                 assert not worker.is_alive()
             raise
-                    
+        
+    @nose.tools.timed(2)                    
+    def test_worker_ids(self):
+        work_manager = ProcessWorkManager()
+        with work_manager:
+            futures = work_manager.submit_many([(get_process_index, (), {})] * work_manager.n_workers)
+            work_manager.wait_all(futures)
+            results = set(future.get_result() for future in futures)
+            assert results == set(str(n) for n in xrange(work_manager.n_workers)), results
+        
+        

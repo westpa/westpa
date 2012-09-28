@@ -38,6 +38,11 @@ def random_int(seed=None):
     
     return random.randint(0,sys.maxint)
 
+def get_process_index():
+    import os, time
+    time.sleep(1)
+    return os.environ['WM_PROCESS_INDEX']
+
 class CommonWorkManagerTests:
     MED_TEST_SIZE=256
     
