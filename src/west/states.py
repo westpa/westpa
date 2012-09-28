@@ -94,9 +94,9 @@ class BasisState:
         return states
     
     def as_numpy_record(self):
-        from west.data_manager import vstr_dtype, weight_dtype, seg_id_dtype
-        
         '''Return the data for this state as a numpy record array.'''
+        
+        from west.data_manager import vstr_dtype, weight_dtype, seg_id_dtype
         bstate_dtype = numpy.dtype([('state_id', seg_id_dtype),
                                     ('probability', weight_dtype),
                                     ('pcoord', self.pcoord.dtype, (self.pcoord),),
@@ -139,6 +139,12 @@ class InitialState:
     ISTATE_STATUS_PREPARED = 1
     ISTATE_STATUS_FAILED = 2
     
+    istate_types = {}
+    istate_type_names = {}
+    
+    istate_statuses = {}
+    istate_status_names = {}
+    
     def __init__(self, state_id, basis_state_id, iter_created, iter_used=None, 
                  istate_type=None, istate_status=None,
                  pcoord=None, 
@@ -169,6 +175,11 @@ class InitialState:
         return numpy.array([(self.state_id, self.basis_state_id or 0, self.iter_created or 0, self.iter_used or 0,
                              self.istate_type or 0, self.istate_status or 0, self.pcoord)],
                            dtype=istate_dtype)[0]
+InitialState.istate_statuses.update({_attr: getattr(InitialState,_attr) 
+                                     for _attr in dir(InitialState) if _attr.startswith('ISTATE_STATUS_')})
+InitialState.istate_types.update({_attr: getattr(InitialState,_attr) 
+                                     for _attr in dir(InitialState) if _attr.startswith('ISTATE_TYPE_')})
+
 
 
 class TargetState:
@@ -225,7 +236,6 @@ class TargetState:
             fields = line.split()
             labels.append(fields[0])
             pcoord_values.append(numpy.array(map(dtype, fields[1:]),dtype=dtype))
-            print(labels[-1], pcoord_values[-1])
                                 
         return [cls(label=label, pcoord=pcoord) for label,pcoord in zip(labels,pcoord_values)]
 

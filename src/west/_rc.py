@@ -196,7 +196,7 @@ class _WESTRC:
     def new_we_driver(self):
         drivername = self.config.get('drivers.we_driver', 'default')
         if drivername.lower() == 'default':
-            we_driver = west.we_driver.WESTWEDriver()
+            we_driver = west.we_driver.WEDriver()
         else:
             pathinfo = self.config.get_pathlist('drivers.module_path', default=None)
             we_driver = extloader.get_object(drivername, pathinfo)()

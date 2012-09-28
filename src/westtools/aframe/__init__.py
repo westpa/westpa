@@ -32,7 +32,7 @@ import atool
 from atool import WESTAnalysisTool
 from iter_range import IterRangeMixin
 from data_reader import WESTDataReaderMixin, ExtDataReaderMixin, BFDataManager
-from binning import BinningMixin, BFBinningMixin
+from binning import BinningMixin
 from mcbs import MCBSMixin
 from trajwalker import TrajWalker
 from transitions import TransitionAnalysisMixin, TransitionEventAccumulator, BFTransitionAnalysisMixin

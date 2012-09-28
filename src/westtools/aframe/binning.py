@@ -15,14 +15,13 @@ class BinningMixin(AnalysisMixin):
     def __init__(self):
         super(BinningMixin,self).__init__()
         
-        self.region_set = None
+        self.mapper = None
         self.n_bins = None
-        self.n_dim = None
         
         self.discard_bin_assignments = False
         self.binning_h5gname = 'binning'
         self.binning_h5group = None
-        self.region_set_hash = None
+        self.mapper_hash = None
 
     def add_args(self, parser, upcall = True):
         if upcall:
@@ -45,17 +44,16 @@ class BinningMixin(AnalysisMixin):
     def process_args(self, args, upcall = True):        
         if args.binexpr:
             west.rc.pstatus("Constructing rectilinear bin boundaries from the following expression: '{}'".format(args.binexpr))
-            self.region_set = self.region_set_from_expr(args.binexpr)
+            self.mapper = self.mapper_from_expr(args.binexpr)
         else:
             west.rc.pstatus('Loading bin boundaries from WEST system')
             system = west.rc.get_system_driver()
-            self.region_set = system.new_region_set()
+            self.mapper = system.bin_mapper
             
-        self.n_bins = len(self.region_set.get_all_bins())
-        self.n_dim = self.region_set.n_dim
-        self.region_set_hash = self.region_set.identity_hash()
-        west.rc.pstatus('  {:d} bins in {:d} dimension(s)'.format(self.n_bins, self.n_dim))
-        west.rc.pstatus('  identity hash {}'.format(self.region_set_hash.hexdigest()))
+        self.n_bins = self.mapper.nbins
+        _pdat, self.mapper_hash = self.mapper.pickle_and_hash()
+        west.rc.pstatus('  {:d} bins'.format(self.n_bins))
+        west.rc.pstatus('  identity hash {}'.format(self.mapper_hash))
         
         self.discard_bin_assignments = bool(args.discard_bin_assignments)
         
@@ -67,54 +65,30 @@ class BinningMixin(AnalysisMixin):
             else:
                 upfunc(args)
         
-    def region_set_from_expr(self, expr):
-        from west.pcoords import RectilinearRegionSet, PiecewiseRegionSet
+    def mapper_from_expr(self, expr):
+        from west.binning import RectilinearBinMapper
         namespace = {'numpy': numpy,
-                     'RectilinearRegionSet': RectilinearRegionSet,
-                     'PiecewiseRegionSet': PiecewiseRegionSet,
                      'inf': float('inf')}
         
         try:
-            return RectilinearRegionSet(eval(expr, namespace))
+            return RectilinearBinMapper(eval(expr, namespace))
         except TypeError as e:
             if 'has no len' in str(e):
                 raise ValueError('invalid bin boundary specification; you probably forgot to make a list of lists')
 
-    def update_region_set(self,rs_type, args, kwargs):
-        """ Update the region set to region set of type rs_type. All positional and keyword arguments for the specific region
-            set type should be passed as a list (args) and dict (kwargs) of parameters respectively. """
-        from west.pcoords import RectilinearRegionSet, PiecewiseRegionSet, VoronoiRegionSet
-
-        rsets = {'RectilinearRegionSet': RectilinearRegionSet,
-                 'PiecewiseRegionSet': PiecewiseRegionSet,
-                 'VoronoiRegionSet': VoronoiRegionSet}
-    
-        if not rs_type in rsets:
-            raise ValueError('invalid region set type {}; supported region set types: {}'.format(rs_type,rsets.keys()))
-        else:
-            west.rc.pstatus("Updating region set definition using {}".format(rs_type))
-            
-            self.region_set = rsets[rs_type](*args,**kwargs)
-            self.n_bins = len(self.region_set.get_all_bins())
-            self.n_dim = self.region_set.n_dim
-            self.region_set_hash = self.region_set.identity_hash()
-            west.rc.pstatus('  {:d} bins in {:d} dimension(s)'.format(self.n_bins, self.n_dim))
-            west.rc.pstatus('  identity hash {}'.format(self.region_set_hash.hexdigest()))
-
     def write_bin_labels(self, dest, 
                          header='# bin labels:\n', 
                          format='# bin {bin_index:{max_iwidth}d} -- {label!s}\n'):
-        '''Print labels for all bins in the given RegionSet (or ``self.region_set``) to ``dest``.  If provided, ``header`` 
+        '''Print labels for all bins in ``self.mapper`` to ``dest``.  If provided, ``header`` 
         is printed before any labels.   The ``format`` string specifies how bin labels are to be printed.  Valid entries are:
           * ``bin_index`` -- the zero-based index of the bin
           * ``label`` -- the label, as obtained by ``bin.label``
           * ``max_iwidth`` -- the maximum width (in characters) of the bin index, for pretty alignment
         '''
         dest.write(header or '')
-        bins = self.region_set.get_all_bins()
-        max_iwidth = len(str(len(bins)-1))
-        for (ibin, bin) in enumerate(bins):
-            dest.write(format.format(bin_index=ibin, label=bin.label, max_iwidth=max_iwidth))
+        max_iwidth = len(str(self.mapper.nbins-1))
+        for (ibin, label) in enumerate(self.mapper.labels):
+            dest.write(format.format(bin_index=ibin, label=label, max_iwidth=max_iwidth))
     
     def require_binning_group(self):
         if self.binning_h5group is None:
@@ -126,12 +100,12 @@ class BinningMixin(AnalysisMixin):
         del self.anal_h5file[self.binning_h5gname]
 
     def record_data_binhash(self, h5object):
-        '''Record the identity hash for self.region_set as an attribute on the given HDF5 object (group or dataset)'''
-        h5object.attrs['binhash'] = self.region_set_hash.digest()
+        '''Record the identity hash for self.mapper as an attribute on the given HDF5 object (group or dataset)'''
+        h5object.attrs['binhash'] = self.mapper_hash
         
     def check_data_binhash(self, h5object):
-        '''Check whether the recorded bin identity hash on the given HDF5 object matches the identity hash for self.region_set'''
-        return h5object.attrs.get('binhash') == self.region_set_hash.digest() 
+        '''Check whether the recorded bin identity hash on the given HDF5 object matches the identity hash for self.mapper'''
+        return h5object.attrs.get('binhash') == self.mapper_hash 
             
     def assign_to_bins(self):
         '''Assign WEST segment data to bins.  Requires the DataReader mixin to be in the inheritance tree'''
@@ -153,7 +127,7 @@ class BinningMixin(AnalysisMixin):
             weights = seg_index['weight']
             
             for seg_id in xrange(len(seg_index)):
-                assignments[iiter,seg_id,:] = self.region_set.map_to_all_indices(pcoords[seg_id,:,:])
+                assignments[iiter,seg_id,:] = self.mapper.assign(pcoords[seg_id,:,:])
             
             for it in xrange(pcoord_len):
                 populations[iiter, it, :] = numpy.bincount(assignments[iiter,:len(seg_index),it], weights, minlength=self.n_bins)
@@ -198,52 +172,3 @@ class BinningMixin(AnalysisMixin):
     def get_bin_populations(self, first_iter = None, last_iter = None):
         return self.slice_per_iter_data(self.binning_h5group['bin_populations'], first_iter, last_iter)
     
-class BFBinningMixin(BinningMixin):
-    '''Modifications of BinningMixin to do binning on brute force data (as stored in an HDF5 file
-    created by BFDataManager).'''
-    
-    def assign_to_bins(self, chunksize=65536):
-        '''Assign brute force trajectory data to bins.'''
-        self.require_bf_h5file()
-        self.require_binning_group()
-        n_trajs = self.get_n_trajs()
-        max_traj_len = self.get_max_traj_len()
-        
-        assignments_ds = self.binning_h5group.create_dataset('bin_assignments', 
-                                                             shape=(n_trajs,max_traj_len),
-                                                             dtype=numpy.min_scalar_type(self.n_bins),
-                                                             chunks=(1,chunksize),
-                                                            compression='gzip')                
-        west.rc.pstatus('Assigning to bins...')
-        
-        for traj_id in xrange(n_trajs):
-            pcoord_ds = self.get_pcoord_dataset(traj_id)
-            pclen = pcoord_ds.len()
-            for istart in xrange(0,pclen,chunksize):
-                iend = min(istart+chunksize,pclen)
-                pcchunk = pcoord_ds[istart:iend]
-                assignments_ds[traj_id,istart:iend] = self.region_set.map_to_all_indices(pcchunk)
-                west.rc.pstatus('\r  Trajectory {:d}:  {:d}/{:d}'.format(traj_id,iend,pclen), end='')
-                west.rc.pflush()
-                del pcchunk
-            west.rc.pstatus()
-            del pcoord_ds
-        
-        for h5object in (self.binning_h5group, assignments_ds):
-            self.record_data_binhash(h5object)
-                            
-    def require_bin_assignments(self):
-        self.require_binning_group()
-        do_assign = False
-        if self.discard_bin_assignments:
-            west.rc.pstatus('Discarding existing bin assignments.')
-            do_assign = True
-        elif 'bin_assignments' not in self.binning_h5group:
-            do_assign = True
-        elif not self.check_data_binhash(self.binning_h5group):
-            west.rc.pstatus('Bin definitions have changed; deleting existing bin assignments.')
-            do_assign = True
-        
-        if do_assign:
-            self.delete_binning_group()
-            self.assign_to_bins()

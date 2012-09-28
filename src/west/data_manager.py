@@ -24,6 +24,11 @@ determine how to access data even as the file format (i.e. organization of data 
 evolves. 
 
 Version history:
+    Version 7
+        - Removed bin_assignments, bin_populations, and bin_rates from iteration group.
+        - Added new_segments subgroup to iteration group
+    Version 6
+        - ???
     Version 5 
         - moved iter_* groups into a top-level iterations/ group,
         - added in-HDF5 storage for basis states, target states, and generated states
@@ -32,6 +37,7 @@ from __future__ import division; __metaclass__ = type
 import warnings, sys
 from operator import attrgetter
 from itertools import imap, izip
+import cPickle as pickle
 import numpy
 import h5py
 import threading
@@ -43,8 +49,9 @@ import west
 from west.util.miscfn import vattrgetter
 from west.segment import Segment
 from west.states import BasisState, TargetState, InitialState
+from west.we_driver import NewWeightEntry
 
-file_format_version = 6
+file_format_version = 7
 
 class dummy_lock:
     def __init__(self):
@@ -80,17 +87,19 @@ weight_dtype = numpy.float64  # about 15 digits of precision in weights
 utime_dtype = numpy.float64  # ("u" for Unix time) Up to ~10^300 cpu-seconds 
 vstr_dtype = h5py.new_vlen(str)
 h5ref_dtype = h5py.special_dtype(ref=h5py.Reference)
+binhash_dtype = numpy.dtype('|S64')
 
-# Using true HDF5 enums here seems to lead to segfaults, so hold off until h5py 
-# gets its act together on enums
-#seg_status_dtype    = h5py.special_dtype(enum=(numpy.uint8, Segment.statuses))
-#seg_initpoint_dtype = h5py.special_dtype(enum=(numpy.uint8, Segment.initpoint_types))
-#seg_endpoint_dtype  = h5py.special_dtype(enum=(numpy.uint8, Segment.endpoint_types))
-seg_status_dtype = numpy.uint8
-seg_initpoint_dtype = numpy.uint8
-seg_endpoint_dtype = numpy.uint8
-istate_type_dtype = numpy.uint8
-istate_status_dtype = numpy.uint8
+seg_status_dtype    = h5py.special_dtype(enum=(numpy.uint8, Segment.statuses))
+seg_initpoint_dtype = h5py.special_dtype(enum=(numpy.uint8, Segment.initpoint_types))
+seg_endpoint_dtype  = h5py.special_dtype(enum=(numpy.uint8, Segment.endpoint_types))
+istate_type_dtype   = h5py.special_dtype(enum=(numpy.uint8, InitialState.istate_types))
+istate_status_dtype = h5py.special_dtype(enum=(numpy.uint8, InitialState.istate_statuses))
+
+#seg_status_dtype = numpy.uint8
+#seg_initpoint_dtype = numpy.uint8
+#seg_endpoint_dtype = numpy.uint8
+#istate_type_dtype = numpy.uint8
+#istate_status_dtype = numpy.uint8
     
 summary_table_dtype = numpy.dtype( [ ('n_particles', seg_id_dtype),    # Number of live trajectories in this iteration
                                      ('norm', weight_dtype),          # Norm of probability, to watch for errors or drift
@@ -100,7 +109,7 @@ summary_table_dtype = numpy.dtype( [ ('n_particles', seg_id_dtype),    # Number 
                                      ('max_seg_prob', weight_dtype),  # Per-segment maximum probability
                                      ('cputime', utime_dtype),       # Total CPU time for this iteration
                                      ('walltime', utime_dtype),# Total wallclock time for this iteration
-                                     ('binhash', '|S64'),
+                                     ('binhash', binhash_dtype),
                                      ] )    
 
 
@@ -112,19 +121,15 @@ summary_table_dtype = numpy.dtype( [ ('n_particles', seg_id_dtype),    # Number 
 #        which can be thought of as an adjacency list (the "weight graph")
 # segment ID is implied by the row in the index table, and so is not stored
 # initpoint_type remains implicitly stored as negative IDs (if parent_id < 0, then init_state_id = -(parent_id+1) 
-seg_index_dtype = numpy.dtype( [ ('weight', weight_dtype),               # Statistical weight of this segment
-                                 ('parent_id', seg_id_dtype),             # ID of parent (for trajectory history)
+seg_index_dtype = numpy.dtype( [ ('weight', weight_dtype),              # Statistical weight of this segment
+                                 ('parent_id', seg_id_dtype),           # ID of parent (for trajectory history)
                                  ('wtg_n_parents', numpy.uint), # number of parents this segment has in the weight transfer graph
                                  ('wtg_offset', numpy.uint),    # offset into the weight transfer graph dataset
                                  ('cputime', utime_dtype),              # CPU time used in propagating this segment
                                  ('walltime', utime_dtype),             # Wallclock time used in propagating this segment
-                                 ('endpoint_type', seg_endpoint_dtype),   # Endpoint type (will continue, merged, or recycled)
-                                 ('status', seg_status_dtype),            # Status of propagation of this segment
+                                 ('endpoint_type', seg_endpoint_dtype), # Endpoint type (will continue, merged, or recycled) 
+                                 ('status', seg_status_dtype),          # Status of propagation of this segment
                                  ] )
-
-# Recycling summary, used for recording per-target flux
-rec_summary_dtype = numpy.dtype( [ ('count', numpy.uint),        # Number of transitions into this state
-                                   ('flux', weight_dtype) ] )   # Probability flux into this state
 
 # Index to basis/initial states
 ibstate_index_dtype = numpy.dtype([('iter_valid', numpy.uint),
@@ -152,6 +157,18 @@ tstate_index_dtype = numpy.dtype([('iter_valid', numpy.uint), # Iteration when t
                                   ('group_ref', h5ref_dtype)])  # Reference to a group containing further data; this will be the
                                                                 # null reference if there is no target state for that timeframe.
 tstate_dtype = numpy.dtype( [('label', vstr_dtype),])           # An optional descriptive label for this state
+
+# Support for west.we_driver.NewWeightEntry
+nw_source_dtype = numpy.uint8
+nw_index_dtype = numpy.dtype([('source_type', nw_source_dtype),
+                              ('weight', weight_dtype),
+                              ('prev_seg_id', seg_id_dtype),
+                              ('target_state_id', seg_id_dtype),
+                              ('initial_state_id', seg_id_dtype)])
+
+# Storage of bin identities
+binning_index_dtype = numpy.dtype([('hash', binhash_dtype),
+                                   ('pickle_len', numpy.uint32)])
                              
 def warn_deprecated_usage(msg, category=DeprecationWarning, stacklevel=1):
     warnings.warn('deprecated data manager interface use: {}'.format(msg), category, stacklevel+1)
@@ -163,8 +180,12 @@ class WESTDataManager:
     default_iter_prec = 8
     default_we_h5filename      = 'west.h5'
     default_we_h5file_driver   = None
+    
     # Compress any auxiliary dataset whose total size is more than 1MB
     default_aux_compression_threshold = 1048576
+    
+    # Bin data horizontal chunk size
+    binning_hchunksize = 4096
     
     def flushing_lock(self):
         return flushing_lock(self.lock, self.we_h5file)
@@ -356,17 +377,16 @@ class WESTDataManager:
             master_group = self.we_h5file[master_group_name]
             master_index = master_group['index'][...]
             set_id = numpy.digitize([n_iter], master_index['iter_valid']) - 1
-            # This extra [0] is to work around a bug in h5py
             group_ref = master_index[set_id]['group_ref']
 
             # Check if reference is Null
             if not bool(group_ref):
                 return None
 
+            # This extra [0] is to work around a bug in h5py
             try:
                 group = self.we_h5file[group_ref]
             except AttributeError:
-                log.debug('working around h5py bug')
                 group = self.we_h5file[group_ref[0]]
             else:
                 log.debug('h5py fixed; remove alternate code path')
@@ -498,6 +518,8 @@ class WESTDataManager:
         
         system = west.rc.get_system_driver()
         initial_states = sorted(initial_states,key=attrgetter('state_id'))
+        if not initial_states:
+            return
         
         with self.lock:
             n_iter = n_iter or self.current_iteration     
@@ -524,9 +546,9 @@ class WESTDataManager:
             istate_pcoords = ibstate_group['pcoord']
             istate_index = ibstate_group['istate_index']
             for state_id, (state, pcoord) in enumerate(izip(istate_index, istate_pcoords)):
-                states.append(InitialState(state_id=state_id, basis_state_id=state['basis_state_id'],
-                                           iter_created=state['iter_created'], iter_used=state['iter_used'],
-                                           istate_type=state['istate_type'], pcoord=pcoord))
+                states.append(InitialState(state_id=state_id, basis_state_id=long(state['basis_state_id']),
+                                           iter_created=int(state['iter_created']), iter_used=int(state['iter_used']),
+                                           istate_type=int(state['istate_type']), pcoord=pcoord))
             return states
                 
 
@@ -599,7 +621,6 @@ class WESTDataManager:
         pcoord_ndim = system.pcoord_ndim
         pcoord_len = system.pcoord_len
         pcoord_dtype = system.pcoord_dtype
-        n_bins = len(system.new_region_set().get_all_bins())
         
         with self.lock:
             # Create a table of summary information about each iteration
@@ -724,35 +745,7 @@ class WESTDataManager:
     def del_iter_summary(self, min_iter): #delete the iterations starting at min_iter      
         with self.lock:
             self.we_h5file['summary'].resize((min_iter - 1,))
-                     
-    def save_recycling_data(self, rec_summary, n_iter=None):
-        with self.lock:
-            n_iter = n_iter or self.current_iteration
-            iter_group = self.get_iter_group(n_iter)
-            rec_data_ds = iter_group.require_dataset('recycling', (len(rec_summary),), dtype=rec_summary_dtype)
-            rec_data = rec_data_ds[...]
-            for itarget, target in enumerate(rec_summary):
-                count, flux = target
-                rec_data[itarget]['count'] = count
-                rec_data[itarget]['flux'] = flux
-            rec_data_ds[...] = rec_data
-        
-    def save_bin_data(self, assignments, populations, n_trans, fluxes, rates, n_iter=None):
-        with self.lock:
-            n_iter = n_iter or self.current_iteration
-            iter_group = self.get_iter_group(n_iter)
-            for dataset in ('bin_assignments', 'bin_populations', 'bin_ntrans', 'bin_fluxes', 'bin_rates'):
-                try:
-                    del iter_group[dataset]
-                except KeyError:
-                    pass
-
-            iter_group.create_dataset('bin_assignments', data=assignments, dtype=numpy.min_scalar_type(assignments.max()))                            
-            iter_group.create_dataset('bin_populations', data=populations, dtype=weight_dtype)
-            iter_group.create_dataset('bin_ntrans', data=n_trans, dtype=numpy.min_scalar_type(n_trans.max()))
-            iter_group.create_dataset('bin_fluxes', data=fluxes, dtype=weight_dtype)
-            iter_group.create_dataset('bin_rates', data=rates, dtype=weight_dtype)
-        
+                                     
     def update_segments(self, n_iter, segments):
         """Update "mutable" fields (status, endpoint type, pcoord, timings, weights) in the HDF5 file
         and update the summary table accordingly.  Note that this DOES NOT update other fields,
@@ -949,24 +942,6 @@ class WESTDataManager:
 
             if seg_ids is None:
                 seg_ids = xrange(len(seg_index))
-
-            
-            # pointwise selection is slow!
-#            if seg_ids is not None:
-#                unique_ids = sorted(set(seg_ids))
-#                if not unique_ids:
-#                    return []
-#            else:
-#                seg_ids = unique_ids = range(iter_group['seg_index'].shape[0])            
-#            
-#            index_subset = iter_group['seg_index'][unique_ids]
-#            
-#            if file_version < 5:
-#                offsets = list(index_subset['parents_offset'])
-#                parent_map = dict(izip(unique_ids, iter_group['parents'][offsets]))                
-#            else:
-#                parent_map = dict(izip(unique_ids, index_subset['parent_id']))
-#        return [parent_map[seg_id] for seg_id in seg_ids]
     
             if file_version < 5:
                 offsets = seg_index['parents_offset']
@@ -975,10 +950,7 @@ class WESTDataManager:
             else:
                 all_parents = seg_index['parent_id']
                 return [all_parents[seg_id] for seg_id in seg_ids]
-            
                 
-        
-    
     def get_weights(self, n_iter, seg_ids):
         '''Return the weights associated with the given seg_ids'''
         
@@ -1052,3 +1024,214 @@ class WESTDataManager:
         self.flush_backing()
         self.close_backing()
         
+    def save_new_weight_data(self, n_iter, new_weights):
+        '''Save a set of NewWeightEntry objects to HDF5. Note that this should
+        be called for the iteration in which the weights appear in their
+        new locations (e.g. for recycled walkers, the iteration following
+        recycling).'''
+        
+        if not new_weights:
+            return
+        
+        system = west.rc.get_system_driver()
+
+        index = numpy.empty(len(new_weights), dtype=nw_index_dtype)
+        prev_init_pcoords = system.new_pcoord_array(len(new_weights))
+        prev_final_pcoords = system.new_pcoord_array(len(new_weights))
+        new_init_pcoords = system.new_pcoord_array(len(new_weights))
+        
+        for ientry, nwentry in enumerate(new_weights):
+            row = index[ientry]
+            row['source_type'] = nwentry.source_type
+            row['weight'] = nwentry.weight
+            row['prev_seg_id'] = nwentry.prev_seg_id
+            # the following use -1 as a sentinel for a missing value
+            row['target_state_id'] = nwentry.target_state_id if nwentry.target_state_id is not None else -1
+            row['initial_state_id'] = nwentry.initial_state_id if nwentry.initial_state_id is not None else -1
+            
+            index[ientry] = row
+            
+            if nwentry.prev_init_pcoord is not None:
+                prev_init_pcoords[ientry] = nwentry.prev_init_pcoord
+                
+            if nwentry.prev_final_pcoord is not None:
+                prev_final_pcoords[ientry] = nwentry.prev_final_pcoord
+            
+            if nwentry.new_init_pcoord is not None:
+                new_init_pcoords[ientry] = nwentry.new_init_pcoord
+        
+        with self.lock:
+            iter_group = self.get_iter_group(n_iter)
+            try:
+                del iter_group['new_weights']
+            except KeyError:
+                pass
+            
+            nwgroup = iter_group.create_group('new_weights')
+            nwgroup['index'] = index
+            nwgroup['prev_init_pcoord'] = prev_init_pcoords
+            nwgroup['prev_final_pcoord'] = prev_final_pcoords
+            nwgroup['new_init_pcoord'] = new_init_pcoords
+            
+    def get_new_weight_data(self, n_iter):
+        with self.lock:
+            iter_group = self.get_iter_group(n_iter)
+            
+            try:
+                nwgroup = iter_group['new_weights']
+            except KeyError:
+                return []
+            
+            try:
+                index = nwgroup['index'][...]
+                prev_init_pcoords = nwgroup['prev_init_pcoord'][...]
+                prev_final_pcoords = nwgroup['prev_final_pcoord'][...]
+                new_init_pcoords = nwgroup['new_init_pcoord'][...]
+            except (KeyError,ValueError): #zero-length selections raise ValueError
+                return []
+
+        entries = []            
+        for i in xrange(len(index)):
+            irow = index[i]
+            
+            prev_seg_id = irow['prev_seg_id']
+            if prev_seg_id == -1: prev_seg_id = None
+            
+            initial_state_id = irow['initial_state_id']
+            if initial_state_id == -1: initial_state_id = None
+            
+            target_state_id = irow['target_state_id']
+            if target_state_id == -1: target_state_id = None
+            
+            entry = NewWeightEntry(source_type=irow['source_type'],
+                                   weight=irow['weight'],
+                                   prev_seg_id=prev_seg_id,
+                                   prev_init_pcoord=prev_init_pcoords[i],
+                                   prev_final_pcoord=prev_final_pcoords[i],
+                                   new_init_pcoord=new_init_pcoords[i],
+                                   target_state_id=target_state_id,
+                                   initial_state_id=initial_state_id)
+            
+            entries.append(entry)
+        return entries
+    
+    def find_bin_mapper(self, hashval):
+        '''Check to see if the given has value is in the binning table. Returns the index in the
+        bin data tables if found, or raises KeyError if not.'''
+
+        try:
+            hashval = hashval.hexdigest()
+        except AttributeError:
+            pass
+        
+        with self.lock:
+            # these will raise KeyError if the group doesn't exist, which also means
+            # that bin data is not available, so no special treatment here
+            try:
+                binning_group = self.we_h5file['/binning']
+                index = binning_group['index']
+            except KeyError:
+                raise KeyError('hash {} not found'.format(hashval))
+            
+            n_entries = len(index)
+            if n_entries == 0:
+                raise KeyError('hash {} not found'.format(hashval))
+            
+            chunksize = self.table_scan_chunksize
+            for istart in xrange(0,n_entries,chunksize):
+                chunk = index[istart:min(istart+chunksize,n_entries)]
+                for i in xrange(len(chunk)):
+                    if chunk[i]['hash'] == hashval:
+                        return istart+i
+            
+            raise KeyError('hash {} not found'.format(hashval))
+        
+            
+    def get_bin_mapper(self, hashval):
+        '''Look up the given hash value in the binning table, unpickling and returning the corresponding
+        bin mapper if available, or raising KeyError if not.'''
+        
+        # Convert to a hex digest if we need to
+        try:
+            hashval = hashval.hexdigest()
+        except AttributeError:
+            pass
+        
+        with self.lock:
+            # these will raise KeyError if the group doesn't exist, which also means
+            # that bin data is not available, so no special treatment here
+            binning_group = self.we_h5file['/binning']
+            index = binning_group['index']
+            n_entries = len(index)
+            if n_entries == 0:
+                raise KeyError('hash {} not found'.format(hashval))
+            
+            chunksize = self.table_scan_chunksize
+            for istart in xrange(0,n_entries,chunksize):
+                chunk = index[istart:min(istart+chunksize,n_entries)]
+                for i in xrange(len(chunk)):
+                    if chunk[i]['hash'] == hashval:
+                        return pickle.loads(binning_group['pickles'][istart+i,0:chunk[i]['pickle_len']])
+            
+            raise KeyError('hash {} not found'.format(hashval))
+                        
+    def save_bin_mapper(self, hashval, pickle_data):
+        '''Store the given mapper in the table of saved mappers. If the mapper cannot be stored,
+        PickleError will be raised. Returns the index in the bin data tables where the mapper is stored.'''
+        
+        try:
+            hashval = hashval.hexdigest()
+        except AttributeError:
+            pass
+        pickle_data = bytes(pickle_data)
+                
+        # First, scan to see if the mapper already is in the HDF5 file
+        try:
+            return self.find_bin_mapper(hashval)
+        except KeyError:
+            pass
+        
+        # At this point, we have a valid pickle and know it's not stored
+        with self.lock:
+            binning_group = self.we_h5file.require_group('/binning')
+            
+            try:
+                index = binning_group['index']
+                pickle_ds = binning_group['pickles']
+            except KeyError:
+                index = binning_group.create_dataset('index', shape=(1,), maxshape=(None,), dtype=binning_index_dtype)
+                pickle_ds = binning_group.create_dataset('pickles', dtype=numpy.uint8,
+                                                         shape=(1,len(pickle_data)), maxshape=(None,None), chunks=(1,4096),
+                                                         compression='gzip', compression_opts=9)
+                n_entries = 1
+            else:
+                n_entries = len(index) + 1
+                index.resize((n_entries,))
+                new_hsize = max(pickle_ds.shape[1], len(pickle_data))
+                pickle_ds.resize((n_entries,new_hsize))
+            
+            index_row = index[n_entries-1]
+            index_row['hash'] = hashval
+            index_row['pickle_len'] = len(pickle_data)
+            index[n_entries-1] = index_row
+            pickle_ds[n_entries-1,:len(pickle_data)] = memoryview(pickle_data)
+            return n_entries-1
+        
+    def save_iter_binning(self, n_iter, hashval, pickled_mapper, target_counts):
+        '''Save information about the binning used in WE at the end of iteration n_iter to HDF5.'''
+                
+        with self.lock:
+            iter_group = self.get_iter_group(n_iter)
+            
+            try:
+                del iter_group['bin_target_counts']
+            except KeyError:
+                pass
+            
+            iter_group['bin_target_counts'] = target_counts
+            
+            if hashval and pickled_mapper:
+                imapper = self.save_bin_mapper(hashval, pickled_mapper)
+                iter_group.attrs['binhash'] = hashval
+            else:
+                iter_group.attrs['binhash'] = ''                

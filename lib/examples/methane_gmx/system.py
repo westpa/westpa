@@ -3,25 +3,21 @@ import os, sys, math, itertools
 import numpy
 import west
 from west import WESTSystem
-from west.pcoords import PiecewiseRegionSet, ParticleSet, RectilinearRegionSet
+from west.binning import RectilinearBinMapper
 
 import logging
 log = logging.getLogger(__name__)
 log.debug('loading module %r' % __name__)
 
 class System(WESTSystem):
-
-    def new_region_set(self):
-        binbounds = [0.0] + [4.0+1.0*i for i in xrange(0,13)] + [30,float('inf')]
-        region_set = RectilinearRegionSet([binbounds])
-        for bin in region_set.get_all_bins():
-            bin.target_count = 48
-        return region_set
-
     def initialize(self):
         self.pcoord_ndim = 1
         self.pcoord_len = 51
         self.pcoord_dtype = numpy.float32
+        binbounds = [0.0] + [4.0+1.0*i for i in xrange(0,13)] + [30,float('inf')]
+        self.bin_mapper = RectilinearBinMapper([binbounds])
+        self.bin_target_counts = numpy.empty((self.bin_mapper.nbins,), numpy.int)
+        self.bin_target_counts[...] = 48
 
 def coord_loader(fieldname, coord_file, segment, single_point=False):
     '''Load coordinates as output by g_traj and paste'''

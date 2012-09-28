@@ -1,3 +1,29 @@
+2012-09-27 -- Matt Zwier <mczwier@gmail.com>
+ * Everything has been renamed from WEMD to WEST (in any variation of case).
+ * Work manager is now a separate project (wwmgr), included as a Mercurial
+   subrepository at lib/wwmgr (for now, at least).
+ * Created a new Cython-accelerated binning framework to replace the very
+   aged scheme previously in use. The new scheme explicitly separates the
+   tasks of assignment (now the domain of the ``west.binning.assign`` module)
+   and actually putting Segment objects into some sort of container (now the
+   domain of the WE driver).
+ * Significantly cleaned up the WE driver, which is now solely responsible for
+   managing binning of segments, recycling, and generation of new segments
+   for the subsequent iteration.
+ * Updated the sim manager and analysis tools to reflect the above changes.
+ * Altered system object specification; ``new_region_set()`` is gone, replaced
+   by two attributes: ``(system.)bin_mapper`` and ``bin_target_counts``. These
+   should be set in ``initialize()``.
+ * Created the ``west.kinetics.RateAverager`` class to factor out and optimize
+   code used by the two online reweighting plugins.
+ * Added unit tests for binning and WE driver.
+ * Bin topologies (i.e. mappers) are stored in HDF5 if they can be pickled.
+ * Added setup.py to compile Cython extensions.
+ 
+2012-09-27 -- Matt Zwier <mczwier@gmail.com>
+ *** allowed this changelog to be badly out-of-date. Check commit messages
+     for changes between March and September. (Mea culpa.)   
+
 2012-03-09 -- Joshua Adelman <joshua.adelman@gmail.com>
  * Updated weed extension to refactored version that leverages numpy and 
    masked arrays for better performance and scaling.  

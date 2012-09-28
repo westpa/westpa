@@ -1,23 +1,20 @@
 from __future__ import division; __metaclass__ = type
 
-import logging, warnings
+import logging
 log = logging.getLogger(__name__)
 
 import numpy
+from west.binning import NopMapper
         
 class WESTSystem:
     '''A description of the system being simulated, including the dimensionality and
     data type of the progress coordinate, the number of progress coordinate entries
-    expected from each segment, and the distribution of states for simulation
-    initialization and recycling. To construct a simulation, the user must
-    subclass WESTSystem, set several instance variables, and (optionally)
-    override a few member functions to provide advanced functionality, such as
-    randomized initial states or recycling targets.
+    expected from each segment, and binning. To construct a simulation, the user must
+    subclass WESTSystem and set several instance variables.
     
-    At a minimum, the user must subclass ``WESTSystem`` and  override  
-    :method:`new_region_set` to define a bin space for the system. If desired,
-    the user should also override :method:`initialize` to set the data type
-    and dimensionality of progress coordinate data.
+    At a minimum, the user must subclass ``WESTSystem`` and override
+    :method:`initialize` to set the data type and dimensionality of progress
+    coordinate data and define a bin mapper.
     
     :ivar pcoord_ndim:    The number of dimensions in the progress coordinate.
                           Defaults to 1 (i.e. a one-dimensional progress 
@@ -31,6 +28,8 @@ class WESTSystem:
                           and final values.  Defaults to 2 (i.e. only the initial
                           and final progress coordinate values for a segment are
                           returned from propagation).
+    :ivar bin_mapper:     A bin mapper describing the progress coordinate space.
+    :ivar bin_target_counts: A vector of target counts, one per bin.
     '''
     
     def __init__(self):
@@ -41,35 +40,31 @@ class WESTSystem:
         self.pcoord_len = 2
         
         # Data type of progress coordinate
-        self.pcoord_dtype = numpy.float64
+        self.pcoord_dtype = numpy.float32
+        
+        # Mapper
+        self.bin_mapper = NopMapper()
+        self._bin_target_counts = None
+        
+        self.bin_target_counts = [1]
         
     @property
-    def region_set(self):
-        raise DeprecationWarning('WESTSystem.region_set has been removed')
+    def bin_target_counts(self):
+        return self._bin_target_counts
     
-    @region_set.setter
-    def region_set(self, rset):
-        raise DeprecationWarning('WESTSystem.region_set has been removed')
-        
+    @bin_target_counts.setter
+    def bin_target_counts(self, target_counts):
+        maxcount = max(target_counts)
+        self._bin_target_counts = numpy.array(target_counts, dtype=numpy.min_scalar_type(maxcount))
+                
     def initialize(self):
         '''Prepare this system object for use in simulation or analysis,
-        creating a bin space, setting initial and target states, replicas per bin, 
-        and so on. Called whenever a WEST tool creates an instance of the system
-        driver. 
+        creating a bin space, setting replicas per bin, and so on. This
+        function is called whenever a WEST tool creates an instance of the
+        system driver. 
         '''
         pass
-    
-    def new_region_set(self):
-        '''Construct and return an empty RegionSet for the bin topology for this system.
-        This function must be overridden by the user in his/her system class.'''
-        raise NotImplementedError
-    
-    # NOTE:  These hooks are not really well-integrated yet.
-    def initialize_sim(self):
-        '''Prepare this system for use in a newly-created simulation. Called by w_init.
-        Useful for creating files, writing stuff to HDF5, etc.'''
-        pass
-    
+            
     def prepare_run(self):
         '''Prepare this system for use in a simulation run. Called by w_run in
         all worker processes.'''
@@ -81,22 +76,15 @@ class WESTSystem:
         more scientifically-significant definitions of "the end of a simulation run")'''
         pass
 
-    def new_pcoord_array(self):
-        '''Return an appropriately-sized and -typed pcoord array for a segment.
-        Used by the sim manager to and data manager to create new segments.'''
-        return numpy.zeros((self.pcoord_len, self.pcoord_ndim), self.pcoord_dtype)
+    def new_pcoord_array(self, pcoord_len=None):
+        '''Return an appropriately-sized and -typed pcoord array for a timepoint, segment,
+        or number of segments. If ``pcoord_len`` is not specified (or None), then 
+        a length appropriate for a segment is returned.'''
+        
+        if pcoord_len is None:
+            pcoord_len = self.pcoord_len
+        return numpy.zeros((pcoord_len, self.pcoord_ndim), self.pcoord_dtype)
+
     
-    def new_pcoord_value(self, value=None):
-        '''Return an appropriately-sized and -typed array representing a progress coordinate
-        for a single point.'''
-        pcval = numpy.zeros((self.pcoord_ndim,), self.pcoord_dtype)
-        if value is not None:
-            pcval[:] = value
-        return pcval
-            
-#    def new_trajectory(self, parent=None):
-#        '''Return a new Segment object representing the first segment of a new trajectory,
-#        with the given parent. If this method returns None (as is the default), then it is
-#        up to the propagator to create a new trajectory.'''
-#        return None
-    
+    def new_region_set(self):
+        raise NotImplementedError('This method has been removed.')

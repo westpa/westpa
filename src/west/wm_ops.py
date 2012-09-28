@@ -34,5 +34,5 @@ def propagate(propagator, basis_states, initial_states, segments):
     outgoing_ids = [segment.seg_id for segment in segments]
     incoming_segments = {segment.seg_id: segment for segment in propagator.propagate(segments)}
     if log.isEnabledFor(logging.DEBUG):
-        log.debug('propagated {!r}'.format(incoming_segments))
+        log.debug('propagated {:d} segments'.format(len(incoming_segments)))
     return [incoming_segments[seg_id] for seg_id in outgoing_ids]

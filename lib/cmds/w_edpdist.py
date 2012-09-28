@@ -163,8 +163,8 @@ class WEDPDist(PlottingMixin,CommonOutputMixin,KineticsAnalysisMixin,TransitionA
         else:
             west.rc.pstatus('Writing EDFs to text files...')
         
-        bins = self.region_set.get_all_bins()
-        mbw = len(str(len(bins)))
+        bin_labels = list(self.mapper.labels)
+        mbw = len(str(len(bin_labels)-1))
         for (ibin, fbin) in self.selected_bin_pair_iter:
             edf_group = self.edfs_group['{:d}/{:d}'.format(ibin,fbin)]
             edf = edf_group['F_all'][-1,:]
@@ -177,8 +177,8 @@ class WEDPDist(PlottingMixin,CommonOutputMixin,KineticsAnalysisMixin,TransitionA
             if not self.output_suppress_headers:
                 outfile.write('# transition duration empirical distribution function\n')
                 if self.output_print_bin_labels:
-                    outfile.write('# initial bin: {:{mbw}d}, {:s}\n'.format(ibin, bins[ibin].label, mbw=mbw))
-                    outfile.write('# final bin:   {:{mbw}d}, {:s}\n'.format(fbin, bins[fbin].label, mbw=mbw))
+                    outfile.write('# initial bin: {:{mbw}d}, {:s}\n'.format(ibin, bin_labels[ibin], mbw=mbw))
+                    outfile.write('# final bin:   {:{mbw}d}, {:s}\n'.format(fbin, bin_labels[fbin], mbw=mbw))
                 else:
                     outfile.write('# initial bin: {:{mbw}d}\n'.format(ibin, mbw=mbw))
                     outfile.write('# final bin:   {:{mbw}d}\n'.format(fbin, mbw=mbw))

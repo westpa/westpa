@@ -2,7 +2,7 @@ from __future__ import print_function, division
 import numpy
 from west.propagators import WESTPropagator
 from west.systems import WESTSystem
-from west.pcoords import PiecewiseRegionSet, RectilinearRegionSet
+from west.binning import RectilinearBinMapper
 
 PI = numpy.pi
 from numpy import sin, cos, exp
@@ -74,14 +74,12 @@ class ODLDPropagator(WESTPropagator):
         return segments
 
 class ODLDSystem(WESTSystem):
-    def new_region_set(self):
-        region_set = RectilinearRegionSet([[0,1.4] + list(numpy.arange(1.5, 10.1, 0.1)) + [float('inf')]])
-        for bin in region_set.get_all_bins():
-            bin.target_count = 48
-        return region_set
-
     def initialize(self):
         self.pcoord_ndim = 1
         self.pcoord_dtype = pcoord_dtype
         self.pcoord_len = pcoord_len
+        
+        self.bin_mapper = RectilinearBinMapper([[0,1.4] + list(numpy.arange(1.5, 10.1, 0.1)) + [float('inf')]])
+        self.bin_target_counts = numpy.empty((self.bin_mapper.nbins,), numpy.int_)
+        self.bin_target_counts[...] = 48
         

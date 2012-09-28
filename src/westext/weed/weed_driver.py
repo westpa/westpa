@@ -4,15 +4,18 @@ import logging
 log = logging.getLogger(__name__)
 
 import numpy
-from itertools import izip
+import operator
+from itertools import izip, imap
 
-from west.util.miscfn import vgetattr
 import west
+from west.kinetics import RateAverager
 from westext.weed.ProbAdjustEquil import probAdjustEquil
+
+EPS = numpy.finfo(numpy.float64).eps
 
 class WEEDDriver:
     def __init__(self, sim_manager):
-        if sim_manager.work_manager.mode != sim_manager.work_manager.MODE_MASTER: 
+        if not sim_manager.work_manager.is_master: 
             return
 
         self.sim_manager = sim_manager
@@ -46,109 +49,45 @@ class WEEDDriver:
         
         self.priority = west.rc.config.get_int('weed.priority',0)
         
-        if sim_manager.target_states and self.do_reweight:
-            log.warning('equilibrium reweighting requested but target states (sinks) present; reweighting disabled')
-            self.do_reweight = False 
-        else:
-            sim_manager.register_callback(sim_manager.prepare_new_segments, self.prepare_new_segments, self.priority)    
+        if self.do_reweight:
+            sim_manager.register_callback(sim_manager.prepare_new_iteration, self.prepare_new_iteration, self.priority)    
 
-    def calculate_rates(self,iter_group):
-        '''Calculate instantaneous rate based on current bin definitions for iter_group'''
-        
-        bins = self.system.curr_region_set.get_all_bins()
-        n_bins = len(bins)
-        
-        rates = numpy.zeros((n_bins,n_bins), numpy.float64)
-
-        with self.data_manager.lock:
-            pcoords = iter_group['pcoord']
-            assignments = numpy.empty((pcoords.shape[0], 2), numpy.int)
-            weights = iter_group['seg_index']['weight']
-
-            assignments[:,0] = self.system.curr_region_set.map_to_all_indices(pcoords[:,0,:]).astype(numpy.int)
-            assignments[:,1] = self.system.curr_region_set.map_to_all_indices(pcoords[:,-1,:]).astype(numpy.int)
-
-            populations = numpy.bincount(assignments[:,0], weights=weights, minlength=n_bins)
-            flattened_assign_ids = numpy.ravel_multi_index((assignments[:,0],assignments[:,1]), rates.shape)
-
-            fluxes = numpy.bincount(flattened_assign_ids, weights=weights, minlength=n_bins*n_bins)
-            fluxes = fluxes.reshape((n_bins,n_bins))
-
-        for i in xrange(0,n_bins):
-            if populations[i] > 0:
-                rates[i,:] = fluxes[i,:] / populations[i]
-
-        return rates 
-
-    def get_rates(self, n_iter, bins):
+    def get_rates(self, n_iter, mapper):
         '''Get rates and associated uncertainties as of n_iter, according to the window size the user
         has selected (self.windowsize)'''
         
-        n_bins = len(bins)
         
         if self.windowtype == 'fraction':
             if self.max_windowsize is not None:
                 eff_windowsize = min(self.max_windowsize,int(n_iter * self.windowsize))
             else:
-                eff_windowsize = int(n_iter * self.windowsize)
-                
+                eff_windowsize = int(n_iter * self.windowsize)        
         else: # self.windowtype == 'fixed':
             eff_windowsize = min(n_iter, self.windowsize or 0)
+            
+        averager = RateAverager(mapper, self.system, self.data_manager)
+        averager.calculate(max(1, n_iter-eff_windowsize), n_iter+1)
+        self.eff_windowsize = eff_windowsize
+        return averager
 
-        rates = numpy.ma.masked_all((eff_windowsize,n_bins,n_bins), numpy.float64)
-
-        n_used = 0
-        for n in xrange(n_iter, max(n_iter-eff_windowsize,1), -1):
-            log.debug('considering iteration {:d}'.format(n))
-            with self.data_manager.lock:
-                iter_group = self.data_manager.get_iter_group(n)
-
-                if self.recalc_rates:
-                    rates_ds = self.calculate_rates(iter_group)
-                else:
-                    rates_ds = iter_group['bin_rates']
-
-                if rates_ds.shape != rates.shape[1:]:
-                    # A bin topology change means we can't go any farther back
-                    west.rc.pstatus(('Rate matrix for iteration {:d} is of the wrong shape; '
-                                      +'stopping accumulation of average rate data.\n').format(n))
-                    west.rc.pflush()
-                    break
-
-                # Mask rows where bin probability is zero
-                mrates = numpy.ma.array(rates_ds[...])
-
-                # Find bins with zero probability
-                binprobs = iter_group['bin_populations'][:,0]
-                zindx = numpy.where(binprobs == 0.0)[0]
-
-                mrates[zindx,zindx] = numpy.ma.masked
-                mrates = numpy.ma.mask_rows(mrates)
-
-                rates[n_used] = mrates
-
-                n_used += 1
-
-        avg_rates = rates.mean(axis=0)
-        if n_used == 1:
-            unc_rates = avg_rates.copy()
-        else:
-            unc_rates = rates.std(axis=0) / numpy.sqrt(numpy.sum(~rates.mask,0))
-        return (avg_rates.data, unc_rates.data, n_used)
-
-    def prepare_new_segments(self):
+    def prepare_new_iteration(self):
         n_iter = self.sim_manager.n_iter
+        we_driver = self.sim_manager.we_driver
         
+        if we_driver.target_states and self.do_reweight:
+            log.warning('equilibrium reweighting requested but target states (sinks) present; reweighting disabled')
+            return 
+
         if not self.do_reweight:
-            # Reweighting not requested (or not possible)
+            # Reweighting not requested
             log.debug('equilibrium reweighting not enabled') 
             return
 
-        # We already have initial and final binning information for the current iteration
-        # and initial binning for the new iteration (in self.next_iter_binning); no need to bin again
-        bins = self.sim_manager.next_iter_binning.get_all_bins()
+        mapper = we_driver.bin_mapper
+        bins = we_driver.next_iter_binning
         n_bins = len(bins)         
 
+        # Create storage for ourselves
         with self.data_manager.lock:
             iter_group = self.data_manager.get_iter_group(n_iter)
             try:
@@ -157,6 +96,10 @@ class WEEDDriver:
                 pass
                 
             weed_iter_group = iter_group.create_group('weed')
+            avg_populations_ds = weed_iter_group.create_dataset('avg_populations', shape=(n_bins,), dtype=numpy.float64)
+            unc_populations_ds = weed_iter_group.create_dataset('unc_populations', shape=(n_bins,), dtype=numpy.float64)
+            avg_flux_ds = weed_iter_group.create_dataset('avg_fluxes', shape=(n_bins,n_bins), dtype=numpy.float64)
+            unc_flux_ds = weed_iter_group.create_dataset('unc_fluxes', shape=(n_bins,n_bins), dtype=numpy.float64)
             avg_rates_ds = weed_iter_group.create_dataset('avg_rates', shape=(n_bins,n_bins), dtype=numpy.float64)
             unc_rates_ds = weed_iter_group.create_dataset('unc_rates', shape=(n_bins,n_bins), dtype=numpy.float64)
             weed_global_group = self.data_manager.we_h5file.require_group('weed')
@@ -169,20 +112,24 @@ class WEEDDriver:
         else:
             log.debug('reweighting')
         
-        with self.data_manager.lock:
-            avg_rates, unc_rates, eff_windowsize = self.get_rates(n_iter, bins)
-            avg_rates_ds[...] = avg_rates
-            unc_rates_ds[...] = unc_rates
+        averager = self.get_rates(n_iter, mapper)
+        
+        with self.data_manager.flushing_lock():
+            avg_populations_ds[...] = averager.average_populations
+            unc_populations_ds[...] = averager.stderr_populations
+            avg_flux_ds[...] = averager.average_flux
+            unc_flux_ds[...] = averager.stderr_flux
+            avg_rates_ds[...] = averager.average_rate
+            unc_rates_ds[...] = averager.stderr_rate
             
-            binprobs = iter_group['bin_populations'][:,-1]
-            assert numpy.allclose(binprobs, vgetattr('weight', bins, numpy.float64))
+            binprobs = numpy.fromiter(imap(operator.attrgetter('weight'),bins), dtype=numpy.float64, count=n_bins)
             orig_binprobs = binprobs.copy()
         
-        west.rc.pstatus('Calculating equilibrium reweighting using window size of {:d}'.format(eff_windowsize))
+        west.rc.pstatus('Calculating equilibrium reweighting using window size of {:d}'.format(self.eff_windowsize))
         west.rc.pstatus('\nBin probabilities prior to reweighting:\n{!s}'.format(binprobs))
         west.rc.pflush()
 
-        probAdjustEquil(binprobs, avg_rates, unc_rates)
+        probAdjustEquil(binprobs, averager.average_rate, averager.stderr_rate)
         
         # Check to see if reweighting has set non-zero bins to zero probability (should never happen)
         assert (~((orig_binprobs > 0) & (binprobs == 0))).all(), 'populated bin reweighted to zero probability'
@@ -198,5 +145,6 @@ class WEEDDriver:
             for (bin, newprob) in izip(bins, binprobs):
                 bin.reweight(newprob)
             weed_global_group.attrs['last_reweighting'] = n_iter
-            
-        assert abs(1 - vgetattr('weight', self.sim_manager.next_iter_segments, numpy.float64).sum()) < 1.0e-15*len(self.sim_manager.next_iter_segments)
+        
+        assert (abs(1 - numpy.fromiter(imap(operator.attrgetter('weight'),bins), dtype=numpy.float64, count=n_bins).sum())
+                < EPS * numpy.fromiter(imap(len,bins), dtype=numpy.int, count=n_bins).sum())

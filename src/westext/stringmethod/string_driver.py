@@ -9,7 +9,7 @@ import west
 from west.util import extloader
 from west.util.miscfn import vgetattr
 from westext.stringmethod import WESTStringMethod, DefaultStringMethod
-from west.pcoords import VoronoiRegionSet
+from west.binning import VoronoiBinMapper
 
 
 class StringDriver(object):
@@ -66,7 +66,7 @@ class StringDriver(object):
         self.update_regionset()
 
         # Register callback
-        sim_manager.register_callback(sim_manager.prepare_new_segments, self.prepare_new_segments, self.priority)
+        sim_manager.register_callback(sim_manager.prepare_new_iteration, self.prepare_new_iteration, self.priority)
 
         west.rc.pstatus('-westext.stringmethod -----------------\n')
         west.rc.pstatus('windowsize: {}\n'.format(self.windowsize))
@@ -198,7 +198,7 @@ class StringDriver(object):
 
         return avg_pos,sum_bin_weight
 
-    def prepare_new_segments(self):
+    def prepare_new_iteration(self):
 
         n_iter = self.sim_manager.n_iter
 
