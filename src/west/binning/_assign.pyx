@@ -167,15 +167,16 @@ cpdef output_map(numpy.ndarray[index_t, ndim=1] output,
     '''For each output for which mask is true, execute output[i] = omap[output[i]]'''
 
     cdef:
-        Py_ssize_t i, n
+        Py_ssize_t i, ncoords, nmappings
         index_t o
         
-    n = len(output)
+    ncoords = len(output)
+    nmappings = len(omap)
     with nogil:
-        for i from 0 <= i < n:
+        for i from 0 <= i < ncoords:
             if mask[i]:
                 o = output[i]
-                if o >= n:
+                if o >= nmappings:
                     with gil:
                         raise IndexError('value {} not available in output table'.format(o))
                 output[i] = omap[o]
