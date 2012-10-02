@@ -7,7 +7,7 @@ log = logging.getLogger(__name__)
 import numpy
 
 import west
-from westtools.aframe import AnalysisMixin
+from oldtools.aframe import AnalysisMixin
 
 class BinningMixin(AnalysisMixin):
     '''A mixin for performing binning on WEST data.'''

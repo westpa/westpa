@@ -184,7 +184,7 @@ class WESTDataManager:
     # Compress any auxiliary dataset whose total size is more than 1MB
     default_aux_compression_threshold = 1048576
     
-    # Bin data horizontal chunk size
+    # Bin data horizontal (second dimension) chunk size
     binning_hchunksize = 4096
     
     def flushing_lock(self):
@@ -298,7 +298,7 @@ class WESTDataManager:
                                 
     def prepare_backing(self): #istates):
         '''Create new HDF5 file'''
-        self.we_h5file = h5py.File(self.we_h5filename, 'a', driver=self.we_h5file_driver)
+        self.we_h5file = h5py.File(self.we_h5filename, 'w', driver=self.we_h5file_driver)
         
         with self.flushing_lock():
             self.we_h5file['/'].attrs['west_file_format_version'] = file_format_version
@@ -434,7 +434,7 @@ class WESTDataManager:
                 n_sets = 1
             else:
                 n_sets = len(master_index)+1
-                master_index.resize((n_sets),)
+                master_index.resize((n_sets,))
             
             set_id = n_sets - 1
             master_index_row = master_index[set_id]
@@ -468,7 +468,10 @@ class WESTDataManager:
         with self.lock:
             n_iter = n_iter or self.current_iteration
             ibstate_group = self.find_ibstate_group(n_iter)
-            bstate_index = ibstate_group['bstate_index']
+            try:
+                bstate_index = ibstate_group['bstate_index']
+            except KeyError:
+                return []
             bstate_pcoords = ibstate_group['bstate_pcoord']
             bstates = [BasisState(state_id=i, label=row['label'], probability=row['probability'],
                                   auxref = row['auxref'] or None, pcoord=pcoord)
@@ -530,7 +533,7 @@ class WESTDataManager:
             for i, initial_state in enumerate(initial_states):
                 index_entries[i]['iter_created'] = initial_state.iter_created
                 index_entries[i]['iter_used'] = initial_state.iter_used or InitialState.ISTATE_UNUSED
-                index_entries[i]['basis_state_id'] = initial_state.basis_state_id
+                index_entries[i]['basis_state_id'] = initial_state.basis_state_id or -1
                 index_entries[i]['istate_type'] = initial_state.istate_type or InitialState.ISTATE_TYPE_UNSET
                 index_entries[i]['istate_status'] = initial_state.istate_status or InitialState.ISTATE_STATUS_PENDING
                 pcoord_vals[i] = initial_state.pcoord
@@ -543,8 +546,12 @@ class WESTDataManager:
         with self.lock:
             n_iter = n_iter or self.current_iteration
             ibstate_group = self.find_ibstate_group(n_iter)
+            try:
+                istate_index = ibstate_group['istate_index']
+            except KeyError:
+                return []
             istate_pcoords = ibstate_group['pcoord']
-            istate_index = ibstate_group['istate_index']
+            
             for state_id, (state, pcoord) in enumerate(izip(istate_index, istate_pcoords)):
                 states.append(InitialState(state_id=state_id, basis_state_id=long(state['basis_state_id']),
                                            iter_created=int(state['iter_created']), iter_used=int(state['iter_used']),
@@ -594,7 +601,6 @@ class WESTDataManager:
                 
                 unused = (  (istate_chunk['iter_used'] == InitialState.ISTATE_UNUSED) 
                           & (istate_chunk['istate_status'] == InitialState.ISTATE_STATUS_PREPARED ) )
-                # TODO: add a check for invalid statuses and purge -- w_lint?
                 ids_of_unused = list(state_ids[unused])
                 if len(ids_of_unused):
                     pcoords = istate_pcoords[ids_of_unused]
@@ -807,7 +813,7 @@ class WESTDataManager:
                     for (dsname, data) in segment.data.iteritems():
                         adata = numpy.asarray(data)
                         shape = (n_total_segs,)+adata.shape
-                        nbytes = numpy.multiply.reduce(shape)
+                        nbytes = adata.nbytes
                         dset = aux_group.require_dataset(dsname,
                                                          shape=shape,
                                                          dtype=adata.dtype,
@@ -1160,8 +1166,11 @@ class WESTDataManager:
         with self.lock:
             # these will raise KeyError if the group doesn't exist, which also means
             # that bin data is not available, so no special treatment here
-            binning_group = self.we_h5file['/binning']
-            index = binning_group['index']
+            try:
+                binning_group = self.we_h5file['/binning']
+                index = binning_group['index']
+            except KeyError:
+                raise KeyError('hash {} not found'.format(hashval))
             n_entries = len(index)
             if n_entries == 0:
                 raise KeyError('hash {} not found'.format(hashval))

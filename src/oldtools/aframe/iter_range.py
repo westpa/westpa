@@ -7,7 +7,7 @@ log = logging.getLogger(__name__)
 import numpy
 import west
 
-from westtools.aframe import AnalysisMixin, ArgumentError
+from oldtools.aframe import AnalysisMixin, ArgumentError
 
 class IterRangeMixin(AnalysisMixin):
     '''A mixin for limiting the range of data considered for a given analysis. This should go after

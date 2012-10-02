@@ -1,3 +1,3 @@
-from westtools.cmds.w_ttimes import WTTimesWE
+from oldtools.cmds.w_ttimes import WTTimesWE
 WTTimesWE().main()
 

@@ -10,7 +10,7 @@ import itertools
 from itertools import izip, imap
 
 import west
-from westtools.aframe import AnalysisMixin
+from oldtools.aframe import AnalysisMixin
 
 class KineticsAnalysisMixin(AnalysisMixin):
     def __init__(self):

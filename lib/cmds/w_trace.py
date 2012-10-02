@@ -1,10 +1,10 @@
 from __future__ import division, print_function
 import sys, argparse
 import numpy
-import west, westtools
+import west, oldtools
 
 from west import Segment
-from westtools.aframe import WESTAnalysisTool, WESTDataReaderMixin, CommonOutputMixin
+from oldtools.aframe import WESTAnalysisTool, WESTDataReaderMixin, CommonOutputMixin
 
 import logging
 log = logging.getLogger('w_trace')
@@ -108,7 +108,7 @@ for segspec in args.segments:
         wtrace.terminal_segments.append((n_iter,seg_id))
 wtrace.trace_trajs()
 
-#ttree = westtools.trajectories.trajtree.TrajTree(data_manager)
+#ttree = oldtools.trajectories.trajtree.TrajTree(data_manager)
 #for segspec in args.segment:
 #    n_iter, seg_id = map(int, segspec.split(':'))
 #    trajectory = ttree.trace_to_root(n_iter, seg_id)

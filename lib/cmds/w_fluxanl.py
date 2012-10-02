@@ -11,9 +11,9 @@ import argparse
 import numpy
 import scipy.signal
 from itertools import izip
-import west, westtools
+import west, oldtools
 
-from westtools.aframe import WESTAnalysisTool,WESTDataReaderMixin,IterRangeMixin,MCBSMixin
+from oldtools.aframe import WESTAnalysisTool,WESTDataReaderMixin,IterRangeMixin,MCBSMixin
 
 import logging
 log = logging.getLogger('w_fluxanl')
@@ -99,7 +99,7 @@ class WFluxanl(MCBSMixin,IterRangeMixin,WESTDataReaderMixin,WESTAnalysisTool):
         lbi, ubi = self.calc_ci_bound_indices()
         
         block_bounds = numpy.empty((n_blocks,2), numpy.min_scalar_type(self.last_iter))
-        flux_cis = numpy.empty((n_blocks,n_targets), dtype=westtools.aframe.mcbs.ciinfo_dtype)
+        flux_cis = numpy.empty((n_blocks,n_targets), dtype=oldtools.aframe.mcbs.ciinfo_dtype)
         
         all_fluxes = self.wfl_group['arrivals']['flux']
         
@@ -147,7 +147,7 @@ class WFluxanl(MCBSMixin,IterRangeMixin,WESTDataReaderMixin,WESTAnalysisTool):
         
         block_bounds = numpy.empty((n_blocks,2), numpy.min_scalar_type(self.last_iter))
         block_bounds[:,0] = self.first_iter
-        flux_cis = numpy.empty((n_blocks,n_targets), dtype=westtools.aframe.mcbs.ciinfo_dtype)
+        flux_cis = numpy.empty((n_blocks,n_targets), dtype=oldtools.aframe.mcbs.ciinfo_dtype)
         
         all_fluxes = self.wfl_group['arrivals']['flux']
         

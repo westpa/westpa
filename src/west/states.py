@@ -115,15 +115,17 @@ class InitialState:
     :ivar state_id:         Integer identifier of this state, usually set by the
                             data manager.
     :ivar basis_state_id:   Identifier of the basis state from which this state was
-                            generated.
-    :ivar basis_state:      The `BasisState` from which this state was generated.
+                            generated, or None.
+    :ivar basis_state:      The `BasisState` from which this state was generated, or None.
     :ivar iter_created:     Iteration in which this state was generated (0 for
                             simulation initialization).
     :ivar iter_used:        Iteration in which this state was used to initiate a
                             trajectory (None for unused).
     :ivar istate_type:      Integer describing the type of this initial state
                             (ISTATE_TYPE_BASIS for direct use of a basis state, 
-                            ISTATE_TYPE_GENERATED for a state generated from a basis state).
+                            ISTATE_TYPE_GENERATED for a state generated from a basis state,
+                            or ISTATE_TYPE_RESTART for a state corresponding to the endpoint
+                            of a segment in another simulation).
     :ivar istate_status:    Integer describing whether this initial state has been properly
                             prepared.
     :ivar pcoord:           The representative progress coordinate of this state.
@@ -132,6 +134,7 @@ class InitialState:
     ISTATE_TYPE_UNSET = 0
     ISTATE_TYPE_BASIS = 1
     ISTATE_TYPE_GENERATED = 2
+    ISTATE_TYPE_RESTART = 3
     
     ISTATE_UNUSED = 0
     
@@ -256,6 +259,7 @@ def pare_basis_initial_states(basis_states, initial_states, segments=None):
     else:
         return_istates = set(initial_states)
     
-    return_bstates = set(bstatemap[istate.basis_state_id] for istate in return_istates)
+    return_bstates = set(bstatemap[istate.basis_state_id] for istate in return_istates
+                         if istate.istate_type != InitialState.ISTATE_TYPE_RESTART)
         
     return return_bstates, return_istates

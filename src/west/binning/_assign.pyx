@@ -84,7 +84,7 @@ cpdef rectilinear_assign(numpy.ndarray[coord_t,ndim=2] coords,
                 
                 output[icoord] += index * stridefac
                 stridefac *= boundlen-1
-
+    return
         
 @cython.boundscheck(False)
 @cython.wraparound(False)    
@@ -100,6 +100,7 @@ cpdef testfunc(numpy.ndarray[coord_t, ndim=2] coords,
                 output[icoord] = 0
             else:
                 output[icoord] = 1
+    return
 
 # optimized function applications
 @cython.boundscheck(False)
@@ -119,6 +120,7 @@ cpdef apply_down(func,
     for i from 0 <= i < n:
         if mask[i]:
             output[i] = func(coords[i], *args, **kwargs)
+    return
 
 @cython.boundscheck(False)
 @cython.wraparound(False)    
@@ -157,6 +159,7 @@ cpdef apply_down_argmin_across(func,
                     _argmin = iout
                     
             output[icoord] = _argmin
+    return
                 
 # optimized lookup table routine
 @cython.boundscheck(False)
@@ -179,3 +182,4 @@ cpdef output_map(numpy.ndarray[index_t, ndim=1] output,
                     with gil:
                         raise IndexError('value {} not available in output table'.format(o))
                 output[i] = omap[o]
+    return

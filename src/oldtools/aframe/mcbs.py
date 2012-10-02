@@ -11,7 +11,7 @@ log = logging.getLogger(__name__)
 import math, numpy
 
 import west
-from westtools.aframe import AnalysisMixin
+from oldtools.aframe import AnalysisMixin
 
 class MCBSMixin(AnalysisMixin):
     def __init__(self):

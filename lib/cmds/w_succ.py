@@ -3,7 +3,7 @@ import sys, argparse
 import numpy
 import west
 
-from westtools.aframe import WESTAnalysisTool, WESTDataReaderMixin, CommonOutputMixin, BinningMixin, IterRangeMixin
+from oldtools.aframe import WESTAnalysisTool, WESTDataReaderMixin, CommonOutputMixin, BinningMixin, IterRangeMixin
 
 import logging
 log = logging.getLogger('w_succ')

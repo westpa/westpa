@@ -5,7 +5,7 @@ log = logging.getLogger(__name__)
 
 import numpy
 import west
-from westtools.aframe import AnalysisMixin
+from oldtools.aframe import AnalysisMixin
 
 try:
     import matplotlib

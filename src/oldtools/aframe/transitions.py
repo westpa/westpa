@@ -8,8 +8,8 @@ import numpy
 from itertools import izip, imap
 
 import west
-from westtools.aframe import AnalysisMixin
-from westtools.aframe.trajwalker import TrajWalker
+from oldtools.aframe import AnalysisMixin
+from oldtools.aframe.trajwalker import TrajWalker
 
 class TransitionEventAccumulator:
     index_dtype  = numpy.uintp

@@ -6,7 +6,7 @@ log = logging.getLogger('w_binprobs')
 
 import west
 
-from westtools.aframe import WESTAnalysisTool, BinningMixin, WESTDataReaderMixin, IterRangeMixin
+from oldtools.aframe import WESTAnalysisTool, BinningMixin, WESTDataReaderMixin, IterRangeMixin
 
 ciinfo_dtype = numpy.dtype([('expectation', numpy.float64),
                             ('ci_lower', numpy.float64),

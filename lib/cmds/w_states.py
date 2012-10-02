@@ -69,15 +69,19 @@ with work_manager:
             
         assert args.mode in ('show', 'replace', 'append')
         if args.mode == 'show':
-            bstate_file = sys.stdout if not args.bstate_file else open(args.bstate_file, 'wt') 
+    
             basis_states = data_manager.get_basis_states(n_iter)
-            bstate_file.write('# Basis states for iteration {:d}\n'.format(n_iter))
-            BasisState.states_to_file(basis_states, bstate_file)
+            if basis_states:
+                bstate_file = sys.stdout if not args.bstate_file else open(args.bstate_file, 'wt')
+                bstate_file.write('# Basis states for iteration {:d}\n'.format(n_iter))
+                BasisState.states_to_file(basis_states, bstate_file)
             
-            tstate_file = sys.stdout if not args.tstate_file else open(args.tstate_file, 'wt')
             target_states = data_manager.get_target_states(n_iter)
-            tstate_file.write('# Target states for iteration {:d}\n'.format(n_iter))
-            TargetState.states_to_file(target_states, tstate_file)
+            if target_states:
+                tstate_file = sys.stdout if not args.tstate_file else open(args.tstate_file, 'wt')
+                tstate_file.write('# Target states for iteration {:d}\n'.format(n_iter))
+                TargetState.states_to_file(target_states, tstate_file)
+                
         elif args.mode == 'replace':
             seg_index = data_manager.get_seg_index(n_iter)
             if (seg_index['status'] == Segment.SEG_STATUS_COMPLETE).any():

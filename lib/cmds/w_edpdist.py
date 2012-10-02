@@ -3,13 +3,13 @@ import os, sys, argparse, math, itertools
 import numpy
 from scipy.stats import kstwobign
 import west
-from westtools.stats.edfs import EDF
+from oldtools.stats.edfs import EDF
 
 import logging
 log = logging.getLogger('w_edpdist')
 
-import westtools
-from westtools.aframe import (WESTAnalysisTool,WESTDataReaderMixin,IterRangeMixin,TransitionAnalysisMixin,BinningMixin,
+import oldtools
+from oldtools.aframe import (WESTAnalysisTool,WESTDataReaderMixin,IterRangeMixin,TransitionAnalysisMixin,BinningMixin,
                               KineticsAnalysisMixin,CommonOutputMixin,PlottingMixin)
                               
 class WEDPDist(PlottingMixin,CommonOutputMixin,KineticsAnalysisMixin,TransitionAnalysisMixin,

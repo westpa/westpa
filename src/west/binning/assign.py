@@ -87,6 +87,7 @@ class NopMapper(BinMapper):
     def __init__(self):
         super(NopMapper,self).__init__()
         self.nbins = 1
+        self.labels = ['nop']
         
     def assign(self, coords, mask=None, output=None):
         if output is None:
@@ -258,7 +259,7 @@ class VoronoiBinMapper(BinMapper):
         self.centers = numpy.asarray(centers)
         self.nbins = self.centers.shape[0]
         self.ndim = self.centers.shape[1]
-        self.labels = [repr(center) for center in self.centers]
+        self.labels = ['center={!r}'.format(center) for center in self.centers]
         
         # Sanity check: does the distance map the centers to themselves?
         check = self.assign(self.centers)

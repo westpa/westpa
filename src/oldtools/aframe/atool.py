@@ -6,9 +6,9 @@ log = logging.getLogger(__name__)
 
 import os, sys
 import h5py
-import west, westtools
+import west, oldtools
 
-from westtools.aframe import AnalysisMixin, ArgumentError
+from oldtools.aframe import AnalysisMixin, ArgumentError
 
 class WESTAnalysisTool:
     def __init__(self):

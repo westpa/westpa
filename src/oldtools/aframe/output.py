@@ -5,7 +5,7 @@ import logging
 log = logging.getLogger(__name__)
 
 import west
-from westtools.aframe import AnalysisMixin
+from oldtools.aframe import AnalysisMixin
 
 class CommonOutputMixin(AnalysisMixin):
     def __init__(self):

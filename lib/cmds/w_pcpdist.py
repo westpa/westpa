@@ -6,8 +6,8 @@ import west
 import logging
 log = logging.getLogger('w_pcpdist')
 
-import westtools
-from westtools.aframe import (WESTAnalysisTool,WESTDataReaderMixin,IterRangeMixin,CommonOutputMixin,PlottingMixin)
+import oldtools
+from oldtools.aframe import (WESTAnalysisTool,WESTDataReaderMixin,IterRangeMixin,CommonOutputMixin,PlottingMixin)
                               
 class WPCPDist(PlottingMixin,CommonOutputMixin,
                  IterRangeMixin,WESTDataReaderMixin,WESTAnalysisTool):

@@ -8,9 +8,9 @@ from itertools import imap
 import numpy, h5py
 
 import west
-from westtools.aframe import AnalysisMixin
+from oldtools.aframe import AnalysisMixin
 from west import Segment
-from westtools.miscfn import parse_int_list
+from oldtools.miscfn import parse_int_list
 
 class WESTDataReaderMixin(AnalysisMixin):
     '''A mixin for analysis requiring access to the HDF5 files generated during a WEST run.'''

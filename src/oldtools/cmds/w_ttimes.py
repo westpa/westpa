@@ -1,12 +1,12 @@
 from __future__ import print_function, division; __metaclass__=type
 import argparse, math
 import numpy
-import west, westtools
+import west, oldtools
 
 import logging
 log = logging.getLogger('w_ttimes')
 
-from westtools.aframe import (WESTAnalysisTool,BinningMixin,WESTDataReaderMixin,IterRangeMixin,MCBSMixin,TransitionAnalysisMixin,
+from oldtools.aframe import (WESTAnalysisTool,BinningMixin,WESTDataReaderMixin,IterRangeMixin,MCBSMixin,TransitionAnalysisMixin,
                               KineticsAnalysisMixin,CommonOutputMixin,BFBinningMixin,BFDataManager,BFTransitionAnalysisMixin)
 
 ciinfo_dtype = numpy.dtype([('expectation', numpy.float64),

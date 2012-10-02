@@ -3,7 +3,6 @@ from __future__ import division; __metaclass__ = type
 import time, operator, math, numpy, re, random
 from itertools import izip, izip_longest, imap
 from datetime import timedelta
-from collections import namedtuple
 import logging
 log = logging.getLogger(__name__)
 
