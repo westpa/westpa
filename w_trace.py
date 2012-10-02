@@ -1,6 +1,6 @@
 from __future__ import print_function, division; __metaclass__ = type
 import sys
-from wt2.tool_classes import WESTTool, HDF5Storage, WESTDataReader
+from westtools.tool_classes import WESTTool, HDF5Storage, WESTDataReader
 import numpy, h5py, operator, time
 import west
 

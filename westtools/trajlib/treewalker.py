@@ -3,7 +3,7 @@ from itertools import izip
 from collections import namedtuple
 import numpy
 import west
-from wt2.tool_classes.selected_segs import AllSegmentSelection
+from westtools.tool_classes.selected_segs import AllSegmentSelection
 from west.data_manager import seg_id_dtype
 
 trajnode = namedtuple('trajnode', ('n_iter', 'seg_id'))

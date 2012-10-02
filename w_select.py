@@ -1,6 +1,6 @@
 from __future__ import print_function, division; __metaclass__ = type
 import sys
-from wt2.tool_classes import WESTTool, HDF5Storage, WESTDataReader
+from westtools.tool_classes import WESTTool, HDF5Storage, WESTDataReader
 from itertools import imap
 import numpy, h5py, operator, functools
 
@@ -74,7 +74,7 @@ N_ITER:SEG_ID pairs, separated by newlines.
                              should take an iteration number and the HDF5 group corresponding to that
                              iteration and return a sequence of seg_ids matching the predicate, as in
                              ``match_predicate(n_iter, iter_group)``.''')
-        fngroup.add_argument('-r', '--recycled', nargs='?', metavar='TSTATE_INDEX',
+        fngroup.add_argument('--recycled', nargs='?', metavar='TSTATE_INDEX',
                              help='''Match segments which are recycled. If the optional TSTATE_INDEX is
                              given, match only segments recycled from the given target state. This is the
                              predicate to use when searching for segments involved in "successful"

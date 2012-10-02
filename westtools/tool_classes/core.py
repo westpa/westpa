@@ -2,13 +2,8 @@ from __future__ import print_function, division; __metaclass__ = type
 
 import west
 
-class WESTTool:
-    
-    prog = None
-    usage = None
-    description = None
-    epilog = None
-    
+class WESTToolComponent:
+    '''Base class for WEST command line tools and components used in constructing tools'''
     def __init__(self):
         self.config_required = False
         self.include_args = {}
@@ -19,14 +14,29 @@ class WESTTool:
     def exclude_arg(self, argname):
         self.include_args[argname] = False
         
-    def get_arg_group(self, groupname, parser):
-        try:
-            return self.arg_group[groupname]
-        except KeyError:
-            group = parser.add_argument_group(groupname)
-            self.arg_group[groupname] = group
-            return group
-            
+    def add_args(self, parser):
+        '''Add arguments specific to this component to the given argparse parser.'''
+        pass
+    
+    def process_args(self, args):
+        '''Take argparse-processed arguments associated with this component and deal
+        with them appropriately (setting instance variables, etc)'''
+        pass
+
+        
+    
+
+class WESTTool(WESTToolComponent):
+    '''Base class for WEST command line tools'''
+    
+    prog = None
+    usage = None
+    description = None
+    epilog = None
+    
+    def __init__(self):
+        super(WESTTool,self).__init__()
+                    
     def add_args(self, parser):
         '''Add arguments specific to this tool to the given argparse parser.'''
         west.rc.add_args(parser)
@@ -37,7 +47,7 @@ class WESTTool:
         west.rc.process_args(args, config_required = self.config_required)
         
     def add_all_args(self, parser):
-        '''Add arguments for all tools to the given parser.'''
+        '''Add arguments for all components from which this class derives to the given parser.'''
         for cls in reversed(self.__class__.__mro__):
             try:
                 fn = cls.__dict__['add_args']
@@ -47,7 +57,7 @@ class WESTTool:
                 fn(self,parser)
     
     def process_all_args(self, args):
-        '''Process arguments for all tools.'''
+        '''Process arguments for all components from which this class derives.'''
         for cls in reversed(self.__class__.__mro__):
             try:
                 fn = cls.__dict__['process_args']
@@ -72,7 +82,7 @@ class WESTTool:
         return args
     
     def go(self):
-        '''Perform the analysis associated with this object.'''
+        '''Perform the analysis associated with this tool.'''
         raise NotImplementedError
     
     def main(self):

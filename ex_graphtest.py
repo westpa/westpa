@@ -2,7 +2,7 @@ from __future__ import print_function, division
 import argparse, numpy
 import cPickle as pickle
 import west
-from wt2.trajlib import trajtree
+from westtools.trajlib import trajtree
 
 parser = argparse.ArgumentParser()
 west.rc.add_args(parser)

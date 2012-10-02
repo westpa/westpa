@@ -1,7 +1,7 @@
 from __future__ import print_function
 import sys
-from wt2.trajlib.treewalker import trace_trajectories
-from wt2.tool_classes.selected_segs import AllSegmentSelection
+from westtools.trajlib.treewalker import trace_trajectories
+from westtools.tool_classes.selected_segs import AllSegmentSelection
 from west.data_manager import WESTDataManager
 from trajtree import TrajTreeSet
 from trajtree.trajtree import FakeTrajTreeSet

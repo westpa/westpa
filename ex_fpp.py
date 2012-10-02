@@ -2,9 +2,9 @@ from __future__ import print_function, division; __metaclass__ = type
 import sys, os, logging
 import h5py, numpy
 import west
-from wt2.tool_classes import WESTTool, WESTDataReader, SegSelector
-from wt2.tool_classes.data_reader import ByIterDataSelection
-from wt2.tool_classes.selected_segs import SegmentSelection
+from westtools.tool_classes import WESTTool, WESTDataReader, SegSelector
+from westtools.tool_classes.data_reader import ByIterDataSelection
+from westtools.tool_classes.selected_segs import SegmentSelection
 from west.data_manager import n_iter_dtype, seg_id_dtype, weight_dtype
 from trajtree import TrajTreeSet
 import numpy, h5py

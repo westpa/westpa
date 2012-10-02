@@ -1,5 +1,5 @@
 from __future__ import print_function, division; __metaclass__ = type
-from wt2.tool_classes.core import WESTTool
+from westtools.tool_classes.core import WESTTool
 import h5py
 
 class HDF5Storage(WESTTool):

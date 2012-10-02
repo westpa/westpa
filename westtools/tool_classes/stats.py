@@ -1,6 +1,6 @@
 from core import WESTTool
 
-from wt2.stats.mcbs import get_bssize
+from westtools.stats.mcbs import get_bssize
 
 class UsesMCBS(WESTTool):
     def __init__(self):
@@ -17,4 +17,4 @@ class UsesMCBS(WESTTool):
         
     def process_args(self, args):
         self.bsconf = args.bsconf
-        self.bssize = args.bssize or get_bssize(1-self.wt2_bsconf)
+        self.bssize = args.bssize or get_bssize(1-self.westtools_bsconf)

@@ -1,6 +1,6 @@
 from __future__ import print_function, division; __metaclass__ = type
 import sys, os, logging
-from wt2.tool_classes import WESTTool, WESTDataReader, SegSelector
+from westtools.tool_classes import WESTTool, WESTDataReader, SegSelector
 import numpy, h5py
 from fasthist import hist
 
