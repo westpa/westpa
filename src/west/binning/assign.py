@@ -81,6 +81,9 @@ class BinMapper:
         pkldat = pickle.dumps(self, pickle.HIGHEST_PROTOCOL)
         hash = self.hashfunc(pkldat)
         return (pkldat, hash.hexdigest())
+    
+    def __repr__(self):
+        return '<{} at 0x{:x} with {:d} bins>'.format(self.__class__.__name__, id(self), self.nbins or 0)
         
 class NopMapper(BinMapper):
     '''Put everything into one bin.'''
@@ -303,7 +306,7 @@ class RecursiveBinMapper(BinMapper):
     def labels(self):
         for ilabel in xrange(self.base_mapper.nbins):
             if self._recursion_map[ilabel]:
-                for label in self._recursion_targets[ilabel]:
+                for label in self._recursion_targets[ilabel].labels:
                     yield label
             else:
                 yield self.base_mapper.labels[ilabel]
@@ -335,17 +338,19 @@ class RecursiveBinMapper(BinMapper):
         '''Replace the bin containing the coordinate tuple ``replaces_bin_at`` with the
         specified ``mapper``.'''
         
-        replaces_bin_at = numpy.asarray(replaces_bin_at)
+        replaces_bin_at = numpy.require(replaces_bin_at, dtype=coord_dtype)
         if replaces_bin_at.ndim < 1:
             replaces_bin_at.shape = (1,1)
         elif replaces_bin_at.ndim < 2:
-            replaces_bin_at.shape = (replaces_bin_at.shape[0], 1)
+            replaces_bin_at.shape = (1,replaces_bin_at.shape[0])
         elif replaces_bin_at.ndim > 2 or replaces_bin_at.shape[1] > 1:
             raise TypeError('a single coordinate vector is required')
+        
         
         self.nbins += mapper.nbins - 1
                 
         ibin = self.base_mapper.assign(replaces_bin_at)[0]
+        log.debug('replacing bin {!r} containing {!r} with {!r}'.format(ibin, replaces_bin_at, mapper))
         if self._recursion_map[ibin]:
             # recursively add; this doesn't change anything for us except our
             # total bin count, which has been accounted for above
