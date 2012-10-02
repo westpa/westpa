@@ -26,6 +26,7 @@ cpdef flux_assign(numpy.ndarray[weight_t, ndim=1] weights,
         i = init_assignments[m]
         j = final_assignments[m]
         flux_matrix[i,j] += weights[m]
+    return
         
 @cython.boundscheck(False)
 @cython.wraparound(False)    
@@ -39,6 +40,7 @@ cpdef pop_assign(numpy.ndarray[weight_t, ndim=1] weights,
     for m from 0 <= m < n:
         i = assignments[m]
         populations[i] += weights[m]
+    return
 
 @cython.cdivision(True)
 @cython.boundscheck(False)
@@ -69,5 +71,5 @@ cpdef calc_rates(numpy.ndarray[weight_t, ndim=3] fluxes,
                 masks[iarray,i] = 1
                 for j from 0 <= j < nbins:
                     rates[iarray,i,j] = fluxes[iarray,i,j] / populations[iarray,i]
-    
+    return
 
