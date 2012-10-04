@@ -47,7 +47,8 @@ class WESTTool(WESTToolComponent):
         west.rc.process_args(args, config_required = self.config_required)
         
     def add_all_args(self, parser):
-        '''Add arguments for all components from which this class derives to the given parser.'''
+        '''Add arguments for all components from which this class derives to the given parser,
+        starting with the class highest up the inheritance chain (most distant ancestor).'''
         for cls in reversed(self.__class__.__mro__):
             try:
                 fn = cls.__dict__['add_args']
@@ -57,7 +58,8 @@ class WESTTool(WESTToolComponent):
                 fn(self,parser)
     
     def process_all_args(self, args):
-        '''Process arguments for all components from which this class derives.'''
+        '''Process arguments for all components from which this class derives,
+        starting with the class highest up the inheritance chain (most distant ancestor).'''
         for cls in reversed(self.__class__.__mro__):
             try:
                 fn = cls.__dict__['process_args']
