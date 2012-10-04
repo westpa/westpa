@@ -122,6 +122,7 @@ class _WESTRC:
                                                    'formatter': 'standard'}},
                           'loggers': {'west': {'handlers': ['console'], 'propagate': False},
                                       'oldtools': {'handlers': ['console'], 'propagate': False},
+                                      'westtools': {'handlers': ['console'], 'propagate': False},
                                       'westext': {'handlers': ['console'], 'propagate': False},
                                       'work_managers': {'handlers': ['console'], 'propagate': False},
                                       'multiprocessing': {'handlers': ['console'], 'propagate': False}},

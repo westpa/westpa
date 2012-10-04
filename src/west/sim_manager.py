@@ -546,7 +546,7 @@ class WESimManager:
             pickled, hashed = self.we_driver.bin_mapper.pickle_and_hash()
         except PickleError:
             pickled = hashed = ''
-        self.data_manager.save_iter_binning(self.n_iter, hashed, pickled, self.we_driver.bin_target_counts)
+        #self.data_manager.save_iter_binning(self.n_iter, hashed, pickled, self.we_driver.bin_target_counts)
         self.bin_mapper_hash = hashed
         self.we_driver.run_we(self.next_iter_avail_istates)
         
@@ -556,6 +556,9 @@ class WESimManager:
             self.data_manager.update_initial_states(self.we_driver.used_initial_states)
             
         self.data_manager.update_segments(self.n_iter,self.segments.values())
+        
+        self.data_manager.require_iter_group(self.n_iter+1)
+        self.data_manager.save_iter_binning(self.n_iter+1, hashed, pickled, self.we_driver.bin_target_counts)
         
     def prepare_new_iteration(self):
         '''Commit data for the coming iteration to the HDF5 file.'''

@@ -189,7 +189,7 @@ class WESTDataManager:
     
     def flushing_lock(self):
         return flushing_lock(self.lock, self.we_h5file)
-        
+    
     def __init__(self):        
         # Backing store filenames; setting these attributes is the only way to specify that
         # a given file should be opened
@@ -223,6 +223,10 @@ class WESTDataManager:
         # A few functions for extracting vectors of attributes from vectors of segments
         self._attrgetters = dict((key, vattrgetter(key)) for key in 
                                  ('seg_id', 'status', 'endpoint_type', 'weight', 'walltime', 'cputime'))
+    
+    @property
+    def closed(self):
+        return (self.we_h5file is None)
     
     def iter_group_name(self, n_iter, absolute=True):
         if absolute:
@@ -533,7 +537,7 @@ class WESTDataManager:
             for i, initial_state in enumerate(initial_states):
                 index_entries[i]['iter_created'] = initial_state.iter_created
                 index_entries[i]['iter_used'] = initial_state.iter_used or InitialState.ISTATE_UNUSED
-                index_entries[i]['basis_state_id'] = initial_state.basis_state_id or -1
+                index_entries[i]['basis_state_id'] = initial_state.basis_state_id if initial_state.basis_state_id is not None else -1
                 index_entries[i]['istate_type'] = initial_state.istate_type or InitialState.ISTATE_TYPE_UNSET
                 index_entries[i]['istate_status'] = initial_state.istate_status or InitialState.ISTATE_STATUS_PENDING
                 pcoord_vals[i] = initial_state.pcoord
@@ -641,11 +645,7 @@ class WESTDataManager:
                     del iter_group[linkname]
                 except KeyError:
                     pass
-            
-            # Redundant, but this saves us having to parse the name to find the iteration number
-            # if we iterate over all the groups
-            iter_group.attrs['n_iter'] = n_iter
-            
+                        
             # everything indexed by [particle] goes in an index table
             seg_index_table_ds = iter_group.create_dataset('seg_index', shape=(n_particles,),
                                                            dtype=seg_index_dtype)
@@ -1134,7 +1134,7 @@ class WESTDataManager:
             # these will raise KeyError if the group doesn't exist, which also means
             # that bin data is not available, so no special treatment here
             try:
-                binning_group = self.we_h5file['/binning']
+                binning_group = self.we_h5file['/bin_topologies']
                 index = binning_group['index']
             except KeyError:
                 raise KeyError('hash {} not found'.format(hashval))
@@ -1167,7 +1167,7 @@ class WESTDataManager:
             # these will raise KeyError if the group doesn't exist, which also means
             # that bin data is not available, so no special treatment here
             try:
-                binning_group = self.we_h5file['/binning']
+                binning_group = self.we_h5file['/bin_topologies']
                 index = binning_group['index']
             except KeyError:
                 raise KeyError('hash {} not found'.format(hashval))
@@ -1202,7 +1202,7 @@ class WESTDataManager:
         
         # At this point, we have a valid pickle and know it's not stored
         with self.lock:
-            binning_group = self.we_h5file.require_group('/binning')
+            binning_group = self.we_h5file.require_group('/bin_topologies')
             
             try:
                 index = binning_group['index']
@@ -1227,7 +1227,7 @@ class WESTDataManager:
             return n_entries-1
         
     def save_iter_binning(self, n_iter, hashval, pickled_mapper, target_counts):
-        '''Save information about the binning used in WE at the end of iteration n_iter to HDF5.'''
+        '''Save information about the binning used to generate segments for iteration n_iter.'''
                 
         with self.lock:
             iter_group = self.get_iter_group(n_iter)
@@ -1240,7 +1240,7 @@ class WESTDataManager:
             iter_group['bin_target_counts'] = target_counts
             
             if hashval and pickled_mapper:
-                imapper = self.save_bin_mapper(hashval, pickled_mapper)
+                self.save_bin_mapper(hashval, pickled_mapper)
                 iter_group.attrs['binhash'] = hashval
             else:
                 iter_group.attrs['binhash'] = ''                
