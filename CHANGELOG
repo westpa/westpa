@@ -1,3 +1,11 @@
+2012-10-05 -- Matt Zwier <mczwier@gmail.com>
+ * Added new west_tools repository as another subrepo (under lib/).
+ * Created w_fork, a tool to create a new WEST H5 file from an existing one.
+ * Created w_bins, a tool to display information about binning, or to rebin
+   the current iteration (useful for running on the output of w_fork, which
+   would otherwise require one iteration of propagation before new bin
+   topologies would take effect.)
+
 2012-09-27 -- Matt Zwier <mczwier@gmail.com>
  * Everything has been renamed from WEMD to WEST (in any variation of case).
  * Work manager is now a separate project (wwmgr), included as a Mercurial
