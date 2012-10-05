@@ -6,6 +6,7 @@ syntax: glob
 *~
 *.swp
 *.swo
+*.so
 .DS_Store
 
 syntax: regexp
