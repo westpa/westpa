@@ -7,7 +7,6 @@ import types
 
 import west
 from west.util import extloader
-from west.util.miscfn import vgetattr
 from westext.stringmethod import WESTStringMethod, DefaultStringMethod
 from west.binning import VoronoiBinMapper
 
@@ -16,8 +15,8 @@ class StringDriver(object):
     def __init__(self, sim_manager):
         super(StringDriver, self).__init__()
 
-        if sim_manager.work_manager.mode != sim_manager.work_manager.MODE_MASTER:
-            return
+        if not sim_manager.work_manager.is_master:
+                return
 
         self.sim_manager = sim_manager
         self.data_manager = sim_manager.data_manager
@@ -38,10 +37,10 @@ class StringDriver(object):
         # Load method to calculate average position in a bin
         # If the method is defined in an external module, correctly bind it
         ap = self.get_avgpos_method()
-        if hasattr(ap,'im_class'):
+        if hasattr(ap, 'im_class'):
             self.get_avgpos = ap
         else:
-            self.get_avgpos = types.MethodType(ap,self)
+            self.get_avgpos = types.MethodType(ap, self)
 
         # Get initial set of string centers
         centers = self.get_initial_centers()
@@ -63,7 +62,7 @@ class StringDriver(object):
             raise
 
         # Update the Region Set
-        self.update_regionset()
+        self.update_bin_mapper()
 
         # Register callback
         sim_manager.register_callback(sim_manager.prepare_new_iteration, self.prepare_new_iteration, self.priority)
@@ -76,13 +75,13 @@ class StringDriver(object):
         west.rc.pstatus('write average positions: {}\n'.format(self.write_avg_pos))
         west.rc.pstatus('do update: {}\n'.format(self.do_update))
         west.rc.pstatus('initialize from WE data: {}\n'.format(self.init_from_data))
-        west.rc.pstatus('----------------------------------------\n') 
+        west.rc.pstatus('----------------------------------------\n')
         west.rc.pflush()
 
     def dfunc(self):
         raise NotImplementedError
 
-    def get_avgpos(self,n_iter):
+    def get_avgpos(self, n_iter):
         raise NotImplementedError
 
     def get_dfunc_method(self):
@@ -121,44 +120,42 @@ class StringDriver(object):
 
     def get_initial_centers(self):
         self.data_manager.open_backing()
-        
+
         with self.data_manager.lock:
             n_iter = max(self.data_manager.current_iteration - 1, 1)
             iter_group = self.data_manager.get_iter_group(n_iter)
 
             # First attempt to initialize string from data rather than system
             centers = None
-            if self.init_from_data and 'stringmethod' in iter_group:
+            if self.init_from_data:
                 log.info('Attempting to initialize stringmethod from data')
 
                 try:
-                    centers = iter_group['stringmethod']['centers'][...]
+                    binhash = iter_group.attrs['binhash']
+                    bin_mapper = self.data_manager.get_bin_mapper(binhash)
+
+                    centers = bin_mapper.centers
+
                 except:
                     log.warning('Initializing string centers from data failed; Using definition in system instead.')
-                    centers = self.system.curr_region_set.centers
+                    centers = self.system.bin_mapper.centers
             else:
                 log.info('Initializing string centers from system definition')
-                centers = self.system.curr_region_set.centers
+                centers = self.system.bin_mapper.centers
 
         self.data_manager.close_backing()
 
         return centers
 
-    def update_regionset(self):
-        '''Update the Region Set using the current string'''
+    def update_bin_mapper(self):
+        '''Update the bin_mapper using the current string'''
 
-        west.rc.pstatus('westext.stringmethod: Updating bin definitions\n')
+        west.rc.pstatus('westext.stringmethod: Updating bin mapper\n')
         west.rc.pflush()
 
-        bins = self.system.curr_region_set.get_all_bins()
-        target_counts = vgetattr('target_count', bins,np.int)
-
         try:
-            self.system.curr_region_set = VoronoiRegionSet(self.dfunc,self.strings.centers)
-            bins = self.system.curr_region_set.get_all_bins()
-            for bi,bin in enumerate(bins):
-                bin.target_count = target_counts[bi]
-        except (ValueError,TypeError) as e:
+            self.system.bin_mapper = VoronoiBinMapper(self.dfunc, self.strings.centers)
+        except (ValueError, TypeError) as e:
             log.error('StringDriver Error: Failed updating region set: {}'.format(e))
             raise
 
@@ -166,11 +163,11 @@ class StringDriver(object):
         '''Get average position of replicas in each bin as of n_iter for the
         the user selected update interval'''
 
-        ncenters = self.system.curr_region_set.ncenters
+        nbins = self.system.bin_mapper.nbins
         ndim = self.system.pcoord_ndim
 
-        avg_pos = np.zeros((ncenters, ndim), dtype=self.system.pcoord_dtype)
-        sum_bin_weight = np.zeros((ncenters,), dtype=self.system.pcoord_dtype)
+        avg_pos = np.zeros((nbins, ndim), dtype=self.system.pcoord_dtype)
+        sum_bin_weight = np.zeros((nbins,), dtype=self.system.pcoord_dtype)
 
         start_iter = max(n_iter - min(self.windowsize, n_iter), 2)
         stop_iter = n_iter + 1
@@ -181,7 +178,7 @@ class StringDriver(object):
                 seg_index = iter_group['seg_index'][...]
 
                 pcoords = iter_group['pcoord'][:,-1,:]  # Only read final point
-                bin_indices = self.system.curr_region_set.map_to_all_indices(pcoords)
+                bin_indices = self.system.bin_mapper.assign(pcoords)
                 weights = seg_index['weight']
 
                 pcoord_w = pcoords * weights[:,np.newaxis]
@@ -190,13 +187,13 @@ class StringDriver(object):
                 for indx in uniq_indices:
                     avg_pos[indx,:] += pcoord_w[bin_indices == indx].sum(axis=0)
 
-                sum_bin_weight += np.bincount(bin_indices.astype(np.int),weights=weights,minlength=ncenters)
+                sum_bin_weight += np.bincount(bin_indices.astype(np.int), weights=weights, minlength=nbins)
 
         # Some bins might have zero samples so exclude to avoid divide by zero
         occ_ind = np.nonzero(sum_bin_weight)
         avg_pos[occ_ind] /= sum_bin_weight[occ_ind][:,np.newaxis]
 
-        return avg_pos,sum_bin_weight
+        return avg_pos, sum_bin_weight
 
     def prepare_new_iteration(self):
 
@@ -205,23 +202,16 @@ class StringDriver(object):
         with self.data_manager.lock:
             iter_group = self.data_manager.get_iter_group(n_iter)
 
-            ncenters = self.system.curr_region_set.ncenters
-            ndim = self.system.pcoord_ndim
-
             try:
                 del iter_group['stringmethod']
             except KeyError:
                 pass
 
-            sm_iter_group = iter_group.create_group('stringmethod')
-            centers_ds = sm_iter_group.create_dataset('centers',shape=(ncenters,ndim),dtype=self.system.pcoord_dtype)
-            sm_global_group = self.data_manager.h5file.require_group('stringmethod')
+            sm_global_group = self.data_manager.we_h5file.require_group('stringmethod')
             last_update = long(sm_global_group.attrs.get('last_update', 0))
 
         if n_iter - last_update < self.update_interval or n_iter < self.initial_update or not self.do_update:
             log.debug('Not updating string this iteration')
-            with self.data_manager.lock:
-                centers_ds[...] = self.strings.centers
             return
         else:
             log.debug('Updating string - n_iter: {}'.format(n_iter))
@@ -230,25 +220,17 @@ class StringDriver(object):
         west.rc.pstatus('westext.stringmethod: Calculating average position in string images\n')
         west.rc.pflush()
 
-        with self.data_manager.lock:
-            avg_pos,sum_bin_weight = self.get_avgpos(n_iter)
-
-            if self.write_avg_pos:
-                avg_pos_ds = sm_iter_group.create_dataset('avgpos',shape=(ncenters,ndim),dtype=np.float64)
-                avg_pos_ds[...] = avg_pos
+        avg_pos, sum_bin_weight = self.get_avgpos(n_iter)
 
         west.rc.pstatus('westext.stringmethod: Updating string\n')
         west.rc.pflush()
 
-        self.strings.update_string_centers(avg_pos,sum_bin_weight)
+        self.strings.update_string_centers(avg_pos, sum_bin_weight)
 
         west.rc.pstatus('westext.stringmethod: String lengths: {}\n'.format(self.strings.length))
         west.rc.pflush()
 
-        with self.data_manager.lock:
-            centers_ds[...] = self.strings.centers
-
         # Update the bin definitions
-        self.update_regionset()
+        self.update_bin_mapper()
 
         sm_global_group.attrs['last_update'] = n_iter

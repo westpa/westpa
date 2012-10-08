@@ -283,7 +283,7 @@ class VoronoiBinMapper(BinMapper):
         elif len(output) != len(coords):
             raise TypeError('output has different length than coords')
 
-        apply_down_argmin_across(self.dfunc, (self.centers,) + self.dfargs, self.dfkwargs, self.ndim,
+        apply_down_argmin_across(self.dfunc, (self.centers,) + self.dfargs, self.dfkwargs, self.nbins,
                                  coords, mask, output)
         
         return output
@@ -397,19 +397,3 @@ class RecursiveBinMapper(BinMapper):
             mapper.assign(coords, mask&rmasks[rindex], output)
                 
         return output
-    
-              
-                    
-            
-        
-            
-            
-
-        
-    
-        
-    
-        
-        
-    
-

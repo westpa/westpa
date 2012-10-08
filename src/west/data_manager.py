@@ -1151,39 +1151,45 @@ class WESTDataManager:
                         return istart+i
             
             raise KeyError('hash {} not found'.format(hashval))
-        
-            
-    def get_bin_mapper(self, hashval):
+
+    def get_bin_mapper(self,  hashval):
         '''Look up the given hash value in the binning table, unpickling and returning the corresponding
         bin mapper if available, or raising KeyError if not.'''
-        
+
         # Convert to a hex digest if we need to
         try:
-            hashval = hashval.hexdigest()
+            hashval = hashval.hexdigets()
         except AttributeError:
             pass
-        
+
         with self.lock:
             # these will raise KeyError if the group doesn't exist, which also means
             # that bin data is not available, so no special treatment here
             try:
                 binning_group = self.we_h5file['/bin_topologies']
                 index = binning_group['index']
+                pkl = binning_group['pickles']
             except KeyError:
-                raise KeyError('hash {} not found'.format(hashval))
+                raise KeyError('hash {} not found. Could not retrieve binning group'.format(hashval))
+
             n_entries = len(index)
             if n_entries == 0:
-                raise KeyError('hash {} not found'.format(hashval))
-            
+                raise KeyError('hash {} not found. No entries in index'.format(hashval))
+
             chunksize = self.table_scan_chunksize
-            for istart in xrange(0,n_entries,chunksize):
-                chunk = index[istart:min(istart+chunksize,n_entries)]
+
+            for istart in xrange(0, n_entries, chunksize):
+                chunk = index[istart:min(istart+chunksize, n_entries)]
                 for i in xrange(len(chunk)):
                     if chunk[i]['hash'] == hashval:
-                        return pickle.loads(binning_group['pickles'][istart+i,0:chunk[i]['pickle_len']])
-            
-            raise KeyError('hash {} not found'.format(hashval))
-                        
+                        pkldat = bytes(pkl[istart+i, 0:chunk[i]['pickle_len']].data)
+                        mapper = pickle.loads(pkldat)
+                        log.debug('loaded {!r} from {!r}'.format(mapper, binning_group))
+                        log.debug('hash value {!r}'.format(hashval))
+                        return mapper
+
+        raise KeyError('hash {} not found'.format(hashval))
+
     def save_bin_mapper(self, hashval, pickle_data):
         '''Store the given mapper in the table of saved mappers. If the mapper cannot be stored,
         PickleError will be raised. Returns the index in the bin data tables where the mapper is stored.'''
