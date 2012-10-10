@@ -1158,7 +1158,7 @@ class WESTDataManager:
 
         # Convert to a hex digest if we need to
         try:
-            hashval = hashval.hexdigets()
+            hashval = hashval.hexdigest()
         except AttributeError:
             pass
 
@@ -1188,7 +1188,7 @@ class WESTDataManager:
                         log.debug('hash value {!r}'.format(hashval))
                         return mapper
 
-        raise KeyError('hash {} not found'.format(hashval))
+            raise KeyError('hash {} not found'.format(hashval))
 
     def save_bin_mapper(self, hashval, pickle_data):
         '''Store the given mapper in the table of saved mappers. If the mapper cannot be stored,
