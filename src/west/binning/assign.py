@@ -324,9 +324,13 @@ class RecursiveBinMapper(BinMapper):
         if n_not_recursed == self.nbins:
             self._output_map = numpy.arange(self._start_index, self._start_index + self.nbins, dtype=index_dtype)
         elif n_not_recursed > 0:
+            # This looks like uninitialized access, but self._output_map is always set during __init__
+            # (by self.start_index = 0, or whatever value was passed in), so this modifies the existing
+            # set chosen above
             self._output_map[not_recursed] = numpy.arange(self._start_index, self._start_index + n_not_recursed,
                                                           dtype=index_dtype)
         else:
+            # No un-replaced bins
             self._output_map = None
 
         n_own_bins = self.base_mapper.nbins - self._recursion_map.sum()
@@ -389,8 +393,10 @@ class RecursiveBinMapper(BinMapper):
             rmasks.append(omask)
         
         # remap output from our (base) mapper
+        # omap may be None if every bin has a recursive mapper in it
         omap = self._output_map
-        output_map(output, omap, mask & ~mmask)
+        if omap is not None:
+            output_map(output, omap, mask & ~mmask)
         
         # do any recursive assignments necessary
         for (rindex, mapper) in self._recursion_targets.iteritems():
