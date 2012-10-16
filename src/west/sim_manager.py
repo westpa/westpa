@@ -480,6 +480,7 @@ class WESimManager:
                 
                 self.n_recycled = self.we_driver.assign(incoming)
                 new_istate_futures = self.get_istate_futures()
+                istate_gen_futures.update(new_istate_futures)
                 futures.update(new_istate_futures)
                 
                 with self.data_manager.flushing_lock():                        
