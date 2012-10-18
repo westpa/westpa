@@ -9,7 +9,6 @@ from itertools import izip
 
 import west
 from west import Segment
-from west.binning import Bin
 
 class ConsistencyError(RuntimeError):
     pass
@@ -31,7 +30,6 @@ class NewWeightEntry:
         self.new_init_pcoord = numpy.asarray(new_init_pcoord) if new_init_pcoord is not None else None
         self.target_state_id = target_state_id        
         self.initial_state_id = initial_state_id
-                
 
 class WEDriver:
     '''A class implemented Huber & Kim's weighted ensemble algorithm over Segment objects.
@@ -42,7 +40,7 @@ class WEDriver:
     The workflow is as follows:
     
       1) Call `new_iteration()` every new iteration, providing any recycling targets that are
-         in force.
+         in force and any available initial states for recycling.
       2) Call `assign()` to assign segments to bins based on their initial and end points. This
          returns the number of walkers that were recycled.
       3) Call `run_we()`, optionally providing a set of initial states that will be used to
@@ -100,6 +98,7 @@ class WEDriver:
         
     @property
     def next_iter_segments(self):
+        '''Newly-created segments for the next iteration'''
         if self.next_iter_binning is None:
             raise RuntimeError('cannot access next iteration segments before running WE')
         
@@ -109,12 +108,14 @@ class WEDriver:
                 
     @property
     def current_iter_segments(self):
+        '''Segments for the current iteration'''
         for _bin in self.final_binning:
             for walker in _bin:
                 yield walker
                 
     @property
     def next_iter_assignments(self):
+        '''Bin assignments (indices) for initial points of next iteration.'''
         if self.next_iter_binning is None:
             raise RuntimeError('cannot access next iteration segments before running WE')
         
@@ -124,18 +125,34 @@ class WEDriver:
                 
     @property
     def current_iter_assignments(self):
+        '''Bin assignments (indices) for endpoints of current iteration.'''
         for ibin,_bin in enumerate(self.final_binning):
             for walker in _bin:
                 yield ibin
                 
     @property
     def recycling_segments(self):
+        '''Segments designated for recycling'''
         if len(self.target_states):
-            for target_bin in self.next_iter_binning[self.target_state_mask]:
+            for target_bin in self.final_binning[self.target_state_mask]:
                 for segment in target_bin:
                     yield segment
         else:
             return
+    
+    @property
+    def n_recycled_segs(self):
+        '''Number of segments recycled this iteration'''
+        count = 0
+        for _segment in self.recycling_segments:
+            count += 1
+        return count
+    
+    @property
+    def n_istates_needed(self):
+        '''Number of initial states needed to support recycling for this iteration'''
+        n_istates_avail = len(self.avail_initial_states)
+        return max(0, self.n_recycled_segs - n_istates_avail)
                 
     def clear(self):
         '''Explicitly delete all Segment-related state.'''
@@ -152,21 +169,25 @@ class WEDriver:
         self.used_initial_states = None
         self.new_weights = None
         
-    def new_iteration(self, target_states=None, new_weights=None, bin_mapper=None, bin_target_counts=None):
-        '''Prepare for a new iteration. ``initial_states``
-        is a sequence of InitialState objects for *available* (i.e. unused) 
-        initial states, to be used if any segments result in recycling walkers.
-        Target states which generate recycling events are specified in ``target_states``,
-        a sequence of TargetState objects. Both ``initial_states`` and ``target_states``
-        may be None or empty for equilibrium simulations.
+    def new_iteration(self, initial_states=None, target_states=None, new_weights=None, bin_mapper=None, bin_target_counts=None):
+        '''Prepare for a new iteration. ``initial_states`` is a sequence of all InitialState objects valid
+        for use in to generating new segments for the *next* iteration (after the one being begun with the call to
+        new_iteration); that is, these are states available to recycle to. Target states which generate recycling events
+        are specified in ``target_states``, a sequence of TargetState objects. Both ``initial_states`` 
+        and ``target_states`` may be empty as required.
         
-        The optional ``new_weight_log`` is a sequence of NewWeightEntry objects which will 
-        be used to construct the initial flux matrix.        
+        The optional ``new_weights`` is a sequence of NewWeightEntry objects which will 
+        be used to construct the initial flux matrix.
+        
+        The given ``bin_mapper`` will be used for assignment, and ``bin_target_counts`` used for splitting/merging
+        target counts; each will be obtained from the system object if omitted or None.        
         '''
         
         self.clear()
         
         new_weights = new_weights or []
+        if initial_states is None:
+            initial_states = initial_states or []
         
         # update mapper, in case it has changed on the system driver and has not been overridden
         if bin_mapper is not None:
@@ -181,7 +202,7 @@ class WEDriver:
         nbins = self.bin_mapper.nbins                
         log.debug('mapper is {!r}, handling {:d} bins'.format(self.bin_mapper, nbins))
         
-        self.target_states = numpy.array(target_states if target_states else [])
+        self.target_states = numpy.array(target_states if target_states is not None else [])
         self.target_state_mask = numpy.zeros((nbins,), numpy.bool_)
         
         self.initial_binning    = self.bin_mapper.construct_bins()
@@ -217,12 +238,29 @@ class WEDriver:
                 transition_matrix[i,j] += 1
                 
         self.recycling_log = None
+        
+        self.avail_initial_states = {state.state_id: state for state in initial_states}
+        self.used_initial_states = {}
+        
+    def add_initial_states(self, initial_states):
+        '''Add newly-prepared initial states to the pool available for recycling.'''
+        for state in initial_states:
+            self.avail_initial_states[state.state_id] = state
+            
+    @property
+    def all_initial_states(self):
+        '''Return an iterator over all initial states (available or used)'''
+        for state in self.avail_initial_states.itervalues():
+            yield state
+        for state in self.used_initial_states.itervalues():
+            yield state
+
                         
     def assign(self, segments, initializing=False):
-        '''Assign segments to initial and final bins.
-        Returns the number of initial states that must be generated.
-        If ``initializing`` is True, then the "final" bin assignments will be identical to the initial bin
-        assignments, a condition required for seeding a new iteration from pre-existing segments.'''
+        '''Assign segments to initial and final bins, and update the (internal) lists of used and available
+        initial states. If ``initializing`` is True, then the "final" bin assignments will
+        be identical to the initial bin assignments, a condition required for seeding a new iteration from
+        pre-existing segments.'''
 
         # collect initial and final coordinates into one place        
         all_pcoords = numpy.empty((2,len(segments), self.system.pcoord_ndim), dtype=self.system.pcoord_dtype)
@@ -249,26 +287,33 @@ class WEDriver:
             transition_matrix[iidx,fidx] += 1
             
         n_recycled_total = sum(len(_bin) for _bin in self.final_binning[self.target_state_mask])
-        return n_recycled_total
+        n_new_states = n_recycled_total - len(self.avail_initial_states)
+        
+        log.debug('{} walkers scheduled for recycling, {} initial states available'.format(n_recycled_total, 
+                                                                                           len(self.avail_initial_states)))
+        
+        if n_new_states > 0:
+            return n_new_states
+        else:
+            return 0
     
-    def _recycle_walkers(self, initial_states):
+    def _recycle_walkers(self):
         '''Recycle walkers'''
         
-        # recall that every walker we deal with is already a new segment, so to recycle, we actually move
-        # the appropriate Segment from the target bin to the initial state bin
+        # recall that every walker we deal with is already a new segment in the subsequent iteration,
+        # so to recycle, we actually move the appropriate Segment from the target bin to the initial state bin
         
         self.new_weights = []
-        self._avail_initial_states = {state.state_id: state for state in initial_states or []}
-        self._used_initial_states = {}
         
         n_recycled_walkers = len(list(self.recycling_segments))
         if not n_recycled_walkers:
             return
-        elif n_recycled_walkers > len(initial_states):
+        elif n_recycled_walkers > len(self.avail_initial_states):
             raise ConsistencyError('need {} initial states for recycling, but only {} present'
-                                   .format(n_recycled_walkers,len(initial_states)))
+                                   .format(n_recycled_walkers,len(self.avail_initial_states)))
 
-        istateiter = iter(initial_states)
+        used_istate_ids = set()
+        istateiter = iter(self.avail_initial_states.itervalues())
         for (itarget, target_bin) in enumerate(self.next_iter_binning[self.target_state_mask]):
             for segment in set(target_bin):
                 target_state = self.target_states[itarget]
@@ -277,7 +322,7 @@ class WEDriver:
                     log.debug('recycling {!r} to initial state {!r}'.format(segment, initial_state))
                 
                 istate_assignment = self.bin_mapper.assign([initial_state.pcoord])[0]
-                parent = self.parent_map[segment.parent_id]
+                parent = self._parent_map[segment.parent_id]
                 parent.endpoint_type = Segment.SEG_ENDPOINT_RECYCLED
                 segment.parent_id = -(initial_state.state_id+1)
                 segment.prev_init_pcoord = parent.pcoord[0]
@@ -293,13 +338,18 @@ class WEDriver:
 
 
                 self.next_iter_binning[istate_assignment].add(segment)
-                self._used_initial_states[initial_state.state_id] = initial_state
+                
                 initial_state.iter_used = segment.n_iter
                 log.debug('marking initial state {!r} as used'.format(initial_state))
-                del self._avail_initial_states[initial_state.state_id]
-                target_bin.remove(segment)                
+                used_istate_ids.add(initial_state.state_id)
+                target_bin.remove(segment)
                  
             assert len(target_bin) == 0
+            
+        # Transfer newly-assigned states from "available" to "used"
+        for state_id in used_istate_ids:
+            self.used_initial_states[state_id] = self.avail_initial_states.pop(state_id)
+            
                             
     def _split_walker(self, segment, m, bin):
         '''Split the walker ``segment`` (in ``bin``) into ``m`` walkers'''
@@ -361,15 +411,16 @@ class WEDriver:
             if segment is gparent_seg:
                 # we must ignore initial states here...
                 if segment.parent_id >= 0:
-                    self.parent_map[segment.parent_id].endpoint_type = Segment.SEG_ENDPOINT_CONTINUES
+                    self._parent_map[segment.parent_id].endpoint_type = Segment.SEG_ENDPOINT_CONTINUES
             else:
-                # and "unuse" an initial state here
+                # and "unuse" an initial state here (recall that initial states are in 1:1 correspondence
+                # with the segments they initiate)
                 if segment.parent_id >= 0:
-                    self.parent_map[segment.parent_id].endpoint_type = Segment.SEG_ENDPOINT_MERGED
+                    self._parent_map[segment.parent_id].endpoint_type = Segment.SEG_ENDPOINT_MERGED
                 else:
-                    initial_state = self._used_initial_states.pop(segment.initial_state_id)
+                    initial_state = self.used_initial_states.pop(segment.initial_state_id)
                     log.debug('freeing initial state {!r} for future use (merged)'.format(initial_state))
-                    self._avail_initial_states[initial_state.state_id] = initial_state
+                    self.avail_initial_states[initial_state.state_id] = initial_state
                     initial_state.iter_used = None
 
         if log.isEnabledFor(logging.DEBUG):
@@ -445,70 +496,16 @@ class WEDriver:
         for segment in self.next_iter_segments:
             if segment.weight == 0:
                 raise ConsistencyError('segment {!r} has weight of zero')
-                                    
-    def run_we(self, initial_states=None,rebin=False,parent_segments=None):
-        '''Run weighted ensemble recycling and split/merge on the segments previously assigned to
-        bins using ``assign_segments``. Enough unused initial states must be present in 
-        ``self.initial_states`` for every recycled walker to be assigned an initial state.
-        After this function completes, ``self.flux_matrix`` contains a valid flux matrix for this
-        iteration (including any contributions from recycling from the previous iteration), and
-        ``self.next_iter_segments`` contains a list of segments ready for the next iteration,
-        with appropriate values set for weight, endpoint type, parent walkers, and so on.
-        
-        If the optional ``rebin`` is true, then it is assumed that an iteration is being
-        reconstructed by rebinning its initial points; this requires that the parent
-        iteration's segments ``parent_segments`` be available to update endpoint types.
-        '''
-        
-        self.parent_map = {}
+            
+    def _prep_we(self):
+        '''Prepare internal state for WE recycle/split/merge.'''
+        self._parent_map = {}
         self.next_iter_binning = self.bin_mapper.construct_bins()
 
-        # Create new segments for the next iteration        
-        # We assume that everything is going to continue without being touched by recycling or WE, and
-        # adjust later
-        new_pcoord_array = self.system.new_pcoord_array
-        n_iter = None
-        
-        if rebin:
-            assert parent_segments is not None
-            self.parent_map = {segment.seg_id: segment for segment in parent_segments}
-        
-        for ibin, _bin in enumerate(self.final_binning):
-            for segment in _bin:
-                if n_iter is None:
-                    n_iter = segment.n_iter
-                else:
-                    assert segment.n_iter == n_iter
-                    
-                if rebin:
-                    new_segment = Segment(n_iter=segment.n_iter,
-                                          parent_id=segment.parent_id,
-                                          weight=segment.weight,
-                                          wtg_parent_ids=set(segment.wtg_parent_ids or []),
-                                          pcoord=new_pcoord_array(),
-                                          status=Segment.SEG_STATUS_PREPARED)
-                    new_segment.pcoord[0] = segment.pcoord[0]
-                    self.next_iter_binning[ibin].add(new_segment)
-                    
-                else:                    
-                    segment.endpoint_type = Segment.SEG_ENDPOINT_CONTINUES
-                    new_segment = Segment(n_iter=segment.n_iter+1,
-                                          parent_id=segment.seg_id,
-                                          weight=segment.weight,
-                                          wtg_parent_ids=[segment.seg_id],
-                                          pcoord=new_pcoord_array(),
-                                          status=Segment.SEG_STATUS_PREPARED)
-                    new_segment.pcoord[0] = segment.pcoord[-1]
-                    self.next_iter_binning[ibin].add(new_segment)
-                    
-                    # Store a link to the parent segment, so we can update its endpoint status as we need,
-                    # based on its ID
-                    self.parent_map[segment.seg_id] = segment
-                                
-                                
-        
-        # Then, recycle walkers that exist in target states 
-        self._recycle_walkers(initial_states)
+    def _run_we(self):
+        '''Run recycle/split/merge. Do not call this function directly; instead, use
+        populate_initial(), rebin_current(), or construct_next().'''
+        self._recycle_walkers()
         
         # sanity check
         self._check_pre()
@@ -527,13 +524,151 @@ class WEDriver:
         self._check_post()
         
         self.new_weights = self.new_weights or []
-        self.used_initial_states = set(self._used_initial_states.itervalues())
-        self.avail_initial_states = set(self._avail_initial_states.itervalues())
         
         log.debug('used initial states: {!r}'.format(self.used_initial_states))
         log.debug('available initial states: {!r}'.format(self.avail_initial_states))
 
+            
+    def populate_initial(self, initial_states, weights, system=None):
+        '''Create walkers for a new weighted ensemble simulation.
         
+        One segment is created for each provided initial state, then binned and split/merged
+        as necessary. After this function is called, next_iter_segments will yield the new
+        segments to create, used_initial_states will contain data about which of the
+        provided initial states were used, and avail_initial_states will contain data about
+        which initial states were unused (because their corresponding walkers were merged
+        out of existence).
+        '''
+
+        # This has to be down here to avoid an import race
+        from west.data_manager import weight_dtype
+        EPS = numpy.finfo(weight_dtype).eps                
+                
+        system = system or west.rc.get_system_driver()
+        self.new_iteration(initial_states=[], target_states=[],
+                           bin_mapper=system.bin_mapper, bin_target_counts=system.bin_target_counts)
+        
+        # Create dummy segments
+        segments = []
+        for (seg_id, (initial_state,weight)) in enumerate(izip(initial_states,weights)):
+            dummy_segment = Segment(n_iter=0,
+                                    seg_id=seg_id,
+                                    parent_id=-(initial_state.state_id+1),
+                                    weight=weight,
+                                    wtg_parent_ids=set([-(initial_state.state_id+1)]),
+                                    pcoord=system.new_pcoord_array(),
+                                    status=Segment.SEG_STATUS_PREPARED)
+            dummy_segment.pcoord[[0,-1]] = initial_state.pcoord
+            segments.append(dummy_segment)
+        
+        # Adjust weights, if necessary
+        tprob = sum(weights)
+        if abs(1.0 - tprob) > len(weights) * EPS:
+            pscale = 1.0/tprob
+            log.warning('Weights of initial segments do not sum to unity; scaling by {:g}'.format(pscale))
+            for segment in segments:
+                segment.weight *= pscale
+        
+        self.assign(segments, initializing=True)
+        self.construct_next()
+        
+        # We now have properly-constructed initial segments, except for parent information,
+        # and we need to  mark initial states as used or unused
+        istates_by_id = {state.state_id: state for state in initial_states}
+        dummysegs_by_id = self._parent_map
+        self.avail_initial_states = dict(istates_by_id)
+        self.used_initial_states = {}
+        for segment in self.next_iter_segments:
+            segment.parent_id = dummysegs_by_id[segment.parent_id].parent_id
+            segment.wtg_parent_ids=set([segment.parent_id])
+            assert segment.initpoint_type == Segment.SEG_INITPOINT_NEWTRAJ
+            istate = istates_by_id[segment.initial_state_id]
+            try:
+                self.used_initial_states[istate.state_id] = self.avail_initial_states.pop(istate.state_id)
+            except KeyError:
+                # Shared by more than one segment, and already marked as used
+                pass
+            
+        for used_istate in self.used_initial_states.itervalues():
+            used_istate.iter_used = 1
+                    
+    def rebin_current(self, parent_segments):
+        '''Reconstruct walkers for the current iteration based on (presumably) new binning.
+        The previous iteration's segments must be provided (as ``parent_segments``) in order
+        to update endpoint types appropriately.'''
+
+        self._prep_we()
+        self._parent_map = {segment.seg_id: segment for segment in parent_segments}
+        
+        # Create new segments for the next iteration        
+        # We assume that everything is going to continue without being touched by recycling or WE, and
+        # adjust later
+        new_pcoord_array = self.system.new_pcoord_array
+        n_iter = None
+                
+        for ibin, _bin in enumerate(self.final_binning):
+            for segment in _bin:
+                if n_iter is None:
+                    n_iter = segment.n_iter
+                else:
+                    assert segment.n_iter == n_iter
+                    
+                new_segment = Segment(n_iter=segment.n_iter,
+                                      parent_id=segment.parent_id,
+                                      weight=segment.weight,
+                                      wtg_parent_ids=set(segment.wtg_parent_ids or []),
+                                      pcoord=new_pcoord_array(),
+                                      status=Segment.SEG_STATUS_PREPARED)
+                new_segment.pcoord[0] = segment.pcoord[0]
+                self.next_iter_binning[ibin].add(new_segment)
+                
+        self._run_we()
+                                    
+    def construct_next(self):
+        '''Construct walkers for the next iteration, by running weighted ensemble recycling
+        and bin/split/merge on the segments previously assigned to bins using ``assign``.
+        Enough unused initial states must be present in ``self.avail_initial_states`` for every recycled
+        walker to be assigned an initial state.
+        
+        After this function completes, ``self.flux_matrix`` contains a valid flux matrix for this
+        iteration (including any contributions from recycling from the previous iteration), and
+        ``self.next_iter_segments`` contains a list of segments ready for the next iteration,
+        with appropriate values set for weight, endpoint type, parent walkers, and so on.        
+        '''
+        
+        self._prep_we()
+        
+        # Create new segments for the next iteration        
+        # We assume that everything is going to continue without being touched by recycling or WE, and
+        # adjust later
+        new_pcoord_array = self.system.new_pcoord_array
+        n_iter = None
+                
+        for ibin, _bin in enumerate(self.final_binning):
+            for segment in _bin:
+                if n_iter is None:
+                    n_iter = segment.n_iter
+                else:
+                    assert segment.n_iter == n_iter
+                    
+                segment.endpoint_type = Segment.SEG_ENDPOINT_CONTINUES
+                new_segment = Segment(n_iter=segment.n_iter+1,
+                                      parent_id=segment.seg_id,
+                                      weight=segment.weight,
+                                      wtg_parent_ids=[segment.seg_id],
+                                      pcoord=new_pcoord_array(),
+                                      status=Segment.SEG_STATUS_PREPARED)
+                new_segment.pcoord[0] = segment.pcoord[-1]
+                self.next_iter_binning[ibin].add(new_segment)
+                
+                # Store a link to the parent segment, so we can update its endpoint status as we need,
+                # based on its ID
+                self._parent_map[segment.seg_id] = segment
+                
+        self._run_we()
+        
+        log.debug('used initial states: {!r}'.format(self.used_initial_states))
+        log.debug('available initial states: {!r}'.format(self.avail_initial_states))
     
     def _log_bin_stats(self, bin, heading=None, level=logging.DEBUG):
         if log.isEnabledFor(level):

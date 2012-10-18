@@ -2,6 +2,7 @@ from __future__ import division, print_function
 from west.we_driver import WEDriver
 from west.systems import WESTSystem
 from west.binning import RectilinearBinMapper
+from west.states import TargetState, InitialState
 from west import Segment
 import numpy
 
@@ -53,7 +54,7 @@ class TestWEDriver:
         segs_by_id = {segment.seg_id: segment for segment in segments}
         self.we_driver.new_iteration()
         self.we_driver.assign(segments)
-        self.we_driver.run_we()
+        self.we_driver.construct_next()
         out_segs = set()
         for bin in self.we_driver.next_iter_binning:
             out_segs.update(bin)
@@ -86,7 +87,7 @@ class TestWEDriver:
                     self.segment(0.0, 1.5, weight=0.75)]
         self.we_driver.new_iteration()
         self.we_driver.assign(segments)
-        self.we_driver.run_we()
+        self.we_driver.construct_next()
         assert len(self.we_driver.next_iter_binning[0]) == 4
         assert len(self.we_driver.next_iter_binning[1]) == 4
         assert abs(sum(seg.weight for seg in self.we_driver.next_iter_binning[0]) - 0.25) < 4*EPS
@@ -131,7 +132,7 @@ class TestWEDriver:
                 
             self.we_driver.new_iteration()
             self.we_driver.assign(segments)
-            self.we_driver.run_we()
+            self.we_driver.construct_next()
             
             assert len(self.we_driver.next_iter_binning[0]) == 1
             newseg = self.we_driver.next_iter_binning[0].pop()
@@ -152,7 +153,7 @@ class TestWEDriver:
                     self.segment(0.0, 1.5, weight=0.375), self.segment(0.0, 1.5, weight=0.375)]
         self.we_driver.new_iteration()
         self.we_driver.assign(segments)
-        self.we_driver.run_we()
+        self.we_driver.construct_next()
         assert len(self.we_driver.next_iter_binning[0]) == 5
         assert len(self.we_driver.next_iter_binning[1]) == 5
         assert abs(sum(seg.weight for seg in self.we_driver.next_iter_binning[0]) - 0.25) < 5*EPS
@@ -166,23 +167,51 @@ class TestWEDriver:
                 assert segment.status == Segment.SEG_STATUS_PREPARED
                 
     def test_recycle(self):
-        from west.states import TargetState, InitialState
         segments = [self.segment(0.0, 1.5, weight=0.5),
                     self.segment(0.0, 0.5, weight=0.5)]
         tstate = TargetState('recycle', [1.5], 0)
         istate = InitialState(0, 0, 0, pcoord=[0.0])
         
-        self.we_driver.new_iteration([tstate])
-        n_recycled = self.we_driver.assign(segments)
-        assert n_recycled == 1
-        self.we_driver.run_we([istate])
+        self.we_driver.new_iteration(initial_states=[istate], target_states=[tstate])
+        n_needed = self.we_driver.assign(segments)
+        assert n_needed == 0
+        self.we_driver.construct_next()
         
+        n_recycled = len(list(self.we_driver.recycling_segments))
+        assert n_recycled == 1
+                
         assert len(self.we_driver.next_iter_binning[0]) == 4
         assert len(self.we_driver.next_iter_binning[1]) == 0
         assert abs(sum(seg.weight for seg in self.we_driver.next_iter_binning[0]) - 1.0) < 4*EPS 
         assert numpy.allclose([seg.weight for seg in self.we_driver.next_iter_binning[0]],
                               [0.25 for _i in xrange(4)])
         assert segments[0].endpoint_type == Segment.SEG_ENDPOINT_RECYCLED
+        
+    def test_multiple_merge(self):
+        
+        # This weight and count combination is known to trigger a split to 51
+        # followed by a count adjustment to 50 (thanks to Josh Adelman)
+        segment = self.segment(0.0, 0.5, weight=0.9999999999970001)
+        
+        # Initial state ID 0
+        segment.parent_id = -1
+        segment.wtg_parent_ids = set([-1])
+        assert segment.initpoint_type == segment.SEG_INITPOINT_NEWTRAJ
+        
+        self.system.bin_target_counts = numpy.array([50,50])
+        self.we_driver.new_iteration()
+        self.we_driver.assign([segment])
+        self.we_driver.construct_next()
+        
+        assert len(self.we_driver.next_iter_binning[0]) == 50
+        
+    def test_populate_initial(self):        
+        istate = InitialState(0, 0, 0, pcoord=[0.0]) 
+        self.system.bin_target_counts = numpy.array([50,50])
+        
+        self.we_driver.populate_initial([istate], [0.9999999999970001], system=self.system)
+        assert len(self.we_driver.next_iter_binning[0]) == 50
+        
         
     # TODO: add test for seeding the flux matrix based on recycling 
     # TODO: add test for split after merge in adjust count
