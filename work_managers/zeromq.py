@@ -331,14 +331,14 @@ class ZMQWMServer(ZMQBase):
                     except IndexError:
                         break
                     else:
+                        log.debug('dispatching task {!s} ({!r})'.format(task.task_id, task.fn))
                         # this will block if no clients are around
                         master_task_socket.send_multipart(task.to_zmq_frames(), copy=False)
         finally:
             poller.unregister(ctlsocket)
             master_task_socket.close(linger=0)
             ctlsocket.close()
-            
-        log.debug('exiting _dispatch_loop()')
+            log.debug('exiting _dispatch_loop()')
         
     def _receive_loop(self):
         # Bind the result receptor socket
@@ -373,7 +373,7 @@ class ZMQWMServer(ZMQBase):
                     del frames
                     
                     if result.server_id != self.instance_id:
-                        log.error('received result for instance {!s} but this is instance {!s}; ignoring. Zombie client?'
+                        log.error('received result for instance {!s} but this is instance {!s}; ignoring. zombie client?'
                                   .format(result.server_id, self.instance_id))
                     
                     try:
@@ -390,8 +390,7 @@ class ZMQWMServer(ZMQBase):
             poller.unregister(master_result_socket)
             master_result_socket.close(linger=0)
             ctlsocket.close()
-            
-        log.debug('exiting _receive_loop()')
+            log.debug('exiting _receive_loop()')
                 
     def _announce_loop(self):
         # Bind the result receptor socket
@@ -413,32 +412,33 @@ class ZMQWMServer(ZMQBase):
         remaining_interval = self.server_heartbeat_interval
         try:
             while True:
+                log.debug('top of announce loop, waiting {}'.format(remaining_interval*1000))
                 poll_results = dict(poller.poll(remaining_interval*1000))
                 if poll_results.get(ctlsocket) == zmq.POLLIN:
                     messages = recvall(ctlsocket)
                     if 'shutdown' in messages:
+                        log.debug('shutdown message received; forwarding to clients')
                         master_announce_socket.send('shutdown')
                         return
                     else:
                         for message in messages:
                             master_announce_socket.send(message)
-                else:
-                    # timeout
+                            
+                # regardless of whether we get a message to forward, ping if necessary
+                now = time.time()
+                if now - last_announce >= self.server_heartbeat_interval:
+                    log.debug('sending ping')
                     last_announce = time.time()
                     master_announce_socket.send('ping')
-                   
-                now = time.time() 
-                if now - last_announce < self.server_heartbeat_interval:
-                    remaining_interval = now - last_announce
-                else:
                     remaining_interval = self.server_heartbeat_interval
+                else:
+                    remaining_interval = self.server_heartbeat_interval - (now - last_announce)
                 
         finally:
             poller.unregister(ctlsocket)
             master_announce_socket.close(linger=0)
             ctlsocket.close()
-            
-        log.debug('exiting _announce_loop()')
+            log.debug('exiting _announce_loop()')
         
     def _make_append_task(self, fn, args, kwargs):
         ft = WMFuture()
@@ -500,7 +500,6 @@ class ZMQWMProcess(ZMQBase,multiprocessing.Process):
                 
         try:
             while True:
-                
                 # Get a task with request/reply to identify ourselves with which task we get, for
                 # future bookkeeping
                 req_tuple = (associated_node_id, this_client_id, 'task')
@@ -542,7 +541,7 @@ class ZMQWMProcess(ZMQBase,multiprocessing.Process):
     
                         
                     # submit a result
-                    
+                    log.debug('dispatching result for task {!s} ({!r})'.format(task.task_id, task.fn))
                     result_socket.send_pyobj((associated_node_id, this_client_id, 'result'), flags=zmq.SNDMORE)
                     result_socket.send_multipart(result_object.to_zmq_frames())
                     
@@ -554,6 +553,7 @@ class ZMQWMProcess(ZMQBase,multiprocessing.Process):
         finally:
             task_socket.close(linger=0)
             result_socket.close(linger=0)
+            log.debug('exiting run loop')
 
 class ZMQClient(ZMQBase):
     @classmethod
@@ -615,7 +615,7 @@ class ZMQClient(ZMQBase):
                      
     
     def __init__(self, upstream_task_endpoint, upstream_result_endpoint, upstream_announce_endpoint,
-                 n_workers = None, hangcheck=60):
+                 n_workers = None, task_timeout=60):
         super(ZMQClient,self).__init__()
         
         self.upstream_task_endpoint = upstream_task_endpoint
@@ -640,10 +640,10 @@ class ZMQClient(ZMQBase):
         
         # How long we wait for a response from a worker process before
         # declaring it hung and terminating it -- None means do not check.
-        self.worker_task_timeout = None
+        self.worker_task_timeout = task_timeout
         
         # How often (in s) we check for a hung worker
-        self.hangcheck = hangcheck
+        self.hangcheck = 30
                 
         self.node_id = uuid.uuid4()
         self.associated_server_id = None
@@ -790,11 +790,14 @@ class ZMQClient(ZMQBase):
         
         try:
             while True:
-                poll_results = dict(poller.poll(min(self.hangcheck,self.server_heartbeat_interval)*1000))
+                waittime = min(self.hangcheck,self.server_heartbeat_interval)*1000
+                log.debug('top of monitor loop; waiting {} ms'.format(waittime))
+                poll_results = dict(poller.poll(waittime))
                 now = time.time()
                 
                 if poll_results.get(ctlsocket) == zmq.POLLIN:
                     messages = recvall(ctlsocket)
+                    log.debug('{} messages on control socket'.format(len(messages)))
                     if 'shutdown' in messages:
                         self._shutdown_all_workers()
                         return
@@ -808,12 +811,15 @@ class ZMQClient(ZMQBase):
                                 
                 if poll_results.get(upstream_announce_socket) == zmq.POLLIN:
                     announcements = recvall(upstream_announce_socket)
+                    log.debug('{} messages on announcement socket'.format(len(announcements)))
                     if 'shutdown' in announcements:
+                        log.debug('shutdown received')
                         self._shutdown()
                     elif 'ping' in announcements:
+                        log.debug('ping received')
                         last_server_ping = now
                 
-                if last_server_ping is not None and (now-last_server_ping) > self.server_heartbeat_interval:
+                if last_server_ping is not None and (now-last_server_ping) > 3*self.server_heartbeat_interval:
                     log.error('no communication from server; shutting down')
                     self._shutdown()
                     
@@ -832,6 +838,7 @@ class ZMQClient(ZMQBase):
         finally:
             poller.unregister(upstream_announce_socket)
             upstream_announce_socket.close(linger=0)
+            log.debug('exiting monitor loop')
             
     def _taskfwd_loop(self):
         ctlsocket = self._make_signal_socket(self._taskfwd_ctl_endpoint)
@@ -854,6 +861,7 @@ class ZMQClient(ZMQBase):
         
         try:
             while True:
+                log.debug('top of taskfwd loop')
                 worker_poll_status = dict(worker_poller.poll())
                 
                 if worker_poll_status.get(ctlsocket) == zmq.POLLIN:
@@ -898,6 +906,7 @@ class ZMQClient(ZMQBase):
             worker_poller.unregister(worker_task_socket)
             worker_task_socket.close(linger=0)
             upstream_task_socket.close(linger=0)
+            log.debug('exiting task fowarding loop')
             
     def _rslfwd_loop(self):
         ctlsocket = self._make_signal_socket(self._rslfwd_ctl_endpoint)
@@ -941,6 +950,7 @@ class ZMQClient(ZMQBase):
             poller.unregister(ctlsocket)
             worker_result_socket.close(linger=0)
             ctlsocket.close(linger=0)
+            log.debug('exiting result forwarding loop')
 
     @property
     def is_master(self):
