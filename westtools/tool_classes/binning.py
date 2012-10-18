@@ -318,7 +318,7 @@ class BinMappingComponent(WESTToolComponent):
                 
         log.info('loaded mapper {!r} from {}'.format(self.mapper, self.mapper_source_desc))
         
-        if self._parse_target_count_args:
+        if self._parse_target_count_args and self.target_counts_required:
             import re
             if args.target_counts is not None:
                 self.bin_target_counts = numpy.array(map(int,re.split(r'\s*,\s*', args.target_counts)))

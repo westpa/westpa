@@ -110,9 +110,16 @@ modify the binning for the current iteration of a WEST simulation.
         # We don't have to worry about recycling because we are binning on
         # initial points rather than final points, so recycling has already
         # occurred for this iteration.
-        we_driver.new_iteration(bin_mapper=mapper, bin_target_counts=self.binning.bin_target_counts)
+        # We do need initial states, in case we merge a newly-created walker out of existence
+        #avail_initial_states = {state.state_id: state
+        #                        for state in data_manager.get_unused_initial_states(n_iter = self.n_iter)}
+        avail_initial_states = data_manager.get_unused_initial_states(n_iter = self.n_iter)
+        used_initial_states = data_manager.get_segment_initial_states(segments)
+        we_driver.new_iteration(initial_states=avail_initial_states,
+                                bin_mapper=mapper, bin_target_counts=self.binning.bin_target_counts)
+        we_driver.used_initial_states = {state.state_id: state for state in used_initial_states}
         we_driver.assign(segments,initializing=True)
-        we_driver.run_we(rebin=True, parent_segments=last_iter_segments)
+        we_driver.rebin_current(parent_segments=last_iter_segments)
         
         weights = numpy.array([segment.weight for segment in we_driver.next_iter_segments])
         assignments = numpy.fromiter(we_driver.next_iter_assignments,dtype=int,count=len(weights))
@@ -130,7 +137,7 @@ modify the binning for the current iteration of a WEST simulation.
             
             data_manager.save_iter_binning(self.n_iter, self.binning.mapper_hash, self.binning.mapper_pickle,
                                            we_driver.bin_target_counts)
-            
+            data_manager.update_initial_states(we_driver.all_initial_states)
             data_manager.flush_backing()
             
             
