@@ -498,6 +498,9 @@ class WESimManager:
             iter_group['bin_fluxes'] = self.we_driver.flux_matrix
         
     def check_propagation(self):
+        '''Check for failures in propagation or initial state generation, and raise an exception
+        if any are found.'''
+        
         failed_segments = [segment for segment in self.segments.itervalues() if segment.status != Segment.SEG_STATUS_COMPLETE]
         
         if failed_segments:
@@ -523,12 +526,15 @@ class WESimManager:
         the recycled particles in self.to_recycle, creating and committing the next iteration's
         segments to storage as well.'''
         
-        # The WE driver now does almost everything
+        # The WE driver now does almost everything; we just have to record the
+        # mapper used for binning this iteration, and update initial states
+        # that have been used
+         
         try:
             pickled, hashed = self.we_driver.bin_mapper.pickle_and_hash()
         except PickleError:
             pickled = hashed = ''
-        #self.data_manager.save_iter_binning(self.n_iter, hashed, pickled, self.we_driver.bin_target_counts)
+
         self.bin_mapper_hash = hashed
         self.we_driver.construct_next()
         
