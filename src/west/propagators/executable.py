@@ -422,6 +422,9 @@ class ExecutablePropagator(WESTPropagator):
             
             return_files = {}
             for dataset in self.data_info:
+                if not self.data_info[dataset].get('enabled',False):
+                    continue
+ 
                 (fd, rfname) = tempfile.mkstemp()
                 os.close(fd)
                 return_files[dataset] = rfname
@@ -444,19 +447,23 @@ class ExecutablePropagator(WESTPropagator):
             
             # Extract data and store on segment for recording in the master thread/process/node
             for dataset in self.data_info:
+                # pcoord is always enabled (see __init__)
+                if not self.data_info[dataset].get('enabled',False):
+                    continue
+                
                 filename = return_files[dataset]
                 loader = self.data_info[dataset]['loader']
                 try:
                     loader(dataset, filename, segment, single_point=False)
                 except Exception as e:
-                    log.error('could not read {} from {!r}: {}'.format(dataset, filename, e))
+                    log.error('could not read {} from {!r}: {!r}'.format(dataset, filename, e))
                     segment.status = Segment.SEG_STATUS_FAILED 
                     break
                 else:
                     try:
                         os.unlink(filename)
                     except Exception as e:
-                        log.warning('could not delete {} file {!r}: {}'.format(dataset, filename, e))
+                        log.warning('could not delete {} file {!r}: {!r}'.format(dataset, filename, e))
                             
             if segment.status == Segment.SEG_STATUS_FAILED:
                 continue
