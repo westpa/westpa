@@ -30,6 +30,10 @@ class NewWeightEntry:
         self.new_init_pcoord = numpy.asarray(new_init_pcoord) if new_init_pcoord is not None else None
         self.target_state_id = target_state_id        
         self.initial_state_id = initial_state_id
+        
+    def __repr__(self):
+        return ('<{} object at 0x{:x}: weight={self.weight:g} target_state_id={self.target_state_id} prev_final_pcoord={self.prev_final_pcoord}>'
+                .format(self.__class__.__name__, id(self), self=self))
 
 class WEDriver:
     '''A class implemented Huber & Kim's weighted ensemble algorithm over Segment objects.
@@ -72,9 +76,8 @@ class WEDriver:
         self.bin_mapper = None
         self.bin_target_counts = None
         
-        # Target state definitions and corresponding bins
-        self.target_states = None
-        self.target_state_mask = None
+        # Mapping of bin index to target state
+        self.target_states = None 
         
         # binning on initial points
         self.initial_binning = None
@@ -134,9 +137,9 @@ class WEDriver:
     def recycling_segments(self):
         '''Segments designated for recycling'''
         if len(self.target_states):
-            for target_bin in self.final_binning[self.target_state_mask]:
-                for segment in target_bin:
-                    yield segment
+            for (ibin,tstate) in self.target_states.iteritems():
+                for segment in self.final_binning[ibin]:
+                    yield segment                
         else:
             return
     
@@ -201,10 +204,7 @@ class WEDriver:
             self.bin_target_counts = numpy.array(self.system.bin_target_counts).copy()
         nbins = self.bin_mapper.nbins                
         log.debug('mapper is {!r}, handling {:d} bins'.format(self.bin_mapper, nbins))
-        
-        self.target_states = numpy.array(target_states if target_states is not None else [])
-        self.target_state_mask = numpy.zeros((nbins,), numpy.bool_)
-        
+                
         self.initial_binning    = self.bin_mapper.construct_bins()
         self.final_binning      = self.bin_mapper.construct_bins()
         self.next_iter_binning  = None
@@ -213,13 +213,13 @@ class WEDriver:
         transition_matrix = self.transition_matrix = numpy.zeros((nbins,nbins), numpy.uint)
         
         # map target state specifications to bins
-        for tstate in self.target_states:
+        target_states = target_states or []
+        self.target_states = {}
+        for tstate in target_states:
             tstate_assignment = self.bin_mapper.assign([tstate.pcoord])[0]
-            self.target_state_mask[tstate_assignment] = True
+            self.target_states[tstate_assignment] = tstate
             log.debug('target state {!r} mapped to bin {}'.format(tstate, tstate_assignment))
-
-        self.bin_target_counts[self.target_state_mask] = 0            
-        
+            self.bin_target_counts[tstate_assignment] = 0
             
         # loop over recycled segments, adding entries to the flux matrix appropriately
         if new_weights:
@@ -254,8 +254,7 @@ class WEDriver:
             yield state
         for state in self.used_initial_states.itervalues():
             yield state
-
-                        
+                
     def assign(self, segments, initializing=False):
         '''Assign segments to initial and final bins, and update the (internal) lists of used and available
         initial states. If ``initializing`` is True, then the "final" bin assignments will
@@ -286,7 +285,7 @@ class WEDriver:
             flux_matrix[iidx,fidx] += segment.weight
             transition_matrix[iidx,fidx] += 1
             
-        n_recycled_total = sum(len(_bin) for _bin in self.final_binning[self.target_state_mask])
+        n_recycled_total = self.n_recycled_segs
         n_new_states = n_recycled_total - len(self.avail_initial_states)
         
         log.debug('{} walkers scheduled for recycling, {} initial states available'.format(n_recycled_total, 
@@ -314,18 +313,21 @@ class WEDriver:
 
         used_istate_ids = set()
         istateiter = iter(self.avail_initial_states.itervalues())
-        for (itarget, target_bin) in enumerate(self.next_iter_binning[self.target_state_mask]):
+        for (ibin,target_state) in self.target_states.iteritems():
+            target_bin = self.next_iter_binning[ibin]
             for segment in set(target_bin):
-                target_state = self.target_states[itarget]
-                initial_state = istateiter.next()
-                if log.isEnabledFor(logging.DEBUG):
-                    log.debug('recycling {!r} to initial state {!r}'.format(segment, initial_state))
-                
+                initial_state = istateiter.next()                
                 istate_assignment = self.bin_mapper.assign([initial_state.pcoord])[0]
                 parent = self._parent_map[segment.parent_id]
                 parent.endpoint_type = Segment.SEG_ENDPOINT_RECYCLED
+
+                if log.isEnabledFor(logging.DEBUG):
+                    log.debug('recycling {!r} from target state {!r} to initial state {!r}'.format(segment, target_state,
+                                                                                                   initial_state))
+                    log.debug('parent is {!r}'.format(parent))                
+                
+                
                 segment.parent_id = -(initial_state.state_id+1)
-                segment.prev_init_pcoord = parent.pcoord[0]
                 segment.pcoord[0] = initial_state.pcoord
 
                 self.new_weights.append(NewWeightEntry(source_type=NewWeightEntry.NW_SOURCE_RECYCLED,
@@ -335,7 +337,9 @@ class WEDriver:
                                                        new_init_pcoord=initial_state.pcoord,
                                                        target_state_id=target_state.state_id,
                                                        initial_state_id=initial_state.state_id) )
-
+                
+                if log.isEnabledFor(logging.DEBUG):
+                    log.debug('new weight entry is {!r}'.format(self.new_weights[-1]))
 
                 self.next_iter_binning[istate_assignment].add(segment)
                 
