@@ -1,56 +1,137 @@
 from __future__ import print_function, division; __metaclass__ = type
-import sys
-from westtools.tool_classes import WESTTool, HDF5Storage, WESTDataReader, IterRangeSelection
+import sys, operator, functools, time, getpass
 from itertools import imap
-import numpy, h5py, operator, functools
+
+import numpy, h5py
 import scipy.signal
 from scipy.signal import fftconvolve
 
+from westtools.tool_classes import WESTTool, HDF5Storage, WESTDataReader, IterRangeSelection
 import west
-from west.data_manager import (weight_dtype, n_iter_dtype)
-
+from west.data_manager import (weight_dtype, n_iter_dtype, vstr_dtype)
+from west.we_driver import NewWeightEntry
 import mclib
+from westtools import h5io
 
-ci_dtype = numpy.dtype([('mean', numpy.float64),
+fluxentry_dtype = numpy.dtype([('n_iter', n_iter_dtype),
+                               ('flux', weight_dtype),
+                               ('count', numpy.int)])
+
+target_index_dtype = numpy.dtype([('target_label', vstr_dtype),
+                                  ('mean_flux', weight_dtype),
+                                  ('mean_flux_ci_lb', weight_dtype),
+                                  ('mean_flux_ci_ub', weight_dtype),
+                                  ('mean_flux_correl_len', numpy.uintc)])
+
+ci_dtype = numpy.dtype([('iter_start', n_iter_dtype),
+                        ('iter_stop', n_iter_dtype),
+                        ('mean', numpy.float64),
                         ('ci_lb', numpy.float64),
                         ('ci_ub', numpy.float64),
                         ('correl_len', numpy.uintc)])
 
-iter_range_dtype = numpy.dtype([('iter_start', n_iter_dtype),
-                                ('iter_stop', n_iter_dtype)])
-
-
-def extract_fluxes(iter_start=None, iter_stop=None, data_manager=None):
-    '''Extract flux values from the WEST HDF5 file for iterations >=iter_start
-    and <iter_stop, optionally using another data manager instance instead of the
-    global one returned by ``west.rc.get_data_manager()``.  Returns a triplet
-    ``(iters, fluxes, counts)`` where ``iters`` is an array of the iterations
-    considered, ``fluxes`` is an array of flux values, indexed as
-    ``fluxes[n_iter][itarget]``, and ``counts`` is an array of recycling 
-    counts, indexed as ``counts[n_iter][itarget]``.'''
+def _extract_fluxes_fileversion_lt_7(iter_start, iter_stop, data_manager):
+    '''Extract fluxes from old format, where groups for iterations where recyling
+    occurs contain a 'recycling' table.'''
     
-    data_manager = data_manager or west.rc.get_data_manager()
-    iter_start = iter_start or 1
-    iter_stop = iter_stop or data_manager.current_iteration
+    assert data_manager.we_h5file_version < 7
+    
     iter_count = iter_stop - iter_start
     target_count = data_manager.get_iter_group(iter_start)['recycling'].shape[0]
-    
-    iters = numpy.arange(iter_start, iter_stop, dtype=n_iter_dtype)
-    fluxes = numpy.zeros((iter_count, target_count), weight_dtype)
-    counts = numpy.zeros((iter_count, target_count), numpy.uint)
-    
+    fluxdata = numpy.zeros((iter_count,), dtype=fluxentry_dtype)
+        
     if data_manager.we_h5file_version < 5:
         flux_field = 'weight' 
     else:
         flux_field = 'flux'
+        
+    fluxdata = {itarget: numpy.zeros((iter_count,), dtype=fluxentry_dtype)
+                for itarget in xrange(target_count)}
     
     for iiter, n_iter in enumerate(xrange(iter_start, iter_stop)):
         rdata = data_manager.get_iter_group(n_iter)['recycling']
+        for itarget in xrange(target_count):            
+            fluxdata[itarget][iiter]['n_iter'] = n_iter
+            fluxdata[itarget][iiter]['flux'] = rdata[flux_field]
+            fluxdata[itarget][iiter]['count'] = rdata['count']
         
-        fluxes[iiter,:] = rdata[flux_field]
-        counts[iiter,:] = rdata['count']
+    return fluxdata
+
+def _extract_fluxes_fileversion_7(iter_start, iter_stop, data_manager):
+    '''Extract fluxes from HDF5 file version 7, where recycling information is
+    stored in the "new_weights" group of the iteration *following* recycling
+    events.'''
+    
+    assert data_manager.we_h5file_version >= 7
+    
+    iter_count = iter_stop - iter_start
+    iters = numpy.arange(iter_start, iter_stop, dtype=n_iter_dtype)
+    
+    # for each target by name, collect the iterations, fluxes, and counts
+    # This is not the most foolproof way to do this, but it's good enough, and fast.
+    # The most correct way to do this is tracing trajectories,
+    # and warning if the boundary conditions change during the trace,
+    # but that's for another tool.
+    by_target = {}
+    
+    for iiter, n_iter in enumerate(xrange(iter_start, iter_stop)):
+        target_states = data_manager.get_target_states(n_iter)
+        try:
+            new_weight_index = data_manager.get_iter_group(n_iter+1)['new_weights']['index']
+        except KeyError:
+            # no recycling data available
+            continue
         
-    return (iters,fluxes,counts)
+        for tstate in target_states:
+            try:
+                target_info = by_target[tstate.label]
+            except KeyError:
+                # State not seen before
+                target_info = by_target[tstate.label] = numpy.zeros((iter_count,), dtype=fluxentry_dtype) 
+                # If the target happens not to exist in an iteration (for whatever reason),
+                # store a count of -1 as a sentinel
+                target_info['count'][:] = -1
+                target_info['n_iter'][:] = iters[:]
+                
+            recycled_from_tstate = ( (new_weight_index['source_type'] == NewWeightEntry.NW_SOURCE_RECYCLED)
+                                    &(new_weight_index['target_state_id'] == tstate.state_id)
+                                   )
+            
+            recycle_count = recycled_from_tstate.sum()
+            target_info['count'][iiter] = recycle_count
+            if recycle_count:
+                # flux is in units of per tau
+                target_info['flux'][iiter] = new_weight_index[recycled_from_tstate]['weight'].sum()
+        
+        del new_weight_index, target_states
+    
+    # Find the last contiguous run where target is available
+    for target_label in by_target:
+        fluxdata = by_target[target_label]
+        by_target[target_label] = fluxdata[numpy.searchsorted(fluxdata['count'],[0])[0]:]
+        
+    return by_target
+
+def extract_fluxes(iter_start=None, iter_stop=None, data_manager=None):
+    '''Extract flux values from the WEST HDF5 file for iterations >= iter_start
+    and < iter_stop, optionally using another data manager instance instead of the
+    global one returned by ``west.rc.get_data_manager()``.
+    
+    Returns a dictionary mapping target names (if available, target index otherwise)
+    to a 1-D array of type ``fluxentry_dtype``, which contains columns for iteration
+    number, flux, and count.
+    '''
+    
+    data_manager = data_manager or west.rc.get_data_manager()
+    iter_start = iter_start or 1
+    iter_stop = iter_stop or data_manager.current_iteration
+
+    
+    if data_manager.we_h5file_version < 7:
+        return _extract_fluxes_fileversion_lt_7(iter_start, iter_stop, data_manager)
+    else:
+        return _extract_fluxes_fileversion_7(iter_start, iter_stop,data_manager)
+    
 
 class WFluxanlTool(WESTTool):
     prog='w_fluxanl'
@@ -65,22 +146,22 @@ the propagation/resampling period ``tau`` is equal to unity; to obtain results
 in familiar units, divide all fluxes and multiply all correlation lengths by
 the true value of ``tau``.
 '''
+    
+    output_format_version = 2
 
     def __init__(self):
         super(WFluxanlTool,self).__init__()
         self.data_reader = WESTDataReader()
         self.iter_range = IterRangeSelection()
         self.output_h5file = None
+        self.output_group = None
+        self.target_groups = {}
+
+        self.fluxdata = {}
         
         self.alpha = None
         self.autocorrel_alpha = None
         self.n_sets = None
-        
-        self.iters = None
-        self.fluxes = None
-        self.counts = None
-        self.n_targets = None
-        
         self.do_evol = False
         self.evol_step = 1
         
@@ -123,108 +204,102 @@ the true value of ``tau``.
         self.evol_step = args.evol_step or 1
                 
     def calc_store_flux_data(self):         
-        west.rc.pstatus('Extracting fluxes and transition counts for iterations [{},{})'
+        west.rc.pstatus('Calculating mean flux and confidence intervals for iterations [{},{})'
                         .format(self.iter_range.iter_start, self.iter_range.iter_stop))
         
-        iters, fluxes, counts = extract_fluxes(self.iter_range.iter_start, self.iter_range.iter_stop, self.data_reader)
-        self.output_h5file['iterations'] = iters
-        self.output_h5file['fluxes'] = fluxes
-        self.output_h5file['fluxes'].attrs['description'] = 'instantaneous flux'
-        self.output_h5file['counts'] = counts
-        self.output_h5file['counts'].attrs['description'] = 'instantaneous transition counts'
+        fluxdata = extract_fluxes(self.iter_range.iter_start, self.iter_range.iter_stop, self.data_reader)
         
-        # Stamp data sets with axis labels
-        for h5object in (self.output_h5file['fluxes'], self.output_h5file['counts']):
-            h5object.attrs['axis_labels'] = numpy.array(['n_iter','target_index'])
+        # Create a group to store data in
+        output_group = h5io.create_hdf5_group(self.output_h5file, 'target_flux', replace=False, creating_program=self.prog)        
+        self.output_group = output_group
+        output_group.attrs['version_code'] = self.output_format_version
+        self.iter_range.record_data_iter_range(output_group)
+        
+        index = numpy.empty((len(fluxdata),), dtype=target_index_dtype)
+                        
+        for itarget, (target_label, target_fluxdata) in enumerate(fluxdata.iteritems()):
+            # Create group and index entry
+            index[itarget]['target_label'] = str(target_label)
+            target_group = output_group.create_group('target_{}'.format(itarget))
 
-        # Stamp data sets with range over which this analysis was conducted
-        for h5object in (self.output_h5file, self.output_h5file['iterations'],
-                         self.output_h5file['fluxes'], self.output_h5file['counts']):
-            self.iter_range.record_data_iter_range(h5object)
+            self.target_groups[target_label] = target_group
             
-        self.iters = iters
-        self.fluxes = fluxes
-        self.counts = counts
-        self.n_targets = self.fluxes.shape[1]
-        
-    def calc_store_flux_autocorrel(self):
-        fmm = self.fluxes - self.fluxes.mean(axis=0)
-        acorr = numpy.empty((self.fluxes.shape[0], self.fluxes.shape[1]), numpy.float64)
-        
-        for target in xrange(self.n_targets):
-            target_acorr = fftconvolve(fmm[:,target], fmm[::-1,target])
-            target_acorr = target_acorr[len(target_acorr)//2:]
-            target_acorr /= target_acorr[0]
-            acorr[:,target] = target_acorr
-            del target_acorr
+            # Store per-iteration values
+            target_group['n_iter'] = target_fluxdata['n_iter']
+            target_group['count'] = target_fluxdata['count']
+            target_group['flux'] = target_fluxdata['flux']
+            h5io.label_axes(target_group['flux'], ['n_iter'], units=['tau^-1'])
             
-        self.output_h5file['autocorrel'] = acorr
-        h5ds = self.output_h5file['autocorrel']
-        h5ds.attrs['description'] = 'flux autocorrelation'
-        h5ds.attrs['axis_labels'] = numpy.array(['lag','target_index'])        
-        self.iter_range.record_data_iter_range(h5ds)
-        
-    def calc_overall_avg_flux(self):
-        west.rc.pstatus('Calculating alpha={} confidence interval on mean flux for {} target states'
-                        .format(self.alpha, self.n_targets))
-        
-        cis = numpy.empty((self.n_targets,), ci_dtype)
-        
-        for target in xrange(self.n_targets):
-            cis[target]   = avg, lb_ci, ub_ci, correl_len \
-                          = mclib.mcbs_ci_correl(self.fluxes[:,target], numpy.mean, self.alpha, self.n_sets,
-                                                 autocorrel_alpha=self.autocorrel_alpha, subsample=numpy.mean)
-            west.rc.pstatus('  target {}:'.format(target))
-            west.rc.pstatus('    correlation length = {} tau'.format(correl_len))
-            west.rc.pstatus('    mean flux and CI   = {} ({},{}) tau^(-1)'.format(avg, lb_ci, ub_ci))
             
-        h5ds = self.output_h5file.create_dataset('overall_average', data=cis)
-        self.iter_range.record_data_iter_range(h5ds)
-        h5ds.attrs['description'] = 'flux mean and confidence interval over entire data range'
-        h5ds.attrs['axis_labels'] = numpy.array(['target_index'])
-        h5ds.attrs['mcbs_alpha'] = self.alpha
-        h5ds.attrs['mcbs_autocorrel_alpha'] = self.autocorrel_alpha
-        h5ds.attrs['mcbs_n_sets'] = self.n_sets
+            # Calculate flux autocorrelation
+            fluxes = target_fluxdata['flux']
+            mean_flux = fluxes.mean()
+            fmm = fluxes - mean_flux
+            acorr = fftconvolve(fmm,fmm[::-1])
+            acorr = acorr[len(acorr)//2:]
+            acorr /= acorr[0]
+            acorr_ds = target_group.create_dataset('flux_autocorrel', data=acorr)
+            h5io.label_axes(acorr_ds, ['lag'], ['tau'])
+            
+            # Calculate overall averages and CIs
+            avg, lb_ci, ub_ci, correl_len = mclib.mcbs_ci_correl(fluxes, numpy.mean, self.alpha, self.n_sets,
+                                                                 autocorrel_alpha=self.autocorrel_alpha, subsample=numpy.mean)
+            west.rc.pstatus('target {!r}:'.format(target_label))
+            west.rc.pstatus('  correlation length = {} tau'.format(correl_len))
+            west.rc.pstatus('  mean flux and CI   = {:e} ({:e},{:e}) tau^(-1)'.format(avg,lb_ci,ub_ci))
+            index[itarget]['mean_flux'] = avg
+            index[itarget]['mean_flux_ci_lb'] = lb_ci
+            index[itarget]['mean_flux_ci_ub'] = ub_ci
+            index[itarget]['mean_flux_correl_len'] = correl_len
+
+        # Write index and summary        
+        index_ds = output_group.create_dataset('index', data=index)
+        index_ds.attrs['mcbs_alpha'] = self.alpha
+        index_ds.attrs['mcbs_autocorrel_alpha'] = self.autocorrel_alpha
+        index_ds.attrs['mcbs_n_sets'] = self.n_sets
+        
+        self.fluxdata = fluxdata            
+                        
          
     def calc_evol_flux(self):
         west.rc.pstatus('Calculating cumulative evolution of flux confidence intervals every {} iteration(s)'
                         .format(self.evol_step))
         
-        
-        iter_start = self.iter_range.iter_start
-        n_blocks = self.iter_range.iter_count // self.evol_step
-        if self.iter_range.iter_count % self.evol_step > 0:
-            n_blocks += 1
-        
-        iters = numpy.empty((n_blocks,), dtype=iter_range_dtype)
-        cis = numpy.empty((n_blocks,self.n_targets), dtype=ci_dtype)
-        
-        for iblock in xrange(0,n_blocks):
-            iter_stop = min(iter_start + (iblock+1)*self.evol_step, self.iter_range.iter_stop)
-            istop = min((iblock+1)*self.evol_step, len(self.fluxes))
-            iters[iblock]['iter_start'] = iter_start
-            iters[iblock]['iter_stop']  = iter_stop
+        for itarget, (target_label, target_fluxdata) in enumerate(self.fluxdata.iteritems()):
+            fluxes = target_fluxdata['flux']
+            target_group = self.target_groups[target_label]
+            iter_start = target_group['n_iter'][0]
+            iter_stop  = target_group['n_iter'][-1]
+            iter_count = iter_stop - iter_start
+            n_blocks = iter_count // self.evol_step
+            if iter_count % self.evol_step > 0: n_blocks += 1
             
-            for target in xrange(self.n_targets):
-                fluxes = self.fluxes[:istop,target]
-                cis[iblock,target] = mclib.mcbs_ci_correl(fluxes, numpy.mean, self.alpha, self.n_sets,
-                                                          autocorrel_alpha=self.autocorrel_alpha, subsample=numpy.mean)
+            cis = numpy.empty((n_blocks,), dtype=ci_dtype)
+            
+            for iblock in xrange(n_blocks):
+                block_iter_stop = min(iter_start + (iblock+1)*self.evol_step, iter_stop)
+                istop = min((iblock+1)*self.evol_step, len(target_fluxdata['flux']))
+                fluxes = target_fluxdata['flux'][:istop]
+                
+                avg, ci_lb, ci_ub, correl_len = mclib.mcbs_ci_correl(fluxes, numpy.mean, self.alpha, self.n_sets,
+                                                                     autocorrel_alpha = self.autocorrel_alpha,
+                                                                     subsample=numpy.mean)
+                cis[iblock]['iter_start'] = iter_start
+                cis[iblock]['iter_stop']  = block_iter_stop
+                cis[iblock]['mean'], cis[iblock]['ci_lb'], cis[iblock]['ci_ub'] = avg, ci_lb, ci_ub
+                cis[iblock]['correl_len'] = correl_len
+                
                 del fluxes
-        
-        self.output_h5file.create_dataset('flux_evol_iterations', data=iters)
-        evol_cis_ds = self.output_h5file.create_dataset('flux_evol', data=cis)
-        self.iter_range.record_data_iter_range(evol_cis_ds)
-        evol_cis_ds.attrs['iter_step'] = self.evol_step
-        evol_cis_ds.attrs['description'] = 'time-resolved cumulative flux mean and confidence intervals'
-        evol_cis_ds.attrs['axis_labels'] = numpy.array(['iteration_block', 'target_index'])
-        evol_cis_ds.attrs['mcbs_alpha'] = self.alpha
-        evol_cis_ds.attrs['mcbs_autocorrel_alpha'] = self.autocorrel_alpha
-        evol_cis_ds.attrs['mcbs_n_sets'] = self.n_sets
+
+            cis_ds = target_group.create_dataset('flux_evolution', data=cis)
+            cis_ds.attrs['iter_step'] = self.evol_step
+            cis_ds.attrs['mcbs_alpha'] = self.alpha
+            cis_ds.attrs['mcbs_autocorrel_alpha'] = self.autocorrel_alpha
+            cis_ds.attrs['mcbs_n_sets'] = self.n_sets
+
         
     def go(self):
         self.calc_store_flux_data()
-        self.calc_store_flux_autocorrel()
-        self.calc_overall_avg_flux()
         if self.do_evol:
             self.calc_evol_flux()
         
