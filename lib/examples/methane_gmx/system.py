@@ -22,18 +22,19 @@ class System(WESTSystem):
 def coord_loader(fieldname, coord_file, segment, single_point=False):
     '''Load coordinates as output by g_traj and paste'''
     coord_raw = numpy.loadtxt(coord_file, dtype=numpy.float32)
+    coord_raw = coord_raw[:,1:] 
 
     # each atom/group/C.O.M selected gets 3 columns:
     # time, x1, y1, z1, x1, y2, z2, ... , zN
 
     npts = len(coord_raw)
-    assert (coord_raw.shape[1]-1) % 3 == 0
-    ngrps = (coord_raw.shape[1]-1) // 3
+    assert coord_raw.shape[1] % 3 == 0
+    ngrps = coord_raw.shape[1] // 3
 
     coords = numpy.empty((ngrps, npts, 3), numpy.float32)
     for igroup in xrange(ngrps):
         for idim in xrange(3):
-            coords[igroup,:,idim] = coord_raw[:,igroup*4+idim+1]
+            coords[igroup,:,idim] = coord_raw[:,igroup*3+idim]
     # convert to Angstroms
     coords *= 10
 
