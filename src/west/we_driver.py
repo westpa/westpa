@@ -99,6 +99,8 @@ class WEDriver:
         # recycling targets
         self.used_initial_states = None
         
+        self.avail_initial_states = None
+        
     @property
     def next_iter_segments(self):
         '''Newly-created segments for the next iteration'''
@@ -162,13 +164,14 @@ class WEDriver:
         
         del self.initial_binning, self.final_binning, self.next_iter_binning
         del self.flux_matrix, self.transition_matrix
-        del self.new_weights
+        del self.new_weights, self.used_initial_states, self.avail_initial_states
         
         self.initial_binning = None
         self.final_binning = None
         self.next_iter_binning = None
         self.flux_matrix = None
         self.transition_matrix = None
+        self.avail_initial_states = None
         self.used_initial_states = None
         self.new_weights = None
         
@@ -237,7 +240,7 @@ class WEDriver:
                 flux_matrix[i,j] += entry.weight
                 transition_matrix[i,j] += 1
                 
-        self.recycling_log = None
+            del init_pcoords, prev_init_pcoords, init_assignments, prev_init_assignments
         
         self.avail_initial_states = {state.state_id: state for state in initial_states}
         self.used_initial_states = {}
@@ -331,10 +334,12 @@ class WEDriver:
                 segment.pcoord[0] = initial_state.pcoord
 
                 self.new_weights.append(NewWeightEntry(source_type=NewWeightEntry.NW_SOURCE_RECYCLED,
-                                                       weight=parent.weight, prev_seg_id=parent.seg_id, 
-                                                       prev_init_pcoord=parent.pcoord[0],
-                                                       prev_final_pcoord=parent.pcoord[-1],
-                                                       new_init_pcoord=initial_state.pcoord,
+                                                       weight=parent.weight, prev_seg_id=parent.seg_id,
+                                                       # the .copy() is crucial, otherwise the slice of pcoords will
+                                                       # keep the parent segments' pcoord data alive unnecessarily long
+                                                       prev_init_pcoord=parent.pcoord[0].copy(),
+                                                       prev_final_pcoord=parent.pcoord[-1].copy(),
+                                                       new_init_pcoord=initial_state.pcoord.copy(),
                                                        target_state_id=target_state.state_id,
                                                        initial_state_id=initial_state.state_id) )
                 

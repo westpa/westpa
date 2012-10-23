@@ -101,6 +101,7 @@ class WESimManager:
         callbacks = self._callback_table.get(hook, [])
         sorted_callbacks = sorted(callbacks)
         for (priority, name, fn) in sorted_callbacks:
+            log.debug('invoking callback {!r} for hook {!r}'.format(fn,hook))
             fn(*args, **kwargs)
     
     def load_plugins(self):
@@ -353,6 +354,7 @@ class WESimManager:
         for (segment, assignment) in izip(segments.itervalues(), initial_assignments):
             initial_binning[assignment].add(segment)
         self.report_bin_statistics(initial_binning, save_summary=True)
+        del initial_pcoords, initial_binning
         
         # Let the WE driver assign completed segments 
         if completed_segments:
@@ -372,7 +374,7 @@ class WESimManager:
         # dispatch and immediately wait on result for prep_iter
         log.debug('dispatching propagator prep_iter to work manager')        
         self.work_manager.submit(wm_ops.prep_iter, self.propagator, self.n_iter, segments).get_result()
-        
+                
     def finalize_iteration(self):
         '''Clean up after an iteration and prepare for the next.'''
         log.debug('finalizing iteration {:d}'.format(self.n_iter))
@@ -386,7 +388,7 @@ class WESimManager:
         # Move existing segments into place as new segments
         del self.segments
         self.segments = {segment.seg_id: segment for segment in self.we_driver.next_iter_segments}
-
+                        
     def get_istate_futures(self):
         '''Add ``n_states`` initial states to the internal list of initial states assigned to
         recycled particles.  Spare states are used if available, otherwise new states are created.
@@ -397,7 +399,7 @@ class WESimManager:
         n_istates_needed = self.we_driver.n_istates_needed
 
         log.debug('{:d} unused initial states available'.format(len(self.we_driver.avail_initial_states)))                
-        log.info('{:d} new initial states required for recycling {:d} walkers'.format(n_istates_needed,
+        log.debug('{:d} new initial states required for recycling {:d} walkers'.format(n_istates_needed,
                                                                                        n_recycled))
         
         futures = set()
@@ -548,6 +550,21 @@ class WESimManager:
         self.data_manager.require_iter_group(self.n_iter+1)
         self.data_manager.save_iter_binning(self.n_iter+1, hashed, pickled, self.we_driver.bin_target_counts)
         
+        # Report on recycling
+        recycling_events = {}
+        for nw in self.we_driver.new_weights:
+            try:
+                recycling_events[nw.target_state_id].add(nw.weight)
+            except KeyError:
+                recycling_events[nw.target_state_id] = set([nw.weight])
+        
+        tstates_by_id = {state.state_id: state for state in self.we_driver.target_states.itervalues()}
+        for tstate_id, weights in recycling_events.iteritems():
+            tstate = tstates_by_id[tstate_id]
+            west.rc.pstatus('Recycled {:g} probability ({:d} walkers) from target state {!r}'.format(sum(weights),
+                                                                                                     len(weights),
+                                                                                                     tstate.label))
+                
     def prepare_new_iteration(self):
         '''Commit data for the coming iteration to the HDF5 file.'''
         self.invoke_callbacks(self.prepare_new_iteration)

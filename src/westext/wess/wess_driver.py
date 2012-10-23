@@ -151,7 +151,8 @@ class WESSDriver:
         rij, oldindex = reduce_array(averager.average_rate)
         uij = averager.stderr_rate[numpy.ix_(oldindex,oldindex)]
 
-        target_regions = numpy.where(we_driver.target_state_mask)[0]
+        #target_regions = numpy.where(we_driver.target_state_mask)[0]
+        target_regions = we_driver.target_states.keys()
 
         flat_target_regions = []
         for target_region in target_regions:

@@ -33,7 +33,7 @@ Version history:
         - moved iter_* groups into a top-level iterations/ group,
         - added in-HDF5 storage for basis states, target states, and generated states
 """        
-from __future__ import division; __metaclass__ = type
+from __future__ import division, print_function; __metaclass__ = type
 import warnings, sys
 from operator import attrgetter
 from itertools import imap, izip
@@ -89,17 +89,17 @@ vstr_dtype = h5py.new_vlen(str)
 h5ref_dtype = h5py.special_dtype(ref=h5py.Reference)
 binhash_dtype = numpy.dtype('|S64')
 
-seg_status_dtype    = h5py.special_dtype(enum=(numpy.uint8, Segment.statuses))
-seg_initpoint_dtype = h5py.special_dtype(enum=(numpy.uint8, Segment.initpoint_types))
-seg_endpoint_dtype  = h5py.special_dtype(enum=(numpy.uint8, Segment.endpoint_types))
-istate_type_dtype   = h5py.special_dtype(enum=(numpy.uint8, InitialState.istate_types))
-istate_status_dtype = h5py.special_dtype(enum=(numpy.uint8, InitialState.istate_statuses))
+#seg_status_dtype    = h5py.special_dtype(enum=(numpy.uint8, Segment.statuses))
+#seg_initpoint_dtype = h5py.special_dtype(enum=(numpy.uint8, Segment.initpoint_types))
+#seg_endpoint_dtype  = h5py.special_dtype(enum=(numpy.uint8, Segment.endpoint_types))
+#istate_type_dtype   = h5py.special_dtype(enum=(numpy.uint8, InitialState.istate_types))
+#istate_status_dtype = h5py.special_dtype(enum=(numpy.uint8, InitialState.istate_statuses))
 
-#seg_status_dtype = numpy.uint8
-#seg_initpoint_dtype = numpy.uint8
-#seg_endpoint_dtype = numpy.uint8
-#istate_type_dtype = numpy.uint8
-#istate_status_dtype = numpy.uint8
+seg_status_dtype = numpy.uint8
+seg_initpoint_dtype = numpy.uint8
+seg_endpoint_dtype = numpy.uint8
+istate_type_dtype = numpy.uint8
+istate_status_dtype = numpy.uint8
     
 summary_table_dtype = numpy.dtype( [ ('n_particles', seg_id_dtype),    # Number of live trajectories in this iteration
                                      ('norm', weight_dtype),          # Norm of probability, to watch for errors or drift
@@ -200,7 +200,7 @@ class WESTDataManager:
         self.iter_prec = self.default_iter_prec
         self.aux_compression_threshold = self.default_aux_compression_threshold
         
-        self.table_scan_chunksize = 256
+        self.table_scan_chunksize = 1024
         
         # Do not load auxiliary data sets by default, as this can potentially take as much space in RAM
         # as there is auxiliary data stored for a given iteration.
@@ -411,10 +411,10 @@ class WESTDataManager:
             tstate_group = self.find_tstate_group(n_iter)         
 
             if tstate_group is not None:
-                tstate_index = tstate_group['index']
-                tstate_pcoords = tstate_group['pcoord']
+                tstate_index = tstate_group['index'][...]
+                tstate_pcoords = tstate_group['pcoord'][...]
                 
-                tstates = [TargetState(state_id=i, label=row['label'], pcoord=pcoord)
+                tstates = [TargetState(state_id=i, label=str(row['label']), pcoord=pcoord.copy())
                             for (i, (row, pcoord))  in enumerate(izip(tstate_index, tstate_pcoords))]
             else:
                 tstates = []
@@ -473,12 +473,12 @@ class WESTDataManager:
             n_iter = n_iter or self.current_iteration
             ibstate_group = self.find_ibstate_group(n_iter)
             try:
-                bstate_index = ibstate_group['bstate_index']
+                bstate_index = ibstate_group['bstate_index'][...]
             except KeyError:
                 return []
-            bstate_pcoords = ibstate_group['bstate_pcoord']
+            bstate_pcoords = ibstate_group['bstate_pcoord'][...]
             bstates = [BasisState(state_id=i, label=row['label'], probability=row['probability'],
-                                  auxref = row['auxref'] or None, pcoord=pcoord)
+                                  auxref = str(row['auxref']) or None, pcoord=pcoord.copy())
                        for (i, (row, pcoord))  in enumerate(izip(bstate_index, bstate_pcoords))]
             return bstates
             
@@ -544,25 +544,24 @@ class WESTDataManager:
             
             ibstate_group['istate_index'][state_ids] = index_entries
             ibstate_group['istate_pcoord'][state_ids] = pcoord_vals
-            
+    
     def get_initial_states(self, n_iter=None):
         states = []
         with self.lock:
             n_iter = n_iter or self.current_iteration
             ibstate_group = self.find_ibstate_group(n_iter)
             try:
-                istate_index = ibstate_group['istate_index']
+                istate_index = ibstate_group['istate_index'][...]
             except KeyError:
                 return []
-            istate_pcoords = ibstate_group['pcoord']
+            istate_pcoords = ibstate_group['pcoord'][...]
             
             for state_id, (state, pcoord) in enumerate(izip(istate_index, istate_pcoords)):
                 states.append(InitialState(state_id=state_id, basis_state_id=long(state['basis_state_id']),
                                            iter_created=int(state['iter_created']), iter_used=int(state['iter_used']),
-                                           istate_type=int(state['istate_type']), pcoord=pcoord))
+                                           istate_type=int(state['istate_type']), pcoord=pcoord.copy()))
             return states
                 
-
     def get_segment_initial_states(self, segments, n_iter=None):
         '''Retrieve all initial states referenced by the given segments.'''
         
@@ -570,24 +569,30 @@ class WESTDataManager:
             n_iter = n_iter or self.current_iteration
             ibstate_group = self.get_iter_group(n_iter)['ibstates']
             
-            istate_ids = {-(segment.parent_id+1) for segment in segments if segment.parent_id < 0}
+            istate_ids = {-long(segment.parent_id+1) for segment in segments if segment.parent_id < 0}
             sorted_istate_ids = sorted(istate_ids)
             if not sorted_istate_ids:
                 return []
             
-            istate_rows = ibstate_group['istate_index'][sorted_istate_ids]
-            istate_pcoords = ibstate_group['istate_pcoord'][sorted_istate_ids]
+            istate_rows = ibstate_group['istate_index'][sorted_istate_ids][...]
+            istate_pcoords = ibstate_group['istate_pcoord'][sorted_istate_ids][...]
+            istates = []
             
-            return [InitialState(state_id=state_id, basis_state_id=state['basis_state_id'],
-                                 iter_created=state['iter_created'], iter_used=state['iter_used'],
-                                 istate_type=state['istate_type'], pcoord=pcoord)
-                    for state_id, state, pcoord in izip(sorted_istate_ids, istate_rows, istate_pcoords)] 
+            for state_id, state, pcoord in izip(sorted_istate_ids, istate_rows, istate_pcoords):
+                istate = InitialState(state_id=state_id, basis_state_id=long(state['basis_state_id']),
+                                      iter_created=int(state['iter_created']), iter_used=int(state['iter_used']),
+                                      istate_type=int(state['istate_type']), pcoord=pcoord.copy())
+                istates.append(istate)
+            return istates 
             
     def get_unused_initial_states(self, n_states = None, n_iter = None):
         '''Retrieve any prepared but unused initial states applicable to the given iteration.
         Up to ``n_states`` states are returned; if ``n_states`` is None, then all unused states
         are returned.'''
+        
         n_states = n_states or sys.maxint
+        ISTATE_UNUSED = InitialState.ISTATE_UNUSED
+        ISTATE_STATUS_PREPARED = InitialState.ISTATE_STATUS_PREPARED
         with self.lock:
             n_iter = n_iter or self.current_iteration
             ibstate_group = self.find_ibstate_group(n_iter)
@@ -601,19 +606,24 @@ class WESTDataManager:
             while istart < n_index_entries and len(states) < n_states:
                 istop = min(istart+chunksize, n_index_entries)
                 istate_chunk = istate_index[istart:istop]
-                state_ids = numpy.arange(istart,istop,dtype=numpy.uint)
+                pcoord_chunk = istate_pcoords[istart:istop]
+                #state_ids = numpy.arange(istart,istop,dtype=numpy.uint)
                 
-                unused = (  (istate_chunk['iter_used'] == InitialState.ISTATE_UNUSED) 
-                          & (istate_chunk['istate_status'] == InitialState.ISTATE_STATUS_PREPARED ) )
-                ids_of_unused = list(state_ids[unused])
-                if len(ids_of_unused):
-                    pcoords = istate_pcoords[ids_of_unused]
-                    states.extend(InitialState(state_id=state_id, basis_state_id=state['basis_state_id'],
-                                               iter_created=state['iter_created'], iter_used=0, istate_type=state['istate_type'],
-                                               pcoord=pcoord,
-                                               istate_status=state['istate_status'])
-                                  for state_id,state,pcoord in izip(ids_of_unused,istate_chunk[unused],pcoords))
+                for ci in xrange(len(istate_chunk)):
+                    row = istate_chunk[ci]
+                    pcoord = pcoord_chunk[ci]
+                    state_id = istart+ci
+                    if row['iter_used'] == ISTATE_UNUSED and row['istate_status'] == ISTATE_STATUS_PREPARED:
+                        istate = InitialState(state_id = state_id,
+                                                   basis_state_id=long(row['basis_state_id']),
+                                                   iter_created = int(row['iter_created']), iter_used=0,
+                                                   istate_type = int(row['istate_type']),
+                                                   pcoord=pcoord.copy(),
+                                                   istate_status=ISTATE_STATUS_PREPARED)
+                        states.append(istate)
+                    del row, pcoord, state_id
                 istart += chunksize
+                del istate_chunk, pcoord_chunk #, state_ids, unused, ids_of_unused
             log.debug('found {:d} unused states'.format(len(states)))
             return states[:n_states]
                 
@@ -1112,9 +1122,9 @@ class WESTDataManager:
             entry = NewWeightEntry(source_type=irow['source_type'],
                                    weight=irow['weight'],
                                    prev_seg_id=prev_seg_id,
-                                   prev_init_pcoord=prev_init_pcoords[i],
-                                   prev_final_pcoord=prev_final_pcoords[i],
-                                   new_init_pcoord=new_init_pcoords[i],
+                                   prev_init_pcoord=prev_init_pcoords[i].copy(),
+                                   prev_final_pcoord=prev_final_pcoords[i].copy(),
+                                   new_init_pcoord=new_init_pcoords[i].copy(),
                                    target_state_id=target_state_id,
                                    initial_state_id=initial_state_id)
             
