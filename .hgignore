@@ -1,0 +1,14 @@
+syntax: glob
+.project
+.pydevproject
+*.pyc
+*.pyo
+*~
+*.swp
+*.swo
+*.so
+.DS_Store
+
+syntax: regexp
+\.[0-9]+$
+
