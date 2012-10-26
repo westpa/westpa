@@ -101,7 +101,7 @@ class _WESTRC:
             self.rcfile = filename
 
         if 'WEST_SIM_ROOT' not in os.environ:
-            sys.stderr.write('-- WARNING -- setting $WEST_SIM_ROOT to current directory ({})\n'.format(os.getcwd()))
+            #sys.stderr.write('-- WARNING -- setting $WEST_SIM_ROOT to current directory ({})\n'.format(os.getcwd()))
             os.environ['WEST_SIM_ROOT'] = os.getcwd()
                                     
         self.config.read_config_file(self.rcfile) 
