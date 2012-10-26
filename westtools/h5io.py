@@ -30,16 +30,19 @@ def create_hdf5_group(parent_group, groupname, replace=False, creating_program=N
             pass
         
     newgroup = parent_group.create_group(groupname)
+    stamp_hdf5_group(newgroup)
+    return newgroup
+
+def stamp_hdf5_group(h5group, creating_program = None):
     now = time.time()
-    attrs = newgroup.attrs
+    attrs = h5group.attrs
     
     attrs['creation_program'] = creating_program or sys.argv[0] or 'unknown program'
     attrs['creation_user'] = getpass.getuser()
     attrs['creation_hostname'] = socket.gethostname()
     attrs['creation_unix_time'] = now
     attrs['creation_time'] = time.strftime('%c', time.localtime(now))
-    
-    return newgroup 
+     
 
 def label_axes(h5object, labels, units=None):
     '''Stamp the given HDF5 object with axis labels. This stores the axis labels

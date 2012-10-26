@@ -130,9 +130,9 @@ class ByIterDataSelection(DataSelection):
         self.index = index
         self._index_data = None
         self._iter_prec = None
-        
         self._iter_groups = {}
-        
+                
+                
     def _get_iter_group(self, n_iter):
         try:
             return self._iter_groups[n_iter]
