@@ -17,6 +17,26 @@ def isiterable(x):
         return True
     
 class PcoordHistHelper:
+    '''Create histograms from WEST progress coordinate data. This class coordinates reading
+    data from the HDF5 file and performing the histogram binning. The start and stop
+    iterations must be provided, as must be a data reader instance.
+    
+    To use:
+      1) Call ``construct_bins`` to build the bins for the histogram. This will trigger a scan
+         (possibly very expensive in I/O) of all the progress coordinate data unless explicit
+         boundaries are supplied. After this, bin boundaries are available in ``binbounds``
+         and midpoints of bins are available in ``midpoints``.
+      2) Call ``construct_histogram`` to build the histogram.
+      3) The histogram as a function of iteration is then available as ``histograms``, and
+         the histogram averaged over iterations is available as ``avg_histogram``.
+         
+    Input is taken by entire iteration when feasible, and one segment (across timepoints)
+    or one timepoint (across segments) otherwise. The switch from fast (but high-memory)
+    per-iteration reads to slower, smaller reads occurs when the number of entries in the
+    progress coordinate data set for one iteration exceeds ``max_n_elems``, which defaults
+    to 100 million (for ~400 MB of single-precision data or ~800 MB of double-precision data)
+    but may be adjusted either at the class level or the instance level.
+    '''
     
     max_n_elems = 100000000
         
@@ -100,13 +120,23 @@ class PcoordHistHelper:
             if log.isEnabledFor(logging.DEBUG):
                 log.debug('scanning iteration {}'.format(n_iter))
             pcoord_ds = self.data_reader.get_iter_group(n_iter)['pcoord']
-            for idim in xrange(ndim):
-                dimdata = pcoord_ds[:,:,idim]
-                current_min, current_max = data_range[idim]
-                current_min = min(current_min, dimdata.min())
-                current_max = max(current_max, dimdata.max())
-                data_range[idim] = (current_min, current_max)
-                del dimdata
+            if numpy.multiply.reduce(pcoord_ds.shape) > self.max_n_elems:
+                for seg_id in xrange(pcoord_ds.shape[0]):
+                    for idim in xrange(ndim):
+                        dimdata = pcoord_ds[seg_id,:,idim]
+                        current_min, current_max = data_range[idim]
+                        current_min = min(current_min, dimdata.min())
+                        current_max = max(current_max, dimdata.max())
+                        data_range[idim] = (current_min, current_max)
+                        del dimdata
+            else:
+                for idim in xrange(ndim):
+                    dimdata = pcoord_ds[:,:,idim]
+                    current_min, current_max = data_range[idim]
+                    current_min = min(current_min, dimdata.min())
+                    current_max = max(current_max, dimdata.max())
+                    data_range[idim] = (current_min, current_max)
+                    del dimdata
             del pcoord_ds
         log.debug('data ranges: {!r}'.format(data_range))
                 
@@ -155,6 +185,11 @@ class PcoordHistHelper:
             self.midpoints.append((boundset[:-1]+boundset[1:])/2.0)
             
     def construct_histogram(self):
+        '''Construct a histogram using bins previously constructed with ``construct_bins()``.
+        The time series of histogram values is stored in ``histograms`` and the average over
+        time is stored in ``avg_histogram``. Each histogram in the time series is normalized,
+        as is the average histogram.'''
+        
         self.scan_data_shape()
         
         iter_count = self.iter_stop - self.iter_start

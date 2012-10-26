@@ -77,7 +77,8 @@ class WESTTool(WESTToolComponent):
         description = description or self.description
         epilog = epilog or self.epilog
         parser = argparse.ArgumentParser(prog=prog, usage=usage, description=description, epilog=epilog,
-                                         formatter_class=argparse.RawDescriptionHelpFormatter)
+                                         formatter_class=argparse.RawDescriptionHelpFormatter,
+                                         conflict_handler='resolve')
         self.add_all_args(parser)
         args = parser.parse_args(args)
         self.process_all_args(args)

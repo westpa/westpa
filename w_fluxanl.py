@@ -1,12 +1,8 @@
 from __future__ import print_function, division; __metaclass__ = type
-import sys, operator, functools, time, getpass
-from itertools import imap
-
 import numpy, h5py
-import scipy.signal
 from scipy.signal import fftconvolve
 
-from westtools.tool_classes import WESTTool, HDF5Storage, WESTDataReader, IterRangeSelection
+from westtools.tool_classes import WESTTool, WESTDataReader, IterRangeSelection
 import west
 from west.data_manager import (weight_dtype, n_iter_dtype, vstr_dtype)
 from west.we_driver import NewWeightEntry
