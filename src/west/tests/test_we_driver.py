@@ -204,14 +204,18 @@ class TestWEDriver:
         self.we_driver.construct_next()
         
         assert len(self.we_driver.next_iter_binning[0]) == 50
-        
-    def test_populate_initial(self):        
-        istate = InitialState(0, 0, 0, pcoord=[0.0]) 
-        self.system.bin_target_counts = numpy.array([50,50])
-        
-        self.we_driver.populate_initial([istate], [0.9999999999970001], system=self.system)
-        assert len(self.we_driver.next_iter_binning[0]) == 50
-        
-        
+
+    def check_populate_initial(self, prob, target_counts):
+        istate = InitialState(0, 0, 0, pcoord=[0.0])
+        self.system.bin_target_counts = numpy.array([target_counts, target_counts])
+
+        self.we_driver.populate_initial([istate], [prob], system=self.system)
+        assert len(self.we_driver.next_iter_binning[0]) == target_counts
+
+    def test_populate_initial(self):
+        for prob in [0.1, 1.0 / 3.0, 0.9999999999970001, 1.0]:
+            for tcount in xrange(30, 60):
+                yield self.check_populate_initial, prob, tcount
+
     # TODO: add test for seeding the flux matrix based on recycling 
     # TODO: add test for split after merge in adjust count
