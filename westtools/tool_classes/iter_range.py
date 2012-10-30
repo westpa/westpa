@@ -4,6 +4,7 @@ import logging
 log = logging.getLogger(__name__)
 import west
 import numpy
+from westtools import h5io
 
 class IterRangeSelection(WESTTool):
     '''Select and record limits on iterations used in analysis and/or reporting.
@@ -26,14 +27,14 @@ class IterRangeSelection(WESTTool):
     def __init__(self, data_manager=None):
         super(IterRangeSelection,self).__init__()
         
-        self.data_manager = data_manager or west.rc.get_data_manager()
+        self.data_manager = data_manager
         
         # First iteration on which to perform analysis/reporting
         self.iter_start = None
         
         # One past the last iteration on which to perform analysis/reporting
         self.iter_stop = None
-        
+                
         # Step 
         self.iter_step = None
         
@@ -57,19 +58,29 @@ class IterRangeSelection(WESTTool):
                                help='''Analyze/report in blocks of STEP iterations.''')
 
     
-    def process_args(self, args):
-        if self.include_args['iter_start']:
-            self.iter_start = args.first_iter or 1
-        if self.include_args['iter_stop']:
-            if args.last_iter:
-                self.iter_stop = args.last_iter+1
-            else:
-                self.iter_stop = self.data_manager.current_iteration
+    def process_args(self, args, override_iter_start=None, override_iter_stop=None):
+        if override_iter_start is not None:
+            self.iter_start = override_iter_start
+        elif args.first_iter is not None:
+            self.iter_start = args.first_iter
+        else:
+            self.iter_start = 1
+            
+        if override_iter_stop is not None:
+            self.iter_stop = override_iter_stop
+        elif args.last_iter is not None:
+            self.iter_stop = args.last_iter + 1
+        else:
+            self.iter_stop = (self.data_manager or west.rc.get_data_manager()).current_iteration 
+
         if self.include_args['iter_step']:
             self.iter_step = args.iter_step or 1
-            
-        if self.include_args['iter_start'] and self.include_args['iter_stop']:
+        
+        try:
             self.iter_count = self.iter_stop - self.iter_start
+        except TypeError:
+            # one or both are None
+            pass    
 
     def iter_block_iter(self):
         '''Return an iterable of (block_start,block_end) over the blocks of iterations
@@ -98,7 +109,7 @@ class IterRangeSelection(WESTTool):
         '''Store attribute ``iter_step`` on the given HDF5 object (group/dataset).'''
         iter_step = self.iter_setp if iter_step is None else iter_step
         h5object.attrs['iter_step'] = iter_step
-        
+                
     def check_data_iter_range_least(self, h5object, iter_start = None, iter_stop = None):
         '''Check that the given HDF5 object contains (as denoted by its ``iter_start``/``iter_stop`` attributes)
         data at least for the iteration range specified.'''

@@ -272,7 +272,7 @@ Calculate probability distribution of progress coordinate values and its time ev
         self.iter_range.process_args(args)
         self.binspec = args.bins        
         self.output_file = h5py.File(args.output, 'w')
-        h5io.stamp_hdf5_group(self.output_file)
+        h5io.stamp_creator_data(self.output_file)
     
     def go(self):
         hh = PcoordHistHelper(self.iter_range.iter_start, self.iter_range.iter_stop, self.data_reader)
