@@ -80,6 +80,9 @@ class WESimManager:
         # Tracking of binning
         self.bin_mapper_hash = None         # Hash of bin mapper from most recently-run WE, for use by post-WE analysis plugins
         
+        # Save bin transition data?
+        self.save_transition_matrices = west.rc.config.get_bool('system.save_transition_matrices', False)
+        
     def register_callback(self, hook, function, priority=0):
         '''Registers a callback to execute during the given ``hook`` into the simulation loop. The optional
         priority is used to order when the function is called relative to other registered callbacks.'''
@@ -489,15 +492,16 @@ class WESimManager:
         are likely useless at the single-tau level and are no longer written.'''
         # save_bin_data(self, populations, n_trans, fluxes, rates, n_iter=None)
         
-        with self.data_manager.flushing_lock():
-            iter_group = self.data_manager.get_iter_group(self.n_iter)
-            for key in ['bin_ntrans', 'bin_fluxes']:
-                try:
-                    del iter_group[key]
-                except KeyError:
-                    pass
-            iter_group['bin_ntrans'] = self.we_driver.transition_matrix
-            iter_group['bin_fluxes'] = self.we_driver.flux_matrix
+        if self.save_transition_matrices:
+            with self.data_manager.flushing_lock():
+                iter_group = self.data_manager.get_iter_group(self.n_iter)
+                for key in ['bin_ntrans', 'bin_fluxes']:
+                    try:
+                        del iter_group[key]
+                    except KeyError:
+                        pass
+                iter_group['bin_ntrans'] = self.we_driver.transition_matrix
+                iter_group['bin_fluxes'] = self.we_driver.flux_matrix
         
     def check_propagation(self):
         '''Check for failures in propagation or initial state generation, and raise an exception
