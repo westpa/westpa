@@ -22,7 +22,8 @@ class WEEDDriver:
         self.data_manager = sim_manager.data_manager
         self.system = sim_manager.system
 
-        self.do_reweight = west.rc.config.get_bool('weed.do_equilibrium_reweighting', False)
+        self.do_reweight = (west.rc.config.get_bool('weed.do_equilibrium_reweighting', False)
+                            or west.rc.config.get_bool('weed.do_reweighting', False))
         self.windowsize = 0.5
         self.windowtype = 'fraction'
         self.recalc_rates = west.rc.config.get_bool('weed.recalc_rates', False)

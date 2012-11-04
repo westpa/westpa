@@ -261,7 +261,8 @@ class ExecutablePropagator(WESTPropagator):
         return template_args, environ
     
     def update_args_env_iter(self, template_args, environ, n_iter):
-        environ[self.ENV_CURRENT_ITER] = template_args['n_iter'] = str(n_iter if n_iter is not None else -1)
+        environ[self.ENV_CURRENT_ITER] = str(n_iter if n_iter is not None else -1)
+        template_args['n_iter'] = int(n_iter) 
         return template_args, n_iter
     
     def update_args_env_segment(self, template_args, environ, segment):
