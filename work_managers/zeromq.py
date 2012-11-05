@@ -155,6 +155,8 @@ class ZMQBase:
         self.hostname = socket.gethostname()
         self.host_id = '{:s}-{:d}'.format(self.hostname, os.getpid())
         self.instance_id = uuid.uuid4()
+        
+        self._tls = threading.local() 
 
     @staticmethod
     def canonicalize_endpoint(endpoint, allow_wildcard_host = True):
@@ -226,11 +228,21 @@ class ZMQBase:
         return socket
     
     def _signal_thread(self, endpoint, message='', socket_type=zmq.PUSH):
-        socket = self.context.socket(socket_type)
-        socket.connect(endpoint)
+        try:
+            ctlsockets = self._tls.ctlsockets
+        except AttributeError:
+            ctlsockets = self._tls.ctlsockets = dict()
+        
+        try:
+            socket = ctlsockets[endpoint]
+        except KeyError:
+            socket = ctlsockets[endpoint] = self.context.socket(socket_type)
+            socket.connect(endpoint)
+                    
         socket.send(message)
-        socket.close()
-        del socket
+        
+        #socket.close()
+        #del socket
                 
 class ZMQWMServer(ZMQBase):
     
@@ -318,20 +330,20 @@ class ZMQWMServer(ZMQBase):
         poller.register(ctlsocket, zmq.POLLIN)
         try:
             while True:
-                poll_results = dict(poller.poll(100))
-                if poll_results.get(ctlsocket) == zmq.POLLIN:
-                    messages = recvall(ctlsocket)
-                    if 'shutdown' in messages:
-                        return
-                    
-                # Dispatch as many tasks as possible before checking for shutdown and waiting another .1 s
-                while True:
-                    try:
+                poll_results=dict(poller.poll())
+                assert poll_results.get(ctlsocket) == zmq.POLLIN
+                
+                messages = recvall(ctlsocket)
+                if 'shutdown' in messages:
+                    return
+                
+                for message in messages:
+                    assert message.startswith('tasks:')
+                    ntasks = int(message[message.find(':')+1:])
+                    for _i in xrange(ntasks):
                         task = self.task_queue.popleft()
-                    except IndexError:
-                        break
-                    else:
                         log.debug('dispatching task {!s} ({!r})'.format(task.task_id, task.fn))
+                        
                         # this will block if no clients are around
                         master_task_socket.send_multipart(task.to_zmq_frames(), copy=False)
         finally:
@@ -379,11 +391,18 @@ class ZMQWMServer(ZMQBase):
                     try:
                         ft = self.pending_futures.pop(result.task_id)
                     except KeyError:
-                        log.error('received result for nonexistent task {!s}; zombie client?'.format(result.task_id))
-                    else:
                         if result.is_exception:
+                            log.error('received exception for nonexistent task {!s}: {!r}'.format(result.task_id,result.exception))
                             ft._set_exception(result.exception, result.traceback)
                         else:
+                            log.error('received exception for nonexistent task {!s}'.format(result.task_id))
+                            ft._set_result(result.value)
+                    else:
+                        if result.is_exception:
+                            log.debug('received exception for task {!s}'.format(result.task_id))
+                            ft._set_exception(result.exception, result.traceback)
+                        else:
+                            log.debug('received result for task {!s}'.format(result.task_id))
                             ft._set_result(result.value)
         finally:
             poller.unregister(ctlsocket)
@@ -451,12 +470,12 @@ class ZMQWMServer(ZMQBase):
     def submit(self, fn, *args, **kwargs):
         ft = self._make_append_task(fn, args, kwargs)
         # wake up the dispatch loop
-        self._signal_thread(self._dispatch_thread_ctl_endpoint)
+        self._signal_thread(self._dispatch_thread_ctl_endpoint, 'tasks:1')
         return ft
     
     def submit_many(self, tasks):
         futures = [self._make_append_task(fn, args, kwargs) for (fn,args,kwargs) in tasks]
-        self._signal_thread(self._dispatch_thread_ctl_endpoint)
+        self._signal_thread(self._dispatch_thread_ctl_endpoint, 'tasks:{:d}'.format(len(futures)))
         return futures
         
     def shutdown(self):
@@ -517,7 +536,7 @@ class ZMQWMProcess(ZMQBase,multiprocessing.Process):
                     raise ValueError('received reply from node {} when expecting reply from {}'
                                      .format(returned_node_id, associated_node_id))
                 
-                # Make sure that the client process is talking to us
+                # Make sure that the client process is talking to us and not someone else (somehow)
                 if returned_client_id != this_client_id:
                     raise ValueError('received reply destined for {} (this is client process {})'
                                      .format(returned_client_id, this_client_id))
@@ -797,7 +816,6 @@ class ZMQClient(ZMQBase):
                 
                 if poll_results.get(ctlsocket) == zmq.POLLIN:
                     messages = recvall(ctlsocket)
-                    log.debug('{} messages on control socket'.format(len(messages)))
                     if 'shutdown' in messages:
                         self._shutdown_all_workers()
                         return
@@ -811,7 +829,6 @@ class ZMQClient(ZMQBase):
                                 
                 if poll_results.get(upstream_announce_socket) == zmq.POLLIN:
                     announcements = recvall(upstream_announce_socket)
-                    log.debug('{} messages on announcement socket'.format(len(announcements)))
                     if 'shutdown' in announcements:
                         log.debug('shutdown received')
                         self._shutdown()
@@ -861,7 +878,6 @@ class ZMQClient(ZMQBase):
         
         try:
             while True:
-                log.debug('top of taskfwd loop')
                 worker_poll_status = dict(worker_poller.poll())
                 
                 if worker_poll_status.get(ctlsocket) == zmq.POLLIN:
@@ -938,7 +954,23 @@ class ZMQClient(ZMQBase):
                         log.error('received result destined for node {} but this is node {}; ignoring'
                                   .format(node_id, self.node_id))                            
                     if message == 'result':
-                        result_meta = Result.from_zmq_frames(frames[1:], include_payload=False)                        
+                        result_meta = Result.from_zmq_frames(frames[1:], include_payload=False)
+                        
+                        # Remove the outstanding task ID for this client
+                        # The client loop will not request a task before sending a reply,
+                        # but it is conceivable that the task distribution thread will
+                        # send a new task before we get here; thus, the outstanding task ID
+                        # may not match the result task ID. In that case, just ignore
+                        # the difference 
+                        try:
+                            task_meta = self.worker_active_tasks.pop(client_id)
+                        except KeyError:
+                            pass
+                        else:
+                            if task_meta.task_id != result_meta.task_id:
+                                self.worker_active_tasks[client_id] = task_meta
+                        
+                                                
                         upstream_result_socket.send_multipart(frames[1:])
                     else:
                         log.error('received invalid response from worker {!r}: {!r}'

@@ -105,6 +105,29 @@ class BaseTestZMQWMServer:
         finally:
             task_socket.close(linger=0)
     
+    @timed(30)
+    def test_overkill_multi_submit(self):
+        work_manager = self.test_master
+        work_manager.startup()
+        task_endpoint = work_manager.master_task_endpoint
+        task_socket = self.test_client_context.socket(zmq.PULL)
+        task_socket.connect(task_endpoint)
+        
+        try:
+            for i in xrange(10000):
+                work_manager.submit(identity,i)
+
+            params = set()
+            for i in xrange(10000):
+                print(i)
+                task = Task.from_zmq_frames(task_socket.recv_multipart(copy=False))
+                assert task.server_id == work_manager.instance_id
+                assert task.fn == identity
+                params.add(task.args)
+            assert params == set((i,) for i in xrange(10000))
+        finally:
+            task_socket.close(linger=0)    
+    
     @timed(2)
     def test_receive_result(self):
         work_manager = self.test_master
