@@ -40,6 +40,8 @@ from itertools import imap, izip
 import cPickle as pickle
 import numpy
 import h5py
+from h5py._hl.selections import select
+from h5py import h5s
 import threading
 
 import logging
@@ -187,6 +189,10 @@ class WESTDataManager:
     # Bin data horizontal (second dimension) chunk size
     binning_hchunksize = 4096
     
+    # Maximum chunk size for auto compression; should be <300k or else the HDF5 chunk cache
+    # won't be effective
+    max_chunksize = 256*1024
+    
     def flushing_lock(self):
         return flushing_lock(self.lock, self.we_h5file)
     
@@ -219,10 +225,22 @@ class WESTDataManager:
                                                                     self.default_aux_compression_threshold)
             self.auto_load_auxdata = west.rc.config.get_bool('data.load_auxdata', False)
         self.lock = threading.RLock()
+        
+        self._system = None
                  
         # A few functions for extracting vectors of attributes from vectors of segments
         self._attrgetters = dict((key, vattrgetter(key)) for key in 
                                  ('seg_id', 'status', 'endpoint_type', 'weight', 'walltime', 'cputime'))
+        
+    @property
+    def system(self):
+        if self._system is None:
+            self._system = west.rc.get_system_driver()
+        return self._system
+    
+    @system.setter
+    def system(self, system):
+        self._system = system
     
     @property
     def closed(self):
@@ -637,7 +655,7 @@ class WESTDataManager:
         # Ensure we have a list for guaranteed ordering
         segments = list(segments)
         n_particles = len(segments)
-        system = west.rc.get_system_driver()
+        system = self.system
         pcoord_ndim = system.pcoord_ndim
         pcoord_len = system.pcoord_len
         pcoord_dtype = system.pcoord_dtype
@@ -763,98 +781,136 @@ class WESTDataManager:
             self.we_h5file['summary'].resize((min_iter - 1,))
                                      
     def update_segments(self, n_iter, segments):
-        """Update "mutable" fields (status, endpoint type, pcoord, timings, weights) in the HDF5 file
-        and update the summary table accordingly.  Note that this DOES NOT update other fields,
-        notably the family tree, which is set at iteration preparation and cannot change.
-                
-        Fields updated:
-          * status
-          * endpoint type
-          * pcoord
-          * cputime
-          * walltime
-          * weight
-                    
-        Fields not updated:
-          * seg_id
-          * parents
-          * initpoint_type
-        """
+        '''Update segment information in the HDF5 file; all prior information for each
+        ``segment`` is overwritten, except for parent and weight transfer information.'''
         
         segments = sorted(segments, key=attrgetter('seg_id'))
         
-        if len(segments) == 1:
-            self._update_segment(n_iter, segments[0])
-            return
-        
-        seg_ids = [segment.seg_id for segment in segments]
-
-        with self.lock:        
+        with self.lock:
             iter_group = self.get_iter_group(n_iter)
+    
+            pc_dsid = iter_group['pcoord'].id
+            si_dsid = iter_group['seg_index'].id
             
-            seg_index_entries = iter_group['seg_index'][seg_ids]
-            pcoord_entries = iter_group['pcoord'][seg_ids]
+            seg_ids = [segment.seg_id for segment in segments]
+            n_segments = len(segments)
+            n_total_segments = si_dsid.shape[0]
+            system = self.system
+            pcoord_ndim = system.pcoord_ndim
+            pcoord_len = system.pcoord_len
+            pcoord_dtype = system.pcoord_dtype
             
-            assert len(seg_index_entries) == len(pcoord_entries) == len(seg_ids)
-                        
+            seg_index_entries = numpy.empty((n_segments,), dtype=seg_index_dtype)
+            pcoord_entries = numpy.empty((n_segments,pcoord_len,pcoord_ndim), dtype=pcoord_dtype)
+            
+            pc_msel = h5s.create_simple(pcoord_entries.shape, (h5s.UNLIMITED,)*pcoord_entries.ndim)
+            pc_msel.select_all()
+            si_msel = h5s.create_simple(seg_index_entries.shape, (h5s.UNLIMITED,))
+            si_msel.select_all()
+            pc_fsel = pc_dsid.get_space()
+            si_fsel = si_dsid.get_space()
+            
+            for iseg in xrange(n_segments):
+                seg_id = seg_ids[iseg]
+                op = h5s.SELECT_OR if iseg != 0 else h5s.SELECT_SET
+                si_fsel.select_hyperslab((seg_id,), (1,), op=op)
+                pc_fsel.select_hyperslab((seg_id,0,0), (1,pcoord_len,pcoord_ndim), op=op)
+                
+            # read summary data so that we have valud parent and weight transfer information
+            si_dsid.read(si_msel, si_fsel, seg_index_entries)            
+            
             for (iseg, (segment, ientry)) in enumerate(izip(segments,seg_index_entries)):
                 ientry['status'] = segment.status
                 ientry['endpoint_type'] = segment.endpoint_type or Segment.SEG_ENDPOINT_UNSET
                 ientry['cputime'] = segment.cputime
                 ientry['walltime'] = segment.walltime
                 ientry['weight'] = segment.weight
-                
-                #pcoords[seg_id] = segment.pcoord
+    
                 pcoord_entries[iseg] = segment.pcoord
-                            
-            iter_group['seg_index'][seg_ids] = seg_index_entries
-            iter_group['pcoord'][seg_ids] = pcoord_entries
+                
+            # write progress coordinates and index using low level HDF5 functions for efficiency            
+            si_dsid.write(si_msel,si_fsel,seg_index_entries)
+            pc_dsid.write(pc_msel,pc_fsel,pcoord_entries)
             
             # Now, to deal with auxiliary data
             # If any segment has any auxiliary data, then the aux dataset must spring into
             # existence. Each is named according to the name in segment.data, and has shape
             # (n_total_segs, ...) where the ... is the shape of the data in segment.data (and may be empty
             # in the case of scalar data) and dtype is taken from the data type of the data entry
-            # compression is on by default for datasets that will be more than 1MiB          
-            if any(segment.data for segment in segments):
-                n_total_segs = len(iter_group['seg_index'])
-                aux_group = iter_group.require_group('auxdata')
-                for segment in segments:
-                    for (dsname, data) in segment.data.iteritems():
-                        adata = numpy.asarray(data)
-                        shape = (n_total_segs,)+adata.shape
-                        nbytes = adata.nbytes
-                        dset = aux_group.require_dataset(dsname,
-                                                         shape=shape,
-                                                         dtype=adata.dtype,
-                                                         compression='gzip' if nbytes > self.aux_compression_threshold else None)
-                        dset[segment.seg_id] = adata
+            # compression is on by default for datasets that will be more than 1MiB
             
+            # a mapping of data set name to (per-segment shape, data type) tuples
+            dsets = {}
             
-    def _update_segment(self, n_iter, segment):
-        with self.lock:
-            iter_group = self.get_iter_group(n_iter)
-            seg_index = self.get_seg_index(n_iter)
-            row = seg_index[segment.seg_id]
-            row['status'] = segment.status
-            row['endpoint_type'] = segment.endpoint_type or Segment.SEG_ENDPOINT_UNSET
-            row['cputime'] = segment.cputime
-            row['walltime'] = segment.walltime
-            row['weight'] = segment.weight
-            seg_index[segment.seg_id] = row
-            iter_group['pcoord'][segment.seg_id] = segment.pcoord
-            
-            if segment.data:
-                aux_group = iter_group.require_group('auxdata')
-                for (dsname, data) in segment.data.iteritems():
-                    adata = numpy.asarray(data)
-                    shape = (len(seg_index),)+adata.shape
-                    nbytes = numpy.multiply.reduce(shape)
-                    dset = aux_group.require_dataset(dsname,
-                                                     shape=shape,
-                                                     dtype=adata.dtype,
-                                                     compression='gzip' if nbytes > self.aux_compression_threshold else None)
-                    dset[segment.seg_id] = adata                
+            # First we scan for presence, shape, and data type of auxiliary data sets
+            for segment in segments:
+                if segment.data:
+                    for dsname in segment.data:
+                        data = numpy.asarray(segment.data[dsname],order='C')
+                        segment.data[dsname] = data
+                        dsets[dsname] = (data.shape, data.dtype)
+                      
+            # Then we iterate over data sets and store data
+            if dsets:
+                for (dsname, (shape, dtype)) in dsets.iteritems():
+                    dset = self._require_aux_dataset(iter_group, dsname, n_total_segments, shape, dtype)
+                    #dset_shape = dset.shape
+                    for segment in segments:
+                        try:
+                            auxdataset = segment.data[dsname]
+                        except KeyError:
+                            pass
+                        else:                        
+                            source_rank = len(auxdataset.shape)
+                            source_sel = h5s.create_simple(auxdataset.shape, (h5s.UNLIMITED,)*source_rank)
+                            source_sel.select_all()
+                            dest_sel = dset.id.get_space()
+                            dest_sel.select_hyperslab((segment.seg_id,)+(0,)*source_rank, (1,)+auxdataset.shape)
+                            dset.id.write(source_sel, dest_sel, auxdataset)
+                                
+                                
+    def _require_aux_dataset(self, iter_group, dsname, n_segments, shape, dtype):
+        aux_group = iter_group.require_group('auxdata')
+        try:
+            dset = aux_group[dsname]
+        except KeyError:            
+            shape = (n_segments,) + shape
+            nbytes = numpy.multiply.reduce(shape)*dtype.itemsize
+            if nbytes > self.aux_compression_threshold:
+                # Shuffle and compress this dataset
+                compression=9
+                shuffle=True
+                
+                # Select a chunk size that favors chunking in lower dimensions -- 
+                # i.e. we start chunking on segments, then proceed to timepoints 
+                # (or whatever the second dimension is) and so on. This should
+                # give reasonable performance for analysis programs that 
+                # trace trajectories but may significantly slow programs that
+                # consider each timepoint of all trajectories simultaneously
+                # TODO: make this optional on a per-auxdata basis 
+                chunk_shape = list(shape)
+                for idim in xrange(len(shape)):
+                    chunk_nbytes = numpy.multiply.reduce(chunk_shape)*dtype.itemsize
+                    while chunk_shape[idim] > 1 and chunk_nbytes > self.max_chunksize:
+                        chunk_shape[idim] >>= 1
+                        chunk_nbytes = numpy.multiply.reduce(chunk_shape)*dtype.itemsize
+                        
+                    if chunk_nbytes <= self.max_chunksize:
+                        break
+                chunk_shape = tuple(chunk_shape)
+                log.debug('selected chunk shape {} for data set shaped {} (chunk size = {} bytes)'
+                          .format(chunk_shape, shape, chunk_nbytes))
+                
+            else:
+                compression=None
+                shuffle=False
+                chunk_shape = None
+                
+            dset = aux_group.require_dataset(dsname, shape=shape, dtype=dtype, compression=compression, shuffle=shuffle,
+                                             chunks=chunk_shape)
+                                             
+        return dset
+                        
     
     def get_segments(self, n_iter=None, seg_ids=None, load_pcoords = True, load_auxdata=None):
         '''Return the given (or all) segments from a given iteration.  
