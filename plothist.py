@@ -15,7 +15,8 @@ numpy.seterr(divide='ignore', invalid='ignore')
 
 
 def sum_except_along(array, axes):
-    '''Reduce the given array by addition over all axes except those listed in the iterable ``axes``'''
+    '''Reduce the given array by addition over all axes except those listed in the scalar or 
+    iterable ``axes``.'''
     
     try:
         iter(axes)
@@ -443,6 +444,8 @@ by passing --plot-output=''.
         hists = self.input_h5['histograms'][...]
         
         itercount = self.iter_stop - self.iter_start
+        
+        # We always round down, so that we don't have a dangling partial block at the end
         nblocks = itercount // self.iter_step
             
         block_iters = numpy.empty((nblocks,2), dtype=n_iters.dtype)
