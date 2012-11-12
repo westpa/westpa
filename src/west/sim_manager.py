@@ -617,6 +617,8 @@ class WESimManager:
                 west.rc.pflush()
                 self.post_propagation()
                 
+                cputime = sum(segment.cputime for segment in self.segments.itervalues())
+                
                 west.rc.pflush()
                 self.pre_we()
                 self.run_we()
@@ -630,7 +632,7 @@ class WESimManager:
                 iter_elapsed = time.time() - iter_start_time
                 iter_summary = self.data_manager.get_iter_summary()
                 iter_summary['walltime'] += iter_elapsed
-                iter_summary['cputime'] = sum(segment.cputime for segment in self.segments.itervalues())
+                iter_summary['cputime'] = cputime
                 self.data_manager.update_iter_summary(iter_summary)
     
                 self.n_iter += 1
