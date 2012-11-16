@@ -8,6 +8,7 @@ log = logging.getLogger(__name__)
 SIGNAL_NAMES = {getattr(signal, name): name for name in dir(signal) 
                 if name.startswith('SIG') and not name.startswith('SIG_')}
 
+import westpa
 import west
 from west import Segment
 from west.propagators import WESTPropagator
@@ -73,8 +74,8 @@ class ExecutablePropagator(WESTPropagator):
     ENV_RAND128              = 'WEST_RAND128'
     ENV_RANDFLOAT            = 'WEST_RANDFLOAT'
         
-    def __init__(self):
-        super(ExecutablePropagator,self).__init__()
+    def __init__(self, rc=None):
+        super(ExecutablePropagator,self).__init__(rc)
             
         # A mapping of environment variables to template strings which will be
         # added to the environment of all children launched.
@@ -93,44 +94,44 @@ class ExecutablePropagator(WESTPropagator):
         # attributes like 'loader', 'dtype', etc
         self.data_info = {}
         self.data_info['pcoord'] = {}
- 
-        # Process configuration file information
-        # Check in advance for keys we know we need
-        for key in ('propagator', 'get_pcoord',
-                    'segment_data_ref', 'parent_data_ref', 'basis_state_data_ref', 'initial_state_data_ref'):
-            west.rc.config.require('executable.{}'.format(key))
 
-        #self.exe_info['propagator']['executable'] = west.rc.config.get_path('executable.propagator')
-        self.segment_ref_template = west.rc.config.get('executable.segment_data_ref')
-        self.parent_ref_template  = west.rc.config.get('executable.parent_data_ref')
-        self.initial_state_ref_template = west.rc.config.get('executable.initial_state_data_ref')
-        self.basis_state_ref_template = west.rc.config.get('executable.basis_state_data_ref')
+        # Validate configuration 
+        config = self.rc.config
         
-        # Load configuration items related to all child processes
-        for (key,value) in west.rc.config.iteritems():
-            if key.startswith('executable.env.'):
-                self.addtl_child_environ[key[len('executable.env.'):]] = value
-        log.debug('addtl_child_environ: {!r}'.format(self.addtl_child_environ))
+        for key in [('west','executable','propagator','executable'),
+                    ('west','data','data_refs','segment'),
+                    ('west','data','data_refs','basis_state'),
+                    ('west','data','data_refs','initial_state')]:
+            config.require(key)
+ 
+        self.segment_ref_template       = config['west','data','data_refs','segment']
+        self.basis_state_ref_template   = config['west','data','data_refs','basis_state']
+        self.initial_state_ref_template = config['west','data','data_refs','initial_state']
+        
+        # Load additional environment variables for all child processes
+        self.addtl_child_environ.update({k:str(v) for k,v in (config['executable','environ'] or {})})
+        
         
         # Load configuration items relating to child processes
         for child_type in ('propagator', 'pre_iteration', 'post_iteration', 'get_pcoord', 'gen_istate'):
-            child_key_prefix = 'executable.{}'.format(child_type)
-            child_info = {key: value for (key,value) in west.rc.config.iteritems() if key.startswith(child_key_prefix)}
-            if child_key_prefix in west.rc.config:
-                self.exe_info[child_type]['executable'] = west.rc.config.get(child_key_prefix)
-                self.exe_info[child_type]['stdin']  = west.rc.config.get('{}.stdin'.format(child_key_prefix, os.devnull))
-                self.exe_info[child_type]['stdout'] = west.rc.config.get('{}.stdout'.format(child_key_prefix), None)
-                self.exe_info[child_type]['stderr'] = west.rc.config.get('{}.stderr'.format(child_key_prefix), None)
-                self.exe_info[child_type]['cwd'] = west.rc.config.get('{}.cwd'.format(child_key_prefix), None)
-                
-                if {key for key in child_info if key.startswith('{}.env.'.format(child_key_prefix))}:
-                    # Strip leading 'executable.CHILD_TYPE.env.' from leading edge of entries
-                    #log.debug('child_key_prefix: {!r}'.format(child_key_prefix))
-                    offset = len('{}.env.'.format(child_key_prefix))
-                    #log.debug('offset: {:d}'.format(offset))
-                    self.exe_info[child_type]['environ'] = {key[offset:]: value 
-                                                            for (key,value) in child_info.iteritems() 
-                                                            if key.startswith('{}.env.'.format(child_key_prefix))}                                                            
+            child_info = config.get(['west','executable',child_type])
+            if not child_info:
+                continue
+            
+            info_prefix = ['west', 'executable', child_type]
+            
+            # require executable to be specified if anything is specified at all
+            config.require(info_prefix+['executable'])
+            
+            self.exe_info[child_type]['executable'] = config[info_prefix+['executable']]
+            self.exe_info[child_type]['stdin']  = config.get(info_prefix+['stdin'], os.devnull)
+            self.exe_info[child_type]['stdout'] = config.get(info_prefix+['stdout'], None)
+            self.exe_info[child_type]['stderr'] = config.get(info_prefix+['stderr'], None)
+            self.exe_info[child_type]['cwd'] = config.get(info_prefix+['cwd'],None)
+            
+            # apply environment modifications specific to this executable
+            self.exe_info[child_type]['environ'] = {k:str(v) for k,v in (config.get(info_prefix+['environ']) or {})}
+            
         log.debug('exe_info: {!r}'.format(self.exe_info))
         
         # Load configuration items relating to data return

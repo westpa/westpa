@@ -51,8 +51,8 @@ class WESTDataReaderMixin(AnalysisMixin):
         if args.west_h5name:
             self.west_h5name = args.west_h5name
         else:
-            west.rc.config.require('data.west_data_file')
-            self.west_h5name = west.rc.config.get_path('data.west_data_file') 
+            west.rc.config.require(['west','data','west_data_file'])
+            self.west_h5name = west.rc.config.get_path(['west','data','west_data_file']) 
         
         west.rc.pstatus("Using WEST data from '{}'".format(self.west_h5name))
         

@@ -53,17 +53,16 @@ work_managers.environment.add_wm_args(parser)
 args = parser.parse_args()
 west.rc.process_args(args)
 work_managers.environment.process_wm_args(args)
-work_manager = make_work_manager()
+west.rc.work_manager = work_manager = make_work_manager()
 
 system = west.rc.get_system_driver()
-sim_manager = west.rc.get_sim_manager(work_manager)
+sim_manager = west.rc.get_sim_manager()
 propagator = west.rc.get_propagator()
 data_manager = west.rc.get_data_manager()
 h5file = data_manager.we_h5filename
 
 data_manager.system = system
 we_driver = west.rc.get_we_driver()
-
 
 with work_manager:
     if work_manager.is_master:    

@@ -34,41 +34,26 @@ Version history:
         - added in-HDF5 storage for basis states, target states, and generated states
 """        
 from __future__ import division, print_function; __metaclass__ = type
-import warnings, sys
+import sys
+import posixpath
 from operator import attrgetter
 from itertools import imap, izip
 import cPickle as pickle
 import numpy
 import h5py
-from h5py._hl.selections import select
 from h5py import h5s
 import threading
 
 import logging
 log = logging.getLogger(__name__)
 
+import westpa
 import west
-from west.util.miscfn import vattrgetter
 from west.segment import Segment
 from west.states import BasisState, TargetState, InitialState
 from west.we_driver import NewWeightEntry
 
 file_format_version = 7
-
-class dummy_lock:
-    def __init__(self):
-        self.depth = 0
-        self.tid = threading.current_thread().ident
-    
-    def __enter__(self):
-        assert threading.current_thread().ident == self.tid
-        self.depth += 1
-        log.debug('acquired data manager lock (depth now {:d})'.format(self.depth))
-    
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        assert threading.current_thread().ident == self.tid
-        self.depth -= 1
-        log.debug('returned data manager lock (depth now {:d})'.format(self.depth))
         
 class flushing_lock:
     def __init__(self, lock, fileobj):
@@ -172,9 +157,6 @@ nw_index_dtype = numpy.dtype([('source_type', nw_source_dtype),
 binning_index_dtype = numpy.dtype([('hash', binhash_dtype),
                                    ('pickle_len', numpy.uint32)])
                              
-def warn_deprecated_usage(msg, category=DeprecationWarning, stacklevel=1):
-    warnings.warn('deprecated data manager interface use: {}'.format(msg), category, stacklevel+1)
-
 class WESTDataManager:
     """Data manager for assisiting the reading and writing of WEST data from/to HDF5 files."""
     
@@ -183,22 +165,49 @@ class WESTDataManager:
     default_we_h5filename      = 'west.h5'
     default_we_h5file_driver   = None
     
-    # Compress any auxiliary dataset whose total size is more than 1MB
+    # Compress any auxiliary dataset whose total size (across all segments) is more than 1MB
     default_aux_compression_threshold = 1048576
     
     # Bin data horizontal (second dimension) chunk size
     binning_hchunksize = 4096
-    
-    # Maximum chunk size for auto compression; should be <300k or else the HDF5 chunk cache
-    # won't be effective
-    max_chunksize = 256*1024
+        
+    # Number of rows to retrieve during a table scan
+    table_scan_chunksize = 1024
     
     def flushing_lock(self):
         return flushing_lock(self.lock, self.we_h5file)
     
-    def __init__(self):        
-        # Backing store filenames; setting these attributes is the only way to specify that
-        # a given file should be opened
+    def process_config(self):
+        config = self.rc.config
+        
+        for (entry, type_) in [('iter_prec', int)]:
+            config.require_type_if_present(['west', 'data', entry], type_)
+            
+        self.we_h5filename = config.get_path(['west', 'data', 'west_data_file'], default=self.default_we_h5filename)
+        self.we_h5file_driver = config.get_choice(['data', 'west_data_file_driver'], [None, 'sec2', 'family'],
+                                                  default=self.default_we_h5file_driver,
+                                                  value_transform=(lambda x: x.lower() if x else None))
+        self.iter_prec = config.get(['west', 'data', 'iter_prec'], self.default_iter_prec)
+        self.aux_compression_threshold = config.get(['west','data','aux_compression_threshold'],
+                                                    self.default_aux_compression_threshold)
+        
+        # Process dataset options
+        dsopts_list = config.get(['west','data','datasets']) or []
+        for dsopts in dsopts_list:
+            dsopts = normalize_dataset_options(dsopts, path_prefix='auxdata' if dsopts['name']!='pcoord' else '')
+            try:
+                self.dataset_options[dsopts['name']].update(dsopts)
+            except KeyError:
+                self.dataset_options[dsopts['name']] = dsopts
+                
+        if 'pcoord' in self.dataset_options:
+            if self.dataset_options['pcoord']['h5path'] != 'pcoord':
+                raise ValueError('cannot override pcoord storage location')
+    
+    def __init__(self, rc=None):
+        
+        self.rc = rc or westpa.rc
+                
         self.we_h5filename = self.default_we_h5filename
         self.we_h5file_driver = self.default_we_h5file_driver
         self.we_h5file_version = None
@@ -206,36 +215,19 @@ class WESTDataManager:
         self.iter_prec = self.default_iter_prec
         self.aux_compression_threshold = self.default_aux_compression_threshold
         
-        self.table_scan_chunksize = 1024
-        
-        # Do not load auxiliary data sets by default, as this can potentially take as much space in RAM
-        # as there is auxiliary data stored for a given iteration.
-        self.auto_load_auxdata = False
-        
-        # Backing store h5py.File objects
         self.we_h5file = None
         
-        # If a configuration file is present, read values from there, otherwise use
-        # sensible defaults
-        if west.rc.config:
-            self.we_h5filename  = west.rc.config.get_path('data.west_data_file', self.default_we_h5filename)
-            self.we_h5file_driver = west.rc.config.get('data.west_data_file_driver', self.default_we_h5file_driver)
-            self.iter_prec      = west.rc.config.get_int('data.iter_prec', self.default_iter_prec)
-            self.aux_compression_threshold = west.rc.config.get_int('data.aux_compression_threshold', 
-                                                                    self.default_aux_compression_threshold)
-            self.auto_load_auxdata = west.rc.config.get_bool('data.load_auxdata', False)
         self.lock = threading.RLock()
         
         self._system = None
                  
-        # A few functions for extracting vectors of attributes from vectors of segments
-        self._attrgetters = dict((key, vattrgetter(key)) for key in 
-                                 ('seg_id', 'status', 'endpoint_type', 'weight', 'walltime', 'cputime'))
+        self.dataset_options = {}
+        self.process_config()
         
     @property
     def system(self):
         if self._system is None:
-            self._system = west.rc.get_system_driver()
+            self._system = self.rc.get_system_driver()
         return self._system
     
     @system.setter
@@ -684,13 +676,13 @@ class WESTDataManager:
                     
             summary_row = numpy.zeros((1,), dtype=summary_table_dtype)
             summary_row['n_particles'] = n_particles
-            summary_row['norm'] = numpy.add.reduce(map(self._attrgetters['weight'], segments))
+            summary_row['norm'] = numpy.add.reduce(map(attrgetter('weight'), segments))
             summary_table[n_iter-1] = summary_row
             
             # pcoord is indexed as [particle, time, dimension]
-            pcoord_ds = iter_group.create_dataset('pcoord', 
-                                                  shape=(n_particles, pcoord_len, pcoord_ndim), 
-                                                  dtype=pcoord_dtype)
+            pcoord_opts = self.dataset_options.get('pcoord',{'name': 'pcoord'})
+            shape = (n_particles, pcoord_len, pcoord_ndim)
+            pcoord_ds = create_dataset_from_dsopts(iter_group, pcoord_opts, shape, pcoord_dtype)
             pcoord = numpy.empty((n_particles, pcoord_len, pcoord_ndim), pcoord_dtype)
                                     
             
@@ -853,8 +845,18 @@ class WESTDataManager:
             # Then we iterate over data sets and store data
             if dsets:
                 for (dsname, (shape, dtype)) in dsets.iteritems():
-                    dset = self._require_aux_dataset(iter_group, dsname, n_total_segments, shape, dtype)
-                    #dset_shape = dset.shape
+                    #dset = self._require_aux_dataset(iter_group, dsname, n_total_segments, shape, dtype)
+                    try:
+                        dsopts = self.dataset_options[dsname]
+                    except KeyError:
+                        dsopts = normalize_dataset_options({'name': dsname}, path_prefix='auxdata')
+                    
+                    shape = (n_total_segments,) + shape
+                    dset = require_dataset_from_dsopts(iter_group, dsopts, shape, dtype,
+                                                       autocompress_threshold=self.aux_compression_threshold)
+                    if dset is None:
+                        # storage is suppressed
+                        continue
                     for segment in segments:
                         try:
                             auxdataset = segment.data[dsname]
@@ -870,49 +872,101 @@ class WESTDataManager:
                                 
                                 
     def _require_aux_dataset(self, iter_group, dsname, n_segments, shape, dtype):
-        aux_group = iter_group.require_group('auxdata')
+        
+        auxds_info = self.dataset_options.get(dsname, {})
+        if not auxds_info:
+            auxds_info['name'] = dsname
+            auxds_info['h5path'] = 'auxdata/{}'.format(dsname)
+            
+        if not auxds_info.get('store', True):
+            return None
+        
+        if log.isEnabledFor(logging.DEBUG):
+            log.debug('processing request for aux dataset {!r}, info {!r}'.format(dsname, auxds_info))
+
+        containing_group_name = posixpath.dirname(auxds_info['h5path'])
+        h5_dsname = posixpath.basename(auxds_info['h5path'])
+        if containing_group_name:
+            containing_group = iter_group.require_group(containing_group_name)
+        else:
+            containing_group = iter_group
+            
         try:
-            dset = aux_group[dsname]
+            dset = containing_group[h5_dsname]
         except KeyError:            
             shape = (n_segments,) + shape
-            nbytes = numpy.multiply.reduce(shape)*dtype.itemsize
-            if nbytes > self.aux_compression_threshold:
-                # Shuffle and compress this dataset
-                compression=9
-                shuffle=True
-                
-                # Select a chunk size that favors chunking in lower dimensions -- 
-                # i.e. we start chunking on segments, then proceed to timepoints 
-                # (or whatever the second dimension is) and so on. This should
-                # give reasonable performance for analysis programs that 
-                # trace trajectories but may significantly slow programs that
-                # consider each timepoint of all trajectories simultaneously
-                # TODO: make this optional on a per-auxdata basis 
-                chunk_shape = list(shape)
-                for idim in xrange(len(shape)):
-                    chunk_nbytes = numpy.multiply.reduce(chunk_shape)*dtype.itemsize
-                    while chunk_shape[idim] > 1 and chunk_nbytes > self.max_chunksize:
-                        chunk_shape[idim] >>= 1
-                        chunk_nbytes = numpy.multiply.reduce(chunk_shape)*dtype.itemsize
-                        
-                    if chunk_nbytes <= self.max_chunksize:
-                        break
-                chunk_shape = tuple(chunk_shape)
-                log.debug('selected chunk shape {} for data set shaped {} (chunk size = {} bytes)'
-                          .format(chunk_shape, shape, chunk_nbytes))
-                
+            
+            # has user requested an explicit data type?
+            h5_dtype = auxds_info.get('dtype', dtype)
+            
+            # compress if 1) explicitly requested, or 2) dataset size exceeds threshold and
+            # compression not explicitly prohibited
+            compression_directive = auxds_info.get('compression')
+            if compression_directive is None:
+                # No directive
+                nbytes = numpy.multiply.reduce(shape)*h5_dtype.itemsize
+                if nbytes > self.aux_compression_threshold:
+                    compression = 9
+                    need_chunks = True
+                else:
+                    compression = None
+                    need_chunks = False
+            elif compression_directive == 0: # includes False
+                # Compression prohibited
+                compression = None
+                need_chunks = False
+            else: # compression explicitly requested
+                compression = compression_directive
+                need_chunks = True
+            
+            # Is scale/offset requested?
+            scaleoffset_directive = auxds_info.get('scaleoffset', None)
+            if scaleoffset_directive is False or scaleoffset_directive is None:
+                scaleoffset = False
+                scaleoffset_opts = None
+            elif scaleoffset_directive is True:
+                raise ValueError('scaleoffset configuration parameter must be the scale factor')
             else:
-                compression=None
-                shuffle=False
-                chunk_shape = None
+                scaleoffset = True
+                scaleoffset_opts = scaleoffset_directive
+                need_chunks = True
                 
-            dset = aux_group.require_dataset(dsname, shape=shape, dtype=dtype, compression=compression, shuffle=shuffle,
-                                             chunks=chunk_shape)
+            # We always shuffle if we compress
+            if compression:
+                shuffle = True
+            else:
+                shuffle = False
+                
+            # We use user-provided chunks if available
+            chunks_directive = auxds_info.get('chunks')
+            if chunks_directive is None:
+                if need_chunks:
+                    chunks = calc_chunksize(shape, h5_dtype)
+                else:
+                    chunks = None
+            elif chunks_directive is True:
+                chunks = calc_chunksize(shape, h5_dtype)
+            elif chunks_directive is False:
+                chunks = None
+            else:
+                chunks = tuple(chunks_directive[i] if chunks_directive[i] <= shape[i] else shape[i] for i in xrange(len(shape)))
+            
+            if log.isEnabledFor(logging.DEBUG):
+                log.debug('requiring aux dataset {!r}, shape={!r}, dtype={!r}, compression={!r}, shuffle={!r}, chunks={!r}, scaleoffset={!r}, scaleoffset_opts={!r}'
+                          .format(h5_dsname, shape, h5_dtype, compression, shuffle, chunks, scaleoffset, scaleoffset_opts))
+            dset = containing_group.require_dataset(h5_dsname,
+                                                    shape=shape,
+                                                    dtype=h5_dtype,
+                                                    compression=compression,
+                                                    shuffle=shuffle,
+                                                    chunks=chunks,
+                                                    scaleoffset=scaleoffset,
+                                                    scaleoffset_opts=scaleoffset_opts)
                                              
         return dset
                         
     
-    def get_segments(self, n_iter=None, seg_ids=None, load_pcoords = True, load_auxdata=None):
+    def get_segments(self, n_iter=None, seg_ids=None, load_pcoords = True):
         '''Return the given (or all) segments from a given iteration.  
         
         If the optional parameter ``load_auxdata`` is true, then all auxiliary datasets
@@ -924,7 +978,6 @@ class WESTDataManager:
         
 
         n_iter = n_iter or self.current_iteration
-        if load_auxdata is None: load_auxdata = self.auto_load_auxdata
         file_version = self.we_h5file_version
         
         with self.lock:            
@@ -978,18 +1031,16 @@ class WESTDataManager:
             if load_pcoords:
                 del pcoord_entries
         
-            # If any auxiliary data sets are available, load them as well
-            if load_auxdata and 'auxdata' in iter_group:
-                for (dsname, ds) in iter_group['auxdata'].iteritems():
+            # If any other data sets are requested, load them as well
+            for dsinfo in self.dataset_options.itervalues():
+                if dsinfo.get('load', False):
+                    dsname = dsinfo['name']
+                    ds = iter_group[dsinfo['h5path']]
                     for (seg_id, segment) in enumerate(segments):
                         segment.data[dsname] = ds[seg_id]
         
         return segments
-        
-    def get_segments_by_id(self, n_iter, seg_ids, load_auxdata=None):
-        warn_deprecated_usage('get_segments_by_id is deprecated; use get_segments(seg_ids=...) instead')
-        return self.get_segments(n_iter, seg_ids, load_auxdata=load_auxdata)
-    
+            
     def get_all_parent_ids(self, n_iter):
         file_version = self.we_h5file_version
         with self.lock:
@@ -1315,4 +1366,157 @@ class WESTDataManager:
                 self.save_bin_mapper(hashval, pickled_mapper)
                 iter_group.attrs['binhash'] = hashval
             else:
-                iter_group.attrs['binhash'] = ''                
+                iter_group.attrs['binhash'] = ''    
+
+def normalize_dataset_options(dsopts, path_prefix=''):
+    dsopts = dict(dsopts)
+    
+    ds_name = dsopts['name']
+    if path_prefix:
+        default_h5path = '{}/{}'.format(path_prefix,ds_name)
+    else:
+        default_h5path = ds_name
+        
+    dsopts.setdefault('h5path', default_h5path)
+    dsopts['dtype'] = numpy.dtype(getattr(numpy, dsopts['dtype'])) if 'dtype' in dsopts else None
+    dsopts['store'] = bool(dsopts['store']) if 'store' in dsopts else True
+    dsopts['load'] = bool(dsopts['load']) if 'load' in dsopts else False
+    
+    return dsopts
+
+def create_dataset_from_dsopts(group, dsopts, shape=None, dtype=None, data=None, autocompress_threshold=None):
+    #log.debug('create_dataset_from_dsopts(group={!r}, dsopts={!r}, shape={!r}, dtype={!r}, data={!r}, autocompress_threshold={!r})'
+    #          .format(group,dsopts,shape,dtype,data,autocompress_threshold))
+    if not dsopts.get('store',True):
+        return None
+    
+    h5path = dsopts['h5path']
+    containing_group_name = posixpath.dirname(h5path)
+    h5_dsname = posixpath.basename(h5path)
+    
+    # ensure arguments are sane
+    if not shape and data is None:
+        raise ValueError('either shape or data must be provided')
+    elif data is None and (shape and dtype is None):
+        raise ValueError('both shape and dtype must be provided when data is not provided')
+    elif shape and data is not None and not data.shape == shape:
+        raise ValueError('explicit shape {!r} does not match data shape {!r}'.format(shape, data.shape))
+
+    if data is not None:
+        shape = data.shape
+        if dtype is None:
+            dtype = data.dtype
+    # end argument sanity checks
+        
+    # figure out where to store this data
+    if containing_group_name:
+        containing_group = group.require_group(containing_group_name)
+    else:
+        containing_group = group
+        
+    # has user requested an explicit data type?
+    # the extra numpy.dtype is an idempotent operation on true dtype
+    # objects, but ensures that things like numpy.float32, which are
+    # actually NOT dtype objects, become dtype objects
+    h5_dtype = numpy.dtype(dsopts.get('dtype', dtype))
+    
+    compression = None
+    scaleoffset = False
+    scaleoffset_opts = None
+    shuffle = False
+    
+    # compress if 1) explicitly requested, or 2) dataset size exceeds threshold and
+    # compression not explicitly prohibited
+    compression_directive = dsopts.get('compression')
+    if compression_directive is None:
+        # No directive
+        nbytes = numpy.multiply.reduce(shape)*h5_dtype.itemsize
+        if autocompress_threshold and nbytes > autocompress_threshold:
+            compression = 9
+    elif compression_directive == 0: # includes False
+        # Compression prohibited
+        compression = None
+    else: # compression explicitly requested
+        compression = compression_directive
+    
+    # Is scale/offset requested?
+    scaleoffset_directive = dsopts.get('scaleoffset', None)
+    # 0 is a valid option, implying scaleoffset=True and scaleoffset_opts=0
+    if scaleoffset_directive is False or scaleoffset_directive is None: 
+        scaleoffset = False
+        scaleoffset_opts = None
+    elif scaleoffset_directive is True:
+        raise ValueError('scaleoffset dataset option must be scale factor (or nbits)')
+    else:
+        scaleoffset = True
+        scaleoffset_opts = scaleoffset_directive
+        
+    # We always shuffle if we compress (losslessly)
+    if compression:
+        shuffle = True
+    else:
+        shuffle = False
+        
+    need_chunks = any([compression,scaleoffset,shuffle])
+        
+    # We use user-provided chunks if available
+    chunks_directive = dsopts.get('chunks')
+    if chunks_directive is None:
+        chunks = None
+    elif chunks_directive is True:
+        chunks = calc_chunksize(shape, h5_dtype)
+    elif chunks_directive is False:
+        chunks = None
+    else:
+        chunks = tuple(chunks_directive[i] if chunks_directive[i] <= shape[i] else shape[i] for i in xrange(len(shape)))
+    
+    if not chunks and need_chunks:
+        chunks = calc_chunksize(shape, h5_dtype)
+    
+    if log.isEnabledFor(logging.DEBUG):
+        log.debug('requiring dataset {!r}, shape={!r}, dtype={!r}, compression={!r}, shuffle={!r}, chunks={!r}, scaleoffset={!r}, scaleoffset_opts={!r}'
+                  .format(h5_dsname, shape, h5_dtype, compression, shuffle, chunks, scaleoffset, scaleoffset_opts))
+    dset = containing_group.require_dataset(h5_dsname,
+                                            shape=shape,
+                                            dtype=h5_dtype,
+                                            compression=compression,
+                                            shuffle=shuffle,
+                                            chunks=chunks,
+                                            scaleoffset=scaleoffset,
+                                            scaleoffset_opts=scaleoffset_opts)
+    if data is not None:
+        dset[...] = data
+                                         
+    return dset
+    
+
+def require_dataset_from_dsopts(group, dsopts, shape=None, dtype=None, data=None, autocompress_threshold=None):
+    if not dsopts.get('store',True):
+        return None
+    try:
+        return group[dsopts['h5path']]
+    except KeyError:
+        return create_dataset_from_dsopts(group,dsopts,shape=shape,dtype=dtype,data=data,
+                                          autocompress_threshold=autocompress_threshold)
+        
+
+    
+
+def calc_chunksize(shape, dtype, max_chunksize=262144):
+    '''Calculate a chunk size for HDF5 data, anticipating that access will slice
+    along lower dimensions sooner than higher dimensions.'''
+        
+    chunk_shape = list(shape)
+    for idim in xrange(len(shape)):
+        chunk_nbytes = numpy.multiply.reduce(chunk_shape)*dtype.itemsize
+        while chunk_shape[idim] > 1 and chunk_nbytes > max_chunksize:
+            chunk_shape[idim] >>= 1 # divide by 2
+            chunk_nbytes = numpy.multiply.reduce(chunk_shape)*dtype.itemsize
+            
+        if chunk_nbytes <= max_chunksize:
+            break
+
+    chunk_shape = tuple(chunk_shape)
+    log.debug('selected chunk shape {} for data set of type {} shaped {} (chunk size = {} bytes)'
+              .format(chunk_shape, dtype, shape, chunk_nbytes))
+    return chunk_shape

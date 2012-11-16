@@ -6,7 +6,7 @@ import numpy as np
 import types
 
 import west
-from west.util import extloader
+from westpa import extloader
 from westext.stringmethod import WESTStringMethod, DefaultStringMethod
 from west.binning import VoronoiBinMapper
 

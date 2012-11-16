@@ -2,6 +2,7 @@ from __future__ import division; __metaclass__ = type
 
 import logging
 log = logging.getLogger(__name__)
+import westpa
 
 import numpy
 from west.binning import NopMapper
@@ -32,7 +33,9 @@ class WESTSystem:
     :ivar bin_target_counts: A vector of target counts, one per bin.
     '''
     
-    def __init__(self):
+    def __init__(self, rc=None):
+        self.rc = rc or westpa.rc
+        
         # Number of dimentions in progress coordinate data
         self.pcoord_ndim = 1
         

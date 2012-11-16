@@ -1,5 +1,6 @@
 __metaclass__ = type
 
+import westpa
 import itertools
 def blocked_iter(blocksize, iterable, fillvalue = None):
     # From the Python "itertools recipes" (grouper)
@@ -7,7 +8,7 @@ def blocked_iter(blocksize, iterable, fillvalue = None):
     return itertools.izip_longest(fillvalue=fillvalue, *args)
 
 class WESTPropagator:
-    def __init__(self):
+    def __init__(self, rc=None):
         
         # For maximum flexibility, the basis states and initial states valid
         # at the point in the simulation when the propgator is used must be
@@ -20,6 +21,8 @@ class WESTPropagator:
         # thus potentially send them all over the wire when only one of them is needed, e.g.)        
         self.basis_states = {}
         self.initial_states = {}
+        
+        self.rc = rc or westpa.rc
         
     def prepare_iteration(self, n_iter, segments):
         """Perform any necessary per-iteration preparation.  This is run by the work manager."""

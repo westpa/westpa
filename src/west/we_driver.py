@@ -7,7 +7,7 @@ from math import ceil
 import random
 from itertools import izip
 
-import west
+import west, westpa
 from west import Segment
 
 class ConsistencyError(RuntimeError):
@@ -58,19 +58,12 @@ class WEDriver:
     weight_split_threshold = 2.0
     weight_merge_cutoff = 1.0
         
-    def __init__(self, system=None):
-        self.system = system or west.rc.get_system_driver()
-                
-        self.do_adjust_counts = west.rc.config.get_bool('we.adjust_counts', True)
-        log.info('Adjust counts to exactly match target_counts: {}'.format(self.do_adjust_counts))
+    def __init__(self, rc=None, system=None):
+        self.rc = rc or westpa.rc
+        self.system = system or self.rc.get_system_driver()
         
-        if 'we.weight_split_threshold' in west.rc.config:
-            self.weight_split_threshold = west.rc.config.get_float('we.weight_split_threshold')
-        log.info('Split threshold: {}'.format(self.weight_split_threshold))
-        
-        if 'we.weight_merge_cutoff' in west.rc.config:
-            self.weight_merge_cutoff = west.rc.config.get_float('we.weight_merge_cutoff')
-        log.info('Merge cutoff: {}'.format(self.weight_merge_cutoff))
+        # Whether to adjust counts to exactly match target count
+        self.do_adjust_counts = True 
         
         # bin mapper and per-bin target counts (see new_iteration for initialization)
         self.bin_mapper = None
@@ -100,6 +93,23 @@ class WEDriver:
         self.used_initial_states = None
         
         self.avail_initial_states = None
+        
+        self.process_config()
+    
+    def process_config(self):
+        config = self.rc.config
+        
+        config.require_type_if_present(['west', 'we', 'adjust_counts'], bool)
+        
+        self.do_adjust_counts = config.get(['west', 'we', 'adjust_counts'], True)
+        log.info('Adjust counts to exactly match target_counts: {}'.format(self.do_adjust_counts))
+        
+        self.weight_split_threshold = config.get(['west', 'we', 'weight_split_threshold'], self.weight_split_threshold)
+        log.info('Split threshold: {}'.format(self.weight_split_threshold))
+        
+        self.weight_merge_cutoff = config.get(['west', 'we', 'weight_merge_cutoff'], self.weight_merge_cutoff)
+        log.info('Merge cutoff: {}'.format(self.weight_merge_cutoff))
+        
         
     @property
     def next_iter_segments(self):

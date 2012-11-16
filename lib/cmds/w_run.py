@@ -17,10 +17,10 @@ work_managers.environment.add_wm_args(parser)
 args = parser.parse_args()
 west.rc.process_args(args)
 work_managers.environment.process_wm_args(args)
-work_manager = make_work_manager()
+work_manager = west.rc.work_manager = make_work_manager()
 
 # Load the sim manager and other drivers
-sim_manager = west.rc.get_sim_manager(work_manager)
+sim_manager = west.rc.get_sim_manager()
 system = west.rc.get_system_driver()
 data_manager = west.rc.get_data_manager()
 we_driver = west.rc.get_we_driver()

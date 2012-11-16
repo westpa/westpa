@@ -2,18 +2,16 @@ import logging
 logging.getLogger('')
 log = logging.getLogger('west')
 
-import util
-import _rc
 import segment 
 from segment import Segment
 import propagators, work_managers, data_manager, binning, sim_manager, we_driver, states, systems
 from systems import WESTSystem
 from states import BasisState, TargetState
 
-version = '0.9.0'
-version_tuple = (0,9,0)
+from westpa import rc
 
-rc = _rc._WESTRC()
+version = '0.9.1'
+version_tuple = (0,9,1)
 
 import warnings
 def warn_deprecated(message):

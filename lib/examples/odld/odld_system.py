@@ -12,8 +12,8 @@ pcoord_len = 21
 pcoord_dtype = numpy.float32    
 
 class ODLDPropagator(WESTPropagator):
-    def __init__(self):
-        super(ODLDPropagator,self).__init__()
+    def __init__(self, rc=None):
+        super(ODLDPropagator,self).__init__(rc)
         
         self.coord_len = pcoord_len
         self.coord_dtype = pcoord_dtype
@@ -30,7 +30,8 @@ class ODLDPropagator(WESTPropagator):
         
         # Implement a reflecting boundary at this x value
         # (or None, for no reflection)
-        self.reflect_at = 10.0
+        #self.reflect_at = 10.0
+        self.reflect_at = None
 
     def get_pcoord(self, state):
         '''Get the progress coordinate of the given basis or initial state.'''
@@ -58,6 +59,7 @@ class ODLDPropagator(WESTPropagator):
         gradfactor = self.sigma*self.sigma/2
         coord_len = self.coord_len
         reflect_at = self.reflect_at
+        all_displacements = numpy.zeros((n_segs, self.coord_len, self.coord_ndim), dtype=self.coord_dtype)
         for istep in xrange(1,coord_len):
             x = coords[:,istep-1,0]
             
@@ -65,8 +67,8 @@ class ODLDPropagator(WESTPropagator):
             
             eCx = numpy.exp(C*x)
             eCx_less_one = eCx - 1.0
-            
-            displacements = random_normal(scale=sigma, size=(n_segs,))
+           
+            all_displacements[:,istep,0] = displacements = random_normal(scale=sigma, size=(n_segs,))
             grad = half_B / (eCx_less_one*eCx_less_one)*(twopi_by_A*eCx_less_one*sin(xarg)+C*eCx*cos(xarg))
             
             newx = x - gradfactor*grad + displacements
@@ -86,6 +88,7 @@ class ODLDPropagator(WESTPropagator):
             
         for iseg, segment in enumerate(segments):
             segment.pcoord[...] = coords[iseg,:]
+            segment.data['displacement'] = all_displacements[iseg]
             segment.status = segment.SEG_STATUS_COMPLETE
     
         return segments
