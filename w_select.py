@@ -7,7 +7,7 @@ import numpy, h5py, operator, functools
 import west
 from west.data_manager import (weight_dtype, n_iter_dtype, seg_id_dtype, utime_dtype, vstr_dtype, 
                                istate_type_dtype, istate_status_dtype)
-from west.util.extloader import get_object
+from westpa.extloader import get_object
 
 def all_segments(n_iter, iter_group):
     return numpy.arange(0, iter_group['seg_index'].shape[0], 1, dtype=seg_id_dtype)

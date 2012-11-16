@@ -5,7 +5,7 @@ from itertools import count,izip
 import numpy
 import west
 from west.binning import RectilinearBinMapper
-from west.util.extloader import get_object
+from westpa.extloader import get_object
 from pickle import PickleError
 
 log = logging.getLogger(__name__)
