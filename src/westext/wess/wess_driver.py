@@ -7,7 +7,8 @@ import numpy
 import operator
 from itertools import izip, imap
 
-import west
+import westpa, west
+from westpa.yamlcfg import check_bool
 from west.kinetics import RateAverager
 from westext.wess.ProbAdjust import prob_adjust
 
@@ -36,39 +37,38 @@ def reduce_array(Aij):
 
 
 class WESSDriver:
-    def __init__(self, sim_manager):
+    def __init__(self, sim_manager, plugin_config):
         if not sim_manager.work_manager.is_master:
             return
 
         self.sim_manager = sim_manager
         self.data_manager = sim_manager.data_manager
         self.system = sim_manager.system
-
-        self.do_reweight = west.rc.config.get_bool('wess.do_reweighting', False)
+        
+        self.do_reweight = check_bool(plugin_config.get('do_reweighting', False))
         self.windowsize = 0.5
         self.windowtype = 'fraction'
 
-        windowsize = west.rc.config.get('wess.window_size', None)
-
+        windowsize = plugin_config.get('window_size')
         if windowsize is not None:
-            if '.' in windowsize:
-                self.windowsize = float(windowsize)
+            if isinstance(windowsize,float):
+                self.windowsize = windowsize
                 self.windowtype = 'fraction'
                 if self.windowsize <= 0 or self.windowsize > 1:
                     raise ValueError('WESS parameter error -- fractional window size must be in (0,1]')
-                log.info('using fractional window size of {:g}*n_iter'.format(self.windowsize))
-            else:
+            elif isinstance(windowsize,(int,long)):
                 self.windowsize = int(windowsize)
                 self.windowtype = 'fixed'
-                log.info('using fixed window size of {:d}'.format(self.windowsize))
+            else:
+                raise ValueError('WESS parameter error -- invalid window size {!r}'.format(windowsize))
+        log.info('using window size of {!r} ({})'.format(self.windowsize, self.windowtype))
 
-        self.max_windowsize = west.rc.config.get_int('wess.max_window_size', None)
+        self.max_windowsize = plugin_config.get('max_window_size')
         if self.max_windowsize is not None:
             log.info('Using max windowsize of {:d}'.format(self.max_windowsize))
 
-        self.reweight_period = west.rc.config.get_int('wess.reweight_period', 0)
-
-        self.priority = west.rc.config.get_int('wess.priority', 0)
+        self.reweight_period = plugin_config.get('reweight_period', 0)
+        self.priority = plugin_config.get('priority', 0)
 
         if self.do_reweight:
             sim_manager.register_callback(sim_manager.prepare_new_iteration,self.prepare_new_iteration, self.priority)

@@ -20,12 +20,7 @@ class System(WESTSystem):
         self.bin_target_counts[...] = 48
 
 def coord_loader(fieldname, coord_file, segment, single_point=False):
-    '''Load coordinates as output by g_traj and paste'''
-    coord_raw = numpy.loadtxt(coord_file, dtype=numpy.float32)
-    coord_raw = coord_raw[:,1:] 
-
-    # each atom/group/C.O.M selected gets 3 columns:
-    # time, x1, y1, z1, x1, y2, z2, ... , zN
+    coord_raw = numpy.loadtxt(coord_file, dtype=numpy.float32) 
 
     npts = len(coord_raw)
     assert coord_raw.shape[1] % 3 == 0

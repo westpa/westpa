@@ -61,8 +61,8 @@ awk '{print $2*10;}' < dist.xvg > $WEST_PCOORD_RETURN || exit 1
 if [ -n "$WEST_COORD_RETURN" ] ; then
     echo 7 | g_traj -f seg.xtc -s seg.tpr -n $NDX -ox coord1.xvg -nopbc -fp -xvg none || exit 1
     echo 8 | g_traj -f seg.xtc -s seg.tpr -n $NDX -ox coord2.xvg -nopbc -fp -xvg none || exit 1
-    sed -ri 's/^[ 0-9]*[^ ]//' coord2.xvg
-    paste coord1.xvg coord2.xvg > $WEST_COORD_RETURN
+    paste <(awk '{$1=""; print;}' < coord1.xvg) <(awk '{$1=""; print;}' < coord2.xvg) > $WEST_COORD_RETURN
+    cp $WEST_COORD_RETURN coords.dat
 fi
 
 # Clean up

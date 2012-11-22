@@ -680,7 +680,8 @@ class WESTDataManager:
             summary_table[n_iter-1] = summary_row
             
             # pcoord is indexed as [particle, time, dimension]
-            pcoord_opts = self.dataset_options.get('pcoord',{'name': 'pcoord'})
+            pcoord_opts = self.dataset_options.get('pcoord',{'name': 'pcoord',
+                                                             'h5path': 'pcoord'})
             shape = (n_particles, pcoord_len, pcoord_ndim)
             pcoord_ds = create_dataset_from_dsopts(iter_group, pcoord_opts, shape, pcoord_dtype)
             pcoord = numpy.empty((n_particles, pcoord_len, pcoord_ndim), pcoord_dtype)
@@ -1378,7 +1379,13 @@ def normalize_dataset_options(dsopts, path_prefix=''):
         default_h5path = ds_name
         
     dsopts.setdefault('h5path', default_h5path)
-    dsopts['dtype'] = numpy.dtype(getattr(numpy, dsopts['dtype'])) if 'dtype' in dsopts else None
+    dtype = dsopts.get('dtype')
+    if dtype:
+        if isinstance(dtype, basestring):
+            dsopts['dtype'] = numpy.dtype(getattr(numpy, dtype))
+        else:
+            dsopts['dtype'] = numpy.dtype(dtype)
+
     dsopts['store'] = bool(dsopts['store']) if 'store' in dsopts else True
     dsopts['load'] = bool(dsopts['load']) if 'load' in dsopts else False
     

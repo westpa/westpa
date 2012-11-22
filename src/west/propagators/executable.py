@@ -9,6 +9,8 @@ SIGNAL_NAMES = {getattr(signal, name): name for name in dir(signal)
                 if name.startswith('SIG') and not name.startswith('SIG_')}
 
 import westpa
+from westpa.extloader import get_object
+from westpa.yamlcfg import check_bool, ConfigItemMissing
 import west
 from west import Segment
 from west.propagators import WESTPropagator
@@ -20,7 +22,7 @@ def pcoord_loader(fieldname, pcoord_return_filename, destobj, single_point):
     will be read.
     """
     
-    system = west.rc.get_system_driver()
+    system = westpa.rc.get_system_driver()
     
     assert fieldname == 'pcoord'
     
@@ -109,7 +111,7 @@ class ExecutablePropagator(WESTPropagator):
         self.initial_state_ref_template = config['west','data','data_refs','initial_state']
         
         # Load additional environment variables for all child processes
-        self.addtl_child_environ.update({k:str(v) for k,v in (config['executable','environ'] or {})})
+        self.addtl_child_environ.update({k:str(v) for k,v in (config['west','executable','environ'] or {}).iteritems()})
         
         
         # Load configuration items relating to child processes
@@ -123,50 +125,50 @@ class ExecutablePropagator(WESTPropagator):
             # require executable to be specified if anything is specified at all
             config.require(info_prefix+['executable'])
             
-            self.exe_info[child_type]['executable'] = config[info_prefix+['executable']]
-            self.exe_info[child_type]['stdin']  = config.get(info_prefix+['stdin'], os.devnull)
-            self.exe_info[child_type]['stdout'] = config.get(info_prefix+['stdout'], None)
-            self.exe_info[child_type]['stderr'] = config.get(info_prefix+['stderr'], None)
-            self.exe_info[child_type]['cwd'] = config.get(info_prefix+['cwd'],None)
+            self.exe_info[child_type]['executable'] = child_info['executable']
+            self.exe_info[child_type]['stdin']  = child_info.get('stdin', os.devnull)
+            self.exe_info[child_type]['stdout'] = child_info.get('stdout', None)
+            self.exe_info[child_type]['stderr'] = child_info.get('stderr', None)
+            self.exe_info[child_type]['cwd'] = child_info.get('cwd', None)
+            
+            if child_type not in ('propagator', 'get_pcoord', 'gen_istate'):
+                self.exe_info[child_type]['enabled'] = child_info.get('enabled',True)
+            else:
+                # for consistency, propagator, get_pcoord, and gen_istate can never be disabled
+                self.exe_info[child_type]['enabled'] = True
             
             # apply environment modifications specific to this executable
-            self.exe_info[child_type]['environ'] = {k:str(v) for k,v in (config.get(info_prefix+['environ']) or {})}
+            self.exe_info[child_type]['environ'] = {k:str(v) for k,v in (child_info.get('environ') or {}).iteritems()}
             
         log.debug('exe_info: {!r}'.format(self.exe_info))
         
-        # Load configuration items relating to data return
-        data_info = {key: value for (key, value) in west.rc.config.iteritems() if key.startswith('executable.data.')}
-        for (key, value) in data_info.iteritems():
-            fields = key.split('.')
+        # Load configuration items relating to dataset input
+        self.data_info['pcoord'] = {'name': 'pcoord',
+                                    'loader': pcoord_loader,
+                                    'enabled': True,
+                                    'filename': None}
+        dataset_configs = config.get(['west', 'executable', 'datasets']) or []
+        for dsinfo in dataset_configs:
             try:
-                dsname = fields[2]
-                spec = fields[3]
-            except IndexError:
-                raise ValueError('invalid data specifier {!r}'.format(key))
-            else:
-                if spec not in ('enabled', 'loader'):
-                    raise ValueError('invalid dataset option {!r}'.format(spec))
-                            
-            try:
-                self.data_info[dsname][spec] = value
+                dsname = dsinfo['name']
             except KeyError:
-                self.data_info[dsname] = {spec: value}
-        
-        for dsname in self.data_info:
-            if 'enabled' not in self.data_info[dsname]:
-                self.data_info[dsname]['enabled'] = True
+                raise ValueError('dataset specifications require a ``name`` field')
+            
+            if dsname != 'pcoord':
+                check_bool(dsinfo.setdefault('enabled', True))
             else:
-                self.data_info[dsname]['enabled'] = west.rc.config.get_bool('executable.data.{}.enabled'.format(dsname))
+                # can never disable pcoord collection
+                dsinfo['enabled'] = True
+            
+            loader_directive = dsinfo.get('loader')
+            if loader_directive:
+                loader = get_object(loader_directive)
+            elif dsname != 'pcoord':
+                loader = aux_data_loader
                 
-            if 'loader' not in self.data_info[dsname]:
-                self.data_info[dsname]['loader'] = pcoord_loader if dsname == 'pcoord' else aux_data_loader
-            else:
-                self.data_info[dsname]['loader'] = west.rc.config.get_python_callable('executable.data.{}.loader'.format(dsname))
-                
-        if not self.data_info['pcoord']['enabled']:
-            log.warning('configuration file requests disabling pcoord data collection; overriding')
-            self.data_info['pcoord']['enabled'] = True
-                        
+            dsinfo['loader'] = loader
+            self.data_info.setdefault(dsname,{}).update(dsinfo)
+                                                    
         log.debug('data_info: {!r}'.format(self.data_info))
                 
     @staticmethod                        
@@ -277,10 +279,11 @@ class ExecutablePropagator(WESTPropagator):
             # that may make a good west.cfg option for future crazy extensibility, but for now,
             # just populate the bare minimum
             parent = Segment(n_iter=segment.n_iter-1, seg_id=segment.parent_id)
-            template_args['parent'] = parent
+            parent_template_args = dict(template_args)
+            parent_template_args['segment'] = parent
             
             environ[self.ENV_PARENT_SEG_ID] = str(segment.parent_id)            
-            environ[self.ENV_PARENT_DATA_REF] = self.makepath(self.parent_ref_template, template_args)
+            environ[self.ENV_PARENT_DATA_REF] = self.makepath(self.segment_ref_template, parent_template_args)
         elif segment.initpoint_type == Segment.SEG_INITPOINT_NEWTRAJ:
             # This segment is initiated from a basis state; WEST_PARENT_SEG_ID and WEST_PARENT_DATA_REF are
             # set to the basis state ID and data ref
@@ -301,6 +304,12 @@ class ExecutablePropagator(WESTPropagator):
         environ[self.ENV_CURRENT_SEG_ID] = str(segment.seg_id or -1)
         environ[self.ENV_CURRENT_SEG_DATA_REF] = self.makepath(self.segment_ref_template, template_args)
         return template_args, environ
+    
+    def template_args_for_segment(self, segment):
+        template_args, environ = {}, {}
+        self.update_args_env_iter(template_args, environ, segment.n_iter)
+        self.update_args_env_segment(template_args, environ, segment)
+        return template_args
     
     def exec_for_segment(self, child_info, segment, addtl_env = None):
         '''Execute a child process with environment and template expansion from the given
@@ -393,7 +402,7 @@ class ExecutablePropagator(WESTPropagator):
                         
     def prepare_iteration(self, n_iter, segments):
         child_info = self.exe_info.get('pre_iteration')
-        if child_info:
+        if child_info and child_info['enabled']:
             try:
                 rc, rusage = self.exec_for_iteration(child_info, n_iter)
             except OSError as e:
@@ -404,7 +413,7 @@ class ExecutablePropagator(WESTPropagator):
         
     def finalize_iteration(self, n_iter, segments):
         child_info = self.exe_info.get('post_iteration')
-        if child_info:
+        if child_info and child_info['enabled']:
             try:
                 rc, rusage = self.exec_for_iteration(child_info, n_iter)
             except OSError as e:
@@ -423,13 +432,21 @@ class ExecutablePropagator(WESTPropagator):
             addtl_env = {}
             
             return_files = {}
+            del_return_files = {}
+            
             for dataset in self.data_info:
                 if not self.data_info[dataset].get('enabled',False):
                     continue
  
-                (fd, rfname) = tempfile.mkstemp()
-                os.close(fd)
-                return_files[dataset] = rfname
+                return_template = self.data_info[dataset].get('filename')
+                if return_template:
+                    return_files[dataset] = self.makepath(return_template, self.template_args_for_segment(segment))
+                    del_return_files[dataset] = False
+                else: 
+                    (fd, rfname) = tempfile.mkstemp()
+                    os.close(fd)
+                    return_files[dataset] = rfname
+                    del_return_files[dataset] = True
 
                 addtl_env['WEST_{}_RETURN'.format(dataset.upper())] = return_files[dataset]
                                         
@@ -462,11 +479,13 @@ class ExecutablePropagator(WESTPropagator):
                     segment.status = Segment.SEG_STATUS_FAILED 
                     break
                 else:
-                    try:
-                        os.unlink(filename)
-                    except Exception as e:
-                        log.warning('could not delete {} file {!r}: {!r}'.format(dataset, filename, e))
-                            
+                    if del_return_files[dataset]:
+                        try:
+                            os.unlink(filename)
+                        except Exception as e:
+                            log.warning('could not delete {} file {!r}: {!r}'.format(dataset, filename, e))
+                        else:
+                            log.debug('deleted {} file {!r}'.format(dataset, filename))    
             if segment.status == Segment.SEG_STATUS_FAILED:
                 continue
                                         
