@@ -1,7 +1,7 @@
 from __future__ import division, print_function; __metaclass__ = type
 
 class WESTPlugin:
-    def __init__(self, rc, config):
+    def __init__(self, rc, plugin_config):
         pass
 
     def validate_config(self):

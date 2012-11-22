@@ -26,6 +26,23 @@ def warn_dubious_config_entry(entry, value, expected_type=None, category=ConfigV
     else:
         warnings.warn('dubious configuration entry {}: {}'.format(entry, value),
                       category, stacklevel+1)
+        
+def check_bool(value, action='warn'):
+    '''Check that the given ``value`` is boolean in type. If not, either
+    raise a warning (if ``action=='warn'``) or an exception (``action=='raise'``).
+    '''
+    if action not in ('warn', 'raise'):
+        raise ValueError('invalid action {!r}'.format(action))
+    
+    if not isinstance(value, bool):
+        if action == 'warn':
+            warnings.warn('dubious boolean value {!r}, will be treated as {!r}'
+                          .format(value,bool(value)),category=ConfigValueWarning,stacklevel=2)
+        elif action == 'raise':
+            raise ValueError('dubious boolean value {!r}, would be treated as {!r}'.format(value, bool(value)))
+    else:
+        return value
+            
 
 class ConfigItemMissing(KeyError):
     def __init__(self, key, message=None):
