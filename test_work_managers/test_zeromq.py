@@ -174,7 +174,7 @@ class TestZMQWMServerIPC(BaseTestZMQWMServer):
         task_endpoint = ZMQBase.make_ipc_endpoint()
         result_endpoint = ZMQBase.make_ipc_endpoint()
         ann_endpoint = ZMQBase.make_ipc_endpoint()
-        self.test_master = ZMQWMServer(task_endpoint, result_endpoint, ann_endpoint)
+        self.test_master = ZMQWMServer(task_endpoint, result_endpoint, ann_endpoint,10)
         
     def tearDown(self):
         self.test_master.shutdown()
@@ -188,7 +188,7 @@ class TestZMQWMServerTCP(BaseTestZMQWMServer):
         ann_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
         task_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
         result_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
-        self.test_master = ZMQWMServer(task_endpoint, result_endpoint, ann_endpoint)
+        self.test_master = ZMQWMServer(task_endpoint, result_endpoint, ann_endpoint, 10)
 
     def tearDown(self):
         self.test_master.shutdown()
@@ -691,15 +691,6 @@ class TestZMQWorkManager:
         
     def test_environ_empty(self):
         with ZMQWorkManager.from_environ() as work_manager:
-            future = work_manager.submit(will_succeed)
-            future.get_result()
-
-    def test_environ_mode_ipc(self):
-        os.environ['WM_ZMQ_COMM_MODE'] = 'ipc'
-        with ZMQWorkManager.from_environ() as work_manager:
-            assert work_manager.master_task_endpoint.startswith('ipc:///')
-            assert work_manager.master_result_endpoint.startswith('ipc:///')
-            assert work_manager.master_announce_endpoint.startswith('ipc:///')
             future = work_manager.submit(will_succeed)
             future.get_result()
     
