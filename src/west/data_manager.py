@@ -869,103 +869,7 @@ class WESTDataManager:
                             source_sel.select_all()
                             dest_sel = dset.id.get_space()
                             dest_sel.select_hyperslab((segment.seg_id,)+(0,)*source_rank, (1,)+auxdataset.shape)
-                            dset.id.write(source_sel, dest_sel, auxdataset)
-                                
-                                
-    def _require_aux_dataset(self, iter_group, dsname, n_segments, shape, dtype):
-        
-        auxds_info = self.dataset_options.get(dsname, {})
-        if not auxds_info:
-            auxds_info['name'] = dsname
-            auxds_info['h5path'] = 'auxdata/{}'.format(dsname)
-            
-        if not auxds_info.get('store', True):
-            return None
-        
-        if log.isEnabledFor(logging.DEBUG):
-            log.debug('processing request for aux dataset {!r}, info {!r}'.format(dsname, auxds_info))
-
-        containing_group_name = posixpath.dirname(auxds_info['h5path'])
-        h5_dsname = posixpath.basename(auxds_info['h5path'])
-        if containing_group_name:
-            containing_group = iter_group.require_group(containing_group_name)
-        else:
-            containing_group = iter_group
-            
-        try:
-            dset = containing_group[h5_dsname]
-        except KeyError:            
-            shape = (n_segments,) + shape
-            
-            # has user requested an explicit data type?
-            h5_dtype = auxds_info.get('dtype', dtype)
-            
-            # compress if 1) explicitly requested, or 2) dataset size exceeds threshold and
-            # compression not explicitly prohibited
-            compression_directive = auxds_info.get('compression')
-            if compression_directive is None:
-                # No directive
-                nbytes = numpy.multiply.reduce(shape)*h5_dtype.itemsize
-                if nbytes > self.aux_compression_threshold:
-                    compression = 9
-                    need_chunks = True
-                else:
-                    compression = None
-                    need_chunks = False
-            elif compression_directive == 0: # includes False
-                # Compression prohibited
-                compression = None
-                need_chunks = False
-            else: # compression explicitly requested
-                compression = compression_directive
-                need_chunks = True
-            
-            # Is scale/offset requested?
-            scaleoffset_directive = auxds_info.get('scaleoffset', None)
-            if scaleoffset_directive is False or scaleoffset_directive is None:
-                scaleoffset = False
-                scaleoffset_opts = None
-            elif scaleoffset_directive is True:
-                raise ValueError('scaleoffset configuration parameter must be the scale factor')
-            else:
-                scaleoffset = True
-                scaleoffset_opts = scaleoffset_directive
-                need_chunks = True
-                
-            # We always shuffle if we compress
-            if compression:
-                shuffle = True
-            else:
-                shuffle = False
-                
-            # We use user-provided chunks if available
-            chunks_directive = auxds_info.get('chunks')
-            if chunks_directive is None:
-                if need_chunks:
-                    chunks = calc_chunksize(shape, h5_dtype)
-                else:
-                    chunks = None
-            elif chunks_directive is True:
-                chunks = calc_chunksize(shape, h5_dtype)
-            elif chunks_directive is False:
-                chunks = None
-            else:
-                chunks = tuple(chunks_directive[i] if chunks_directive[i] <= shape[i] else shape[i] for i in xrange(len(shape)))
-            
-            if log.isEnabledFor(logging.DEBUG):
-                log.debug('requiring aux dataset {!r}, shape={!r}, dtype={!r}, compression={!r}, shuffle={!r}, chunks={!r}, scaleoffset={!r}, scaleoffset_opts={!r}'
-                          .format(h5_dsname, shape, h5_dtype, compression, shuffle, chunks, scaleoffset, scaleoffset_opts))
-            dset = containing_group.require_dataset(h5_dsname,
-                                                    shape=shape,
-                                                    dtype=h5_dtype,
-                                                    compression=compression,
-                                                    shuffle=shuffle,
-                                                    chunks=chunks,
-                                                    scaleoffset=scaleoffset,
-                                                    scaleoffset_opts=scaleoffset_opts)
-                                             
-        return dset
-                        
+                            dset.id.write(source_sel, dest_sel, auxdataset)                                
     
     def get_segments(self, n_iter=None, seg_ids=None, load_pcoords = True):
         '''Return the given (or all) segments from a given iteration.  
@@ -1479,18 +1383,30 @@ def create_dataset_from_dsopts(group, dsopts, shape=None, dtype=None, data=None,
     
     if not chunks and need_chunks:
         chunks = calc_chunksize(shape, h5_dtype)
+        
+    opts = {'shape': shape,
+            'dtype': h5_dtype,
+            'compression': compression,
+            'shuffle': shuffle,
+            'chunks': chunks}
+    
+    try:
+        import h5py._hl.filters
+        h5py._hl.filters._COMP_FILTERS['scaleoffset']
+    except (ImportError,KeyError,AttributeError):
+        # filter not available, or an unexpected version of h5py
+        # use lossless compression instead
+        opts['compression'] = True
+    else:
+        opts['scaleoffset'] = scaleoffset
+        opts['scaleoffset_opts'] = scaleoffset_opts
+            
     
     if log.isEnabledFor(logging.DEBUG):
-        log.debug('requiring dataset {!r}, shape={!r}, dtype={!r}, compression={!r}, shuffle={!r}, chunks={!r}, scaleoffset={!r}, scaleoffset_opts={!r}'
-                  .format(h5_dsname, shape, h5_dtype, compression, shuffle, chunks, scaleoffset, scaleoffset_opts))
-    dset = containing_group.require_dataset(h5_dsname,
-                                            shape=shape,
-                                            dtype=h5_dtype,
-                                            compression=compression,
-                                            shuffle=shuffle,
-                                            chunks=chunks,
-                                            scaleoffset=scaleoffset,
-                                            scaleoffset_opts=scaleoffset_opts)
+        log.debug('requiring aux dataset {!r}, shape={!r}, opts={!r}'
+                  .format(h5_dsname, shape, opts))
+    dset = containing_group.require_dataset(h5_dsname, **opts)
+        
     if data is not None:
         dset[...] = data
                                          
