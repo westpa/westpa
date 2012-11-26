@@ -5,14 +5,15 @@ log = logging.getLogger(__name__)
 import numpy as np
 import types
 
-import west
+import westpa, west
 from westpa import extloader
+from westpa.yamlcfg import check_bool, ConfigItemMissing
 from westext.stringmethod import WESTStringMethod, DefaultStringMethod
 from west.binning import VoronoiBinMapper
 
 
 class StringDriver(object):
-    def __init__(self, sim_manager):
+    def __init__(self, sim_manager, plugin_config):
         super(StringDriver, self).__init__()
 
         if not sim_manager.work_manager.is_master:
@@ -23,20 +24,20 @@ class StringDriver(object):
         self.system = sim_manager.system
 
         # Parameters from config file
-        self.windowsize = west.rc.config.get_int('stringmethod.windowsize', 10)
-        self.update_interval = west.rc.config.get_int('stringmethod.update_interval', 10)
-        self.initial_update = west.rc.config.get_int('stringmethod.initial_update', 20)
-        self.priority = west.rc.config.get_int('stringmethod.priority', 0)
+        self.windowsize = plugin_config.get('windowsize', 10)
+        self.update_interval = plugin_config.get('update_interval', 10)
+        self.initial_update = plugin_config.get('initial_update', 20)
+        self.priority = plugin_config.get('priority', 0)
 
-        self.write_avg_pos = west.rc.config.get_bool('stringmethod.write_avgpos', True)
-        self.do_update = west.rc.config.get_bool('stringmethod.do_update', True)
-        self.init_from_data = west.rc.config.get_bool('stringmethod.init_from_data', True)
+        self.write_avg_pos = check_bool(plugin_config.get('write_avgpos', True))
+        self.do_update = check_bool(plugin_config.get('do_update', True))
+        self.init_from_data = check_bool(plugin_config.get('init_from_data', True))
 
-        self.dfunc = self.get_dfunc_method()
+        self.dfunc = self.get_dfunc_method(plugin_config)
 
         # Load method to calculate average position in a bin
         # If the method is defined in an external module, correctly bind it
-        ap = self.get_avgpos_method()
+        ap = self.get_avgpos_method(plugin_config)
         if hasattr(ap, 'im_class'):
             self.get_avgpos = ap
         else:
@@ -53,7 +54,7 @@ class StringDriver(object):
             raise
 
         # Initialize the string
-        str_method = self.get_string_method()
+        str_method = self.get_string_method(plugin_config)
 
         try:
             self.strings = str_method(centers, **sm_params)
@@ -84,34 +85,43 @@ class StringDriver(object):
     def get_avgpos(self, n_iter):
         raise NotImplementedError
 
-    def get_dfunc_method(self):
-        methodname = west.rc.config.require('stringmethod.dfunc_method')
-        pathinfo = west.rc.config.get_pathlist('stringmethod.module_path', default=None)
-        dfunc_method = extloader.get_object(methodname, pathinfo)
+    def get_dfunc_method(self, plugin_config):
+        try:
+            methodname = plugin_config['dfunc_method']
+        except KeyError:
+            raise ConfigItemMissing('dfunc_method')
+
+        dfunc_method = extloader.get_object(methodname)
 
         log.debug('loaded stringmethod dfunc method {!r}'.format(dfunc_method))
 
         return dfunc_method
 
-    def get_avgpos_method(self):
-        methodname = west.rc.config.require('stringmethod.avgpos_method')
+    def get_avgpos_method(self, plugin_config):
+        try:
+            methodname = plugin_config['avgpos_method']
+        except KeyError:
+            raise ConfigItemMissing('avgpos_method')
+
         if methodname.lower() == 'cartesian':
             avgpos_method = self.avgpos_cartesian
         else:
-            pathinfo = west.rc.config.get_pathlist('stringmethod.module_path', default=None)
-            avgpos_method = extloader.get_object(methodname, pathinfo)
+            avgpos_method = extloader.get_object(methodname)
 
         log.debug('loaded stringmethod avgpos method {!r}'.format(avgpos_method))
 
         return avgpos_method
 
-    def get_string_method(self):
-        methodname = west.rc.config.require('stringmethod.string_method')
+    def get_string_method(self, plugin_config):
+        try:
+            methodname = plugin_config['string_method']
+        except KeyError:
+            raise ConfigItemMissing('string_method')
+
         if methodname.lower() == 'default':
             str_method = DefaultStringMethod
         else:
-            pathinfo = west.rc.config.get_pathlist('stringmethod.module_path', default=None)
-            str_method = extloader.get_object(methodname, pathinfo)
+            str_method = extloader.get_object(methodname)
 
         assert issubclass(str_method, WESTStringMethod)
         log.debug('loaded stringmethod string method {!r}'.format(str_method))

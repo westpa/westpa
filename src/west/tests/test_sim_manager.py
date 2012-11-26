@@ -4,7 +4,7 @@ import argparse
 import numpy
 
 os.environ['WEST_SIM_ROOT'] = os.path.join(os.environ['WEST_ROOT'], 'lib/examples/odld')
-import west
+import westpa, west
 from west.binning.assign import RectilinearBinMapper
 
 import nose
@@ -15,7 +15,6 @@ class TestSimManager:
 
     def setup(self):
 
-        west.rc = west._rc._WESTRC()
         parser = argparse.ArgumentParser()
         west.rc.add_args(parser)
 
@@ -25,7 +24,7 @@ class TestSimManager:
         self.sim_manager = west.rc.get_sim_manager()
 
     def teardown(self):
-        pass
+        west.rc._sim_manager = None
 
     def test_sim_manager(self):
         assert self.sim_manager.n_propagated == 0
@@ -48,7 +47,6 @@ class TestSimManager:
 
         self.sim_manager.register_callback(hook, self.dummy_callback_one, 3)
         self.sim_manager.register_callback(hook, self.dummy_callback_two, 0)
-
         assert hook in self.sim_manager._callback_table
 
         callbacks = self.sim_manager._callback_table.get(hook, [])
