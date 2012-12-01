@@ -681,7 +681,8 @@ class WESTDataManager:
             
             # pcoord is indexed as [particle, time, dimension]
             pcoord_opts = self.dataset_options.get('pcoord',{'name': 'pcoord',
-                                                             'h5path': 'pcoord'})
+                                                             'h5path': 'pcoord',
+                                                             'compression': False})
             shape = (n_particles, pcoord_len, pcoord_ndim)
             pcoord_ds = create_dataset_from_dsopts(iter_group, pcoord_opts, shape, pcoord_dtype)
             pcoord = numpy.empty((n_particles, pcoord_len, pcoord_ndim), pcoord_dtype)
