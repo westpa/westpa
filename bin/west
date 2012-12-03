@@ -11,9 +11,9 @@ if [ -z "$WEST_PYTHON" ]; then
 fi
 
 if [ -z "$WEST_PYTHONPATH" ]; then
-    export WEST_PYTHONPATH="$WEST_ROOT/lib/wwmgr:$WEST_ROOT/src:$WEST_ROOT/lib/west_tools"
+    export WEST_PYTHONPATH="$WEST_ROOT/lib/h5py:$WEST_ROOT/lib/wwmgr:$WEST_ROOT/src:$WEST_ROOT/lib/west_tools"
 else
-    export WEST_PYTHONPATH="$WEST_PYTHONPATH:$WEST_ROOT/lib/wwmgr:$WEST_ROOT/src:$WEST_ROOT/lib/west_tools"
+    export WEST_PYTHONPATH="$WEST_PYTHONPATH:$WEST_ROOT/lib/h5py:$WEST_ROOT/lib/wwmgr:$WEST_ROOT/src:$WEST_ROOT/lib/west_tools"
 fi
 
 if [ -z "$WEST_KERNPROF" ]; then

@@ -1,2 +1,3 @@
 lib/wwmgr = https://chong.chem.pitt.edu/hg/wwmgr
 lib/west_tools = https://chong.chem.pitt.edu/hg/west_tools
+lib/h5py = https://bitbucket.org/mczwier/h5py-scaleoffset
