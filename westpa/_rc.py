@@ -6,7 +6,7 @@ import logging
 log = logging.getLogger('west.rc')
 
 import os, sys, errno
-import west
+import westpa
 from yamlcfg import YAMLConfig
 from . import extloader
 from work_managers import SerialWorkManager
@@ -67,7 +67,7 @@ class WESTRC:
         egroup.add_argument('--debug', dest='verbosity', action='store_const', const='debug',
                             help='enable extra checks and emit copious information')
         
-        group.add_argument('--version', action='version', version='WEST version %s' % west.version)
+        group.add_argument('--version', action='version', version='WEST version %s' % westpa.version)
         
     @property
     def verbose_mode(self):
@@ -190,6 +190,7 @@ class WESTRC:
         return self._sim_manager
 
     def new_data_manager(self):
+        import west
         drivername = self.config.get(['west', 'drivers', 'data_manager'], 'hdf5')
         if drivername.lower() in ('hdf5', 'default'):
             data_manager = west.data_manager.WESTDataManager()
@@ -204,6 +205,7 @@ class WESTRC:
         return self._data_manager
     
     def new_we_driver(self):
+        import west
         drivername = self.config.get(['west', 'drivers', 'we_driver'], 'default')
         if drivername.lower() == 'default':
             we_driver = west.we_driver.WEDriver()
