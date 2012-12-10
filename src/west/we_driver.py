@@ -424,6 +424,9 @@ class WEDriver:
         glom.wtg_parent_ids = set()
         for segment in segments:
             glom.wtg_parent_ids |= segment.wtg_parent_ids
+        
+        # Remove merged walkers from consideration before treating initial states
+        bin.difference_update(segments)            
             
         # The historical parent of gparent is continued; all others are marked as merged
         for segment in segments:
@@ -433,19 +436,23 @@ class WEDriver:
                     self._parent_map[segment.parent_id].endpoint_type = Segment.SEG_ENDPOINT_CONTINUES
             else:
                 # and "unuse" an initial state here (recall that initial states are in 1:1 correspondence
-                # with the segments they initiate)
+                # with the segments they initiate), except when a previously-split particle is being
+                # merged
                 if segment.parent_id >= 0:
                     self._parent_map[segment.parent_id].endpoint_type = Segment.SEG_ENDPOINT_MERGED
                 else:
-                    initial_state = self.used_initial_states.pop(segment.initial_state_id)
-                    log.debug('freeing initial state {!r} for future use (merged)'.format(initial_state))
-                    self.avail_initial_states[initial_state.state_id] = initial_state
-                    initial_state.iter_used = None
+                    if segment.initial_state_id in {segment.initial_state_id for segment in bin}:
+                        log.debug('initial state in use by other walker; not removing')
+                    else:
+                        initial_state = self.used_initial_states.pop(segment.initial_state_id)
+                        log.debug('freeing initial state {!r} for future use (merged)'.format(initial_state))
+                        self.avail_initial_states[initial_state.state_id] = initial_state
+                        initial_state.iter_used = None
 
         if log.isEnabledFor(logging.DEBUG):
             log.debug('merging ({:d}) {!r} into 1:\n    {!r}'.format(len(segments), segments, glom))
                 
-        bin.difference_update(segments)
+
         bin.add(glom)
         
     def _split_by_weight(self, ibin):

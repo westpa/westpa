@@ -165,6 +165,33 @@ class TestWEDriver:
                 assert segment.n_iter == 2
                 assert segment.parent_id is not None 
                 assert segment.status == Segment.SEG_STATUS_PREPARED
+
+    def test_split_with_adjust_istates(self):
+        # this is a split followed by merge, for segments which are initial states
+        # addresses WESTPA issue #8 (https://chong.chem.pitt.edu/redmine/issues/8)
+        self.system.bin_target_counts = numpy.array([5,5])
+        segments = [self.segment(1.5, 0.5, weight=0.125), self.segment(1.5, 0.5, weight=0.125),
+                    self.segment(0.0, 1.5, weight=0.375), self.segment(0.0, 1.5, weight=0.375)]
+        self.we_driver.new_iteration()
+        self.we_driver._prep_we()
+        self.we_driver.used_initial_states[-1] = None
+        self.we_driver.used_initial_states[-2] = None
+        
+        for ibin,bin in enumerate(self.we_driver.next_iter_binning):
+            pc = numpy.array([[0.5+ibin],[0.0]])
+            for iseg in xrange(6):
+                segment = Segment(n_iter=1, seg_id=None, weight=1.0/12.0,
+                                  parent_id=-(ibin+1), pcoord=pc)
+                bin.add(segment)
+        
+                    
+        for ibin in xrange(len(self.we_driver.next_iter_binning)):
+            # This will raise KeyError if initial state tracking is done improperly
+            self.we_driver._adjust_count(ibin)
+
+        assert len(self.we_driver.next_iter_binning[0]) == 5
+        assert len(self.we_driver.next_iter_binning[1]) == 5
+
                 
     def test_recycle(self):
         segments = [self.segment(0.0, 1.5, weight=0.5),
@@ -186,6 +213,7 @@ class TestWEDriver:
         assert numpy.allclose([seg.weight for seg in self.we_driver.next_iter_binning[0]],
                               [0.25 for _i in xrange(4)])
         assert segments[0].endpoint_type == Segment.SEG_ENDPOINT_RECYCLED
+
         
     def test_multiple_merge(self):
         
@@ -212,6 +240,7 @@ class TestWEDriver:
         self.we_driver.populate_initial([istate], [prob], system=self.system)
         assert len(self.we_driver.next_iter_binning[0]) == target_counts
 
+    @nose.SkipTest
     def test_populate_initial(self):
         for prob in [0.1, 1.0 / 3.0, 0.9999999999970001, 1.0]:
             for tcount in xrange(30, 60):
