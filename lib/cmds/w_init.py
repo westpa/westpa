@@ -74,10 +74,7 @@ with work_manager:
             tstates_strio = cStringIO.StringIO('\n'.join(args.tstates).replace(',', ' '))
             target_states.extend(TargetState.states_from_file(tstates_strio, system.pcoord_dtype))
             del tstates_strio
-            
-        if not target_states:
-            west.rc.pstatus('No target states specified; preparing equilibrium simulation.')
-        
+                    
         # Process basis states
         basis_states = []
         if args.bstate_file:

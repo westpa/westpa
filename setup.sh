@@ -14,7 +14,7 @@ if [[ -d lib/h5py ]] ; then
       cd h5py
         python api_gen.py
       cd ..
-      python setup.py build_ext --inplace
+      python setup.py build_ext --inplace --hdf5=$HDF5
     popd
 fi
 
