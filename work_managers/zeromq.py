@@ -220,6 +220,11 @@ class ZMQBase:
         
     def __exit__(self, exc_type, exc_val, exc_traceback):
         self.shutdown()
+        self._close_signal_sockets()
+        try:
+            self.context.close()
+        except AttributeError:
+            pass
         return False
     
     def _make_signal_socket(self, endpoint, socket_type=zmq.PULL):
@@ -240,6 +245,16 @@ class ZMQBase:
             socket.connect(endpoint)
                     
         socket.send(message)
+
+    def _close_signal_sockets(self):
+        try:
+            ctlsockets = self._tls.__dict__.pop('ctlsockets')
+        except KeyError:
+            return
+        
+        while ctlsockets:
+            _endpoint, socket = ctlsockets.popitem()
+            socket.close()
         
         #socket.close()
         #del socket
@@ -1058,13 +1073,14 @@ class ZMQWorkManager(ZMQWMServer,WorkManager):
                    hangcheck=hangcheck, server_heartbeat_interval=heartbeat)
         
     def remove_server_info_file(self):
-        filename = self.server_info_filename
-        try:
-            os.unlink(filename)
-        except OSError as e:
-            log.debug('could not remove server info file {!r}: {}'.format(filename, e))
-        else:
-            log.debug('removed server info file {!r}'.format(filename))
+        if self.server_info_filename:
+            filename = self.server_info_filename
+            try:
+                os.unlink(filename)
+            except OSError as e:
+                log.debug('could not remove server info file {!r}: {}'.format(filename, e))
+            else:
+                log.debug('removed server info file {!r}'.format(filename))
     
     def write_server_info(self, filename=None):
         filename = filename or self.server_info_filename
@@ -1111,6 +1127,8 @@ class ZMQWorkManager(ZMQWMServer,WorkManager):
             self.server_info_filename = server_info_filename or 'zmq_server_info_{}.json'.format(uuid.uuid4().hex)
             self.write_server_info(self.server_info_filename)
             atexit.register(self.remove_server_info_file)
+        else:
+            self.server_info_filename = None
                 
                     
     def startup(self):

@@ -179,6 +179,7 @@ class TestZMQWMServerIPC(BaseTestZMQWMServer):
     def tearDown(self):
         self.test_master.shutdown()
         self.test_master.remove_ipc_endpoints()
+        self.test_master._close_signal_sockets()
         del self.test_master, self.test_client_context
 
 #@nose.SkipTest
@@ -192,6 +193,7 @@ class TestZMQWMServerTCP(BaseTestZMQWMServer):
 
     def tearDown(self):
         self.test_master.shutdown()
+        self.test_master._close_signal_sockets()
         self.test_client_context.destroy(linger=0)
         del self.test_master, self.test_client_context
         
@@ -216,6 +218,7 @@ class TestZMQWMProcess:
 
     def tearDown(self):
         self.wmproc.terminate()
+        self.wmproc._close_signal_sockets()
         del self.context, self.wmproc, self.server_id, self.node_id
     
     @timed(2)
@@ -571,6 +574,7 @@ class TestZMQClientTCP(BaseTestZMQClient):
         #self.test_client.shutdown_workers()
         if self.test_client._monitor_thread is not None and self.test_client._monitor_thread.is_alive():
             self.test_client.shutdown()
+            self.test_client._close_signal_sockets()
         del self.context, self.server_id, self.node_id
 
 class TestZMQClientIPC(BaseTestZMQClient):
@@ -587,6 +591,7 @@ class TestZMQClientIPC(BaseTestZMQClient):
         self.context = zmq.Context()
                 
     def tearDown(self):
+        self.test_client._close_signal_sockets()
         del self.context, self.server_id, self.node_id
         
 class BaseTestCoordinated(CommonParallelTests,CommonWorkManagerTests):
@@ -616,7 +621,7 @@ class BaseTestCoordinated(CommonParallelTests,CommonWorkManagerTests):
    
                 
     
-class TestCoordinatedIPC(BaseTestCoordinated):
+class TestCoordinatedTCP(BaseTestCoordinated):
     def setUp(self):
         self.nprocs = 4        
         
@@ -637,8 +642,11 @@ class TestCoordinatedIPC(BaseTestCoordinated):
     def tearDown(self):
         self.test_client.shutdown()
         self.test_master.shutdown()
+        self.test_client._close_signal_sockets()
+        self.test_master._close_signal_sockets()
         
-class TestCoordinatedTCP(BaseTestCoordinated):
+@nose.SkipTest
+class TestCoordinatedIPC(BaseTestCoordinated):
     def setUp(self):
         self.nprocs = 4
         
@@ -659,6 +667,8 @@ class TestCoordinatedTCP(BaseTestCoordinated):
     def tearDown(self):
         self.test_client.shutdown()
         self.test_master.shutdown()
+        self.test_client._close_signal_sockets()
+        self.test_master._close_signal_sockets()
         
 class TestZMQWorkManager:
     sanitize_vars = ('WM_WORK_MANAGER', 'WM_N_WORKERS',
