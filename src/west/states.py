@@ -235,11 +235,22 @@ class TargetState:
         
         labels = []
         pcoord_values = []
-        for line in statefile:
+
+        try: 
+            open_statefile = open(statefile, 'r')
+        except TypeError: 
+            open_statefile = statefile
+
+        for line in open_statefile:
             fields = line.split()
             labels.append(fields[0])
             pcoord_values.append(numpy.array(map(dtype, fields[1:]),dtype=dtype))
-                                
+        
+        try:
+            open_statefile.close()
+        except: 
+            Pass
+
         return [cls(label=label, pcoord=pcoord) for label,pcoord in zip(labels,pcoord_values)]
 
 from west.segment import Segment
