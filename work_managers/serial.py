@@ -15,10 +15,10 @@ class SerialWorkManager(WorkManager):
         log.debug('initializing serial work manager')
         super(SerialWorkManager,self).__init__()
         
-    def submit(self, fn, *args, **kwargs):
+    def submit(self, fn, args=None, kwargs=None):
         ft = WMFuture()
         try:
-            result = fn(*args, **kwargs)
+            result = fn(*(args if args is not None else ()), **(kwargs if kwargs is not None else {}))
         except Exception as e:
             ft._set_exception(e, sys.exc_info()[2])
         else:

@@ -59,7 +59,7 @@ class WorkManager:
         '''Run the worker loop (in clients only).'''
         pass
         
-    def submit(self, fn, *args, **kwargs):
+    def submit(self, fn, args=None, kwargs=None):
         '''Submit a task to the work manager, returning a `WMFuture` object representing the pending
         result. ``fn(*args,**kwargs)`` will be executed by a worker, and the return value assigned as the
         result of the returned future.  The function ``fn`` and all arguments must be picklable; note
@@ -74,7 +74,7 @@ class WorkManager:
         picklable; note particularly that off-path modules are not picklable unless pre-loaded in the worker
         process.'''
         
-        return [self.submit(fn,*args,**kwargs) for (fn,args,kwargs) in tasks]
+        return [self.submit(fn,args,kwargs) for (fn,args,kwargs) in tasks]
     
     def as_completed(self, futures):
         '''Return a generator which yields results from the given ``futures`` as they become

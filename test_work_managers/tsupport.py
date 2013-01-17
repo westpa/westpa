@@ -30,6 +30,14 @@ def will_busyhang_uninterruptible():
 def identity(x):
     return x
 
+def busy_identity(x):
+    import time
+    delay = 0.01
+    start = time.time()
+    while time.time() - start < delay:
+        pass
+    return x 
+
 def random_int(seed=None):
     import random,sys
     
@@ -40,7 +48,7 @@ def random_int(seed=None):
 
 def get_process_index():
     import os, time
-    time.sleep(1)
+    time.sleep(1) # this ensures that each task gets its own worker
     return os.environ['WM_PROCESS_INDEX']
 
 class CommonWorkManagerTests:
@@ -50,23 +58,23 @@ class CommonWorkManagerTests:
         future = self.work_manager.submit(will_succeed)
             
     def test_submit_many(self):
-        futures = self.work_manager.submit([(will_succeed,(),{}) for i in xrange(self.MED_TEST_SIZE)])
+        futures = self.work_manager.submit_many([(will_succeed,(),{}) for i in xrange(self.MED_TEST_SIZE)])
             
     def test_as_completed(self):
         input = set(xrange(self.MED_TEST_SIZE))
-        futures = [self.work_manager.submit(identity, i) for i in xrange(self.MED_TEST_SIZE)]
+        futures = [self.work_manager.submit(identity, args=(i,)) for i in xrange(self.MED_TEST_SIZE)]
         output = set(future.get_result() for future in self.work_manager.as_completed(futures))
         assert input == output
         
     def test_wait_any(self):
         input = set(xrange(self.MED_TEST_SIZE))
-        futures = [self.work_manager.submit(identity, i) for i in xrange(self.MED_TEST_SIZE)]
+        futures = [self.work_manager.submit(identity, args=(i,)) for i in xrange(self.MED_TEST_SIZE)]
         output = self.work_manager.wait_any(futures).get_result()
         assert output in input
         
     def test_wait_all(self):
         input = set(xrange(self.MED_TEST_SIZE))
-        futures = [self.work_manager.submit(identity, i) for i in xrange(self.MED_TEST_SIZE)]
+        futures = [self.work_manager.submit(identity, args=(i,)) for i in xrange(self.MED_TEST_SIZE)]
         output = set(future.get_result() for future in self.work_manager.wait_all(futures))
         assert input == output
         

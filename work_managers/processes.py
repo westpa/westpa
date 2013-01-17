@@ -78,11 +78,11 @@ class ProcessWorkManager(WorkManager):
 
         log.debug('exiting results_loop')
 
-    def submit(self, fn, *args, **kwargs):
+    def submit(self, fn, args=None, kwargs=None):
         ft = WMFuture()
-        log.debug('dispatching {!r}(*{!r},**{!r})'.format(fn,args,kwargs))
+        log.debug('dispatching {!r}'.format(fn))
         self.pending[ft.task_id] = ft
-        self.task_queue.put(('task', ft.task_id, fn, args, kwargs))        
+        self.task_queue.put(('task', ft.task_id, fn, args or (), kwargs or {}))        
         return ft
                 
     def startup(self):

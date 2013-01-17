@@ -46,9 +46,9 @@ class ThreadsWorkManager(WorkManager):
             else:
                 task.run()
 
-    def submit(self, fn, *args, **kwargs):
+    def submit(self, fn, args=None, kwargs=None):
         ft = WMFuture()
-        task = Task(fn, args, kwargs, ft)
+        task = Task(fn, args if args is not None else (), kwargs if kwargs is not None else {}, ft)
         self.task_queue.put(task)
         return ft
                 
