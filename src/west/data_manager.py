@@ -1333,8 +1333,7 @@ def create_dataset_from_dsopts(group, dsopts, shape=None, dtype=None, data=None,
     h5_dtype = numpy.dtype(dsopts.get('dtype', dtype))
     
     compression = None
-    scaleoffset = False
-    scaleoffset_opts = None
+    scaleoffset = None
     shuffle = False
     
     # compress if 1) explicitly requested, or 2) dataset size exceeds threshold and
@@ -1352,24 +1351,17 @@ def create_dataset_from_dsopts(group, dsopts, shape=None, dtype=None, data=None,
         compression = compression_directive
     
     # Is scale/offset requested?
-    scaleoffset_directive = dsopts.get('scaleoffset', None)
-    # 0 is a valid option, implying scaleoffset=True and scaleoffset_opts=0
-    if scaleoffset_directive is False or scaleoffset_directive is None: 
-        scaleoffset = False
-        scaleoffset_opts = None
-    elif scaleoffset_directive is True:
-        raise ValueError('scaleoffset dataset option must be scale factor (or nbits)')
-    else:
-        scaleoffset = True
-        scaleoffset_opts = scaleoffset_directive
-        
+    scaleoffset = dsopts.get('scaleoffset', None)
+    if scaleoffset is not None:
+        scaleoffset = int(scaleoffset)
+                
     # We always shuffle if we compress (losslessly)
     if compression:
         shuffle = True
     else:
         shuffle = False
         
-    need_chunks = any([compression,scaleoffset,shuffle])
+    need_chunks = any([compression,scaleoffset is not None,shuffle])
         
     # We use user-provided chunks if available
     chunks_directive = dsopts.get('chunks')
@@ -1400,9 +1392,7 @@ def create_dataset_from_dsopts(group, dsopts, shape=None, dtype=None, data=None,
         opts['compression'] = True
     else:
         opts['scaleoffset'] = scaleoffset
-        opts['scaleoffset_opts'] = scaleoffset_opts
             
-    
     if log.isEnabledFor(logging.DEBUG):
         log.debug('requiring aux dataset {!r}, shape={!r}, opts={!r}'
                   .format(h5_dsname, shape, opts))
