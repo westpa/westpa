@@ -177,7 +177,7 @@ class WESimManager:
         as necessary.  The HDF5 file is not updated.'''
         
         self.rc.pstatus('Calculating progress coordinate values for basis states.')
-        futures = [self.work_manager.submit(wm_ops.get_pcoord, basis_state)
+        futures = [self.work_manager.submit(wm_ops.get_pcoord, args=(basis_state,))
                    for basis_state in basis_states]
         fmap = {future: i for (i, future) in enumerate(futures)}
         for future in self.work_manager.as_completed(futures): 
@@ -251,7 +251,7 @@ class WESimManager:
                 initial_states.append(initial_state)
                 
         if self.do_gen_istates:
-            futures = [work_manager.submit(wm_ops.gen_istate, initial_state.basis_state, initial_state)
+            futures = [work_manager.submit(wm_ops.gen_istate, args=(initial_state.basis_state, initial_state))
                        for initial_state in initial_states]
             for future in work_manager.as_completed(futures):
                 rbstate, ristate = future.get_result()
@@ -387,7 +387,7 @@ class WESimManager:
         
         # dispatch and immediately wait on result for prep_iter
         log.debug('dispatching propagator prep_iter to work manager')        
-        self.work_manager.submit(wm_ops.prep_iter, self.n_iter, segments).get_result()
+        self.work_manager.submit(wm_ops.prep_iter, args=(self.n_iter, segments)).get_result()
                 
     def finalize_iteration(self):
         '''Clean up after an iteration and prepare for the next.'''
@@ -397,7 +397,7 @@ class WESimManager:
         
         # dispatch and immediately wait on result for post_iter
         log.debug('dispatching propagator post_iter to work manager')
-        self.work_manager.submit(wm_ops.post_iter, self.n_iter, self.segments.values()).get_result()
+        self.work_manager.submit(wm_ops.post_iter, args=(self.n_iter, self.segments.values())).get_result()
         
         # Move existing segments into place as new segments
         del self.segments
@@ -430,7 +430,7 @@ class WESimManager:
             if self.do_gen_istates:
                 log.debug('generating new initial state from basis state {!r}'.format(basis_state))
                 initial_state.istate_type = InitialState.ISTATE_TYPE_GENERATED
-                futures.add(self.work_manager.submit(wm_ops.gen_istate, basis_state, initial_state))
+                futures.add(self.work_manager.submit(wm_ops.gen_istate, args=(basis_state, initial_state)))
             else:
                 log.debug('using basis state {!r} directly'.format(basis_state))
                 initial_state.istate_type = InitialState.ISTATE_TYPE_BASIS
@@ -458,7 +458,7 @@ class WESimManager:
             segment_block = filter(None, segment_block)
             pbstates, pistates = west.states.pare_basis_initial_states(self.current_iter_bstates, 
                                                                        self.current_iter_istates.values(), segment_block)
-            future = self.work_manager.submit(wm_ops.propagate, pbstates, pistates, segment_block)
+            future = self.work_manager.submit(wm_ops.propagate, args=(pbstates, pistates, segment_block))
             futures.add(future)
             segment_futures.add(future)
         
