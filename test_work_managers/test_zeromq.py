@@ -4,8 +4,8 @@ import cPickle as pickle
 
 from work_managers import WMFuture
 from work_managers import zeromq as zwm
-from work_managers.zeromq import Task, ZMQBase, ZMQWorkManager, ZMQWMProcess, ZMQClient, recvall, WorkerTerminated,\
-    ZMQWMServer
+from work_managers.zeromq import ZMQWorkManager, ZMQClient, recvall, ZMQServer
+from work_managers.zeromq.client import ZMQWMProcess
 from tsupport import *
 
 import zmq
@@ -31,13 +31,13 @@ def randipc():
     endpoint = 'ipc://{}'.format(socket_path)
     return endpoint
 
-class TestZMQWMServer:
+class TestZMQServer:
     def setUp(self):
         self.test_client_context = zmq.Context()
         ann_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
         task_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
         result_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
-        self.test_master = ZMQWMServer(task_endpoint, result_endpoint, ann_endpoint, 10)
+        self.test_master = ZMQServer(task_endpoint, result_endpoint, ann_endpoint, 10)
 
     def tearDown(self):
         self.test_master.shutdown()
@@ -46,7 +46,7 @@ class TestZMQWMServer:
         del self.test_master, self.test_client_context
     
     def send_task_request(self, socket):
-        socket.send_pyobj((zwm.MSG_TASK_REQUEST, None, None, None))
+        socket.send_pyobj((zwm.core.MSG_TASK_REQUEST, None, None, None))
         
     def receive_task(self, socket):
         frames = socket.recv_multipart()
@@ -81,7 +81,7 @@ class TestZMQWMServer:
             #announcements = recvall(ann_socket)
             ann = ann_socket.recv()
             #assert 'shutdown' in announcements
-            assert ann == zwm.MSG_SHUTDOWN
+            assert ann == zwm.core.MSG_SHUTDOWN
         finally:
             ann_socket.close(linger=0)
             
@@ -98,7 +98,7 @@ class TestZMQWMServer:
             self.send_task_request(task_socket)
             frames = task_socket.recv_multipart()
             (tag, server_id, _, _) = zwm.unpickle_frame(frames[0])
-            assert tag == zwm.MSG_TASK_UNAVAILABLE
+            assert tag == zwm.core.MSG_TASK_UNAVAILABLE
             assert server_id == work_manager.instance_id
 
         finally:
@@ -121,7 +121,7 @@ class TestZMQWMServer:
             (fn, args, kwargs) = zwm.unpickle_frame(frames[1])
             
             assert task_id is not None
-            assert tag == zwm.MSG_TASK_AVAILABLE
+            assert tag == zwm.core.MSG_TASK_AVAILABLE
             assert server_id == work_manager.instance_id
             assert fn == identity
             assert args == (1,)
@@ -146,8 +146,8 @@ class TestZMQWMServer:
             self.send_task_request(task_socket)
             frames = task_socket.recv_multipart()
             (_, server_id, client_id, task_id) = zwm.unpickle_frame(frames[0])
-            result_socket.send_pyobj((zwm.MSG_RESULT_SUBMISSION, server_id, client_id, task_id), flags=zmq.SNDMORE)
-            result_socket.send_pyobj((zwm.RESULT_TYPE_RETVAL, 1))            
+            result_socket.send_pyobj((zwm.core.MSG_RESULT_SUBMISSION, server_id, client_id, task_id), flags=zmq.SNDMORE)
+            result_socket.send_pyobj((zwm.core.RESULT_TYPE_RETVAL, 1))            
             assert future.get_result() == 1
         finally:        
             task_socket.close(linger=0)
@@ -170,8 +170,8 @@ class TestZMQWMServer:
             self.send_task_request(task_socket)
             frames = task_socket.recv_multipart()
             (_, server_id, client_id, task_id) = zwm.unpickle_frame(frames[0])
-            result_socket.send_pyobj((zwm.MSG_RESULT_SUBMISSION, server_id, client_id, task_id), flags=zmq.SNDMORE)
-            result_socket.send_pyobj((zwm.RESULT_TYPE_EXCEPTION, (ValueError(42), 'traceback')))
+            result_socket.send_pyobj((zwm.core.MSG_RESULT_SUBMISSION, server_id, client_id, task_id), flags=zmq.SNDMORE)
+            result_socket.send_pyobj((zwm.core.RESULT_TYPE_EXCEPTION, (ValueError(42), 'traceback')))
             future.get_result()
             
         finally:        
@@ -191,7 +191,7 @@ class TestZMQWMServer:
             time.sleep(0.2)
             
             ann = ann_socket.recv()
-            assert ann == zwm.MSG_PING
+            assert ann == zwm.core.MSG_PING
             work_manager.shutdown()
             
         finally:
@@ -228,14 +228,14 @@ class TestZMQWMProcess:
         (node_tag, node_id, client_id, client_pid) = zwm.unpickle_frame(frames[0])
         (server_tag, server_id, client_id, payload) = zwm.unpickle_frame(frames[1])
         
-        socket.send_pyobj((zwm.MSG_TASK_AVAILABLE, self.node_id, client_id, client_pid), flags=zmq.SNDMORE)
-        socket.send_pyobj((zwm.MSG_TASK_AVAILABLE, self.server_id, client_id, task_id), flags=zmq.SNDMORE)
+        socket.send_pyobj((zwm.core.MSG_TASK_AVAILABLE, self.node_id, client_id, client_pid), flags=zmq.SNDMORE)
+        socket.send_pyobj((zwm.core.MSG_TASK_AVAILABLE, self.server_id, client_id, task_id), flags=zmq.SNDMORE)
         socket.send_pyobj((fn, args, kwargs))
         
     def receive_result(self, socket=None):
         socket = socket or self.result_socket
         frames = socket.recv_multipart()
-        socket.send_pyobj((zwm.MSG_ACK, None, None, None))
+        socket.send_pyobj((zwm.core.MSG_ACK, None, None, None))
         
         (node_tag, node_id, client_id, client_pid, task_id) = zwm.unpickle_frame(frames[0])
         (server_tag, server_id, client_id, task_id) = zwm.unpickle_frame(frames[1])
@@ -248,7 +248,7 @@ class TestZMQWMProcess:
         self.reply_with_task(identity, (1,), {})
         result_type, payload = self.receive_result()
         
-        assert result_type == zwm.RESULT_TYPE_RETVAL
+        assert result_type == zwm.core.RESULT_TYPE_RETVAL
         assert payload == 1
         
     def test_exception(self):
@@ -257,7 +257,7 @@ class TestZMQWMProcess:
         self.reply_with_task(will_fail, (), {})
         result_type, payload = self.receive_result()
         
-        assert result_type == zwm.RESULT_TYPE_EXCEPTION
+        assert result_type == zwm.core.RESULT_TYPE_EXCEPTION
         (exception, traceback) = payload
         assert isinstance(exception, ExceptionForTest)
         
@@ -271,20 +271,8 @@ class TestZMQWMProcess:
             
         assert results == set(xrange(20))
         
-class TestZMQClient:    
-    def setUp(self):
-        self.ann_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
-        self.task_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
-        self.result_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
-                
-        self.test_client = ZMQClient(self.task_endpoint, self.result_endpoint, self.ann_endpoint, 2)
-        self.node_id = self.test_client.instance_id
-        self.server_id = uuid.uuid4()
-        self.worker_id = uuid.uuid4()
-        self.worker_pid = os.getpid()
-        
-        self.context = zmq.Context()
-                
+class BaseTestZMQClient:    
+
     def tearDown(self):
         #self.test_client.shutdown_workers()
         if self.test_client._monitor_thread is not None and self.test_client._monitor_thread.is_alive():
@@ -362,7 +350,7 @@ class TestZMQClient:
         self.test_client.server_heartbeat_interval = 0.1
         self.test_client.startup()
         sockdelay()
-        announce_socket.send(zwm.MSG_PING) # to start the count
+        announce_socket.send(zwm.core.MSG_PING) # to start the count
         sockdelay()
         announce_socket.close(linger=0)
         self.test_client._wait_for_shutdown()
@@ -372,8 +360,7 @@ class TestZMQClient:
     def test_task_forward_lowlevel(self):
         '''Client: forwards task requests upstream'''
         
-        self.test_client.startup()
-        self.test_client._shutdown_all_workers() # so they won't interfere with this test
+        self.test_client.startup(spawn_workers=False)
         
         worker_task_socket = self.context.socket(zmq.REQ)
         worker_task_socket.connect(self.test_client.worker_task_endpoint)
@@ -384,15 +371,17 @@ class TestZMQClient:
         task_id = uuid.uuid4()
         
         try:
-            worker_task_socket.send_pyobj((zwm.MSG_TASK_REQUEST, self.node_id, self.worker_id, self.worker_pid), flags=zmq.SNDMORE)
-            worker_task_socket.send_pyobj((zwm.MSG_TASK_REQUEST, self.server_id, self.worker_id, None))
+            worker_task_socket.send_pyobj((zwm.core.MSG_TASK_REQUEST, self.node_id, self.worker_id, self.worker_pid), flags=zmq.SNDMORE)
+            worker_task_socket.send_pyobj((zwm.core.MSG_TASK_REQUEST, self.server_id, self.worker_id, None))
             message = upstream_task_socket.recv_pyobj()
             
             # did the message arrive appropriately?
-            assert message == (zwm.MSG_TASK_REQUEST, self.server_id, self.worker_id, None)
+            print(message)
+            assert message == (zwm.core.MSG_TASK_REQUEST, self.server_id, self.worker_id, None)
+            
             
             # send response
-            upstream_task_socket.send_pyobj((zwm.MSG_TASK_AVAILABLE, self.server_id, self.worker_id, task_id), flags=zmq.SNDMORE)
+            upstream_task_socket.send_pyobj((zwm.core.MSG_TASK_AVAILABLE, self.server_id, self.worker_id, task_id), flags=zmq.SNDMORE)
             upstream_task_socket.send_pyobj((identity, (1,), {}))
             
             # read response
@@ -401,8 +390,8 @@ class TestZMQClient:
             task_header = zwm.unpickle_frame(frames[1])
             task_data = zwm.unpickle_frame(frames[2])
             
-            assert node_header == (zwm.MSG_TASK_AVAILABLE, self.node_id, self.worker_id, self.worker_pid)
-            assert task_header == (zwm.MSG_TASK_AVAILABLE, self.server_id, self.worker_id, task_id)
+            assert node_header == (zwm.core.MSG_TASK_AVAILABLE, self.node_id, self.worker_id, self.worker_pid)
+            assert task_header == (zwm.core.MSG_TASK_AVAILABLE, self.server_id, self.worker_id, task_id)
             assert task_data == (identity, (1,), {})
                 
         finally:
@@ -428,16 +417,16 @@ class TestZMQClient:
         self.test_client.worker_active_tasks[self.worker_pid] = task_id
 
         try:
-            worker_result_socket.send_pyobj((zwm.MSG_RESULT_SUBMISSION, self.node_id, self.worker_id, self.worker_pid, task_id),
+            worker_result_socket.send_pyobj((zwm.core.MSG_RESULT_SUBMISSION, self.node_id, self.worker_id, self.worker_pid, task_id),
                                             flags=zmq.SNDMORE)
-            worker_result_socket.send_pyobj((zwm.MSG_RESULT_SUBMISSION, self.server_id, self.worker_id, task_id),
+            worker_result_socket.send_pyobj((zwm.core.MSG_RESULT_SUBMISSION, self.server_id, self.worker_id, task_id),
                                             flags=zmq.SNDMORE)
-            worker_result_socket.send_pyobj((zwm.RESULT_TYPE_RETVAL, 1))
+            worker_result_socket.send_pyobj((zwm.core.RESULT_TYPE_RETVAL, 1))
             worker_result_socket.recv()
             
             frames = upstream_result_socket.recv_multipart()
-            assert zwm.unpickle_frame(frames[0]) == (zwm.MSG_RESULT_SUBMISSION, self.server_id, self.worker_id, task_id)
-            assert zwm.unpickle_frame(frames[1]) == (zwm.RESULT_TYPE_RETVAL, 1)
+            assert zwm.unpickle_frame(frames[0]) == (zwm.core.MSG_RESULT_SUBMISSION, self.server_id, self.worker_id, task_id)
+            assert zwm.unpickle_frame(frames[1]) == (zwm.core.RESULT_TYPE_RETVAL, 1)
             upstream_result_socket.send('')
             
                 
@@ -454,7 +443,7 @@ class TestZMQClient:
         upstream_result_socket.bind(self.result_endpoint)
         
         self.test_client.worker_task_timeout = 0.2
-        self.test_client.hangcheck = 0.05
+        self.test_client.hangcheck_interval = 0.05
         self.test_client.startup()
         
         task_id = uuid.uuid4()
@@ -465,7 +454,7 @@ class TestZMQClient:
             (_, server_id, worker_id, _) = task_req_message
             
             # dispatch task        
-            upstream_task_socket.send_pyobj((zwm.MSG_TASK_AVAILABLE, server_id, worker_id, task_id), flags=zmq.SNDMORE)
+            upstream_task_socket.send_pyobj((zwm.core.MSG_TASK_AVAILABLE, server_id, worker_id, task_id), flags=zmq.SNDMORE)
             upstream_task_socket.send_pyobj((will_busyhang_uninterruptible, (), {}))
             
             # Receive result
@@ -474,14 +463,42 @@ class TestZMQClient:
             header = zwm.unpickle_frame(frames[0])
             (result_type, payload) = zwm.unpickle_frame(frames[1])
             
-            assert header[0] == zwm.MSG_RESULT_SUBMISSION
-            assert result_type == zwm.RESULT_TYPE_EXCEPTION
+            assert header[0] == zwm.core.MSG_RESULT_SUBMISSION
+            assert result_type == zwm.core.RESULT_TYPE_EXCEPTION
             assert isinstance(payload[0], zwm.WorkerTerminated)
             
         finally:
             upstream_task_socket.close(linger=0)
             upstream_result_socket.close(linger=0)
         
+class TestClientTCPComm(BaseTestZMQClient):
+    def setUp(self):
+        self.ann_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
+        self.task_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
+        self.result_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
+                
+        self.test_client = ZMQClient(self.task_endpoint, self.result_endpoint, self.ann_endpoint, comm_mode='tcp')
+        self.node_id = self.test_client.instance_id
+        self.server_id = uuid.uuid4()
+        self.worker_id = uuid.uuid4()
+        self.worker_pid = os.getpid()
+        
+        self.context = zmq.Context()
+                
+class TestClientIPCComm(BaseTestZMQClient):
+    def setUp(self):
+        self.ann_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
+        self.task_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
+        self.result_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
+                
+        self.test_client = ZMQClient(self.task_endpoint, self.result_endpoint, self.ann_endpoint, comm_mode='ipc')
+        self.node_id = self.test_client.instance_id
+        self.server_id = uuid.uuid4()
+        self.worker_id = uuid.uuid4()
+        self.worker_pid = os.getpid()
+        
+        self.context = zmq.Context()
+
             
 class TestCoordinated(CommonParallelTests,CommonWorkManagerTests):
     def setUp(self):
@@ -635,6 +652,53 @@ class TestZMQWorkManager:
                 future.get_result()                
             finally:
                 test_client.shutdown()
+                
+    def test_client_from_environ_tcp(self):
+        os.environ['WM_N_WORKERS'] = str(0)
+        task_endpoint = 'tcp://localhost:{}'.format(randport())
+        result_endpoint = 'tcp://localhost:{}'.format(randport())
+        announce_endpoint = 'tcp://localhost:{}'.format(randport())
+
+        os.environ['WM_ZMQ_TASK_ENDPOINT'] = task_endpoint
+        os.environ['WM_ZMQ_RESULT_ENDPOINT'] = result_endpoint
+        os.environ['WM_ZMQ_ANNOUNCE_ENDPOINT'] = announce_endpoint
+        os.environ['WM_ZMQ_CLIENT_COMM_MODE'] = 'tcp'
+        
+        with ZMQWorkManager() as work_manager:
+            os.environ['WM_N_WORKERS'] = str(2)
+            test_client = ZMQClient.from_environ()
+            test_client.startup()
+            assert test_client.worker_task_endpoint.startswith('tcp://')
+            assert test_client.worker_result_endpoint.startswith('tcp://')
+            try:
+                future = work_manager.submit(will_succeed)
+                future.get_result()                
+            finally:
+                test_client.shutdown()
+                
+    def test_client_from_environ_ipc(self):
+        os.environ['WM_N_WORKERS'] = str(0)
+        task_endpoint = 'tcp://localhost:{}'.format(randport())
+        result_endpoint = 'tcp://localhost:{}'.format(randport())
+        announce_endpoint = 'tcp://localhost:{}'.format(randport())
+
+        os.environ['WM_ZMQ_TASK_ENDPOINT'] = task_endpoint
+        os.environ['WM_ZMQ_RESULT_ENDPOINT'] = result_endpoint
+        os.environ['WM_ZMQ_ANNOUNCE_ENDPOINT'] = announce_endpoint
+        os.environ['WM_ZMQ_CLIENT_COMM_MODE'] = 'ipc'
+        
+        with ZMQWorkManager() as work_manager:
+            os.environ['WM_N_WORKERS'] = str(2)
+            test_client = ZMQClient.from_environ()
+            test_client.startup()
+            assert test_client.worker_task_endpoint.startswith('ipc://')
+            assert test_client.worker_result_endpoint.startswith('ipc://')
+            try:
+                future = work_manager.submit(will_succeed)
+                future.get_result()                
+            finally:
+                test_client.shutdown()
+
             
     def test_environ_tcp_endpoints(self):
     
