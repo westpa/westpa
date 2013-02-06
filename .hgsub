@@ -1,3 +1,3 @@
 lib/wwmgr = https://chong.chem.pitt.edu/hg/wwmgr
 lib/west_tools = https://chong.chem.pitt.edu/hg/west_tools
-lib/h5py = [git]git://github.com/mczwier/h5py.git
+lib/h5py = [git]git://github.com/h5py/h5py.git
