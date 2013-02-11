@@ -23,6 +23,7 @@ class WEEDDriver:
         self.sim_manager = sim_manager
         self.data_manager = sim_manager.data_manager
         self.system = sim_manager.system
+        self.work_manager = sim_manager.work_manager
 
         self.do_reweight = check_bool(plugin_config.get('do_equilibrium_reweighting', False)
                            or plugin_config.get('do_reweighting', False))
@@ -50,6 +51,9 @@ class WEEDDriver:
         self.reweight_period = plugin_config.get('reweight_period', 0)
         self.priority = plugin_config.get('priority', 0)
 
+        self.rate_calc_queue_size = plugin_config.get('rate_calc_queue_size', 1)
+        self.rate_calc_n_blocks = plugin_config.get('rate_calc_n_blocks', 1)
+
         if self.do_reweight:
             sim_manager.register_callback(sim_manager.prepare_new_iteration,self.prepare_new_iteration, self.priority)
 
@@ -65,8 +69,8 @@ class WEEDDriver:
         else: # self.windowtype == 'fixed':
             eff_windowsize = min(n_iter, self.windowsize or 0)
 
-        averager = RateAverager(mapper, self.system, self.data_manager)
-        averager.calculate(max(1, n_iter-eff_windowsize), n_iter+1)
+        averager = RateAverager(mapper, self.system, self.data_manager, self.work_manager)
+        averager.calculate(max(1, n_iter-eff_windowsize), n_iter+1, self.rate_calc_n_blocks, self.rate_calc_queue_size)
         self.eff_windowsize = eff_windowsize
 
         return averager
