@@ -163,8 +163,10 @@ class ZMQServer(ZMQBase):
                             master_task_socket.send_pyobj((MSG_TASK_AVAILABLE, this_server_id, client_id, task.task_id),
                                                           flags=zmq.SNDMORE)
                             master_task_socket.send(pickle_to_frame((task.fn, task.args, task.kwargs)), copy=False)
+                            del task
                     else:
                         log.error('unknown/unsupported message received on task socket: {!r}'.format(tag))
+                    del message, tag, server_id, client_id, _payload
         finally:
             poller.unregister(ctlsocket)
             poller.unregister(master_task_socket)
@@ -216,7 +218,7 @@ class ZMQServer(ZMQBase):
                     if tag == MSG_RESULT_SUBMISSION:
                         task_id = payload
                         try:
-                            task = self.pending_tasks[task_id]
+                            task = self.pending_tasks.pop(task_id)
                         except KeyError:
                             log.error('received result for unknown task {!s}'.format(task_id))
                         else:
@@ -234,11 +236,13 @@ class ZMQServer(ZMQBase):
                                 if debug_logging:
                                     log.debug('server: received result for task {!s} ({!r})'.format(task_id, retval))
                                 task.future._set_result(retval)
+                                del retval
                             else:
                                 log.error('unknown result type received for task {!s} ({!r})'.format(task_id, task.fn))
-                            del result_payload
+                            del result_type, result_payload, task
                     else:
                         log.error('unknown/unsupported message received on result socket: {!r}'.format(tag))
+                    del frames, message, tag, server_id, client_id, payload
         finally:
             poller.unregister(ctlsocket)
             poller.unregister(master_result_socket)
