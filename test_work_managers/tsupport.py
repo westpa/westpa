@@ -65,7 +65,13 @@ class CommonWorkManagerTests:
         futures = [self.work_manager.submit(identity, args=(i,)) for i in xrange(self.MED_TEST_SIZE)]
         output = set(future.get_result() for future in self.work_manager.as_completed(futures))
         assert input == output
-        
+
+    def test_submit_as_completed(self):
+        task_generator = ((busy_identity, (i,), {}) for i in xrange(self.MED_TEST_SIZE))
+        input = set(xrange(self.MED_TEST_SIZE))
+        output = set(future.get_result() for future in self.work_manager.submit_as_completed(task_generator, 10))
+        assert input == output
+
     def test_wait_any(self):
         input = set(xrange(self.MED_TEST_SIZE))
         futures = [self.work_manager.submit(identity, args=(i,)) for i in xrange(self.MED_TEST_SIZE)]
