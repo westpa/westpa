@@ -4,6 +4,26 @@ import sys, getpass, socket, time
 import numpy, h5py
 
 #
+# Helper functions
+# 
+def calc_chunksize(shape, dtype, max_chunksize=262144):
+    '''Calculate a chunk size for HDF5 data, anticipating that access will slice
+    along lower dimensions sooner than higher dimensions.'''
+        
+    chunk_shape = list(shape)
+    for idim in xrange(len(shape)):
+        chunk_nbytes = numpy.multiply.reduce(chunk_shape)*dtype.itemsize
+        while chunk_shape[idim] > 1 and chunk_nbytes > max_chunksize:
+            chunk_shape[idim] >>= 1 # divide by 2
+            chunk_nbytes = numpy.multiply.reduce(chunk_shape)*dtype.itemsize
+            
+        if chunk_nbytes <= max_chunksize:
+            break
+
+    chunk_shape = tuple(chunk_shape)
+    return chunk_shape
+
+#
 # Group and datset manipulation functions
 #
 
