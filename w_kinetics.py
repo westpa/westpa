@@ -11,6 +11,7 @@ from west.data_manager import seg_id_dtype
 from westtools.tool_classes import WESTTool, WESTDataReader, IterRangeSelection, BinMappingComponent
 import numpy, h5py
 import scipy.linalg
+import scipy.sparse.linalg
 from h5py import h5s
 from westtools import h5io
 
@@ -57,8 +58,8 @@ def find_transitions(weight, initial_time, dt, last_macro,
     npts  = len(bins)
     nbins = len(pops)
     popwt = 1.0/(npts-1)
-        
-    # We never update the history in-place, so shadow these with copies
+    
+    # Preserve old history
     new_last_exit = last_exit.copy()
     new_last_entry = last_entry.copy()
     new_last_completion = last_completion.copy()
@@ -83,18 +84,25 @@ def find_transitions(weight, initial_time, dt, last_macro,
             new_last_exit[ibin] = tm
             new_last_entry[fbin] = tm
             
-            # are we ending in a macrostate bin?
+            # we only count transitions ending in a kinetic macrostate
             if macromask[fbin] == 1:
-                # if so, we need to update the total flow data and calculate event duration
-                # event duration is time of last exit to time of entry
+                # loop over all possible initial states
                 for iibin in xrange(nbins):
-                    if (macromask[iibin] == 1
+                    if (# we only count transitions from non-transition regions
+                        macromask[iibin] == 1 
+                        
+                        # and only those where walkers actually departed from at some point
                         and new_last_exit[iibin] > 0 
-                        and new_last_entry[iibin] > new_last_completion[iibin,fbin]
+                        
+                        # and we need to have visited the initial state more recently than this final state,
+                        # or else we would be double-counting transitions
+                        and new_last_entry[iibin] > new_last_completion[iibin,fbin] 
                         ):
-                        macro_fluxes[iibin,fbin] += weight
-                        t_ed = new_last_entry[fbin] - new_last_exit[iibin]
-                        if iibin != fbin: 
+                        # exclude sojourns out of bin and back for now, because it clutters up
+                        # output. TODO: this should be an option
+                        if iibin != fbin:
+                            macro_fluxes[iibin,fbin] += weight
+                            t_ed = new_last_entry[fbin] - new_last_exit[iibin]
                             event_durations.append((iibin,fbin,t_ed,weight))
                         new_last_completion[iibin,fbin] = tm
                     last_macro = fbin
@@ -154,20 +162,18 @@ macrostates (see "w_assign --help" for information).
         iter_count = stop_iter - start_iter
         
         avg_micro_flux = numpy.zeros((nbins,nbins), dtype=weight_dtype)
+        avg_macro_flux = numpy.zeros((nbins,nbins), dtype=weight_dtype)
         avg_pops = numpy.zeros((nbins,), dtype=weight_dtype)
         all_eds = []
         
         avg_macro_pops = numpy.zeros((nbins,), dtype=weight_dtype)
         
-        macromask = numpy.zeros((nbins,), dtype=numpy.uint8)
+        macromask = numpy.zeros((nbins,), dtype=numpy.bool_)
         for macrostate_bin in self.assignments_file['state_assignments']:
             macromask[macrostate_bin] = 1
         
-        
         for iiter,n_iter in enumerate(xrange(start_iter,stop_iter)):
             print(iiter,n_iter)
-            
-             
             
             iter_group = self.data_reader.get_iter_group(n_iter)
             seg_index = iter_group['seg_index'] # weight, parent_id
@@ -185,7 +191,6 @@ macrostates (see "w_assign --help" for information).
             micro_fluxes = numpy.zeros((nbins,nbins), dtype=weight_dtype)
             macro_fluxes = numpy.zeros((nbins,nbins), dtype=weight_dtype)
             
-                        
             next_state = [None] * n_segs
             for seg_id in xrange(n_segs):
                 weight = weights[seg_id]
@@ -216,6 +221,7 @@ macrostates (see "w_assign --help" for information).
             current_state = next_state
             
             avg_micro_flux += micro_fluxes
+            avg_macro_flux += macro_fluxes
             avg_pops += pops 
             avg_macro_pops += macro_pops/macro_pops.sum()
             
@@ -227,8 +233,8 @@ macrostates (see "w_assign --help" for information).
         avg_pops /= iter_count
         avg_micro_flux /= iter_count
         avg_macro_pops /= iter_count
+        avg_macro_flux /= iter_count
 
-        
         print('\npops:')
         print(repr(avg_pops))
         print('norm check:', avg_pops.sum())
@@ -245,7 +251,8 @@ macrostates (see "w_assign --help" for information).
             print('microstate (bin-to-bin) transition probability matrix:')
             print(repr(tprob))
             try:
-                vals, vects = scipy.linalg.eig(tprob,left=True,right=False)
+                #vals, vects = scipy.linalg.eig(tprob,left=True,right=False)
+                vals, vects = scipy.sparse.linalg.eigs(tprob.T,k=1,which='LM')
             except ValueError:
                 print('no steady state solution')
             else:                
@@ -260,6 +267,11 @@ macrostates (see "w_assign --help" for information).
                 
                 ss/=ss.sum()
                 print('norm of difference between avg and ss pop vectors:', (((pops-ss)**2).sum())**0.5)
+                
+            
+                
+        print('\nmacrostate flux matrix:')
+        print(repr(avg_macro_flux))
         
     def go(self):
         self.walk_tree()
