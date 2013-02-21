@@ -45,6 +45,7 @@ preprocess it before binning occurs.
 Optionally, a list of coordinate tuples may be provided. These tuples 
 will be mapped to bins, and those bins recorded as kinetic macrostates
 to be used in subsequent kinetics analysis. 
+
 '''
     
     def __init__(self):
@@ -97,6 +98,8 @@ to be used in subsequent kinetics analysis.
         
         h5io.stamp_iter_range(self.output_file, iter_start, iter_stop)
         
+        self.output_file.attrs['nbins'] = self.binning.mapper.nbins
+        
         if self.state_points:
             state_points_array = numpy.vstack(self.state_points)
             state_assignments_array = assign(state_points_array)
@@ -107,9 +110,10 @@ to be used in subsequent kinetics analysis.
         for n_iter in xrange(iter_start,iter_stop):
             iter_group = self.data_reader.get_iter_group(n_iter)
             pcoords = self.construct_pcoord(n_iter,iter_group)
+            
             n_segs, n_pts, n_dim = pcoords.shape
             
-            iter_group = self.output_file.create_iter_group(n_iter)
+            output_iter_group = self.output_file.create_iter_group(n_iter)
             
             assignments = numpy.empty((n_segs,n_pts), index_dtype)
             mask = numpy.ones((n_pts,), numpy.bool_)
@@ -117,9 +121,9 @@ to be used in subsequent kinetics analysis.
             for seg_id in xrange(n_segs):
                 assign(pcoords[seg_id], mask, assignments[seg_id])
                 
-            iter_group.create_dataset('assignments',
-                                      data=assignments, shuffle=True, compression=9,
-                                      chunks = h5io.calc_chunksize(assignments.shape, assignments.dtype))
+            output_iter_group.create_dataset('assignments',
+                                             data=assignments, shuffle=True, compression=9,
+                                             chunks = h5io.calc_chunksize(assignments.shape, assignments.dtype))
             
             del pcoords, assignments, mask, iter_group
 
