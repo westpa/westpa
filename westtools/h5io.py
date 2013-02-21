@@ -4,6 +4,11 @@ import sys, getpass, socket, time
 import numpy, h5py
 
 #
+# Constants and globals
+#
+default_iter_prec=8
+
+#
 # Helper functions
 # 
 def calc_chunksize(shape, dtype, max_chunksize=262144):
@@ -86,9 +91,8 @@ def get_creator_data(h5group):
 def stamp_iter_range(h5object, start_iter, stop_iter):
     '''Mark that the HDF5 object ``h5object`` (dataset or group) contains data from iterations
     start_iter <= n_iter < stop_iter.'''
-    attrs = h5object.attrs
-    attrs['iter_start'] = start_iter
-    attrs['iter_stop']  = stop_iter
+    h5object.attrs['iter_start'] = start_iter
+    h5object.attrs['iter_stop']  = stop_iter
     
 def get_iter_range(h5object):
     '''Read back iteration range data written by ``stamp_iter_range``'''
@@ -121,4 +125,95 @@ def label_axes(h5object, labels, units=None):
      
     if len(units):
         h5object.attrs['axis_units'] = numpy.array(map(str,units))
+
+NotGiven = object()
+def _get_one_attr(h5object, namelist, default=NotGiven):
+    attrs = dict(h5object.attrs)
+    for name in namelist:
+        try:
+            return attrs[name]
+        except KeyError:
+            pass
+    else:
+        if default is NotGiven:
+            raise KeyError('no such key')
+        else:
+            return default
+        
+class WESTPAH5File(h5py.File):
+    '''Generalized input/output for WESTPA simulation (or analysis) data.'''
     
+    default_iter_prec = 8
+    _this_fileformat_version = 8
+        
+    def __init__(self, *args, **kwargs):
+        
+        # These values are used for creating files or reading files where this
+        # data is not stored. Otherwise, values stored as attributes on the root
+        # group are used instead.
+        arg_iter_prec = kwargs.pop('westpa_iter_prec', self.default_iter_prec)
+        arg_fileformat_version = kwargs.pop('westpa_fileformat_version', self._this_fileformat_version)
+        arg_creating_program = kwargs.pop('creating_program', None)
+        
+        # Initialize h5py file
+        super(WESTPAH5File,self).__init__(*args, **kwargs)
+        
+        # Try to get iteration precision and I/O class version
+        h5file_iter_prec = _get_one_attr(self, ['westpa_iter_prec', 'west_iter_prec', 'wemd_iter_prec'], None)
+        h5file_fileformat_version = _get_one_attr(self,
+                                                  ['westpa_fileformat_version', 
+                                                   'west_file_format_version', 
+                                                   'wemd_file_format_version'],
+                                                  None)
+        
+        self.iter_prec = h5file_iter_prec if h5file_iter_prec is not None else arg_iter_prec
+        self.fileformat_version = h5file_fileformat_version if h5file_fileformat_version is not None else arg_fileformat_version
+        
+        # Ensure that file format attributes are stored, if the file is writable
+        if self.mode == 'r+':
+            self.attrs['westpa_iter_prec'] = self.iter_prec
+            self.attrs['westpa_fileformat_version'] = self.fileformat_version
+            if arg_creating_program:
+                stamp_creator_data(self, creating_program=arg_creating_program)
+    
+    # Iteration groups
+    
+    def iter_object_name(self, n_iter, prefix='', suffix=''):
+        '''Return a properly-formatted per-iteration name for iteration
+        ``n_iter``. (This is used in create/require/get_iter_group, but may 
+        also be useful for naming datasets on a per-iteration basis.)'''
+        return '{prefix}iter_{n_iter:0{prec}d}{suffix}'\
+                .format(n_iter=n_iter,prefix=prefix,suffix=suffix,prec=self.iter_prec)
+        
+    def create_iter_group(self, n_iter, group=None):
+        '''Create a per-iteration data storage group for iteration number ``n_iter``
+        in the group ``group`` (which is '/iterations' by default).'''
+        
+        if group is None:
+            group = self.require_group('/iterations')
+        return group.create_group(self.iter_object_name(n_iter))
+                
+    def require_iter_group(self, n_iter, group=None):
+        '''Ensure that a per-iteration data storage group for iteration number ``n_iter``
+        is available in the group ``group`` (which is '/iterations' by default).'''
+        if group is None:
+            group = self.require_group('/iterations')
+        return group.require_group(self.iter_object_name(n_iter))
+        
+    def get_iter_group(self, n_iter, group=None):
+        '''Get the per-iteration data group for iteration number ``n_iter`` from within
+        the group ``group`` ('/iterations' by default).'''
+        if group is None:
+            group = self['/iterations']
+        return group[self.iter_object_name(n_iter)]
+    
+            
+        
+        
+        
+        
+        
+        
+        
+        
+        

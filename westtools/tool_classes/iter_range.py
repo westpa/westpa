@@ -107,7 +107,7 @@ class IterRangeSelection(WESTTool):
         
     def record_data_iter_step(self, h5object, iter_step = None):
         '''Store attribute ``iter_step`` on the given HDF5 object (group/dataset).'''
-        iter_step = self.iter_setp if iter_step is None else iter_step
+        iter_step = self.iter_step if iter_step is None else iter_step
         h5object.attrs['iter_step'] = iter_step
                 
     def check_data_iter_range_least(self, h5object, iter_start = None, iter_stop = None):
