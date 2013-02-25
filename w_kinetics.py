@@ -9,11 +9,14 @@ import logging
 from copy import copy, deepcopy
 from west.data_manager import seg_id_dtype
 from westtools.tool_classes import WESTTool, WESTDataReader, IterRangeSelection, BinMappingComponent
+from collections import deque
 import numpy, h5py
 import scipy.linalg
 import scipy.sparse.linalg
 from h5py import h5s
 from westtools import h5io
+
+from west.binning.assign import index_dtype
 
 import numba
 from numba import f8, i8 #@UnresolvedImport
@@ -47,11 +50,11 @@ def get_steady_state(T):
                      f8[:],f8[:],f8[:,:]],
            locals=dict(new_last_exit=f8[:], new_last_entry=f8[:], new_last_completion=f8[:,:]))
 
-def find_transitions(weight, initial_time, dt, last_macro,
-                     macromask, bins, 
-                     pops, macro_pops, 
-                     micro_fluxes, macro_fluxes,
-                     last_exit, last_entry, last_completion):
+def find_transitions_mz(weight, initial_time, dt, last_macro,
+                        macromask, bins, 
+                        pops, macro_pops, 
+                        micro_fluxes, macro_fluxes,
+                        last_exit, last_entry, last_completion):
     '''Find transitions, updating population and flux data in place and returning a reference to the new 
     per-trajectory state dict.'''
     
@@ -118,6 +121,68 @@ def find_transitions(weight, initial_time, dt, last_macro,
              'initial_time': tm}
             )
     
+#@profile
+def build_flux_matrix(data_reader, assignments_file, max_history):
+    max_history = 5
+    
+    nbins = assignments_file.attrs['nbins']
+    start_iter, stop_iter = h5io.get_iter_range(assignments_file)
+    iter_count = stop_iter - start_iter
+    
+    global_rate_matrix = numpy.zeros((nbins,nbins), weight_dtype)
+    rate_matrix_by_iter = numpy.empty((iter_count,nbins,nbins), weight_dtype)
+    
+    last_history = None
+    for iiter,n_iter in enumerate(xrange(start_iter,100)):#stop_iter)):
+        print(iiter,n_iter)
+        
+        iter_group = data_reader.get_iter_group(n_iter)
+        seg_index = iter_group['seg_index'] # weight, parent_id
+        weights = seg_index['weight']
+        parent_ids = seg_index['parent_id']            
+        n_segs = weights.shape[0]
+        
+        flux_matrix = numpy.zeros((nbins,nbins), weight_dtype)
+        assignments_ds = assignments_file.get_iter_group(n_iter)['assignments']
+        assignments_data = assignments_ds[:,[0,assignments_ds.shape[1]-1]]
+        
+        next_history = [None]*n_segs
+        total_tau = 0
+        for seg_id in xrange(n_segs):
+            parent_id = parent_ids[seg_id]
+            weight = weights[seg_id]
+            
+            if parent_ids[seg_id] < 0:
+                traj_history = deque(maxlen=max_history)
+            else:
+                traj_history = copy(last_history[parent_id])
+                
+            traj_history.appendleft(assignments_data[seg_id])            
+            
+            # so much potential for off-by-one errors here
+            # don't mess with this without testing            
+            
+            # for windows of length [1,minimum of available iterations, max history length]
+            #_flux_acc(traj_history, max_history, flux_matrix)
+            for windowlen in xrange(1,len(traj_history)+1):
+                # for offset within history window [0,max history length-1]
+                for offset in xrange(max_history):
+                    if offset+windowlen-1 > len(traj_history)-1: continue
+                                            
+                    ibin = traj_history[windowlen+offset-1][1]
+                    fbin = traj_history[offset][0]
+                    flux_matrix[ibin,fbin] += weight
+                    
+                total_tau += windowlen
+                                             
+            next_history[seg_id] = traj_history
+        
+        flux_matrix /= total_tau
+        print(flux_matrix)
+        
+        # prepare for next iteration
+        last_history = next_history
+        
 
 class WKinetics(WESTTool):
     prog='w_kinetics'
@@ -154,7 +219,7 @@ macrostates (see "w_assign --help" for information).
         self.output_file = h5io.WESTPAH5File(args.output, 'w', creating_program=True)
         h5io.stamp_creator_data(self.output_file)
 
-    def walk_tree(self):        
+    def walk_tree_mz(self):        
 
         current_state = None # list of dicts
         nbins = self.assignments_file.attrs['nbins']
@@ -181,7 +246,6 @@ macrostates (see "w_assign --help" for information).
             parent_ids = seg_index['parent_id']            
             pcoord_ds = iter_group['pcoord']
             n_segs, n_points = pcoord_ds.shape[:2]
-            pcoord_data = pcoord_ds[...]
             assignment_data = self.assignments_file.get_iter_group(n_iter)['assignments'][...]
             
             dt = 1.0/(n_points-1)
@@ -207,11 +271,11 @@ macrostates (see "w_assign --help" for information).
                     assert current_state[parent_id] is not None
                     state = current_state[parent_id]
                     
-                eds, state = find_transitions(weight, state['initial_time'], dt, state['last_macrostate'],
-                                              macromask, bins, 
-                                              pops, macro_pops,
-                                              micro_fluxes, macro_fluxes, 
-                                              state['last_exit'], state['last_entry'], state['last_completion'])
+                eds, state = find_transitions_mz(weight, state['initial_time'], dt, state['last_macrostate'],
+                                                 macromask, bins, 
+                                                 pops, macro_pops,
+                                                 micro_fluxes, macro_fluxes, 
+                                                 state['last_exit'], state['last_entry'], state['last_completion'])
                 all_eds.extend(eds)
                 if eds:
                     print(eds)
@@ -226,7 +290,7 @@ macrostates (see "w_assign --help" for information).
             avg_macro_pops += macro_pops/macro_pops.sum()
             
             # clean up for next iteration
-            del seg_index, weights, parent_ids, pcoord_ds, pcoord_data, micro_fluxes, macro_fluxes, assignment_data
+            del seg_index, weights, parent_ids, pcoord_ds, micro_fluxes, macro_fluxes, assignment_data
 
         print('number of durations recorded:',len(all_eds))
 
@@ -273,8 +337,18 @@ macrostates (see "w_assign --help" for information).
         print('\nmacrostate flux matrix:')
         print(repr(avg_macro_flux))
         
+    def build_rate_matrix(self):
+        build_flux_matrix(self.data_reader, self.assignments_file, 50)
+                    
+            
+            
+            
+            
+        
+        
     def go(self):
-        self.walk_tree()
+        self.build_rate_matrix()
+        #self.walk_tree_mz()
         
 
 if __name__ == '__main__':
