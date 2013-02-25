@@ -18,6 +18,8 @@ from westtools import h5io
 
 from west.binning.assign import index_dtype
 
+
+
 import numba
 from numba import f8, i8 #@UnresolvedImport
 from pandas.io.data import DataReader
@@ -40,7 +42,19 @@ def get_steady_state(T):
     #ivec = numpy.empty((T.shape[0],), numpy.float64)
     #ivec[:] = 1.0/T.shape[0]
     #return (T**10000)*numpy.matrix(ivec).T
-    return numpy.diag(T**10000)
+    ss = numpy.diag(T**10000).copy()
+    ss /= ss.sum()
+    return ss
+
+def get_steady_state_eig(T):
+    try:
+        _, vecs = scipy.sparse.linalg.eigs(T.T,k=1,which='LM')
+    except scipy.sparse.linalg.eigen.arpack.ArpackError:
+        return get_steady_state(T)
+    else:
+        ss = numpy.abs(vecs[:,0])
+        ss /= ss.sum()
+        return ss
 
 @numba.jit(restype=numba.object_,
            argtypes=[f8,f8,f8,numba.uint16,
@@ -120,6 +134,15 @@ def find_transitions_mz(weight, initial_time, dt, last_macro,
              'last_completion': new_last_completion,
              'initial_time': tm}
             )
+
+@numba.jit(argtypes=[numba.uint16[:,:], f8[:], f8[:]])
+def pops_from_assignments(assignments, weights, pops):
+    nsegs, npts = assignments.shape
+    
+    for seg_id in xrange(nsegs):
+        tweight = weights[seg_id]/npts 
+        for ipt in xrange(npts):
+            pops[assignments[seg_id,ipt]] += tweight
     
 #@profile
 def build_flux_matrix(data_reader, assignments_file, max_history):
@@ -129,8 +152,9 @@ def build_flux_matrix(data_reader, assignments_file, max_history):
     start_iter, stop_iter = h5io.get_iter_range(assignments_file)
     iter_count = stop_iter - start_iter
     
-    global_rate_matrix = numpy.zeros((nbins,nbins), weight_dtype)
-    rate_matrix_by_iter = numpy.empty((iter_count,nbins,nbins), weight_dtype)
+    pops_by_iter = numpy.zeros((iter_count,nbins), weight_dtype)
+    rate_matrix_by_iter = numpy.zeros((iter_count,nbins,nbins), weight_dtype)
+    flux_matrix_by_iter = numpy.zeros((iter_count,nbins,nbins), weight_dtype)
     
     last_history = None
     for iiter,n_iter in enumerate(xrange(start_iter,100)):#stop_iter)):
@@ -142,12 +166,13 @@ def build_flux_matrix(data_reader, assignments_file, max_history):
         parent_ids = seg_index['parent_id']            
         n_segs = weights.shape[0]
         
-        flux_matrix = numpy.zeros((nbins,nbins), weight_dtype)
         assignments_ds = assignments_file.get_iter_group(n_iter)['assignments']
-        assignments_data = assignments_ds[:,[0,assignments_ds.shape[1]-1]]
+        assignments_data = assignments_ds[...]
+        
+        pops_from_assignments(assignments_data, weights, pops_by_iter[iiter])
         
         next_history = [None]*n_segs
-        total_tau = 0
+        windowlen = 0.0 # number of tau accumulated, can be fractional if some trajectories don't cover entire window
         for seg_id in xrange(n_segs):
             parent_id = parent_ids[seg_id]
             weight = weights[seg_id]
@@ -157,32 +182,88 @@ def build_flux_matrix(data_reader, assignments_file, max_history):
             else:
                 traj_history = copy(last_history[parent_id])
                 
-            traj_history.appendleft(assignments_data[seg_id])            
-            
-            # so much potential for off-by-one errors here
-            # don't mess with this without testing            
-            
-            # for windows of length [1,minimum of available iterations, max history length]
-            #_flux_acc(traj_history, max_history, flux_matrix)
-            for windowlen in xrange(1,len(traj_history)+1):
-                # for offset within history window [0,max history length-1]
-                for offset in xrange(max_history):
-                    if offset+windowlen-1 > len(traj_history)-1: continue
-                                            
-                    ibin = traj_history[windowlen+offset-1][1]
-                    fbin = traj_history[offset][0]
-                    flux_matrix[ibin,fbin] += weight
-                    
-                total_tau += windowlen
-                                             
+            traj_history.appendleft(assignments_data[seg_id,[0,-1]])            
+                                    
+            windowlen += _flux_acc(traj_history, max_history, flux_matrix_by_iter[iiter], weight)
             next_history[seg_id] = traj_history
         
-        flux_matrix /= total_tau
-        print(flux_matrix)
+        n = max_history
+        timefac = (n+1)*(n+1)*n/2 - n*(n+1)*(2*n+1)/6
+        #print(windowlen, timefac)
+        flux_matrix_by_iter[iiter] /= windowlen
+        print(pops_by_iter[iiter])
+        print(flux_matrix_by_iter[iiter])
+        
+        rate_matrix_by_iter[iiter] = flux_matrix_by_iter[iiter]
+        
+        for i in xrange(nbins):
+            if pops_by_iter[iiter,i] == 0: continue
+            print(pops_by_iter[iiter,i])
+            rate_matrix_by_iter[iiter,i] /= pops_by_iter[iiter,i]
+            
+        print(rate_matrix_by_iter[iiter])
+            
         
         # prepare for next iteration
         last_history = next_history
+        del assignments_data
+    
+    avg_rate_matrix = rate_matrix_by_iter[:98].mean(axis=0)
+    T = avg_rate_matrix.copy()
+    avg_pops = pops_by_iter[:98].mean(axis=0)
+    
+    print('avg rate matrix')
+    print(avg_rate_matrix)
+    
+    for i in xrange(nbins):
+        T[i] /= T[i].sum()
         
+    ss_pops = get_steady_state_eig(T)
+    print('iteration', n_iter)
+    print('avg pops')
+    print(avg_pops)
+    print('ss pops')
+    print(ss_pops)
+    
+    # A = unbound = 2
+    # B = bound = 0 
+    
+    kAB = 0.0
+    kBA = 0.0
+    for i in xrange(nbins):
+        kAB += avg_rate_matrix[i,0] * ss_pops[i]
+        kBA += avg_rate_matrix[i,2] * ss_pops[i]
+        
+    print('kAB', kAB)
+    print('kBA', kBA)
+    
+    
+
+"""
+@numba.jit(restype=f8,
+           argtypes=[numba.object_, i8, f8[:,:], f8],
+           locals=dict(acc_tau=f8, hist_len=i8))
+"""
+def _flux_acc(traj_history, max_history, flux_matrix, weight):
+    acc_tau = 0
+    hist_len = int(len(traj_history))
+    
+    # so much potential for off-by-one errors here
+    # don't mess with this without testing            
+        
+    # for windows of length [1,minimum of available iterations, max history length]            
+    for windowlen in xrange(1,hist_len+1):
+        # for offset within history window [0,max history length-1]
+        for offset in xrange(max_history):
+            if offset+windowlen-1 > hist_len-1: continue
+                                    
+            ibin = traj_history[windowlen+offset-1][1]
+            fbin = traj_history[offset][0]
+            flux_matrix[ibin,fbin] += weight
+            
+            acc_tau += windowlen*weight
+    return acc_tau
+
 
 class WKinetics(WESTTool):
     prog='w_kinetics'
