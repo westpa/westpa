@@ -4,8 +4,9 @@ import cPickle as pickle
 
 from work_managers import WMFuture
 from work_managers import zeromq as zwm
-from work_managers.zeromq import ZMQWorkManager, ZMQClient, recvall, ZMQServer
+from work_managers.zeromq import ZMQWorkManager, ZMQClient, recvall, ZMQServer, ZMQRouter
 from work_managers.zeromq.client import ZMQWMProcess
+from work_managers.zeromq.router import ZMQDevice
 from tsupport import *
 
 import zmq
@@ -196,7 +197,234 @@ class TestZMQServer:
             
         finally:
             ann_socket.close(linger=0)
+
+class TestZMQDevice:
+    def setUp(self):
+        self.upstream_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
+        self.downstream_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
+        upstream_startup_ctl_endpoint = 'inproc://_startup_ctl_{:x}'.format(id(self))
+
+        self.context = zmq.Context()
+
+        ctlsocket = self.context.socket(zmq.PULL)
+        ctlsocket.bind(upstream_startup_ctl_endpoint)
+
+        self.device = ZMQDevice('',self.upstream_endpoint, self.downstream_endpoint, upstream_startup_ctl_endpoint, context=self.context)
+        self.device.startup()
+
+        ctlsocket.recv()
+
+        ctlsocket.close()
+
+    def tearDown(self):
+        self.device.shutdown()
         
+        del self.device
+
+    def test_forwarding(self):
+        '''Device: Forwards downstream request upstream, returns upstream response downstream'''
+
+        context = zmq.Context()
+
+        upstream_socket = context.socket(zmq.REP)
+        upstream_socket.bind(self.upstream_endpoint)
+
+        downstream_socket = context.socket(zmq.REQ)
+        downstream_socket.connect(self.downstream_endpoint)
+
+
+        try:
+            downstream_socket.send('request')
+            request = upstream_socket.recv()
+            assert request == 'request'
+
+            upstream_socket.send('reply')
+            reply = downstream_socket.recv()
+            assert reply == 'reply'
+
+        finally:
+
+            upstream_socket.close()
+            downstream_socket.close()
+
+class TestZMQRouter: 
+    def setUp(self):
+        self.upstream_ann_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
+        self.upstream_task_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
+        self.upstream_result_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
+        upstream_args = (self.upstream_task_endpoint, self.upstream_result_endpoint, self.upstream_ann_endpoint)
+
+        self.downstream_ann_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
+        self.downstream_task_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
+        self.downstream_result_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
+        downstream_args = (self.downstream_task_endpoint, self.downstream_result_endpoint, self.downstream_ann_endpoint)
+
+        args = upstream_args + downstream_args
+
+
+        self.test_router = ZMQRouter(*(upstream_args + downstream_args)) 
+
+
+
+    def tearDown(self):
+        self.test_router.shutdown()
+
+        del self.test_router
+
+    def test_startup(self):
+        '''Router: Starts up successfully'''
+
+        router = self.test_router
+        router.startup()
+
+        assert router._ann_thread is not None and router._ann_thread.is_alive()
+        assert router._task_device is not None and router._task_device.is_alive()
+        assert router._result_device is not None and router._result_device.is_alive()
+
+    def check_properly_shutdown(self):
+
+        router = self.test_router
+
+        assert not router._ann_thread.is_alive(), "Router: Moniter thread still alive"
+        assert not router._task_device.is_alive(), "Router: Task Device still alive"
+        assert not router._result_device.is_alive(), "Router: Result Device still alive"
+
+
+    def test_shutdown_internal(self):
+        '''Router: Internal shutdown signal causes shutdown'''
+
+        router = self.test_router
+        router.startup()
+        router.shutdown()
+
+        self.check_properly_shutdown()
+
+    def test_shutdown_external(self):
+        '''Router: External shutdown causes shutdown'''
+        
+        context = zmq.Context()
+
+        upstream_socket = context.socket(zmq.PUB)
+        upstream_socket.bind(self.upstream_ann_endpoint)
+
+        self.test_router.startup()
+        
+        upstream_socket.send('shutdown')
+
+        self.test_router._wait_for_shutdown()
+        self.check_properly_shutdown()
+
+        upstream_socket.close()
+        context.destroy()
+
+    def test_shutdown_announced(self):
+        '''Router: Announces shutdown to clients'''
+        self.test_router.startup()
+
+        context = zmq.Context()
+        downstream_socket = context.socket(zmq.SUB)
+        downstream_socket.setsockopt(zmq.SUBSCRIBE, '')
+        downstream_socket.connect(self.downstream_ann_endpoint)
+        sockdelay()
+
+        self.test_router._shutdown()
+
+        msg = downstream_socket.recv()
+
+        assert msg == 'shutdown'
+
+        downstream_socket.close()
+        context.destroy()
+
+    def test_missing_server_shutdown(self):
+        '''Router: Missing server causes shutdown'''
+
+        context = zmq.Context()
+        upstream_socket = context.socket(zmq.PUB)
+        upstream_socket.bind(self.upstream_ann_endpoint)
+        sockdelay()
+
+        self.test_router.startup()
+        self.test_router.server_heartbeat_interval = 0.1
+
+        upstream_socket.send(zwm.core.MSG_PING) #start clock
+        sockdelay()
+        upstream_socket.close()
+        context.destroy()
+
+        self.test_router._wait_for_shutdown()
+        self.check_properly_shutdown()
+
+    def test_task_device(self):
+        '''Router: 'Task' device works correctly'''
+
+        self.test_router.startup()
+
+        context = zmq.Context()
+
+        downstream_socket = context.socket(zmq.REQ)
+        downstream_socket.connect(self.downstream_task_endpoint)
+ 
+        upstream_socket = context.socket(zmq.REP)
+        upstream_socket.bind(self.upstream_task_endpoint)
+
+        try:
+            downstream_socket.send_pyobj((zwm.core.MSG_TASK_REQUEST, None, None, None))
+            msg, _, _, _ = upstream_socket.recv_pyobj()
+            
+            assert msg == 'task'
+
+            upstream_socket.send_pyobj((zwm.core.MSG_TASK_AVAILABLE, None, None, None), flags=zmq.SNDMORE)
+            upstream_socket.send_pyobj((None, [], {}))
+
+            frames = downstream_socket.recv_multipart(copy=False)
+            assert len(frames) == 2
+            msg, _, _, _ = zwm.unpickle_frame(frames[0])
+
+            assert msg == 'task_avail'
+
+        finally:
+            downstream_socket.close()
+            upstream_socket.close()
+
+            context.destroy()
+
+    def test_result_device(self):
+        '''Router: 'Result' device works correctly'''
+
+        self.test_router.startup()
+
+        context = zmq.Context()
+
+
+        downstream_socket = context.socket(zmq.REQ)
+        downstream_socket.connect(self.downstream_result_endpoint)
+
+        upstream_socket = context.socket(zmq.REP)
+        upstream_socket.bind(self.upstream_result_endpoint)
+
+        try:
+            downstream_socket.send_pyobj((zwm.core.MSG_RESULT_SUBMISSION, None, None, None), flags=zmq.SNDMORE)
+            downstream_socket.send_pyobj((zwm.core.RESULT_TYPE_RETVAL, None))
+
+            frames = upstream_socket.recv_multipart(copy=False)
+
+            msg, _, _, _ = zwm.unpickle_frame(frames[0])
+            assert msg == 'result'
+
+            retval, _ = zwm.unpickle_frame(frames[1])
+            assert retval == 'retval'
+
+            upstream_socket.send_pyobj((zwm.core.MSG_ACK, None, None, None))
+            reply, _, _, _ = downstream_socket.recv_pyobj()
+            assert reply == 'ok'
+
+        finally:
+            downstream_socket.close()
+            upstream_socket.close()
+
+            context.destroy()
+       
 class TestZMQWMProcess:
     def setUp(self):
         self.task_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
@@ -548,7 +776,7 @@ class TestCoordinated(CommonParallelTests,CommonWorkManagerTests):
         finally:
             ann_socket.close(linger=0)
     
-    @timed(5)
+    @timed(15)
     def test_stress(self):
         '''Coordination: many small tasks don't crash or lock'''
         N = 1024
@@ -557,164 +785,52 @@ class TestCoordinated(CommonParallelTests,CommonWorkManagerTests):
         results = set(future.get_result() for future in futures)
         assert results == set(xrange(N))
 
-           
-class TestZMQWorkManager:
-    sanitize_vars = ('WM_WORK_MANAGER', 'WM_N_WORKERS',
-                     'WM_ZMQ_SERVER_INFO', 'WM_ZMQ_COMM_MODE',
-                     'WM_ZMQ_TASK_ENDPOINT', 'WM_ZMQ_RESULT_ENDPOINT', 'WM_ZMQ_ANNOUNCE_ENDPOINT')
-    
+class TestCoordinatedRouter(CommonParallelTests,CommonWorkManagerTests):
     def setUp(self):
-        for varname in self.sanitize_vars:
-            assert varname not in os.environ
+        self.nprocs = 4        
+        
+        self.up_ann_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
+        self.up_task_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
+        self.up_result_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
+        up_args = [self.up_task_endpoint, self.up_result_endpoint, self.up_ann_endpoint]
+
+        self.down_ann_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
+        self.down_task_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
+        self.down_result_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
+        down_args = [self.down_task_endpoint, self.down_result_endpoint, self.down_ann_endpoint]
+
+        all_args = up_args + down_args
+        
+        self.test_master = ZMQWorkManager(self.nprocs, self.up_task_endpoint, self.up_result_endpoint, self.up_ann_endpoint)
+        self.test_master.startup()
+        
+        self.test_client = ZMQClient(self.down_task_endpoint, self.down_result_endpoint, self.down_ann_endpoint, self.nprocs)
+        self.test_client.startup()
+
+        self.test_router = ZMQRouter(*all_args)
+        self.test_router.startup()
+        
+        self.work_manager = self.test_master
+        
+        self.context = zmq.Context()
     
     def tearDown(self):
-        for varname in self.sanitize_vars:
-            os.environ.pop(varname, None)
-                    
-    def test_auto_local(self):
-        with ZMQWorkManager() as work_manager:
-            future = work_manager.submit(will_succeed)
-            future.get_result()
-
-    def test_environ_empty(self):
-        with ZMQWorkManager.from_environ() as work_manager:
-            future = work_manager.submit(will_succeed)
-            future.get_result()
-
-    def test_server_info_ipc(self):
-        with ZMQWorkManager() as work_manager:
-            server_info_filename = work_manager.server_info_filename
-            assert os.path.exists(server_info_filename)
-            assert os.stat(server_info_filename).st_mode & 0777 == 0600
-            server_info = json.load(open(server_info_filename, 'rt'))
-            assert re.sub(r'\*', socket.gethostname(), work_manager.master_task_endpoint) == server_info['task_endpoint']
-            assert re.sub(r'\*', socket.gethostname(), work_manager.master_result_endpoint) == server_info['result_endpoint']
-            assert re.sub(r'\*', socket.gethostname(), work_manager.master_announce_endpoint) == server_info['announce_endpoint']
-        assert not os.path.exists(server_info_filename)
-
-    def test_environ_nworkers(self):
-        os.environ['WM_N_WORKERS'] = str(2)
-        with ZMQWorkManager.from_environ() as work_manager:
-            assert work_manager.internal_client.n_workers == 2
-            future = work_manager.submit(will_succeed)
-            future.get_result()
-
-    def test_environ_noworkers(self):
-        os.environ['WM_N_WORKERS'] = str(0)
-        with ZMQWorkManager.from_environ() as work_manager:
-            assert work_manager.internal_client is None
-                    
-    def test_worker_ids(self):
-        work_manager = ZMQWorkManager()
-        with work_manager:
-            futures = work_manager.submit_many([(get_process_index, (), {})] * work_manager.n_workers)
-            work_manager.wait_all(futures)
-            results = set(future.get_result() for future in futures)
-            assert results == set(str(n) for n in xrange(work_manager.n_workers))
-            
-    @raises(ValueError)
-    def test_client_from_bad_environ(self):
-        os.environ['WM_N_WORKERS'] = str(0)
-        task_endpoint = 'tcp://*:{}'.format(randport())
-        result_endpoint = 'tcp://*:{}'.format(randport())
-        announce_endpoint = 'tcp://*:{}'.format(randport())
-
-        os.environ['WM_ZMQ_TASK_ENDPOINT'] = task_endpoint
-        os.environ['WM_ZMQ_RESULT_ENDPOINT'] = result_endpoint
-        os.environ['WM_ZMQ_ANNOUNCE_ENDPOINT'] = announce_endpoint
-        
-        with ZMQWorkManager() as work_manager:
-            os.environ['WM_N_WORKERS'] = str(2)
-            test_client = ZMQClient.from_environ()
-            test_client.startup()            
-            try:
-                future = work_manager.submit(will_succeed)
-                future.get_result()                
-            finally:
-                test_client.shutdown()
-
-    def test_client_from_environ(self):
-        os.environ['WM_N_WORKERS'] = str(0)
-        task_endpoint = 'tcp://localhost:{}'.format(randport())
-        result_endpoint = 'tcp://localhost:{}'.format(randport())
-        announce_endpoint = 'tcp://localhost:{}'.format(randport())
-
-        os.environ['WM_ZMQ_TASK_ENDPOINT'] = task_endpoint
-        os.environ['WM_ZMQ_RESULT_ENDPOINT'] = result_endpoint
-        os.environ['WM_ZMQ_ANNOUNCE_ENDPOINT'] = announce_endpoint
-        
-        with ZMQWorkManager() as work_manager:
-            os.environ['WM_N_WORKERS'] = str(2)
-            test_client = ZMQClient.from_environ()
-            test_client.startup()            
-            try:
-                future = work_manager.submit(will_succeed)
-                future.get_result()                
-            finally:
-                test_client.shutdown()
-                
-    def test_client_from_environ_tcp(self):
-        os.environ['WM_N_WORKERS'] = str(0)
-        task_endpoint = 'tcp://localhost:{}'.format(randport())
-        result_endpoint = 'tcp://localhost:{}'.format(randport())
-        announce_endpoint = 'tcp://localhost:{}'.format(randport())
-
-        os.environ['WM_ZMQ_TASK_ENDPOINT'] = task_endpoint
-        os.environ['WM_ZMQ_RESULT_ENDPOINT'] = result_endpoint
-        os.environ['WM_ZMQ_ANNOUNCE_ENDPOINT'] = announce_endpoint
-        os.environ['WM_ZMQ_CLIENT_COMM_MODE'] = 'tcp'
-        
-        with ZMQWorkManager() as work_manager:
-            os.environ['WM_N_WORKERS'] = str(2)
-            test_client = ZMQClient.from_environ()
-            test_client.startup()
-            assert test_client.worker_task_endpoint.startswith('tcp://')
-            assert test_client.worker_result_endpoint.startswith('tcp://')
-            try:
-                future = work_manager.submit(will_succeed)
-                future.get_result()                
-            finally:
-                test_client.shutdown()
-                
-    def test_client_from_environ_ipc(self):
-        os.environ['WM_N_WORKERS'] = str(0)
-        task_endpoint = 'tcp://localhost:{}'.format(randport())
-        result_endpoint = 'tcp://localhost:{}'.format(randport())
-        announce_endpoint = 'tcp://localhost:{}'.format(randport())
-
-        os.environ['WM_ZMQ_TASK_ENDPOINT'] = task_endpoint
-        os.environ['WM_ZMQ_RESULT_ENDPOINT'] = result_endpoint
-        os.environ['WM_ZMQ_ANNOUNCE_ENDPOINT'] = announce_endpoint
-        os.environ['WM_ZMQ_CLIENT_COMM_MODE'] = 'ipc'
-        
-        with ZMQWorkManager() as work_manager:
-            os.environ['WM_N_WORKERS'] = str(2)
-            test_client = ZMQClient.from_environ()
-            test_client.startup()
-            assert test_client.worker_task_endpoint.startswith('ipc://')
-            assert test_client.worker_result_endpoint.startswith('ipc://')
-            try:
-                future = work_manager.submit(will_succeed)
-                future.get_result()                
-            finally:
-                test_client.shutdown()
-
-            
-    def test_environ_tcp_endpoints(self):
+        self.test_client.shutdown()
+        self.test_master.shutdown()
+        self.test_router.shutdown()
+        self.test_client._close_signal_sockets()
+        self.test_master._close_signal_sockets()
     
-        # note that this tests not only that the work manager honor our environment settings, but that
-        # the hostname-to-ip mapping succeeded
-        task_endpoint = 'tcp://localhost:{}'.format(randport())
-        result_endpoint = 'tcp://localhost:{}'.format(randport())
-        announce_endpoint = 'tcp://localhost:{}'.format(randport())
+    @timed(15)
+    def test_stress(self):
+        '''Coordination (with Router): many small tasks don't crash or lock'''
+        N = 1024
+        futures = self.work_manager.submit_many([(busy_identity, (n,), {}) for n in xrange(N)])
+        self.work_manager.wait_all(futures)
+        results = set(future.get_result() for future in futures)
+        assert results == set(xrange(N))
 
-        os.environ['WM_ZMQ_TASK_ENDPOINT'] = task_endpoint
-        os.environ['WM_ZMQ_RESULT_ENDPOINT'] = result_endpoint
-        os.environ['WM_ZMQ_ANNOUNCE_ENDPOINT'] = announce_endpoint
-        
-        with ZMQWorkManager.from_environ() as work_manager:
-            assert work_manager.master_task_endpoint == re.sub('localhost','127.0.0.1', task_endpoint)
-            assert work_manager.master_result_endpoint == re.sub('localhost','127.0.0.1', result_endpoint)
-            assert work_manager.master_announce_endpoint == re.sub('localhost','127.0.0.1', announce_endpoint)
-            future = work_manager.submit(will_succeed)
-            future.get_result()
+
+
+           
+

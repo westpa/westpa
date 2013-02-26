@@ -7,7 +7,7 @@ ZeroMQ to communicate with the server.
 
 from __future__ import division, print_function; __metaclass__ = type
 
-import os, sys, time, threading, multiprocessing, signal, traceback, logging
+import os, sys, time, threading, multiprocessing, signal, traceback, logging, warnings
 import zmq
 
 import work_managers
@@ -144,6 +144,8 @@ class ZMQWMProcess(ZMQBase,multiprocessing.Process):
             log.debug('process: exiting run loop')
 
 class ZMQClient(ZMQBase):
+
+    #NOTE: UNUSED (instead, see work_manager.py's add_args class method)
     @classmethod
     def add_wm_args(cls, parser, wmenv=None):
         if wmenv is None:
@@ -187,34 +189,44 @@ class ZMQClient(ZMQBase):
         hangcheck_interval = wmenv.get_val('zmq_hangcheck_interval', DEFAULT_HANGCHECK_INTERVAL, int)
         client_comm_mode = wmenv.get_val('zmq_client_comm_mode')
 
-        tests = [not bool(wmenv.get_val('zmq_task_endpoint')),
+        # if individual endpoints are named, we use these
+        tests_old = [not bool(wmenv.get_val('zmq_task_endpoint')),
                  not bool(wmenv.get_val('zmq_result_endpoint')),
                  not bool(wmenv.get_val('zmq_announce_endpoint'))]
-        if all(tests):
-            # No endpoints specified; use server info file
-            server_info_filename = wmenv.get_val('zmq_server_info')
-            if server_info_filename is None:
-                raise EnvironmentError('neither endpoints nor server info file specified')
+        tests_new = [not bool(wmenv.get_val('zmq_upstream_task_endpoint')),
+                 not bool(wmenv.get_val('zmq_upstream_result_endpoint')),
+                 not bool(wmenv.get_val('zmq_upstream_announce_endpoint'))]
+
+        if all(tests_old) and all(tests_new):
+            # No endpoints specified; use server/router info file
+            upstream_info_filename = wmenv.get_val('zmq_read_info') or wmenv.get_val('zmq_info')
+            if upstream_info_filename is None:
+                raise EnvironmentError('neither endpoints nor upstream (server or router) info file specified')
             else:
                 import json
                 try:
-                    server_info = json.load(open(server_info_filename,'rt'))
-                    task_endpoint = server_info['task_endpoint']
-                    result_endpoint = server_info['result_endpoint']
-                    announce_endpoint = server_info['announce_endpoint']    
+                    upstream_info = json.load(open(upstream_info_filename,'rt'))
+                    task_endpoint = upstream_info['task_endpoint']
+                    result_endpoint = upstream_info['result_endpoint']
+                    announce_endpoint = upstream_info['announce_endpoint']    
                 except Exception as e:
-                    raise EnvironmentError('cannot load server info file {!r}: {}'.format(server_info_filename,e))                
-        elif any(tests):
-            raise ValueError('either none or all three endpoints must be specified')
+                    raise EnvironmentError('cannot load upstream info file {!r}: {}'.format(upstream_info_filename,e))
+
+        elif (not all(tests_old) and any(tests_old)) or (not all(tests_new) and any(tests_new)):
+            raise ValueError('either none or all three server endpoints must be specified')
+        #Use new-style, unambiguous endpoint args
+        elif not all(tests_new):
+            task_endpoint = cls.canonicalize_endpoint(wmenv.get_val('zmq_upstream_task_endpoint'),allow_wildcard_host=False)
+            result_endpoint = cls.canonicalize_endpoint(wmenv.get_val('zmq_upstream_result_endpoint'),allow_wildcard_host=False)
+            announce_endpoint = cls.canonicalize_endpoint(wmenv.get_val('zmq_upstream_announce_endpoint'),allow_wildcard_host=False)
         else:
+            log.debug('using old style endpoint for client')
             task_endpoint = cls.canonicalize_endpoint(wmenv.get_val('zmq_task_endpoint'),allow_wildcard_host=False)
             result_endpoint = cls.canonicalize_endpoint(wmenv.get_val('zmq_result_endpoint'),allow_wildcard_host=False)
             announce_endpoint = cls.canonicalize_endpoint(wmenv.get_val('zmq_announce_endpoint'),allow_wildcard_host=False)
         
-        return cls(task_endpoint, result_endpoint, announce_endpoint, 
-                   server_heartbeat_interval = heartbeat_interval,
-                   comm_mode = client_comm_mode,
-                   n_workers = n_workers, task_timeout = task_timeout,
+        return cls(task_endpoint, result_endpoint, announce_endpoint, server_heartbeat_interval = heartbeat_interval,
+                   comm_mode = client_comm_mode, n_workers = n_workers, task_timeout = task_timeout,
                    shutdown_timeout = shutdown_timeout, hangcheck_interval = hangcheck_interval)
                      
     @classmethod

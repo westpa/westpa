@@ -5,7 +5,7 @@ The ZeroMQ work manager, which combines server and client functionality.
 from __future__ import division, print_function; __metaclass__ = type
 
 
-import os, sys, socket, uuid, multiprocessing, json, re, atexit, logging
+import os, sys, socket, uuid, multiprocessing, json, re, atexit, logging, warnings
 
 import work_managers
 from work_managers import WorkManager
@@ -26,21 +26,21 @@ class ZMQWorkManager(ZMQServer,WorkManager):
         if wmenv is None:
             wmenv = work_managers.environment.default_env 
 
-        wm_group = parser.add_argument_group('options for ZeroMQ ("zmq") work manager')
+        wm_group = parser.add_argument_group('options for ZeroMQ ("zmq") work manager or router')
         wm_group.add_argument(wmenv.arg_flag('zmq_mode'), metavar='MODE', choices=('server', 'client'),
                               help='Operate as a server (MODE=server) or a client (MODE=client).')
-        wm_group.add_argument(wmenv.arg_flag('zmq_server_info'), metavar='SERVER_INFO_FILE',
-                              help='Store server information (if master) or obtain server information (if client) '
-                                   'from SERVER_INFO_FILE. This is helpful if running server and clients on multiple '
+        wm_group.add_argument(wmenv.arg_flag('zmq_info'), metavar='INFO_FILE',
+                              help='Store server information in INFO_FILE. (specify for server or routers only)'
+                                   'This is helpful if running server and clients or routers on multiple '
                                    'machines which share a filesystem, as explicit hostnames/ports are not required')
         wm_group.add_argument(wmenv.arg_flag('zmq_task_endpoint'), metavar='TASK_ENDPOINT',
-                              help='''Use the given ZeroMQ endpoint for task distribution.''')
+                              help='''Bind server to given ZeroMQ endpoint to distribute tasks downstream (specify for servers or routers only).''')
         wm_group.add_argument(wmenv.arg_flag('zmq_result_endpoint'), metavar='RESULT_ENDPOINT',
-                              help='''Use the given ZeroMQ endpoint for result collection.''')
+                              help='''Bind server to given ZeroMQ endpoint to receive results from downstream (specify for servers or routers only).''')
         wm_group.add_argument(wmenv.arg_flag('zmq_announce_endpoint'), metavar='ANNOUNCE_ENDPOINT',
-                              help='''Use the given ZeroMQ endpoint for task distribution.''')
+                              help='''Bind server to given ZeroMQ endpoint to send anouncements downstream (specify for servers or routers only).''')
         wm_group.add_argument(wmenv.arg_flag('zmq_heartbeat_interval'), metavar='INTERVAL',
-                              help='''If a client has not
+                              help='''If a client or router has not
                                       heard from the server in approximately INTERVAL seconds, the client will
                                       assume the server has crashed and shut down. (Default: {} seconds.)'''
                                       .format(DEFAULT_SERVER_HEARTBEAT_INTERVAL))
@@ -67,19 +67,28 @@ class ZMQWorkManager(ZMQServer,WorkManager):
         shutdown_timeout = wmenv.get_val('zmq_worker_shutdown_timeout', DEFAULT_SHUTDOWN_TIMEOUT, int)
         hangcheck_interval = wmenv.get_val('zmq_hangcheck_interval', DEFAULT_HANGCHECK_INTERVAL, int)
         client_comm_mode = wmenv.get_val('zmq_client_comm_mode')
-        server_info_filename = wmenv.get_val('zmq_server_info', 'zmq_server_info_{}.json'.format(uuid.uuid4().hex))
-        
+        server_info_filename = wmenv.get_val('zmq_info') or wmenv.get_val('zmq_write_info', 'zmq_server_info_{}.json'.format(uuid.uuid4().hex))
+
         # if individual endpoints are named, we use these
-        tests = [not bool(wmenv.get_val('zmq_task_endpoint')),
+        tests_old = [not bool(wmenv.get_val('zmq_task_endpoint')),
                  not bool(wmenv.get_val('zmq_result_endpoint')),
                  not bool(wmenv.get_val('zmq_announce_endpoint'))]
-        if all(tests):
+        tests_new = [not bool(wmenv.get_val('zmq_downstream_task_endpoint')),
+                 not bool(wmenv.get_val('zmq_downstream_result_endpoint')),
+                 not bool(wmenv.get_val('zmq_downstream_announce_endpoint'))]
+
+        if all(tests_old) and all(tests_new):
             # Choose random ports
             task_endpoint = cls.canonicalize_endpoint('tcp://*')
             result_endpoint = cls.canonicalize_endpoint('tcp://*')
             announce_endpoint = cls.canonicalize_endpoint('tcp://*')
-        elif any(tests):
-            raise ValueError('either none or all three endpoints must be specified')
+        elif (not all(tests_old) and any(tests_old)) or (not all(tests_new) and any(tests_new)):
+            raise ValueError('either none or all three server endpoints must be specified')
+        #Use new-style, unambiguous endpoint args
+        elif not all(tests_new):
+            task_endpoint = cls.canonicalize_endpoint(wmenv.get_val('zmq_downstream_task_endpoint'))
+            result_endpoint = cls.canonicalize_endpoint(wmenv.get_val('zmq_downstream_result_endpoint'))
+            announce_endpoint = cls.canonicalize_endpoint(wmenv.get_val('zmq_downstream_announce_endpoint'))
         else:
             task_endpoint = cls.canonicalize_endpoint(wmenv.get_val('zmq_task_endpoint'))
             result_endpoint = cls.canonicalize_endpoint(wmenv.get_val('zmq_result_endpoint'))

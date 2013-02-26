@@ -111,5 +111,6 @@ from . import work_manager
 
 from server import ZMQServer
 from client import ZMQClient
+from router import ZMQRouter
 from work_manager import ZMQWorkManager
 
