@@ -5,7 +5,7 @@ log = logging.getLogger(__name__)
 import westpa
 
 import numpy
-from west.binning import NopMapper
+from westpa.binning import NopMapper
         
 class WESTSystem:
     '''A description of the system being simulated, including the dimensionality and

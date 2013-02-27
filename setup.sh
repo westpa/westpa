@@ -1,5 +1,9 @@
 #!/bin/bash
 
+if [[ -z "$WEST_PYTHON" ]] ;  then
+    WEST_PYTHON=python2.7
+fi
+
 find . -name \*.so -print0 | xargs -0 rm &> /dev/null
 
 if [[ -d lib/h5py ]] ; then
@@ -13,15 +17,15 @@ if [[ -d lib/h5py ]] ; then
 
     pushd lib/h5py
       cd h5py
-        python api_gen.py
+        $WEST_PYTHON api_gen.py
       cd ..
-      python setup.py build_ext --inplace --hdf5=$HDF5
+      $WEST_PYTHON setup.py build_ext --inplace --hdf5=$HDF5
     popd
 fi
 
-for d in src lib/west_tools; do
+for d in lib/west_tools; do
     cd $d
-    python setup.py build_ext --inplace
+    $WEST_PYTHON setup.py build_ext --inplace
     cd -
 done
 

@@ -2,7 +2,7 @@ from __future__ import print_function, division
 import numpy
 from west.propagators import WESTPropagator
 from west.systems import WESTSystem
-from west.binning import RectilinearBinMapper
+from westpa.binning import RectilinearBinMapper
 
 PI = numpy.pi
 from numpy import sin, cos, exp

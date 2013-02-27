@@ -3,7 +3,7 @@ import os, sys, math, itertools
 import numpy
 import west
 from west import WESTSystem
-from west.binning import RectilinearBinMapper
+from westpa.binning import RectilinearBinMapper
 
 import logging
 log = logging.getLogger(__name__)

@@ -1,7 +1,7 @@
 from __future__ import division, print_function
 from west.we_driver import WEDriver
 from west.systems import WESTSystem
-from west.binning import RectilinearBinMapper
+from westpa.binning import RectilinearBinMapper
 from west.states import TargetState, InitialState
 from west import Segment
 import numpy

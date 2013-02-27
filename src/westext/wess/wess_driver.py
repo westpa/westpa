@@ -9,7 +9,7 @@ from itertools import izip, imap
 
 import westpa, west
 from westpa.yamlcfg import check_bool
-from west.kinetics import RateAverager
+from westpa.kinetics import RateAverager
 from westext.wess.ProbAdjust import prob_adjust
 
 EPS = numpy.finfo(numpy.float64).eps

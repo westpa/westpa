@@ -1,1 +1,0 @@
-from rate_averaging import RateAverager

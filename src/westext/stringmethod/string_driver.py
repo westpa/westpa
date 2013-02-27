@@ -9,7 +9,7 @@ import westpa, west
 from westpa import extloader
 from westpa.yamlcfg import check_bool, ConfigItemMissing
 from westext.stringmethod import WESTStringMethod, DefaultStringMethod
-from west.binning import VoronoiBinMapper
+from westpa.binning import VoronoiBinMapper
 
 
 class StringDriver(object):

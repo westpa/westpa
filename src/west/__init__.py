@@ -4,7 +4,7 @@ log = logging.getLogger('west')
 
 import segment 
 from segment import Segment
-import propagators, work_managers, data_manager, binning, sim_manager, we_driver, states, systems
+import propagators, work_managers, data_manager, sim_manager, we_driver, states, systems
 from systems import WESTSystem
 from states import BasisState, TargetState
 

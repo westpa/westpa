@@ -5,7 +5,7 @@ import numpy
 
 os.environ['WEST_SIM_ROOT'] = os.path.join(os.environ['WEST_ROOT'], 'lib/examples/odld')
 import westpa, west
-from west.binning.assign import RectilinearBinMapper
+from westpa.binning.assign import RectilinearBinMapper
 
 import nose
 import nose.tools
