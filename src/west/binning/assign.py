@@ -48,11 +48,15 @@ import numpy
 
 from bins import Bin
 
-# All bin numbers are 16-bit unsigned ints. This allows up to 65,536 bins, making
+# All bin numbers are 16-bit unsigned ints, with one element (65525) reserved to
+# indicate unknown or unassigned points. This allows up to 65,536 bins, making
 # rate and flux matrices up to 32 GB (2**32 elements * 8 bytes). If you need more
 # bins, change index_dtype here and index_dtype and index_t in _assign.pyx.
-
 index_dtype = numpy.uint16
+UNKNOWN_INDEX = 65535
+
+# All coordinates are currently 32-bit floats. If you need 64-bit, change 
+# coord_dtype here and coord_t in _assign.pyx.
 coord_dtype = numpy.float32
 
 from _assign import output_map, apply_down, apply_down_argmin_across, rectilinear_assign #@UnresolvedImport
@@ -141,9 +145,17 @@ class RectilinearBinMapper(BinMapper):
             labels.append(repr(bounds))
         
     def assign(self, coords, mask=None, output=None):
-        coords = numpy.require(coords, dtype=coord_dtype)
+        try:
+            passed_coord_dtype = coords.dtype
+        except AttributeError:
+            coords = numpy.require(coords, dtype=coord_dtype)
+        else:
+            if passed_coord_dtype != coord_dtype:
+                coords = numpy.require(coords, dtype=coord_dtype)
+                
         if coords.ndim != 2:
             raise TypeError('coords must be 2-dimensional')
+        
         if mask is None:
             mask = numpy.ones((len(coords),), dtype=numpy.bool_)
         elif len(mask) != len(coords):
@@ -204,7 +216,14 @@ class FuncBinMapper(BinMapper):
         self.labels = ['{!r} bin {:d}'.format(func, ibin) for ibin in xrange(nbins)]
     
     def assign(self, coords, mask=None, output=None):
-        coords = numpy.require(coords, dtype=coord_dtype)
+        try:
+            passed_coord_dtype = coords.dtype
+        except AttributeError:
+            coords = numpy.require(coords, dtype=coord_dtype)
+        else:
+            if passed_coord_dtype != coord_dtype:
+                coords = numpy.require(coords, dtype=coord_dtype)
+                
         if coords.ndim != 2:
             raise TypeError('coords must be 2-dimensional')
         if mask is None:
@@ -233,7 +252,14 @@ class VectorizingFuncBinMapper(BinMapper):
         self.labels = ['{!r} bin {:d}'.format(func, ibin) for ibin in xrange(nbins)]
     
     def assign(self, coords, mask=None, output=None):
-        coords = numpy.require(coords, dtype=coord_dtype)
+        try:
+            passed_coord_dtype = coords.dtype
+        except AttributeError:
+            coords = numpy.require(coords, dtype=coord_dtype)
+        else:
+            if passed_coord_dtype != coord_dtype:
+                coords = numpy.require(coords, dtype=coord_dtype)
+                
         if coords.ndim != 2:
             raise TypeError('coords must be 2-dimensional')
         if mask is None:
@@ -270,7 +296,14 @@ class VoronoiBinMapper(BinMapper):
             raise TypeError('dfunc does not map centers to themselves')
     
     def assign(self, coords, mask=None, output=None):
-        coords = numpy.require(coords, dtype=coord_dtype)
+        try:
+            passed_coord_dtype = coords.dtype
+        except AttributeError:
+            coords = numpy.require(coords, dtype=coord_dtype)
+        else:
+            if passed_coord_dtype != coord_dtype:
+                coords = numpy.require(coords, dtype=coord_dtype)
+                
         if coords.ndim != 2:
             raise TypeError('coords must be 2-dimensional')
         if mask is None:
