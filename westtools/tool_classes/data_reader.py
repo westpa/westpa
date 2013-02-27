@@ -1,6 +1,6 @@
 from __future__ import division, print_function; __metaclass__ = type
 from core import WESTTool
-import west
+import westpa
     
 class WESTDataReader(WESTTool):
     '''Tool for reading data from WEST-related HDF5 files. Coordinates finding
@@ -10,7 +10,7 @@ class WESTDataReader(WESTTool):
     
     def __init__(self):
         super(WESTDataReader,self).__init__()
-        self.data_manager = west.rc.get_data_manager() 
+        self.data_manager = westpa.rc.get_data_manager() 
         self.we_h5filename = None
         
     def add_args(self, parser):

@@ -2,7 +2,7 @@ from __future__ import print_function, division; __metaclass__ = type
 import sys
 from westtools.tool_classes import WESTTool, HDF5Storage, WESTDataReader
 import numpy, h5py, operator, time
-import west
+import westpa
 
 
 from west import Segment
@@ -18,7 +18,7 @@ class Trace:
         self.endpoint_type = endpoint_type
         self.basis_state = basis_state
         self.initial_state = initial_state
-        self.data_manager = data_manager or west.rc.get_data_manager()
+        self.data_manager = data_manager or westpa.rc.get_data_manager()
         
         # A mapping from aux file names to open h5py.File objects, to minimize time
         
@@ -41,7 +41,7 @@ class Trace:
         '''Construct and return a trajectory trace whose last segment is identified
         by ``seg_id`` in the iteration number ``n_iter``.'''
         
-        data_manager = data_manager or west.rc.get_data_manager()
+        data_manager = data_manager or westpa.rc.get_data_manager()
         
         # These values are used later on
         endpoint_type = None

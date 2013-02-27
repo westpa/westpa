@@ -2,9 +2,8 @@ from __future__ import print_function, division; __metaclass__ = type
 from westtools.tool_classes.core import WESTTool
 import logging
 log = logging.getLogger(__name__)
-import west
+import westpa
 import numpy
-from westtools import h5io
 
 class IterRangeSelection(WESTTool):
     '''Select and record limits on iterations used in analysis and/or reporting.
@@ -71,7 +70,7 @@ class IterRangeSelection(WESTTool):
         elif args.last_iter is not None:
             self.iter_stop = args.last_iter + 1
         else:
-            self.iter_stop = (self.data_manager or west.rc.get_data_manager()).current_iteration 
+            self.iter_stop = (self.data_manager or westpa.rc.get_data_manager()).current_iteration 
 
         if self.include_args['iter_step']:
             self.iter_step = args.iter_step or 1

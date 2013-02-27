@@ -4,7 +4,7 @@ from westtools.tool_classes import WESTTool, HDF5Storage, WESTDataReader
 from itertools import imap
 import numpy, h5py, operator, functools
 
-import west
+import westpa
 from west.data_manager import (weight_dtype, n_iter_dtype, seg_id_dtype, utime_dtype, vstr_dtype, 
                                istate_type_dtype, istate_status_dtype)
 from westpa.extloader import get_object
@@ -13,7 +13,7 @@ def all_segments(n_iter, iter_group):
     return numpy.arange(0, iter_group['seg_index'].shape[0], 1, dtype=seg_id_dtype)
     
 def find_matching_segments(predicate, invert_predicate=False, ancestors=True, data_manager=None):
-    data_manager = data_manager or west.rc.get_data_manager()
+    data_manager = data_manager or westpa.rc.get_data_manager()
     
     match_pairs = []    
     parent_ids = set()

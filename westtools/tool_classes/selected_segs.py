@@ -1,8 +1,8 @@
 from __future__ import division, print_function; __metaclass__ = type
 from core import WESTTool
-import os, re, sys
-import numpy, h5py
-import west
+import re 
+import numpy
+import westpa
 from west.data_manager import seg_id_dtype
 
 re_split_segspec = re.compile(r'\s*:\s*|\s+')
@@ -78,7 +78,7 @@ class SegmentSelection:
     
 class AllSegmentSelection(SegmentSelection):
     def __init__(self, start_iter = None, stop_iter = None, data_manager = None):
-        self.data_manager = data_manager or west.rc.get_data_manager()
+        self.data_manager = data_manager or westpa.rc.get_data_manager()
         self._start_iter = start_iter or 1
         self._stop_iter = stop_iter or self.data_manager.current_iteration
         self._segcount_by_iter = {}

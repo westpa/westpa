@@ -1,6 +1,6 @@
 from __future__ import print_function, division; __metaclass__ = type
 
-import west
+import westpa
 
 class WESTToolComponent:
     '''Base class for WEST command line tools and components used in constructing tools'''
@@ -39,12 +39,12 @@ class WESTTool(WESTToolComponent):
                     
     def add_args(self, parser):
         '''Add arguments specific to this tool to the given argparse parser.'''
-        west.rc.add_args(parser)
+        westpa.rc.add_args(parser)
     
     def process_args(self, args):
         '''Take argparse-processed arguments associated with this tool and deal
         with them appropriately (setting instance variables, etc)'''
-        west.rc.process_args(args, config_required = self.config_required)
+        westpa.rc.process_args(args, config_required = self.config_required)
         
     def add_all_args(self, parser):
         '''Add arguments for all components from which this class derives to the given parser,

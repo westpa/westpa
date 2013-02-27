@@ -3,7 +3,7 @@ from core import WESTToolComponent
 import sys,logging, pickle, math
 from itertools import count,izip
 import numpy
-import west
+import westpa
 from west.binning import RectilinearBinMapper
 from westpa.extloader import get_object
 from pickle import PickleError
@@ -29,7 +29,7 @@ def mapper_from_expr(expr):
         return mapper
 
 def mapper_from_system():
-    system = west.rc.get_system_driver()
+    system = westpa.rc.get_system_driver()
     log.debug('loaded {!r} from {!r}'.format(system.bin_mapper,system))
     return system.bin_mapper
 
@@ -342,7 +342,7 @@ class BinMappingComponent(WESTToolComponent):
         direct this. If ``required`` is true, then a mapper must be available at iteration ``n_iter``,
         or else an exception will be raised.'''
                 
-        data_manager = data_manager or west.rc.get_data_manager()
+        data_manager = data_manager or westpa.rc.get_data_manager()
         n_iter = n_iter or data_manager.current_iteration
         iter_group = data_manager.get_iter_group(n_iter)
         
