@@ -62,7 +62,7 @@ class StringDriver(object):
             log.error('String Driver Error: Failed during initialization of string method: {}'.format(e))
             raise
 
-        # Update the Region Set
+        # Update the BinMapper
         self.update_bin_mapper()
 
         # Register callback
@@ -93,7 +93,7 @@ class StringDriver(object):
 
         dfunc_method = extloader.get_object(methodname)
 
-        log.debug('loaded stringmethod dfunc method {!r}'.format(dfunc_method))
+        log.info('loaded stringmethod dfunc method {!r}'.format(dfunc_method))
 
         return dfunc_method
 
@@ -108,7 +108,7 @@ class StringDriver(object):
         else:
             avgpos_method = extloader.get_object(methodname)
 
-        log.debug('loaded stringmethod avgpos method {!r}'.format(avgpos_method))
+        log.info('loaded stringmethod avgpos method {!r}'.format(avgpos_method))
 
         return avgpos_method
 
@@ -164,9 +164,13 @@ class StringDriver(object):
         west.rc.pflush()
 
         try:
-            self.system.bin_mapper = VoronoiBinMapper(self.dfunc, self.strings.centers)
+            dfargs = getattr(self.system, 'dfargs', None)
+            dfkwargs = getattr(self.system, 'dfkwargs', None)
+            self.system.bin_mapper = VoronoiBinMapper(self.dfunc, self.strings.centers, 
+                                                      dfargs=dfargs, 
+                                                      dfkwargs=dfkwargs)
         except (ValueError, TypeError) as e:
-            log.error('StringDriver Error: Failed updating region set: {}'.format(e))
+            log.error('StringDriver Error: Failed updating the bin mapper: {}'.format(e))
             raise
 
     def avgpos_cartesian(self, n_iter):
