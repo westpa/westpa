@@ -42,13 +42,10 @@ else
     export PYTHONWARNINGS="$PYTHONWARNINGS,d"
 fi
 
-if [ "$SCRIPT" == "west" ] ; then
-    echo "Entering Python shell using $WEST_PYTHON"
-    exec $WEST_PYTHON "$@"
-fi
-
 # Find where the requested script is stashed
-if [ -e "$WEST_ROOT/lib/west_tools/${SCRIPT}.py" ] ; then
+if [ "$SCRIPT" == "west" ] ; then
+    FULLSCRIPT=""
+elif [ -e "$WEST_ROOT/lib/west_tools/${SCRIPT}.py" ] ; then
     FULLSCRIPT="$WEST_ROOT/lib/west_tools/${SCRIPT}.py"
 elif [ -e "$WEST_ROOT/lib/cmds/${SCRIPT}.py" ] ; then
     FULLSCRIPT="$WEST_ROOT/lib/cmds/${SCRIPT}.py"
