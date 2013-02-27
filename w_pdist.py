@@ -5,7 +5,7 @@ import numpy, h5py
 from fasthist import hist
 
 
-import west
+import westpa
 from west.data_manager import (weight_dtype, n_iter_dtype, seg_id_dtype, utime_dtype, vstr_dtype, 
                                istate_type_dtype, istate_status_dtype)
 
@@ -23,7 +23,7 @@ def parse_binspec(binspec):
     
 class HistogramHelper:
     def __init__(self, dsspec, bins, segment_selection=None, data_manager = None):
-        self.data_manager = data_manager or west.rc.get_data_manager()
+        self.data_manager = data_manager or westpa.rc.get_data_manager()
         self.dsspec = dsspec
         self.segment_selection = segment_selection
         

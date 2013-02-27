@@ -1,7 +1,7 @@
 from __future__ import print_function, division; __metaclass__ = type
 import sys, os, logging
 import h5py, numpy
-import west
+import westpa
 from westtools.tool_classes import WESTTool, WESTDataReader, SegSelector
 from westtools.tool_classes.data_reader import ByIterDataSelection
 from westtools.tool_classes.selected_segs import SegmentSelection
@@ -37,7 +37,7 @@ class FPPWalker:
             self.n_first[first] += 1
             raise StopIteration
                     
-data_manager = west.rc.get_data_manager()
+data_manager = westpa.rc.get_data_manager()
 data_manager.we_h5filename = 'system.h5'
 data_manager.open_backing(mode='r')
 

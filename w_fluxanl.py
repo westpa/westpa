@@ -3,7 +3,7 @@ import numpy, h5py
 from scipy.signal import fftconvolve
 
 from westtools.tool_classes import WESTTool, WESTDataReader, IterRangeSelection
-import west
+import westpa
 from west.data_manager import (weight_dtype, n_iter_dtype, vstr_dtype)
 from west.we_driver import NewWeightEntry
 import mclib
@@ -111,14 +111,14 @@ def _extract_fluxes_fileversion_7(iter_start, iter_stop, data_manager):
 def extract_fluxes(iter_start=None, iter_stop=None, data_manager=None):
     '''Extract flux values from the WEST HDF5 file for iterations >= iter_start
     and < iter_stop, optionally using another data manager instance instead of the
-    global one returned by ``west.rc.get_data_manager()``.
+    global one returned by ``westpa.rc.get_data_manager()``.
     
     Returns a dictionary mapping target names (if available, target index otherwise)
     to a 1-D array of type ``fluxentry_dtype``, which contains columns for iteration
     number, flux, and count.
     '''
     
-    data_manager = data_manager or west.rc.get_data_manager()
+    data_manager = data_manager or westpa.rc.get_data_manager()
     iter_start = iter_start or 1
     iter_stop = iter_stop or data_manager.current_iteration
 
@@ -200,7 +200,7 @@ the true value of ``tau``.
         self.evol_step = args.evol_step or 1
                 
     def calc_store_flux_data(self):         
-        west.rc.pstatus('Calculating mean flux and confidence intervals for iterations [{},{})'
+        westpa.rc.pstatus('Calculating mean flux and confidence intervals for iterations [{},{})'
                         .format(self.iter_range.iter_start, self.iter_range.iter_stop))
         
         fluxdata = extract_fluxes(self.iter_range.iter_start, self.iter_range.iter_stop, self.data_reader)
@@ -240,9 +240,9 @@ the true value of ``tau``.
             # Calculate overall averages and CIs
             avg, lb_ci, ub_ci, correl_len = mclib.mcbs_ci_correl(fluxes, numpy.mean, self.alpha, self.n_sets,
                                                                  autocorrel_alpha=self.autocorrel_alpha, subsample=numpy.mean)
-            west.rc.pstatus('target {!r}:'.format(target_label))
-            west.rc.pstatus('  correlation length = {} tau'.format(correl_len))
-            west.rc.pstatus('  mean flux and CI   = {:e} ({:e},{:e}) tau^(-1)'.format(avg,lb_ci,ub_ci))
+            westpa.rc.pstatus('target {!r}:'.format(target_label))
+            westpa.rc.pstatus('  correlation length = {} tau'.format(correl_len))
+            westpa.rc.pstatus('  mean flux and CI   = {:e} ({:e},{:e}) tau^(-1)'.format(avg,lb_ci,ub_ci))
             index[itarget]['mean_flux'] = avg
             index[itarget]['mean_flux_ci_lb'] = lb_ci
             index[itarget]['mean_flux_ci_ub'] = ub_ci
@@ -258,7 +258,7 @@ the true value of ``tau``.
                         
          
     def calc_evol_flux(self):
-        west.rc.pstatus('Calculating cumulative evolution of flux confidence intervals every {} iteration(s)'
+        westpa.rc.pstatus('Calculating cumulative evolution of flux confidence intervals every {} iteration(s)'
                         .format(self.evol_step))
         
         for itarget, (target_label, target_fluxdata) in enumerate(self.fluxdata.iteritems()):

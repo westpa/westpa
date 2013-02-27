@@ -5,7 +5,7 @@ import numpy
 log = logging.getLogger('w_bins')
 
 from westtools.tool_classes import WESTTool, WESTDataReader, BinMappingComponent
-import west
+import westpa
 
 from westtools.tool_classes.binning import write_bin_info
 
@@ -100,7 +100,7 @@ modify the binning for the current iteration of a WEST simulation.
             sys.stderr.write('rebin is not supported for the first iteration; reinitialize with w_init instead\n')
             sys.exit(1)
         n_target_states = len(self.data_reader.get_target_states(self.n_iter))
-        we_driver = west.rc.get_we_driver()
+        we_driver = westpa.rc.get_we_driver()
         data_manager = self.data_reader.data_manager
         
         segments = data_manager.get_segments(self.n_iter,load_pcoords=True)

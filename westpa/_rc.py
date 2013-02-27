@@ -3,7 +3,7 @@
 from __future__ import division, print_function; __metaclass__ = type
 
 import logging
-log = logging.getLogger('west.rc')
+log = logging.getLogger('westpa.rc')
 
 import os, sys, errno
 import westpa

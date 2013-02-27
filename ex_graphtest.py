@@ -1,13 +1,12 @@
 from __future__ import print_function, division
 import argparse, numpy
-import cPickle as pickle
-import west
+import westpa
 from westtools.trajlib import trajtree
 
 parser = argparse.ArgumentParser()
-west.rc.add_args(parser)
+westpa.rc.add_args(parser)
 args = parser.parse_args()
-west.rc.process_args(args)
+westpa.rc.process_args(args)
 
 def get_leaves(n_iter, iter_group):
     seg_index = iter_group['seg_index']
@@ -23,7 +22,7 @@ def get_all_leaves(n_iter, iter_group):
     else:
         return (iter_group['seg_index']['endpoint_type'] == 3).nonzero()[0]
     
-data_manager = west.rc.get_data_manager()
+data_manager = westpa.rc.get_data_manager()
 data_manager.open_backing('r')
 
 tree = trajtree.construct_tree(data_manager.current_iteration-1, get_leaves, data_manager)
