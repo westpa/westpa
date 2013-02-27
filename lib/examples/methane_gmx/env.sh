@@ -1,11 +1,6 @@
 # This file defines where WEST and GROMACS can be found
 # Modify to taste
 
-# Find EPD and GROMACS
-source /etc/profile.d/modules.sh
-module load epd
-module load gromacs
-
 # Inform WEST where to find Python and our other scripts where to find WEST
 export WEST_PYTHON=$(which python2.7)
 export WEST_ROOT=$(readlink -f $PWD/../../..)
