@@ -19,5 +19,14 @@ setup(cmdclass = {'build_ext': build_ext},
                      Extension("mclib._mclib",
                                ["mclib/_mclib.pyx"],
                                include_dirs=['.', numpy_include],
-                               extra_compile_args=['-O3'])])
+                               extra_compile_args=['-O3']),
+                     Extension("westpa.binning._assign",
+                               ["westpa/binning/_assign.pyx"],
+                               include_dirs=['.', numpy_include],
+                               # hack-ish; included since my dev box has trouble
+                               extra_compile_args=['-O3']),
+                     Extension("westpa.kinetics._kinetics",
+                                ["westpa/kinetics/_kinetics.pyx"],
+                                include_dirs=['.', numpy_include],
+                                extra_compile_args=['-O3']),])
 

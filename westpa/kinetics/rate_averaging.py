@@ -4,7 +4,7 @@ import westpa
 
 from itertools import izip, izip_longest
 
-from west.kinetics._kinetics import flux_assign, pop_assign, calc_rates #@UnresolvedImport
+from westpa.kinetics._kinetics import flux_assign, pop_assign, calc_rates #@UnresolvedImport
 
 
 def grouper(n, iterable, fillvalue=None):

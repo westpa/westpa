@@ -4,7 +4,7 @@ import sys,logging, pickle, math
 from itertools import count,izip
 import numpy
 import westpa
-from west.binning import RectilinearBinMapper
+from westpa.binning import RectilinearBinMapper
 from westpa.extloader import get_object
 from pickle import PickleError
 
