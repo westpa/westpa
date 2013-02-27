@@ -3,7 +3,7 @@ import sys
 import logging
 import math
 from west.data_manager import seg_id_dtype
-from west.binning.assign import index_dtype, UNKNOWN_INDEX
+from westpa.binning.assign import index_dtype, UNKNOWN_INDEX
 from westtools.tool_classes import WESTTool, WESTDataReader, BinMappingComponent
 import numpy, h5py
 from westtools import h5io

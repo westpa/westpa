@@ -13,7 +13,7 @@ import scipy.linalg
 import scipy.sparse.linalg
 from westtools import h5io
 
-from west.binning.assign import index_dtype, UNKNOWN_INDEX
+from westpa.binning.assign import index_dtype, UNKNOWN_INDEX
 from west.data_manager import seg_id_dtype, n_iter_dtype, weight_dtype
 
 import numba
