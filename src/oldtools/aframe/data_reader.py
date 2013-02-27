@@ -7,7 +7,7 @@ import itertools, re
 from itertools import imap
 import numpy, h5py
 
-import west
+import west, westpa
 from oldtools.aframe import AnalysisMixin
 from west import Segment
 from oldtools.miscfn import parse_int_list
@@ -51,12 +51,12 @@ class WESTDataReaderMixin(AnalysisMixin):
         if args.west_h5name:
             self.west_h5name = args.west_h5name
         else:
-            west.rc.config.require(['west','data','west_data_file'])
-            self.west_h5name = west.rc.config.get_path(['west','data','west_data_file']) 
+            westpa.rc.config.require(['west','data','west_data_file'])
+            self.west_h5name = westpa.rc.config.get_path(['west','data','west_data_file']) 
         
-        west.rc.pstatus("Using WEST data from '{}'".format(self.west_h5name))
+        westpa.rc.pstatus("Using WEST data from '{}'".format(self.west_h5name))
         
-        self.data_manager = west.rc.get_data_manager()
+        self.data_manager = westpa.rc.get_data_manager()
         self.data_manager.backing_file = self.west_h5name        
         self.data_manager.open_backing(mode='r')
         
@@ -295,7 +295,7 @@ class ExtDataReaderMixin(AnalysisMixin):
     def process_args(self, args, upcall = True):            
 
         if args.usecols:
-            west.rc.pstatus('Using only the following columns from external input: {!s}'.format(args.usecols))
+            westpa.rc.pstatus('Using only the following columns from external input: {!s}'.format(args.usecols))
             self.ext_input_usecols = args.usecols
         else:
             self.ext_input_usecols = None
@@ -407,8 +407,8 @@ class ExtDataReaderMixin(AnalysisMixin):
             
             # Flush to HDF5 if necessary
             if irow == chunksize:
-                west.rc.pstatus('\r  Read {:d} rows'.format(nrows), end='')
-                west.rc.pflush()
+                westpa.rc.pstatus('\r  Read {:d} rows'.format(nrows), end='')
+                westpa.rc.pflush()
                 dataset.resize((nrows, ncols_store))
                 dataset[-irow:] = databuffer
                 irow = 0
@@ -417,8 +417,8 @@ class ExtDataReaderMixin(AnalysisMixin):
         if irow > 0:
             dataset.resize((nrows, ncols_store))
             dataset[-irow:] = databuffer[:irow]
-        west.rc.pstatus('\r  Read {:d} rows'.format(nrows))
-        west.rc.pflush()
+        westpa.rc.pstatus('\r  Read {:d} rows'.format(nrows))
+        westpa.rc.pflush()
             
     def npy_to_h5dataset(self, array, group, dsname, usecols=None, chunksize=None):
         '''Store the given array into a newly-created dataset named ``dsname`` in the HDF5 group
@@ -443,14 +443,14 @@ class ExtDataReaderMixin(AnalysisMixin):
             for istart in xrange(0,maxlen,chunksize):
                 iend = min(istart+chunksize,maxlen)
                 dataset[istart:iend] = array[istart:iend, usecols]
-                west.rc.pstatus('\r  Read {:{mw}d}/{:>{mw}d} rows'.format(iend,maxlen, mw=mw), end='')
-                west.rc.pflush()
+                westpa.rc.pstatus('\r  Read {:{mw}d}/{:>{mw}d} rows'.format(iend,maxlen, mw=mw), end='')
+                westpa.rc.pflush()
         else:
             for istart in xrange(0,maxlen,chunksize):
                 dataset[istart:iend] = array[istart:iend]
-                west.rc.pstatus('\r  Read {:{mw}d}/{:>{mw}d} rows'.format(iend,maxlen, mw=mw), end='')
-                west.rc.pflush()                
-        west.rc.pstatus()
+                westpa.rc.pstatus('\r  Read {:{mw}d}/{:>{mw}d} rows'.format(iend,maxlen, mw=mw), end='')
+                westpa.rc.pflush()                
+        westpa.rc.pstatus()
         
         
                 
@@ -482,7 +482,7 @@ class BFDataManager(AnalysisMixin):
 
     def process_args(self, args, upcall = True):
         self.bf_h5name = args.bf_h5name
-        west.rc.pstatus("Using brute force data from '{}'".format(self.bf_h5name))
+        westpa.rc.pstatus("Using brute force data from '{}'".format(self.bf_h5name))
         
         if upcall:
             try:

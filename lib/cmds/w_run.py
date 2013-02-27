@@ -1,30 +1,30 @@
 from __future__ import division, print_function
 
-import os, sys, logging, argparse, traceback
+import logging, argparse, traceback
 log = logging.getLogger('w_run')
 
-import west
+import westpa
 import work_managers
 from work_managers import make_work_manager
 
 parser = argparse.ArgumentParser('w_run', 'start/continue a WEST simulation')
-west.rc.add_args(parser)
+westpa.rc.add_args(parser)
 parser.add_argument('--oneseg', dest='only_one_segment', action='store_true',
                     help='only propagate one segment (useful for debugging propagators)')
 
 work_managers.environment.add_wm_args(parser)
 
 args = parser.parse_args()
-west.rc.process_args(args)
+westpa.rc.process_args(args)
 work_managers.environment.process_wm_args(args)
-work_manager = west.rc.work_manager = make_work_manager()
+work_manager = westpa.rc.work_manager = make_work_manager()
 
 # Load the sim manager and other drivers
-sim_manager = west.rc.get_sim_manager()
-system = west.rc.get_system_driver()
-data_manager = west.rc.get_data_manager()
-we_driver = west.rc.get_we_driver()
-propagator = west.rc.get_propagator()
+sim_manager = westpa.rc.get_sim_manager()
+system = westpa.rc.get_system_driver()
+data_manager = westpa.rc.get_data_manager()
+we_driver = westpa.rc.get_we_driver()
+propagator = westpa.rc.get_propagator()
 
 propagator.system = system
 data_manager.system = system
@@ -50,9 +50,9 @@ with work_manager:
             log.debug('finalizing run')
             sim_manager.finalize_run()
         except KeyboardInterrupt:
-            west.rc.pstatus('interrupted; shutting down')
+            westpa.rc.pstatus('interrupted; shutting down')
         except:
-            west.rc.pstatus('exception caught; shutting down')
+            westpa.rc.pstatus('exception caught; shutting down')
             log.error(traceback.format_exc())
     else:
         work_manager.run()

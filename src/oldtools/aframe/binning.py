@@ -6,7 +6,7 @@ log = logging.getLogger(__name__)
 
 import numpy
 
-import west
+import westpa
 from oldtools.aframe import AnalysisMixin
 
 class BinningMixin(AnalysisMixin):
@@ -43,17 +43,17 @@ class BinningMixin(AnalysisMixin):
     
     def process_args(self, args, upcall = True):        
         if args.binexpr:
-            west.rc.pstatus("Constructing rectilinear bin boundaries from the following expression: '{}'".format(args.binexpr))
+            westpa.rc.pstatus("Constructing rectilinear bin boundaries from the following expression: '{}'".format(args.binexpr))
             self.mapper = self.mapper_from_expr(args.binexpr)
         else:
-            west.rc.pstatus('Loading bin boundaries from WEST system')
-            system = west.rc.get_system_driver()
+            westpa.rc.pstatus('Loading bin boundaries from WEST system')
+            system = westpa.rc.get_system_driver()
             self.mapper = system.bin_mapper
             
         self.n_bins = self.mapper.nbins
         _pdat, self.mapper_hash = self.mapper.pickle_and_hash()
-        west.rc.pstatus('  {:d} bins'.format(self.n_bins))
-        west.rc.pstatus('  identity hash {}'.format(self.mapper_hash))
+        westpa.rc.pstatus('  {:d} bins'.format(self.n_bins))
+        westpa.rc.pstatus('  identity hash {}'.format(self.mapper_hash))
         
         self.discard_bin_assignments = bool(args.discard_bin_assignments)
         
@@ -118,10 +118,10 @@ class BinningMixin(AnalysisMixin):
         assignments = numpy.zeros((n_iters, max_n_segs,pcoord_len), numpy.min_scalar_type(self.n_bins))
         populations = numpy.zeros((n_iters, pcoord_len, self.n_bins), numpy.float64)
         
-        west.rc.pstatus('Assigning to bins...')
+        westpa.rc.pstatus('Assigning to bins...')
         
         for (iiter, n_iter) in enumerate(xrange(self.first_iter, self.last_iter+1)):
-            west.rc.pstatus('\r  Iteration {:d}'.format(n_iter), end='')
+            westpa.rc.pstatus('\r  Iteration {:d}'.format(n_iter), end='')
             seg_index = self.get_seg_index(n_iter)
             pcoords = self.get_iter_group(n_iter)['pcoord'][...]
             weights = seg_index['weight']
@@ -132,7 +132,7 @@ class BinningMixin(AnalysisMixin):
             for it in xrange(pcoord_len):
                 populations[iiter, it, :] = numpy.bincount(assignments[iiter,:len(seg_index),it], weights, minlength=self.n_bins)
         
-            west.rc.pflush()
+            westpa.rc.pflush()
             del pcoords, weights, seg_index
          
         assignments_ds = self.binning_h5group.create_dataset('bin_assignments', data=assignments, compression='gzip')
@@ -143,28 +143,28 @@ class BinningMixin(AnalysisMixin):
             self.record_data_iter_step(h5object, 1)
             self.record_data_binhash(h5object)
                 
-        west.rc.pstatus()
+        westpa.rc.pstatus()
             
     def require_bin_assignments(self):
         self.require_binning_group()
         do_assign = False
         if self.discard_bin_assignments:
-            west.rc.pstatus('Discarding existing bin assignments.')
+            westpa.rc.pstatus('Discarding existing bin assignments.')
             do_assign = True
         elif 'bin_assignments' not in self.binning_h5group:
             do_assign = True
         elif not self.check_data_iter_range_least(self.binning_h5group):
-            west.rc.pstatus('Existing bin assignments are for incompatible first/last iterations; deleting assignments.')
+            westpa.rc.pstatus('Existing bin assignments are for incompatible first/last iterations; deleting assignments.')
             do_assign = True
         elif not self.check_data_binhash(self.binning_h5group):
-            west.rc.pstatus('Bin definitions have changed; deleting existing bin assignments.')
+            westpa.rc.pstatus('Bin definitions have changed; deleting existing bin assignments.')
             do_assign = True
     
         if do_assign:
             self.delete_binning_group()
             self.assign_to_bins()
         else:
-            west.rc.pstatus('Using existing bin assignments.')
+            westpa.rc.pstatus('Using existing bin assignments.')
             
     def get_bin_assignments(self, first_iter = None, last_iter = None):
         return self.slice_per_iter_data(self.binning_h5group['bin_assignments'], first_iter, last_iter)

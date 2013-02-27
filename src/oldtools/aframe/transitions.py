@@ -5,9 +5,9 @@ import logging
 log = logging.getLogger(__name__)
 
 import numpy
-from itertools import izip, imap
+from itertools import izip
 
-import west
+import westpa
 from oldtools.aframe import AnalysisMixin
 from oldtools.aframe.trajwalker import TrajWalker
 
@@ -288,13 +288,13 @@ class TransitionAnalysisMixin(AnalysisMixin):
         self.require_transitions_group()
         do_trans = False
         if self.discard_transition_data:
-            west.rc.pstatus('Discarding existing transition data.')
+            westpa.rc.pstatus('Discarding existing transition data.')
             do_trans = True
         elif not self.check_data_binhash(self.trans_h5group):
-            west.rc.pstatus('Bin definitions have changed; deleting existing transition data.')
+            westpa.rc.pstatus('Bin definitions have changed; deleting existing transition data.')
             do_trans = True
         elif 'transitions' in self.trans_h5group and not self.check_data_iter_range_least(self.trans_h5group): 
-            west.rc.pstatus('Existing transition data is for different first/last iterations; deleting.')
+            westpa.rc.pstatus('Existing transition data is for different first/last iterations; deleting.')
             do_trans = True
                     
         if do_trans:
@@ -302,7 +302,7 @@ class TransitionAnalysisMixin(AnalysisMixin):
             self.find_transitions()
 
     def find_transitions(self):
-        west.rc.pstatus('Finding transitions...')
+        westpa.rc.pstatus('Finding transitions...')
         output_group = self.require_transitions_group()
             
         self.n_segs_visited = 0
@@ -314,7 +314,7 @@ class TransitionAnalysisMixin(AnalysisMixin):
         walker = TrajWalker(data_reader = self)
         
         self.__pcoord_len = self.get_pcoord_len(self.first_iter)
-        self.__quiet_mode = west.rc.quiet_mode
+        self.__quiet_mode = westpa.rc.quiet_mode
         
         walker.trace_trajectories(self.first_iter, self.last_iter, callable=self._segment_callback, include_pcoords=False,
                                   get_state = self.accumulator.get_state, set_state = self.accumulator.set_state)
@@ -332,7 +332,7 @@ class TransitionAnalysisMixin(AnalysisMixin):
             h5object.attrs['n_segs'] = self.n_segs_visited
         
         self.accumulator.clear()
-        west.rc.pstatus()
+        westpa.rc.pstatus()
         
     def _segment_callback(self, segment, children, history):
         iiter = segment.n_iter - self.first_iter
@@ -355,10 +355,10 @@ class TransitionAnalysisMixin(AnalysisMixin):
         
         if not self.__quiet_mode and (self.n_segs_visited % 1000 == 0 or self.n_segs_visited == self.n_total_segs):
             pct_visited = self.n_segs_visited / self.n_total_segs * 100
-            west.rc.pstatus('\r  {:d} of {:d} segments ({:.1f}%) analyzed ({:d} independent trajectories)'
+            westpa.rc.pstatus('\r  {:d} of {:d} segments ({:.1f}%) analyzed ({:d} independent trajectories)'
                             .format(long(self.n_segs_visited), long(self.n_total_segs), float(pct_visited), self.n_trajs), 
                             end='')
-            west.rc.pflush()
+            westpa.rc.pflush()
 
 class BFTransitionAnalysisMixin(TransitionAnalysisMixin):
     
@@ -367,10 +367,10 @@ class BFTransitionAnalysisMixin(TransitionAnalysisMixin):
         self.require_transitions_group()
         do_trans = False
         if self.discard_transition_data:
-            west.rc.pstatus('Discarding existing transition data.')
+            westpa.rc.pstatus('Discarding existing transition data.')
             do_trans = True
         elif not self.check_data_binhash(self.trans_h5group):
-            west.rc.pstatus('Bin definitions have changed; deleting existing transition data.')
+            westpa.rc.pstatus('Bin definitions have changed; deleting existing transition data.')
             do_trans = True
         
         if do_trans:
@@ -380,7 +380,7 @@ class BFTransitionAnalysisMixin(TransitionAnalysisMixin):
     def find_transitions(self,chunksize=65536):
         self.require_bf_h5file()
         self.require_binning_group()
-        west.rc.pstatus('Finding transitions...')
+        westpa.rc.pstatus('Finding transitions...')
         output_group = self.require_analysis_group('transitions')
             
         self.accumulator = TransitionEventAccumulator(self.n_bins, output_group, calc_fpts = True)
@@ -402,13 +402,13 @@ class BFTransitionAnalysisMixin(TransitionAnalysisMixin):
                 else:
                     self.accumulator.continue_accumulation(assignments, weights, binpops, traj=traj_id)
                     
-                west.rc.pstatus('\r  Trajectory {:d}: {:{mwnr}d}/{:<{mwnr}d} ({:.2f}%)'
+                westpa.rc.pstatus('\r  Trajectory {:d}: {:{mwnr}d}/{:<{mwnr}d} ({:.2f}%)'
                                 .format(int(traj_id), long(iend), long(nrows), iend/nrows*100,mwnr=maxwidth_nrows), 
                                 end='')
-                west.rc.pflush()
+                westpa.rc.pflush()
                 self.accumulator.flush_transition_data()
                 del assignments, weights, binpops
-            west.rc.pstatus()                 
+            westpa.rc.pstatus()                 
                 
         try:
             del output_group['n_trans']

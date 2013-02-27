@@ -1,7 +1,7 @@
 from __future__ import division, print_function
 import sys, argparse
 import numpy
-import west
+import west, westpa
 
 from oldtools.aframe import WESTAnalysisTool, WESTDataReaderMixin, CommonOutputMixin, BinningMixin, IterRangeMixin
 
@@ -60,14 +60,14 @@ wsucc = WSucc()
 
 parser = argparse.ArgumentParser('w_succ', description='''\
 List segments which successfully reach a target state''')
-west.rc.add_args(parser)
+westpa.rc.add_args(parser)
 wsucc.add_args(parser)
 
 parser.add_argument('-o', '--output', dest='output_file',
                     help='Store output in OUTPUT_FILE (default: write to standard output).',
                     type=argparse.FileType('wt'), default=sys.stdout)
 args = parser.parse_args()
-west.rc.process_args(args, config_required=False)
+westpa.rc.process_args(args, config_required=False)
 wsucc.process_args(args)
 wsucc.output_file = args.output_file
 

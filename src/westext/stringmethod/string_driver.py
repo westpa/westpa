@@ -68,16 +68,16 @@ class StringDriver(object):
         # Register callback
         sim_manager.register_callback(sim_manager.prepare_new_iteration, self.prepare_new_iteration, self.priority)
 
-        west.rc.pstatus('-westext.stringmethod -----------------\n')
-        west.rc.pstatus('windowsize: {}\n'.format(self.windowsize))
-        west.rc.pstatus('update interval: {}\n'.format(self.update_interval))
-        west.rc.pstatus('initial update: {}\n'.format(self.initial_update))
-        west.rc.pstatus('priority: {}\n'.format(self.priority))
-        west.rc.pstatus('write average positions: {}\n'.format(self.write_avg_pos))
-        west.rc.pstatus('do update: {}\n'.format(self.do_update))
-        west.rc.pstatus('initialize from WE data: {}\n'.format(self.init_from_data))
-        west.rc.pstatus('----------------------------------------\n')
-        west.rc.pflush()
+        westpa.rc.pstatus('-westext.stringmethod -----------------\n')
+        westpa.rc.pstatus('windowsize: {}\n'.format(self.windowsize))
+        westpa.rc.pstatus('update interval: {}\n'.format(self.update_interval))
+        westpa.rc.pstatus('initial update: {}\n'.format(self.initial_update))
+        westpa.rc.pstatus('priority: {}\n'.format(self.priority))
+        westpa.rc.pstatus('write average positions: {}\n'.format(self.write_avg_pos))
+        westpa.rc.pstatus('do update: {}\n'.format(self.do_update))
+        westpa.rc.pstatus('initialize from WE data: {}\n'.format(self.init_from_data))
+        westpa.rc.pstatus('----------------------------------------\n')
+        westpa.rc.pflush()
 
     def dfunc(self):
         raise NotImplementedError
@@ -160,8 +160,8 @@ class StringDriver(object):
     def update_bin_mapper(self):
         '''Update the bin_mapper using the current string'''
 
-        west.rc.pstatus('westext.stringmethod: Updating bin mapper\n')
-        west.rc.pflush()
+        westpa.rc.pstatus('westext.stringmethod: Updating bin mapper\n')
+        westpa.rc.pflush()
 
         try:
             dfargs = getattr(self.system, 'dfargs', None)
@@ -230,19 +230,19 @@ class StringDriver(object):
         else:
             log.debug('Updating string - n_iter: {}'.format(n_iter))
 
-        west.rc.pstatus('-westext.stringmethod -----------------\n')
-        west.rc.pstatus('westext.stringmethod: Calculating average position in string images\n')
-        west.rc.pflush()
+        westpa.rc.pstatus('-westext.stringmethod -----------------\n')
+        westpa.rc.pstatus('westext.stringmethod: Calculating average position in string images\n')
+        westpa.rc.pflush()
 
         avg_pos, sum_bin_weight = self.get_avgpos(n_iter)
 
-        west.rc.pstatus('westext.stringmethod: Updating string\n')
-        west.rc.pflush()
+        westpa.rc.pstatus('westext.stringmethod: Updating string\n')
+        westpa.rc.pflush()
 
         self.strings.update_string_centers(avg_pos, sum_bin_weight)
 
-        west.rc.pstatus('westext.stringmethod: String lengths: {}\n'.format(self.strings.length))
-        west.rc.pflush()
+        westpa.rc.pstatus('westext.stringmethod: String lengths: {}\n'.format(self.strings.length))
+        westpa.rc.pflush()
 
         # Update the bin definitions
         self.update_bin_mapper()

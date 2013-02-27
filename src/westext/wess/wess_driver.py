@@ -148,9 +148,9 @@ class WESSDriver:
             binprobs = numpy.fromiter(imap(operator.attrgetter('weight'),bins), dtype=numpy.float64, count=n_bins)
             orig_binprobs = binprobs.copy()
 
-        west.rc.pstatus('Calculating reweighting using window size of {:d}'.format(self.eff_windowsize))
-        west.rc.pstatus('\nBin probabilities prior to reweighting:\n{!s}'.format(binprobs))
-        west.rc.pflush()
+        westpa.rc.pstatus('Calculating reweighting using window size of {:d}'.format(self.eff_windowsize))
+        westpa.rc.pstatus('\nBin probabilities prior to reweighting:\n{!s}'.format(binprobs))
+        westpa.rc.pflush()
 
         rij, oldindex = reduce_array(averager.average_rate)
         uij = averager.stderr_rate[numpy.ix_(oldindex,oldindex)]
@@ -172,11 +172,11 @@ class WESSDriver:
         # Check to see if reweighting has set zero bins to nonzero probability (may happen)
         z2nz_mask = (orig_binprobs == 0) & (binprobs > 0)
         if (z2nz_mask).any():
-            west.rc.pstatus('Reweighting would assign nonzero probability to an empty bin; not reweighting this iteration.')
-            west.rc.pstatus('Empty bins assigned nonzero probability: {!s}.'
+            westpa.rc.pstatus('Reweighting would assign nonzero probability to an empty bin; not reweighting this iteration.')
+            westpa.rc.pstatus('Empty bins assigned nonzero probability: {!s}.'
                                 .format(numpy.array_str(numpy.arange(n_bins)[z2nz_mask])))
         else:
-            west.rc.pstatus('\nBin populations after reweighting:\n{!s}'.format(binprobs))
+            westpa.rc.pstatus('\nBin populations after reweighting:\n{!s}'.format(binprobs))
             for (bin, newprob) in izip(bins, binprobs):
                 if len(bin):
                     bin.reweight(newprob)
@@ -186,5 +186,5 @@ class WESSDriver:
         assert (abs(1 - numpy.fromiter(imap(operator.attrgetter('weight'),bins), dtype=numpy.float64, count=n_bins).sum())
                         < EPS * numpy.fromiter(imap(len,bins), dtype=numpy.int, count=n_bins).sum())
 
-        west.rc.pflush()
+        westpa.rc.pflush()
 

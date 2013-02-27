@@ -5,7 +5,7 @@ import numpy
 from itertools import izip 
 log = logging.getLogger('w_fork')
 
-import west
+import westpa
 from west import Segment
 from west.states import InitialState
 from west.data_manager import n_iter_dtype, seg_id_dtype
@@ -22,7 +22,7 @@ Target states and basis states for the new simulation are taken from those
 in the original simulation.  
 ''')
 
-west.rc.add_args(parser)
+westpa.rc.add_args(parser)
 parser.add_argument('-i', '--input', dest='input_h5file',
                     help='''Create simulation from the given INPUT_H5FILE (default: read from
                             configuration file.''')
@@ -37,10 +37,10 @@ parser.add_argument('--istate-map', default='istate_map.txt',
 parser.add_argument('--no-headers', action='store_true',
                     help='''Do not write header to ISTATE_MAP''')
 args = parser.parse_args()
-west.rc.process_args(args)
+westpa.rc.process_args(args)
 
 # Open old HDF5 file
-dm_old = west.rc.new_data_manager()
+dm_old = westpa.rc.new_data_manager()
 if args.input_h5file:
     dm_old.we_h5filename = args.input_h5file
 dm_old.open_backing(mode='r')
@@ -49,7 +49,7 @@ dm_old.open_backing(mode='r')
 n_iter = args.n_iter or dm_old.current_iteration-1
 
 # Create and open new HDF5 file
-dm_new = west.rc.new_data_manager()
+dm_new = westpa.rc.new_data_manager()
 dm_new.we_h5filename = args.output_h5file
 dm_new.prepare_backing()
 dm_new.open_backing()

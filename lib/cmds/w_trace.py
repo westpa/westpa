@@ -1,7 +1,6 @@
 from __future__ import division, print_function
 import sys, argparse
-import numpy
-import west, oldtools
+import westpa, oldtools
 
 from west import Segment
 from oldtools.aframe import WESTAnalysisTool, WESTDataReaderMixin, CommonOutputMixin
@@ -85,7 +84,7 @@ wtrace = WTrace()
 
 parser = argparse.ArgumentParser('w_trace', description='''\
 Trace trajectories. One or more trajectories must be specified, each as n_iter:seg_id''')
-west.rc.add_args(parser)
+westpa.rc.add_args(parser)
 wtrace.add_args(parser)
 parser.add_argument('-o', '--output', dest='output_pattern', default='traj_{n_iter:06d}_{seg_id:06d}.txt',
                     help='''Store output in OUTPUT_PATTERN, which must be a Python3-style format
@@ -93,7 +92,7 @@ parser.add_argument('-o', '--output', dest='output_pattern', default='traj_{n_it
 parser.add_argument('segments', nargs='+', metavar='SEGMENT',
                     help='Segment(s) to trace, each specified as "n_iter:seg_id"')
 args = parser.parse_args()
-west.rc.process_args(args, config_required=False)
+westpa.rc.process_args(args, config_required=False)
 wtrace.process_args(args)
 
 wtrace.output_pattern = args.output_pattern

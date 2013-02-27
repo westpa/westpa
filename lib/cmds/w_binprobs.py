@@ -4,7 +4,7 @@ import argparse, numpy, math
 import logging
 log = logging.getLogger('w_binprobs')
 
-import west
+import westpa
 
 from oldtools.aframe import WESTAnalysisTool, BinningMixin, WESTDataReaderMixin, IterRangeMixin
 
@@ -21,9 +21,9 @@ class WBinprobs(BinningMixin, IterRangeMixin, WESTDataReaderMixin, WESTAnalysisT
         '''Calculate average bin populations over blocks of iterations, with MCBS error bars.'''
         
         if self.iter_step == 1:
-            west.rc.pstatus('Calculating per-iteration bin population confidence intervals...')
+            westpa.rc.pstatus('Calculating per-iteration bin population confidence intervals...')
         else:
-            west.rc.pstatus('Calculating bin population confidence intervals in blocks of {:d} iterations...'.format(self.iter_step))
+            westpa.rc.pstatus('Calculating bin population confidence intervals in blocks of {:d} iterations...'.format(self.iter_step))
         all_pops = self.binning_h5group['bin_populations'][...]
         pcoord_len = self.get_pcoord_len(self.first_iter)
                 
@@ -151,7 +151,7 @@ parser = argparse.ArgumentParser('w_binprobs', description='''\
 Compute per-bin population confidence intervals as a function of simulation
 time.  Useful to determine when a simulation has "settled" to steady-state. 
 ''')
-west.rc.add_args(parser)
+westpa.rc.add_args(parser)
 wbp.add_args(parser)
 
 cgroup = parser.add_argument_group('confidence interval options')
@@ -167,7 +167,7 @@ ogroup.add_argument('--binlabels', dest='write_bin_labels', action='store_true',
 
 args = parser.parse_args()
 
-west.rc.process_args(args, config_required=False)
+westpa.rc.process_args(args, config_required=False)
 wbp.process_args(args)
 
 wbp.output_filename = args.output

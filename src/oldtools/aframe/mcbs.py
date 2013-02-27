@@ -10,7 +10,7 @@ log = logging.getLogger(__name__)
 
 import math, numpy
 
-import west
+import westpa
 from oldtools.aframe import AnalysisMixin
 
 class MCBSMixin(AnalysisMixin):
@@ -40,7 +40,7 @@ class MCBSMixin(AnalysisMixin):
         self.mcbs_nsets = args.mcbs_size if args.mcbs_nsets else min(1000,calc_mcbs_nsets(self.mcbs_alpha))
         self.mcbs_display_confidence = '{:.{cp}f}'.format(100*args.mcbs_confidence,
                                                                     cp = -int(math.floor(math.log10(self.mcbs_alpha)))-2) 
-        west.rc.pstatus('Using bootstrap of {:d} sets to calculate {:s}% confidence interval (alpha={:g}).'
+        westpa.rc.pstatus('Using bootstrap of {:d} sets to calculate {:s}% confidence interval (alpha={:g}).'
                         .format(self.mcbs_nsets, self.mcbs_display_confidence, self.mcbs_alpha))
 
         if upcall:

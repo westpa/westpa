@@ -1,14 +1,13 @@
 from __future__ import division, print_function
 
-import os, sys, logging, numpy, operator, argparse
+import sys, logging, numpy, argparse
 import cStringIO
-from itertools import izip
 log = logging.getLogger('w_init')
 
 import work_managers
 from work_managers import make_work_manager
 
-import west
+import westpa
 from west import Segment
 from west.states import BasisState, TargetState
 
@@ -25,7 +24,7 @@ probabilities in ways that may be error-prone. Instead, use ``w_states --show --
 and then edit the resulting ``bstates.txt`` file to include the new desired basis states, then use
 ``w_states --replace --bstate-file=bstates.txt`` to update the WEST HDF5 file appropriately. 
 ''')
-west.rc.add_args(parser)
+westpa.rc.add_args(parser)
 smgroup = parser.add_argument_group('modes of operation')
 mode_group = smgroup.add_mutually_exclusive_group()
 mode_group.add_argument('--show', dest='mode', action='store_const', const='show',
@@ -54,17 +53,17 @@ parser.set_defaults(mode='show')
 
 work_managers.environment.add_wm_args(parser)
 args = parser.parse_args()
-west.rc.process_args(args)
+westpa.rc.process_args(args)
 work_managers.environment.process_wm_args(args)
 work_manager = make_work_manager()
 
-system = west.rc.get_system_driver()
+system = westpa.rc.get_system_driver()
 
 with work_manager:
     if work_manager.is_master:
-        data_manager = west.rc.get_data_manager()
+        data_manager = westpa.rc.get_data_manager()
         data_manager.open_backing(mode='a')
-        sim_manager = west.rc.get_sim_manager(work_manager)
+        sim_manager = westpa.rc.get_sim_manager(work_manager)
         n_iter = data_manager.current_iteration
             
         assert args.mode in ('show', 'replace', 'append')
@@ -126,7 +125,7 @@ with work_manager:
                 del tstates_strio
                 
             if not target_states:
-                west.rc.pstatus('No target states specified.')
+                westpa.rc.pstatus('No target states specified.')
             else:
                 data_manager.save_target_states(target_states, n_iter)
                 sim_manager.report_target_states(target_states)
@@ -153,7 +152,7 @@ with work_manager:
                 del tstates_strio
                 
             if not target_states:
-                west.rc.pstatus('No target states specified.')
+                westpa.rc.pstatus('No target states specified.')
             else:
                 data_manager.save_target_states(target_states, n_iter)
                 sim_manager.report_target_states(target_states)

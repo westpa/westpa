@@ -16,15 +16,15 @@ class TestSimManager:
     def setup(self):
 
         parser = argparse.ArgumentParser()
-        west.rc.add_args(parser)
+        westpa.rc.add_args(parser)
 
         config_file_name = os.path.join(os.environ['WEST_SIM_ROOT'], 'west.cfg')
         args = parser.parse_args(['-r={}'.format(config_file_name)])
-        west.rc.process_args(args)
-        self.sim_manager = west.rc.get_sim_manager()
+        westpa.rc.process_args(args)
+        self.sim_manager = westpa.rc.get_sim_manager()
 
     def teardown(self):
-        west.rc._sim_manager = None
+        westpa.rc._sim_manager = None
 
     def test_sim_manager(self):
         assert self.sim_manager.n_propagated == 0

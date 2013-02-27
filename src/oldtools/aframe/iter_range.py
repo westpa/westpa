@@ -5,7 +5,7 @@ import logging
 log = logging.getLogger(__name__)
 
 import numpy
-import west
+import westpa
 
 from oldtools.aframe import AnalysisMixin, ArgumentError
 
@@ -71,7 +71,7 @@ class IterRangeMixin(AnalysisMixin):
         if self.first_iter == self.last_iter:
             raise ArgumentError('first and last iterations are the same')
 
-        west.rc.pstatus('Processing iterations from {self.first_iter:d} to {self.last_iter:d}, inclusive (step size {self.iter_step:d})'.format(self=self))
+        westpa.rc.pstatus('Processing iterations from {self.first_iter:d} to {self.last_iter:d}, inclusive (step size {self.iter_step:d})'.format(self=self))
         
     def iter_block_iter(self):
         '''Return an iterable of (block_first,block_last+1) over the blocks of iterations

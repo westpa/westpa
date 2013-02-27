@@ -48,7 +48,6 @@ import logging
 log = logging.getLogger(__name__)
 
 import westpa
-import west
 from west.segment import Segment
 from west.states import BasisState, TargetState, InitialState
 from west.we_driver import NewWeightEntry
@@ -340,7 +339,7 @@ class WESTDataManager:
         be propagated.  A complete set is required, even if nominally appending to an existing set,
         which simplifies the mapping of IDs to the table.'''
         
-        system = west.rc.get_system_driver()
+        system = westpa.rc.get_system_driver()
         
         n_iter = n_iter or self.current_iteration
 
@@ -459,7 +458,7 @@ class WESTDataManager:
             
             
             if basis_states:
-                system = west.rc.get_system_driver()            
+                system = westpa.rc.get_system_driver()            
                 state_table = numpy.empty((len(basis_states),), dtype=bstate_dtype)
                 state_pcoords = numpy.empty((len(basis_states),system.pcoord_ndim), dtype=system.pcoord_dtype)
                 for i, state in enumerate(basis_states):
@@ -497,7 +496,7 @@ class WESTDataManager:
         '''Create storage for ``n_states`` initial states associated with iteration ``n_iter``, and
         return bare InitialState objects with only state_id set.'''
         
-        system = west.rc.get_system_driver()        
+        system = westpa.rc.get_system_driver()        
         with self.lock:
             n_iter = n_iter or self.current_iteration
             ibstate_group = self.find_ibstate_group(n_iter)
@@ -533,7 +532,7 @@ class WESTDataManager:
     def update_initial_states(self, initial_states, n_iter = None):
         '''Save the given initial states in the HDF5 file'''
         
-        system = west.rc.get_system_driver()
+        system = westpa.rc.get_system_driver()
         initial_states = sorted(initial_states,key=attrgetter('state_id'))
         if not initial_states:
             return
@@ -1062,7 +1061,7 @@ class WESTDataManager:
         if not new_weights:
             return
         
-        system = west.rc.get_system_driver()
+        system = westpa.rc.get_system_driver()
 
         index = numpy.empty(len(new_weights), dtype=nw_index_dtype)
         prev_init_pcoords = system.new_pcoord_array(len(new_weights))

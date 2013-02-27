@@ -11,7 +11,7 @@ import argparse
 import numpy
 import scipy.signal
 from itertools import izip
-import west, oldtools
+import westpa, oldtools
 
 from oldtools.aframe import WESTAnalysisTool,WESTDataReaderMixin,IterRangeMixin,MCBSMixin
 
@@ -36,7 +36,7 @@ class WFluxanl(MCBSMixin,IterRangeMixin,WESTDataReaderMixin,WESTAnalysisTool):
         n_iters = self.last_iter - self.first_iter + 1
         n_targets = self.get_iter_group(self.first_iter)['recycling'].shape[0]
         
-        west.rc.pstatus('Collecting fluxes and counts for {:d} target state(s).'.format(n_targets))
+        westpa.rc.pstatus('Collecting fluxes and counts for {:d} target state(s).'.format(n_targets))
         rstats = numpy.empty((n_iters,n_targets), dtype=rstat_dtype)
 
         for itarget in xrange(n_targets):
@@ -56,7 +56,7 @@ class WFluxanl(MCBSMixin,IterRangeMixin,WESTDataReaderMixin,WESTAnalysisTool):
         '''Calculate the autocorrelation function of flux values and report the estimated
         time required to reach steady state.'''
         
-        west.rc.pstatus('Calculating flux autocorrelation time...')
+        westpa.rc.pstatus('Calculating flux autocorrelation time...')
         n_targets = self.wfl_group.attrs['n_targets']
         lbi, ubi = self.calc_ci_bound_indices()
         dlen = self.wfl_group['arrivals'].shape[0]
@@ -73,14 +73,14 @@ class WFluxanl(MCBSMixin,IterRangeMixin,WESTDataReaderMixin,WESTAnalysisTool):
             syn_acorr = numpy.empty((self.mcbs_nsets, len(acorr)), numpy.float64)
             
             for iset in xrange(self.mcbs_nsets):
-                west.rc.pstatus('\r  Set {:d}/{:d}'.format(iset+1,self.mcbs_nsets), end='')
+                westpa.rc.pstatus('\r  Set {:d}/{:d}'.format(iset+1,self.mcbs_nsets), end='')
                 indices = numpy.random.randint(dlen, size=(dlen,))
                 syn_fluxes = ffluxes[indices]
                 syn_acorr[iset,:] = scipy.signal.correlate(syn_fluxes,syn_fluxes)[-dlen:]
                 syn_acorr[iset,:] /= syn_acorr[iset,:].max()
-                west.rc.pflush()
+                westpa.rc.pflush()
                 
-            west.rc.pstatus()
+            westpa.rc.pstatus()
             for ilag in xrange(1,dlen):
                 syn_acorr[:,ilag].sort()
                 acorr_bounds[ilag,0] = syn_acorr[lbi,ilag]
@@ -103,9 +103,9 @@ class WFluxanl(MCBSMixin,IterRangeMixin,WESTDataReaderMixin,WESTAnalysisTool):
         
         all_fluxes = self.wfl_group['arrivals']['flux']
         
-        west.rc.pstatus('Calculating flux confidence intervals...')
+        westpa.rc.pstatus('Calculating flux confidence intervals...')
         for iblock, (blk_begin, blk_end) in enumerate(self.iter_block_iter()):
-            west.rc.pstatus('\r  Iterations [{:d},{:d})'.format(blk_begin, blk_end), end='')
+            westpa.rc.pstatus('\r  Iterations [{:d},{:d})'.format(blk_begin, blk_end), end='')
             #print("Averaging over iterations [{:d},{:d}).".format(blk_begin,blk_end))
             block_bounds[iblock] = blk_begin,blk_end-1
             iibegin = blk_begin - self.first_iter
@@ -128,7 +128,7 @@ class WFluxanl(MCBSMixin,IterRangeMixin,WESTDataReaderMixin,WESTAnalysisTool):
                 flux_cis[iblock,itarget]['ci_lower'] = syn_avg_flux[lbi,itarget]
                 flux_cis[iblock,itarget]['ci_upper'] = syn_avg_flux[ubi,itarget]
 
-            west.rc.pflush()
+            westpa.rc.pflush()
         
         self.wfl_group['blocked_fluxes'] = flux_cis
         self.wfl_group['blocked_iter_bounds'] = block_bounds
@@ -136,7 +136,7 @@ class WFluxanl(MCBSMixin,IterRangeMixin,WESTDataReaderMixin,WESTAnalysisTool):
         self.wfl_group['blocked_fluxes'].attrs['mcbs_alpha'] = self.mcbs_alpha
         self.wfl_group['blocked_fluxes'].attrs['mcsb_nsets'] = self.mcbs_nsets
         
-        west.rc.pstatus()
+        westpa.rc.pstatus()
         
     def calc_cumul_flux_cis(self):
         '''Calculate confidence intervals of average flux as a simulation progresses'''
@@ -151,9 +151,9 @@ class WFluxanl(MCBSMixin,IterRangeMixin,WESTDataReaderMixin,WESTAnalysisTool):
         
         all_fluxes = self.wfl_group['arrivals']['flux']
         
-        west.rc.pstatus('Calculating cumulative flux confidence intervals...')
+        westpa.rc.pstatus('Calculating cumulative flux confidence intervals...')
         for iblock, (blk_begin, blk_end) in enumerate(self.iter_block_iter()):
-            west.rc.pstatus('\r  Iterations [{:d},{:d})'.format(blk_begin, blk_end), end='')
+            westpa.rc.pstatus('\r  Iterations [{:d},{:d})'.format(blk_begin, blk_end), end='')
             block_bounds[iblock] = self.first_iter,blk_end-1
             iiend   = blk_end - self.first_iter
             fluxes = all_fluxes[:iiend]
@@ -172,7 +172,7 @@ class WFluxanl(MCBSMixin,IterRangeMixin,WESTDataReaderMixin,WESTAnalysisTool):
                 flux_cis[iblock,itarget]['ci_lower'] = syn_avg_flux[lbi,itarget]
                 flux_cis[iblock,itarget]['ci_upper'] = syn_avg_flux[ubi,itarget]
 
-            west.rc.pflush()
+            westpa.rc.pflush()
         
         self.wfl_group['cumul_fluxes'] = flux_cis
         self.wfl_group['cumul_iter_bounds'] = block_bounds
@@ -180,7 +180,7 @@ class WFluxanl(MCBSMixin,IterRangeMixin,WESTDataReaderMixin,WESTAnalysisTool):
         self.wfl_group['cumul_fluxes'].attrs['mcbs_alpha'] = self.mcbs_alpha
         self.wfl_group['cumul_fluxes'].attrs['mcsb_nsets'] = self.mcbs_nsets
         
-        west.rc.pstatus()
+        westpa.rc.pstatus()
         
         
             
@@ -229,7 +229,7 @@ class WFluxanl(MCBSMixin,IterRangeMixin,WESTDataReaderMixin,WESTAnalysisTool):
 wfl = WFluxanl()
 
 parser = argparse.ArgumentParser('w_fluxanl')
-west.rc.add_args(parser)
+westpa.rc.add_args(parser)
 wfl.add_args(parser)
 
 cgroup = parser.add_argument_group('calculation options')
@@ -251,7 +251,7 @@ ogroup.add_argument('--noheaders', dest='suppress_headers', action='store_true',
                     help='Do not write headers to output files (default: write headers).')
 
 args = parser.parse_args()
-west.rc.process_args(args, config_required=False)
+westpa.rc.process_args(args, config_required=False)
 wfl.process_args(args)
 wfl.tau = args.tau
 wfl.suppress_headers = args.suppress_headers

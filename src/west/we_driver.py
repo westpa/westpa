@@ -7,7 +7,7 @@ from math import ceil
 import random
 from itertools import izip
 
-import west, westpa
+import westpa
 from west import Segment
 
 class ConsistencyError(RuntimeError):
@@ -570,7 +570,7 @@ class WEDriver:
         from west.data_manager import weight_dtype
         EPS = numpy.finfo(weight_dtype).eps                
                 
-        system = system or west.rc.get_system_driver()
+        system = system or westpa.rc.get_system_driver()
         self.new_iteration(initial_states=[], target_states=[],
                            bin_mapper=system.bin_mapper, bin_target_counts=system.bin_target_counts)
         

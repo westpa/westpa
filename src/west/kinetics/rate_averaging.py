@@ -1,6 +1,6 @@
 from __future__ import division,print_function; __metaclass__ = type
 import numpy
-import west
+import westpa
 
 from itertools import izip, izip_longest
 
@@ -20,8 +20,8 @@ def process_iter_chunk(bin_mapper, iter_indices, iter_data=None):
     in iter_data. Otherwise get data from the data_manager directly.
     '''
 
-    data_manager = west.rc.get_data_manager()
-    system = west.rc.get_system_driver()
+    data_manager = westpa.rc.get_data_manager()
+    system = westpa.rc.get_system_driver()
 
     itercount = len(iter_indices)
     nbins = bin_mapper.nbins
@@ -101,9 +101,9 @@ class RateAverager():
 
     def __init__(self, bin_mapper, system=None, data_manager=None, work_manager=None):
         self.bin_mapper = bin_mapper
-        self.data_manager = data_manager or west.rc.get_data_manager()
-        self.system = system or west.rc.get_system_driver()
-        self.work_manager = work_manager or west.rc.get_work_manager()
+        self.data_manager = data_manager or westpa.rc.get_data_manager()
+        self.system = system or westpa.rc.get_system_driver()
+        self.work_manager = work_manager or westpa.rc.get_work_manager()
 
     def extract_data(self, iter_indices):
         '''Extract data from the data_manger and place in dict mirroring the same
@@ -200,9 +200,9 @@ class RateAverager():
 
 if __name__ == '__main__':
     # Tests this file on the west.h5 data in the current (sim root) directory
-    west.rc.read_config()
-    system = west.rc.get_system_driver()
-    data_manager = west.rc.get_data_manager()
+    westpa.rc.read_config()
+    system = westpa.rc.get_system_driver()
+    data_manager = westpa.rc.get_data_manager()
     data_manager.open_backing('r')
     averager = RateAverager(system.bin_mapper)
     averager.calculate()

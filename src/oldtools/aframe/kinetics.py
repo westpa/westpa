@@ -7,9 +7,8 @@ log = logging.getLogger(__name__)
 import re
 import numpy
 import itertools
-from itertools import izip, imap
 
-import west
+import westpa
 from oldtools.aframe import AnalysisMixin
 
 class KineticsAnalysisMixin(AnalysisMixin):
@@ -42,21 +41,21 @@ class KineticsAnalysisMixin(AnalysisMixin):
     def process_args(self, args, upcall = True):
         
         self.dt = args.dt
-        west.rc.pstatus('Assuming input data timestep of {:g}'.format(self.dt))
+        westpa.rc.pstatus('Assuming input data timestep of {:g}'.format(self.dt))
         
         if args.ibins_string:
             self.analysis_initial_bins = self.parse_bin_range(args.ibins_string)
-            west.rc.pstatus('Will calculate kinetics data from transitions beginning in the following bins: {!s}'
+            westpa.rc.pstatus('Will calculate kinetics data from transitions beginning in the following bins: {!s}'
                             .format(sorted(self.analysis_initial_bins)))
         else:
-            west.rc.pstatus('Will calculate kinetics data from transitions beginning in any bin.')
+            westpa.rc.pstatus('Will calculate kinetics data from transitions beginning in any bin.')
             
         if args.fbins_string:
             self.analysis_final_bins   = self.parse_bin_range(args.fbins_string)
-            west.rc.pstatus('Will calculate kinetics data from transitions ending in the following bins: {!s}'
+            westpa.rc.pstatus('Will calculate kinetics data from transitions ending in the following bins: {!s}'
                             .format(sorted(self.analysis_final_bins)))
         else:
-            west.rc.pstatus('Will calculate kinetics data from transitions ending in any bin.')
+            westpa.rc.pstatus('Will calculate kinetics data from transitions ending in any bin.')
 
         if upcall:
             try:

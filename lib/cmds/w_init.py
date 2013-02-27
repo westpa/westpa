@@ -8,7 +8,7 @@ log = logging.getLogger('w_init')
 import work_managers
 from work_managers import make_work_manager
 
-import west
+import westpa
 from west.segment import Segment
 from west.states import BasisState, TargetState, InitialState, pare_basis_initial_states
 
@@ -27,7 +27,7 @@ Target states for (non-equilibrium) steady-state simulations are specified eithe
 by one or more --tstate arguments. If neither --tstates-from nor at least one --tstate argument is provided, then an equilibrium
 simulation (without any sinks) will be performed. 
 ''')
-west.rc.add_args(parser)
+westpa.rc.add_args(parser)
 parser.add_argument('--force', dest='force', action='store_true',
                          help='Overwrite any existing simulation data')
 parser.add_argument('--bstate-file', '--bstates-from', metavar='BSTATE_FILE',
@@ -51,18 +51,18 @@ parser.add_argument('--no-we', '--shotgun', dest='shotgun', action='store_true',
 
 work_managers.environment.add_wm_args(parser)
 args = parser.parse_args()
-west.rc.process_args(args)
+westpa.rc.process_args(args)
 work_managers.environment.process_wm_args(args)
-west.rc.work_manager = work_manager = make_work_manager()
+westpa.rc.work_manager = work_manager = make_work_manager()
 
-system = west.rc.get_system_driver()
-sim_manager = west.rc.get_sim_manager()
-propagator = west.rc.get_propagator()
-data_manager = west.rc.get_data_manager()
+system = westpa.rc.get_system_driver()
+sim_manager = westpa.rc.get_sim_manager()
+propagator = westpa.rc.get_propagator()
+data_manager = westpa.rc.get_data_manager()
 h5file = data_manager.we_h5filename
 
 data_manager.system = system
-we_driver = west.rc.get_we_driver()
+we_driver = westpa.rc.get_we_driver()
 
 with work_manager:
     if work_manager.is_master:    

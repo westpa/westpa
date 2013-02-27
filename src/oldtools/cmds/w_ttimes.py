@@ -1,13 +1,13 @@
 from __future__ import print_function, division; __metaclass__=type
 import argparse, math
 import numpy
-import west, oldtools
+import westpa, oldtools
 
 import logging
 log = logging.getLogger('w_ttimes')
 
 from oldtools.aframe import (WESTAnalysisTool,BinningMixin,WESTDataReaderMixin,IterRangeMixin,MCBSMixin,TransitionAnalysisMixin,
-                              KineticsAnalysisMixin,CommonOutputMixin,BFBinningMixin,BFDataManager,BFTransitionAnalysisMixin)
+                              KineticsAnalysisMixin,CommonOutputMixin,BFDataManager,BFTransitionAnalysisMixin)
 
 ciinfo_dtype = numpy.dtype([('expectation', numpy.float64),
                             ('ci_lower', numpy.float64),
@@ -77,7 +77,7 @@ class WTTimesBase:
                 
     def gen_stats(self):
         self.require_transitions_group()
-        west.rc.pstatus('Analyzing transition statistics...')
+        westpa.rc.pstatus('Analyzing transition statistics...')
 
         dt = self.dt
         n_sets = self.mcbs_nsets
@@ -129,9 +129,9 @@ class WTTimesBase:
                 rates[ibin,fbin]['expectation']     = avg_flux / trans_ibinprobs.mean()
                 
                 for iset in xrange(n_sets):
-                    west.rc.pstatus('\r  {:{w_n_bins}d}->{:<{w_n_bins}d} set {:{w_n_sets}d}/{:<{w_n_sets}d}, set size {:<20d}'\
+                    westpa.rc.pstatus('\r  {:{w_n_bins}d}->{:<{w_n_bins}d} set {:{w_n_sets}d}/{:<{w_n_sets}d}, set size {:<20d}'\
                             .format(ibin,fbin,iset+1,n_sets,dlen, w_n_bins=w_n_bins, w_n_sets=w_n_sets), end='')
-                    west.rc.pflush()
+                    westpa.rc.pflush()
                     indices = numpy.random.randint(dlen, size=(dlen,))
                     #syn_weights   = trans_weights[indices]
                     #syn_durations = trans_durations[indices]
@@ -167,7 +167,7 @@ class WTTimesBase:
                 rates[ibin,fbin]['ci_upper'] = syn_avg_rates[ubi]
                     
                 del trans_weights, trans_durations, trans_ibinprobs, trans_ifbins, trans_fpts
-            west.rc.pstatus()
+            westpa.rc.pstatus()
             del trans_ibin
             
         for (dsname, data) in (('duration', durations), ('fpt', fpts), ('flux', fluxes), ('rate', rates)):
@@ -214,7 +214,7 @@ class WTTimesBase:
                     try:
                         array = self.ttimes_group[dsname]
                     except KeyError:
-                        west.rc.pstatus('{} data not found in {}'.format(title, self.anal_h5name))
+                        westpa.rc.pstatus('{} data not found in {}'.format(title, self.anal_h5name))
                         continue
 
                 self.summarize_ci(filename, array, title, self.mcbs_display_confidence,
@@ -259,11 +259,11 @@ class WTTimesBase:
 
     def main(self):            
         parser = argparse.ArgumentParser('w_ttimes', description=self.description)
-        west.rc.add_args(parser)
+        westpa.rc.add_args(parser)
         self.add_args(parser)
                 
         args = parser.parse_args()
-        west.rc.process_args(args, config_required = False)
+        westpa.rc.process_args(args, config_required = False)
         self.process_args(args)
                         
         self.check_iter_range()
@@ -286,7 +286,7 @@ class WTTimesWE(WTTimesBase,CommonOutputMixin,MCBSMixin,KineticsAnalysisMixin,Tr
             
                 
 
-class WTTimesBF(WTTimesBase,CommonOutputMixin,MCBSMixin,KineticsAnalysisMixin,BFTransitionAnalysisMixin,BFBinningMixin,
+class WTTimesBF(WTTimesBase,CommonOutputMixin,MCBSMixin,KineticsAnalysisMixin,BFTransitionAnalysisMixin,
                  BFDataManager,WESTAnalysisTool):
     description = 'Trace one or more brute force trajectories and report on transition kinetics.'
     default_chunksize = 65536*4
