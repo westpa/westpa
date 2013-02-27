@@ -16,6 +16,7 @@ def calc_chunksize(shape, dtype, max_chunksize=262144):
     along lower dimensions sooner than higher dimensions.'''
         
     chunk_shape = list(shape)
+    dtype = numpy.dtype(dtype)
     for idim in xrange(len(shape)):
         chunk_nbytes = numpy.multiply.reduce(chunk_shape)*dtype.itemsize
         while chunk_shape[idim] > 1 and chunk_nbytes > max_chunksize:
