@@ -4,6 +4,7 @@ import logging
 import math
 from west.data_manager import seg_id_dtype
 from westpa.binning.assign import index_dtype, UNKNOWN_INDEX
+from westpa.binning._assign import assign_and_label #@UnresolvedImport
 from westtools.tool_classes import WESTTool, WESTDataReader, BinMappingComponent
 import numpy, h5py
 from westtools import h5io
@@ -27,53 +28,8 @@ def parse_pcoord_value(pc_str):
         raise ValueError('too many dimensions')
     return arr
 
-
 def default_construct_pcoord(n_iter, iter_group):
     return iter_group['pcoord'][...]
-
-def _assign_and_label(iiter, nsegs, npts, parent_ids, assign, state_map, last_labels, pcoords):
-    assignments = numpy.empty((nsegs[iiter],npts[iiter]), index_dtype)
-    trajlabels = numpy.empty((nsegs[iiter],npts[iiter]), index_dtype)
-    mask = numpy.ones((npts[iiter],), numpy.bool_)
-    
-    for seg_id in xrange(nsegs[iiter]):
-        parent_id = parent_ids[seg_id]
-        assign(pcoords[seg_id], mask, assignments[seg_id])
-        seg_assignments = assignments[seg_id]
-        for ipt in xrange(npts[iiter]):
-            ptlabel = state_map[seg_assignments[ipt]]
-            # horribly broken numba; UNKNOWN_INDEX is 65536 but ptlabel can be -1
-            if ptlabel == UNKNOWN_INDEX or ptlabel == -1: 
-                if ipt == 0:
-                    if parent_id < 0:
-                        # We have started a trajectory in a transition region
-                        trajlabels[seg_id,ipt] = UNKNOWN_INDEX
-                    elif iiter > 0:
-                        # We can inherit the ending point from the previous iteration
-                        trajlabels[seg_id,ipt] = last_labels[parent_id]
-                    else:
-                        # inconsistency; label as unknown, since numba won't raise at the moment
-                        #raise AssertionError('inconsistency in input data: non-initial trajectory at first iteration')
-                        trajlabels[seg_id,ipt] = UNKNOWN_INDEX
-                else:
-                    # We are currently in a transition region, but we care about the last state we visited,
-                    # so inherit that state from the previous point
-                    trajlabels[seg_id,ipt] = trajlabels[seg_id,ipt-1]
-            else:
-                trajlabels[seg_id,ipt] = ptlabel
-            
-    return assignments, trajlabels
-
-try:
-    import numba
-except ImportError:
-    log.info('numba not available')
-else:
-    _assign_and_label = numba.jit(argtypes=[numba.int64, numba.int64[:], numba.int64[:], numba.int64[:], numba.object_,
-                                            numba.uint16[:], numba.uint16[:], numba.object_],
-                                  locals=dict(seg_assignments=numba.uint16[:],
-                                              ))(_assign_and_label)
-    log.info('using numba acceleration')
 
 class WAssign(WESTTool):
     prog='w_assign'
@@ -285,9 +241,9 @@ containing the point (0.1, 0.0).
                 last_labels = numpy.empty((nsegs[iiter],), index_dtype)
                 last_labels[:] = UNKNOWN_INDEX
                      
-            assignments, trajlabels = _assign_and_label(iiter, nsegs, npts, parent_ids,
-                                                        assign, state_map, last_labels,
-                                                        pcoords)   
+            assignments, trajlabels = assign_and_label(nsegs[iiter], npts[iiter], parent_ids,
+                                                       assign, state_map, last_labels,
+                                                       pcoords)   
                 
             last_labels = trajlabels[:,-1].copy()
             assignments_ds[iiter, 0:nsegs[iiter], 0:npts[iiter]] = assignments

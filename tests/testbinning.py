@@ -85,7 +85,9 @@ class TestVoronoiBinMapper:
     @staticmethod
     def distfunc(coordvec, centers):
         if coordvec.ndim < 2:
-            coordvec.shape = (1,coordvec.shape[0])
+            new_coordvec = numpy.empty((1,coordvec.shape[0]), dtype=coord_dtype)
+            new_coordvec[0,:] = coordvec[:]
+            coordvec = new_coordvec 
         distmat = numpy.require(cdist(coordvec, centers), dtype=coord_dtype)
         return distmat[0,:]
         

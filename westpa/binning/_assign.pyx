@@ -20,13 +20,16 @@ internal_bool_dtype = numpy.uint8
 index_dtype = numpy.uint16
 coord_dtype = numpy.float32
 
+from westpa.binning.assign import UNKNOWN_INDEX as _UNKNOWN_INDEX
+cdef index_t UNKNOWN_INDEX = _UNKNOWN_INDEX
+
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cpdef rectilinear_assign(numpy.ndarray[coord_t,ndim=2] coords,
+cpdef rectilinear_assign(coord_t[:,:] coords,
                         numpy.ndarray[bool_t,ndim=1,cast=True] mask,
-                        numpy.ndarray[index_t,ndim=1] output,
+                        index_t[:] output,
                         boundaries,
-                        numpy.ndarray[index_t,ndim=1] boundlens):
+                        index_t[:] boundlens):
 
     '''For bins delimited by sets boundaries on a rectilinear grid (``boundaries``),
     assign coordinates to bins, assuming C ordering of indices within the grid.
@@ -87,9 +90,9 @@ cpdef rectilinear_assign(numpy.ndarray[coord_t,ndim=2] coords,
         
 @cython.boundscheck(False)
 @cython.wraparound(False)    
-cpdef testfunc(numpy.ndarray[coord_t, ndim=2] coords,
-               numpy.ndarray[bool_t, ndim=1, cast=True]  mask,
-               numpy.ndarray[index_t, ndim=1] output):
+cpdef testfunc(coord_t[:,:] coords,
+               numpy.ndarray[bool_t, ndim=1, cast=True] mask,
+               index_t[:] output):
     cdef:
         index_t icoord
     
@@ -106,9 +109,9 @@ cpdef testfunc(numpy.ndarray[coord_t, ndim=2] coords,
 cpdef apply_down(func,
                  args,
                  kwargs,
-                 numpy.ndarray[coord_t, ndim=2] coords,
+                 coord_t[:,:] coords,
                  numpy.ndarray[bool_t, ndim=1, cast=True] mask,
-                 numpy.ndarray[index_t, ndim=1] output):
+                 index_t[:] output):
     '''Apply func(coord, *args, **kwargs) to each input coordinate tuple,
     skipping any for which mask is false and writing results to output.'''
     cdef:
@@ -125,9 +128,9 @@ cpdef apply_down_argmin_across(func,
                                args,
                                kwargs,
                                func_output_len,
-                               numpy.ndarray[coord_t, ndim=2] coords,
+                               coord_t[:,:] coords,
                                numpy.ndarray[bool_t, ndim=1, cast=True] mask,
-                               numpy.ndarray[index_t, ndim=1] output):
+                               index_t[:] output):
     '''Apply func(coord, *args, **kwargs) to each input coordinate tuple,
     skipping any for which mask is false and writing results to output.'''
     cdef:
@@ -160,8 +163,8 @@ cpdef apply_down_argmin_across(func,
 # optimized lookup table routine
 @cython.boundscheck(False)
 @cython.wraparound(False)    
-cpdef output_map(numpy.ndarray[index_t, ndim=1] output,
-                 numpy.ndarray[index_t, ndim=1] omap,
+cpdef output_map(index_t[:] output,
+                 index_t[:] omap,
                  numpy.ndarray[bool_t, ndim=1, cast=True] mask):
     '''For each output for which mask is true, execute output[i] = omap[output[i]]'''
 
@@ -180,3 +183,48 @@ cpdef output_map(numpy.ndarray[index_t, ndim=1] output,
                         raise IndexError('value {} not available in output table'.format(o))
                 output[i] = omap[o]
 
+@cython.boundscheck(False)
+@cython.wraparound(False)    
+cpdef assign_and_label(Py_ssize_t nsegs, 
+                       Py_ssize_t npts,
+                       long[:] parent_ids,
+                       object assign,
+                       index_t[:] state_map,
+                       index_t[:] last_labels,
+                       object pcoords):
+    '''Assign trajectories to bins and last-visted macrostates for each timepoint.'''
+    
+    cdef:
+        Py_ssize_t ipt
+        index_t[:,:] assignments, trajlabels
+        index_t[:] seg_assignments
+        long seg_id, parent_id
+        index_t ptlabel
+    
+    assignments = numpy.empty((nsegs,npts), index_dtype)
+    trajlabels = numpy.empty((nsegs,npts), index_dtype)
+    mask = numpy.ones((npts,), numpy.bool_)
+    
+    for seg_id in range(nsegs):
+        parent_id = parent_ids[seg_id]
+        assign(pcoords[seg_id], mask, assignments[seg_id])
+        seg_assignments = assignments[seg_id]
+        for ipt in range(npts):
+            ptlabel = state_map[seg_assignments[ipt]]
+            if ptlabel == UNKNOWN_INDEX: 
+                if ipt == 0:
+                    if parent_id < 0:
+                        # We have started a trajectory in a transition region
+                        trajlabels[seg_id,ipt] = UNKNOWN_INDEX
+                    else:
+                        # We can inherit the ending point from the previous iteration
+                        # (This should be UNKNOWN_INDEX for the first iteration
+                        trajlabels[seg_id,ipt] = last_labels[parent_id]
+                else:
+                    # We are currently in a transition region, but we care about the last state we visited,
+                    # so inherit that state from the previous point
+                    trajlabels[seg_id,ipt] = trajlabels[seg_id,ipt-1]
+            else:
+                trajlabels[seg_id,ipt] = ptlabel
+            
+    return assignments, trajlabels
