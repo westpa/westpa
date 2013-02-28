@@ -55,7 +55,7 @@ def process_iter_chunk(bin_mapper, iter_indices, iter_data=None):
                 new_init_pcoords = nwgroup['new_init_pcoord']
             else:
                 index = nwgroup['index'][...]
-                weights = nwgroup['weight']
+                weights = index['weight']
                 prev_init_pcoords = nwgroup['prev_init_pcoord'][...]
                 new_init_pcoords = nwgroup['new_init_pcoord'][...]
 
