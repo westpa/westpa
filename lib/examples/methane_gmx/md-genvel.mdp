@@ -33,7 +33,7 @@ nstlist                  = 10
 ; ns algorithm (simple or grid) 
 ns_type                  = simple
 ; Periodic boundary conditions to wrap around box
-pbc                      = xyz
+pbc                      = no
 periodic_molecules       = no
 ; nblist cut-off         
 rlist                    = 1.0
