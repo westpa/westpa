@@ -231,5 +231,5 @@ class MPIWorkManager(MPIWMServer,MPIClient,WorkManager):
             for thread in self.server_threads:
                 comm.send('shutdown', dest = 0, tag = self.announce_tag )
 
-        print( "MPIWMServer.shutdown complete" )
+        log.info( "MPIWMServer.shutdown complete" )
 

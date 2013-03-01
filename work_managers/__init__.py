@@ -40,7 +40,7 @@ except ImportError:
     log.info('MPI work manager not available')
     log.debug('traceback follows', exc_info=True)
 else:
-    _available_work_managers['zmq'] = MPIWorkManager
+    _available_work_managers['mpi'] = MPIWorkManager
 
 import environment    
 from environment import make_work_manager
