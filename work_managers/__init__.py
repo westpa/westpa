@@ -5,18 +5,42 @@ with some simplifications and adaptations (thanks to Brian Quinlan and his
 futures implementation).
 '''
 
+import logging
+log = logging.getLogger(__name__)
+
 from core import WorkManager, WMFuture, FutureWatcher
-import serial, threads, processes, zeromq
- 
+
+
+# Import core work managers, which should run most everywhere that
+# Python does
+import serial, threads, processes
 from serial import SerialWorkManager
 from threads import ThreadsWorkManager
 from processes import ProcessWorkManager
-from zeromq import ZMQWorkManager, ZMQClient, ZMQRouter
 
 _available_work_managers = {'serial': SerialWorkManager,
                             'threads': ThreadsWorkManager,
-                            'processes': ProcessWorkManager,
-                            'zmq': ZMQWorkManager}
+                            'processes': ProcessWorkManager}
+
+# Import ZeroMQ work manager if available
+try:
+    import zeromq
+    from zeromq import ZMQWorkManager, ZMQClient, ZMQRouter
+except ImportError:
+    log.info('ZeroMQ work manager not available')
+    log.debug('traceback follows', exc_info=True)
+else:
+    _available_work_managers['zmq'] = ZMQWorkManager
+
+# Import MPI work manager if available
+try:
+    import mpi
+    from mpi import MPIWorkManager
+except ImportError:
+    log.info('MPI work manager not available')
+    log.debug('traceback follows', exc_info=True)
+else:
+    _available_work_managers['zmq'] = MPIWorkManager
 
 import environment    
 from environment import make_work_manager
