@@ -247,7 +247,8 @@ cpdef object nested_to_flat_matrix(weight_t[:,:,:,:] input):
         for jstate in range(nstates):
             for ibin in range(nbins):
                 for jbin in range(nbins):
-                    _output[istate*nbins+ibin, jstate*nbins+jbin] = input[istate, jstate, ibin, jbin]
+                    #_output[istate*nbins+ibin, jstate*nbins+jbin] = input[istate, jstate, ibin, jbin]
+                    _output[ibin*nstates+istate,jbin*nstates+jstate] = input[istate,jstate,ibin,jbin]
     
     return output
 
@@ -265,10 +266,13 @@ cpdef object nested_to_flat_vector(weight_t[:,:] input):
     
     for istate in range(nstates):
         for ibin in range(nbins):
-            _output[istate*nbins+ibin] = input[istate, ibin]
+            #_output[istate*nbins+ibin] = input[istate, ibin]
+            _output[ibin*nstates+istate] = input[istate,ibin]
             
     return output
 
+@cython.boundscheck(False)
+@cython.wraparound(False)    
 cpdef object flat_to_nested_matrix(Py_ssize_t nstates, Py_ssize_t nbins, weight_t[:,:] input):
     '''Convert flat supermatrix into nested matrix.'''
     
@@ -288,9 +292,12 @@ cpdef object flat_to_nested_matrix(Py_ssize_t nstates, Py_ssize_t nbins, weight_
         for jstate in range(nstates):
             for ibin in range(nbins):
                 for jbin in range(nbins):
-                    _output[istate,jstate,ibin,jbin] = input[istate*nbins+ibin, jstate*nbins+jbin]
+                    #_output[istate,jstate,ibin,jbin] = input[istate*nbins+ibin, jstate*nbins+jbin]
+                    _output[istate,jstate,ibin,jbin] = input[ibin*nstates+istate,jbin*nstates+jstate]
     return output
 
+@cython.boundscheck(False)
+@cython.wraparound(False)    
 cpdef object flat_to_nested_vector(Py_ssize_t nstates, Py_ssize_t nbins, weight_t[:] input):
     '''Convert flat "supervector" into nested vector.'''
     
@@ -306,8 +313,7 @@ cpdef object flat_to_nested_vector(Py_ssize_t nstates, Py_ssize_t nbins, weight_
     
     for istate in xrange(nstates):
         for ibin in xrange(nbins):
-            _output[istate,ibin] = input[istate*nbins+ibin]
+            #_output[istate,ibin] = input[istate*nbins+ibin]
+            _output[istate,ibin] = input[ibin*nstates+istate]
     
     return output
-    
-    

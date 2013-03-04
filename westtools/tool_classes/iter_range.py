@@ -3,6 +3,7 @@ from westtools.tool_classes.core import WESTTool
 import logging
 log = logging.getLogger(__name__)
 import westpa
+from westtools import h5io
 import numpy
 
 class IterRangeSelection(WESTTool):
@@ -115,10 +116,7 @@ class IterRangeSelection(WESTTool):
         iter_start = self.iter_start if iter_start is None else iter_start
         iter_stop  = self.iter_stop if iter_stop is None else iter_stop
         
-        obj_first_iter = h5object.attrs.get('iter_start')
-        obj_last_iter  = h5object.attrs.get('iter_stop')
-        
-        return (obj_first_iter <= iter_start and obj_last_iter >= iter_stop)
+        return h5io.check_iter_range_least(h5object, iter_start, iter_stop)
         
     def check_data_iter_range_equal(self, h5object, iter_start = None, iter_stop = None):
         '''Check that the given HDF5 object contains (as denoted by its ``iter_start``/``iter_stop`` attributes)
@@ -127,11 +125,8 @@ class IterRangeSelection(WESTTool):
         iter_start = self.iter_start if iter_start is None else iter_start
         iter_stop  = self.iter_stop if iter_stop is None else iter_stop
         
-        obj_first_iter = h5object.attrs.get('iter_start')
-        obj_last_iter  = h5object.attrs.get('iter_stop')
-        
-        return (obj_first_iter == iter_start and obj_last_iter == iter_stop)
-    
+        return h5io.check_iter_range_equal(h5object, iter_start, iter_stop)
+            
     def check_data_iter_step_conformant(self, h5object, iter_step = None):
         '''Check that the given HDF5 object contains per-iteration data at an iteration stride suitable for extracting data
         with the given stride (in other words, the given ``iter_step`` is a multiple of the stride with 

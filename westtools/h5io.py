@@ -89,6 +89,10 @@ def get_creator_data(h5group):
         d[attr] = attrs.get(attr)
     return d
 
+
+###
+# Iteration range metadata
+###
 def stamp_iter_range(h5object, start_iter, stop_iter):
     '''Mark that the HDF5 object ``h5object`` (dataset or group) contains data from iterations
     start_iter <= n_iter < stop_iter.'''
@@ -108,7 +112,50 @@ def get_iter_step(h5group):
     '''Read back iteration step (stride) written by ``stamp_iter_step``'''
     return int(h5group.attrs['iter_step'])
 
+def check_iter_range_least(h5object, iter_start, iter_stop):
+    '''Return True if the iteration range [iter_start, iter_stop) is
+    the same as or entirely contained within the iteration range stored
+    on ``h5object``.'''
+    obj_iter_start, obj_iter_stop = get_iter_range(h5object)
+    return (obj_iter_start <= iter_start and obj_iter_stop >= iter_stop)
 
+def check_iter_range_equal(h5object, iter_start, iter_stop):
+    '''Return True if the iteration range [iter_start, iter_stop) is
+    the same as the iteration range stored on ``h5object``.'''
+    obj_iter_start, obj_iter_stop = get_iter_range(h5object)    
+    return (obj_iter_start == iter_start and obj_iter_stop == iter_stop)
+
+def get_iteration_entry(h5object, n_iter):
+    '''Create a slice for data corresponding to iteration ``n_iter`` in ``h5object``.'''
+    obj_iter_start, obj_iter_stop = get_iter_range(h5object)
+    if n_iter < obj_iter_start or n_iter >= obj_iter_stop:
+        raise IndexError('data for iteration {} not available in dataset {!r}'.format(n_iter, h5object))
+    return numpy.index_exp[n_iter-obj_iter_start]
+
+def get_iteration_slice(h5object, iter_start, iter_stop=None, iter_stride=None):
+    '''Create a slice for data corresponding to iterations [iter_start,iter_stop),
+    with stride iter_step, in the given ``h5object``.'''
+    obj_iter_start, obj_iter_stop = get_iter_range(h5object)
+    
+    if iter_stop is None: iter_stop = iter_start+1
+    if iter_stride is None: iter_stride = 1
+    
+    if iter_start < obj_iter_start:
+        raise IndexError('data for iteration {} not available in dataset {!r}'.format(iter_start, h5object))
+    elif iter_start > obj_iter_stop:
+        raise IndexError('data for iteration {} not available in dataset {!r}'.format(iter_stop, h5object))
+    
+    start_index = iter_start - obj_iter_start
+    stop_index = iter_stop - obj_iter_start
+    return numpy.index_exp[start_index:stop_index:iter_stride]    
+
+
+
+        
+    
+###
+# Axis label metadata
+###
 def label_axes(h5object, labels, units=None):
     '''Stamp the given HDF5 object with axis labels. This stores the axis labels
     in an array of strings in an attribute called ``axis_labels`` on the given
