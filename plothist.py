@@ -48,6 +48,7 @@ by passing --plot-output=''.
         self.opmode = None
         self.plotmode = None
         self.plotrange = None
+        self.plottitle = None
         
         # Iteration range for average/evolution
         self.iter_start = None
@@ -67,7 +68,9 @@ by passing --plot-output=''.
         
     def _add_plot_options(self, parser):
         pgroup = parser.add_argument_group('plot options')
-        pmgroup = pgroup.add_mutually_exclusive_group() 
+        pmgroup = pgroup.add_mutually_exclusive_group()
+        pmgroup.add_argument('--title', dest='title',
+                             help='Include TITLE as the top-of-graph title') 
         pmgroup.add_argument('--linear', dest='plotmode', action='store_const', const='linear',
                              help='Plot the PDF on a linear scale.')
         pmgroup.add_argument('--energy', dest='plotmode', action='store_const', const='energy',
@@ -185,6 +188,9 @@ by passing --plot-output=''.
             
         self.hdf5_output_filename = args.hdf5_output
         
+        if args.title:
+            self.plottitle = args.title
+        
         if args.range:
             self.plotrange = self.parse_range(args.range)
         
@@ -291,6 +297,8 @@ by passing --plot-output=''.
                 pyplot.ylim(*self.plotrange)
             pyplot.xlabel(self.dimensions[0]['label'])
             pyplot.ylabel(label)
+            if self.plottitle:
+                pyplot.title(self.plottitle)
             pyplot.savefig(self.plot_output_filename)
 
             
@@ -430,6 +438,8 @@ by passing --plot-output=''.
             pyplot.xlim(self.dimensions[0].get('lb'), self.dimensions[0].get('ub'))
             pyplot.ylabel(self.dimensions[1]['label'])
             pyplot.ylim(self.dimensions[1].get('lb'), self.dimensions[1].get('ub'))
+            if self.plottitle:
+                pyplot.title(self.plottitle)
             pyplot.savefig(self.plot_output_filename)        
         
     def do_evolution_plot(self):
