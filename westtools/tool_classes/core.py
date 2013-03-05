@@ -1,6 +1,7 @@
 from __future__ import print_function, division; __metaclass__ = type
 
 import westpa
+import work_managers
 
 class WESTToolComponent:
     '''Base class for WEST command line tools and components used in constructing tools'''
@@ -23,8 +24,6 @@ class WESTToolComponent:
         with them appropriately (setting instance variables, etc)'''
         pass
 
-        
-    
 
 class WESTTool(WESTToolComponent):
     '''Base class for WEST command line tools'''
@@ -94,4 +93,43 @@ class WESTTool(WESTToolComponent):
         self.go()
     
                 
-        
+class WESTParallelTool(WESTTool):
+    '''Base class for command-line tools parallelized with wwmgr. This automatically adds and processes
+    wwmgr command-line arguments and creates a work manager at self.work_manager.'''
+
+    def __init__(self, wm_env=None):
+        super(WESTTool,self).__init__()
+        self.work_manager = None
+        self.wm_env = wm_env or work_managers.environment.default_env
+
+    def make_parser_and_process(self, prog=None, usage=None, description=None, epilog=None, args=None):
+        '''A convenience function to create a parser, call add_all_args(), and then call process_all_args().
+        The argument namespace is returned. Arguments added/processed include those for the work manager.'''
+        import argparse
+        prog = prog or self.prog
+        usage = usage or self.usage
+        description = description or self.description
+        epilog = epilog or self.epilog
+        parser = argparse.ArgumentParser(prog=prog, usage=usage, description=description, epilog=epilog,
+                                         formatter_class=argparse.RawDescriptionHelpFormatter,
+                                         conflict_handler='resolve')
+        self.add_all_args(parser)
+        self.wm_env.add_wm_args(parser)
+        args = parser.parse_args(args)
+        self.wm_env.process_wm_args(args)
+        self.process_all_args(args)
+        return args
+    
+    def go(self):
+        '''Perform the analysis associated with this tool.'''
+        raise NotImplementedError
+    
+    def main(self):
+        '''A convenience function to make a parser, parse and process arguments, then run self.go() in the master process.'''
+        self.make_parser_and_process()
+        self.work_manager = self.wm_env.make_work_manager()
+        with self.work_manager:
+            if self.work_manager.is_master:
+                self.go()
+            else:
+                self.work_manager.run()

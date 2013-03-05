@@ -1,4 +1,4 @@
-from core import WESTTool
+from core import WESTTool, WESTParallelTool
 from hdf5_storage import HDF5Storage
 from data_reader import WESTDataReader
 from stats import UsesMCBS
