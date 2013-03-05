@@ -12,7 +12,7 @@ import _kinetics
 from _kinetics import (accumulate_labeled_populations, calculate_labeled_fluxes, #@UnresolvedImport
                        calculate_labeled_fluxes_alllags, #@UnresolvedImport
                        nested_to_flat_matrix, nested_to_flat_vector, #@UnresolvedImport
-                       flat_to_nested_matrix, flat_to_nested_vector) #@UnresolvedImport
+                       flat_to_nested_matrix, flat_to_nested_vector, find_macrostate_transitions) #@UnresolvedImport
 
 """
 Internally, "labeled" objects (bin populations labeled by history, rate matrix elements labeled

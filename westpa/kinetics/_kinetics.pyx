@@ -1,3 +1,4 @@
+# cython: profile=False
 from __future__ import print_function,division
 import cython
 import numpy
@@ -317,3 +318,118 @@ cpdef object flat_to_nested_vector(Py_ssize_t nstates, Py_ssize_t nbins, weight_
             _output[istate,ibin] = input[ibin*nstates+istate]
     
     return output
+
+"""
+In the following ``state`` is a 4-tuple of the following arrays of doubles:
+last_time[nsegs]
+last_entries[nsegs,nstates]
+last_exits[nsegs,nstates]
+last_completions[nsegs,nstates]
+
+
+It is intended to be opaque the the calling routines
+"""
+
+@cython.boundscheck(False)
+@cython.wraparound(False)    
+cpdef _fast_transition_state_copy(Py_ssize_t iiter,
+                                  Py_ssize_t nstates, 
+                                  seg_id_t[:] parent_ids,
+                                  object last_state):
+    cdef:
+        bint has_last_state = 0
+        Py_ssize_t nsegs, seg_id, parent_id
+        double[:] _last_time, _prev_last_time
+        double[:,:] _last_entries, _last_exits, _prev_last_entries, _prev_last_exits
+        double[:,:,:] _last_completions, _prev_last_completions
+        
+    
+    nsegs = parent_ids.shape[0]
+    
+    last_time = numpy.empty((nsegs,), numpy.double)
+    last_entries = numpy.empty((nsegs,nstates), numpy.double)
+    last_exits = numpy.empty((nsegs,nstates), numpy.double)
+    last_completions = numpy.empty((nsegs,nstates,nstates), numpy.double)
+    
+    _last_time = last_time
+    _last_entries = last_entries
+    _last_exits = last_exits
+    _last_completions = last_completions
+    
+    has_last_state = (last_state is not None)
+    
+    if has_last_state:
+        _prev_last_time = last_state[0]
+        _prev_last_entries = last_state[1]
+        _prev_last_exits = last_state[2]
+        _prev_last_completions = last_state[3]
+    
+    for seg_id in xrange(nsegs):
+        parent_id = parent_ids[seg_id]
+                
+        if not has_last_state or parent_id < 0:
+            _last_time[seg_id] = 0.0
+            _last_entries[seg_id,:] = 0.0
+            _last_exits[seg_id,:] = 0.0
+            _last_completions[seg_id,:,:] = 0.0
+        else:
+            _last_time[seg_id] = _prev_last_time[parent_id]
+            _last_entries[seg_id,:] = _prev_last_entries[parent_id,:]
+            _last_exits[seg_id,:] = _prev_last_exits[parent_id,:]
+            _last_completions[seg_id,:,:] = _prev_last_completions[parent_id,:,:]
+            
+    return (last_time, last_entries, last_exits, last_completions)
+
+
+@cython.boundscheck(False)
+@cython.wraparound(False)    
+cpdef find_macrostate_transitions(Py_ssize_t nstates, 
+                                  weight_t[:] weights,
+                                  index_t[:,:] label_assignments, 
+                                  double dt, 
+                                  object state,
+                                  weight_t[:,:] macro_fluxes, 
+                                  object durations):
+    cdef:
+        Py_ssize_t nsegs, npts, seg_id, ipt
+        double itime, tm, t_ed
+        double[:] _last_time
+        double[:,:] _last_entries, _last_exits
+        double[:,:,:] _last_completions
+        index_t flabel, ilabel, iistate
+        weight_t _weight
+        
+
+    nsegs = label_assignments.shape[0]
+    npts = label_assignments.shape[1]
+    
+    _last_time = state[0]
+    _last_entries = state[1]
+    _last_exits = state[2]
+    _last_completions = state[3]
+    
+    for seg_id in xrange(nsegs):
+        itime = _last_time[seg_id]
+        _weight = weights[seg_id]
+
+        # transitions never occur between the (overlapping) end point of previous iteration and beginning of
+        # current iteration, so it suffices to start looking at timepoint 1 (and backwards to timepoint 0)
+        for ipt in range(1,npts):
+            tm = itime + ipt*dt
+            flabel = label_assignments[seg_id,ipt]
+            ilabel = label_assignments[seg_id,ipt-1]
+            
+            # if we have wound up in a new kinetic macrostate
+            if flabel != ilabel:
+                for iistate in xrange(nstates):
+                    if iistate != flabel:
+                        macro_fluxes[iistate,flabel] += _weight
+                        t_ed = tm - _last_exits[seg_id,iistate]
+                        durations.append((iistate,flabel,t_ed,_weight))
+                    _last_completions[seg_id,iistate,flabel] = tm
+                _last_exits[seg_id,ilabel] = tm
+                _last_entries[seg_id,flabel] = tm
+        
+        _last_time[seg_id] = tm
+        
+
