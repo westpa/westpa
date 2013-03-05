@@ -26,19 +26,19 @@ class ZMQWorkManager(ZMQServer,WorkManager):
         if wmenv is None:
             wmenv = work_managers.environment.default_env 
 
-        wm_group = parser.add_argument_group('options for ZeroMQ ("zmq") work manager or router')
+        wm_group = parser.add_argument_group('options for ZeroMQ ("zmq") work manager (server or client)')
         wm_group.add_argument(wmenv.arg_flag('zmq_mode'), metavar='MODE', choices=('server', 'client'),
                               help='Operate as a server (MODE=server) or a client (MODE=client).')
         wm_group.add_argument(wmenv.arg_flag('zmq_info'), metavar='INFO_FILE',
-                              help='Store server information in INFO_FILE. (specify for server or routers only)'
+                              help='Store (server) or read (client) endpoint information in INFO_FILE. '
                                    'This is helpful if running server and clients or routers on multiple '
                                    'machines which share a filesystem, as explicit hostnames/ports are not required')
         wm_group.add_argument(wmenv.arg_flag('zmq_task_endpoint'), metavar='TASK_ENDPOINT',
-                              help='''Bind server to given ZeroMQ endpoint to distribute tasks downstream (specify for servers or routers only).''')
+                              help='''Bind (server) or connect (client) to this endpoint for task distribution''')
         wm_group.add_argument(wmenv.arg_flag('zmq_result_endpoint'), metavar='RESULT_ENDPOINT',
-                              help='''Bind server to given ZeroMQ endpoint to receive results from downstream (specify for servers or routers only).''')
+                              help='''Bind (server) or connect (client) to this endpoint for result distribution''')
         wm_group.add_argument(wmenv.arg_flag('zmq_announce_endpoint'), metavar='ANNOUNCE_ENDPOINT',
-                              help='''Bind server to given ZeroMQ endpoint to send anouncements downstream (specify for servers or routers only).''')
+                              help='''Bind (server) or connect (client) to this endpoint to send/receive server announcements''')
         wm_group.add_argument(wmenv.arg_flag('zmq_heartbeat_interval'), metavar='INTERVAL',
                               help='''If a client or router has not
                                       heard from the server in approximately INTERVAL seconds, the client will

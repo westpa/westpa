@@ -188,31 +188,30 @@ class ZMQRouter(ZMQBase):
 
         wm_group = parser.add_argument_group('options for ZeroMQ ("zmq") router')
         wm_group.add_argument(wmenv.arg_flag('zmq_read_info'), metavar='UPSTREAM_INFO_FILE',
-                              help='Specify info file location to obtain upstream endpoints for'
-                                   'this router to connect to the server.'
+                              help='Read upstream endpoints from UPSTREAM_INFO_FILE for this router to connect to. '
                                    'This is helpful if running server and clients and routers on multiple '
                                    'machines which share a filesystem, as explicit hostnames/ports are not required')
         wm_group.add_argument(wmenv.arg_flag('zmq_write_info'), metavar='DOWNSTREAM_INFO_FILE',
-                              help='Specify info file location to store this router\'s downstream endpoints for'
-                                   'clients to connect to.'
+                              help='Store this router\'s downstream endpoints in DOWNSTREAM_INFO_FILE '
+                                   'for downstream clients to connect to. '
                                    'This is helpful if running server and clients and routers on multiple '
                                    'machines which share a filesystem, as explicit hostnames/ports are not required')
         wm_group.add_argument(wmenv.arg_flag('zmq_upstream_task_endpoint'), metavar='UPSTREAM_TASK_ENDPOINT',
-                              help='''Use the given ZeroMQ endpoint to connect upstream to server for task distribution.''')
+                              help='''Use the given ZeroMQ endpoint to connect upstream for task distribution''')
         wm_group.add_argument(wmenv.arg_flag('zmq_upstream_result_endpoint'), metavar='UPSTREAM_RESULT_ENDPOINT',
-                              help='''Use the given ZeroMQ endpoint to connect upstream to server for result collection.''')
+                              help='''Use the given ZeroMQ endpoint to send results upstream''')
         wm_group.add_argument(wmenv.arg_flag('zmq_upstream_announce_endpoint'), metavar='UPSTREAM_ANNOUNCE_ENDPOINT',
-                              help='''Use the given ZeroMQ endpoint to connect upstream to server to receive announcements.''')
+                              help='''Use the given ZeroMQ endpoint to connect upstream to receive announcements''')
         wm_group.add_argument(wmenv.arg_flag('zmq_downstream_task_endpoint'), metavar='DOWNSTREAM_TASK_ENDPOINT',
-                              help='''Use the given ZeroMQ endpoint to connect downstream to clients fto distribute tasks.''')
+                              help='''Use the given ZeroMQ endpoint for downstream task distribution''')
         wm_group.add_argument(wmenv.arg_flag('zmq_downstream_result_endpoint'), metavar='DOWNSTREAM_RESULT_ENDPOINT',
-                              help='''Use the given ZeroMQ endpoint to connect downstream to clients to collect results.''')
+                              help='''Use the given ZeroMQ endpoint for downstream result collection''')
         wm_group.add_argument(wmenv.arg_flag('zmq_downstream_announce_endpoint'), metavar='DOWNSTREAM_ANNOUNCE_ENDPOINT',
-                              help='''Use the given ZeroMQ endpoint to connect downstream to clients to send announcements.''')
+                              help='''Use the given ZeroMQ endpoint to send announcements downstream''')
         wm_group.add_argument(wmenv.arg_flag('zmq_heartbeat_interval'), metavar='INTERVAL',
                               help='''If router has not
                                       heard from the server in approximately INTERVAL seconds, the router will
-                                      assume the server has crashed and shut down itself and its clients. 
+                                      assume the server has crashed and shut down itself and any downstream connections. 
                                       (Default: {} seconds.)'''.format(DEFAULT_SERVER_HEARTBEAT_INTERVAL))
 
 
