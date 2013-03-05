@@ -89,6 +89,9 @@ class Trace:
         first_iter = n_iter + 1
         first_seg_id = seg_id
         first_parent_id = parent_id
+
+        # Initial segment (for fetching initial state)
+        first_segment = Segment(n_iter=first_iter, seg_id=first_seg_id, parent_id=first_parent_id)
         
         seginfo.reverse()
         
@@ -103,7 +106,7 @@ class Trace:
         summary = numpy.array(seginfo, dtype=summary_dtype)
         
         try:
-            initial_state = data_manager.get_segment_initial_states([first_seg_id], first_iter)[0]
+            initial_state = data_manager.get_segment_initial_states([first_segment], first_iter)[0]
         except KeyError:
             # old HDF5 version
             assert parent_id < 0
