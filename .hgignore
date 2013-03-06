@@ -11,6 +11,8 @@ syntax: glob
 lib/examples/*/west.h5
 lib/examples/*/west.log
 lib/examples/methane_gmx/istates
+lib/examples/methane_gmx/traj_segs
+lib/examples/methane_gmx/seg_logs
 
 syntax: regexp
 \.[0-9]+$
