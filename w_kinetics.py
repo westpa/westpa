@@ -39,6 +39,7 @@ is required (see "w_assign --help" for information on generating this file).
         self.output_file = None
         self.assignments_file = None
         self.window_size = None
+        self.all_lags = False
     
     def add_args(self, parser):
         self.data_reader.add_args(parser)
@@ -52,7 +53,8 @@ is required (see "w_assign --help" for information on generating this file).
         parser.add_argument('-w', '--windowsize', type=int, default=1,
                             help='''Estimate kinetics over a maximum of WINDOWSIZE iterations.
                             (Default: %(default)s).''')
-
+        parser.add_argument('--all-lags', action='store_true', default=False,
+                            help='Use all possible lags within window of WINDOWSIZE')
         
     def process_args(self, args):
         self.assignments_file = h5io.WESTPAH5File(args.assignments, 'r')
@@ -64,6 +66,7 @@ is required (see "w_assign --help" for information on generating this file).
         self.window_size = args.windowsize
         if not self.iter_range.check_data_iter_range_least(self.assignments_file):
             raise ValueError('assignments do not span the requested iterations')
+        self.all_lags = bool(args.all_lags)
         
     #def calc_rate_matrices(self):
     def go(self):
@@ -82,7 +85,6 @@ is required (see "w_assign --help" for information on generating this file).
         labeled_vector_shape = (iter_count,nstates,nbins)
         labeled_matrix_shape = (iter_count,nstates,nstates,nbins,nbins)
         
-        bin_pops_ds = self.output_file.create_dataset('bin_pops', shape=(iter_count,nbins), dtype=weight_dtype)
         labeled_bin_pops_ds = self.output_file.create_dataset('labeled_bin_pops',
                                                               shape=labeled_vector_shape,
                                                               chunks=h5io.calc_chunksize(labeled_vector_shape, weight_dtype),
@@ -93,11 +95,6 @@ is required (see "w_assign --help" for information on generating this file).
                                                                 chunks=h5io.calc_chunksize(labeled_matrix_shape, weight_dtype),
                                                                 compression=9,
                                                                 dtype=weight_dtype)
-        labeled_bin_rates_ds = self.output_file.create_dataset('labeled_bin_rates',
-                                                               shape=labeled_matrix_shape,
-                                                               chunks=h5io.calc_chunksize(labeled_matrix_shape, weight_dtype),
-                                                               compression=9,
-                                                               dtype=weight_dtype)
 
         durations_ds = self.output_file.create_dataset('durations', 
                                                        shape=(iter_count,0), maxshape=(iter_count,None),
@@ -113,13 +110,12 @@ is required (see "w_assign --help" for information on generating this file).
                                                           compression=9)
 
         
-        for ds in (self.output_file, bin_pops_ds,labeled_bin_pops_ds,labeled_bin_fluxes_ds,labeled_bin_rates_ds,
+        for ds in (self.output_file, labeled_bin_pops_ds,labeled_bin_fluxes_ds,
                    durations_count_ds, trace_fluxes_ds):
             h5io.stamp_iter_range(ds, start_iter, stop_iter)
             
-        h5io.label_axes(bin_pops_ds, ['iteration', 'bin'])
         h5io.label_axes(labeled_bin_pops_ds, ['iteration','state','bin'])
-        for ds in (labeled_bin_fluxes_ds,labeled_bin_rates_ds):
+        for ds in (labeled_bin_fluxes_ds,):
             h5io.label_axes(ds, ['iteration','initial state','final state','inital bin','final bin'])
 
         # Calculate instantaneous rate matrices and trace trajectories
@@ -151,19 +147,18 @@ is required (see "w_assign --help" for information on generating this file).
             
             # Estimate rates using bin-to-bin fluxes
             rateest = estimate_rates(nbins, state_labels,
-                                     weights_ring, parent_ids_ring, bin_assignments_ring, label_assignments_ring, state_map)
+                                     weights_ring, parent_ids_ring, bin_assignments_ring, label_assignments_ring, state_map,
+                                     self.all_lags)
 
             # Estimate macrostate fluxes and calculate event durations using trajectory tracing
             # state is opaque to the find_macrostate_transitions function            
             state = _fast_transition_state_copy(iiter, nstates, parent_ids, last_state)
-            find_macrostate_transitions(nstates, weights, label_assignments, 1.0, state, macro_fluxes, durations)
+            find_macrostate_transitions(nstates, weights, label_assignments, 1.0/(npts-1), state, macro_fluxes, durations)
             last_state = state
             
             # Store bin-based kinetics data
-            bin_pops_ds[iiter] = rateest.bin_pops
             labeled_bin_pops_ds[iiter] = rateest.labeled_bin_pops
             labeled_bin_fluxes_ds[iiter] = rateest.labeled_bin_fluxes
-            labeled_bin_rates_ds[iiter] = rateest.labeled_bin_rates
             
             # Store trace-based kinetics data
             trace_fluxes_ds[iiter] = macro_fluxes

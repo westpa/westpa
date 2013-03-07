@@ -156,11 +156,15 @@ files).
         # Draw bootstrap data
         print('Drawing bootstrap data')
         futures = []
-        for iset in xrange(self.mcbs_nsets):            
+        for iset in xrange(self.mcbs_nsets):
+            if sys.stdout.isatty() and not westpa.rc.quiet_mode:
+                print('\rSet {}'.format(iset+1),end='')
+                sys.stdout.flush()
+
             indices = numpy.random.randint(nslices, size=(nslices,))
-            synth_tmfluxes[iset] = sliced_tmfluxes[indices,...].mean(axis=0)
-            synth_avgpops = sliced_lpops[indices,...].mean(axis=0)
-            synth_avgflux = sliced_lfluxes[indices,...].mean(axis=0)
+            synth_tmfluxes[iset] = numpy.take(sliced_tmfluxes, indices, axis=0).mean(axis=0)
+            synth_avgpops = numpy.take(sliced_lpops, indices, axis=0).mean(axis=0)
+            synth_avgflux = numpy.take(sliced_lfluxes, indices, axis=0).mean(axis=0)
             synth_avgrates = labeled_flux_to_rate(synth_avgflux, synth_avgpops)
             
             # Dispatch elsewhere because this takes a while
@@ -175,8 +179,10 @@ files).
                     synth_tmfluxes[iset,istate] = 0
             
             del synth_avgpops, synth_avgflux, synth_avgrates, indices, traj_pops
+        print()
 
-        nrecvd = 0        
+        nrecvd = 0
+        print('Waiting on eigenvalues')        
         for future in self.work_manager.as_completed(futures):
             nrecvd += 1
             if sys.stdout.isatty() and not westpa.rc.quiet_mode:
