@@ -38,7 +38,6 @@ cpdef flux_assign(numpy.ndarray[weight_t, ndim=1] weights,
 cpdef accumulate_labeled_populations(weight_t[:]  weights,
                                      index_t[:,:] bin_assignments,
                                      index_t[:,:] label_assignments,
-                                     weight_t[:]  bin_pops,
                                      weight_t[:,:] labeled_bin_pops):
     '''For a set of segments in one iteration, calculate the average population in each bin, with and without
     separation by last-visited macrostate.'''
@@ -60,10 +59,12 @@ cpdef accumulate_labeled_populations(weight_t[:]  weights,
                     with gil:
                         raise ValueError('invalid bin assignment for segment {} point {}'.format(seg_id, ipt))
                 else:
-                    bin_pops[assignment] += ptwt
                     traj_assignment = label_assignments[seg_id,ipt]
                     if traj_assignment != UNKNOWN_INDEX:
                         labeled_bin_pops[traj_assignment,assignment] += ptwt
+                    else:
+                        with gil:
+                            raise ValueError('invalid trajectory label for segment {} point {}'.format(seg_id, ipt))
 
 @cython.boundscheck(False)
 @cython.wraparound(False)    
@@ -160,14 +161,13 @@ cpdef weight_t calculate_labeled_fluxes_alllags(Py_ssize_t nstates,
                     current_id = parent_id
                     parent_id = parent_ids[iiter][current_id]
                 
-                assert iiter == 0 or parent_id < 0
-                assert 0 <= iiter < niters
-                assert current_id >= 0
+                #assert iiter == firstiter or parent_id < 0
+                #assert 0 <= iiter < niters
+                #assert current_id >= 0
                 
                 ibin = micro_assignments[iiter][current_id][0]
                 ilabel = traj_assignments[iiter][current_id][0]
-                                
-                #fluxes[ilabel*nstates+ibin,flabel*nstates+fbin] += weight
+
                 fluxes[ilabel,flabel,ibin,fbin] += weight
                 twindow += weight*windowlen
     return twindow
@@ -318,6 +318,38 @@ cpdef object flat_to_nested_vector(Py_ssize_t nstates, Py_ssize_t nbins, weight_
             _output[istate,ibin] = input[ibin*nstates+istate]
     
     return output
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+@cython.cdivision(True)
+def labeled_flux_to_rate(weight_t[:,:,:,:] labeled_fluxes, weight_t[:,:] labeled_pops):
+    '''Convert a labeled flux matrix and corresponding labeled bin populations to
+    a labeled rate matrix.'''
+    
+    cdef:
+        Py_ssize_t istate, jstate, ibin, jbin, nstates, nbins
+        weight_t[:,:,:,:] _rates
+    
+    nstates = labeled_pops.shape[0]
+    nbins = labeled_pops.shape[1]
+    rates = numpy.empty_like(labeled_fluxes)
+    _rates = rates
+    
+    with nogil:
+        for istate in xrange(nstates):
+            for jstate in xrange(nstates):
+                for ibin in xrange(nbins):
+                    for jbin in xrange(nbins):
+                        if labeled_pops[istate,ibin] == 0.0:
+                            if labeled_fluxes[istate,jstate,ibin,jbin] > 0.0:
+                                with gil:
+                                    raise ValueError('flux matrix nonzero but population zero')
+                            else:
+                                _rates[istate,jstate,ibin,jbin] = 0.0
+                        else:
+                            _rates[istate,jstate,ibin,jbin] = labeled_fluxes[istate,jstate,ibin,jbin] / labeled_pops[istate,ibin]
+    return rates
+
 
 """
 In the following ``state`` is a 4-tuple of the following arrays of doubles:

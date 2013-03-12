@@ -233,9 +233,6 @@ containing the point (0.1, 0.0).
             
             assert pcoords.shape[0] == nsegs[iiter]
             assert pcoords.shape[1] == npts[iiter]
-            #assignments = numpy.empty((nsegs[iiter],npts[iiter]), index_dtype)
-            #trajlabels = numpy.empty((nsegs[iiter],npts[iiter]), index_dtype)
-            #mask = numpy.ones((npts[iiter],), numpy.bool_)
             
             if iiter == 0:
                 last_labels = numpy.empty((nsegs[iiter],), index_dtype)

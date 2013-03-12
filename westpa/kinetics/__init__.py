@@ -9,7 +9,7 @@ log = logging.getLogger(__name__)
 from rate_averaging import RateAverager
 
 import _kinetics
-from _kinetics import (accumulate_labeled_populations, calculate_labeled_fluxes, #@UnresolvedImport
+from _kinetics import (accumulate_labeled_populations, calculate_labeled_fluxes, labeled_flux_to_rate, #@UnresolvedImport
                        calculate_labeled_fluxes_alllags, #@UnresolvedImport
                        nested_to_flat_matrix, nested_to_flat_vector, #@UnresolvedImport
                        flat_to_nested_matrix, flat_to_nested_vector, find_macrostate_transitions) #@UnresolvedImport
@@ -45,44 +45,24 @@ def get_steady_state(rates):
         if rowsum > 0:
             rates[i] = rates[i] / rowsum
         else:
-            rates[i] = 0
-    
-    # Decide if we can even get eigenvectors
-    # row all zeros but corresponding column all zeros is not stable
-    # (idea due to Steve Letteri's original C++ red/blue implementation)    
-    for i in xrange(rates.shape[0]):
-        if rates[i,:].sum() == 0:
             if rates[:,i].sum() != 0:
+                # matrix not stable -- internal sink
                 return None
-
-    try:            
-        _, vecs = scipy.sparse.linalg.eigs(rates.T, k=1, which='LM', maxiter=5000)
-    except scipy.sparse.linalg.eigen.arpack.ArpackNoConvergence as e:
+            else:
+                rates[i] = 0
+                    
+    try:
+        vals, vecs = scipy.linalg.eig(rates.T)
+    except Exception as e:
         return None
-        
-    ss = numpy.abs(vecs[:,0])
+    
+    vals = numpy.abs(vals)
+    asort = numpy.argsort(vals)
+    vec = vecs[:,asort[-1]]    
+    ss = numpy.abs(vec)
+    
     ss /= ss.sum()
     return ss
-
-def labeled_flux_to_rate(labeled_fluxes, labeled_pops):
-    '''Convert a labeled flux matrix and corresponding labeled bin populations to
-    a labeled rate matrix.'''
-    
-    nstates, nbins = labeled_pops.shape
-    rates = numpy.empty_like(labeled_fluxes)
-    
-    for istate in xrange(nstates):
-        for jstate in xrange(nstates):
-            for ibin in xrange(nbins):
-                for jbin in xrange(nbins):
-                    if labeled_pops[istate,ibin] == 0.0:
-                        if labeled_fluxes[istate,jstate,ibin,jbin] > 0.0:
-                            raise ValueError('flux matrix nonzero but population zero')
-                        else:
-                            rates[istate,jstate,ibin,jbin] = 0.0
-                    else:
-                        rates[istate,jstate,ibin,jbin] = labeled_fluxes[istate,jstate,ibin,jbin] / labeled_pops[istate,ibin]
-    return rates
 
 def get_macrostate_rates(labeled_rates, labeled_pops):
     '''Using a labeled rate matrix and labeled bin populations, calculate the steady state
@@ -98,7 +78,7 @@ def get_macrostate_rates(labeled_rates, labeled_pops):
     # Find steady-state solution
     ss = get_steady_state(rates)
     if ss is None:
-        #log.warning('no well-defined steady state; using average populations')
+        log.warning('no well-defined steady state; using average populations')
         ss = nested_to_flat_vector(labeled_pops)
     macro_rates = numpy.zeros((nstates,nstates), weight_dtype)
     
@@ -121,7 +101,7 @@ def get_macrostate_rates(labeled_rates, labeled_pops):
 
     return flat_to_nested_vector(nstates, nbins, ss), macro_rates
 
-_rate_result = namedtuple('_rate_result', ('bin_pops','labeled_bin_pops','labeled_bin_fluxes', 'labeled_bin_rates'))
+_rate_result = namedtuple('_rate_result', ('labeled_bin_pops','labeled_bin_fluxes'))
 
 def estimate_rates(nbins, state_labels, weights, parent_ids, bin_assignments, label_assignments, state_map,
                    all_lags=False):
@@ -135,14 +115,11 @@ def estimate_rates(nbins, state_labels, weights, parent_ids, bin_assignments, la
     nstates = len(state_labels)
         
     # Estimate microstate and trajectory populations over entire window
-    bin_pops = numpy.zeros((nbins,), weight_dtype)
     labeled_bin_pops = numpy.zeros((nstates,nbins), weight_dtype)
     
     for iiter in xrange(niters):
-        accumulate_labeled_populations(weights[iiter], bin_assignments[iiter], label_assignments[iiter], bin_pops,
-                                       labeled_bin_pops)
+        accumulate_labeled_populations(weights[iiter], bin_assignments[iiter], label_assignments[iiter], labeled_bin_pops)
     
-    bin_pops /= niters
     labeled_bin_pops /= niters 
         
     # Loop over all possible windows to accumulate flux matrix
@@ -153,7 +130,6 @@ def estimate_rates(nbins, state_labels, weights, parent_ids, bin_assignments, la
     else:
         twindow = calculate_labeled_fluxes(nstates, weights, parent_ids, bin_assignments, label_assignments, fluxes)
     fluxes /= twindow
-    
-    rates = labeled_flux_to_rate(fluxes, labeled_bin_pops)    
-    return _rate_result(bin_pops, labeled_bin_pops, fluxes, rates)
+        
+    return _rate_result(labeled_bin_pops, fluxes)
 
