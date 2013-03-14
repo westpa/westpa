@@ -1,1 +1,1 @@
-import testbinning, test_we_driver
+import test_we_driver
