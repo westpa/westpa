@@ -514,6 +514,8 @@ by passing --plot-output=''.
             cb.set_label(label)
             pyplot.xlabel(self.dimensions[0]['label'])
             pyplot.xlim(self.dimensions[0].get('lb'), self.dimensions[0].get('ub'))
+            if self.plottitle:
+                pyplot.title(self.plottitle)
             pyplot.savefig(self.plot_output_filename)
         
     
