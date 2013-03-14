@@ -69,7 +69,7 @@ by passing --plot-output=''.
     def _add_plot_options(self, parser):
         pgroup = parser.add_argument_group('plot options')
         pmgroup = pgroup.add_mutually_exclusive_group()
-        pmgroup.add_argument('--title', dest='title',
+        pgroup.add_argument('--title', dest='title',
                              help='Include TITLE as the top-of-graph title') 
         pmgroup.add_argument('--linear', dest='plotmode', action='store_const', const='linear',
                              help='Plot the PDF on a linear scale.')
