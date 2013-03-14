@@ -119,6 +119,9 @@ containing the point (0.1, 0.0).
             self.parse_cmdline_states(args.states)
         elif args.states_from_file:
             self.load_state_file(args.states_from_file)
+            
+        if self.states and len(self.states) < 2:
+            raise ValueError('zero, two, or more macrostates are required')
 
         self.output_file = WESTPAH5File(args.output, 'w', creating_program=True)
         log.debug('state list: {!r}'.format(self.states))
@@ -172,6 +175,7 @@ containing the point (0.1, 0.0).
         nbins = self.binning.mapper.nbins
         self.output_file.attrs['nbins'] = nbins 
         
+        state_map = None
         if self.states:
             state_map = numpy.empty((self.binning.mapper.nbins,), index_dtype)
             state_map[:] = UNKNOWN_INDEX

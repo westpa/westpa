@@ -209,22 +209,23 @@ cpdef assign_and_label(Py_ssize_t nsegs,
         parent_id = parent_ids[seg_id]
         assign(pcoords[seg_id], mask, assignments[seg_id])
         seg_assignments = assignments[seg_id]
-        for ipt in range(npts):
-            ptlabel = state_map[seg_assignments[ipt]]
-            if ptlabel == UNKNOWN_INDEX: 
-                if ipt == 0:
-                    if parent_id < 0:
-                        # We have started a trajectory in a transition region
-                        trajlabels[seg_id,ipt] = UNKNOWN_INDEX
+        if state_map is not None:
+            for ipt in range(npts):
+                ptlabel = state_map[seg_assignments[ipt]]
+                if ptlabel == UNKNOWN_INDEX: 
+                    if ipt == 0:
+                        if parent_id < 0:
+                            # We have started a trajectory in a transition region
+                            trajlabels[seg_id,ipt] = UNKNOWN_INDEX
+                        else:
+                            # We can inherit the ending point from the previous iteration
+                            # (This should be UNKNOWN_INDEX for the first iteration
+                            trajlabels[seg_id,ipt] = last_labels[parent_id]
                     else:
-                        # We can inherit the ending point from the previous iteration
-                        # (This should be UNKNOWN_INDEX for the first iteration
-                        trajlabels[seg_id,ipt] = last_labels[parent_id]
+                        # We are currently in a transition region, but we care about the last state we visited,
+                        # so inherit that state from the previous point
+                        trajlabels[seg_id,ipt] = trajlabels[seg_id,ipt-1]
                 else:
-                    # We are currently in a transition region, but we care about the last state we visited,
-                    # so inherit that state from the previous point
-                    trajlabels[seg_id,ipt] = trajlabels[seg_id,ipt-1]
-            else:
-                trajlabels[seg_id,ipt] = ptlabel
+                    trajlabels[seg_id,ipt] = ptlabel
             
     return assignments, trajlabels
