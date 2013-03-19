@@ -5,7 +5,7 @@ import math
 from west.data_manager import seg_id_dtype
 from westpa.binning.assign import index_dtype, UNKNOWN_INDEX
 from westpa.binning._assign import assign_and_label #@UnresolvedImport
-from westtools.tool_classes import WESTTool, WESTDataReader, BinMappingComponent
+from westtools.tool_classes import WESTTool, WESTParallelTool, WESTDataReader, BinMappingComponent
 import numpy, h5py
 from westtools import h5io
 from westtools.h5io import WESTPAH5File
@@ -119,9 +119,6 @@ containing the point (0.1, 0.0).
             self.parse_cmdline_states(args.states)
         elif args.states_from_file:
             self.load_state_file(args.states_from_file)
-            
-        if self.states and len(self.states) < 2:
-            raise ValueError('zero, two, or more macrostates are required')
 
         self.output_file = WESTPAH5File(args.output, 'w', creating_program=True)
         log.debug('state list: {!r}'.format(self.states))
@@ -162,6 +159,15 @@ containing the point (0.1, 0.0).
             state['coords'] = coords
             states.append(state)
         self.states = states
+
+    @staticmethod
+    def assign_and_label(nsegs, npts, parent_ids,
+                          assign, state_map, last_labels, pcoords):
+
+        assignments, trajlabels = assign_and_label(nsegs, npts, parent_ids,
+                                                   assign, state_map, last_labels, pcoords)
+
+        return (assignments, trajlabels)
         
     def go(self):
         assign = self.binning.mapper.assign
@@ -174,14 +180,15 @@ containing the point (0.1, 0.0).
         
         nbins = self.binning.mapper.nbins
         self.output_file.attrs['nbins'] = nbins 
-        
-        state_map = None
+ 
+        state_map = numpy.empty((self.binning.mapper.nbins,), index_dtype)
+        state_map[:] = UNKNOWN_INDEX  
+        state_labels = [state['label'] for state in self.states]
+
+        dsopts = {}
+
         if self.states:
-            state_map = numpy.empty((self.binning.mapper.nbins,), index_dtype)
-            state_map[:] = UNKNOWN_INDEX
-            
-            state_labels = [state['label'] for state in self.states]
-            
+
             for istate, sdict in enumerate(self.states):
                 assert state_labels[istate] == sdict['label'] #sanity check
                 state_assignments = assign(sdict['coords'])
@@ -195,8 +202,9 @@ containing the point (0.1, 0.0).
             else:
                 dsopts = {'compression': 9,
                           'shuffle': True}
-            self.output_file.create_dataset('state_map', data=state_map, **dsopts)
-            self.output_file['state_labels'] = state_labels
+
+        self.output_file.create_dataset('state_map', data=state_map, **dsopts)
+        self.output_file['state_labels'] = state_labels or []
         
         iter_count = iter_stop - iter_start
         nsegs = numpy.empty((iter_count,), seg_id_dtype)
@@ -242,7 +250,7 @@ containing the point (0.1, 0.0).
                 last_labels = numpy.empty((nsegs[iiter],), index_dtype)
                 last_labels[:] = UNKNOWN_INDEX
                      
-            assignments, trajlabels = assign_and_label(nsegs[iiter], npts[iiter], parent_ids,
+            assignments, trajlabels = WAssign.assign_and_label(nsegs[iiter], npts[iiter], parent_ids,
                                                        assign, state_map, last_labels,
                                                        pcoords)   
                 
