@@ -5,8 +5,9 @@ from westtools.tool_classes import WESTTool, WESTDataReader, IterRangeSelection
 import numpy, h5py
 from fasthist import histnd, normhistnd
 from westtools import h5io
+from westpa.extloader import get_object
 
-log = logging.getLogger('westtools.w_pcpdist')
+log = logging.getLogger('westtools.w_pdist')
 
 def isiterable(x):
     try:
@@ -16,8 +17,118 @@ def isiterable(x):
     else:
         return True
     
-class PcoordHistHelper:
-    '''Create histograms from WEST progress coordinate data. This class coordinates reading
+class DSSpec:
+    def get_iter_data(self, n_iter):
+        raise NotImplementedError
+    
+    def get_segment_data(self, n_iter, seg_id):
+        return self.get_iter_data(n_iter)[seg_id]
+    
+class SingleDSSpec(DSSpec):
+    @classmethod
+    def from_string(cls, dsspec_string, default_h5file):
+        dsname = None
+        slice = None
+        alias = None
+        
+        fields = dsspec_string.split(',')
+        dsname = fields[0]
+        
+        for field in (field.strip() for field in fields[1:]):
+            k,v = field.split('=')
+            k = k.lower()
+            if k == 'alias':
+                alias = v
+            elif k == 'slice':
+                try:
+                    slice = eval('numpy.index_exp' + v)
+                except SyntaxError:
+                    raise SyntaxError('invalid index expression {!r}'.format(v))
+            else:
+                raise ValueError('invalid dataset option {!r}'.format(k))
+            
+        return cls(default_h5file, dsname, alias, slice)
+        
+        
+        
+    
+    def __init__(self, h5file, dsname, alias=None, slice=None):
+        self.h5file = h5file
+        self.dsname = dsname
+        self.alias = alias or dsname
+        self.slice = numpy.index_exp[slice] if slice else None
+        
+    def get_iter_data(self, n_iter):
+        if self.slice:
+            return self.h5file.get_iter_group(n_iter)[self.dsname][numpy.index_exp[:,:] + self.slice]
+        else:
+            return self.h5file.get_iter_group(n_iter)[self.dsname][:,:]
+        
+    def get_segment_data(self, n_iter, seg_id):
+        if self.slice:
+            return self.h5file.get_iter_group(n_iter)[numpy.index_exp[seg_id,:] + self.slice]
+        else:
+            return self.h5file.get_iter_group(n_iter)[seg_id,:]
+        
+class FnDSSpec(DSSpec):
+    def __init__(self, h5file, fn):
+        self.h5file = h5file
+        self.fn = fn
+        
+    def get_iter_data(self, n_iter):
+        return self.fn(n_iter, self.h5file.get_iter_group(n_iter))
+        
+class MultiDSSpec(DSSpec):
+    def __init__(self, dsspecs):
+        self.dsspecs = dsspecs
+    
+    def get_iter_data(self, n_iter):
+        datasets = [dsspec.get_iter_data(n_iter) for dsspec in self.dsspecs]
+          
+        ncols = 0 
+        nsegs = None
+        npts = None
+        for iset, dset in enumerate(datasets):
+            if nsegs is None:
+                nsegs = dset.shape[0]
+            elif dset.shape[0] != nsegs:
+                raise TypeError('dataset {} has incorrect first dimension (number of segments)'.format(self.dsspecs[iset]))
+            if npts is None:
+                npts = dset.shape[1]
+            elif dset.shape[1] != npts:
+                raise TypeError('dataset {} has incorrect second dimension (number of time points)'.format(self.dsspecs[iset]))
+            
+            if dset.ndim < 2:
+                # scalar per segment or scalar per iteration
+                raise TypeError('dataset {} has too few dimensions'.format(self.dsspecs[iset]))
+            elif dset.ndim > 3:
+                # array per timepoint
+                raise TypeError('dataset {} has too many dimensions'.format(self.dsspecs[iset]))
+            elif dset.ndim == 2:
+                # scalar per timepoint
+                ncols += 1
+            else:
+                # vector per timepoint
+                ncols += dset.shape[-1]
+        
+        output_dtype = numpy.result_type(*[ds.dtype for ds in datasets])
+        output_array = numpy.empty((nsegs, npts, ncols), dtype=output_dtype)
+        
+        ocol = 0
+        for iset, dset in enumerate(datasets):
+            if dset.ndim == 2:
+                output_array[:,:,ocol] = dset[...]
+                ocol += 1
+            elif dset.ndim == 3:
+                output_array[:,:,ocol:(ocol+dset.shape[-1])] = dset[...]
+                ocol += dset.shape[-1]
+        
+        return output_array
+    
+        
+    
+class HistHelper:
+    '''Create histograms from WEST data sets. This class coordinates reading
     data from the HDF5 file and performing the histogram binning. The start and stop
     iterations must be provided, as must be a data reader instance.
     
@@ -30,30 +141,25 @@ class PcoordHistHelper:
       3) The histogram as a function of iteration is then available as ``histograms``, and
          the histogram averaged over iterations is available as ``avg_histogram``.
          
-    Input is taken by entire iteration when feasible, and one segment (across timepoints)
-    or one timepoint (across segments) otherwise. The switch from fast (but high-memory)
-    per-iteration reads to slower, smaller reads occurs when the number of entries in the
-    progress coordinate data set for one iteration exceeds ``max_n_elems``, which defaults
-    to 100 million (for ~400 MB of single-precision data or ~800 MB of double-precision data)
-    but may be adjusted either at the class level or the instance level.
     '''
-    
-    max_n_elems = 100000000
         
-    def __init__(self, iter_start, iter_stop, data_reader):
+    def __init__(self, dsspec, iter_start, iter_stop, data_reader):
+        self.dsspec = dsspec
         self.data_reader = data_reader
         self.iter_start = iter_start
         self.iter_stop = iter_stop
         
         self.ndim = None
         self.ntimepoints = None
+        self.dset_dtype = None
         self.binbounds = None  # bin boundaries for each dimension
         self.midpoints = None  # bin midpoints for each dimension 
         self.data_range = None # data range for each dimension, as the pairs (min,max)
         self.histograms = None  # Final histogram time series
         self.avg_histogram = None # Final histogram
-        
-    def parse_binspec(self, binspec):
+    
+    @staticmethod    
+    def parse_binspec(binspec):
         namespace = {'numpy': numpy,
                      'inf': float('inf')}
                      
@@ -61,6 +167,9 @@ class PcoordHistHelper:
             binspec_compiled = eval(binspec,namespace)
         except Exception as e:
             raise ValueError('invalid bin specification: {!r}'.format(e))
+        else:
+            if log.isEnabledFor(logging.DEBUG):
+                log.debug('bin specs: {!r}'.format(binspec_compiled))
         return binspec_compiled
     
         
@@ -88,10 +197,10 @@ class PcoordHistHelper:
             
     def scan_data_shape(self):
         if self.ndim is None:
-            pcoord_ds = self.data_reader.get_iter_group(self.iter_start)['pcoord']
-            self.ntimepoints = pcoord_ds.shape[1]
-            self.ndim = pcoord_ds.shape[2]
-            self.pcoord_dtype = pcoord_ds.dtype
+            dset = self.dsspec.get_iter_data(self.iter_start)
+            self.ntimepoints = dset.shape[1]
+            self.ndim = dset.shape[2]
+            self.dset_dtype = dset.dtype
         
             
     def scan_data_range(self):
@@ -99,45 +208,31 @@ class PcoordHistHelper:
         from the shape of the progress coordinate as of self.iter_start.'''
         
         self.scan_data_shape()
-        
-        pcoord_ds = self.data_reader.get_iter_group(self.iter_start)['pcoord']
-        self.ntimepoints = pcoord_ds.shape[1]
-        ndim = self.ndim = pcoord_ds.shape[2]
-        pcoord_dtype = pcoord_ds.dtype
-        
+        dset_dtype = self.dset_dtype
+                
         try:
-            minval = numpy.finfo(pcoord_dtype).min
-            maxval = numpy.finfo(pcoord_dtype).max
+            minval = numpy.finfo(dset_dtype).min
+            maxval = numpy.finfo(dset_dtype).max
         except ValueError:
-            minval = numpy.iinfo(pcoord_dtype).min
-            maxval = numpy.iinfo(pcoord_dtype).max
+            minval = numpy.iinfo(dset_dtype).min
+            maxval = numpy.iinfo(dset_dtype).max
         
-        data_range = self.data_range = [tuple((maxval,minval)) for _i in xrange(ndim)]
+        data_range = self.data_range = [tuple((maxval,minval)) for _i in xrange(self.ndim)]
         
         log.info('determining minimum and maximum values for {} dimensions across {} iterations'
-                 .format(ndim,(self.iter_stop - self.iter_start)))
+                 .format(self.ndim,(self.iter_stop - self.iter_start)))
         for n_iter in xrange(self.iter_start, self.iter_stop):
             if log.isEnabledFor(logging.DEBUG):
                 log.debug('scanning iteration {}'.format(n_iter))
-            pcoord_ds = self.data_reader.get_iter_group(n_iter)['pcoord']
-            if numpy.multiply.reduce(pcoord_ds.shape) > self.max_n_elems:
-                for seg_id in xrange(pcoord_ds.shape[0]):
-                    for idim in xrange(ndim):
-                        dimdata = pcoord_ds[seg_id,:,idim]
-                        current_min, current_max = data_range[idim]
-                        current_min = min(current_min, dimdata.min())
-                        current_max = max(current_max, dimdata.max())
-                        data_range[idim] = (current_min, current_max)
-                        del dimdata
-            else:
-                for idim in xrange(ndim):
-                    dimdata = pcoord_ds[:,:,idim]
-                    current_min, current_max = data_range[idim]
-                    current_min = min(current_min, dimdata.min())
-                    current_max = max(current_max, dimdata.max())
-                    data_range[idim] = (current_min, current_max)
-                    del dimdata
-            del pcoord_ds
+            dset = self.dsspec.get_iter_data(n_iter)
+            for idim in xrange(self.ndim):
+                dimdata = dset[:,:,idim]
+                current_min, current_max = data_range[idim]
+                current_min = min(current_min, dimdata.min())
+                current_max = max(current_max, dimdata.max())
+                data_range[idim] = (current_min, current_max)
+                del dimdata
+            del dset
         log.debug('data ranges: {!r}'.format(data_range))
                 
     def _construct_bins_from_scalar(self, bins):
@@ -195,34 +290,21 @@ class PcoordHistHelper:
         iter_count = self.iter_stop - self.iter_start
         histograms = self.histograms = numpy.zeros((iter_count,) + tuple(len(binbounds)-1 for binbounds in self.binbounds),
                                                  dtype=numpy.float64)
-        binbounds = [numpy.require(boundset, self.pcoord_dtype, 'C') for boundset in self.binbounds]
+        binbounds = [numpy.require(boundset, self.dset_dtype, 'C') for boundset in self.binbounds]
         for iiter, n_iter in enumerate(xrange(self.iter_start, self.iter_stop)):
             if log.isEnabledFor(logging.DEBUG):
                 log.debug('binning iteration {}'.format(n_iter))
             iter_group = self.data_reader.get_iter_group(n_iter)
-            pcoord_ds = iter_group['pcoord']
-            
-            npts = pcoord_ds.shape[1]
+            dset = self.dsspec.get_iter_data(n_iter)
+            npts = dset.shape[1]
             weights = iter_group['seg_index']['weight']
             initpoint = 1 if n_iter != self.iter_start else 0
             
-            # If we have too much data, then loop over it rather than load it all at once
-            # The default max_n_elems is 100 million, or ~800 megs of double-precision floats
-            # HDF5 reads are the slowest part of this procedure, so we minimize them by 
-            # assuming that the number of timepoints is less than the number of segments, and
-            # slicing by timepoint rather than segment.
-            if numpy.multiply.reduce(pcoord_ds.shape) > self.max_n_elems:
-                for ipt in xrange(initpoint,npts): 
-                    pcoord_data = pcoord_ds[:,ipt,:]
-                    histnd(pcoord_data, binbounds, weights, out=histograms[iiter], binbound_check = False)
-                    del pcoord_data
-            else:
-                pcoord_data = pcoord_ds[:,initpoint:,:]
-                for ipt in xrange(npts-initpoint):
-                    histnd(pcoord_data[:,ipt,:], binbounds, weights, out=histograms[iiter], binbound_check = False)
-                del pcoord_data
+            dset = dset[:,initpoint:,:]
+            for ipt in xrange(npts-initpoint):
+                histnd(dset[:,ipt,:], binbounds, weights, out=histograms[iiter], binbound_check = False)
             
-            del iter_group, weights, pcoord_ds
+            del iter_group, weights, dset
             
             # normalize histogram
             normhistnd(histograms[iiter],binbounds)
@@ -233,26 +315,27 @@ class PcoordHistHelper:
         normhistnd(self.avg_histogram, binbounds)
         
 
-class WPCPDist(WESTTool):
+class WPDist(WESTTool):
     prog='w_pcpdist'
     description = '''\
 Calculate probability distribution of progress coordinate values and its time evolution. 
 '''
     
     def __init__(self):
-        super(WPCPDist,self).__init__()
+        super(WPDist,self).__init__()
         
         self.data_reader = WESTDataReader()
         self.iter_range = IterRangeSelection(self.data_reader)
         self.iter_range.include_args['iter_step'] = False
-        
         self.binspec = None
         self.output_file = None
+        self.dsspec = None
     
     def add_args(self, parser):
         self.data_reader.add_args(parser)
         self.iter_range.add_args(parser)
                 
+        #TODO: this doesn't parse right, it seems
         parser.add_argument('-b', '--bins', dest='bins', metavar='BINEXPR', default='100',
                             help='''Use BINEXPR for bins. This may be an integer, which will be used for each
                             dimension of the progress coordinate; a list of integers (formatted as [n1,n2,...])
@@ -261,21 +344,35 @@ Calculate probability distribution of progress coordinate values and its time ev
                             will use [a1, a2, ...] as bin boundaries for the first dimension, [b1, b2, ...] as bin boundaries
                             for the second dimension, and so on. (Default: 100 bins in each dimension.)''')
         
-        parser.add_argument('-o', '--output', dest='output', default='pcpdist.h5',
+        parser.add_argument('-o', '--output', dest='output', default='pdist.h5',
                             help='''Store results in OUTPUT (default: %(default)s).''')
+        
+        igroup = parser.add_argument_group('input data options').add_mutually_exclusive_group(required=True)
 
-
+        igroup.add_argument('--construct-dataset',
+                            help='''Use the given function (as in module.function). This function will
+                            be called once per iteration as function(n_iter, iter_group) to construct
+                            data for one iteration. Data returned must be indexable as
+                            [seg_id][timepoint][dimension]''')
+        
+        igroup.add_argument('--dsspecs', nargs='+', metavar='DSSPEC',
+                            help='''Construct probability distribution from DSSPEC (one per dimension).''')
 
     def process_args(self, args):
         self.data_reader.process_args(args)
         self.data_reader.open()
         self.iter_range.process_args(args)
+        
+        if args.construct_dataset:
+            self.dsspec = FnDSSpec(self.data_reader.we_h5file, get_object(args.construct_dataset,path=['.']))
+        elif args.dsspecs:
+            self.dsspec = MultiDSSpec([SingleDSSpec.from_string(dsspec, self.data_reader.we_h5file) for dsspec in args.dsspecs])
         self.binspec = args.bins        
         self.output_file = h5py.File(args.output, 'w')
         h5io.stamp_creator_data(self.output_file)
     
     def go(self):
-        hh = PcoordHistHelper(self.iter_range.iter_start, self.iter_range.iter_stop, self.data_reader)
+        hh = HistHelper(self.dsspec,self.iter_range.iter_start, self.iter_range.iter_stop,self.data_reader)
         hh.construct_bins(hh.parse_binspec(self.binspec))
         hh.construct_histogram()
         
@@ -291,5 +388,5 @@ Calculate probability distribution of progress coordinate values and its time ev
         self.output_file.close()
 
 if __name__ == '__main__':
-    WPCPDist().main()
+    WPDist().main()
     
