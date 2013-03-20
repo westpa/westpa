@@ -58,10 +58,10 @@ class Test_W_Assign_Single:
         self.assign = self.bm.assign
     
 
-    def test_assign_and_label1d_no_state(self):
-        '''WAssign.assign_and_label : 1d binning assignments with no specified states successful'''
+    def test_assign_and_label1d_all_segs(self):
+        '''WAssign.assign_and_label : 1d binning assignments (all segs at once) successful'''
 
-        assignments, trajlabels = WAssign.assign_and_label(self.nsegs, self.npts, self.parent_ids,
+        assignments, trajlabels = WAssign.assign_and_label(0, self.nsegs, self.npts, self.parent_ids,
                                                            self.assign, None, None, self.pcoords)
 
         assignments = numpy.array(assignments)
@@ -69,6 +69,25 @@ class Test_W_Assign_Single:
         
         numpy.testing.assert_array_equal(assignments, self.expected_bins)
 
+    def test_assign_and_label_slice(self):
+        '''WAssign.assign_and_label : Binning assignments successful over a slice of segments'''
 
+        #First two segments
+        assignments, trajlabels = WAssign.assign_and_label(0, self.nsegs//2, self.npts, self.parent_ids,
+                                                           self.assign, None, None, self.pcoords)       
+
+        assignments = numpy.array(assignments)
+        assert assignments.shape == (2, 10)
+
+        numpy.testing.assert_array_equal(assignments, self.expected_bins[0:2, :])
+
+        #Second two segments
+        assignments, trajlabels = WAssign.assign_and_label(self.nsegs//2, self.nsegs, self.npts, self.parent_ids,
+                                                           self.assign, None, None, self.pcoords)       
+
+        assignments = numpy.array(assignments)
+        assert assignments.shape == (2, 10)
+
+        numpy.testing.assert_array_equal(assignments, self.expected_bins[2:4, :])
 
 

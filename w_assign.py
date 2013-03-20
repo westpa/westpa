@@ -161,10 +161,10 @@ containing the point (0.1, 0.0).
         self.states = states
 
     @staticmethod
-    def assign_and_label(nsegs, npts, parent_ids,
+    def assign_and_label(nsegs_lb, nsegs_ub, npts, parent_ids,
                           assign, state_map, last_labels, pcoords):
 
-        assignments, trajlabels = assign_and_label(nsegs, npts, parent_ids,
+        assignments, trajlabels = assign_and_label(nsegs_lb, nsegs_ub, npts, parent_ids,
                                                    assign, state_map, last_labels, pcoords)
 
         return (assignments, trajlabels)
@@ -181,13 +181,15 @@ containing the point (0.1, 0.0).
         nbins = self.binning.mapper.nbins
         self.output_file.attrs['nbins'] = nbins 
  
-        state_map = numpy.empty((self.binning.mapper.nbins,), index_dtype)
-        state_map[:] = UNKNOWN_INDEX  
-        state_labels = [state['label'] for state in self.states]
-
-        dsopts = {}
+        state_map = None
 
         if self.states:
+
+            state_map = numpy.empty((self.binning.mapper.nbins,), index_dtype)
+            state_map[:] = UNKNOWN_INDEX  
+            state_labels = [state['label'] for state in self.states]
+
+            dsopts = {}
 
             for istate, sdict in enumerate(self.states):
                 assert state_labels[istate] == sdict['label'] #sanity check
@@ -203,8 +205,8 @@ containing the point (0.1, 0.0).
                 dsopts = {'compression': 9,
                           'shuffle': True}
 
-        self.output_file.create_dataset('state_map', data=state_map, **dsopts)
-        self.output_file['state_labels'] = state_labels or []
+            self.output_file.create_dataset('state_map', data=state_map, **dsopts)
+            self.output_file['state_labels'] = state_labels 
         
         iter_count = iter_stop - iter_start
         nsegs = numpy.empty((iter_count,), seg_id_dtype)
@@ -250,7 +252,7 @@ containing the point (0.1, 0.0).
                 last_labels = numpy.empty((nsegs[iiter],), index_dtype)
                 last_labels[:] = UNKNOWN_INDEX
                      
-            assignments, trajlabels = WAssign.assign_and_label(nsegs[iiter], npts[iiter], parent_ids,
+            assignments, trajlabels = WAssign.assign_and_label(0, nsegs[iiter], npts[iiter], parent_ids,
                                                        assign, state_map, last_labels,
                                                        pcoords)   
                 
