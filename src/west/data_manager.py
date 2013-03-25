@@ -41,6 +41,7 @@ from itertools import imap, izip
 import cPickle as pickle
 import numpy
 import h5py
+from westpa import h5io
 from h5py import h5s
 import threading
 
@@ -287,7 +288,7 @@ class WESTDataManager:
         mode = mode or self.h5_access_mode
         if not self.we_h5file:
             log.debug('attempting to open {} with mode {}'.format(self.we_h5filename, mode))
-            self.we_h5file = h5py.File(self.we_h5filename, mode, driver=self.we_h5file_driver)
+            self.we_h5file = h5io.WESTPAH5File(self.we_h5filename, mode, driver=self.we_h5file_driver)
             
             h5file_attrs = self.we_h5file['/'].attrs
             h5file_attr_keys = h5file_attrs.keys()
