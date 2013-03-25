@@ -307,8 +307,11 @@ class WMFuture:
             self._invoke_callbacks()
             self._notify_watchers()
 
-    def get_result(self):
-        '''Get the result associated with this future, blocking until it is available.'''
+    def get_result(self,discard=False):
+        '''Get the result associated with this future, blocking until it is available.
+        If ``discard`` is true, then removes the reference to the result contained
+        in this instance, so that a collection of futures need not turn into a cache of
+        all associated results.'''
         with self._condition:
             if self._done:
                 if self._exception:
@@ -318,8 +321,6 @@ class WMFuture:
                         raise self._exception
                     else:
                         raise self._exception, None, self._traceback                    
-                else:
-                    return self._result
             else:
                 self._condition.wait()
                 assert self._done
@@ -329,10 +330,12 @@ class WMFuture:
                         raise self._exception
                     else:
                         raise self._exception, None, self._traceback
-                else:
-                    return self._result
+                
+            result = self._result
+            del self._result
+            return result
     result = property(get_result, None, None, get_result.__doc__)
-    
+        
     def wait(self):
         '''Wait until this future has a result or exception available.'''
         with self._condition:
