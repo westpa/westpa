@@ -22,7 +22,7 @@ def normhistnd(hist, binbounds):
         outers = numpy.multiply.outer(diffs[0], diffs[1])
         for delta in diffs[2:]:
             outers = numpy.multiply.outer(outers, delta)
-        assert outers.shape == hist.shape        
+        assert outers.shape == hist.shape, 'hist shape {} != outers shape {}'.format(hist.shape,outers.shape)        
         normfac = (hist * outers).sum()
         
     hist /= normfac

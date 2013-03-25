@@ -4,8 +4,10 @@ import re, os
 from itertools import izip
 from westtools.tool_classes import WESTTool
 import numpy, h5py
-from westtools import h5io, textio
+from westpa import h5io, textio
+import matplotlib
 from matplotlib import pyplot
+from matplotlib.image import NonUniformImage
 from fasthist import normhistnd
 
 log = logging.getLogger('westtools.plothist')
@@ -14,21 +16,61 @@ log = logging.getLogger('westtools.plothist')
 numpy.seterr(divide='ignore', invalid='ignore')
 
 
+"""
 def sum_except_along(array, axes):
     '''Reduce the given array by addition over all axes except those listed in the scalar or 
-    iterable ``axes``.'''
+    iterable ``axes``'''
     
     try:
         iter(axes)
     except TypeError:
         axes = [axes]
+        
+    to_remove = sorted(set(xrange(array.ndim)) - set(axes))
+    if not to_remove: 
+        return array
+    remaining_axes = list(range(array.ndim))
+    if min(to_remove) < 0:
+        raise ValueError('invalid axis {}'.format(min(to_remove)))
+    elif max(to_remove) >= array.ndim:
+        raise ValueError('invalid axis {}'.format(min(to_remove)))
     
     output_array = array.copy()
-    for axis in xrange(array.ndim):
-        if axis not in axes:
-            output_array = numpy.add.reduce(output_array, axis=axis)
-    return output_array
+    
+    while to_remove:
+        original_axis = to_remove.pop()
+        current_axis = remaining_axes.index(original_axis)
+        del remaining_axes[current_axis]
+        output_array = numpy.add.reduce(output_array, axis=current_axis)
 
+    print(numpy.argsort(remaining_axes))        
+    return numpy.transpose(output_array, numpy.argsort(remaining_axes))
+"""
+
+def sum_except_along(array, axes):
+    '''Reduce the given array by addition over all axes except those listed in the scalar or 
+    iterable ``axes``'''
+    
+    try:
+        iter(axes)
+    except TypeError:
+        axes = [axes]
+        
+    kept = set(axes)
+    summed = list(set(xrange(array.ndim)) - kept)
+    
+    # Reorder axes so that the kept axes are first, and in the order they 
+    # were given
+    array = numpy.transpose(array, list(axes) + summed).copy()
+    
+    # Now, the last len(summed) axes are summed over
+    for _ in xrange(len(summed)):
+        array = numpy.add.reduce(array, axis=-1)
+        
+    return array
+    
+    
+    
 class PlotHistTool(WESTTool):
     prog='plothist'
     description = '''\
@@ -47,6 +89,7 @@ by passing --plot-output=''.
         self.input_h5 = None
         self.opmode = None
         self.plotmode = None
+        self.enerzero = None
         self.plotrange = None
         self.plottitle = None
         
@@ -75,6 +118,8 @@ by passing --plot-output=''.
                              help='Plot the PDF on a linear scale.')
         pmgroup.add_argument('--energy', dest='plotmode', action='store_const', const='energy',
                              help='Plot the PDF on an inverted natural log scale, corresponding to (free) energy (default).')
+        pmgroup.add_argument('--zero-energy', dest='enerzero', metavar='E', default='min',
+                             help='Set the zero of energy to E, which may be a scalar, "min" or "max"')
         pmgroup.add_argument('--log10', dest='plotmode', action='store_const', const='log10',
                              help='Plot the PDF on a base-10 log scale.')
         pgroup.add_argument('--range',
@@ -201,6 +246,17 @@ by passing --plot-output=''.
                 self.dimensions.append(self.parse_dimspec(args.seconddim))
         else:
             self.dimensions.append({'idim': 0, 'label':'dimension 0'})
+            
+        if args.enerzero:
+            if args.enerzero.lower() not in ('min', 'max'):
+                try:
+                    self.enerzero = float(args.enerzero)
+                except ValueError:
+                    raise ValueError('invalid energy zero point {!r}'.format(args.enerzero))
+            else:
+                self.enerzero = args.enerzero.lower()
+        else:
+            self.enerzero = 'min'
 
         
         avail_iter_start, avail_iter_stop = h5io.get_iter_range(self.input_h5['histograms'])
@@ -260,7 +316,7 @@ by passing --plot-output=''.
             self.do_evolution_plot()
             
     def _do_1d_output(self, hist, idim, midpoints):
-        enehist = -numpy.log(hist)
+        enehist = self._ener_zero(hist)
         log10hist = numpy.log10(hist)
         
         if self.hdf5_output_filename:
@@ -353,14 +409,7 @@ by passing --plot-output=''.
         hist = self.input_h5['histograms'][iiter]
         
         # Average over other dimensions
-        hist = sum_except_along(hist, [idim0,idim1])
-        #for dim in xrange(hist.ndim):
-        #    if dim not in (idim0,idim1):
-        #        hist = numpy.add.reduce(hist, axis=dim)
-
-        if idim0 > idim1:
-            hist = hist.T
-                
+        hist = sum_except_along(hist, [idim0,idim1])                
         normhistnd(hist, [binbounds_0,binbounds_1])
         self._do_2d_output(hist, [idim0,idim1], [midpoints_0,midpoints_1])
 
@@ -379,25 +428,30 @@ by passing --plot-output=''.
         binbounds_1 = self.input_h5['binbounds_{}'.format(idim1)][...]
         midpoints_1 = self.input_h5['midpoints_{}'.format(idim1)][...]
         
-        hist = self.input_h5['histograms'][iiter_start:iiter_stop]
-        
-        # Average over time
-        hist = numpy.add.reduce(hist, axis=0)        
-        
-        # Average over other dimensions
-        for dim in xrange(hist.ndim):
-            if dim not in (idim0,idim1):
-                hist = numpy.add.reduce(hist, axis=dim)
+        for iiter in xrange(iiter_start,iiter_stop): 
+            iter_hist = sum_except_along(self.input_h5['histograms'][iiter], [idim0,idim1])
+            if iiter == iiter_start:
+                hist = iter_hist
+            else:
+                hist += iter_hist
 
-        if idim0 > idim1:
-            hist = hist.T
-                
         normhistnd(hist, [binbounds_0,binbounds_1])
-        self._do_2d_output(hist, [idim0,idim1], [midpoints_0,midpoints_1])
+        #self._do_2d_output(hist, [idim0,idim1], [midpoints_0,midpoints_1])
+        self._do_2d_output(hist, [idim0,idim1], [midpoints_0, midpoints_1], [binbounds_0,binbounds_1])
+        
+    def _ener_zero(self, hist):
+        hist = -numpy.log(hist)
+        if self.enerzero == 'min':
+            hist -= hist.min()
+        elif self.enerzero == 'max':
+            hist -= hist.max()
+        else:
+            hist -= self.enerzero
+        return hist
 
         
-    def _do_2d_output(self, hist, idims, midpoints):
-        enehist = -numpy.log(hist)
+    def _do_2d_output(self, hist, idims, midpoints, binbounds):
+        enehist = self._ener_zero(hist)
         log10hist = numpy.log10(hist)
         
         if self.hdf5_output_filename:
@@ -429,11 +483,22 @@ by passing --plot-output=''.
                 
             pyplot.figure()
             # Transpose input so that axis 0 is displayed as x and axis 1 is displayed as y
-            pyplot.imshow(plothist.T, interpolation='nearest', aspect='auto',
-                          extent=(midpoints[0][0], midpoints[0][-1], midpoints[1][0], midpoints[1][-1]),
-                          origin='lower', vmin=vmin, vmax=vmax)
-            cb = pyplot.colorbar()
+#            pyplot.imshow(plothist.T, interpolation='nearest', aspect='auto',
+#                          extent=(midpoints[0][0], midpoints[0][-1], midpoints[1][0], midpoints[1][-1]),
+#                          origin='lower', vmin=vmin, vmax=vmax)
+
+            # The following reproduces the former calls to imshow and colorbar
+            norm = matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
+            ax = pyplot.gca()
+            nui = NonUniformImage(ax, extent=(midpoints[0][0], midpoints[0][-1], midpoints[1][0], midpoints[1][-1]),
+                                  origin='lower', norm=norm)
+            nui.set_data(midpoints[0], midpoints[1], plothist.T)
+            ax.images.append(nui)
+            ax.set_xlim(midpoints[0][0], midpoints[0][-1])
+            ax.set_ylim(midpoints[1][0], midpoints[1][-1])
+            cb = pyplot.colorbar(nui)
             cb.set_label(label)
+            
             pyplot.xlabel(self.dimensions[0]['label'])
             pyplot.xlim(self.dimensions[0].get('lb'), self.dimensions[0].get('ub'))
             pyplot.ylabel(self.dimensions[1]['label'])
@@ -451,7 +516,7 @@ by passing --plot-output=''.
         iiter_stop  = numpy.searchsorted(n_iters, self.iter_stop)
         binbounds = self.input_h5['binbounds_{}'.format(idim)][...]
         midpoints = self.input_h5['midpoints_{}'.format(idim)][...]
-        hists = self.input_h5['histograms'][...]
+        hists_ds = self.input_h5['histograms']
         
         itercount = self.iter_stop - self.iter_start
         
@@ -459,11 +524,12 @@ by passing --plot-output=''.
         nblocks = itercount // self.iter_step
             
         block_iters = numpy.empty((nblocks,2), dtype=n_iters.dtype)
-        blocked_hists = numpy.zeros((nblocks,hists.shape[1]), dtype=hists.dtype) 
+        blocked_hists = numpy.zeros((nblocks,hists_ds.shape[1+idim]), dtype=hists_ds.dtype) 
         
         for iblock, istart in enumerate(xrange(iiter_start, iiter_start+nblocks*self.iter_step, self.iter_step)):
             istop = min(istart+self.iter_step, iiter_stop)
-            histslice = hists[istart:istop]
+            histslice = hists_ds[istart:istop]
+            
             
             # Sum over time
             histslice = numpy.add.reduce(histslice, axis=0)
@@ -477,7 +543,8 @@ by passing --plot-output=''.
             block_iters[iblock,0] = n_iters[istart]
             block_iters[iblock,1] = n_iters[istop-1]+1
                         
-        enehists = -numpy.log(blocked_hists)
+        #enehists = -numpy.log(blocked_hists)
+        enehists = self._ener_zero(blocked_hists)
         log10hists = numpy.log10(blocked_hists)
         
         
@@ -507,19 +574,26 @@ by passing --plot-output=''.
                 vmin, vmax = None, None
                 
             pyplot.figure()
-            pyplot.imshow(plothist, interpolation='nearest', aspect='auto',
-                          extent=(midpoints[0], midpoints[-1], block_iters[0,0], block_iters[-1,1]),
-                          origin='lower', vmin=vmin, vmax=vmax)
-            cb = pyplot.colorbar()
+            norm = matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
+            ax = pyplot.gca()
+            nui = NonUniformImage(ax, extent=(midpoints[0], midpoints[-1], block_iters[0,-1], block_iters[-1,-1]),
+                                  origin='lower', norm=norm)
+
+            # not sure why plothist works but plothist.T doesn't, and the opposite is true
+            # for _do_2d_output
+            nui.set_data(midpoints, block_iters[:,-1], plothist)
+            ax.images.append(nui)
+            ax.set_xlim(midpoints[0], midpoints[-1])
+            ax.set_ylim(block_iters[0,-1], block_iters[-1,-1])
+            cb = pyplot.colorbar(nui)
             cb.set_label(label)
             pyplot.xlabel(self.dimensions[0]['label'])
             pyplot.xlim(self.dimensions[0].get('lb'), self.dimensions[0].get('ub'))
+            pyplot.ylabel('WE Iteration')
             if self.plottitle:
                 pyplot.title(self.plottitle)
             pyplot.savefig(self.plot_output_filename)
-        
-    
-#axins.imshow(loghist.T, interpolation='nearest', extent=(midpoints_dist[0], midpoints_dist[-1], midpoints_rmsd[0], midpoints_rmsd[-1]), origin='lower', vmin=0, vmax=10, aspect='auto')
+
 if __name__ == '__main__':
     PlotHistTool().main()
     

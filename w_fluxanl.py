@@ -7,7 +7,7 @@ import westpa
 from west.data_manager import (weight_dtype, n_iter_dtype, vstr_dtype)
 from west.we_driver import NewWeightEntry
 import mclib
-from westtools import h5io
+from westpa import h5io
 
 fluxentry_dtype = numpy.dtype([('n_iter', n_iter_dtype),
                                ('flux', weight_dtype),

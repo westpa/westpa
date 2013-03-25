@@ -4,7 +4,7 @@ from itertools import izip
 from westtools.tool_classes import WESTTool, WESTDataReader, IterRangeSelection
 import numpy, h5py
 from fasthist import histnd, normhistnd
-from westtools import h5io
+from westpa import h5io
 
 log = logging.getLogger('westtools.w_pcpdist')
 

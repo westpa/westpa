@@ -66,10 +66,8 @@ class WESTTool(WESTToolComponent):
                 pass
             else:
                 fn(self,args)
-                    
-    def make_parser_and_process(self, prog=None, usage=None, description=None, epilog=None, args=None):
-        '''A convenience function to create a parser, call add_all_args(), and then call process_all_args().
-        The argument namespace is returned.'''
+                
+    def make_parser(self, prog=None, usage=None, description=None, epilog=None, args=None):
         import argparse
         prog = prog or self.prog
         usage = usage or self.usage
@@ -79,6 +77,12 @@ class WESTTool(WESTToolComponent):
                                          formatter_class=argparse.RawDescriptionHelpFormatter,
                                          conflict_handler='resolve')
         self.add_all_args(parser)
+        return parser
+            
+    def make_parser_and_process(self, prog=None, usage=None, description=None, epilog=None, args=None):
+        '''A convenience function to create a parser, call add_all_args(), and then call process_all_args().
+        The argument namespace is returned.'''
+        parser = self.make_parser(prog,usage,description,epilog,args)
         args = parser.parse_args(args)
         self.process_all_args(args)
         return args
@@ -104,19 +108,17 @@ class WESTParallelTool(WESTTool):
 
     def make_parser_and_process(self, prog=None, usage=None, description=None, epilog=None, args=None):
         '''A convenience function to create a parser, call add_all_args(), and then call process_all_args().
-        The argument namespace is returned. Arguments added/processed include those for the work manager.'''
-        import argparse
-        prog = prog or self.prog
-        usage = usage or self.usage
-        description = description or self.description
-        epilog = epilog or self.epilog
-        parser = argparse.ArgumentParser(prog=prog, usage=usage, description=description, epilog=epilog,
-                                         formatter_class=argparse.RawDescriptionHelpFormatter,
-                                         conflict_handler='resolve')
-        self.add_all_args(parser)
+        The argument namespace is returned.'''
+        parser = self.make_parser(prog,usage,description,epilog,args)
         self.wm_env.add_wm_args(parser)
+        
         args = parser.parse_args(args)
         self.wm_env.process_wm_args(args)
+        
+        # Instantiate work manager        
+        self.work_manager = self.wm_env.make_work_manager()
+        
+        # Process args
         self.process_all_args(args)
         return args
     
@@ -127,9 +129,9 @@ class WESTParallelTool(WESTTool):
     def main(self):
         '''A convenience function to make a parser, parse and process arguments, then run self.go() in the master process.'''
         self.make_parser_and_process()
-        self.work_manager = self.wm_env.make_work_manager()
         with self.work_manager:
             if self.work_manager.is_master:
                 self.go()
             else:
                 self.work_manager.run()
+

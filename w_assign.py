@@ -2,13 +2,14 @@ from __future__ import print_function, division; __metaclass__ = type
 import sys
 import logging
 import math
+
 from west.data_manager import seg_id_dtype
 from westpa.binning.assign import index_dtype, UNKNOWN_INDEX
 from westpa.binning._assign import assign_and_label #@UnresolvedImport
 from westtools.tool_classes import WESTTool, WESTDataReader, BinMappingComponent
 import numpy, h5py
-from westtools import h5io
-from westtools.h5io import WESTPAH5File
+from westpa import h5io
+from westpa.h5io import WESTPAH5File
 from westpa.extloader import get_object
 import westpa
 
@@ -105,8 +106,14 @@ containing the point (0.1, 0.0).
                             must be specified with --states-from-file.''')
         sgroup.add_argument('--states-from-file', metavar='STATEFILE',
                             help='''Load kinetic macrostates from the YAML file STATEFILE. See description
-                            above for the appropriate structure.''')
-        
+                            above for the appropriate structure.''')        
+        sgroup.add_argument('--states-from-function', metavar='STATEFUNC',
+                            help='''Load kinetic macrostates from the function STATEFUNC, specified as
+                            module_name.func_name. This function is called with the bin mapper as an argument,
+                            and must return a list of dictionaries {'label': state_label, 'coords': 2d_array_like}
+                            one for each macrostate; the 'coords' entry must contain enough rows to identify all bins
+                            in the macrostate.''')        
+
 
     def process_args(self, args):
         self.data_reader.process_args(args)
@@ -119,6 +126,8 @@ containing the point (0.1, 0.0).
             self.parse_cmdline_states(args.states)
         elif args.states_from_file:
             self.load_state_file(args.states_from_file)
+        elif args.states_from_function:
+            self.load_states_from_function(get_object(args.states_from_function,path=['.']))
             
         if self.states and len(self.states) < 2:
             raise ValueError('zero, two, or more macrostates are required')
@@ -162,6 +171,17 @@ containing the point (0.1, 0.0).
             state['coords'] = coords
             states.append(state)
         self.states = states
+        
+    def load_states_from_function(self, statefunc):
+        states = statefunc(self.binning.mapper)
+        for istate, state in enumerate(states):
+            state.setdefault('label','state{}'.format(istate))
+            try:
+                state['coords'] = numpy.array(state['coords'])
+            except KeyError:
+                raise ValueError('state function {!r} returned a state {!r} without coordinates'.format(statefunc,state))
+        self.states = states
+        log.debug('loaded states: {!r}'.format(self.states))
         
     def go(self):
         assign = self.binning.mapper.assign

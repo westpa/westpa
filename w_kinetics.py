@@ -10,7 +10,7 @@ from westtools.tool_classes import WESTTool, WESTDataReader, IterRangeSelection
 from collections import deque
 import sys
 import numpy, h5py
-from westtools import h5io
+from westpa import h5io
 
 import westpa
 from west.data_manager import weight_dtype

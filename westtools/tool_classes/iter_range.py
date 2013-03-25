@@ -3,7 +3,7 @@ from westtools.tool_classes.core import WESTTool
 import logging
 log = logging.getLogger(__name__)
 import westpa
-from westtools import h5io
+from westpa import h5io
 import numpy
 
 class IterRangeSelection(WESTTool):

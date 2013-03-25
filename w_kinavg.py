@@ -3,7 +3,7 @@ import logging
 from westtools.tool_classes import WESTParallelTool, WESTDataReader, IterRangeSelection
 import sys, math
 import numpy
-from westtools import h5io
+from westpa import h5io
 
 import westpa
 from west.data_manager import weight_dtype
