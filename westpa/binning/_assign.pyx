@@ -197,10 +197,13 @@ cpdef assign_and_label(Py_ssize_t nsegs_lb,
     
     cdef:
         Py_ssize_t ipt
-        index_t[:,:] assignments, trajlabels
+        #index_t[:,:] assignments, trajlabels
+        object assignments, trajlabels
         index_t[:] seg_assignments
         long seg_id, parent_id
         index_t ptlabel
+        
+    
     
     nsegs = nsegs_ub - nsegs_lb
     assignments = numpy.empty((nsegs,npts), index_dtype)
