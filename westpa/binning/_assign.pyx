@@ -197,8 +197,8 @@ cpdef assign_and_label(Py_ssize_t nsegs_lb,
     
     cdef:
         Py_ssize_t ipt
-        #index_t[:,:] assignments, trajlabels
-        object assignments, trajlabels
+        index_t[:,:] _assignments, _trajlabels
+        #object assignments, trajlabels
         index_t[:] seg_assignments
         long seg_id, parent_id
         index_t ptlabel
@@ -208,12 +208,14 @@ cpdef assign_and_label(Py_ssize_t nsegs_lb,
     nsegs = nsegs_ub - nsegs_lb
     assignments = numpy.empty((nsegs,npts), index_dtype)
     trajlabels = numpy.empty((nsegs,npts), index_dtype)
+    _assignments = assignments
+    _trajlabels = trajlabels
     mask = numpy.ones((npts,), numpy.bool_)
     
     for seg_id in range(nsegs_lb, nsegs_ub):
         parent_id = parent_ids[seg_id]
-        assign(pcoords[seg_id], mask, assignments[seg_id-nsegs_lb])
-        seg_assignments = assignments[seg_id-nsegs_lb]
+        assign(pcoords[seg_id], mask, _assignments[seg_id-nsegs_lb])
+        seg_assignments = _assignments[seg_id-nsegs_lb]
         if state_map is not None:
             for ipt in range(npts):
                 ptlabel = state_map[seg_assignments[ipt]]
@@ -221,16 +223,16 @@ cpdef assign_and_label(Py_ssize_t nsegs_lb,
                     if ipt == 0:
                         if parent_id < 0:
                             # We have started a trajectory in a transition region
-                            trajlabels[seg_id-nsegs_lb,ipt] = UNKNOWN_INDEX
+                            _trajlabels[seg_id-nsegs_lb,ipt] = UNKNOWN_INDEX
                         else:
                             # We can inherit the ending point from the previous iteration
                             # (This should be UNKNOWN_INDEX for the first iteration
-                            trajlabels[seg_id-nsegs_lb,ipt] = last_labels[parent_id]
+                            _trajlabels[seg_id-nsegs_lb,ipt] = last_labels[parent_id]
                     else:
                         # We are currently in a transition region, but we care about the last state we visited,
                         # so inherit that state from the previous point
-                        trajlabels[seg_id-nsegs_lb,ipt] = trajlabels[seg_id,ipt-1]
+                        _trajlabels[seg_id-nsegs_lb,ipt] = _trajlabels[seg_id,ipt-1]
                 else:
-                    trajlabels[seg_id-nsegs_lb,ipt] = ptlabel
+                    _trajlabels[seg_id-nsegs_lb,ipt] = ptlabel
             
     return assignments, trajlabels

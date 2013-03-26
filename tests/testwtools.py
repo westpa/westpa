@@ -196,6 +196,28 @@ class Test_W_Assign(WToolBase):
 
             numpy.testing.assert_array_equal(assignments, self.expected_bins)
 
+    def test_go_simple_zmq(self):
+        '''WAssign: works as expected using a simple 'ZMQ' server with a 1-worker internal client'''
+
+        os.environ['WM_WORK_MANAGER'] = 'zmq' 
+        os.environ['WM_N_WORKERS'] = '1'
+        self.w.work_manager = self.w.wm_env.make_work_manager() ##Defaults should give a non-dedicated server
+        assert self.w.get_n_workers() == 1
+        self.w.work_manager.startup()
+
+        self.w.go()
+
+        try: 
+            data = h5py.File('test_w_assign.h5')
+        except IOError:
+            raise IOError('Error opening hdf5 file')
+        else:
+            assignments = data['assignments'][0]
+
+            assert assignments.shape == (self.nsegs, self.npts), 'Shape of assignments ({!r}) does not match expected ({},{})'.format(assignments.shape, self.nsegs, self.npts)
+
+            numpy.testing.assert_array_equal(assignments, self.expected_bins)
+
 
 
 
