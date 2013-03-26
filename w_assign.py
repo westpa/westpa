@@ -6,7 +6,7 @@ import math
 from west.data_manager import seg_id_dtype
 from westpa.binning.assign import index_dtype, UNKNOWN_INDEX
 from westpa.binning._assign import assign_and_label #@UnresolvedImport
-from westtools.tool_classes import WESTTool, WESTDataReader, BinMappingComponent
+from westtools.tool_classes import WESTTool, WESTParallelTool, WESTDataReader, BinMappingComponent
 import numpy, h5py
 from westpa import h5io
 from westpa.h5io import WESTPAH5File
@@ -32,7 +32,18 @@ def parse_pcoord_value(pc_str):
 def default_construct_pcoord(n_iter, iter_group):
     return iter_group['pcoord'][...]
 
-class WAssign(WESTTool):
+
+def _assign_and_label(nsegs_lb, nsegs_ub, npts, parent_ids,
+                      bm, state_map, last_labels, pcoords):
+    
+
+    
+    assignments, trajlabels = assign_and_label(nsegs_lb, nsegs_ub, npts, parent_ids,
+                                               bm.assign, state_map, last_labels, pcoords)
+
+    return (assignments, trajlabels, nsegs_lb, nsegs_ub)
+
+class WAssign(WESTParallelTool):
     prog='w_assign'
     description = '''\
 Assign walkers to bins, producing a file (by default named "assign.h5")
@@ -171,6 +182,44 @@ containing the point (0.1, 0.0).
             state['coords'] = coords
             states.append(state)
         self.states = states
+
+    def get_n_workers(self):
+        '''Gets the number of workers of this object's work manager'''
+
+        try:
+            return self.work_manager.n_workers
+        except AttributeError:
+            return 1 #Assume a serial work manager
+
+    def assign_iteration(self, nsegs, npts, parent_ids, state_map, last_labels, pcoords, n_workers, n_iter):
+        ''' Method to encapsulate the segment slicing (into n_worker slices) and parallel job submission
+            Submits job(s), waits on completion, splices them back together
+            Returns: assignments, trajlabels for this iteration'''
+
+        futures = []
+
+        #Submit jobs to work manager
+        for islice in xrange(n_workers):
+            lb = (islice)*(nsegs//n_workers)
+            ub = (islice+1)*(nsegs//n_workers)
+            futures.append(self.work_manager.submit(_assign_and_label, 
+                           args=(lb, ub, npts, parent_ids, self.binning.mapper, state_map, last_labels, pcoords)))
+       
+        assignments = numpy.empty((nsegs, npts), dtype=index_dtype)
+        trajlabels = numpy.empty((nsegs, npts), dtype=index_dtype)
+
+        nrecvd = 0
+        for future in self.work_manager.as_completed(futures):
+            nrecvd += 1
+            assign_slice, traj_slice, lb, ub = future.get_result()
+
+            assignments[lb:ub, :] = assign_slice
+            trajlabels[lb:ub, :] = traj_slice
+
+        assert nrecvd == n_workers, "Error: iteration {} did not complete successfully".format(n_iter)
+
+        return (assignments, trajlabels)
+
         
     def load_states_from_function(self, statefunc):
         states = statefunc(self.binning.mapper)
@@ -248,6 +297,8 @@ containing the point (0.1, 0.0).
 
         last_labels = None # mapping of seg_id to last macrostate inhabited      
         for iiter, n_iter in enumerate(xrange(iter_start,iter_stop)):
+
+            #get iteration info in this block
             if sys.stdout.isatty() and not westpa.rc.quiet_mode:
                 print('\rIteration {}'.format(n_iter),end='')
                 sys.stdout.flush()
@@ -261,10 +312,16 @@ containing the point (0.1, 0.0).
             if iiter == 0:
                 last_labels = numpy.empty((nsegs[iiter],), index_dtype)
                 last_labels[:] = UNKNOWN_INDEX
-                     
-            assignments, trajlabels = assign_and_label(nsegs[iiter], npts[iiter], parent_ids,
-                                                       assign, state_map, last_labels,
-                                                       pcoords)   
+
+            #Determine the number of available workers
+            assert self.work_manager, 'No worker manager created for {!r}'.format(self)
+            n_workers = self.get_n_workers()
+
+            #Slices this iteration into n_workers groups of segments, submits them to wm, splices results back together
+            assignments, trajlabels = self.assign_iteration(nsegs[iiter], npts[iiter], parent_ids,
+                                                            state_map, last_labels, pcoords, n_workers, n_iter)
+
+            ##Do stuff with this iteration's results
                 
             last_labels = trajlabels[:,-1].copy()
             assignments_ds[iiter, 0:nsegs[iiter], 0:npts[iiter]] = assignments
