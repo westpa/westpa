@@ -183,14 +183,6 @@ containing the point (0.1, 0.0).
             states.append(state)
         self.states = states
 
-    def get_n_workers(self):
-        '''Gets the number of workers of this object's work manager'''
-
-        try:
-            return self.work_manager.n_workers
-        except AttributeError:
-            return 1 #Assume a serial work manager
-
     def assign_iteration(self, nsegs, npts, parent_ids, state_map, last_labels, pcoords, n_workers, n_iter):
         ''' Method to encapsulate the segment slicing (into n_worker slices) and parallel job submission
             Submits job(s), waits on completion, splices them back together
@@ -314,8 +306,8 @@ containing the point (0.1, 0.0).
                 last_labels[:] = UNKNOWN_INDEX
 
             #Determine the number of available workers
-            assert self.work_manager, 'No worker manager created for {!r}'.format(self)
-            n_workers = self.get_n_workers()
+            assert self.work_manager, 'No work manager created for {!r}'.format(self)
+            n_workers = self.work_manager.n_workers 
 
             #Slices this iteration into n_workers groups of segments, submits them to wm, splices results back together
             assignments, trajlabels = self.assign_iteration(nsegs[iiter], npts[iiter], parent_ids,
