@@ -333,7 +333,8 @@ class WMFuture:
                         raise self._exception, None, self._traceback
                 
             result = self._result
-            del self._result
+            if discard:
+                del self._result
             return result
     result = property(get_result, None, None, get_result.__doc__)
         
