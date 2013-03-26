@@ -40,7 +40,6 @@ def _assign_and_label(nsegs_lb, nsegs_ub, npts, parent_ids,
     
     assignments, trajlabels = assign_and_label(nsegs_lb, nsegs_ub, npts, parent_ids,
                                                bm.assign, state_map, last_labels, pcoords)
-
     return (assignments, trajlabels, nsegs_lb, nsegs_ub)
 
 class WAssign(WESTParallelTool):

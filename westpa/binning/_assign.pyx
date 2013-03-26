@@ -183,7 +183,7 @@ cpdef output_map(index_t[:] output,
                         raise IndexError('value {} not available in output table'.format(o))
                 output[i] = omap[o]
 
-@cython.boundscheck(True)
+@cython.boundscheck(False)
 @cython.wraparound(False)    
 cpdef assign_and_label(Py_ssize_t nsegs_lb, 
                        Py_ssize_t nsegs_ub,
@@ -200,7 +200,7 @@ cpdef assign_and_label(Py_ssize_t nsegs_lb,
         index_t[:,:] _assignments, _trajlabels
         #object assignments, trajlabels
         index_t[:] seg_assignments
-        long seg_id, parent_id
+        long seg_id, parent_id, msegid
         index_t ptlabel
         
     
@@ -213,26 +213,28 @@ cpdef assign_and_label(Py_ssize_t nsegs_lb,
     mask = numpy.ones((npts,), numpy.bool_)
     
     for seg_id in range(nsegs_lb, nsegs_ub):
+        msegid = seg_id - nsegs_lb
         parent_id = parent_ids[seg_id]
         assign(pcoords[seg_id], mask, _assignments[seg_id-nsegs_lb])
-        seg_assignments = _assignments[seg_id-nsegs_lb]
-        if state_map is not None:
-            for ipt in range(npts):
-                ptlabel = state_map[seg_assignments[ipt]]
-                if ptlabel == UNKNOWN_INDEX: 
-                    if ipt == 0:
-                        if parent_id < 0:
-                            # We have started a trajectory in a transition region
-                            _trajlabels[seg_id-nsegs_lb,ipt] = UNKNOWN_INDEX
+        with nogil:
+            seg_assignments = _assignments[msegid]
+            if state_map is not None:
+                for ipt in range(npts):
+                    ptlabel = state_map[seg_assignments[ipt]]
+                    if ptlabel == UNKNOWN_INDEX: 
+                        if ipt == 0:
+                            if parent_id < 0:
+                                # We have started a trajectory in a transition region
+                                _trajlabels[msegid,ipt] = UNKNOWN_INDEX
+                            else:
+                                # We can inherit the ending point from the previous iteration
+                                # (This should be UNKNOWN_INDEX for the first iteration
+                                _trajlabels[msegid,ipt] = last_labels[parent_id]
                         else:
-                            # We can inherit the ending point from the previous iteration
-                            # (This should be UNKNOWN_INDEX for the first iteration
-                            _trajlabels[seg_id-nsegs_lb,ipt] = last_labels[parent_id]
+                            # We are currently in a transition region, but we care about the last state we visited,
+                            # so inherit that state from the previous point
+                            _trajlabels[msegid,ipt] = _trajlabels[msegid,ipt-1]
                     else:
-                        # We are currently in a transition region, but we care about the last state we visited,
-                        # so inherit that state from the previous point
-                        _trajlabels[seg_id-nsegs_lb,ipt] = _trajlabels[seg_id,ipt-1]
-                else:
-                    _trajlabels[seg_id-nsegs_lb,ipt] = ptlabel
+                        _trajlabels[msegid,ipt] = ptlabel
             
     return assignments, trajlabels
