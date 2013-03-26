@@ -1,11 +1,18 @@
 from work_managers.serial import SerialWorkManager
+from nose.tools import assert_raises #@UnresolvedImport
 from tsupport import *
 
 class TestWMFuture:        
     def test_result(self):
         with SerialWorkManager() as work_manager:
             future = work_manager.submit(will_succeed)
-            assert future.get_result() is True    
+            assert future.get_result() is True
+            
+    def test_discarded_result(self):
+        with SerialWorkManager() as work_manager:
+            future = work_manager.submit(will_succeed)
+            assert future.get_result(discard=True) is True
+            assert_raises(AttributeError, getattr, future, '_result')
     
     @raises(ExceptionForTest)
     def test_exception_raise(self):
