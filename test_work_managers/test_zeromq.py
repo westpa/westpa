@@ -38,7 +38,8 @@ class TestZMQServer:
         ann_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
         task_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
         result_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
-        self.test_master = ZMQServer(task_endpoint, result_endpoint, ann_endpoint, 10)
+        listen_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
+        self.test_master = ZMQServer(task_endpoint, result_endpoint, ann_endpoint, listen_endpoint, 10)
 
     def tearDown(self):
         self.test_master.shutdown()
@@ -252,12 +253,16 @@ class TestZMQRouter:
         self.upstream_ann_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
         self.upstream_task_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
         self.upstream_result_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
-        upstream_args = (self.upstream_task_endpoint, self.upstream_result_endpoint, self.upstream_ann_endpoint)
+        self.upstream_listen_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
+        upstream_args = (self.upstream_task_endpoint, self.upstream_result_endpoint,
+                         self.upstream_ann_endpoint, self.upstream_listen_endpoint)
 
         self.downstream_ann_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
         self.downstream_task_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
         self.downstream_result_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
-        downstream_args = (self.downstream_task_endpoint, self.downstream_result_endpoint, self.downstream_ann_endpoint)
+        self.downstream_listen_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
+        downstream_args = (self.downstream_task_endpoint, self.downstream_result_endpoint,
+                           self.downstream_ann_endpoint, self.downstream_listen_endpoint)
 
         args = upstream_args + downstream_args
 
@@ -704,8 +709,10 @@ class TestClientTCPComm(BaseTestZMQClient):
         self.ann_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
         self.task_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
         self.result_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
+        self.listen_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
                 
-        self.test_client = ZMQClient(self.task_endpoint, self.result_endpoint, self.ann_endpoint, comm_mode='tcp')
+        self.test_client = ZMQClient(self.task_endpoint, self.result_endpoint, self.ann_endpoint,
+                                     self.listen_endpoint, comm_mode='tcp')
         self.node_id = self.test_client.instance_id
         self.server_id = uuid.uuid4()
         self.worker_id = uuid.uuid4()
@@ -718,8 +725,10 @@ class TestClientIPCComm(BaseTestZMQClient):
         self.ann_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
         self.task_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
         self.result_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
+        self.listen_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
                 
-        self.test_client = ZMQClient(self.task_endpoint, self.result_endpoint, self.ann_endpoint, comm_mode='ipc')
+        self.test_client = ZMQClient(self.task_endpoint, self.result_endpoint, self.ann_endpoint,
+                                     self.listen_endpoint, comm_mode='ipc')
         self.node_id = self.test_client.instance_id
         self.server_id = uuid.uuid4()
         self.worker_id = uuid.uuid4()
@@ -735,11 +744,14 @@ class TestCoordinated(CommonParallelTests,CommonWorkManagerTests):
         self.ann_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
         self.task_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
         self.result_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
+        self.listen_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
         
-        self.test_master = ZMQWorkManager(self.nprocs, self.task_endpoint, self.result_endpoint, self.ann_endpoint)
+        self.test_master = ZMQWorkManager(self.nprocs, self.task_endpoint, self.result_endpoint,
+                                          self.ann_endpoint, self.listen_endpoint)
         self.test_master.startup()
         
-        self.test_client = ZMQClient(self.task_endpoint, self.result_endpoint, self.ann_endpoint, self.nprocs)
+        self.test_client = ZMQClient(self.task_endpoint, self.result_endpoint, self.ann_endpoint,
+                                     self.listen_endpoint)
         self.test_client.startup()
         
         self.work_manager = self.test_master
@@ -776,7 +788,7 @@ class TestCoordinated(CommonParallelTests,CommonWorkManagerTests):
         finally:
             ann_socket.close(linger=0)
     
-    @timed(15)
+    @timed(20)
     def test_stress(self):
         '''Coordination: many small tasks don't crash or lock'''
         N = 1024
@@ -792,19 +804,23 @@ class TestCoordinatedRouter(CommonParallelTests,CommonWorkManagerTests):
         self.up_ann_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
         self.up_task_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
         self.up_result_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
-        up_args = [self.up_task_endpoint, self.up_result_endpoint, self.up_ann_endpoint]
+        self.up_listen_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
+        up_args = [self.up_task_endpoint, self.up_result_endpoint, self.up_ann_endpoint, self.up_listen_endpoint]
 
         self.down_ann_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
         self.down_task_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
         self.down_result_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
-        down_args = [self.down_task_endpoint, self.down_result_endpoint, self.down_ann_endpoint]
+        self.down_listen_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
+        down_args = [self.down_task_endpoint, self.down_result_endpoint, self.down_ann_endpoint, self.down_listen_endpoint]
 
         all_args = up_args + down_args
         
-        self.test_master = ZMQWorkManager(self.nprocs, self.up_task_endpoint, self.up_result_endpoint, self.up_ann_endpoint)
+        self.test_master = ZMQWorkManager(self.nprocs, self.up_task_endpoint, self.up_result_endpoint,
+                                          self.up_ann_endpoint, self.up_listen_endpoint)
         self.test_master.startup()
         
-        self.test_client = ZMQClient(self.down_task_endpoint, self.down_result_endpoint, self.down_ann_endpoint, self.nprocs)
+        self.test_client = ZMQClient(self.down_task_endpoint, self.down_result_endpoint, self.down_ann_endpoint,
+                                     self.down_listen_endpoint)
         self.test_client.startup()
 
         self.test_router = ZMQRouter(*all_args)
@@ -821,7 +837,7 @@ class TestCoordinatedRouter(CommonParallelTests,CommonWorkManagerTests):
         self.test_client._close_signal_sockets()
         self.test_master._close_signal_sockets()
     
-    @timed(15)
+    @timed(20)
     def test_stress(self):
         '''Coordination (with Router): many small tasks don't crash or lock'''
         N = 1024

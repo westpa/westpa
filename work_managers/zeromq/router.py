@@ -202,12 +202,16 @@ class ZMQRouter(ZMQBase):
                               help='''Use the given ZeroMQ endpoint to send results upstream''')
         wm_group.add_argument(wmenv.arg_flag('zmq_upstream_announce_endpoint'), metavar='UPSTREAM_ANNOUNCE_ENDPOINT',
                               help='''Use the given ZeroMQ endpoint to connect upstream to receive announcements''')
+        wm_group.add_argument(wmenv.arg_flag('zmq_upstream_listen_endpoint'), metavar='UPSTREAM_ANNOUNCE_ENDPOINT',
+                              help='''Use the given ZeroMQ endpoint to send client annoncements upstream''')
         wm_group.add_argument(wmenv.arg_flag('zmq_downstream_task_endpoint'), metavar='DOWNSTREAM_TASK_ENDPOINT',
                               help='''Use the given ZeroMQ endpoint for downstream task distribution''')
         wm_group.add_argument(wmenv.arg_flag('zmq_downstream_result_endpoint'), metavar='DOWNSTREAM_RESULT_ENDPOINT',
                               help='''Use the given ZeroMQ endpoint for downstream result collection''')
         wm_group.add_argument(wmenv.arg_flag('zmq_downstream_announce_endpoint'), metavar='DOWNSTREAM_ANNOUNCE_ENDPOINT',
                               help='''Use the given ZeroMQ endpoint to send announcements downstream''')
+        wm_group.add_argument(wmenv.arg_flag('zmq_downstream_listen_endpoint'), metavar='DOWNSTREAM_ANNOUNCE_ENDPOINT',
+                              help='''Use the given ZeroMQ endpoint to send client announcements upstream''')
         wm_group.add_argument(wmenv.arg_flag('zmq_heartbeat_interval'), metavar='INTERVAL',
                               help='''If router has not
                                       heard from the server in approximately INTERVAL seconds, the router will
@@ -226,7 +230,8 @@ class ZMQRouter(ZMQBase):
         #(UPSTREAM Endpoints for this router to connect to)
         tests = [not bool(wmenv.get_val('zmq_upstream_task_endpoint')),
                  not bool(wmenv.get_val('zmq_upstream_result_endpoint')),
-                 not bool(wmenv.get_val('zmq_upstream_announce_endpoint'))]
+                 not bool(wmenv.get_val('zmq_upstream_announce_endpoint')),
+                 not bool(wmenv.get_val('zmq_upstream_listen_endpoint'))]
         if all(tests):
             # No endpoints specified; use upstream/server info file
             upstream_info_filename = wmenv.get_val('zmq_read_info')
@@ -238,7 +243,8 @@ class ZMQRouter(ZMQBase):
                     upstream_info = json.load(open(upstream_info_filename,'rt'))
                     upstream_task_endpoint = upstream_info['task_endpoint']
                     upstream_result_endpoint = upstream_info['result_endpoint']
-                    upstream_announce_endpoint = upstream_info['announce_endpoint']    
+                    upstream_announce_endpoint = upstream_info['announce_endpoint'] 
+                    upstream_listen_endpoint = upstream_info['listen_endpoint']   
                 except Exception as e:
                     raise EnvironmentError('cannot load upstream info file {!r}: {}'.format(upstream_info_filename,e))                
         elif any(tests):
@@ -247,6 +253,7 @@ class ZMQRouter(ZMQBase):
             upstream_task_endpoint = cls.canonicalize_endpoint(wmenv.get_val('zmq_upstream_task_endpoint'),allow_wildcard_host=False)
             upstream_result_endpoint = cls.canonicalize_endpoint(wmenv.get_val('zmq_upstream_result_endpoint'),allow_wildcard_host=False)
             upstream_announce_endpoint = cls.canonicalize_endpoint(wmenv.get_val('zmq_upstream_announce_endpoint'),allow_wildcard_host=False)
+            upstream_listen_endpoint = cls.canonicalize_endpoint(wmenv.get_val('zmq_upstream_listen_endpoint'),allow_wildcard_host=False)
 
         ##SETUP DOWNSTREAM ENDPOINTS##
         #(Endpoints for DOWNSTREAM CLIENTS to connect to)
@@ -255,22 +262,25 @@ class ZMQRouter(ZMQBase):
         # if individual endpoints are named, we use these
         tests = [not bool(wmenv.get_val('zmq_downstream_task_endpoint')),
                  not bool(wmenv.get_val('zmq_downstream_result_endpoint')),
-                 not bool(wmenv.get_val('zmq_downstream_announce_endpoint'))]
+                 not bool(wmenv.get_val('zmq_downstream_announce_endpoint')),
+                 not bool(wmenv.get_val('zmq_downstream_listen_endpoint'))]
         if all(tests):
             # Choose random ports
             downstream_task_endpoint = cls.canonicalize_endpoint('tcp://*')
             downstream_result_endpoint = cls.canonicalize_endpoint('tcp://*')
             downstream_announce_endpoint = cls.canonicalize_endpoint('tcp://*')
+            downstream_listen_endpoint = cls.canonicalize_endpoint('tcp://*')
         elif any(tests):
             raise ValueError('either none or all three downstream endpoints must be specified')
         else:
             downstream_task_endpoint = cls.canonicalize_endpoint(wmenv.get_val('zmq_downstream_task_endpoint'))
             downstream_result_endpoint = cls.canonicalize_endpoint(wmenv.get_val('zmq_downstream_result_endpoint'))
             downstream_announce_endpoint = cls.canonicalize_endpoint(wmenv.get_val('zmq_downstream_announce_endpoint'))
+            downstream_listen_endpoint = cls.canonicalize_endpoint(wmenv.get_val('zmq_downstream_listen_endpoint'))
         
         #Return ZMQRouter instance
-        return cls(upstream_task_endpoint, upstream_result_endpoint, upstream_announce_endpoint, 
-                   downstream_task_endpoint, downstream_result_endpoint, downstream_announce_endpoint,
+        return cls(upstream_task_endpoint, upstream_result_endpoint, upstream_announce_endpoint, upstream_listen_endpoint,
+                   downstream_task_endpoint, downstream_result_endpoint, downstream_announce_endpoint, downstream_listen_endpoint,
                    server_heartbeat_interval=heartbeat_interval, router_info_filename=router_info_filename)
 
     def remove_router_info_file(self):
@@ -292,13 +302,14 @@ class ZMQRouter(ZMQBase):
             log.debug('writing router info file {!r}'.format(filename))
             json.dump({'task_endpoint': re.sub(r'\*', hostname, self.downstream_task_endpoint),
                        'result_endpoint': re.sub(r'\*', hostname, self.downstream_result_endpoint),
-                       'announce_endpoint': re.sub(r'\*', hostname, self.downstream_announce_endpoint)},
+                       'announce_endpoint': re.sub(r'\*', hostname, self.downstream_announce_endpoint),
+                       'listen_endpoint': re.sub(r'\*', hostname, self.downstream_listen_endpoint)},
                       infofile)
         os.chmod(filename, 0600)
 
 
-    def __init__(self, upstream_task_endpoint, upstream_result_endpoint, upstream_announce_endpoint, 
-                 downstream_task_endpoint, downstream_result_endpoint, downstream_announce_endpoint,
+    def __init__(self, upstream_task_endpoint, upstream_result_endpoint, upstream_announce_endpoint, upstream_listen_endpoint,
+                 downstream_task_endpoint, downstream_result_endpoint, downstream_announce_endpoint, downstream_listen_endpoint,
                  server_heartbeat_interval=None, write_router_info=True, router_info_filename=None):
 
         
@@ -317,11 +328,13 @@ class ZMQRouter(ZMQBase):
         self.upstream_task_endpoint = upstream_task_endpoint 
         self.upstream_result_endpoint = upstream_result_endpoint 
         self.upstream_announce_endpoint = upstream_announce_endpoint 
+        self.upstream_listen_endpoint = upstream_listen_endpoint
 
         #Endpoints for client connections
         self.downstream_task_endpoint = downstream_task_endpoint
         self.downstream_result_endpoint = downstream_result_endpoint
         self.downstream_announce_endpoint = downstream_announce_endpoint
+        self.downstream_listen_endpoint = downstream_listen_endpoint
 
         ##Router info file##
         if write_router_info:

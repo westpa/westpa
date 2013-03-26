@@ -192,10 +192,12 @@ class ZMQClient(ZMQBase):
         # if individual endpoints are named, we use these
         tests_old = [not bool(wmenv.get_val('zmq_task_endpoint')),
                  not bool(wmenv.get_val('zmq_result_endpoint')),
-                 not bool(wmenv.get_val('zmq_announce_endpoint'))]
+                 not bool(wmenv.get_val('zmq_announce_endpoint')),
+                 not bool(wmenv.get_val('zmq_listen_endpoint'))]
         tests_new = [not bool(wmenv.get_val('zmq_upstream_task_endpoint')),
                  not bool(wmenv.get_val('zmq_upstream_result_endpoint')),
-                 not bool(wmenv.get_val('zmq_upstream_announce_endpoint'))]
+                 not bool(wmenv.get_val('zmq_upstream_announce_endpoint')),
+                 not bool(wmenv.get_val('zmq_upstream_listen_endpoint'))]
 
         if all(tests_old) and all(tests_new):
             # No endpoints specified; use server/router info file
@@ -208,7 +210,9 @@ class ZMQClient(ZMQBase):
                     upstream_info = json.load(open(upstream_info_filename,'rt'))
                     task_endpoint = upstream_info['task_endpoint']
                     result_endpoint = upstream_info['result_endpoint']
-                    announce_endpoint = upstream_info['announce_endpoint']    
+                    announce_endpoint = upstream_info['announce_endpoint'] 
+                    listen_endpoint = upstream_info['listen_endpoint']   
+                    
                 except Exception as e:
                     raise EnvironmentError('cannot load upstream info file {!r}: {}'.format(upstream_info_filename,e))
 
@@ -219,13 +223,15 @@ class ZMQClient(ZMQBase):
             task_endpoint = cls.canonicalize_endpoint(wmenv.get_val('zmq_upstream_task_endpoint'),allow_wildcard_host=False)
             result_endpoint = cls.canonicalize_endpoint(wmenv.get_val('zmq_upstream_result_endpoint'),allow_wildcard_host=False)
             announce_endpoint = cls.canonicalize_endpoint(wmenv.get_val('zmq_upstream_announce_endpoint'),allow_wildcard_host=False)
+            listen_endpoint = cls.canonicalize_endpoint(wmenv.get_val('zmq_upstream_listen_endpoint'),allow_wildcard_host=False)
         else:
             log.debug('using old style endpoint for client')
             task_endpoint = cls.canonicalize_endpoint(wmenv.get_val('zmq_task_endpoint'),allow_wildcard_host=False)
             result_endpoint = cls.canonicalize_endpoint(wmenv.get_val('zmq_result_endpoint'),allow_wildcard_host=False)
             announce_endpoint = cls.canonicalize_endpoint(wmenv.get_val('zmq_announce_endpoint'),allow_wildcard_host=False)
+            listen_endpoint = cls.canonicalize_endpoint(wmenv.get_val('zmq_listen_endpoint'),allow_wildcard_host=False)
         
-        return cls(task_endpoint, result_endpoint, announce_endpoint, server_heartbeat_interval = heartbeat_interval,
+        return cls(task_endpoint, result_endpoint, announce_endpoint, listen_endpoint, server_heartbeat_interval = heartbeat_interval,
                    comm_mode = client_comm_mode, n_workers = n_workers, task_timeout = task_timeout,
                    shutdown_timeout = shutdown_timeout, hangcheck_interval = hangcheck_interval)
                      
@@ -233,7 +239,7 @@ class ZMQClient(ZMQBase):
     def make_tcp_endpoint(cls):
         return 'tcp://127.0.0.1:{}'.format(randport())
     
-    def __init__(self, upstream_task_endpoint, upstream_result_endpoint, upstream_announce_endpoint,
+    def __init__(self, upstream_task_endpoint, upstream_result_endpoint, upstream_announce_endpoint, upstream_update_endpoint,
                  server_heartbeat_interval = None, comm_mode = None, n_workers = None, task_timeout = None,
                  shutdown_timeout = None, hangcheck_interval = None):
         
@@ -252,6 +258,7 @@ class ZMQClient(ZMQBase):
         self.upstream_task_endpoint = upstream_task_endpoint
         self.upstream_result_endpoint = upstream_result_endpoint
         self.upstream_announce_endpoint = upstream_announce_endpoint
+        self.upstream_listen_endpoint = upstream_update_endpoint
         
         self.context = None # this really shouldn't be instantiated until after forks, just to be safe
         
@@ -615,6 +622,11 @@ class ZMQClient(ZMQBase):
             worker_result_socket.close(linger=0)
             ctlsocket.close(linger=0)
             log.debug('exiting result forwarding loop')
+
+    def _update_server_loop(self):
+        '''Contains socket that updates the server on this client's status, including its number of active workers'''
+
+        pass
 
     @property
     def is_master(self):

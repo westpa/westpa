@@ -42,7 +42,7 @@ class Task:
 
 class ZMQServer(ZMQBase):
     
-    def __init__(self, master_task_endpoint, master_result_endpoint, master_announce_endpoint,
+    def __init__(self, master_task_endpoint, master_result_endpoint, master_announce_endpoint, master_listen_endpoint,
                  server_heartbeat_interval=DEFAULT_SERVER_HEARTBEAT_INTERVAL,
                  max_taskqueue_size=DEFAULT_MAX_TASKQUEUE_SIZE,
                  taskqueue_wait=DEFAULT_TASKQUEUE_WAIT):
@@ -59,6 +59,9 @@ class ZMQServer(ZMQBase):
  
         # Where we send out announcements
         self.master_announce_endpoint = master_announce_endpoint
+
+        # Listen for updates from clients
+        self.master_listen_endpoint = master_listen_endpoint
         
         # tasks awaiting dispatch
         self.task_queue = queue.Queue(max_taskqueue_size or 0)
@@ -76,7 +79,13 @@ class ZMQServer(ZMQBase):
         self._dispatch_thread_ctl_endpoint = 'inproc://_dispatch_thread_ctl_{:x}'.format(id(self))        
         self._receive_thread_ctl_endpoint = 'inproc://_receive_thread_ctl_{:x}'.format(id(self))
         self._announce_endpoint = 'inproc://_announce_{:x}'.format(id(self))
-        
+
+    @property
+    def total_workers(self):
+        '''returns all the workers for all client processes'''
+        return self._total_workers or 0
+
+
     def startup(self):
         # start up server threads, blocking until their sockets are ready
         
@@ -292,6 +301,12 @@ class ZMQServer(ZMQBase):
             master_announce_socket.close(linger=0)
             ctlsocket.close()
             log.debug('server: exiting announce loop')
+
+    def _listen_loop(self):
+        #Thread for socket to 'listen' to downstream announcements from clients (for instance, how many workers each client has)
+        #Kind of a reverse announce socket
+        pass
+
             
     def submit(self, fn, args=None, kwargs=None):
         return self.submit_many([(fn,args if args is not None else (),kwargs if kwargs is not None else {})])[0]
