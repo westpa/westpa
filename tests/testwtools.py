@@ -138,7 +138,7 @@ class Test_W_Assign(WToolBase):
 
         os.environ['WM_WORK_MANAGER'] = 'serial'
         self.w.work_manager = self.w.wm_env.make_work_manager()
-        assert self.w.get_n_workers() == 1
+        assert self.w.work_manager.n_workers == 1
 
         self.w.go()
 
@@ -158,7 +158,7 @@ class Test_W_Assign(WToolBase):
 
         os.environ['WM_WORK_MANAGER'] = 'threads'
         self.w.work_manager = self.w.wm_env.make_work_manager()
-        assert self.w.get_n_workers() == 1
+        assert self.w.work_manager.n_workers == 1
         self.w.work_manager.startup()
 
         self.w.go()
@@ -180,7 +180,7 @@ class Test_W_Assign(WToolBase):
 
         os.environ['WM_WORK_MANAGER'] = 'processes'
         self.w.work_manager = self.w.wm_env.make_work_manager()
-        assert self.w.get_n_workers() == 1
+        assert self.w.work_manager.n_workers == 1
         self.w.work_manager.startup()
 
         self.w.go()
@@ -196,13 +196,14 @@ class Test_W_Assign(WToolBase):
 
             numpy.testing.assert_array_equal(assignments, self.expected_bins)
 
+    @SkipTest
     def test_go_simple_zmq(self):
         '''WAssign: works as expected using a simple 'ZMQ' server with a 1-worker internal client'''
 
         os.environ['WM_WORK_MANAGER'] = 'zmq' 
         os.environ['WM_N_WORKERS'] = '1'
         self.w.work_manager = self.w.wm_env.make_work_manager() ##Defaults should give a non-dedicated server
-        assert self.w.get_n_workers() == 1
+        assert self.w.work_manager.n_local_workers == 1
         self.w.work_manager.startup()
 
         self.w.go()
