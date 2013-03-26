@@ -1,14 +1,15 @@
-import cPickle as pickle
 __metaclass__ = type
-
 import logging
-import sys, time, uuid, threading, signal
+import uuid, threading, signal
 from itertools import islice
-from collections import deque
 from contextlib import contextmanager
 log = logging.getLogger(__name__)
 
 class WorkManager:
+    '''Base class for all work managers. At a minimum, work managers must provide a 
+    ``submit()`` function and a ``n_workers`` attribute (which may be a property),
+    though most will also override ``startup()`` and ``shutdown()``.'''
+    
     @classmethod
     def from_environ(cls, wmenv=None):
         raise NotImplementedError

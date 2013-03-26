@@ -14,6 +14,7 @@ class SerialWorkManager(WorkManager):
     def __init__(self):
         log.debug('initializing serial work manager')
         super(SerialWorkManager,self).__init__()
+        self.n_workers = 1
         
     def submit(self, fn, args=None, kwargs=None):
         ft = WMFuture()
