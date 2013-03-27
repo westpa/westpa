@@ -9,19 +9,17 @@ cimport numpy
 from numpy import uint16, float32
 from numpy cimport uint16_t, float32_t
 
-ctypedef numpy.float32_t _fptype  
-
+ctypedef numpy.float32_t _fptype
+  
 ctypedef numpy.uint8_t bool_t
 ctypedef float32_t coord_t    
 ctypedef uint16_t index_t
+ctypedef numpy.float64_t weight_t
 
 bool_dtype = numpy.bool_
 internal_bool_dtype = numpy.uint8
 index_dtype = numpy.uint16
 coord_dtype = numpy.float32
-
-from westpa.binning.assign import UNKNOWN_INDEX as _UNKNOWN_INDEX
-cdef index_t UNKNOWN_INDEX = _UNKNOWN_INDEX
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
@@ -187,54 +185,93 @@ cpdef output_map(index_t[:] output,
 @cython.wraparound(False)    
 cpdef assign_and_label(Py_ssize_t nsegs_lb, 
                        Py_ssize_t nsegs_ub,
-                       Py_ssize_t npts,
-                       long[:] parent_ids,
+                       long[:] parent_ids, # only for given segments
                        object assign,
+                       Py_ssize_t nstates,
                        index_t[:] state_map,
-                       index_t[:] last_labels,
-                       object pcoords):
+                       index_t[:] last_labels, # must be for all segments
+                       object pcoords # only for given segments
+                       ):
     '''Assign trajectories to bins and last-visted macrostates for each timepoint.'''
     
     cdef:
-        Py_ssize_t ipt
+        Py_ssize_t ipt, nsegs, npts, iseg
         index_t[:,:] _assignments, _trajlabels
-        #object assignments, trajlabels
         index_t[:] seg_assignments
         long seg_id, parent_id, msegid
         index_t ptlabel
-        
-    
     
     nsegs = nsegs_ub - nsegs_lb
+    npts = pcoords.shape[1]
     assignments = numpy.empty((nsegs,npts), index_dtype)
     trajlabels = numpy.empty((nsegs,npts), index_dtype)
+    
     _assignments = assignments
     _trajlabels = trajlabels
     mask = numpy.ones((npts,), numpy.bool_)
     
-    for seg_id in range(nsegs_lb, nsegs_ub):
-        msegid = seg_id - nsegs_lb
-        parent_id = parent_ids[seg_id]
-        assign(pcoords[seg_id], mask, _assignments[seg_id-nsegs_lb])
+    for iseg in range(nsegs):
+        assign(pcoords[iseg,:], mask, assignments[iseg,:])
+    
+    if state_map is not None:
         with nogil:
-            seg_assignments = _assignments[msegid]
-            if state_map is not None:
-                for ipt in range(npts):
-                    ptlabel = state_map[seg_assignments[ipt]]
-                    if ptlabel == UNKNOWN_INDEX: 
-                        if ipt == 0:
-                            if parent_id < 0:
-                                # We have started a trajectory in a transition region
-                                _trajlabels[msegid,ipt] = UNKNOWN_INDEX
+            for iseg in range(nsegs):
+                seg_id = iseg+nsegs_lb        
+                parent_id = parent_ids[iseg]
+                if state_map is not None:
+                    for ipt in range(npts):
+                        ptlabel = state_map[_assignments[iseg,ipt]]
+                        if ptlabel == nstates: # unknown state/transition region 
+                            if ipt == 0:
+                                if parent_id < 0:
+                                    # We have started a trajectory in a transition region
+                                    _trajlabels[iseg,ipt] = nstates
+                                else:
+                                    # We can inherit the ending point from the previous iteration
+                                    # This should be nstates (unknown_state) for the first iteration
+                                    _trajlabels[iseg,ipt] = last_labels[parent_id]
                             else:
-                                # We can inherit the ending point from the previous iteration
-                                # (This should be UNKNOWN_INDEX for the first iteration
-                                _trajlabels[msegid,ipt] = last_labels[parent_id]
+                                # We are currently in a transition region, but we care about the last state we visited,
+                                # so inherit that state from the previous point
+                                _trajlabels[iseg,ipt] = _trajlabels[iseg,ipt-1]
                         else:
-                            # We are currently in a transition region, but we care about the last state we visited,
-                            # so inherit that state from the previous point
-                            _trajlabels[msegid,ipt] = _trajlabels[msegid,ipt-1]
-                    else:
-                        _trajlabels[msegid,ipt] = ptlabel
+                            _trajlabels[iseg,ipt] = ptlabel
+    else:
+        trajlabels.fill(nstates)
             
     return assignments, trajlabels
+
+@cython.cdivision(True)
+@cython.boundscheck(False)
+@cython.wraparound(False)    
+cpdef accumulate_labeled_populations(weight_t[:]  weights,
+                                     index_t[:,:] bin_assignments,
+                                     index_t[:,:] label_assignments,
+                                     weight_t[:,:] labeled_bin_pops):
+    '''For a set of segments in one iteration, calculate the average population in each bin, with
+    separation by last-visited macrostate.'''
+    cdef:
+        Py_ssize_t nsegs, npts, nbins, nstates, seg_id, ipt
+        index_t assignment, traj_assignment
+        weight_t ptwt
+        
+    nstates = labeled_bin_pops.shape[0] # this will generally be n_valid_states + 1 (for unknown state)
+    nbins = labeled_bin_pops.shape[1]   # this may be n_valid_bins + 1 (for unknown bin)
+    nsegs = bin_assignments.shape[0]
+    npts = bin_assignments.shape[1]
+    
+    with nogil:
+        for seg_id in range(nsegs):
+            ptwt = weights[seg_id] / npts
+            for ipt in range(npts):
+                assignment = bin_assignments[seg_id,ipt]
+                if assignment >= nbins:
+                    with gil:
+                        raise ValueError('invalid bin assignment for segment {} point {}'.format(seg_id, ipt))
+
+                traj_assignment = label_assignments[seg_id,ipt]
+                if traj_assignment >= nstates:
+                    with gil:
+                        raise ValueError('invalid trajectory label for segment {} point {}'.format(seg_id, ipt))
+                
+                labeled_bin_pops[traj_assignment,assignment] += ptwt

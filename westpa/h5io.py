@@ -2,6 +2,7 @@
 
 import sys, os, getpass, socket, time
 import numpy, h5py
+from numpy import index_exp
 
 #
 # Constants and globals
@@ -260,7 +261,7 @@ class WESTPAH5File(h5py.File):
 class DSSpec:
     '''Generalized WE dataset access'''
     
-    def get_iter_data(self, n_iter):
+    def get_iter_data(self, n_iter, seg_slice=index_exp[:]):
         raise NotImplementedError
     
     def get_segment_data(self, n_iter, seg_id):
@@ -329,21 +330,20 @@ class SingleDSSpec(FileLinkedDSSpec):
         self.dsname = dsname
         self.alias = alias or dsname
         self.slice = numpy.index_exp[slice] if slice else None
-
     
 class SingleIterDSSpec(SingleDSSpec):
-    def get_iter_data(self, n_iter):
+    def get_iter_data(self, n_iter, seg_slice=index_exp[:]):
         if self.slice:
-            return self.h5file.get_iter_group(n_iter)[self.dsname][numpy.index_exp[:] + self.slice]
+            return self.h5file.get_iter_group(n_iter)[self.dsname][seg_slice + self.slice]
         else:
-            return self.h5file.get_iter_group(n_iter)[self.dsname][:,:]
+            return self.h5file.get_iter_group(n_iter)[self.dsname][seg_slice]
     
 class SingleSegmentDSSpec(SingleDSSpec):
-    def get_iter_data(self, n_iter):
+    def get_iter_data(self, n_iter, seg_slice=index_exp[:]):
         if self.slice:
-            return self.h5file.get_iter_group(n_iter)[self.dsname][numpy.index_exp[:,:] + self.slice]
+            return self.h5file.get_iter_group(n_iter)[self.dsname][seg_slice + index_exp[:] + self.slice]
         else:
-            return self.h5file.get_iter_group(n_iter)[self.dsname][:,:]
+            return self.h5file.get_iter_group(n_iter)[self.dsname][seg_slice + index_exp[:,:]]
         
     def get_segment_data(self, n_iter, seg_id):
         if self.slice:
@@ -356,15 +356,15 @@ class FnDSSpec(FileLinkedDSSpec):
         FileLinkedDSSpec.__init__(self,h5file_or_name)
         self.fn = fn
         
-    def get_iter_data(self, n_iter):
-        return self.fn(n_iter, self.h5file.get_iter_group(n_iter))
+    def get_iter_data(self, n_iter, seg_slice=index_exp[:]):
+        return self.fn(n_iter, self.h5file.get_iter_group(n_iter))[seg_slice]
 
         
 class MultiDSSpec(DSSpec):
     def __init__(self, dsspecs):
         self.dsspecs = dsspecs
     
-    def get_iter_data(self, n_iter):
+    def get_iter_data(self, n_iter, seg_slice=index_exp[:]):
         datasets = [dsspec.get_iter_data(n_iter) for dsspec in self.dsspecs]
           
         ncols = 0 
@@ -405,7 +405,7 @@ class MultiDSSpec(DSSpec):
                 output_array[:,:,ocol:(ocol+dset.shape[-1])] = dset[...]
                 ocol += dset.shape[-1]
         
-        return output_array
+        return output_array[seg_slice]
             
         
         

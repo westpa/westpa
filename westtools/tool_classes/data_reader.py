@@ -1,8 +1,9 @@
 from __future__ import division, print_function; __metaclass__ = type
+from numpy import index_exp
 from core import WESTToolComponent
 import westpa
 from westpa.extloader import get_object
-from westpa.h5io import FnDSSpec, MultiDSSpec, SingleSegmentDSSpec
+from westpa.h5io import FnDSSpec, MultiDSSpec, SingleSegmentDSSpec, SingleIterDSSpec
 
     
 class WESTDataReader(WESTToolComponent):
@@ -15,6 +16,9 @@ class WESTDataReader(WESTToolComponent):
         super(WESTDataReader,self).__init__()
         self.data_manager = westpa.rc.get_data_manager() 
         self.we_h5filename = None
+        
+        self._weight_dsspec = None
+        self._parent_id_dsspec = None
         
     def add_args(self, parser):
         group = parser.add_argument_group('WEST input data options')
@@ -35,6 +39,21 @@ class WESTDataReader(WESTToolComponent):
         
     def __getattr__(self, key):
         return getattr(self.data_manager, key)
+    
+    @property
+    def weight_dsspec(self):
+        if self._weight_dsspec is None:
+            assert self.we_h5filename is not None
+            self._weight_dsspec = SingleIterDSSpec(self.we_h5filename, 'seg_index', slice=index_exp['weight'])
+        return self._weight_dsspec
+
+    @property
+    def parent_id_dsspec(self):
+        if self._parent_id_dsspec is None:
+            assert self.we_h5filename is not None
+            self._parent_id_dsspec = SingleIterDSSpec(self.we_h5filename, 'seg_index', slice=index_exp['parent_id'])
+        return self._parent_id_dsspec
+            
 
 class WESTDSSynthesizer(WESTToolComponent):
     '''Tool for synthesizing a dataset for analysis from other datasets. This

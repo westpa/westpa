@@ -135,8 +135,10 @@ Parallelization
 -----------------------------------------------------------------------------
 
 This tool supports parallelized binning, including reading of input data.
-For simple cases, serial invocation (--wm-work-manager=serial) is probably
-most efficient.
+Parallel processing is the default. For simple cases (reading pre-computed
+input data, modest numbers of segments), serial processing (--serial) may be
+more efficient.
+
 
 -----------------------------------------------------------------------------
 Command-line options
@@ -146,6 +148,10 @@ Command-line options
     
     def __init__(self):
         super(WPDist,self).__init__()
+        
+        # Parallel processing by default (this is not actually necessary, but it is
+        # informative!)
+        self.wm_env.default_work_manager = self.wm_env.default_parallel_work_manager
         
         # These are used throughout
         self.data_reader = WESTDataReader()

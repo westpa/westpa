@@ -1,6 +1,6 @@
 from __future__ import print_function, division; __metaclass__ = type
 import logging
-from westtools.tool_classes import WESTParallelTool, WESTDataReader, IterRangeSelection
+from westtools.tool_classes import WESTParallelTool, WESTDataReader, IterRangeSelection, WESTToolComponent
 import sys, math
 import numpy
 from westpa import h5io
@@ -21,18 +21,24 @@ ci_dtype = numpy.dtype([('expected', numpy.float64),
 def _remote_get_macrostate_rates(iset, rates, pops):
     return (iset,) + get_macrostate_rates(rates,pops)
 
-class WKinAvg(WESTParallelTool):
-    prog='w_kinavg'
-    description = '''\
-Calculate average rates and associated errors from weighted ensemble data. Bin
-assignments (usually "assignments.h5") and kinetics data (usually
-"kinetics.h5") data files must have been previously generated (see 
-"w_assign --help" and "w_kinetics --help" for information on generating these
-files).
-'''
+class WESTSubcommand(WESTToolComponent):
+    def __init__(self, parent):
+        self.parent = parent
+        
+    def add_to_subparsers(self, subparsers):
+        subparser = subparsers.add_parser(self.subcommand, help=self.subcommand_help)
+        self.add_all_args(subparser)
+        subparser.set_defaults(west_subcommand=self)
+
+    def go(self):
+        raise NotImplementedError
+
+class KinAvgSubcommands(WESTSubcommand):
+    '''Common argument processing for w_kinavg subcommands'''
     
-    def __init__(self):
-        super(WKinAvg,self).__init__()
+    def __init__(self, parent):
+        super(KinAvgSubcommands,self).__init__(parent)
+        
         self.data_reader = WESTDataReader()
         self.iter_range = IterRangeSelection() 
         self.output_file = None
@@ -42,7 +48,7 @@ files).
         self.mcbs_alpha = None
         self.mcbs_acalpha = None
         self.mcbs_nsets = None
-    
+            
     def add_args(self, parser):
         self.data_reader.add_args(parser)
         self.iter_range.add_args(parser)
@@ -50,8 +56,10 @@ files).
         iogroup = parser.add_argument_group('input/output options')
         iogroup.add_argument('-a', '--assignments', default='assign.h5',
                             help='''Bin assignments and macrostate definitions are in ASSIGNMENTS
-                            (default: %(default)s).''')        
-        iogroup.add_argument('-k', '--kinetics', default='kinetics.h5',
+                            (default: %(default)s).''')
+        
+        # self.default_kinetics_file will be picked up as a class attribute from the appropriate subclass        
+        iogroup.add_argument('-k', '--kinetics', default=self.default_kinetics_file,
                             help='''Populations and transition rates are stored in KINETICS
                             (default: %(default)s).''')
         iogroup.add_argument('-o', '--output', dest='output', default='kinavg.h5',
@@ -59,17 +67,17 @@ files).
 
         
         cgroup = parser.add_argument_group('confidence interval calculation options')
-        cgroup.add_argument('-a', '--alpha', type=float, default=0.05, 
+        cgroup.add_argument('--alpha', type=float, default=0.05, 
                              help='''Calculate a (1-ALPHA) confidence interval'
                              (default: %(default)s)''')
         cgroup.add_argument('--autocorrel-alpha', type=float, dest='acalpha', metavar='ACALPHA',
                              help='''Evaluate autocorrelation to (1-ACALPHA) significance.
                              Note that too small an ACALPHA will result in failure to detect autocorrelation
                              in a noisy flux signal. (Default: same as ALPHA.)''')
-        cgroup.add_argument('-N', '--nsets', type=int,
+        cgroup.add_argument('--nsets', type=int,
                              help='''Use NSETS samples for bootstrapping (default: chosen based on ALPHA)''')
 
-        
+    
     def process_args(self, args):
         self.assignments_file = h5io.WESTPAH5File(args.assignments, 'r')
         self.kinetics_file = h5io.WESTPAH5File(args.kinetics, 'r')
@@ -88,6 +96,46 @@ files).
         self.mcbs_alpha = args.alpha
         self.mcbs_acalpha = args.acalpha if args.acalpha else self.mcbs_alpha
         self.mcbs_nsets = args.nsets if args.nsets else mclib.get_bssize(self.mcbs_alpha)
+        
+class AvgTraceSubcommand(KinAvgSubcommands):
+    subcommand = 'kintrace'
+    subcommand_help = 'averages and CIs for path-tracing kinetics analysis'
+    
+    default_kinetics_file = 'kintrace.h5'
+    def __init__(self, parent):
+        super(AvgTraceSubcommand,self).__init__(parent)
+        
+    def go(self):
+        print(self.output_file)
+    
+    
+
+class WKinAvg(WESTParallelTool):
+    prog='w_kinavg'
+    description = '''\
+Calculate average rates and associated errors from weighted ensemble data. Bin
+assignments (usually "assignments.h5") and kinetics data (usually
+"kinetics.h5") data files must have been previously generated (see 
+"w_assign --help" and "w_kinetics --help" for information on generating these
+files).
+'''
+    
+    def __init__(self):
+        super(WKinAvg,self).__init__()
+        
+        self.subcommand = None
+    
+    def add_args(self, parser):
+        subparsers = parser.add_subparsers(title='kinetics analysis variants')
+        AvgTraceSubcommand(self).add_to_subparsers(subparsers)
+
+        
+    def process_args(self, args):
+        self.subcommand = args.west_subcommand
+        self.subcommand.process_all_args(args)
+    
+    def go(self):
+        self.subcommand.go()
 
     def kinetics_cis(self, labeled_fluxes, labeled_pops, traced_macro_fluxes):
         niters, nstates, nbins = labeled_pops.shape
@@ -213,8 +261,8 @@ files).
                 
         
         return tmflux_cidata, mmflux_cidata, ss_cidata
-        
-    def go(self):
+    
+    def _old_go(self):
         nbins = self.assignments_file.attrs['nbins']
         state_labels = self.assignments_file['state_labels'][...]
         nstates = len(state_labels)

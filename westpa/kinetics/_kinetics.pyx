@@ -31,41 +31,7 @@ cpdef flux_assign(numpy.ndarray[weight_t, ndim=1] weights,
         j = final_assignments[m]
         flux_matrix[i,j] += weights[m]
     return
-
-@cython.cdivision(True)
-@cython.boundscheck(False)
-@cython.wraparound(False)    
-cpdef accumulate_labeled_populations(weight_t[:]  weights,
-                                     index_t[:,:] bin_assignments,
-                                     index_t[:,:] label_assignments,
-                                     weight_t[:,:] labeled_bin_pops):
-    '''For a set of segments in one iteration, calculate the average population in each bin, with and without
-    separation by last-visited macrostate.'''
-    cdef:
-        Py_ssize_t nsegs, npts, nstates, seg_id, ipt
-        index_t assignment, traj_assignment
-        weight_t ptwt
-    
-    nsegs = bin_assignments.shape[0]
-    npts = bin_assignments.shape[1]
-    nstates = labeled_bin_pops.shape[0]
-    
-    with nogil:
-        for seg_id in range(nsegs):
-            ptwt = weights[seg_id] / npts
-            for ipt in range(npts):
-                assignment = bin_assignments[seg_id,ipt]
-                if assignment == UNKNOWN_INDEX:
-                    with gil:
-                        raise ValueError('invalid bin assignment for segment {} point {}'.format(seg_id, ipt))
-                else:
-                    traj_assignment = label_assignments[seg_id,ipt]
-                    if traj_assignment != UNKNOWN_INDEX:
-                        labeled_bin_pops[traj_assignment,assignment] += ptwt
-                    else:
-                        with gil:
-                            raise ValueError('invalid trajectory label for segment {} point {}'.format(seg_id, ipt))
-
+                
 @cython.boundscheck(False)
 @cython.wraparound(False)    
 cpdef pop_assign(numpy.ndarray[weight_t, ndim=1] weights,
@@ -119,7 +85,7 @@ cpdef weight_t calculate_labeled_fluxes_alllags(Py_ssize_t nstates,
                                                 parent_ids,
                                                 micro_assignments,
                                                 traj_assignments,
-                                                weight_t[:,:,:,:] fluxes):
+                                                weight_t[:,:,:,:] fluxes) except 0.0:
     cdef:
         Py_ssize_t niters = len(weights), nsegs, npts
         weight_t twindow = 0.0
@@ -160,13 +126,12 @@ cpdef weight_t calculate_labeled_fluxes_alllags(Py_ssize_t nstates,
                     iiter -= 1
                     current_id = parent_id
                     parent_id = parent_ids[iiter][current_id]
-                
-                #assert iiter == firstiter or parent_id < 0
-                #assert 0 <= iiter < niters
-                #assert current_id >= 0
-                
+                                
                 ibin = micro_assignments[iiter][current_id][0]
                 ilabel = traj_assignments[iiter][current_id][0]
+                
+                if ilabel >= nstates or flabel >= nstates:
+                    raise ValueError('invalid state index (ilabel={},flabel={})'.format(ilabel,flabel))
 
                 fluxes[ilabel,flabel,ibin,fbin] += weight
                 twindow += weight*windowlen
@@ -180,7 +145,7 @@ cpdef weight_t calculate_labeled_fluxes(Py_ssize_t nstates,
                                         parent_ids,
                                         micro_assignments,
                                         traj_assignments,
-                                        weight_t[:,:,:,:] fluxes):
+                                        weight_t[:,:,:,:] fluxes) except 0.0:
     cdef:
         Py_ssize_t niters = len(weights), nsegs, npts
         weight_t twindow = 0.0
@@ -225,8 +190,10 @@ cpdef weight_t calculate_labeled_fluxes(Py_ssize_t nstates,
         
         ibin = micro_assignments[iiter][current_id][0]
         ilabel = traj_assignments[iiter][current_id][0]
+
+        if ilabel >= nstates or flabel >= nstates:
+            raise ValueError('invalid state index (ilabel={},flabel={})'.format(ilabel,flabel))
                         
-        #fluxes[ilabel*nstates+ibin,flabel*nstates+fbin] += weight
         fluxes[ilabel,flabel,ibin,fbin] += weight
         twindow += weight*windowlen
     return twindow
