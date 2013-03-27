@@ -1,6 +1,6 @@
 '''Miscellaneous routines to help with HDF5 input and output of WEST-related data.'''
 
-import sys, getpass, socket, time
+import sys, os, getpass, socket, time
 import numpy, h5py
 
 #
@@ -255,6 +255,157 @@ class WESTPAH5File(h5py.File):
             group = self['/iterations']
         return group[self.iter_object_name(n_iter)]
     
+### Generalized WE dataset access classes
+    
+class DSSpec:
+    '''Generalized WE dataset access'''
+    
+    def get_iter_data(self, n_iter):
+        raise NotImplementedError
+    
+    def get_segment_data(self, n_iter, seg_id):
+        return self.get_iter_data(n_iter)[seg_id]
+    
+    def __getstate__(self):
+        d = dict(self.__dict__)
+        if '_h5file' in d:
+            d['_h5file'] = None
+        return d
+    
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        
+    
+class FileLinkedDSSpec(DSSpec):
+    '''Provide facilities for accessing WESTPA HDF5 files, including auto-opening and the ability
+    to pickle references to such files for transmission (through, e.g., the work manager), provided
+    that the HDF5 file can be accessed by the same path on both the sender and receiver.'''
+    def __init__(self, h5file_or_name):
+        self._h5file = None
+        self._h5filename = None
+        
+        try:
+            self._h5filename = os.path.abspath(h5file_or_name.filename)
+        except AttributeError:
+            self._h5filename = h5file_or_name
+            self._h5file = None
+        else:
+            self._h5file = h5file_or_name
+            
+    @property
+    def h5file(self):
+        if self._h5file is None:
+            self._h5file = WESTPAH5File(self._h5filename, 'r')
+        return self._h5file
+    
+class SingleDSSpec(FileLinkedDSSpec):
+    @classmethod
+    def from_string(cls, dsspec_string, default_h5file):
+        alias = None
+        
+        h5file = default_h5file
+        fields = dsspec_string.split(',')
+        dsname = fields[0]
+        
+        for field in (field.strip() for field in fields[1:]):
+            k,v = field.split('=')
+            k = k.lower()
+            if k == 'alias':
+                alias = v
+            elif k == 'slice':
+                try:
+                    slice = eval('numpy.index_exp' + v)
+                except SyntaxError:
+                    raise SyntaxError('invalid index expression {!r}'.format(v))
+            elif k == 'file':
+                h5file = WESTPAH5File(v, 'r')
+            else:
+                raise ValueError('invalid dataset option {!r}'.format(k))
+            
+        return cls(h5file, dsname, alias, slice)
+        
+    def __init__(self, h5file_or_name, dsname, alias=None, slice=None):
+        FileLinkedDSSpec.__init__(self,h5file_or_name)
+        self.dsname = dsname
+        self.alias = alias or dsname
+        self.slice = numpy.index_exp[slice] if slice else None
+
+    
+class SingleIterDSSpec(SingleDSSpec):
+    def get_iter_data(self, n_iter):
+        if self.slice:
+            return self.h5file.get_iter_group(n_iter)[self.dsname][numpy.index_exp[:] + self.slice]
+        else:
+            return self.h5file.get_iter_group(n_iter)[self.dsname][:,:]
+    
+class SingleSegmentDSSpec(SingleDSSpec):
+    def get_iter_data(self, n_iter):
+        if self.slice:
+            return self.h5file.get_iter_group(n_iter)[self.dsname][numpy.index_exp[:,:] + self.slice]
+        else:
+            return self.h5file.get_iter_group(n_iter)[self.dsname][:,:]
+        
+    def get_segment_data(self, n_iter, seg_id):
+        if self.slice:
+            return self.h5file.get_iter_group(n_iter)[numpy.index_exp[seg_id,:] + self.slice]
+        else:
+            return self.h5file.get_iter_group(n_iter)[seg_id,:]
+        
+class FnDSSpec(FileLinkedDSSpec):
+    def __init__(self, h5file_or_name, fn):
+        FileLinkedDSSpec.__init__(self,h5file_or_name)
+        self.fn = fn
+        
+    def get_iter_data(self, n_iter):
+        return self.fn(n_iter, self.h5file.get_iter_group(n_iter))
+
+        
+class MultiDSSpec(DSSpec):
+    def __init__(self, dsspecs):
+        self.dsspecs = dsspecs
+    
+    def get_iter_data(self, n_iter):
+        datasets = [dsspec.get_iter_data(n_iter) for dsspec in self.dsspecs]
+          
+        ncols = 0 
+        nsegs = None
+        npts = None
+        for iset, dset in enumerate(datasets):
+            if nsegs is None:
+                nsegs = dset.shape[0]
+            elif dset.shape[0] != nsegs:
+                raise TypeError('dataset {} has incorrect first dimension (number of segments)'.format(self.dsspecs[iset]))
+            if npts is None:
+                npts = dset.shape[1]
+            elif dset.shape[1] != npts:
+                raise TypeError('dataset {} has incorrect second dimension (number of time points)'.format(self.dsspecs[iset]))
+            
+            if dset.ndim < 2:
+                # scalar per segment or scalar per iteration
+                raise TypeError('dataset {} has too few dimensions'.format(self.dsspecs[iset]))
+            elif dset.ndim > 3:
+                # array per timepoint
+                raise TypeError('dataset {} has too many dimensions'.format(self.dsspecs[iset]))
+            elif dset.ndim == 2:
+                # scalar per timepoint
+                ncols += 1
+            else:
+                # vector per timepoint
+                ncols += dset.shape[-1]
+        
+        output_dtype = numpy.result_type(*[ds.dtype for ds in datasets])
+        output_array = numpy.empty((nsegs, npts, ncols), dtype=output_dtype)
+        
+        ocol = 0
+        for iset, dset in enumerate(datasets):
+            if dset.ndim == 2:
+                output_array[:,:,ocol] = dset[...]
+                ocol += 1
+            elif dset.ndim == 3:
+                output_array[:,:,ocol:(ocol+dset.shape[-1])] = dset[...]
+                ocol += dset.shape[-1]
+        
+        return output_array
             
         
         

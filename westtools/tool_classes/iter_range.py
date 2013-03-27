@@ -1,12 +1,12 @@
 from __future__ import print_function, division; __metaclass__ = type
-from westtools.tool_classes.core import WESTTool
+from westtools.tool_classes.core import WESTToolComponent
 import logging
 log = logging.getLogger(__name__)
 import westpa
 from westpa import h5io
 import numpy
 
-class IterRangeSelection(WESTTool):
+class IterRangeSelection(WESTToolComponent):
     '''Select and record limits on iterations used in analysis and/or reporting.
     This class provides both the user-facing command-line options and parsing, and
     the application-side API for recording limits in HDF5.

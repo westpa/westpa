@@ -1,8 +1,11 @@
 from __future__ import division, print_function; __metaclass__ = type
-from core import WESTTool
+from core import WESTToolComponent
 import westpa
+from westpa.extloader import get_object
+from westpa.h5io import FnDSSpec, MultiDSSpec, SingleSegmentDSSpec
+
     
-class WESTDataReader(WESTTool):
+class WESTDataReader(WESTToolComponent):
     '''Tool for reading data from WEST-related HDF5 files. Coordinates finding
     the main HDF5 file from west.cfg or command line arguments, caching of certain
     kinds of data (eventually), and retrieving auxiliary data sets from various
@@ -32,3 +35,43 @@ class WESTDataReader(WESTTool):
         
     def __getattr__(self, key):
         return getattr(self.data_manager, key)
+
+class WESTDSSynthesizer(WESTToolComponent):
+    '''Tool for synthesizing a dataset for analysis from other datasets. This
+    may be done using a custom function, or a list of "data set specifications".
+    It is anticipated that if several source datasets are required, then a tool
+    will have multiple instances of this class.'''
+    
+    group_name = 'input dataset options'
+    
+    def __init__(self, default_dsname = None, h5filename=None):
+        super(WESTDSSynthesizer,self).__init__()
+
+        self.h5filename = h5filename
+        self.default_dsname = default_dsname
+        
+        self.dsspec = None
+        
+    def add_args(self, parser):
+        igroup = parser.add_argument_group(self.group_name).add_mutually_exclusive_group(required=not bool(self.default_dsname))
+
+        igroup.add_argument('--construct-dataset',
+                            help='''Use the given function (as in module.function) to extract source data.
+                            This function will be called once per iteration as function(n_iter, iter_group)
+                            to construct data for one iteration. Data returned must be indexable as
+                            [seg_id][timepoint][dimension]''')
+        
+        igroup.add_argument('--dsspecs', nargs='+', metavar='DSSPEC',
+                            help='''Construct source data from one or more DSSPECs.''')
+        
+    def process_args(self, args):
+        if args.construct_dataset:
+            self.dsspec = FnDSSpec(self.h5filename, get_object(args.construct_dataset,path=['.']))
+        elif args.dsspecs:
+            self.dsspec = MultiDSSpec([SingleSegmentDSSpec.from_string(dsspec, self.h5filename)
+                                       for dsspec in args.dsspecs])
+        else:
+            # we can only get here if a default dataset name was specified
+            assert self.default_dsname
+            self.dsspec = SingleSegmentDSSpec(self.h5filename, self.default_dsname)
+        

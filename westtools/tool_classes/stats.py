@@ -1,8 +1,8 @@
-from core import WESTTool
+from core import WESTToolComponent
 
 from westtools.stats.mcbs import get_bssize
 
-class UsesMCBS(WESTTool):
+class UsesMCBS(WESTToolComponent):
     def __init__(self):
         super(UsesMCBS,self).__init__()
         self.bssize = None

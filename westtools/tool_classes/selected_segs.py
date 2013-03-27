@@ -1,5 +1,5 @@
 from __future__ import division, print_function; __metaclass__ = type
-from core import WESTTool
+from core import WESTToolComponent
 import re 
 import numpy
 import westpa
@@ -110,7 +110,7 @@ class AllSegmentSelection(SegmentSelection):
         
         
 
-class SegSelector(WESTTool):    
+class SegSelector(WESTToolComponent):    
     def __init__(self):
         super(SegSelector,self).__init__()
         self.segment_selection = None

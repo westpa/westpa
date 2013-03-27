@@ -291,5 +291,10 @@ Calculate probability distribution of progress coordinate values and its time ev
         self.output_file.close()
 
 if __name__ == '__main__':
-    WPCPDist().main()
+    import sys
+    sys.stderr.write('NOTE: w_pcpdist is deprecated in favor of w_pdist\n')
+    try:
+        WPCPDist().main()
+    finally:
+        sys.stderr.write('NOTE: w_pcpdist is deprecated in favor of w_pdist\n')
     

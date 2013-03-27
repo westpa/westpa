@@ -1,14 +1,13 @@
 from __future__ import print_function, division; __metaclass__ = type
 import logging
-import sys, os
+import sys
 from itertools import izip
-from westtools.tool_classes import WESTParallelTool, WESTDataReader, IterRangeSelection
+from westtools.tool_classes import WESTParallelTool, WESTDataReader, WESTDSSynthesizer, IterRangeSelection
 import numpy, h5py
 from fasthist import histnd, normhistnd
 from westpa import h5io
 import westpa
-from westpa.extloader import get_object
-from westpa.h5io import WESTPAH5File
+from westpa.h5io import SingleIterDSSpec
 
 log = logging.getLogger('westtools.w_pdist')
 
@@ -19,154 +18,7 @@ def isiterable(x):
         return False
     else:
         return True
-    
-class DSSpec:
-    def get_iter_data(self, n_iter):
-        raise NotImplementedError
-    
-    def get_segment_data(self, n_iter, seg_id):
-        return self.get_iter_data(n_iter)[seg_id]
-    
-    def __getstate__(self):
-        d = dict(self.__dict__)
-        if '_h5file' in d:
-            d['_h5file'] = None
-        return d
-    
-    def __setstate__(self, state):
-        self.__dict__.update(state)
         
-    
-class FileLinkedDSSpec(DSSpec):
-    '''Provide facilities for accessing WESTPA HDF5 files, including auto-opening and the ability
-    to pickle references to such files for transmission through (e.g.) the work manager, provided
-    that the HDF5 file can be accessed by the same path on both the sender and receiver.'''
-    def __init__(self, h5file_or_name):
-        self._h5file = None
-        self._h5filename = None
-        
-        try:
-            self._h5filename = os.path.abspath(h5file_or_name.filename)
-        except AttributeError:
-            self._h5filename = h5file_or_name
-            self._h5file = None
-        else:
-            self._h5file = h5file_or_name
-            
-    @property
-    def h5file(self):
-        if self._h5file is None:
-            self._h5file = WESTPAH5File(self._h5filename, 'r')
-        return self._h5file
-    
-class SingleDSSpec(FileLinkedDSSpec):
-    @classmethod
-    def from_string(cls, dsspec_string, default_h5file):
-        dsname = None
-        slice = None
-        alias = None
-        
-        fields = dsspec_string.split(',')
-        dsname = fields[0]
-        
-        for field in (field.strip() for field in fields[1:]):
-            k,v = field.split('=')
-            k = k.lower()
-            if k == 'alias':
-                alias = v
-            elif k == 'slice':
-                try:
-                    slice = eval('numpy.index_exp' + v)
-                except SyntaxError:
-                    raise SyntaxError('invalid index expression {!r}'.format(v))
-            else:
-                raise ValueError('invalid dataset option {!r}'.format(k))
-            
-        return cls(default_h5file, dsname, alias, slice)
-        
-    def __init__(self, h5file_or_name, dsname, alias=None, slice=None):
-        FileLinkedDSSpec.__init__(self,h5file_or_name)
-        self.dsname = dsname
-        self.alias = alias or dsname
-        self.slice = numpy.index_exp[slice] if slice else None
-
-    
-class SingleIterDSSpec(SingleDSSpec):
-    def get_iter_data(self, n_iter):
-        if self.slice:
-            return self.h5file.get_iter_group(n_iter)[self.dsname][numpy.index_exp[:] + self.slice]
-        else:
-            return self.h5file.get_iter_group(n_iter)[self.dsname][:,:]
-    
-class SingleSegmentDSSpec(SingleDSSpec):
-    def get_iter_data(self, n_iter):
-        if self.slice:
-            return self.h5file.get_iter_group(n_iter)[self.dsname][numpy.index_exp[:,:] + self.slice]
-        else:
-            return self.h5file.get_iter_group(n_iter)[self.dsname][:,:]
-        
-    def get_segment_data(self, n_iter, seg_id):
-        if self.slice:
-            return self.h5file.get_iter_group(n_iter)[numpy.index_exp[seg_id,:] + self.slice]
-        else:
-            return self.h5file.get_iter_group(n_iter)[seg_id,:]
-        
-class FnDSSpec(FileLinkedDSSpec):
-    def __init__(self, h5file_or_name, fn):
-        FileLinkedDSSpec.__init__(self,h5file_or_name)
-        self.fn = fn
-        
-    def get_iter_data(self, n_iter):
-        return self.fn(n_iter, self.h5file.get_iter_group(n_iter))
-
-        
-class MultiDSSpec(DSSpec):
-    def __init__(self, dsspecs):
-        self.dsspecs = dsspecs
-    
-    def get_iter_data(self, n_iter):
-        datasets = [dsspec.get_iter_data(n_iter) for dsspec in self.dsspecs]
-          
-        ncols = 0 
-        nsegs = None
-        npts = None
-        for iset, dset in enumerate(datasets):
-            if nsegs is None:
-                nsegs = dset.shape[0]
-            elif dset.shape[0] != nsegs:
-                raise TypeError('dataset {} has incorrect first dimension (number of segments)'.format(self.dsspecs[iset]))
-            if npts is None:
-                npts = dset.shape[1]
-            elif dset.shape[1] != npts:
-                raise TypeError('dataset {} has incorrect second dimension (number of time points)'.format(self.dsspecs[iset]))
-            
-            if dset.ndim < 2:
-                # scalar per segment or scalar per iteration
-                raise TypeError('dataset {} has too few dimensions'.format(self.dsspecs[iset]))
-            elif dset.ndim > 3:
-                # array per timepoint
-                raise TypeError('dataset {} has too many dimensions'.format(self.dsspecs[iset]))
-            elif dset.ndim == 2:
-                # scalar per timepoint
-                ncols += 1
-            else:
-                # vector per timepoint
-                ncols += dset.shape[-1]
-        
-        output_dtype = numpy.result_type(*[ds.dtype for ds in datasets])
-        output_array = numpy.empty((nsegs, npts, ncols), dtype=output_dtype)
-        
-        ocol = 0
-        for iset, dset in enumerate(datasets):
-            if dset.ndim == 2:
-                output_array[:,:,ocol] = dset[...]
-                ocol += 1
-            elif dset.ndim == 3:
-                output_array[:,:,ocol:(ocol+dset.shape[-1])] = dset[...]
-                ocol += dset.shape[-1]
-        
-        return output_array
-    
 def _remote_bin_iter(iiter, n_iter, dsspec, wt_dsspec, initpoint, binbounds):
     
     iter_hist_shape = tuple(len(bounds)-1 for bounds in binbounds)
@@ -190,7 +42,106 @@ def _remote_bin_iter(iiter, n_iter, dsspec, wt_dsspec, initpoint, binbounds):
 class WPDist(WESTParallelTool):
     prog='w_pdist'
     description = '''\
-Calculate probability distribution of progress coordinate values and its time evolution. 
+Calculate time-resolved, multi-dimensional probability distributions of WE 
+datasets.
+
+
+-----------------------------------------------------------------------------
+Source data
+-----------------------------------------------------------------------------
+
+Source data is provided either by a user-specified function
+(--construct-dataset) or a list of "data set specifications" (--dsspecs).
+If neither is provided, the progress coordinate dataset ''pcoord'' is used.
+
+To use a custom function to extract or calculate data whose probability
+distribution will be calculated, specify the function in standard Python
+MODULE.FUNCTION syntax as the argument to --construct-dataset. This function
+will be called as function(n_iter,iter_group), where n_iter is the iteration
+whose data are being considered and iter_group is the corresponding group
+in the main WEST HDF5 file (west.h5). The function must return data which can
+be indexed as [segment][timepoint][dimension].
+
+To use a list of data set specifications, specify --dsspecs and then list the
+desired datasets one-by-one (space-separated in most shells). These data set
+specifications are formatted as NAME[,file=FILENAME,slice=SLICE], which will
+use the dataset called NAME in the HDF5 file FILENAME (defaulting to the main
+WEST HDF5 file west.h5), and slice it with the Python slice expression SLICE
+(as in [0:2] to select the first two elements of the first axis of the
+dataset). The ``slice`` option is most useful for selecting one column (or
+more) from a multi-column dataset, such as arises when using a progress
+coordinate of multiple dimensions.
+
+
+-----------------------------------------------------------------------------
+Histogram binning
+-----------------------------------------------------------------------------
+
+By default, histograms are constructed with 100 bins in each dimension. This
+can be overridden by specifying -b/--bins, which accepts a number of different
+kinds of arguments:
+
+  a single integer N
+    N uniformly spaced bins will be used in each dimension.
+    
+  a sequence of integers N1,N2,... (comma-separated)
+    N1 uniformly spaced bins will be used for the first dimension, N2 for the
+    second, and so on.
+    
+  a list of lists [[B11, B12, B13, ...], [B21, B22, B23, ...], ...]
+    The bin boundaries B11, B12, B13, ... will be used for the first dimension,
+    B21, B22, B23, ... for the second dimension, and so on. These bin
+    boundaries need not be uniformly spaced. These expressions will be
+    evaluated with Python's ``eval`` construct, with ``numpy`` available for
+    use [e.g. to specify bins using numpy.arange()].
+
+The first two forms (integer, list of integers) will trigger a scan of all
+data in each dimension in order to determine the minimum and maximum values,
+which may be very expensive for large datasets. This can be avoided by
+explicitly providing bin boundaries using the list-of-lists form.
+
+Note that these bins are *NOT* at all related to the bins used to drive WE
+sampling.
+
+
+-----------------------------------------------------------------------------
+Output format
+-----------------------------------------------------------------------------
+
+The output file produced (specified by -o/--output, defaulting to "pdist.h5")
+may be fed to plothist to generate plots (or appropriately processed text or
+HDF5 files) from this data. In short, the following datasets are created:
+
+  ``histograms``
+    Normalized histograms. The first axis corresponds to iteration, and
+    remaining axes correspond to dimensions of the input dataset.
+    
+  ``/binbounds_0``
+    Vector of bin boundaries for the first (index 0) dimension. Additional
+    datasets similarly named (/binbounds_1, /binbounds_2, ...) are created
+    for additional dimensions.
+    
+  ``/midpoints_0``
+    Vector of bin midpoints for the first (index 0) dimension. Additional
+    datasets similarly named are created for additional dimensions.
+    
+  ``n_iter``
+    Vector of iteration numbers corresponding to the stored histograms (i.e.
+    the first axis of the ``histograms`` dataset).
+    
+    
+-----------------------------------------------------------------------------
+Parallelization
+-----------------------------------------------------------------------------
+
+This tool supports parallelized binning, including reading of input data.
+For simple cases, serial invocation (--wm-work-manager=serial) is probably
+most efficient.
+
+-----------------------------------------------------------------------------
+Command-line options
+-----------------------------------------------------------------------------
+    
 '''
     
     def __init__(self):
@@ -198,11 +149,14 @@ Calculate probability distribution of progress coordinate values and its time ev
         
         # These are used throughout
         self.data_reader = WESTDataReader()
+        self.input_dssynth = WESTDSSynthesizer(default_dsname='pcoord')
         self.iter_range = IterRangeSelection(self.data_reader)
         self.iter_range.include_args['iter_step'] = False
         self.binspec = None
         self.output_filename = None
         self.output_file = None
+        
+        
         self.dsspec = None
         self.wt_dsspec = None # dsspec for weights
         
@@ -219,9 +173,9 @@ Calculate probability distribution of progress coordinate values and its time ev
     
     def add_args(self, parser):
         self.data_reader.add_args(parser)
+         
         self.iter_range.add_args(parser)
                 
-        #TODO: this doesn't parse right, it seems
         parser.add_argument('-b', '--bins', dest='bins', metavar='BINEXPR', default='100',
                             help='''Use BINEXPR for bins. This may be an integer, which will be used for each
                             dimension of the progress coordinate; a list of integers (formatted as [n1,n2,...])
@@ -233,19 +187,22 @@ Calculate probability distribution of progress coordinate values and its time ev
         parser.add_argument('-o', '--output', dest='output', default='pdist.h5',
                             help='''Store results in OUTPUT (default: %(default)s).''')
         
-        igroup = parser.add_argument_group('input data options').add_mutually_exclusive_group(required=False)
+        igroup = parser.add_argument_group('input dataset options').add_mutually_exclusive_group(required=False)
 
         igroup.add_argument('--construct-dataset',
-                            help='''Use the given function (as in module.function). This function will
-                            be called once per iteration as function(n_iter, iter_group) to construct
-                            data for one iteration. Data returned must be indexable as
+                            help='''Use the given function (as in module.function) to extract source data.
+                            This function will be called once per iteration as function(n_iter, iter_group)
+                            to construct data for one iteration. Data returned must be indexable as
                             [seg_id][timepoint][dimension]''')
         
         igroup.add_argument('--dsspecs', nargs='+', metavar='DSSPEC',
-                            help='''Construct probability distribution from DSSPEC (one dimension per column).''')
+                            help='''Construct probability distribution from one or more DSSPECs.''')
 
     def process_args(self, args):
         self.data_reader.process_args(args)
+        self.input_dssynth.h5filename = self.data_reader.we_h5filename
+        self.input_dssynth.process_args(args)
+        self.dsspec = self.input_dssynth.dsspec
         
         # Carrying an open HDF5 file across a fork() seems to corrupt the entire HDF5 library
         # Open the WEST HDF5 file just long enough to process our iteration range, then close
@@ -254,13 +211,6 @@ Calculate probability distribution of progress coordinate values and its time ev
         self.iter_range.process_args(args)
         self.data_reader.close()
         
-        if args.construct_dataset:
-            self.dsspec = FnDSSpec(self.data_reader.we_h5filename, get_object(args.construct_dataset,path=['.']))
-        elif args.dsspecs:
-            self.dsspec = MultiDSSpec([SingleSegmentDSSpec.from_string(dsspec, self.data_reader.we_h5filename)
-                                       for dsspec in args.dsspecs])
-        else:
-            self.dsspec = SingleSegmentDSSpec(self.data_reader.we_h5filename, 'pcoord')
             
         self.wt_dsspec = SingleIterDSSpec(self.data_reader.we_h5filename, 'seg_index', slice=numpy.index_exp['weight'])
             

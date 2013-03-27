@@ -24,27 +24,6 @@ class WESTToolComponent:
         with them appropriately (setting instance variables, etc)'''
         pass
 
-
-class WESTTool(WESTToolComponent):
-    '''Base class for WEST command line tools'''
-    
-    prog = None
-    usage = None
-    description = None
-    epilog = None
-    
-    def __init__(self):
-        super(WESTTool,self).__init__()
-                    
-    def add_args(self, parser):
-        '''Add arguments specific to this tool to the given argparse parser.'''
-        westpa.rc.add_args(parser)
-    
-    def process_args(self, args):
-        '''Take argparse-processed arguments associated with this tool and deal
-        with them appropriately (setting instance variables, etc)'''
-        westpa.rc.process_args(args, config_required = self.config_required)
-        
     def add_all_args(self, parser):
         '''Add arguments for all components from which this class derives to the given parser,
         starting with the class highest up the inheritance chain (most distant ancestor).'''
@@ -66,7 +45,27 @@ class WESTTool(WESTToolComponent):
                 pass
             else:
                 fn(self,args)
-                
+
+class WESTTool(WESTToolComponent):
+    '''Base class for WEST command line tools'''
+    
+    prog = None
+    usage = None
+    description = None
+    epilog = None
+    
+    def __init__(self):
+        super(WESTTool,self).__init__()
+                    
+    def add_args(self, parser):
+        '''Add arguments specific to this tool to the given argparse parser.'''
+        westpa.rc.add_args(parser)
+    
+    def process_args(self, args):
+        '''Take argparse-processed arguments associated with this tool and deal
+        with them appropriately (setting instance variables, etc)'''
+        westpa.rc.process_args(args, config_required = self.config_required)
+                        
     def make_parser(self, prog=None, usage=None, description=None, epilog=None, args=None):
         import argparse
         prog = prog or self.prog
