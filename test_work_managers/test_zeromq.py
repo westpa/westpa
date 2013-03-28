@@ -56,6 +56,19 @@ class TestZMQServer:
         #(fn, args, kwargs) = zwm.unpickle_frame(frames[1])
         return zwm.unpickle_frame(frames[1])
 
+    def test_startup(self):
+        '''Server: all threads start up successfully'''
+
+        work_manager = self.test_master
+        work_manager.startup()
+
+        assert work_manager._dispatch_thread and work_manager._dispatch_thread.is_alive(), 'dispatch thread not started up'
+        assert work_manager._receive_thread and work_manager._receive_thread.is_alive(), 'receive thread not started up'
+        assert work_manager._announce_thread and work_manager._announce_thread.is_alive(), 'announce thread not started up'
+        assert work_manager._listen_thread and work_manager._listen_thread.is_alive(), 'listen thread not started up'
+
+        work_manager.shutdown()
+
     def test_shutdown(self):
         '''Server: shutdown works properly'''
         work_manager = self.test_master
@@ -66,6 +79,7 @@ class TestZMQServer:
         assert not work_manager._dispatch_thread.is_alive(), 'dispatch thread still alive'
         assert not work_manager._receive_thread.is_alive(), 'receive thread still alive'
         assert not work_manager._announce_thread.is_alive(), 'announcement thread still alive'
+        assert not work_manager._listen_thread.is_alive(), 'listen thread still alive'
         assert not work_manager._ipc_endpoints, 'IPC endpoints not deleted'
         
     def test_shutdown_announced(self):
@@ -179,6 +193,65 @@ class TestZMQServer:
         finally:        
             task_socket.close(linger=0)
             result_socket.close(linger=0)
+
+    def test_client_update_ping(self):
+        '''Server: receives client updates successfully (as pings or on client initialization)'''
+
+        work_manager = self.test_master
+        work_manager.startup()
+        listen_endpoint = work_manager.master_listen_endpoint
+        update_socket1 = self.test_client_context.socket(zmq.PUSH)
+        update_socket1.connect(listen_endpoint)
+        update_socket2 = self.test_client_context.socket(zmq.PUSH)
+        update_socket2.connect(listen_endpoint)
+
+        assert work_manager.n_workers == 0
+
+        try:
+            update_socket1.send_pyobj((zwm.core.MSG_PING, None, 'client1', 2), flags=zmq.SNDMORE)
+            update_socket1.send_pyobj((None, None), flags=zmq.SNDMORE)
+            update_socket1.send_pyobj((None, None))
+
+            sockdelay()
+
+            assert work_manager.n_workers == work_manager.clients['client1'] == 2, 'expected 2 workers, but counted {}'.format(work_manager.n_workers)
+
+            update_socket2.send_pyobj((zwm.core.MSG_PING, None, 'client2', 4), flags=zmq.SNDMORE)
+            update_socket2.send_pyobj((None, None), flags=zmq.SNDMORE)
+            update_socket2.send_pyobj((None, None))
+
+            sockdelay()
+
+            assert work_manager.clients['client2'] == 4, 'clients dictionary did not update successfully'
+            assert work_manager.n_workers == 6, 'expected 6 workers, but counted {}'.format(work_manager.n_workers)
+
+        finally:
+            update_socket1.close(linger=0)
+            update_socket2.close(linger=0)
+
+    def test_client_udpate_shutdown(self):
+        '''Server: receives client shutdown message and updates appropriately'''
+
+        work_manager = self.test_master
+        work_manager.startup()
+        listen_endpoint = work_manager.master_listen_endpoint
+        update_socket = self.test_client_context.socket(zmq.PUSH)
+        update_socket.connect(listen_endpoint)
+
+        try:
+            work_manager.clients['test_client'] = 4 #add a 'test_client' with 4 workers
+            assert work_manager.n_workers == 4, 'expected 4 workers, but counted {}'.format(work_manager.n_workers)
+
+            update_socket.send_pyobj((zwm.core.MSG_SHUTDOWN, None, 'test_client', 4), flags=zmq.SNDMORE)
+            update_socket.send_pyobj((None, None), flags=zmq.SNDMORE)
+            update_socket.send_pyobj((None, None))
+
+            sockdelay()
+
+            assert work_manager.n_workers == 0, 'expected 0 workers, but counted {}'.format(work_manager.n_workers)
+
+        finally:
+            update_socket.close(linger=0)
 
     def test_server_heartbeat(self):
         '''Server: emits heartbeats'''
@@ -389,8 +462,8 @@ class TestZMQRouter:
             assert msg == 'task_avail'
 
         finally:
-            downstream_socket.close()
-            upstream_socket.close()
+            downstream_socket.close(linger=0)
+            upstream_socket.close(linger=0)
 
             context.destroy()
 
@@ -400,7 +473,6 @@ class TestZMQRouter:
         self.test_router.startup()
 
         context = zmq.Context()
-
 
         downstream_socket = context.socket(zmq.REQ)
         downstream_socket.connect(self.downstream_result_endpoint)
@@ -425,9 +497,44 @@ class TestZMQRouter:
             assert reply == 'ok'
 
         finally:
-            downstream_socket.close()
-            upstream_socket.close()
+            downstream_socket.close(linger=0)
+            upstream_socket.close(linger=0)
 
+            context.destroy()
+
+    def test_listen_device(self):
+        '''Router: 'Listen' device works correctly'''
+
+        self.test_router.startup()
+
+        context = zmq.Context()
+
+        downstream_socket = context.socket(zmq.PUSH)
+        downstream_socket.connect(self.downstream_listen_endpoint)
+
+        upstream_socket = context.socket(zmq.PULL)
+        upstream_socket.bind(self.upstream_listen_endpoint)
+
+        try:
+            downstream_socket.send_pyobj((zwm.core.MSG_PING, None, 'test_client', 2), flags=zmq.SNDMORE)
+            downstream_socket.send_pyobj(('a', 'b'))
+
+            frames = upstream_socket.recv_multipart(copy=False)
+
+            msg, _, client_id, n_workers = zwm.unpickle_frame(frames[0])
+
+            assert msg == 'ping'
+            assert client_id == 'test_client'
+            assert n_workers == 2
+
+            worker_id1, worker_id2 = zwm.unpickle_frame(frames[1])
+
+            assert worker_id1 == 'a'
+            assert worker_id2 == 'b'
+
+        finally:
+            downstream_socket.close(linger=0)
+            upstream_socket.close(linger=0)
             context.destroy()
        
 class TestZMQWMProcess:
@@ -518,6 +625,7 @@ class BaseTestZMQClient:
         assert self.test_client._monitor_thread is not None and not self.test_client._monitor_thread.is_alive()
         assert self.test_client._taskfwd_thread is not None and not self.test_client._taskfwd_thread.is_alive()
         assert self.test_client._rslfwd_thread is not None and not self.test_client._rslfwd_thread.is_alive()
+        assert self.test_client._update_thread is not None and not self.test_client._update_thread.is_alive()
         
     def test_spawn_workers(self):
         '''Client: spawns workers'''
@@ -548,6 +656,7 @@ class BaseTestZMQClient:
             assert self.test_client._taskfwd_thread is not None and self.test_client._taskfwd_thread.is_alive()
             assert self.test_client._rslfwd_thread is not None and self.test_client._rslfwd_thread.is_alive()
             assert self.test_client._monitor_thread is not None and self.test_client._monitor_thread.is_alive()
+            assert self.test_client._update_thread is not None and self.test_client._update_thread.is_alive()
         finally:
             self.test_client.shutdown()
                  
@@ -588,6 +697,50 @@ class BaseTestZMQClient:
         announce_socket.close(linger=0)
         self.test_client._wait_for_shutdown()
         self.check_properly_shut_down()
+
+    @timed(2)
+    def test_update_startup(self):
+        '''Client: sends updates upstream when starting up'''
+
+        listener_socket = self.context.socket(zmq.PULL)
+        listener_socket.bind(self.test_client.upstream_listen_endpoint)
+        sockdelay()
+
+        self.test_client.startup()
+
+        try:
+            frames = listener_socket.recv_multipart(copy=False)
+
+            header = zwm.unpickle_frame(frames[0])
+
+            print(header)
+            assert header == (zwm.core.MSG_PING, None, self.test_client.instance_id, self.test_client.n_workers)
+
+        finally:
+            listener_socket.close(linger=0)
+
+    @timed(2)
+    def test_update_shutdown(self):
+        '''Client: sends updates upstream when shutting down'''
+
+        listener_socket = self.context.socket(zmq.PULL)
+        listener_socket.bind(self.test_client.upstream_listen_endpoint)
+        sockdelay()
+
+        self.test_client.startup(spawn_workers=False)
+
+        listener_socket.recv_multipart(copy=False)
+
+        self.test_client.shutdown()
+
+        try:
+            message = listener_socket.recv_pyobj()
+
+            print(message)
+            assert message == (zwm.core.MSG_SHUTDOWN, self.test_client.instance_id, None, None)
+
+        finally:
+            listener_socket.close(linger=0)
         
     @timed(2)
     def test_task_forward_lowlevel(self):
@@ -703,6 +856,30 @@ class BaseTestZMQClient:
         finally:
             upstream_task_socket.close(linger=0)
             upstream_result_socket.close(linger=0)
+
+    def test_knows_number_workers(self):
+        '''Client: has an accurate record of the number of workers'''
+
+        assert len(self.test_client.workers) == 0
+
+        initial_n_workers = self.test_client.n_workers
+
+        self.test_client.startup()
+
+        sockdelay()
+
+        assert len(self.test_client.workers) == initial_n_workers
+
+        self.test_client._spawn_worker()
+        sockdelay()
+        assert len(self.test_client.workers) == initial_n_workers + 1
+
+        for worker in self.test_client.workers.values():
+
+            current_workers = len(self.test_client.workers)
+            self.test_client._shutdown_worker(worker)
+            sockdelay()
+            assert len(self.test_client.workers) == current_workers - 1
         
 class TestClientTCPComm(BaseTestZMQClient):
     def setUp(self):
@@ -785,6 +962,7 @@ class TestCoordinated(CommonParallelTests,CommonWorkManagerTests):
             assert not work_manager._dispatch_thread.is_alive(), 'dispatch thread still alive'
             assert not work_manager._receive_thread.is_alive(), 'receive thread still alive'
             assert not work_manager._announce_thread.is_alive(), 'announcement thread still alive'
+            assert not work_manager._listen_thread.is_alive(), 'listen thread still alive'
         finally:
             ann_socket.close(linger=0)
     

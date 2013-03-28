@@ -371,13 +371,21 @@ class ZMQRouter(ZMQBase):
 
         
         #spawn task and result devices
-        self._task_device = self._start_device('task', self.upstream_task_endpoint, self.downstream_task_endpoint, self._device_startup_ctl_endpoint, self.context) #task device
-        self._result_device = self._start_device('result', self.upstream_result_endpoint, self.downstream_result_endpoint, self._device_startup_ctl_endpoint, self.context) #result device
+        self._task_device = self._start_device('task', self.upstream_task_endpoint, self.downstream_task_endpoint,
+                                               self._device_startup_ctl_endpoint, self.context,
+                                               zmq.REQ, zmq.REP) #task device
+        self._result_device = self._start_device('result', self.upstream_result_endpoint, self.downstream_result_endpoint,
+                                                 self._device_startup_ctl_endpoint, self.context,
+                                                 zmq.REQ, zmq.REP) #result device
+        self._listen_device = self._start_device('listen', self.upstream_listen_endpoint, self.downstream_listen_endpoint,
+                                                 self._device_startup_ctl_endpoint, self.context,
+                                                 zmq.PUSH, zmq.PULL) #listen device
 
         #get startup replies
         ann_ctlsocket.recv()
         device_ctlsocket.recv() #task device
         device_ctlsocket.recv() #result device
+        device_ctlsocket.recv() #listen device
 
         ann_ctlsocket.close()
         device_ctlsocket.close()
@@ -458,16 +466,15 @@ class ZMQRouter(ZMQBase):
 
     def _shutdown(self): 
 
-        if not self._shutdown_signalled:
+        if not self._shutdown_signalled and self._running:
 
             self._shutdown_signalled = True
             self._running = False
 
-            
-
             #shut down devices
             self._task_device.shutdown()
             self._result_device.shutdown()
+            self._listen_device.shutdown()
 
             #send shutdown message to announce loop
             self._signal_thread(self._announce_ctl_endpoint, MSG_SHUTDOWN)
@@ -477,12 +484,14 @@ class ZMQRouter(ZMQBase):
         self._ann_thread.join()
         self._task_device.join()
         self._result_device.join()
+        self._listen_device.join()
 
-
-    def _start_device(self, name, upstream_endpoint, downstream_endpoint, startup_ctl_endpoint, context):
+    def _start_device(self, name, upstream_endpoint, downstream_endpoint, startup_ctl_endpoint, context,
+                      upstream_type, downstream_type):
         '''start up device'''
 
-        device = ZMQDevice(name, upstream_endpoint, downstream_endpoint, startup_ctl_endpoint, context=context)
+        device = ZMQDevice(name, upstream_endpoint, downstream_endpoint, startup_ctl_endpoint, context,
+                           upstream_type, downstream_type)
         device.startup()
 
         return device
