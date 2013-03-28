@@ -338,11 +338,7 @@ class TestZMQRouter:
                            self.downstream_ann_endpoint, self.downstream_listen_endpoint)
 
         args = upstream_args + downstream_args
-
-
         self.test_router = ZMQRouter(*(upstream_args + downstream_args)) 
-
-
 
     def tearDown(self):
         self.test_router.shutdown()
@@ -646,7 +642,6 @@ class BaseTestZMQClient:
         sockdelay()
         assert not self.test_client.workers
 
-    
     def test_startup(self):
         '''Client: all threads start up'''
         self.test_client.startup()
@@ -940,6 +935,19 @@ class TestCoordinated(CommonParallelTests,CommonWorkManagerTests):
         self.test_master.shutdown()
         self.test_client._close_signal_sockets()
         self.test_master._close_signal_sockets()
+
+    def test_n_workers(self):
+        '''Coordination: server has an accurate count of the number of workers'''
+
+        internal_client = self.work_manager.internal_client
+        n_workers_expected = self.test_client.n_workers + internal_client.n_workers
+        clients = self.work_manager.clients
+
+        assert clients[internal_client.instance_id] and clients[internal_client.instance_id] == internal_client.n_workers
+        sockdelay()
+        assert clients[self.test_client.instance_id] and clients[self.test_client.instance_id] == self.test_client.n_workers
+
+        assert self.work_manager.n_workers == n_workers_expected, 'expected {} workers but counted {}'.format(self.work_manager.n_workers)
     
     @timed(2)
     def test_sigint_shutdown(self):
@@ -1014,10 +1022,24 @@ class TestCoordinatedRouter(CommonParallelTests,CommonWorkManagerTests):
         self.test_router.shutdown()
         self.test_client._close_signal_sockets()
         self.test_master._close_signal_sockets()
+
+    def test_n_workers(self):
+        '''Coordination (with router): server has an accurate count of the number of workers'''
+
+        internal_client = self.work_manager.internal_client
+        n_workers_expected = self.test_client.n_workers + internal_client.n_workers
+        clients = self.work_manager.clients
+
+        assert clients[internal_client.instance_id] and clients[internal_client.instance_id] == internal_client.n_workers
+        sockdelay()
+        assert clients[self.test_client.instance_id] and clients[self.test_client.instance_id] == self.test_client.n_workers
+
+        assert self.work_manager.n_workers == n_workers_expected, 'expected {} workers but counted {}'.format(self.work_manager.n_workers)
+ 
     
     @timed(20)
     def test_stress(self):
-        '''Coordination (with Router): many small tasks don't crash or lock'''
+        '''Coordination (with router): many small tasks don't crash or lock'''
         N = 1024
         futures = self.work_manager.submit_many([(busy_identity, (n,), {}) for n in xrange(N)])
         self.work_manager.wait_all(futures)

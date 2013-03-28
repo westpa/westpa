@@ -103,7 +103,6 @@ class ZMQServer(ZMQBase):
         '''returns all the workers for all client processes'''
         return sum(self.clients.values())
 
-
     def startup(self):
         # start up server threads, blocking until their sockets are ready
         
