@@ -306,7 +306,7 @@ containing the point (0.1, 0.0).
 
             #Determine the number of available workers
             assert self.work_manager, 'No work manager created for {!r}'.format(self)
-            n_workers = self.work_manager.n_workers 
+            n_workers = self.work_manager.n_workers or 1 #In the case that n_workers is 0, e.g. for zmq if no clients started yet
 
             #Slices this iteration into n_workers groups of segments, submits them to wm, splices results back together
             assignments, trajlabels = self.assign_iteration(nsegs[iiter], npts[iiter], parent_ids,

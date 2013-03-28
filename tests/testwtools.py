@@ -196,7 +196,7 @@ class Test_W_Assign(WToolBase):
 
             numpy.testing.assert_array_equal(assignments, self.expected_bins)
 
-    @SkipTest
+    #@SkipTest
     def test_go_simple_zmq(self):
         '''WAssign: works as expected using a simple 'ZMQ' server with a 1-worker internal client'''
 
