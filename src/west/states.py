@@ -99,7 +99,7 @@ class BasisState:
         from west.data_manager import vstr_dtype, weight_dtype, seg_id_dtype
         bstate_dtype = numpy.dtype([('state_id', seg_id_dtype),
                                     ('probability', weight_dtype),
-                                    ('pcoord', self.pcoord.dtype, (self.pcoord),),
+                                    ('pcoord', self.pcoord.dtype, (len(self.pcoord),)),
                                     ('label', vstr_dtype),
                                     ('auxref', vstr_dtype),
                                     ])
