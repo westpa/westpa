@@ -36,8 +36,6 @@ def default_construct_pcoord(n_iter, iter_group):
 def _assign_and_label(nsegs_lb, nsegs_ub, npts, parent_ids,
                       bm, state_map, last_labels, pcoords):
     
-
-    
     assignments, trajlabels = assign_and_label(nsegs_lb, nsegs_ub, npts, parent_ids,
                                                bm.assign, state_map, last_labels, pcoords)
     return (assignments, trajlabels, nsegs_lb, nsegs_ub)
@@ -123,7 +121,6 @@ containing the point (0.1, 0.0).
                             and must return a list of dictionaries {'label': state_label, 'coords': 2d_array_like}
                             one for each macrostate; the 'coords' entry must contain enough rows to identify all bins
                             in the macrostate.''')        
-
 
     def process_args(self, args):
         self.data_reader.process_args(args)
@@ -211,7 +208,6 @@ containing the point (0.1, 0.0).
 
         return (assignments, trajlabels)
 
-        
     def load_states_from_function(self, statefunc):
         states = statefunc(self.binning.mapper)
         for istate, state in enumerate(states):
@@ -225,7 +221,6 @@ containing the point (0.1, 0.0).
         
     def go(self):
         assign = self.binning.mapper.assign
-        
         
         iter_start = 1 
         iter_stop =  self.data_reader.current_iteration
@@ -323,7 +318,6 @@ containing the point (0.1, 0.0).
 
         if sys.stdout.isatty() and not westpa.rc.quiet_mode:
             print('')
-
 
 if __name__ == '__main__':
     WAssign().main()
