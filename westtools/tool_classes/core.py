@@ -1,13 +1,17 @@
 from __future__ import print_function, division; __metaclass__ = type
 
+import sys, argparse
 import westpa
 import work_managers
 
 class WESTToolComponent:
     '''Base class for WEST command line tools and components used in constructing tools'''
+    
     def __init__(self):
         self.config_required = False
         self.include_args = {}
+        self.parser = None
+        self.args = None
         
     def include_arg(self, argname):
         self.include_args[argname] = True
@@ -27,6 +31,7 @@ class WESTToolComponent:
     def add_all_args(self, parser):
         '''Add arguments for all components from which this class derives to the given parser,
         starting with the class highest up the inheritance chain (most distant ancestor).'''
+        self.parser = parser
         for cls in reversed(self.__class__.__mro__):
             try:
                 fn = cls.__dict__['add_args']
@@ -36,6 +41,7 @@ class WESTToolComponent:
                 fn(self,parser)
     
     def process_all_args(self, args):
+        self.args = args
         '''Process arguments for all components from which this class derives,
         starting with the class highest up the inheritance chain (most distant ancestor).'''
         for cls in reversed(self.__class__.__mro__):
@@ -67,7 +73,6 @@ class WESTTool(WESTToolComponent):
         westpa.rc.process_args(args, config_required = self.config_required)
                         
     def make_parser(self, prog=None, usage=None, description=None, epilog=None, args=None):
-        import argparse
         prog = prog or self.prog
         usage = usage or self.usage
         description = description or self.description
@@ -134,3 +139,83 @@ class WESTParallelTool(WESTTool):
             else:
                 self.work_manager.run()
 
+class WESTSubcommand(WESTToolComponent):
+    '''Base class for command-line tool subcommands. A little sugar for making this 
+    more uniform.'''
+    
+    subcommand = None
+    help_text = None
+    description = None
+    
+    def __init__(self, parent):
+        self.parent = parent
+        self.subparser = None
+        
+    def add_to_subparsers(self, subparsers):
+        subparser = subparsers.add_parser(self.subcommand, help=self.help_text, description=self.description,
+                                          formatter_class=argparse.RawDescriptionHelpFormatter,
+                                          )
+        self.add_all_args(subparser)
+        subparser.set_defaults(west_subcommand=self)
+        self.subparser = subparser
+
+    def go(self):
+        raise NotImplementedError
+
+    @property
+    def work_manager(self):
+        '''The work manager for this tool. Raises AttributeError if this is not a parallel
+        tool.'''
+        return self.parent.work_manager
+
+    
+class _WESTSubcommandHelp(WESTSubcommand):
+    subcommand = 'help'
+    help_text = 'print help for this command or individual subcommands'
+            
+    def add_args(self, parser):
+        parser.add_argument('command', nargs='?', choices=[subcommand.subcommand for subcommand in self.parent.subcommands])
+    
+    def process_args(self, args):
+        self.command = args.command
+        
+    def go(self):
+        if self.command is None:
+            # Get parent help
+            self.parent.parser.print_help(sys.stdout)
+        else:
+            self.parent._subcommand_instances[self.command].subparser.print_help(sys.stdout)
+        sys.exit(0)
+        
+        
+
+class WESTMasterCommand(WESTTool):
+    '''Base class for command-line tools that employ subcommands'''
+    
+    subparsers_title = None
+    subcommands = None
+    
+    include_help_command = True
+    
+    def __init__(self):
+        super(WESTMasterCommand,self).__init__()
+        self._subcommand = None
+        self._subcommand_instances = {subcommand_class.subcommand: subcommand_class(self) for subcommand_class in self.subcommands}
+    
+    def add_args(self, parser):
+        subparsers = parser.add_subparsers(title=self.subparsers_title)
+        if self.include_help_command:
+            _WESTSubcommandHelp(self).add_to_subparsers(subparsers)
+        for instance in self._subcommand_instances.itervalues():
+            instance.add_to_subparsers(subparsers)
+
+    def process_args(self, args):
+        self._subcommand = args.west_subcommand
+        self._subcommand.process_all_args(args)
+    
+    def go(self):
+        self._subcommand.go()
+    
+    
+        
+        

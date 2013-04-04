@@ -1,6 +1,6 @@
 from __future__ import print_function, division; __metaclass__ = type
 import logging
-from westtools.tool_classes import WESTParallelTool, WESTDataReader, IterRangeSelection, WESTToolComponent
+from westtools.tool_classes import WESTParallelTool, WESTDataReader, IterRangeSelection, WESTSubcommand
 import sys, math
 import numpy
 from westpa import h5io
@@ -9,7 +9,8 @@ import westpa
 from west.data_manager import weight_dtype
 import mclib
  
-from westpa.kinetics import labeled_flux_to_rate, get_macrostate_rates
+from westpa.kinetics import labeled_flux_to_rate
+from westpa.kinetics.matrates import get_macrostate_rates
 
 
 log = logging.getLogger('westtools.w_kinavg')
@@ -21,17 +22,6 @@ ci_dtype = numpy.dtype([('expected', numpy.float64),
 def _remote_get_macrostate_rates(iset, rates, pops):
     return (iset,) + get_macrostate_rates(rates,pops)
 
-class WESTSubcommand(WESTToolComponent):
-    def __init__(self, parent):
-        self.parent = parent
-        
-    def add_to_subparsers(self, subparsers):
-        subparser = subparsers.add_parser(self.subcommand, help=self.subcommand_help)
-        self.add_all_args(subparser)
-        subparser.set_defaults(west_subcommand=self)
-
-    def go(self):
-        raise NotImplementedError
 
 class KinAvgSubcommands(WESTSubcommand):
     '''Common argument processing for w_kinavg subcommands'''
@@ -84,6 +74,7 @@ class KinAvgSubcommands(WESTSubcommand):
         self.data_reader.process_args(args)
         self.data_reader.open('r')
         self.iter_range.process_args(args)
+        self.data_reader.close()
         self.output_file = h5io.WESTPAH5File(args.output, 'w', creating_program=True)
         h5io.stamp_creator_data(self.output_file)
         
@@ -99,14 +90,27 @@ class KinAvgSubcommands(WESTSubcommand):
         
 class AvgTraceSubcommand(KinAvgSubcommands):
     subcommand = 'kintrace'
-    subcommand_help = 'averages and CIs for path-tracing kinetics analysis'
+    help_text = 'averages and CIs for path-tracing kinetics analysis'
     
     default_kinetics_file = 'kintrace.h5'
     def __init__(self, parent):
         super(AvgTraceSubcommand,self).__init__(parent)
-        
+
     def go(self):
-        print(self.output_file)
+        nbins = self.assignments_file.attrs['nbins']
+        nstates = self.assignments_file.attrs['nstates']
+        state_labels = self.assignments_file['state_labels'][...]
+        assert nstates == len(state_labels)
+        start_iter, stop_iter = self.iter_range.iter_start, self.iter_range.iter_stop # h5io.get_iter_range(self.assignments_file)
+        iter_count = stop_iter - start_iter
+        
+        
+        
+        for iiter, n_iter in enumerate(xrange(start_iter, stop_iter)):
+            pass
+        
+        
+        
     
     
 
@@ -116,20 +120,18 @@ class WKinAvg(WESTParallelTool):
 Calculate average rates and associated errors from weighted ensemble data. Bin
 assignments (usually "assignments.h5") and kinetics data (usually
 "kinetics.h5") data files must have been previously generated (see 
-"w_assign --help" and "w_kinetics --help" for information on generating these
-files).
+"w_assign --help" and "w_kintrace --help"/"w_kinmat --help" for information on
+generating these files).
 '''
     
     def __init__(self):
         super(WKinAvg,self).__init__()
-        
         self.subcommand = None
     
     def add_args(self, parser):
         subparsers = parser.add_subparsers(title='kinetics analysis variants')
         AvgTraceSubcommand(self).add_to_subparsers(subparsers)
 
-        
     def process_args(self, args):
         self.subcommand = args.west_subcommand
         self.subcommand.process_all_args(args)
