@@ -160,7 +160,7 @@ def mcbs_correltime_small(dataset, alpha, n_sets=None):
         return len(dataset)
 
 def mcbs_ci_correl(dataset, estimator, alpha, n_sets=None, args=None, kwargs=None,
-                   autocorrel_alpha = None, subsample=None):
+                   autocorrel_alpha = None, autocorrel_n_sets=None, subsample=None):
     '''Perform a Monte Carlo bootstrap estimate for the (1-``alpha``) confidence interval
     on the given ``dataset`` with the given ``estimator``.  This routine is appropriate
     for time-correlated data, using the method described in Huber & Kim, "Weighted-ensemble
@@ -207,8 +207,9 @@ def mcbs_ci_correl(dataset, estimator, alpha, n_sets=None, args=None, kwargs=Non
     dataset = numpy.asanyarray(dataset)
     dlen = len(dataset)
     n_sets = n_sets or get_bssize(alpha)
+    autocorrel_n_sets = autocorrel_n_sets or get_bssize(autocorrel_alpha)
     
-    correl_len = mcbs_correltime(dataset, autocorrel_alpha, n_sets)
+    correl_len = mcbs_correltime(dataset, autocorrel_alpha, autocorrel_n_sets)
     if correl_len == len(dataset):
         # too correlated for meaningful calculations
         return estimator(dataset, *(args or ()), **(kwargs or {})), dataset.min(), dataset.max(), correl_len

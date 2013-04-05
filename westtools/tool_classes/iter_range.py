@@ -58,7 +58,7 @@ class IterRangeSelection(WESTToolComponent):
                                help='''Analyze/report in blocks of STEP iterations.''')
 
     
-    def process_args(self, args, override_iter_start=None, override_iter_stop=None):
+    def process_args(self, args, override_iter_start=None, override_iter_stop=None, default_iter_step=1):
         if override_iter_start is not None:
             self.iter_start = override_iter_start
         elif args.first_iter is not None:
@@ -74,7 +74,7 @@ class IterRangeSelection(WESTToolComponent):
             self.iter_stop = (self.data_manager or westpa.rc.get_data_manager()).current_iteration 
 
         if self.include_args['iter_step']:
-            self.iter_step = args.iter_step or 1
+            self.iter_step = args.step_iter or default_iter_step
         
         try:
             self.iter_count = self.iter_stop - self.iter_start

@@ -148,7 +148,7 @@ def get_iteration_slice(h5object, iter_start, iter_stop=None, iter_stride=None):
     
     start_index = iter_start - obj_iter_start
     stop_index = iter_stop - obj_iter_start
-    return numpy.index_exp[start_index:stop_index:iter_stride]    
+    return numpy.index_exp[start_index:stop_index:iter_stride]
 
 
 
@@ -407,12 +407,65 @@ class MultiDSSpec(DSSpec):
         
         return output_array[seg_slice]
             
+class IterBlockedDataset:
+    @classmethod
+    def empty_like(cls, blocked_dataset):
         
+        source = blocked_dataset.data if blocked_dataset.data is not None else blocked_dataset.dataset
         
+        newbds = cls(numpy.empty(source.shape, source.dtype), attrs={'iter_start': blocked_dataset.iter_start,
+                                                                     'iter_stop': blocked_dataset.iter_stop,
+                                                                     'iter_step': blocked_dataset.iter_step})
+        return newbds
+    
+    def __init__(self, dataset_or_array, attrs=None):
+        try:
+            dataset_or_array.attrs
+        except AttributeError:
+            self.dataset = None
+            self.data = dataset_or_array
+            if attrs is None:
+                raise ValueError('attribute dictionary containing iteration bounds must be provided')
+        else:
+            self.dataset = dataset_or_array
+            attrs = self.dataset.attrs
+            self.data = None
         
+        self.iter_start = attrs['iter_start']
+        self.iter_stop = attrs['iter_stop']
+        self.iter_step = attrs.get('iter_step',1)
         
+    def cache_data(self):
+        if self.dataset is not None:
+            if self.data is None:
+                self.data = self.dataset[...]
+    
+    def drop_cache(self):
+        if self.dataset is not None:
+            del self.data
+            self.data = None
         
+    def iter_entry(self, n_iter):
+        if n_iter < self.iter_start:
+            raise IndexError('requested iteration {} less than first stored iteration {}'.format(n_iter,self.iter_start))
         
+        source = self.data if self.data is not None else self.dataset
+        return source[n_iter - self.iter_start]
         
+    def iter_slice(self, start=None, stop=None, step=None):
+        start = start or self.iter_start
+        stop = stop or self.iter_stop
+        step = step or self.iter_step
+        
+        if step % self.iter_step > 0:
+            raise TypeError('dataset {!r} stored with stride {} cannot be accessed with stride {}'
+                            .format(self.dataset, self.iter_step, step))
+        elif start < self.iter_start:
+            raise IndexError('requested start {} less than stored start {}'.format(start,self.iter_start))
+        elif stop > self.iter_stop:
+            stop = self.iter_stop
+        
+        source = self.data if self.data is not None else self.dataset
+        return source[start - self.iter_start : stop - self.iter_start : step // self.iter_step]
         
         

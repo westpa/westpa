@@ -317,6 +317,32 @@ def labeled_flux_to_rate(weight_t[:,:,:,:] labeled_fluxes, weight_t[:,:] labeled
                             _rates[istate,jstate,ibin,jbin] = labeled_fluxes[istate,jstate,ibin,jbin] / labeled_pops[istate,ibin]
     return rates
 
+@cython.boundscheck(False)
+@cython.wraparound(False)
+@cython.cdivision(True)
+def sequence_macro_flux_to_rate(weight_t[:,:,:] fluxes, weight_t[:,:] traj_ens_pops):
+    '''Convert a sequence of macrostate fluxes and corresponding list of trajectory ensemble populations
+    to a sequence of rate matrices'''
+    
+    cdef:
+        Py_ssize_t iiter, istate, jstate, nstates
+        weight_t[:,:,:] _rates
+        
+    rates = numpy.empty((fluxes.shape[0], fluxes.shape[1], fluxes.shape[2]), dtype=weight_dtype)
+    _rates = rates
+    
+    with nogil:
+        for iiter in xrange(fluxes.shape[0]):
+            for istate in xrange(fluxes.shape[1]):
+                for jstate in xrange(fluxes.shape[2]):
+                    if traj_ens_pops[iiter,istate] > 0:
+                        _rates[iiter,istate,jstate] = fluxes[iiter,istate,jstate] / traj_ens_pops[iiter,istate]
+                    elif fluxes[iiter,istate,jstate] > 0:
+                        with gil:
+                            raise ValueError('flux matrix nonzero but population zero')
+                    else:
+                        _rates[iiter,istate,jstate] = 0
+    return rates
 
 """
 In the following ``state`` is a 4-tuple of the following arrays of doubles:

@@ -10,6 +10,7 @@ class WESTToolComponent:
     def __init__(self):
         self.config_required = False
         self.include_args = {}
+        self.arg_defaults = {}
         self.parser = None
         self.args = None
         
@@ -18,6 +19,9 @@ class WESTToolComponent:
         
     def exclude_arg(self, argname):
         self.include_args[argname] = False
+        
+    def set_arg_default(self, argname, value):
+        self.arg_defaults[argname] = value
         
     def add_args(self, parser):
         '''Add arguments specific to this component to the given argparse parser.'''

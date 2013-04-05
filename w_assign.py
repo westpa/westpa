@@ -156,8 +156,8 @@ attributes datasets:
     *(Integer)* Number of segments in each iteration.
     
   ``/labeled_populations`` [iterations][state][bin]
-    *(Integer)* Per-segment and -timepoint bin assignments, labeled by which
-    macrostate the trajectory has most recently visited. The last state index
+    *(Floating-point)* Per-segment and -timepoint bin populations, labeled by
+    most recently visited macrostate. The last state entry (*nstates-1*)
     corresponds to trajectories initiated outside of a defined macrostate.
     
 When macrostate assignments are given, the following additional datasets are
@@ -308,15 +308,12 @@ Command-line options
         log.debug('loaded states: {!r}'.format(self.states))
 
 
-    #def assign_iteration(self, weights, parent_ids, state_map, last_labels, pcoords, n_workers, n_iter, nstates):
-    def assign_iteration(self, n_iter, nstates, state_map, last_labels):
+    def assign_iteration(self, n_iter, nstates, nbins, state_map, last_labels):
         ''' Method to encapsulate the segment slicing (into n_worker slices) and parallel job submission
             Submits job(s), waits on completion, splices them back together
             Returns: assignments, trajlabels, pops for this iteration'''
 
         futures = []
-        #nsegs, npts = pcoords.shape[:2]
-        nbins = len(state_map)
         
         iter_group = self.data_reader.get_iter_group(n_iter)
         nsegs, npts = iter_group['pcoord'].shape[:2]
@@ -362,13 +359,13 @@ Command-line options
         
         nbins = self.binning.mapper.nbins
         self.output_file.attrs['nbins'] = nbins 
-        
-        state_map = None 
+
+        state_map = numpy.empty((self.binning.mapper.nbins,), index_dtype)
+        state_map[:] = 0 # state_id == nstates => unknown state
+
         if self.states:
             nstates = len(self.states)
-            state_map = numpy.empty((self.binning.mapper.nbins,), index_dtype)
             state_map[:] = nstates # state_id == nstates => unknown state
-            
             state_labels = [state['label'] for state in self.states]
             
             for istate, sdict in enumerate(self.states):
@@ -439,7 +436,7 @@ Command-line options
 
 
             #Slices this iteration into n_workers groups of segments, submits them to wm, splices results back together
-            assignments, trajlabels, pops = self.assign_iteration(n_iter, nstates, state_map, last_labels)
+            assignments, trajlabels, pops = self.assign_iteration(n_iter, nstates, nbins, state_map, last_labels)
 
             ##Do stuff with this iteration's results
                 
@@ -450,6 +447,9 @@ Command-line options
                 trajlabels_ds[iiter, 0:nsegs[iiter], 0:npts[iiter]]  = trajlabels
             
             del assignments, trajlabels, pops
+            
+        for dsname in 'assignments', 'npts', 'nsegs', 'labeled_populations':
+            h5io.stamp_iter_range(self.output_file[dsname], iter_start, iter_stop)
 
         if sys.stdout.isatty() and not westpa.rc.quiet_mode:
             print('')

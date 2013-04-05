@@ -1,27 +1,27 @@
 from __future__ import print_function, division; __metaclass__ = type
 import logging
-from westtools.tool_classes import WESTParallelTool, WESTDataReader, IterRangeSelection, WESTSubcommand
+from westtools.tool_classes import WESTMasterCommand, WESTParallelTool, WESTDataReader, IterRangeSelection, WESTSubcommand
 import sys, math
 import numpy
 from westpa import h5io
 
 import westpa
-from west.data_manager import weight_dtype
+from west.data_manager import weight_dtype, n_iter_dtype
 import mclib
  
-from westpa.kinetics import labeled_flux_to_rate
+from westpa.kinetics import labeled_flux_to_rate, sequence_macro_flux_to_rate
 from westpa.kinetics.matrates import get_macrostate_rates
+from mclib import mcbs_correltime, mcbs_ci_correl
 
 
 log = logging.getLogger('westtools.w_kinavg')
 
-ci_dtype = numpy.dtype([('expected', numpy.float64),
+ci_dtype = numpy.dtype([('iter_start', n_iter_dtype),
+                        ('iter_stop', n_iter_dtype),
+                        ('expected', numpy.float64),
                         ('ci_lbound', numpy.float64),
-                        ('ci_ubound', numpy.float64)])
-
-def _remote_get_macrostate_rates(iset, rates, pops):
-    return (iset,) + get_macrostate_rates(rates,pops)
-
+                        ('ci_ubound', numpy.float64),
+                        ('corr_len', n_iter_dtype)])
 
 class KinAvgSubcommands(WESTSubcommand):
     '''Common argument processing for w_kinavg subcommands'''
@@ -34,13 +34,21 @@ class KinAvgSubcommands(WESTSubcommand):
         self.output_file = None
         self.assignments_file = None
         self.kinetics_file = None
+        self.evolution_mode = None
         
         self.mcbs_alpha = None
         self.mcbs_acalpha = None
         self.mcbs_nsets = None
+        
+    def stamp_mcbs_info(self, dataset):
+        dataset.attrs['mcbs_alpha'] = self.mcbs_alpha
+        dataset.attrs['mcbs_acalpha'] = self.mcbs_acalpha
+        dataset.attrs['mcbs_nsets'] = self.mcbs_nsets
+        
             
     def add_args(self, parser):
         self.data_reader.add_args(parser)
+        self.iter_range.include_args['iter_step'] = True
         self.iter_range.add_args(parser)
 
         iogroup = parser.add_argument_group('input/output options')
@@ -66,15 +74,27 @@ class KinAvgSubcommands(WESTSubcommand):
                              in a noisy flux signal. (Default: same as ALPHA.)''')
         cgroup.add_argument('--nsets', type=int,
                              help='''Use NSETS samples for bootstrapping (default: chosen based on ALPHA)''')
+        
+        cogroup = parser.add_argument_group('calculation options')
+        cogroup.add_argument('--evolution-mode', choices=['cumulative', 'blocked', 'none'], default='none',
+                             help='''How to calculate time evolution of rate estimates.
+                             ``cumulative`` evaluates rates over windows starting with --start-iter and getting progressively
+                             wider to --stop-iter by steps of --step-iter.
+                             ``blocked`` evaluates rates over windows of width --step-iter, the first of which begins at
+                             --start-iter.
+                             ``none`` (the default) disables calculation of the time evolution of rate estimates.''')
+        
 
     
     def process_args(self, args):
         self.assignments_file = h5io.WESTPAH5File(args.assignments, 'r')
         self.kinetics_file = h5io.WESTPAH5File(args.kinetics, 'r')
         self.data_reader.process_args(args)
-        self.data_reader.open('r')
-        self.iter_range.process_args(args)
-        self.data_reader.close()
+        with self.data_reader:
+            self.iter_range.process_args(args, default_iter_step=None)
+        if self.iter_range.iter_step is None:
+            #use about 10 blocks by default
+            self.iter_range.iter_step = max(1, (self.iter_range.iter_stop - self.iter_range.iter_start) // 10)
         self.output_file = h5io.WESTPAH5File(args.output, 'w', creating_program=True)
         h5io.stamp_creator_data(self.output_file)
         
@@ -88,234 +108,181 @@ class KinAvgSubcommands(WESTSubcommand):
         self.mcbs_acalpha = args.acalpha if args.acalpha else self.mcbs_alpha
         self.mcbs_nsets = args.nsets if args.nsets else mclib.get_bssize(self.mcbs_alpha)
         
+        self.evolution_mode = args.evolution_mode
+        
+def _eval_block(iblock, start, stop, nstates, rates, mcbs_alpha, mcbs_nsets, mcbs_acalpha):
+    results = []
+    for istate in xrange(nstates):
+        for jstate in xrange(nstates):
+            if istate == jstate: continue
+            
+            ci_res = mcbs_ci_correl(rates[:,istate,jstate],estimator=numpy.mean,
+                                    alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
+                                    subsample=numpy.mean)
+            results.append((iblock, istate, jstate, (start,stop) + ci_res))
+    return results
+        
 class AvgTraceSubcommand(KinAvgSubcommands):
-    subcommand = 'kintrace'
+    subcommand = 'trace'
     help_text = 'averages and CIs for path-tracing kinetics analysis'
-    
     default_kinetics_file = 'kintrace.h5'
+    
     def __init__(self, parent):
         super(AvgTraceSubcommand,self).__init__(parent)
-
+                        
     def go(self):
-        nbins = self.assignments_file.attrs['nbins']
         nstates = self.assignments_file.attrs['nstates']
         state_labels = self.assignments_file['state_labels'][...]
         assert nstates == len(state_labels)
-        start_iter, stop_iter = self.iter_range.iter_start, self.iter_range.iter_stop # h5io.get_iter_range(self.assignments_file)
-        iter_count = stop_iter - start_iter
+        start_iter, stop_iter, step_iter = self.iter_range.iter_start, self.iter_range.iter_stop, self.iter_range.iter_step
         
+        fluxes = h5io.IterBlockedDataset(self.kinetics_file['trace_macro_fluxes'])
+        fluxes.cache_data()
+        pops = h5io.IterBlockedDataset(self.assignments_file['labeled_populations'])
+        pops.cache_data()
+        pops.data = pops.data.sum(axis=2)
         
+        rates = h5io.IterBlockedDataset.empty_like(fluxes)
+        rates.data = sequence_macro_flux_to_rate(fluxes.data, pops.data)
         
-        for iiter, n_iter in enumerate(xrange(start_iter, stop_iter)):
-            pass
+        avg_rates = numpy.zeros((nstates,nstates), dtype=ci_dtype)
         
+        # Calculate overall average rates
+        print('evaluating overall averages...')
+        for istate in xrange(nstates):
+            for jstate in xrange(nstates):
+                if istate == jstate: continue
+                
+                ci_res = mcbs_ci_correl(rates.iter_slice(start_iter,stop_iter)[:,istate,jstate],estimator=numpy.mean,
+                                        alpha=self.mcbs_alpha,n_sets=self.mcbs_nsets,autocorrel_alpha=self.mcbs_acalpha,
+                                        subsample=numpy.mean)
+                
+                avg_rates[istate, jstate] = (start_iter, stop_iter) + ci_res
+        self.output_file['avg_rates'] = avg_rates
+        self.stamp_mcbs_info(self.output_file['avg_rates'])
+        maxlabellen = max(map(len,state_labels))
+        for istate in xrange(nstates):
+            for jstate in xrange(nstates):
+                if istate == jstate: continue
+                print('{:{maxlabellen}s} -> {:{maxlabellen}s}: mean={:21.15e} CI=({:21.15e}, {:21.15e}) * tau^-1'
+                      .format(state_labels[istate], state_labels[jstate],
+                              avg_rates['expected'][istate,jstate],
+                              avg_rates['ci_lbound'][istate,jstate],
+                              avg_rates['ci_ubound'][istate,jstate],
+                              maxlabellen=maxlabellen))
         
+        # skip evolution if not requested
+        if self.evolution_mode == 'none' or not step_iter: return
         
-    
-    
+        print('\nevaluating CI evolution...')
+        
+        start_pts = range(start_iter, stop_iter, step_iter)
+        evol = numpy.zeros((len(start_pts), nstates, nstates), dtype=ci_dtype)
+        futures = []
+        for iblock, start in enumerate(start_pts):
+            if self.evolution_mode == 'cumulative':
+                block_start = start_iter
+            else: # self.evolution_mode == 'blocked'
+                block_start = start
+            stop = min(start+step_iter, stop_iter)
+            
+            future = self.work_manager.submit(_eval_block, kwargs=dict(iblock=iblock, start=block_start, stop=stop,
+                                                                       nstates=nstates,
+                                                                       rates=rates.iter_slice(block_start,stop),
+                                                                       mcbs_alpha=self.mcbs_alpha, mcbs_nsets=self.mcbs_nsets,
+                                                                       mcbs_acalpha=self.mcbs_acalpha))
+            futures.append(future)
+        
+        for iresult, future in enumerate(self.work_manager.as_completed(futures)):
+            if sys.stdout.isatty() and not westpa.rc.quiet_mode:
+                print('\r{} of {} blocks done...'.format(iresult+1,len(start_pts)), end='')
+            results = future.get_result(discard=True)
+            for result in results:
+                iblock, istate, jstate, ci_result = result 
+                evol[iblock, istate, jstate] = ci_result
+        if sys.stdout.isatty() and not westpa.rc.quiet_mode:
+            print()
+                    
+        self.output_file.create_dataset('rate_evolution', data=evol, shuffle=True, compression=9)
+        self.stamp_mcbs_info(self.output_file['rate_evolution'])
 
-class WKinAvg(WESTParallelTool):
+class WKinAvg(WESTMasterCommand, WESTParallelTool):
     prog='w_kinavg'
+    subcommands = [AvgTraceSubcommand]
+    subparsers_title = 'kinetics analysis schemes'
     description = '''\
 Calculate average rates and associated errors from weighted ensemble data. Bin
 assignments (usually "assignments.h5") and kinetics data (usually
-"kinetics.h5") data files must have been previously generated (see 
-"w_assign --help" and "w_kintrace --help"/"w_kinmat --help" for information on
-generating these files).
+"kintrace.h5" or "kinmat.h5") data files must have been previously generated
+(see "w_assign --help" and "w_kinetics --help" for information on generating
+these files).
+
+-----------------------------------------------------------------------------
+Output format
+-----------------------------------------------------------------------------
+
+The output file (-o/--output, usually "kinavg.h5") contains the following
+dataset:
+
+  /avg_rates [state,state]
+    (Structured -- see below) State-to-state rates based on entire window of
+    iterations selected.
+
+If --evolution-mode is specified, then the following additional dataset is
+available:
+
+  /rate_evolution [window][state][state]
+    (Structured -- see below). State-to-state rates based on windows of
+    iterations of varying width.  If --evolution-mode=cumulative, then
+    these windows all begin at the iteration specified with
+    --start-iter and grow in length by --step-iter for each successive 
+    element. If --evolution-mode=blocked, then these windows are all of
+    width --step-iter (excluding the last, which may be shorter), the first
+    of which begins at iteration --start-iter.
+    
+Each element in these datasets reflects a state-to-state rate matrix evaluted
+over a certain window of iterations. The structure of the data is as follows:
+
+  iter_start
+    (Integer) Iteration at which the averaging window begins (inclusive).
+    
+  iter_stop
+    (Integer) Iteration at which the averaging window ends (exclusive).
+    
+  expected
+    (Floating-point) Expected (mean) value of the rate as evaluated within
+    this window, in units of inverse tau.
+    
+  ci_lbound
+    (Floating-point) Lower bound of the confidence interval on the rate
+    within this window, in units of inverse tau.
+    
+  ci_ubound
+    (Floating-point) Upper bound of the confidence interval on the rate 
+    within this window, in units of inverse tau.
+    
+  corr_len
+    (Integer) Correlation length of the rate within this window, in units
+    of tau.
+
+Each of these datasets is also stamped with a number of attributes:
+
+  mcbs_alpha
+    (Floating-point) Alpha value of confidence intervals. (For example, 
+    *alpha=0.5* corresponds to a 95% confidence interval.)
+
+  mcbs_nsets
+    (Integer) Number of bootstrap data sets used in generating confidence
+    intervals.
+    
+  mcbs_acalpha
+    (Floating-point) Alpha value for determining correlation lengths.
+   
+
+-----------------------------------------------------------------------------
+Command-line options
+-----------------------------------------------------------------------------
 '''
-    
-    def __init__(self):
-        super(WKinAvg,self).__init__()
-        self.subcommand = None
-    
-    def add_args(self, parser):
-        subparsers = parser.add_subparsers(title='kinetics analysis variants')
-        AvgTraceSubcommand(self).add_to_subparsers(subparsers)
-
-    def process_args(self, args):
-        self.subcommand = args.west_subcommand
-        self.subcommand.process_all_args(args)
-    
-    def go(self):
-        self.subcommand.go()
-
-    def kinetics_cis(self, labeled_fluxes, labeled_pops, traced_macro_fluxes):
-        niters, nstates, nbins = labeled_pops.shape
-        
-        lbi = int(math.floor(self.mcbs_nsets*self.mcbs_alpha/2.0))
-        ubi = int(math.ceil(self.mcbs_nsets*(1-self.mcbs_alpha/2.0)))
-
-                
-        ss_cidata = numpy.zeros((nstates, nbins), dtype=ci_dtype)
-        mmflux_cidata = numpy.zeros((nstates,nstates), dtype=ci_dtype)
-        tmflux_cidata = numpy.zeros((nstates,nstates), dtype=ci_dtype)
-
-        # calculate means
-        tmflux_cidata['expected'] = traced_macro_fluxes.mean(axis=0)        
-        traj_pops = labeled_pops.mean(axis=0).sum(axis=1)
-        for istate in xrange(nstates):
-            if traj_pops[istate] > 0:
-                tmflux_cidata['expected'][istate,:] /= traj_pops[istate]
-            else:
-                tmflux_cidata['expected'][istate,:] = 0
-
-        ss_cidata['expected'], mmflux_cidata['expected'] = get_macrostate_rates(labeled_flux_to_rate(labeled_fluxes.mean(axis=0), 
-                                                                                                     labeled_pops.mean(axis=0)),
-                                                                                labeled_pops.mean(axis=0))
-        
-        # determine correlation length
-        # the traced macrostate fluxes are probably a good indicator of correlation in flux data,
-        # as only arrivals in each iteration are counted        
-        ctimes = set()
-        for istate in xrange(nstates):
-            for jstate in xrange(nstates):
-                if istate == jstate: continue
-                ctime = mclib.mcbs_correltime(traced_macro_fluxes[:,istate,jstate], self.mcbs_acalpha, self.mcbs_nsets)
-                ctimes.add(ctime)
-        ctimes.discard(niters)
-        if not ctimes:
-            print('no correlation length determined, assuming uncorrelated fluxes')
-        else:
-            ctime = max(ctimes)
-            print('correlation length:',ctime)
-        
-        stride = ctime + 1
-        nslices = niters // stride
-        if stride == 1:
-            sliced_lfluxes = labeled_fluxes
-            sliced_lpops = labeled_pops
-            sliced_tmfluxes = traced_macro_fluxes
-        else:
-            sliced_lfluxes = numpy.empty((nslices,)+labeled_fluxes.shape[1:], labeled_fluxes.dtype)
-            sliced_lpops = numpy.empty((nslices,)+labeled_pops.shape[1:], labeled_pops.dtype)
-            sliced_tmfluxes = numpy.empty((nslices,)+traced_macro_fluxes.shape[1:], traced_macro_fluxes.dtype)
-            for iout, istart in enumerate(xrange(0,niters-stride+1,stride)):
-                sliced_lfluxes[iout] = labeled_fluxes[istart:istart+stride].mean(axis=0)
-                sliced_lpops[iout] = labeled_pops[istart:istart+stride].mean(axis=0)
-                sliced_tmfluxes[iout] = traced_macro_fluxes[istart:istart+stride].mean(axis=0)
-                
-        # We now have data blocked by correlation length; do blocked MCBS
-        nsets = self.mcbs_nsets
-        #synth_lfluxes = numpy.empty((nsets,)+labeled_fluxes.shape[1:], labeled_fluxes.dtype)
-        #synth_lpops = numpy.empty((nsets,)+labeled_pops.shape[1:], labeled_pops.dtype)
-        synth_tmfluxes = numpy.empty((nsets,)+traced_macro_fluxes.shape[1:], traced_macro_fluxes.dtype)
-        #synth_lrates = numpy.empty((nsets,)+labeled_fluxes.shape[1:], labeled_fluxes.dtype)
-        synth_mmfluxes = numpy.empty((nsets,)+traced_macro_fluxes.shape[1:], traced_macro_fluxes.dtype)
-        synth_ss = numpy.empty((nsets,)+labeled_pops.shape[1:], labeled_pops.dtype)
-        
-        # Draw bootstrap data
-        print('Drawing bootstrap data')
-        futures = []
-        for iset in xrange(self.mcbs_nsets):
-            if sys.stdout.isatty() and not westpa.rc.quiet_mode:
-                print('\rSet {}'.format(iset+1),end='')
-                sys.stdout.flush()
-
-            indices = numpy.random.randint(nslices, size=(nslices,))
-            synth_tmfluxes[iset] = numpy.take(sliced_tmfluxes, indices, axis=0).mean(axis=0)
-            synth_avgpops = numpy.take(sliced_lpops, indices, axis=0).mean(axis=0)
-            synth_avgflux = numpy.take(sliced_lfluxes, indices, axis=0).mean(axis=0)
-            synth_avgrates = labeled_flux_to_rate(synth_avgflux, synth_avgpops)
-            
-            # Dispatch elsewhere because this takes a while
-            futures.append(self.work_manager.submit(_remote_get_macrostate_rates, args=(iset, synth_avgrates, synth_avgpops)))
-            
-            # Come back to local work            
-            traj_pops = synth_avgpops.sum(axis=1)
-            for istate in xrange(nstates):
-                if traj_pops[istate] > 0:
-                    synth_tmfluxes[iset,istate] /= traj_pops[istate]
-                else:
-                    synth_tmfluxes[iset,istate] = 0
-            
-            del synth_avgpops, synth_avgflux, synth_avgrates, indices, traj_pops
-        print()
-
-        nrecvd = 0
-        print('Waiting on eigenvalues')        
-        for future in self.work_manager.as_completed(futures):
-            nrecvd += 1
-            if sys.stdout.isatty() and not westpa.rc.quiet_mode:
-                print('\rSet {}'.format(nrecvd),end='')
-                sys.stdout.flush()
-            iset, ss, mmfluxes = future.get_result()
-            synth_ss[iset], synth_mmfluxes[iset] = ss, mmfluxes
-        print()
-        
-        # Calculate the (1-alpha) CI for everything
-        for istate in xrange(nstates):
-            for ibin in xrange(nbins):
-                popelemdist = numpy.sort(synth_ss[:,istate,ibin])
-                ss_cidata['ci_lbound'][istate,ibin] = popelemdist[lbi]
-                ss_cidata['ci_ubound'][istate,ibin] = popelemdist[ubi]
-                del popelemdist
-        
-        for istate in xrange(nstates):
-            for jstate in xrange(nstates):
-                trace_rateelemdist = numpy.sort(synth_tmfluxes[:,istate,jstate])
-                matrix_rateelemdist = numpy.sort(synth_mmfluxes[:,istate,jstate])
-                
-                mmflux_cidata['ci_lbound'][istate,jstate] = matrix_rateelemdist[lbi]
-                mmflux_cidata['ci_ubound'][istate,jstate] = matrix_rateelemdist[ubi]                
-                
-                tmflux_cidata['ci_lbound'][istate,jstate] = trace_rateelemdist[lbi]
-                tmflux_cidata['ci_ubound'][istate,jstate] = trace_rateelemdist[ubi]
-                
-        
-        return tmflux_cidata, mmflux_cidata, ss_cidata
-    
-    def _old_go(self):
-        nbins = self.assignments_file.attrs['nbins']
-        state_labels = self.assignments_file['state_labels'][...]
-        nstates = len(state_labels)
-        start_iter, stop_iter = self.iter_range.iter_start, self.iter_range.iter_stop # h5io.get_iter_range(self.assignments_file)
-        iter_count = stop_iter - start_iter
-                
-        labeled_fluxes = numpy.empty((iter_count,nstates,nstates,nbins,nbins), weight_dtype)
-        labeled_pops   = numpy.empty((iter_count,nstates,nbins), weight_dtype)
-        traced_fluxes  = numpy.empty((iter_count,nstates,nstates), weight_dtype)
-
-        print('reading kinetics data')
-        for iiter, n_iter in enumerate(xrange(start_iter, stop_iter)):
-            if sys.stdout.isatty() and not westpa.rc.quiet_mode:
-                print('\rIteration {}'.format(n_iter),end='')
-                sys.stdout.flush()
-                
-            kinetics_iiter = h5io.get_iteration_entry(self.kinetics_file, n_iter)
-            labeled_fluxes[iiter] = self.kinetics_file['labeled_bin_fluxes'][kinetics_iiter]
-            labeled_pops[iiter] = self.kinetics_file['labeled_bin_pops'][kinetics_iiter]
-            traced_fluxes[iiter] = self.kinetics_file['trace_macro_fluxes'][kinetics_iiter]
-        print()
-        
-        tmflux_cidata, mmflux_cidata, ss_cidata = self.kinetics_cis(labeled_fluxes, labeled_pops, traced_fluxes)
-        
-        self.output_file['traced_rates'] = tmflux_cidata
-        self.output_file['matrix_rates'] = mmflux_cidata
-        self.output_file['steady_state'] = ss_cidata
-        self.output_file['state_labels'] = state_labels
-        
-        print('macrostate rates by tracing')
-        maxlabel = max(map(len,state_labels))
-        for istate in xrange(nstates):
-            for jstate in xrange(nstates):
-                if istate == jstate: continue
-                print('{:{maxlabel}s} -> {:{maxlabel}s}: {:21.15e} ({:21.15e}, {:21.15e}) * tau^-1'
-                      .format(state_labels[istate], state_labels[jstate],
-                              tmflux_cidata['expected'][istate,jstate],
-                              tmflux_cidata['ci_lbound'][istate,jstate],
-                              tmflux_cidata['ci_ubound'][istate,jstate],
-                              maxlabel=maxlabel))
-        
-        print('macrostate rates by steady-state extrapolation')
-        for istate in xrange(nstates):
-            for jstate in xrange(nstates):
-                print('{:{maxlabel}s} -> {:{maxlabel}s}: {:21.15e} ({:21.15e}, {:21.15e}) * tau^-1'
-                      .format(state_labels[istate], state_labels[jstate],
-                              mmflux_cidata['expected'][istate,jstate],
-                              mmflux_cidata['ci_lbound'][istate,jstate],
-                              mmflux_cidata['ci_ubound'][istate,jstate],
-                              maxlabel=maxlabel))
-        
 
 if __name__ == '__main__':
     WKinAvg().main()

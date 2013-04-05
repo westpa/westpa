@@ -53,6 +53,14 @@ class WESTDataReader(WESTToolComponent):
             assert self.we_h5filename is not None
             self._parent_id_dsspec = SingleIterDSSpec(self.we_h5filename, 'seg_index', slice=index_exp['parent_id'])
         return self._parent_id_dsspec
+
+    def __enter__(self):
+        self.open('r')
+        return self
+        
+    def __exit__(self, exc_type, exc_val, exc_traceback):
+        self.close()
+        return False
             
 
 class WESTDSSynthesizer(WESTToolComponent):
