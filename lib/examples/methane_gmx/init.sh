@@ -11,6 +11,9 @@ rm -Rf traj_segs$SFX seg_logs$SFX istates$SFX & disown %1
 rm -f system.h5 west.h5 seg_logs.tar
 mkdir seg_logs traj_segs istates
 
+rm -f methane.tpr
+grompp -f md-genvel.mdp -c bstates/unbound.gro -o methane.tpr -p methane.top
+
 BSTATE_ARGS="--bstate unbound,1,unbound.gro"
 TSTATE_ARGS="--tstate bound,0.3"
 
