@@ -16,30 +16,42 @@ class WMEnvironment:
       2. environment variables
       3. defaults
     '''
+    
+    group_title = 'parallelization options'
+    group_description = None
           
     env_prefix = 'WM'
     arg_prefix = 'wm'
     
     default_work_manager = 'processes'
+    default_parallel_work_manager = 'processes'
     valid_work_managers = list(_available_work_managers.iterkeys())
     
-    def __init__(self):
+    def __init__(self, use_arg_prefixes=False, valid_work_managers=None):
         self.environ = os.environ
         self.args = None
         
-        # copy from the class variable
+        # copy from the class variable to permit modification
         # this can be modified to disable certain work managers, for whatever reason
         # mostly it's about having a valid list for enumeration
-        self.valid_work_managers = list(self.valid_work_managers)
+        self.valid_work_managers = valid_work_managers or list(self.valid_work_managers)
+        
+        self.use_arg_prefixes=use_arg_prefixes
         
     def env_name(self, name):
         return '{}_{}'.format(self.env_prefix, name.upper())
     
     def arg_name(self, name):
-        return '{}_{}'.format(self.arg_prefix, name)
+        if self.use_arg_prefixes:
+            return '{}_{}'.format(self.arg_prefix, name)
+        else:
+            return name
     
     def arg_flag(self, name):
-        return '--{}-{}'.format(self.arg_prefix, re.sub('_','-',name))
+        if self.use_arg_prefixes:
+            return '--{}-{}'.format(self.arg_prefix, re.sub('_','-',name))
+        else:
+            return '--{}'.format(re.sub('_','-',name))
             
     def get_val(self, name, default=None, type_=None):
         envname = self.env_name(name)
@@ -62,12 +74,19 @@ class WMEnvironment:
             
     def add_wm_args(self, parser):
         
-        wm_group = parser.add_argument_group('work manager options')
-        wm_group.add_argument(self.arg_flag('work_manager'), metavar='WORK_MANAGER',
+        wm_group = parser.add_argument_group(self.group_title, self.group_description)
+        wm_mutex = wm_group.add_mutually_exclusive_group()
+        wm_mutex.add_argument(self.arg_flag('serial'), dest=self.arg_name('work_manager'), action='store_const', const='serial',
+                              help='run in serial mode')
+        wm_mutex.add_argument(self.arg_flag('parallel'), dest=self.arg_name('work_manager'), action='store_const',
+                              const=self.default_parallel_work_manager, help='run in parallel mode (using {})'
+                                                                             .format(self.default_parallel_work_manager))
+        wm_mutex.add_argument(self.arg_flag('work_manager'), metavar='WORK_MANAGER',
                               choices=self.valid_work_managers,
                               help='''use the given work manager for parallel task distribution. Available
                                    work managers are {!r}; default is {!r}
                                    '''.format(tuple(self.valid_work_managers), self.default_work_manager))
+            
         wm_group.add_argument(self.arg_flag('n_workers'), metavar='N_WORKERS', type=int,
                               help='''Use up to N_WORKERS on this host, for work managers which support this option.
                                       Use 0 for a dedicated server. (Ignored by work managers which do not support

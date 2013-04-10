@@ -23,7 +23,7 @@ class TestInstantiations:
     def testArgs(self):
         parser = argparse.ArgumentParser()
         add_wm_args(parser)
-        args='--wm-work-manager=threads --wm-n-workers=3'.split()
+        args='--work-manager=threads --n-workers=3'.split()
         args = parser.parse_args(args)
         process_wm_args(args)
         work_manager = make_work_manager()
@@ -36,7 +36,7 @@ class TestInstantiations:
         os.environ['WM_N_WORKERS'] = str(3)
         parser = argparse.ArgumentParser()
         add_wm_args(parser)
-        args='--wm-work-manager=threads'.split()
+        args='--work-manager=threads'.split()
         args = parser.parse_args(args)
         process_wm_args(args)
         work_manager = make_work_manager()
