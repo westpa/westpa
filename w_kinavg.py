@@ -1,16 +1,18 @@
 from __future__ import print_function, division; __metaclass__ = type
 import logging
-from westtools.tool_classes import WESTMasterCommand, WESTParallelTool, WESTDataReader, IterRangeSelection, WESTSubcommand
-import sys, math
-import numpy
-from westpa import h5io
+
+import sys, random, math
+import numpy, h5py
+from h5py import h5s
 
 import westpa
 from west.data_manager import weight_dtype, n_iter_dtype
-import mclib
- 
+from westtools.tool_classes import WESTMasterCommand, WESTParallelTool, WESTDataReader, IterRangeSelection, WESTSubcommand
+from westpa import h5io
 from westpa.kinetics import labeled_flux_to_rate, sequence_macro_flux_to_rate
 from westpa.kinetics.matrates import get_macrostate_rates
+
+import mclib
 from mclib import mcbs_correltime, mcbs_ci_correl
 
 
@@ -31,9 +33,15 @@ class KinAvgSubcommands(WESTSubcommand):
         
         self.data_reader = WESTDataReader()
         self.iter_range = IterRangeSelection() 
+        
+        self.output_filename = None
+        self.kinetics_filename = None
+        self.assignment_filename = None
+        
         self.output_file = None
         self.assignments_file = None
         self.kinetics_file = None
+        
         self.evolution_mode = None
         
         self.mcbs_alpha = None
@@ -84,26 +92,30 @@ class KinAvgSubcommands(WESTSubcommand):
                              --start-iter.
                              ``none`` (the default) disables calculation of the time evolution of rate estimates.''')
         
+    def open_files(self):
+        self.output_file = h5io.WESTPAH5File(self.output_filename, 'w', creating_program=True)
+        h5io.stamp_creator_data(self.output_file)
+        self.assignments_file = h5io.WESTPAH5File(self.assignments_filename, 'r')#, driver='core', backing_store=False)
+        self.kinetics_file = h5io.WESTPAH5File(self.kinetics_filename, 'r')#, driver='core', backing_store=False)
+        if not self.iter_range.check_data_iter_range_least(self.assignments_file):
+            raise ValueError('assignments data do not span the requested iterations')
+
+        if not self.iter_range.check_data_iter_range_least(self.kinetics_file):
+            raise ValueError('kinetics data do not span the requested iterations')
 
     
     def process_args(self, args):
-        self.assignments_file = h5io.WESTPAH5File(args.assignments, 'r')
-        self.kinetics_file = h5io.WESTPAH5File(args.kinetics, 'r')
         self.data_reader.process_args(args)
         with self.data_reader:
             self.iter_range.process_args(args, default_iter_step=None)
         if self.iter_range.iter_step is None:
             #use about 10 blocks by default
             self.iter_range.iter_step = max(1, (self.iter_range.iter_stop - self.iter_range.iter_start) // 10)
-        self.output_file = h5io.WESTPAH5File(args.output, 'w', creating_program=True)
-        h5io.stamp_creator_data(self.output_file)
         
-        if not self.iter_range.check_data_iter_range_least(self.assignments_file):
-            raise ValueError('assignments data do not span the requested iterations')
-
-        if not self.iter_range.check_data_iter_range_least(self.kinetics_file):
-            raise ValueError('kinetics data do not span the requested iterations')
-        
+        self.output_filename = args.output
+        self.assignments_filename = args.assignments
+        self.kinetics_filename = args.kinetics
+                
         self.mcbs_alpha = args.alpha
         self.mcbs_acalpha = args.acalpha if args.acalpha else self.mcbs_alpha
         self.mcbs_nsets = args.nsets if args.nsets else mclib.get_bssize(self.mcbs_alpha)
@@ -131,6 +143,7 @@ class AvgTraceSubcommand(KinAvgSubcommands):
         super(AvgTraceSubcommand,self).__init__(parent)
                         
     def go(self):
+        self.open_files()
         nstates = self.assignments_file.attrs['nstates']
         state_labels = self.assignments_file['state_labels'][...]
         assert nstates == len(state_labels)
@@ -206,9 +219,201 @@ class AvgTraceSubcommand(KinAvgSubcommands):
         self.output_file.create_dataset('rate_evolution', data=evol, shuffle=True, compression=9)
         self.stamp_mcbs_info(self.output_file['rate_evolution'])
 
+
+def _calc_ci_block(block_label, assignments_filename, kinetics_filename, istate, jstate, start_iter, stop_iter,
+                   mcbs_alpha, mcbs_acalpha, mcbs_nsets):
+    log.debug('istate={} jstate={} start_iter={} stop_iter={}'.format(istate,jstate,start_iter,stop_iter))
+    assignments_file = h5py.File(assignments_filename, 'r')
+    kinetics_file = h5py.File(kinetics_filename, 'r')
+    
+    nstates, nbins = assignments_file.attrs['nstates'], assignments_file.attrs['nbins']        
+    niters = stop_iter - start_iter
+    
+    # Fluxes and populations are averaged as they are read, as these are generally
+    # very large datasets
+    avg_fluxes = numpy.zeros((nstates,nstates,nbins,nbins), weight_dtype)
+    avg_pops = numpy.zeros((nstates,nbins), weight_dtype)
+    
+    # Per-iteration macrostate-macrostate fluxes, for correlation calculation
+    macro_fluxes = numpy.empty((niters, nstates, nstates), weight_dtype)
+    
+    # Source datasets
+    pops_ds = assignments_file['labeled_populations']
+    fluxes_ds = kinetics_file['labeled_bin_fluxes']
+    pops_iter_start = pops_ds.attrs.get('iter_start',1)
+    fluxes_iter_start = fluxes_ds.attrs.get('iter_start',1)
+    
+    # prepend 1 so that rank of dest == rank of src
+    labeled_fluxes = numpy.empty((1,nstates,nstates,nbins,nbins), weight_dtype)
+    labeled_pops = numpy.empty((1,nstates,nbins), weight_dtype)
+    
+    lflux_memsel = h5s.create_simple(labeled_fluxes.shape, (h5s.UNLIMITED,)*labeled_fluxes.ndim)
+    lpop_memsel  = h5s.create_simple(labeled_pops.shape, (h5s.UNLIMITED,)*labeled_pops.ndim)
+
+    fluxes_dsid = fluxes_ds.id
+    pops_dsid = pops_ds.id
+    
+    lflux_filesel = fluxes_dsid.get_space()
+    lpop_filesel  = pops_dsid.get_space()
+    
+    
+    # Overall average
+    for iiter, n_iter in enumerate(xrange(start_iter, stop_iter)):
+        lflux_filesel.select_hyperslab((n_iter-fluxes_iter_start,0,0,0,0), (1,nstates,nstates,nbins,nbins),
+                                       op=h5s.SELECT_SET)
+        lpop_filesel.select_hyperslab((n_iter-pops_iter_start,0,0), (1,nstates,nbins),
+                                      op=h5s.SELECT_SET)                    
+        fluxes_dsid.read(lflux_memsel, lflux_filesel, labeled_fluxes)
+        pops_dsid.read(lpop_memsel, lpop_filesel, labeled_pops)
+        avg_fluxes += labeled_fluxes[0]
+        avg_pops += labeled_pops[0]        
+        macro_fluxes[iiter] = labeled_fluxes[0].sum(axis=3).sum(axis=2)
+        
+    avg_fluxes /= niters
+    avg_pops /= niters     
+    avg_rates = labeled_flux_to_rate(avg_fluxes, avg_pops)
+    ss, macro_rates = get_macrostate_rates(avg_rates, avg_pops)
+    overall_avg_rates = macro_rates.copy()
+    ctime = mcbs_correltime(macro_fluxes[istate, jstate], mcbs_acalpha, mcbs_nsets)
+
+
+    # bootstrap
+    lbi = int(math.floor(mcbs_nsets*mcbs_alpha/2.0))
+    ubi = int(math.ceil(mcbs_nsets*(1-mcbs_alpha/2.0)))        
+    stride = ctime + 1
+    synth_rates = numpy.empty((mcbs_nsets,), weight_dtype)
+    
+    starts = numpy.arange(start_iter, stop_iter, stride, dtype=numpy.uintc)
+    stops = numpy.arange(start_iter+stride, stop_iter+stride, stride, dtype=numpy.uintc)
+    nblocks = len(starts)
+    if stops[-1] > stop_iter: stops[-1] = stop_iter    
+    
+    for iset in xrange(mcbs_nsets):
+        avg_fluxes.fill(0)
+        avg_pops.fill(0)
+        iters_averaged = 0
+        
+        for _block in xrange(nblocks):
+            iblock = random.randint(0,nblocks-1)
+            for n_iter in xrange(starts[iblock], stops[iblock]):
+                iters_averaged += 1
+
+                lflux_filesel.select_hyperslab((n_iter-fluxes_iter_start,0,0,0,0), (1,nstates,nstates,nbins,nbins),
+                                               op=h5s.SELECT_SET)
+                lpop_filesel.select_hyperslab((n_iter-pops_iter_start,0,0), (1,nstates,nbins),
+                                              op=h5s.SELECT_SET)                    
+                fluxes_dsid.read(lflux_memsel, lflux_filesel, labeled_fluxes)
+                pops_dsid.read(lpop_memsel, lpop_filesel, labeled_pops)
+                avg_fluxes += labeled_fluxes[0]
+                avg_pops += labeled_pops[0]
+        
+        avg_fluxes /= iters_averaged
+        avg_pops /= iters_averaged
+        avg_rates = labeled_flux_to_rate(avg_fluxes, avg_pops)
+        ss, macro_rates = get_macrostate_rates(avg_rates, avg_pops)
+        synth_rates[iset] = macro_rates[istate, jstate]
+    synth_rates.sort()
+                
+    return (block_label, istate, jstate,
+            (start_iter, stop_iter, overall_avg_rates[istate, jstate], synth_rates[lbi], synth_rates[ubi], ctime))    
+
+
+class AvgMatrixSubcommand(KinAvgSubcommands):
+    subcommand = 'matrix'
+    help_text = 'averages and CIs for rate matrix equilibrium extrapolation kinetics analysis'
+    default_kinetics_file = 'kinmat.h5'
+    
+    def __init__(self, parent):
+        super(AvgMatrixSubcommand,self).__init__(parent)
+        
+        self.nstates = self.nbins = None
+        self.state_labels = None
+                        
+    def init_ivars(self):
+        '''Initialize variables used in multiple functions'''
+
+        self.nstates = self.assignments_file.attrs['nstates']
+        self.nbins   = self.assignments_file.attrs['nbins']
+        self.state_labels = self.assignments_file['state_labels'][...]
+        assert self.nstates == len(self.state_labels)
+
+    def go(self):
+        self.open_files()
+        self.init_ivars()
+        
+        avg_rates = numpy.zeros((self.nstates,self.nstates), dtype=ci_dtype)
+        
+        print('evaluating overall averages...')
+        futures = []
+        for istate in xrange(self.nstates):
+            for jstate in xrange(self.nstates):
+                if istate == jstate: continue
+                args = (None, self.assignments_filename, self.kinetics_filename, istate, jstate,
+                        self.iter_range.iter_start, self.iter_range.iter_stop,
+                        self.mcbs_alpha, self.mcbs_acalpha, self.mcbs_nsets)
+                futures.append(self.work_manager.submit(_calc_ci_block, args=args))
+
+        for future in self.work_manager.as_completed(futures):
+            _iblock, istate, jstate, ci_result = future.get_result(discard=True)
+            avg_rates[istate,jstate] = ci_result
+                
+        self.output_file['avg_rates'] = avg_rates
+        self.stamp_mcbs_info(self.output_file['avg_rates'])
+        maxlabellen = max(map(len,self.state_labels))
+        for istate in xrange(self.nstates):
+            for jstate in xrange(self.nstates):
+                if istate == jstate: continue
+                print('{:{maxlabellen}s} -> {:{maxlabellen}s}: mean={:21.15e} CI=({:21.15e}, {:21.15e}) * tau^-1'
+                      .format(self.state_labels[istate], self.state_labels[jstate],
+                              avg_rates['expected'][istate,jstate],
+                              avg_rates['ci_lbound'][istate,jstate],
+                              avg_rates['ci_ubound'][istate,jstate],
+                              maxlabellen=maxlabellen))
+        
+        # skip evolution if not requested
+        if self.evolution_mode == 'none' or not self.iter_range.iter_step: return
+        
+        print('\nevaluating CI evolution...')
+        start_iter, stop_iter, step_iter = self.iter_range.iter_start, self.iter_range.iter_stop, self.iter_range.iter_step
+        start_pts = range(start_iter, stop_iter, step_iter)
+        evol = numpy.zeros((len(start_pts), self.nstates, self.nstates), dtype=ci_dtype)
+        futures = []
+        
+        for istate in xrange(self.nstates):
+            for jstate in xrange(self.nstates):
+                if istate == jstate: continue
+                for iblock, start in enumerate(start_pts):
+                    if self.evolution_mode == 'cumulative':
+                        block_start = start_iter
+                    else: # self.evolution_mode == 'blocked'
+                        block_start = start
+                    stop = min(start+step_iter, stop_iter)
+                    log.debug('dispatching block {}, istate={}, jstate={}, start={}, stop={}'
+                              .format(iblock, istate, jstate, block_start,stop))
+
+                    args = (iblock, self.assignments_filename, self.kinetics_filename, istate, jstate,
+                            block_start, stop,
+                            self.mcbs_alpha, self.mcbs_acalpha, self.mcbs_nsets)
+                    futures.append(self.work_manager.submit(_calc_ci_block, args=args))
+
+        if sys.stdout.isatty() and not westpa.rc.quiet_mode:
+            print('\r{} of {} rates done...'.format(0,len(futures)), end='')        
+        for iresult, future in enumerate(self.work_manager.as_completed(futures)):
+            if sys.stdout.isatty() and not westpa.rc.quiet_mode:
+                print('\r{} of {} rates done...'.format(iresult+1,len(futures)), end='')
+            result = future.get_result(discard=True)
+            iblock, istate, jstate, ci_result = result 
+            evol[iblock, istate, jstate] = ci_result
+        if sys.stdout.isatty() and not westpa.rc.quiet_mode:
+            print()
+                    
+        self.output_file.create_dataset('rate_evolution', data=evol, shuffle=True, compression=9)
+        self.stamp_mcbs_info(self.output_file['rate_evolution'])
+        
+
 class WKinAvg(WESTMasterCommand, WESTParallelTool):
     prog='w_kinavg'
-    subcommands = [AvgTraceSubcommand]
+    subcommands = [AvgTraceSubcommand,AvgMatrixSubcommand]
     subparsers_title = 'kinetics analysis schemes'
     description = '''\
 Calculate average rates and associated errors from weighted ensemble data. Bin
@@ -269,7 +474,7 @@ Each of these datasets is also stamped with a number of attributes:
 
   mcbs_alpha
     (Floating-point) Alpha value of confidence intervals. (For example, 
-    *alpha=0.5* corresponds to a 95% confidence interval.)
+    *alpha=0.05* corresponds to a 95% confidence interval.)
 
   mcbs_nsets
     (Integer) Number of bootstrap data sets used in generating confidence

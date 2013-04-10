@@ -1,6 +1,7 @@
 '''Miscellaneous routines to help with HDF5 input and output of WEST-related data.'''
 
-import sys, os, getpass, socket, time
+import sys, os, getpass, socket, time, operator
+from collections import Counter
 import numpy, h5py
 from numpy import index_exp
 
@@ -415,7 +416,7 @@ class IterBlockedDataset:
         
         newbds = cls(numpy.empty(source.shape, source.dtype), attrs={'iter_start': blocked_dataset.iter_start,
                                                                      'iter_stop': blocked_dataset.iter_stop,
-                                                                     'iter_step': blocked_dataset.iter_step})
+                                                                     })
         return newbds
     
     def __init__(self, dataset_or_array, attrs=None):
@@ -426,16 +427,19 @@ class IterBlockedDataset:
             self.data = dataset_or_array
             if attrs is None:
                 raise ValueError('attribute dictionary containing iteration bounds must be provided')
+            self.iter_shape = self.data.shape[1:]
+            self.dtype = self.data.dtype
         else:
             self.dataset = dataset_or_array
             attrs = self.dataset.attrs
             self.data = None
+            self.iter_shape = self.dataset.shape[1:]
+            self.dtype = self.dataset.dtype
         
         self.iter_start = attrs['iter_start']
         self.iter_stop = attrs['iter_stop']
-        self.iter_step = attrs.get('iter_step',1)
         
-    def cache_data(self):
+    def cache_data(self): 
         if self.dataset is not None:
             if self.data is None:
                 self.data = self.dataset[...]
@@ -452,20 +456,18 @@ class IterBlockedDataset:
         source = self.data if self.data is not None else self.dataset
         return source[n_iter - self.iter_start]
         
-    def iter_slice(self, start=None, stop=None, step=None):
+    def iter_slice(self, start=None, stop=None):
         start = start or self.iter_start
         stop = stop or self.iter_stop
-        step = step or self.iter_step
-        
-        if step % self.iter_step > 0:
-            raise TypeError('dataset {!r} stored with stride {} cannot be accessed with stride {}'
-                            .format(self.dataset, self.iter_step, step))
-        elif start < self.iter_start:
+        step = 1 # strided retrieval not implemented yet
+
+        #if step % self.iter_step > 0:
+        #    raise TypeError('dataset {!r} stored with stride {} cannot be accessed with stride {}'
+        #                    .format(self.dataset, self.iter_step, step))
+        if start < self.iter_start:
             raise IndexError('requested start {} less than stored start {}'.format(start,self.iter_start))
         elif stop > self.iter_stop:
             stop = self.iter_stop
         
         source = self.data if self.data is not None else self.dataset
-        return source[start - self.iter_start : stop - self.iter_start : step // self.iter_step]
-        
-        
+        return source[start - self.iter_start : stop - self.iter_start : step]
