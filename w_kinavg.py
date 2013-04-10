@@ -145,6 +145,7 @@ class AvgTraceSubcommand(KinAvgSubcommands):
     def go(self):
         self.open_files()
         nstates = self.assignments_file.attrs['nstates']
+        nbins = self.assignments_file.attrs['nbins']
         state_labels = self.assignments_file['state_labels'][...]
         assert nstates == len(state_labels)
         start_iter, stop_iter, step_iter = self.iter_range.iter_start, self.iter_range.iter_stop, self.iter_range.iter_step
@@ -156,7 +157,7 @@ class AvgTraceSubcommand(KinAvgSubcommands):
         pops.data = pops.data.sum(axis=2)
         
         rates = h5io.IterBlockedDataset.empty_like(fluxes)
-        rates.data = sequence_macro_flux_to_rate(fluxes.data, pops.data)
+        rates.data = sequence_macro_flux_to_rate(fluxes.data, pops.data[:nstates,:nbins])
         
         avg_rates = numpy.zeros((nstates,nstates), dtype=ci_dtype)
         
@@ -292,6 +293,7 @@ def _calc_ci_block(block_label, assignments_filename, kinetics_filename, istate,
         avg_fluxes.fill(0)
         avg_pops.fill(0)
         iters_averaged = 0
+        log.debug('iset={} istate={} jstate={}'.format(iset,istate,jstate))
         
         for _block in xrange(nblocks):
             iblock = random.randint(0,nblocks-1)

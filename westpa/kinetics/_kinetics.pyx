@@ -9,6 +9,8 @@ ctypedef numpy.float64_t weight_t
 ctypedef numpy.uint8_t bool_t
 ctypedef numpy.int64_t seg_id_t
 
+cdef double NAN = numpy.nan 
+
 weight_dtype = numpy.float64  
 index_dtype = numpy.uint16
 bool_dtype = numpy.bool_
@@ -338,8 +340,10 @@ def sequence_macro_flux_to_rate(weight_t[:,:,:] fluxes, weight_t[:,:] traj_ens_p
                     if traj_ens_pops[iiter,istate] > 0:
                         _rates[iiter,istate,jstate] = fluxes[iiter,istate,jstate] / traj_ens_pops[iiter,istate]
                     elif fluxes[iiter,istate,jstate] > 0:
-                        with gil:
-                            raise ValueError('flux matrix nonzero but population zero')
+                        # This is an invalid rate, but can appear in some places in recycling simulations,
+                        # so we allow things to proceed but store NaN, which will render any average
+                        # rates based on this matrix element NaN as well.
+                        _rates[iiter,istate,jstate] = NAN 
                     else:
                         _rates[iiter,istate,jstate] = 0
     return rates
@@ -446,14 +450,21 @@ cpdef find_macrostate_transitions(Py_ssize_t nstates,
             
             # if we have wound up in a new kinetic macrostate
             if flabel != ilabel:
-                for iistate in xrange(nstates):
-                    if iistate != flabel:
-                        macro_fluxes[iistate,flabel] += _weight
-                        t_ed = tm - _last_exits[seg_id,iistate]
-                        durations.append((iistate,flabel,t_ed,_weight))
-                    _last_completions[seg_id,iistate,flabel] = tm
                 _last_exits[seg_id,ilabel] = tm
                 _last_entries[seg_id,flabel] = tm
+                            
+                for iistate in xrange(nstates):                    
+                    # if we have more recently returned to iistate than arrived at flabel from iistate,
+                    # we note a new completed transition from iistate to flabel
+                    # equality applies only for 0, which means we're counting an arrival from the
+                    # state where the trajectory started
+                    if _last_entries[seg_id,iistate] >= _last_completions[seg_id,iistate,flabel]:
+                        macro_fluxes[iistate,flabel] += _weight
+                        _last_completions[seg_id,iistate,flabel] = tm
+                        
+                        if iistate != flabel:
+                            t_ed = tm - _last_exits[seg_id,iistate]
+                            durations.append((iistate,flabel,t_ed,_weight))
         
         _last_time[seg_id] = tm
         
