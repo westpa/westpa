@@ -26,19 +26,21 @@ class ZMQWorkManager(ZMQServer,WorkManager):
         if wmenv is None:
             wmenv = work_managers.environment.default_env 
 
-        wm_group = parser.add_argument_group('options for ZeroMQ ("zmq") work manager or router')
+        wm_group = parser.add_argument_group('options for ZeroMQ ("zmq") work manager (server or client)')
         wm_group.add_argument(wmenv.arg_flag('zmq_mode'), metavar='MODE', choices=('server', 'client'),
                               help='Operate as a server (MODE=server) or a client (MODE=client).')
         wm_group.add_argument(wmenv.arg_flag('zmq_info'), metavar='INFO_FILE',
-                              help='Store server information in INFO_FILE. (specify for server or routers only)'
+                              help='Store (server) or read (client) endpoint information in INFO_FILE. '
                                    'This is helpful if running server and clients or routers on multiple '
                                    'machines which share a filesystem, as explicit hostnames/ports are not required')
         wm_group.add_argument(wmenv.arg_flag('zmq_task_endpoint'), metavar='TASK_ENDPOINT',
-                              help='''Bind server to given ZeroMQ endpoint to distribute tasks downstream (specify for servers or routers only).''')
+                              help='''Bind (server) or connect (client) to this endpoint for task distribution''')
         wm_group.add_argument(wmenv.arg_flag('zmq_result_endpoint'), metavar='RESULT_ENDPOINT',
-                              help='''Bind server to given ZeroMQ endpoint to receive results from downstream (specify for servers or routers only).''')
+                              help='''Bind (server) or connect (client) to this endpoint for result distribution''')
         wm_group.add_argument(wmenv.arg_flag('zmq_announce_endpoint'), metavar='ANNOUNCE_ENDPOINT',
-                              help='''Bind server to given ZeroMQ endpoint to send anouncements downstream (specify for servers or routers only).''')
+                              help='''Bind (server) or connect (client) to this endpoint to send/receive server announcements''')
+        wm_group.add_argument(wmenv.arg_flag('zmq_listen_endpoint'), metavar='ANNOUNCE_ENDPOINT',
+                              help='''Bind (server) or connect (client) to this endpoint to send/receive client announcements''')
         wm_group.add_argument(wmenv.arg_flag('zmq_heartbeat_interval'), metavar='INTERVAL',
                               help='''If a client or router has not
                                       heard from the server in approximately INTERVAL seconds, the client will
@@ -61,7 +63,8 @@ class ZMQWorkManager(ZMQServer,WorkManager):
         if wmenv.get_val('zmq_mode','server').lower() == 'client':
             return ZMQClient.from_environ()
         
-        n_workers = wmenv.get_val('n_workers', multiprocessing.cpu_count(), int)
+        #number of local (internal) workers to launch with server - 0 indicates dedicated server
+        n_local_workers = wmenv.get_val('n_workers', multiprocessing.cpu_count(), int)
         task_timeout = wmenv.get_val('zmq_task_timeout', DEFAULT_TASK_TIMEOUT, int)
         heartbeat_interval = wmenv.get_val('zmq_heartbeat_interval', DEFAULT_SERVER_HEARTBEAT_INTERVAL, int)
         shutdown_timeout = wmenv.get_val('zmq_worker_shutdown_timeout', DEFAULT_SHUTDOWN_TIMEOUT, int)
@@ -72,16 +75,19 @@ class ZMQWorkManager(ZMQServer,WorkManager):
         # if individual endpoints are named, we use these
         tests_old = [not bool(wmenv.get_val('zmq_task_endpoint')),
                  not bool(wmenv.get_val('zmq_result_endpoint')),
-                 not bool(wmenv.get_val('zmq_announce_endpoint'))]
+                 not bool(wmenv.get_val('zmq_announce_endpoint')),
+                 not bool(wmenv.get_val('zmq_listen_endpoint'))]
         tests_new = [not bool(wmenv.get_val('zmq_downstream_task_endpoint')),
                  not bool(wmenv.get_val('zmq_downstream_result_endpoint')),
-                 not bool(wmenv.get_val('zmq_downstream_announce_endpoint'))]
+                 not bool(wmenv.get_val('zmq_downstream_announce_endpoint')),
+                 not bool(wmenv.get_val('zmq_downstream_listen_endpoint'))]
 
         if all(tests_old) and all(tests_new):
             # Choose random ports
             task_endpoint = cls.canonicalize_endpoint('tcp://*')
             result_endpoint = cls.canonicalize_endpoint('tcp://*')
             announce_endpoint = cls.canonicalize_endpoint('tcp://*')
+            listen_endpoint = cls.canonicalize_endpoint('tcp://*')
         elif (not all(tests_old) and any(tests_old)) or (not all(tests_new) and any(tests_new)):
             raise ValueError('either none or all three server endpoints must be specified')
         #Use new-style, unambiguous endpoint args
@@ -89,12 +95,15 @@ class ZMQWorkManager(ZMQServer,WorkManager):
             task_endpoint = cls.canonicalize_endpoint(wmenv.get_val('zmq_downstream_task_endpoint'))
             result_endpoint = cls.canonicalize_endpoint(wmenv.get_val('zmq_downstream_result_endpoint'))
             announce_endpoint = cls.canonicalize_endpoint(wmenv.get_val('zmq_downstream_announce_endpoint'))
+            listen_endpoint = cls.canonicalize_endpoint(wmenv.get_val('zmq_downstream_listen_endpoint'))
         else:
             task_endpoint = cls.canonicalize_endpoint(wmenv.get_val('zmq_task_endpoint'))
             result_endpoint = cls.canonicalize_endpoint(wmenv.get_val('zmq_result_endpoint'))
             announce_endpoint = cls.canonicalize_endpoint(wmenv.get_val('zmq_announce_endpoint'))
+            listen_endpoint = cls.canonicalize_endpoint(wmenv.get_val('zmq_listen_endpoint'))
             
-        return cls(n_workers, task_endpoint, result_endpoint, announce_endpoint, server_info_filename = server_info_filename,
+        return cls(n_local_workers, task_endpoint, result_endpoint, announce_endpoint, listen_endpoint,
+                   server_info_filename = server_info_filename,
                    server_heartbeat_interval=heartbeat_interval, task_timeout = task_timeout,
                    client_comm_mode = client_comm_mode, client_hangcheck_interval = hangcheck_interval,
                    worker_shutdown_timeout = shutdown_timeout)
@@ -115,12 +124,13 @@ class ZMQWorkManager(ZMQServer,WorkManager):
         with open(filename, 'wt') as infofile:
             json.dump({'task_endpoint': re.sub(r'\*', hostname, self.master_task_endpoint),
                        'result_endpoint': re.sub(r'\*', hostname, self.master_result_endpoint),
-                       'announce_endpoint': re.sub(r'\*', hostname, self.master_announce_endpoint)},
+                       'announce_endpoint': re.sub(r'\*', hostname, self.master_announce_endpoint),
+                       'listen_endpoint': re.sub(r'\*', hostname, self.master_listen_endpoint)},
                       infofile)
         os.chmod(filename, 0600)
     
-    def __init__(self, n_workers = None, 
-                 master_task_endpoint = None, master_result_endpoint = None, master_announce_endpoint = None,
+    def __init__(self, n_local_workers = None, 
+                 master_task_endpoint = None, master_result_endpoint = None, master_announce_endpoint = None, master_listen_endpoint=None,
                  write_server_info = True, server_info_filename=None, server_heartbeat_interval=None, 
                  task_timeout = None,
                  client_comm_mode = None, worker_shutdown_timeout=None, client_hangcheck_interval=None,
@@ -129,9 +139,9 @@ class ZMQWorkManager(ZMQServer,WorkManager):
         WorkManager.__init__(self)
 
         # 0 is permissible here, meaning dedicated server
-        if n_workers is None:
-            n_workers = multiprocessing.cpu_count()
-        self.n_workers = n_workers
+        if n_local_workers is None:
+            n_local_workers = multiprocessing.cpu_count()
+        self.n_local_workers = n_local_workers
         
         server_heartbeat_interval = server_heartbeat_interval or DEFAULT_SERVER_HEARTBEAT_INTERVAL
         task_timeout = task_timeout or DEFAULT_TASK_TIMEOUT
@@ -143,7 +153,7 @@ class ZMQWorkManager(ZMQServer,WorkManager):
         
         self.internal_client = None
         
-        argtests = [master_task_endpoint is None, master_result_endpoint is None, master_announce_endpoint is None]
+        argtests = [master_task_endpoint is None, master_result_endpoint is None, master_announce_endpoint is None, master_listen_endpoint is None]
         if any(argtests) and not all(argtests):
             raise ValueError('endpoints must all be either specified or None (not mixed)')
         else:
@@ -153,16 +163,18 @@ class ZMQWorkManager(ZMQServer,WorkManager):
             master_task_endpoint = self.make_ipc_endpoint()
             master_result_endpoint = self.make_ipc_endpoint()
             master_announce_endpoint = self.make_ipc_endpoint()
+            master_listen_endpoint = self.make_ipc_endpoint()
 
-        ZMQServer.__init__(self, master_task_endpoint, master_result_endpoint, master_announce_endpoint,
+        ZMQServer.__init__(self, master_task_endpoint, master_result_endpoint, master_announce_endpoint, master_listen_endpoint,
                              server_heartbeat_interval)            
         
-        if n_workers > 0:
+        if n_local_workers > 0:
             # this node is both a master and a client; start workers
-            self.internal_client = ZMQClient(master_task_endpoint, master_result_endpoint, master_announce_endpoint, 
+            self.internal_client = ZMQClient(master_task_endpoint, master_result_endpoint, master_announce_endpoint,
+                                             master_listen_endpoint, 
                                              server_heartbeat_interval = server_heartbeat_interval,
                                              comm_mode = client_comm_mode,
-                                             n_workers = n_workers, 
+                                             n_workers = n_local_workers, 
                                              task_timeout = task_timeout,
                                              shutdown_timeout = worker_shutdown_timeout,
                                              hangcheck_interval = client_hangcheck_interval)            

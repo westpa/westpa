@@ -35,9 +35,10 @@ def randipc():
 class BaseTestZMQEnvironment:
     sanitize_vars = ('WM_WORK_MANAGER', 'WM_N_WORKERS',
                      'WM_ZMQ_INFO','WM_ZMQ_WRITE_INFO', 'WM_ZMQ_READ_INFO', 'WM_ZMQ_CLIENT_COMM_MODE',
-                     'WM_ZMQ_TASK_ENDPOINT', 'WM_ZMQ_RESULT_ENDPOINT', 'WM_ZMQ_ANNOUNCE_ENDPOINT',
+                     'WM_ZMQ_TASK_ENDPOINT', 'WM_ZMQ_RESULT_ENDPOINT', 'WM_ZMQ_ANNOUNCE_ENDPOINT', 'WM_ZMQ_LISTEN_ENDPOINT',
                      'WM_ZMQ_DOWNSTREAM_TASK_ENDPOINT', 'WM_ZMQ_DOWNSTREAM_RESULT_ENDPOINT', 'WM_ZMQ_DOWNSTREAM_ANNOUNCE_ENDPOINT',
-                     'WM_ZMQ_UPSTREAM_TASK_ENDPOINT', 'WM_ZMQ_UPSTREAM_RESULT_ENDPOINT', 'WM_ZMQ_UPSTREAM_ANNOUNCE_ENDPOINT')
+                     'WM_ZMQ_UPSTREAM_TASK_ENDPOINT', 'WM_ZMQ_UPSTREAM_RESULT_ENDPOINT', 'WM_ZMQ_UPSTREAM_ANNOUNCE_ENDPOINT',
+                     'WM_ZMQ_UPSTREAM_LISTEN_ENDPOINT', 'WM_ZMQ_DOWNSTREAM_LISTEN_ENDPOINT')
     
     def setUp(self):
         for varname in self.sanitize_vars:
@@ -58,13 +59,15 @@ class TestZMQRouterEnvironment(BaseTestZMQEnvironment):
 
         self.up_task_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
         self.up_result_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
-        self.up_announce_endpoint = 'tcp://127.0.0.1:{}'.format(randport())   
+        self.up_announce_endpoint = 'tcp://127.0.0.1:{}'.format(randport())  
+        self.up_listen_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
         
         self.hostname = socket.gethostname()
         with open(self.filename, 'wt') as infofile:
             json.dump({'task_endpoint': re.sub(r'\*', self.hostname, self.up_task_endpoint),
                        'result_endpoint': re.sub(r'\*', self.hostname, self.up_result_endpoint),
-                       'announce_endpoint': re.sub(r'\*', self.hostname, self.up_announce_endpoint)},
+                       'announce_endpoint': re.sub(r'\*', self.hostname, self.up_announce_endpoint),
+                       'listen_endpoint': re.sub(r'\*', self.hostname, self.up_listen_endpoint)},
                       infofile)
         os.chmod(self.filename, 0600)
 
@@ -128,6 +131,7 @@ class TestZMQWorkManager(BaseTestZMQEnvironment):
             assert re.sub(r'\*', socket.gethostname(), work_manager.master_task_endpoint) == server_info['task_endpoint']
             assert re.sub(r'\*', socket.gethostname(), work_manager.master_result_endpoint) == server_info['result_endpoint']
             assert re.sub(r'\*', socket.gethostname(), work_manager.master_announce_endpoint) == server_info['announce_endpoint']
+            assert re.sub(r'\*', socket.gethostname(), work_manager.master_listen_endpoint) == server_info['listen_endpoint']
         assert not os.path.exists(server_info_filename)
 
     def test_environ_nworkers(self):
@@ -145,10 +149,10 @@ class TestZMQWorkManager(BaseTestZMQEnvironment):
     def test_worker_ids(self):
         work_manager = ZMQWorkManager()
         with work_manager:
-            futures = work_manager.submit_many([(get_process_index, (), {})] * work_manager.n_workers)
+            futures = work_manager.submit_many([(get_process_index, (), {})] * work_manager.n_local_workers)
             work_manager.wait_all(futures)
             results = set(future.get_result() for future in futures)
-            assert results == set(str(n) for n in xrange(work_manager.n_workers))
+            assert results == set(str(n) for n in xrange(work_manager.n_local_workers))
             
     @raises(ValueError)
     def test_client_from_bad_environ(self):
@@ -156,10 +160,12 @@ class TestZMQWorkManager(BaseTestZMQEnvironment):
         task_endpoint = 'tcp://*:{}'.format(randport())
         result_endpoint = 'tcp://*:{}'.format(randport())
         announce_endpoint = 'tcp://*:{}'.format(randport())
+        listen_endpoint = 'tcp://*:{}'.format(randport())
 
         os.environ['WM_ZMQ_TASK_ENDPOINT'] = task_endpoint
         os.environ['WM_ZMQ_RESULT_ENDPOINT'] = result_endpoint
         os.environ['WM_ZMQ_ANNOUNCE_ENDPOINT'] = announce_endpoint
+        os.environ['WM_ZMQ_LISTEN_ENDPOINT'] = listen_endpoint
         
         with ZMQWorkManager() as work_manager:
             os.environ['WM_N_WORKERS'] = str(2)
@@ -176,10 +182,12 @@ class TestZMQWorkManager(BaseTestZMQEnvironment):
         task_endpoint = 'tcp://localhost:{}'.format(randport())
         result_endpoint = 'tcp://localhost:{}'.format(randport())
         announce_endpoint = 'tcp://localhost:{}'.format(randport())
+        listen_endpoint = 'tcp://localhost:{}'.format(randport())
 
         os.environ['WM_ZMQ_TASK_ENDPOINT'] = task_endpoint
         os.environ['WM_ZMQ_RESULT_ENDPOINT'] = result_endpoint
         os.environ['WM_ZMQ_ANNOUNCE_ENDPOINT'] = announce_endpoint
+        os.environ['WM_ZMQ_LISTEN_ENDPOINT'] = listen_endpoint
         
         with ZMQWorkManager() as work_manager:
             os.environ['WM_N_WORKERS'] = str(2)
@@ -196,10 +204,12 @@ class TestZMQWorkManager(BaseTestZMQEnvironment):
         task_endpoint = 'tcp://localhost:{}'.format(randport())
         result_endpoint = 'tcp://localhost:{}'.format(randport())
         announce_endpoint = 'tcp://localhost:{}'.format(randport())
+        listen_endpoint = 'tcp://localhost:{}'.format(randport())
 
         os.environ['WM_ZMQ_TASK_ENDPOINT'] = task_endpoint
         os.environ['WM_ZMQ_RESULT_ENDPOINT'] = result_endpoint
         os.environ['WM_ZMQ_ANNOUNCE_ENDPOINT'] = announce_endpoint
+        os.environ['WM_ZMQ_LISTEN_ENDPOINT'] = listen_endpoint
         os.environ['WM_ZMQ_CLIENT_COMM_MODE'] = 'tcp'
         
         with ZMQWorkManager() as work_manager:
@@ -219,10 +229,12 @@ class TestZMQWorkManager(BaseTestZMQEnvironment):
         task_endpoint = 'tcp://localhost:{}'.format(randport())
         result_endpoint = 'tcp://localhost:{}'.format(randport())
         announce_endpoint = 'tcp://localhost:{}'.format(randport())
+        listen_endpoint = 'tcp://localhost:{}'.format(randport())
 
         os.environ['WM_ZMQ_TASK_ENDPOINT'] = task_endpoint
         os.environ['WM_ZMQ_RESULT_ENDPOINT'] = result_endpoint
         os.environ['WM_ZMQ_ANNOUNCE_ENDPOINT'] = announce_endpoint
+        os.environ['WM_ZMQ_LISTEN_ENDPOINT'] = listen_endpoint
         os.environ['WM_ZMQ_CLIENT_COMM_MODE'] = 'ipc'
         
         with ZMQWorkManager() as work_manager:
@@ -245,15 +257,18 @@ class TestZMQWorkManager(BaseTestZMQEnvironment):
         task_endpoint = 'tcp://localhost:{}'.format(randport())
         result_endpoint = 'tcp://localhost:{}'.format(randport())
         announce_endpoint = 'tcp://localhost:{}'.format(randport())
+        listen_endpoint = 'tcp://localhost:{}'.format(randport())
 
         os.environ['WM_ZMQ_TASK_ENDPOINT'] = task_endpoint
         os.environ['WM_ZMQ_RESULT_ENDPOINT'] = result_endpoint
         os.environ['WM_ZMQ_ANNOUNCE_ENDPOINT'] = announce_endpoint
+        os.environ['WM_ZMQ_LISTEN_ENDPOINT'] = listen_endpoint
         
         with ZMQWorkManager.from_environ() as work_manager:
             assert work_manager.master_task_endpoint == re.sub('localhost','127.0.0.1', task_endpoint)
             assert work_manager.master_result_endpoint == re.sub('localhost','127.0.0.1', result_endpoint)
             assert work_manager.master_announce_endpoint == re.sub('localhost','127.0.0.1', announce_endpoint)
+            assert work_manager.master_listen_endpoint == re.sub('localhost','127.0.0.1', listen_endpoint)
             future = work_manager.submit(will_succeed)
             future.get_result()
 
@@ -264,12 +279,14 @@ class TestZMQCoordinatedEnvironNoRouter(BaseTestZMQEnvironment):
         self.master_task_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
         self.master_result_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
         self.master_announce_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
+        self.master_listen_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
     
     def test_explicit_endpoint(self):
         '''Coordinated environment (no router): server and clients start up when endpoints specified in environment'''
         os.environ['WM_ZMQ_TASK_ENDPOINT'] = self.master_task_endpoint
         os.environ['WM_ZMQ_RESULT_ENDPOINT'] = self.master_result_endpoint
         os.environ['WM_ZMQ_ANNOUNCE_ENDPOINT'] = self.master_announce_endpoint
+        os.environ['WM_ZMQ_LISTEN_ENDPOINT'] = self.master_listen_endpoint
 
         client = ZMQClient.from_environ()
         with ZMQWorkManager.from_environ() as server:
@@ -277,10 +294,12 @@ class TestZMQCoordinatedEnvironNoRouter(BaseTestZMQEnvironment):
             assert client.upstream_task_endpoint == self.master_task_endpoint
             assert client.upstream_result_endpoint == self.master_result_endpoint
             assert client.upstream_announce_endpoint == self.master_announce_endpoint
+            assert client.upstream_listen_endpoint == self.master_listen_endpoint
 
             assert server.master_task_endpoint == self.master_task_endpoint
             assert server.master_result_endpoint == self.master_result_endpoint
             assert server.master_announce_endpoint == self.master_announce_endpoint
+            assert server.master_listen_endpoint == self.master_listen_endpoint
     
     def test_noexplicit_endpoint(self):
         '''Coordinated environment (no router): server and clients start up when no explicit endpoints specified (i.e. via info file)'''
@@ -300,6 +319,7 @@ class TestZMQCoordinatedEnvironNoRouter(BaseTestZMQEnvironment):
             assert re.sub(r'\*', hostname, server.master_task_endpoint) == client.upstream_task_endpoint
             assert re.sub(r'\*', hostname, server.master_result_endpoint) == client.upstream_result_endpoint
             assert re.sub(r'\*', hostname, server.master_announce_endpoint) == client.upstream_announce_endpoint
+            assert re.sub(r'\*', hostname, server.master_listen_endpoint) == client.upstream_listen_endpoint
 
 class TestZMQCoordinatedEnvironWithRouter(BaseTestZMQEnvironment):
 
@@ -309,11 +329,12 @@ class TestZMQCoordinatedEnvironWithRouter(BaseTestZMQEnvironment):
         self.server_task_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
         self.server_result_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
         self.server_announce_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
+        self.server_listen_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
 
         self.client_task_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
         self.client_result_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
         self.client_announce_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
-
+        self.client_listen_endpoint = 'tcp://127.0.0.1:{}'.format(randport())
 
     def test_all_explicit_endpoint(self):
         '''Coordinated enviro (w/ router):  successful initialization when all endpoints explicitly specified in environment'''
@@ -321,10 +342,12 @@ class TestZMQCoordinatedEnvironWithRouter(BaseTestZMQEnvironment):
         os.environ['WM_ZMQ_UPSTREAM_TASK_ENDPOINT'] = self.server_task_endpoint
         os.environ['WM_ZMQ_UPSTREAM_RESULT_ENDPOINT'] = self.server_result_endpoint
         os.environ['WM_ZMQ_UPSTREAM_ANNOUNCE_ENDPOINT'] = self.server_announce_endpoint
+        os.environ['WM_ZMQ_UPSTREAM_LISTEN_ENDPOINT'] = self.server_listen_endpoint
 
         os.environ['WM_ZMQ_DOWNSTREAM_TASK_ENDPOINT'] = self.client_task_endpoint
         os.environ['WM_ZMQ_DOWNSTREAM_RESULT_ENDPOINT'] = self.client_result_endpoint
         os.environ['WM_ZMQ_DOWNSTREAM_ANNOUNCE_ENDPOINT'] = self.client_announce_endpoint
+        os.environ['WM_ZMQ_DOWNSTREAM_LISTEN_ENDPOINT'] = self.client_listen_endpoint
 
         ##Initialize the router from environmental variables
         router = ZMQRouter.from_environ()
@@ -333,10 +356,12 @@ class TestZMQCoordinatedEnvironWithRouter(BaseTestZMQEnvironment):
         os.environ['WM_ZMQ_DOWNSTREAM_TASK_ENDPOINT'] = self.server_task_endpoint
         os.environ['WM_ZMQ_DOWNSTREAM_RESULT_ENDPOINT'] = self.server_result_endpoint
         os.environ['WM_ZMQ_DOWNSTREAM_ANNOUNCE_ENDPOINT'] = self.server_announce_endpoint
+        os.environ['WM_ZMQ_DOWNSTREAM_LISTEN_ENDPOINT'] = self.server_listen_endpoint
 
         os.environ['WM_ZMQ_UPSTREAM_TASK_ENDPOINT'] = self.client_task_endpoint
         os.environ['WM_ZMQ_UPSTREAM_RESULT_ENDPOINT'] = self.client_result_endpoint
         os.environ['WM_ZMQ_UPSTREAM_ANNOUNCE_ENDPOINT'] = self.client_announce_endpoint
+        os.environ['WM_ZMQ_UPSTREAM_LISTEN_ENDPOINT'] = self.client_listen_endpoint
 
         with ZMQWorkManager.from_environ() as server:
 
@@ -346,14 +371,17 @@ class TestZMQCoordinatedEnvironWithRouter(BaseTestZMQEnvironment):
             assert router.upstream_task_endpoint != router.downstream_task_endpoint
             assert router.upstream_result_endpoint != router.downstream_result_endpoint
             assert router.upstream_announce_endpoint != router.downstream_announce_endpoint
+            assert router.upstream_listen_endpoint != router.downstream_listen_endpoint
 
             assert router.upstream_task_endpoint == server.master_task_endpoint == self.server_task_endpoint
             assert router.upstream_result_endpoint == server.master_result_endpoint == self.server_result_endpoint
             assert router.upstream_announce_endpoint == server.master_announce_endpoint == self.server_announce_endpoint
+            assert router.upstream_listen_endpoint == server.master_listen_endpoint == self.server_listen_endpoint
 
             assert router.downstream_task_endpoint == client.upstream_task_endpoint == self.client_task_endpoint
             assert router.downstream_result_endpoint == client.upstream_result_endpoint == self.client_result_endpoint
             assert router.downstream_announce_endpoint == client.upstream_announce_endpoint == self.client_announce_endpoint
+            assert router.downstream_listen_endpoint == client.upstream_listen_endpoint == self.client_listen_endpoint
 
             router.remove_router_info_file()
 
@@ -364,6 +392,7 @@ class TestZMQCoordinatedEnvironWithRouter(BaseTestZMQEnvironment):
         os.environ['WM_ZMQ_DOWNSTREAM_TASK_ENDPOINT'] = self.server_task_endpoint
         os.environ['WM_ZMQ_DOWNSTREAM_RESULT_ENDPOINT'] = self.server_result_endpoint
         os.environ['WM_ZMQ_DOWNSTREAM_ANNOUNCE_ENDPOINT'] = self.server_announce_endpoint
+        os.environ['WM_ZMQ_DOWNSTREAM_LISTEN_ENDPOINT'] = self.server_listen_endpoint
 
         filename = 'router_info_test'
         hostname = socket.gethostname()
@@ -373,6 +402,7 @@ class TestZMQCoordinatedEnvironWithRouter(BaseTestZMQEnvironment):
             os.environ.pop('WM_ZMQ_DOWNSTREAM_TASK_ENDPOINT', None)
             os.environ.pop('WM_ZMQ_DOWNSTREAM_RESULT_ENDPOINT', None)
             os.environ.pop('WM_ZMQ_DOWNSTREAM_ANNOUNCE_ENDPOINT', None)
+            os.environ.pop('WM_ZMQ_DOWNSTREAM_LISTEN_ENDPOINT', None)
 
             #client initializes from router info file
             os.environ['WM_ZMQ_WRITE_INFO'] = filename
@@ -380,6 +410,7 @@ class TestZMQCoordinatedEnvironWithRouter(BaseTestZMQEnvironment):
             os.environ['WM_ZMQ_UPSTREAM_TASK_ENDPOINT'] = self.server_task_endpoint
             os.environ['WM_ZMQ_UPSTREAM_RESULT_ENDPOINT'] = self.server_result_endpoint
             os.environ['WM_ZMQ_UPSTREAM_ANNOUNCE_ENDPOINT'] = self.server_announce_endpoint
+            os.environ['WM_ZMQ_UPSTREAM_LISTEN_ENDPOINT'] = self.server_listen_endpoint
 
             router = ZMQRouter.from_environ()
 
@@ -388,20 +419,24 @@ class TestZMQCoordinatedEnvironWithRouter(BaseTestZMQEnvironment):
             os.environ.pop('WM_ZMQ_UPSTREAM_TASK_ENDPOINT', None)
             os.environ.pop('WM_ZMQ_UPSTREAM_RESULT_ENDPOINT', None)
             os.environ.pop('WM_ZMQ_UPSTREAM_ANNOUNCE_ENDPOINT', None)
+            os.environ.pop('WM_ZMQ_UPSTREAM_LISTEN_ENDPOINT', None)
 
             client = ZMQClient.from_environ()
 
             assert router.upstream_task_endpoint != router.downstream_task_endpoint
             assert router.upstream_result_endpoint != router.downstream_result_endpoint
             assert router.upstream_announce_endpoint != router.downstream_announce_endpoint
+            assert router.upstream_listen_endpoint != router.downstream_listen_endpoint
 
             assert router.upstream_task_endpoint == server.master_task_endpoint == self.server_task_endpoint
             assert router.upstream_result_endpoint == server.master_result_endpoint == self.server_result_endpoint
             assert router.upstream_announce_endpoint == server.master_announce_endpoint == self.server_announce_endpoint
+            assert router.upstream_listen_endpoint == server.master_listen_endpoint == self.server_listen_endpoint
 
             assert re.sub(r'\*', hostname, router.downstream_task_endpoint) == client.upstream_task_endpoint != self.client_task_endpoint
             assert re.sub(r'\*', hostname, router.downstream_result_endpoint) == client.upstream_result_endpoint != self.client_result_endpoint
             assert re.sub(r'\*', hostname, router.downstream_announce_endpoint) == client.upstream_announce_endpoint != self.client_announce_endpoint
+            assert re.sub(r'\*', hostname, router.downstream_listen_endpoint) == client.upstream_listen_endpoint != self.client_listen_endpoint
 
             router.remove_router_info_file()
 
@@ -422,6 +457,7 @@ class TestZMQCoordinatedEnvironWithRouter(BaseTestZMQEnvironment):
             os.environ['WM_ZMQ_DOWNSTREAM_TASK_ENDPOINT'] = self.client_task_endpoint
             os.environ['WM_ZMQ_DOWNSTREAM_RESULT_ENDPOINT'] = self.client_result_endpoint
             os.environ['WM_ZMQ_DOWNSTREAM_ANNOUNCE_ENDPOINT'] = self.client_announce_endpoint
+            os.environ['WM_ZMQ_DOWNSTREAM_LISTEN_ENDPOINT'] = self.client_listen_endpoint
 
             os.environ['WM_ZMQ_READ_INFO'] = filename
 
@@ -432,20 +468,24 @@ class TestZMQCoordinatedEnvironWithRouter(BaseTestZMQEnvironment):
             os.environ['WM_ZMQ_UPSTREAM_TASK_ENDPOINT'] = self.client_task_endpoint
             os.environ['WM_ZMQ_UPSTREAM_RESULT_ENDPOINT'] = self.client_result_endpoint
             os.environ['WM_ZMQ_UPSTREAM_ANNOUNCE_ENDPOINT'] = self.client_announce_endpoint
+            os.environ['WM_ZMQ_UPSTREAM_LISTEN_ENDPOINT'] = self.client_listen_endpoint
 
             client = ZMQClient.from_environ()
 
             assert router.upstream_task_endpoint != router.downstream_task_endpoint
             assert router.upstream_result_endpoint != router.downstream_result_endpoint
             assert router.upstream_announce_endpoint != router.downstream_announce_endpoint
+            assert router.upstream_listen_endpoint != router.downstream_listen_endpoint
 
             assert router.upstream_task_endpoint == re.sub(r'\*', hostname, server.master_task_endpoint) != self.server_task_endpoint
             assert router.upstream_result_endpoint == re.sub(r'\*', hostname, server.master_result_endpoint) != self.server_result_endpoint
             assert router.upstream_announce_endpoint == re.sub(r'\*', hostname, server.master_announce_endpoint) != self.server_announce_endpoint
+            assert router.upstream_listen_endpoint == re.sub(r'\*', hostname, server.master_listen_endpoint) != self.server_listen_endpoint
 
             assert router.downstream_task_endpoint == client.upstream_task_endpoint == self.client_task_endpoint
             assert router.downstream_result_endpoint == client.upstream_result_endpoint == self.client_result_endpoint
             assert router.downstream_announce_endpoint == client.upstream_announce_endpoint == self.client_announce_endpoint
+            assert router.downstream_listen_endpoint == client.upstream_listen_endpoint == self.client_listen_endpoint
 
             router.remove_router_info_file()
 
@@ -473,10 +513,12 @@ class TestZMQCoordinatedEnvironWithRouter(BaseTestZMQEnvironment):
             assert router.upstream_task_endpoint == re.sub(r'\*', hostname, server.master_task_endpoint) != self.server_task_endpoint
             assert router.upstream_result_endpoint == re.sub(r'\*', hostname, server.master_result_endpoint) != self.server_result_endpoint
             assert router.upstream_announce_endpoint == re.sub(r'\*', hostname, server.master_announce_endpoint) != self.server_announce_endpoint
+            assert router.upstream_listen_endpoint == re.sub(r'\*', hostname, server.master_listen_endpoint) != self.server_listen_endpoint
 
             assert re.sub(r'\*', hostname, router.downstream_task_endpoint) == client.upstream_task_endpoint != self.client_task_endpoint
             assert re.sub(r'\*', hostname, router.downstream_result_endpoint) == client.upstream_result_endpoint != self.client_result_endpoint
             assert re.sub(r'\*', hostname, router.downstream_announce_endpoint) == client.upstream_announce_endpoint != self.client_announce_endpoint
+            assert re.sub(r'\*', hostname, router.downstream_listen_endpoint) == client.upstream_listen_endpoint != self.client_listen_endpoint
 
             router.remove_router_info_file()
 

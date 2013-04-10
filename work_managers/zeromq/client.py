@@ -192,10 +192,12 @@ class ZMQClient(ZMQBase):
         # if individual endpoints are named, we use these
         tests_old = [not bool(wmenv.get_val('zmq_task_endpoint')),
                  not bool(wmenv.get_val('zmq_result_endpoint')),
-                 not bool(wmenv.get_val('zmq_announce_endpoint'))]
+                 not bool(wmenv.get_val('zmq_announce_endpoint')),
+                 not bool(wmenv.get_val('zmq_listen_endpoint'))]
         tests_new = [not bool(wmenv.get_val('zmq_upstream_task_endpoint')),
                  not bool(wmenv.get_val('zmq_upstream_result_endpoint')),
-                 not bool(wmenv.get_val('zmq_upstream_announce_endpoint'))]
+                 not bool(wmenv.get_val('zmq_upstream_announce_endpoint')),
+                 not bool(wmenv.get_val('zmq_upstream_listen_endpoint'))]
 
         if all(tests_old) and all(tests_new):
             # No endpoints specified; use server/router info file
@@ -208,7 +210,9 @@ class ZMQClient(ZMQBase):
                     upstream_info = json.load(open(upstream_info_filename,'rt'))
                     task_endpoint = upstream_info['task_endpoint']
                     result_endpoint = upstream_info['result_endpoint']
-                    announce_endpoint = upstream_info['announce_endpoint']    
+                    announce_endpoint = upstream_info['announce_endpoint'] 
+                    listen_endpoint = upstream_info['listen_endpoint']   
+                    
                 except Exception as e:
                     raise EnvironmentError('cannot load upstream info file {!r}: {}'.format(upstream_info_filename,e))
 
@@ -219,13 +223,15 @@ class ZMQClient(ZMQBase):
             task_endpoint = cls.canonicalize_endpoint(wmenv.get_val('zmq_upstream_task_endpoint'),allow_wildcard_host=False)
             result_endpoint = cls.canonicalize_endpoint(wmenv.get_val('zmq_upstream_result_endpoint'),allow_wildcard_host=False)
             announce_endpoint = cls.canonicalize_endpoint(wmenv.get_val('zmq_upstream_announce_endpoint'),allow_wildcard_host=False)
+            listen_endpoint = cls.canonicalize_endpoint(wmenv.get_val('zmq_upstream_listen_endpoint'),allow_wildcard_host=False)
         else:
             log.debug('using old style endpoint for client')
             task_endpoint = cls.canonicalize_endpoint(wmenv.get_val('zmq_task_endpoint'),allow_wildcard_host=False)
             result_endpoint = cls.canonicalize_endpoint(wmenv.get_val('zmq_result_endpoint'),allow_wildcard_host=False)
             announce_endpoint = cls.canonicalize_endpoint(wmenv.get_val('zmq_announce_endpoint'),allow_wildcard_host=False)
+            listen_endpoint = cls.canonicalize_endpoint(wmenv.get_val('zmq_listen_endpoint'),allow_wildcard_host=False)
         
-        return cls(task_endpoint, result_endpoint, announce_endpoint, server_heartbeat_interval = heartbeat_interval,
+        return cls(task_endpoint, result_endpoint, announce_endpoint, listen_endpoint, server_heartbeat_interval = heartbeat_interval,
                    comm_mode = client_comm_mode, n_workers = n_workers, task_timeout = task_timeout,
                    shutdown_timeout = shutdown_timeout, hangcheck_interval = hangcheck_interval)
                      
@@ -233,7 +239,7 @@ class ZMQClient(ZMQBase):
     def make_tcp_endpoint(cls):
         return 'tcp://127.0.0.1:{}'.format(randport())
     
-    def __init__(self, upstream_task_endpoint, upstream_result_endpoint, upstream_announce_endpoint,
+    def __init__(self, upstream_task_endpoint, upstream_result_endpoint, upstream_announce_endpoint, upstream_update_endpoint,
                  server_heartbeat_interval = None, comm_mode = None, n_workers = None, task_timeout = None,
                  shutdown_timeout = None, hangcheck_interval = None):
         
@@ -252,6 +258,7 @@ class ZMQClient(ZMQBase):
         self.upstream_task_endpoint = upstream_task_endpoint
         self.upstream_result_endpoint = upstream_result_endpoint
         self.upstream_announce_endpoint = upstream_announce_endpoint
+        self.upstream_listen_endpoint = upstream_update_endpoint
         
         self.context = None # this really shouldn't be instantiated until after forks, just to be safe
         
@@ -285,7 +292,8 @@ class ZMQClient(ZMQBase):
         self._startup_ctl_endpoint = 'inproc://_startup_ctl_{:x}'.format(id(self))
         self._taskfwd_ctl_endpoint = 'inproc://_taskfwd_ctl_{:x}'.format(id(self))
         self._rslfwd_ctl_endpoint  = 'inproc://_rslfwd_ctl_{:x}'.format(id(self))
-        self._monitor_ctl_endpoint = 'inproc://_monitor_ctl_{:x}'.format(id(self))
+        self._monitor_ctl_endpoint = 'inproc://_monitor_ctl_{:x}'.format(id(self)) #socket that gets server announcements
+        self._update_ctl_endpoint = 'inproc://_update_ctl_{:x}'.format(id(self)) #socket that sends updates to server listen socket
         
         self._monitor_thread = None
         self._taskfwd_thread = None
@@ -322,8 +330,12 @@ class ZMQClient(ZMQBase):
                 
                 self._monitor_thread = threading.Thread(target=self._monitor_loop)
                 self._monitor_thread.start()
+
+                self._update_thread = threading.Thread(target=self._update_server_loop)
+                self._update_thread.start()
                 
-                # Wait on all three threads starting up before continuing
+                # Wait on all four threads starting up before continuing
+                ctlsocket.recv()
                 ctlsocket.recv()
                 ctlsocket.recv()
                 ctlsocket.recv()
@@ -334,7 +346,8 @@ class ZMQClient(ZMQBase):
     def _shutdown(self):
         if not self._shutdown_signaled:
             self._shutdown_signaled = True
-            for endpoint in (self._monitor_ctl_endpoint, self._rslfwd_ctl_endpoint, self._taskfwd_ctl_endpoint):
+            for endpoint in (self._monitor_ctl_endpoint, self._rslfwd_ctl_endpoint,
+                             self._taskfwd_ctl_endpoint, self._update_ctl_endpoint):
                 self._signal_thread(endpoint, MSG_SHUTDOWN)
                     
     def shutdown(self):
@@ -350,6 +363,7 @@ class ZMQClient(ZMQBase):
         self._monitor_thread.join()
         self._rslfwd_thread.join()
         self._taskfwd_thread.join()
+        self._update_thread.join()
         
     def _spawn_worker(self):
         with self.worker_lock:
@@ -465,7 +479,83 @@ class ZMQClient(ZMQBase):
         finally:
             poller.unregister(upstream_announce_socket)
             upstream_announce_socket.close(linger=0)
+            ctlsocket.close()
             log.debug('client: exiting monitor loop')
+
+    def _update_server_loop(self):
+        '''(complement to server's _listen_loop)
+        Contains socket that updates the server on this client's status, including its number of active workers'''
+
+        ctlsocket = self._make_signal_socket(self._update_ctl_endpoint) #Signals this thread to update server or shutdown
+        upstream_update_socket = self.context.socket(zmq.PUSH)
+        upstream_update_socket.connect(self.upstream_listen_endpoint)
+        
+        self._signal_thread(self._startup_ctl_endpoint) #signal successful startup
+
+        #Not necessary; first time check in loop will fail (because last_update initially set to 0)
+        self._signal_thread(self._update_ctl_endpoint, 'update') #signal self to send an intial update to server
+
+        poller = zmq.Poller()
+        poller.register(ctlsocket, zmq.POLLIN)
+
+        last_update = 0
+        remaining_interval = self.server_heartbeat_interval #time interval for sending server updates
+
+        this_node_id = self.instance_id
+
+        try:
+            while True:
+                poll_results = dict(poller.poll(remaining_interval*1000))
+
+                if poll_results.get(ctlsocket) == zmq.POLLIN:
+                    messages = recvall(ctlsocket)
+
+                    if MSG_SHUTDOWN in messages:
+                        #alert server of shutdown and exit loop.
+                        #note that this will send shutdown update to server, even if shutdown is *because*
+                        #server shut down - an unneeded messge, but shouldn't matter.
+                        upstream_update_socket.send_pyobj((MSG_SHUTDOWN, this_node_id, None, None)) 
+                        return
+
+                    elif 'update' in messages: #Update server
+
+                        inner_pid_message = [] #worker pid's
+                        inner_id_message = [] #worker id's
+
+                        for pid, worker in self.workers.items():
+                            inner_pid_message.append(pid)
+                            inner_id_message.append(worker.instance_id)
+
+                        inner_pid_message = tuple(inner_pid_message)
+                        inner_id_message = tuple(inner_id_message)
+
+                        assert len(inner_pid_message) == len(inner_id_message)
+
+                        current_n_workers = len(inner_pid_message)
+                        outer_message = (MSG_PING, None, this_node_id, current_n_workers)
+
+                        upstream_update_socket.send_pyobj(outer_message, flags=zmq.SNDMORE)
+                        upstream_update_socket.send_pyobj(inner_pid_message, flags=zmq.SNDMORE)
+                        upstream_update_socket.send_pyobj(inner_id_message)
+
+                    else:
+                        for message in messages:
+                            upstream_update_socket.send(message)
+
+                now = time.time()
+                if now - last_update >= self.server_heartbeat_interval:
+
+                    last_update = now
+
+                    self._signal_thread(self._update_ctl_endpoint, 'update') #signal it's time to update server
+
+
+
+        finally:
+            poller.unregister(ctlsocket)
+            upstream_update_socket.close(linger=0)
+            ctlsocket.close()
+            log.debug('client: exiting update loop')
             
     def _taskfwd_loop(self):
         ctlsocket = self._make_signal_socket(self._taskfwd_ctl_endpoint)
@@ -552,6 +642,7 @@ class ZMQClient(ZMQBase):
             worker_poller.unregister(worker_task_socket)
             worker_task_socket.close(linger=0)
             upstream_task_socket.close(linger=0)
+            ctlsocket.close()
             log.debug('exiting task fowarding loop')
             
     def _rslfwd_loop(self):
@@ -613,7 +704,7 @@ class ZMQClient(ZMQBase):
             poller.unregister(worker_result_socket)
             poller.unregister(ctlsocket)
             worker_result_socket.close(linger=0)
-            ctlsocket.close(linger=0)
+            ctlsocket.close()
             log.debug('exiting result forwarding loop')
 
     @property

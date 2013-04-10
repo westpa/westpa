@@ -38,11 +38,25 @@ class Task:
         # Task data                    
         self.fn = fn
         self.args = args
-        self.kwargs = kwargs                
+        self.kwargs = kwargs 
+
+def _recvall_multipart(socket):
+    #similar to 'recvall' package method, only works for multipart messages (for the listen socket)
+
+    frames = []
+
+    while True:
+        try:
+            frames.append(socket.recv_multipart(copy=False, flags=zmq.NOBLOCK))
+        except zmq.ZMQError as err:
+            if err.errno == zmq.EAGAIN:
+                return frames
+            else:
+                raise               
 
 class ZMQServer(ZMQBase):
     
-    def __init__(self, master_task_endpoint, master_result_endpoint, master_announce_endpoint,
+    def __init__(self, master_task_endpoint, master_result_endpoint, master_announce_endpoint, master_listen_endpoint,
                  server_heartbeat_interval=DEFAULT_SERVER_HEARTBEAT_INTERVAL,
                  max_taskqueue_size=DEFAULT_MAX_TASKQUEUE_SIZE,
                  taskqueue_wait=DEFAULT_TASKQUEUE_WAIT):
@@ -50,6 +64,9 @@ class ZMQServer(ZMQBase):
         super(ZMQServer, self).__init__(server_heartbeat_interval)
         
         self.context = zmq.Context()
+
+        self.clients = {} # Dictionary of client node ids => integer number of workers
+                          # Sum of all values is the total number of workers responding to this server
                         
         # where we send out work
         self.master_task_endpoint = master_task_endpoint
@@ -59,6 +76,9 @@ class ZMQServer(ZMQBase):
  
         # Where we send out announcements
         self.master_announce_endpoint = master_announce_endpoint
+
+        # Listen for updates from clients
+        self.master_listen_endpoint = master_listen_endpoint
         
         # tasks awaiting dispatch
         self.task_queue = queue.Queue(max_taskqueue_size or 0)
@@ -76,7 +96,13 @@ class ZMQServer(ZMQBase):
         self._dispatch_thread_ctl_endpoint = 'inproc://_dispatch_thread_ctl_{:x}'.format(id(self))        
         self._receive_thread_ctl_endpoint = 'inproc://_receive_thread_ctl_{:x}'.format(id(self))
         self._announce_endpoint = 'inproc://_announce_{:x}'.format(id(self))
-        
+        self._listen_endpoint = 'inproc://_listen_{:x}'.format(id(self))
+
+    @property
+    def n_workers(self):
+        '''returns all the workers for all client processes'''
+        return sum(self.clients.values())
+
     def startup(self):
         # start up server threads, blocking until their sockets are ready
         
@@ -98,12 +124,16 @@ class ZMQServer(ZMQBase):
         self._announce_thread = threading.Thread(target=self._announce_loop)
         self._announce_thread.start()
         
+        self._listen_thread = threading.Thread(target=self._listen_loop)
+        self._listen_thread.start()
+
         # These three recvs, together, block until all three threads
         # have started and the inproc communications endpoints are
         # bound.
         ctlsocket.recv() # dispatch
         ctlsocket.recv() # receive
         ctlsocket.recv() # announce
+        ctlsocket.recv() # listen
         
         ctlsocket.close()
         
@@ -292,6 +322,78 @@ class ZMQServer(ZMQBase):
             master_announce_socket.close(linger=0)
             ctlsocket.close()
             log.debug('server: exiting announce loop')
+
+    def _listen_loop(self):
+        #Thread for socket to 'listen' to downstream announcements from clients (for instance, how many workers each client has)
+        #Kind of a reverse announce socket
+        
+        master_listen_socket = self.context.socket(zmq.PULL)
+        master_listen_socket.bind(self.master_listen_endpoint)
+
+        ctlsocket = self._make_signal_socket(self._listen_endpoint)
+
+        self._signal_thread(self._startup_ctl_endpoint)
+
+        poller = zmq.Poller()
+        poller.register(ctlsocket, zmq.POLLIN)
+        poller.register(master_listen_socket, zmq.POLLIN)
+
+        try:
+            while True:
+                poll_results = dict(poller.poll())
+
+                if poll_results.get(ctlsocket) == zmq.POLLIN:
+                    messages = recvall(ctlsocket)
+                    if MSG_SHUTDOWN in messages:
+                        return
+
+                if poll_results.get(master_listen_socket) == zmq.POLLIN:
+                    messages = _recvall_multipart(master_listen_socket)
+
+                    for frames in messages:
+                        ##Unwrap the header of the message.  Note I'm not checking the rest (inner parts) of the message as of now
+                        # (i.e. worker pid's and id's)
+
+                        header = unpickle_frame(frames[0])
+
+                        (tag, _, client_id, payload) = header
+
+                        #Client node has shutdown
+                        if tag == MSG_SHUTDOWN:
+                            
+                            try:
+                                self.clients.pop(client_id)
+                            except KeyError:
+                                log.error('server: received message from client that server doesn\'t know about - rogue client?')
+
+                        #Clent node updating server
+                        # may want to start a client-specific dict of last update times to decide to remove a client
+                        # if it hasn't pinged server in specified time interval
+                        elif tag == MSG_PING:
+
+                            log.debug('server: got update from client {!r}'.format(client_id))
+                            #new client started up
+                            if client_id not in self.clients.keys():
+                                log.debug('server: adding new client {!r} with {!r} workers'.format(client_id, payload))
+                            else:
+                                old_n_workers = self.clients[client_id]
+
+                                log.debug('server: client {!r} update: used to have {!r} workers, now has {!r}'.format(client_id,
+                                                                                                                       old_n_workers,
+                                                                                                                       payload))
+                            
+                            self.clients[client_id] = payload
+
+                        del header, frames
+
+        finally:
+            poller.unregister(ctlsocket)
+            poller.unregister(master_listen_socket)
+            master_listen_socket.close(linger=0)
+            ctlsocket.close()
+            log.debug('server: exiting listen loop')
+
+
             
     def submit(self, fn, args=None, kwargs=None):
         return self.submit_many([(fn,args if args is not None else (),kwargs if kwargs is not None else {})])[0]
@@ -312,7 +414,8 @@ class ZMQServer(ZMQBase):
         if not self._shutdown_signaled:
             self._shutdown_signaled = True
             
-            for endpoint in (self._dispatch_thread_ctl_endpoint,self._receive_thread_ctl_endpoint,self._announce_endpoint):
+            for endpoint in (self._dispatch_thread_ctl_endpoint,self._receive_thread_ctl_endpoint,
+                             self._announce_endpoint, self._listen_endpoint):
                 self._signal_thread(endpoint, MSG_SHUTDOWN)
                 
             # Put a sentinel on the task queue to wake up waits on it
