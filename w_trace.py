@@ -1,9 +1,9 @@
 from __future__ import print_function, division; __metaclass__ = type
 import sys
-from westtools.tool_classes import WESTTool, HDF5Storage, WESTDataReader
+from westtools.tool_classes import WESTTool, WESTDataReader
 import numpy, h5py, operator, time
 import westpa
-
+from westpa import h5io
 
 from west import Segment
 from west.states import InitialState
@@ -342,7 +342,8 @@ The following options for datasets are supported:
         super(WTraceTool,self).__init__()
         
         self.data_reader = WESTDataReader()
-        self.h5storage = HDF5Storage()
+        #self.h5storage = HDF5Storage()
+        self.output_file = None
         self.output_pattern = None
         self.endpoints = None
         self.datasets = []
@@ -351,7 +352,7 @@ The following options for datasets are supported:
     # Interface for command-line tools
     def add_args(self, parser):
         self.data_reader.add_args(parser)
-        self.h5storage.add_args(parser)
+        #self.h5storage.add_args(parser)
         parser.add_argument('-d', '--dataset', dest='datasets',
                             #this breaks argparse (see http://bugs.python.org/issue11874) 
                             #metavar='DSNAME[,alias=ALIAS][,index=INDEX][,file=FILE][,slice=SLICE]',
@@ -367,25 +368,28 @@ The following options for datasets are supported:
         
         #tgroup = parser.add_argument_group('trace options')
         ogroup = parser.add_argument_group('output options')
-        ogroup.add_argument('-o', '--output-pattern', default='traj_%d_%d',
+        ogroup.add_argument('--output-pattern', default='traj_%d_%d',
                             help='''Write per-trajectory data to output files/HDF5 groups whose names begin with OUTPUT_PATTERN,
                                  which must contain two printf-style format flags which will be replaced with the iteration number
                                  and segment ID of the terminal segment of the trajectory being traced.
                                  (Default: %(default)s.)''')
+        ogroup.add_argument('-o', '--output', default='trajs.h5',
+                            help='Store intermediate data and analysis results to OUTPUT (default: %(default)s).')
         
         
         
     
     def process_args(self, args):
         self.data_reader.process_args(args)
-        self.h5storage.process_args(args)
+        #self.h5storage.process_args(args)
         self.endpoints = [map(long,endpoint.split(':')) for endpoint in args.endpoints]
         self.output_pattern = args.output_pattern
         
         for dsstr in args.datasets or []:
             self.datasets.append(self.parse_dataset_string(dsstr))        
         
-        self.h5storage.open_analysis_h5file()
+        #self.h5storage.open_analysis_h5file()
+        self.output_file = h5py.File(args.output)
         
     def parse_dataset_string(self, dsstr):
         dsinfo = {}
@@ -409,12 +413,16 @@ The following options for datasets are supported:
     
     def go(self):
         self.data_reader.open('r')
-        self.h5storage.open()
-        trajs_group = self.h5storage.require_analysis_group('trajectories')
+        
+        #Create a new 'trajectories' group if this is the first trace
+        try:
+            trajs_group = h5io.create_hdf5_group(self.output_file, 'trajectories', replace=False, creating_program=self.prog)
+        except ValueError:
+            trajs_group = self.output_file['trajectories']
         
         for n_iter, seg_id in self.endpoints:
             trajname = self.output_pattern % (n_iter,seg_id)
-            trajgroup = trajs_group.require_group(trajname)
+            trajgroup = trajs_group.create_group(trajname)
 
             trace = Trace.from_data_manager(n_iter,seg_id, self.data_reader.data_manager)
             
