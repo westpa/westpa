@@ -174,6 +174,7 @@ class AvgTraceSubcommand(KinAvgSubcommands):
                 avg_rates[istate, jstate] = (start_iter, stop_iter) + ci_res
         self.output_file['avg_rates'] = avg_rates
         self.stamp_mcbs_info(self.output_file['avg_rates'])
+        self.output_file['state_labels'] = state_labels
         maxlabellen = max(map(len,state_labels))
         for istate in xrange(nstates):
             for jstate in xrange(nstates):

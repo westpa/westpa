@@ -288,10 +288,46 @@ cpdef object flat_to_nested_vector(Py_ssize_t nstates, Py_ssize_t nbins, weight_
     
     return output
 
+@cython.boundscheck(True)
+@cython.wraparound(False)
+@cython.cdivision(True)
+cpdef _reduce_labeled_rate_matrix_to_macro(Py_ssize_t nstates, Py_ssize_t nbins, weight_t[:,:] rates, weight_t[:] pops):
+    '''Reduce a labeled microstate rate matrix into a macrostate rate matrix. This is
+    for internal use, where the rates/pops vectors have been blocked by state.'''
+    
+    cdef:
+        Py_ssize_t istate, jstate, ibin, jbin
+        weight_t[:,:] _macro_rates
+        weight_t sspop, rate_elem, traj_ens_pop
+    
+    macro_rates = numpy.zeros((nstates, nstates), numpy.float64)
+    _macro_rates = macro_rates
+    
+    for istate in xrange(nstates):
+        for jstate in xrange(nstates):
+            for ibin in xrange(nbins):
+                for jbin in xrange(nbins):
+                    sspop = pops[ibin*nstates+istate]
+                    rateelem = rates[ibin*nstates+istate,jbin*nstates+jstate]
+                    _macro_rates[istate,jstate] += sspop*rateelem
+                    
+    # Normalize by total population in each trajectory ensemble
+    for istate in xrange(nstates):
+        #traj_ens_pop = pops[istate].sum()
+        traj_ens_pop = 0
+        for ibin in xrange(nbins):
+            traj_ens_pop += pops[ibin*nstates+istate]
+        
+        for jstate in xrange(nstates):
+            _macro_rates[istate, jstate] /=  traj_ens_pop
+        
+    return macro_rates
+
+
 @cython.boundscheck(False)
 @cython.wraparound(False)
 @cython.cdivision(True)
-def labeled_flux_to_rate(weight_t[:,:,:,:] labeled_fluxes, weight_t[:,:] labeled_pops):
+cpdef labeled_flux_to_rate(weight_t[:,:,:,:] labeled_fluxes, weight_t[:,:] labeled_pops):
     '''Convert a labeled flux matrix and corresponding labeled bin populations to
     a labeled rate matrix.'''
     
@@ -322,7 +358,7 @@ def labeled_flux_to_rate(weight_t[:,:,:,:] labeled_fluxes, weight_t[:,:] labeled
 @cython.boundscheck(False)
 @cython.wraparound(False)
 @cython.cdivision(True)
-def sequence_macro_flux_to_rate(weight_t[:,:,:] fluxes, weight_t[:,:] traj_ens_pops):
+cpdef sequence_macro_flux_to_rate(weight_t[:,:,:] fluxes, weight_t[:,:] traj_ens_pops):
     '''Convert a sequence of macrostate fluxes and corresponding list of trajectory ensemble populations
     to a sequence of rate matrices'''
     
@@ -452,19 +488,21 @@ cpdef find_macrostate_transitions(Py_ssize_t nstates,
             if flabel != ilabel:
                 _last_exits[seg_id,ilabel] = tm
                 _last_entries[seg_id,flabel] = tm
-                            
+                                            
                 for iistate in xrange(nstates):                    
                     # if we have more recently returned to iistate than arrived at flabel from iistate,
                     # we note a new completed transition from iistate to flabel
                     # equality applies only for 0, which means we're counting an arrival from the
                     # state where the trajectory started
-                    if _last_entries[seg_id,iistate] >= _last_completions[seg_id,iistate,flabel]:
+                    if _last_exits[seg_id, iistate] > 0 and _last_entries[seg_id,iistate] >= _last_completions[seg_id,iistate,flabel]:
                         macro_fluxes[iistate,flabel] += _weight
                         _last_completions[seg_id,iistate,flabel] = tm
                         
                         if iistate != flabel:
                             t_ed = tm - _last_exits[seg_id,iistate]
                             durations.append((iistate,flabel,t_ed,_weight))
+
+
         
         _last_time[seg_id] = tm
         

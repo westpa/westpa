@@ -35,6 +35,8 @@ class KineticsSubcommands(WESTSubcommand):
         self.iter_range = IterRangeSelection() 
         self.output_file = None
         self.assignments_file = None
+        
+        self.do_compression = True
 
     def add_args(self, parser):
         self.data_reader.add_args(parser)
@@ -48,6 +50,11 @@ class KineticsSubcommands(WESTSubcommand):
         # subclass
         iogroup.add_argument('-o', '--output', dest='output', default=self.default_kinetics_file,
                              help='''Store results in OUTPUT (default: %(default)s).''')
+        iogroup.add_argument('--no-compression', dest='compression', action='store_false',
+                             help='''Do not store kinetics results compressed. This can increase disk
+                             use about 100-fold, but can dramatically speed up subsequent analysis
+                             for "w_kinavg matrix". Default: compress kinetics results.''')
+        parser.set_defaults(compression=True)
         
     def process_args(self, args):
         self.assignments_file = h5io.WESTPAH5File(args.assignments, 'r')
@@ -58,6 +65,7 @@ class KineticsSubcommands(WESTSubcommand):
         h5io.stamp_creator_data(self.output_file)
         if not self.iter_range.check_data_iter_range_least(self.assignments_file):
             raise ValueError('assignments do not span the requested iterations')
+        self.do_compression = args.compression
         
 
 class KinTraceSubcommand(KineticsSubcommands):
@@ -121,20 +129,20 @@ Command-line options
         nstates = self.assignments_file.attrs['nstates']
         start_iter, stop_iter = self.iter_range.iter_start, self.iter_range.iter_stop # h5io.get_iter_range(self.assignments_file)
         iter_count = stop_iter - start_iter
+        
                         
         durations_ds = self.output_file.create_dataset('durations', 
                                                        shape=(iter_count,0), maxshape=(iter_count,None),
                                                        dtype=ed_list_dtype,
-                                                       chunks=(1,15360),
-                                                       shuffle=True,
-                                                       compression=9)
+                                                       chunks=(1,15360) if self.do_compression else None,
+                                                       shuffle=self.do_compression,
+                                                       compression=9 if self.do_compression else None)
         durations_count_ds = self.output_file.create_dataset('duration_count',
                                                              shape=(iter_count,), dtype=numpy.int_, shuffle=True,compression=9)
         trace_fluxes_ds = self.output_file.create_dataset('trace_macro_fluxes', shape=(iter_count,nstates,nstates), dtype=weight_dtype,
                                                           chunks=h5io.calc_chunksize((iter_count,nstates,nstates),weight_dtype),
-                                                          shuffle=True,
-                                                          compression=9)
-
+                                                          shuffle=self.do_compression,
+                                                          compression=9 if self.do_compression else None)
         
         # Put nice labels on things
         for ds in (self.output_file, durations_count_ds, trace_fluxes_ds):
@@ -259,8 +267,9 @@ Command-line options
         
         labeled_bin_fluxes_ds = self.output_file.create_dataset('labeled_bin_fluxes',
                                                                 shape=labeled_matrix_shape,
-                                                                chunks=h5io.calc_chunksize(labeled_matrix_shape, weight_dtype),
-                                                                compression=9,
+                                                                chunks=(h5io.calc_chunksize(labeled_matrix_shape, weight_dtype)
+                                                                        if self.do_compression else None),
+                                                                compression=9 if self.do_compression else None,
                                                                 dtype=weight_dtype)
 
         

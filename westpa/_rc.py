@@ -137,16 +137,13 @@ class WESTRC:
                                       'westtools': {'handlers': ['console'], 'propagate': False},
                                       'westext': {'handlers': ['console'], 'propagate': False},
                                       'work_managers': {'handlers': ['console'], 'propagate': False},
-                                      'multiprocessing': {'handlers': ['console'], 'propagate': False}},
+                                      'py.warnings': {'handlers': ['console'], 'propagate': False}},
                           'root': {'handlers': ['console']}}
         
         logging_config['loggers'][self.process_name] = {'handlers': ['console'], 'propagate': False}
             
         if self.verbosity == 'debug':
-            import multiprocessing
-            multiprocessing.log_to_stderr(multiprocessing.SUBDEBUG)
             logging_config['root']['level'] = 5 #'DEBUG'
-            logging_config['loggers']['multiprocessing']['level'] = 'DEBUG'
             logging_config['handlers']['console']['formatter'] = 'debug'
         elif self.verbosity == 'verbose':
             logging_config['root']['level'] = 'INFO'
@@ -155,6 +152,7 @@ class WESTRC:
 
         logging.config.dictConfig(logging_config)
         logging_config['incremental'] = True
+        logging.captureWarnings(True)
         
     def pstatus(self, *args, **kwargs):
         fileobj = kwargs.pop('file', self.status_stream)

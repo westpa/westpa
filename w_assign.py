@@ -407,19 +407,19 @@ Command-line options
         assignments_shape = (iter_count,max_nsegs,max_npts)
         assignments_dtype = numpy.min_scalar_type(nbins)
         assignments_ds = self.output_file.create_dataset('assignments', dtype=assignments_dtype, shape=assignments_shape,
-                                                         compression=9, shuffle=True,
+                                                         compression=4, shuffle=True,
                                                          chunks=h5io.calc_chunksize(assignments_shape, assignments_dtype),
                                                          fillvalue=nbins)
         if self.states:
             trajlabel_dtype = numpy.min_scalar_type(nstates)
             trajlabels_ds = self.output_file.create_dataset('trajlabels', dtype=trajlabel_dtype, shape=assignments_shape,
-                                                            compression=9, shuffle=True,
+                                                            compression=4, shuffle=True,
                                                             chunks=h5io.calc_chunksize(assignments_shape, trajlabel_dtype),
                                                             fillvalue=nstates)
             
         pops_shape = (iter_count,nstates+1,nbins+1)
         pops_ds = self.output_file.create_dataset('labeled_populations', dtype=weight_dtype, shape=pops_shape,
-                                                  compression=9, shuffle=True,
+                                                  compression=4, shuffle=True,
                                                   chunks=h5io.calc_chunksize(pops_shape, weight_dtype))
         h5io.label_axes(pops_ds, ['iteration', 'state', 'bin'])
 

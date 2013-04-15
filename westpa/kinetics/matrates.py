@@ -17,13 +17,13 @@ easily during development) -- mcz
 """
 
 
-import logging
+import logging, warnings
 log = logging.getLogger(__name__)
 
 from _kinetics import (calculate_labeled_fluxes, #@UnresolvedImport
                        calculate_labeled_fluxes_alllags, #@UnresolvedImport
                        nested_to_flat_matrix, nested_to_flat_vector, #@UnresolvedImport
-                       flat_to_nested_vector) #@UnresolvedImport
+                       flat_to_nested_vector, _reduce_labeled_rate_matrix_to_macro) #@UnresolvedImport
 
 import numpy
 import scipy.linalg
@@ -31,20 +31,26 @@ import scipy.linalg
 
 from west.data_manager import weight_dtype
 
+class ConsistencyWarning(UserWarning):
+    pass
+
 def get_steady_state(rates):
+    '''Get steady state solution for a rate matrix. As an optimization, returns the
+    flattened labeled population vector (of length nstates*nbins); to convert to the
+    nested vector used for storage, use nested_to_flat_vector().'''
+    
     rates = rates.copy()
     
     # Convert to a transition probability matrix
     for i in xrange(rates.shape[0]):
-        rowsum = rates[i].sum()
+        rowsum = rates[i,:].sum()
         if rowsum > 0:
-            rates[i] = rates[i] / rowsum
+            rates[i,:] = rates[i,:] / rowsum
         else:
             if rates[:,i].sum() != 0:
-                # matrix not stable -- internal sink
-                return None
-            else:
-                rates[i] = 0
+                warnings.warn('sink microstate in rate matrix', ConsistencyWarning)
+                rates[:,i] = 0
+            rates[i,:] = 0
                     
     try:
         vals, vecs = scipy.linalg.eig(rates.T)
@@ -75,29 +81,14 @@ def get_macrostate_rates(labeled_rates, labeled_pops):
     # Find steady-state solution
     ss = get_steady_state(rates)
     if ss is None:
-        log.warning('no well-defined steady state; using average populations')
+        warnings.warn('no well-defined steady state; using average populations',ConsistencyWarning)
         ss = nested_to_flat_vector(labeled_pops)
-    macro_rates = numpy.zeros((nstates,nstates), weight_dtype)
     
-    # Sum over bins contributing to each state
-    for istate in xrange(nstates):
-        for jstate in xrange(nstates):
-            for ibin in xrange(nbins):
-                for jbin in xrange(nbins):
-                    #sspop = ss[istate*nstates+ibin]
-                    #rateelem = rates[istate*nbins+ibin,jstate*nbins+jbin]
-                    sspop = ss[ibin*nstates+istate]
-                    rateelem = rates[ibin*nstates+istate,jbin*nstates+jstate]
-                    #print('state {}->{} bin {}->{} pop {} rate {}'.format(istate,jstate,ibin,jbin,sspop,rateelem))
-                    macro_rates[istate,jstate] += sspop*rateelem
+    macro_rates = _reduce_labeled_rate_matrix_to_macro(nstates, nbins, rates, ss)
     
-    # Normalize by total population in each trajectory ensemble
-    for istate in xrange(nstates):
-        traj_ens_pop = labeled_pops[istate].sum()
-        macro_rates[istate] /= traj_ens_pop
-
     return flat_to_nested_vector(nstates, nbins, ss), macro_rates
 
+    
 def estimate_rates(nbins, state_labels, weights, parent_ids, bin_assignments, label_assignments, state_map,
                    all_lags=False):
     '''Estimate rates over multiple iterations.
