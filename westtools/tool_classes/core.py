@@ -205,6 +205,11 @@ class WESTMasterCommand(WESTTool):
         super(WESTMasterCommand,self).__init__()
         self._subcommand = None
         self._subcommand_instances = {subcommand_class.subcommand: subcommand_class(self) for subcommand_class in self.subcommands}
+        
+        # Sanity checks
+        if __debug__:
+            for scclass in self.subcommands:
+                assert scclass.subcommand, 'subcommand {!r} does not define a "subcommand" class variable'.format(scclass)
     
     def add_args(self, parser):
         subparsers = parser.add_subparsers(title=self.subparsers_title)
