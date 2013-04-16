@@ -49,7 +49,6 @@ def get_steady_state(rates):
         else:
             if rates[:,i].sum() != 0:
                 warnings.warn('sink microstate in rate matrix', ConsistencyWarning)
-                rates[:,i] = 0
             rates[i,:] = 0
                     
     try:
