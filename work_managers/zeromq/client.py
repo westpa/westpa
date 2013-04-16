@@ -514,7 +514,7 @@ class ZMQClient(ZMQBase):
                         #alert server of shutdown and exit loop.
                         #note that this will send shutdown update to server, even if shutdown is *because*
                         #server shut down - an unneeded messge, but shouldn't matter.
-                        upstream_update_socket.send_pyobj((MSG_SHUTDOWN, this_node_id, None, None)) 
+                        upstream_update_socket.send_pyobj((MSG_SHUTDOWN, None, this_node_id, None)) 
                         return
 
                     elif 'update' in messages: #Update server

@@ -362,6 +362,7 @@ class ZMQServer(ZMQBase):
                         if tag == MSG_SHUTDOWN:
                             
                             try:
+                                log.debug('sever: got shutdown message from client {!r}, removing client'.format(client_id))
                                 self.clients.pop(client_id)
                             except KeyError:
                                 log.error('server: received message from client that server doesn\'t know about - rogue client?')
