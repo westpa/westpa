@@ -6,12 +6,12 @@ from numpy import index_exp
 
 from west.data_manager import seg_id_dtype, weight_dtype
 from westpa.binning import index_dtype, assign_and_label, accumulate_labeled_populations 
-from westtools.tool_classes import WESTParallelTool, WESTDataReader, WESTDSSynthesizer, BinMappingComponent
+from westtools.tool_classes import (WESTParallelTool, WESTDataReader, WESTDSSynthesizer, BinMappingComponent, 
+                                    ProgressIndicatorComponent)
 import numpy
 from westpa import h5io
 from westpa.h5io import WESTPAH5File
 from westpa.extloader import get_object
-import westpa
 
 log = logging.getLogger('westtools.w_assign')
 
@@ -212,6 +212,7 @@ Command-line options
         self.data_reader = WESTDataReader()
         self.dssynth = WESTDSSynthesizer(default_dsname='pcoord')
         self.binning = BinMappingComponent()
+        self.progress = ProgressIndicatorComponent()
         self.output_file = None
         self.states = []
     
@@ -241,6 +242,7 @@ Command-line options
 
 
     def process_args(self, args):
+        self.progress.process_args(args)
         self.data_reader.process_args(args)
         self.dssynth.h5filename = self.data_reader.we_h5filename
         self.dssynth.process_args(args)
@@ -346,114 +348,114 @@ Command-line options
         return (assignments, trajlabels, pops)
         
     def go(self):
-        self.data_reader.open(mode='r')
-        assign = self.binning.mapper.assign
-        
-        
-        # We always assign the entire simulation, so that no trajectory appears to start
-        # in a transition region that doesn't get initialized in one.
-        iter_start = 1 
-        iter_stop =  self.data_reader.current_iteration
-        
-        h5io.stamp_iter_range(self.output_file, iter_start, iter_stop)
-        
-        nbins = self.binning.mapper.nbins
-        self.output_file.attrs['nbins'] = nbins 
-
-        state_map = numpy.empty((self.binning.mapper.nbins,), index_dtype)
-        state_map[:] = 0 # state_id == nstates => unknown state
-
-        if self.states:
-            nstates = len(self.states)
-            state_map[:] = nstates # state_id == nstates => unknown state
-            state_labels = [state['label'] for state in self.states]
+        pi = self.progress.indicator
+        pi.operation = 'Initializing'
+        with pi:
+            self.data_reader.open(mode='r')
+            assign = self.binning.mapper.assign
             
-            for istate, sdict in enumerate(self.states):
-                assert state_labels[istate] == sdict['label'] #sanity check
-                state_assignments = assign(sdict['coords'])
-                for assignment in state_assignments:
-                    state_map[assignment] = istate
+            # We always assign the entire simulation, so that no trajectory appears to start
+            # in a transition region that doesn't get initialized in one.
+            iter_start = 1 
+            iter_stop =  self.data_reader.current_iteration
             
-            # Don't compress this if it's tiny
-            # It's a microoptimization, but a simple one.
-            if nbins <= 10:
-                dsopts = {}
-            else:
-                dsopts = {'compression': 9,
-                          'shuffle': True}
-            self.output_file.create_dataset('state_map', data=state_map, **dsopts)
-            self.output_file['state_labels'] = state_labels
-        else:
-            nstates = 0
-        self.output_file.attrs['nstates'] = nstates
-        
-        iter_count = iter_stop - iter_start
-        nsegs = numpy.empty((iter_count,), seg_id_dtype)
-        npts = numpy.empty((iter_count,), seg_id_dtype)
-        
-        # scan for largest number of segments and largest number of points
-        for iiter, n_iter in enumerate(xrange(iter_start,iter_stop)):
-            iter_group = self.data_reader.get_iter_group(n_iter)
-            nsegs[iiter], npts[iiter] = iter_group['pcoord'].shape[0:2]
-            del iter_group
+            h5io.stamp_iter_range(self.output_file, iter_start, iter_stop)
             
-        # create datasets
-        self.output_file.create_dataset('nsegs', data=nsegs, shuffle=True, compression=9)
-        self.output_file.create_dataset('npts', data=npts, shuffle=True, compression=9)
-        
-        max_nsegs = nsegs.max()
-        max_npts = npts.max()
-        
-        assignments_shape = (iter_count,max_nsegs,max_npts)
-        assignments_dtype = numpy.min_scalar_type(nbins)
-        assignments_ds = self.output_file.create_dataset('assignments', dtype=assignments_dtype, shape=assignments_shape,
-                                                         compression=4, shuffle=True,
-                                                         chunks=h5io.calc_chunksize(assignments_shape, assignments_dtype),
-                                                         fillvalue=nbins)
-        if self.states:
-            trajlabel_dtype = numpy.min_scalar_type(nstates)
-            trajlabels_ds = self.output_file.create_dataset('trajlabels', dtype=trajlabel_dtype, shape=assignments_shape,
-                                                            compression=4, shuffle=True,
-                                                            chunks=h5io.calc_chunksize(assignments_shape, trajlabel_dtype),
-                                                            fillvalue=nstates)
-            
-        pops_shape = (iter_count,nstates+1,nbins+1)
-        pops_ds = self.output_file.create_dataset('labeled_populations', dtype=weight_dtype, shape=pops_shape,
-                                                  compression=4, shuffle=True,
-                                                  chunks=h5io.calc_chunksize(pops_shape, weight_dtype))
-        h5io.label_axes(pops_ds, ['iteration', 'state', 'bin'])
-
-        last_labels = None # mapping of seg_id to last macrostate inhabited      
-        for iiter, n_iter in enumerate(xrange(iter_start,iter_stop)):
-            #get iteration info in this block
-            if sys.stdout.isatty() and not westpa.rc.quiet_mode:
-                print('\rIteration {}'.format(n_iter),end='')
-                sys.stdout.flush()
-            
-            if iiter == 0:
-                last_labels = numpy.empty((nsegs[iiter],), index_dtype)
-                last_labels[:] = nstates #unknown state
-
-
-            #Slices this iteration into n_workers groups of segments, submits them to wm, splices results back together
-            assignments, trajlabels, pops = self.assign_iteration(n_iter, nstates, nbins, state_map, last_labels)
-
-            ##Do stuff with this iteration's results
-                
-            last_labels = trajlabels[:,-1].copy()
-            assignments_ds[iiter, 0:nsegs[iiter], 0:npts[iiter]] = assignments
-            pops_ds[iiter] = pops
+            nbins = self.binning.mapper.nbins
+            self.output_file.attrs['nbins'] = nbins 
+    
+            state_map = numpy.empty((self.binning.mapper.nbins,), index_dtype)
+            state_map[:] = 0 # state_id == nstates => unknown state
+    
             if self.states:
-                trajlabels_ds[iiter, 0:nsegs[iiter], 0:npts[iiter]]  = trajlabels
+                nstates = len(self.states)
+                state_map[:] = nstates # state_id == nstates => unknown state
+                state_labels = [state['label'] for state in self.states]
+                
+                for istate, sdict in enumerate(self.states):
+                    assert state_labels[istate] == sdict['label'] #sanity check
+                    state_assignments = assign(sdict['coords'])
+                    for assignment in state_assignments:
+                        state_map[assignment] = istate
+                
+                # Don't compress this if it's tiny
+                # It's a microoptimization, but a simple one.
+                if nbins <= 10:
+                    dsopts = {}
+                else:
+                    dsopts = {'compression': 9,
+                              'shuffle': True}
+                self.output_file.create_dataset('state_map', data=state_map, **dsopts)
+                self.output_file['state_labels'] = state_labels
+            else:
+                nstates = 0
+            self.output_file.attrs['nstates'] = nstates
             
-            del assignments, trajlabels, pops
+            iter_count = iter_stop - iter_start
+            nsegs = numpy.empty((iter_count,), seg_id_dtype)
+            npts = numpy.empty((iter_count,), seg_id_dtype)
             
-        for dsname in 'assignments', 'npts', 'nsegs', 'labeled_populations':
-            h5io.stamp_iter_range(self.output_file[dsname], iter_start, iter_stop)
+            # scan for largest number of segments and largest number of points
+            pi.new_operation ('Scanning for segment and point counts', iter_stop-iter_start)
+            for iiter, n_iter in enumerate(xrange(iter_start,iter_stop)):
+                iter_group = self.data_reader.get_iter_group(n_iter)
+                nsegs[iiter], npts[iiter] = iter_group['pcoord'].shape[0:2]
+                pi.progress += 1
+                del iter_group
+                
+            pi.new_operation('Preparing output')
+                
+            # create datasets
+            self.output_file.create_dataset('nsegs', data=nsegs, shuffle=True, compression=9)
+            self.output_file.create_dataset('npts', data=npts, shuffle=True, compression=9)
+            
+            max_nsegs = nsegs.max()
+            max_npts = npts.max()
+            
+            assignments_shape = (iter_count,max_nsegs,max_npts)
+            assignments_dtype = numpy.min_scalar_type(nbins)
+            assignments_ds = self.output_file.create_dataset('assignments', dtype=assignments_dtype, shape=assignments_shape,
+                                                             compression=4, shuffle=True,
+                                                             chunks=h5io.calc_chunksize(assignments_shape, assignments_dtype),
+                                                             fillvalue=nbins)
+            if self.states:
+                trajlabel_dtype = numpy.min_scalar_type(nstates)
+                trajlabels_ds = self.output_file.create_dataset('trajlabels', dtype=trajlabel_dtype, shape=assignments_shape,
+                                                                compression=4, shuffle=True,
+                                                                chunks=h5io.calc_chunksize(assignments_shape, trajlabel_dtype),
+                                                                fillvalue=nstates)
+                
+            pops_shape = (iter_count,nstates+1,nbins+1)
+            pops_ds = self.output_file.create_dataset('labeled_populations', dtype=weight_dtype, shape=pops_shape,
+                                                      compression=4, shuffle=True,
+                                                      chunks=h5io.calc_chunksize(pops_shape, weight_dtype))
+            h5io.label_axes(pops_ds, ['iteration', 'state', 'bin'])
+    
+            pi.new_operation('Assigning to bins', iter_stop-iter_start)
+            last_labels = None # mapping of seg_id to last macrostate inhabited      
+            for iiter, n_iter in enumerate(xrange(iter_start,iter_stop)):
+                #get iteration info in this block
+                
+                if iiter == 0:
+                    last_labels = numpy.empty((nsegs[iiter],), index_dtype)
+                    last_labels[:] = nstates #unknown state
 
-        if sys.stdout.isatty() and not westpa.rc.quiet_mode:
-            print('')
-
+                #Slices this iteration into n_workers groups of segments, submits them to wm, splices results back together
+                assignments, trajlabels, pops = self.assign_iteration(n_iter, nstates, nbins, state_map, last_labels)
+    
+                ##Do stuff with this iteration's results
+                    
+                last_labels = trajlabels[:,-1].copy()
+                assignments_ds[iiter, 0:nsegs[iiter], 0:npts[iiter]] = assignments
+                pops_ds[iiter] = pops
+                if self.states:
+                    trajlabels_ds[iiter, 0:nsegs[iiter], 0:npts[iiter]]  = trajlabels
+                
+                pi.progress += 1
+                del assignments, trajlabels, pops
+                
+            for dsname in 'assignments', 'npts', 'nsegs', 'labeled_populations':
+                h5io.stamp_iter_range(self.output_file[dsname], iter_start, iter_stop)
 
 if __name__ == '__main__':
     WAssign().main()

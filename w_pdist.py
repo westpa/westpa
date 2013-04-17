@@ -222,13 +222,11 @@ Command-line options
         # Carrying an open HDF5 file across a fork() seems to corrupt the entire HDF5 library
         # Open the WEST HDF5 file just long enough to process our iteration range, then close
         # and reopen in go() [which executes after the fork]
-        self.data_reader.open('r')
-        self.iter_range.process_args(args)
-        self.data_reader.close()
+        with self.data_reader:
+            self.iter_range.process_args(args)
         
-            
         self.wt_dsspec = SingleIterDSSpec(self.data_reader.we_h5filename, 'seg_index', slice=numpy.index_exp['weight'])
-            
+        
         self.binspec = args.bins
         self.output_filename = args.output
         
@@ -308,7 +306,7 @@ Command-line options
         
         self.scan_data_shape()
         dset_dtype = self.dset_dtype
-                
+        
         try:
             minval = numpy.finfo(dset_dtype).min
             maxval = numpy.finfo(dset_dtype).max
@@ -400,7 +398,7 @@ Command-line options
             print('Creating histograms')
         
         futures = []
-        for iiter, n_iter in enumerate(xrange(self.iter_start, self.iter_stop)):                
+        for iiter, n_iter in enumerate(xrange(self.iter_start, self.iter_stop)):
             initpoint = 1 if iiter > 0 else 0
             futures.append(self.work_manager.submit(_remote_bin_iter,
                                                     args=(iiter, n_iter, self.dsspec, self.wt_dsspec, initpoint, binbounds)))
@@ -415,7 +413,7 @@ Command-line options
             del iter_hist, future
 
             if sys.stdout.isatty() and not westpa.rc.quiet_mode:
-                print('\rFinished {} of {} iterations'.format(n_received,iter_count), end='')            
+                print('\rFinished {} of {} iterations'.format(n_received,iter_count), end='')
         if sys.stdout.isatty() and not westpa.rc.quiet_mode:
             print('')
 
