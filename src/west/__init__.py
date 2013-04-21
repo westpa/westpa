@@ -10,8 +10,8 @@ from states import BasisState, TargetState
 
 from westpa import rc
 
-version = '0.9.1'
-version_tuple = (0,9,1)
+version = '1.0.0 beta'
+version_tuple = (1,0,0,'beta')
 
 import warnings
 def warn_deprecated(message):
