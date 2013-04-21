@@ -11,7 +11,7 @@ from westpa import h5io
 
 fluxentry_dtype = numpy.dtype([('n_iter', n_iter_dtype),
                                ('flux', weight_dtype),
-                               ('count', numpy.int)])
+                               ('count', numpy.uint)])
 
 target_index_dtype = numpy.dtype([('target_label', vstr_dtype),
                                   ('mean_flux', weight_dtype),

@@ -1,12 +1,11 @@
 from __future__ import print_function, division; __metaclass__ = type
 import logging
-import sys
 from itertools import izip
-from westtools.tool_classes import WESTParallelTool, WESTDataReader, WESTDSSynthesizer, IterRangeSelection
+from westtools.tool_classes import (WESTParallelTool, WESTDataReader, WESTDSSynthesizer, IterRangeSelection, 
+                                    ProgressIndicatorComponent)
 import numpy, h5py
 from fasthist import histnd, normhistnd
 from westpa import h5io
-import westpa
 from westpa.h5io import SingleIterDSSpec
 
 log = logging.getLogger('westtools.w_pdist')
@@ -18,7 +17,28 @@ def isiterable(x):
         return False
     else:
         return True
-        
+
+def _remote_min_max(ndim, dset_dtype, n_iter, dsspec):
+    try:
+        minval = numpy.finfo(dset_dtype).min
+        maxval = numpy.finfo(dset_dtype).max
+    except ValueError:
+        minval = numpy.iinfo(dset_dtype).min
+        maxval = numpy.iinfo(dset_dtype).max
+
+    data_range = [(maxval,minval) for _i in xrange(ndim)]
+
+    dset = dsspec.get_iter_data(n_iter)
+    for idim in xrange(ndim):
+        dimdata = dset[:,:,idim]
+        current_min, current_max = data_range[idim]
+        current_min = min(current_min, dimdata.min())
+        current_max = max(current_max, dimdata.max())
+        data_range[idim] = (current_min, current_max)
+        del dimdata
+    del dset
+    return data_range
+
 def _remote_bin_iter(iiter, n_iter, dsspec, wt_dsspec, initpoint, binbounds):
     
     iter_hist_shape = tuple(len(bounds)-1 for bounds in binbounds)
@@ -163,6 +183,7 @@ Command-line options
         self.wm_env.default_work_manager = self.wm_env.default_parallel_work_manager
         
         # These are used throughout
+        self.progress = ProgressIndicatorComponent()
         self.data_reader = WESTDataReader()
         self.input_dssynth = WESTDSSynthesizer(default_dsname='pcoord')
         self.iter_range = IterRangeSelection(self.data_reader)
@@ -213,7 +234,10 @@ Command-line options
         igroup.add_argument('--dsspecs', nargs='+', metavar='DSSPEC',
                             help='''Construct probability distribution from one or more DSSPECs.''')
 
+        self.progress.add_args(parser)
+        
     def process_args(self, args):
+        self.progress.process_args(args)
         self.data_reader.process_args(args)
         self.input_dssynth.h5filename = self.data_reader.we_h5filename
         self.input_dssynth.process_args(args)
@@ -233,27 +257,30 @@ Command-line options
     
     def go(self):
         self.data_reader.open('r')
-        self.output_file = h5py.File(self.output_filename, 'w')
-        h5io.stamp_creator_data(self.output_file)
-        
-        self.iter_start = self.iter_range.iter_start
-        self.iter_stop = self.iter_range.iter_stop
-
-        # Construct bin boundaries
-        self.construct_bins(self.parse_binspec(self.binspec))
-        for idim, (binbounds, midpoints) in enumerate(izip(self.binbounds, self.midpoints)):
-            self.output_file['binbounds_{}'.format(idim)] = binbounds
-            self.output_file['midpoints_{}'.format(idim)] = midpoints
-
-        # construct histogram
-        self.construct_histogram()
-
-        # Record iteration range        
-        iter_range = self.iter_range.iter_range()
-        self.output_file['n_iter'] = iter_range
-        self.iter_range.record_data_iter_range(self.output_file['histograms'])
-        
-        self.output_file.close()
+        pi = self.progress.indicator
+        pi.operation = 'Initializing'
+        with pi:
+            self.output_file = h5py.File(self.output_filename, 'w')
+            h5io.stamp_creator_data(self.output_file)
+            
+            self.iter_start = self.iter_range.iter_start
+            self.iter_stop = self.iter_range.iter_stop
+    
+            # Construct bin boundaries
+            self.construct_bins(self.parse_binspec(self.binspec))
+            for idim, (binbounds, midpoints) in enumerate(izip(self.binbounds, self.midpoints)):
+                self.output_file['binbounds_{}'.format(idim)] = binbounds
+                self.output_file['midpoints_{}'.format(idim)] = midpoints
+    
+            # construct histogram
+            self.construct_histogram()
+    
+            # Record iteration range        
+            iter_range = self.iter_range.iter_range()
+            self.output_file['n_iter'] = iter_range
+            self.iter_range.record_data_iter_range(self.output_file['histograms'])
+            
+            self.output_file.close()
 
     @staticmethod    
     def parse_binspec(binspec):
@@ -304,8 +331,13 @@ Command-line options
         '''Scan input data for range in each dimension. The number of dimensions is determined
         from the shape of the progress coordinate as of self.iter_start.'''
         
+        self.progress.indicator.new_operation('Scanning for data range', self.iter_stop-self.iter_start)
         self.scan_data_shape()
+        
+                
         dset_dtype = self.dset_dtype
+        ndim = self.ndim
+        dsspec = self.dsspec
         
         try:
             minval = numpy.finfo(dset_dtype).min
@@ -314,29 +346,22 @@ Command-line options
             minval = numpy.iinfo(dset_dtype).min
             maxval = numpy.iinfo(dset_dtype).max
         
-        data_range = self.data_range = [tuple((maxval,minval)) for _i in xrange(self.ndim)]
-        
-        if sys.stdout.isatty() and not westpa.rc.quiet_mode:
-            print('Scanning for minimum/maximum values')
-            
+        data_range = self.data_range = [(maxval,minval) for _i in xrange(self.ndim)]
+
+        futures = []
         for n_iter in xrange(self.iter_start, self.iter_stop):
-            if sys.stdout.isatty() and not westpa.rc.quiet_mode:
-                print('\rIteration {}'.format(n_iter), end='')
-            
-            if log.isEnabledFor(logging.DEBUG):
-                log.debug('scanning iteration {}'.format(n_iter))
-            dset = self.dsspec.get_iter_data(n_iter)
-            for idim in xrange(self.ndim):
-                dimdata = dset[:,:,idim]
+            #_remote_min_max(ndim, dset_dtype, n_iter, dsspec)
+            futures.append(self.work_manager.submit(_remote_min_max, args=(ndim, dset_dtype, n_iter, dsspec)))
+        
+        for future in self.work_manager.as_completed(futures):
+            bounds = future.get_result(discard=True)
+            for idim in xrange(ndim):
                 current_min, current_max = data_range[idim]
-                current_min = min(current_min, dimdata.min())
-                current_max = max(current_max, dimdata.max())
+                current_min = min(current_min, bounds[idim][0])
+                current_max = max(current_max, bounds[idim][1])
                 data_range[idim] = (current_min, current_max)
-                del dimdata
-            del dset
-        if sys.stdout.isatty() and not westpa.rc.quiet_mode:
-            print('')
-            
+            self.progress.indicator.progress += 1
+
     def _construct_bins_from_scalar(self, bins):
         if self.data_range is None:
             self.scan_data_range()        
@@ -383,9 +408,8 @@ Command-line options
             
     def construct_histogram(self):
         '''Construct a histogram using bins previously constructed with ``construct_bins()``.
-        The time series of histogram values is stored in ``histograms`` and the average over
-        time is stored in ``avg_histogram``. Each histogram in the time series is normalized,
-        as is the average histogram.'''
+        The time series of histogram values is stored in ``histograms``.
+        Each histogram in the time series is normalized.'''
         
         self.scan_data_shape()
         
@@ -394,28 +418,20 @@ Command-line options
                                                         shape=((iter_count,) + tuple(len(bounds)-1 for bounds in self.binbounds)))
         binbounds = [numpy.require(boundset, self.dset_dtype, 'C') for boundset in self.binbounds]
         
-        if sys.stdout.isatty() and not westpa.rc.quiet_mode:
-            print('Creating histograms')
-        
+        self.progress.indicator.new_operation('Constructing histograms',self.iter_stop-self.iter_start)
         futures = []
         for iiter, n_iter in enumerate(xrange(self.iter_start, self.iter_stop)):
             initpoint = 1 if iiter > 0 else 0
             futures.append(self.work_manager.submit(_remote_bin_iter,
                                                     args=(iiter, n_iter, self.dsspec, self.wt_dsspec, initpoint, binbounds)))
         
-        n_received = 0
         for future in self.work_manager.as_completed(futures):
             iiter, n_iter, iter_hist = future.get_result(discard=True)
-            n_received += 1
+            self.progress.indicator.progress += 1
 
             # store histogram
             histograms_ds[iiter] = iter_hist
             del iter_hist, future
-
-            if sys.stdout.isatty() and not westpa.rc.quiet_mode:
-                print('\rFinished {} of {} iterations'.format(n_received,iter_count), end='')
-        if sys.stdout.isatty() and not westpa.rc.quiet_mode:
-            print('')
 
 
 if __name__ == '__main__':

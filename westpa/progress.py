@@ -73,11 +73,9 @@ class ProgressIndicator:
         term = self.terminal
         stream = self.terminal.stream
         
-        nlines = 1
         stream.write('{t.clear_eol}{t.bold}{}{t.normal}{}\n'.format(operation_text,self._operation or '', t=term))
-        
+            
         if self._extent:
-            nlines += 2
             width = term.width 
             pct_done = self.progress / self._extent
             pct_part = '{:<4.0%} '.format(pct_done)
@@ -92,9 +90,9 @@ class ProgressIndicator:
 
             completion_est = self._completion_est()
             stream.write('{t.clear_eol}{t.bold}{}{t.normal}{}\n'.format(remaining_text,completion_est,t=term))
-            
-        
-        stream.write(term.move_up*nlines)
+            stream.write('{t.move_up}'.format(t=term)*2)
+        stream.write('{t.move_up}'.format(t=term))
+    
         self._last_update = time.time()
 
         
@@ -106,17 +104,31 @@ class ProgressIndicator:
             
         
     def draw(self):
+        if not self._operation: return
         if self.do_fancy:
             self.draw_fancy()
         else:
             self.draw_simple()
             
+    def clear(self):
+        if self.do_fancy:
+            if self._extent:
+                nlines = 3
+            else:
+                nlines = 1
+
+            for _i in xrange(nlines):
+                self.terminal.stream.write('{t.clear_eol}{t.move_down}'.format(t=self.terminal))
+            for _i in xrange(nlines):
+                self.terminal.stream.write('{t.move_up}'.format(t=self.terminal))
+
     @property
     def operation(self):
         return self._operation
         
     @operation.setter
     def operation(self, op):
+        if self._operation is not None: self.clear()
         self._operation = op
         self._operation_start = time.time()
         self._progress_history.clear()
@@ -142,11 +154,9 @@ class ProgressIndicator:
         self._progress_history.append((time.time(), p))
     
     def new_operation(self, operation, extent=None, progress=0):
-        self._operation = operation
-        self._operation_start = time.time()
-        self._extent = extent
-        self._progress_history.clear()
+        self.operation = operation
         self.progress = progress
+        self._extent = extent
         self._event.set()
 
     def _reporter_loop(self):
@@ -169,7 +179,10 @@ class ProgressIndicator:
     def stop(self):
         self._endloop = True
         self._event.set()
+        
+        self.clear()
         self.terminal.stream.write(self.terminal.normal_cursor)
+        
         
     def __enter__(self):
         self.start()

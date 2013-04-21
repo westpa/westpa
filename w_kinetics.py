@@ -18,7 +18,8 @@ from westpa.binning import index_dtype
 from westpa.kinetics import find_macrostate_transitions
 from westpa.kinetics._kinetics import _fast_transition_state_copy #@UnresolvedImport
 from westpa.kinetics.matrates import estimate_rates
-from westtools.tool_classes import WESTSubcommand, WESTMasterCommand, WESTDataReader, IterRangeSelection
+from westtools.tool_classes import (WESTSubcommand, WESTMasterCommand, WESTDataReader, IterRangeSelection,
+                                    ProgressIndicatorComponent)
 
 
 ed_list_dtype = numpy.dtype([('istate', numpy.uint16), ('fstate', numpy.uint16), ('duration', numpy.float64),
@@ -31,6 +32,7 @@ class KineticsSubcommands(WESTSubcommand):
     
     def __init__(self, parent):
         super(KineticsSubcommands,self).__init__(parent)
+        self.progress = ProgressIndicatorComponent()
         self.data_reader = WESTDataReader()
         self.iter_range = IterRangeSelection() 
         self.output_file = None
@@ -54,9 +56,11 @@ class KineticsSubcommands(WESTSubcommand):
                              help='''Do not store kinetics results compressed. This can increase disk
                              use about 100-fold, but can dramatically speed up subsequent analysis
                              for "w_kinavg matrix". Default: compress kinetics results.''')
+        self.progress.add_args(parser)
         parser.set_defaults(compression=True)
         
     def process_args(self, args):
+        self.progress.process_args(args)
         self.assignments_file = h5io.WESTPAH5File(args.assignments, 'r')
         self.data_reader.process_args(args)
         with self.data_reader:
@@ -91,9 +95,12 @@ Output format
 The output file (-o/--output, by default "kintrace.h5") contains the
 following datasets:
 
-  ``/trace_macro_fluxes`` [iteration][state][state]
+  ``/conditional_fluxes`` [iteration][state][state]
     *(Floating-point)* Macrostate-to-macrostate fluxes. These are **not**
     normalized by the population of the initial macrostate.
+    
+  ``/target_fluxes`` [iteration][state]
+    *(Floating-point)* Total flux into a given macrostate.
 
   ``/duration_count`` [iteration]
     *(Integer)* The number of event durations recorded in each iteration.
@@ -111,84 +118,94 @@ following datasets:
       weight
         *(Floating-point)* Weight of trajectory at end of transition, **not**
         normalized by initial state population.
-                
-Because fluxes stored in this file are not normalized by initial macrostate 
-population, they cannot be used as rates without further processing. The
-``w_kinavg`` command is used to perform this normalization while taking 
-statistical fluctuation and correlation into account. See 
-``w_kinavg trace --help`` for more information.
+
+Because state-to-state fluxes stored in this file are not normalized by
+initial macrostate population, they cannot be used as rates without further
+processing. The ``w_kinavg`` command is used to perform this normalization
+while taking statistical fluctuation and correlation into account. See 
+``w_kinavg trace --help`` for more information.  Target fluxes (total flux
+into a given state) require no such normalization.
 
 -----------------------------------------------------------------------------
 Command-line options
 -----------------------------------------------------------------------------
 '''
     
-        
-    def go(self): 
-        self.data_reader.open('r')
-        nstates = self.assignments_file.attrs['nstates']
-        start_iter, stop_iter = self.iter_range.iter_start, self.iter_range.iter_stop # h5io.get_iter_range(self.assignments_file)
-        iter_count = stop_iter - start_iter
-        
-                        
-        durations_ds = self.output_file.create_dataset('durations', 
-                                                       shape=(iter_count,0), maxshape=(iter_count,None),
-                                                       dtype=ed_list_dtype,
-                                                       chunks=(1,15360) if self.do_compression else None,
-                                                       shuffle=self.do_compression,
-                                                       compression=9 if self.do_compression else None)
-        durations_count_ds = self.output_file.create_dataset('duration_count',
-                                                             shape=(iter_count,), dtype=numpy.int_, shuffle=True,compression=9)
-        trace_fluxes_ds = self.output_file.create_dataset('trace_macro_fluxes', shape=(iter_count,nstates,nstates), dtype=weight_dtype,
-                                                          chunks=h5io.calc_chunksize((iter_count,nstates,nstates),weight_dtype),
-                                                          shuffle=self.do_compression,
-                                                          compression=9 if self.do_compression else None)
-        
-        # Put nice labels on things
-        for ds in (self.output_file, durations_count_ds, trace_fluxes_ds):
-            h5io.stamp_iter_range(ds, start_iter, stop_iter)
-            
-        # Calculate instantaneous rate matrices and trace trajectories
-        last_state = None
-        for iiter, n_iter in enumerate(xrange(start_iter, stop_iter)):
-            if sys.stdout.isatty() and not westpa.rc.quiet_mode:
-                print('\rIteration {}'.format(n_iter),end='')
-                sys.stdout.flush()
-            
-            # Get data from the main HDF5 file
-            iter_group = self.data_reader.get_iter_group(n_iter)
-            seg_index = iter_group['seg_index']
-            nsegs, npts = iter_group['pcoord'].shape[0:2] 
-            weights = seg_index['weight']
-            parent_ids = seg_index['parent_id']
-            
-            # Get bin and traj. ensemble assignments from the previously-generated assignments file
-            assignment_iiter = h5io.get_iteration_entry(self.assignments_file, n_iter)
-            bin_assignments = numpy.require(self.assignments_file['assignments'][assignment_iiter + numpy.s_[:nsegs,:npts]],
-                                            dtype=index_dtype)
-            label_assignments = numpy.require(self.assignments_file['trajlabels'][assignment_iiter + numpy.s_[:nsegs,:npts]],
-                                              dtype=index_dtype)
-            
-            # Prepare to run analysis
-            macro_fluxes = numpy.zeros((nstates,nstates), weight_dtype)
-            durations = []            
 
-            # Estimate macrostate fluxes and calculate event durations using trajectory tracing
-            # state is opaque to the find_macrostate_transitions function            
-            state = _fast_transition_state_copy(iiter, nstates, parent_ids, last_state)
-            find_macrostate_transitions(nstates, weights, label_assignments, 1.0/(npts-1), state, macro_fluxes, durations)
-            last_state = state
+    def go(self):
+        pi = self.progress.indicator
+        pi.new_operation('Initializing')
+        with pi:
+            self.data_reader.open('r')
+            nstates = self.assignments_file.attrs['nstates']
+            start_iter, stop_iter = self.iter_range.iter_start, self.iter_range.iter_stop # h5io.get_iter_range(self.assignments_file)
+            iter_count = stop_iter - start_iter
+            durations_ds = self.output_file.create_dataset('durations', 
+                                                           shape=(iter_count,0), maxshape=(iter_count,None),
+                                                           dtype=ed_list_dtype,
+                                                           chunks=(1,15360) if self.do_compression else None,
+                                                           shuffle=self.do_compression,
+                                                           compression=9 if self.do_compression else None)
+            durations_count_ds = self.output_file.create_dataset('duration_count',
+                                                                 shape=(iter_count,), dtype=numpy.int_, shuffle=True,compression=9)
+            cond_fluxes_ds = self.output_file.create_dataset('conditional_fluxes',
+                                                              shape=(iter_count,nstates,nstates), dtype=weight_dtype,
+                                                              chunks=(h5io.calc_chunksize((iter_count,nstates,nstates),weight_dtype)
+                                                                      if self.do_compression else None),
+                                                              shuffle=self.do_compression,
+                                                              compression=9 if self.do_compression else None)
+            target_fluxes_ds = self.output_file.create_dataset('target_fluxes',
+                                                              shape=(iter_count,nstates), dtype=weight_dtype,
+                                                              chunks=(h5io.calc_chunksize((iter_count,nstates),weight_dtype)
+                                                                      if self.do_compression else None),
+                                                              shuffle=self.do_compression,
+                                                              compression=9 if self.do_compression else None)
+            # Put nice labels on things
+            for ds in (self.output_file, durations_count_ds, cond_fluxes_ds, target_fluxes_ds):
+                h5io.stamp_iter_range(ds, start_iter, stop_iter)
+                
+            # Calculate instantaneous rate matrices and trace trajectories
+            last_state = None
+            pi.new_operation('Tracing trajectories', iter_count)
+            for iiter, n_iter in enumerate(xrange(start_iter, stop_iter)):
+                # Get data from the main HDF5 file
+                iter_group = self.data_reader.get_iter_group(n_iter)
+                seg_index = iter_group['seg_index']
+                nsegs, npts = iter_group['pcoord'].shape[0:2] 
+                weights = seg_index['weight']
+                parent_ids = seg_index['parent_id']
+                
+                # Get bin and traj. ensemble assignments from the previously-generated assignments file
+                assignment_iiter = h5io.get_iteration_entry(self.assignments_file, n_iter)
+                bin_assignments = numpy.require(self.assignments_file['assignments'][assignment_iiter + numpy.s_[:nsegs,:npts]],
+                                                dtype=index_dtype)
+                label_assignments = numpy.require(self.assignments_file['trajlabels'][assignment_iiter + numpy.s_[:nsegs,:npts]],
+                                                  dtype=index_dtype)
+                
+                # Prepare to run analysis
+                cond_fluxes = numpy.zeros((nstates,nstates), weight_dtype)
+                target_fluxes = numpy.zeros((nstates,), weight_dtype)
+                durations = []
+    
+                # Estimate macrostate fluxes and calculate event durations using trajectory tracing
+                # state is opaque to the find_macrostate_transitions function            
+                state = _fast_transition_state_copy(iiter, nstates, parent_ids, last_state)
+                find_macrostate_transitions(nstates, weights, label_assignments, 1.0/(npts-1), state,
+                                            cond_fluxes, target_fluxes, durations)
+                last_state = state
+                
+                # Store trace-based kinetics data
+                cond_fluxes_ds[iiter] = cond_fluxes
+                target_fluxes_ds[iiter] = target_fluxes
+                durations_count_ds[iiter] = len(durations)
+                if len(durations) > 0:
+                    durations_ds.resize((iter_count, max(len(durations), durations_ds.shape[1])))
+                    durations_ds[iiter,:len(durations)] = durations
+                        
+                # Do a little manual clean-up to prevent memory explosion
+                del iter_group, weights, parent_ids, bin_assignments, label_assignments, state, cond_fluxes, target_fluxes
+                pi.progress += 1
             
-            # Store trace-based kinetics data
-            trace_fluxes_ds[iiter] = macro_fluxes
-            durations_count_ds[iiter] = len(durations)
-            if len(durations) > 0:
-                durations_ds.resize((iter_count, max(len(durations), durations_ds.shape[1])))
-                durations_ds[iiter,:len(durations)] = durations
-                    
-            # Do a little manual clean-up to prevent memory explosion
-            del iter_group, weights, parent_ids, bin_assignments, label_assignments, state, macro_fluxes
-        print()
 
 class KinMatSubcommand(KineticsSubcommands):
     subcommand='matrix'
@@ -248,74 +265,75 @@ Command-line options
         self.window_size = args.windowsize
         self.all_lags = bool(args.all_lags)
         
-    #def calc_rate_matrices(self):
+    
     def go(self):
-        self.data_reader.open('r')
-        nbins = self.assignments_file.attrs['nbins']
-        state_labels = self.assignments_file['state_labels'][...]
-        state_map = self.assignments_file['state_map'][...]
-        nstates = len(state_labels)
-        start_iter, stop_iter = self.iter_range.iter_start, self.iter_range.iter_stop # h5io.get_iter_range(self.assignments_file)
-        iter_count = stop_iter - start_iter
-        
-        weights_ring = deque(maxlen=self.window_size)
-        parent_ids_ring = deque(maxlen=self.window_size)
-        bin_assignments_ring = deque(maxlen=self.window_size)
-        label_assignments_ring = deque(maxlen=self.window_size)
-        
-        labeled_matrix_shape = (iter_count,nstates,nstates,nbins,nbins)
-        
-        labeled_bin_fluxes_ds = self.output_file.create_dataset('labeled_bin_fluxes',
-                                                                shape=labeled_matrix_shape,
-                                                                chunks=(h5io.calc_chunksize(labeled_matrix_shape, weight_dtype)
-                                                                        if self.do_compression else None),
-                                                                compression=9 if self.do_compression else None,
-                                                                dtype=weight_dtype)
-
-        
-        for ds in (self.output_file, labeled_bin_fluxes_ds):
-            h5io.stamp_iter_range(ds, start_iter, stop_iter)
+        pi = self.progress.indicator
+        pi.new_operation('Initializing')
+        with pi:
+            self.data_reader.open('r')
+            nbins = self.assignments_file.attrs['nbins']
+            state_labels = self.assignments_file['state_labels'][...]
+            state_map = self.assignments_file['state_map'][...]
+            nstates = len(state_labels)
+            start_iter, stop_iter = self.iter_range.iter_start, self.iter_range.iter_stop # h5io.get_iter_range(self.assignments_file)
+            iter_count = stop_iter - start_iter
             
-        for ds in (labeled_bin_fluxes_ds,):
-            h5io.label_axes(ds, ['iteration','initial state','final state','inital bin','final bin'])
-
-        # Calculate instantaneous rate matrices and trace trajectories
-        for iiter, n_iter in enumerate(xrange(start_iter, stop_iter)):
-            if sys.stdout.isatty() and not westpa.rc.quiet_mode:
-                print('\rIteration {}'.format(n_iter),end='')
-                sys.stdout.flush()
+            weights_ring = deque(maxlen=self.window_size)
+            parent_ids_ring = deque(maxlen=self.window_size)
+            bin_assignments_ring = deque(maxlen=self.window_size)
+            label_assignments_ring = deque(maxlen=self.window_size)
             
-            # Get data from the main HDF5 file
-            iter_group = self.data_reader.get_iter_group(n_iter)
-            seg_index = iter_group['seg_index']
-            nsegs, npts = iter_group['pcoord'].shape[0:2] 
-            weights = seg_index['weight']
-            parent_ids = seg_index['parent_id']
+            labeled_matrix_shape = (iter_count,nstates,nstates,nbins,nbins)
             
-            # Get bin and traj. ensemble assignments from the previously-generated assignments file
-            assignment_iiter = h5io.get_iteration_entry(self.assignments_file, n_iter)
-            bin_assignments = numpy.require(self.assignments_file['assignments'][assignment_iiter + numpy.s_[:nsegs,:npts]],
-                                            dtype=index_dtype)
-            label_assignments = numpy.require(self.assignments_file['trajlabels'][assignment_iiter + numpy.s_[:nsegs,:npts]],
-                                              dtype=index_dtype)
+            labeled_bin_fluxes_ds = self.output_file.create_dataset('labeled_bin_fluxes',
+                                                                    shape=labeled_matrix_shape,
+                                                                    chunks=(h5io.calc_chunksize(labeled_matrix_shape, weight_dtype)
+                                                                            if self.do_compression else None),
+                                                                    compression=9 if self.do_compression else None,
+                                                                    dtype=weight_dtype)
+    
             
-            # Prepare to run analysis            
-            weights_ring.append(weights)
-            parent_ids_ring.append(parent_ids)
-            bin_assignments_ring.append(bin_assignments)
-            label_assignments_ring.append(label_assignments)
-            
-            # Estimate rates using bin-to-bin fluxes
-            fluxes = estimate_rates(nbins, state_labels,
-                                    weights_ring, parent_ids_ring, bin_assignments_ring, label_assignments_ring, state_map,
-                                    self.all_lags)
-            
-            # Store bin-based kinetics data
-            labeled_bin_fluxes_ds[iiter] = fluxes
-                                
-            # Do a little manual clean-up to prevent memory explosion
-            del iter_group, weights, parent_ids, bin_assignments, label_assignments, fluxes
-        print()
+            for ds in (self.output_file, labeled_bin_fluxes_ds):
+                h5io.stamp_iter_range(ds, start_iter, stop_iter)
+                
+            for ds in (labeled_bin_fluxes_ds,):
+                h5io.label_axes(ds, ['iteration','initial state','final state','inital bin','final bin'])
+    
+            pi.new_operation('Calculating flux matrices', iter_count)
+            # Calculate instantaneous rate matrices and trace trajectories
+            for iiter, n_iter in enumerate(xrange(start_iter, stop_iter)):
+                
+                # Get data from the main HDF5 file
+                iter_group = self.data_reader.get_iter_group(n_iter)
+                seg_index = iter_group['seg_index']
+                nsegs, npts = iter_group['pcoord'].shape[0:2] 
+                weights = seg_index['weight']
+                parent_ids = seg_index['parent_id']
+                
+                # Get bin and traj. ensemble assignments from the previously-generated assignments file
+                assignment_iiter = h5io.get_iteration_entry(self.assignments_file, n_iter)
+                bin_assignments = numpy.require(self.assignments_file['assignments'][assignment_iiter + numpy.s_[:nsegs,:npts]],
+                                                dtype=index_dtype)
+                label_assignments = numpy.require(self.assignments_file['trajlabels'][assignment_iiter + numpy.s_[:nsegs,:npts]],
+                                                  dtype=index_dtype)
+                
+                # Prepare to run analysis            
+                weights_ring.append(weights)
+                parent_ids_ring.append(parent_ids)
+                bin_assignments_ring.append(bin_assignments)
+                label_assignments_ring.append(label_assignments)
+                
+                # Estimate rates using bin-to-bin fluxes
+                fluxes = estimate_rates(nbins, state_labels,
+                                        weights_ring, parent_ids_ring, bin_assignments_ring, label_assignments_ring, state_map,
+                                        self.all_lags)
+                
+                # Store bin-based kinetics data
+                labeled_bin_fluxes_ds[iiter] = fluxes
+                                    
+                # Do a little manual clean-up to prevent memory explosion
+                del iter_group, weights, parent_ids, bin_assignments, label_assignments, fluxes
+                pi.progress += 1
 
 class WKinetics(WESTMasterCommand):
     prog = 'w_kinetics'
