@@ -24,7 +24,8 @@ from h5py import h5s
 
 import westpa
 from west.data_manager import weight_dtype, n_iter_dtype
-from westtools.tool_classes import WESTMasterCommand, WESTParallelTool, WESTDataReader, IterRangeSelection, WESTSubcommand
+from westtools.tool_classes import (WESTMasterCommand, WESTParallelTool, WESTDataReader, IterRangeSelection, WESTSubcommand,
+                                    ProgressIndicatorComponent)
 from westpa import h5io
 from westpa.kinetics import labeled_flux_to_rate, sequence_macro_flux_to_rate
 from westpa.kinetics.matrates import get_macrostate_rates
@@ -49,7 +50,8 @@ class KinAvgSubcommands(WESTSubcommand):
         super(KinAvgSubcommands,self).__init__(parent)
         
         self.data_reader = WESTDataReader()
-        self.iter_range = IterRangeSelection() 
+        self.iter_range = IterRangeSelection()
+        self.progress = ProgressIndicatorComponent()
         
         self.output_filename = None
         self.kinetics_filename = None
@@ -72,6 +74,7 @@ class KinAvgSubcommands(WESTSubcommand):
         
             
     def add_args(self, parser):
+        self.progress.add_args(parser)
         self.data_reader.add_args(parser)
         self.iter_range.include_args['iter_step'] = True
         self.iter_range.add_args(parser)
@@ -122,6 +125,7 @@ class KinAvgSubcommands(WESTSubcommand):
 
     
     def process_args(self, args):
+        self.progress.process_args(args)
         self.data_reader.process_args(args)
         with self.data_reader:
             self.iter_range.process_args(args, default_iter_step=None)
@@ -139,16 +143,21 @@ class KinAvgSubcommands(WESTSubcommand):
         
         self.evolution_mode = args.evolution_mode
         
-def _eval_block(iblock, start, stop, nstates, rates, mcbs_alpha, mcbs_nsets, mcbs_acalpha):
-    results = []
+def _eval_block(iblock, start, stop, nstates, target_fluxes, rates, mcbs_alpha, mcbs_nsets, mcbs_acalpha):
+    results = [[],[]]
     for istate in xrange(nstates):
+        ci_res = mcbs_ci_correl(target_fluxes[:,istate],estimator=numpy.mean,
+                                    alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
+                                    subsample=numpy.mean)
+        results[0].append((iblock,istate,(start,stop)+ci_res))
+        
         for jstate in xrange(nstates):
             if istate == jstate: continue
             
             ci_res = mcbs_ci_correl(rates[:,istate,jstate],estimator=numpy.mean,
                                     alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
                                     subsample=numpy.mean)
-            results.append((iblock, istate, jstate, (start,stop) + ci_res))
+            results[1].append((iblock, istate, jstate, (start,stop) + ci_res))
     return results
         
 class AvgTraceSubcommand(KinAvgSubcommands):
@@ -160,83 +169,120 @@ class AvgTraceSubcommand(KinAvgSubcommands):
         super(AvgTraceSubcommand,self).__init__(parent)
                         
     def go(self):
-        self.open_files()
-        nstates = self.assignments_file.attrs['nstates']
-        nbins = self.assignments_file.attrs['nbins']
-        state_labels = self.assignments_file['state_labels'][...]
-        assert nstates == len(state_labels)
-        start_iter, stop_iter, step_iter = self.iter_range.iter_start, self.iter_range.iter_stop, self.iter_range.iter_step
-        
-        fluxes = h5io.IterBlockedDataset(self.kinetics_file['trace_macro_fluxes'])
-        fluxes.cache_data()
-        pops = h5io.IterBlockedDataset(self.assignments_file['labeled_populations'])
-        pops.cache_data()
-        pops.data = pops.data.sum(axis=2)
-        
-        rates = h5io.IterBlockedDataset.empty_like(fluxes)
-        rates.data = sequence_macro_flux_to_rate(fluxes.data, pops.data[:nstates,:nbins])
-        
-        avg_rates = numpy.zeros((nstates,nstates), dtype=ci_dtype)
-        
-        # Calculate overall average rates
-        print('evaluating overall averages...')
-        for istate in xrange(nstates):
-            for jstate in xrange(nstates):
-                if istate == jstate: continue
-                
-                ci_res = mcbs_ci_correl(rates.iter_slice(start_iter,stop_iter)[:,istate,jstate],estimator=numpy.mean,
-                                        alpha=self.mcbs_alpha,n_sets=self.mcbs_nsets,autocorrel_alpha=self.mcbs_acalpha,
-                                        subsample=numpy.mean)
-                
-                avg_rates[istate, jstate] = (start_iter, stop_iter) + ci_res
-        self.output_file['avg_rates'] = avg_rates
-        self.stamp_mcbs_info(self.output_file['avg_rates'])
-        self.output_file['state_labels'] = state_labels
-        maxlabellen = max(map(len,state_labels))
-        for istate in xrange(nstates):
-            for jstate in xrange(nstates):
-                if istate == jstate: continue
-                print('{:{maxlabellen}s} -> {:{maxlabellen}s}: mean={:21.15e} CI=({:21.15e}, {:21.15e}) * tau^-1'
-                      .format(state_labels[istate], state_labels[jstate],
-                              avg_rates['expected'][istate,jstate],
-                              avg_rates['ci_lbound'][istate,jstate],
-                              avg_rates['ci_ubound'][istate,jstate],
-                              maxlabellen=maxlabellen))
-        
-        # skip evolution if not requested
-        if self.evolution_mode == 'none' or not step_iter: return
-        
-        print('\nevaluating CI evolution...')
-        
-        start_pts = range(start_iter, stop_iter, step_iter)
-        evol = numpy.zeros((len(start_pts), nstates, nstates), dtype=ci_dtype)
-        futures = []
-        for iblock, start in enumerate(start_pts):
-            if self.evolution_mode == 'cumulative':
-                block_start = start_iter
-            else: # self.evolution_mode == 'blocked'
-                block_start = start
-            stop = min(start+step_iter, stop_iter)
+        pi = self.progress.indicator
+        with pi:
+            pi.new_operation('Initializing')
+            self.open_files()
+            nstates = self.assignments_file.attrs['nstates']
+            nbins = self.assignments_file.attrs['nbins']
+            state_labels = self.assignments_file['state_labels'][...]
+            assert nstates == len(state_labels)
+            start_iter, stop_iter, step_iter = self.iter_range.iter_start, self.iter_range.iter_stop, self.iter_range.iter_step
             
-            future = self.work_manager.submit(_eval_block, kwargs=dict(iblock=iblock, start=block_start, stop=stop,
-                                                                       nstates=nstates,
-                                                                       rates=rates.iter_slice(block_start,stop),
-                                                                       mcbs_alpha=self.mcbs_alpha, mcbs_nsets=self.mcbs_nsets,
-                                                                       mcbs_acalpha=self.mcbs_acalpha))
-            futures.append(future)
-        
-        for iresult, future in enumerate(self.work_manager.as_completed(futures)):
-            if sys.stdout.isatty() and not westpa.rc.quiet_mode:
-                print('\r{} of {} blocks done...'.format(iresult+1,len(start_pts)), end='')
-            results = future.get_result(discard=True)
-            for result in results:
-                iblock, istate, jstate, ci_result = result 
-                evol[iblock, istate, jstate] = ci_result
-        if sys.stdout.isatty() and not westpa.rc.quiet_mode:
-            print()
+            pi.new_operation('Reading data')
+            cond_fluxes = h5io.IterBlockedDataset(self.kinetics_file['conditional_fluxes'])
+            cond_fluxes.cache_data()
+            target_fluxes = h5io.IterBlockedDataset(self.kinetics_file['target_fluxes'])
+            pops = h5io.IterBlockedDataset(self.assignments_file['labeled_populations'])
+            pops.cache_data()
+            pops.data = pops.data.sum(axis=2)
+            
+            rates = h5io.IterBlockedDataset.empty_like(cond_fluxes)
+            rates.data = sequence_macro_flux_to_rate(cond_fluxes.data, pops.data[:nstates,:nbins])
+            
+            avg_fluxes = numpy.zeros((nstates,), dtype=ci_dtype)
+            avg_rates = numpy.zeros((nstates,nstates), dtype=ci_dtype)
+            
+            # Calculate overall average rates
+            pi.new_operation('Calculating overall fluxes into states', nstates)
+            for istate in xrange(nstates):
+                ci_res = mcbs_ci_correl(target_fluxes.iter_slice(start_iter,stop_iter)[:,istate],estimator=numpy.mean,
+                                            alpha=self.mcbs_alpha,n_sets=self.mcbs_nsets,autocorrel_alpha=self.mcbs_acalpha,
+                                            subsample=numpy.mean)
+                avg_fluxes[istate] = (start_iter, stop_iter) + ci_res
+                pi.progress += 1
+            
+            pi.new_operation('Calculating state-to-state fluxes', nstates*(nstates-1))
+            for istate in xrange(nstates):
+                for jstate in xrange(nstates):
+                    if istate == jstate: continue
                     
-        self.output_file.create_dataset('rate_evolution', data=evol, shuffle=True, compression=9)
-        self.stamp_mcbs_info(self.output_file['rate_evolution'])
+                    ci_res = mcbs_ci_correl(rates.iter_slice(start_iter,stop_iter)[:,istate,jstate],estimator=numpy.mean,
+                                            alpha=self.mcbs_alpha,n_sets=self.mcbs_nsets,autocorrel_alpha=self.mcbs_acalpha,
+                                            subsample=numpy.mean)
+                    
+                    avg_rates[istate, jstate] = (start_iter, stop_iter) + ci_res
+                    pi.progress += 1
+                    
+            pi.new_operation('Saving averages')
+            self.output_file['avg_rates'] = avg_rates
+            self.output_file['avg_fluxes'] = avg_fluxes
+            self.stamp_mcbs_info(self.output_file['avg_rates'])
+            self.stamp_mcbs_info(self.output_file['avg_fluxes'])
+            self.output_file['state_labels'] = state_labels
+            maxlabellen = max(map(len,state_labels))
+            pi.clear()
+            
+            print('fluxes into macrostates:')
+            for istate in xrange(nstates):
+                print('{:{maxlabellen}s}: mean={:21.15e} CI=({:21.15e}, {:21.15e}) * tau^-1'
+                      .format(state_labels[istate],
+                              avg_fluxes['expected'][istate],
+                              avg_fluxes['ci_lbound'][istate],
+                              avg_fluxes['ci_ubound'][istate],
+                              maxlabellen=maxlabellen))
+                
+            print('\nrates from state to state:')
+            for istate in xrange(nstates):
+                for jstate in xrange(nstates):
+                    if istate == jstate: continue
+                    print('{:{maxlabellen}s} -> {:{maxlabellen}s}: mean={:21.15e} CI=({:21.15e}, {:21.15e}) * tau^-1'
+                          .format(state_labels[istate], state_labels[jstate],
+                                  avg_rates['expected'][istate,jstate],
+                                  avg_rates['ci_lbound'][istate,jstate],
+                                  avg_rates['ci_ubound'][istate,jstate],
+                                  maxlabellen=maxlabellen))
+            
+            # skip evolution if not requested
+            if self.evolution_mode == 'none' or not step_iter: return
+            
+            
+            
+            start_pts = range(start_iter, stop_iter, step_iter)
+            target_evol = numpy.zeros((len(start_pts), nstates), dtype=ci_dtype)
+            rate_evol = numpy.zeros((len(start_pts), nstates, nstates), dtype=ci_dtype)
+            pi.new_operation('Calculating flux/rate evolution', len(start_pts))
+            futures = []
+            for iblock, start in enumerate(start_pts):
+                if self.evolution_mode == 'cumulative':
+                    block_start = start_iter
+                else: # self.evolution_mode == 'blocked'
+                    block_start = start
+                stop = min(start+step_iter, stop_iter)
+                
+                future = self.work_manager.submit(_eval_block, kwargs=dict(iblock=iblock, start=block_start, stop=stop,
+                                                                           nstates=nstates,
+                                                                           target_fluxes=target_fluxes.iter_slice(block_start,stop),
+                                                                           rates=rates.iter_slice(block_start,stop),
+                                                                           mcbs_alpha=self.mcbs_alpha, mcbs_nsets=self.mcbs_nsets,
+                                                                           mcbs_acalpha=self.mcbs_acalpha))
+                futures.append(future)
+            
+            for future in self.work_manager.as_completed(futures):
+                pi.progress += 1
+                target_results, cond_results = future.get_result(discard=True)
+                for result in target_results:
+                    iblock,istate,ci_result = result
+                    target_evol[iblock,istate] = ci_result
+                
+                for result in cond_results:
+                    iblock, istate, jstate, ci_result = result 
+                    rate_evol[iblock, istate, jstate] = ci_result
+
+            self.output_file.create_dataset('target_flux_evolution', data=target_evol, shuffle=True, compression=9)
+            self.output_file.create_dataset('rate_evolution', data=rate_evol, shuffle=True, compression=9)
+            self.stamp_mcbs_info(self.output_file['rate_evolution'])
+            self.stamp_mcbs_info(self.output_file['target_flux_evolution'])
 
 
 def _calc_ci_block(block_label, assignments_filename, kinetics_filename, istate, jstate, start_iter, stop_iter,

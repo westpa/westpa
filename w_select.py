@@ -17,9 +17,9 @@
 
 from __future__ import print_function, division; __metaclass__ = type
 import sys
-from westtools.tool_classes import WESTTool, HDF5Storage, WESTDataReader
+from westtools.tool_classes import WESTTool, WESTDataReader
 from itertools import imap
-import numpy, h5py, operator, functools
+import numpy
 
 import westpa
 from west.data_manager import (weight_dtype, n_iter_dtype, seg_id_dtype, utime_dtype, vstr_dtype, 
@@ -95,8 +95,7 @@ N_ITER:SEG_ID pairs, separated by newlines.
                              help='''Match segments which are recycled. If the optional TSTATE_INDEX is
                              given, match only segments recycled from the given target state. This is the
                              predicate to use when searching for segments involved in "successful"
-                             trajectories.''')        
-        
+                             trajectories.''')
         
         sgroup.add_argument('-v', '--invert', dest='invert', action='store_true',
                             help='''Invert the match predicate.''')
@@ -130,8 +129,8 @@ N_ITER:SEG_ID pairs, separated by newlines.
         else:
             self.output_file = sys.stdout
         
-        self.data_reader.process_args(args)        
-            
+        self.data_reader.process_args(args)
+        
     def go(self):
         self.data_reader.open('r')
         
