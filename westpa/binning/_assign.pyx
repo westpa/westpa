@@ -1,4 +1,5 @@
-# Copyright (C) 2013 Matthew C. Zwier, Joshua L. Adelman, and Nick Rego
+# Copyright (C) 2013 Matthew C. Zwier, Joshua L. Adelman, Nick Rego,
+# and Lillian T. Chong
 #
 # This file is part of WESTPA.
 #

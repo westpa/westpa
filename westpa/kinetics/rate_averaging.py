@@ -1,4 +1,4 @@
-# Copyright (C) 2013 Matthew C. Zwier and Joshua L. Adelman
+# Copyright (C) 2013 Matthew C. Zwier, Joshua L. Adelman, and Lillian T. Chong
 #
 # This file is part of WESTPA.
 #
