@@ -21,6 +21,11 @@
 import sys, os, getpass, socket, time
 import numpy, h5py
 from numpy import index_exp
+try:
+    import psutil
+except ImportError:
+    psutil = None
+
 
 #
 # Constants and globals
@@ -456,7 +461,20 @@ class IterBlockedDataset:
         self.iter_start = attrs['iter_start']
         self.iter_stop = attrs['iter_stop']
         
-    def cache_data(self): 
+    def cache_data(self, max_size=None):
+        '''Cache this dataset in RAM. If ``max_size`` is given, then only cache if the entire dataset
+        fits in ``max_size`` bytes. If ``max_size`` is the string 'available', then only cache if 
+        the entire dataset fits in available RAM, as defined by the ``psutil`` module.'''
+        
+        if max_size is not None:
+            dssize = self.dtype.item_size * numpy.multiply.reduce(self.dataset.shape)
+            if max_size == 'available' and psutil is not None:
+                avail_bytes = psutil.virtual_memory().available
+                if dssize > avail_bytes:
+                    return
+            else:
+                if dssize > max_size:
+                    return
         if self.dataset is not None:
             if self.data is None:
                 self.data = self.dataset[...]

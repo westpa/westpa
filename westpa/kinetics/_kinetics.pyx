@@ -466,10 +466,11 @@ cpdef _fast_transition_state_copy(Py_ssize_t iiter,
 @cython.wraparound(False)    
 cpdef find_macrostate_transitions(Py_ssize_t nstates, 
                                   weight_t[:] weights,
-                                  index_t[:,:] label_assignments, 
+                                  index_t[:,:] label_assignments,
                                   double dt, 
                                   object state,
-                                  weight_t[:,:] macro_fluxes, 
+                                  weight_t[:,:] macro_fluxes,
+                                  weight_t[:] target_fluxes,
                                   object durations):
     cdef:
         Py_ssize_t nsegs, npts, seg_id, ipt
@@ -499,13 +500,14 @@ cpdef find_macrostate_transitions(Py_ssize_t nstates,
             tm = itime + ipt*dt
             flabel = label_assignments[seg_id,ipt]
             ilabel = label_assignments[seg_id,ipt-1]
-            
+
             # if we have wound up in a new kinetic macrostate
             if flabel != ilabel:
+                target_fluxes[flabel] += _weight
                 _last_exits[seg_id,ilabel] = tm
                 _last_entries[seg_id,flabel] = tm
-                                            
-                for iistate in xrange(nstates):                    
+
+                for iistate in xrange(nstates):
                     # if we have more recently returned to iistate than arrived at flabel from iistate,
                     # we note a new completed transition from iistate to flabel
                     # equality applies only for 0, which means we're counting an arrival from the
@@ -513,13 +515,10 @@ cpdef find_macrostate_transitions(Py_ssize_t nstates,
                     if _last_exits[seg_id, iistate] > 0 and _last_entries[seg_id,iistate] >= _last_completions[seg_id,iistate,flabel]:
                         macro_fluxes[iistate,flabel] += _weight
                         _last_completions[seg_id,iistate,flabel] = tm
-                        
+
                         if iistate != flabel:
                             t_ed = tm - _last_exits[seg_id,iistate]
                             durations.append((iistate,flabel,t_ed,_weight))
-
-
-        
         _last_time[seg_id] = tm
-        
+
 
