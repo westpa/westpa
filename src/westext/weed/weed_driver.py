@@ -1,4 +1,4 @@
-# Copyright (C) 2013 Matthew C. Zwier and Lillian T. Chong
+# Copyright (C) 2013 Matthew C. Zwier
 #
 # This file is part of WESTPA.
 #
