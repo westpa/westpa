@@ -136,7 +136,7 @@ cpdef apply_down(func,
     n = len(output)
     for i from 0 <= i < n:
         if mask[i]:
-            output[i] = func(coords[i], *args, **kwargs)
+            output[i] = func(numpy.asarray(coords[i]), *args, **kwargs)
 
 @cython.boundscheck(False)
 @cython.wraparound(False)    
@@ -161,7 +161,7 @@ cpdef apply_down_argmin_across(func,
     ncoord = len(coords)
     for icoord from 0 <= icoord < ncoord:
         if mask[icoord]:
-            func_output = func(coords[icoord], *args, **kwargs)
+            func_output = func(numpy.asarray(coords[icoord]), *args, **kwargs)
             if len(func_output) != func_output_len:
                 raise TypeError('function returned a vector of length {} (expected length {})'
                                 .format(len(func_output), func_output_len))
