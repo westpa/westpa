@@ -1,4 +1,4 @@
-# Copyright (C) 2013 Matthew C. Zwier and Nick Rego
+# Copyright (C) 2013 Matthew C. Zwier, Nick Rego, and Lillian T. Chong
 #
 # This file is part of WESTPA.
 #
