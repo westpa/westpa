@@ -194,7 +194,7 @@ class ProgressIndicator:
         t.daemon = True
         t.start()
         self._startup_event.wait()
-        self.terminal.stream.flush()
+        self.flush_output()
         
     def stop(self):
         self._endloop = True
@@ -202,7 +202,7 @@ class ProgressIndicator:
         
         self.clear()
         self.terminal.stream.write(self.terminal.normal_cursor)
-        self.terminal.stream.flush()
+        self.flush_output()
         
         
     def __enter__(self):

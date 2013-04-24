@@ -293,3 +293,32 @@ cpdef accumulate_labeled_populations(weight_t[:]  weights,
                         raise ValueError('invalid trajectory label for segment {} point {}'.format(seg_id, ipt))
                 
                 labeled_bin_pops[traj_assignment,assignment] += ptwt
+                
+@cython.boundscheck(False)
+@cython.wraparound(False)
+cpdef accumulate_state_populations_from_labeled(weight_t[:,:] labeled_bin_pops,
+                                                index_t[:] state_map,
+                                                weight_t[:] state_pops,
+                                                check_state_map = True):
+    cdef:
+        Py_ssize_t nbins, nstates, ibin, ilabel, istate
+    
+    if state_pops.shape[0] != labeled_bin_pops.shape[0]:
+        raise TypeError('shape mismatch')
+        
+    nstates = labeled_bin_pops.shape[0]
+    nbins = labeled_bin_pops.shape[1]
+    
+    if check_state_map:
+        for ibin in xrange(nbins):
+            if state_map[ibin] > nstates:
+                raise ValueError('invalid value in state map')
+
+    with nogil:
+        for ilabel in xrange(nstates):
+            for ibin in xrange(nbins):
+                istate = state_map[ibin]
+                if istate >= nstates:
+                    with gil:
+                        raise ValueError('invalid state label {}'.format(istate))
+                state_pops[state_map[ibin]] += labeled_bin_pops[ilabel,ibin]

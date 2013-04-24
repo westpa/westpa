@@ -315,10 +315,84 @@ plotted:
                         pi.progress += 1
             else:
                 print('rate evolution not available')
+
+class StateprobsPloterr(CommonPloterrs):
+    subcommand = 'stateprobs'
+    help_text = 'output of w_stateprobs'
+    description = '''\
+Plot evolution of macrostate populations and associated uncertainties. Plots
+are generated for all states calculated. Output filenames require (and plot
+titles and axis labels support) substitution based on which state is being
+plotted:
+
+  state_label
+    *(String, for fluxes)* Name of state
+    
+  state_index
+    *(Integer, for fluxes)* Index of state
+'''
+    
+    def __init__(self, parent):
+        super(StateprobsPloterr,self).__init__(parent)
+        self.stateprobs_file = None
+
+        self.dset_slice = None
+        self.rate_output_pattern = None
+        self.flux_output_pattern = None
+        
+        self.state_labels = None
+
+
+    def add_args(self, parser):
+        iogroup = parser.add_argument_group('input/output')
+        iogroup.add_argument('-i', '--input', default='stateprobs.h5',
+                             help='''Read w_kinavg results from INPUT (default: %(default)s).''')
+        iogroup.add_argument('--population-output', default='pop_evolution_{state_label}.pdf',
+                             help='''Filename pattern for population evolution output. See above for valid
+                             field names. (Default: %(default)r).''')
+    
+    def process_args(self, args):
+        self.stateprobs_file = h5py.File(args.input, 'r')
+        
+        self.state_labels = list(self.stateprobs_file['state_labels'][...])
+        self.pop_output_pattern = args.population_output
+                
+    def plot_pop(self, istate):
+        label = self.state_labels[istate]
+        data = self.stateprobs_file['state_pop_evolution'][:,istate]
+        
+        if (data['iter_start'] == 0).all():
+            # No data
+            return
+        
+        subdict = dict(state_label=label, state_index=istate)
+        
+        output_filename = self.pop_output_pattern.format(**subdict) if self.pop_output_pattern else None
+        
+        title = self.title if self.title is not None else 'Population in state "{state_label}"'
+        title = title.format(**subdict)
+        
+        x_label = self.xlabel.format(**subdict) if self.xlabel else None
+        y_label = self.ylabel if self.ylabel is not None else r'Population'
+        y_label = y_label.format(**subdict)
+        
+        self.do_plot(data, output_filename, title, x_label=x_label, y_label=y_label)
+    
+    def go(self):
+        pi = self.progress.indicator
+        nstates = len(self.state_labels)
+        with pi:
+            if 'state_pop_evolution' in self.stateprobs_file:
+                pi.new_operation('plotting populations', nstates)
+                for istate in xrange(nstates):
+                    self.plot_pop(istate)
+                    pi.progress += 1
+            else:
+                print('population evolution not available')
             
 class PloterrsTool(WESTMasterCommand):
     prog='ploterrs'
-    subcommands = [KinavgPloterr,GenericIntervalSubcommand]
+    subcommands = [KinavgPloterr,StateprobsPloterr,GenericIntervalSubcommand]
     subparsers_title = 'supported input formats'
     description = '''\
 Plots error ranges for weighted ensemble datasets. 

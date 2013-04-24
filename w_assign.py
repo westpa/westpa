@@ -48,7 +48,7 @@ def parse_pcoord_value(pc_str):
 
 def _assign_label_pop(n_iter, lb, ub, mapper, nstates, state_map, last_labels, parent_id_dsspec, weight_dsspec, pcoord_dsspec):    
 
-    nbins = len(state_map)
+    nbins = len(state_map)-1
     parent_ids = parent_id_dsspec.get_iter_data(n_iter,index_exp[lb:ub])
     weights = weight_dsspec.get_iter_data(n_iter,index_exp[lb:ub])
     pcoords = pcoord_dsspec.get_iter_data(n_iter,index_exp[lb:ub])
@@ -173,8 +173,8 @@ attributes datasets:
     *(Integer)* Number of segments in each iteration.
     
   ``/labeled_populations`` [iterations][state][bin]
-    *(Floating-point)* Per-segment and -timepoint bin populations, labeled by
-    most recently visited macrostate. The last state entry (*nstates-1*)
+    *(Floating-point)* Per-iteration and -timepoint bin populations, labeled
+    by most recently visited macrostate. The last state entry (*nstates-1*)
     corresponds to trajectories initiated outside of a defined macrostate.
     
 When macrostate assignments are given, the following additional datasets are
@@ -381,7 +381,7 @@ Command-line options
             nbins = self.binning.mapper.nbins
             self.output_file.attrs['nbins'] = nbins 
     
-            state_map = numpy.empty((self.binning.mapper.nbins,), index_dtype)
+            state_map = numpy.empty((self.binning.mapper.nbins+1,), index_dtype)
             state_map[:] = 0 # state_id == nstates => unknown state
     
             if self.states:
@@ -403,7 +403,7 @@ Command-line options
                     dsopts = {'compression': 9,
                               'shuffle': True}
                 self.output_file.create_dataset('state_map', data=state_map, **dsopts)
-                self.output_file['state_labels'] = state_labels
+                self.output_file['state_labels'] = state_labels #+ ['(unknown)']
             else:
                 nstates = 0
             self.output_file.attrs['nstates'] = nstates

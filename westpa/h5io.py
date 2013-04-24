@@ -500,7 +500,7 @@ class IterBlockedDataset:
         the entire dataset fits in available RAM, as defined by the ``psutil`` module.'''
         
         if max_size is not None:
-            dssize = self.dtype.item_size * numpy.multiply.reduce(self.dataset.shape)
+            dssize = self.dtype.itemsize * numpy.multiply.reduce(self.dataset.shape)
             if max_size == 'available' and psutil is not None:
                 avail_bytes = psutil.virtual_memory().available
                 if dssize > avail_bytes:
