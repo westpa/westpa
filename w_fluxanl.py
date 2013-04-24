@@ -36,12 +36,7 @@ target_index_dtype = numpy.dtype([('target_label', vstr_dtype),
                                   ('mean_flux_ci_ub', weight_dtype),
                                   ('mean_flux_correl_len', numpy.uintc)])
 
-ci_dtype = numpy.dtype([('iter_start', n_iter_dtype),
-                        ('iter_stop', n_iter_dtype),
-                        ('mean', numpy.float64),
-                        ('ci_lb', numpy.float64),
-                        ('ci_ub', numpy.float64),
-                        ('correl_len', numpy.uintc)])
+from westtools.dtypes import iter_block_ci_dtype as ci_dtype
 
 def _extract_fluxes_fileversion_lt_7(iter_start, iter_stop, data_manager):
     '''Extract fluxes from old format, where groups for iterations where recyling
@@ -299,8 +294,8 @@ the true value of ``tau``.
                                                                      subsample=numpy.mean)
                 cis[iblock]['iter_start'] = iter_start
                 cis[iblock]['iter_stop']  = block_iter_stop
-                cis[iblock]['mean'], cis[iblock]['ci_lb'], cis[iblock]['ci_ub'] = avg, ci_lb, ci_ub
-                cis[iblock]['correl_len'] = correl_len
+                cis[iblock]['expected'], cis[iblock]['ci_lbound'], cis[iblock]['ci_ubound'] = avg, ci_lb, ci_ub
+                cis[iblock]['corr_len'] = correl_len
                 
                 del fluxes
 

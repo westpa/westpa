@@ -34,6 +34,7 @@ class ProgressIndicator:
         self._progress = 0 # how far we've gone
         
         self._endloop = False
+        self._startup_event = threading.Event()
         self._event = threading.Event()
         
         self._last_update = None
@@ -46,7 +47,7 @@ class ProgressIndicator:
         except AttributeError:
             self.flush_output = nop
             
-        self.do_fancy = self.terminal.is_a_tty
+        self.fancy = self.terminal.is_a_tty
         
     def _completion_est(self):
         if self._extent is None:
@@ -122,13 +123,13 @@ class ProgressIndicator:
         
     def draw(self):
         if not self._operation: return
-        if self.do_fancy:
+        if self.fancy:
             self.draw_fancy()
         else:
             self.draw_simple()
             
     def clear(self):
-        if self.do_fancy:
+        if self.fancy:
             if self._extent:
                 nlines = 3
             else:
@@ -177,6 +178,7 @@ class ProgressIndicator:
         self._event.set()
 
     def _reporter_loop(self):
+        self._startup_event.set()
         while not self._endloop:
             self._event.wait(self.interval)
             self._event.clear()
@@ -190,8 +192,9 @@ class ProgressIndicator:
         self._endloop = False
         t = threading.Thread(target=self._reporter_loop)
         t.daemon = True
-        self.draw()
         t.start()
+        self._startup_event.wait()
+        self.terminal.stream.flush()
         
     def stop(self):
         self._endloop = True
@@ -199,6 +202,7 @@ class ProgressIndicator:
         
         self.clear()
         self.terminal.stream.write(self.terminal.normal_cursor)
+        self.terminal.stream.flush()
         
         
     def __enter__(self):

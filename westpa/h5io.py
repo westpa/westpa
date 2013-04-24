@@ -25,6 +25,8 @@ try:
     import psutil
 except ImportError:
     psutil = None
+import posixpath, errno
+from collections import deque
 
 
 #
@@ -34,11 +36,42 @@ default_iter_prec=8
 
 #
 # Helper functions
-# 
+#
+
+def resolve_filepath(path, constructor = h5py.File, cargs = None, ckwargs=None, **addtlkwargs):
+    '''Use a combined filesystem and HDF5 path to open an HDF5 file and return the appropriate
+    object. Returns (h5file, h5object). The file is opened using ``constructor(filename, **cargs)``.'''
+    
+    cargs = cargs or ()
+    ckwargs = ckwargs or {}
+    ckwargs.update(addtlkwargs)
+    objpieces = deque()
+    path = posixpath.normpath(path)
+    
+    filepieces = path.split('/')
+    while filepieces:
+        testpath = '/'.join(filepieces)
+        if not testpath:
+            filepieces.pop()
+            continue
+        try:
+            h5file = constructor(testpath, *cargs, **ckwargs)
+        except IOError:
+            objpieces.appendleft(filepieces.pop())
+            continue
+        else:
+            return (h5file, h5file['/'.join([''] + list(objpieces)) if objpieces else '/'])
+    else:
+        # We don't provide a filename, because we're not sure where the filename stops
+        # and the HDF5 path begins
+        raise IOError(errno.ENOENT, os.strerror(errno.ENOENT))
+    
+
+
 def calc_chunksize(shape, dtype, max_chunksize=262144):
     '''Calculate a chunk size for HDF5 data, anticipating that access will slice
     along lower dimensions sooner than higher dimensions.'''
-        
+
     chunk_shape = list(shape)
     dtype = numpy.dtype(dtype)
     for idim in xrange(len(shape)):
@@ -506,3 +539,5 @@ class IterBlockedDataset:
         
         source = self.data if self.data is not None else self.dataset
         return source[start - self.iter_start : stop - self.iter_start : step]
+
+

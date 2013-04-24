@@ -36,12 +36,7 @@ from mclib import mcbs_correltime, mcbs_ci_correl
 
 log = logging.getLogger('westtools.w_kinavg')
 
-ci_dtype = numpy.dtype([('iter_start', n_iter_dtype),
-                        ('iter_stop', n_iter_dtype),
-                        ('expected', numpy.float64),
-                        ('ci_lbound', numpy.float64),
-                        ('ci_ubound', numpy.float64),
-                        ('corr_len', n_iter_dtype)])
+from westtools.dtypes import iter_block_ci_dtype as ci_dtype
 
 class KinAvgSubcommands(WESTSubcommand):
     '''Common argument processing for w_kinavg subcommands'''
@@ -104,7 +99,7 @@ class KinAvgSubcommands(WESTSubcommand):
                              help='''Use NSETS samples for bootstrapping (default: chosen based on ALPHA)''')
         
         cogroup = parser.add_argument_group('calculation options')
-        cogroup.add_argument('--evolution-mode', choices=['cumulative', 'blocked', 'none'], default='none',
+        cogroup.add_argument('-e', '--evolution-mode', choices=['cumulative', 'blocked', 'none'], default='none',
                              help='''How to calculate time evolution of rate estimates.
                              ``cumulative`` evaluates rates over windows starting with --start-iter and getting progressively
                              wider to --stop-iter by steps of --step-iter.
@@ -510,9 +505,12 @@ available:
     element. If --evolution-mode=blocked, then these windows are all of
     width --step-iter (excluding the last, which may be shorter), the first
     of which begins at iteration --start-iter.
+
+  /target_flux_evolution [window][state] *trace mode only*
+    (Structured -- see below). Total flux into a given macro state based on
+    windows of iterations of varying width, as in /rate_evolution.
     
-Each element in these datasets reflects a state-to-state rate matrix evaluted
-over a certain window of iterations. The structure of the data is as follows:
+The structure of these datasets is as follows:
 
   iter_start
     (Integer) Iteration at which the averaging window begins (inclusive).
