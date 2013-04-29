@@ -110,7 +110,7 @@ following datasets:
     *(Floating-point)* Macrostate-to-macrostate fluxes. These are **not**
     normalized by the population of the initial macrostate.
     
-  ``/target_fluxes`` [iteration][state]
+  ``/total_fluxes`` [iteration][state]
     *(Floating-point)* Total flux into a given macrostate.
 
   ``/duration_count`` [iteration]
@@ -165,14 +165,14 @@ Command-line options
                                                                       if self.do_compression else None),
                                                               shuffle=self.do_compression,
                                                               compression=9 if self.do_compression else None)
-            target_fluxes_ds = self.output_file.create_dataset('target_fluxes',
+            total_fluxes_ds = self.output_file.create_dataset('total_fluxes',
                                                               shape=(iter_count,nstates), dtype=weight_dtype,
                                                               chunks=(h5io.calc_chunksize((iter_count,nstates),weight_dtype)
                                                                       if self.do_compression else None),
                                                               shuffle=self.do_compression,
                                                               compression=9 if self.do_compression else None)
             # Put nice labels on things
-            for ds in (self.output_file, durations_count_ds, cond_fluxes_ds, target_fluxes_ds):
+            for ds in (self.output_file, durations_count_ds, cond_fluxes_ds, total_fluxes_ds):
                 h5io.stamp_iter_range(ds, start_iter, stop_iter)
                 
             # Calculate instantaneous rate matrices and trace trajectories
@@ -195,26 +195,26 @@ Command-line options
                 
                 # Prepare to run analysis
                 cond_fluxes = numpy.zeros((nstates,nstates), weight_dtype)
-                target_fluxes = numpy.zeros((nstates,), weight_dtype)
+                total_fluxes = numpy.zeros((nstates,), weight_dtype)
                 durations = []
     
                 # Estimate macrostate fluxes and calculate event durations using trajectory tracing
                 # state is opaque to the find_macrostate_transitions function            
                 state = _fast_transition_state_copy(iiter, nstates, parent_ids, last_state)
                 find_macrostate_transitions(nstates, weights, label_assignments, 1.0/(npts-1), state,
-                                            cond_fluxes, target_fluxes, durations)
+                                            cond_fluxes, total_fluxes, durations)
                 last_state = state
                 
                 # Store trace-based kinetics data
                 cond_fluxes_ds[iiter] = cond_fluxes
-                target_fluxes_ds[iiter] = target_fluxes
+                total_fluxes_ds[iiter] = total_fluxes
                 durations_count_ds[iiter] = len(durations)
                 if len(durations) > 0:
                     durations_ds.resize((iter_count, max(len(durations), durations_ds.shape[1])))
                     durations_ds[iiter,:len(durations)] = durations
                         
                 # Do a little manual clean-up to prevent memory explosion
-                del iter_group, weights, parent_ids, bin_assignments, label_assignments, state, cond_fluxes, target_fluxes
+                del iter_group, weights, parent_ids, bin_assignments, label_assignments, state, cond_fluxes, total_fluxes
                 pi.progress += 1
             
 

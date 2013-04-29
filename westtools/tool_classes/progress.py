@@ -30,5 +30,5 @@ class ProgressIndicatorComponent(WESTToolComponent):
 
     def process_args(self, args):
         self.indicator = ProgressIndicator()
-        if westpa.rc.quiet_mode:
+        if westpa.rc.quiet_mode or westpa.rc.verbose_mode or westpa.rc.debug_mode:
             self.indicator.fancy = False

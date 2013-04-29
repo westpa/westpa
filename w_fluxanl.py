@@ -60,8 +60,9 @@ def _extract_fluxes_fileversion_lt_7(iter_start, iter_stop, data_manager):
         rdata = data_manager.get_iter_group(n_iter)['recycling']
         for itarget in xrange(target_count):            
             fluxdata[itarget][iiter]['n_iter'] = n_iter
-            fluxdata[itarget][iiter]['flux'] = rdata[flux_field]
-            fluxdata[itarget][iiter]['count'] = rdata['count']
+            fluxdata[itarget][iiter]['flux'] = rdata[itarget][flux_field]
+            fluxdata[itarget][iiter]['count'] = rdata[itarget]['count']
+        del rdata
         
     return fluxdata
 
@@ -223,8 +224,11 @@ the true value of ``tau``.
         output_group.attrs['version_code'] = self.output_format_version
         self.iter_range.record_data_iter_range(output_group)
         
+        n_targets = len(fluxdata)
         index = numpy.empty((len(fluxdata),), dtype=target_index_dtype)
-                        
+        avg_fluxdata = numpy.empty((n_targets,), dtype=ci_dtype)
+        
+
         for itarget, (target_label, target_fluxdata) in enumerate(fluxdata.iteritems()):
             # Create group and index entry
             index[itarget]['target_label'] = str(target_label)
@@ -252,6 +256,7 @@ the true value of ``tau``.
             # Calculate overall averages and CIs
             avg, lb_ci, ub_ci, correl_len = mclib.mcbs_ci_correl(fluxes, numpy.mean, self.alpha, self.n_sets,
                                                                  autocorrel_alpha=self.autocorrel_alpha, subsample=numpy.mean)
+            avg_fluxdata[itarget] = (self.iter_range.iter_start, self.iter_range.iter_stop, avg, lb_ci, ub_ci, correl_len)
             westpa.rc.pstatus('target {!r}:'.format(target_label))
             westpa.rc.pstatus('  correlation length = {} tau'.format(correl_len))
             westpa.rc.pstatus('  mean flux and CI   = {:e} ({:e},{:e}) tau^(-1)'.format(avg,lb_ci,ub_ci))
@@ -266,8 +271,10 @@ the true value of ``tau``.
         index_ds.attrs['mcbs_autocorrel_alpha'] = self.autocorrel_alpha
         index_ds.attrs['mcbs_n_sets'] = self.n_sets
         
-        self.fluxdata = fluxdata            
-                        
+        self.fluxdata = fluxdata
+        self.output_h5file['avg_flux'] = avg_fluxdata
+        
+        
          
     def calc_evol_flux(self):
         westpa.rc.pstatus('Calculating cumulative evolution of flux confidence intervals every {} iteration(s)'

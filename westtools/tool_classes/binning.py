@@ -21,6 +21,7 @@ import sys,logging, pickle, math
 from itertools import count,izip
 import numpy
 import westpa
+import westpa.binning
 from westpa.binning import RectilinearBinMapper
 from westpa.extloader import get_object
 from pickle import PickleError
@@ -93,6 +94,33 @@ def mapper_from_hdf5(topol_group, hashval):
                 return mapper, pkldat, hashval
     
     raise KeyError('hash {} not found'.format(hashval))
+
+def mapper_from_yaml(yamlfilename):
+    import yaml
+    ydict = yaml.load(open(yamlfilename, 'rt'))
+    ybins = ydict['bins']
+    typename = ybins.pop('type')
+    kwargs = ybins
+    
+    try:
+        mapper_type = getattr(sys.modules['westpa.binning'], typename)
+    except AttributeError:
+        raise KeyError('unknown bin mapper type {!r} in YAML file {!r}'.format(typename, yamlfilename))
+    
+    if typename == 'RectilinearBinMapper':
+        boundary_lists = kwargs.pop('boundaries')
+        for ilist, boundaries in enumerate(boundary_lists):
+            boundary_lists[ilist] = map((lambda x: 
+                                           float('inf') 
+                                           if (x if isinstance(x, basestring) else '').lower() == 'inf' 
+                                           else x), boundaries)
+        return mapper_type(boundary_lists)
+    else:
+        try:
+            return mapper_type(**kwargs)
+        except Exception:
+            log.exception('exception instantiating mapper')
+            raise
 
 def write_bin_info(mapper, assignments, weights, n_target_states, outfile=sys.stdout, detailed=False):
     '''Write information about binning to ``outfile``, given a mapper (``mapper``) and the weights
@@ -218,8 +246,11 @@ class BinMappingComponent(WESTToolComponent):
           Call an external function FUNC in module MODULE (optionally adding PATH
           to the search path when loading MODULE) which, when called, returns a
           fully-constructed bin mapper.
-          
+      
       --bins-from-file
+          Load bin definitions from a YAML configuration file.
+          
+      --bins-from-h5file
           Load bins from the file being considered; this is intended to mean the
           master WEST HDF5 file or results of other binning calculations, as
           appropriate.
@@ -267,7 +298,13 @@ class BinMappingComponent(WESTToolComponent):
                                 "[PATH:]MODULE.FUNC", where the function FUNC in module MODULE will be used; the optional
                                 PATH will be prepended to the module search path when loading MODULE.''')
         if '--bins-from-file' not in suppressed_options:
-            egroup.add_argument('--bins-from-file', action='store_true',
+            egroup.add_argument('--bins-from-file', '--binfile', dest='bins_from_file', metavar='BINFILE',
+                                help='''Load bin specification from the YAML file BINFILE. This currently
+                                takes the form {'bins': {'type': 'RectilinearBinMapper', 'boundaries':
+                                [[boundset1], [boundset2], ... ]}}; only rectilinear bin bounds are supported.''')
+            
+        if '--bins-from-h5file' not in suppressed_options:
+            egroup.add_argument('--bins-from-h5file', action='store_true',
                                 help='''Load bin specification from the data file being examined
                                 (default where stored bin definitions available).''')
             
@@ -293,18 +330,19 @@ class BinMappingComponent(WESTToolComponent):
         bins_from_system = getattr(args, 'bins_from_system', None)
         bins_from_expr = getattr(args,'bins_from_expr', None)
         bins_from_function = getattr(args, 'bins_from_function', None)
-        bins_from_file = getattr(args, 'bins_from_file', None) 
+        bins_from_file = getattr(args, 'bins_from_file', None)
+        bins_from_h5file = getattr(args, 'bins_from_h5file', None) 
         
-        if not any([bins_from_system, bins_from_expr, bins_from_function, bins_from_file]):
+        if not any([bins_from_system, bins_from_expr, bins_from_function, bins_from_h5file]):
             log.debug('no argument provided')
             if self.mapper_source_group is None:
-                log.debug('using bins from system file')
+                log.info('using bins from system file')
                 bins_from_system = True
             else:
-                log.debug('using bins from HDF5 file')
-                bins_from_file = True
+                log.info('using bins from HDF5 file')
+                bins_from_h5file = True
         
-        if bins_from_file:
+        if bins_from_h5file:
             # it is an error to call process_args() prior to setting source group and hash,
             # preferably using the set_*_h5file_info() functions.
             assert self.mapper_source_group is not None
@@ -313,6 +351,10 @@ class BinMappingComponent(WESTToolComponent):
             self.mapper_source = 'file'
             self.mapper_source_desc = 'HDF5 file {} (group "{}")'.format(self.mapper_source_group.file.filename,
                                                                          self.mapper_source_group.name)
+        elif bins_from_file:
+            self.mapper = mapper_from_yaml(args.bins_from_file)
+            self.mapper_source = args.bins_from_file
+            self.mapper_source_desc = 'YAML file {!r}'.format(args.bins_from_file)
         elif bins_from_system:
             self.mapper = mapper_from_system()
             self.mapper_source = 'system'
