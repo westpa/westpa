@@ -77,6 +77,7 @@ class ProgressIndicator:
             days, hours = divmod(hours, 24)
             days = int(days)
             hours = int(round(hours))
+            minutes = int(round(minutes))
             if days > 0:
                 return 'about {:d} {}, {:d} {}'.format(days, 'days' if days > 1 else 'day', 
                                                        hours, 'hours' if hours > 1 else 'hour')
