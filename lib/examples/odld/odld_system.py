@@ -30,8 +30,8 @@ class ODLDPropagator(WESTPropagator):
         
         # Implement a reflecting boundary at this x value
         # (or None, for no reflection)
-        #self.reflect_at = 10.0
-        self.reflect_at = None
+        self.reflect_at = 10.0
+        #self.reflect_at = None
 
     def get_pcoord(self, state):
         '''Get the progress coordinate of the given basis or initial state.'''
