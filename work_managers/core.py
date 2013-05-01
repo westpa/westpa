@@ -329,7 +329,7 @@ class WMFuture:
             self._invoke_callbacks()
             self._notify_watchers()
 
-    def get_result(self,discard=False):
+    def get_result(self,discard=True):
         '''Get the result associated with this future, blocking until it is available.
         If ``discard`` is true, then removes the reference to the result contained
         in this instance, so that a collection of futures need not turn into a cache of
@@ -342,7 +342,7 @@ class WMFuture:
                             log.error('uncaught exception in remote function\n{}'.format(self._traceback))
                         raise self._exception
                     else:
-                        raise self._exception, None, self._traceback                    
+                        raise self._exception, None, self._traceback
             else:
                 self._condition.wait()
                 assert self._done
@@ -357,7 +357,10 @@ class WMFuture:
             if discard:
                 del self._result
             return result
-    result = property(get_result, None, None, get_result.__doc__)
+        
+    @property
+    def result(self):
+        return self.get_result(discard=False)
         
     def wait(self):
         '''Wait until this future has a result or exception available.'''
