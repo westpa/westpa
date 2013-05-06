@@ -39,8 +39,9 @@ default_iter_prec=8
 #
 
 def resolve_filepath(path, constructor = h5py.File, cargs = None, ckwargs=None, **addtlkwargs):
-    '''Use a combined filesystem and HDF5 path to open an HDF5 file and return the appropriate
-    object. Returns (h5file, h5object). The file is opened using ``constructor(filename, **cargs)``.'''
+    '''Use a combined filesystem and HDF5 path to open an HDF5 file and return the
+    appropriate object. Returns (h5file, h5object). The file is opened using
+    ``constructor(filename, *cargs, **ckwargs)``.'''
     
     cargs = cargs or ()
     ckwargs = ckwargs or {}
@@ -63,7 +64,7 @@ def resolve_filepath(path, constructor = h5py.File, cargs = None, ckwargs=None, 
             return (h5file, h5file['/'.join([''] + list(objpieces)) if objpieces else '/'])
     else:
         # We don't provide a filename, because we're not sure where the filename stops
-        # and the HDF5 path begins
+        # and the HDF5 path begins.
         raise IOError(errno.ENOENT, os.strerror(errno.ENOENT))
     
 
@@ -351,6 +352,9 @@ class FileLinkedDSSpec(DSSpec):
             
     @property
     def h5file(self):
+        '''Lazily open HDF5 file. This is required because allowing an open HDF5
+        file to cross a fork() boundary generally corrupts the internal state of
+        the HDF5 library.'''
         if self._h5file is None:
             self._h5file = WESTPAH5File(self._h5filename, 'r')
         return self._h5file
@@ -363,6 +367,7 @@ class SingleDSSpec(FileLinkedDSSpec):
         h5file = default_h5file
         fields = dsspec_string.split(',')
         dsname = fields[0]
+        slice = None
         
         for field in (field.strip() for field in fields[1:]):
             k,v = field.split('=')
@@ -375,7 +380,7 @@ class SingleDSSpec(FileLinkedDSSpec):
                 except SyntaxError:
                     raise SyntaxError('invalid index expression {!r}'.format(v))
             elif k == 'file':
-                h5file = WESTPAH5File(v, 'r')
+                h5file = v
             else:
                 raise ValueError('invalid dataset option {!r}'.format(k))
             
@@ -399,13 +404,13 @@ class SingleSegmentDSSpec(SingleDSSpec):
         if self.slice:
             return self.h5file.get_iter_group(n_iter)[self.dsname][seg_slice + index_exp[:] + self.slice]
         else:
-            return self.h5file.get_iter_group(n_iter)[self.dsname][seg_slice + index_exp[:,:]]
+            return self.h5file.get_iter_group(n_iter)[self.dsname][...]
         
     def get_segment_data(self, n_iter, seg_id):
         if self.slice:
             return self.h5file.get_iter_group(n_iter)[numpy.index_exp[seg_id,:] + self.slice]
         else:
-            return self.h5file.get_iter_group(n_iter)[seg_id,:]
+            return self.h5file.get_iter_group(n_iter)[seg_id]
         
 class FnDSSpec(FileLinkedDSSpec):
     def __init__(self, h5file_or_name, fn):
