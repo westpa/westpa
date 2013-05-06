@@ -24,6 +24,7 @@ ctypedef numpy.uint16_t index_t
 ctypedef numpy.float64_t weight_t
 ctypedef numpy.uint8_t bool_t
 ctypedef numpy.int64_t seg_id_t
+ctypedef numpy.uint_t uint_t # 32 bits on 32-bit systems, 64 bits on 64-bit systems
 
 cdef double NAN = numpy.nan 
 
@@ -470,7 +471,9 @@ cpdef find_macrostate_transitions(Py_ssize_t nstates,
                                   double dt, 
                                   object state,
                                   weight_t[:,:] macro_fluxes,
+                                  uint_t[:,:] macro_counts,
                                   weight_t[:] target_fluxes,
+                                  uint_t[:] target_counts,
                                   object durations):
     cdef:
         Py_ssize_t nsegs, npts, seg_id, ipt
@@ -504,6 +507,7 @@ cpdef find_macrostate_transitions(Py_ssize_t nstates,
             # if we have wound up in a new kinetic macrostate
             if flabel != ilabel:
                 target_fluxes[flabel] += _weight
+                target_counts[flabel] += 1
                 _last_exits[seg_id,ilabel] = tm
                 _last_entries[seg_id,flabel] = tm
 
@@ -514,8 +518,11 @@ cpdef find_macrostate_transitions(Py_ssize_t nstates,
                     # state where the trajectory started
                     if _last_exits[seg_id, iistate] > 0 and _last_entries[seg_id,iistate] >= _last_completions[seg_id,iistate,flabel]:
                         macro_fluxes[iistate,flabel] += _weight
+                        macro_counts[iistate,flabel] += 1
                         _last_completions[seg_id,iistate,flabel] = tm
 
+                        # omit circular transitions (for now) because it causes the transition
+                        # list to explode
                         if iistate != flabel:
                             t_ed = tm - _last_exits[seg_id,iistate]
                             durations.append((iistate,flabel,t_ed,_weight))
