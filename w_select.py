@@ -17,130 +17,191 @@
 
 from __future__ import print_function, division; __metaclass__ = type
 import sys
-from westtools.tool_classes import WESTTool, WESTDataReader
+from westtools.tool_classes import WESTParallelTool, WESTDataReader, IterRangeSelection, ProgressIndicatorComponent
 from itertools import imap
 import numpy
 
 import westpa
-from west.data_manager import (weight_dtype, n_iter_dtype, seg_id_dtype, utime_dtype, vstr_dtype, 
-                               istate_type_dtype, istate_status_dtype)
+from westpa import h5io
+from west.data_manager import seg_id_dtype, n_iter_dtype
 from westpa.extloader import get_object
 
-def all_segments(n_iter, iter_group):
-    return numpy.arange(0, iter_group['seg_index'].shape[0], 1, dtype=seg_id_dtype)
-    
-def find_matching_segments(predicate, invert_predicate=False, ancestors=True, data_manager=None):
-    data_manager = data_manager or westpa.rc.get_data_manager()
-    
-    match_pairs = []    
-    parent_ids = set()
+def _find_matching_segments(west_datafile_name, n_iter, predicate, invert=False):
+    '''Find all segments in iteration ``n_iter`` that match (or do not match, if
+    ``invert`` is true) the given ``predicate``. Returns a sequence of matching
+    seg_ids.'''
 
-    for n_iter in xrange(data_manager.current_iteration-1, 0, -1):
-        iter_group = data_manager.get_iter_group(n_iter)
-        
+    with h5io.WESTPAH5File(west_datafile_name, 'r') as west_datafile:
+        iter_group = west_datafile.get_iter_group(n_iter)
+        nsegs = iter_group['seg_index'].shape[0]
         matching_ids = set(imap(long, predicate(n_iter, iter_group)))
 
-        if invert_predicate:
-            all_ids = set(imap(long,xrange(0, iter_group['seg_index'].shape[0])))
-            matching_ids = all_ids - matching_ids
-        
-        matching_ids.update(parent_ids)
-                    
-        if matching_ids:                
-            if ancestors:
-                parent_ids = set(imap(long,data_manager.get_parent_ids(n_iter, matching_ids)))
-            else:
-                parent_ids = set()
-            
-            match_pairs.extend((n_iter, seg_id) for seg_id in matching_ids)
-            
-        del iter_group
-            
-    return match_pairs
-        
-    
-class WSelectTool(WESTTool):
+        if invert:
+            matching_ids = set(xrange(nsegs)) - matching_ids
+
+        matchvec = numpy.fromiter(matching_ids, dtype=seg_id_dtype, count=len(matching_ids))
+        matchvec.sort()
+        return n_iter, matchvec
+
+
+class WSelectTool(WESTParallelTool):
     prog='w_select'
     description = '''\
-Select dynamics segments matching various criteria, such as "all segments
-in trajectories ending in recycling". The predicate function used to select 
-segments may be from a pre-defined selection, or user-specified via a 
-Python callable.  Ancestors of matching segments may be included or
-omitted.  The list of matching segments is emitted as a sequence of
-N_ITER:SEG_ID pairs, separated by newlines.
+Select dynamics segments matching various criteria. This requires a
+user-provided prediate function. By default, only matching segments are
+stored. If the -a/--include-ancestors option is given, then matching segments
+and their ancestors will be stored.
+
+
+-----------------------------------------------------------------------------
+Predicate function
+-----------------------------------------------------------------------------
+
+Segments are selected based on a predicate function, which must be callable
+as ``predicate(n_iter, iter_group)`` and return a collection of segment IDs
+matching the predicate in that iteration.
+
+The predicate may be inverted by specifying the -v/--invert command-line
+argument.
+
+
+-----------------------------------------------------------------------------
+Output format
+-----------------------------------------------------------------------------
+
+The output file (-o/--output, by default "select.h5") contains the following
+datasets:
+
+  ``/n_iter`` [iteration]
+    *(Integer)* Iteration numbers for each entry in other datasets.
+
+  ``/n_segs`` [iteration]
+    *(Integer)* Number of segment IDs matching the predicate (or inverted
+    predicate, if -v/--invert is specified) in the given iteration.
+
+  ``/seg_ids`` [iteration][segment]
+    *(Integer)* Matching segments in each iteration. For an iteration
+    ``n_iter``, only the first ``n_iter`` entries are valid. For example,
+    the full list of matching seg_ids in the first stored iteration is
+    ``seg_ids[0][:n_segs[0]]``.
+
+
+-----------------------------------------------------------------------------
+Command-line arguments
+-----------------------------------------------------------------------------
 '''
-    
+
     def __init__(self):
         super(WSelectTool,self).__init__()
-        
+
         self.data_reader = WESTDataReader()
+        self.iter_range = IterRangeSelection()
+        self.progress = ProgressIndicatorComponent()
         self.output_file = None
+        self.output_filename = None
         self.predicate = None
         self.invert = False
-        self.ancestors = True
+        self.include_ancestors = False
 
-        
-    # Interface for command-line tools
     def add_args(self, parser):
         self.data_reader.add_args(parser)
-        
+        self.iter_range.add_args(parser)
+
         sgroup = parser.add_argument_group('selection options')
-        fngroup = sgroup.add_mutually_exclusive_group()
-        fngroup.add_argument('-p', '--predicate-function', metavar='MODULE.FUNCTION',
+        sgroup.add_argument('-p', '--predicate-function', metavar='MODULE.FUNCTION',
                              help='''Use the given predicate function to match segments. This function
                              should take an iteration number and the HDF5 group corresponding to that
                              iteration and return a sequence of seg_ids matching the predicate, as in
                              ``match_predicate(n_iter, iter_group)``.''')
-        fngroup.add_argument('--recycled', nargs='?', metavar='TSTATE_INDEX',
-                             help='''Match segments which are recycled. If the optional TSTATE_INDEX is
-                             given, match only segments recycled from the given target state. This is the
-                             predicate to use when searching for segments involved in "successful"
-                             trajectories.''')
-        
         sgroup.add_argument('-v', '--invert', dest='invert', action='store_true',
                             help='''Invert the match predicate.''')
-        sgroup.add_argument('--no-ancestors', action='store_true',
-                            help='''Consider only segments matching the predicate function, not their 
-                            ancestors. (By default, segments matching the predicate and their ancestors
-                            are output.)''')
+        sgroup.add_argument('-a', '--include-ancestors', action ='store_true',
+                            help='''Include ancestors of matched segments in output.''')
 
         ogroup = parser.add_argument_group('output options')
-        ogroup.add_argument('-o', '--output',
-                            help='''Write output to OUTPUT (default: standard output).''')
-    
-    def process_args(self, args): 
-        if args.predicate_function:
-            predicate = get_object(args.predicate_function,path=['.'])
-            if not callable(predicate):
-                raise TypeError('predicate object {!r} is not callable'.format(predicate))
-        else:
-            predicate = all_segments
-        self.predicate = predicate  
-               
-        self.invert = bool(args.invert)
-        
-        if args.no_ancestors:
-            self.ancestors = False
-        else:
-            self.ancestors = True   
+        ogroup.add_argument('-o', '--output', default='select.h5',
+                            help='''Write output to OUTPUT (default: %(default)s).''')
+        self.progress.add_args(parser)
 
-        if args.output is not None:
-            self.output_file = open(args.output,'wt')
-        else:
-            self.output_file = sys.stdout
-        
+    def process_args(self, args):
+        self.progress.process_args(args)
         self.data_reader.process_args(args)
-        
+        with self.data_reader:
+            self.iter_range.process_args(args)
+
+        predicate = get_object(args.predicate_function,path=['.'])
+        if not callable(predicate):
+            raise TypeError('predicate object {!r} is not callable'.format(predicate))
+        self.predicate = predicate
+        self.invert = bool(args.invert)
+        self.include_ancestors = bool(args.include_ancestors)
+        self.output_filename = args.output
+
     def go(self):
         self.data_reader.open('r')
-        
-        matching_pairs = find_matching_segments(self.predicate, invert_predicate=self.invert, 
-                                                ancestors=self.ancestors, data_manager=self.data_reader.data_manager)
-    
-        output_file = self.output_file
-        for (n_iter,seg_id) in matching_pairs:
-            output_file.write('{:d}:{:d}\n'.format(n_iter,seg_id))
-            
+        output_file = h5io.WESTPAH5File(self.output_filename, mode='w')
+        pi = self.progress.indicator
+
+        iter_start, iter_stop = self.iter_range.iter_start, self.iter_range.iter_stop
+        iter_count = iter_stop - iter_start
+
+        output_file.create_dataset('n_iter', dtype=n_iter_dtype, data=range(iter_start,iter_stop))
+        current_seg_count = 0
+        seg_count_ds = output_file.create_dataset('n_segs', dtype=numpy.uint, shape=(iter_count,))
+        matching_segs_ds = output_file.create_dataset('seg_ids', shape=(iter_count,0), maxshape=(iter_count,None),
+                                                      dtype=seg_id_dtype,
+                                                      chunks=h5io.calc_chunksize((iter_count,1000000), seg_id_dtype),
+                                                      shuffle=True, compression=9)
+
+        with pi:
+            pi.new_operation('Finding matching segments', extent=iter_count)
+            futures = set()
+            for n_iter in xrange(iter_start,iter_stop):
+                futures.add(self.work_manager.submit(_find_matching_segments, 
+                                                     args=(self.data_reader.we_h5filename,n_iter,self.predicate,self.invert)))
+
+            for future in self.work_manager.as_completed(futures):
+                n_iter, matching_ids = future.get_result()
+                n_matches = len(matching_ids)
+
+                if n_matches:
+                    if n_matches > current_seg_count:
+                        current_seg_count = len(matching_ids)
+                        matching_segs_ds.resize((iter_count,n_matches))
+                        current_seg_count = n_matches
+
+                    seg_count_ds[n_iter-iter_start] = n_matches
+                    matching_segs_ds[n_iter-iter_start,:n_matches] = matching_ids
+                del matching_ids
+                pi.progress += 1
+
+            if self.include_ancestors:
+                pi.new_operation('Tracing ancestors of matching segments', extent=iter_count)
+                from_previous = set()
+                current_seg_count = matching_segs_ds.shape[1]
+                for n_iter in xrange(iter_stop-1, iter_start-1, -1):
+                    iiter = n_iter - iter_start
+                    n_matches = seg_count_ds[iiter]
+                    matching_ids = set(from_previous)
+                    if n_matches:
+                        matching_ids.update(matching_segs_ds[iiter, :seg_count_ds[iiter]])
+                    from_previous.clear()
+
+                    n_matches = len(matching_ids)
+                    if n_matches > current_seg_count:
+                        matching_segs_ds.resize((iter_count,n_matches))
+                        current_seg_count = n_matches
+
+                    if n_matches > 0:
+                        seg_count_ds[iiter] = n_matches
+                        matching_ids = sorted(matching_ids)
+                        matching_segs_ds[iiter,:n_matches] = matching_ids
+                        parent_ids = self.data_reader.get_iter_group(n_iter)['seg_index']['parent_id'][sorted(matching_ids)]
+                        from_previous.update(parent_id for parent_id in parent_ids if parent_id >= 0) # filter initial states
+                        del parent_ids
+                    del matching_ids
+                    pi.progress += 1
+
 if __name__ == '__main__':
     WSelectTool().main()
     
