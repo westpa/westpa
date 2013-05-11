@@ -189,7 +189,8 @@ class ProgressIndicator:
             
 
     def start(self):
-        self.terminal.stream.write(self.terminal.hide_cursor)
+        if self.fancy:
+            self.terminal.stream.write(self.terminal.hide_cursor)
         self._endloop = False
         t = threading.Thread(target=self._reporter_loop)
         t.daemon = True
@@ -202,7 +203,8 @@ class ProgressIndicator:
         self._event.set()
         
         self.clear()
-        self.terminal.stream.write(self.terminal.normal_cursor)
+        if self.fancy:
+            self.terminal.stream.write(self.terminal.normal_cursor)
         self.flush_output()
         
         

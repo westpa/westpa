@@ -114,16 +114,17 @@ Command-line options
             pi.operation = 'Initializing'
             self.crawler.initialize(iter_start, iter_stop)
 
-            pi.new_operation('Dispatching tasks & processing results', iter_count)
-            task_gen = ((_remote_task, (n_iter, self.task_callable), {}) for n_iter in xrange(iter_start,iter_stop))
-            for future in self.work_manager.submit_as_completed(task_gen, self.queue_size):
-                n_iter, result = future.get_result(discard=True)
-                if self.crawler is not None:
-                    self.crawler.process_iter_result(n_iter,result)
-                pi.progress += 1
-
-            pi.new_operation('Finalizing')
-            self.crawler.finalize()
+            try:
+                pi.new_operation('Dispatching tasks & processing results', iter_count)
+                task_gen = ((_remote_task, (n_iter, self.task_callable), {}) for n_iter in xrange(iter_start,iter_stop))
+                for future in self.work_manager.submit_as_completed(task_gen, self.queue_size):
+                    n_iter, result = future.get_result(discard=True)
+                    if self.crawler is not None:
+                        self.crawler.process_iter_result(n_iter,result)
+                    pi.progress += 1
+            finally:
+                pi.new_operation('Finalizing')
+                self.crawler.finalize()
 
 
 if __name__ == '__main__':
