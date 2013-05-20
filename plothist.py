@@ -392,7 +392,7 @@ least, must be compatible with the output format of ``w_pdist``; see
         # Average over other dimensions
         hist = sum_except_along(hist, [idim0,idim1])
         normhistnd(hist, [binbounds_0,binbounds_1])
-        self._do_2d_output(hist, [idim0,idim1], [midpoints_0,midpoints_1])
+        self._do_2d_output(hist, [idim0,idim1], [midpoints_0,midpoints_1], [binbounds_0,binbounds_1])
 
     
     def go(self):
