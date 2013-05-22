@@ -1,4 +1,4 @@
-# Copyright (C) 2013 Carsen A. Stringer and Daniel M. Zuckerman
+# Copyright (C) 2013 Joshua L. Adelman, Carsen A. Stringer and Daniel M. Zuckerman
 #
 # This file is part of WESTPA.
 #
