@@ -68,33 +68,31 @@ cpdef pop_assign(numpy.ndarray[weight_t, ndim=1] weights,
 @cython.cdivision(True)
 @cython.boundscheck(False)
 @cython.wraparound(False)    
-cpdef calc_rates(numpy.ndarray[weight_t, ndim=3] fluxes,
-                 numpy.ndarray[weight_t, ndim=2] populations,
-                 numpy.ndarray[weight_t, ndim=3] rates,
-                 numpy.ndarray[bool_t,ndim=2,cast=True] masks):
-    '''Calculate a series of rate matrices from a series of flux and population matrices.
-    A set of boolean matrices, of the same shape as populations, is also produced, to be 
-    used for generating masks for the rate matrices where initial state populations are
-    zero.'''
+cpdef calc_rates(weight_t[:,::1] fluxes,
+                 weight_t[::1] populations,
+                 weight_t[:,::1] rates,
+                 bool_t[:,::1] mask):
+    '''Calculate a rate matrices from flux and population matrices. A matrix of the same 
+    shape as fluxes, is also produced, to be used for generating a mask for the rate 
+    matrices where initial state populations are zero.'''
     
     cdef:
         Py_ssize_t narrays, nbins
         index_t iarray, i, j
         
-    narrays = fluxes.shape[0]
-    nbins = fluxes.shape[1]
+    nbins = fluxes.shape[0]
     
-    for iarray from 0 <= iarray < narrays:
-        for i from 0 <= i < nbins:
-            if populations[iarray,i] == 0.0:
-                masks[iarray,i] = 0
-                for j from 0 <= j < nbins:
-                    rates[iarray,i,j] = 0
+    with nogil:
+        for i in range(nbins):
+            if populations[i] == 0.0:
+                for j in range(nbins):
+                    mask[i,j] = 1
+                    rates[i,j] = 0.0
             else:
-                masks[iarray,i] = 1
-                for j from 0 <= j < nbins:
-                    rates[iarray,i,j] = fluxes[iarray,i,j] / populations[iarray,i]
-    return
+                for j in range(nbins):
+                    mask[i,j] = 0
+                    rates[i,j] = fluxes[i,j] / populations[i]
+
 
 @cython.cdivision(True)
 @cython.boundscheck(False)
@@ -527,5 +525,170 @@ cpdef find_macrostate_transitions(Py_ssize_t nstates,
                             t_ed = tm - _last_exits[seg_id,iistate]
                             durations.append((iistate,flabel,t_ed,_weight))
         _last_time[seg_id] = tm
+
+
+cdef class StreamingStats2D:
+    '''Calculate mean and variance of a series of two-dimensional arrays of shape (nbins, nbins)
+    using an online algorithm. The statistics are accumulated along what would be axis=0 if the 
+    input arrays were stacked vertically. 
+    
+    This code has been adapted from:
+    http://subluminal.wordpress.com/2008/07/31/running-standard-deviations/'''
+
+    cdef weight_t[:,::1] _mean
+    cdef weight_t[:,::1] _var
+    cdef weight_t[:,::1] _pwr_sum_mean
+    cdef uint_t[:,::1] _n
+    cdef Py_ssize_t nbins
+
+    def __init__(self, int nbins):
+
+        self._n = numpy.zeros((nbins, nbins), dtype=numpy.uint)
+        self._mean = numpy.zeros((nbins, nbins), dtype=weight_dtype)
+        self._var = numpy.zeros((nbins, nbins), dtype=weight_dtype)
+        self._pwr_sum_mean = numpy.zeros((nbins, nbins), dtype=weight_dtype)
+        self.nbins = nbins
+
+    @cython.boundscheck(False)
+    @cython.wraparound(False)
+    @cython.cdivision(True)
+    def update(self, weight_t[:,::1] values, weight_t[:,::1] pwr, uint_t[:,::1] n_val, bool_t[:,::1] mask):
+        '''Update the running set of statistics given
+
+        Parameters
+        ----------
+        values : 2d ndarray
+            values can either be the single set of observations or the
+            accumulated mean from another streaming calculation on a 
+            different set of data
+        pwr : 2d ndarray 
+            Either pow(values,2) if from a single observation or the
+            pwr_sum_mean variable from another streaming calculation 
+            if adding the that group's statistics to current calculation.
+        n_val : 2d ndarray
+            Either np.ones_like(values) for a single observation or the n
+            variable from another streaming calculation.
+        mask : 2d ndarray
+            A uint8 array to exclude entries from the accumulated statistics.
+        '''
+
+        cdef:
+            index_t i, j
+
+        assert values.shape[0] == values.shape[1] == self.nbins
+        assert pwr.shape[0] == pwr.shape[1] == self.nbins
+        assert n_val.shape[0] == n_val.shape[1] == self.nbins
+        assert mask.shape[0] == mask.shape[1] == self.nbins
+
+        with nogil:
+            for i in xrange(self.nbins):
+                for j in xrange(self.nbins):
+                    if not mask[i,j]:
+                        self._mean[i,j] = (values[i,j] * n_val[i,j] + self._mean[i,j] * self._n[i,j]) / (self._n[i,j] + n_val[i,j])
+                        self._pwr_sum_mean[i,j] = ( pwr[i,j] * n_val[i,j]  + self._pwr_sum_mean[i,j] * self._n[i,j]) / (self._n[i,j] + n_val[i,j])
+                        self._n[i,j] += n_val[i,j]
+                        self._var[i,j] = (self._pwr_sum_mean[i,j] * self._n[i,j] - self._n[i,j] * self._mean[i,j] * self._mean[i,j]) / self._n[i,j]
+
+    property mean:
+        def __get__(self):
+            tmp = numpy.asarray(self._mean)
+            return numpy.nan_to_num(tmp)
+
+    property var:
+        def __get__(self):
+            tmp = numpy.asarray(self._var)
+            return numpy.nan_to_num(tmp)
+
+    property pwr_sum_mean:
+        def __get__(self):
+            tmp = numpy.asarray(self._pwr_sum_mean)
+            return numpy.nan_to_num(tmp)
+
+    property n:
+        def __get__(self):
+            return numpy.asarray(self._n)
+
+
+
+cdef class StreamingStats1D:
+    '''Calculate mean and variance of a series of one-dimensional arrays of shape (nbins,)
+    using an online algorithm. The statistics are accumulated along what would be axis=0 if the 
+    input arrays were stacked vertically. 
+    
+    This code has been adapted from:
+    http://subluminal.wordpress.com/2008/07/31/running-standard-deviations/'''
+
+    cdef weight_t[::1] _mean
+    cdef weight_t[::1] _var
+    cdef weight_t[::1] _pwr_sum_mean
+    cdef uint_t[::1] _n
+    cdef Py_ssize_t nbins
+
+    def __init__(self, int nbins):
+
+        self._n = numpy.zeros((nbins,), dtype=numpy.uint)
+        self._mean = numpy.zeros((nbins,), dtype=weight_dtype)
+        self._var = numpy.zeros((nbins,), dtype=weight_dtype)
+        self._pwr_sum_mean = numpy.zeros((nbins,), dtype=weight_dtype)
+        self.nbins = nbins
+
+    @cython.boundscheck(False)
+    @cython.wraparound(False)
+    @cython.cdivision(True)
+    def update(self, weight_t[::1] values, weight_t[::1] pwr, uint_t[::1] n_val, bool_t[::1] mask):
+        '''Update the running set of statistics given
+
+        Parameters
+        ----------
+        values : 1d ndarray
+            values can either be the single set of observations or the
+            accumulated mean from another streaming calculation on a 
+            different set of data
+        pwr : 1d ndarray 
+            Either pow(values,2) if from a single observation or the
+            pwr_sum_mean variable from another streaming calculation 
+            if adding the that group's statistics to current calculation.
+        n_val : 1d ndarray
+            Either np.ones_like(values) for a single observation or the n
+            variable from another streaming calculation.
+        mask : 1d ndarray
+            A uint8 array to exclude entries from the accumulated statistics.
+        '''
+
+        cdef:
+            index_t i
+
+        assert values.shape[0] == self.nbins
+        assert pwr.shape[0] == self.nbins
+        assert n_val.shape[0] == self.nbins
+        assert mask.shape[0] == self.nbins
+
+        with nogil:
+            for i in xrange(self.nbins):
+                if not mask[i]:
+                    self._mean[i] = (values[i] * n_val[i] + self._mean[i] * self._n[i]) / (self._n[i] + n_val[i])
+                    self._pwr_sum_mean[i] = ( pwr[i] * n_val[i]  + self._pwr_sum_mean[i] * self._n[i]) / (self._n[i] + n_val[i])
+                    self._n[i] += n_val[i]
+                    self._var[i] = (self._pwr_sum_mean[i] * self._n[i] - self._n[i] * self._mean[i] * self._mean[i]) / self._n[i]
+
+
+    property mean:
+        def __get__(self):
+            tmp = numpy.asarray(self._mean)
+            return numpy.nan_to_num(tmp)
+
+    property var:
+        def __get__(self):
+            tmp = numpy.asarray(self._var)
+            return numpy.nan_to_num(tmp)
+
+    property pwr_sum_mean:
+        def __get__(self):
+            tmp = numpy.asarray(self._pwr_sum_mean)
+            return numpy.nan_to_num(tmp)
+
+    property n:
+        def __get__(self):
+            return numpy.asarray(self._n)
 
 
