@@ -208,10 +208,10 @@ cpdef weight_t calculate_labeled_fluxes(Py_ssize_t nstates,
         ibin = micro_assignments[iiter][current_id][0]
         ilabel = traj_assignments[iiter][current_id][0]
 
-        if ilabel >= nstates or flabel >= nstates:
-            raise ValueError('invalid state index (ilabel={},flabel={})'.format(ilabel,flabel))
-                        
-        fluxes[ilabel,flabel,ibin,fbin] += weight
+        #if ilabel >= nstates or flabel >= nstates:
+        #    raise ValueError('invalid state index (ilabel={},flabel={})'.format(ilabel,flabel))
+        if ilabel < nstates and flabel < nstates:
+            fluxes[ilabel,flabel,ibin,fbin] += weight
         twindow += weight*windowlen
     return twindow
 

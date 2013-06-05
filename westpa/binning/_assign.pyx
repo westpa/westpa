@@ -234,26 +234,25 @@ cpdef assign_and_label(Py_ssize_t nsegs_lb,
     if state_map is not None:
         with nogil:
             for iseg in range(nsegs):
-                seg_id = iseg+nsegs_lb        
+                seg_id = iseg+nsegs_lb
                 parent_id = parent_ids[iseg]
-                if state_map is not None:
-                    for ipt in range(npts):
-                        ptlabel = state_map[_assignments[iseg,ipt]]
-                        if ptlabel == nstates: # unknown state/transition region 
-                            if ipt == 0:
-                                if parent_id < 0:
-                                    # We have started a trajectory in a transition region
-                                    _trajlabels[iseg,ipt] = nstates
-                                else:
-                                    # We can inherit the ending point from the previous iteration
-                                    # This should be nstates (unknown_state) for the first iteration
-                                    _trajlabels[iseg,ipt] = last_labels[parent_id]
+                for ipt in range(npts):
+                    ptlabel = state_map[_assignments[iseg,ipt]]
+                    if ptlabel == nstates: # unknown state/transition region 
+                        if ipt == 0:
+                            if parent_id < 0:
+                                # We have started a trajectory in a transition region
+                                _trajlabels[iseg,ipt] = nstates
                             else:
-                                # We are currently in a transition region, but we care about the last state we visited,
-                                # so inherit that state from the previous point
-                                _trajlabels[iseg,ipt] = _trajlabels[iseg,ipt-1]
+                                # We can inherit the ending point from the previous iteration
+                                # This should be nstates (unknown_state) for the first iteration
+                                _trajlabels[iseg,ipt] = last_labels[parent_id]
                         else:
-                            _trajlabels[iseg,ipt] = ptlabel
+                            # We are currently in a transition region, but we care about the last state we visited,
+                            # so inherit that state from the previous point
+                            _trajlabels[iseg,ipt] = _trajlabels[iseg,ipt-1]
+                    else:
+                        _trajlabels[iseg,ipt] = ptlabel
     else:
         trajlabels.fill(nstates)
             

@@ -211,7 +211,8 @@ Command-line options
                 seg_index = iter_group['seg_index']
                 nsegs, npts = iter_group['pcoord'].shape[0:2] 
                 weights = seg_index['weight']
-                parent_ids = seg_index['parent_id']
+                #parent_ids = seg_index['parent_id']
+                parent_ids = self.data_reader.parent_id_dsspec.get_iter_data(n_iter)
                 
                 # Get bin and traj. ensemble assignments from the previously-generated assignments file
                 assignment_iiter = h5io.get_iteration_entry(self.assignments_file, n_iter)
@@ -351,7 +352,8 @@ Command-line options
                 seg_index = iter_group['seg_index']
                 nsegs, npts = iter_group['pcoord'].shape[0:2] 
                 weights = seg_index['weight']
-                parent_ids = seg_index['parent_id']
+                #parent_ids = seg_index['parent_id']
+                parent_ids = self.data_reader.parent_id_dsspec.get_iter_data(n_iter)
                 
                 # Get bin and traj. ensemble assignments from the previously-generated assignments file
                 assignment_iiter = h5io.get_iteration_entry(self.assignments_file, n_iter)

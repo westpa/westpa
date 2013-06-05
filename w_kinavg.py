@@ -311,7 +311,7 @@ class AvgTraceSubcommand(KinAvgSubcommands):
 
 
 def _calc_ci_block(block_label, assignments_filename, kinetics_filename, istate, jstate, start_iter, stop_iter,
-                   mcbs_alpha, mcbs_acalpha, mcbs_nsets):
+                   mcbs_alpha, mcbs_acalpha, mcbs_nsets, extrapolate):
     log.debug('istate={} jstate={} start_iter={} stop_iter={}'.format(istate,jstate,start_iter,stop_iter))
     assignments_file = h5py.File(assignments_filename, 'r')
     kinetics_file = h5py.File(kinetics_filename, 'r')
@@ -362,7 +362,7 @@ def _calc_ci_block(block_label, assignments_filename, kinetics_filename, istate,
     avg_fluxes /= niters
     avg_pops /= niters     
     avg_rates = labeled_flux_to_rate(avg_fluxes, avg_pops)
-    ss, macro_rates = get_macrostate_rates(avg_rates, avg_pops)
+    ss, macro_rates = get_macrostate_rates(avg_rates, avg_pops, extrapolate)
     overall_avg_rates = macro_rates.copy()
     ctime = mcbs_correltime(macro_fluxes[istate, jstate], mcbs_acalpha, mcbs_nsets)
 
@@ -401,7 +401,7 @@ def _calc_ci_block(block_label, assignments_filename, kinetics_filename, istate,
         avg_fluxes /= iters_averaged
         avg_pops /= iters_averaged
         avg_rates = labeled_flux_to_rate(avg_fluxes, avg_pops)
-        ss, macro_rates = get_macrostate_rates(avg_rates, avg_pops)
+        ss, macro_rates = get_macrostate_rates(avg_rates, avg_pops, extrapolate)
         synth_rates[iset] = macro_rates[istate, jstate]
     synth_rates.sort()
                 
@@ -419,6 +419,7 @@ class AvgMatrixSubcommand(KinAvgSubcommands):
         
         self.nstates = self.nbins = None
         self.state_labels = None
+        self.extrapolate = True
                         
     def init_ivars(self):
         '''Initialize variables used in multiple functions'''
@@ -427,6 +428,20 @@ class AvgMatrixSubcommand(KinAvgSubcommands):
         self.nbins   = self.assignments_file.attrs['nbins']
         self.state_labels = self.assignments_file['state_labels'][...]
         assert self.nstates == len(self.state_labels)
+
+    def add_args(self, parser):
+        xgroup = parser.add_argument_group('steady state extrapolation').add_mutually_exclusive_group()
+        xgroup.add_argument('--extrapolate', dest='ss_extrapolate', action='store_const', const=True,
+                            help='''Extrapolate to steady state (long-time) equilibrium populations.
+                            Appropriate only for simulations without sources/sinks. (Default, since otherwise
+                            ``w_kinavg trace`` is more appropriate.)''')
+        xgroup.add_argument('--no-extrapolate', dest='ss_extrapolate', action='store_const', const=False,
+                            help='''Do not extrapolate to steady state populations. May be useful for
+                            estimates of kinetics involving ill-defined states or unconverged simulations.''')
+        parser.set_defaults(ss_extrapolate=True)
+        
+    def process_args(self, args):
+        self.extrapolate = args.ss_extrapolate
 
     def go(self):
         self.open_files()
@@ -441,7 +456,7 @@ class AvgMatrixSubcommand(KinAvgSubcommands):
                 if istate == jstate: continue
                 args = (None, self.assignments_filename, self.kinetics_filename, istate, jstate,
                         self.iter_range.iter_start, self.iter_range.iter_stop,
-                        self.mcbs_alpha, self.mcbs_acalpha, self.mcbs_nsets)
+                        self.mcbs_alpha, self.mcbs_acalpha, self.mcbs_nsets, self.extrapolate)
                 futures.append(self.work_manager.submit(_calc_ci_block, args=args))
 
         for future in self.work_manager.as_completed(futures):
@@ -484,7 +499,7 @@ class AvgMatrixSubcommand(KinAvgSubcommands):
 
                     args = (iblock, self.assignments_filename, self.kinetics_filename, istate, jstate,
                             block_start, stop,
-                            self.mcbs_alpha, self.mcbs_acalpha, self.mcbs_nsets)
+                            self.mcbs_alpha, self.mcbs_acalpha, self.mcbs_nsets, self.extrapolate)
                     futures.append(self.work_manager.submit(_calc_ci_block, args=args))
 
         if sys.stdout.isatty() and not westpa.rc.quiet_mode:

@@ -79,7 +79,7 @@ def get_steady_state(rates):
     ss /= ss.sum()
     return ss
 
-def get_macrostate_rates(labeled_rates, labeled_pops):
+def get_macrostate_rates(labeled_rates, labeled_pops, extrapolate=True):
     '''Using a labeled rate matrix and labeled bin populations, calculate the steady state
     probability distribution and consequent state-to-state rates.
     
@@ -91,9 +91,12 @@ def get_macrostate_rates(labeled_rates, labeled_pops):
     rates = nested_to_flat_matrix(labeled_rates)
         
     # Find steady-state solution
-    ss = get_steady_state(rates)
-    if ss is None:
-        warnings.warn('no well-defined steady state; using average populations',ConsistencyWarning)
+    if extrapolate:
+        ss = get_steady_state(rates)
+        if ss is None:
+            warnings.warn('no well-defined steady state; using average populations',ConsistencyWarning)
+            ss = nested_to_flat_vector(labeled_pops)
+    else:
         ss = nested_to_flat_vector(labeled_pops)
     
     macro_rates = _reduce_labeled_rate_matrix_to_macro(nstates, nbins, rates, ss)

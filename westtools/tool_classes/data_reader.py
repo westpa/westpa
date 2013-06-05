@@ -16,13 +16,27 @@
 # along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
 from __future__ import division, print_function; __metaclass__ = type
+import numpy
 from numpy import index_exp
 from core import WESTToolComponent
 import westpa
 from westpa.extloader import get_object
 from westpa.h5io import FnDSSpec, MultiDSSpec, SingleSegmentDSSpec, SingleIterDSSpec
 
+
+def _get_parent_ids(n_iter, iter_group):
+    seg_index = iter_group['seg_index']
+    try:
+        return seg_index['parent_id'][:]
+    except ValueError:
+        # field not found
+        offsets = seg_index['parents_offset'][:]
+        all_parents = iter_group['parents'][...]
+        return numpy.require(all_parents.take(offsets),dtype=numpy.int64)
+    else:
+        return seg_index['parent_id']
     
+
 class WESTDataReader(WESTToolComponent):
     '''Tool for reading data from WEST-related HDF5 files. Coordinates finding
     the main HDF5 file from west.cfg or command line arguments, caching of certain
@@ -68,7 +82,8 @@ class WESTDataReader(WESTToolComponent):
     def parent_id_dsspec(self):
         if self._parent_id_dsspec is None:
             assert self.we_h5filename is not None
-            self._parent_id_dsspec = SingleIterDSSpec(self.we_h5filename, 'seg_index', slice=index_exp['parent_id'])
+            #self._parent_id_dsspec = SingleIterDSSpec(self.we_h5filename, 'seg_index', slice=index_exp['parent_id'])
+            self._parent_id_dsspec = FnDSSpec(self.we_h5filename, _get_parent_ids)
         return self._parent_id_dsspec
 
     def __enter__(self):
