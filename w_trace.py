@@ -17,6 +17,7 @@
 
 from __future__ import print_function, division; __metaclass__ = type
 import sys
+import re
 from westtools.tool_classes import WESTTool, WESTDataReader
 import numpy, h5py, operator, time
 import westpa
@@ -176,9 +177,9 @@ class Trace:
             
             dataset = iter_group[dsname]
             itpl = (seg_id,) + slice_
+
             return dataset[itpl]
-        
-                  
+
     def trace_timepoint_dataset(self, dsname, slice_=None, auxfile=None,index_ds=None):
         '''Return a trace along this trajectory over a dataset which is layed out as [seg_id][timepoint][...].
         Overlapping values at segment boundaries are accounted for.  Returns (data_trace, weight), where 
@@ -393,8 +394,6 @@ The following options for datasets are supported:
         ogroup.add_argument('-o', '--output', default='trajs.h5',
                             help='Store intermediate data and analysis results to OUTPUT (default: %(default)s).')
         
-        
-        
     
     def process_args(self, args):
         self.data_reader.process_args(args)
@@ -410,9 +409,12 @@ The following options for datasets are supported:
         
     def parse_dataset_string(self, dsstr):
         dsinfo = {}
-        fields = dsstr.split(',')
+
+        r = re.compile(r',(?=[^\]]*(?:\[|$))')
+        fields = r.split(dsstr)
+
         dsinfo['dsname'] = fields[0]
-        
+
         for field in (field.strip() for field in fields[1:]):
             k,v = field.split('=')
             k = k.lower()

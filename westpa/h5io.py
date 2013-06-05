@@ -404,7 +404,7 @@ class SingleSegmentDSSpec(SingleDSSpec):
         if self.slice:
             return self.h5file.get_iter_group(n_iter)[self.dsname][seg_slice + index_exp[:] + self.slice]
         else:
-            return self.h5file.get_iter_group(n_iter)[self.dsname][...]
+            return self.h5file.get_iter_group(n_iter)[self.dsname][seg_slice]
         
     def get_segment_data(self, n_iter, seg_id):
         if self.slice:
