@@ -25,6 +25,7 @@ import matplotlib
 from matplotlib import pyplot
 from matplotlib.image import NonUniformImage
 from fasthist import normhistnd
+from westpa.extloader import get_object
 
 log = logging.getLogger('westtools.plothist')
 
@@ -66,7 +67,8 @@ class PlotHistBase(WESTSubcommand):
         self.enerzero = None
         self.plotrange = None
         self.plottitle = None
-        
+        self.postprocess_function = None
+
         # Iteration range for average/evolution
         self.avail_iter_start = None
         self.avail_iter_stop = None
@@ -74,18 +76,18 @@ class PlotHistBase(WESTSubcommand):
         self.iter_start = None
         self.iter_stop = None
         self.iter_step = None
-        
+
         # Iteration for single point
         self.n_iter = None
-        
+
         # An array of dicts describing what dimensions to work with and
         # what their ranges should be for the plots.
         self.dimensions = []
-        
+
         self.plot_output_filename = None
         self.text_output_filename = None
         self.hdf5_output_filename = None
-        
+
     def add_args(self, parser):
         igroup = self.input_arg_group = parser.add_argument_group('input options')
         igroup.add_argument('input', help='HDF5 file containing histogram data')
@@ -122,6 +124,12 @@ class PlotHistBase(WESTSubcommand):
                             where LB and UB are the lower and upper bounds, respectively. For 1-D plots,
                             this is the Y axis. For 2-D plots, this is the colorbar axis.
                             (Default: full range.)''')
+        pgroup.add_argument('--postprocess-function',
+                                help='''Names a function (as in module.function) that will be called just prior
+                                to saving the plot. The function will be called as ``postprocess(hist, midpoints, binbounds)``
+                                where ``hist`` is the histogram that was plotted, ``midpoints`` is the bin midpoints for
+                                each dimension, and ``binbounds`` is the bin boundaries for each dimension for 2-D plots,
+                                or None otherwise. The plot must be modified in place using the pyplot stateful interface.''')
         
         parser.set_defaults(plotscale='energy')
         
@@ -140,7 +148,7 @@ class PlotHistBase(WESTSubcommand):
         if args.firstdim:
             self.dimensions.append(self.parse_dimspec(args.firstdim))
         
-        if not args.firstdim:    
+        if not args.firstdim:
             self.dimensions.append({'idim': 0, 'label':'dimension 0'})
 
         if args.enerzero:
@@ -164,6 +172,8 @@ class PlotHistBase(WESTSubcommand):
                                                                                                  self.avail_iter_start,
                                                                                                  self.avail_iter_stop,
                                                                                                  self.avail_iter_step))
+        if args.postprocess_function:
+            self.postprocess_function = get_object(args.postprocess_function,path=['.'])
 
 
     def parse_dimspec(self, dimspec):
@@ -206,6 +216,10 @@ class PlotHistBase(WESTSubcommand):
         
 
 class PlotSupports2D(PlotHistBase):
+    def __init__(self, parent):
+        super(PlotSupports2D,self).__init__(parent)
+        
+
     def add_args(self, parser):
         self.input_arg_group.add_argument('seconddim', nargs='?', metavar='ADDTLDIM',
                                           help='''For instantaneous/average plots, plot along the given additional
@@ -213,12 +227,12 @@ class PlotSupports2D(PlotHistBase):
         self.output_arg_group.add_argument('--text-output',
                                            help='''Store plot data in a text format at TEXT_OUTPUT. This option is
                                            only valid for 1-D histograms. (Default: no text output.)''')
-        
+
     def process_args(self, args):
         self.text_output_filename = args.text_output
         if args.seconddim is not None:
             self.dimensions.append(self.parse_dimspec(args.seconddim))
-                
+
         
     
     def _do_1d_output(self, hist, idim, midpoints):
@@ -261,6 +275,8 @@ class PlotSupports2D(PlotHistBase):
             pyplot.ylabel(label)
             if self.plottitle:
                 pyplot.title(self.plottitle)
+            if self.postprocess_function:
+                self.postprocess_function(plothist, midpoints, None)
             pyplot.savefig(self.plot_output_filename)
         
     def _do_2d_output(self, hist, idims, midpoints, binbounds):
@@ -319,6 +335,8 @@ class PlotSupports2D(PlotHistBase):
             pyplot.ylim(self.dimensions[1].get('lb'), self.dimensions[1].get('ub'))
             if self.plottitle:
                 pyplot.title(self.plottitle)
+            if self.postprocess_function:
+                self.postprocess_function(plothist, midpoints, binbounds)
             pyplot.savefig(self.plot_output_filename)
 
 
@@ -374,7 +392,7 @@ least, must be compatible with the output format of ``w_pdist``; see
         # Average over other dimensions
         hist = sum_except_along(hist, [idim0,idim1])
         normhistnd(hist, [binbounds_0,binbounds_1])
-        self._do_2d_output(hist, [idim0,idim1], [midpoints_0,midpoints_1])
+        self._do_2d_output(hist, [idim0,idim1], [midpoints_0,midpoints_1], [binbounds_0,binbounds_1])
 
     
     def go(self):
@@ -585,6 +603,8 @@ probability distribution must have been previously extracted with ``w_pdist``
             pyplot.ylabel('WE Iteration')
             if self.plottitle:
                 pyplot.title(self.plottitle)
+            if self.postprocess_function:
+                self.postprocess_function(plothist, midpoints, binbounds)
             pyplot.savefig(self.plot_output_filename)
 
     

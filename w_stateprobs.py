@@ -44,7 +44,7 @@ are required. (See "w_assign --help" for more information).
 Output format
 -----------------------------------------------------------------------------
 
-The output file (-o/--output, usually "kinavg.h5") contains the following
+The output file (-o/--output, usually "stateprobs.h5") contains the following
 dataset:
 
   /avg_state_pops [state]

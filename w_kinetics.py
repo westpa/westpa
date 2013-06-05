@@ -109,9 +109,17 @@ following datasets:
   ``/conditional_fluxes`` [iteration][state][state]
     *(Floating-point)* Macrostate-to-macrostate fluxes. These are **not**
     normalized by the population of the initial macrostate.
+
+  ``/conditional_arrivals`` [iteration][stateA][stateB]
+    *(Integer)* Number of trajectories arriving at state *stateB* in a given
+    iteration, given that they departed from *stateA*.
     
   ``/total_fluxes`` [iteration][state]
     *(Floating-point)* Total flux into a given macrostate.
+    
+  ``/arrivals`` [iteration][state]
+    *(Integer)* Number of trajectories arriving at a given state in a given
+    iteration, regardless of where they originated.
 
   ``/duration_count`` [iteration]
     *(Integer)* The number of event durations recorded in each iteration.
@@ -171,10 +179,29 @@ Command-line options
                                                                       if self.do_compression else None),
                                                               shuffle=self.do_compression,
                                                               compression=9 if self.do_compression else None)
+
+            cond_arrival_counts_ds = self.output_file.create_dataset('conditional_arrivals',
+                                                                     shape=(iter_count,nstates,nstates), dtype=numpy.uint,
+                                                                     chunks=(h5io.calc_chunksize((iter_count,nstates,nstates),
+                                                                                                 numpy.uint)
+                                                                             if self.do_compression else None),
+                                                              shuffle=self.do_compression,
+                                                              compression=9 if self.do_compression else None) 
+            arrival_counts_ds = self.output_file.create_dataset('arrivals',
+                                                                shape=(iter_count,nstates), dtype=numpy.uint,
+                                                                chunks=(h5io.calc_chunksize((iter_count,nstates),
+                                                                                            numpy.uint)
+                                                                        if self.do_compression else None),
+                                                                shuffle=self.do_compression,
+                                                                compression=9 if self.do_compression else None)
+
+            # copy state labels for convenience
+            self.output_file['state_labels'] = self.assignments_file['state_labels'][...]
+
             # Put nice labels on things
             for ds in (self.output_file, durations_count_ds, cond_fluxes_ds, total_fluxes_ds):
                 h5io.stamp_iter_range(ds, start_iter, stop_iter)
-                
+
             # Calculate instantaneous rate matrices and trace trajectories
             last_state = None
             pi.new_operation('Tracing trajectories', iter_count)
@@ -196,18 +223,23 @@ Command-line options
                 # Prepare to run analysis
                 cond_fluxes = numpy.zeros((nstates,nstates), weight_dtype)
                 total_fluxes = numpy.zeros((nstates,), weight_dtype)
+                cond_counts = numpy.zeros((nstates,nstates), numpy.uint)
+                total_counts = numpy.zeros((nstates,), numpy.uint)
                 durations = []
     
                 # Estimate macrostate fluxes and calculate event durations using trajectory tracing
                 # state is opaque to the find_macrostate_transitions function            
                 state = _fast_transition_state_copy(iiter, nstates, parent_ids, last_state)
                 find_macrostate_transitions(nstates, weights, label_assignments, 1.0/(npts-1), state,
-                                            cond_fluxes, total_fluxes, durations)
+                                            cond_fluxes, cond_counts, total_fluxes, total_counts, durations)
                 last_state = state
                 
                 # Store trace-based kinetics data
                 cond_fluxes_ds[iiter] = cond_fluxes
                 total_fluxes_ds[iiter] = total_fluxes
+                arrival_counts_ds[iiter] = total_counts
+                cond_arrival_counts_ds[iiter] = cond_counts
+                
                 durations_count_ds[iiter] = len(durations)
                 if len(durations) > 0:
                     durations_ds.resize((iter_count, max(len(durations), durations_ds.shape[1])))
