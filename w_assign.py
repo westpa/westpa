@@ -340,7 +340,7 @@ Command-line options
 
         iter_group = self.data_reader.get_iter_group(n_iter)
         nsegs, npts = iter_group['pcoord'].shape[:2]
-        n_workers = self.work_manager.n_workers
+        n_workers = self.work_manager.n_workers or 1
 
         #Submit jobs to work manager
 
