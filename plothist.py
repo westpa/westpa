@@ -350,7 +350,7 @@ least, must be compatible with the output format of ``w_pdist``; see
 ``w_pdist --help`` for more information).
 '''
     def add_args(self, parser):
-        self.input_arg_group.add_argument('--iter', metavar='N_ITER', dest='n_iter',
+        self.input_arg_group.add_argument('--iter', metavar='N_ITER', dest='n_iter', type=int,
                                           help='''Plot distribution for iteration N_ITER
                                           (default: last completed iteration).''')        
     def process_args(self, args):
