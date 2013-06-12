@@ -222,14 +222,22 @@ Command-line options
         self.all_state_pops = all_state_pops
         avg_state_pops = numpy.zeros((nstates+1,), ci_dtype)
         pi.new_operation('Calculating overall average populations and CIs', nstates)
-        futures = []
-        for istate in xrange(nstates):
-            futures.append(self.work_manager.submit(_eval_block,kwargs=dict(iblock=None,istate=istate,
-                                                                            start=start_iter,stop=stop_iter,
-                                                                            state_pops=all_state_pops[:,istate],
-                                                                            mcbs_alpha=self.mcbs_alpha, mcbs_nsets=self.mcbs_nsets,
-                                                                            mcbs_acalpha = self.mcbs_acalpha)))
-        for future in self.work_manager.as_completed(futures):
+#        futures = []
+#         for istate in xrange(nstates):
+#             futures.append(self.work_manager.submit(_eval_block,kwargs=dict(iblock=None,istate=istate,
+#                                                                             start=start_iter,stop=stop_iter,
+#                                                                             state_pops=all_state_pops[:,istate],
+#                                                                             mcbs_alpha=self.mcbs_alpha, mcbs_nsets=self.mcbs_nsets,
+#                                                                             mcbs_acalpha = self.mcbs_acalpha)))
+#         for future in self.work_manager.as_completed(futures):
+        def taskgen():
+            for istate in xrange(nstates):
+                yield (_eval_block, (), dict(iblock=None,istate=istate,
+                                             start=start_iter,stop=stop_iter,
+                                             state_pops=all_state_pops[:,istate],
+                                             mcbs_alpha=self.mcbs_alpha, mcbs_nsets=self.mcbs_nsets,
+                                             mcbs_acalpha = self.mcbs_acalpha))
+        for future in self.work_manager.submit_as_completed(taskgen(), self.max_queue_len):
             (_iblock,istate,ci_res) = future.get_result(discard=True)
             avg_state_pops[istate] = ci_res
             pi.progress += 1
@@ -256,23 +264,37 @@ Command-line options
 
         pi = self.progress.indicator
         pi.new_operation('Calculating population evolution', len(start_pts)*nstates)
-        futures = []
-        for iblock, start in enumerate(start_pts):
-            if self.evolution_mode == 'cumulative':
-                block_start = start_iter
-            else: # self.evolution_mode == 'blocked'
-                block_start = start
-            stop = min(start+step_iter, stop_iter)
-
-            for istate in xrange(nstates):
-                future = self.work_manager.submit(_eval_block,kwargs=dict(iblock=iblock,istate=istate,
-                                                                          start=block_start,stop=stop,
-                                                                          state_pops=self.all_state_pops[block_start-start_iter:stop-start_iter,istate],
-                                                                          mcbs_alpha=self.mcbs_alpha, mcbs_nsets=self.mcbs_nsets,
-                                                                          mcbs_acalpha = self.mcbs_acalpha))
-                futures.append(future)
-
-        for future in self.work_manager.as_completed(futures):
+#         futures = []
+#         for iblock, start in enumerate(start_pts):
+#             if self.evolution_mode == 'cumulative':
+#                 block_start = start_iter
+#             else: # self.evolution_mode == 'blocked'
+#                 block_start = start
+#             stop = min(start+step_iter, stop_iter)
+# 
+#             for istate in xrange(nstates):
+#                 future = self.work_manager.submit(_eval_block,kwargs=dict(iblock=iblock,istate=istate,
+#                                                                           start=block_start,stop=stop,
+#                                                                           state_pops=self.all_state_pops[block_start-start_iter:stop-start_iter,istate],
+#                                                                           mcbs_alpha=self.mcbs_alpha, mcbs_nsets=self.mcbs_nsets,
+#                                                                           mcbs_acalpha = self.mcbs_acalpha))
+#                 futures.append(future)
+        def taskgen():
+            for iblock, start in enumerate(start_pts):
+                if self.evolution_mode == 'cumulative':
+                    block_start = start_iter
+                else: # self.evolution_mode == 'blocked'
+                    block_start = start
+                stop = min(start+step_iter, stop_iter)
+     
+                for istate in xrange(nstates):
+                    yield (_eval_block,(),dict(iblock=iblock,istate=istate,
+                                               start=block_start,stop=stop,
+                                               state_pops=self.all_state_pops[block_start-start_iter:stop-start_iter,istate],
+                                               mcbs_alpha=self.mcbs_alpha, mcbs_nsets=self.mcbs_nsets,
+                                               mcbs_acalpha = self.mcbs_acalpha))
+        #for future in self.work_manager.as_completed(futures):
+        for future in self.work_manager.submit_as_completed(taskgen(), self.max_queue_len):
             (iblock,istate,ci_res) = future.get_result(discard=True)
             pop_evol[iblock,istate] =  ci_res
             pi.progress += 1

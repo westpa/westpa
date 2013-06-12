@@ -71,7 +71,6 @@ Command-line options
 
         self.crawler = None
         self.task_callable = None
-        self.queue_size = None
 
     def add_args(self, parser):
         self.data_reader.add_args(parser)
@@ -82,9 +81,6 @@ Command-line options
                             help='''Use CRAWLER_INSTANCE (specified as module.instance) as an instance of
                             WESTPACrawler to coordinate the calculation. Required only if initialization,
                             finalization, or task result processing is required.''')
-        tgroup.add_argument('--queue-size', type=int,
-                            help='''Limit the number of outstanding tasks to QUEUE_SIZE.
-                            (Default: enqueue all tasks)''')
         tgroup.add_argument('task_callable',
                             help='''Run TASK_CALLABLE (specified as module.function) on each iteration.
                             Required.''')
@@ -117,7 +113,7 @@ Command-line options
             try:
                 pi.new_operation('Dispatching tasks & processing results', iter_count)
                 task_gen = ((_remote_task, (n_iter, self.task_callable), {}) for n_iter in xrange(iter_start,iter_stop))
-                for future in self.work_manager.submit_as_completed(task_gen, self.queue_size):
+                for future in self.work_manager.submit_as_completed(task_gen, self.max_queue_len):
                     n_iter, result = future.get_result(discard=True)
                     if self.crawler is not None:
                         self.crawler.process_iter_result(n_iter,result)

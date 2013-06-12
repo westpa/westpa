@@ -133,6 +133,7 @@ class WESTParallelTool(WESTTool):
         super(WESTTool,self).__init__()
         self.work_manager = None
         self.wm_env = wm_env or work_managers.environment.default_env
+        self.max_queue_len = None
 
     def make_parser_and_process(self, prog=None, usage=None, description=None, epilog=None, args=None):
         '''A convenience function to create a parser, call add_all_args(), and then call process_all_args().
@@ -149,7 +150,16 @@ class WESTParallelTool(WESTTool):
         # Process args
         self.process_all_args(args)
         return args
+
+    def add_args(self, parser):
+        pgroup = parser.add_argument_group('parallelization options')
+        pgroup.add_argument('--max-queue-length', type=int,
+                            help='''Maximum number of tasks that can be queued. Useful to limit RAM use
+                            for tasks that have very large requests/response. Default: no limit.''')
     
+    def process_args(self, args):
+        self.max_queue_len = args.max_queue_length
+
     def go(self):
         '''Perform the analysis associated with this tool.'''
         raise NotImplementedError

@@ -341,30 +341,38 @@ Command-line options
         iter_group = self.data_reader.get_iter_group(n_iter)
         nsegs, npts = iter_group['pcoord'].shape[:2]
         n_workers = self.work_manager.n_workers or 1
-
-        #Submit jobs to work manager
-
-        blocksize = nsegs // n_workers
-        if nsegs % n_workers > 0:
-            blocksize += 1
-
-        checkset = set()
-        for lb in xrange(0, nsegs, blocksize):
-            ub = min(nsegs, lb+blocksize)
-            checkset.update(set(xrange(lb,ub)))
-            futures.append(self.work_manager.submit(_assign_label_pop, 
-                           kwargs=dict(n_iter=n_iter,
-                                       lb=lb, ub=ub, mapper=self.binning.mapper, nstates=nstates, state_map=state_map,
-                                       last_labels=last_labels, 
-                                       parent_id_dsspec=self.data_reader.parent_id_dsspec, 
-                                       weight_dsspec=self.data_reader.weight_dsspec,
-                                       pcoord_dsspec=self.dssynth.dsspec)))
-        assert checkset == set(xrange(nsegs)), 'segments missing: {}'.format(set(xrange(nsegs)) - checkset)
         assignments = numpy.empty((nsegs, npts), dtype=index_dtype)
         trajlabels = numpy.empty((nsegs, npts), dtype=index_dtype)
         pops = numpy.zeros((nstates+1,nbins+1), dtype=weight_dtype)
 
-        for future in self.work_manager.as_completed(futures):
+        #Submit jobs to work manager
+        blocksize = nsegs // n_workers
+        if nsegs % n_workers > 0:
+            blocksize += 1
+
+        def task_gen():
+            if __debug__:
+                checkset = set()
+            for lb in xrange(0, nsegs, blocksize):
+                ub = min(nsegs, lb+blocksize)
+                if __debug__:
+                    checkset.update(set(xrange(lb,ub)))
+                args = ()
+                kwargs = dict(n_iter=n_iter,
+                              lb=lb, ub=ub, mapper=self.binning.mapper, nstates=nstates, state_map=state_map,
+                              last_labels=last_labels, 
+                              parent_id_dsspec=self.data_reader.parent_id_dsspec, 
+                              weight_dsspec=self.data_reader.weight_dsspec,
+                              pcoord_dsspec=self.dssynth.dsspec)
+                yield (_assign_label_pop, args, kwargs)
+
+                #futures.append(self.work_manager.submit(_assign_label_pop, 
+                #kwargs=)
+            if __debug__:
+                assert checkset == set(xrange(nsegs)), 'segments missing: {}'.format(set(xrange(nsegs)) - checkset)
+
+        #for future in self.work_manager.as_completed(futures):
+        for future in self.work_manager.submit_as_completed(task_gen(), queue_size=self.max_queue_len):
             assign_slice, traj_slice, slice_pops, lb, ub = future.get_result(discard=True)
             assignments[lb:ub, :] = assign_slice
             trajlabels[lb:ub, :] = traj_slice

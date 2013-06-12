@@ -155,12 +155,16 @@ Command-line arguments
 
         with pi:
             pi.new_operation('Finding matching segments', extent=iter_count)
-            futures = set()
-            for n_iter in xrange(iter_start,iter_stop):
-                futures.add(self.work_manager.submit(_find_matching_segments, 
-                                                     args=(self.data_reader.we_h5filename,n_iter,self.predicate,self.invert)))
+#             futures = set()
+#             for n_iter in xrange(iter_start,iter_stop):
+#                 futures.add(self.work_manager.submit(_find_matching_segments, 
+#                                                      args=(self.data_reader.we_h5filename,n_iter,self.predicate,self.invert)))
 
-            for future in self.work_manager.as_completed(futures):
+#             for future in self.work_manager.as_completed(futures):
+            for future in self.work_manager.submit_as_completed(((_find_matching_segments,
+                                                                  (self.data_reader.we_h5filename,n_iter,self.predicate,self.invert),
+                                                                  {}) for n_iter in xrange(iter_start,iter_stop)),
+                                                                self.max_queue_len):
                 n_iter, matching_ids = future.get_result()
                 n_matches = len(matching_ids)
 

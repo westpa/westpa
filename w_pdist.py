@@ -57,25 +57,25 @@ def _remote_min_max(ndim, dset_dtype, n_iter, dsspec):
     return data_range
 
 def _remote_bin_iter(iiter, n_iter, dsspec, wt_dsspec, initpoint, binbounds):
-    
+
     iter_hist_shape = tuple(len(bounds)-1 for bounds in binbounds)
     iter_hist = numpy.zeros(iter_hist_shape, dtype=numpy.float64)
 
     dset = dsspec.get_iter_data(n_iter)
     npts = dset.shape[1]
     weights = wt_dsspec.get_iter_data(n_iter)
-    
+
     dset = dset[:,initpoint:,:]
     for ipt in xrange(npts-initpoint):
         histnd(dset[:,ipt,:], binbounds, weights, out=iter_hist, binbound_check = False)
-    
+
     del weights, dset
-    
+
     # normalize histogram
     normhistnd(iter_hist,binbounds)
     return iiter, n_iter, iter_hist
 
-    
+
 class WPDist(WESTParallelTool):
     prog='w_pdist'
     description = '''\
@@ -250,7 +250,7 @@ Command-line options
         
         igroup.add_argument('--dsspecs', nargs='+', metavar='DSSPEC',
                             help='''Construct probability distribution from one or more DSSPECs.''')
-
+        
         self.progress.add_args(parser)
         
     def process_args(self, args):
@@ -365,12 +365,15 @@ Command-line options
         
         data_range = self.data_range = [(maxval,minval) for _i in xrange(self.ndim)]
 
-        futures = []
-        for n_iter in xrange(self.iter_start, self.iter_stop):
+        #futures = []
+        #for n_iter in xrange(self.iter_start, self.iter_stop):
             #_remote_min_max(ndim, dset_dtype, n_iter, dsspec)
-            futures.append(self.work_manager.submit(_remote_min_max, args=(ndim, dset_dtype, n_iter, dsspec)))
+        #    futures.append(self.work_manager.submit(_remote_min_max, args=(ndim, dset_dtype, n_iter, dsspec)))
         
-        for future in self.work_manager.as_completed(futures):
+        #for future in self.work_manager.as_completed(futures):
+        for future in self.work_manager.submit_as_completed(((_remote_min_max, (ndim, dset_dtype, n_iter, dsspec), {})
+                                                             for n_iter in xrange(self.iter_start, self.iter_stop)),
+                                                            self.max_queue_len):
             bounds = future.get_result(discard=True)
             for idim in xrange(ndim):
                 current_min, current_max = data_range[idim]
@@ -436,19 +439,25 @@ Command-line options
         binbounds = [numpy.require(boundset, self.dset_dtype, 'C') for boundset in self.binbounds]
         
         self.progress.indicator.new_operation('Constructing histograms',self.iter_stop-self.iter_start)
-        futures = []
-        for iiter, n_iter in enumerate(xrange(self.iter_start, self.iter_stop)):
-            initpoint = 1 if iiter > 0 else 0
-            futures.append(self.work_manager.submit(_remote_bin_iter,
-                                                    args=(iiter, n_iter, self.dsspec, self.wt_dsspec, initpoint, binbounds)))
+        task_gen = ((_remote_bin_iter, (iiter, n_iter, self.dsspec, self.wt_dsspec, 1 if iiter > 0 else 0, binbounds), {}) 
+                    for (iiter,n_iter) in enumerate(xrange(self.iter_start, self.iter_stop)))
+        #futures = set()
+        #for iiter, n_iter in enumerate(xrange(self.iter_start, self.iter_stop)):
+        #    initpoint = 1 if iiter > 0 else 0
+        #    futures.add(self.work_manager.submit(_remote_bin_iter,
+        #                                            args=(iiter, n_iter, self.dsspec, self.wt_dsspec, initpoint, binbounds)))
         
-        for future in self.work_manager.as_completed(futures):
+        #for future in self.work_manager.as_completed(futures):
+            #future = self.work_manager.wait_any(futures)
+        #for future in self.work_manager.submit_as_completed(task_gen, self.queue_size):
+        for future in self.work_manager.submit_as_completed(task_gen, self.max_queue_len):
             iiter, n_iter, iter_hist = future.get_result(discard=True)
             self.progress.indicator.progress += 1
 
             # store histogram
             histograms_ds[iiter] = iter_hist
             del iter_hist, future
+            
 
 
 if __name__ == '__main__':
