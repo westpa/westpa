@@ -18,8 +18,8 @@
 from __future__ import print_function, division; __metaclass__ = type
 import logging
 from itertools import izip
-from westtools.tool_classes import (WESTParallelTool, WESTDataReader, WESTDSSynthesizer, IterRangeSelection, 
-                                    ProgressIndicatorComponent)
+from westtools import (WESTParallelTool, WESTDataReader, WESTDSSynthesizer, IterRangeSelection, 
+                       ProgressIndicatorComponent)
 import numpy, h5py
 from fasthist import histnd, normhistnd
 from westpa import h5io

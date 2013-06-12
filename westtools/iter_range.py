@@ -17,7 +17,7 @@
 
 
 from __future__ import print_function, division; __metaclass__ = type
-from westtools.tool_classes.core import WESTToolComponent
+from westtools.core import WESTToolComponent
 import logging
 log = logging.getLogger(__name__)
 import westpa

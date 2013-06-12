@@ -18,7 +18,7 @@
 from __future__ import print_function, division; __metaclass__ = type
 import logging
 import re, os
-from westtools.tool_classes import WESTMasterCommand, WESTSubcommand
+from westtools import WESTMasterCommand, WESTSubcommand
 import numpy, h5py
 from westpa import h5io, textio
 import matplotlib

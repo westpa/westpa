@@ -18,7 +18,7 @@
 from __future__ import print_function, division; __metaclass__ = type
 import sys
 import re
-from westtools.tool_classes import WESTTool, WESTDataReader
+from westtools import WESTTool, WESTDataReader
 import numpy, h5py, operator, time
 import westpa
 from westpa import h5io

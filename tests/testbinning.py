@@ -26,6 +26,9 @@ from scipy.spatial.distance import cdist
 import nose
 import nose.tools
 
+import logging
+log = logging.getLogger(__name__)
+
 class TestRectilinearBinMapper:
     def test1dAssign(self):
         bounds = [0.0, 1.0, 2.0, 3.0]
@@ -118,7 +121,7 @@ class TestVoronoiBinMapper:
         
  
 class TestNestingBinMapper:
-    pass
+    #pass
     '''         
          0                            1                      2
          +----------------------------+----------------------+
@@ -157,7 +160,7 @@ class TestNestingBinMapper:
         output[mask & ~test] = 1
         
     def testOuterMapper(self):
-        pass
+        #pass
         '''         
              0                            1                      2
              +----------------------------+----------------------+
@@ -172,7 +175,7 @@ class TestNestingBinMapper:
         assert list(output) == [0,0,0,0,0,1]
         
     def testOuterMapperWithOffset(self):
-        pass
+        #pass
         '''         
              0                            1                      2
              +----------------------------+----------------------+
@@ -187,7 +190,7 @@ class TestNestingBinMapper:
         assert list(output) == [1,1,1,1,1,2]
         
     def testSingleRecursion(self):
-        pass
+        #pass
     
         '''         
              0                            1                      2
@@ -212,7 +215,7 @@ class TestNestingBinMapper:
         assert list(output) == [1, 1, 1, 1, 2, 0]
         
     def testDeepRecursion(self):
-        pass
+        #pass
     
         '''
          0                            1                      2
@@ -241,7 +244,7 @@ class TestNestingBinMapper:
         assert list(output) == [2, 2, 3, 3, 1, 0]
         
     def testSideBySideRecursion(self):
-        pass
+        #pass
         '''         
              0                            1                      2
              +----------------------------+----------------------+
@@ -270,7 +273,7 @@ class TestNestingBinMapper:
         
 
     def testMegaComplexRecursion(self):
-        pass
+        #pass
         '''         
              0                            1                      2
              +----------------------------+----------------------+
@@ -298,3 +301,44 @@ class TestNestingBinMapper:
         coords = numpy.array([[0.1], [0.2], [0.3], [0.4], [0.6], [1.1], [1.6]])
         output = rmapper.assign(coords)
         assert list(output) == [1,1,2,2,0,3,4]
+
+    def test2dRectilinearRecursion(self):
+        '''
+             0                            1                      2
+             +----------------------------+----------------------+
+             |                            |         1.5          |
+             |                            | +--------+---------+ |
+             |                            | |        |         | |
+             |             0              | |   4    |   5     | |
+             |                            | |        |         | |
+             |                            | |        |         | |
+             |                            | +--------+---------+ |
+            1+---------------------------------------------------+
+             |            0.5             |                      |
+             | +-----------+------------+ |                      |
+             | |           |            | |                      |
+             | |    2      |     3      | |           1          |
+             | |           |            | |                      |
+             | |           |            | |                      |
+             | +-----------+------------+ |                      |
+            2+---------------------------------------------------+
+
+        '''
+
+        outer_mapper = RectilinearBinMapper([[0,1,2],[0,1,2]])
+
+        upper_right_mapper = RectilinearBinMapper([[1,1.5,2],[0,2]])
+        lower_left_mapper = RectilinearBinMapper([[0,0.5,1], [0,2]])
+
+        rmapper = RecursiveBinMapper(outer_mapper)
+        rmapper.add_mapper(upper_right_mapper, [1.5,0.5])
+        rmapper.add_mapper(lower_left_mapper, [0.5, 1.5])
+
+
+        pairs = [(0.5, 0.5), (1.25, 0.5), (1.75, 0.5),
+                 (0.25, 1.5), (0.75, 1.5), (1.5, 1.5)]
+
+        assert rmapper.nbins == 6
+        assert (rmapper.assign(pairs) == [0,4,5,2,3,1]).all()
+
+

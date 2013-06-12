@@ -24,8 +24,8 @@ from h5py import h5s
 
 import westpa
 from west.data_manager import weight_dtype, n_iter_dtype
-from westtools.tool_classes import (WESTMasterCommand, WESTParallelTool, WESTDataReader, IterRangeSelection, WESTSubcommand,
-                                    ProgressIndicatorComponent)
+from westtools import (WESTMasterCommand, WESTParallelTool, WESTDataReader, IterRangeSelection, WESTSubcommand,
+                       ProgressIndicatorComponent)
 from westpa import h5io
 from westpa.kinetics import labeled_flux_to_rate, sequence_macro_flux_to_rate
 from westpa.kinetics.matrates import get_macrostate_rates

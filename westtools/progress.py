@@ -17,7 +17,7 @@
 
 from __future__ import print_function, division; __metaclass__ = type
 from westpa.progress import ProgressIndicator
-from westtools.tool_classes.core import WESTToolComponent
+from westtools.core import WESTToolComponent
 import westpa
 
 class ProgressIndicatorComponent(WESTToolComponent):

@@ -17,7 +17,7 @@
 
 from __future__ import print_function, division; __metaclass__ = type
 import sys
-from westtools.tool_classes import WESTParallelTool, WESTDataReader, IterRangeSelection, ProgressIndicatorComponent
+from westtools import WESTParallelTool, WESTDataReader, IterRangeSelection, ProgressIndicatorComponent
 from itertools import imap
 import numpy
 

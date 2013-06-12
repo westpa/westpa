@@ -19,7 +19,7 @@ from __future__ import print_function, division; __metaclass__ = type
 import numpy, h5py
 from scipy.signal import fftconvolve
 
-from westtools.tool_classes import WESTTool, WESTDataReader, IterRangeSelection
+from westtools import WESTTool, WESTDataReader, IterRangeSelection
 import westpa
 from west.data_manager import (weight_dtype, n_iter_dtype, vstr_dtype)
 from west.we_driver import NewWeightEntry
