@@ -448,7 +448,6 @@ class RecursiveBinMapper(BinMapper):
 
         # do any recursive assignments necessary
         for (rindex, mapper) in self._recursion_targets.iteritems():
-            log.debug('rindex={!r}, mapper={!r}, mask={!r}, rmasks={!r}'.format(rindex, mapper, mask, rmasks))
             mapper.assign(coords, mask&rmasks[rindex], output)
 
         return output

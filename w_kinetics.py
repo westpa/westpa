@@ -408,6 +408,9 @@ Two schemes are available for kinetics analysis:
     elements). This scheme is somewhat less sensitive to the convergence
     of the global free energy landscape, but is very sensitive to "internal
     sinks", or groups of bins that trajectories never leave once they enter.
+
+    **This scheme is currently under development, so results may vary.**
+
     See ``w_kinetics matrix --help`` for more information.
 
 -----------------------------------------------------------------------------
