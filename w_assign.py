@@ -23,8 +23,8 @@ from numpy import index_exp
 
 from west.data_manager import seg_id_dtype, weight_dtype
 from westpa.binning import index_dtype, assign_and_label, accumulate_labeled_populations 
-from westtools.tool_classes import (WESTParallelTool, WESTDataReader, WESTDSSynthesizer, BinMappingComponent, 
-                                    ProgressIndicatorComponent)
+from westtools import (WESTParallelTool, WESTDataReader, WESTDSSynthesizer, BinMappingComponent, 
+                       ProgressIndicatorComponent)
 import numpy
 from westpa import h5io
 from westpa.h5io import WESTPAH5File

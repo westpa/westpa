@@ -17,7 +17,7 @@
 
 from __future__ import print_function, division; __metaclass__ = type
 import sys
-from westtools.tool_classes import WESTTool, WESTDataReader
+from westtools import WESTTool, WESTDataReader
 from west import Segment
 
 import logging

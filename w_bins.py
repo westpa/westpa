@@ -21,10 +21,10 @@ import logging, sys
 import numpy 
 log = logging.getLogger('w_bins')
 
-from westtools.tool_classes import WESTTool, WESTDataReader, BinMappingComponent
+from westtools import WESTTool, WESTDataReader, BinMappingComponent
 import westpa
 
-from westtools.tool_classes.binning import write_bin_info
+from westtools.binning import write_bin_info
 
 class WBinTool(WESTTool):
     prog='w_bins'

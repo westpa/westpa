@@ -29,8 +29,8 @@ from westpa.binning import index_dtype
 from westpa.kinetics import find_macrostate_transitions
 from westpa.kinetics._kinetics import _fast_transition_state_copy #@UnresolvedImport
 from westpa.kinetics.matrates import estimate_rates
-from westtools.tool_classes import (WESTSubcommand, WESTMasterCommand, WESTDataReader, IterRangeSelection,
-                                    ProgressIndicatorComponent)
+from westtools import (WESTSubcommand, WESTMasterCommand, WESTDataReader, IterRangeSelection,
+                       ProgressIndicatorComponent)
 
 
 ed_list_dtype = numpy.dtype([('istate', numpy.uint16), ('fstate', numpy.uint16), ('duration', numpy.float64),

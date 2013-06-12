@@ -21,7 +21,7 @@ import logging
 import numpy
 
 from west.data_manager import weight_dtype
-from westtools.tool_classes import (WESTParallelTool, WESTDataReader, IterRangeSelection, ProgressIndicatorComponent)
+from westtools import (WESTParallelTool, WESTDataReader, IterRangeSelection, ProgressIndicatorComponent)
 from westpa import h5io
 from westpa.binning import accumulate_state_populations_from_labeled
 
