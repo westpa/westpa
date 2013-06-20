@@ -98,8 +98,6 @@ Command-line options
         else:
             self.crawler = WESTPACrawler()
 
-        self.queue_size = args.queue_size or None
-
     def go(self):
         iter_start = self.iter_range.iter_start
         iter_stop = self.iter_range.iter_stop
