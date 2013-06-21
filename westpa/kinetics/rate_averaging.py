@@ -26,7 +26,7 @@ from westpa.kinetics._kinetics import flux_assign, pop_assign, calc_rates, Strea
 
 
 # Named tuple proxy for StreamingStats class
-StreamingStatsTuple = namedtuple('StreamingStatsTuple', ['mean', 'var', 'pwr_sum_mean', 'n'])
+StreamingStatsTuple = namedtuple('StreamingStatsTuple', ['M1', 'M2', 'n'])
 
 
 def grouper(n, iterable, fillvalue=None):
@@ -34,6 +34,24 @@ def grouper(n, iterable, fillvalue=None):
     # grouper(3, 'ABCDEFG', 'x') --> ABC DEF Gxx
     args = [iter(iterable)] * n
     return izip_longest(fillvalue=fillvalue, *args)
+
+
+def tuple2stats(stat_tuple):
+    ndims = stat_tuple.M1.ndim
+    assert ndims == 1 or ndims ==2
+
+    if ndims == 2:
+        stats = StreamingStats2D(stat_tuple.M1.shape)
+    elif ndims == 1:
+        stats = StreamingStats1D(stat_tuple.M1.shape[0])
+    else:
+        raise ValueError
+
+    stats.M1 = stat_tuple.M1
+    stats.M2 = stat_tuple.M2
+    stats.n = stat_tuple.n
+
+    return stats
 
 
 def process_iter_chunk(bin_mapper, iter_indices, iter_data=None):
@@ -48,16 +66,13 @@ def process_iter_chunk(bin_mapper, iter_indices, iter_data=None):
     itercount = len(iter_indices)
     nbins = bin_mapper.nbins
 
-    flux_stats = StreamingStats2D(nbins)
-    rate_stats = StreamingStats2D(nbins)
+    flux_stats = StreamingStats2D((nbins, nbins))
+    rate_stats = StreamingStats2D((nbins, nbins))
     pop_stats = StreamingStats1D(nbins)
 
-    n_vals1d = numpy.ones((nbins,), numpy.uint)
-    n_vals2d = numpy.ones((nbins,nbins), numpy.uint)
-    
     nomask1d = numpy.zeros((nbins,), numpy.uint8)
-    nomask2d = numpy.zeros((nbins,nbins), numpy.uint8)
-    rate_mask = numpy.zeros((nbins,nbins), numpy.uint8)
+    nomask2d = numpy.zeros((nbins, nbins), numpy.uint8)
+    rate_mask = numpy.zeros((nbins, nbins), numpy.uint8)
 
     flux_matrix = numpy.zeros((nbins, nbins), numpy.float64)
     rate_matrix = numpy.zeros((nbins, nbins), numpy.float64)
@@ -121,11 +136,11 @@ def process_iter_chunk(bin_mapper, iter_indices, iter_data=None):
         flux_assign(weights, initial_assignments, final_assignments, flux_matrix)
         pop_assign(weights, initial_assignments, population_vector)
 
-        flux_stats.update(flux_matrix, flux_matrix**2, n_vals2d, nomask2d)
-        pop_stats.update(population_vector, population_vector**2, n_vals1d, nomask1d)
+        flux_stats.update(flux_matrix, nomask2d)
+        pop_stats.update(population_vector, nomask1d)
 
         calc_rates(flux_matrix, population_vector, rate_matrix, rate_mask)
-        rate_stats.update(rate_matrix, rate_matrix**2, n_vals2d, rate_mask)
+        rate_stats.update(rate_matrix, rate_mask)
 
         del weights
         del initial_assignments, final_assignments
@@ -135,9 +150,9 @@ def process_iter_chunk(bin_mapper, iter_indices, iter_data=None):
     # Create namedtuple proxies for the cython StreamingStats objects
     # since the typed memoryviews class variables do not seem to return
     # cleanly from the zmq workers
-    c_flux_stats = StreamingStatsTuple(flux_stats.mean, flux_stats.var, flux_stats.pwr_sum_mean, flux_stats.n)
-    c_rate_stats = StreamingStatsTuple(rate_stats.mean, rate_stats.var, rate_stats.pwr_sum_mean, rate_stats.n)
-    c_pop_stats = StreamingStatsTuple(pop_stats.mean, pop_stats.var, pop_stats.pwr_sum_mean, pop_stats.n)
+    c_flux_stats = StreamingStatsTuple(flux_stats.M1, flux_stats.M2, flux_stats.n)
+    c_rate_stats = StreamingStatsTuple(rate_stats.M1, rate_stats.M2, rate_stats.n)
+    c_pop_stats = StreamingStatsTuple(pop_stats.M1, pop_stats.M2, pop_stats.n)
 
     return c_flux_stats, c_rate_stats, c_pop_stats 
 
@@ -203,33 +218,42 @@ class RateAverager():
         nbins = self.bin_mapper.nbins
 
         if n_blocks == 1:
-            flux_stats, rate_stats, population_stats = process_iter_chunk(self.bin_mapper, range(iter_start, iter_stop))
-        else:
-            flux_stats = StreamingStats2D(nbins)
-            rate_stats = StreamingStats2D(nbins)
-            population_stats = StreamingStats1D(nbins)
+            flux_stats_t, rate_stats_t, population_stats_t = process_iter_chunk(self.bin_mapper, range(iter_start, iter_stop))
 
-            nomask1d = numpy.zeros((nbins,), numpy.uint8)
-            nomask2d = numpy.zeros((nbins,nbins), numpy.uint8)
+            flux_stats = tuple2stats(flux_stats_t)
+            rate_stats = tuple2stats(rate_stats_t)
+            population_stats = tuple2stats(population_stats_t)
+        else:
+            flux_stats = StreamingStats2D((nbins, nbins))
+            rate_stats = StreamingStats2D((nbins, nbins))
+            population_stats = StreamingStats1D(nbins)
 
             task_generator = self.task_generator(iter_start, iter_stop, block_size)
 
             for future in self.work_manager.submit_as_completed(task_generator, queue_size):
-                chunk_flux_stats, chunk_rate_stats, chunk_pop_stats = future.get_result()
-                print(chunk_flux_stats.mean)
+                chunk_flux_stats_t, chunk_rate_stats_t, chunk_pop_stats_t = future.get_result()
+
+                chunk_flux_stats = tuple2stats(chunk_flux_stats_t)
+                chunk_rate_stats = tuple2stats(chunk_rate_stats_t)
+                chunk_pop_stats = tuple2stats(chunk_pop_stats_t)
+
                 # Update statistics with chunked subsets
-                flux_stats.update(chunk_flux_stats.mean, chunk_flux_stats.pwr_sum_mean, chunk_flux_stats.n, nomask2d)
-                rate_stats.update(chunk_rate_stats.mean, chunk_rate_stats.pwr_sum_mean, chunk_rate_stats.n, nomask2d)
-                population_stats.update(chunk_pop_stats.mean, chunk_pop_stats.pwr_sum_mean, chunk_pop_stats.n, nomask1d)
+                flux_stats += chunk_flux_stats
+                rate_stats += chunk_rate_stats
+                population_stats += chunk_pop_stats
 
         self.average_flux = flux_stats.mean 
-        self.stderr_flux = numpy.sqrt(flux_stats.var) / flux_stats.n
+        self.stderr_flux = numpy.nan_to_num(numpy.sqrt(flux_stats.var) / flux_stats.n)
 
         self.average_populations = population_stats.mean 
-        self.stderr_populations = numpy.sqrt(population_stats.var) / population_stats.n
+        self.stderr_populations = numpy.nan_to_num(numpy.sqrt(population_stats.var) / population_stats.n)
 
         self.average_rate = rate_stats.mean 
-        self.stderr_rate = numpy.sqrt(rate_stats.var) / rate_stats.n
+        self.stderr_rate = numpy.nan_to_num(numpy.sqrt(rate_stats.var) / rate_stats.n)
+
+        assert ~numpy.any(numpy.isinf(self.stderr_flux))
+        assert ~numpy.any(numpy.isinf(self.stderr_rate))
+        assert ~numpy.any(numpy.isinf(self.stderr_populations))
 
 
 if __name__ == '__main__':

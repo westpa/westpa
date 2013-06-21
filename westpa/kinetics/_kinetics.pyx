@@ -531,164 +531,228 @@ cdef class StreamingStats2D:
     '''Calculate mean and variance of a series of two-dimensional arrays of shape (nbins, nbins)
     using an online algorithm. The statistics are accumulated along what would be axis=0 if the 
     input arrays were stacked vertically. 
-    
+
     This code has been adapted from:
-    http://subluminal.wordpress.com/2008/07/31/running-standard-deviations/'''
+    http://www.johndcook.com/skewness_kurtosis.html'''
 
-    cdef weight_t[:,::1] _mean
-    cdef weight_t[:,::1] _var
-    cdef weight_t[:,::1] _pwr_sum_mean
+    cdef weight_t[:,::1] _M1
+    cdef weight_t[:,::1] _M2
     cdef uint_t[:,::1] _n
-    cdef Py_ssize_t nbins
+    cdef Py_ssize_t _sz0, _sz1
 
-    def __init__(self, int nbins):
+    def __init__(self, tuple shape):
 
-        self._n = numpy.zeros((nbins, nbins), dtype=numpy.uint)
-        self._mean = numpy.zeros((nbins, nbins), dtype=weight_dtype)
-        self._var = numpy.zeros((nbins, nbins), dtype=weight_dtype)
-        self._pwr_sum_mean = numpy.zeros((nbins, nbins), dtype=weight_dtype)
-        self.nbins = nbins
+        assert len(shape) == 2
+
+        self._n = numpy.zeros(shape, dtype=numpy.uint)
+        self._M1 = numpy.zeros(shape, dtype=weight_dtype)
+        self._M2 = numpy.zeros(shape, dtype=weight_dtype)
+        self._sz0, self._sz1 = shape
 
     @cython.boundscheck(False)
     @cython.wraparound(False)
     @cython.cdivision(True)
-    def update(self, weight_t[:,::1] values, weight_t[:,::1] pwr, uint_t[:,::1] n_val, bool_t[:,::1] mask):
+    def update(self, weight_t[:,::1] x, bool_t[:,::1] mask):
         '''Update the running set of statistics given
 
         Parameters
         ----------
-        values : 2d ndarray
-            values can either be the single set of observations or the
-            accumulated mean from another streaming calculation on a 
-            different set of data
-        pwr : 2d ndarray 
-            Either pow(values,2) if from a single observation or the
-            pwr_sum_mean variable from another streaming calculation 
-            if adding the that group's statistics to current calculation.
-        n_val : 2d ndarray
-            Either np.ones_like(values) for a single observation or the n
-            variable from another streaming calculation.
+        x : 2d ndarray
+            values from a single observation
         mask : 2d ndarray
             A uint8 array to exclude entries from the accumulated statistics.
         '''
 
         cdef:
             index_t i, j
+            int n1
+            double delta, delta_n, term1
 
-        assert values.shape[0] == values.shape[1] == self.nbins
-        assert pwr.shape[0] == pwr.shape[1] == self.nbins
-        assert n_val.shape[0] == n_val.shape[1] == self.nbins
-        assert mask.shape[0] == mask.shape[1] == self.nbins
+        assert x.shape[0] == mask.shape[0] == self._sz0
+        assert x.shape[1] == mask.shape[1] == self._sz1
 
         with nogil:
-            for i in xrange(self.nbins):
-                for j in xrange(self.nbins):
+            for i in range(self._sz0):
+                for j in range(self._sz1):
                     if not mask[i,j]:
-                        self._mean[i,j] = (values[i,j] * n_val[i,j] + self._mean[i,j] * self._n[i,j]) / (self._n[i,j] + n_val[i,j])
-                        self._pwr_sum_mean[i,j] = ( pwr[i,j] * n_val[i,j]  + self._pwr_sum_mean[i,j] * self._n[i,j]) / (self._n[i,j] + n_val[i,j])
-                        self._n[i,j] += n_val[i,j]
-                        self._var[i,j] = (self._pwr_sum_mean[i,j] * self._n[i,j] - self._n[i,j] * self._mean[i,j] * self._mean[i,j]) / self._n[i,j]
+                        n1 = self._n[i,j]
+                        self._n[i,j] += 1
+                        delta = x[i,j] - self._M1[i,j]
+                        delta_n = delta / self._n[i,j]
+                        term1 = delta * delta_n * n1
+                        self._M1[i,j] += delta_n
+                        self._M2[i,j] += term1
+    
+    @cython.boundscheck(False)
+    @cython.wraparound(False)
+    @cython.cdivision(True)
+    def __add__(StreamingStats2D self, StreamingStats2D other):
+        cdef:
+            index_t i, j
+            int n1
+            double delta, delta2
+            StreamingStats2D combined 
+            
+        combined = StreamingStats2D((self._sz0, self._sz1))
+            
+        for i in range(self._sz0):
+            for j in range(self._sz1):
+                combined._n[i,j] = self._n[i,j] + other._n[i,j]
+                delta = other._M1[i,j] - self._M1[i,j]
+                delta2 = delta * delta
+                combined._M1[i,j] = (other._n[i,j]*other._M1[i,j] + self._n[i,j]*self._M1[i,j]) / combined._n[i,j]
+                combined._M2[i,j] = other._M2[i,j] + self._M2[i,j] + (delta2 * self._n[i,j] * other._n[i,j]) / combined._n[i,j]
+        
+        return combined
+    
+    
+    def __iadd__(StreamingStats2D self, StreamingStats2D other):
+        combined = self + other
+        self = combined
+        return self
+                        
 
     property mean:
         def __get__(self):
-            tmp = numpy.asarray(self._mean)
+            tmp = numpy.asarray(self._M1)
             return numpy.nan_to_num(tmp)
 
     property var:
         def __get__(self):
-            tmp = numpy.asarray(self._var)
-            return numpy.nan_to_num(tmp)
-
-    property pwr_sum_mean:
-        def __get__(self):
-            tmp = numpy.asarray(self._pwr_sum_mean)
-            return numpy.nan_to_num(tmp)
+            tmp_m = numpy.asarray(self._M2)
+            tmp_n = numpy.asarray(self._n)
+            return numpy.nan_to_num(tmp_m / tmp_n)
 
     property n:
         def __get__(self):
             return numpy.asarray(self._n)
 
+        def __set__(self, val):
+            self._n = val[:]
+
+    property M1:
+        def __get__(self):
+            return numpy.asarray(self._M1)
+
+        def __set__(self, val):
+            self._M1 = val[:]
+
+    property M2:
+        def __get__(self):
+            return numpy.asarray(self._M2)
+
+        def __set__(self, val):
+            self._M2 = val[:]
 
 
 cdef class StreamingStats1D:
     '''Calculate mean and variance of a series of one-dimensional arrays of shape (nbins,)
     using an online algorithm. The statistics are accumulated along what would be axis=0 if the 
     input arrays were stacked vertically. 
-    
-    This code has been adapted from:
-    http://subluminal.wordpress.com/2008/07/31/running-standard-deviations/'''
 
-    cdef weight_t[::1] _mean
-    cdef weight_t[::1] _var
-    cdef weight_t[::1] _pwr_sum_mean
+    This code has been adapted from:
+    http://www.johndcook.com/skewness_kurtosis.html'''
+
+    cdef weight_t[::1] _M1
+    cdef weight_t[::1] _M2
     cdef uint_t[::1] _n
-    cdef Py_ssize_t nbins
+    cdef Py_ssize_t _sz0
 
     def __init__(self, int nbins):
 
         self._n = numpy.zeros((nbins,), dtype=numpy.uint)
-        self._mean = numpy.zeros((nbins,), dtype=weight_dtype)
-        self._var = numpy.zeros((nbins,), dtype=weight_dtype)
-        self._pwr_sum_mean = numpy.zeros((nbins,), dtype=weight_dtype)
-        self.nbins = nbins
+        self._M1 = numpy.zeros((nbins,), dtype=weight_dtype)
+        self._M2 = numpy.zeros((nbins,), dtype=weight_dtype)
+        self._sz0 = nbins
 
     @cython.boundscheck(False)
     @cython.wraparound(False)
     @cython.cdivision(True)
-    def update(self, weight_t[::1] values, weight_t[::1] pwr, uint_t[::1] n_val, bool_t[::1] mask):
+    def update(self, weight_t[::1] x, bool_t[::1] mask):
         '''Update the running set of statistics given
 
         Parameters
         ----------
-        values : 1d ndarray
-            values can either be the single set of observations or the
-            accumulated mean from another streaming calculation on a 
-            different set of data
-        pwr : 1d ndarray 
-            Either pow(values,2) if from a single observation or the
-            pwr_sum_mean variable from another streaming calculation 
-            if adding the that group's statistics to current calculation.
-        n_val : 1d ndarray
-            Either np.ones_like(values) for a single observation or the n
-            variable from another streaming calculation.
+        x : 1d ndarray
+            values from a single observation
         mask : 1d ndarray
             A uint8 array to exclude entries from the accumulated statistics.
         '''
 
         cdef:
             index_t i
+            int n1
+            double delta, delta_n, term1
 
-        assert values.shape[0] == self.nbins
-        assert pwr.shape[0] == self.nbins
-        assert n_val.shape[0] == self.nbins
-        assert mask.shape[0] == self.nbins
+        assert x.shape[0] == mask.shape[0] == self._sz0
 
         with nogil:
-            for i in xrange(self.nbins):
+            for i in range(self._sz0):
                 if not mask[i]:
-                    self._mean[i] = (values[i] * n_val[i] + self._mean[i] * self._n[i]) / (self._n[i] + n_val[i])
-                    self._pwr_sum_mean[i] = ( pwr[i] * n_val[i]  + self._pwr_sum_mean[i] * self._n[i]) / (self._n[i] + n_val[i])
-                    self._n[i] += n_val[i]
-                    self._var[i] = (self._pwr_sum_mean[i] * self._n[i] - self._n[i] * self._mean[i] * self._mean[i]) / self._n[i]
-
+                    n1 = self._n[i]
+                    self._n[i] += 1
+                    delta = x[i] - self._M1[i]
+                    delta_n = delta / self._n[i]
+                    term1 = delta * delta_n * n1
+                    self._M1[i] += delta_n
+                    self._M2[i] += term1
+    
+    @cython.boundscheck(False)
+    @cython.wraparound(False)
+    @cython.cdivision(True)
+    def __add__(StreamingStats1D self, StreamingStats1D other):
+        cdef:
+            index_t i
+            int n1
+            double delta, delta2
+            StreamingStats1D combined 
+            
+        combined = StreamingStats1D(self._sz0)
+            
+        for i in range(self._sz0):
+            combined._n[i] = self._n[i] + other._n[i]
+            delta = other._M1[i] - self._M1[i]
+            delta2 = delta * delta
+            combined._M1[i] = (other._n[i]*other._M1[i] + self._n[i]*self._M1[i]) / combined._n[i]
+            combined._M2[i] = other._M2[i] + self._M2[i] + (delta2 * self._n[i] * other._n[i]) / combined._n[i]
+        
+        return combined
+    
+    
+    def __iadd__(StreamingStats1D self, StreamingStats1D other):
+        combined = self + other
+        self = combined
+        return self
+                        
 
     property mean:
         def __get__(self):
-            tmp = numpy.asarray(self._mean)
+            tmp = numpy.asarray(self._M1)
             return numpy.nan_to_num(tmp)
 
     property var:
         def __get__(self):
-            tmp = numpy.asarray(self._var)
-            return numpy.nan_to_num(tmp)
-
-    property pwr_sum_mean:
-        def __get__(self):
-            tmp = numpy.asarray(self._pwr_sum_mean)
-            return numpy.nan_to_num(tmp)
+            tmp_m = numpy.asarray(self._M2)
+            tmp_n = numpy.asarray(self._n)
+            return numpy.nan_to_num(tmp_m / tmp_n)
 
     property n:
         def __get__(self):
             return numpy.asarray(self._n)
 
+        def __set__(self, val):
+            self._n = val[:]
 
+    property M1:
+        def __get__(self):
+            return numpy.asarray(self._M1)
+
+        def __set__(self, val):
+            self._M1 = val[:]
+
+    property M2:
+        def __get__(self):
+            return numpy.asarray(self._M2)
+
+        def __set__(self, val):
+            self._M2 = val[:]
