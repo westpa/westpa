@@ -24,6 +24,9 @@ import sys, argparse
 import westpa
 import work_managers
 
+import logging
+log = logging.getLogger(__name__)
+
 class WESTToolComponent:
     '''Base class for WEST command line tools and components used in constructing tools'''
     
@@ -159,6 +162,7 @@ class WESTParallelTool(WESTTool):
     
     def process_args(self, args):
         self.max_queue_len = args.max_queue_length
+        log.debug('max queue length: {!r}'.format(self.max_queue_len))
 
     def go(self):
         '''Perform the analysis associated with this tool.'''

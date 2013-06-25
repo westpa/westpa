@@ -44,6 +44,6 @@ def normhistnd(hist, binbounds):
         hist /= outers
         normfac = hist.sum()
         #normfac = (hist * outers).sum()
-        
+
     hist /= normfac
     return normfac

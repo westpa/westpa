@@ -56,7 +56,7 @@ def _remote_min_max(ndim, dset_dtype, n_iter, dsspec):
     del dset
     return data_range
 
-def _remote_bin_iter(iiter, n_iter, dsspec, wt_dsspec, initpoint, binbounds):
+def _remote_bin_iter(iiter, n_iter, dsspec, wt_dsspec, initpoint, binbounds, ignore_out_of_range):
 
     iter_hist_shape = tuple(len(bounds)-1 for bounds in binbounds)
     iter_hist = numpy.zeros(iter_hist_shape, dtype=numpy.float64)
@@ -67,7 +67,7 @@ def _remote_bin_iter(iiter, n_iter, dsspec, wt_dsspec, initpoint, binbounds):
 
     dset = dset[:,initpoint:,:]
     for ipt in xrange(npts-initpoint):
-        histnd(dset[:,ipt,:], binbounds, weights, out=iter_hist, binbound_check = False)
+        histnd(dset[:,ipt,:], binbounds, weights, out=iter_hist, binbound_check = False, ignore_out_of_range=ignore_out_of_range)
 
     del weights, dset
 
@@ -222,6 +222,7 @@ Command-line options
         self.binbounds = None  # bin boundaries for each dimension
         self.midpoints = None  # bin midpoints for each dimension 
         self.data_range = None # data range for each dimension, as the pairs (min,max)
+        self.ignore_out_of_range = False
         
     
     def add_args(self, parser):
@@ -239,6 +240,11 @@ Command-line options
         
         parser.add_argument('-o', '--output', dest='output', default='pdist.h5',
                             help='''Store results in OUTPUT (default: %(default)s).''')
+        
+        parser.add_argument('--loose', dest='ignore_out_of_range', action='store_true',
+                            help='''Ignore values that do not fall within bins. (Risky, as this can make buggy bin
+                            boundaries appear as reasonable data. Only use if you are
+                            sure of your bin boundary specification.)''')
         
         igroup = parser.add_argument_group('input dataset options').add_mutually_exclusive_group(required=False)
 
@@ -270,6 +276,7 @@ Command-line options
         
         self.binspec = args.bins
         self.output_filename = args.output
+        self.ignore_out_of_range = bool(args.ignore_out_of_range)
         
     
     def go(self):
@@ -439,7 +446,8 @@ Command-line options
         binbounds = [numpy.require(boundset, self.dset_dtype, 'C') for boundset in self.binbounds]
         
         self.progress.indicator.new_operation('Constructing histograms',self.iter_stop-self.iter_start)
-        task_gen = ((_remote_bin_iter, (iiter, n_iter, self.dsspec, self.wt_dsspec, 1 if iiter > 0 else 0, binbounds), {}) 
+        task_gen = ((_remote_bin_iter, (iiter, n_iter, self.dsspec, self.wt_dsspec, 1 if iiter > 0 else 0, binbounds,
+                                        self.ignore_out_of_range), {}) 
                     for (iiter,n_iter) in enumerate(xrange(self.iter_start, self.iter_stop)))
         #futures = set()
         #for iiter, n_iter in enumerate(xrange(self.iter_start, self.iter_stop)):
@@ -450,6 +458,7 @@ Command-line options
         #for future in self.work_manager.as_completed(futures):
             #future = self.work_manager.wait_any(futures)
         #for future in self.work_manager.submit_as_completed(task_gen, self.queue_size):
+        log.debug('max queue length: {!r}'.format(self.max_queue_len))
         for future in self.work_manager.submit_as_completed(task_gen, self.max_queue_len):
             iiter, n_iter, iter_hist = future.get_result(discard=True)
             self.progress.indicator.progress += 1
