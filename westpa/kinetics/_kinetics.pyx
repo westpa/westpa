@@ -18,6 +18,7 @@
 from __future__ import print_function,division
 import cython
 import numpy
+import warnings
 cimport numpy
 
 ctypedef numpy.uint16_t index_t
@@ -342,19 +343,21 @@ cpdef _reduce_labeled_rate_matrix_to_macro(Py_ssize_t nstates, Py_ssize_t nbins,
 @cython.boundscheck(False)
 @cython.wraparound(False)
 @cython.cdivision(True)
-cpdef labeled_flux_to_rate(weight_t[:,:,:,:] labeled_fluxes, weight_t[:,:] labeled_pops):
+cpdef labeled_flux_to_rate(weight_t[:,:,:,:] labeled_fluxes, weight_t[:,:] labeled_pops, object output=None):
     '''Convert a labeled flux matrix and corresponding labeled bin populations to
     a labeled rate matrix.'''
-    
+
     cdef:
         Py_ssize_t istate, jstate, ibin, jbin, nstates, nbins
         weight_t[:,:,:,:] _rates
-    
-    nstates = labeled_pops.shape[0]
-    nbins = labeled_pops.shape[1]
-    rates = numpy.empty_like(labeled_fluxes)
-    _rates = rates
-    
+
+    nstates = labeled_fluxes.shape[0]
+    nbins = labeled_fluxes.shape[2]
+
+    if output is None:
+        output = numpy.empty_like(labeled_fluxes)
+    _rates = output
+
     with nogil:
         for istate in xrange(nstates):
             for jstate in xrange(nstates):
@@ -363,12 +366,13 @@ cpdef labeled_flux_to_rate(weight_t[:,:,:,:] labeled_fluxes, weight_t[:,:] label
                         if labeled_pops[istate,ibin] == 0.0:
                             if labeled_fluxes[istate,jstate,ibin,jbin] > 0.0:
                                 with gil:
-                                    raise ValueError('flux matrix nonzero but population zero')
-                            else:
-                                _rates[istate,jstate,ibin,jbin] = 0.0
+                                    #raise ValueError('flux matrix entry nonzero but population zero')
+                                    warnings.warn('flux matrix entry nonzero but population zero')
+
+                            _rates[istate,jstate,ibin,jbin] = 0.0
                         else:
                             _rates[istate,jstate,ibin,jbin] = labeled_fluxes[istate,jstate,ibin,jbin] / labeled_pops[istate,ibin]
-    return rates
+    return output
 
 @cython.boundscheck(False)
 @cython.wraparound(False)

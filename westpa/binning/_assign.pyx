@@ -321,3 +321,20 @@ cpdef accumulate_state_populations_from_labeled(weight_t[:,:] labeled_bin_pops,
                     with gil:
                         raise ValueError('invalid state label {}'.format(istate))
                 state_pops[state_map[ibin]] += labeled_bin_pops[ilabel,ibin]
+
+@cython.wraparound(False)
+cpdef assignments_list_to_table(Py_ssize_t nsegs, Py_ssize_t nbins, index_t[:] assignments):
+    '''Convert a list of bin assignments (integers) to a boolean table indicating indicating 
+    if a given segment is in a given bin'''
+    
+    cdef:
+        Py_ssize_t iseg, ibin
+        bool_t[:,:] _output
+
+    output = numpy.zeros((nsegs,nbins), internal_bool_dtype)
+    _output = output
+
+    for iseg in xrange(nsegs):
+        _output[iseg,assignments[iseg]] = 1
+
+    return output.astype(numpy.bool_, copy=False)

@@ -23,7 +23,7 @@ import numpy
 
 import westpa
 from westpa import h5io
-from west.data_manager import seg_id_dtype, n_iter_dtype
+from west.data_manager import seg_id_dtype, n_iter_dtype, weight_dtype
 from westpa.extloader import get_object
 
 def _find_matching_segments(west_datafile_name, n_iter, predicate, invert=False):
@@ -84,6 +84,9 @@ datasets:
     ``n_iter``, only the first ``n_iter`` entries are valid. For example,
     the full list of matching seg_ids in the first stored iteration is
     ``seg_ids[0][:n_segs[0]]``.
+
+  ``/weights`` [iteration][segment]
+    *(Floating-point)* Weights for each matching segment in ``/seg_ids``.
 
 
 -----------------------------------------------------------------------------
@@ -152,6 +155,10 @@ Command-line arguments
                                                       dtype=seg_id_dtype,
                                                       chunks=h5io.calc_chunksize((iter_count,1000000), seg_id_dtype),
                                                       shuffle=True, compression=9)
+        weights_ds = output_file.create_dataset('weights', shape=(iter_count,0), maxshape=(iter_count,None),
+                                                dtype=weight_dtype,
+                                                chunks=h5io.calc_chunksize((iter_count,1000000), weight_dtype),
+                                                shuffle=True,compression=9)
 
         with pi:
             pi.new_operation('Finding matching segments', extent=iter_count)
@@ -172,10 +179,12 @@ Command-line arguments
                     if n_matches > current_seg_count:
                         current_seg_count = len(matching_ids)
                         matching_segs_ds.resize((iter_count,n_matches))
+                        weights_ds.resize((iter_count,n_matches))
                         current_seg_count = n_matches
 
                     seg_count_ds[n_iter-iter_start] = n_matches
                     matching_segs_ds[n_iter-iter_start,:n_matches] = matching_ids
+                    weights_ds[n_iter-iter_start,:n_matches] = self.data_reader.get_iter_group(n_iter)['seg_index']['weight'][sorted(matching_ids)]
                 del matching_ids
                 pi.progress += 1
 
@@ -194,12 +203,14 @@ Command-line arguments
                     n_matches = len(matching_ids)
                     if n_matches > current_seg_count:
                         matching_segs_ds.resize((iter_count,n_matches))
+                        weights_ds.resize((iter_count,n_matches))
                         current_seg_count = n_matches
 
                     if n_matches > 0:
                         seg_count_ds[iiter] = n_matches
                         matching_ids = sorted(matching_ids)
                         matching_segs_ds[iiter,:n_matches] = matching_ids
+                        weights_ds[iiter,:n_matches] = self.data_reader.get_iter_group(n_iter)['seg_index']['weight'][sorted(matching_ids)]
                         parent_ids = self.data_reader.get_iter_group(n_iter)['seg_index']['parent_id'][sorted(matching_ids)]
                         from_previous.update(parent_id for parent_id in parent_ids if parent_id >= 0) # filter initial states
                         del parent_ids

@@ -157,7 +157,7 @@ attributes datasets:
   ``nbins`` attribute
     *(Integer)* Number of valid bins. Bin assignments range from 0 to
     *nbins*-1, inclusive.
-    
+
   ``nstates`` attribute
     *(Integer)* Number of valid macrostates (may be zero if no such states are
     specified). Trajectory ensemble assignments range from 0 to *nstates*-1,
@@ -168,25 +168,28 @@ attributes datasets:
 
   ``/npts`` [iteration]
     *(Integer)* Number of timepoints in each iteration.
-    
+
   ``/nsegs`` [iteration]
     *(Integer)* Number of segments in each iteration.
-    
+
   ``/labeled_populations`` [iterations][state][bin]
     *(Floating-point)* Per-iteration and -timepoint bin populations, labeled
     by most recently visited macrostate. The last state entry (*nstates-1*)
     corresponds to trajectories initiated outside of a defined macrostate.
-    
+
+  ``/bin_labels`` [bin]
+    *(String)* Text labels of bins.
+
 When macrostate assignments are given, the following additional datasets are
 present:
 
   ``/trajlabels`` [iteration][segment][timepoint]
     *(Integer)* Per-segment and -timepoint trajectory labels, indicating the
     macrostate which each trajectory last visited.
-    
+
   ``/state_labels`` [state]
     *(String)* Labels of states.
-    
+
   ``/state_map`` [bin]
     *(Integer)* Mapping of bin index to the macrostate containing that bin.
     An entry will contain *nbins+1* if that bin does not fall into a 
@@ -404,6 +407,8 @@ Command-line options
 
             state_map = numpy.empty((self.binning.mapper.nbins+1,), index_dtype)
             state_map[:] = 0 # state_id == nstates => unknown state
+
+            self.output_file.create_dataset('bin_labels', data=self.binning.mapper.labels, compression=9)
 
             if self.states:
                 nstates = len(self.states)

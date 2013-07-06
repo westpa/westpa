@@ -304,12 +304,11 @@ Command-line options
                             (Default: %(default)s).''')
         wgroup.add_argument('--all-lags', action='store_true', default=False,
                             help='Use all possible lags within window of WINDOWSIZE')
-        
+
     def process_args(self, args):
         self.window_size = args.windowsize
         self.all_lags = bool(args.all_lags)
-        
-    
+
     def go(self):
         pi = self.progress.indicator
         pi.new_operation('Initializing')
@@ -321,63 +320,83 @@ Command-line options
             nstates = len(state_labels)
             start_iter, stop_iter = self.iter_range.iter_start, self.iter_range.iter_stop # h5io.get_iter_range(self.assignments_file)
             iter_count = stop_iter - start_iter
-            
+
             weights_ring = deque(maxlen=self.window_size)
             parent_ids_ring = deque(maxlen=self.window_size)
             bin_assignments_ring = deque(maxlen=self.window_size)
             label_assignments_ring = deque(maxlen=self.window_size)
-            
+
             labeled_matrix_shape = (iter_count,nstates,nstates,nbins,nbins)
-            
+            unlabeled_matrix_shape = (iter_count,nbins,nbins)
+            labeled_matrix_chunks = (1, nstates, nstates, nbins, nbins)
+            unlabeled_matrix_chunks = (1, nbins, nbins)
+
             labeled_bin_fluxes_ds = self.output_file.create_dataset('labeled_bin_fluxes',
                                                                     shape=labeled_matrix_shape,
-                                                                    chunks=(h5io.calc_chunksize(labeled_matrix_shape, weight_dtype)
-                                                                            if self.do_compression else None),
+                                                                    chunks=labeled_matrix_chunks if self.do_compression else None,
                                                                     compression=9 if self.do_compression else None,
                                                                     dtype=weight_dtype)
-    
-            
-            for ds in (self.output_file, labeled_bin_fluxes_ds):
+            labeled_bin_rates_ds = self.output_file.create_dataset('labeled_bin_rates',
+                                                                   shape=labeled_matrix_shape,
+                                                                   chunks=labeled_matrix_chunks if self.do_compression else None,
+                                                                   compression=9 if self.do_compression else None,
+                                                                   dtype=weight_dtype)
+            unlabeled_bin_rates_ds = self.output_file.create_dataset('bin_rates', shape=unlabeled_matrix_shape,
+                                                                     chunks=unlabeled_matrix_chunks if self.do_compression else None,
+                                                                     compression=9 if self.do_compression else None,
+                                                                     dtype=weight_dtype)
+
+            fluxes = numpy.empty(labeled_matrix_shape[1:], weight_dtype)
+            labeled_rates = numpy.empty(labeled_matrix_shape[1:], weight_dtype)
+            unlabeled_rates = numpy.empty(unlabeled_matrix_shape[1:], weight_dtype)
+
+            for ds in (self.output_file, labeled_bin_fluxes_ds, labeled_bin_rates_ds, unlabeled_bin_rates_ds):
                 h5io.stamp_iter_range(ds, start_iter, stop_iter)
-                
-            for ds in (labeled_bin_fluxes_ds,):
+
+            for ds in (labeled_bin_fluxes_ds, labeled_bin_rates_ds):
                 h5io.label_axes(ds, ['iteration','initial state','final state','inital bin','final bin'])
-    
+
+            for ds in (unlabeled_bin_rates_ds,):
+                h5io.label_axes(ds, ['iteration', 'initial bin', 'final bin'])
+
             pi.new_operation('Calculating flux matrices', iter_count)
             # Calculate instantaneous rate matrices and trace trajectories
             for iiter, n_iter in enumerate(xrange(start_iter, stop_iter)):
-                
                 # Get data from the main HDF5 file
                 iter_group = self.data_reader.get_iter_group(n_iter)
                 seg_index = iter_group['seg_index']
                 nsegs, npts = iter_group['pcoord'].shape[0:2] 
                 weights = seg_index['weight']
-                #parent_ids = seg_index['parent_id']
                 parent_ids = self.data_reader.parent_id_dsspec.get_iter_data(n_iter)
-                
+
                 # Get bin and traj. ensemble assignments from the previously-generated assignments file
                 assignment_iiter = h5io.get_iteration_entry(self.assignments_file, n_iter)
                 bin_assignments = numpy.require(self.assignments_file['assignments'][assignment_iiter + numpy.s_[:nsegs,:npts]],
                                                 dtype=index_dtype)
                 label_assignments = numpy.require(self.assignments_file['trajlabels'][assignment_iiter + numpy.s_[:nsegs,:npts]],
                                                   dtype=index_dtype)
-                
-                # Prepare to run analysis            
+                labeled_pops = self.assignments_file['labeled_populations'][assignment_iiter]
+
+                # Prepare to run analysis
                 weights_ring.append(weights)
                 parent_ids_ring.append(parent_ids)
                 bin_assignments_ring.append(bin_assignments)
                 label_assignments_ring.append(label_assignments)
-                
+
                 # Estimate rates using bin-to-bin fluxes
-                fluxes = estimate_rates(nbins, state_labels,
-                                        weights_ring, parent_ids_ring, bin_assignments_ring, label_assignments_ring, state_map,
-                                        self.all_lags)
-                
+                estimate_rates(nbins, state_labels,
+                               weights_ring, parent_ids_ring, bin_assignments_ring, label_assignments_ring, state_map,
+                               labeled_pops,
+                               self.all_lags,
+                               fluxes, labeled_rates, unlabeled_rates)
+
                 # Store bin-based kinetics data
                 labeled_bin_fluxes_ds[iiter] = fluxes
-                                    
+                labeled_bin_rates_ds[iiter] = labeled_rates
+                unlabeled_bin_rates_ds[iiter] = unlabeled_rates
+
                 # Do a little manual clean-up to prevent memory explosion
-                del iter_group, weights, parent_ids, bin_assignments, label_assignments, fluxes
+                del iter_group, weights, parent_ids, bin_assignments, label_assignments, labeled_pops
                 pi.progress += 1
 
 class WKinetics(WESTMasterCommand):
