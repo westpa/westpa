@@ -223,6 +223,7 @@ Command-line options
         self.midpoints = None  # bin midpoints for each dimension 
         self.data_range = None # data range for each dimension, as the pairs (min,max)
         self.ignore_out_of_range = False
+        self.compress_output = False
         
     
     def add_args(self, parser):
@@ -240,6 +241,10 @@ Command-line options
         
         parser.add_argument('-o', '--output', dest='output', default='pdist.h5',
                             help='''Store results in OUTPUT (default: %(default)s).''')
+        parser.add_argument('-C', '--compress', action='store_true', 
+                            help='''Compress histograms. May make storage of higher-dimensional histograms
+                            more tractable, at the (possible extreme) expense of increased analysis time.
+                            (Default: no compression.)''')
         
         parser.add_argument('--loose', dest='ignore_out_of_range', action='store_true',
                             help='''Ignore values that do not fall within bins. (Risky, as this can make buggy bin
@@ -277,6 +282,7 @@ Command-line options
         self.binspec = args.bins
         self.output_filename = args.output
         self.ignore_out_of_range = bool(args.ignore_out_of_range)
+        self.compress_output = args.compress or False
         
     
     def go(self):
@@ -440,9 +446,10 @@ Command-line options
         
         self.scan_data_shape()
         
-        iter_count = self.iter_stop - self.iter_start 
+        iter_count = self.iter_stop - self.iter_start
         histograms_ds = self.output_file.create_dataset('histograms', dtype=numpy.float64,
-                                                        shape=((iter_count,) + tuple(len(bounds)-1 for bounds in self.binbounds)))
+                                                        shape=((iter_count,) + tuple(len(bounds)-1 for bounds in self.binbounds)),
+                                                        compression=9 if self.compress_output else None)
         binbounds = [numpy.require(boundset, self.dset_dtype, 'C') for boundset in self.binbounds]
         
         self.progress.indicator.new_operation('Constructing histograms',self.iter_stop-self.iter_start)

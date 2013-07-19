@@ -439,17 +439,19 @@ probability distribution must have been previously extracted with ``w_pdist``
         iiter_stop  = numpy.searchsorted(n_iters, self.iter_stop)
         binbounds = self.input_h5['binbounds_{}'.format(idim)][...]
         midpoints = self.input_h5['midpoints_{}'.format(idim)][...]
-        hist = self.input_h5['histograms'][iiter_start:iiter_stop]
+        #hist = self.input_h5['histograms'][iiter_start:iiter_stop]
         
-        # Average over time
-        hist = numpy.add.reduce(hist, axis=0)
-        
-        # Average over other dimensions
-        hist = sum_except_along(hist, idim)
+        for iiter in xrange(iiter_start, iiter_stop):
+            iter_hist = sum_except_along(self.input_h5['histograms'][iiter], idim)
+            if iiter == iiter_start:
+                hist = iter_hist
+            else:
+                hist += iter_hist
+            del iter_hist
 
         normhistnd(hist, [binbounds])
         self._do_1d_output(hist, idim, midpoints)
-            
+
 
     def do_average_plot_2d(self):
         '''Plot the histogram for iteration self.n_iter'''

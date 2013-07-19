@@ -377,13 +377,20 @@ cpdef labeled_flux_to_rate(weight_t[:,:,:,:] labeled_fluxes, weight_t[:,:] label
 @cython.boundscheck(False)
 @cython.wraparound(False)
 @cython.cdivision(True)
-cpdef sequence_macro_flux_to_rate(weight_t[:,:,:] fluxes, weight_t[:,:] traj_ens_pops):
+cpdef sequence_macro_flux_to_rate(weight_t[:,:,:] fluxes, weight_t[:,:] traj_ens_pops, bint pairwise=True):
     '''Convert a sequence of macrostate fluxes and corresponding list of trajectory ensemble populations
-    to a sequence of rate matrices'''
+    to a sequence of rate matrices.
+    
+    If the optional ``pairwise`` is true (the default), then rates are normalized according to the
+    relative probability of the initial state among the pair of states (initial, final); this is
+    probably what you want, as these rates will then depend only on the definitions of the states
+    involved (and never the remaining states). Otherwise (``pairwise'' is false), the rates are
+    normalized according the probability of the initial state among *all* other states.'''
     
     cdef:
         Py_ssize_t iiter, istate, jstate, nstates
         weight_t[:,:,:] _rates
+        weight_t p
         
     rates = numpy.empty((fluxes.shape[0], fluxes.shape[1], fluxes.shape[2]), dtype=weight_dtype)
     _rates = rates
@@ -393,7 +400,11 @@ cpdef sequence_macro_flux_to_rate(weight_t[:,:,:] fluxes, weight_t[:,:] traj_ens
             for istate in xrange(fluxes.shape[1]):
                 for jstate in xrange(fluxes.shape[2]):
                     if traj_ens_pops[iiter,istate] > 0:
-                        _rates[iiter,istate,jstate] = fluxes[iiter,istate,jstate] / traj_ens_pops[iiter,istate]
+                        if pairwise:
+                            p = traj_ens_pops[iiter,istate] / (traj_ens_pops[iiter,istate]+traj_ens_pops[iiter,jstate])
+                        else:
+                            p = traj_ens_pops[iiter,istate]
+                        _rates[iiter,istate,jstate] = fluxes[iiter,istate,jstate] / p
                     elif fluxes[iiter,istate,jstate] > 0:
                         # This is an invalid rate, but can appear in some places in recycling simulations,
                         # so we allow things to proceed but store NaN, which will render any average
