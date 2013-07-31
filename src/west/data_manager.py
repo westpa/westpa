@@ -61,6 +61,7 @@ import h5py
 from westpa import h5io
 from h5py import h5s
 import threading
+import os
 
 import logging
 log = logging.getLogger(__name__)
@@ -329,7 +330,7 @@ class WESTDataManager:
                                 
     def prepare_backing(self): #istates):
         '''Create new HDF5 file'''
-        self.we_h5file = h5py.File(self.we_h5filename, 'w', driver=self.we_h5file_driver)
+        self.we_h5file = h5py.File(self.we_h5filename, 'w', driver=self.we_h5file_driver, flags="NPY_ARRAY_FORCECAST")
         
         with self.flushing_lock():
             self.we_h5file['/'].attrs['west_file_format_version'] = file_format_version
@@ -872,7 +873,7 @@ class WESTDataManager:
                     
                     shape = (n_total_segments,) + shape
                     dset = require_dataset_from_dsopts(iter_group, dsopts, shape, dtype,
-                                                       autocompress_threshold=self.aux_compression_threshold)
+                                                       autocompress_threshold=self.aux_compression_threshold, n_iter=n_iter)
                     if dset is None:
                         # storage is suppressed
                         continue
@@ -888,6 +889,8 @@ class WESTDataManager:
                             dest_sel = dset.id.get_space()
                             dest_sel.select_hyperslab((segment.seg_id,)+(0,)*source_rank, (1,)+auxdataset.shape)
                             dset.id.write(source_sel, dest_sel, auxdataset)                                
+            if 'delram' in dsopts.keys():
+                del dsets[dsname]
     
     def get_segments(self, n_iter=None, seg_ids=None, load_pcoords = True):
         '''Return the given (or all) segments from a given iteration.  
@@ -1291,9 +1294,9 @@ class WESTDataManager:
             else:
                 iter_group.attrs['binhash'] = ''    
 
-def normalize_dataset_options(dsopts, path_prefix=''):
+def normalize_dataset_options(dsopts, path_prefix='', n_iter=0):
     dsopts = dict(dsopts)
-    
+
     ds_name = dsopts['name']
     if path_prefix:
         default_h5path = '{}/{}'.format(path_prefix,ds_name)
@@ -1310,15 +1313,24 @@ def normalize_dataset_options(dsopts, path_prefix=''):
 
     dsopts['store'] = bool(dsopts['store']) if 'store' in dsopts else True
     dsopts['load'] = bool(dsopts['load']) if 'load' in dsopts else False
-    
+        
     return dsopts
 
-def create_dataset_from_dsopts(group, dsopts, shape=None, dtype=None, data=None, autocompress_threshold=None):
+def create_dataset_from_dsopts(group, dsopts, shape=None, dtype=None, data=None, autocompress_threshold=None, n_iter=None):
     #log.debug('create_dataset_from_dsopts(group={!r}, dsopts={!r}, shape={!r}, dtype={!r}, data={!r}, autocompress_threshold={!r})'
     #          .format(group,dsopts,shape,dtype,data,autocompress_threshold))
     if not dsopts.get('store',True):
         return None
-    
+
+    if 'file' in dsopts.keys():
+        import h5py
+#        dsopts['file'] = str(dsopts['file']).format(n_iter=n_iter)
+        h5_auxfile = h5io.WESTPAH5File(dsopts['file'].format(n_iter=n_iter))
+        h5group = group
+        if not ("iter_" + str(n_iter).zfill(8)) in h5_auxfile:
+            h5_auxfile.create_group("iter_" + str(n_iter).zfill(8))
+        group = h5_auxfile[('/' + "iter_" + str(n_iter).zfill(8))]
+
     h5path = dsopts['h5path']
     containing_group_name = posixpath.dirname(h5path)
     h5_dsname = posixpath.basename(h5path)
@@ -1413,22 +1425,28 @@ def create_dataset_from_dsopts(group, dsopts, shape=None, dtype=None, data=None,
     if log.isEnabledFor(logging.DEBUG):
         log.debug('requiring aux dataset {!r}, shape={!r}, opts={!r}'
                   .format(h5_dsname, shape, opts))
+
     dset = containing_group.require_dataset(h5_dsname, **opts)
         
     if data is not None:
         dset[...] = data
-                                         
+                      
+    if 'file' in dsopts.keys():
+        import h5py
+        if not dsopts['h5path'] in h5group:
+            h5group[dsopts['h5path']] = h5py.ExternalLink(dsopts['file'].format(n_iter=n_iter), ("/" +"iter_" + str(n_iter).zfill(8) + "/" + dsopts['h5path']))
+                   
     return dset
     
 
-def require_dataset_from_dsopts(group, dsopts, shape=None, dtype=None, data=None, autocompress_threshold=None):
+def require_dataset_from_dsopts(group, dsopts, shape=None, dtype=None, data=None, autocompress_threshold=None, n_iter=None):
     if not dsopts.get('store',True):
         return None
     try:
         return group[dsopts['h5path']]
     except KeyError:
         return create_dataset_from_dsopts(group,dsopts,shape=shape,dtype=dtype,data=data,
-                                          autocompress_threshold=autocompress_threshold)
+                                          autocompress_threshold=autocompress_threshold, n_iter=n_iter)
         
 
     
