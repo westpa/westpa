@@ -25,6 +25,7 @@ import numpy
 import westpa
 from westpa import h5io
 from west.data_manager import weight_dtype
+from west.data_manager import seg_id_dtype
 from westpa.binning import index_dtype
 from westpa.kinetics import find_macrostate_transitions
 from westpa.kinetics._kinetics import _fast_transition_state_copy #@UnresolvedImport
@@ -34,7 +35,7 @@ from westtools import (WESTSubcommand, WESTMasterCommand, WESTDataReader, IterRa
 
 
 ed_list_dtype = numpy.dtype([('istate', numpy.uint16), ('fstate', numpy.uint16), ('duration', numpy.float64),
-                             ('weight', numpy.float64)])
+                             ('weight', numpy.float64), ('seg_id', seg_id_dtype)])
 
 log = logging.getLogger('westtools.w_kinetics')
 

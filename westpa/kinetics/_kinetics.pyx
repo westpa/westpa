@@ -538,7 +538,7 @@ cpdef find_macrostate_transitions(Py_ssize_t nstates,
                         # list to explode
                         if iistate != flabel:
                             t_ed = tm - _last_exits[seg_id,iistate]
-                            durations.append((iistate,flabel,t_ed,_weight))
+                            durations.append((iistate,flabel,t_ed,_weight, seg_id))
         _last_time[seg_id] = tm
 
 
