@@ -106,6 +106,9 @@ class KinAvgSubcommands(WESTSubcommand):
                              ``blocked`` evaluates rates over windows of width --step-iter, the first of which begins at
                              --start-iter.
                              ``none`` (the default) disables calculation of the time evolution of rate estimates.''')
+        cogroup.add_argument('--window-frac', type=float, default=1.0,
+                             help='''Fraction of iterations to use in each window when running in ``cumulative`` mode.
+                             The (1 - frac) fraction of iterations will be discarded from the start of each window.''')
         
     def open_files(self):
         self.output_file = h5io.WESTPAH5File(self.output_filename, 'w', creating_program=True)
@@ -137,6 +140,10 @@ class KinAvgSubcommands(WESTSubcommand):
         self.mcbs_nsets = args.nsets if args.nsets else mclib.get_bssize(self.mcbs_alpha)
         
         self.evolution_mode = args.evolution_mode
+        self.evol_window_frac = args.window_frac
+        if self.evol_window_frac <= 0 or self.evol_window_frac > 1:
+            raise ValueError('Parameter error -- fractional window defined by --window-frac must be in (0,1]')
+
         
 def _eval_block(iblock, start, stop, nstates, total_fluxes, cond_fluxes, rates, mcbs_alpha, mcbs_nsets, mcbs_acalpha):
     results = [[],[],[]]
@@ -272,11 +279,12 @@ class AvgTraceSubcommand(KinAvgSubcommands):
             pi.new_operation('Calculating flux/rate evolution', len(start_pts))
             futures = []
             for iblock, start in enumerate(start_pts):
+                stop = min(start+step_iter, stop_iter)
                 if self.evolution_mode == 'cumulative':
-                    block_start = start_iter
+                    windowsize = int(self.evol_window_frac * (stop - start_iter))
+                    block_start = max(start_iter, stop - windowsize)
                 else: # self.evolution_mode == 'blocked'
                     block_start = start
-                stop = min(start+step_iter, stop_iter)
                 
                 future = self.work_manager.submit(_eval_block, kwargs=dict(iblock=iblock, start=block_start, stop=stop,
                                                                            nstates=nstates,
@@ -489,11 +497,12 @@ class AvgMatrixSubcommand(KinAvgSubcommands):
             for jstate in xrange(self.nstates):
                 if istate == jstate: continue
                 for iblock, start in enumerate(start_pts):
+                    stop = min(start+step_iter, stop_iter)
                     if self.evolution_mode == 'cumulative':
-                        block_start = start_iter
+                        windowsize = int(self.evol_window_frac * (stop - start_iter))
+                        block_start = max(start_iter, stop - windowsize)
                     else: # self.evolution_mode == 'blocked'
                         block_start = start
-                    stop = min(start+step_iter, stop_iter)
                     log.debug('dispatching block {}, istate={}, jstate={}, start={}, stop={}'
                               .format(iblock, istate, jstate, block_start,stop))
 
