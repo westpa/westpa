@@ -304,7 +304,7 @@ class AvgTraceSubcommand(KinAvgSubcommands):
                     
                 for result in condflux_results:
                     iblock,istate,jstate,ci_result = result
-                    flux_evol[iblock,istate] = ci_result
+                    flux_evol[iblock,istate, jstate] = ci_result
                 
                 for result in rate_results:
                     iblock, istate, jstate, ci_result = result 
