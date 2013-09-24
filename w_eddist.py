@@ -15,17 +15,15 @@ class DurationDataset:
     '''A facade for the 'dsspec' dataclass that incorporates the mask into get_iter_data method'''
 
     def __init__(self, dataset, mask, iter_start=1):
-
-        self.dataset = DurationDataset.pare_dataset(dataset, mask, iter_start)
+        self.dataset = dataset
+        self.mask = mask
         self.dtype = dataset.dtype
         self.iter_start = iter_start
-
-        del dataset, mask
 
     def get_iter_data(self, n_iter):
         try:
             assert n_iter >= self.iter_start
-            dset = self.dataset[n_iter]
+            dset = self.dataset[n_iter-1][self.mask[n_iter-self.iter_start]]
         except(AssertionError, IndexError):
             raise ValueError, "Iteration {} is not within the iteration range".format(n_iter)
         nsegs = dset.shape[0]
@@ -34,17 +32,6 @@ class DurationDataset:
         else:
             return dset.reshape(nsegs, 1, 1)
 
-    @staticmethod
-    def pare_dataset(dataset, mask, iter_start):
-        '''Strip down a dataset to just the istate->fstate transitions we want, according to supplied mask'''
-
-        dset = {}
-        n_iters = mask.shape[0]
-
-        for iiter, n_iter in enumerate(xrange(iter_start, n_iters+1)):
-            dset[n_iter] = dataset[iiter][mask[n_iter-iter_start]]
-
-        return dset
 
 def isiterable(x):
     try:
