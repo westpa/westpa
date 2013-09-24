@@ -264,7 +264,7 @@ Command-line options
         self.progress.add_args(parser)
         
     def process_args(self, args):
-        #self.progress.process_args(args)
+        self.progress.process_args(args)
         self.kinetics_filename = args.kinetics
         self.istate = args.istate
         self.fstate = args.fstate
@@ -283,36 +283,36 @@ Command-line options
         
     def go(self):
         
-        #pi = self.progress.indicator
-        #pi.operation = 'Initializing'
-        #with pi:
-        self.duration = self.kinetics_file['durations'][self.iter_start-1:self.iter_stop-1]
+        pi = self.progress.indicator
+        pi.operation = 'Initializing'
+        with pi:
+            self.duration = self.kinetics_file['durations'][self.iter_start-1:self.iter_stop-1]
 
-        ##Only select transition events from specified istate to fstate
-        mask = (self.duration['istate'] == self.istate) & (self.duration['fstate'] == self.fstate)
+            ##Only select transition events from specified istate to fstate
+            mask = (self.duration['istate'] == self.istate) & (self.duration['fstate'] == self.fstate)
 
-        self.duration_dsspec = DurationDataset(self.kinetics_file['durations']['duration'], mask, self.iter_start)
-        self.wt_dsspec = DurationDataset(self.kinetics_file['durations']['weight'], mask, self.iter_start)
+            self.duration_dsspec = DurationDataset(self.kinetics_file['durations']['duration'], mask, self.iter_start)
+            self.wt_dsspec = DurationDataset(self.kinetics_file['durations']['weight'], mask, self.iter_start)
 
-        self.output_file = h5py.File(self.output_filename, 'w')
-        h5io.stamp_creator_data(self.output_file)
+            self.output_file = h5py.File(self.output_filename, 'w')
+            h5io.stamp_creator_data(self.output_file)
 
-        # Construct bin boundaries
-        self.construct_bins(self.parse_binspec(self.binspec))
-        for idim, (binbounds, midpoints) in enumerate(izip(self.binbounds, self.midpoints)):
-            self.output_file['binbounds_{}'.format(idim)] = binbounds
-            self.output_file['midpoints_{}'.format(idim)] = midpoints
+            # Construct bin boundaries
+            self.construct_bins(self.parse_binspec(self.binspec))
+            for idim, (binbounds, midpoints) in enumerate(izip(self.binbounds, self.midpoints)):
+                self.output_file['binbounds_{}'.format(idim)] = binbounds
+                self.output_file['midpoints_{}'.format(idim)] = midpoints
 
-        # construct histogram
-        self.construct_histogram()
+            # construct histogram
+            self.construct_histogram()
 
-        # Record iteration range        
-        iter_range = numpy.arange(self.iter_start, self.iter_stop, 1, dtype=(numpy.min_scalar_type(self.iter_stop)))
-        self.output_file['n_iter'] = iter_range
-        self.output_file['histograms'].attrs['iter_start'] = self.iter_start
-        self.output_file['histograms'].attrs['iter_stop'] = self.iter_stop
-        
-        self.output_file.close()
+            # Record iteration range        
+            iter_range = numpy.arange(self.iter_start, self.iter_stop, 1, dtype=(numpy.min_scalar_type(self.iter_stop)))
+            self.output_file['n_iter'] = iter_range
+            self.output_file['histograms'].attrs['iter_start'] = self.iter_start
+            self.output_file['histograms'].attrs['iter_stop'] = self.iter_stop
+            
+            self.output_file.close()
 
     @staticmethod    
     def parse_binspec(binspec):
@@ -364,7 +364,7 @@ Command-line options
         '''Scan input data for range in each dimension. The number of dimensions is determined
         from the shape of the progress coordinate as of self.iter_start.'''
         
-        #self.progress.indicator.new_operation('Scanning for data range', self.iter_stop-self.iter_start)
+        self.progress.indicator.new_operation('Scanning for data range', self.iter_stop-self.iter_start)
         self.scan_data_shape()
           
         dset_dtype = self.dset_dtype
@@ -395,13 +395,13 @@ Command-line options
                 current_min = min(current_min, bounds[idim][0])
                 current_max = max(current_max, bounds[idim][1])
                 data_range[idim] = (current_min, current_max)
-            #self.progress.indicator.progress += 1
+            self.progress.indicator.progress += 1
 
     def _construct_bins_from_scalar(self, bins):
         if self.data_range is None:
             self.scan_data_range()     
 
-        print(self.data_range)   
+        #print(self.data_range)   
 
         self.binbounds = []
         self.midpoints = []        
@@ -461,7 +461,7 @@ Command-line options
 
         
         
-        #self.progress.indicator.new_operation('Constructing histograms',self.iter_stop-self.iter_start)
+        self.progress.indicator.new_operation('Constructing histograms',self.iter_stop-self.iter_start)
         task_gen = ((_remote_bin_iter, (iiter, n_iter, self.duration_dsspec, self.wt_dsspec, 0, binbounds,
                                         self.ignore_out_of_range), {}) 
                     for (iiter,n_iter) in enumerate(xrange(self.iter_start, self.iter_stop)))
@@ -477,7 +477,7 @@ Command-line options
         log.debug('max queue length: {!r}'.format(self.max_queue_len))
         for future in self.work_manager.submit_as_completed(task_gen, self.max_queue_len):
             iiter, n_iter, iter_hist = future.get_result(discard=True)
-            #self.progress.indicator.progress += 1
+            self.progress.indicator.progress += 1
 
             # store histogram
             histograms_ds[iiter] = iter_hist
