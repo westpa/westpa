@@ -10,10 +10,11 @@ syntax: glob
 .DS_Store
 lib/examples/*/west.h5
 lib/examples/*/west.log
+lib/examples/*/*.txt
 lib/examples/methane_gmx/istates
 lib/examples/methane_gmx/traj_segs
 lib/examples/methane_gmx/seg_logs
-
+lib/examples/calbindin/*
 syntax: regexp
 \.[0-9]+$
 
