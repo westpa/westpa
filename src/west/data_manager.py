@@ -51,7 +51,7 @@ Version history:
         - added in-HDF5 storage for basis states, target states, and generated states
 """        
 from __future__ import division, print_function; __metaclass__ = type
-import sys
+import sys, time
 import posixpath
 from operator import attrgetter
 from itertools import imap, izip
@@ -84,6 +84,21 @@ class flushing_lock:
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.fileobj.flush()
         self.lock.release()
+        
+class expiring_flushing_lock:
+    def __init__(self, lock, flush_method, nextsync):
+        self.lock = lock
+        self.flush_method = flush_method
+        self.nextsync = nextsync
+    
+    def __enter__(self):
+        self.lock.acquire()
+        
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if time.time() > self.nextsync:
+            self.flush_method()
+        self.lock.release()
+        
 
 # Data types for use in the HDF5 file
 seg_id_dtype = numpy.int64  # Up to 9 quintillion segments per iteration; signed so that initial states can be stored negative
@@ -182,6 +197,7 @@ class WESTDataManager:
     default_iter_prec = 8
     default_we_h5filename      = 'west.h5'
     default_we_h5file_driver   = None
+    default_flush_period = 60
     
     # Compress any auxiliary dataset whose total size (across all segments) is more than 1MB
     default_aux_compression_threshold = 1048576
@@ -195,6 +211,10 @@ class WESTDataManager:
     def flushing_lock(self):
         return flushing_lock(self.lock, self.we_h5file)
     
+    def expiring_flushing_lock(self):
+        next_flush = self.last_flush + self.flush_period
+        return expiring_flushing_lock(self.lock, self.flush_backing, next_flush)
+        
     def process_config(self):
         config = self.rc.config
         
@@ -208,6 +228,7 @@ class WESTDataManager:
         self.iter_prec = config.get(['west', 'data', 'iter_prec'], self.default_iter_prec)
         self.aux_compression_threshold = config.get(['west','data','aux_compression_threshold'],
                                                     self.default_aux_compression_threshold)
+        self.flush_period = config.get(['west','data','flush_period'], self.default_flush_period)
         
         # Process dataset options
         dsopts_list = config.get(['west','data','datasets']) or []
@@ -236,6 +257,8 @@ class WESTDataManager:
         self.we_h5file = None
         
         self.lock = threading.RLock()
+        self.flush_period = None
+        self.last_flush = 0
         
         self._system = None
                  
@@ -352,6 +375,7 @@ class WESTDataManager:
         if self.we_h5file is not None:
             with self.lock:
                 self.we_h5file.flush()
+                self.last_flush = time.time()
 
     def save_target_states(self, tstates, n_iter=None):
         '''Save the given target states in the HDF5 file; they will be used for the next iteration to
