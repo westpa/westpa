@@ -93,6 +93,8 @@ class WESSDriver:
 
         if self.do_reweight:
             sim_manager.register_callback(sim_manager.prepare_new_iteration,self.prepare_new_iteration, self.priority)
+            
+        self.write_matrices = plugin_config.get('write_matrices', False)
 
     def get_rates(self, n_iter, mapper):
         '''Get rates and associated uncertainties as of n_iter, according to the window size the user
@@ -136,34 +138,28 @@ class WESSDriver:
         mapper = we_driver.bin_mapper
         bins = we_driver.next_iter_binning
         n_bins = len(bins)
-
-        # Create storage for ourselves
-        with self.data_manager.lock:
-            iter_group = self.data_manager.get_iter_group(n_iter)
-            try:
-                del iter_group['wess']
-            except KeyError:
-                pass
-
-            wess_iter_group = iter_group.create_group('wess')
-            avg_populations_ds = wess_iter_group.create_dataset('avg_populations', shape=(n_bins,), dtype=numpy.float64)
-            unc_populations_ds = wess_iter_group.create_dataset('unc_populations', shape=(n_bins,), dtype=numpy.float64)
-            avg_flux_ds = wess_iter_group.create_dataset('avg_fluxes', shape=(n_bins,n_bins), dtype=numpy.float64)
-            unc_flux_ds = wess_iter_group.create_dataset('unc_fluxes', shape=(n_bins,n_bins), dtype=numpy.float64)
-            avg_rates_ds = wess_iter_group.create_dataset('avg_rates', shape=(n_bins,n_bins), dtype=numpy.float64)
-            unc_rates_ds = wess_iter_group.create_dataset('unc_rates', shape=(n_bins,n_bins), dtype=numpy.float64)
-
+        westpa.rc.pstatus('Averaging rates')
         averager = self.get_rates(n_iter, mapper)
+        binprobs = numpy.fromiter(imap(operator.attrgetter('weight'),bins), dtype=numpy.float64, count=n_bins)
+        orig_binprobs = binprobs.copy()
 
-        with self.data_manager.flushing_lock():
-            avg_populations_ds[...] = averager.average_populations
-            unc_populations_ds[...] = averager.stderr_populations
-            avg_flux_ds[...] = averager.average_flux
-            unc_flux_ds[...] = averager.stderr_flux
-            avg_rates_ds[...] = averager.average_rate
-            unc_rates_ds[...] = averager.stderr_rate
-            binprobs = numpy.fromiter(imap(operator.attrgetter('weight'),bins), dtype=numpy.float64, count=n_bins)
-            orig_binprobs = binprobs.copy()
+        if self.write_matrices:
+            # Create storage for ourselves
+            with self.data_manager.lock:
+                iter_group = self.data_manager.get_iter_group(n_iter)
+                try:
+                    del iter_group['wess']
+                except KeyError:
+                    pass
+    
+                wess_iter_group = iter_group.create_group('wess')
+                wess_iter_group.create_dataset('avg_populations', data=averager.average_populations, compression=4)
+                wess_iter_group.create_dataset('unc_populations', data=averager.stderr_populations, compression=4)
+                wess_iter_group.create_dataset('avg_fluxes', data=averager.average_flux, compression=4)
+                wess_iter_group.create_dataset('unc_fluxes', data=averager.stderr_flux, compression=4)
+                wess_iter_group.create_dataset('avg_rates', data=averager.average_rate, compression=4)
+                wess_iter_group.create_dataset('unc_rates', data=averager.stderr_rate, compression=4)
+
 
         westpa.rc.pstatus('Calculating reweighting using window size of {:d}'.format(self.eff_windowsize))
         westpa.rc.pstatus('\nBin probabilities prior to reweighting:\n{!s}'.format(binprobs))

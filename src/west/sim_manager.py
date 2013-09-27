@@ -497,7 +497,7 @@ class WESimManager:
                 istate_gen_futures.update(new_istate_futures)
                 futures.update(new_istate_futures)
                 
-                with self.data_manager.flushing_lock():                        
+                with self.data_manager.expiring_flushing_lock():                        
                     self.data_manager.update_segments(self.n_iter, incoming)
 
             elif future in istate_gen_futures:
@@ -505,7 +505,7 @@ class WESimManager:
                 _basis_state, initial_state = future.get_result()
                 log.debug('received newly-prepared initial state {!r}'.format(initial_state))
                 initial_state.istate_status = InitialState.ISTATE_STATUS_PREPARED
-                with self.data_manager.flushing_lock():
+                with self.data_manager.expiring_flushing_lock():
                     self.data_manager.update_initial_states([initial_state], n_iter=self.n_iter+1)
                 self.we_driver.avail_initial_states[initial_state.state_id] = initial_state
             else:
@@ -514,6 +514,7 @@ class WESimManager:
                     
         log.debug('done with propagation')
         self.save_bin_data()
+        self.data_manager.flush_backing()
         
     def save_bin_data(self):
         '''Calculate and write flux and transition count matrices to HDF5. Population and rate matrices 
@@ -521,7 +522,7 @@ class WESimManager:
         # save_bin_data(self, populations, n_trans, fluxes, rates, n_iter=None)
         
         if self.save_transition_matrices:
-            with self.data_manager.flushing_lock():
+            with self.data_manager.expiring_flushing_lock():
                 iter_group = self.data_manager.get_iter_group(self.n_iter)
                 for key in ['bin_ntrans', 'bin_fluxes']:
                     try:
