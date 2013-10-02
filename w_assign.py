@@ -408,7 +408,11 @@ Command-line options
             state_map = numpy.empty((self.binning.mapper.nbins+1,), index_dtype)
             state_map[:] = 0 # state_id == nstates => unknown state
 
-            self.output_file.create_dataset('bin_labels', data=self.binning.mapper.labels, compression=9)
+            # Recursive mappers produce a generator rather than a list of labels
+            # so consume the entire generator into a list
+            labels = [label for label in self.binning.mapper.labels]
+
+            self.output_file.create_dataset('bin_labels', data=labels, compression=9)
 
             if self.states:
                 nstates = len(self.states)
