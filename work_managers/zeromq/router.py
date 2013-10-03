@@ -50,7 +50,7 @@ class ZMQDevice(ZMQBase, threading.Thread):
     '''
 
     def __init__(self, name, upstream_endpoint, downstream_endpoint, router_startup_ctl_endpoint, context = None,
-                 upstream_type = zmq.REQ, downstream_type = zmq.REP):
+                 upstream_type = zmq.REQ, downstream_type = zmq.REP, upstream_peek = False, downstream_peek = False):
 
         #set up arg
         context = context or zmq.Context() #Share context with router or no?
@@ -76,6 +76,9 @@ class ZMQDevice(ZMQBase, threading.Thread):
 
         self._shutdown_signalled = False
         self._running = False
+
+        self.upstream_peek = upstream_peek
+        self.downstream_peek = downstream_peek
 
 
 
@@ -149,6 +152,11 @@ class ZMQDevice(ZMQBase, threading.Thread):
                 if downstream_poll_results.get(downstream_socket) == zmq.POLLIN:
                     
                     request = downstream_socket.recv_multipart(copy=False) #Get downstream request
+
+                    if self.downstream_peek:
+                        downstream_message = unpickle_frame(request[0])
+                        log.debug('router: {} received message from downstream: {}'.format(self, downstream_message))
+
                     upstream_socket.send_multipart(request) #...and forward request upstream
 
                     #log.debug('device: sending request upstream')
@@ -164,6 +172,11 @@ class ZMQDevice(ZMQBase, threading.Thread):
                     if upstream_poll_results.get(upstream_socket) == zmq.POLLIN:
 
                         reply = upstream_socket.recv_multipart(copy=False) #Get reply from upstream
+
+                        if self.upstream_peek:
+                            upstream_message = unpickle_frame(reply[0])
+                            log.debug('router: {} received message from upstream: {}'.format(self, upstream_message))
+
                         downstream_socket.send_multipart(reply)
 
                         #log.debug('device: sending reply downstream')
@@ -375,7 +388,7 @@ class ZMQRouter(ZMQBase):
         self._task_device = None
         self._result_device = None
 
-    def startup(self): 
+    def startup(self, peek=False): 
         '''
         Starts up routing threads, blocks until all have started successfully
         '''
@@ -390,10 +403,10 @@ class ZMQRouter(ZMQBase):
         #spawn task and result devices
         self._task_device = self._start_device('task', self.upstream_task_endpoint, self.downstream_task_endpoint,
                                                self._device_startup_ctl_endpoint, self.context,
-                                               zmq.REQ, zmq.REP) #task device
+                                               zmq.REQ, zmq.REP, upstream_peek = peek) #task device
         self._result_device = self._start_device('result', self.upstream_result_endpoint, self.downstream_result_endpoint,
                                                  self._device_startup_ctl_endpoint, self.context,
-                                                 zmq.REQ, zmq.REP) #result device
+                                                 zmq.REQ, zmq.REP, downstream_peek = peek) #result device
         self._listen_device = self._start_device('listen', self.upstream_listen_endpoint, self.downstream_listen_endpoint,
                                                  self._device_startup_ctl_endpoint, self.context,
                                                  zmq.PUSH, zmq.PULL) #listen device
@@ -504,11 +517,11 @@ class ZMQRouter(ZMQBase):
         self._listen_device.join()
 
     def _start_device(self, name, upstream_endpoint, downstream_endpoint, startup_ctl_endpoint, context,
-                      upstream_type, downstream_type):
+                      upstream_type, downstream_type, upstream_peek=False, downstream_peek=False):
         '''start up device'''
 
         device = ZMQDevice(name, upstream_endpoint, downstream_endpoint, startup_ctl_endpoint, context,
-                           upstream_type, downstream_type)
+                           upstream_type, downstream_type, upstream_peek, downstream_peek)
         device.startup()
 
         return device

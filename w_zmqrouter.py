@@ -49,8 +49,12 @@ process_name = __name__
         
 logging_config = {'version': 1, 'incremental': False,
                   'formatters': {'standard': {'format': '-- %(levelname)-8s [%(name)s] -- %(message)s'},
-                  'debug':    {'format': '''\-- %(levelname)-8s %(asctime)24s PID %(process)-12d TID %(thread)-20d
-                  from logger "%(name)s" at location %(pathname)s:%(lineno)d [%(funcName)s()] :: %(message)s'''}},
+                  'debug':    {'format': '''-- %(levelname)-8s %(asctime)24s PID %(process)-12d TID %(thread)-20d
+   from logger "%(name)s"
+   at location %(pathname)s:%(lineno)d [%(funcName)s()]
+   ::
+   %(message)s
+   '''}},
                   'handlers': {'console': {'class': 'logging.StreamHandler',
                   'stream': 'ext://sys.stdout', 'formatter': 'standard'}},
                   'loggers': {'west': {'handlers': ['console'], 'propagate': False},
@@ -62,8 +66,11 @@ logging_config = {'version': 1, 'incremental': False,
                   'root': {'handlers': ['console']}}
         
 logging_config['loggers'][process_name] = {'handlers': ['console'], 'propagate': False}
-            
+
+peek = False
+
 if verbosity == 'debug':
+    peek = True
     import multiprocessing
     multiprocessing.log_to_stderr(multiprocessing.SUBDEBUG)
     logging_config['root']['level'] = 5 #'DEBUG'
@@ -75,13 +82,14 @@ else:
 
 logging.config.dictConfig(logging_config)
 logging_config['incremental'] = True
+logging.captureWarnings(True)
 
 
 work_managers.environment.process_wm_args(args)
 
 router = ZMQRouter.from_environ()
 
-router.startup()
+router.startup(peek=peek)
 
 
 
