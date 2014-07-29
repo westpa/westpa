@@ -68,6 +68,7 @@ class PlotHistBase(WESTSubcommand):
         self.plotrange = None
         self.plottitle = None
         self.postprocess_function = None
+        self.plot_contour = None
 
         # Iteration range for average/evolution
         self.avail_iter_start = None
@@ -105,6 +106,8 @@ class PlotHistBase(WESTSubcommand):
                             Default: "%(default)s".''')
         ogroup.add_argument('--hdf5-output',
                             help='''Store plot data in the HDF5 file HDF5_OUTPUT.''')
+        ogroup.add_argument('--plot-contour', dest='plot_contour', action='store_const', const=True, default=False,
+                            help='''Determines whether or not to superimpose a contour plot over the heatmap for 2D objects.''')
         
         
         pgroup = parser.add_argument_group('plot options')
@@ -138,6 +141,7 @@ class PlotHistBase(WESTSubcommand):
         self.input_h5 = h5py.File(args.input, 'r')
         self.plot_output_filename = args.plot_output
         self.hdf5_output_filename = args.hdf5_output
+        self.plot_contour = args.plot_contour
         
         if args.title:
             self.plottitle = args.title
@@ -337,6 +341,8 @@ class PlotSupports2D(PlotHistBase):
                 pyplot.title(self.plottitle)
             if self.postprocess_function:
                 self.postprocess_function(plothist, midpoints, binbounds)
+            if self.plot_contour:
+                pyplot.contour(midpoints[0], midpoints[1],plothist.T)
             pyplot.savefig(self.plot_output_filename)
 
 
