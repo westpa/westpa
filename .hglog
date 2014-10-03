@@ -1,0 +1,1360 @@
+changeset:   158:15ded9e606d0
+tag:         tip
+user:        ajamesonpratt
+date:        Tue Jul 29 16:33:27 2014 -0400
+files:       plothist.py
+description:
+Added ability to overlay contour plot to plothist
+
+
+changeset:   157:35d162ab49a5
+user:        joshua.adelman <joshua.adelman@gmail.com>
+date:        Wed Oct 02 09:28:25 2013 -0500
+files:       w_assign.py
+description:
+Fixed bug #44: w_assign produces error when using RecursiveMapper
+
+
+changeset:   156:35d78507d873
+user:        Nick Rego <nbr2@pitt.edu>
+date:        Tue Sep 24 13:22:17 2013 -0400
+files:       w_eddist.py
+description:
+another push
+
+
+changeset:   155:1e42d29b58ae
+user:        Nick Rego <nbr2@pitt.edu>
+date:        Tue Sep 24 13:15:29 2013 -0400
+files:       w_eddist.py
+description:
+change to dsspec class in eddist
+
+
+changeset:   154:0aa0d92895c8
+user:        Nick Rego <nbr2@pitt.edu>
+date:        Tue Sep 24 12:46:25 2013 -0400
+files:       w_eddist.py
+description:
+progress indicator for w_eddist
+
+
+changeset:   153:f231701a1304
+user:        Nick Rego <nbr2@pitt.edu>
+date:        Tue Sep 24 12:11:00 2013 -0400
+files:       w_eddist.py
+description:
+added preliminary event duration distribution tool (used like w_pdist)
+
+
+changeset:   152:fdf4abbcaa1f
+user:        joshua.adelman <joshua.adelman@gmail.com>
+date:        Tue Sep 10 11:03:46 2013 -0400
+files:       w_kinavg.py
+description:
+Fixed bug in w_kinavg in which the conditional flux evolution results were not being recorded to the .h5 file correctly
+
+
+changeset:   151:ae471188f0ae
+user:        joshua.adelman <joshua.adelman@gmail.com>
+date:        Wed Sep 04 15:43:20 2013 -0500
+files:       w_kinavg.py
+description:
+Added ability to define a fractional window in cumulative evolution mode for w_kinavg
+
+
+changeset:   150:cb5a02777f5e
+user:        ajamesonpratt
+date:        Wed Jul 31 15:53:48 2013 -0400
+files:       w_kinetics.py westpa/kinetics/_kinetics.c westpa/kinetics/_kinetics.pyx
+description:
+Adjusted kinetics scripts (w_kinetics.py and _kinetics.pyx) to dump seg_id in kinetics.h5
+
+
+changeset:   149:c560ee88d258
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Thu Jul 18 21:05:46 2013 -0400
+files:       plothist.py w_pdist.py westpa/kinetics/_kinetics.c westpa/kinetics/_kinetics.pyx
+description:
+Added pairwise factoring for multistate rate calculations.
+
+
+changeset:   148:48cc8fa48068
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Sat Jul 06 13:31:37 2013 -0400
+files:       w_assign.py w_kinetics.py w_ntop.py w_select.py westpa/binning/__init__.py westpa/binning/_assign.c westpa/binning/_assign.pyx westpa/kinetics/_kinetics.c westpa/kinetics/_kinetics.pyx westpa/kinetics/matrates.py
+description:
+Added w_ntop to select segments from bins.
+Modified w_select to include weights for convenience.
+Modified w_kinetics to support post-hoc analysis with unlabeled rate matrices.
+
+
+changeset:   147:e4704bb9b396
+parent:      146:0a6c07c2e68c
+parent:      145:cc3d6394acdd
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Wed Jun 26 07:54:22 2013 -0400
+description:
+Merging cc3d6394acdd and 0a6c07c2e68c
+
+
+changeset:   146:0a6c07c2e68c
+parent:      144:7304d3bffe5e
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Tue Jun 25 15:41:43 2013 -0400
+files:       fasthist/__init__.py fasthist/__main__.py fasthist/_fasthist.c fasthist/_fasthist.pyx w_pdist.py westtools/core.py
+description:
+Added support for simply skipping points that are out of range in fasthist
+(and thus w_pdist), handy for conditional probability distribution plots.
+Fixed Heisenbug in multidimensional histograms in fasthist, which may have had
+impact on the very first bin (in C order) of multidimensional histogram
+results.
+
+
+changeset:   145:cc3d6394acdd
+user:        joshua.adelman <joshua.adelman@gmail.com>
+date:        Fri Jun 21 09:31:05 2013 -0400
+files:       tests/testkinetics.py westpa/kinetics/_kinetics.c westpa/kinetics/_kinetics.pyx westpa/kinetics/rate_averaging.py
+description:
+Changed algorithm for calculating accumulating statistics in _kinetics.pyx to improve numerical stability
+
+
+changeset:   144:7304d3bffe5e
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Wed Jun 19 20:20:20 2013 -0400
+files:       w_crawl.py
+description:
+Removed outdated arg processing in w_crawl
+
+
+changeset:   143:34c596cd2b64
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Wed Jun 12 17:20:29 2013 -0400
+files:       w_kinetics.py westpa/binning/assign.py
+description:
+Fixed performance regression in RecursiveBinMapper, added warning that w_kinetics matrix is experimental.
+
+
+changeset:   142:421a04bb5d5e
+parent:      141:86d7659599a8
+parent:      138:ccef54debee0
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Wed Jun 12 15:53:02 2013 -0400
+files:       functional_tests/t_treewalker.py w_assign.py w_crawl.py w_pdist.py w_select.py w_stateprobs.py westtools/core.py westtools/tool_classes/__init__.py westtools/tool_classes/binning.py westtools/tool_classes/core.py westtools/tool_classes/data_reader.py westtools/tool_classes/iter_range.py westtools/tool_classes/progress.py westtools/tool_classes/selected_segs.py westtools/trajlib/__init__.py westtools/trajlib/trajtree.py westtools/trajlib/treewalker.py
+description:
+Merging ccef54debee0 and 86d7659599a8
+
+
+changeset:   141:86d7659599a8
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Wed Jun 12 15:52:30 2013 -0400
+files:       w_assign.py w_crawl.py w_pdist.py w_select.py w_stateprobs.py westtools/tool_classes/core.py
+description:
+Changed all parallel tools to use submit_as_completed() instead of submit() to control RAM use. Activate by using --max-queue-length.
+
+
+changeset:   140:425f93b95363
+parent:      139:9a31a6449b63
+parent:      135:79f9259d02d0
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Fri Jun 07 16:50:20 2013 -0400
+description:
+Merging 9a31a6449b63 and 79f9259d02d0
+
+
+changeset:   139:9a31a6449b63
+parent:      134:b9aab7ed36a3
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Wed Jun 05 16:07:14 2013 -0400
+files:       w_assign.py
+description:
+Minor modification to w_assign to support ZMQ work manager in dedicated
+server mode.
+
+
+changeset:   138:ccef54debee0
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Wed Jun 12 15:44:47 2013 -0400
+files:       functional_tests/t_treewalker.py ploterr.py plothist.py w_assign.py w_bins.py w_crawl.py w_dumpsegs.py w_fluxanl.py w_kinavg.py w_kinetics.py w_pdist.py w_select.py w_stateprobs.py w_trace.py westtools/__init__.py westtools/binning.py westtools/core.py westtools/data_reader.py westtools/iter_range.py westtools/progress.py westtools/selected_segs.py westtools/tool_classes/__init__.py westtools/tool_classes/binning.py westtools/tool_classes/core.py westtools/tool_classes/data_reader.py westtools/tool_classes/iter_range.py westtools/tool_classes/progress.py westtools/tool_classes/selected_segs.py westtools/trajlib/__init__.py westtools/trajlib/trajtree.py westtools/trajlib/treewalker.py
+description:
+Eliminated largely dead treewalker, eliminated west_tools package.
+
+
+changeset:   137:2b065bebfeed
+parent:      136:b95d61a6458d
+parent:      135:79f9259d02d0
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Wed Jun 12 12:31:17 2013 -0400
+description:
+Merging b95d61a6458d and 79f9259d02d0
+
+
+changeset:   136:b95d61a6458d
+parent:      134:b9aab7ed36a3
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Wed Jun 12 12:30:05 2013 -0400
+files:       tests/testbinning.py westpa/binning/assign.py
+description:
+Fixed incorrect use of list vs dict in RecursiveBinMapper. Added unit test for
+regression testing. Fixes #37.
+
+
+changeset:   135:79f9259d02d0
+user:        Nick Rego <nbr2@pitt.edu>
+date:        Thu Jun 06 14:48:23 2013 -0400
+files:       plothist.py
+description:
+Fixed minor plothist bug - plotting in instant mode no longer always plots the last iteration
+
+
+changeset:   134:b9aab7ed36a3
+parent:      133:adff73e44247
+parent:      132:6df9a9dca29c
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Wed Jun 05 16:05:38 2013 -0400
+description:
+Merging adff73e44247 and 6df9a9dca29c
+
+
+changeset:   133:adff73e44247
+parent:      129:1cb220dc4fff
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Wed Jun 05 16:05:04 2013 -0400
+files:       w_assign.py w_kinavg.py w_kinetics.py westpa/binning/_assign.c westpa/binning/_assign.pyx westpa/kinetics/_kinetics.c westpa/kinetics/_kinetics.pyx westpa/kinetics/matrates.py westtools/tool_classes/data_reader.py
+description:
+Added option to suppress steady state population extrapolations in w_kinavg.
+Modifications to support kinetics analysis on ancient (WEMD) HDF5 files.
+
+
+changeset:   132:6df9a9dca29c
+parent:      131:aa0fc2b62916
+parent:      130:dd8f3bf65d14
+user:        Nick Rego <nbr2@pitt.edu>
+date:        Wed Jun 05 14:32:53 2013 -0400
+description:
+merge
+
+
+changeset:   131:aa0fc2b62916
+parent:      122:93c8bb04cc79
+user:        Nick Rego <nbr2@pitt.edu>
+date:        Wed Jun 05 14:30:19 2013 -0400
+files:       westpa/h5io.py
+description:
+Fixed h5io bug in SingleSegDSSPEC's get_iter_data() method
+
+
+changeset:   130:dd8f3bf65d14
+user:        joshua.adelman <joshua.adelman@gmail.com>
+date:        Mon Jun 03 16:33:41 2013 -0400
+files:       w_trace.py
+description:
+Fixed bug in parsing dataset options in w_trace
+
+
+changeset:   129:1cb220dc4fff
+user:        joshua.adelman <joshua.adelman@gmail.com>
+date:        Thu May 23 16:53:33 2013 -0400
+files:       tests/testkinetics.py westpa/kinetics/_kinetics.c westpa/kinetics/_kinetics.pyx westpa/kinetics/rate_averaging.py
+description:
+Bug fix addressing issue #34 and issue #35; Uses new online statistics algorithm
+to calculate mean and variance of flux and rate matrices, reducing the memory footprint of the calculation and fixing
+error in rate calculation for transiently occupied bins
+
+
+changeset:   128:dc717b762bb2
+user:        Adam P <ajp105@pitt.edu>
+date:        Mon May 20 15:38:46 2013 -0400
+files:       plothist.py
+description:
+Fix for the instant 2d plotting mechanism of plothist
+
+
+changeset:   127:910b2178af83
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Mon May 20 11:49:10 2013 -0400
+files:       plothist.py
+description:
+Added plot postprocess hook to plothist.py
+
+
+changeset:   126:c7d224b93c0e
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Sat May 11 09:52:00 2013 -0400
+files:       w_crawl.py westpa/progress.py
+description:
+Added try...finally wrapping for w_crawl that calls finalize(), modified
+progress.py so that the cursor is only hidden in fancy mode.
+
+
+changeset:   125:42130aee6e83
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Fri May 10 22:46:03 2013 -0400
+files:       w_crawl.py
+description:
+Added w_crawl, a simple general task coordinator for WESTPA data.
+
+
+changeset:   124:4437d61e988a
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Thu May 09 14:47:21 2013 -0400
+files:       w_select.py w_stateprobs.py
+description:
+Retooled w_select
+
+
+changeset:   123:d45f3ae13f1b
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Mon May 06 15:04:56 2013 -0400
+files:       w_kinetics.py westpa/kinetics/_kinetics.c westpa/kinetics/_kinetics.pyx
+description:
+Modified trace routines to return number of transitions and w_kinetics to store.
+
+
+changeset:   122:93c8bb04cc79
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Mon May 06 14:12:02 2013 -0400
+files:       fasthist/__init__.py westpa/h5io.py
+description:
+Corrected normalization for non-uniform bin widths in fasthist. Fixed UnboundLocal error in h5io.py.
+
+
+changeset:   121:22ff2d89408f
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Wed May 01 10:22:13 2013 -0400
+files:       plothist.py westpa/progress.py
+description:
+Tweaks
+
+
+changeset:   120:4add8a7ff4ea
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Mon Apr 29 13:59:03 2013 -0400
+files:       w_assign.py w_fluxanl.py w_kinavg.py w_kinetics.py westtools/tool_classes/binning.py westtools/tool_classes/progress.py
+description:
+Added support to w_assign to get bins from a YAML file.
+Added support to w_kinetics and w_kinavg to report state-to-state fluxes as
+well as rates.
+
+
+changeset:   119:5a869b584954
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Wed Apr 24 17:31:47 2013 -0400
+files:       fasthist/_fasthist.c mclib/_mclib.c trajtree/_trajtree.c westpa/binning/_assign.c westpa/kinetics/_kinetics.c
+description:
+Forced update of Cython files to fix mysterious inconsistency in _kinetics.c
+
+
+changeset:   118:fff3c8352980
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Wed Apr 24 17:09:54 2013 -0400
+files:       ploterr.py w_assign.py w_stateprobs.py westpa/binning/__init__.py westpa/binning/_assign.c westpa/binning/_assign.pyx westpa/h5io.py westpa/progress.py
+description:
+Added ``w_stateprobs`` tool (and corresponding plot mode to ``ploterr``) to
+calculate block-bootstrapped macrostate populations (replaces ``w_binprobs``).
+
+
+changeset:   117:4fadcccf43b8
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Wed Apr 24 11:22:56 2013 -0400
+files:       ploterr.py w_fluxanl.py w_kinavg.py westpa/h5io.py westpa/progress.py westtools/dtypes.py westtools/tool_classes/progress.py
+description:
+Added new "ploterr" script to plot output of w_kinavg --evolution-mode.
+
+
+changeset:   116:a7e32a67b47d
+parent:      113:ee3d0c0dd326
+parent:      115:ced62ac1c742
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Tue Apr 23 16:59:03 2013 -0400
+files:       w_pcpdist.py
+description:
+Merging
+
+
+changeset:   115:ced62ac1c742
+parent:      111:bd2fa43abeda
+parent:      114:f08402c430fd
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Tue Apr 23 13:58:03 2013 -0400
+files:       w_fluxanl.py w_kinavg.py w_kinetics.py w_pcpdist.py w_pdist.py w_select.py westpa/h5io.py westpa/kinetics/_kinetics.c westpa/kinetics/_kinetics.pyx westpa/progress.py westtools/tool_classes/progress.py
+description:
+Merging
+
+
+changeset:   114:f08402c430fd
+parent:      106:afa4fb2e193e
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Sat Apr 20 21:46:27 2013 -0400
+files:       w_fluxanl.py w_kinavg.py w_kinetics.py w_pcpdist.py w_pdist.py w_select.py westpa/h5io.py westpa/kinetics/_kinetics.c westpa/kinetics/_kinetics.pyx westpa/progress.py westtools/tool_classes/progress.py
+description:
+Updates to use progress bar
+
+
+changeset:   113:ee3d0c0dd326
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Tue Apr 23 16:57:37 2013 -0400
+files:       westtools/__init__.py
+description:
+Removed dangling UsesMCBS import
+
+
+changeset:   112:96214e0f019c
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Tue Apr 23 14:37:13 2013 -0400
+files:       westpa/binning/_assign.c westpa/binning/_assign.pyx
+description:
+Reverted changes to _assign.pyx, changed to numpy buffer protocol
+
+
+changeset:   111:bd2fa43abeda
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Tue Apr 23 13:33:36 2013 -0400
+files:       fasthist/_fasthist.c mclib/_mclib.c trajtree/_trajtree.c westpa/binning/_assign.c westpa/binning/_assign.pyx westpa/kinetics/_kinetics.c
+description:
+Coerce slices to numpy arrays in apply_down and apply_down_argmin_across in _assign.pyx
+
+
+changeset:   110:9b29827dc104
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Tue Apr 23 11:54:05 2013 -0400
+files:       fasthist/__init__.py fasthist/_fasthist.pyx mclib/__init__.py mclib/_mclib.pyx plothist.py setup.py tests/testbinning.py trajtree/_trajtree.pyx trajtree/trajtree.py w_assign.py w_bins.py w_dumpsegs.py w_fluxanl.py w_kinavg.py w_kinetics.py w_pcpdist.py w_pdist.py w_select.py w_trace.py westpa/_rc.py westpa/binning/_assign.pyx westpa/binning/assign.py westpa/binning/bins.py westpa/extloader.py westpa/h5io.py westpa/kinetics/_kinetics.pyx westpa/kinetics/matrates.py westpa/kinetics/rate_averaging.py westpa/progress.py westpa/textio.py westpa/yamlcfg.py westtools/tool_classes/binning.py westtools/tool_classes/core.py westtools/tool_classes/data_reader.py westtools/tool_classes/iter_range.py westtools/tool_classes/progress.py westtools/tool_classes/selected_segs.py westtools/trajlib/trajtree.py westtools/trajlib/treewalker.py
+description:
+Updated copyright information
+
+
+changeset:   109:184b83ddf79f
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Sat Apr 20 21:47:23 2013 -0400
+files:       westpa/progress.py westtools/tool_classes/progress.py
+description:
+Adding progress bar license info
+
+
+changeset:   108:113d1a9943a6
+parent:      107:c36ec7f9130f
+parent:      106:afa4fb2e193e
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Sat Apr 20 21:45:04 2013 -0400
+files:       plothist.py tests/testwtools.py w_assign.py w_pdist.py westpa/kinetics/matrates.py westtools/tool_classes/__init__.py westtools/tool_classes/core.py
+description:
+Merging
+
+
+changeset:   107:c36ec7f9130f
+parent:      101:67495d11610c
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Sat Apr 20 21:43:25 2013 -0400
+files:       fasthist/__init__.py fasthist/_fasthist.pyx mclib/__init__.py mclib/_mclib.pyx plothist.py setup.py tests/testbinning.py tests/testwtools.py trajtree/_trajtree.pyx trajtree/trajtree.py w_assign.py w_bins.py w_dumpsegs.py w_fluxanl.py w_kinavg.py w_kinetics.py w_pcpdist.py w_pdist.py w_select.py w_trace.py westpa/__init__.py westpa/_rc.py westpa/binning/_assign.pyx westpa/binning/assign.py westpa/binning/bins.py westpa/extloader.py westpa/h5io.py westpa/kinetics/_kinetics.pyx westpa/kinetics/matrates.py westpa/kinetics/rate_averaging.py westpa/plugins.py westpa/textio.py westpa/yamlcfg.py westtools/__init__.py westtools/stats/__init__.py westtools/stats/edfs.py westtools/stats/mcbs.py westtools/tool_classes/__init__.py westtools/tool_classes/binning.py westtools/tool_classes/core.py westtools/tool_classes/data_reader.py westtools/tool_classes/iter_range.py westtools/tool_classes/selected_segs.py westtools/tool_classes/stats.py westtools/trajlib/trajtree.py westtools/trajlib/treewalker.py
+description:
+Added copyright and license info. General cleanup.
+Source files are (c) individual contributors; package is (c) MCZ and LTC.
+
+
+changeset:   106:afa4fb2e193e
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Wed Apr 17 13:03:03 2013 -0400
+files:       w_assign.py w_pdist.py westpa/progress.py westtools/tool_classes/__init__.py westtools/tool_classes/progress.py
+description:
+Added support for progress bars (requires ``blessings`` library)
+
+
+changeset:   105:18cc62e18713
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Tue Apr 16 19:32:32 2013 -0400
+files:       plothist.py w_pdist.py westtools/tool_classes/core.py
+description:
+Updated plothist to use subcommand framework, added a check in subcommands
+framework for forgetting to set the "subcommand" class variable on subcommand
+classes.
+
+
+changeset:   104:28573311dd68
+parent:      103:3d7148cbde7b
+parent:      102:28626a2923d0
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Tue Apr 16 07:40:12 2013 -0400
+files:       tests/testwtools.py
+description:
+Merging
+
+
+changeset:   103:3d7148cbde7b
+parent:      101:67495d11610c
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Tue Apr 16 07:39:05 2013 -0400
+files:       westpa/kinetics/matrates.py
+description:
+Revert an untested change to sink handling.
+
+
+changeset:   102:28626a2923d0
+user:        Nick Rego <nbr2@pitt.edu>
+date:        Mon Apr 15 17:15:54 2013 -0400
+files:       tests/testwtools.py tool_tests/__init__.py tool_tests/common.py tool_tests/test_w_fluxanl.py tool_tests/test_w_trace.py
+description:
+Added some unit tests for command line tools - these require a west.h5 output file in the tool_tests directory to work properly
+
+
+changeset:   101:67495d11610c
+parent:      100:e23601fbc913
+parent:      99:8dfcf0b2b039
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Mon Apr 15 14:47:49 2013 -0400
+description:
+Merging
+
+
+changeset:   100:e23601fbc913
+parent:      98:41547e70fea2
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Mon Apr 15 14:47:18 2013 -0400
+files:       w_assign.py w_kinavg.py w_kinetics.py westpa/_rc.py westpa/kinetics/_kinetics.c westpa/kinetics/_kinetics.pyx westpa/kinetics/matrates.py
+description:
+Added --no-compression option to w_kinetics to reduce I/O costs for w_kinavg.
+Removed multiprocessing debug messages from default logging configs. Made
+consistency warnings for matrix kinetics actual Python warnings.
+
+
+changeset:   99:8dfcf0b2b039
+user:        Nick Rego <nbr2@pitt.edu>
+date:        Fri Apr 12 11:58:54 2013 -0400
+files:       w_trace.py
+description:
+W_trace works with h5io
+
+
+changeset:   98:41547e70fea2
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Wed Apr 10 14:08:12 2013 -0400
+files:       w_kinavg.py westpa/kinetics/_kinetics.c westpa/kinetics/_kinetics.pyx
+description:
+Fixed bug in kinetics tracing that gave completely wrong results for >2 states
+
+
+changeset:   97:49097dcf063a
+parent:      96:78d66a3e3f6e
+parent:      91:f750d6047ae1
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Tue Apr 09 22:31:49 2013 -0400
+files:       w_assign.py
+description:
+Merging f750d6047ae1 and 78d66a3e3f6e
+
+
+changeset:   96:78d66a3e3f6e
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Tue Apr 09 22:20:59 2013 -0400
+files:       mclib/__init__.py mclib/_mclib.c mclib/_mclib.pyx w_kinavg.py westpa/h5io.py westpa/kinetics/matrates.py
+description:
+Working parallel rate CI estimation for the matrix case.
+
+
+changeset:   95:4972b298a26b
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Fri Apr 05 11:32:26 2013 -0400
+files:       mclib/__init__.py w_assign.py w_kinavg.py w_kinetics.py westpa/h5io.py westpa/kinetics/__init__.py westpa/kinetics/_kinetics.c westpa/kinetics/_kinetics.pyx westtools/tool_classes/core.py westtools/tool_classes/data_reader.py westtools/tool_classes/iter_range.py
+description:
+Working parallel rate averaging for the tracing method.
+
+
+changeset:   94:0d44069b92d7
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Thu Apr 04 11:20:15 2013 -0400
+files:       w_kinavg.py w_kinetics.py w_kinmat.py w_kintrace.py westtools/tool_classes/__init__.py westtools/tool_classes/core.py
+description:
+Migrated w_kinmat and w_kintrace into subcommands under w_kinetics. Improved
+subcommand support in westtools.tool_classes
+
+
+changeset:   93:90719ba344af
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Wed Mar 27 17:59:57 2013 -0400
+files:       w_assign.py w_kinavg.py w_kinetics.py w_kinmat.py w_kintrace.py w_pdist.py westpa/binning/__init__.py westpa/binning/_assign.c westpa/binning/_assign.pyx westpa/h5io.py westpa/kinetics/__init__.py westpa/kinetics/_kinetics.c westpa/kinetics/_kinetics.pyx westpa/kinetics/matrates.py westtools/tool_classes/data_reader.py
+description:
+Reworked w_assign to work in parallel and with same dsspec mechanism as
+w_pdist. Split w_kinetics into w_kintrace (tracing analyses) and w_kinmat
+(matrix analyses). w_kinavg is broken at the moment.
+
+
+changeset:   92:c157e83620aa
+parent:      88:2d9498468184
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Wed Mar 27 14:40:21 2013 -0400
+files:       plothist.py w_pcpdist.py w_pdist.py westpa/h5io.py westtools/__init__.py westtools/tool_classes/__init__.py westtools/tool_classes/core.py westtools/tool_classes/data_reader.py westtools/tool_classes/hdf5_storage.py westtools/tool_classes/iter_range.py westtools/tool_classes/selected_segs.py westtools/tool_classes/stats.py
+description:
+Generalized handling of subcommands, synthetic datasets. Improved help.
+
+
+changeset:   91:f750d6047ae1
+user:        Nick Rego <nbr2@pitt.edu>
+date:        Tue Apr 02 18:16:52 2013 -0400
+files:       tests/testwtools.py w_assign.py
+description:
+some more unit tests for w_kinetics
+
+
+changeset:   90:b6c75ce796df
+user:        Nick Rego <nbr2@pitt.edu>
+date:        Wed Mar 27 20:09:32 2013 -0400
+files:       tests/testwtools.py w_assign.py
+description:
+w_assign sets number of workers to 1 if n_workers is 0 (possible for zeromq work manager to have a delay in counting workers on startup)
+
+
+changeset:   89:7656029b3539
+user:        Nick Rego <nbr2@pitt.edu>
+date:        Tue Mar 26 12:24:55 2013 -0400
+files:       tests/testwtools.py
+description:
+small change to w_assign unit tests (to account for directly using n_workers attribute of work managers)
+
+
+changeset:   88:2d9498468184
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Tue Mar 26 12:01:19 2013 -0400
+files:       w_assign.py westpa/binning/_assign.c westpa/binning/_assign.pyx
+description:
+Fixed indexing bug in _assign.pyx
+
+
+changeset:   87:a0ddb9df7011
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Tue Mar 26 11:41:28 2013 -0400
+files:       w_assign.py
+description:
+Modified w_assign to use plain n_workers attribute from work manager (now that SerialWorkManager specifies that attribute).
+
+
+changeset:   86:705ed2b01997
+parent:      85:dfc890b9f5c3
+parent:      82:3568b062d973
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Tue Mar 26 11:34:51 2013 -0400
+files:       w_assign.py westpa/binning/_assign.c westpa/kinetics/_kinetics.c
+description:
+Merging 3568b062d973 and dfc890b9f5c3
+
+
+changeset:   85:dfc890b9f5c3
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Mon Mar 25 14:53:12 2013 -0400
+files:       fasthist/__init__.py plothist.py w_assign.py w_fluxanl.py w_kinavg.py w_kinetics.py w_pcpdist.py w_pdist.py westpa/h5io.py westpa/textio.py westtools/__init__.py westtools/h5io.py westtools/textio.py westtools/tool_classes/core.py westtools/tool_classes/iter_range.py
+description:
+Moved h5io and textio from westtools/ to westpa/ to avoid an import conflict
+with data_manager.py. Fixed multiple problems with plothist, particularly for
+3-D cases. Made DSSpecs (w_pdist) picklable and parallelized w_pdist. w_assign
+now accepts a function that returns a bin-to-state mapping in the same rough
+format as the YAML file would deliver.
+
+
+changeset:   84:2a5234adbc06
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Wed Mar 20 12:43:50 2013 -0400
+files:       w_pdist.py
+description:
+Working w_pdist for extracting probability distributions from arbitrary data sets.
+Needs to be optimized for memory use.
+
+
+changeset:   83:9f6cd0642b97
+parent:      77:98ed9daf55e2
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Sat Mar 16 11:48:57 2013 -0400
+files:       w_pdist.py
+description:
+Copyied w_pcpdist.py to start w_pdist.py
+
+
+changeset:   82:3568b062d973
+user:        Nick Rego <nbr2@pitt.edu>
+date:        Tue Mar 26 11:05:47 2013 -0400
+files:       tests/testwtools.py westpa/binning/_assign.c westpa/binning/_assign.pyx
+description:
+w_assign parallelization and some unit tests
+
+
+changeset:   81:c5a0cc01860d
+user:        Nick Rego <nbr2@pitt.edu>
+date:        Mon Mar 25 15:09:19 2013 -0400
+files:       tests/testwtools.py w_assign.py westpa/binning/_assign.c westpa/binning/_assign.pyx
+description:
+w_assign should support parallelization (for now - for all work managers but zmq); most unit tests for w_assign set up
+
+
+changeset:   80:b2055a4060bc
+user:        Nick Rego <nbr2@pitt.edu>
+date:        Wed Mar 20 12:12:36 2013 -0400
+files:       tests/testwtools.py w_assign.py westpa/binning/_assign.c westpa/binning/_assign.pyx
+description:
+added some test cases for west_tools (w_assign); assign_and_label method in _assign.pyx modified to allow slicing over a subset of the segments
+
+
+changeset:   79:ed1474805f1b
+user:        Nick Rego <nbr2@pitt.edu>
+date:        Tue Mar 19 15:51:29 2013 -0400
+files:       tests/testwtools.py w_assign.py
+description:
+w_assign works if you don't specify macrostates (but subsequent analysis may require macrostates)
+
+
+changeset:   78:f0f1f9caf6a0
+user:        Nick Rego <nbr2@pitt.edu>
+date:        Tue Mar 19 11:06:03 2013 -0400
+files:       tests/testwtools.py
+description:
+created unit test script for west_tools
+
+
+changeset:   77:98ed9daf55e2
+parent:      76:76a57ac6fb2a
+parent:      74:c326331f3b0d
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Thu Mar 14 16:23:07 2013 -0400
+description:
+Merging 76a57ac6fb2a
+
+
+changeset:   76:76a57ac6fb2a
+parent:      75:3b0dba86acbc
+parent:      73:13c5da215394
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Thu Mar 14 16:21:49 2013 -0400
+description:
+Merging c326331f3b0d
+
+
+changeset:   75:3b0dba86acbc
+parent:      71:034dfa681051
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Thu Mar 14 16:20:08 2013 -0400
+files:       w_assign.py westpa/binning/_assign.c westpa/binning/_assign.pyx
+description:
+Allowed w_assign to run with 0, 2, or more macrostates. Resolves #30.
+
+
+changeset:   74:c326331f3b0d
+user:        Nick Rego <nbr2@pitt.edu>
+date:        Wed Mar 13 14:34:49 2013 -0400
+files:       plothist.py
+description:
+plothist:  can add a plot title when plotting in 'evolution' mode
+
+
+changeset:   73:13c5da215394
+parent:      72:dde3e236e443
+parent:      71:034dfa681051
+user:        Nick Rego <nbr2@pitt.edu>
+date:        Tue Mar 12 12:45:35 2013 -0400
+description:
+merge before push
+
+
+changeset:   72:dde3e236e443
+parent:      70:c1409c69065f
+user:        Nick Rego <nbr2@pitt.edu>
+date:        Tue Mar 12 12:33:02 2013 -0400
+files:       plothist.py
+description:
+Plothist plot options - title not mutually exclusive with log transformation, etc
+
+
+changeset:   71:034dfa681051
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Thu Mar 07 17:09:16 2013 -0500
+files:       w_assign.py w_kinavg.py w_kinetics.py westpa/kinetics/__init__.py westpa/kinetics/_kinetics.c westpa/kinetics/_kinetics.pyx
+description:
+Using more stable eigenvalue routine for kinetics analysis.
+
+
+changeset:   70:c1409c69065f
+parent:      69:6c019a08d1ef
+parent:      51:753c07d3bfc7
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Tue Mar 05 17:10:49 2013 -0500
+description:
+Merging in 753c07d3bfc7
+
+
+changeset:   69:6c019a08d1ef
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Tue Mar 05 16:57:32 2013 -0500
+files:       w_kinavg.py westpa/kinetics/__init__.py westtools/tool_classes/__init__.py westtools/tool_classes/core.py
+description:
+New kinetics analysis working for equilibrium simulations
+
+
+changeset:   68:e6dc5079bb30
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Tue Mar 05 12:54:23 2013 -0500
+files:       w_kinavg.py
+description:
+Working kinetic averaging without error bars
+
+
+changeset:   67:7ecbf51771b9
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Tue Mar 05 12:43:06 2013 -0500
+files:       w_kinetics.py westpa/kinetics/__init__.py westpa/kinetics/_kinetics.c westpa/kinetics/_kinetics.pyx
+description:
+One-pass matrix and tracing kinetics analysis largely complete
+
+
+changeset:   66:4cf9907ae7dc
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Mon Mar 04 17:49:34 2013 -0500
+files:       w_kinetics.py westpa/_rc.py westpa/binning/__init__.py westpa/binning/_assign.c westpa/kinetics/__init__.py westpa/kinetics/_kinetics.c westpa/kinetics/_kinetics.pyx westtools/h5io.py westtools/tool_classes/iter_range.py
+description:
+Prototype state-to-state flux tracer in-line with matrix calculations
+
+
+changeset:   65:8dd6779a2796
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Mon Mar 04 17:48:51 2013 -0500
+files:       plothist.py
+description:
+Added plot title option to plothist.py
+
+
+changeset:   64:090b26218897
+parent:      63:70f6a863ae66
+parent:      50:d15db6db5f57
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Thu Feb 28 14:57:03 2013 -0500
+description:
+Merged upstream (d15db6db5f57)
+
+
+changeset:   63:70f6a863ae66
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Thu Feb 28 14:55:10 2013 -0500
+files:       tests/testbinning.py w_assign.py w_kinetics.py westpa/binning/_assign.pyx westpa/kinetics/_kinetics.pyx
+description:
+Kinetics assignment prototype complete. westpa.assign now uses the buffer
+interface instead of the numpy interface where possible.
+
+
+changeset:   62:98acd458d784
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Wed Feb 27 16:53:33 2013 -0500
+files:       w_assign.py w_kinetics.py
+description:
+Updated working kinetics analysis code to relocated binning extension
+
+
+changeset:   61:ff1429b74af1
+parent:      60:0ad23d2371fb
+parent:      48:cd0316c3e174
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Wed Feb 27 16:35:22 2013 -0500
+description:
+Merging in dcf0bdd3f498 (transplant of binning/assign extensions)
+
+
+changeset:   60:0ad23d2371fb
+parent:      59:f2d523404ae1
+parent:      34:f4c809a9d9c4
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Wed Feb 27 15:46:46 2013 -0500
+files:       examples/ex_graphtest.py westtools/tool_classes/data_reader.py westtools/tool_classes/iter_range.py
+description:
+Merged in f4c809a9d9c4
+
+
+changeset:   59:f2d523404ae1
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Wed Feb 27 15:39:48 2013 -0500
+files:       w_assign.py w_kinetics.py
+description:
+Updated assignment code and prototype flux accumulator.
+
+
+changeset:   58:ab67b56af11c
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Wed Feb 27 15:37:44 2013 -0500
+files:       westtools/h5io.py
+description:
+Fixed occasional crash due to dtype oddity.
+
+
+changeset:   57:4ea3af8a990c
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Mon Feb 25 16:24:30 2013 -0500
+files:       w_kinetics.py
+description:
+DMZ algorithm refinements
+
+
+changeset:   56:f4413905da7c
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Mon Feb 25 12:49:49 2013 -0500
+files:       w_kinetics.py
+description:
+First pass at DMZ algorithm
+
+
+changeset:   55:19b32b4ce8cf
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Thu Feb 21 16:45:36 2013 -0500
+files:       w_kinetics.py
+description:
+w_kinetics gets an overall flux and event durations, but reverse rates could be trouble
+
+
+changeset:   54:228ed6c610d7
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Thu Feb 21 16:18:01 2013 -0500
+files:       w_assign.py w_kinetics.py
+description:
+Skeleton of required bits of w_kinetics
+
+
+changeset:   53:61fb1f670cb3
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Thu Feb 21 13:57:37 2013 -0500
+files:       ex_fluxanl_plot.py ex_fpp.py ex_graphtest.py examples/ex_fluxanl_plot.py examples/ex_graphtest.py functional_tests/t_mclib.py functional_tests/t_treewalker.py t_mclib.py t_treewalker.py w_assign.py w_kinetics.py w_pdist.py westtools/h5io.py westtools/tool_classes/data_reader.py westtools/tool_classes/iter_range.py
+description:
+Created w_assign for generalized assignments. Axed crazy generalized dataset
+access in data_reader.py. Moved some things about.
+
+
+changeset:   52:985aeece1197
+parent:      33:beefda169ee2
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Fri Feb 15 16:39:43 2013 -0500
+files:       w_kinetics.py westtools/h5io.py
+description:
+Working commit for kinetics analysis
+
+
+changeset:   51:753c07d3bfc7
+user:        Nick Rego <nbr2@pitt.edu>
+date:        Fri Mar 01 14:33:26 2013 -0500
+files:       w_trace.py
+description:
+Bug-fix (#14):  w_trace should now work
+
+
+changeset:   50:d15db6db5f57
+user:        joshua.adelman <joshua.adelman@gmail.com>
+date:        Thu Feb 28 14:26:30 2013 -0500
+files:       westpa/kinetics/rate_averaging.py
+description:
+Fixed bug in rate_averaging for recycling simulations. Resolves issue #21
+
+
+changeset:   49:e175ad537dfe
+user:        joshua.adelman <joshua.adelman@gmail.com>
+date:        Thu Feb 28 13:26:27 2013 -0500
+files:       fasthist/_fasthist.c mclib/_mclib.c setup.py trajtree/_trajtree.c westpa/binning/_assign.c westpa/kinetics/_kinetics.c westtools/trajlib/__init__.py
+description:
+Updated setup.py to compile extensions from source if cython is not available and started tracking .c files in repo. Resolves WESTPA issue #18
+
+
+changeset:   48:cd0316c3e174
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Wed Feb 27 16:23:54 2013 -0500
+files:       setup.py tests/testbinning.py westpa/kinetics/rate_averaging.py westtools/tool_classes/binning.py
+description:
+Moved binning and kinetics extensions to west_tools
+
+
+changeset:   47:4a6ecad323c0
+parent:      34:f4c809a9d9c4
+parent:      46:dcf0bdd3f498
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Wed Feb 27 16:08:30 2013 -0500
+description:
+Merging dcf0bdd3f498 (transplant of west.binning/west.assign history)
+
+
+changeset:   46:dcf0bdd3f498
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Wed Feb 27 15:58:26 2013 -0500
+files:       src/west/binning/__init__.py src/west/binning/_assign.pyx src/west/binning/assign.py src/west/binning/bins.py src/west/kinetics/__init__.py src/west/kinetics/_kinetics.pyx src/west/kinetics/rate_averaging.py westpa/binning/__init__.py westpa/binning/_assign.pyx westpa/binning/assign.py westpa/binning/bins.py westpa/kinetics/__init__.py westpa/kinetics/_kinetics.pyx westpa/kinetics/rate_averaging.py
+description:
+Relocated files prior to import into west_tools
+
+
+changeset:   45:a983fb052832
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Wed Feb 27 15:32:46 2013 -0500
+files:       src/west/kinetics/rate_averaging.py
+description:
+Changed all west.rc references to westpa.rc
+
+
+changeset:   44:2c6d6eac838a
+parent:      42:038e769b238c
+parent:      43:57e6d4facf4c
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Wed Feb 27 15:15:10 2013 -0500
+description:
+Merging b90ad753864f and 2a88258c58db
+
+
+changeset:   43:57e6d4facf4c
+parent:      41:261add038b66
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Wed Feb 27 15:04:08 2013 -0500
+files:       src/west/binning/assign.py
+description:
+Allowed bin/west to pass arguments to scripts invoked by filename, added
+"unknown bin" flag to assign.py, optimized application of numpy.require in
+assign.py for a ~2x speed gain in binning.
+
+
+changeset:   42:038e769b238c
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Fri Feb 15 12:20:09 2013 -0500
+files:       src/west/kinetics/rate_averaging.py
+description:
+Fixed UnboundLocal error in rate averager.
+
+
+changeset:   41:261add038b66
+user:        joshua.adelman <joshua.adelman@gmail.com>
+date:        Mon Feb 11 11:04:27 2013 -0500
+files:       src/west/kinetics/rate_averaging.py
+description:
+Parallelized rate averaging calculation and updated wwmgr to newest version
+
+
+changeset:   40:f323a929bea3
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Mon Oct 15 15:06:25 2012 -0400
+files:       src/west/binning/assign.py
+description:
+Fixed bug in RecursiveBinMapper that arises when every bin in the base mapper is recursively processed.
+
+
+changeset:   39:936d38f3086e
+user:        joshua.adelman <joshua.adelman@gmail.com>
+date:        Mon Oct 08 16:16:58 2012 -0400
+files:       src/west/binning/assign.py
+description:
+Update string method plugin to work with new binning aparatus; Fixed bug in VoronoiBinMapper; Fixed get_bin_mapper
+
+
+changeset:   38:f69bf2c89b34
+parent:      37:00fedfa968ab
+parent:      36:2f1b386e3374
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Tue Oct 02 15:42:07 2012 -0400
+files:       src/west/binning/_assign.pyx src/west/binning/assign.py
+description:
+Merge with 51fa1eac31579f1a1db77916b3ee859076b58459
+
+
+changeset:   37:00fedfa968ab
+parent:      35:eeea24cd2331
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Tue Oct 02 15:39:41 2012 -0400
+files:       src/west/binning/_assign.pyx src/west/binning/assign.py src/west/kinetics/_kinetics.pyx
+description:
+Renamed westtools to oldtools.
+
+
+changeset:   36:2f1b386e3374
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Tue Oct 02 12:55:23 2012 -0400
+files:       src/west/binning/_assign.pyx src/west/binning/assign.py
+description:
+Fixed several bugs with RecursiveBinMapper.
+
+
+changeset:   35:eeea24cd2331
+parent:      -1:000000000000
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Fri Sep 28 00:30:18 2012 -0400
+files:       src/west/binning/__init__.py src/west/binning/_assign.pyx src/west/binning/assign.py src/west/binning/bins.py src/west/kinetics/__init__.py src/west/kinetics/_kinetics.pyx src/west/kinetics/rate_averaging.py
+description:
+Rewrote binning system, refactored sim manager and WE driver for greater
+orthogonality, added support for pickling bin topologies, refactored rate
+matrix calculation for WEED/WESS plugins.
+
+
+changeset:   34:f4c809a9d9c4
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Wed Feb 27 15:32:46 2013 -0500
+files:       ex_fpp.py ex_graphtest.py trajtree/trajtree.py w_bins.py w_fluxanl.py w_pdist.py w_select.py w_trace.py westpa/_rc.py westtools/tool_classes/binning.py westtools/tool_classes/core.py westtools/tool_classes/data_reader.py westtools/tool_classes/iter_range.py westtools/tool_classes/selected_segs.py westtools/trajlib/trajtree.py westtools/trajlib/treewalker.py
+description:
+Changed all west.rc references to westpa.rc
+
+
+changeset:   33:beefda169ee2
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Fri Dec 07 17:42:07 2012 -0500
+files:       westpa/__init__.py westpa/_rc.py
+description:
+Cleaned up some import trouble.
+
+
+changeset:   32:0632ba399f19
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Thu Nov 22 13:57:07 2012 -0500
+files:       westpa/plugins.py westpa/yamlcfg.py
+description:
+Completed YAML-based config file with support for per-dataset HDF5 storage
+options.
+
+
+changeset:   31:9421397ccbe6
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Fri Nov 16 17:52:45 2012 -0500
+files:       w_select.py westpa/__init__.py westpa/_rc.py westpa/extloader.py westpa/plugins.py westpa/yamlcfg.py westtools/tool_classes/binning.py
+description:
+Working commit of transition to YAML-based config files and some source
+reorganization.
+
+
+changeset:   30:be52252c5bfe
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Mon Nov 05 07:54:37 2012 -0500
+files:       plothist.py
+description:
+Updated comments and docstrings in plothist.py
+
+
+changeset:   29:91d397349fa0
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Mon Oct 29 22:58:52 2012 -0400
+files:       plothist.py
+description:
+plothist.py has working evolution blocked by iteration
+
+
+changeset:   28:f144eb1844e1
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Mon Oct 29 22:03:42 2012 -0400
+files:       plothist.py w_pcpdist.py westtools/__init__.py westtools/h5io.py westtools/textio.py westtools/tool_classes/iter_range.py
+description:
+Added initial plotting tool for histogram output (plothist.py), which works
+except for blocking evolution by iteration (not implemented yet).
+
+
+changeset:   27:d64f2812bd1b
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Fri Oct 26 15:13:18 2012 -0400
+files:       w_dumpsegs.py w_fluxanl.py w_pcpdist.py westtools/tool_classes/core.py
+description:
+Resurrected w_dumpsegs.
+
+
+changeset:   26:031e4f070504
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Fri Oct 26 11:15:14 2012 -0400
+files:       fasthist/__init__.py fasthist/_fasthist.pyx w_pcpdist.py westtools/h5io.py westtools/tool_classes/data_reader.py westtools/tool_classes/iter_range.py
+description:
+Added updated w_pcpdist, optimized for speed. Rewrote fasthist to work on
+N-dimensional histograms of any core numpy non-complex numeric type.
+
+
+changeset:   25:ed61cfa66c50
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Fri Oct 26 11:13:41 2012 -0400
+files:       .hgignore
+description:
+Added .hgignore from westpa
+
+
+changeset:   24:6027bdc6acc5
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Sat Oct 20 02:03:58 2012 -0400
+files:       w_fluxanl.py westtools/h5io.py
+description:
+Updated w_fluxanl to new HDF5 format
+
+
+changeset:   23:a979a759a84b
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Wed Oct 17 21:22:17 2012 -0400
+files:       w_bins.py westtools/tool_classes/binning.py
+description:
+Updated to new WE driver interface (with internal used initial state tracking)
+
+
+changeset:   22:fc9f6d66289a
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Tue Oct 16 15:11:51 2012 -0700
+files:       setup.py
+description:
+Removed "-march=native" from setup.py
+
+
+changeset:   21:0c0e3c8474f4
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Wed Oct 03 21:46:54 2012 -0400
+files:       w_bins.py westtools/tool_classes/__init__.py westtools/tool_classes/binning.py westtools/tool_classes/core.py
+description:
+Added new w_bins tool, to display or manipulate bins.
+
+
+changeset:   20:68e6a3084f86
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Tue Oct 02 15:37:19 2012 -0400
+files:       ex_fpp.py ex_graphtest.py t_treewalker.py trajtree/trajtree.py w_fluxanl.py w_pdist.py w_select.py w_trace.py westtools/__init__.py westtools/stats/__init__.py westtools/stats/edfs.py westtools/stats/mcbs.py westtools/tool_classes/__init__.py westtools/tool_classes/core.py westtools/tool_classes/data_reader.py westtools/tool_classes/hdf5_storage.py westtools/tool_classes/iter_range.py westtools/tool_classes/selected_segs.py westtools/tool_classes/stats.py westtools/trajlib/__init__.py westtools/trajlib/trajtree.py westtools/trajlib/treewalker.py wt2/__init__.py wt2/stats/__init__.py wt2/stats/edfs.py wt2/stats/mcbs.py wt2/tool_classes/__init__.py wt2/tool_classes/core.py wt2/tool_classes/data_reader.py wt2/tool_classes/hdf5_storage.py wt2/tool_classes/iter_range.py wt2/tool_classes/selected_segs.py wt2/tool_classes/stats.py wt2/trajlib/__init__.py wt2/trajlib/trajtree.py wt2/trajlib/treewalker.py
+description:
+Renamed wt2 to westtools
+
+
+changeset:   19:d9a8dd66a927
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Fri Sep 28 15:33:24 2012 -0400
+files:       ex_fpp.py ex_graphtest.py t_treewalker.py trajtree/trajtree.py w_fluxanl.py w_pdist.py w_select.py w_trace.py wt2/__init__.py wt2/tool_classes/__init__.py wt2/tool_classes/core.py wt2/tool_classes/data_reader.py wt2/tool_classes/hdf5_storage.py wt2/tool_classes/iter_range.py wt2/tool_classes/selected_segs.py wt2/tool_classes/stats.py wt2/trajlib/trajtree.py wt2/trajlib/treewalker.py
+description:
+Renamed WEMD->WEST
+
+
+changeset:   18:d5822209131a
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Tue Sep 11 16:26:09 2012 -0400
+files:       w_pdist.py wt2/tool_classes/data_reader.py
+description:
+Minor performance updates
+
+
+changeset:   17:9c0b75b0db24
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Tue Jul 10 16:01:43 2012 -0400
+files:       ex_fluxanl_plot.py mclib/__init__.py mclib/_mclib.pyx t_mclib.py w_fluxanl.py wt2/tool_classes/iter_range.py
+description:
+Added flux analysis script and plotting example.
+
+
+changeset:   16:aaaf9fd60f57
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Mon Jul 09 21:46:33 2012 -0400
+files:       mclib/__init__.py setup.py t_mclib.py
+description:
+Created documentation for mclib.
+
+
+changeset:   15:8965b9b16b42
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Mon Jul 09 13:40:46 2012 -0400
+files:       ex_fpp.py ex_graphtest.py mclib/__init__.py mclib/__main__.py mclib/_mclib.pyx setup.py t_mclib.py trajtree/trajtree.py wt2/tool_classes/data_reader.py wt2/tool_classes/iter_range.py wt2/trajlib/treewalker.py
+description:
+Updated tree walker, added Monte Carlo bootstrapping package
+
+
+changeset:   14:7bed345b47f3
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Tue Jun 19 13:12:59 2012 -0400
+files:       ex_fpp.py t_treewalker.py trajtree/_trajtree.pyx trajtree/trajtree.py w_pdist.py wt2/tool_classes/data_reader.py wt2/tool_classes/selected_segs.py wt2/trajlib/treewalker.py
+description:
+Completed tree walker and example ex_fpp script.
+
+
+changeset:   13:c8aea55bd7b8
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Tue Jun 05 14:13:41 2012 -0400
+files:       trajtree/_trajtree.pyx trajtree/trajtree.py
+description:
+Tracer correct and as fast as it gets without cutting more numpy out of the loops.
+
+
+changeset:   12:7e3fb8bee802
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Tue Jun 05 10:06:24 2012 -0400
+files:       t_treewalker.py trajtree/_trajtree.pyx trajtree/trajtree.py
+description:
+Working but slow
+
+
+changeset:   11:70bfb217d2bf
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Tue Jun 05 00:59:42 2012 -0400
+files:       t_treewalker.py trajtree/_trajtree.pyx trajtree/trajtree.py
+description:
+Visit algorithm works, but construction of table from HDF5 does not appear to work yet.
+
+
+changeset:   10:10de79d0ef49
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Mon Jun 04 21:02:51 2012 -0400
+files:       fasthist/_fasthist.pyx setup.py t_treewalker.py trajtree/__init__.py trajtree/_trajtree.pyx trajtree/trajtree.py wt2/tool_classes/selected_segs.py wt2/trajlib/__init__.py wt2/trajlib/trajtree.py
+description:
+Working commit of cython-based trajectory tree system
+
+
+changeset:   9:d293e781f70f
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Mon May 28 22:36:21 2012 -0400
+files:       fasthist/_fasthist.pyx setup.py w_pdist.py wt2/tool_classes/data_reader.py
+description:
+Working w_pdist
+
+
+changeset:   8:fb5f55b68aa3
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Mon May 28 20:50:00 2012 -0400
+files:       fasthist/_fasthist.pyx w_pdist.py wt2/tool_classes/selected_segs.py
+description:
+Working w_pdist
+
+
+changeset:   7:bbef4bc3f895
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Mon May 28 20:09:57 2012 -0400
+files:       fasthist/__init__.py fasthist/_fasthist.pyx setup.py w_pdist.py wt2/tool_classes/__init__.py wt2/tool_classes/data_reader.py wt2/tool_classes/iter_range.py wt2/tool_classes/selected_segs.py
+description:
+First pass at w_pdist
+
+
+changeset:   6:441115640a51
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Mon May 28 14:55:18 2012 -0400
+files:       w_select.py wt2/tool_classes/core.py wt2/tool_classes/data_reader.py
+description:
+Pulled "WE-like dataset" support out of w_trace into data_reader.py
+
+
+changeset:   5:dd924d2cc23c
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Mon May 28 12:47:08 2012 -0400
+files:       w_select.py wt2/tool_classes/__init__.py
+description:
+Added w_select.
+
+
+changeset:   4:1d3b485ae7fa
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Fri Apr 13 17:04:48 2012 -0400
+files:       wt2/trajlib/trajtree.py
+description:
+Working trajectory tree construction and iteration.
+
+
+changeset:   3:e0fc1a92763d
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Wed Apr 11 17:09:10 2012 -0400
+files:       wt2/tool_classes/core.py wt2/trajlib/__init__.py wt2/trajlib/trajtree.py
+description:
+Partially-working trajectory tree facility.
+
+
+changeset:   2:77471f5d85a0
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Thu Mar 08 13:11:14 2012 -0500
+files:       w_trace.py wt2/tool_classes/core.py wt2/tool_classes/data_reader.py wt2/tool_classes/hdf5_storage.py wt2/tool_classes/stats.py
+description:
+Working w_trace.
+
+
+changeset:   1:e3be20ce41c4
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Tue Mar 06 17:00:44 2012 -0500
+files:       w_trace.py wt2/__init__.py wt2/stats/edfs.py wt2/stats/mcbs.py wt2/tool_classes/__init__.py wt2/tool_classes/core.py wt2/tool_classes/data_reader.py wt2/tool_classes/hdf5_storage.py wt2/tool_classes/stats.py
+description:
+Working commit, including skeleton of a generalized w_trace.
+
+
+changeset:   0:f6153df9b36c
+user:        Matt Zwier <mczwier@gmail.com>
+date:        Sat Feb 25 11:36:03 2012 -0500
+files:       wt2/__init__.py wt2/stats/__init__.py wt2/stats/edfs.py wt2/stats/mcbs.py wt2/tool_classes/__init__.py wt2/tool_classes/core.py wt2/tool_classes/data_reader.py
+description:
+Initial import, including copying (or copying and slight modification) from wemd_feat wemdtools package.
+
+
