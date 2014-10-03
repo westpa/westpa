@@ -1,0 +1,6 @@
+.DS_Store
+lib/blessings/
+lib/west_tools/
+lib/wwmgr/
+*.pyc
+*.pyo
