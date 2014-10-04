@@ -9,10 +9,11 @@ function checkout_remote() {
     if ! [[ -d $directory ]] ; then
 
         git clone "$repo" || exit 1
-        pushd $directory
-          git checkout "$revision" || exit 1
-        popd
     fi
+    pushd $directory
+      git pull origin master || exit 1
+      git checkout "$revision" || exit 1
+    popd
     popd
 }
 
