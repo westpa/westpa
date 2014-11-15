@@ -29,7 +29,8 @@ def run(opts):
                   'OpenCLPlatformIndex': '0',
                   'OpenCLDeviceIndex': '0',
                   'CudaPrecision': 'mixed',
-                  'CudaDeviceIndex': '0'}
+                  'CudaDeviceIndex': '0',
+                  'CpuThreads': '1'}
 
     platform_properties['CudaDeviceIndex'] = deviceid
     platform_properties['OpenCLDeviceIndex'] = deviceid
@@ -43,6 +44,9 @@ def run(opts):
 
     platform = openmm.Platform.getPlatformByName(platform_name)
     properties = {key: platform_properties[key] for key in platform_properties if key.lower().startswith(platform_name.lower())}
+    if platform_name == 'CPU':
+        properties = {'CpuThreads': '1'}
+
     print properties
 
     # Create dummy topology to satisfy Simulation object 
