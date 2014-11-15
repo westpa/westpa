@@ -1,0 +1,16 @@
+*.pyc
+*.xml
+*.npy
+*.h5
+
+*.swo
+*.swp
+*.log
+*.bak
+*.gz
+
+
+.ipynb_checkpoints
+traj_segs/
+bstates/
+data
