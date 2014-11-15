@@ -6,8 +6,8 @@ This example illustrates the use of WESTPA to perform a Weighted Ensemble (WE) s
 of a small 216 particle system consisting of a bistable dimer in a dense fluid of WCA particles using [OpenMM](http://openmm.org/).
 The simulations are run under equilibrium conditions, with the goal of calculating the distribution of the dimer extension distance
 as well as the interconversion rates between the compact and extended states.
-The system is adapted from the work of [Nilmeier, et al (2011) PNAS](https://dx.doi.org/10.1073/pnas.1106094108),
-and the code to build the system, which we package with the example, was generously provided by the authors and is available in 
+The model is adapted from the work of [Nilmeier, et al (2011) PNAS](https://dx.doi.org/10.1073/pnas.1106094108),
+and the code to build the system (`wcadimer.py`), which we package with the example, was generously provided by the authors and is available in 
 its original form at https://simtk.org/home/ncmc. 
 
 Here we provide the code necessary to run a brute force reference simulation as well as WE simulations using either WESTPA's 
@@ -30,6 +30,11 @@ Finally, all simulations were performed using OpenMM's CUDA platform on a system
 Within each of the codes, there are references both the the platform and the number of devices that are hardcoded.
 The relevant lines in the code will be noted, but if you are attempting to run this example with a different set of hardware, some small alterations
 to the source is required.
+For systems without an OpenMM-compatible GPU, the `CPU` platform will allow you to run all of the example simulations, although it is likely that
+the simulations will run much slower.
+The `CPU` platform has a single property `CpuThreads`, which sets the number of cores to use. 
+This value defaults to the number of cores on the machine. 
+For the WE simulations, `CpuThreads` is set so each worker only uses a single core.
 
 ### Brute force simulation
 
@@ -38,7 +43,8 @@ This section can be skipped if a direct comparison is not desired.
 
 Within the `run-md-solvtent-langevin.py` script, you may adjust the `niterations` variable to control the length of the simulation
 (the provided setting of `1000000` should result in nearly 500 transitions) and the `deviceid` variable determines which GPU to run on.
-Simulations were internally tested on a workstation with 4 NVidia GTX 680s, and the `deviceid` is set to `3` to run on the 4th GPU.
+Simulations were internally tested on a workstation with 4 NVidia GTX 680s, and the `deviceid` is set to `0` to run on the 1st GPU.
+The `deviceid` is ignorned when using the `CPU` platform.
 
 *Running on this hardware configuration, the total simulation time is approximately 10 hours.*
 

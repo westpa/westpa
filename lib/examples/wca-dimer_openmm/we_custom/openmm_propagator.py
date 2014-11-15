@@ -135,8 +135,10 @@ class OpenMMPropagator(WESTPropagator):
             process_id = os.environ['WM_PROCESS_INDEX']
             if self.platform.getName() == 'OpenCL':
                 platform_properties['OpenCLDeviceIndex'] = process_id
-            if self.platform.getName() == 'CUDA':
+            elif self.platform.getName() == 'CUDA':
                 platform_properties['CudaDeviceIndex'] = process_id
+            elif self.platform.getName() == 'CPU':
+                platform_properties['CpuThreads'] = '1'
         except KeyError:
             process_id = 0
 

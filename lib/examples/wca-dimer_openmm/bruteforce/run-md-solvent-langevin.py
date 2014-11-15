@@ -203,7 +203,7 @@ if __name__ == "__main__":
 
     niterations = 1000000  # number of work samples to collect
     nsteps = 250 # number of steps per interation
-    deviceid = 3
+    deviceid = 0
     print 'nsteps: ', nsteps
 
     # Create system.     
