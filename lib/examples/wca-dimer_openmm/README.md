@@ -9,6 +9,9 @@ as well as the interconversion rates between the compact and extended states.
 The model is adapted from the work of [Nilmeier, et al (2011) PNAS](https://dx.doi.org/10.1073/pnas.1106094108),
 and the code to build the system (`wcadimer.py`), which we package with the example, was generously provided by the authors and is available in 
 its original form at https://simtk.org/home/ncmc. 
+The model was first described by [Straub, Borkovec and Berne](http://dx.doi.org/10.1063/1.455678) and was later revisited by 
+[Dellago, Bolhuis and Chandler](http://dx.doi.org/10.1063/1.478569). 
+Subsequently, variants of the basic model have been used extensively in the rare-event sampling literature. 
 
 Here we provide the code necessary to run a brute force reference simulation as well as WE simulations using either WESTPA's 
 executable propagator or a custom propagator method that takes direct advantage of OpenMM's python API. 
@@ -119,5 +122,5 @@ the commands to ensure that assignment data exists for all iterations being cons
 Assuming that the provided analysis scripts for both the brute force and WE simulation in `we_custom` have been run, we can compare the results and generate
 publication quality plots using the code provided in the [IPython](http://ipython.org/) notebook `wca_analysis.ipynb`.
 
-A static version of that notebook can be see here.
+A static version of that notebook can be seen [here](http://nbviewer.ipython.org/github/westpa/westpa/blob/master/lib/examples/wca-dimer_openmm/wca_analysis.ipynb).
 
