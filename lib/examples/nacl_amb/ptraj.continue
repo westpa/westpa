@@ -1,4 +1,0 @@
-trajin parent.rst
-trajin seg.mdcrd
-distance na-cl :1@Cl- :2@Na+ out nacldist.dat
-
