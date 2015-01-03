@@ -1,4 +1,5 @@
 #!/bin/bash
+set -x
 source env.sh
 ps aux | grep w_run | grep -v grep
 pkill -9 -f w_run
@@ -14,4 +15,4 @@ mkdir   seg_logs traj_segs istates
 BSTATE_ARGS="--bstate-file bstates/bstates.txt"
 TSTATE_ARGS="--tstate bound,2.8 --tstate unbound,16.9"
 
-$WEST_ROOT/bin/w_init $BSTATE_ARGS $TSTATE_ARGS --segs-per-state 48 --work-manager=threads "$@"
+$WEST_ROOT/bin/w_init $BSTATE_ARGS $TSTATE_ARGS --segs-per-state 24 --work-manager=threads "$@"
