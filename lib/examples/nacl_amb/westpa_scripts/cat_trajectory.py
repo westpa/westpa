@@ -7,8 +7,8 @@ west   = h5py.File('west.h5')
 coords = []
 for iteration, seg_id in infile[1:]:
     iter_key = "iter_{0:08d}".format(int(iteration))
-    SOD      = west['iterations'][iter_key]['auxdata']['coord'][seg_id,:,0,:]
-    CLA      = west['iterations'][iter_key]['auxdata']['coord'][seg_id,:,1,:]
+    SOD      = west['iterations'][iter_key]['auxdata']['coord'][seg_id,1:,0,:]
+    CLA      = west['iterations'][iter_key]['auxdata']['coord'][seg_id,1:,1,:]
     coords  += [numpy.column_stack((SOD, CLA))]
 with open(sys.argv[1][:-4] + ".xyz", 'w') as outfile:
     for i, frame in enumerate(numpy.concatenate(coords)):
