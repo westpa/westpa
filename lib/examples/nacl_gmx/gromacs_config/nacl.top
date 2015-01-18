@@ -1,0 +1,51 @@
+;
+;	File 'topol.top' was generated
+;	By user: ktd3 (1000)
+;	On host: chonglab
+;	At date: Wed Jan 14 12:59:34 2015
+;
+;	This is a standalone topology file
+;
+;	Created by:
+;	GROMACS:      gmx pdb2gmx, VERSION 5.0.4
+;	Executable:   /home/ktd3/software/gromacs/5.0.4_gcc-4.9.2/bin/gmx
+;	Library dir:  /home/ktd3/software/gromacs/5.0.4_gcc-4.9.2/share/gromacs/top
+;	Command line:
+;	  pdb2gmx -f nacl.pdb
+;	Force field was read from current directory or a relative path - path added.
+;
+
+; Include forcefield parameters
+#define _FF_AMBER
+#define _FF_AMBER99SBILDN
+
+[ defaults ]
+;   nbfunc  comb-rule   gen-pairs   fudgeLJ fudgeQQ
+    1       2           yes         0.5     0.8333
+
+[ atomtypes ]
+;   name    at.num  mass    charge  ptype   sigma       epsilon
+    Cl      17      35.45   0.0000  A       0.270000    0.6276000
+    Na      11      22.99   0.0000  A       0.136375    0.1962296
+
+[ implicit_genborn_params ]
+;   atype   sar     st  pi      gbr         hct
+    Cl      0.1     1   1.000   0.1350000   0.80
+    Na      0.1     1   1.000   0.0681875   0.80
+
+[ moleculetype ]
+;   Name        nrexcl
+    Ion_chain_A 3
+
+[ atoms ]
+;   nr  type    resnr   residue atom    cgnr    charge  mass  typeB chargeB massB
+    1   Na      1       NA      NA      1        1      22.99
+    2   Cl      2       CL      CL      2       -1      35.45
+
+[ system ]
+;   Name
+    sodium_chloride
+
+[ molecules ]
+;   Compound    #mols
+    Ion_chain_A 1
