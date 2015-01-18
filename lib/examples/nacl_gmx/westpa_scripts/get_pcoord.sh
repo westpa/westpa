@@ -5,7 +5,7 @@ if [ -n "$SEG_DEBUG" ] ; then
     env | sort
 fi
 
-cd $WEST_SIM_ROOT || exit 1
+cd $WEST_SIM_ROOT
 
 DIST=_nacldist_$$.xvg
 
