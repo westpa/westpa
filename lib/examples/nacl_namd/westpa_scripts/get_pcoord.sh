@@ -14,7 +14,7 @@ z=($(cat $WEST_STRUCT_DATA_REF | cut -c 47-54))
 dx=$(echo "(${x[0]})-(${x[1]})" | bc)
 dy=$(echo "(${y[0]})-(${y[1]})" | bc)
 dz=$(echo "(${z[0]})-(${z[1]})" | bc)
-echo "sqrt (($dx*$dx)+($dy*$dy)+($dz*$dz))" | bc >> $WEST_PCOORD_RETURN
+echo "sqrt (($dx*$dx)+($dy*$dy)+($dz*$dz))" | bc > $WEST_PCOORD_RETURN
 
 if [ -n "$SEG_DEBUG" ] ; then
     head -v $WEST_PCOORD_RETURN
