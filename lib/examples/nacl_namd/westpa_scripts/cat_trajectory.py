@@ -2,15 +2,15 @@
 
 import h5py, numpy, sys
 
-infile  = numpy.loadtxt(sys.argv[1], usecols = (0, 1))
-west    = h5py.File("west.h5")
-coords  = []
+infile = numpy.loadtxt(sys.argv[1], usecols = (0, 1))
+west   = h5py.File('west.h5')
+coords = []
 for iteration, seg_id in infile[1:]:
-    seg_index   = "west['iterations']['iter_{0:08d}']['auxdata']['coord'][{1:d}]".format(
-                    int(iteration), int(seg_id))
-    SOD, CLA    = eval(seg_index)
-    coords     += [numpy.column_stack((SOD, CLA))]
-with open(sys.argv[1][:-4] + ".xyz", "w") as outfile:
+    iter_key = "iter_{0:08d}".format(int(iteration))
+    SOD      = west['iterations'][iter_key]['auxdata']['coord'][seg_id,1:,0,:]
+    CLA      = west['iterations'][iter_key]['auxdata']['coord'][seg_id,1:,1,:]
+    coords  += [numpy.column_stack((SOD, CLA))]
+with open(sys.argv[1][:-4] + ".xyz", 'w') as outfile:
     for i, frame in enumerate(numpy.concatenate(coords)):
         outfile.write("2\n")
         outfile.write("{0}\n".format(i))
