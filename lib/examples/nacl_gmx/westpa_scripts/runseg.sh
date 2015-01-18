@@ -47,7 +47,6 @@ esac
 $MDRUN -s   seg.tpr -o seg.trr -c  seg.gro -e seg.edr \
        -cpo seg.cpt -g seg.log -nt 1
 
-
 # Calculate progress coordinate
 if [ ${G_DIST} ]; then
     # For GROMACS 4, use g_dist
@@ -62,7 +61,7 @@ elif [ ${GMX} ]; then
     cat dist.xvg | tail -n +16 | awk '{print $2*10;}' > $WEST_PCOORD_RETURN
 fi
 
-# Output coordinates and log
+# Output coordinates
 if [ ${WEST_COORD_RETURN} ]; then
     COMMAND="0 \n"
     if [ ${TRJCONV} ]; then
@@ -72,12 +71,16 @@ if [ ${WEST_COORD_RETURN} ]; then
         # For GROMACS 5, use gmx trjconv
         echo -e $COMMAND | $GMX trjconv -f seg.trr -s seg.tpr -o seg.pdb
     fi
-    cat    $WEST_CURRENT_SEG_DATA_REF/seg.pdb | grep 'ATOM' \
+    cat $WEST_CURRENT_SEG_DATA_REF/seg.pdb | grep 'ATOM' \
       | awk '{print $6, $7, $8}' > $WEST_COORD_RETURN
 fi
 
-[ ${WEST_LOG_RETURN} ] &&
-    echo $WEST_CURRENT_SEG_DATA_REF/seg.log > $WEST_LOG_RETURN
+# Output log
+if [ ${WEST_LOG_RETURN} ]; then
+    cat $WEST_CURRENT_SEG_DATA_REF/seg.log \
+      | awk '/Started mdrun/ {p=1}; p; /A V E R A G E S/ {p=0}' \
+      > $WEST_LOG_RETURN
+fi
 
 # Clean up
 rm -f dist.xvg md.mdp md_out.mdp nacl.top parent.gro parent.trr seg.cpt \

@@ -42,87 +42,71 @@ def coord_loader(fieldname, coord_filename, segment, single_point=False):
                            (should always be false)
     """
     # Load coordinates
-    coord = numpy.loadtxt(coord_filename, dtype = numpy.float32)
-    coord = numpy.reshape(coord, (int(coord.shape[0] / 2),
-       int(coord.shape[1] / 3 * 2), 3))
+    n_frames = 6
+    n_atoms  = 2
+    coord    = numpy.loadtxt(coord_filename, dtype = numpy.float32)
+    coord    = numpy.reshape(coord, (n_frames, n_atoms, 3))
 
     # Save to hdf5
     segment.data[fieldname] = coord
 
-def log_loader(fieldname, temp_filename, segment, single_point=False):
+def log_loader(fieldname, log_filename, segment, single_point=False):
     """
     Loads and stores log
 
     **Arguments:**
-        :*fieldname*:     Key at which to store dataset
-        :*temp_filename*: Temporary file from which to load filename
-        :*segment*:       WEST segment
-        :*single_point*:  Data to be stored for a single frame
-                          (should always be false)
+        :*fieldname*:    Key at which to store dataset
+        :*log_filename*: Temporary file from which to load log
+        :*segment*:      WEST segment
+        :*single_point*: Data to be stored for a single frame
+                         (should always be false)
     """
     # Load log
-    with open(temp_filename, 'r') as temp_file:
-        log_filename = temp_file.readlines()[0].strip()
     with open(log_filename, 'r') as log_file:
         raw_text = [line.strip() for line in log_file.readlines()]
 
-    # Determine number of frames and fields
-    i        = 0
-    n_frames = 0
+    # Determine number of fields
+    n_frames = 6
     n_fields = 0
-    while i < len(raw_text):
-        if "A V E R A G E S" in raw_text[i]:
-            break
-        elif raw_text[i].startswith("Step"):
-            n_frames += 1
-            i        += 1
-            if n_fields == 0:
-                while True:
-                    if raw_text[i].startswith("Step"):
-                        i -= 1
-                        break
-                    elif (raw_text[i].startswith("Note")
-                    or    raw_text[i].startswith("Grid")
-                    or    raw_text[i].startswith("Writing")
-                    or    raw_text[i].startswith("Large")):
-                        pass
-                    else:
-                        for field in raw_text[i].split():
-                            try:
-                                float(field)
-                                n_fields += 1
-                            except:
-                                pass
-                    i += 1
-        i += 1
+    line_i   = 0
+    starts   = []
+    while line_i < len(raw_text):
+        line = raw_text[line_i]
+        if len(line.split()) > 0:
+            start = line.split()[0]
+            if start in starts:
+                break
+            else:
+                try:
+                    float(start)
+                    n_fields += len(line.split())
+                except ValueError:
+                    starts.append(start)
+        line_i += 1
     dataset = numpy.zeros((n_frames, n_fields), numpy.float32)
+#    print(dataset.shape, starts)
 
     # Parse data
     line_i  = 0
     frame_i = 0
+    field_i = 0
     while line_i < len(raw_text):
-        line = raw_text[line_i].split()
-        if len(line) >= 1 and line[0] == "Step":
-            field_i  = 0
-            line_i  += 1
-            while True:
-                line = raw_text[line_i].split()
-                if len(line) >= 1:
-                    if line[0] == "Step":
+        line = raw_text[line_i]
+#        print(line_i, frame_i, field_i, line)
+        if len(line.split()) > 0:
+            start = line.split()[0]
+            try:
+                float(start)
+            except ValueError:
+                starts.append(start)
+            if start not in starts:
+                for field in line.split():
+                    dataset[frame_i, field_i] = float(field)
+                    if field_i == n_fields - 1:
                         frame_i += 1
                         field_i  = 0
-                    elif line[0] == "<======":
-                        line_i = len(raw_text)
-                        break
                     else:
-                        try:
-                            float(line[0])
-                            for field in line:
-                                dataset[frame_i, field_i] = float(field)
-                                field_i += 1
-                        except ValueError:
-                            pass
-                line_i += 1
+                        field_i += 1
         line_i += 1
 
     # Save to hdf5
