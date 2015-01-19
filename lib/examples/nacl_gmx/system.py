@@ -72,14 +72,19 @@ def log_loader(fieldname, log_filename, segment, single_point=False):
     starts   = []
     while line_i < len(raw_text):
         line = raw_text[line_i]
-        start = line.split()[0]
-        if start in starts:
-            break
-        else:
-            starts.append(start)
-        n_fields += line.count('=')
-        line_i   += 1
+        if len(line.split()) > 0:
+            start = line.split()[0]
+            if start in starts:
+                break
+            else:
+                try:
+                    float(start)
+                    n_fields += len(line.split())
+                except ValueError:
+                    starts.append(start)
+        line_i += 1
     dataset = numpy.zeros((n_frames, n_fields), numpy.float32)
+#    print(dataset.shape, starts)
 
     # Parse data
     line_i  = 0
@@ -87,17 +92,21 @@ def log_loader(fieldname, log_filename, segment, single_point=False):
     field_i = 0
     while line_i < len(raw_text):
         line = raw_text[line_i]
-        for field in line.split():
+#        print(line_i, frame_i, field_i, line)
+        if len(line.split()) > 0:
+            start = line.split()[0]
             try:
-                float(field)
-                dataset[frame_i, field_i] = float(field)
-                if field_i == n_fields - 1:
-                    frame_i += 1
-                    field_i  = 0
-                else:
-                    field_i += 1
+                float(start)
             except ValueError:
-                pass
+                starts.append(start)
+            if start not in starts:
+                for field in line.split():
+                    dataset[frame_i, field_i] = float(field)
+                    if field_i == n_fields - 1:
+                        frame_i += 1
+                        field_i  = 0
+                    else:
+                        field_i += 1
         line_i += 1
 
     # Save to hdf5
