@@ -13,7 +13,6 @@ of Huber and Kim (1996). For further information, please see the following:
 Zwier, M.C., Adelman, J.L., Kaus, J.W., Pratt, A.J., Wong, K.F., Rego, N.B., Suarez, E., Lettieri, S.,
 Wang, D. W., Grabe, M., Zuckerman, D. M., and Chong, L. T. et al. "WESTPA: An Interoperable, Highly 
 Scalable Software Package For Weighted Ensemble Simulation and Analysis," J. Chem. Theory Comput., 11: 800−809 (2015). 
-
 doi:10.1021/ct5010615
 
 To help us fund development, please cite the article listed above for use of WESTPA and
