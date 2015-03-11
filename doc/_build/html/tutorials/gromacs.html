@@ -63,24 +63,23 @@
 per core); ~1.2 GB disk space</p>
 <p>In this tutorial we will use the standard weighted ensemble approach to
 simulate Na<sup>+</sup>/Cl<sup>-</sup> association in Generalized Born implicit
-solvent. The system consists of single Na:sup:<cite>+</cite> and Cl:sup:<cite>-</cite> ions
-modeled with the <cite>CHARMM &lt;http://mackerell.umaryland.edu/charmm_ff.shtml&gt;</cite>
-force field, using the distance between the two ions as the progress
-coordinate.
-<cite>Gromacs &lt;http://www.gromacs.org/&gt;</cite> will be used to run the
-molecular dynamics, and familiarity with it is a prerequisite (see <cite>tutorials
-&lt;http://www.gromacs.org/Documentation/Tutorials&gt;</cite>).
+solvent. The system consists of single Na<sup>+</sup> and Cl<sup>-</sup> ions
+modeled with the
+<a class="reference external" href="http://mackerell.umaryland.edu/charmm_ff.shtml">CHARMM force field</a>,
+using the distance between the two ions as the progress coordinate.
+<a class="reference external" href="http://www.gromacs.org">Gromacs</a> will be used to run the
+molecular dynamics, and familiarity with it is a prerequisite (see <a class="reference external" href="http://www.gromacs.org/Documentation/Tutorials">tutorials</a>).
 Basic knowledge of python and bash scripting is also necessary.</p>
 <p>The first step is to set up a directory containing the necessary Gromacs and
 WESTPA files. A working example directory can be found at
-<cite>westpa/lib/examples/nacl_gmx</cite>.</p>
+<code class="docutils literal"><span class="pre">westpa/lib/examples/nacl_gmx</span></code>.</p>
 </div>
 <div class="section" id="preparing-the-gromacs-files">
 <h2>Preparing the Gromacs files<a class="headerlink" href="#preparing-the-gromacs-files" title="Permalink to this headline">¶</a></h2>
 <table border="1" class="docutils">
 <colgroup>
-<col width="33%" />
-<col width="67%" />
+<col width="29%" />
+<col width="71%" />
 </colgroup>
 <thead valign="bottom">
 <tr class="row-odd"><th class="head">Input File</th>
@@ -102,12 +101,12 @@ WESTPA files. A working example directory can be found at
 </tr>
 </tbody>
 </table>
-<p>The above files are included in the <cite>gromacs_config</cite> subfolder of the example
+<p>The above files are included in the <code class="docutils literal"><span class="pre">gromacs_config</span></code> subfolder of the example
 directory, and should be familiar to Gromacs users. Note that two configuration
 files are present.
-<cite>md-genvel.mdp</cite> is used for initial segments, in which it is necessary to
-generate initial velocities, and <cite>md-continue.mdp</cite> is used for continuations,
-in which velocities are inherited from the parent segment.</p>
+<code class="docutils literal"><span class="pre">md-genvel.mdp</span></code> is used for initial segments, in which it is necessary to
+generate initial velocities, and <code class="docutils literal"><span class="pre">md-continue.mdp</span></code> is used for
+continuations, in which velocities are inherited from the parent segment.</p>
 <div class="section" id="md-continue-mdp">
 <h3>md-continue.mdp<a class="headerlink" href="#md-continue-mdp" title="Permalink to this headline">¶</a></h3>
 <div class="highlight-python"><div class="highlight"><pre>;   0.5 ps NVT production with Langevin thermostat and GB implicit solvent
@@ -155,16 +154,17 @@ is also necessary to set the random seed to a different value for each segment.
 Setting the random seed based on the time, as is common for brute-force
 simulations, may cause problems as simulations started simultaneously from the
 same parent will not diverge.</p>
-<p>The analogous <cite>md-genvel.mdp</cite> differs only in that it does not load velocities
-from the input file, instead generating them from a Maxwellian distribution.</p>
+<p>The analogous <code class="docutils literal"><span class="pre">md-genvel.mdp</span></code> differs only in that it does not load
+velocities from the input file, instead generating them from a Maxwellian
+distribution.</p>
 </div>
 </div>
 <div class="section" id="preparing-the-westpa-files">
 <h2>Preparing the WESTPA files<a class="headerlink" href="#preparing-the-westpa-files" title="Permalink to this headline">¶</a></h2>
 <table border="1" class="docutils">
 <colgroup>
-<col width="23%" />
-<col width="77%" />
+<col width="29%" />
+<col width="71%" />
 </colgroup>
 <thead valign="bottom">
 <tr class="row-odd"><th class="head">Input File</th>
@@ -205,8 +205,8 @@ from the input file, instead generating them from a Maxwellian distribution.</p>
 </tbody>
 </table>
 <p>The above files are listed roughly in the order in which it is appropriate to
-configure them. <cite>gen_istate.sh</cite>, <cite>get_pcoord.sh</cite>, <cite>runseg.sh</cite>, and
-<cite>post_iter.sh</cite> are located in the <cite>westpa_scripts</cite> subfolder.</p>
+configure them. <code class="docutils literal"><span class="pre">gen_istate.sh</span></code>, <code class="docutils literal"><span class="pre">get_pcoord.sh</span></code>, <code class="docutils literal"><span class="pre">runseg.sh</span></code>, and
+<code class="docutils literal"><span class="pre">post_iter.sh</span></code> are located in the <code class="docutils literal"><span class="pre">westpa_scripts</span></code> subfolder.</p>
 <div class="section" id="env-sh">
 <h3>env.sh<a class="headerlink" href="#env-sh" title="Permalink to this headline">¶</a></h3>
 <p>This script sets environment variables that may be used across the simulation.
@@ -221,19 +221,19 @@ of some commands have changed in version 5.</p>
 <div class="section" id="gen-istates-sh">
 <h3>gen_istates.sh<a class="headerlink" href="#gen-istates-sh" title="Permalink to this headline">¶</a></h3>
 <p>This script generates initial states (structures) for the simulation from the
-basis states (structures) stored in the <cite>bstates</cite> subfolder. Our system
+basis states (structures) stored in the <code class="docutils literal"><span class="pre">bstates</span></code> subfolder. Our system
 contains a single basis state containing the two ions with a separation of 9.90
-Å; this script generates slight variations of this distance in order to yield a
-greater variety of starting configurations.</p>
+Å; this script generates slight variations of this distance in order to obtain
+a greater variety of starting configurations.</p>
 </div>
 <div class="section" id="get-pcoord-sh">
 <h3>get_pcoord.sh<a class="headerlink" href="#get-pcoord-sh" title="Permalink to this headline">¶</a></h3>
 <p>This script calculates the progress coordinate from the initial states. Our
 progress coordinate is the distance between the Na<sup>+</sup> and Cl<sup>-</sup>
-ions, which we calculate using <strong>`g_dist`</strong> for Gromacs 4, or the equivalent
-<strong>`gmx distance`</strong> for Gromacs 5.
+ions, which we calculate using <code class="docutils literal"><span class="pre">g_dist</span></code> for Gromacs 4, or the equivalent
+<code class="docutils literal"><span class="pre">gmx</span> <span class="pre">distance</span></code> for Gromacs 5.
 Note that this script is used only during initial state generation; during
-production <cite>runseg.sh</cite> calculates the progress coordinate.</p>
+production <code class="docutils literal"><span class="pre">runseg.sh</span></code> calculates the progress coordinate.</p>
 </div>
 <div class="section" id="system-py">
 <h3>system.py<a class="headerlink" href="#system-py" title="Permalink to this headline">¶</a></h3>
@@ -241,37 +241,37 @@ production <cite>runseg.sh</cite> calculates the progress coordinate.</p>
 specified the number of dimensions in the progress coordinate, the number of
 frames to be output per segment, the bin boundaries, and the number of walkers
 per bin. For this system we use 22 bins as defined by <a class="reference external" href="http://pubs.acs.org/doi/abs/10.1021/ct100626x">Zwier, Kaus, and Chong</a>, and 24 walkers per bin.
-<cite>system.py</cite> also includes the functions <cite>coord_loader</cite> and <cite>log_loader</cite>. In
-addition to the progress coordinate, WESTPA includes the ability to calculate
-and store auxiliary data as the simulation is run. This is often easier than
-looping over iterations and segments afterwards. Since our system contains only
-two atoms, it is reasonable for us to store all coordinate information in the
-same hdf5 file as the progress coordinate. We will also store the log
-information including time, energy, and temperature.</p>
+<code class="docutils literal"><span class="pre">system.py</span></code> also includes the functions <code class="docutils literal"><span class="pre">coord_loader</span></code> and <code class="docutils literal"><span class="pre">log_loader</span></code>.
+In addition to the progress coordinate, WESTPA includes the ability to
+calculate and store auxiliary data as the simulation is run. This is often
+easier than looping over iterations and segments afterwards. Since our system
+contains only two atoms, it is reasonable for us to store all coordinate
+information in the same hdf5 file as the progress coordinate. We will also
+store the log information including time, energy, and temperature.</p>
 </div>
 <div class="section" id="runseg-sh">
 <h3>runseg.sh<a class="headerlink" href="#runseg-sh" title="Permalink to this headline">¶</a></h3>
 <p>This script runs individual segments, calculates and outputs their progress
 coordinates, and outputs auxiliary data. For each iteration and segment it
 generates a folder, linking to the files necessary for running Gromacs.
-For the Gromacs configuration file, it uses <strong>`sed`</strong> to input a random seed
+For the Gromacs configuration file, it uses <code class="docutils literal"><span class="pre">sed</span></code> to input a random seed
 generated by WESTPA. It then runs Gromacs, calculates and outputs the progress
 coordinate and auxiliary data, and removes files that are no longer needed. As
-in <cite>get_pcoord.sh</cite>, the progress coordinate is calculated using either Gromacs
-4&#8217;s <strong>`g_dist`</strong> or Gromacs 5&#8217;s <strong>`gmx distance`</strong>.
-The auxiliary coordinate dataset is prepared by using <strong>`trjconv`</strong> or <strong>`gmx
-trjconv`</strong> to convert the trajectory to pdb format, which is processed using
+in <code class="docutils literal"><span class="pre">get_pcoord.sh</span></code>, the progress coordinate is calculated using either
+Gromacs 4&#8217;s <code class="docutils literal"><span class="pre">g_dist</span></code> or Gromacs 5&#8217;s <code class="docutils literal"><span class="pre">gmx</span> <span class="pre">distance</span></code>.
+The auxiliary coordinate dataset is prepared by using <code class="docutils literal"><span class="pre">trjconv</span></code> or <code class="docutils literal"><span class="pre">gmx</span>
+<span class="pre">trjconv</span></code> to convert the trajectory to pdb format, which is processed using
 shell commands and output to a temporary file, from which it is read by the
-<cite>coord_loader</cite> function in <cite>system.py</cite>.
+<code class="docutils literal"><span class="pre">coord_loader</span></code> function in <code class="docutils literal"><span class="pre">system.py</span></code>.
 The auxiliary log data is similarly processed using shell commands and output
 to a temporary file, from which it is further processed and stored by the
-<cite>log_loader</cite> function in <cite>system.py</cite>.</p>
+<code class="docutils literal"><span class="pre">log_loader</span></code> function in <code class="docutils literal"><span class="pre">system.py</span></code>.</p>
 </div>
 <div class="section" id="post-iter-sh">
 <h3>post_iter.sh<a class="headerlink" href="#post-iter-sh" title="Permalink to this headline">¶</a></h3>
 <p>This script cleans up after each iteration. WESTPA simulations can generate
 large numbers of files, potentially conflicting with filesystem restrictions.
-After each iteration, <cite>post_iter.sh</cite> moves the segment logs the associated
+After each iteration, <code class="docutils literal"><span class="pre">post_iter.sh</span></code> moves the segment logs the associated
 segment logs to a tar file.</p>
 </div>
 <div class="section" id="west-cfg">
@@ -285,13 +285,13 @@ iteration, are listed but unused in this tutorial.</p>
 <div class="section" id="init-sh">
 <h3>init.sh<a class="headerlink" href="#init-sh" title="Permalink to this headline">¶</a></h3>
 <p>This script initializes the WESTPA system. It removes files from previous runs
-and uses <cite>gen_istates.sh</cite> and <cite>get_pcoord.sh</cite> to generate initial states. This
+and uses <code class="docutils literal"><span class="pre">gen_istates.sh</span></code> and <code class="docutils literal"><span class="pre">get_pcoord.sh</span></code> to generate initial states. This
 is also where the basis states and target states are defined. For this system
 we define the bound target state as 1.8 Å separation, and the unbound target
 state as 16.9 Å separation. Once walkers reach the bins containing these values
-(i.e. our first and final bins), they are recycled. <cite>init.sh</cite> is also one of
+(i.e. our first and final bins), they are recycled. <code class="docutils literal"><span class="pre">init.sh</span></code> is also one of
 two places where we specify the number of walkers per bin, as
-<cite>&#8211;segs-per-state</cite>.</p>
+<code class="docutils literal"><span class="pre">--segs-per-state</span></code>.</p>
 </div>
 <div class="section" id="run-sh">
 <h3>run.sh<a class="headerlink" href="#run-sh" title="Permalink to this headline">¶</a></h3>
@@ -302,13 +302,13 @@ two places where we specify the number of walkers per bin, as
 <p>This script is used to tar segments after the WESTPA simulation has been run,
 in order to reduce the number of files produced. In order to allow extension of
 the simulation, the last segment is not tarred. Typically, it is advisable not
-to tar segments after each iteration (i.e. in <cite>post_iter.sh</cite>), while the main
+to tar segments after each iteration (i.e. in <code class="docutils literal"><span class="pre">post_iter.sh</span></code>), while the main
 WESTPA process is tarring, other cores are idle, potentially wasting CPU time.</p>
 </div>
 </div>
 <div class="section" id="running-the-simulation">
 <h2>Running the simulation<a class="headerlink" href="#running-the-simulation" title="Permalink to this headline">¶</a></h2>
-<p>From the simulation root directory ($WEST_SIM_ROOT), the simulation may be
+<p>From the simulation root directory (<code class="docutils literal"><span class="pre">$WEST_SIM_ROOT</span></code>), the simulation may be
 initialized using the command:</p>
 <div class="highlight-python"><div class="highlight"><pre>./init.sh
 </pre></div>
@@ -317,9 +317,9 @@ initialized using the command:</p>
 <div class="highlight-python"><div class="highlight"><pre>./run.sh
 </pre></div>
 </div>
-<p><cite>init.sh</cite> and <cite>run.sh</cite> call <strong>`w_init`</strong> and <strong>`w_run`</strong> from WESTPA. By
+<p><code class="docutils literal"><span class="pre">init.sh</span></code> and <code class="docutils literal"><span class="pre">run.sh</span></code> call <code class="docutils literal"><span class="pre">w_init</span></code> and <code class="docutils literal"><span class="pre">w_run</span></code> from WESTPA. By
 default WESTPA will use as many cores as are available on the host machine. If
-the simulation is run on a computing cluster, <strong>`w_run`</strong> may be executed from
+the simulation is run on a computing cluster, <code class="docutils literal"><span class="pre">w_run</span></code> may be executed from
 a batch script. See the <a class="reference external" href="UserGuide:Running">Running</a> page for more
 information on how to submit jobs to specific clusters.</p>
 </div>
@@ -329,8 +329,8 @@ information on how to submit jobs to specific clusters.</p>
 <h3>Output<a class="headerlink" href="#output" title="Permalink to this headline">¶</a></h3>
 <table border="1" class="docutils">
 <colgroup>
-<col width="26%" />
-<col width="74%" />
+<col width="29%" />
+<col width="71%" />
 </colgroup>
 <thead valign="bottom">
 <tr class="row-odd"><th class="head">Output File</th>
@@ -355,16 +355,16 @@ information on how to submit jobs to specific clusters.</p>
 <div class="section" id="traj-segs">
 <h4>traj_segs<a class="headerlink" href="#traj-segs" title="Permalink to this headline">¶</a></h4>
 <p>This folder stores the results of the WESTPA simulation, organized by iteration
-and segment. This includes all files generated by <cite>runseg.sh</cite>, including those
-generated by Gromacs.
-For this system, the only files saved are <cite>seg.trr</cite>, <cite>seg.edr</cite>, and <cite>seg.log</cite>
-corresponding to the coordinates and velocities, energy, and log.
-After the simulation has been run, <cite>tar_segs.sh</cite> may be used to reduce each
+and segment. This includes all files generated by <code class="docutils literal"><span class="pre">runseg.sh</span></code>, including
+those generated by Gromacs.
+For this system, the only files saved are <code class="docutils literal"><span class="pre">seg.trr</span></code>, <code class="docutils literal"><span class="pre">seg.edr</span></code>, and
+<code class="docutils literal"><span class="pre">seg.log</span></code> corresponding to the coordinates and velocities, energy, and log.
+After the simulation has been run, <code class="docutils literal"><span class="pre">tar_segs.sh</span></code> may be used to reduce each
 iteration to a single tar file.</p>
 </div>
 <div class="section" id="seg-logs">
 <h4>seg_logs<a class="headerlink" href="#seg-logs" title="Permalink to this headline">¶</a></h4>
-<p>This folder stores logs from each iteration and segment. <cite>post_iter.sh</cite> has
+<p>This folder stores logs from each iteration and segment. <code class="docutils literal"><span class="pre">post_iter.sh</span></code> has
 been used to combine each segment into a single tar file.</p>
 </div>
 <div class="section" id="west-h5">
@@ -380,8 +380,8 @@ outputs information such as the current iteration number, the number of
 populated bins, and the time needed for each iteration in this log. This is
 also where errors are output.</p>
 <p>Since only 10 iterations have been run, we do not yet have enough data to
-analyze. Edit <cite>west.cfg</cite> and change <cite>max_total_iterations</cite> to 100. Extend using
-the command:</p>
+analyze. Edit <code class="docutils literal"><span class="pre">west.cfg</span></code> and change <code class="docutils literal"><span class="pre">max_total_iterations</span></code> to 100. Extend
+using the command:</p>
 <div class="highlight-python"><div class="highlight"><pre>./run.sh
 </pre></div>
 </div>
@@ -389,11 +389,11 @@ the command:</p>
 </div>
 <div class="section" id="computing-the-association-rate">
 <h3>Computing the association rate<a class="headerlink" href="#computing-the-association-rate" title="Permalink to this headline">¶</a></h3>
-<p>WESTPA includes several tools for analysis located in <cite>$WEST_ROOT/bin</cite>. In
-<cite>init.sh</cite> we specified the bin containing an Na<sup>+</sup>/Cl:sup:<cite>-</cite> distance
-of 1.8 Å as the bound state, and that containing a distance of 16.9 Å as the
-unbound state. Using <strong>`w_fluxanl`</strong>, we can calculate the flux into these
-target states, and from that calculate the association rate of Na<sup>+</sup>/Cl:sup:<cite>-</cite>. <strong>`w_fluxanl`</strong> may be run with the following commands:</p>
+<p>WESTPA includes several tools for analysis located in <code class="docutils literal"><span class="pre">$WEST_ROOT/bin</span></code>. In
+<code class="docutils literal"><span class="pre">init.sh</span></code> we specified the bin containing an Na<sup>+</sup>/Cl<sup>-</sup>
+distance of 1.8 Å as the bound state, and that containing a distance of 16.9 Å
+as the unbound state. Using <code class="docutils literal"><span class="pre">w_fluxanl</span></code>, we can calculate the flux into these
+target states, and from that calculate the association rate of Na<sup>+</sup>/Cl<sup>-</sup>. <code class="docutils literal"><span class="pre">w_fluxanl</span></code> may be run with the following commands:</p>
 <div class="highlight-python"><div class="highlight"><pre>source env.sh
 $WEST_ROOT/bin/w_fluxanl
 </pre></div>
@@ -409,10 +409,10 @@ target &#39;bound&#39;:
   mean flux and CI   = x (y, z) tau^(-1)
 </pre></div>
 </div>
-<p>More information on how to use <strong>`w_fluxanl`</strong> can be viewed using the <cite>&#8211;help</cite>
-flag. <strong>`w_fluxanl`</strong> also stores this information in an hdf5 file,
-<cite>fluxanl.h5</cite>. Using the python libraries h5py and pylab, we can visualize this
-data. Open a python interpreter and run the following commands:</p>
+<p>More information on how to use <code class="docutils literal"><span class="pre">w_fluxanl</span></code> can be viewed using the <code class="docutils literal"><span class="pre">--help</span></code>
+flag. <code class="docutils literal"><span class="pre">w_fluxanl</span></code> also stores this information in an hdf5 file,
+<code class="docutils literal"><span class="pre">fluxanl.h5</span></code>. Using the python libraries h5py and pylab, we can visualize
+this data. Open a python interpreter and run the following commands:</p>
 <div class="highlight-python"><div class="highlight"><pre><span class="kn">import</span> <span class="nn">h5py</span><span class="o">,</span> <span class="nn">numpy</span><span class="o">,</span> <span class="nn">pylab</span>
 <span class="n">fluxanl</span>              <span class="o">=</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="s">&#39;fluxanl.h5&#39;</span><span class="p">)</span>
 <span class="n">flux</span>                 <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">100</span><span class="p">)</span>
@@ -425,15 +425,15 @@ data. Open a python interpreter and run the following commands:</p>
 </pre></div>
 </div>
 <div class="figure">
-<img alt="../_images/Nacl_gromacs_flux_instantaneous.png" src="../_images/Nacl_gromacs_flux_instantaneous.png" />
+<img alt="../_images/nacl_gromacs_flux_instantaneous.png" src="../_images/nacl_gromacs_flux_instantaneous.png" />
 </div>
 <p>The x-axis represents the iteration number, and the y-axis the flux into the
 bound state in units of τ<sup>-1</sup> during that iteration. In the above
 simulation, the first transition to the unbound state occurred in iteration 2,
 and the first transition to the bound state occurred in iteration 3. The
 instantaneous flux is noisy and difficult to interpret, and it is clearer to
-view the time evolution of the flux. Run <strong>`w_fluxanl`</strong> again, this time with
-the <cite>&#8211;evol</cite> flag:</p>
+view the time evolution of the flux. Run <code class="docutils literal"><span class="pre">w_fluxanl</span></code> again, this time with
+the <code class="docutils literal"><span class="pre">--evol</span></code> flag:</p>
 <div class="highlight-python"><div class="highlight"><pre>$WEST_ROOT/bin/w_fluxanl --evol
 </pre></div>
 </div>
@@ -455,7 +455,7 @@ interpreter:</p>
 </pre></div>
 </div>
 <div class="figure">
-<img alt="../_images/Nacl_gromacs_flux_evolution.png" src="../_images/Nacl_gromacs_flux_evolution.png" />
+<img alt="../_images/nacl_gromacs_flux_evolution.png" src="../_images/nacl_gromacs_flux_evolution.png" />
 </div>
 <p>We can see that the flux has plateaued, indicating that the simulation has
 reached steady-state conditions. When calculating the rate, we discard the
@@ -478,38 +478,38 @@ was 0.5 ps, in order to determine the association rate in units of ps<sup>-1</su
 2.1 x 10<sup>-2</sup> ps<sup>-1</sup> with a 95% CI of 1.8 x10<sup>-2</sup> to 2.3
 x10<sup>-2</sup>. In order to obtain a more precise association rate, we would
 need to run more iterations of the simulation, which may be done by editing
-<cite>west.cfg</cite>.</p>
+<code class="docutils literal"><span class="pre">west.cfg</span></code>.</p>
 </div>
 <div class="section" id="visualizing-a-selected-pathway">
 <h3>Visualizing a selected pathway<a class="headerlink" href="#visualizing-a-selected-pathway" title="Permalink to this headline">¶</a></h3>
-<p>Westpa includes the tools <strong>`w_succ`</strong> and <strong>`w_trace`</strong> to make concatenating
+<p>Westpa includes the tools <code class="docutils literal"><span class="pre">w_succ</span></code> and <code class="docutils literal"><span class="pre">w_trace</span></code> to make concatenating
 the segments for one of your completed pathways straightforward. Both
-<strong>`w_succ`</strong> and <strong>`w_trace`</strong> are located in <cite>$WEST_ROOT/bin</cite>.</p>
-<p>First use <strong>`w_succ`</strong> by entering into the command line from your simulation
+<code class="docutils literal"><span class="pre">w_succ</span></code> and <code class="docutils literal"><span class="pre">w_trace</span></code> are located in <code class="docutils literal"><span class="pre">$WEST_ROOT/bin</span></code>.</p>
+<p>First use <code class="docutils literal"><span class="pre">w_succ</span></code> by entering into the command line from your simulation
 root directory:</p>
 <div class="highlight-python"><div class="highlight"><pre>source env.sh
 $WEST_ROOT/bin/w_succ
 </pre></div>
 </div>
-<p><strong>`w_succ`</strong> will output a list of every completed pathway, listed by its
+<p><code class="docutils literal"><span class="pre">w_succ</span></code> will output a list of every completed pathway, listed by its
 iteration and segment ids. The target state each pathway has reached may be
 determined from the final value of the progress coordinate. Pick any set of
-completed iteration and segment ids and use them with the <strong>`w_trace`</strong> tool.
+completed iteration and segment ids and use them with the <code class="docutils literal"><span class="pre">w_trace</span></code> tool.
 For example, if iteration 17 segment 2 is a completed pathway, run:</p>
 <div class="highlight-python"><div class="highlight"><pre>$WEST_ROOT/bin/w_trace 17:2
 </pre></div>
 </div>
-<p><strong>`w_trace`</strong> will output a text file named <cite>traj_17_2_trace.txt</cite> listing the
+<p><code class="docutils literal"><span class="pre">w_trace</span></code> will output a text file named <code class="docutils literal"><span class="pre">traj_17_2_trace.txt</span></code> listing the
 iteration and segment ids for the chain of continuing segments leading up to
 the successful completion of your simulation. This file includes the iteration,
 seg_id, weight, wallclock time, CPU time, and final progress coordinate value
 for each segment comprising the trajectory. The first line, listed as iteration
 0, includes the initial state ID. The same information is stored in hdf5 format
-in the outfile <cite>trajs.h5</cite>.</p>
+in the outfile <code class="docutils literal"><span class="pre">trajs.h5</span></code>.</p>
 <p>By combining the information in this file with the coordinates stored in
-<cite>west.h5</cite>, we can generate a complete trajectory viewable using <a class="reference external" href="http://www.ks.uiuc.edu/Research/vmd/">Visual
+<code class="docutils literal"><span class="pre">west.h5</span></code>, we can generate a complete trajectory viewable using <a class="reference external" href="http://www.ks.uiuc.edu/Research/vmd">Visual
 Molecular Dynamics</a> using the script
-<cite>cat_trajectory.py</cite>, included in the <cite>westpa_scripts</cite> subfolder:</p>
+<code class="docutils literal"><span class="pre">cat_trajectory.py</span></code>, included in the <code class="docutils literal"><span class="pre">westpa_scripts</span></code> subfolder:</p>
 <div class="highlight-python"><div class="highlight"><pre><span class="kn">import</span> <span class="nn">h5py</span><span class="o">,</span> <span class="nn">numpy</span><span class="o">,</span> <span class="nn">sys</span>
 
 <span class="n">infile</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">usecols</span> <span class="o">=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
@@ -530,26 +530,26 @@ Molecular Dynamics</a> using the script
           <span class="nb">float</span><span class="p">(</span><span class="n">frame</span><span class="p">[</span><span class="mi">3</span><span class="p">]),</span> <span class="nb">float</span><span class="p">(</span><span class="n">frame</span><span class="p">[</span><span class="mi">4</span><span class="p">]),</span> <span class="nb">float</span><span class="p">(</span><span class="n">frame</span><span class="p">[</span><span class="mi">5</span><span class="p">])))</span>
 </pre></div>
 </div>
-<p>This script takes <strong>`w_trace`</strong> output as a command line argument, loads the
+<p>This script takes <code class="docutils literal"><span class="pre">w_trace</span></code> output as a command line argument, loads the
 iteration and segment IDs, loads the coordinates for each segment from
-<cite>west.h5</cite>, and saves the results into an xyz file viewable using <a class="reference external" href="http://www.ks.uiuc.edu/Research/vmd/">VMD</a>.</p>
+<cite>west.h5`</cite>, and saves the results into an xyz file viewable using <a class="reference external" href="http://www.ks.uiuc.edu/Research/vmd">VMD</a>.</p>
 </div>
 </div>
 <div class="section" id="useful-links">
 <h2>Useful links<a class="headerlink" href="#useful-links" title="Permalink to this headline">¶</a></h2>
 <ul class="simple">
-<li><a class="reference external" href="http://www.gromacs.org/">Official GROMACS web page</a></li>
+<li><a class="reference external" href="http://www.gromacs.org">Official GROMACS web page</a></li>
 <li><a class="reference external" href="http://www.gromacs.org/documentation/tutorials">GROMACS tutorials from the official web page</a></li>
-<li><a class="reference external" href="http://www.ks.uiuc.edu/Research/vmd/">Official VMD web page</a></li>
+<li><a class="reference external" href="http://www.ks.uiuc.edu/Research/vmd">Official VMD web page</a></li>
 </ul>
 </div>
 <div class="section" id="useful-hints">
 <h2>Useful hints<a class="headerlink" href="#useful-hints" title="Permalink to this headline">¶</a></h2>
 <ul class="simple">
-<li>Make sure your paths are set correctly in <cite>env.sh</cite></li>
+<li>Make sure your paths are set correctly in <code class="docutils literal"><span class="pre">env.sh</span></code></li>
 <li>If the simulation doesn&#8217;t stop properly with CTRL+C , use CTRL+Z.</li>
 <li>Another method to stop the simulation relatively cleanly is to rename
-<cite>runseg.sh</cite>; WESTPA will shut the simulation down and prevent the hdf5 file
+<code class="docutils literal"><span class="pre">runseg.sh</span></code>; WESTPA will shut the simulation down and prevent the hdf5 file
 from becoming corrupted. Some extra steps may be necessary to ensure that the
 analysis scripts can be run successfully.</li>
 </ul>
