@@ -21,10 +21,13 @@ Advanced
 
    OpenMM <tutorials/openmm>
 
-Indices and tables
-==================
+Code
+====
 
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+.. toctree::
+   :maxdepth: 2
 
+    WEST              <code/west>
+    WEST tools        <code/westtools>
+    WEST work manager <code/wwmgr>
+    WEST extensions   <code/westext>
