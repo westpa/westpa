@@ -21,7 +21,7 @@ molecular dynamics, and familiarity with it is a prerequisite (see `tutorials
 <http://docs.openmm.org/6.2.0/userguide/index.html>`_).
 
 This tutorial uses the same starting files, generated using Amber, as the
-:doc:`Introductory Amber Tutorial <amber>`.
+:ref:`Introductory Amber Tutorial <amber_tutorial>`.
 Instead of using Amber (``pmemd`` or ``sander``) to run the dynamics, we
 will use the OpenMM framework along with its python wrapper to propagate the
 system.
@@ -83,7 +83,7 @@ system.py
 
 This file contains information about the progress coodinate, binning, walkers
 per bin and more. This file is nearly identical to one defined in the
-`Introductory Amber Tutorial <Introductory Tutorial: AMBER>`_. In this example
+`Introductory Amber Tutorial <amber_tutorial>`. In this example
 we will be using the distance between the two ions as the progress coordinate,
 giving us a one dimensional coordinate::
 
@@ -423,14 +423,13 @@ Visualizing a selected pathway
 
 In order to visualize a binding event, you will need to stitch together the
 individual trajectory segments that start at the initial state and then reach
-the bound state. The `introductory Amber tutorial <Introductory Tutorial:
-AMBER>`_ provides directions on how to extract the sequence of segments in a
-set of successful binding events, however the script to construct a
-visualization of the pathway will not work for this example since we have
-stored all of the relevant data directly in the ``west.h5`` file. For this
-example, we leave writing the necessary script as an exercise. To create a
-netcdf-formatted Amber trajectory file, you might want to take a look at
-`netcdf4storage.py
+the bound state. The `introductory Amber tutorial <amber_tutorial>` provides
+directions on how to extract the sequence of segments in a set of successful
+binding events, however the script to construct a visualization of the pathway
+will not work for this example since we have stored all of the relevant data
+directly in the ``west.h5`` file. For this example, we leave writing the
+necessary script as an exercise. To create a netcdf-formatted Amber trajectory
+file, you might want to take a look at `netcdf4storage.py
 <https://bitbucket.org/joshua.adelman/stringmethodexamples/raw/tip/shared/elasticnetwork-langevin/netcdf4storage.py>`_
 or you might consider using the dcd writer built into OpenMM which can imported
 into python using::
