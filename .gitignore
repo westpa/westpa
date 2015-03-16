@@ -4,3 +4,4 @@ lib/west_tools/
 lib/wwmgr/
 *.pyc
 *.pyo
+*.swp

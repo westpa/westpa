@@ -1,0 +1,258 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>WESTPA 1.0 beta &mdash; WESTPA 1.0b1 documentation</title>
+    
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '1.0b1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="WESTPA 1.0b1 documentation" href="#" />
+    <link rel="next" title="AMBER Tutorial: Molecular Dynamics of Na+/Cl- Association" href="tutorials/amber.html" />
+   
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9">
+
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="tutorials/amber.html" title="AMBER Tutorial: Molecular Dynamics of Na+/Cl- Association"
+             accesskey="N">next</a> |</li>
+        <li class="nav-item nav-item-0"><a href="#">WESTPA 1.0b1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="westpa-1-0-beta">
+<h1>WESTPA 1.0 beta<a class="headerlink" href="#westpa-1-0-beta" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h2>
+<p>WESTPA is a package for constructing and running stochastic simulations using the &#8220;weighted ensemble&#8221; approach
+of Huber and Kim (1996). For further information, please see the following:</p>
+<p>Zwier, M.C., Adelman, J.L., Kaus, J.W., Pratt, A.J., Wong, K.F., Rego, N.B., Suarez, E., Lettieri, S.,
+Wang, D. W., Grabe, M., Zuckerman, D. M., and Chong, L. T. &#8220;WESTPA: An Interoperable, Highly
+Scalable Software Package For Weighted Ensemble Simulation and Analysis,&#8221; J. Chem. Theory Comput., 11: 800−809 (2015).</p>
+<p>To help us fund development, please cite the article listed above and
+consider contributing documentation or code to the WESTPA community.</p>
+<p>WESTPA is free software, licensed under the terms of the GNU General Public
+License, Version 3. See the file <code class="docutils literal"><span class="pre">COPYING</span></code> for more information.</p>
+</div>
+<div class="section" id="requirements">
+<h2>Requirements<a class="headerlink" href="#requirements" title="Permalink to this headline">¶</a></h2>
+<p>WESTPA is written in Python and requires version 2.7. WESTPA further requires
+a large number of scientific software libraries for Python and other
+languages. The simplest way to meet these requirements is to download the
+Anaconda Python distribution from www.continuum.io (free for all users).</p>
+<p>WESTPA currently runs on Unix-like operating systems, including Linux and
+Mac OS X. It is developed and tested on x86_64 machines running Linux.</p>
+</div>
+<div class="section" id="installation">
+<h2>Installation<a class="headerlink" href="#installation" title="Permalink to this headline">¶</a></h2>
+<p>After obtaining a copy of the code (see
+<a class="reference external" href="https://chong.chem.pitt.edu/wewiki/Obtaining_the_WESTPA_code">https://chong.chem.pitt.edu/wewiki/Obtaining_the_WESTPA_code</a> for details), run
+<code class="docutils literal"><span class="pre">setup.sh</span></code> in the <code class="docutils literal"><span class="pre">westpa</span></code> directory. If the version of Python you will
+be using to run the code is not first on your $PATH, then set the environment
+variable WEST_PYTHON to the Python interpreter you want to use. For example:</p>
+<div class="highlight-python"><div class="highlight"><pre>cd westpa
+export WEST_PYTHON=/opt/anaconda/bin/python2.7
+./setup.sh
+</pre></div>
+</div>
+</div>
+<div class="section" id="getting-started">
+<h2>Getting started<a class="headerlink" href="#getting-started" title="Permalink to this headline">¶</a></h2>
+<p>High-level tutorials of how to use the WESTPA software are available from
+<a class="reference external" href="https://chong.chem.pitt.edu/wewiki/WESTPA_tutorials">https://chong.chem.pitt.edu/wewiki/WESTPA_tutorials</a>. Further, all WESTPA
+command-line tools (located in <code class="docutils literal"><span class="pre">westpa/bin</span></code>) provide detailed help when
+given the -h/&#8211;help option.</p>
+</div>
+<div class="section" id="getting-help">
+<h2>Getting help<a class="headerlink" href="#getting-help" title="Permalink to this headline">¶</a></h2>
+<p>Documentation is available from the WESTPA wiki, located at
+<a class="reference external" href="https://chong.chem.pitt.edu/wewiki">https://chong.chem.pitt.edu/wewiki</a>.</p>
+<p>A mailing list for WESTPA is available, at which one can ask questions (or see
+if a question one has was previously addressed). This is the preferred means
+for obtaining help and support. See <a class="reference external" href="http://groups.google.com/group/westpa-users">http://groups.google.com/group/westpa-users</a>
+to sign up or search archived messages.</p>
+</div>
+<div class="section" id="copyright-license-and-warranty-information-for-westpa">
+<h2>Copyright, license, and warranty information for WESTPA<a class="headerlink" href="#copyright-license-and-warranty-information-for-westpa" title="Permalink to this headline">¶</a></h2>
+<p>The WESTPA package is copyright (c) 2013, Matthew C. Zwier and
+Lillian T. Chong. (Individual contributions noted in each source file.)</p>
+<p>WESTPA is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.</p>
+<p>WESTPA is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.</p>
+<p>You should have received a copy of the GNU General Public License
+along with this program (see the included file <code class="docutils literal"><span class="pre">COPYING</span></code>).  If not,
+see &lt;<a class="reference external" href="http://www.gnu.org/licenses/">http://www.gnu.org/licenses/</a>&gt;.</p>
+<p>Unless otherwise noted, source files included in this distribution and
+lacking a more specific attribution are subject to the above copyright,
+terms, and conditions.</p>
+</div>
+<div class="section" id="copyright-and-license-information-for-included-software">
+<h2>Copyright and license information for included software<a class="headerlink" href="#copyright-and-license-information-for-included-software" title="Permalink to this headline">¶</a></h2>
+<p>Distributions of WESTPA include a number of components without modification,
+each of which is subject to its own individual terms and conditions. Please
+see each package&#8217;s documentation for the most up-to-date possible information
+on authorship and licensing. Such packages include:</p>
+<blockquote>
+<div><dl class="docutils">
+<dt>h5py</dt>
+<dd>See lib/h5py/docs/source/licenses.rst</dd>
+<dt>blessings</dt>
+<dd>See lib/blessings/LICENSE</dd>
+</dl>
+</div></blockquote>
+<p>In addition, the <code class="docutils literal"><span class="pre">wwmgr</span></code> work manager is derived from the
+<code class="docutils literal"><span class="pre">concurrent.futures</span></code> module (as included in Python 3.2) by Brian Quinlan and
+copyright 2011 the Python Software Foundation. See
+<a class="reference external" href="http://docs.python.org/3/license.html">http://docs.python.org/3/license.html</a> for more information.</p>
+<div class="section" id="tutorials">
+<h3>Tutorials<a class="headerlink" href="#tutorials" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="introductory">
+<h4>Introductory<a class="headerlink" href="#introductory" title="Permalink to this headline">¶</a></h4>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/amber.html">AMBER</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/gromacs.html">GROMACS</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/namd.html">NAMD</a></li>
+</ul>
+</div>
+</div>
+<div class="section" id="advanced">
+<h4>Advanced<a class="headerlink" href="#advanced" title="Permalink to this headline">¶</a></h4>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/openmm.html">OpenMM</a></li>
+</ul>
+</div>
+</div>
+</div>
+<div class="section" id="code">
+<h3>Code<a class="headerlink" href="#code" title="Permalink to this headline">¶</a></h3>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="code/west.html"> WEST</a></li>
+<li class="toctree-l1"><a class="reference internal" href="code/westtools.html"> WEST tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="code/wwmgr.html"> WEST work manager</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="code/wwmgr.html#introduction">Introduction</a></li>
+<li class="toctree-l2"><a class="reference internal" href="code/wwmgr.html#environment-variables">Environment variables</a></li>
+<li class="toctree-l2"><a class="reference internal" href="code/wwmgr.html#the-zeromq-work-manager-for-clusters">The ZeroMQ work manager for clusters</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="code/westext.html"> WEST extensions</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="code/westext.html#post-analysis-reweighting">Post-Analysis Reweighting</a></li>
+<li class="toctree-l2"><a class="reference internal" href="code/westext.html#string-method">String Method</a></li>
+<li class="toctree-l2"><a class="reference internal" href="code/westext.html#weighted-ensemble-equilibrium-dynamics">Weighted Ensemble Equilibrium Dynamics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="code/westext.html#weighted-ensemble-steady-state">Weighted Ensemble Steady State</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="#">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">WESTPA 1.0 beta</a><ul>
+<li><a class="reference internal" href="#overview">Overview</a></li>
+<li><a class="reference internal" href="#requirements">Requirements</a></li>
+<li><a class="reference internal" href="#installation">Installation</a></li>
+<li><a class="reference internal" href="#getting-started">Getting started</a></li>
+<li><a class="reference internal" href="#getting-help">Getting help</a></li>
+<li><a class="reference internal" href="#copyright-license-and-warranty-information-for-westpa">Copyright, license, and warranty information for WESTPA</a></li>
+<li><a class="reference internal" href="#copyright-and-license-information-for-included-software">Copyright and license information for included software</a><ul>
+<li><a class="reference internal" href="#tutorials">Tutorials</a><ul>
+<li><a class="reference internal" href="#introductory">Introductory</a></li>
+<li><a class="reference internal" href="#advanced">Advanced</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#code">Code</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+  <h4>Next topic</h4>
+  <p class="topless"><a href="tutorials/amber.html"
+                        title="next chapter">AMBER Tutorial: Molecular Dynamics of Na<sup>+</sup>/Cl<sup>-</sup> Association</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/index.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2015, Matthew C. Zwier and Lillian T. Chong.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.3b3</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.1</a>
+      
+      |
+      <a href="_sources/index.txt"
+          rel="nofollow">Page source</a></li>
+    </div>
+
+    
+
+    
+  </body>
+</html>
