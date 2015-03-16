@@ -1,0 +1,611 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>OpenMM Tutorial: Molecular Dynamics of Na+/Cl- Association &mdash; WESTPA 1.0b1 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '1.0b1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="top" title="WESTPA 1.0b1 documentation" href="../index.html" />
+    <link rel="next" title="WEST" href="../code/west.html" />
+    <link rel="prev" title="NAMD Tutorial: Molecular Dynamics of Na+/Cl- Association" href="namd.html" />
+   
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9">
+
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../code/west.html" title="WEST"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="namd.html" title="NAMD Tutorial: Molecular Dynamics of Na+/Cl- Association"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">WESTPA 1.0b1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="openmm-tutorial-molecular-dynamics-of-na-cl-association">
+<h1>OpenMM Tutorial: Molecular Dynamics of Na<sup>+</sup>/Cl<sup>-</sup> Association<a class="headerlink" href="#openmm-tutorial-molecular-dynamics-of-na-cl-association" title="Permalink to this headline">¶</a></h1>
+<p>by Joshua L. Adelman</p>
+<p>Updated with WESTPA version 1.0 beta and OpenMM 5.1</p>
+<div class="section" id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h2>
+<p>Requirements: ~? hours wallclock time on ?; ~? GB disk space</p>
+<p>In this tutorial we will use the standard weighted ensemble approach to
+simulate Na<sup>+</sup>/Cl<sup>-</sup> association in Generalized Born implicit
+solvent. The system consists of single Na<sup>+</sup> and Cl<sup>-</sup> ions
+modeled with the
+<a class="reference external" href="http://ambermd.org/#ff">Amber force field</a>,
+using the distance between the two ions as the progress coordinate.
+<a class="reference external" href="http://openmm.org">OpenMM</a> will be used to run the
+molecular dynamics, and familiarity with it is a prerequisite (see <a class="reference external" href="http://docs.openmm.org/6.2.0/userguide/index.html">tutorials</a>).</p>
+<p>This tutorial uses the same starting files, generated using Amber, as the
+<a class="reference internal" href="amber.html"><em>Introductory Amber Tutorial</em></a>.
+Instead of using Amber (<code class="docutils literal"><span class="pre">pmemd</span></code> or <code class="docutils literal"><span class="pre">sander</span></code>) to run the dynamics, we
+will use the OpenMM framework along with its python wrapper to propagate the
+system.</p>
+<p>While the Amber tutorial uses the executable propagator to call out to Amber
+and then a number of shell scripts to communicate the results back to WESTPA,
+OpenMM&#8217;s python wrapper allows us to integrate the molecular dynamics
+simulation directly into WESTPA. This tutorial will therefore require some
+understanding of python and the OpenMM framework. Additionally, the focus will
+be on integrating OpenMM into WESTPA and less on the analysis of the resulting
+simulations.</p>
+<p>Since the Na<sup>+</sup>/Cl<sup>-</sup> system only contains two atoms, we will
+make some design decisions in setting up the simulation that may not be
+appropriate more generally. Most notably, we will avoid writing trajectory data
+and restart files for each trajectory segment to disk as separate files, as is
+generally done when using the executable propagator. Instead, we will store all
+of this data in the main hdf5 file that also contains the data related to the
+weighted ensemble run.</p>
+<p>The first step is to set up a directory containing the necessary AMBER and
+WESTPA files. A working example directory can be found at
+<code class="docutils literal"><span class="pre">westpa/lib/examples/nacl_openmm</span></code>.</p>
+</div>
+<div class="section" id="preparing-the-openmm-files">
+<h2>Preparing the OpenMM files<a class="headerlink" href="#preparing-the-openmm-files" title="Permalink to this headline">¶</a></h2>
+<table border="1" class="docutils">
+<colgroup>
+<col width="33%" />
+<col width="67%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Input File</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>...</td>
+<td>...</td>
+</tr>
+</tbody>
+</table>
+<p>We will begin with the coordinate and topology files (<code class="docutils literal"><span class="pre">nacl.inpcrd</span></code> and
+<code class="docutils literal"><span class="pre">nacl.prmtop</span></code> respectively) produced by AmberTools. We will construct an
+OpenMM system and integrator and then serialize the resulting python objects
+using a short script:</p>
+<div class="highlight-python"><div class="highlight"><pre>python build_system.py
+</pre></div>
+</div>
+</div>
+<div class="section" id="preparing-the-westpa-files">
+<h2>Preparing the WESTPA files<a class="headerlink" href="#preparing-the-westpa-files" title="Permalink to this headline">¶</a></h2>
+<table border="1" class="docutils">
+<colgroup>
+<col width="29%" />
+<col width="71%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Input File</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>env.sh</td>
+<td>set environment variables</td>
+</tr>
+<tr class="row-odd"><td>system.py</td>
+<td>system implementation</td>
+</tr>
+<tr class="row-even"><td>openmm_propagator.py</td>
+<td>custom propagator to run openmm calculation across
+multiple devices</td>
+</tr>
+<tr class="row-odd"><td>restart_plugin.py</td>
+<td>plugin to allow restart information to be stored in the
+west.h5 file</td>
+</tr>
+<tr class="row-even"><td>west.cfg</td>
+<td>WESTPA configuration</td>
+</tr>
+<tr class="row-odd"><td>init.sh</td>
+<td>initialize WESTPA</td>
+</tr>
+</tbody>
+</table>
+<div class="section" id="system-py">
+<h3>system.py<a class="headerlink" href="#system-py" title="Permalink to this headline">¶</a></h3>
+<p>This file contains information about the progress coodinate, binning, walkers
+per bin and more. This file is nearly identical to one defined in the
+<a class="reference external" href="IntroductoryTutorial:AMBER">Introductory Amber Tutorial</a>. In this example
+we will be using the distance between the two ions as the progress coordinate,
+giving us a one dimensional coordinate:</p>
+<div class="highlight-python"><div class="highlight"><pre>self.pcoord_ndim = 1
+</pre></div>
+</div>
+<p>The positions of the bins along this progress coordinate are the same as those
+used by <a class="reference external" href="http://pubs.acs.org/doi/abs/10.1021/ct100626x">Zwier, Kaus, and Chong</a>:</p>
+<div class="highlight-python"><div class="highlight"><pre>binbounds = [0.0] + [2.8, 2.88, 3.0, 3.10, 3.29, 3.79, 3.94, 4.12, 4.39,
+  5.43] + [5.90+1.0*i for i in xrange(0,11)] + [30,float(&#39;inf&#39;)]
+</pre></div>
+</div>
+<p>Since every walker must lie in a bin, the upper boundary to the last bin is set
+to infinity i.e. <code class="docutils literal"><span class="pre">[30,</span> <span class="pre">float('inf')]</span></code>. The bin boundaries are left inclusive
+e.g. a walker with a value of 2.8 would end up in the second bin. The positions
+of your bins must be either monotonically increasing or decreasing - otherwise,
+you will get an error message indicating this requirement.</p>
+<p>The number of walkers per bin is specified by the following:</p>
+<div class="highlight-python"><div class="highlight"><pre>bin.target_count = 48
+</pre></div>
+</div>
+<p>Using a tau value of 0.5 ps, we will monitor the progress coordinate every 0.05
+ps, writing coordinates 10 times. Including the initial configuration this
+gives an expected progress coordinate length of 11:</p>
+<blockquote>
+<div>self.pcoord_len&nbsp;=&nbsp;11</div></blockquote>
+<p>Finally, we specify the format in which the coordinates are stored:</p>
+<blockquote>
+<div>self.pcoord_dtype&nbsp;=&nbsp;numpy.float32</div></blockquote>
+</div>
+<div class="section" id="openmm-propagator-py">
+<h3>openmm_propagator.py<a class="headerlink" href="#openmm-propagator-py" title="Permalink to this headline">¶</a></h3>
+<p>The OpenMMPropagator subclasses the WESTPropagator interface and implements all
+of the necessary methods to run a WESTPA simulation using OpenMM. The
+implementation presented in this example, while fairly generic, is still
+specific enough to the Na<sup>+</sup>/Cl<sup>-</sup> association example, that
+changes will likely be necessary to adapt it for another system. Below is a
+brief description of each method in the class:</p>
+<div class="section" id="init-method">
+<h4>__init__ method<a class="headerlink" href="#init-method" title="Permalink to this headline">¶</a></h4>
+<p>The <code class="docutils literal"><span class="pre">__init__</span></code> method is primarily responsible for parsing the configuration
+parameters form <code class="docutils literal"><span class="pre">west.cfg</span></code> and building the OpenMM system, integrator and
+platform objects. Since each OpenMM context must be tied to a unique
+integrator, the <code class="docutils literal"><span class="pre">propagator</span></code> method actually deserializes the integrator for
+each propagation step. In this method, however, it is primarily being used to
+retrieve the temperature of the system.</p>
+</div>
+<div class="section" id="static-methods">
+<h4>static methods<a class="headerlink" href="#static-methods" title="Permalink to this headline">¶</a></h4>
+<p>The OpenMMPropagator contains three methods that are tagged with the Python&#8217;s
+<code class="docutils literal"><span class="pre">&#64;staticmethod</span></code> decorator. This designation just allows the methods to be
+encapsulated within the class, but they do not have direct access to the
+class&#8217;s internal data. The <code class="docutils literal"><span class="pre">dist</span></code> method just calculates a simple Euclidean
+distance between two points and is used in calculating the pcoord of a
+conformation of the system. The <code class="docutils literal"><span class="pre">makepath</span></code> method assembles a path on the
+filesystem from a template and is used to tell the propagator where to grab
+initial state information from. The <code class="docutils literal"><span class="pre">mkdir_p</span></code> method augments the standard
+library&#8217;s <code class="docutils literal"><span class="pre">os</span></code> module to allow unix <code class="docutils literal"><span class="pre">mkdir</span> <span class="pre">-p</span></code> like behavior.</p>
+</div>
+<div class="section" id="get-pcoord-method">
+<h4>get_pcoord method<a class="headerlink" href="#get-pcoord-method" title="Permalink to this headline">¶</a></h4>
+<p>This method assigns a pcoord value to a given state. The state can either be an
+<code class="docutils literal"><span class="pre">BasisState</span></code>, in which case we uses the basis state&#8217;s coordinate, which are
+stored as a class variable to calculate the pcoord using <code class="docutils literal"><span class="pre">dist</span></code>. If the state
+is an <code class="docutils literal"><span class="pre">InitialState</span></code> (i.e. the result of perturbing the x-position of one of
+the ions by a random amount), we construct the path to the file containing its
+coordinates, and calculate the pcoord after reading the file from disk.</p>
+</div>
+<div class="section" id="propagate-method">
+<h4>propagate method<a class="headerlink" href="#propagate-method" title="Permalink to this headline">¶</a></h4>
+<p>The <code class="docutils literal"><span class="pre">propagate</span></code> method takes a set of segments and runs each for a length of
+time tau. Initially, the method attempts to assign the calculation to a device
+based on the <code class="docutils literal"><span class="pre">WM_PROCESS_INDEX</span></code> environment variable if it is available (both
+the zmq and processes work managers set it, but the other work managers do
+not). A context is then constructed, before the method iterates over all
+segments.</p>
+<p>For each segment, an initial set of coordinates or velocities are obtained
+either from the parent segment, if this segment is a continuation of previous
+dynamics, or from an initial state if the segment is being initiated at the
+start of the WE calculation or is the result of a recycling event. Dynamics are
+then run using the OpenMM integrator. At a user-specified interval, the
+calculation is halted and the coordinates and velocities, along with the
+calculated pcoord are saved to temporary arrays. Finally this data is
+transferred to the segment&#8217;s internal data structures.</p>
+</div>
+<div class="section" id="gen-istate-method">
+<h4>gen_istate method<a class="headerlink" href="#gen-istate-method" title="Permalink to this headline">¶</a></h4>
+<p>This method takes a basis state and generates an initial state by randomly
+perturbing the basis state and storing the results to disk using the naming
+convention specified by the template given in the <code class="docutils literal"><span class="pre">west.cfg</span></code> file.</p>
+</div>
+</div>
+<div class="section" id="restart-plugin-py">
+<h3>restart_plugin.py<a class="headerlink" href="#restart-plugin-py" title="Permalink to this headline">¶</a></h3>
+<p>In order to restart a segment from its parent, we need access to the last set
+of coordinates and velocities recorded for the parent in the <code class="docutils literal"><span class="pre">coord</span></code> and
+<code class="docutils literal"><span class="pre">veloc</span></code> data sets. We use a custom plugin that is run just before the
+propagation step that temporarily loads the necessary coordinates and
+velocities into a segment&#8217;s data dictionary as
+<code class="docutils literal"><span class="pre">segment.data['restart_coord']</span></code> and <code class="docutils literal"><span class="pre">segment.data['restart_veloc']</span></code>. The
+propagator will then delete this data once it has been transferred to the
+OpenMM context.</p>
+<p>This allows us to run the entire simulation from the main hdf5 file without
+writing any per-segment data to individual files. While convenient for a simple
+system like the one in this example, it may not be as desirable for systems
+with a large number of particles. In that case the propagator will need to be
+modified to load the restart data from individual files contained in the
+traj_segs directory on the file system, as is the case for the examples that
+use the executable propagator.</p>
+</div>
+<div class="section" id="west-cfg">
+<h3>west.cfg<a class="headerlink" href="#west-cfg" title="Permalink to this headline">¶</a></h3>
+<p>The actual WESTPA simulation is configured using the yaml-formatted
+<code class="docutils literal"><span class="pre">west.cfg</span></code> file. The custom propagator will extract a number of parameters
+from the <code class="docutils literal"><span class="pre">openmm</span></code> section shown below.:</p>
+<div class="highlight-python"><div class="highlight"><pre>---
+west:
+  ...
+  openmm:
+    system:
+      file: system.xml
+    integrator:
+      file: integrator.xml
+      steps_per_tau: 250
+      steps_per_write: 25
+    platform:
+      name: CUDA
+      #properties: {&#39;OpenCLPlatformIndex&#39;: &#39;1&#39;, &#39;OpenCLDeviceIndex&#39;: &#39;0&#39;} # Platform specific properties
+</pre></div>
+</div>
+<p>The xml files are the output of running the <code class="docutils literal"><span class="pre">build_system.py</span></code> script. Within
+the <code class="docutils literal"><span class="pre">integrator</span></code> section, the <code class="docutils literal"><span class="pre">steps_per_tau</span></code> and <code class="docutils literal"><span class="pre">steps_per_write</span></code>
+specify the number of time steps that the integrator should advance the system
+per tau (so 250 x 2 fs = 0.5 ps) and at what frequency, in numbers of steps,
+that the pcoord and auxiliary data should be collected, respectively.</p>
+<p>The <code class="docutils literal"><span class="pre">platform</span></code> section defines a platform <code class="docutils literal"><span class="pre">name</span></code>, which can be
+<code class="docutils literal"><span class="pre">Reference</span></code>, <code class="docutils literal"><span class="pre">CUDA</span></code>, or <code class="docutils literal"><span class="pre">OpenCL</span></code>, assuming the latter two are installed
+on your system. The CUDA platform requires a compatible GPU card, but the
+OpenCL platform, in addition to running on GPUs supports both the Intel and AMD
+CPU OpenCL SDK.</p>
+<p>Finally, the <code class="docutils literal"><span class="pre">properties</span></code> variable under the <code class="docutils literal"><span class="pre">platform</span></code> section defines a
+dictionary, whose members override the defaults specified in the propagator
+<code class="docutils literal"><span class="pre">__init__</span></code> method. See the defaults for all possible platform specific
+settings. Importantly, the <code class="docutils literal"><span class="pre">XXXDeviceIndex</span></code> settings are ignored when running
+in parallel using either the zeromq or processes work managers, since they set
+that variable dynamically for each worker. However, when running in serial mode
+on a multi-device system, it can be useful to select a specific device to run
+the calculation on. When running using the OpenCL platform, the <a class="reference external" href="https://github.com/nbigaouette/oclutils">oclutils</a> library is useful in extracting
+information about the available devices and platforms (in the OpenCL meaning of
+platform, rather than the OpenMM one).</p>
+<p>There are also some important settings under the <code class="docutils literal"><span class="pre">propagation</span></code> section:</p>
+<div class="highlight-python"><div class="highlight"><pre>---
+west:
+  ...
+  propagation:
+    max_total_iterations: 2
+    max_run_wallclock: 2:00:00
+    propagator: openmm_propagator.OpenMMPropagator
+    gen_istates: true
+    block_size: 138
+</pre></div>
+</div>
+<p>In addition to setting the location of the custom openmm propagator, this
+section allows you to set the total number of iterations to run using
+<code class="docutils literal"><span class="pre">max_total_iterations</span></code>. This should be changed to collect data for this
+system to at least 100. The <code class="docutils literal"><span class="pre">max_run_wallclock</span></code> time should also be adjusted
+depending on the hardware being used to run this simulation. Using four GTX
+680s, this system takes approximately 16 seconds per iteration.</p>
+<p>A particularly important setting in terms of the performance of the calculation
+is <code class="docutils literal"><span class="pre">block_size</span></code>. This parameter determines how many segments are sent to the
+propagator at a time during the run. Since setting up the OpenMM context is
+quite expensive, one can get a large boost in performance by re-using the same
+context and just pushing new coordinates and velocities to it. So if the
+calculation is run using the serial work manager, <code class="docutils literal"><span class="pre">block_size</span></code> should be set
+to the maximum number of replicas possible for the system, which in this case
+is 552. Likewise, if running the calculation over 4 devices, this number should
+be 552 / 4 = 138.</p>
+</div>
+</div>
+<div class="section" id="running-the-simulation">
+<h2>Running the simulation<a class="headerlink" href="#running-the-simulation" title="Permalink to this headline">¶</a></h2>
+<p>The simulation can then be initiated and ran using the shell scripts,
+<code class="docutils literal"><span class="pre">init.sh</span></code> and <code class="docutils literal"><span class="pre">run.sh</span></code>.</p>
+<p>From the simulation root directory (<code class="docutils literal"><span class="pre">$WEST_SIM_ROOT</span></code>) directory, enter into
+the command line:</p>
+<div class="highlight-python"><div class="highlight"><pre>./init.sh
+</pre></div>
+</div>
+<p>The script should create a directory called <code class="docutils literal"><span class="pre">istates</span></code>, as well as an HDF5
+file named <code class="docutils literal"><span class="pre">west.h5</span></code>. Because the <code class="docutils literal"><span class="pre">gen_istates</span></code> flag was set to True in the
+west.cfg file, the propagator&#8217;s <code class="docutils literal"><span class="pre">gen_istate</span></code> method should prepare multiple
+different <code class="docutils literal"><span class="pre">.txt</span></code> input coordinate files, located in the <code class="docutils literal"><span class="pre">istates/1</span></code>
+directory. The <code class="docutils literal"><span class="pre">init.sh</span></code> script should finish by printing &#8220;Simulation
+prepared.&#8221; with a short list (8 lines) of probabilities and statistics about
+the initial state of the methane-methane simulation.</p>
+<p>Now that your simulation has been initialized, it is ready to be run by the
+weighted ensemble code. Use the command:</p>
+<div class="highlight-python"><div class="highlight"><pre>./run.sh --work-manager=zmq --n-workers=4 &amp;
+</pre></div>
+</div>
+<p>to use the <code class="docutils literal"><span class="pre">zmq</span></code> work manager and run using 4 workers.</p>
+<p>The <code class="docutils literal"><span class="pre">init.sh</span></code> and <code class="docutils literal"><span class="pre">run.sh</span></code> scripts call <code class="docutils literal"><span class="pre">w_init.py</span></code> and <code class="docutils literal"><span class="pre">w_run.py</span></code> from
+the main weighted ensemble code, respectively. If either does not work, check
+to see if the <code class="docutils literal"><span class="pre">env.sh</span></code> is set up properly and if it points to the right
+directory for your weighted ensemble code (the default settings assume you are
+running from within the westpa/lib/nacl_openmm directory). Make sure that the
+<code class="docutils literal"><span class="pre">WEST_ROOT</span></code> variable is set to where the <code class="docutils literal"><span class="pre">westpa</span></code> directory exists and the
+<code class="docutils literal"><span class="pre">WEST_SIM_ROOT</span></code> variable is set to where your simulation directory exists.</p>
+</div>
+<div class="section" id="analyzing-the-data">
+<h2>Analyzing the data<a class="headerlink" href="#analyzing-the-data" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="output">
+<h3>Output<a class="headerlink" href="#output" title="Permalink to this headline">¶</a></h3>
+<table border="1" class="docutils">
+<colgroup>
+<col width="29%" />
+<col width="71%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Output File</th>
+<th class="head">Remarks</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>west.h5</td>
+<td>WESTPA output in hdf5 database</td>
+</tr>
+<tr class="row-odd"><td>west.log</td>
+<td>WESTPA log file</td>
+</tr>
+</tbody>
+</table>
+<p>The way in which we set up the calculation, all output data is stored within
+the hdf5 file, <code class="docutils literal"><span class="pre">west.h5</span></code>. Because we specified 2 iterations in the
+<code class="docutils literal"><span class="pre">west.cfg</span></code> file, the simulation should have only run for a short period of
+time. This is not enough to generate any meaningful results, but is sufficient
+to ensure that the system was set up properly.</p>
+<p>In the <code class="docutils literal"><span class="pre">west.cfg</span></code> file, change the <code class="docutils literal"><span class="pre">max_total_iterations</span></code> variable to 100.
+The westpa code will continue the simulation from where you left off, based on
+the data present in the <code class="docutils literal"><span class="pre">west.h5</span></code> file. If you wanted to restart the
+simulation from scratch, you would need to run the <code class="docutils literal"><span class="pre">init.sh</span></code> script again,
+which would remove the existing <code class="docutils literal"><span class="pre">west.h5</span></code> file and create a new one. Once you
+have changed the <code class="docutils literal"><span class="pre">max_total_iterations</span></code> flag to 100, execute the <code class="docutils literal"><span class="pre">run.sh</span></code>
+script again. Simulating 100 iterations may take some time, so be prepared to
+wait. Using 4 GTX 680s and running with the CUDA, platform, this should take
+about 25 minutes. Not, that for a small number of atoms, such is the case for
+this system, running on the GPUs does not leverage the full capabilities of the
+hardware and is likely to be slower than using an optimized CPU-based code.</p>
+</div>
+<div class="section" id="computing-the-association-rate">
+<h3>Computing the association rate<a class="headerlink" href="#computing-the-association-rate" title="Permalink to this headline">¶</a></h3>
+<p>WESTPA includes several tools for analysis located in <code class="docutils literal"><span class="pre">$WEST_ROOT/bin</span></code>. In
+<code class="docutils literal"><span class="pre">init.sh</span></code> we specified the bin containing an Na<sup>+</sup>/Cl<sup>-</sup>
+distance of 1.8 Å as the bound state, and that containing a distance of 16.9 Å
+as the unbound state. Using <code class="docutils literal"><span class="pre">w_fluxanl</span></code>, we can calculate the flux into these
+target states, and from that calculate the association rate of Na<sup>+</sup>/Cl<sup>-</sup>. <code class="docutils literal"><span class="pre">w_fluxanl</span></code> may be run with the following commands:</p>
+<div class="highlight-python"><div class="highlight"><pre>source env.sh
+$WEST_ROOT/bin/w_fluxanl
+</pre></div>
+</div>
+<p>The script will output the flux into the target states including confidence
+intervals calculated using the block bootstrap method:</p>
+<div class="highlight-python"><div class="highlight"><pre>Calculating mean flux and confidence intervals for iterations [1,101)
+target &#39;bound&#39;:
+  correlation length = w tau
+  mean flux and CI   = x (y, z) tau^(-1)
+</pre></div>
+</div>
+<p>More information on how to use <code class="docutils literal"><span class="pre">w_fluxanl</span></code> can be viewed using the <code class="docutils literal"><span class="pre">--help</span></code>
+flag. <code class="docutils literal"><span class="pre">w_fluxanl</span></code> also stores this information in an hdf5 file,
+<code class="docutils literal"><span class="pre">fluxanl.h5</span></code>.</p>
+<p>Presently, <code class="docutils literal"><span class="pre">w_fluxanl</span></code> has used the data from all 100 iterations (note the
+exclusive bracket after 101) to calculate the mean flux (x) and the 95%
+confidence interval (y, z) for reaching the bound state (target &#8216;bound&#8217;), which
+we specified as less than 2.8 angstroms of separation in the <code class="docutils literal"><span class="pre">system.py</span></code> file
+and with the target state variable in <code class="docutils literal"><span class="pre">init.sh</span></code>. The value given for the flux
+also represents the association rate. Taking the inverse of the mean flux (1/x)
+will give the mean first passage time for Na<sup>+</sup>/Cl<sup>-</sup> in units of
+tau. We can further analyze the output of <code class="docutils literal"><span class="pre">w_fluxanl</span></code> by investigating the
+<code class="docutils literal"><span class="pre">fluxanl.h5</span></code> file. You can look at the data contained within the file by
+using programs such as h5ls or hdfview, but I am instead going to use h5py in
+python to analyze the data. Open up <code class="docutils literal"><span class="pre">ipython</span></code> in the interactive plotting
+mode:</p>
+<div class="highlight-python"><div class="highlight"><pre>ipython --pylab
+</pre></div>
+</div>
+<p>and then enter the following commands:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">import</span> <span class="nn">h5py</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+
+<span class="n">fluxanl</span> <span class="o">=</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="s">&#39;fluxanl.h5&#39;</span><span class="p">)</span>
+<span class="n">fluxanl</span><span class="p">[</span><span class="s">&#39;target_flux&#39;</span><span class="p">][</span><span class="s">&#39;index&#39;</span><span class="p">][:]</span>
+</pre></div>
+</div>
+<p>We can see that the dataset named [&#8216;index&#8217;] contains the output printed
+above by <code class="docutils literal"><span class="pre">w_fluxanl</span></code>. We can plot the flux using:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">flux</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">fluxanl</span><span class="p">[</span><span class="s">&#39;target_flux&#39;</span><span class="p">][</span><span class="s">&#39;target_0&#39;</span><span class="p">][</span><span class="s">&#39;flux&#39;</span><span class="p">])</span>
+<span class="n">plot</span><span class="p">(</span><span class="n">flux</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The x-axis represents the iteration number recorded after the occurence of the
+first binding event. The y-axis represents the flux in units of tau<sup>-1</sup>.
+We can see that the instantaneous flux has settled after large fluctuations
+during the first part of the run, however the plot is also relatively noisy. To
+reduce noise, we can plot the time evolution flux. Run the <code class="docutils literal"><span class="pre">w_fluxanl</span></code> tool
+again, this time with the &#8216;&#8211;evol&#8217; flag at the end of the command. Running this
+command will add an HDF5 dataset named [&#8216;flux_evolution&#8217;] to the [&#8216;target_0&#8217;]
+group. To plot the time evolution flux, you can use the following python code,
+continuing from the above ipython session:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">mean_flux</span> <span class="o">=</span> <span class="n">fluxanl</span><span class="p">[</span><span class="s">&#39;target_flux&#39;</span><span class="p">][</span><span class="s">&#39;target_0&#39;</span><span class="p">][</span><span class="s">&#39;flux_evolution&#39;</span><span class="p">][</span><span class="s">&#39;expected&#39;</span><span class="p">]</span>
+<span class="n">ci_lb</span> <span class="o">=</span> <span class="n">fluxanl</span><span class="p">[</span><span class="s">&#39;target_flux&#39;</span><span class="p">][</span><span class="s">&#39;target_0&#39;</span><span class="p">][</span><span class="s">&#39;flux_evolution&#39;</span><span class="p">][</span><span class="s">&#39;ci_lbound&#39;</span><span class="p">]</span>
+<span class="n">ci_ub</span> <span class="o">=</span> <span class="n">fluxanl</span><span class="p">[</span><span class="s">&#39;target_flux&#39;</span><span class="p">][</span><span class="s">&#39;target_0&#39;</span><span class="p">][</span><span class="s">&#39;flux_evolution&#39;</span><span class="p">][</span><span class="s">&#39;ci_ubound&#39;</span><span class="p">]</span>
+<span class="n">plot</span><span class="p">(</span><span class="n">mean_flux</span><span class="p">,</span> <span class="s">&#39;b&#39;</span><span class="p">,</span> <span class="n">ci_lb</span><span class="p">,</span> <span class="s">&#39;g&#39;</span><span class="p">,</span> <span class="n">ci_ub</span><span class="p">,</span> <span class="s">&#39;r&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Compared to the first plot of the instantaneous flux, the time evolution
+plot is much less noisy. We can see that the flux is leveling off and
+the confience intervals have somewhat converged, meaning that the
+simulation is approaching steady-state conditions.</p>
+</div>
+<div class="section" id="visualizing-a-selected-pathway">
+<h3>Visualizing a selected pathway<a class="headerlink" href="#visualizing-a-selected-pathway" title="Permalink to this headline">¶</a></h3>
+<p>In order to visualize a binding event, you will need to stitch together the
+individual trajectory segments that start at the initial state and then reach
+the bound state. The <a class="reference external" href="IntroductoryTutorial:AMBER">introductory Amber tutorial</a> provides directions on how to extract the sequence of segments in a
+set of successful binding events, however the script to construct a
+visualization of the pathway will not work for this example since we have
+stored all of the relevant data directly in the <code class="docutils literal"><span class="pre">west.h5</span></code> file. For this
+example, we leave writing the necessary script as an exercise. To create a
+netcdf-formatted Amber trajectory file, you might want to take a look at
+<a class="reference external" href="https://bitbucket.org/joshua.adelman/stringmethodexamples/raw/tip/shared/elasticnetwork-langevin/netcdf4storage.py">netcdf4storage.py</a>
+or you might consider using the dcd writer built into OpenMM which can imported
+into python using:</p>
+<div class="highlight-python"><div class="highlight"><pre>import simtk.openmm.app.dcdfile
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="useful-links">
+<h2>Useful links<a class="headerlink" href="#useful-links" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><a class="reference external" href="http://openmm.org">Official OpenMM web page</a></li>
+<li><a class="reference external" href="http://docs.openmm.org/6.2.0/userguide/index.html">OpenMM tutorials from the official web page</a></li>
+</ul>
+</div>
+<div class="section" id="useful-hints">
+<h2>Useful hints<a class="headerlink" href="#useful-hints" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li>Make sure your paths are set correctly in <code class="docutils literal"><span class="pre">env.sh</span></code></li>
+<li>If the simulation doesn&#8217;t stop properly with CTRL+C , use CTRL+Z.</li>
+<li>Another method to stop the simulation relatively cleanly is to rename
+<code class="docutils literal"><span class="pre">runseg.sh</span></code>; WESTPA will shut the simulation down and prevent the hdf5 file
+from becoming corrupted. Some extra steps may be necessary to ensure that the
+analysis scripts can be run successfully.</li>
+</ul>
+</div>
+<div class="section" id="references">
+<h2>References<a class="headerlink" href="#references" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><a class="reference external" href="http://pubs.acs.org/doi/abs/10.1021/ct100626x">Zwier, MC, Kaus, JW, Chong, LT. Efficient Explicit-Solvent Molecular
+Dynamics Simulations of Molecular Association Kinetics: Methane/Methane,
+Na+/Cl−, Methane/Benzene, and K+/18-Crown-6 Ether. J Chem Theory Comput.
+2011.</a></li>
+</ul>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">OpenMM Tutorial: Molecular Dynamics of Na<sup>+</sup>/Cl<sup>-</sup> Association</a><ul>
+<li><a class="reference internal" href="#overview">Overview</a></li>
+<li><a class="reference internal" href="#preparing-the-openmm-files">Preparing the OpenMM files</a></li>
+<li><a class="reference internal" href="#preparing-the-westpa-files">Preparing the WESTPA files</a><ul>
+<li><a class="reference internal" href="#system-py">system.py</a></li>
+<li><a class="reference internal" href="#openmm-propagator-py">openmm_propagator.py</a><ul>
+<li><a class="reference internal" href="#init-method">__init__ method</a></li>
+<li><a class="reference internal" href="#static-methods">static methods</a></li>
+<li><a class="reference internal" href="#get-pcoord-method">get_pcoord method</a></li>
+<li><a class="reference internal" href="#propagate-method">propagate method</a></li>
+<li><a class="reference internal" href="#gen-istate-method">gen_istate method</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#restart-plugin-py">restart_plugin.py</a></li>
+<li><a class="reference internal" href="#west-cfg">west.cfg</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#running-the-simulation">Running the simulation</a></li>
+<li><a class="reference internal" href="#analyzing-the-data">Analyzing the data</a><ul>
+<li><a class="reference internal" href="#output">Output</a></li>
+<li><a class="reference internal" href="#computing-the-association-rate">Computing the association rate</a></li>
+<li><a class="reference internal" href="#visualizing-a-selected-pathway">Visualizing a selected pathway</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#useful-links">Useful links</a></li>
+<li><a class="reference internal" href="#useful-hints">Useful hints</a></li>
+<li><a class="reference internal" href="#references">References</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="namd.html"
+                        title="previous chapter">NAMD Tutorial: Molecular Dynamics of Na<sup>+</sup>/Cl<sup>-</sup> Association</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="../code/west.html"
+                        title="next chapter">WEST</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../_sources/tutorials/openmm.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2015, Matthew C. Zwier and Lillian T. Chong.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.3b3</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.1</a>
+      
+      |
+      <a href="../_sources/tutorials/openmm.txt"
+          rel="nofollow">Page source</a></li>
+    </div>
+
+    
+
+    
+  </body>
+</html>
