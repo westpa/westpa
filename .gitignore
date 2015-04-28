@@ -1,0 +1,9 @@
+.project
+.pydevproject
+*.pyc
+*.pyo
+*~
+*.swp
+*.swo
+*.so
+.DS_Store

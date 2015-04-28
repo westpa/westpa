@@ -19,18 +19,20 @@ from __future__ import print_function, division; __metaclass__ = type
 import logging
 
 import numpy as np
-import networkx as nx
 import scipy.sparse as sp
+from scipy.sparse import csgraph
 import h5py
-from h5py import h5s
-import sys
-import traceback
+
+from collections import Counter
 
 import westpa
 from west.data_manager import weight_dtype, n_iter_dtype
-from westtools import (WESTTool, WESTDataReader, IterRangeSelection, WESTSubcommand,
+from westtools import (WESTTool, WESTDataReader, IterRangeSelection,
                        ProgressIndicatorComponent)
 from westpa import h5io
+from westtools.dtypes import iter_block_ci_dtype as ci_dtype
+
+log = logging.getLogger('westtools.w_postanalysis_reweight')
 
 
 def normalize(m):
@@ -45,8 +47,9 @@ def normalize(m):
 
 def steadystate_solve(K):
     # Reformulate K to remove sink/source states
-    G = nx.from_numpy_matrix(K, create_using=nx.DiGraph())
-    components = nx.strongly_connected_components(G)[0]
+    n_components, component_assignments = csgraph.connected_components(K, connection="strong")
+    largest_component = Counter(component_assignments).most_common(1)[0][0]
+    components = np.where(component_assignments == largest_component)[0]
 
     ii = np.ix_(components, components)
     K_mod = K[ii]
@@ -77,28 +80,35 @@ def accumulate_statistics(h5file, start_iter, stop_iter, nbins, total_fluxes=Non
         total_fluxes = np.zeros((nbins, nbins), weight_dtype)
         total_obs = np.zeros((nbins, nbins), np.int64)
 
+    rows = []
+    cols = []
+    obs = []
+    flux = []
+
     for iiter in xrange(start_iter, stop_iter):
         iter_grp = h5file['iterations']['iter_{:08d}'.format(iiter)]
 
-        rows = iter_grp['rows'][...]
-        cols = iter_grp['cols'][...]
-        obs = iter_grp['obs'][...]
-        flux = iter_grp['flux'][...]
+        rows.append(iter_grp['rows'][...])
+        cols.append(iter_grp['cols'][...])
+        obs.append(iter_grp['obs'][...])
+        flux.append(iter_grp['flux'][...])
 
-        total_fluxes += sp.coo_matrix((flux, (rows, cols)), shape=(nbins, nbins)).todense()
-        total_obs += sp.coo_matrix((obs, (rows, cols)), shape=(nbins, nbins)).todense()
+    rows, cols, obs, flux = map(np.hstack, [rows, cols, obs, flux])
+
+    total_fluxes += sp.coo_matrix((flux, (rows, cols)), shape=(nbins, nbins)).todense()
+    total_obs += sp.coo_matrix((obs, (rows, cols)), shape=(nbins, nbins)).todense()
 
     total_pop = np.sum(h5file['bin_populations'][start_iter:stop_iter, :], axis=0)
 
     return total_fluxes, total_obs, total_pop
 
 
-def reweight(h5file, start, stop, nstates, nbins, state_labels, state_map, nfbins, total_fluxes=None, total_obs=None):
+def reweight(h5file, start, stop, nstates, nbins, state_labels, state_map, nfbins, obs_threshold=1, total_fluxes=None, total_obs=None):
 
     total_fluxes, total_obs, total_pop = accumulate_statistics(h5file, start, stop, nfbins, total_fluxes, total_obs)
 
     flux_matrix = total_fluxes.copy()
-    flux_matrix[total_obs < self.obs_threshold] = 0.0
+    flux_matrix[total_obs < obs_threshold] = 0.0
     transition_matrix = normalize(flux_matrix)
 
     rw_bin_probs = steadystate_solve(transition_matrix)
@@ -119,7 +129,7 @@ def reweight(h5file, start, stop, nstates, nbins, state_labels, state_map, nfbin
     return rw_state_flux, rw_color_probs, rw_state_probs, rw_bin_probs, rw_bin_transition_matrix
 
 
-def _calc_state_flux(trans_matrix, index1, index2, bin_probs, bin_last_state_map, bin_state_map, nstates):
+def calc_state_flux(trans_matrix, index1, index2, bin_probs, bin_last_state_map, bin_state_map, nstates):
     state_flux = np.zeros((nstates, nstates), np.float64)
     
     n_trans = index1.shape[0]
@@ -132,20 +142,7 @@ def _calc_state_flux(trans_matrix, index1, index2, bin_probs, bin_last_state_map
 
     return state_flux
 
-try:
-    import numba as nb
-    calc_state_flux = nb.jit(nb.f8[:,:](nb.f8[:], nb.i8[:], nb.i8[:], nb.f8[:], nb.u2[:], nb.u2[:], nb.i8), nopython=False)(_calc_state_flux)
-except:
-    exc_type, exc_value, exc_traceback = sys.exc_info()
-    lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
-    print(''.join(line for line in lines))
-    print('Warning: Numba module not present; using slower pure python code to calculate state fluxes')
-    calc_state_flux = _calc_state_flux
 
-
-log = logging.getLogger('w_postanalysis_reweighting')
-
-from westtools.dtypes import iter_block_ci_dtype as ci_dtype
 
 
 class WPostAnalysisReweightTool(WESTTool):
@@ -290,6 +287,7 @@ Command-line options
             nfbins = self.kinetics_file.attrs['nrows']
 
             assert nstates == len(state_labels)
+            print('{} {} {}'.format(nfbins, nbins, nstates))
             assert nfbins == nbins * nstates
 
             start_iter, stop_iter, step_iter = self.iter_range.iter_start, self.iter_range.iter_stop, self.iter_range.iter_step
@@ -314,7 +312,7 @@ Command-line options
                     params = dict(start=start, stop=stop, nstates=nstates, nbins=nbins,
                                   state_labels=state_labels, state_map=state_map, nfbins=nfbins,
                                   total_fluxes=total_fluxes, total_obs=total_obs,
-                                  h5file=self.kinetics_file)
+                                  h5file=self.kinetics_file, obs_threshold=self.obs_threshold)
 
                     rw_state_flux, rw_color_probs, rw_state_probs, rw_bin_probs, rw_bin_flux = reweight(**params)
                     for k in xrange(nstates):

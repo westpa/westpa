@@ -1,14 +1,8 @@
 from __future__ import print_function, division; __metaclass__ = type
 
 import sys, logging
-from collections import deque
-
-import os
-file_dir = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(file_dir)
 
 import numpy as np
-import numba as nb
 import scipy.sparse as sp
 
 import westpa
@@ -16,17 +10,14 @@ from westpa import h5io
 from west.data_manager import weight_dtype
 from west.data_manager import seg_id_dtype
 from westpa.binning import index_dtype
-from westpa.kinetics._kinetics import _fast_transition_state_copy #@UnresolvedImport
-from westpa.kinetics.matrates import estimate_rates
 from westtools import (WESTTool, WESTDataReader, IterRangeSelection,
                        ProgressIndicatorComponent)
 
-
-log = logging.getLogger('westtools.w_calc_postanalysis_matrix')
+log = logging.getLogger('westtools.w_postanalysis_matrix')
 
 
 class MatrixRw(WESTTool):
-    '''Base class for common options for both kinetics schemes'''
+    '''Class to generate a colored transition matrix from a WE assignment file'''
     
     def __init__(self):
         super(MatrixRw, self).__init__()
@@ -161,18 +152,21 @@ class MatrixRw(WESTTool):
                 flux_iter_grp.attrs['ncols'] = nfbins
 
                 # Do a little manual clean-up to prevent memory explosion
-                del iter_group, weights, bin_assignments, macrostate_assignments
+                del iter_group, weights, bin_assignments
+
+                if self.colors_from_macrostates:
+                    del macrostate_assignments
+
                 pi.progress += 1
 
 
-@nb.jit('void(u2[:,:], f8[:], f8[:,:], f8[:], i8[:,:], u2[:,:])', nopython=True)
 def stats_process(bin_assignments, weights, fluxes, populations, trans, mask):
     nsegs = bin_assignments.shape[0]
     npts = bin_assignments.shape[1]
 
     for k in xrange(nsegs):
         ibin = bin_assignments[k,0]
-        fbin = bin_assignments[k, npts-1]
+        fbin = bin_assignments[k, npts - 1]
 
         if mask[k, 0] == 1:
             continue
@@ -190,6 +184,7 @@ def calc_stats(bin_assignments, weights, fluxes, populations, trans, mask):
     trans.fill(0)
 
     stats_process(bin_assignments, weights, fluxes, populations, trans, mask)
+
 
 if __name__ == '__main__':
     MatrixRw().main()
