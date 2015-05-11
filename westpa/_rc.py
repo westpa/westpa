@@ -254,45 +254,54 @@ class WESTRC:
         ''' 
         Bad idea, recursive dependency for the previous idea. 
         Now the main thing to do is to 
-        1) Build the state from driver > update from YAML 
+        1) Build the state from driver > update from YAML (if exists)
         2) If the driver doesn't exist, build directly from yaml
         The issue is that rc can't subclass WESTSystem directly,
         need to find a work around for that. 
 
         '''
 
-        base_system = BaseSystem()
+        # This horribly written code is supposed to be a prototype for 
+        # the YAML System builder
 
-        config_state = self.config.get(['west', 'system', 'driver'])
-        if config_state:
+        # First step is to see if we have a driver specified
+        system = None
+        try: 
             sysdrivername = self.config.get(['west', 'system', 'driver']) 
             log.info('loading system driver %r' % sysdrivername)
             system_driver = extloader.get_object(sysdrivername)(rc=self)
             system_driver.initialize()
             log.debug('loaded system driver {!r}'.format(system_driver))        
-            base_system.update_from_system(system_driver)
-        else:
+            system = system_driver
+        except:
             log.info("Driver not specified")
-        yaml_state = self.config.get(['west', 'system', 'binmapper', 'enabled'])
-        if yaml_state:
-            sysdrivername = self.config.get(['west', 'system', 'binmapper', 'name'])
-            log.info(self.config.get(['west', 'system', 'binmapper']))
-            system_yaml   = self.system_from_yaml(self.config.get(['west', 'system', 'binmapper']))
-            base_system.update_from_system(system_yaml)
-        else:
+        # Second let's see if we have info in the YAML file 
+        try: 
+            yamlmapper  = self.config.get(['west', 'system', 'binmapper'])
+            log.info("loading system info from YAML file")
+            system_yaml = self.system_from_yaml(yamlmapper)
+            if system:
+                system = self.update_from_yaml(system, system_yaml)
+            else:
+                system = self.system_from_yaml(yamlmapper)
+        except:
             log.info("YAML doesn't contain any system info")
-        if (config_state or yaml_state):
-            return base_system
+        
+        if system:
+            return system
         else: 
             print("No system specified")
             sys.exit(1)
 
     def system_from_yaml(self, system_dict):
-        yaml_system = BaseSystem()
-        for key, value in system_dict.iteritems():
-            setattr(yaml_system, key, value)
-        return yaml_system
-        
+        #yaml_system = BaseSystem()
+        #for key, value in system_dict.iteritems():
+        #    setattr(yaml_system, key, value)
+        #return yaml_system
+        return NotImplementedError
+
+    def update_from_yaml(self, init_system, yaml_system):
+        return NotImplementedError
     
     def get_system_driver(self):
         if self._system is None:
