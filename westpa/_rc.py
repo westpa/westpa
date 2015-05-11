@@ -258,7 +258,6 @@ class WESTRC:
         2) If the driver doesn't exist, build directly from yaml
         The issue is that rc can't subclass WESTSystem directly,
         need to find a work around for that. 
-
         '''
 
         # This horribly written code is supposed to be a prototype for 
@@ -298,10 +297,10 @@ class WESTRC:
         #for key, value in system_dict.iteritems():
         #    setattr(yaml_system, key, value)
         #return yaml_system
-        return NotImplementedError
+        raise NotImplementedError
 
     def update_from_yaml(self, init_system, yaml_system):
-        return NotImplementedError
+        raise NotImplementedError
     
     def get_system_driver(self):
         if self._system is None:
