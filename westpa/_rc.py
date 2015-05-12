@@ -29,6 +29,47 @@ from yamlcfg import YAMLSystem
 from . import extloader
 from work_managers import SerialWorkManager
 
+# For making it's own mapper 
+from westpa.binning import RectilinearBinMapper
+    
+def bins_from_yaml_dict(bin_dict):
+    typename = bin_dict.pop('type')
+    kwargs = bin_dict
+    
+    try:
+        mapper_type = getattr(sys.modules['westpa.binning'], typename)
+    except AttributeError:
+        raise KeyError('unknown bin mapper type {!r} in config file {!r}'.format(typename))
+    
+    if typename == 'RectilinearBinMapper':
+        boundary_lists = kwargs.pop('boundaries')
+        for ilist, boundaries in enumerate(boundary_lists):
+            boundary_lists[ilist] = map((lambda x: 
+                                           float('inf') 
+                                           if (x if isinstance(x, basestring) else '').lower() == 'inf' 
+                                           else x), boundaries)
+        return mapper_type(boundary_lists)
+    else:
+        try:
+            return mapper_type(**kwargs)
+        except Exception:
+            log.exception('exception instantiating mapper')
+            raise
+
+def parsePCV(pc_str):
+    namespace = {'math': math,
+                 'numpy': numpy,
+                 'inf': float('inf')}
+    
+    arr = numpy.array(eval(pc_str,namespace))
+    if arr.ndim == 0:
+        arr.shape = (1,1)
+    elif arr.ndim == 1:
+        arr.shape = (1,) + arr.shape 
+    else:
+        raise ValueError('too many dimensions')
+    return arr
+
 
 def lazy_loaded(backing_name, loader, docstring = None):
     def getter(self):
@@ -253,12 +294,8 @@ class WESTRC:
             
     def new_system_driver(self):
         ''' 
-        Bad idea, recursive dependency for the previous idea. 
-        Now the main thing to do is to 
         1) Build the state from driver > update from YAML (if exists)
         2) If the driver doesn't exist, build directly from yaml
-        The issue is that rc can't subclass WESTSystem directly,
-        need to find a work around for that. 
         '''
 
         # This horribly written code is supposed to be a prototype for 
@@ -274,43 +311,89 @@ class WESTRC:
             log.debug('loaded system driver {!r}'.format(system_driver))        
             system = system_driver
         except KeyError:
-            log.info("Driver not specified")
+            log.info("System driver not specified")
         # Second let's see if we have info in the YAML file 
         try: 
-            yamlmapper  = self.config['west']['system']['binmapper']
-            #get(['west', 'system', 'binmapper'])
-            log.info("loading system info from YAML file")
+            yamloptions = self.config['west']['system']['system_options']
+            log.info("Loading system options from configuration file")
             if system:
-                system = self.update_from_yaml(system, yamlmapper)
+                system = self.update_from_yaml(system, yamloptions)
             else:
-                system = self.system_from_yaml(yamlmapper)
+                system = self.system_from_yaml(yamloptions)
         except KeyError:
-            log.info("YAML doesn't contain any system info")
+            log.info("Config file doesn't contain any system info")
         
-        print("System was:")
-        print(system)
         if system:
+            print(vars(system))
             return system
         else: 
-            print("No system specified")
+            log.info("No system specified, quitting")
             sys.exit(1)
 
     def system_from_yaml(self, system_dict):
+        """
+        Super ugly code for making a system from the YAML file alone
+        """
+        #TODO Try to write better code. But first fix this thing.
         yamlSystem = YAMLSystem()
         for key, value in system_dict.iteritems(): 
-            setattr(yamlSystem, key, value)
+            if key == "bins":
+                print("TRYING TO SET %s FROM CONFIG FILE"%(key))
+                setattr(init_system, "bin_mapper", bins_from_yaml_dict(value))
+            #elif:
+                # We want to parse target counts here
+            #elif:
+                # We want to parse any object here
+            #elif:
+                # We want to parse dtype here?
+            else:
+                # assume normal attribute
+                try: 
+                    print("TRYING TO SET %s FROM CONFIG FILE"%(key))
+                    setattr(init_system, key, value)
+                except:
+                    log.info("Base system doesn't have propery %s"\
+                          %(key))
+                    pass
+        # These are not parsed yet
+        #self.pcoord_dtype = pcoord_dtype
+        #self.bin_target_counts[...] = 10
         return yamlSystem
 
+
     def update_from_yaml(self, init_system, system_dict):
+        """
+        Updates the system built from the driver with the options
+        from the YAML file.
+        For now let's just overwrite anything.
+        """
+        #TODO Try to write better code. But first fix this thing.
         for key, value in system_dict.iteritems():
-            try: 
-                setattr(init_system, key, value)
-            except:
-                print("Initial system doesn't have propery %s"\
-                      %(key))
-                pass
+            if key == "bins":
+                print("TRYING TO ADD BINS FROM CONFIG FILE")
+                print("Bins of both were:")
+                print(init_system.bin_mapper.boundaries)
+                setattr(init_system, "bin_mapper", bins_from_yaml_dict(value))
+                print(init_system.bin_mapper.boundaries)
+            #elif:
+                # We want to parse target counts here
+            #elif:
+                # We want to parse any object here
+            #elif:
+                # We want to parse dtype here?
+            else:     
+                try: 
+                    print("TRYING TO SET %s FROM CONFIG FILE"%(key))
+                    setattr(init_system, key, value)
+                except:
+                    log.info("Initial system doesn't have propery %s"\
+                          %(key))
+                    pass
+        # These are not parsed yet
+        #self.pcoord_dtype = pcoord_dtype
+        #self.bin_target_counts[...] = 10
         return init_system
-    
+
     def get_system_driver(self):
         if self._system is None:
             self._system = self.new_system_driver()
