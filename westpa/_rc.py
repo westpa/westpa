@@ -25,6 +25,7 @@ log = logging.getLogger('westpa.rc')
 import os, sys, errno
 import westpa
 from yamlcfg import YAMLConfig
+from yamlcfg import YAMLSystem
 from . import extloader
 from work_managers import SerialWorkManager
 
@@ -272,20 +273,22 @@ class WESTRC:
             system_driver.initialize()
             log.debug('loaded system driver {!r}'.format(system_driver))        
             system = system_driver
-        except:
+        except KeyError:
             log.info("Driver not specified")
         # Second let's see if we have info in the YAML file 
         try: 
-            yamlmapper  = self.config.get(['west', 'system', 'binmapper'])
+            yamlmapper  = self.config['west']['system']['binmapper']
+            #get(['west', 'system', 'binmapper'])
             log.info("loading system info from YAML file")
-            system_yaml = self.system_from_yaml(yamlmapper)
             if system:
-                system = self.update_from_yaml(system, system_yaml)
+                system = self.update_from_yaml(system, yamlmapper)
             else:
                 system = self.system_from_yaml(yamlmapper)
-        except:
+        except KeyError:
             log.info("YAML doesn't contain any system info")
         
+        print("System was:")
+        print(system)
         if system:
             return system
         else: 
@@ -293,14 +296,20 @@ class WESTRC:
             sys.exit(1)
 
     def system_from_yaml(self, system_dict):
-        #yaml_system = BaseSystem()
-        #for key, value in system_dict.iteritems():
-        #    setattr(yaml_system, key, value)
-        #return yaml_system
-        raise NotImplementedError
+        yamlSystem = YAMLSystem()
+        for key, value in system_dict.iteritems(): 
+            setattr(yamlSystem, key, value)
+        return yamlSystem
 
-    def update_from_yaml(self, init_system, yaml_system):
-        raise NotImplementedError
+    def update_from_yaml(self, init_system, system_dict):
+        for key, value in system_dict.iteritems():
+            try: 
+                setattr(init_system, key, value)
+            except:
+                print("Initial system doesn't have propery %s"\
+                      %(key))
+                pass
+        return init_system
     
     def get_system_driver(self):
         if self._system is None:
