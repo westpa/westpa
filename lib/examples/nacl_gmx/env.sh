@@ -15,7 +15,10 @@ fi
 
 # Inform WEST where to find Python and our other scripts where to find WEST
 export WEST_PYTHON=$(which python2.7)
-export WEST_ROOT=$(readlink -f $PWD/../../..)
+if [[ -z "$WEST_ROOT" ]]; then
+    echo "Must set environ variable WEST_ROOT"
+    exit
+fi
 
 # Explicitly name our simulation root directory
 if [[ -z "$WEST_SIM_ROOT" ]]; then
