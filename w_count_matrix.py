@@ -147,6 +147,7 @@ Command-line options
                 # Converting the h5io assigned iteration into the data I actually want...
                 seg_index = iter_group['seg_index']
                 weights = iter_group['seg_index']['weight']
+                npcoord = iter_group['pcoord']
                 state_assignments = self.assignments_file['trajlabels'][assignment_iiter]
 
                 # Find all the walkers that are in the target state, and add them in to the dictionary.  We'll start adjusting this as we go and think about it.
@@ -166,7 +167,7 @@ Command-line options
                 # Let's add nodes as tuples of type Iter, SegID.  We won't add any attributes, for now, although we might later.
                 for i in in_state_walkers:
                     # Walker, then timepoint?  For the state assignment
-                    self.WeightGraph.add_node((n_iter,i), weight=weights[i], state_assignments = list(set(state_assignments[i,:])), seg_id=i, iteration=n_iter)
+                    self.WeightGraph.add_node((n_iter,i), weight=weights[i], state_assignments=list(set(state_assignments[i,:])), seg_id=i, iteration=n_iter, pcoord=npcoord[i,:])
                 if old_parents != None:
                     for i in old_children:
                         # This is correct.  The iteration is meant to indicate forward progress.
@@ -203,7 +204,7 @@ Command-line options
                 for j in xrange(nstates):
                     if k != j:
                         k_nodes = []
-                        for iiter, n_iter in enumerate(xrange(stop_iter-1, start_iter-1,-1)):
+                        for iiter, n_iter in enumerate(xrange(start_iter, stop_iter)):
                             pi.progress += 1
 
                             # I can do this better, I think.
@@ -211,6 +212,26 @@ Command-line options
 
                         print(len(self.StateGraphs[k,j]))
                         assert (pruned_nodes[k,j] + len(self.StateGraphs[k,j].nodes())) == len(self.WeightGraph.nodes())
+
+            #pi.new_operation('Determining correlation and eliminating correlated nodes...', len(start_pts))
+            for k in xrange(nstates):
+                for j in xrange(nstates):
+                    if k != j:
+                    #for iiter, n_iter in enumerate(xrange(start_iter, stop_iter)):
+                        iter_nodes = self.StateGraphs[k,j].nodes(data=True)
+                        print(iter_nodes)
+                        niter_nodes = []
+                        for i in iter_nodes:
+                            if i[1]['iteration'] == 2:
+                                niter_nodes.append(i)
+                        for i in iter_nodes:
+                            for children in self.StateGraphs[k,j].neighbors_iter(i[0]):
+                                print(children)
+
+
+
+
+
 '''
             pi.new_operation('Iterating over the graph...', len(start_pts))
             n_paths = 0
