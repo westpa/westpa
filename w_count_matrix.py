@@ -36,28 +36,6 @@ from westtools.dtypes import iter_block_ci_dtype as ci_dtype
 # These functions have been pasted in from the older tool.  They'll need to be rewritten in.
 # It's just here as a template to remind me.
 
-def __build_history_child_dictionary__(self):
-    rebuild_history = 0
-    for i in xrange(0, len(self.VisitedWalkers)):
-        current_iter = len(self.VisitedWalkers) - i - 1
-        iter = self.__format_iteration__(current_iter + 1)
-        current_walker = self.VisitedWalkers[current_iter]
-        walker_children = []
-        seg_index = self.__return_seg_index__(iter)
-        for walker in current_walker:
-            child = []
-            for x in xrange(0, len(seg_index)):
-                try:
-                    if seg_index[x]['parent_id'] == walker and (len(list(set(self.VisitedWalkers[current_iter + 1]) & set([x])))) >= 1:
-                        child.append(x)
-                except (KeyError):
-                    pass
-            try:
-                self.WalkerChildren[(str(current_iter) + ":" + str(walker))] += child 
-            except (KeyError):
-                self.WalkerChildren[(str(current_iter) + ":" + str(walker))] = []
-                self.WalkerChildren[(str(current_iter) + ":" + str(walker))] += child
-
 
 class WCountMatrix(WESTParallelTool):
     prog ='w_count_matrix'
@@ -137,14 +115,7 @@ Command-line options
             # once for every state they may be interested in.  Ergo, we need to pull the
             # state assignments from the assignment file, which we have done above.
             # We're not interested in the trivial case of k = k, however.
-            #for k in xrange(nstates):
-            #    for j in xrange(nstates):
-            #        if k != j:
 
-                        # We're now going to begin building a state history of successful walkers, one state to state
-                        # set of transitions at a time.  Probably not as fast as it can be done, but.
-                        # We'll store the results in a large dictionary...
-                        # Here, we want to start at the last iteration, and count until we reach iter 1.
             self.WeightGraph = nx.MultiDiGraph()
             old_parents = None
             old_children = None
@@ -177,7 +148,7 @@ Command-line options
                 # Let's add nodes as tuples of type Iter, SegID.  We won't add any attributes, for now, although we might later.
                 for i in in_state_walkers:
                     # Walker, then timepoint?  For the state assignment
-                    self.WeightGraph.add_node((n_iter,i), weight=weights[i], trajlabels = list(set(state_assignments[i,:])), seg_id=i)
+                    self.WeightGraph.add_node((n_iter,i), weight=weights[i], state_assignments = list(set(state_assignments[i,:])), seg_id=i, iteration=n_iter)
                 if old_parents != None:
                     for i in old_children:
                         #This is correct.  The iteration is meant to indicate forward progress.
@@ -189,19 +160,48 @@ Command-line options
             #nx.draw_spring(self.WeightGraph)
             #plt.savefig("test.pdf",dpi=750)
             
-            #for n,nbrs in self.WeightGraph.nodes_iter():
-            #    print(n,nbrs)
-
+            # We're now going to make copies of the original graph, and prune them out for trajectories that don't begin and end in state k and j, respectively.
+            # This should technically re-implement the functionality of w_kinetics, if it's done correctly, but that's what we need.
             pi.new_operation('Building the state by state graphs...', len(start_pts))
             self.StateGraphs = {}
             for k in xrange(nstates):
                 for j in xrange(nstates):
                     if k != j:
+                        pruned_nodes = 0
+                        k_nodes = []
                         self.StateGraphs[k,j] = self.WeightGraph.copy()
-                        for iiter, n_iter in enumerate(xrange(start_iter, stop_iter)):
+                        for iiter, n_iter in enumerate(xrange(stop_iter-1, start_iter-1,-1)):
                             pi.progress += 1
                             iter_nodes = self.StateGraphs[k,j].nodes(data=True)
-                            print(iter_nodes)
+                            niter_nodes = []
+                            for i in iter_nodes:
+                                if i[1]['iteration'] == n_iter:
+                                    niter_nodes.append(i)
+                            #if n_iter == stop_iter-1:
+                            for i in niter_nodes:
+                                if k in i[1]['state_assignments']:
+                                    k_nodes.append(i)
+                            # We've added the nodes that are in the appropriate state to an ever growing node list, and will continue to do so.
+                            # Now, we check other nodes against the state list; are they in the appropriate state list?
+                            # And if not, is there a path from them to one of the appropriate k_nodes?
+                            # If not, remove them.
+                            for i in niter_nodes:
+                                if k not in i[1]['state_assignments']: 
+                                    for z in k_nodes:
+                                        if z[0] != i[0]:
+                                            try:
+                                                print(z[0], i[0])
+                                                path = nx.bidirectional_dijkstra(self.StateGraphs[k,j],i[0],z[0])
+                                                print(path)
+                                            except(nx.exception.NetworkXNoPath):
+                                                # If we hit here, we're done and need to stop comparing.
+                                                print("To remove a node is a great sin.")
+                                                pruned_nodes += 1
+                                                self.StateGraphs[k,j].remove_node(i[0])
+                                                break
+
+                        # We shouldn't be removing more nodes than we ever had to begin with,
+                        assert (pruned_nodes + len(self.StateGraphs[k,j].nodes())) == len(self.WeightGraph.nodes())
 '''
             pi.new_operation('Iterating over the graph...', len(start_pts))
             n_paths = 0
