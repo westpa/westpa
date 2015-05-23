@@ -157,6 +157,7 @@ Command-line options
 
                 # Converting the h5io assigned iteration into the data I actually want...
                 seg_index = iter_group['seg_index']
+                weights = iter_group['seg_index']['weight']
                 state_assignments = self.assignments_file['trajlabels'][assignment_iiter]
 
                 # Find all the walkers that are in the target state, and add them in to the dictionary.  We'll start adjusting this as we go and think about it.
@@ -175,16 +176,59 @@ Command-line options
 
                 # Let's add nodes as tuples of type Iter, SegID.  We won't add any attributes, for now, although we might later.
                 for i in in_state_walkers:
-                    self.WeightGraph.add_node((n_iter,i))
+                    # Walker, then timepoint?  For the state assignment
+                    self.WeightGraph.add_node((n_iter,i), weight=weights[i], trajlabels = list(set(state_assignments[i,:])), seg_id=i)
                 if old_parents != None:
                     for i in old_children:
-                        self.WeightGraph.add_edge((n_iter+1,i), (n_iter, old_parents[i]))
+                        #This is correct.  The iteration is meant to indicate forward progress.
+                        self.WeightGraph.add_edge((n_iter+1,i), (n_iter, old_parents[i]), iteration=n_iter)
                 old_children = in_state_walkers
                 old_parents = in_state_walkers_parents
-            plt.figure(1,figsize=(80,80))
-            nx.draw_spring(self.WeightGraph)
-            plt.savefig("atlas.png",dpi=75)
+            # Some silly code to test to see whether I built the code correctly or not.  Neat stuff, though...
+            #plt.figure(1,figsize=(80,80))
+            #nx.draw_spring(self.WeightGraph)
+            #plt.savefig("test.pdf",dpi=750)
+            
+            #for n,nbrs in self.WeightGraph.nodes_iter():
+            #    print(n,nbrs)
 
+            pi.new_operation('Building the state by state graphs...', len(start_pts))
+            self.StateGraphs = {}
+            for k in xrange(nstates):
+                for j in xrange(nstates):
+                    if k != j:
+                        self.StateGraphs[k,j] = self.WeightGraph.copy()
+                        for iiter, n_iter in enumerate(xrange(start_iter, stop_iter)):
+                            pi.progress += 1
+                            iter_nodes = self.StateGraphs[k,j].nodes(data=True)
+                            print(iter_nodes)
+'''
+            pi.new_operation('Iterating over the graph...', len(start_pts))
+            n_paths = 0
+            for iiter, n_iter in enumerate(xrange(start_iter, stop_iter)):
+                pi.progress += 1
+                # We'll only return the edges from the current iteration (or only work with them, at any rate)
+                # We can do this by specifying nbunch to the edges and asserting that iteration == niter,
+                # or by sorting through the quite frankly not so nice output.  Hm.
+                # Specifying nbunch is not likely to be viable, given that we'll be trimming these graphs for nodes not in successful pathways
+                # before we get to this state.
+                # We'll determine a better way to do this later.
+                iter_edges = self.WeightGraph.edges(data=True)
+                niter_edges = []
+                for i in iter_edges:
+                    if i[2] == {'iteration': n_iter}:
+                        niter_edges.append(i)
+                print("This is the new iteration! " + str(n_iter))
+                if n_iter == 1:
+                    n_paths = len(niter_edges)
+                else:
+                    if niter_edges != [] and old_niter_edges != []:
+                        n_paths += len(niter_edges) - len(old_niter_edges)
+                old_niter_edges = niter_edges
+                print(len(niter_edges), len(old_niter_edges))
+                print(niter_edges, old_niter_edges)
+                print(n_paths)
+'''
 
 
 
