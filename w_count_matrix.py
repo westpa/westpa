@@ -109,6 +109,10 @@ Command-line options
                             pruned_nodes += 1
                             graph.remove_node(i[0])
                             break
+                print(k_nodes)
+                if k_nodes == []:
+                    graph.remove_node(i[0])
+                    pruned_nodes += 1
         return graph, k_nodes, pruned_nodes
 
     def go(self):
@@ -171,7 +175,10 @@ Command-line options
                 if old_parents != None:
                     for i in old_children:
                         # This is correct.  The iteration is meant to indicate forward progress.
-                        self.WeightGraph.add_edge((n_iter+1,i), (n_iter, old_parents[i]), iteration=n_iter)
+                        #self.WeightGraph.add_edge((n_iter+1,i), (n_iter, old_parents[i]), iteration=n_iter)
+                        # Actually, I think I had it backwards.  n_iter was alright, though.  I might have to go back and check all the other routines for correctness now, however.  But the direction is definitely good!
+                        # Oh, these are edges, not nodes.
+                        self.WeightGraph.add_edge((n_iter, old_parents[i]), (n_iter+1,i), iteration=n_iter)
                 old_children = in_state_walkers
                 old_parents = in_state_walkers_parents
             # Some silly code to test to see whether I built the code correctly or not.  Neat stuff, though...
@@ -180,7 +187,7 @@ Command-line options
             #plt.savefig("test.pdf",dpi=750)
             
             # We're now going to make copies of the original graph, and prune them out for trajectories that don't begin and end in state k and j, respectively.
-            # This should technically re-implement the functionality of w_kinetics, if it's done correctly, but that's what we need.
+            # This should technically re-implement some of the idea of w_kinetics (i.e., pathfinding), if it's done correctly, but that's what we need.
 
             pi.new_operation('Building the state by state graphs...', len(start_pts))
             self.StateGraphs = {}
@@ -195,7 +202,7 @@ Command-line options
                             pi.progress += 1
 
                             # I can do this better, I think.
-                            self.StateGraphs[k,j], k_nodes, pruned_nodes[k,j] = self.prune_graph(self.StateGraphs[k,j], k, k_nodes, n_iter, pruned_nodes[k,j])
+                            self.StateGraphs[k,j], k_nodes, pruned_nodes[k,j] = self.prune_graph(self.StateGraphs[k,j], j, k_nodes, n_iter, pruned_nodes[k,j])
 
                         assert (pruned_nodes[k,j] + len(self.StateGraphs[k,j].nodes())) == len(self.WeightGraph.nodes())
 
@@ -208,10 +215,14 @@ Command-line options
                             pi.progress += 1
 
                             # I can do this better, I think.
-                            self.StateGraphs[k,j], k_nodes, pruned_nodes[k,j] = self.prune_graph(self.StateGraphs[k,j], j, k_nodes, n_iter, pruned_nodes[k,j])
+                            self.StateGraphs[k,j], k_nodes, pruned_nodes[k,j] = self.prune_graph(self.StateGraphs[k,j], k, k_nodes, n_iter, pruned_nodes[k,j])
 
                         print(len(self.StateGraphs[k,j]))
                         assert (pruned_nodes[k,j] + len(self.StateGraphs[k,j].nodes())) == len(self.WeightGraph.nodes())
+
+            # Due to the fact that we're eliminating self/self transitions (to save computational time and memory), it's not unusual to have totally empty graphs if we run this
+            # too early.  Don't panic; it just means we haven't established a proper state to state network yet.  It should line up nicely with what's in the assignment file, if
+            # you check it.
 
             #pi.new_operation('Determining correlation and eliminating correlated nodes...', len(start_pts))
             for k in xrange(nstates):
@@ -219,14 +230,34 @@ Command-line options
                     if k != j:
                     #for iiter, n_iter in enumerate(xrange(start_iter, stop_iter)):
                         iter_nodes = self.StateGraphs[k,j].nodes(data=True)
-                        print(iter_nodes)
                         niter_nodes = []
                         for i in iter_nodes:
-                            if i[1]['iteration'] == 2:
+                            if i[1]['iteration'] == 1:
                                 niter_nodes.append(i)
-                        for i in iter_nodes:
-                            for children in self.StateGraphs[k,j].neighbors_iter(i[0]):
-                                print(children)
+                        # We have a list of the nodes that appear in the first iteration.  With this, we'll start going over the children, determining whether we have
+                        # two or more children, then analysing their correlation length in the pcoord.  If there is a merge down the line, but the correlation length
+                        # is longer than that, we'll trim all but one of the nodes (it doesn't particularly matter which one, really).
+                        # Ideally, these correlated walkers should be switching in and out of the same bins, but it would be good to assert that.
+                        # Actually, for an accurate count, we could probably just:
+                        #   1. determine the true correlation length, which may be multiple tau, then remove nodes if they merge before the correlation length is 'over', or
+                        #   2. determine if the correlation length is longer than 1 tau, then remove the node and add edges from its children to the remaining node.
+                        # 2 has the distinct disadvantage of giving us less interesting information to work with in the future, however, although it is easier to implement.
+                        # It would certainly be accurate in terms of the number of pathways, however, but that is no longer all we care about.
+                        # Probably the best way to do this, in order to keep as much information as possible to play around with later, is to do the following:
+                        # Create a correlation function.
+                        # Run over the network, and every time there's a split, feed the resultant pcoord into the split (going into the pcoord of the children's children, if necessary)
+                        # Record the resultant information in a list in a bin-tagged list, as well as on the node itself.
+                        # Once we've run through the whole network, return to the beginning.
+                        # Determine if the results of a split remerge before their correlation length has ended.
+                        # If so, prune (or merge, essentially; add edges from removed nodes' children to remaining node).
+                        # Generate the count matrix by using bin_assignments[0] and bin_assignments[-1] information and adding +1 to the respective information in the count matrix.
+                        for i in niter_nodes:
+                            #print(i)
+                            #print(len(self.StateGraphs[k,j].neighbors(i[0])))
+                            #print(self.StateGraphs[k,j].neighbors(i[0]))
+                            if len(self.StateGraphs[k,j].neighbors(i[0])) > 1:
+                                for children in self.StateGraphs[k,j].neighbors_iter(i[0]):
+                                    print(children)
 
 
 
