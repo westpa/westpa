@@ -19,6 +19,8 @@ from __future__ import print_function, division; __metaclass__ = type
 import logging
 
 import numpy as np
+import scipy as sp
+from scipy import signal
 import h5py
 from h5py import h5s
 import sys
@@ -32,6 +34,24 @@ from westtools import (WESTParallelTool, WESTDataReader, IterRangeSelection, WES
                        ProgressIndicatorComponent)
 from westpa import h5io
 from westtools.dtypes import iter_block_ci_dtype as ci_dtype
+
+# For now, we'll borrow from Matt and see how this works out...
+from mclib import mcbs_ci,autocorrel_elem
+from matplotlib.pyplot import plot
+
+
+def _assign_label_pop(n_iter, lb, ub, mapper, nstates, state_map, last_labels, parent_id_dsspec, weight_dsspec, pcoord_dsspec):    
+
+    nbins = len(state_map)-1
+    parent_ids = parent_id_dsspec.get_iter_data(n_iter,index_exp[lb:ub])
+    weights = weight_dsspec.get_iter_data(n_iter,index_exp[lb:ub])
+    pcoords = pcoord_dsspec.get_iter_data(n_iter,index_exp[lb:ub])
+    
+    assignments, trajlabels = assign_and_label(lb, ub, parent_ids,
+                                               mapper.assign, nstates, state_map, last_labels, pcoords)
+    pops = numpy.zeros((nstates+1,nbins+1), weight_dtype)
+    accumulate_labeled_populations(weights, assignments, trajlabels, pops)
+    return (assignments, trajlabels, pops, lb, ub)
 
 
 class WCountMatrix(WESTParallelTool):
@@ -84,14 +104,70 @@ Command-line options
             self.iter_range.process_args(args)
         
         self.output_filename = args.output
+ 
+    def build_graph_iteration(self, n_iter, nstates, nbins, state_map, last_labels):
+        ''' Method to encapsulate the segment slicing (into n_worker slices) and parallel job submission
+            Submits job(s), waits on completion, splices them back together
+            Returns: assignments, trajlabels, pops for this iteration'''
+
+        futures = []
+
+        iter_group = self.data_reader.get_iter_group(n_iter)
+        nsegs, npts = iter_group['pcoord'].shape[:2]
+        n_workers = self.work_manager.n_workers or 1
+        assignments = numpy.empty((nsegs, npts), dtype=index_dtype)
+        trajlabels = numpy.empty((nsegs, npts), dtype=index_dtype)
+        pops = numpy.zeros((nstates+1,nbins+1), dtype=weight_dtype)
+
+        #Submit jobs to work manager
+        blocksize = nsegs // n_workers
+        if nsegs % n_workers > 0:
+            blocksize += 1
+
+        def task_gen():
+            if __debug__:
+                checkset = set()
+            for lb in xrange(0, nsegs, blocksize):
+                ub = min(nsegs, lb+blocksize)
+                if __debug__:
+                    checkset.update(set(xrange(lb,ub)))
+                args = ()
+                kwargs = dict(n_iter=n_iter,
+                              lb=lb, ub=ub, mapper=self.binning.mapper, nstates=nstates, state_map=state_map,
+                              last_labels=last_labels, 
+                              parent_id_dsspec=self.data_reader.parent_id_dsspec, 
+                              weight_dsspec=self.data_reader.weight_dsspec,
+                              pcoord_dsspec=self.dssynth.dsspec)
+                yield (_assign_label_pop, args, kwargs)
+
+                #futures.append(self.work_manager.submit(_assign_label_pop, 
+                #kwargs=)
+            if __debug__:
+                assert checkset == set(xrange(nsegs)), 'segments missing: {}'.format(set(xrange(nsegs)) - checkset)
+
+        #for future in self.work_manager.as_completed(futures):
+        for future in self.work_manager.submit_as_completed(task_gen(), queue_size=self.max_queue_len):
+            assign_slice, traj_slice, slice_pops, lb, ub = future.get_result(discard=True)
+            assignments[lb:ub, :] = assign_slice
+            trajlabels[lb:ub, :] = traj_slice
+            pops += slice_pops
+            del assign_slice, traj_slice, slice_pops
+
+        del futures
+        return (assignments, trajlabels, pops)
 
     def prune_graph(self, graph, k, k_nodes, n_iter, pruned_nodes):
         iter_nodes = graph.nodes(data=True)
         niter_nodes = []
         for i in iter_nodes:
-            if i[1]['iteration'] == n_iter:
-                niter_nodes.append(i)
+            print(i)
+            try:
+                if i[1]['iteration'] == n_iter:
+                    niter_nodes.append(i)
+            except:
+                print(i)
         for i in niter_nodes:
+            #print(i[1]['state_assignments'])
             if k in i[1]['state_assignments']:
                 k_nodes.append(i)
         # We've added the nodes that are in the appropriate state to an ever growing node list, and will continue to do so.
@@ -104,13 +180,17 @@ Command-line options
                     if z[0] != i[0]:
                         try:
                             path = nx.bidirectional_dijkstra(graph,i[0],z[0])
+                            # We need to break if this is successful, as well, because a single path to ANY point is good enough to leave the node in,
+                            # Otherwise, we tend to do things like a cut node out if it happens to not go to a particular successful end point.
+                            break
                         except(nx.exception.NetworkXNoPath):
                             # If we hit here, we're done and need to stop comparing.
+                            #print("Not in network.")
                             pruned_nodes += 1
                             graph.remove_node(i[0])
                             break
-                print(k_nodes)
                 if k_nodes == []:
+                    #print("Cutting some bitches!")
                     graph.remove_node(i[0])
                     pruned_nodes += 1
         return graph, k_nodes, pruned_nodes
@@ -164,8 +244,8 @@ Command-line options
                 # and the parents.
                 # I think we're just going to use networkX to make our life a little easier here, however.
                 #in_state_walkers = list(set(np.where(state_assignments == j)[0]))
-                # Just return where they don't equal the non-existent state for now...
-                in_state_walkers = list(set(np.where(state_assignments != nstates)[0]))
+                # Just return where they don't equal the non-existent state for now... also, the unknown state.
+                in_state_walkers = list(set(np.where(state_assignments < nstates)[0]))
                 in_state_walkers_parents = seg_index['parent_id']
 
                 # Let's add nodes as tuples of type Iter, SegID.  We won't add any attributes, for now, although we might later.
@@ -199,10 +279,13 @@ Command-line options
                         k_nodes = []
                         self.StateGraphs[k,j] = self.WeightGraph.copy()
                         for iiter, n_iter in enumerate(xrange(stop_iter-1, start_iter-1,-1)):
+                            print(n_iter)
                             pi.progress += 1
 
                             # I can do this better, I think.
+                            print("Run 1 " + str(k) + " " + str(j))
                             self.StateGraphs[k,j], k_nodes, pruned_nodes[k,j] = self.prune_graph(self.StateGraphs[k,j], j, k_nodes, n_iter, pruned_nodes[k,j])
+                            #print(k_nodes)
 
                         assert (pruned_nodes[k,j] + len(self.StateGraphs[k,j].nodes())) == len(self.WeightGraph.nodes())
 
@@ -212,10 +295,13 @@ Command-line options
                     if k != j:
                         k_nodes = []
                         for iiter, n_iter in enumerate(xrange(start_iter, stop_iter)):
+                            print(n_iter)
                             pi.progress += 1
 
                             # I can do this better, I think.
+                            print("Run 2 " + str(k) + " " + str(j))
                             self.StateGraphs[k,j], k_nodes, pruned_nodes[k,j] = self.prune_graph(self.StateGraphs[k,j], k, k_nodes, n_iter, pruned_nodes[k,j])
+                            #print(k_nodes)
 
                         print(len(self.StateGraphs[k,j]))
                         assert (pruned_nodes[k,j] + len(self.StateGraphs[k,j].nodes())) == len(self.WeightGraph.nodes())
@@ -224,12 +310,16 @@ Command-line options
             # too early.  Don't panic; it just means we haven't established a proper state to state network yet.  It should line up nicely with what's in the assignment file, if
             # you check it.
 
-            #pi.new_operation('Determining correlation and eliminating correlated nodes...', len(start_pts))
+
+
+            pi.new_operation('Determining correlation and eliminating correlated nodes...', len(start_pts))
+            print("Okay but really?")
             for k in xrange(nstates):
                 for j in xrange(nstates):
                     if k != j:
                     #for iiter, n_iter in enumerate(xrange(start_iter, stop_iter)):
-                        iter_nodes = self.StateGraphs[k,j].nodes(data=True)
+                        #iter_nodes = self.StateGraphs[k,j].nodes(data=True)
+                        iter_nodes = self.WeightGraph.nodes(data=True)
                         niter_nodes = []
                         for i in iter_nodes:
                             if i[1]['iteration'] == 1:
@@ -255,9 +345,43 @@ Command-line options
                             #print(i)
                             #print(len(self.StateGraphs[k,j].neighbors(i[0])))
                             #print(self.StateGraphs[k,j].neighbors(i[0]))
-                            if len(self.StateGraphs[k,j].neighbors(i[0])) > 1:
-                                for children in self.StateGraphs[k,j].neighbors_iter(i[0]):
-                                    print(children)
+                            #if len(self.StateGraphs[k,j].neighbors(i[0])) > 1:
+                            if len(self.WeightGraph.neighbors(i[0])) > 1:
+                                child_list = []
+                                pcoord_child_list = nx.get_node_attributes(self.WeightGraph, 'pcoord')
+                                #for children in self.StateGraphs[k,j].neighbors_iter(i[0]):
+                                for children in self.WeightGraph.neighbors_iter(i[0]):
+                                    # TEST
+                                    #child_list.append(self.StateGraphs[k,j].node(children))
+                                    child_list.append(children)
+                                #print(pcoord_child_list[child_list[0]][:,0])
+                                #print(pcoord_child_list[child_list[1]][:,0])
+                                #print(child_list)
+                                # Okay, so we have our pcoord...
+                                #corr = np.array(signal.correlate(pcoord_child_list[child_list[0]][:,0], pcoord_child_list[child_list[1]][:,0], mode='full'))
+                                # We can normalise our pcoord vectors before doing the cross correlation to get a normalised output; at 1, the vectors are correlated, and
+                                # eventually, they'll be... well, not 1.
+                                a = pcoord_child_list[child_list[0]][:,0] / pcoord_child_list[child_list[0]][:,0].sum()
+                                b = pcoord_child_list[child_list[1]][:,0] / pcoord_child_list[child_list[1]][:,0].sum()
+                                #print(a.sum())
+                                print(a, b)
+                                corr = np.array(np.correlate(a, b, mode='full'))
+                                print(corr)
+                                #x = range(0,len(pcoord_child_list[child_list[0]][:,0]))
+                                #xcorr = np.arange(corr.size)
+                                #lags = xcorr - (pcoord_child_list[child_list[0]][:,0].size-1)
+                                #distancePerLag = (x[-1] - x[0])/float(len(x))
+                                #print(len(corr))
+                                #print(lags)
+                                #print(distancePerLag)
+                                #offsets = -lags*distancePerLag
+                                #print(offsets)
+                                # Okay, so it's unsurprising that the highest correlation value is set at time 0, I think, if I'm reading this correctly.  Not a big shock, given what we're dealing with.
+                                # I should just see about converting it back into a function where it's indexed to the normal pcoord time steps, because I think it's symmetrical due to the nature of the 
+                                # function and we can just normalise according to the uber peak.
+                                # Wait!  No, I can't do that.  That would remove vital information.  However, I absolutely can normalise according to that peak, and then move away from that point and...
+                                # wait... no.  Shouldn't be that symmetric?  Gotta think about this for a second.  Why are... oh, because I locked it to one piece of data in the 'lags' section, that's why.
+
 
 
 
