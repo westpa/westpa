@@ -41,10 +41,6 @@ class MatrixRw(WESTTool):
 
         iogroup.add_argument('-o', '--output', dest='output', default=self.default_output_file,
                              help='''Store results in OUTPUT (default: %(default)s).''')
-        iogroup.add_argument('--colors-from-macrostates', action='store_true',
-                             help='''Construct the color assignments from macrostate labels in the
-                             assignment file. Otherwise raw bin assignments are assumed to contain
-                             history information.''')
 
         self.progress.add_args(parser)
         
@@ -59,8 +55,7 @@ class MatrixRw(WESTTool):
         if not self.iter_range.check_data_iter_range_least(self.assignments_file):
             raise ValueError('assignments do not span the requested iterations')
 
-        self.colors_from_macrostates = args.colors_from_macrostates
-        
+
     def go(self):
         pi = self.progress.indicator
         pi.new_operation('Initializing')
@@ -68,22 +63,14 @@ class MatrixRw(WESTTool):
             self.data_reader.open('r')
             nbins = self.assignments_file.attrs['nbins']
 
-            if self.colors_from_macrostates:
-                if 'state_map' in self.assignments_file:
-                    state_labels = self.assignments_file['state_labels'][...]
-                    state_map = self.assignments_file['state_map'][...]
-                    nstates = len(state_labels)
-                else:
-                    raise ValueError('Assignment file does not contain macrostate data')
+            state_labels = self.assignments_file['state_labels'][...]
+            state_map = self.assignments_file['state_map'][...]
+            nstates = len(state_labels)
 
             start_iter, stop_iter = self.iter_range.iter_start, self.iter_range.iter_stop # h5io.get_iter_range(self.assignments_file)
             iter_count = stop_iter - start_iter
 
-            if self.colors_from_macrostates:
-                nfbins = nbins * nstates
-            else:
-                nfbins = nbins
-
+            nfbins = nbins * nstates
 
             flux_shape = (iter_count, nfbins, nfbins)
             pop_shape = (iter_count, nfbins)
@@ -97,7 +84,6 @@ class MatrixRw(WESTTool):
             flux_grp = self.output_file.create_group('iterations')
             self.output_file.attrs['nrows'] = nfbins
             self.output_file.attrs['ncols'] = nfbins
-            self.output_file.attrs['colors_from_macrostates'] = True if self.colors_from_macrostates else False
 
             fluxes = np.empty(flux_shape[1:], weight_dtype)
             populations = np.empty(pop_shape[1:], weight_dtype)
@@ -119,21 +105,18 @@ class MatrixRw(WESTTool):
 
                 mask_unknown = np.zeros_like(bin_assignments, dtype=np.uint16)
 
-                # Get macrostate/color assignments if not excluded explicitly in the bin assignments
-                if self.colors_from_macrostates:
-                    macrostate_iiter = h5io.get_iteration_entry(self.assignments_file, n_iter)
-                    macrostate_assignments = np.require(self.assignments_file['trajlabels'][macrostate_iiter + np.s_[:nsegs,:npts]],
-                                                dtype=index_dtype)
+                macrostate_iiter = h5io.get_iteration_entry(self.assignments_file, n_iter)
+                macrostate_assignments = np.require(self.assignments_file['trajlabels'][macrostate_iiter + np.s_[:nsegs,:npts]],
+                                            dtype=index_dtype)
 
-                    # Transform bin_assignments to take macrostate membership into account
-                    bin_assignments  = nstates * bin_assignments + macrostate_assignments
+                # Transform bin_assignments to take macrostate membership into account
+                bin_assignments  = nstates * bin_assignments + macrostate_assignments
 
                 mask_indx = np.where(macrostate_assignments == nstates)
                 mask_unknown[mask_indx] = 1
 
                 # Calculate bin-to-bin fluxes, bin populations and number of obs transitions
                 calc_stats(bin_assignments, weights, fluxes, populations, trans, mask_unknown)
-
 
                 # Store bin-based kinetics data
                 bin_populations_ds[iiter] = populations
@@ -154,9 +137,7 @@ class MatrixRw(WESTTool):
 
                 # Do a little manual clean-up to prevent memory explosion
                 del iter_group, weights, bin_assignments
-
-                if self.colors_from_macrostates:
-                    del macrostate_assignments
+                del macrostate_assignments
 
                 pi.progress += 1
 

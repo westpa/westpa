@@ -113,12 +113,8 @@ def reweight(h5file, start, stop, nstates, nbins, state_labels, state_map, nfbin
 
     rw_bin_probs = steadystate_solve(transition_matrix)
 
-    if nfbins == nbins:
-        bin_last_state_map = np.tile(np.arange(nstates, dtype=np.int), int(nbins // nstates) )
-        bin_state_map = state_map[:-1]
-    else:
-        bin_last_state_map = np.tile(np.arange(nstates, dtype=np.int), nbins)
-        bin_state_map = np.repeat(state_map[:-1], nstates)
+    bin_last_state_map = np.tile(np.arange(nstates, dtype=np.int), nbins)
+    bin_state_map = np.repeat(state_map[:-1], nstates)
 
     rw_color_probs = np.bincount(bin_last_state_map, weights=rw_bin_probs) 
     rw_state_probs = np.bincount(bin_state_map, weights=rw_bin_probs)
@@ -295,8 +291,7 @@ Command-line options
             nfbins = self.kinetics_file.attrs['nrows']
 
             assert nstates == len(state_labels)
-            if nbins != nfbins:
-                assert nfbins == nbins * nstates
+            assert nfbins == nbins * nstates
 
             start_iter, stop_iter, step_iter = self.iter_range.iter_start, self.iter_range.iter_stop, self.iter_range.iter_step
 
@@ -337,9 +332,10 @@ Command-line options
             else:
                 for iblock, start in enumerate(start_pts):
                     pi.progress += 1
+                    
                     stop = min(start + step_iter, stop_iter)
                     if self.evolution_mode == 'cumulative':
-                        windowsize = int(self.evol_window_frac * (stop - start_iter))
+                        windowsize = max(1, int(self.evol_window_frac * (stop - start_iter)))
                         block_start = max(start_iter, stop - windowsize)
                     else:   # self.evolution_mode == 'blocked'
                         block_start = start
