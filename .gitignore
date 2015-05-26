@@ -7,3 +7,5 @@
 *.swo
 *.so
 .DS_Store
+
+build/

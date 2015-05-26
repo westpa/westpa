@@ -97,6 +97,7 @@ class MatrixRw(WESTTool):
             flux_grp = self.output_file.create_group('iterations')
             self.output_file.attrs['nrows'] = nfbins
             self.output_file.attrs['ncols'] = nfbins
+            self.output_file.attrs['colors_from_macrostates'] = True if self.colors_from_macrostates else False
 
             fluxes = np.empty(flux_shape[1:], weight_dtype)
             populations = np.empty(pop_shape[1:], weight_dtype)
@@ -126,9 +127,9 @@ class MatrixRw(WESTTool):
 
                     # Transform bin_assignments to take macrostate membership into account
                     bin_assignments  = nstates * bin_assignments + macrostate_assignments
-                    mask_indx = np.where(macrostate_assignments == nstates)
-                    mask_unknown[mask_indx] = 1
 
+                mask_indx = np.where(macrostate_assignments == nstates)
+                mask_unknown[mask_indx] = 1
 
                 # Calculate bin-to-bin fluxes, bin populations and number of obs transitions
                 calc_stats(bin_assignments, weights, fluxes, populations, trans, mask_unknown)

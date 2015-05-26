@@ -113,8 +113,12 @@ def reweight(h5file, start, stop, nstates, nbins, state_labels, state_map, nfbin
 
     rw_bin_probs = steadystate_solve(transition_matrix)
 
-    bin_last_state_map = np.tile(np.arange(nstates, dtype=np.int), nbins)
-    bin_state_map = np.repeat(state_map[:-1], nstates)
+    if nfbins == nbins:
+        bin_last_state_map = np.tile(np.arange(nstates, dtype=np.int), int(nbins // nstates) )
+        bin_state_map = state_map[:-1]
+    else:
+        bin_last_state_map = np.tile(np.arange(nstates, dtype=np.int), nbins)
+        bin_state_map = np.repeat(state_map[:-1], nstates)
 
     rw_color_probs = np.bincount(bin_last_state_map, weights=rw_bin_probs) 
     rw_state_probs = np.bincount(bin_state_map, weights=rw_bin_probs)
@@ -153,6 +157,10 @@ reweighting scheme. Bin assignments (usually "assignments.h5") and pre-calculate
 iteration flux matrices (usually "flux_matrices.h5") data files must have been 
 previously generated using w_postanalysis_matrix.py (see "w_assign --help" and 
 "w_kinetics --help" for information on generating these files).
+
+When analyzing data where the simulation binning scheme included "color" information,
+this tool assumes that this information was encoded in the last dimension of 
+the progress coordinate space. 
 
 -----------------------------------------------------------------------------
 Output format
@@ -287,8 +295,8 @@ Command-line options
             nfbins = self.kinetics_file.attrs['nrows']
 
             assert nstates == len(state_labels)
-            print('{} {} {}'.format(nfbins, nbins, nstates))
-            assert nfbins == nbins * nstates
+            if nbins != nfbins:
+                assert nfbins == nbins * nstates
 
             start_iter, stop_iter, step_iter = self.iter_range.iter_start, self.iter_range.iter_stop, self.iter_range.iter_step
 
