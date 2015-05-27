@@ -154,9 +154,6 @@ iteration flux matrices (usually "flux_matrices.h5") data files must have been
 previously generated using w_postanalysis_matrix.py (see "w_assign --help" and 
 "w_kinetics --help" for information on generating these files).
 
-When analyzing data where the simulation binning scheme included "color" information,
-this tool assumes that this information was encoded in the last dimension of 
-the progress coordinate space. 
 
 -----------------------------------------------------------------------------
 Output format
