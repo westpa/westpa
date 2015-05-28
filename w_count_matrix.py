@@ -38,6 +38,7 @@ from westtools.dtypes import iter_block_ci_dtype as ci_dtype
 # For now, we'll borrow from Matt and see how this works out...
 from mclib import mcbs_ci,autocorrel_elem
 from matplotlib.pyplot import plot
+from matplotlib.mlab import cohere
 
 
 def _assign_label_pop(n_iter, lb, ub, mapper, nstates, state_map, last_labels, parent_id_dsspec, weight_dsspec, pcoord_dsspec):    
@@ -160,12 +161,13 @@ Command-line options
         iter_nodes = graph.nodes(data=True)
         niter_nodes = []
         for i in iter_nodes:
-            print(i)
+            #print(i)
             try:
                 if i[1]['iteration'] == n_iter:
                     niter_nodes.append(i)
             except:
-                print(i)
+                #print(i)
+                pass
         for i in niter_nodes:
             #print(i[1]['state_assignments'])
             if k in i[1]['state_assignments']:
@@ -361,12 +363,23 @@ Command-line options
                                 #corr = np.array(signal.correlate(pcoord_child_list[child_list[0]][:,0], pcoord_child_list[child_list[1]][:,0], mode='full'))
                                 # We can normalise our pcoord vectors before doing the cross correlation to get a normalised output; at 1, the vectors are correlated, and
                                 # eventually, they'll be... well, not 1.
-                                a = pcoord_child_list[child_list[0]][:,0] / pcoord_child_list[child_list[0]][:,0].sum()
-                                b = pcoord_child_list[child_list[1]][:,0] / pcoord_child_list[child_list[1]][:,0].sum()
+                                #a = np.fft.fft(pcoord_child_list[child_list[0]][:,0] / np.linalg.norm(pcoord_child_list[child_list[0]][:,0], axis=0))
+                                #b = np.fft.fft(pcoord_child_list[child_list[1]][:,0] / np.linalg.norm(pcoord_child_list[child_list[1]][:,0], axis=0))
+                                #a = pcoord_child_list[child_list[0]][:,0] / np.linalg.norm(pcoord_child_list[child_list[0]][:,0], axis=0)
+                                #b = pcoord_child_list[child_list[1]][:,0] / np.linalg.norm(pcoord_child_list[child_list[1]][:,0], axis=0)
+                                a = pcoord_child_list[child_list[0]][:,0]
+                                b = pcoord_child_list[child_list[1]][:,0]
                                 #print(a.sum())
                                 print(a, b)
-                                corr = np.array(np.correlate(a, b, mode='full'))
-                                print(corr)
+                                #corr = np.array(np.correlate(a, b, mode='full'))
+                                coh = cohere(a, b, NFFT=5)[0]
+                                print(coh)
+                                plt.plot(coh)
+                                #uconf = [1.96 / np.sqrt(len(corr))] * len(corr)
+                                #lconf = [-1.96 / np.sqrt(len(corr))] * len(corr)
+                                #plt.plot(uconf)
+                                #plt.plot(lconf)
+                                plt.show()
                                 #x = range(0,len(pcoord_child_list[child_list[0]][:,0]))
                                 #xcorr = np.arange(corr.size)
                                 #lags = xcorr - (pcoord_child_list[child_list[0]][:,0].size-1)
