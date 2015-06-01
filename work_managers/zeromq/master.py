@@ -11,12 +11,16 @@ from core import (MSG_MASTER_ACK_ALIVE,MSG_MASTER_Q_ALIVE,
                    MSG_WORKER_ACK_EXISTS,MSG_WORKER_Q_EXISTS)
 
 from core import (MASTER_CRASH_TIMEOUT,WORKER_CRASH_TIMEOUT,DEFAULT_STATUS_POLL)
+from core import ZMQCore
 
-import zmq.green as zmq
+import gevent
+from zmq import green as zmq
+
 from cPickle import HIGHEST_PROTOCOL
 
-class ZMQMaster:
+class ZMQMaster(ZMQCore):
     def __init__(self):
+        super(ZMQMaster,self).__init__()
         self.rr_endpoint = 'tcp://*:23811'
         self.ann_endpoint = 'tcp://*:23812'
         
@@ -25,65 +29,53 @@ class ZMQMaster:
         # successfully but the workers never do, or all the workers crash but
         # so much, but can mean a few thousand CPU hours on a supercomputer.
         self.worker_hangcheck_timeout = 30
+        self.worker_hangcheck_timer = None
         
         # Amount of time (in s) to announce our presence to workers. This lets
         # workers know that the master exists, so they can exit if the master
         # crashes or hangs. This also tells workers to announce themselves to
-        # the master, so that the master knows
+        # the master, so that the master knows. This should be small for local
+        # work and larger for supercomputer work.
         self.beacon_period = 1
+        self.beacon_timer = None
                 
         self.worker_info = {}
-        
-        self.context = None
-        self.ann_socket = None
-        self.rr_socket = None
-        
-        
+                
+        self.contact_established = False
+        self.startup_hangcheck_timeout = 10
             
-    def taskreq_handler(self, socket, message):
-        self.contact_established = True
-        print('MASTER> received {!r}'.format(message))
-        socket.send_pyobj('ok')
+    def taskreq_handler(self):
+        while True:
+            message = self.rr_socket.recv_pyobj()
+            print('MASTER> received {!r}'.format(message))
+            self.rr_socket.send_pyobj('ok')
     
-        
+    def shutdown_handler(self, signal=None):
+        self.ann_socket.send_pyobj(MSG_SHUTDOWN)
+        super(ZMQMaster,self).shutdown_handler(signal)
+                
     def comm_loop(self):
         '''Master communication loop for the master process.'''
         
         
-        context = zmq.Context()
-        rr_socket = context.socket(zmq.REP)
-        ann_socket = context.socket(zmq.PUB)
-        poller = zmq.Poller()
+        self.context = zmq.Context()
+        self.rr_socket = self.context.socket(zmq.REP)
+        self.ann_socket = self.context.socket(zmq.PUB)
         
+        self.install_signal_handlers()
+        taskreq_greenlet = gevent.spawn(self.taskreq_handler)
+                 
         try:
-            rr_socket.bind(self.rr_endpoint)
-            ann_socket.bind(self.ann_endpoint)
-            
-            ann_socket.hwm = 10
-            
-            poller.register(rr_socket,zmq.POLLIN)
-            
-            while True:
-                poll_results = dict(poller.poll(timeout=(None if self.contact_established else self.startup_hangcheck_timeout * 1000)))
-                
-                if rr_socket in poll_results:
-                    self.taskreq_handler(rr_socket, rr_socket.recv_pyobj())                    
-                elif not poll_results:
-                    assert not self.contact_established
-                    print('MASTER> poll timed out; exiting')
-                    break
+            self.rr_socket.bind(self.rr_endpoint)
+            self.ann_socket.bind(self.ann_endpoint)
+            taskreq_greenlet.join()
         except KeyboardInterrupt:
-            print('Exiting!\n')
-            try:
-                ann_socket.send_pyobj(MSG_SHUTDOWN)
-            finally:
-                pass
-            raise
+            self.shutdown_handler()
         finally:
-            context.destroy(linger=1)
+            self.context.destroy(linger=1)
             
+        
 if __name__ == '__main__':
     zm = ZMQMaster()
     zm.comm_loop()
-    
     
