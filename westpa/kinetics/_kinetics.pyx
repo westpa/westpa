@@ -496,6 +496,39 @@ cpdef find_macrostate_transitions(Py_ssize_t nstates,
         double[:,:,:] _last_completions
         index_t flabel, ilabel, iistate
         weight_t _weight
+    """
+    A cythoned function designed to track how long macrostate transitions take.  Requires the simulation
+    to have already been binned and placed into macrostates, as appropriate.  Called by functions such as
+    w_kinetics to generate kinetics information in the 'per-tau' format.
+
+    Parameters
+    ----------
+
+    weights : weight_t
+        Weights, typically from the main .h5 file of the simulation.  Likely called from the data reader
+        of the calling function.
+    label_assignments : index_t
+        Macrostate label assignments, as compatible with those outputted by w_assign.  Bins are marked as
+        states (or ignored) in a previous step.  Should be in the form  of a 'tag', or 'color'; in this 
+        dataset, once a walker has been marked with a macrostate, it does not lose the macrostate 
+        assigment, even upon leaving the appropriately defined state bin, until it enters another state bin.
+    dt : double
+        The number of timesteps of the system.
+    state : object
+       The output of _fast_transition_state_copy.
+    macro_fluxes : weight_t
+        An array that contains state to state fluxes.
+    macro_counts : uint_t
+        An array that contains the observed number of state to state fluxes.
+    target_fluxes : weight_t
+        An array that contains the fluxes into the target state from any state.
+    target_counts : uint_t
+        An array that contains the observed number of fluxes into the target state from any state.
+    durations : list_like (object)
+        A list containing the calculated duration information, including the iistate, flabel (state to state),
+        event duration, the weight of all walkers involved, and all seg_ids.
+
+    """
         
 
     nsegs = label_assignments.shape[0]
