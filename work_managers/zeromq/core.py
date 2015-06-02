@@ -20,7 +20,8 @@ import logging
 log = logging.getLogger(__name__)
 
 import gevent
-import sys, uuid
+import sys, uuid, socket, os
+import functools, contextlib
 
 import signal
 signames = {val:name for name, val in reversed(sorted(signal.__dict__.items()))
@@ -39,23 +40,50 @@ class ZMQWMTimeout(ZMQWMEnvironmentError):
 
 class Message:
     ACK = 'ok'
-    IDENTIFY_MASTER = 'identify_master'
+    IDENTIFY = 'identify'          # Two-way identification (a reply must be an IDENTIFY message)
     TASK_REQUEST = 'task_request'
     TASK_RESULT = 'task_result'
     SHUTDOWN = 'shutdown'
-    MASTER_BEACON = 'master alive'
+    MASTER_BEACON = 'master_alive'
+    
+    VALID_MESSAGES = {ACK, IDENTIFY, TASK_REQUEST, TASK_RESULT, SHUTDOWN, MASTER_BEACON}
     
     def __init__(self, message=None, payload=None, master_id=None, worker_id=None):
-        self.master_id = master_id
-        self.worker_id = worker_id
-        self.message = message
-        self.payload = payload
+        
+        if isinstance(message,Message):
+            self.message   = message.message
+            self.payload   = message.payload
+            self.master_id = message.master_id
+            self.worker_id = message.worker_id
+        else:
+            self.master_id = master_id
+            self.worker_id = worker_id
+            self.message = message
+            self.payload = payload
         
     def __repr__(self):
         return ('<{!s} master_id={master_id!s} worker_id={worker_id!s} message={message!r} payload={payload!r}>'
                 .format(self.__class__.__name__, **self.__dict__))   
 
 class ZMQCore:
+    
+    # The overall communication topology (socket layout, etc)
+    # Cannot be updated without updating configuration files, command-line parameters,
+    # etc. (Changes break user scripts.)
+    PROTOCOL_MAJOR = 3
+    
+    # The set of messages and replies in use.
+    # Cannot be updated without changing existing communications logic. (Changes break
+    # the ZMQ WM library.)
+    PROTOCOL_MINOR = 0  
+    
+    # Minor updates and additions to the protocol.
+    # Changes do not break the ZMQ WM library, but only add new
+    # functionality/code paths without changing existing code paths.    
+    PROTOCOL_UPDATE = 0 
+    
+    PROTOCOL_VERSION = (PROTOCOL_MAJOR, PROTOCOL_MINOR, PROTOCOL_UPDATE)
+    
     def __init__(self):
         self.context = None
         self.rr_endpoint = None
@@ -63,12 +91,32 @@ class ZMQCore:
         self.rr_socket = None
         self.ann_socket = None
         
-        self.id = uuid.uuid4()
+        # Unique identifier of this ZMQ node
+        self.node_id = uuid.uuid4()
+        
+        # Identifier of the master node
         self.master_id = None
         
-    def __repr__(self):
-        return '<{!s} {!s}>'.format(self.__class__.__name__, self.id)
+        # A friendlier description for logging
+        self.node_description = '{!s} on {!s} at PID {:d}'.format(self.__class__.__name__,
+                                                                  socket.gethostname(),
+                                                                  os.getpid())
+        
+        self.validation_fail_action = 'exit' # other options are 'raise' and 'warn'
+        
+        self.log = logging.getLogger(__name__ + '.' + self.__class__.__name__ + '.' + str(self.node_id))
 
+    def __repr__(self):
+        return '<{!s} {!s}>'.format(self.__class__.__name__, self.node_id)
+    
+    def get_identification(self):
+        return {'node_id': self.node_id,
+                'master_id': self.master_id,
+                'class': self.__class__.__name__,
+                'description': self.node_description,
+                'hostname': socket.gethostname(),
+                'pid': os.getpid()}
+                        
     def validate_message(self, message):
         '''Validate incoming message. Raises an exception if the message is improperly formatted (TypeError)
         or does not correspond to the appropriate master (ZMQWMEnvironmentError).'''
@@ -78,23 +126,69 @@ class ZMQCore:
             pass
         else:
             super_validator(message)
-        
-    def recv_message(self, socket, validate=True):
-        message = socket.recv_pyobj()
+            
         if not isinstance(message, Message):    
-            raise TypeError('message is not an instance of core.Message')        
-        if validate:
+                raise TypeError('message is not an instance of core.Message')
+        
+    @contextlib.contextmanager
+    def message_validation(self, msg):
+        '''A context manager for message validation. The instance variable ``validation_fail_action``
+        controls the behavior of this context manager:
+          * 'raise': re-raise the exception that indicated failed validation. Useful for development.
+          * 'exit' (default): report the error and exit the program.
+          * 'warn': report the error and continue.'''
+        try:
+            yield
+        except Exception as e:
+            if self.validation_fail_action == 'raise':
+                self.log.exception('message validation failed for {!r}'.format(msg))
+                raise
+            elif self.validation_fail_action == 'exit':
+                self.log.error('message validation falied: {!s}'.format(e))
+                sys.exit(1)
+            elif self.validation_fail_action == 'warn':
+                self.log.warn('message validation falied: {!s}'.format(e))
+        
+    def recv_message(self, socket):
+        '''Receive a message object from the given socket.'''
+        message = socket.recv_pyobj()
+        with self.message_validation(message):
             self.validate_message(message)
         return message
-        
-    def dumpinfo(self, message):
-        print('{!r} {!s}'.format(self, message))
     
+    def send_message(self, socket, message, payload=None):
+        '''Send a message object. Subclasses may override this to
+        decorate the message with appropriate IDs, then delegate upward to actually send
+        the message. ``message`` may either be a pre-constructed ``Message`` object or 
+        a message identifier, in which (latter) case ``payload`` will become the message payload.
+        ``payload`` is ignored if ``message`` is a ``Message`` object.'''
+        
+        message = Message(message, payload)
+        socket.send_pyobj(message)
+        
+    def send_reply(self, socket, original_message, reply=Message.ACK, payload=None):
+        '''Send a reply to ``original_message`` on ``socket``. The reply message
+        is a Message object or a message identifier. The reply master_id and worker_id are
+        set from ``original_message``, unless master_id is not set, in which case it is
+        set from self.master_id.''' 
+        reply = Message(reply, payload)
+        reply.master_id = original_message.master_id or self.master_id
+        assert original_message.worker_id is not None # should have been caught by validation prior to this
+        reply.worker_id = original_message.worker_id
+        self.send_message(socket, reply)
+        
+    def send_ack(self, socket, original_message):
+        '''Send an acknowledgement message, which is mostly just to respect REQ/REP
+        recv/send patterns.'''
+        self.send_message(socket, Message(Message.ACK,
+                                          master_id=original_message.master_id,
+                                          worker_id=original_message.worker_id))
+
     def shutdown_handler(self, signal=None):
         if signal is None:
-            self.dumpinfo('shutting down')
+            self.log.info('shutting down')
         else:
-            self.dumpinfo('shutting down on signal {!s}'.format(signames.get(signal,signal)))
+            self.log.info('shutting down on signal {!s}'.format(signames.get(signal,signal)))
         sys.exit()
     
     def install_signal_handlers(self, signals = None):
