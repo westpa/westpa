@@ -240,6 +240,7 @@ cpdef assign_and_label(Py_ssize_t nsegs_lb,
                 parent_id = parent_ids[iseg]
                 for ipt in range(npts):
                     ptlabel = state_map[_assignments[iseg,ipt]]
+                    _statelabels[iseg,ipt] = ptlabel
                     if ptlabel == nstates: # unknown state/transition region 
                         if ipt == 0:
                             if parent_id < 0:
@@ -256,7 +257,6 @@ cpdef assign_and_label(Py_ssize_t nsegs_lb,
                             _trajlabels[iseg,ipt] = _trajlabels[iseg,ipt-1]
                     else:
                         _trajlabels[iseg,ipt] = ptlabel
-                        _statelabels[iseg,ipt] = ptlabel
     else:
         trajlabels.fill(nstates)
         statelabels.fill(nstates)

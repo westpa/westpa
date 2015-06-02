@@ -385,7 +385,7 @@ Command-line options
             del assign_slice, traj_slice, slice_pops, state_slice
 
         del futures
-        return (assignments, trajlabels, pops, state_slice)
+        return (assignments, trajlabels, pops, statelabels)
 
     def go(self):
         assert self.data_reader.parent_id_dsspec._h5file is None
@@ -486,7 +486,7 @@ Command-line options
                     last_labels[:] = nstates #unknown state
 
                 #Slices this iteration into n_workers groups of segments, submits them to wm, splices results back together
-                assignments, trajlabels, pops = self.assign_iteration(n_iter, nstates, nbins, state_map, last_labels)
+                assignments, trajlabels, pops, statelabels = self.assign_iteration(n_iter, nstates, nbins, state_map, last_labels)
 
                 ##Do stuff with this iteration's results
 
