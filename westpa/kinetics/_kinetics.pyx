@@ -415,10 +415,11 @@ cpdef sequence_macro_flux_to_rate(weight_t[:,:,:] fluxes, weight_t[:,:] traj_ens
     return rates
 
 """
-In the following ``state`` is a 4-tuple of the following arrays of doubles:
+In the following ``state`` is a 5-tuple of the following arrays of doubles:
 last_time[nsegs]
 last_entries[nsegs,nstates]
 last_exits[nsegs,nstates]
+last_exits_td[nsegs,nstates]
 last_completions[nsegs,nstates]
 
 
@@ -435,7 +436,7 @@ cpdef _fast_transition_state_copy(Py_ssize_t iiter,
         bint has_last_state = 0
         Py_ssize_t nsegs, seg_id, parent_id
         double[:] _last_time, _prev_last_time
-        double[:,:] _last_entries, _last_exits, _prev_last_entries, _prev_last_exits
+        double[:,:] _last_entries, _last_exits, _prev_last_entries, _prev_last_exits, _last_exits_td, _prev_last_exits_td
         double[:,:,:] _last_completions, _prev_last_completions
         
     
@@ -444,11 +445,13 @@ cpdef _fast_transition_state_copy(Py_ssize_t iiter,
     last_time = numpy.empty((nsegs,), numpy.double)
     last_entries = numpy.empty((nsegs,nstates), numpy.double)
     last_exits = numpy.empty((nsegs,nstates), numpy.double)
+    last_exits_td = numpy.empty((nsegs,nstates), numpy.double)
     last_completions = numpy.empty((nsegs,nstates,nstates), numpy.double)
     
     _last_time = last_time
     _last_entries = last_entries
     _last_exits = last_exits
+    _last_exits_td = last_exits_td
     _last_completions = last_completions
     
     has_last_state = (last_state is not None)
@@ -457,7 +460,8 @@ cpdef _fast_transition_state_copy(Py_ssize_t iiter,
         _prev_last_time = last_state[0]
         _prev_last_entries = last_state[1]
         _prev_last_exits = last_state[2]
-        _prev_last_completions = last_state[3]
+        _prev_last_exits_td = last_state[3]
+        _prev_last_completions = last_state[4]
     
     for seg_id in xrange(nsegs):
         parent_id = parent_ids[seg_id]
@@ -466,14 +470,16 @@ cpdef _fast_transition_state_copy(Py_ssize_t iiter,
             _last_time[seg_id] = 0.0
             _last_entries[seg_id,:] = 0.0
             _last_exits[seg_id,:] = 0.0
+            _last_exits_td[seg_id,:] = 0.0
             _last_completions[seg_id,:,:] = 0.0
         else:
             _last_time[seg_id] = _prev_last_time[parent_id]
             _last_entries[seg_id,:] = _prev_last_entries[parent_id,:]
             _last_exits[seg_id,:] = _prev_last_exits[parent_id,:]
+            _last_exits_td[seg_id,:] = _prev_last_exits_td[parent_id,:]
             _last_completions[seg_id,:,:] = _prev_last_completions[parent_id,:,:]
             
-    return (last_time, last_entries, last_exits, last_completions)
+    return (last_time, last_entries, last_exits, last_exits_td, last_completions)
 
 
 @cython.boundscheck(False)
@@ -481,6 +487,7 @@ cpdef _fast_transition_state_copy(Py_ssize_t iiter,
 cpdef find_macrostate_transitions(Py_ssize_t nstates, 
                                   weight_t[:] weights,
                                   index_t[:,:] label_assignments,
+                                  index_t[:,:] state_assignments,
                                   double dt, 
                                   object state,
                                   weight_t[:,:] macro_fluxes,
@@ -492,9 +499,9 @@ cpdef find_macrostate_transitions(Py_ssize_t nstates,
         Py_ssize_t nsegs, npts, seg_id, ipt
         double itime, tm, t_ed
         double[:] _last_time
-        double[:,:] _last_entries, _last_exits
+        double[:,:] _last_entries, _last_exits, _last_exits_td
         double[:,:,:] _last_completions
-        index_t flabel, ilabel, iistate
+        index_t flabel, ilabel, iistate, slabel
         weight_t _weight
     """
     A cythoned function designed to track how long macrostate transitions take.  Requires the simulation
@@ -512,6 +519,8 @@ cpdef find_macrostate_transitions(Py_ssize_t nstates,
         states (or ignored) in a previous step.  Should be in the form  of a 'tag', or 'color'; in this 
         dataset, once a walker has been marked with a macrostate, it does not lose the macrostate 
         assigment, even upon leaving the appropriately defined state bin, until it enters another state bin.
+    state_assignments : index_t
+        Macrostate label assignments, but without any 'color' tagging.
     dt : double
         The number of timesteps of the system.
     state : object
@@ -537,7 +546,8 @@ cpdef find_macrostate_transitions(Py_ssize_t nstates,
     _last_time = state[0]
     _last_entries = state[1]
     _last_exits = state[2]
-    _last_completions = state[3]
+    _last_exits_td = state[3]
+    _last_completions = state[4]
     
     for seg_id in xrange(nsegs):
         itime = _last_time[seg_id]
@@ -549,8 +559,12 @@ cpdef find_macrostate_transitions(Py_ssize_t nstates,
             tm = itime + ipt*dt
             flabel = label_assignments[seg_id,ipt]
             ilabel = label_assignments[seg_id,ipt-1]
+            slabel = state_assignments[seg_id,ipt]
 
-            # if we have wound up in a new kinetic macrostate
+            # if we have left our state transition barrier...
+            if flabel == slabel:
+                _last_exits_td[seg_id,flabel] = tm
+
             if flabel != ilabel:
                 target_fluxes[flabel] += _weight
                 target_counts[flabel] += 1
@@ -570,7 +584,7 @@ cpdef find_macrostate_transitions(Py_ssize_t nstates,
                         # omit circular transitions (for now) because it causes the transition
                         # list to explode
                         if iistate != flabel:
-                            t_ed = tm - _last_exits[seg_id,iistate]
+                            t_ed = tm - _last_exits_td[seg_id,iistate]
                             durations.append((iistate,flabel,t_ed,_weight, seg_id))
         _last_time[seg_id] = tm
 
