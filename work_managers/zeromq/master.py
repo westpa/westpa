@@ -141,7 +141,21 @@ class ZMQMaster(ZMQCore):
         
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
-    zm = ZMQMaster(rr_endpoint='tcp://*:23811',ann_endpoint='tcp://*:23812')
-    zm.validation_fail_action = 'warn'
-    zm.comm_loop()
+    
+    mode = 'ipc'
+    
+    if mode == 'ipc':
+        rr_endpoint = 'ipc:///tmp/zmqwmtest.rr'
+        ann_endpoint = 'ipc:///tmp/zmqwmtest.ann'
+        ZMQMaster._ipc_endpoints_to_delete.extend([rr_endpoint,ann_endpoint])
+    else: # mode == 'tcp':
+        rr_endpoint='tcp://*:23811'
+        ann_endpoint='tcp://*:23812'
+    
+    try:    
+        zm = ZMQMaster(rr_endpoint, ann_endpoint)
+        zm.validation_fail_action = 'warn'
+        zm.comm_loop()
+    finally:
+        ZMQMaster.remove_ipc_endpoints()
     

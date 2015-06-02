@@ -94,6 +94,19 @@ class ZMQWorker(ZMQCore):
             
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
-    zw = ZMQWorker(rr_endpoint='tcp://localhost:23811', ann_endpoint='tcp://localhost:23812')
-    zw.validation_fail_action = 'warn'
-    zw.comm_loop()
+    
+    mode = 'ipc'
+    
+    if mode == 'ipc':
+        rr_endpoint = 'ipc:///tmp/zmqwmtest.rr'
+        ann_endpoint = 'ipc:///tmp/zmqwmtest.ann'
+    else: # mode == 'tcp':
+        rr_endpoint='tcp://localhost:23811'
+        ann_endpoint='tcp://localhost:23812'
+    
+    try:    
+        zw = ZMQWorker(rr_endpoint, ann_endpoint)
+        zw.validation_fail_action = 'warn'
+        zw.comm_loop()
+    finally:
+        ZMQWorker.remove_ipc_endpoints()

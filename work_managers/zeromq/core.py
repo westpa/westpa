@@ -20,12 +20,22 @@ import logging
 log = logging.getLogger(__name__)
 
 import gevent
-import sys, uuid, socket, os
-import functools, contextlib
+import sys, uuid, socket, os, tempfile, errno
+import contextlib
 
 import signal
 signames = {val:name for name, val in reversed(sorted(signal.__dict__.items()))
             if name.startswith('SIG') and not name.startswith('SIG_')}
+
+def randport(address='127.0.0.1'):
+    '''Select a random unused TCP port number on the given address.''' 
+    s = socket.socket()
+    s.bind((address,0))
+    try:
+        port = s.getsockname()[1]
+    finally:
+        s.close()
+    return port
 
 class ZMQWMError(RuntimeError):
     '''Base class for errors related to the ZeroMQ work manager itself'''
@@ -83,6 +93,31 @@ class ZMQCore:
     PROTOCOL_UPDATE = 0 
     
     PROTOCOL_VERSION = (PROTOCOL_MAJOR, PROTOCOL_MINOR, PROTOCOL_UPDATE)
+    
+    _ipc_endpoints_to_delete = []
+    
+    @classmethod    
+    def make_ipc_endpoint(cls):
+        (fd, socket_path) = tempfile.mkstemp()
+        os.close(fd)
+        endpoint = 'ipc://{}'.format(socket_path)
+        cls._ipc_endpoints_to_delete.append(endpoint)
+        return endpoint
+    
+    @classmethod
+    def remove_ipc_endpoints(cls):
+        while cls._ipc_endpoints_to_delete:
+            endpoint = cls._ipc_endpoints_to_delete.pop()
+            assert endpoint.startswith('ipc://')
+            socket_path = endpoint[6:]
+            try:
+                os.unlink(socket_path)
+            except OSError as e:
+                if e.errno != errno.ENOENT:
+                    log.debug('could not unlink IPC endpoint {!r}: {}'.format(socket_path, e))
+            else:
+                log.debug('unlinked IPC endpoint {!r}'.format(socket_path))
+    
     
     def __init__(self):
         self.context = None
