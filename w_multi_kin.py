@@ -199,10 +199,11 @@ Command-line options
                     #if self.non_markovian == False:
                         avg_rate_loaf[iter,:,:] += kin_trial['rate_evolution']['expected'][iter,:,:]
                         avg_flux_loaf[iter,:,:] += kin_trial['conditional_flux_evolution']['expected'][iter,:,:]
-                        avg_state_prob_loaf[iter,:] += kin_trial['state_prob_evolution'][iter,:]
                         try:
+                            avg_state_prob_loaf[iter,:] += kin_trial['state_prob_evolution'][iter,:]
                             avg_color_prob_loaf[iter,:] += kin_trial['color_prob_evolution'][iter,:]
                         except:
+                            # Temp hack to get everything up and working.  Ultimately, we should just remove this if we don't have it.
                             pass
                     #else:
                     #    flux = kin_trial['conditional_flux_evolution']['expected']
