@@ -199,6 +199,7 @@ Command-line options
                     #if self.non_markovian == False:
                         avg_rate_loaf[iter,:,:] += kin_trial['rate_evolution']['expected'][iter,:,:]
                         avg_flux_loaf[iter,:,:] += kin_trial['conditional_flux_evolution']['expected'][iter,:,:]
+                        state_labels = kin_trial['state_labels']
                         try:
                             avg_state_prob_loaf[iter,:] += kin_trial['state_prob_evolution'][iter,:]
                             avg_color_prob_loaf[iter,:] += kin_trial['color_prob_evolution'][iter,:]
@@ -301,6 +302,7 @@ Command-line options
         ds_rate_evol = self.output_file.create_dataset('conditional_flux_evolution', data=avgd_flux_evol, shuffle=True, compression = 9)
         ds_color_prob_evol = self.output_file.create_dataset('color_prob_evolution', data=avgd_color_prob, shuffle=True, compression = 9)
         ds_color_prob_evol = self.output_file.create_dataset('state_prob_evolution', data=avgd_state_prob, shuffle=True, compression = 9)
+        ds_color_prob_evol = self.output_file.create_dataset('state_labels', data=state_labels, shuffle=True, compression = 9)
         ds_flux_evol = self.output_file.create_dataset('n_particles', data=self.total_walkers, shuffle=True, compression = 9)
 
 if __name__ == '__main__':
