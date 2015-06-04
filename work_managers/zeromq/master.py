@@ -7,11 +7,12 @@ Created on May 29, 2015
 import logging
 log = logging.getLogger(__name__)
 
-from core import ZMQCore, Message, ZMQWMEnvironmentError
+from core import ZMQCore, Message, Task, ZMQWMEnvironmentError, ZMQWorkerMissing
 
 import gevent
 from zmq import green as zmq
 import time
+from collections import deque
 
 from cPickle import HIGHEST_PROTOCOL
 
@@ -22,22 +23,16 @@ class ZMQMaster(ZMQCore):
         self.rr_endpoint = rr_endpoint
         self.ann_endpoint = ann_endpoint
         
-        # Amount of time (in s) to wait for contact from any worker before
-        # exiting. This lets us watch for the case where the master starts up
-        # successfully but the workers never do, or all the workers crash but
-        # the master doesn't. This doesn't mean too much locally, but can save a
-        # few thousand CPU hours on a supercomputer.
-        self.worker_hangcheck_timeout = 10
+        # Tasks waiting for dispatch
+        self.outgoing_tasks = deque()
         
-        # Amount of time (in s) to announce our presence to workers. This lets
-        # workers know that the master exists, so they can exit if the master
-        # crashes or hangs. This also tells workers to announce themselves to
-        # the master, so that the master knows. This should be small for local
-        # work and larger for supercomputer work.
-        self.beacon_period = 5
-                
+        # Tasks being processed by workers (indexed by worker_id)
+        self.pending_tasks = dict()
+                        
+        # Worker information, indexed by worker_id
         self.worker_info = {}
-                
+        
+        # We are the master, so master_id is node_id
         self.master_id = self.node_id
         
     def validate_message(self, message):
@@ -63,9 +58,13 @@ class ZMQMaster(ZMQCore):
         self.log.debug('worker identification updated: {!r}'.format(worker_record))
         
     def drop_worker(self, worker_id):
-        # drop tasks too
         self.log.warning('dropping worker {}'.format(worker_id))
         self.worker_info.pop(worker_id, None)
+        slayed_task = self.pending_tasks.pop(worker_id, None)
+        if slayed_task:
+            # Currently, just report an error; in the future, we could re-queue, but 
+            # only if tasks are structured so that partial results are overwritten
+            slayed_task.future._set_exception(ZMQWorkerMissing('lost contact with worker processing this task'))
         
     def handle_identify(self, socket, msg):
         assert msg.message == Message.IDENTIFY
@@ -79,8 +78,9 @@ class ZMQMaster(ZMQCore):
             
         # Reply with our identification
         self.send_reply(socket, msg, Message.IDENTIFY, payload=self.get_identification())
-        
-    def taskreq_handler(self):
+    
+    
+    def rr_handler(self):
         while True:
             message = self.recv_message(self.rr_socket)
             self.update_worker_lastseen(message)
@@ -88,6 +88,9 @@ class ZMQMaster(ZMQCore):
             
             if message.message == Message.IDENTIFY:
                 self.handle_identify(self.rr_socket, message)
+            elif message.message == Message.TASK_REQUEST:
+                self.handle_task_request(self.rr_socket, message)
+            
             else:
                 self.rr_socket.send_pyobj(Message(Message.ACK, master_id=self.node_id, worker_id=message.worker_id))
     
@@ -95,23 +98,25 @@ class ZMQMaster(ZMQCore):
         shutdown_msg = Message(Message.SHUTDOWN, payload=signal, master_id=self.node_id)
         self.ann_socket.send_pyobj(shutdown_msg)
 
-    def shutdown_handler(self, signal=None):
+    def shutdown_handler(self, signal=None, frame=None):
         self.send_shutdown_message(signal)
-        super(ZMQMaster,self).shutdown_handler(signal)
+        super(ZMQMaster,self).shutdown_handler(signal, frame)
         
     def beacon_handler(self):
         while True:
             self.ann_socket.send_pyobj(Message(master_id=self.node_id, message=Message.MASTER_BEACON))
-            gevent.sleep(self.beacon_period)
+            if self.outgoing_tasks:
+                self.send_tasks_available()
+            gevent.sleep(self.master_beacon_period)
             
     def worker_error_checker(self):
         while True:
-            # This loops no *more often* than once every ``worker_hangcheck_timeout`` seconds
-            gevent.sleep(self.worker_hangcheck_timeout)
+            # This loops no *more often* than once every ``worker_beacon_period`` seconds
+            gevent.sleep(self.worker_beacon_period)
             
             now = time.time()
             for worker_id, worker_info in self.worker_info.items():
-                if now - worker_info.get('last_seen', now) > self.worker_hangcheck_timeout:
+                if now - worker_info.get('last_seen', now) > self.worker_beacon_period:
                     self.log.warning('worker {} is not responding'.format(worker_id))
                     self.drop_worker(worker_id)
                 
@@ -130,17 +135,41 @@ class ZMQMaster(ZMQCore):
         try:
             self.rr_socket.bind(self.rr_endpoint)
             self.ann_socket.bind(self.ann_endpoint)
-            taskreq_greenlet = gevent.spawn(self.taskreq_handler)
+            rr_greenlet = gevent.spawn(self.rr_handler)
             beacon_greenlet = gevent.spawn(self.beacon_handler)
             hangcheck_greenlet = gevent.spawn(self.worker_error_checker)
-            taskreq_greenlet.join()
+            rr_greenlet.join()
         finally:
             self.send_shutdown_message()
             self.context.destroy(linger=1)
             
+    def send_tasks_available(self):
+        self.send_message(self.ann_socket,Message.TASKS_AVAILABLE)
+
+    def submit(self, fn, args=None, kwargs=None):
+        return self.submit_many([(fn,
+                                  args if args is not None else (),
+                                  kwargs if kwargs is not None else {})]
+                                )[0]
+    
+    def submit_many(self, tasks):
+        futures = []
+        outgoing_tasks = self.outgoing_tasks
+        
+        for (fn,args,kwargs) in tasks:
+            task = Task(fn, args, kwargs)
+            outgoing_tasks.append(task)
+            futures.append(task.future)
+            
+        self.send_tasks_available()
+        
+        return futures
+            
         
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
+    
+    from test_work_managers.tsupport import identity
     
     mode = 'ipc'
     

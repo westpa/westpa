@@ -6,6 +6,7 @@ Created on May 29, 2015
 
 from __future__ import division, print_function; __metaclass__ = type
 
+from work_managers import WMFuture
 
 # Every ten seconds the master requests a status report from workers.
 # This also notifies workers that the master is still alive
@@ -19,13 +20,15 @@ WORKER_CRASH_TIMEOUT = DEFAULT_STATUS_POLL * 3
 import logging
 log = logging.getLogger(__name__)
 
-import gevent
-import sys, uuid, socket, os, tempfile, errno
+#import gevent
+import sys, uuid, socket, os, tempfile, errno, time
 import contextlib
 
 import signal
 signames = {val:name for name, val in reversed(sorted(signal.__dict__.items()))
             if name.startswith('SIG') and not name.startswith('SIG_')}
+
+import numpy
 
 def randport(address='127.0.0.1'):
     '''Select a random unused TCP port number on the given address.''' 
@@ -41,6 +44,10 @@ class ZMQWMError(RuntimeError):
     '''Base class for errors related to the ZeroMQ work manager itself'''
     pass
 
+class ZMQWorkerMissing(ZMQWMError):
+    '''Exception representing that a worker processing a task died or disappeared'''
+    pass
+
 class ZMQWMEnvironmentError(ZMQWMError):
     '''Class representing an error in the environment in which the ZeroMQ work manager is running.
     This includes such things as master/worker ID mismatches.'''
@@ -52,11 +59,14 @@ class Message:
     ACK = 'ok'
     IDENTIFY = 'identify'          # Two-way identification (a reply must be an IDENTIFY message)
     TASK_REQUEST = 'task_request'
-    TASK_RESULT = 'task_result'
+    RESULT_RETURN = 'result'
     SHUTDOWN = 'shutdown'
     MASTER_BEACON = 'master_alive'
+    TASKS_AVAILABLE = 'tasks_available'
     
-    VALID_MESSAGES = {ACK, IDENTIFY, TASK_REQUEST, TASK_RESULT, SHUTDOWN, MASTER_BEACON}
+    VALID_MESSAGES = {ACK, IDENTIFY, 
+                      TASKS_AVAILABLE, TASK_REQUEST, RESULT_RETURN,
+                      SHUTDOWN, MASTER_BEACON}
     
     def __init__(self, message=None, payload=None, master_id=None, worker_id=None):
         
@@ -74,6 +84,76 @@ class Message:
     def __repr__(self):
         return ('<{!s} master_id={master_id!s} worker_id={worker_id!s} message={message!r} payload={payload!r}>'
                 .format(self.__class__.__name__, **self.__dict__))   
+
+class Task:
+    def __init__(self, fn, args, kwargs, future=None):
+        if future is None:
+            self.future = WMFuture()
+        else:
+            self.future = future
+            
+        self.task_id = self.future.task_id
+
+        # Task data                    
+        self.fn = fn
+        self.args = args
+        self.kwargs = kwargs
+        
+    def __repr__(self):
+        return '<{} {task_id!s} {fn!r} {:d} args {:d} kwargs>'\
+               .format(len(self.args), len(self.kwargs), **self.__dict__)
+               
+    def __hash__(self):
+        return hash(self.task_id)
+
+class PassiveTimer:
+    __slots__ = {'started', 'duration'}
+    def __init__(self, duration):
+        self.started = time.time()
+        self.duration = duration
+        
+    @property
+    def expired(self, at=None):
+        at = at or time.time()
+        return (at - self.started) > self.duration
+    
+    def reset(self, at=None):
+        self.started = at or time.time()
+        
+    start = reset
+    
+class PassiveMultiTimer:
+    def __init__(self):
+        self._durations = numpy.empty((0,), float)
+        self._started = numpy.empty((0,), float)
+        self._identifiers = {}
+        
+    def add_timer(self, identifier, duration):
+        
+        if identifier in self._identifiers:
+            raise KeyError('timer {!r} already present'.format(identifier))
+        
+        new_idx = len(self._durations)
+        self._durations = self._durations.resize((new_idx+1,))
+        self._started = self._started.resize((new_idx+1,))
+        self._durations[new_idx] = duration
+        self._started[new_idx] = time.time()
+        
+        self._identifiers[identifier] = new_idx
+        
+        
+        if not self._identifiers:
+            # First timer
+            self._durations = numpy.empty((1,), float)
+            self._started = numpy.empty((1,), float)
+        else:
+            self._durations = numpy.append(self._durations, [duration])
+            self._started = numpy.append
+            numpy.resize
+        idx = 0
+        self._identifiers[idx]
+    
+        
 
 class ZMQCore:
     
@@ -131,6 +211,18 @@ class ZMQCore:
         
         # Identifier of the master node
         self.master_id = None
+        
+        # Beacons 
+        # Master drops workers that don't check in during the beacon
+        # period Workers exit if they haven't heard from master in the beacon
+        # period
+        self.worker_beacon_period = 5
+        self.master_beacon_period = 5
+        # These should allow for some fuzz, and should ratchet up as more and
+        # more workers become available (maybe order 1 s for 100 workers?) This
+        # should also account appropriately for startup delay on difficult
+        
+        
         
         # A friendlier description for logging
         self.node_description = '{!s} on {!s} at PID {:d}'.format(self.__class__.__name__,
@@ -219,7 +311,7 @@ class ZMQCore:
                                           master_id=original_message.master_id,
                                           worker_id=original_message.worker_id))
 
-    def shutdown_handler(self, signal=None):
+    def shutdown_handler(self, signal=None, frame=None):
         if signal is None:
             self.log.info('shutting down')
         else:
@@ -231,6 +323,6 @@ class ZMQCore:
             signals = {signal.SIGINT, signal.SIGQUIT, signal.SIGTERM}
         
         for sig in signals:
-            gevent.signal(sig, self.shutdown_handler, sig)
+            signal.signal(sig, self.shutdown_handler)
 
     

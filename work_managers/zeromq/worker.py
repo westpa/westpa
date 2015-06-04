@@ -9,8 +9,7 @@ log = logging.getLogger(__name__)
 
 from core import ZMQCore, Message, ZMQWMEnvironmentError
 
-import gevent
-import zmq.green as zmq
+import zmq
 
 class ZMQWorker(ZMQCore):
     '''This is the outward facing worker component of the ZMQ work manager. This
@@ -23,6 +22,7 @@ class ZMQWorker(ZMQCore):
         self.rr_endpoint = rr_endpoint
         self.ann_endpoint = ann_endpoint
         self.master_id = None
+        self.last_master_contact = None
                 
     def validate_message(self, message):
         '''Validate an incoming message'''
@@ -40,32 +40,7 @@ class ZMQWorker(ZMQCore):
         message.master_id = self.master_id
         message.worker_id = self.node_id
         super(ZMQWorker,self).send_message(socket, message)
-
-            
-    def announcement_handler(self):
-        while True:
-            message = self.recv_message(self.ann_socket)
-            self.log.info('received {!r}'.format(message))
-            if message.message == Message.SHUTDOWN:
-                self.log.info('shutting down')
-                return
-            elif message.message == Message.MASTER_BEACON:
-                pass
-                    
-    def taskreq_handler(self):
-        # First, identify server. Do nothing until we have.
-        self.send_message(self.rr_socket, Message.IDENTIFY, payload=self.get_identification())
-        initial_reply = self.recv_message(self.rr_socket)
-        if self.master_id is None:
-            self.master_id = initial_reply.master_id
-        self.log.debug('server identity: {!r}'.format(initial_reply.payload))
-        self.log.info('paired with master {!s}'.format(self.master_id))    
-        
-        for _n in xrange(5):
-            self.send_message(self.rr_socket, 'hello?')
-            self.log.info('reply: {!r}'.format(self.recv_message(self.rr_socket)))
-            gevent.sleep(2)
-        
+                            
     def comm_loop(self):
         '''Master communication loop for the worker process.'''
         
@@ -81,16 +56,37 @@ class ZMQWorker(ZMQCore):
             self.rr_socket.connect(self.rr_endpoint)
             self.ann_socket.connect(self.ann_endpoint)
             
-            # We exit upon receiving a shutdown announcement, so we join the greenlet that's
-            # listening for announcements, which exits when a shutdown message is received.
             self.ann_socket.setsockopt(zmq.SUBSCRIBE,'')
+ 
+            self.send_message(self.rr_socket, Message.IDENTIFY, payload=self.get_identification())
+            initial_reply = self.recv_message(self.rr_socket)
+            if self.master_id is None:
+                self.master_id = initial_reply.master_id
+            self.log.debug('server identity: {!r}'.format(initial_reply.payload))
+            self.log.info('paired with master {!s}'.format(self.master_id))
+  
             
-            task_greenlet = gevent.spawn(self.taskreq_handler)
-            ann_greenlet = gevent.spawn(self.announcement_handler)
-            ann_greenlet.join()
-            
+            while True:
+                message = self.recv_message(self.ann_socket)
+                self.log.info('received {!r}'.format(message))
+                if message.message == Message.TASKS_AVAILABLE:
+                    self.log.debug('tasks available')
+                elif message.message == Message.SHUTDOWN:
+                    self.log.info('shutting down')
+                    return
+                elif message.message == Message.MASTER_BEACON:
+                    pass
+                            
         finally:
             self.context.destroy(linger=1)
+
+class ZMQExecutor(ZMQCore):
+    '''The is the component of the ZMQ WM worker that actually executes tasks.
+    This is isolated in a separate process and controlled via ZMQ from 
+    the ZMQWorker.'''
+    
+    pass
+
             
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
