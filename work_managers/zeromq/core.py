@@ -141,17 +141,10 @@ class PassiveMultiTimer:
         
         self._identifiers[identifier] = new_idx
         
-        
-        if not self._identifiers:
-            # First timer
-            self._durations = numpy.empty((1,), float)
-            self._started = numpy.empty((1,), float)
-        else:
-            self._durations = numpy.append(self._durations, [duration])
-            self._started = numpy.append
-            numpy.resize
-        idx = 0
-        self._identifiers[idx]
+    def reset(self, identifier=None):
+        if identifier is None:
+            # reset all timers
+            self._started.fill(time.time())
     
         
 
