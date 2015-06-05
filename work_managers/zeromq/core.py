@@ -85,20 +85,36 @@ class Message:
         return ('<{!s} master_id={master_id!s} worker_id={worker_id!s} message={message!r} payload={payload!r}>'
                 .format(self.__class__.__name__, **self.__dict__))   
 
-class TaskUpstream:
-    def __init__(self, fn, args, kwargs, future=None):
-        if future is None:
-            self.future = WMFuture()
-        else:
-            self.future = future
-            
-        self.task_id = self.future.task_id
+# No need for this, since we can just put the futures in a dictionary indexed by task_id
 
-        # Task data                    
+# class TaskUpstream:
+#     def __init__(self, fn, args, kwargs, future=None):
+#         if future is None:
+#             self.future = WMFuture()
+#         else:
+#             self.future = future
+#             
+#         self.task_id = self.future.task_id
+# 
+#         # Task data                    
+#         self.fn = fn
+#         self.args = args
+#         self.kwargs = kwargs
+#         
+#     def __repr__(self):
+#         return '<{} {task_id!s} {fn!r} {:d} args {:d} kwargs>'\
+#                .format(len(self.args), len(self.kwargs), **self.__dict__)
+#                
+#     def __hash__(self):
+#         return hash(self.task_id)
+    
+class Task:
+    def __init__(self, fn, args, kwargs, task_id = None):
+        self.task_id = task_id or uuid.uuid4()
         self.fn = fn
         self.args = args
         self.kwargs = kwargs
-        
+                
     def __repr__(self):
         return '<{} {task_id!s} {fn!r} {:d} args {:d} kwargs>'\
                .format(len(self.args), len(self.kwargs), **self.__dict__)
@@ -106,21 +122,19 @@ class TaskUpstream:
     def __hash__(self):
         return hash(self.task_id)
     
-class TaskDownstream:
-    def __init__(self, task_id, fn, args, kwargs):
-        self.task_id = task_id                    
-        self.fn = fn
-        self.args = args
-        self.kwargs = kwargs
-        self.result = None
-        self.exception = None
+class Result:
+    def __init__(self, task_id, result=None, exception=None):
+        self.task_id = task_id
+        self.result = result
+        self.exception = exception
         
     def __repr__(self):
-        return '<{} {task_id!s} {fn!r} {:d} args {:d} kwargs>'\
-               .format(len(self.args), len(self.kwargs), **self.__dict__)
+        return '<{} {task_id!s}>'\
+               .format(**self.__dict__)
                
     def __hash__(self):
-        return hash(self.task_id)    
+        return hash(self.task_id)
+   
 
 class PassiveTimer:
     __slots__ = {'started', 'duration'}

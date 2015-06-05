@@ -20,16 +20,20 @@ from cPickle import HIGHEST_PROTOCOL
 
 class ZMQMaster(ZMQCore):
         
-    def __init__(self, rr_endpoint, ann_endpoint):
+    def __init__(self, upstream_task_endpoint, upstream_result_endpoint, upstream_ann_endpoint,
+                 downstream_rr_endpoint, downstream_ann_endpoint):
         super(ZMQMaster,self).__init__()
         
         # Our downstream connections
-        self.rr_endpoint = rr_endpoint
-        self.ann_endpoint = ann_endpoint
-        self.rr_socket = None
-        self.ann_socket = None
+        self.downstream_rr_endpoint = downstream_rr_endpoint
+        self.downstream_ann_endpoint = downstream_ann_endpoint
+        self.downstream_rr_socket = None
+        self.downstream_ann_socket = None
         
         # Our upstream connection
+        self.upstream_task_endpoint = upstream_task_endpoint
+        self.upstream_result_endpoint = upstream_result_endpoint
+        self.upstream_ann_endpoint = upstream_ann_endpoint
         
         # Tasks waiting for dispatch
         self.outgoing_tasks = deque()
@@ -92,12 +96,12 @@ class ZMQMaster(ZMQCore):
     
     def rr_handler(self):
         while True:
-            message = self.recv_message(self.rr_socket)
+            message = self.recv_message(self.downstream_rr_socket)
             
     
     def send_shutdown_message(self, signal=None):
         shutdown_msg = Message(Message.SHUTDOWN, payload=signal, master_id=self.node_id)
-        self.ann_socket.send_pyobj(shutdown_msg)
+        self.downstream_ann_socket.send_pyobj(shutdown_msg)
 
     #def shutdown_handler(self, signal=None, frame=None):
     #    self.send_shutdown_message(signal)
@@ -105,7 +109,7 @@ class ZMQMaster(ZMQCore):
         
     def beacon_handler(self):
         while True:
-            self.ann_socket.send_pyobj(Message(master_id=self.node_id, message=Message.MASTER_BEACON))
+            self.downstream_ann_socket.send_pyobj(Message(master_id=self.node_id, message=Message.MASTER_BEACON))
             if self.outgoing_tasks:
                 self.send_tasks_available()
             gevent.sleep(self.master_beacon_period)
@@ -124,8 +128,8 @@ class ZMQMaster(ZMQCore):
     def comm_loop(self):
         '''Master communication loop for the master process.'''
         
-        self.rr_socket = self.context.socket(zmq.REP)
-        self.ann_socket = self.context.socket(zmq.PUB)        
+        self.downstream_rr_socket = self.context.socket(zmq.REP)
+        self.downstream_ann_socket = self.context.socket(zmq.PUB)        
         inproc_socket = self.context.socket(zmq.SUB)
         
         self.log.info('This is {}'.format(self.node_description))
@@ -134,11 +138,11 @@ class ZMQMaster(ZMQCore):
             inproc_socket.bind(self.inproc_endpoint)
             inproc_socket.setsockopt(zmq.SUBSCRIBE,'')
 
-            self.rr_socket.bind(self.rr_endpoint)
-            self.ann_socket.bind(self.ann_endpoint)
+            self.downstream_rr_socket.bind(self.downstream_rr_endpoint)
+            self.downstream_ann_socket.bind(self.downstream_ann_endpoint)
             
             poller = zmq.Poller()
-            poller.register(self.rr_socket, zmq.POLLIN)
+            poller.register(self.downstream_rr_socket, zmq.POLLIN)
             poller.register(inproc_socket, zmq.POLLIN)
             while True:
                 if self.outgoing_tasks:
@@ -158,10 +162,10 @@ class ZMQMaster(ZMQCore):
                                 return
                 
                 # Read all available messages
-                if self.rr_socket in poll_results:
+                if self.downstream_rr_socket in poll_results:
                     while True:
                         try:
-                            msg = self.recv_message(self.rr_socket, zmq.NOBLOCK)
+                            msg = self.recv_message(self.downstream_rr_socket, zmq.NOBLOCK)
                         except zmq.Again:
                             # No more messages to process at this time
                             break
@@ -170,17 +174,17 @@ class ZMQMaster(ZMQCore):
                             self.log.info('received {!r}'.format(msg))
                             
                             if msg.message == Message.IDENTIFY:
-                                self.handle_identify(self.rr_socket, msg)
+                                self.handle_identify(self.downstream_rr_socket, msg)
                             elif msg.message == Message.TASK_REQUEST:
-                                self.handle_task_request(self.rr_socket, msg)
+                                self.handle_task_request(self.downstream_rr_socket, msg)
                             else:
-                                self.send_ack(self.rr_socket, msg)                
+                                self.send_ack(self.downstream_rr_socket, msg)                
         finally:
             self.send_shutdown_message()
             self.context.destroy(linger=1)
                         
     def send_tasks_available(self):
-        self.send_message(self.ann_socket,Message.TASKS_AVAILABLE)
+        self.send_message(self.downstream_ann_socket,Message.TASKS_AVAILABLE)
 
 #     def submit(self, fn, args=None, kwargs=None):
 #         return self.submit_many([(fn,
