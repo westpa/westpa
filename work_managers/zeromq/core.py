@@ -21,13 +21,13 @@ import logging
 log = logging.getLogger(__name__)
 
 #import gevent
-import sys, uuid, socket, os, tempfile, errno, time
-import contextlib
+import sys, uuid, socket, os,tempfile, errno, time, threading, contextlib
 
 import signal
 signames = {val:name for name, val in reversed(sorted(signal.__dict__.items()))
             if name.startswith('SIG') and not name.startswith('SIG_')}
 
+import zmq
 import numpy
 
 def randport(address='127.0.0.1'):
@@ -85,7 +85,7 @@ class Message:
         return ('<{!s} master_id={master_id!s} worker_id={worker_id!s} message={message!r} payload={payload!r}>'
                 .format(self.__class__.__name__, **self.__dict__))   
 
-class Task:
+class TaskUpstream:
     def __init__(self, fn, args, kwargs, future=None):
         if future is None:
             self.future = WMFuture()
@@ -105,6 +105,22 @@ class Task:
                
     def __hash__(self):
         return hash(self.task_id)
+    
+class TaskDownstream:
+    def __init__(self, task_id, fn, args, kwargs):
+        self.task_id = task_id                    
+        self.fn = fn
+        self.args = args
+        self.kwargs = kwargs
+        self.result = None
+        self.exception = None
+        
+    def __repr__(self):
+        return '<{} {task_id!s} {fn!r} {:d} args {:d} kwargs>'\
+               .format(len(self.args), len(self.kwargs), **self.__dict__)
+               
+    def __hash__(self):
+        return hash(self.task_id)    
 
 class PassiveTimer:
     __slots__ = {'started', 'duration'}
@@ -116,6 +132,11 @@ class PassiveTimer:
     def expired(self, at=None):
         at = at or time.time()
         return (at - self.started) > self.duration
+    
+    @property
+    def expires_in(self):
+        at = time.time()
+        return self.started + self.duration - at
     
     def reset(self, at=None):
         self.started = at or time.time()
@@ -141,10 +162,15 @@ class PassiveMultiTimer:
         
         self._identifiers[identifier] = new_idx
         
-    def reset(self, identifier=None):
+    def reset(self, identifier=None, at=None):
+        at = at or time.time()
         if identifier is None:
             # reset all timers
-            self._started.fill(time.time())
+            self._started.fill(at)
+        else:
+            self._started[identifier] = at
+            
+    
     
         
 
@@ -193,11 +219,6 @@ class ZMQCore:
     
     
     def __init__(self):
-        self.context = None
-        self.rr_endpoint = None
-        self.ann_endpoint = None
-        self.rr_socket = None
-        self.ann_socket = None
         
         # Unique identifier of this ZMQ node
         self.node_id = uuid.uuid4()
@@ -216,7 +237,6 @@ class ZMQCore:
         # should also account appropriately for startup delay on difficult
         
         
-        
         # A friendlier description for logging
         self.node_description = '{!s} on {!s} at PID {:d}'.format(self.__class__.__name__,
                                                                   socket.gethostname(),
@@ -225,6 +245,23 @@ class ZMQCore:
         self.validation_fail_action = 'exit' # other options are 'raise' and 'warn'
         
         self.log = logging.getLogger(__name__ + '.' + self.__class__.__name__ + '.' + str(self.node_id))
+        
+        # ZeroMQ context
+        self.context = None
+        
+        # External communication endpoints
+        self.rr_endpoint = None
+        self.ann_endpoint = None
+        
+        self.inproc_endpoint = 'inproc://{!s}'.format(self.node_id)
+        
+        # Sockets
+        self.rr_socket = None
+        self.ann_socket = None
+        
+        # This is the main-thread end of this
+        self._inproc_socket = None
+        
 
     def __repr__(self):
         return '<{!s} {!s}>'.format(self.__class__.__name__, self.node_id)
@@ -269,14 +306,15 @@ class ZMQCore:
             elif self.validation_fail_action == 'warn':
                 self.log.warn('message validation falied: {!s}'.format(e))
         
-    def recv_message(self, socket):
+    def recv_message(self, socket, flags=0, validate=True):
         '''Receive a message object from the given socket.'''
-        message = socket.recv_pyobj()
-        with self.message_validation(message):
-            self.validate_message(message)
+        message = socket.recv_pyobj(flags)
+        if validate:
+            with self.message_validation(message):
+                self.validate_message(message)
         return message
     
-    def send_message(self, socket, message, payload=None):
+    def send_message(self, socket, message, payload=None, flags=0):
         '''Send a message object. Subclasses may override this to
         decorate the message with appropriate IDs, then delegate upward to actually send
         the message. ``message`` may either be a pre-constructed ``Message`` object or 
@@ -284,9 +322,9 @@ class ZMQCore:
         ``payload`` is ignored if ``message`` is a ``Message`` object.'''
         
         message = Message(message, payload)
-        socket.send_pyobj(message)
+        socket.send_pyobj(message,flags)
         
-    def send_reply(self, socket, original_message, reply=Message.ACK, payload=None):
+    def send_reply(self, socket, original_message, reply=Message.ACK, payload=None,flags=0):
         '''Send a reply to ``original_message`` on ``socket``. The reply message
         is a Message object or a message identifier. The reply master_id and worker_id are
         set from ``original_message``, unless master_id is not set, in which case it is
@@ -309,7 +347,12 @@ class ZMQCore:
             self.log.info('shutting down')
         else:
             self.log.info('shutting down on signal {!s}'.format(signames.get(signal,signal)))
-        sys.exit()
+        try:
+            inproc_socket = self.context.socket(zmq.PUB)
+            inproc_socket.connect(self.inproc_endpoint)
+            self.send_message(inproc_socket, Message.SHUTDOWN, payload=signal)
+        finally:
+            sys.exit()
     
     def install_signal_handlers(self, signals = None):
         if not signals:
@@ -318,4 +361,18 @@ class ZMQCore:
         for sig in signals:
             signal.signal(sig, self.shutdown_handler)
 
-    
+    def startup(self):
+        self.context = zmq.Context()
+        self.comm_thread = threading.Thread(target=self.comm_loop)
+        self.comm_thread.start()
+        
+        self.install_signal_handlers()
+      
+    def shutdown(self):
+        self.shutdown_handler()
+        
+    def join(self):
+        while True:
+            self.comm_thread.join(0.1)
+            if not self.comm_thread.is_alive():
+                break

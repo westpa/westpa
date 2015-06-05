@@ -9,10 +9,12 @@ log = logging.getLogger(__name__)
 
 from core import ZMQCore, Message, Task, ZMQWMEnvironmentError, ZMQWorkerMissing
 
-import gevent
-from zmq import green as zmq
+#import gevent
+#from zmq import green as zmq
+import zmq
 import time
 from collections import deque
+import threading
 
 from cPickle import HIGHEST_PROTOCOL
 
@@ -20,8 +22,14 @@ class ZMQMaster(ZMQCore):
         
     def __init__(self, rr_endpoint, ann_endpoint):
         super(ZMQMaster,self).__init__()
+        
+        # Our downstream connections
         self.rr_endpoint = rr_endpoint
         self.ann_endpoint = ann_endpoint
+        self.rr_socket = None
+        self.ann_socket = None
+        
+        # Our upstream connection
         
         # Tasks waiting for dispatch
         self.outgoing_tasks = deque()
@@ -34,6 +42,8 @@ class ZMQMaster(ZMQCore):
         
         # We are the master, so master_id is node_id
         self.master_id = self.node_id
+        
+        self.comm_thread = None
         
     def validate_message(self, message):
         '''Validate an incoming message'''
@@ -83,24 +93,15 @@ class ZMQMaster(ZMQCore):
     def rr_handler(self):
         while True:
             message = self.recv_message(self.rr_socket)
-            self.update_worker_lastseen(message)
-            self.log.info('received {!r}'.format(message))
             
-            if message.message == Message.IDENTIFY:
-                self.handle_identify(self.rr_socket, message)
-            elif message.message == Message.TASK_REQUEST:
-                self.handle_task_request(self.rr_socket, message)
-            
-            else:
-                self.rr_socket.send_pyobj(Message(Message.ACK, master_id=self.node_id, worker_id=message.worker_id))
     
     def send_shutdown_message(self, signal=None):
         shutdown_msg = Message(Message.SHUTDOWN, payload=signal, master_id=self.node_id)
         self.ann_socket.send_pyobj(shutdown_msg)
 
-    def shutdown_handler(self, signal=None, frame=None):
-        self.send_shutdown_message(signal)
-        super(ZMQMaster,self).shutdown_handler(signal, frame)
+    #def shutdown_handler(self, signal=None, frame=None):
+    #    self.send_shutdown_message(signal)
+    #    super(ZMQMaster,self).shutdown_handler(signal, frame)
         
     def beacon_handler(self):
         while True:
@@ -123,47 +124,80 @@ class ZMQMaster(ZMQCore):
     def comm_loop(self):
         '''Master communication loop for the master process.'''
         
-        
-        self.context = zmq.Context()
         self.rr_socket = self.context.socket(zmq.REP)
-        self.ann_socket = self.context.socket(zmq.PUB)
-        
-        self.install_signal_handlers()
+        self.ann_socket = self.context.socket(zmq.PUB)        
+        inproc_socket = self.context.socket(zmq.SUB)
         
         self.log.info('This is {}'.format(self.node_description))
         
         try:
+            inproc_socket.bind(self.inproc_endpoint)
+            inproc_socket.setsockopt(zmq.SUBSCRIBE,'')
+
             self.rr_socket.bind(self.rr_endpoint)
             self.ann_socket.bind(self.ann_endpoint)
-            rr_greenlet = gevent.spawn(self.rr_handler)
-            beacon_greenlet = gevent.spawn(self.beacon_handler)
-            hangcheck_greenlet = gevent.spawn(self.worker_error_checker)
-            rr_greenlet.join()
+            
+            poller = zmq.Poller()
+            poller.register(self.rr_socket, zmq.POLLIN)
+            poller.register(inproc_socket, zmq.POLLIN)
+            while True:
+                if self.outgoing_tasks:
+                    self.send_tasks_available()
+                
+                poll_results = dict(poller.poll())
+                
+                # Check for internal messages first
+                if inproc_socket in poll_results:
+                    while True:
+                        try:
+                            msg = self.recv_message(inproc_socket,zmq.NOBLOCK,validate=False)
+                        except zmq.Again:
+                            break
+                        else:
+                            if msg.message == Message.SHUTDOWN:
+                                return
+                
+                # Read all available messages
+                if self.rr_socket in poll_results:
+                    while True:
+                        try:
+                            msg = self.recv_message(self.rr_socket, zmq.NOBLOCK)
+                        except zmq.Again:
+                            # No more messages to process at this time
+                            break
+                        else:
+                            self.update_worker_lastseen(msg)
+                            self.log.info('received {!r}'.format(msg))
+                            
+                            if msg.message == Message.IDENTIFY:
+                                self.handle_identify(self.rr_socket, msg)
+                            elif msg.message == Message.TASK_REQUEST:
+                                self.handle_task_request(self.rr_socket, msg)
+                            else:
+                                self.send_ack(self.rr_socket, msg)                
         finally:
             self.send_shutdown_message()
             self.context.destroy(linger=1)
-            
+                        
     def send_tasks_available(self):
         self.send_message(self.ann_socket,Message.TASKS_AVAILABLE)
 
-    def submit(self, fn, args=None, kwargs=None):
-        return self.submit_many([(fn,
-                                  args if args is not None else (),
-                                  kwargs if kwargs is not None else {})]
-                                )[0]
-    
-    def submit_many(self, tasks):
-        futures = []
-        outgoing_tasks = self.outgoing_tasks
-        
-        for (fn,args,kwargs) in tasks:
-            task = Task(fn, args, kwargs)
-            outgoing_tasks.append(task)
-            futures.append(task.future)
-            
-        self.send_tasks_available()
-        
-        return futures
+#     def submit(self, fn, args=None, kwargs=None):
+#         return self.submit_many([(fn,
+#                                   args if args is not None else (),
+#                                   kwargs if kwargs is not None else {})]
+#                                 )[0]
+#     
+#     def submit_many(self, tasks):
+#         futures = []
+#         outgoing_tasks = self.outgoing_tasks
+#         
+#         for (fn,args,kwargs) in tasks:
+#             task = Task(fn, args, kwargs)
+#             outgoing_tasks.append(task)
+#             futures.append(task.future)
+#                     
+#         return futures
             
         
 if __name__ == '__main__':
@@ -184,7 +218,11 @@ if __name__ == '__main__':
     try:    
         zm = ZMQMaster(rr_endpoint, ann_endpoint)
         zm.validation_fail_action = 'warn'
-        zm.comm_loop()
+        #zm.comm_loop()
+        #zm.install_signal_handlers()
+        zm.startup()
+        zm.submit(identity,(1,))
+        zm.join()
     finally:
         ZMQMaster.remove_ipc_endpoints()
     
