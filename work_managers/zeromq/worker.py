@@ -33,9 +33,9 @@ class ZMQWorker(ZMQCore):
         if self.master_id is not None and message.master_id != self.master_id:
             raise ZMQWMEnvironmentError('incoming message expected from master {!s} but obtained from {!s}'
                                         .format(self.master_id, message.master_id))
-        if message.worker_id is not None and message.worker_id != self.node_id:
-            raise ZMQWMEnvironmentError('incoming message destined for worker {!s} but this is worker {!s}'
-                                        .format(message.worker_id, self.node_id))                      
+        if message.dest_id is not None and message.dest_id != self.node_id:
+            raise ZMQWMEnvironmentError('incoming message destined for node {!s} but this is node {!s}'
+                                        .format(message.dest_id, self.node_id))                      
 
 
     def send_message(self, socket, message, payload=None, flags=0):

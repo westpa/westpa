@@ -6,8 +6,6 @@ Created on May 29, 2015
 
 from __future__ import division, print_function; __metaclass__ = type
 
-from work_managers import WMFuture
-
 # Every ten seconds the master requests a status report from workers.
 # This also notifies workers that the master is still alive
 DEFAULT_STATUS_POLL = 10 
@@ -21,7 +19,7 @@ import logging
 log = logging.getLogger(__name__)
 
 #import gevent
-import sys, uuid, socket, os,tempfile, errno, time, threading, contextlib
+import sys, uuid, socket, os,tempfile, errno, time, threading, contextlib, traceback
 
 import signal
 signames = {val:name for name, val in reversed(sorted(signal.__dict__.items()))
@@ -29,6 +27,8 @@ signames = {val:name for name, val in reversed(sorted(signal.__dict__.items()))
 
 import zmq
 import numpy
+
+DEFAULT_LINGER = 1
 
 def randport(address='127.0.0.1'):
     '''Select a random unused TCP port number on the given address.''' 
@@ -56,33 +56,40 @@ class ZMQWMTimeout(ZMQWMEnvironmentError):
     '''A timeout of a sort that indicatess that a master or worker has failed or never started.'''
 
 class Message:
+    SHUTDOWN = 'shutdown'
+    
     ACK = 'ok'
     IDENTIFY = 'identify'          # Two-way identification (a reply must be an IDENTIFY message)
-    TASK_REQUEST = 'task_request'
-    RESULT_RETURN = 'result'
-    SHUTDOWN = 'shutdown'
-    MASTER_BEACON = 'master_alive'
     TASKS_AVAILABLE = 'tasks_available'
+    TASK_REQUEST = 'task_request'
     
-    VALID_MESSAGES = {ACK, IDENTIFY, 
-                      TASKS_AVAILABLE, TASK_REQUEST, RESULT_RETURN,
-                      SHUTDOWN, MASTER_BEACON}
     
-    def __init__(self, message=None, payload=None, master_id=None, worker_id=None):
+    MASTER_BEACON = 'master_alive'    
+    
+    TASK = 'task'
+    RESULT = 'result'
+    
+    #VALID_MESSAGES = {ACK, IDENTIFY, 
+    #                  TASKS_AVAILABLE, TASK_REQUEST, RESULT,
+    #                  SHUTDOWN, MASTER_BEACON}
+    
+    def __init__(self, message=None, payload=None, master_id=None, src_id=None, dest_id=None):
         
         if isinstance(message,Message):
-            self.message   = message.message
-            self.payload   = message.payload
-            self.master_id = message.master_id
-            self.worker_id = message.worker_id
+            self.message    = message.message
+            self.payload    = message.payload
+            self.master_id  = message.master_id
+            self.src_id     = message.src_id
+            self.dest_id    = message.dest_id
         else:
-            self.master_id = master_id
-            self.worker_id = worker_id
+            self.master_id  = master_id
+            self.src_id     = src_id
+            self.dest_id    = dest_id
             self.message = message
             self.payload = payload
         
     def __repr__(self):
-        return ('<{!s} master_id={master_id!s} worker_id={worker_id!s} message={message!r} payload={payload!r}>'
+        return ('<{!s} master_id={master_id!s} src_id={src_id!s} dest_id={dest_id!s} message={message!r} payload={payload!r}>'
                 .format(self.__class__.__name__, **self.__dict__))   
 
 # No need for this, since we can just put the futures in a dictionary indexed by task_id
@@ -116,17 +123,33 @@ class Task:
         self.kwargs = kwargs
                 
     def __repr__(self):
-        return '<{} {task_id!s} {fn!r} {:d} args {:d} kwargs>'\
-               .format(len(self.args), len(self.kwargs), **self.__dict__)
+        try:
+            return '<{} {task_id!s} {fn!r} {:d} args {:d} kwargs>'\
+                   .format(self.__class__.__name__, len(self.args), len(self.kwargs), **self.__dict__)
+        except TypeError:
+            # no length
+            return '<{} {task_id!s} {fn!r}'.format(self.__class__.__name__, **self.__dict__)
                
     def __hash__(self):
         return hash(self.task_id)
     
+    def execute(self):
+        '''Run this task, returning a Result object.'''
+        rsl = Result(task_id = self.task_id)
+        try:
+            rsl.result = self.fn(*self.args, **self.kwargs)
+        except Exception as e:
+            rsl.exception = e
+            rsl.traceback = traceback.format_exc()
+        return rsl
+        
+    
 class Result:
-    def __init__(self, task_id, result=None, exception=None):
+    def __init__(self, task_id, result=None, exception=None, traceback=None):
         self.task_id = task_id
         self.result = result
         self.exception = exception
+        self.traceback = traceback
         
     def __repr__(self):
         return '<{} {task_id!s}>'\
@@ -237,8 +260,8 @@ class ZMQCore:
         # Unique identifier of this ZMQ node
         self.node_id = uuid.uuid4()
         
-        # Identifier of the master node
-        self.master_id = None
+        # Identifier of the task distribution network (work manager)
+        self.network_id = None
         
         # Beacons 
         # Master drops workers that don't check in during the beacon
@@ -276,6 +299,8 @@ class ZMQCore:
         # This is the main-thread end of this
         self._inproc_socket = None
         
+        self.master_id = None
+        
 
     def __repr__(self):
         return '<{!s} {!s}>'.format(self.__class__.__name__, self.node_id)
@@ -299,8 +324,12 @@ class ZMQCore:
             super_validator(message)
             
         if not isinstance(message, Message):    
-                raise TypeError('message is not an instance of core.Message')
-        
+            raise TypeError('message is not an instance of core.Message')
+        if message.src_id is None:
+            raise ZMQWMEnvironmentError('message src_id is not set')
+        if message.master_id not in (self.master_id, None):
+            raise ZMQWMEnvironmentError('incoming message destined for another master (this={!s}, incoming={!s}'.format(self.master_id, message.master_id))
+                
     @contextlib.contextmanager
     def message_validation(self, msg):
         '''A context manager for message validation. The instance variable ``validation_fail_action``
@@ -328,6 +357,14 @@ class ZMQCore:
                 self.validate_message(message)
         return message
     
+    def recv_all(self, socket, flags=0, validate=True):
+        messages = []
+        while True:
+            try:
+                messages.append(self.recv_message(socket, flags | zmq.NOBLOCK, validate))
+            except zmq.Again:
+                return messages
+    
     def send_message(self, socket, message, payload=None, flags=0):
         '''Send a message object. Subclasses may override this to
         decorate the message with appropriate IDs, then delegate upward to actually send
@@ -335,7 +372,9 @@ class ZMQCore:
         a message identifier, in which (latter) case ``payload`` will become the message payload.
         ``payload`` is ignored if ``message`` is a ``Message`` object.'''
         
-        message = Message(message, payload)
+        message = Message(message, payload,src_id=self.node_id)
+        if message.master_id is None:
+            message.master_id = self.master_id
         socket.send_pyobj(message,flags)
         
     def send_reply(self, socket, original_message, reply=Message.ACK, payload=None,flags=0):
@@ -356,17 +395,21 @@ class ZMQCore:
                                           master_id=original_message.master_id,
                                           worker_id=original_message.worker_id))
 
+    def signal_shutdown(self):
+        try:
+            inproc_socket = self.context.socket(zmq.PUB)
+            inproc_socket.connect(self.inproc_endpoint)
+            self.send_message(inproc_socket, Message.SHUTDOWN)
+        except Exception as e:
+            self.log.debug('ignoring exception {!r} in signal_shutdown()'.format(e))
+
     def shutdown_handler(self, signal=None, frame=None):
         if signal is None:
             self.log.info('shutting down')
         else:
             self.log.info('shutting down on signal {!s}'.format(signames.get(signal,signal)))
-        try:
-            inproc_socket = self.context.socket(zmq.PUB)
-            inproc_socket.connect(self.inproc_endpoint)
-            self.send_message(inproc_socket, Message.SHUTDOWN, payload=signal)
-        finally:
-            sys.exit()
+        self.signal_shutdown()
+        sys.exit()
     
     def install_signal_handlers(self, signals = None):
         if not signals:

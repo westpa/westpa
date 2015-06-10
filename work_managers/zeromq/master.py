@@ -14,9 +14,6 @@ from core import ZMQCore, Message, Task, ZMQWMEnvironmentError, ZMQWorkerMissing
 import zmq
 import time
 from collections import deque
-import threading
-
-from cPickle import HIGHEST_PROTOCOL
 
 class ZMQMaster(ZMQCore):
         
@@ -25,12 +22,19 @@ class ZMQMaster(ZMQCore):
         super(ZMQMaster,self).__init__()
         
         # Our downstream connections
+        # We use request/reply for two reasons:
+        #   1.  we can use the same socket to distribute both tasks and results
+        #       (with push/pull we'd need one for each direction); this gives us
+        #       more nodes before we have to coalesce communications
+        #   2.  we anticipate active load-balancing, which requires req/rep to overcome
+        #       the default load balancing of push/pull
         self.downstream_rr_endpoint = downstream_rr_endpoint
         self.downstream_ann_endpoint = downstream_ann_endpoint
         self.downstream_rr_socket = None
         self.downstream_ann_socket = None
         
         # Our upstream connection
+        # The work manager streams tasks to us with PUSH and retrieves results with PULL
         self.upstream_task_endpoint = upstream_task_endpoint
         self.upstream_result_endpoint = upstream_result_endpoint
         self.upstream_ann_endpoint = upstream_ann_endpoint
@@ -48,19 +52,11 @@ class ZMQMaster(ZMQCore):
         self.master_id = self.node_id
         
         self.comm_thread = None
-        
-    def validate_message(self, message):
-        '''Validate an incoming message'''
-        super(ZMQMaster,self).validate_message(message)
-        if message.master_id not in (self.node_id, None):
-            raise ZMQWMEnvironmentError('incoming message destined for another master (this={!s}, incoming={!s}'.format(self.node_id, message.master_id))
-        elif message.worker_id is None:
-            raise ZMQWMEnvironmentError('incoming message has blank worker ID')
-        
-    def send_message(self, socket, message, payload=None):
+                
+    def send_message(self, socket, message, payload=None, flags=0):
         message = Message(message, payload)
         message.master_id = self.node_id
-        super(ZMQMaster,self).send_message(socket, message)
+        super(ZMQMaster,self).send_message(socket, message, payload, flags)
     
     def update_worker_lastseen(self, msg, seen_at=None):
         worker_record = self.worker_info.setdefault(msg.worker_id, {})
@@ -94,91 +90,84 @@ class ZMQMaster(ZMQCore):
         self.send_reply(socket, msg, Message.IDENTIFY, payload=self.get_identification())
     
     
-    def rr_handler(self):
-        while True:
-            message = self.recv_message(self.downstream_rr_socket)
-            
-    
     def send_shutdown_message(self, signal=None):
         shutdown_msg = Message(Message.SHUTDOWN, payload=signal, master_id=self.node_id)
-        self.downstream_ann_socket.send_pyobj(shutdown_msg)
-
-    #def shutdown_handler(self, signal=None, frame=None):
-    #    self.send_shutdown_message(signal)
-    #    super(ZMQMaster,self).shutdown_handler(signal, frame)
         
-    def beacon_handler(self):
-        while True:
-            self.downstream_ann_socket.send_pyobj(Message(master_id=self.node_id, message=Message.MASTER_BEACON))
-            if self.outgoing_tasks:
-                self.send_tasks_available()
-            gevent.sleep(self.master_beacon_period)
-            
-    def worker_error_checker(self):
-        while True:
-            # This loops no *more often* than once every ``worker_beacon_period`` seconds
-            gevent.sleep(self.worker_beacon_period)
-            
-            now = time.time()
-            for worker_id, worker_info in self.worker_info.items():
-                if now - worker_info.get('last_seen', now) > self.worker_beacon_period:
-                    self.log.warning('worker {} is not responding'.format(worker_id))
-                    self.drop_worker(worker_id)
+        # downstream_ann_socket can be None if we are in unit tests
+        if self.downstream_ann_socket is not None:
+            self.downstream_ann_socket.send_pyobj(shutdown_msg)
+        
                 
     def comm_loop(self):
         '''Master communication loop for the master process.'''
-        
-        self.downstream_rr_socket = self.context.socket(zmq.REP)
-        self.downstream_ann_socket = self.context.socket(zmq.PUB)        
-        inproc_socket = self.context.socket(zmq.SUB)
-        
+                
         self.log.info('This is {}'.format(self.node_description))
         
         try:
-            inproc_socket.bind(self.inproc_endpoint)
-            inproc_socket.setsockopt(zmq.SUBSCRIBE,'')
-
+            self.downstream_rr_socket = self.context.socket(zmq.REP)
             self.downstream_rr_socket.bind(self.downstream_rr_endpoint)
+            
+            self.downstream_ann_socket = self.context.socket(zmq.PUB)
             self.downstream_ann_socket.bind(self.downstream_ann_endpoint)
             
+            self.upstream_ann_socket = self.context.socket(zmq.SUB)
+            self.upstream_ann_socket.setsockopt(zmq.SUBSCRIBE, '')
+            self.upstream_ann_socket.connect(self.upstream_ann_endpoint)
+            
+            self.upstream_task_socket = self.context.socket(zmq.PULL)
+            self.upstream_task_socket.connect(self.upstream_task_endpoint)
+            
+            self.upstream_result_socket = self.context.socket(zmq.PUSH)
+            self.upstream_result_socket.connect(self.upstream_result_endpoint)
+            
+            inproc_socket = self.context.socket(zmq.SUB)
+            inproc_socket.setsockopt(zmq.SUBSCRIBE,'')
+            inproc_socket.bind(self.inproc_endpoint)
+            
             poller = zmq.Poller()
-            poller.register(self.downstream_rr_socket, zmq.POLLIN)
             poller.register(inproc_socket, zmq.POLLIN)
-            while True:
-                if self.outgoing_tasks:
-                    self.send_tasks_available()
-                
+            poller.register(self.upstream_ann_socket, zmq.POLLIN)
+            poller.register(self.downstream_rr_socket, zmq.POLLIN)
+            poller.register(self.upstream_task_socket, zmq.POLLIN)
+            
+            
+            # The communication loop goes a little like this:
+            #  1. Check to see if we need to shut down.
+            #  2. Accept task requests from upstream and enqueue
+            #  3. Respond to worker requests in order.
+            #  4. Check timeouts, send heartbeats/tasks avail/etc.
+            
+            while True:                
                 poll_results = dict(poller.poll())
+                #log.debug('poll results: {!r}'.format(poll_results))
                 
-                # Check for internal messages first
+                # Check to see if we need to shut down
                 if inproc_socket in poll_results:
-                    while True:
-                        try:
-                            msg = self.recv_message(inproc_socket,zmq.NOBLOCK,validate=False)
-                        except zmq.Again:
-                            break
-                        else:
-                            if msg.message == Message.SHUTDOWN:
-                                return
+                    msgs = self.recv_all(inproc_socket,validate=False)
+                    if Message.SHUTDOWN in (msg.message for msg in msgs):
+                        return
                 
-                # Read all available messages
-                if self.downstream_rr_socket in poll_results:
-                    while True:
-                        try:
-                            msg = self.recv_message(self.downstream_rr_socket, zmq.NOBLOCK)
-                        except zmq.Again:
-                            # No more messages to process at this time
-                            break
-                        else:
-                            self.update_worker_lastseen(msg)
-                            self.log.info('received {!r}'.format(msg))
+                if self.upstream_ann_socket in poll_results:
+                    msgs = self.recv_all(self.upstream_ann_socket,validate=False)
+                    if Message.SHUTDOWN in (msg.message for msg in msgs):
+                        return
                             
-                            if msg.message == Message.IDENTIFY:
-                                self.handle_identify(self.downstream_rr_socket, msg)
-                            elif msg.message == Message.TASK_REQUEST:
-                                self.handle_task_request(self.downstream_rr_socket, msg)
-                            else:
-                                self.send_ack(self.downstream_rr_socket, msg)                
+                if self.upstream_task_socket in poll_results:
+                    msgs = self.recv_all(self.upstream_task_socket)
+                    for msg in msgs:
+                        log.debug('received {!r}'.format(msg))
+                        
+                if self.downstream_rr_socket in poll_results:
+                    msgs = self.recv_all(self.downstream_rr_socket)
+                    for msg in msgs:
+                        log.debug('received {!r}'.format(msg))
+                        if msg.message == Message.IDENTIFY:
+                            self.handle_identify(self.downstream_rr_socket, msg)
+                        elif msg.message == Message.TASK_REQUEST:
+                            self.handle_task_request(self.downstream_rr_socket, msg)
+                        else:
+                            self.send_ack(self.downstream_rr_socket, msg)
+
         finally:
             self.send_shutdown_message()
             self.context.destroy(linger=1)
