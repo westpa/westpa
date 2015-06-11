@@ -19,6 +19,9 @@ TEARDOWN_WAIT = 0.010
 # How long to wait to let shutdown signals sort themselves out
 SHUTDOWN_WAIT = 1
 
+BEACON_PERIOD = 0.05
+BEACON_WAIT = BEACON_PERIOD * 10
+
 def sockdelay():
     '''Delay for slightly longer than the default auto-reconnect time for ZeroMQ (100 ms)'''
     time.sleep(0.2)

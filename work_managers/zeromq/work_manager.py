@@ -11,49 +11,52 @@ from core import ZMQCore, Message, Task, Result, ZMQWMEnvironmentError, ZMQWorke
 from master import ZMQMaster
 from work_managers import WorkManager, WMFuture
 
+from core import PassiveMultiTimer
 
 import zmq
+
+from collections import deque
 
 class ZMQWorkManager(ZMQCore,WorkManager):
     def __init__(self, n_workers=1):
         ZMQCore.__init__(self)
         WorkManager.__init__(self)
-
         
-        # ID of ZMQMaster (usually running in separate thread/process)
-        self.master_id = None
+        # Endpoints for announcements and request/replies
+        # We can use IPC for node-local workers and TCP for remote
+        # at the same time
+        self.ann_endpoints = []
+        self.rr_endpoints = []
         
-        # Endpoints that the work manager uses to communicate with the master
-        self.wm_task_endpoint = self.make_internal_endpoint()
-        self.wm_result_endpoint = self.make_internal_endpoint()
-        self.wm_ann_endpoint = self.make_internal_endpoint()
-        
-        # ZMQMaster instance
-        # Currently, this is always internal to the work manager
-        # In theory, it can be run in a separate process
-        self.master = ZMQMaster(self.wm_task_endpoint, self.wm_result_endpoint, self.wm_ann_endpoint)                 
-        
-        
+        # Node-local workers (one thread/process each)
+        self.local_workers = []
+                
         # Futures indexed by task ID
         self.futures = dict()
+        
+        # Tasks pending distribution
+        self.outgoing_tasks = deque()
+        
+        # Tasks being processed by workers (indexed by worker_id)
+        self.assigned_tasks = dict()        
+        
+        # How may seconds between task available announcements
+        self.task_beacon_period = 1.0
+        
+        # Number of seconds between checks to see which workers have timed out
+        self.worker_timeout_check = 5.0
+        
+        self.master_id = self.node_id
         
     def submit(self, fn, args=None, kwargs=None):
         future = WMFuture()
         task = Task(fn, args or (), kwargs or {}, task_id = future.task_id)
         self.futures[task.task_id] = future
-        task_socket = self.context.socket(zmq.PUSH)
-        task_socket.connect(self.wm_task_endpoint)
-        self.send_message(task_socket, Message.TASK, payload=task)
-        task_socket.close(linger=1)
+        self.outgoing_tasks.append(task)
+        self.send_inproc_message(Message.TASKS_AVAILABLE)
         return future
 
     def submit_many(self, tasks):
-        '''Submit a set of tasks to the work manager, returning a list of `WMFuture` objects representing
-        pending results. Each entry in ``tasks`` should be a triple (fn, args, kwargs), which will result in
-        fn(*args, **kwargs) being executed by a worker. The function ``fn`` and all arguments must be
-        picklable; note particularly that off-path modules are not picklable unless pre-loaded in the worker
-        process.'''
-
         futures = []
         task_socket = self.context.socket(zmq.PUSH)
         task_socket.connect(self.wm_task_endpoint)
@@ -62,12 +65,17 @@ class ZMQWorkManager(ZMQCore,WorkManager):
             future = WMFuture()
             task = Task(fn, args, kwargs, task_id = future.task_id)
             self.futures[task.task_id] = future
-            futures.append(future)
-            self.send_message(task_socket, Message.TASK, payload=task)
-        task_socket.close(linger=1)            
+            self.outgoing_tasks.append(task)
+            futures.append(future) 
+        self.send_inproc_message(Message.TASKS_AVAILABLE)       
         return futures
 
-    def handle_result_message(self, msg):
+    def send_message(self, socket, message, payload=None, flags=0):
+        message = Message(message, payload)
+        message.master_id = self.node_id
+        super(ZMQWorkManager,self).send_message(socket, message, payload, flags)
+        
+    def handle_result(self, socket, msg):
         with self.message_validation(msg):
             assert msg.message == Message.RESULT
             assert isinstance(msg.payload, Result)
@@ -80,15 +88,32 @@ class ZMQWorkManager(ZMQCore,WorkManager):
             future._set_exception(result.exception, result.traceback)
         else:
             future._set_result(result.result)
+            
+        self.send_ack(socket,msg)
+        
+    def handle_task_request(self, socket, msg):
+        if not self.outgoing_tasks:
+            # No tasks available
+            self.send_nak(socket,msg)
+        else:
+            task = self.outgoing_tasks.popleft()
+            
+            worker_id = msg.src_id
+            self.assigned_tasks[worker_id] = task
+            
+            self.send_message(socket, Message.TASK, task)
     
     def comm_loop(self):
         self.context = zmq.Context()
         
-        result_socket = self.context.socket(zmq.PULL)
+        rr_socket = self.context.socket(zmq.REP)
         ann_socket = self.context.socket(zmq.PUB)
         
-        result_socket.bind(self.wm_result_endpoint)
-        ann_socket.bind(self.wm_ann_endpoint)
+        for endpoint in self.rr_endpoints:
+            rr_socket.bind(endpoint)
+            
+        for endpoint in self.ann_endpoints:
+            ann_socket.bind(endpoint)
 
         inproc_socket = self.context.socket(zmq.SUB)
         inproc_socket.setsockopt(zmq.SUBSCRIBE,'')
@@ -96,24 +121,45 @@ class ZMQWorkManager(ZMQCore,WorkManager):
         
         poller = zmq.Poller()
         poller.register(inproc_socket, zmq.POLLIN)
-        poller.register(result_socket, zmq.POLLIN)
+        poller.register(rr_socket, zmq.POLLIN)
+        
+        timers = PassiveMultiTimer()
+        timers.add_timer('tasks_avail', self.task_beacon_period)
+        timers.add_timer('master_beacon', self.master_beacon_period)
+        timers.reset()
         
         try:
             while True:
-                poll_results = dict(poller.poll())
+                poll_results = dict(poller.poll(timers.next_expiration_in()*1000))
                 
-                # Check for shutdown
                 if inproc_socket in poll_results:
                     msgs = self.recv_all(inproc_socket,validate=False)
+                    # Check for shutdown; do nothing else if shutdown is signalled
                     if Message.SHUTDOWN in (msg.message for msg in msgs):
                         return
+                    # Check for any other wake-up messages
+                    for msg in msgs:
+                        if msg.message == Message.TASKS_AVAILABLE:
+                            pass
                 
-                # Process results
-                if result_socket in poll_results:
-                    for msg in self.recv_all(result_socket):
-                        self.handle_result_message(msg)
+                if rr_socket in poll_results:
+                    msg = self.recv_message(rr_socket)
                     
-            
+                    if msg.message == Message.TASK_REQUEST:
+                        self.handle_task_request(rr_socket, msg)
+                    elif msg.message == Message.RESULT:
+                        self.handle_result(rr_socket, msg)
+                    else:
+                        self.send_ack(rr_socket, msg)
+                
+                if timers.expired('tasks_avail'):
+                    self.send_message(ann_socket, Message.TASKS_AVAILABLE)
+                    timers.reset('tasks_avail')
+                if timers.expired('master_beacon'):
+                    self.send_message(ann_socket, Message.MASTER_BEACON)
+                    timers.reset('master_beacon')
+                
+                
         finally:
             self.send_message(ann_socket, Message.SHUTDOWN)
             self.context.destroy(linger=1)

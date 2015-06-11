@@ -59,6 +59,7 @@ class Message:
     SHUTDOWN = 'shutdown'
     
     ACK = 'ok'
+    NAK = 'no'
     IDENTIFY = 'identify'          # Two-way identification (a reply must be an IDENTIFY message)
     TASKS_AVAILABLE = 'tasks_available'
     TASK_REQUEST = 'task_request'
@@ -73,23 +74,21 @@ class Message:
     #                  TASKS_AVAILABLE, TASK_REQUEST, RESULT,
     #                  SHUTDOWN, MASTER_BEACON}
     
-    def __init__(self, message=None, payload=None, master_id=None, src_id=None, dest_id=None):
+    def __init__(self, message=None, payload=None, master_id=None, src_id=None):
         
         if isinstance(message,Message):
             self.message    = message.message
             self.payload    = message.payload
             self.master_id  = message.master_id
             self.src_id     = message.src_id
-            self.dest_id    = message.dest_id
         else:
             self.master_id  = master_id
             self.src_id     = src_id
-            self.dest_id    = dest_id
             self.message = message
             self.payload = payload
         
     def __repr__(self):
-        return ('<{!s} master_id={master_id!s} src_id={src_id!s} dest_id={dest_id!s} message={message!r} payload={payload!r}>'
+        return ('<{!s} master_id={master_id!s} src_id={src_id!s} message={message!r} payload={payload!r}>'
                 .format(self.__class__.__name__, **self.__dict__))   
 
 # No need for this, since we can just put the futures in a dictionary indexed by task_id
@@ -161,8 +160,10 @@ class Result:
 
 class PassiveTimer:
     __slots__ = {'started', 'duration'}
-    def __init__(self, duration):
-        self.started = time.time()
+    def __init__(self, duration, started=None):
+        if started is None:
+            started = time.time()
+        self.started = started
         self.duration = duration
         
     @property
@@ -182,22 +183,24 @@ class PassiveTimer:
     
 class PassiveMultiTimer:
     def __init__(self):
+        self._identifiers = numpy.empty((0,), numpy.object_)
         self._durations = numpy.empty((0,), float)
         self._started = numpy.empty((0,), float)
-        self._identifiers = {}
+        self._indices = {} # indexes into durations/started, keyed by identifier
         
     def add_timer(self, identifier, duration):
         
         if identifier in self._identifiers:
             raise KeyError('timer {!r} already present'.format(identifier))
         
-        new_idx = len(self._durations)
-        self._durations = self._durations.resize((new_idx+1,))
-        self._started = self._started.resize((new_idx+1,))
+        new_idx = len(self._identifiers)
+        self._durations.resize((new_idx+1,))
+        self._started.resize((new_idx+1,))
+        self._identifiers.resize((new_idx+1,))
         self._durations[new_idx] = duration
         self._started[new_idx] = time.time()
-        
-        self._identifiers[identifier] = new_idx
+        self._identifiers[new_idx] = identifier
+        self._indices[identifier] = new_idx
         
     def reset(self, identifier=None, at=None):
         at = at or time.time()
@@ -205,7 +208,23 @@ class PassiveMultiTimer:
             # reset all timers
             self._started.fill(at)
         else:
-            self._started[identifier] = at
+            self._started[self._indices[identifier]] = at
+    
+    def expired(self, identifier, at = None):
+        at = at or time.time()
+        idx = self._indices[identifier]
+        return (at - self._started[idx]) > self._durations[idx]
+    
+    def next_expiration(self):
+        at = time.time()
+        idx = (self._started + self._durations - at).argmin()
+        return self._identifiers[idx]
+    
+    def next_expiration_in(self):
+        at = time.time()
+        idx = (self._started + self._durations - at).argmin()
+        return self._started[idx] + self._durations[idx] - at
+        
             
     
     
@@ -388,9 +407,10 @@ class ZMQCore:
         a message identifier, in which (latter) case ``payload`` will become the message payload.
         ``payload`` is ignored if ``message`` is a ``Message`` object.'''
         
-        message = Message(message, payload,src_id=self.node_id)
+        message = Message(message, payload)
         if message.master_id is None:
             message.master_id = self.master_id
+        message.src_id=self.node_id
         socket.send_pyobj(message,flags)
         
     def send_reply(self, socket, original_message, reply=Message.ACK, payload=None,flags=0):
@@ -408,14 +428,24 @@ class ZMQCore:
         '''Send an acknowledgement message, which is mostly just to respect REQ/REP
         recv/send patterns.'''
         self.send_message(socket, Message(Message.ACK,
-                                          master_id=original_message.master_id,
-                                          worker_id=original_message.worker_id))
+                                          master_id=original_message.master_id or self.master_id,
+                                          src_id=self.node_id))
+        
+    def send_nak(self, socket, original_message):
+        '''Send a negative acknowledgement message.'''
+        self.send_message(socket, Message(Message.NAK,
+                                          master_id=original_message.master_id or self.master_id,
+                                          src_id=self.node_id))
+
+    def send_inproc_message(self, message, payload=None, flags=0):
+        inproc_socket = self.context.socket(zmq.PUB)
+        inproc_socket.connect(self.inproc_endpoint)
+        self.send_message(inproc_socket, message, payload, flags)
+        inproc_socket.close(linger=1)
 
     def signal_shutdown(self):
         try:
-            inproc_socket = self.context.socket(zmq.PUB)
-            inproc_socket.connect(self.inproc_endpoint)
-            self.send_message(inproc_socket, Message.SHUTDOWN)
+            self.send_inproc_message(Message.SHUTDOWN)
         except Exception as e:
             self.log.debug('ignoring exception {!r} in signal_shutdown()'.format(e))
 
