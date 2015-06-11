@@ -17,8 +17,7 @@ from collections import deque
 
 class ZMQMaster(ZMQCore):
         
-    def __init__(self, upstream_task_endpoint, upstream_result_endpoint, upstream_ann_endpoint,
-                 downstream_rr_endpoint, downstream_ann_endpoint):
+    def __init__(self, upstream_task_endpoint, upstream_result_endpoint, upstream_ann_endpoint):
         super(ZMQMaster,self).__init__()
         
         # Our downstream connections
@@ -28,8 +27,8 @@ class ZMQMaster(ZMQCore):
         #       more nodes before we have to coalesce communications
         #   2.  we anticipate active load-balancing, which requires req/rep to overcome
         #       the default load balancing of push/pull
-        self.downstream_rr_endpoint = downstream_rr_endpoint
-        self.downstream_ann_endpoint = downstream_ann_endpoint
+        self.downstream_rr_endpoints = []
+        self.downstream_ann_endpoints = []
         self.downstream_rr_socket = None
         self.downstream_ann_socket = None
         
@@ -105,17 +104,19 @@ class ZMQMaster(ZMQCore):
         
         try:
             self.downstream_rr_socket = self.context.socket(zmq.REP)
-            self.downstream_rr_socket.bind(self.downstream_rr_endpoint)
+            for endpoint in self.downstream_rr_endpoints:
+                self.downstream_rr_socket.bind(endpoint)
             
             self.downstream_ann_socket = self.context.socket(zmq.PUB)
-            self.downstream_ann_socket.bind(self.downstream_ann_endpoint)
+            for endpoint in self.downstream_ann_endpoints:
+                self.downstream_ann_socket.bind(endpoint)
             
             self.upstream_ann_socket = self.context.socket(zmq.SUB)
             self.upstream_ann_socket.setsockopt(zmq.SUBSCRIBE, '')
             self.upstream_ann_socket.connect(self.upstream_ann_endpoint)
             
             self.upstream_task_socket = self.context.socket(zmq.PULL)
-            self.upstream_task_socket.connect(self.upstream_task_endpoint)
+            self.upstream_task_socket.bind(self.upstream_task_endpoint)
             
             self.upstream_result_socket = self.context.socket(zmq.PUSH)
             self.upstream_result_socket.connect(self.upstream_result_endpoint)
@@ -174,23 +175,6 @@ class ZMQMaster(ZMQCore):
                         
     def send_tasks_available(self):
         self.send_message(self.downstream_ann_socket,Message.TASKS_AVAILABLE)
-
-#     def submit(self, fn, args=None, kwargs=None):
-#         return self.submit_many([(fn,
-#                                   args if args is not None else (),
-#                                   kwargs if kwargs is not None else {})]
-#                                 )[0]
-#     
-#     def submit_many(self, tasks):
-#         futures = []
-#         outgoing_tasks = self.outgoing_tasks
-#         
-#         for (fn,args,kwargs) in tasks:
-#             task = Task(fn, args, kwargs)
-#             outgoing_tasks.append(task)
-#             futures.append(task.future)
-#                     
-#         return futures
             
         
 if __name__ == '__main__':

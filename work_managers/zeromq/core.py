@@ -19,7 +19,7 @@ import logging
 log = logging.getLogger(__name__)
 
 #import gevent
-import sys, uuid, socket, os,tempfile, errno, time, threading, contextlib, traceback
+import sys, uuid, socket, os,tempfile, errno, time, threading, contextlib, traceback, atexit
 
 import signal
 signames = {val:name for name, val in reversed(sorted(signal.__dict__.items()))
@@ -230,6 +230,11 @@ class ZMQCore:
     
     PROTOCOL_VERSION = (PROTOCOL_MAJOR, PROTOCOL_MINOR, PROTOCOL_UPDATE)
     
+    # The default transport for "internal" (inter-thread/-process) communication
+    # IPC should work except on really odd systems with no local storage
+    internal_transport = 'ipc'
+    
+    
     _ipc_endpoints_to_delete = []
     
     @classmethod    
@@ -253,7 +258,18 @@ class ZMQCore:
                     log.debug('could not unlink IPC endpoint {!r}: {}'.format(socket_path, e))
             else:
                 log.debug('unlinked IPC endpoint {!r}'.format(socket_path))
+                
+    @classmethod
+    def make_tcp_endpoint(cls, address='127.0.0.1'):
+        return 'tcp://{}:{}'.format(address,randport(address))
     
+    @classmethod
+    def make_internal_endpoint(cls):
+        assert cls.internal_transport in {'ipc', 'tcp'}
+        if cls.internal_transport == 'ipc':
+            return cls.make_ipc_endpoint()
+        else: # cls.internal_transport == 'tcp'
+            return cls.make_tcp_endpoint()
     
     def __init__(self):
         
@@ -409,7 +425,7 @@ class ZMQCore:
         else:
             self.log.info('shutting down on signal {!s}'.format(signames.get(signal,signal)))
         self.signal_shutdown()
-        sys.exit()
+        #sys.exit()
     
     def install_signal_handlers(self, signals = None):
         if not signals:
@@ -423,7 +439,7 @@ class ZMQCore:
         self.comm_thread = threading.Thread(target=self.comm_loop)
         self.comm_thread.start()
         
-        self.install_signal_handlers()
+        #self.install_signal_handlers()
       
     def shutdown(self):
         self.shutdown_handler()
@@ -433,3 +449,6 @@ class ZMQCore:
             self.comm_thread.join(0.1)
             if not self.comm_thread.is_alive():
                 break
+
+
+atexit.register(ZMQCore.remove_ipc_endpoints)

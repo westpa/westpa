@@ -21,8 +21,9 @@ class TestZMQMaster(ZMQTestBase):
         self.downstream_ann_endpoint = self.make_endpoint()
         self.downstream_rr_endpoint = self.make_endpoint()
         
-        self.test_master = ZMQMaster(self.upstream_task_endpoint, self.upstream_result_endpoint, self.upstream_ann_endpoint,
-                                     self.downstream_rr_endpoint, self.downstream_ann_endpoint)
+        self.test_master = ZMQMaster(self.upstream_task_endpoint, self.upstream_result_endpoint, self.upstream_ann_endpoint)
+        self.test_master.downstream_ann_endpoints.append(self.downstream_ann_endpoint)
+        self.test_master.downstream_rr_endpoints.append(self.downstream_rr_endpoint)
         self.test_master.startup()
         
         time.sleep(SETUP_WAIT)

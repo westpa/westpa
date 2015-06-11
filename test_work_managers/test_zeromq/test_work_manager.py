@@ -23,16 +23,14 @@ from . import SETUP_WAIT, TEARDOWN_WAIT, SHUTDOWN_WAIT
 from . import ZMQTestBase
 
     
-class TestZMQWorkManager(ZMQTestBase):
+class TestZMQWorkManagerCore(ZMQTestBase):
+    '''Tests for the core task dispersal/retrieval and shutdown operations
+    (the parts of the WM that do not require ZMQMaster/ZMQWorker).'''
     def setUp(self):
-        super(TestZMQWorkManager,self).setUp()
-        
-        self.ann_endpoint = self.make_endpoint()
-        self.task_endpoint = self.make_endpoint()
-        self.result_endpoint = self.make_endpoint()
+        super(TestZMQWorkManagerCore,self).setUp()
         
         
-        self.test_wm = ZMQWorkManager(self.task_endpoint, self.result_endpoint, self.ann_endpoint)
+        self.test_wm = ZMQWorkManager()
         self.test_wm.validation_fail_action = 'raise'
         self.test_wm.startup()
         
@@ -44,12 +42,12 @@ class TestZMQWorkManager(ZMQTestBase):
         self.test_wm.signal_shutdown()
         self.test_wm.comm_thread.join()
         
-        super(TestZMQWorkManager,self).tearDown()
+        super(TestZMQWorkManagerCore,self).tearDown()
 
     @contextmanager
     def task_socket(self):
         socket = self.test_context.socket(zmq.PULL)
-        socket.connect(self.test_wm.task_endpoint)
+        socket.bind(self.test_wm.wm_task_endpoint)
         
         yield socket
         
@@ -58,7 +56,7 @@ class TestZMQWorkManager(ZMQTestBase):
     @contextmanager
     def result_socket(self):
         socket = self.test_context.socket(zmq.PUSH)
-        socket.connect(self.test_wm.result_endpoint)
+        socket.connect(self.test_wm.wm_result_endpoint)
         
         yield socket
         
@@ -86,7 +84,7 @@ class TestZMQWorkManager(ZMQTestBase):
     def test_shutdown_sends_announcement(self):
         subsocket = self.test_context.socket(zmq.SUB)
         subsocket.setsockopt(zmq.SUBSCRIBE,'')
-        subsocket.connect(self.test_wm.ann_endpoint)
+        subsocket.connect(self.test_wm.wm_ann_endpoint)
 
         time.sleep(SETUP_WAIT)        
         self.test_wm.signal_shutdown()
