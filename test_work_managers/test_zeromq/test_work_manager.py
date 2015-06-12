@@ -32,7 +32,7 @@ class TestZMQWorkManagerBasic(ZMQTestBase):
         super(TestZMQWorkManagerBasic,self).setUp()
         
         
-        self.test_wm = ZMQWorkManager(n_workers=0)
+        self.test_wm = ZMQWorkManager(n_local_workers=0)
 
         # Set operation parameters 
         self.test_wm.validation_fail_action = 'raise'
@@ -136,7 +136,8 @@ class TestZMQWorkManagerBasic(ZMQTestBase):
 #     def test_immediate_master_beacon(self):
 #         with self.expect_announcement(Message.MASTER_BEACON):
 #             time.sleep(BEACON_WAIT)
-            
+    
+    @skip       
     def test_delayed_master_beacon(self):
         self.discard_announcements()
         with self.expect_announcement(Message.MASTER_BEACON):
@@ -176,7 +177,43 @@ class TestZMQWorkManagerBasic(ZMQTestBase):
         assert future.result == r
         
 
+class TestZMQWorkManagerInternal(ZMQTestBase):
+    
+    '''Tests for the core task dispersal/retrieval and shutdown operations
+    (the parts of the WM that do not require ZMQWorker).'''
+    def setUp(self):
+        super(TestZMQWorkManagerInternal,self).setUp()
+        
+        
+        self.test_wm = ZMQWorkManager(n_local_workers=1)
+
+        # Set operation parameters 
+        self.test_wm.validation_fail_action = 'raise'
+        self.test_wm.master_beacon_period = BEACON_PERIOD
+        self.test_wm.task_beacon_period = BEACON_PERIOD
+
+        self.rr_endpoint = self.make_endpoint()
+        self.ann_endpoint = self.make_endpoint()
+        self.test_wm.rr_endpoints.append(self.rr_endpoint)
+        self.test_wm.ann_endpoints.append(self.ann_endpoint)
+        self.test_wm.startup()
+        
+        self.test_core.master_id = self.test_wm.master_id
+        
+        time.sleep(SETUP_WAIT)
+
+    def tearDown(self):
+        time.sleep(TEARDOWN_WAIT)
+        
+        self.test_wm.signal_shutdown()
+        self.test_wm.comm_thread.join()
+        
+        super(TestZMQWorkManagerInternal,self).tearDown()
 
     
+    def test_worker_startup(self):
+        for worker_process in self.test_wm.local_workers:
+            assert worker_process.is_alive()
+            
     
             

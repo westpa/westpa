@@ -37,10 +37,12 @@ class ZMQWorker(ZMQCore):
         self.pending_task = None
         
         # Executor process
-        executor = ZMQExecutor(self.task_endpoint, self.result_endpoint)
-        self.shutdown_timeout = 5.0 # Five second wait between shutdown message and SIGINT and SIGINT and SIGKILL
-        self.executor_process = multiprocessing.Process(target = executor.startup)
         
+        self.shutdown_timeout = 5.0 # Five second wait between shutdown message and SIGINT and SIGINT and SIGKILL
+        self.executor_process = None
+        
+        
+        #self.executor_process.start()
         
     def handle_pairing(self, socket):
         self.send_message(socket, Message.IDENTIFY, payload=self.get_identification())
@@ -145,6 +147,7 @@ class ZMQWorker(ZMQCore):
                     
                 # Check for shutdown messages
                 if Message.SHUTDOWN in (msg.message for msg in announcements):
+                    self.log.debug('received shutdown message')
                     return
                 
                 # Handle results, so that we clear ourselves of completed tasks
@@ -171,11 +174,11 @@ class ZMQWorker(ZMQCore):
                             
                 # Process timeouts
                 if timers.expired('worker_beacon'):
-                    log.debug('worker_beacon timeout')
+                    self.log.debug('worker_beacon timeout')
                     self.identify(rr_socket)
 
                 if timers.expired(TIMEOUT_MASTER_BEACON):
-                    log.error('no contact from master; shutting down')
+                    self.log.error('no contact from master; shutting down')
                     return
                             
         finally:
@@ -212,6 +215,8 @@ class ZMQWorker(ZMQCore):
         
 
     def startup(self):
+        executor = ZMQExecutor(self.task_endpoint, self.result_endpoint)
+        self.executor_process = multiprocessing.Process(target = executor.startup)
         self.executor_process.start()
         self.context = zmq.Context()
         self.comm_thread = threading.Thread(target=self.comm_loop)

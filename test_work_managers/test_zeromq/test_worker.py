@@ -55,6 +55,23 @@ class TestZMQWorkerBasic(ZMQTestBase):
         
         super(TestZMQWorkerBasic,self).tearDown()
 
+    def send_task(self, task):
+        self.test_core.send_message(self.ann_socket, Message.TASKS_AVAILABLE)
+        msg = self.test_core.recv_message(self.rr_socket)
+        assert msg.message == Message.TASK_REQUEST
+        self.test_core.send_message(self.rr_socket, Message.TASK, payload=task)
+        
+    def recv_result(self):
+        msg = self.test_core.recv_message(self.rr_socket)
+        self.test_core.send_ack(self.rr_socket,msg)
+        assert msg.message == Message.RESULT
+        assert isinstance(msg.payload, Result)
+        return msg.payload
+         
+    def roundtrip_task(self, task):
+        self.send_task(task)
+        return self.recv_result()
+
 
     def test_meta(self):
         pass
@@ -81,26 +98,7 @@ class TestZMQWorkerBasic(ZMQTestBase):
         self.test_core.send_message(self.ann_socket, Message.RECONFIGURE_TIMEOUT, (TIMEOUT_MASTER_BEACON, 0.01))
         time.sleep(0.02)
         self.test_worker.join()
-        assert not self.test_worker.executor_process.is_alive()
-        
-    def send_task(self, task):
-        self.test_core.send_message(self.ann_socket, Message.TASKS_AVAILABLE)
-        msg = self.test_core.recv_message(self.rr_socket)
-        assert msg.message == Message.TASK_REQUEST
-        self.test_core.send_message(self.rr_socket, Message.TASK, payload=task)
-        
-    def recv_result(self):
-        msg = self.test_core.recv_message(self.rr_socket)
-        self.test_core.send_ack(self.rr_socket,msg)
-        assert msg.message == Message.RESULT
-        assert isinstance(msg.payload, Result)
-        return msg.payload
-        
-        
-    def roundtrip_task(self, task):
-        self.send_task(task)
-        return self.recv_result()
-        
+        assert not self.test_worker.executor_process.is_alive()        
         
     def test_worker_processes_task(self):
         r = random_int()
@@ -126,10 +124,3 @@ class TestZMQWorkerBasic(ZMQTestBase):
         time.sleep(1.0)
         self.test_core.send_message(self.ann_socket, Message.SHUTDOWN)
         self.test_worker.join()
-        
-        
-        
-        
-        
-        
-        

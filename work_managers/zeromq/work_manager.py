@@ -9,7 +9,9 @@ log = logging.getLogger(__name__)
 
 from core import ZMQCore, Message, Task, Result, ZMQWMEnvironmentError, ZMQWorkerMissing
 from master import ZMQMaster
+from worker import ZMQWorker
 from work_managers import WorkManager, WMFuture
+import multiprocessing
 
 from core import PassiveMultiTimer
 
@@ -18,7 +20,7 @@ import zmq
 from collections import deque
 
 class ZMQWorkManager(ZMQCore,WorkManager):
-    def __init__(self, n_workers=1):
+    def __init__(self, n_local_workers=1):
         ZMQCore.__init__(self)
         WorkManager.__init__(self)
         
@@ -29,7 +31,17 @@ class ZMQWorkManager(ZMQCore,WorkManager):
         self.rr_endpoints = []
         
         # Node-local workers (one thread/process each)
-        self.local_workers = []
+        if n_local_workers > 0:
+            local_ann_endpoint = self.make_internal_endpoint()
+            local_rr_endpoint = self.make_internal_endpoint()
+            self.ann_endpoints.append(local_ann_endpoint)
+            self.rr_endpoints.append(local_rr_endpoint)
+            
+            self.local_workers = [multiprocessing.Process(target=ZMQWorker(local_rr_endpoint, local_ann_endpoint).startup)
+                                  for _n in xrange(n_local_workers)]
+        else:
+            self.local_workers = []
+            
                 
         # Futures indexed by task ID
         self.futures = dict()
@@ -47,6 +59,11 @@ class ZMQWorkManager(ZMQCore,WorkManager):
         self.worker_timeout_check = 5.0
         
         self.master_id = self.node_id
+        
+    def startup(self):
+        for worker in self.local_workers:
+            worker.start()
+        super(ZMQWorkManager,self).startup()
         
     def submit(self, fn, args=None, kwargs=None):
         future = WMFuture()
@@ -112,7 +129,11 @@ class ZMQWorkManager(ZMQCore,WorkManager):
         for endpoint in self.rr_endpoints:
             rr_socket.bind(endpoint)
             
-        for endpoint in self.ann_endpoints:
+        for n, endpoint in enumerate(self.ann_endpoints):
+            #if n == 0:
+            #    ann_socket.bind(endpoint)
+            #else:
+            #    ann_socket.connect(endpoint)
             ann_socket.bind(endpoint)
 
         inproc_socket = self.context.socket(zmq.SUB)
@@ -142,6 +163,7 @@ class ZMQWorkManager(ZMQCore,WorkManager):
                     msgs = self.recv_all(inproc_socket,validate=False)
                     # Check for shutdown; do nothing else if shutdown is signalled
                     if Message.SHUTDOWN in (msg.message for msg in msgs):
+                        self.log.debug('shutdown received')
                         return
                     # Check for any other wake-up messages
                     for msg in msgs:
@@ -163,13 +185,16 @@ class ZMQWorkManager(ZMQCore,WorkManager):
                         self.send_message(ann_socket, Message.TASKS_AVAILABLE)
                     timers.reset('tasks_avail')
                 if timers.expired('master_beacon'):
+                    log.debug('sending master beacon')
                     self.send_message(ann_socket, Message.MASTER_BEACON)
                     timers.reset('master_beacon')
                 
                 
         finally:
+            self.log.debug('sending shutdown on ann_socket')
             self.send_message(ann_socket, Message.SHUTDOWN)
             self.context.destroy(linger=1)
+            self.context = None
     
     
         
