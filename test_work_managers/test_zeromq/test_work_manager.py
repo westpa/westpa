@@ -24,15 +24,15 @@ from . import SETUP_WAIT, TEARDOWN_WAIT, SHUTDOWN_WAIT, BEACON_PERIOD, BEACON_WA
 from . import ZMQTestBase
 
     
-class TestZMQWorkManager(ZMQTestBase):
+class TestZMQWorkManagerBasic(ZMQTestBase):
     
     '''Tests for the core task dispersal/retrieval and shutdown operations
-    (the parts of the WM that do not require ZMQMaster/ZMQWorker).'''
+    (the parts of the WM that do not require ZMQWorker).'''
     def setUp(self):
-        super(TestZMQWorkManager,self).setUp()
+        super(TestZMQWorkManagerBasic,self).setUp()
         
         
-        self.test_wm = ZMQWorkManager()
+        self.test_wm = ZMQWorkManager(n_workers=0)
 
         # Set operation parameters 
         self.test_wm.validation_fail_action = 'raise'
@@ -55,7 +55,7 @@ class TestZMQWorkManager(ZMQTestBase):
         self.test_wm.signal_shutdown()
         self.test_wm.comm_thread.join()
         
-        super(TestZMQWorkManager,self).tearDown()
+        super(TestZMQWorkManagerBasic,self).tearDown()
 
     @contextmanager
     def task_socket(self):
@@ -110,7 +110,16 @@ class TestZMQWorkManager(ZMQTestBase):
         try:
             assert message in [msg.message for msg in msgs]
         finally:
-            subsocket.close(linger=1)
+            subsocket.close(linger=0)
+            
+    def discard_announcements(self):
+        subsocket = self.test_context.socket(zmq.SUB)
+        subsocket.setsockopt(zmq.SUBSCRIBE,'')
+        subsocket.connect(self.ann_endpoint)
+        
+        time.sleep(SETUP_WAIT)
+        self.test_core.recv_all(subsocket)
+        subsocket.close(linger=0)        
             
     # Work manager shuts down on inproc signal
     def test_internal_shutdown(self):
@@ -123,9 +132,16 @@ class TestZMQWorkManager(ZMQTestBase):
         with self.expect_announcement(Message.SHUTDOWN):
             self.test_wm.signal_shutdown()
         
-    def test_master_beacon(self):
+# This won't work, because initial beacon is discarded if no clients are connected
+#     def test_immediate_master_beacon(self):
+#         with self.expect_announcement(Message.MASTER_BEACON):
+#             time.sleep(BEACON_WAIT)
+            
+    def test_delayed_master_beacon(self):
+        self.discard_announcements()
         with self.expect_announcement(Message.MASTER_BEACON):
             time.sleep(BEACON_WAIT)
+    
             
     def test_task_avail_beacon(self):
         with self.expect_announcement(Message.TASKS_AVAILABLE):
@@ -158,21 +174,6 @@ class TestZMQWorkManager(ZMQTestBase):
             result = task.execute()
             self.test_core.send_message(s, Message.RESULT, result)
         assert future.result == r
-        
-    
-    # Direct, without pulling ZMQMaster into the fray
-#     def test_submission_sends_task(self):
-#         with self.task_socket() as s:
-#             _future = self.test_wm.submit(identity, (1,))
-#             assert self.recv_task(s).args == (1,)
-#     
-#     # Direct, without pulling ZMQMaster into the fray
-#     def test_result_returns(self):
-#         with self.task_socket() as t, self.result_socket() as r:
-#             future = self.test_wm.submit(identity, (1,))
-#             self.send_result(r, self.recv_task(t).execute())
-#         
-#         assert future.result == 1
         
 
 

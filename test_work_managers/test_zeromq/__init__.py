@@ -88,7 +88,3 @@ class ZMQTestBase(object):
         self.test_context.destroy(linger=1)
         del self.test_context
         
-    @skip
-    def test_meta(self):
-        '''Test the testing environment; should shake out the most egregious hangs'''
-        pass

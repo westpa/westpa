@@ -129,8 +129,14 @@ class ZMQWorkManager(ZMQCore,WorkManager):
         timers.reset()
         
         try:
+            # Send a master alive message immediately
+            self.send_message(ann_socket, Message.MASTER_BEACON)
+            
             while True:
-                poll_results = dict(poller.poll(timers.next_expiration_in()*1000))
+                # If a timer is already expired, next_expiration_in() will return 0, which
+                # zeromq interprets as infinite wait; so instead we select a 1 ms wait in this
+                # case.                
+                poll_results = dict(poller.poll((timers.next_expiration_in() or 0.001)*1000))
                 
                 if inproc_socket in poll_results:
                     msgs = self.recv_all(inproc_socket,validate=False)
@@ -153,7 +159,8 @@ class ZMQWorkManager(ZMQCore,WorkManager):
                         self.send_ack(rr_socket, msg)
                 
                 if timers.expired('tasks_avail'):
-                    self.send_message(ann_socket, Message.TASKS_AVAILABLE)
+                    if self.outgoing_tasks:
+                        self.send_message(ann_socket, Message.TASKS_AVAILABLE)
                     timers.reset('tasks_avail')
                 if timers.expired('master_beacon'):
                     self.send_message(ann_socket, Message.MASTER_BEACON)

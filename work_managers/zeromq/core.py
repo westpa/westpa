@@ -65,7 +65,8 @@ class Message:
     TASK_REQUEST = 'task_request'
     
     
-    MASTER_BEACON = 'master_alive'    
+    MASTER_BEACON = 'master_alive'
+    RECONFIGURE_TIMEOUT = 'reconfigure_timeout'    
     
     TASK = 'task'
     RESULT = 'result'
@@ -89,7 +90,11 @@ class Message:
         
     def __repr__(self):
         return ('<{!s} master_id={master_id!s} src_id={src_id!s} message={message!r} payload={payload!r}>'
-                .format(self.__class__.__name__, **self.__dict__))   
+                .format(self.__class__.__name__, **self.__dict__))
+
+TIMEOUT_MASTER_BEACON = 'master_beacon'
+TIMEOUT_WORKER_CONTACT = 'worker_contact'
+           
 
 # No need for this, since we can just put the futures in a dictionary indexed by task_id
 
@@ -137,7 +142,7 @@ class Task:
         rsl = Result(task_id = self.task_id)
         try:
             rsl.result = self.fn(*self.args, **self.kwargs)
-        except Exception as e:
+        except BaseException as e:
             rsl.exception = e
             rsl.traceback = traceback.format_exc()
         return rsl
@@ -151,8 +156,8 @@ class Result:
         self.traceback = traceback
         
     def __repr__(self):
-        return '<{} {task_id!s}>'\
-               .format(**self.__dict__)
+        return '<{} {task_id!s} ({})>'\
+               .format(self.__class__.__name__, 'result' if self.exception is None else 'exception', **self.__dict__)
                
     def __hash__(self):
         return hash(self.task_id)
@@ -202,6 +207,10 @@ class PassiveMultiTimer:
         self._identifiers[new_idx] = identifier
         self._indices[identifier] = new_idx
         
+    def change_duration(self, identifier, duration):
+        idx = self._indices[identifier]
+        self._durations[idx] = duration
+        
     def reset(self, identifier=None, at=None):
         at = at or time.time()
         if identifier is None:
@@ -223,13 +232,9 @@ class PassiveMultiTimer:
     def next_expiration_in(self):
         at = time.time()
         idx = (self._started + self._durations - at).argmin()
-        return self._started[idx] + self._durations[idx] - at
+        next_at = self._started[idx] + self._durations[idx] - at
+        return next_at if next_at > 0 else 0
         
-            
-    
-    
-        
-
 class ZMQCore:
     
     # The overall communication topology (socket layout, etc)
@@ -362,8 +367,8 @@ class ZMQCore:
             raise TypeError('message is not an instance of core.Message')
         if message.src_id is None:
             raise ZMQWMEnvironmentError('message src_id is not set')
-        if message.master_id not in (self.master_id, None):
-            raise ZMQWMEnvironmentError('incoming message destined for another master (this={!s}, incoming={!s}'.format(self.master_id, message.master_id))
+        if self.master_id is not None and message.master_id is not None and message.master_id != self.master_id:
+            raise ZMQWMEnvironmentError('incoming message associated with another master (this={!s}, incoming={!s}'.format(self.master_id, message.master_id))
                 
     @contextlib.contextmanager
     def message_validation(self, msg):
@@ -399,6 +404,13 @@ class ZMQCore:
                 messages.append(self.recv_message(socket, flags | zmq.NOBLOCK, validate))
             except zmq.Again:
                 return messages
+            
+    def recv_ack(self, socket, flags=0, validate=True):
+        msg = self.recv_message(socket, flags, validate)
+        if validate:
+            with self.message_validation(msg):
+                assert msg.message == Message.ACK
+        return msg
     
     def send_message(self, socket, message, payload=None, flags=0):
         '''Send a message object. Subclasses may override this to
@@ -446,6 +458,9 @@ class ZMQCore:
     def signal_shutdown(self):
         try:
             self.send_inproc_message(Message.SHUTDOWN)
+        except AttributeError:
+            # this is expected if self.context has been set to None (i.e. it has already been destroyed)
+            pass
         except Exception as e:
             self.log.debug('ignoring exception {!r} in signal_shutdown()'.format(e))
 

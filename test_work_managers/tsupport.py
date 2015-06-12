@@ -38,11 +38,16 @@ def will_busyhang():
         pass
     
 def will_busyhang_uninterruptible():
+    import signal
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
+    signal.signal(signal.SIGQUIT, signal.SIG_IGN)
     while True:
-        try:
-            pass
-        except KeyboardInterrupt:
-            pass
+        pass
+#     while True:
+#         try:
+#             pass
+#         except KeyboardInterrupt:
+#             pass
     
 def identity(x):
     return x
