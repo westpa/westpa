@@ -53,11 +53,11 @@ def _assign_label_pop(n_iter, lb, ub, mapper, nstates, state_map, last_labels, p
     weights = weight_dsspec.get_iter_data(n_iter,index_exp[lb:ub])
     pcoords = pcoord_dsspec.get_iter_data(n_iter,index_exp[lb:ub])
     
-    assignments, trajlabels = assign_and_label(lb, ub, parent_ids,
+    assignments, trajlabels, statelabels = assign_and_label(lb, ub, parent_ids,
                                                mapper.assign, nstates, state_map, last_labels, pcoords)
     pops = numpy.zeros((nstates+1,nbins+1), weight_dtype)
     accumulate_labeled_populations(weights, assignments, trajlabels, pops)
-    return (assignments, trajlabels, pops, lb, ub)
+    return (assignments, trajlabels, pops, lb, ub, statelabels)
 
 class WAssign(WESTParallelTool):
     prog='w_assign'
@@ -346,6 +346,7 @@ Command-line options
         n_workers = self.work_manager.n_workers or 1
         assignments = numpy.empty((nsegs, npts), dtype=index_dtype)
         trajlabels = numpy.empty((nsegs, npts), dtype=index_dtype)
+        statelabels = numpy.empty((nsegs, npts), dtype=index_dtype)
         pops = numpy.zeros((nstates+1,nbins+1), dtype=weight_dtype)
 
         #Submit jobs to work manager
@@ -376,14 +377,15 @@ Command-line options
 
         #for future in self.work_manager.as_completed(futures):
         for future in self.work_manager.submit_as_completed(task_gen(), queue_size=self.max_queue_len):
-            assign_slice, traj_slice, slice_pops, lb, ub = future.get_result(discard=True)
+            assign_slice, traj_slice, slice_pops, lb, ub, state_slice = future.get_result(discard=True)
             assignments[lb:ub, :] = assign_slice
             trajlabels[lb:ub, :] = traj_slice
+            statelabels[lb:ub, :] = state_slice
             pops += slice_pops
-            del assign_slice, traj_slice, slice_pops
+            del assign_slice, traj_slice, slice_pops, state_slice
 
         del futures
-        return (assignments, trajlabels, pops)
+        return (assignments, trajlabels, pops, statelabels)
 
     def go(self):
         assert self.data_reader.parent_id_dsspec._h5file is None
@@ -463,6 +465,10 @@ Command-line options
                                                                 compression=4, shuffle=True,
                                                                 chunks=h5io.calc_chunksize(assignments_shape, trajlabel_dtype),
                                                                 fillvalue=nstates)
+                statelabels_ds = self.output_file.create_dataset('statelabels', dtype=trajlabel_dtype, shape=assignments_shape,
+                                                                compression=4, shuffle=True,
+                                                                chunks=h5io.calc_chunksize(assignments_shape, trajlabel_dtype),
+                                                                fillvalue=nstates)
 
             pops_shape = (iter_count,nstates+1,nbins+1)
             pops_ds = self.output_file.create_dataset('labeled_populations', dtype=weight_dtype, shape=pops_shape,
@@ -480,7 +486,7 @@ Command-line options
                     last_labels[:] = nstates #unknown state
 
                 #Slices this iteration into n_workers groups of segments, submits them to wm, splices results back together
-                assignments, trajlabels, pops = self.assign_iteration(n_iter, nstates, nbins, state_map, last_labels)
+                assignments, trajlabels, pops, statelabels = self.assign_iteration(n_iter, nstates, nbins, state_map, last_labels)
 
                 ##Do stuff with this iteration's results
 
@@ -489,11 +495,12 @@ Command-line options
                 pops_ds[iiter] = pops
                 if self.states:
                     trajlabels_ds[iiter, 0:nsegs[iiter], 0:npts[iiter]]  = trajlabels
+                    statelabels_ds[iiter, 0:nsegs[iiter], 0:npts[iiter]]  = statelabels
 
                 pi.progress += 1
-                del assignments, trajlabels, pops
+                del assignments, trajlabels, pops, statelabels
 
-            for dsname in 'assignments', 'npts', 'nsegs', 'labeled_populations':
+            for dsname in 'assignments', 'npts', 'nsegs', 'labeled_populations', 'statelabels':
                 h5io.stamp_iter_range(self.output_file[dsname], iter_start, iter_stop)
 
 if __name__ == '__main__':
