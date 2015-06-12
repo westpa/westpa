@@ -405,6 +405,8 @@ class ZMQCore:
     def recv_message(self, socket, flags=0, validate=True):
         '''Receive a message object from the given socket.'''
         message = socket.recv_pyobj(flags)
+        
+        # Uncomment this to reveal *all* communication. Very verbose.
         #self.log.debug('received {!r}'.format(message))
         if validate:
             with self.message_validation(message):
@@ -423,7 +425,7 @@ class ZMQCore:
         msg = self.recv_message(socket, flags, validate)
         if validate:
             with self.message_validation(msg):
-                assert msg.message == Message.ACK
+                assert msg.message in (Message.ACK, Message.NAK)
         return msg
     
     def send_message(self, socket, message, payload=None, flags=0):
@@ -437,6 +439,8 @@ class ZMQCore:
         if message.master_id is None:
             message.master_id = self.master_id
         message.src_id=self.node_id
+        
+        # Uncomment this to reveal *all* communication. Very verbose.
         #self.log.debug('sending {!r}'.format(message))
         socket.send_pyobj(message,flags)
         
@@ -467,8 +471,9 @@ class ZMQCore:
     def send_inproc_message(self, message, payload=None, flags=0):
         inproc_socket = self.context.socket(zmq.PUB)
         inproc_socket.connect(self.inproc_endpoint)
+        time.sleep(0.01)
         self.send_message(inproc_socket, message, payload, flags)
-        inproc_socket.close(linger=1)
+        # used to be a close with linger here, but it was cutting off messages
 
     def signal_shutdown(self):
         try:

@@ -150,8 +150,8 @@ class ZMQWorker(ZMQCore):
                 if result_socket in poll_results:
                     self.handle_result(result_socket, rr_socket)
                     # immediately request another task if available
-                    #if not timers.expired(TIMEOUT_MASTER_BEACON):
-                    #    self.request_task(rr_socket, task_socket)
+                    if not timers.expired(TIMEOUT_MASTER_BEACON):
+                        self.request_task(rr_socket, task_socket)
                 
                 # Handle any remaining messages                    
                 for msg in announcements:

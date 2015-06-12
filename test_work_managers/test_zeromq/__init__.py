@@ -19,7 +19,7 @@ TEARDOWN_WAIT = 0.010
 # How long to wait to let shutdown signals sort themselves out
 SHUTDOWN_WAIT = 1
 
-BEACON_PERIOD = 0.05
+BEACON_PERIOD = 0.1
 BEACON_WAIT = BEACON_PERIOD * 10
 
 def sockdelay():

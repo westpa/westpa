@@ -59,6 +59,9 @@ class ZMQWorkManager(ZMQCore,WorkManager):
         # Number of seconds between checks to see which workers have timed out
         self.worker_timeout_check = 5.0
         
+        # Amount of time to wait for stray requests to arrive so that workers shut down properly
+        self.shutdown_timeout = 0.5
+        
         self.master_id = self.node_id
         
     def startup(self):
@@ -163,7 +166,7 @@ class ZMQWorkManager(ZMQCore,WorkManager):
                     # Check for shutdown; do nothing else if shutdown is signalled
                     if Message.SHUTDOWN in (msg.message for msg in msgs):
                         self.log.debug('shutdown received')
-                        return
+                        break
                     # Check for any other wake-up messages
                     for msg in msgs:
                         if msg.message == Message.TASKS_AVAILABLE:
@@ -187,11 +190,25 @@ class ZMQWorkManager(ZMQCore,WorkManager):
                     #self.log.debug('sending master beacon')
                     self.send_message(ann_socket, Message.MASTER_BEACON)
                     timers.reset('master_beacon')
+                    
+            # Empty our queue of request/reply, posting shutdown messages
+            self.log.debug('sending shutdown on ann_socket')
+            self.send_message(ann_socket, Message.SHUTDOWN)            
+            poller.unregister(inproc_socket)
+            poll_results = True
+            timers.add_timer('shutdown', self.shutdown_timeout)
+            
+            while not timers.expired('shutdown'):
+                poll_results = dict(poller.poll(100))
+                if rr_socket in poll_results:
+                    msg = self.recv_message(rr_socket)
+                    self.send_nak(rr_socket, msg)
+                
+                
+                
                 
                 
         finally:
-            self.log.debug('sending shutdown on ann_socket')
-            self.send_message(ann_socket, Message.SHUTDOWN)
             self.context.destroy(linger=1)
             self.context = None
     
