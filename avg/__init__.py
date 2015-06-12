@@ -60,6 +60,7 @@ def _return_error_bounds_3D_state(slice, sigma, i, j, niters, nstates):
         c_radius = (bounds[1]-bounds[0])/2
         lbound[iter,i,j] = slice[iter,i,j] - c_radius
         ubound[iter,i,j] = slice[iter,i,j] + c_radius
+    return ubound, lbound
 
 def _return_error_bounds_2D_state(slice, sigma, i, niters, nstates):
     # Blank
@@ -73,3 +74,4 @@ def _return_error_bounds_2D_state(slice, sigma, i, niters, nstates):
         c_radius = (bounds[1]-bounds[0])/2
         lbound[iter,i] = slice[iter,i] - c_radius
         ubound[iter,i] = slice[iter,i] + c_radius
+    return ubound, lbound
