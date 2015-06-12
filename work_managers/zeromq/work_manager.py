@@ -37,11 +37,12 @@ class ZMQWorkManager(ZMQCore,WorkManager):
             self.ann_endpoints.append(local_ann_endpoint)
             self.rr_endpoints.append(local_rr_endpoint)
             
-            self.local_workers = [multiprocessing.Process(target=ZMQWorker(local_rr_endpoint, local_ann_endpoint).startup)
-                                  for _n in xrange(n_local_workers)]
+            self.local_workers = [ZMQWorker(local_rr_endpoint, local_ann_endpoint) for _n in xrange(n_local_workers)]
+            
         else:
             self.local_workers = []
             
+        self.local_worker_processes = [multiprocessing.Process(target = worker.startup) for worker in self.local_workers]    
                 
         # Futures indexed by task ID
         self.futures = dict()
@@ -61,8 +62,8 @@ class ZMQWorkManager(ZMQCore,WorkManager):
         self.master_id = self.node_id
         
     def startup(self):
-        for worker in self.local_workers:
-            worker.start()
+        for process in self.local_worker_processes:
+            process.start()
         super(ZMQWorkManager,self).startup()
         
     def submit(self, fn, args=None, kwargs=None):
@@ -70,21 +71,18 @@ class ZMQWorkManager(ZMQCore,WorkManager):
         task = Task(fn, args or (), kwargs or {}, task_id = future.task_id)
         self.futures[task.task_id] = future
         self.outgoing_tasks.append(task)
-        self.send_inproc_message(Message.TASKS_AVAILABLE)
+        #self.send_inproc_message(Message.TASKS_AVAILABLE)
         return future
 
     def submit_many(self, tasks):
-        futures = []
-        task_socket = self.context.socket(zmq.PUSH)
-        task_socket.connect(self.wm_task_endpoint)
-        
+        futures = []        
         for (fn,args,kwargs) in tasks:
             future = WMFuture()
             task = Task(fn, args, kwargs, task_id = future.task_id)
             self.futures[task.task_id] = future
             self.outgoing_tasks.append(task)
             futures.append(future) 
-        self.send_inproc_message(Message.TASKS_AVAILABLE)       
+        #self.send_inproc_message(Message.TASKS_AVAILABLE)       
         return futures
 
     def send_message(self, socket, message, payload=None, flags=0):
@@ -93,6 +91,7 @@ class ZMQWorkManager(ZMQCore,WorkManager):
         super(ZMQWorkManager,self).send_message(socket, message, payload, flags)
         
     def handle_result(self, socket, msg):
+        self.send_ack(socket,msg)
         with self.message_validation(msg):
             assert msg.message == Message.RESULT
             assert isinstance(msg.payload, Result)
@@ -106,7 +105,7 @@ class ZMQWorkManager(ZMQCore,WorkManager):
         else:
             future._set_result(result.result)
             
-        self.send_ack(socket,msg)
+        
         
     def handle_task_request(self, socket, msg):
         if not self.outgoing_tasks:
@@ -185,7 +184,7 @@ class ZMQWorkManager(ZMQCore,WorkManager):
                         self.send_message(ann_socket, Message.TASKS_AVAILABLE)
                     timers.reset('tasks_avail')
                 if timers.expired('master_beacon'):
-                    log.debug('sending master beacon')
+                    #self.log.debug('sending master beacon')
                     self.send_message(ann_socket, Message.MASTER_BEACON)
                     timers.reset('master_beacon')
                 

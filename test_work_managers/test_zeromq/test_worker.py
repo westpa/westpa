@@ -105,7 +105,7 @@ class TestZMQWorkerBasic(ZMQTestBase):
         task = Task(identity, (r,), {})
         rsl = self.roundtrip_task(task) 
         assert rsl.result == r
-        
+                
     def test_worker_processes_exception(self):
         task = Task(will_fail, (), {})
         rsl = self.roundtrip_task(task)

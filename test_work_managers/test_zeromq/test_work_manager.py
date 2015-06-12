@@ -177,15 +177,20 @@ class TestZMQWorkManagerBasic(ZMQTestBase):
         assert future.result == r
         
 
-class TestZMQWorkManagerInternal(ZMQTestBase):
+
+
+class BaseInternal(ZMQTestBase,CommonWorkManagerTests):
     
     '''Tests for the core task dispersal/retrieval and shutdown operations
     (the parts of the WM that do not require ZMQWorker).'''
     def setUp(self):
-        super(TestZMQWorkManagerInternal,self).setUp()
+        super(BaseInternal,self).setUp()
         
         
-        self.test_wm = ZMQWorkManager(n_local_workers=1)
+        self.test_wm = ZMQWorkManager(n_local_workers=self.n_workers)
+        for worker in self.test_wm.local_workers:
+            worker.validation_fail_action = 'raise'
+            worker.shutdown_timeout = 0.5
 
         # Set operation parameters 
         self.test_wm.validation_fail_action = 'raise'
@@ -200,6 +205,8 @@ class TestZMQWorkManagerInternal(ZMQTestBase):
         
         self.test_core.master_id = self.test_wm.master_id
         
+        self.work_manager = self.test_wm
+        
         time.sleep(SETUP_WAIT)
 
     def tearDown(self):
@@ -208,12 +215,61 @@ class TestZMQWorkManagerInternal(ZMQTestBase):
         self.test_wm.signal_shutdown()
         self.test_wm.comm_thread.join()
         
-        super(TestZMQWorkManagerInternal,self).tearDown()
+        super(BaseInternal,self).tearDown()
 
     
     def test_worker_startup(self):
-        for worker_process in self.test_wm.local_workers:
+        time.sleep(0.1)
+        for worker_process in self.test_wm.local_worker_processes:
             assert worker_process.is_alive()
-            
+        
+    def test_processes_task(self):
+        r = random_int()
+        future = self.test_wm.submit(identity,(r,),{})
+        assert future.get_result() == r
+        
+    def test_two_tasks(self):
+        r1 = random_int()
+        r2 = random_int()
+        f1 = self.test_wm.submit(identity,(r1,),{})
+        f2 = self.test_wm.submit(identity,(r2,),{})
+        assert f1.result == r1
+        assert f2.result == r2
     
-            
+    def test_processes_exception(self):
+        future = self.test_wm.submit(will_fail, (), {})
+        assert isinstance(future.get_exception(), ExceptionForTest)
+        
+    def test_hung_worker_interruptible(self):
+        self.test_wm.submit(will_busyhang, (), {})
+        time.sleep(1.0)
+        
+    def test_hung_worker_uninterruptible(self):
+        self.test_wm.submit(will_busyhang_uninterruptible, (), {})
+        time.sleep(1.0)
+        
+        
+#     def test_worker_processes_exception(self):
+#         task = Task(will_fail, (), {})
+#         rsl = self.roundtrip_task(task)
+#         assert isinstance(rsl.exception, ExceptionForTest)
+#         
+#     def test_hung_worker_interruptible(self):
+#         task = Task(will_busyhang, (), {})
+#         self.send_task(task)
+#         time.sleep(1.0)
+#         self.test_core.send_message(self.ann_socket, Message.SHUTDOWN)
+#         self.test_worker.join()
+#     
+#     def test_hung_worker_uninterruptible(self):
+#         task = Task(will_busyhang_uninterruptible, (), {})
+#         self.send_task(task)
+#         time.sleep(1.0)
+#         self.test_core.send_message(self.ann_socket, Message.SHUTDOWN)
+#         self.test_worker.join()
+         
+class TestZMQWorkManagerInternalSingle(BaseInternal):
+    n_workers = 1
+    
+class TestZMQWorkManagerInternalMultiple(BaseInternal):
+    n_workers = 4

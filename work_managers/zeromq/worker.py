@@ -32,6 +32,7 @@ class ZMQWorker(ZMQCore):
         self.result_endpoint = self.make_internal_endpoint()
         
         self.master_id = None
+        self.identified = False
         
         # The task currently being processed
         self.pending_task = None
@@ -40,27 +41,17 @@ class ZMQWorker(ZMQCore):
         
         self.shutdown_timeout = 5.0 # Five second wait between shutdown message and SIGINT and SIGINT and SIGKILL
         self.executor_process = None
-        
-        
-        #self.executor_process.start()
-        
-    def handle_pairing(self, socket):
-        self.send_message(socket, Message.IDENTIFY, payload=self.get_identification())
-        msg = self.recv_message(socket)
-        
-        self.log.debug('server identity: {!r}'.format(msg.payload))
-        self.log.info('paired with master {!s}'.format(self.master_id))
             
     def update_master_info(self, msg):
         if self.master_id is None:
             self.master_id = msg.master_id
-        self.timers.reset('master_beacon')
+        self.timers.reset(TIMEOUT_MASTER_BEACON)
         
-    
     def identify(self, rr_socket):
-        if self.master_id is None or self.timers.expired(TIMEOUT_MASTER_BEACON): return
+        if self.master_id is None or self.identified or self.timers.expired(TIMEOUT_MASTER_BEACON): return
         self.send_message(rr_socket, Message.IDENTIFY, payload=self.get_identification())
         self.recv_ack(rr_socket)
+        self.identified = True
         
     def request_task(self, rr_socket, task_socket):
         if self.master_id is None: return
@@ -77,7 +68,6 @@ class ZMQWorker(ZMQCore):
                     assert isinstance(reply.payload, Task)
                     task = reply.payload
                 self.pending_task = task
-                self.log.debug('sending {!r} to executor'.format(task))
                 self.send_message(task_socket, Message.TASK, task)                       
             
     def handle_reconfigure_timeout(self, msg, timers):
@@ -92,8 +82,10 @@ class ZMQWorker(ZMQCore):
         with self.message_validation(msg):
             assert msg.message == Message.RESULT
             assert isinstance(msg.payload, Result)
-        log.debug('received {!r} from executor'.format(msg.payload))
+            assert msg.payload.task_id == self.pending_task.task_id
+        
         msg.src_id = self.node_id
+        self.pending_task = None
         self.send_message(rr_socket, msg)
         self.recv_ack(rr_socket)
     
@@ -145,6 +137,9 @@ class ZMQWorker(ZMQCore):
                 if ann_socket in poll_results:
                     announcements.extend(self.recv_all(ann_socket))
                     
+                #announcements = Message.coalesce_announcements(announcements)
+                #self.log.debug('received {:d} announcements'.format(len(announcements)))
+                    
                 # Check for shutdown messages
                 if Message.SHUTDOWN in (msg.message for msg in announcements):
                     self.log.debug('received shutdown message')
@@ -155,27 +150,26 @@ class ZMQWorker(ZMQCore):
                 if result_socket in poll_results:
                     self.handle_result(result_socket, rr_socket)
                     # immediately request another task if available
-                    if not timers.expired(TIMEOUT_MASTER_BEACON):
-                        self.request_task(rr_socket, task_socket)
+                    #if not timers.expired(TIMEOUT_MASTER_BEACON):
+                    #    self.request_task(rr_socket, task_socket)
                 
                 # Handle any remaining messages                    
                 for msg in announcements:
-                    self.log.info('received {!r}'.format(msg))
                     if msg.message == Message.MASTER_BEACON:
                         self.update_master_info(msg)
                         self.identify(rr_socket)
+                    elif msg.message == Message.RECONFIGURE_TIMEOUT:
+                        self.handle_reconfigure_timeout(msg, timers)
                     elif msg.message == Message.TASKS_AVAILABLE:
                         self.update_master_info(msg)
                         self.request_task(rr_socket,task_socket)
-                    elif msg.message == Message.RECONFIGURE_TIMEOUT:
-                        self.handle_reconfigure_timeout(msg, timers)
                 del announcements
                 
                             
                 # Process timeouts
-                if timers.expired('worker_beacon'):
-                    self.log.debug('worker_beacon timeout')
-                    self.identify(rr_socket)
+                #if timers.expired('worker_beacon'):
+                    #self.log.debug('worker_beacon timeout')
+                    #self.identify(rr_socket)
 
                 if timers.expired(TIMEOUT_MASTER_BEACON):
                     self.log.error('no contact from master; shutting down')
@@ -200,17 +194,17 @@ class ZMQWorker(ZMQCore):
         
         self.executor_process.join(self.shutdown_timeout)
         if self.executor_process.is_alive():            
-            log.debug('sending SIGINT to worker process {:d}'.format(self.executor_process.pid))
+            self.log.debug('sending SIGINT to worker process {:d}'.format(self.executor_process.pid))
             os.kill(self.executor_process.pid, signal.SIGINT)
             self.executor_process.join(self.shutdown_timeout)
             if self.executor_process.is_alive():
-                log.warning('sending SIGKILL to worker process {:d}'.format(self.executor_process.pid))
+                self.log.warning('sending SIGKILL to worker process {:d}'.format(self.executor_process.pid))
                 os.kill(self.executor_process.pid, signal.SIGKILL)
                 self.executor_process.join()
                 
-            log.debug('worker process {:d} terminated with code {:d}'.format(self.executor_process.pid, self.executor_process.exitcode))
+            self.log.debug('worker process {:d} terminated with code {:d}'.format(self.executor_process.pid, self.executor_process.exitcode))
         else:
-            log.debug('worker process {:d} terminated gracefully with code {:d}'.format(self.executor_process.pid, self.executor_process.exitcode))        
+            self.log.debug('worker process {:d} terminated gracefully with code {:d}'.format(self.executor_process.pid, self.executor_process.exitcode))        
         assert not self.executor_process.is_alive()
         
 
@@ -248,7 +242,6 @@ class ZMQExecutor(ZMQCore):
         
         while True:
             msg = self.recv_message(task_socket)
-            log.debug('received {!r}'.format(msg))
             
             if msg.message == Message.TASK:
                 task = msg.payload

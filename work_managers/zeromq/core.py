@@ -20,6 +20,7 @@ log = logging.getLogger(__name__)
 
 #import gevent
 import sys, uuid, socket, os,tempfile, errno, time, threading, contextlib, traceback, atexit
+from collections import OrderedDict
 
 import signal
 signames = {val:name for name, val in reversed(sorted(signal.__dict__.items()))
@@ -71,9 +72,8 @@ class Message:
     TASK = 'task'
     RESULT = 'result'
     
-    #VALID_MESSAGES = {ACK, IDENTIFY, 
-    #                  TASKS_AVAILABLE, TASK_REQUEST, RESULT,
-    #                  SHUTDOWN, MASTER_BEACON}
+    idempotent_announcement_messages = {SHUTDOWN, TASKS_AVAILABLE, MASTER_BEACON}
+
     
     def __init__(self, message=None, payload=None, master_id=None, src_id=None):
         
@@ -91,6 +91,20 @@ class Message:
     def __repr__(self):
         return ('<{!s} master_id={master_id!s} src_id={src_id!s} message={message!r} payload={payload!r}>'
                 .format(self.__class__.__name__, **self.__dict__))
+        
+        
+    @classmethod
+    def coalesce_announcements(cls, messages):
+        d = OrderedDict()
+        for msg in messages:
+            if msg.message in cls.idempotent_announcement_messages:
+                key = msg.message
+            else:
+                key = (msg.message, msg.payload)
+            d[key] = msg
+        coalesced = msg.values()
+        log.debug('coalesced {} announcements into {}'.format(len(messages), len(coalesced)))
+        return coalesced
 
 TIMEOUT_MASTER_BEACON = 'master_beacon'
 TIMEOUT_WORKER_CONTACT = 'worker_contact'
@@ -340,7 +354,6 @@ class ZMQCore:
         self._inproc_socket = None
         
         self.master_id = None
-        
 
     def __repr__(self):
         return '<{!s} {!s}>'.format(self.__class__.__name__, self.node_id)
@@ -392,6 +405,7 @@ class ZMQCore:
     def recv_message(self, socket, flags=0, validate=True):
         '''Receive a message object from the given socket.'''
         message = socket.recv_pyobj(flags)
+        #self.log.debug('received {!r}'.format(message))
         if validate:
             with self.message_validation(message):
                 self.validate_message(message)
@@ -423,6 +437,7 @@ class ZMQCore:
         if message.master_id is None:
             message.master_id = self.master_id
         message.src_id=self.node_id
+        #self.log.debug('sending {!r}'.format(message))
         socket.send_pyobj(message,flags)
         
     def send_reply(self, socket, original_message, reply=Message.ACK, payload=None,flags=0):
