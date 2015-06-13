@@ -22,14 +22,14 @@ from __future__ import division, print_function; __metaclass__ = type
 import logging
 log = logging.getLogger('westpa.rc')
 
-import os, sys, errno
+import os, sys, errno, numpy
 import westpa
 from yamlcfg import YAMLConfig
 from yamlcfg import YAMLSystem
 from . import extloader
 from work_managers import SerialWorkManager
 
-# For making it's own mapper 
+# For making it's own mapper - Ali
 from westpa.binning import RectilinearBinMapper
     
 def bins_from_yaml_dict(bin_dict):
@@ -69,6 +69,17 @@ def parsePCV(pc_str):
     else:
         raise ValueError('too many dimensions')
     return arr
+
+def UndefinedSystemError(Exception):
+    '''
+    Raised when no system is specified. This is caused
+    by missing system options in both the YAML file 
+    and a missing system driver.
+    '''
+
+    def __init__(self, expr,msg):
+        self.expr = expr
+        self.msg  = msg
 
 
 def lazy_loaded(backing_name, loader, docstring = None):
@@ -292,107 +303,192 @@ class WESTRC:
             self._propagator = self.new_propagator()
         return self._propagator
             
+    ## MODIFIED BY ALI FOR YAML PARSING OF THE SYSTEM
     def new_system_driver(self):
         ''' 
-        1) Build the state from driver > update from YAML (if exists)
-        2) If the driver doesn't exist, build directly from yaml
+        Returns a new system object either from the driver OR from the YAML
+        file. Currently builds off of system then updates with YAML
+        overwriting the previous settings if both are specified.
+
+        There are no default settings, all settings MUST be specified
+        in the config YAML file OR the system driver. 
+
+        Settings that are specified here are: 
+          Progress coordinate settings:
+            Progress coordinate dimensionality
+            Progress coordinate length/number of data points in each tau
+            Progress coordinate data type 
+          Bin settings: 
+            Bin mapper type
+            Bins 
+            Target simulation counts for each bin 
+          Generic setting for flexibility:
+            Both paths allow for generic attribute setting for
+            future flexibility.
         '''
 
-        # This horribly written code is supposed to be a prototype for 
-        # the YAML System builder
-
         # First step is to see if we have a driver specified
+        # if so load that one first, setting the defaults for
+        # YAML to possibly modify. 
+
+        # I will keep this as is for now since I like the idea
+        # of being able to set some defaults from the system 
+        # driver and then just modify the YAML instead for basic
+        # stuff. This might make it easier to set up systems since
+        # playing around with the YAML format is easier. 
+        
+        # Still still has the end-user issue of possibly confusing 
+        # people, maybe KISS is better, not sure. I'll keep this 
+        # for development purposes.
+
         system = None
-        try: 
-            sysdrivername = self.config.get(['west', 'system', 'driver']) 
-            log.info('loading system driver %r' % sysdrivername)
-            system_driver = extloader.get_object(sysdrivername)(rc=self)
-            system_driver.initialize()
-            log.debug('loaded system driver {!r}'.format(system_driver))        
-            system = system_driver
-        except KeyError:
+        # Get method checks for us  
+        sysdrivername = self.config.get(['west', 'system', 'driver']) 
+        if not sysdrivername:
+            # Warn user that driver is not specified
             log.info("System driver not specified")
+        log.info('loading system driver %r' % sysdrivername)
+        system_driver = extloader.get_object(sysdrivername)(rc=self)
+        system_driver.initialize()
+        log.debug('loaded system driver {!r}'.format(system_driver))        
+        system = system_driver
         # Second let's see if we have info in the YAML file 
-        try: 
-            yamloptions = self.config['west']['system']['system_options']
-            log.info("Loading system options from configuration file")
-            if system:
-                system = self.update_from_yaml(system, yamloptions)
-            else:
-                system = self.system_from_yaml(yamloptions)
-        except KeyError:
+        yamloptions = self.config.get(['west','system','system_options'])
+        if not yamloptions:
+            # Same here, yaml file doesn't have sys info
             log.info("Config file doesn't contain any system info")
+        log.info("Loading system options from configuration file")
+        if system:
+            system = self.update_from_yaml(system, yamloptions)
+        else:
+            system = self.system_from_yaml(yamloptions)
         
         if system:
-            print(vars(system))
             return system
         else: 
-            log.info("No system specified, quitting")
-            sys.exit(1)
+            log.info("No system specified! Exiting program.")
+            # Gracefully exit
+            raise UndefinedSystemError
 
+    ## ADDED BY ALI FOR YAML PARSING OF THE SYSTEM
     def system_from_yaml(self, system_dict):
         """
-        Super ugly code for making a system from the YAML file alone
+        System builder directly from the config YAML file. 
+
+        Arguments: 
+          system_dict (dict): Parsed YAML file as a dictionary, parsed by 
+            PyYAML by default.
+
+        Returns: 
+          A modified WESTSystem object as defined in yamlcfg.py with 
+          the parsed settings from the config file.
         """
-        #TODO Try to write better code. But first fix this thing.
+        
         yamlSystem = YAMLSystem()
-        for key, value in system_dict.iteritems(): 
-            if key == "bins":
-                print("TRYING TO SET %s FROM CONFIG FILE"%(key))
-                setattr(init_system, "bin_mapper", bins_from_yaml_dict(value))
-            #elif:
-                # We want to parse target counts here
-            #elif:
-                # We want to parse any object here
-            #elif:
-                # We want to parse dtype here?
-            else:
-                # assume normal attribute
-                try: 
-                    print("TRYING TO SET %s FROM CONFIG FILE"%(key))
-                    setattr(init_system, key, value)
-                except:
-                    log.info("Base system doesn't have propery %s"\
-                          %(key))
-                    pass
-        # These are not parsed yet
-        #self.pcoord_dtype = pcoord_dtype
-        #self.bin_target_counts[...] = 10
+        # Now for the building of the system from YAML we need to use
+        # require for these settings since they are musts. 
+        
+        # First basic pcoord settings
+        ndim  = self.config.require(\
+            ['west', 'system', 'system_options', 'pcoord_ndim'])
+        plen  = self.config.require(\
+            ['west', 'system', 'system_options', 'pcoord_len'])
+        # Dtype needs to be ran as code from YAML file, document YAML code execution syntax
+        # somewhere
+        ptype = self.config.require(\
+            ['west', 'system', 'system_options', 'pcoord_dtype'])
+        # Bins
+        bins_obj = self.config.require(\
+            ['west', 'system', 'system_options', 'bins'])
+        trgt_cnt = self.config.require(\
+            ['west', 'system', 'system_options', 'bin_target_counts'])
+        # Now add the parsed settings to the system
+        mapper   = bins_from_yaml_dict(bins_obj)
+        setattr(yamlSystem, 'pcoord_ndim', ndim)
+        setattr(yamlSystem, 'pcoord_len', plen)
+        setattr(yamlSystem, 'pcoord_dtype', ptype)
+        setattr(yamlSystem, 'bin_mapper', mapper)
+        # Check if the supplied target count object is 
+        # an iterable or not, 
+
+        # This one I designed in a way that you can either
+        # directly supply an iterable that has the correct
+        # size OR an integer. Anything else will fail. 
+        
+        # Main issue: For higher bin dimensions this 
+        # is tough since the bins might not correspond
+        # properly to the flattened array you are supplying.
+
+        # I might just scrap the iterable later and only allow
+        # integers.
+        if hasattr(trgt_cnt, "__iter__"):
+            assert len(trgt_cnt) == mapper.nbins, \
+              "Count iterable size doesn't match the number of bins"
+            trgt_cnt_arr = trgt_cnt
+        else:
+            assert trgt_cnt == numpy.int(trgt_cnt), \
+              "Counts are not integer valued, ambiguous input"
+            trgt_cnt_arr    = numpy.zeros(mapper.nbins)
+            trgt_cnt_arr[:] = trgt_cnt
+        setattr(yamlSystem, 'bin_target_counts', trgt_cnt_arr)
+
+        # Attach generic attribute to system 
+        for attr in system_dict.iterkeys():
+            if not hasattr(yamlSystem, attr):
+                setattr(yamlSystem, attr, system_dict[attr])
+
+        # Return complete system
         return yamlSystem
 
 
+    ## ADDED BY ALI FOR YAML PARSING OF THE SYSTEM
     def update_from_yaml(self, init_system, system_dict):
         """
         Updates the system built from the driver with the options
-        from the YAML file.
-        For now let's just overwrite anything.
+        from the YAML file. For now it overwrites everything specified
+        in the system driver.
+
+        Arguments: 
+          system_dict (dict): Parsed YAML file as a dictionary, parsed by 
+            PyYAML by default.
+          init_system (WESTSystem): System returned by the driver.
+
+        Returns: 
+          A modified WESTSystem object with settings from the system
+          driver and the config YAML file.
         """
-        #TODO Try to write better code. But first fix this thing.
+        
+        # First we want to overwrite whatever we have from the YAML
+        # file.
         for key, value in system_dict.iteritems():
-            if key == "bins":
-                print("TRYING TO ADD BINS FROM CONFIG FILE")
-                print("Bins of both were:")
-                print(init_system.bin_mapper.boundaries)
-                setattr(init_system, "bin_mapper", bins_from_yaml_dict(value))
-                print(init_system.bin_mapper.boundaries)
-            #elif:
-                # We want to parse target counts here
-            #elif:
-                # We want to parse any object here
-            #elif:
-                # We want to parse dtype here?
-            else:     
-                try: 
-                    print("TRYING TO SET %s FROM CONFIG FILE"%(key))
-                    setattr(init_system, key, value)
-                except:
-                    log.info("Initial system doesn't have propery %s"\
-                          %(key))
-                    pass
-        # These are not parsed yet
-        #self.pcoord_dtype = pcoord_dtype
-        #self.bin_target_counts[...] = 10
+            if key == 'pcoord_ndim':
+                setattr(init_system, key, value)
+            elif key == 'pcoord_len':
+                setattr(init_system, key, value)
+            elif key == 'pcoord_dtype':
+                setattr(init_system, key, value)
+            elif key == "bins":
+                setattr(init_system, key, bins_from_yaml_dict(value))
+        # Target counts have to be parsed after we have a mapper in
+        # place
+        if system_dict['bin_target_counts']:
+            trgt_cnt = system_dict['bin_target_counts']
+            if hasattr(trgt_cnt, "__iter__"):
+                assert len(trgt_cnt) == init_system.bin_mapper.nbins, \
+                  "Count iterable size doesn't match the number of bins"
+                trgt_cnt_arr = trgt_cnt
+            else:
+                assert trgt_cnt == numpy.int(trgt_cnt), \
+                  "Counts are not integer valued, ambiguous input"
+                trgt_cnt_arr    = numpy.zeros(init_system.bin_mapper.nbins)
+                trgt_cnt_arr[:] = int(trgt_cnt)
+            setattr(init_system, 'bin_target_counts', trgt_cnt_arr)
+        # The generic attribute settings added here
+        for attr in system_dict.iterkeys():
+            if not hasattr(init_system, attr):
+                setattr(init_system, attr, system_dict[attr])
         return init_system
+
 
     def get_system_driver(self):
         if self._system is None:
