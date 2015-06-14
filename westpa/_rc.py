@@ -70,18 +70,6 @@ def parsePCV(pc_str):
         raise ValueError('too many dimensions')
     return arr
 
-def UndefinedSystemError(Exception):
-    '''
-    Raised when no system is specified. This is caused
-    by missing system options in both the YAML file 
-    and a missing system driver.
-    '''
-
-    def __init__(self, expr,msg):
-        self.expr = expr
-        self.msg  = msg
-
-
 def lazy_loaded(backing_name, loader, docstring = None):
     def getter(self):
         obj = getattr(self, backing_name, None)
@@ -347,28 +335,30 @@ class WESTRC:
         if not sysdrivername:
             # Warn user that driver is not specified
             log.info("System driver not specified")
-        log.info('loading system driver %r' % sysdrivername)
-        system_driver = extloader.get_object(sysdrivername)(rc=self)
-        system_driver.initialize()
-        log.debug('loaded system driver {!r}'.format(system_driver))        
-        system = system_driver
+        else:
+            log.info('loading system driver %r' % sysdrivername)
+            system_driver = extloader.get_object(sysdrivername)(rc=self)
+            system_driver.initialize()
+            log.debug('loaded system driver {!r}'.format(system_driver))        
+            system = system_driver
         # Second let's see if we have info in the YAML file 
         yamloptions = self.config.get(['west','system','system_options'])
         if not yamloptions:
             # Same here, yaml file doesn't have sys info
             log.info("Config file doesn't contain any system info")
-        log.info("Loading system options from configuration file")
-        if system:
-            system = self.update_from_yaml(system, yamloptions)
         else:
-            system = self.system_from_yaml(yamloptions)
+             log.info("Loading system options from configuration file")
+             if system:
+                 system = self.update_from_yaml(system, yamloptions)
+             else:
+                 system = self.system_from_yaml(yamloptions)
         
         if system:
             return system
         else: 
             log.info("No system specified! Exiting program.")
             # Gracefully exit
-            raise UndefinedSystemError
+            raise ValueError("No system defined!")
 
     ## ADDED BY ALI FOR YAML PARSING OF THE SYSTEM
     def system_from_yaml(self, system_dict):
@@ -469,9 +459,10 @@ class WESTRC:
                 setattr(init_system, key, value)
             elif key == "bins":
                 setattr(init_system, key, bins_from_yaml_dict(value))
+        print(init_system.bin_mapper.nbins)
         # Target counts have to be parsed after we have a mapper in
         # place
-        if system_dict['bin_target_counts']:
+        try: 
             trgt_cnt = system_dict['bin_target_counts']
             if hasattr(trgt_cnt, "__iter__"):
                 assert len(trgt_cnt) == init_system.bin_mapper.nbins, \
@@ -483,6 +474,8 @@ class WESTRC:
                 trgt_cnt_arr    = numpy.zeros(init_system.bin_mapper.nbins)
                 trgt_cnt_arr[:] = int(trgt_cnt)
             setattr(init_system, 'bin_target_counts', trgt_cnt_arr)
+        except KeyError:
+             pass
         # The generic attribute settings added here
         for attr in system_dict.iterkeys():
             if not hasattr(init_system, attr):
