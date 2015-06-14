@@ -338,7 +338,6 @@ class WESTRC:
         else:
             log.info('loading system driver %r' % sysdrivername)
             system_driver = extloader.get_object(sysdrivername)(rc=self)
-            system_driver.initialize()
             log.debug('loaded system driver {!r}'.format(system_driver))        
             system = system_driver
         # Second let's see if we have info in the YAML file 
@@ -354,6 +353,7 @@ class WESTRC:
                  system = self.system_from_yaml(yamloptions)
         
         if system:
+            system_driver.initialize()
             return system
         else: 
             log.info("No system specified! Exiting program.")
@@ -458,8 +458,7 @@ class WESTRC:
             elif key == 'pcoord_dtype':
                 setattr(init_system, key, value)
             elif key == "bins":
-                setattr(init_system, key, bins_from_yaml_dict(value))
-        print(init_system.bin_mapper.nbins)
+                setattr(init_system, "bin_mapper", bins_from_yaml_dict(value))
         # Target counts have to be parsed after we have a mapper in
         # place
         try: 
