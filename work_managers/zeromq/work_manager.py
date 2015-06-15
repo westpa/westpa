@@ -191,23 +191,20 @@ class ZMQWorkManager(ZMQCore,WorkManager):
                     self.send_message(ann_socket, Message.MASTER_BEACON)
                     timers.reset('master_beacon')
                     
-            # Empty our queue of request/reply, posting shutdown messages
+            # Post a shutdown message
             self.log.debug('sending shutdown on ann_socket')
             self.send_message(ann_socket, Message.SHUTDOWN)            
             poller.unregister(inproc_socket)
-            poll_results = True
-            timers.add_timer('shutdown', self.shutdown_timeout)
             
+            # Clear incoming queue of requests, to let clients exit request/reply states gracefully
+            # (clients will still timeout in these states if necessary)
+            timers.add_timer('shutdown', self.shutdown_timeout)
             while not timers.expired('shutdown'):
-                poll_results = dict(poller.poll(100))
+                poll_results = dict(poller.poll(self.shutdown_timeout / 10 * 1000))
                 if rr_socket in poll_results:
                     msg = self.recv_message(rr_socket)
                     self.send_nak(rr_socket, msg)
-                
-                
-                
-                
-                
+
         finally:
             self.context.destroy(linger=1)
             self.context = None

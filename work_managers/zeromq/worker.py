@@ -7,10 +7,13 @@ Created on May 29, 2015
 import sys
 
 import logging
+from _ast import Break
 log = logging.getLogger(__name__)
 
-from core import ZMQCore, Message, ZMQWMEnvironmentError, PassiveMultiTimer, Task, Result, TIMEOUT_MASTER_BEACON
+from core import ZMQCore, Message, ZMQWMTimeout, PassiveMultiTimer, Task, Result, TIMEOUT_MASTER_BEACON
 import threading, multiprocessing, os, signal
+from contextlib import contextmanager
+
 
 import zmq
 
@@ -41,7 +44,7 @@ class ZMQWorker(ZMQCore):
         
         self.shutdown_timeout = 5.0 # Five second wait between shutdown message and SIGINT and SIGINT and SIGKILL
         self.executor_process = None
-            
+                    
     def update_master_info(self, msg):
         if self.master_id is None:
             self.master_id = msg.master_id
@@ -50,7 +53,7 @@ class ZMQWorker(ZMQCore):
     def identify(self, rr_socket):
         if self.master_id is None or self.identified or self.timers.expired(TIMEOUT_MASTER_BEACON): return
         self.send_message(rr_socket, Message.IDENTIFY, payload=self.get_identification())
-        self.recv_ack(rr_socket)
+        self.recv_ack(rr_socket,timeout=self.master_beacon_period*1000)
         self.identified = True
         
     def request_task(self, rr_socket, task_socket):
@@ -59,7 +62,7 @@ class ZMQWorker(ZMQCore):
         elif self.timers.expired(TIMEOUT_MASTER_BEACON): return
         else:
             self.send_message(rr_socket, Message.TASK_REQUEST)
-            reply = self.recv_message(rr_socket)
+            reply = self.recv_message(rr_socket,timeout=self.master_beacon_period*1000)
             if reply.message == Message.NAK:
                 # No task available
                 return 
@@ -87,7 +90,7 @@ class ZMQWorker(ZMQCore):
         msg.src_id = self.node_id
         self.pending_task = None
         self.send_message(rr_socket, msg)
-        self.recv_ack(rr_socket)
+        self.recv_ack(rr_socket, timeout=self.master_beacon_period*1000)
     
     def comm_loop(self):
         '''Master communication loop for the worker process.'''
@@ -164,8 +167,7 @@ class ZMQWorker(ZMQCore):
                         self.update_master_info(msg)
                         self.request_task(rr_socket,task_socket)
                 del announcements
-                
-                            
+            
                 # Process timeouts
                 #if timers.expired('worker_beacon'):
                     #self.log.debug('worker_beacon timeout')
@@ -174,7 +176,10 @@ class ZMQWorker(ZMQCore):
                 if timers.expired(TIMEOUT_MASTER_BEACON):
                     self.log.error('no contact from master; shutting down')
                     return
-                            
+        
+        except ZMQWMTimeout:
+            # both handle_result() and request_task() have receive timeouts set to self.master_beacon_period
+            self.log.error('timeout communicating with peer; shutting down')
         finally:
             self.shutdown_executor()
             self.executor_process.join()
@@ -240,15 +245,23 @@ class ZMQExecutor(ZMQCore):
         
         self.log.info('This is {}'.format(self.node_description))
         
-        while True:
-            msg = self.recv_message(task_socket)
+        try:
+            while True:
+                try:
+                    msg = self.recv_message(task_socket,timeout=1000)
+                except ZMQWMTimeout:
+                    continue
+                else:
+                    if msg.message == Message.TASK:
+                        task = msg.payload
+                        result = task.execute()
+                        self.send_message(result_socket, Message.RESULT, result)
+                    elif msg.message == Message.SHUTDOWN:
+                        break
+        finally:
+            self.context.destroy(linger=0)
+            self.context = None
             
-            if msg.message == Message.TASK:
-                task = msg.payload
-                result = task.execute()
-                self.send_message(result_socket, Message.RESULT, result)
-            elif msg.message == Message.SHUTDOWN:
-                break
             
     def startup(self):
         self.context = zmq.Context()

@@ -401,10 +401,27 @@ class ZMQCore:
                 sys.exit(1)
             elif self.validation_fail_action == 'warn':
                 self.log.warn('message validation falied: {!s}'.format(e))
+    
+    def recv_message(self, socket, flags=0, validate=True, timeout=None):
+        '''Receive a message object from the given socket, using the given flags.
+        Message validation is performed if ``validate`` is true.
+        If ``timeout`` is given, then it is the number of milliseconds to wait
+        prior to raising a ZMQWMTimeout exception. ``timeout`` is ignored if
+        ``flags`` includes ``zmq.NOBLOCK``.'''
         
-    def recv_message(self, socket, flags=0, validate=True):
-        '''Receive a message object from the given socket.'''
-        message = socket.recv_pyobj(flags)
+        if timeout is None or flags & zmq.NOBLOCK:
+            message = socket.recv_pyobj(flags)
+        else:        
+            poller = zmq.Poller()
+            poller.register(socket, zmq.POLLIN)
+            try:
+                poll_results = dict(poller.poll(timeout=timeout))
+                if socket in poll_results:
+                    message = socket.recv_pyobj(flags)
+                else:
+                    raise ZMQWMTimeout('recv timed out')
+            finally:
+                poller.unregister(socket)
         
         # Uncomment this to reveal *all* communication. Very verbose.
         #self.log.debug('received {!r}'.format(message))
@@ -414,6 +431,7 @@ class ZMQCore:
         return message
     
     def recv_all(self, socket, flags=0, validate=True):
+        '''Receive all messages currently available from the given socket.'''
         messages = []
         while True:
             try:
@@ -421,8 +439,8 @@ class ZMQCore:
             except zmq.Again:
                 return messages
             
-    def recv_ack(self, socket, flags=0, validate=True):
-        msg = self.recv_message(socket, flags, validate)
+    def recv_ack(self, socket, flags=0, validate=True, timeout=None):
+        msg = self.recv_message(socket, flags, validate, timeout)
         if validate:
             with self.message_validation(msg):
                 assert msg.message in (Message.ACK, Message.NAK)
@@ -443,7 +461,7 @@ class ZMQCore:
         # Uncomment this to reveal *all* communication. Very verbose.
         #self.log.debug('sending {!r}'.format(message))
         socket.send_pyobj(message,flags)
-        
+                    
     def send_reply(self, socket, original_message, reply=Message.ACK, payload=None,flags=0):
         '''Send a reply to ``original_message`` on ``socket``. The reply message
         is a Message object or a message identifier. The reply master_id and worker_id are
@@ -474,7 +492,7 @@ class ZMQCore:
         time.sleep(0.01)
         self.send_message(inproc_socket, message, payload, flags)
         # used to be a close with linger here, but it was cutting off messages
-
+        
     def signal_shutdown(self):
         try:
             self.send_inproc_message(Message.SHUTDOWN)
