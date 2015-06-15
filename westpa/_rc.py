@@ -291,7 +291,6 @@ class WESTRC:
             self._propagator = self.new_propagator()
         return self._propagator
             
-    ## MODIFIED BY ALI FOR YAML PARSING OF THE SYSTEM
     def new_system_driver(self):
         ''' 
         Returns a new system object either from the driver OR from the YAML
@@ -360,7 +359,6 @@ class WESTRC:
             # Gracefully exit
             raise ValueError("No system defined!")
 
-    ## ADDED BY ALI FOR YAML PARSING OF THE SYSTEM
     def system_from_yaml(self, system_dict):
         """
         System builder directly from the config YAML file. 
@@ -383,8 +381,8 @@ class WESTRC:
             ['west', 'system', 'system_options', 'pcoord_ndim'])
         plen  = self.config.require(\
             ['west', 'system', 'system_options', 'pcoord_len'])
-        # Dtype needs to be ran as code from YAML file, document YAML code execution syntax
-        # somewhere
+        # Dtype needs to be ran as code from YAML file, document YAML 
+        # code execution syntax somewhere
         ptype = self.config.require(\
             ['west', 'system', 'system_options', 'pcoord_dtype'])
         # Bins
@@ -431,7 +429,6 @@ class WESTRC:
         return yamlSystem
 
 
-    ## ADDED BY ALI FOR YAML PARSING OF THE SYSTEM
     def update_from_yaml(self, init_system, system_dict):
         """
         Updates the system built from the driver with the options
