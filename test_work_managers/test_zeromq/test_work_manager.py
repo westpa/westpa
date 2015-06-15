@@ -247,29 +247,10 @@ class BaseInternal(ZMQTestBase,CommonWorkManagerTests):
     def test_hung_worker_uninterruptible(self):
         self.test_wm.submit(will_busyhang_uninterruptible, (), {})
         time.sleep(1.0)
-        
-        
-#     def test_worker_processes_exception(self):
-#         task = Task(will_fail, (), {})
-#         rsl = self.roundtrip_task(task)
-#         assert isinstance(rsl.exception, ExceptionForTest)
-#         
-#     def test_hung_worker_interruptible(self):
-#         task = Task(will_busyhang, (), {})
-#         self.send_task(task)
-#         time.sleep(1.0)
-#         self.test_core.send_message(self.ann_socket, Message.SHUTDOWN)
-#         self.test_worker.join()
-#     
-#     def test_hung_worker_uninterruptible(self):
-#         task = Task(will_busyhang_uninterruptible, (), {})
-#         self.send_task(task)
-#         time.sleep(1.0)
-#         self.test_core.send_message(self.ann_socket, Message.SHUTDOWN)
-#         self.test_worker.join()
-         
+                 
 class TestZMQWorkManagerInternalSingle(BaseInternal):
     n_workers = 1
     
 class TestZMQWorkManagerInternalMultiple(BaseInternal):
     n_workers = 4
+    

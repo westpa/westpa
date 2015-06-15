@@ -8,7 +8,6 @@ import logging
 log = logging.getLogger(__name__)
 
 from core import ZMQCore, Message, Task, Result, ZMQWMEnvironmentError, ZMQWorkerMissing
-from master import ZMQMaster
 from worker import ZMQWorker
 from work_managers import WorkManager, WMFuture
 import multiprocessing
@@ -208,6 +207,7 @@ class ZMQWorkManager(ZMQCore,WorkManager):
         finally:
             self.context.destroy(linger=1)
             self.context = None
+            self.remove_ipc_endpoints()
     
     
         

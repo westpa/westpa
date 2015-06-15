@@ -185,6 +185,7 @@ class ZMQWorker(ZMQCore):
             self.executor_process.join()
             self.context.destroy(linger=1)
             self.context = None
+            self.remove_ipc_endpoints()
             
     def shutdown_executor(self):
         if self.context is not None:
@@ -248,7 +249,7 @@ class ZMQExecutor(ZMQCore):
         try:
             while True:
                 try:
-                    msg = self.recv_message(task_socket,timeout=1000)
+                    msg = self.recv_message(task_socket,timeout=100)
                 except ZMQWMTimeout:
                     continue
                 else:

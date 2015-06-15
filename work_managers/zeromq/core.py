@@ -424,7 +424,7 @@ class ZMQCore:
                 poller.unregister(socket)
         
         # Uncomment this to reveal *all* communication. Very verbose.
-        #self.log.debug('received {!r}'.format(message))
+        self.log.debug('received {!r}'.format(message))
         if validate:
             with self.message_validation(message):
                 self.validate_message(message)
@@ -459,7 +459,7 @@ class ZMQCore:
         message.src_id=self.node_id
         
         # Uncomment this to reveal *all* communication. Very verbose.
-        #self.log.debug('sending {!r}'.format(message))
+        self.log.debug('sending {!r}'.format(message))
         socket.send_pyobj(message,flags)
                     
     def send_reply(self, socket, original_message, reply=Message.ACK, payload=None,flags=0):
@@ -489,6 +489,7 @@ class ZMQCore:
     def send_inproc_message(self, message, payload=None, flags=0):
         inproc_socket = self.context.socket(zmq.PUB)
         inproc_socket.connect(self.inproc_endpoint)
+        # annoying wait for sockets to settle
         time.sleep(0.01)
         self.send_message(inproc_socket, message, payload, flags)
         # used to be a close with linger here, but it was cutting off messages
@@ -508,7 +509,6 @@ class ZMQCore:
         else:
             self.log.info('shutting down on signal {!s}'.format(signames.get(signal,signal)))
         self.signal_shutdown()
-        #sys.exit()
     
     def install_signal_handlers(self, signals = None):
         if not signals:
@@ -534,4 +534,3 @@ class ZMQCore:
                 break
 
 
-atexit.register(ZMQCore.remove_ipc_endpoints)
