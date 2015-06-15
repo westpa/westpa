@@ -158,28 +158,9 @@ either equilibrium or steady-state conditions without recycling target states.
 
                 pi.progress += 1
 
-            # Check for the number of intermediate time points; this will be used to normalize the
+            # Check and save the number of intermediate time points; this will be used to normalize the
             # flux and kinetics to tau in w_postanalysis_reweight.
             self.output_file.attrs['npts'] = npts
-
-
-def old_stats_process(bin_assignments, weights, fluxes, populations, trans, mask):
-    nsegs = bin_assignments.shape[0]
-    npts = bin_assignments.shape[1]
-
-    for k in xrange(nsegs):
-        ibin = bin_assignments[k,0]
-        fbin = bin_assignments[k, npts - 1]
-
-        if mask[k, 0] == 1:
-            continue
-
-        w = weights[k]
-
-        fluxes[ibin, fbin] += w
-        trans[ibin, fbin] += 1
-        populations[ibin] += w
-
 
 def calc_stats(bin_assignments, weights, fluxes, populations, trans, mask):
     fluxes.fill(0.0)
