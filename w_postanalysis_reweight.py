@@ -286,6 +286,7 @@ Command-line options
             state_labels = self.assignments_file['state_labels'][...]
             state_map = self.assignments_file['state_map'][...]
             nfbins = self.kinetics_file.attrs['nrows']
+            npts = self.kinetics_file.attrs['npts']
 
             assert nstates == len(state_labels)
             assert nfbins == nbins * nstates
@@ -317,7 +318,8 @@ Command-line options
                     rw_state_flux, rw_color_probs, rw_state_probs, rw_bin_probs, rw_bin_flux = reweight(**params)
                     for k in xrange(nstates):
                         for j in xrange(nstates):
-                            flux_evol[iblock]['expected'][k,j] = rw_state_flux[k,j]
+                            # Normalize such that we report the flux per tau (tau being the weighted ensemble iteration)
+                            flux_evol[iblock]['expected'][k,j] = rw_state_flux[k,j] * npts
                             flux_evol[iblock]['iter_start'][k,j] = start
                             flux_evol[iblock]['iter_stop'][k,j] = stop
 
@@ -345,7 +347,8 @@ Command-line options
                     rw_state_flux, rw_color_probs, rw_state_probs, rw_bin_probs, rw_bin_flux = reweight(**params)
                     for k in xrange(nstates):
                         for j in xrange(nstates):
-                            flux_evol[iblock]['expected'][k,j] = rw_state_flux[k,j]
+                            # Normalize such that we report the flux per tau (tau being the weighted ensemble iteration)
+                            flux_evol[iblock]['expected'][k,j] = rw_state_flux[k,j] * npts
                             flux_evol[iblock]['iter_start'][k,j] = start
                             flux_evol[iblock]['iter_stop'][k,j] = stop
 
