@@ -24,7 +24,7 @@ cimport numpy
 ctypedef numpy.uint16_t index_t
 ctypedef numpy.float64_t weight_t
 ctypedef numpy.uint8_t bool_t
-ctypedef numpy.int64_t seg_id_t
+ctypedef numpy.int64_t trans_t
 ctypedef numpy.uint_t uint_t # 32 bits on 32-bit systems, 64 bits on 64-bit systems
 
 cdef double NAN = numpy.nan 
@@ -56,9 +56,9 @@ cpdef flux_assign(numpy.ndarray[weight_t, ndim=1] weights,
 @cython.wraparound(False)
 cpdef stats_process(numpy.ndarray[index_t, ndim=2] bin_assignments,
                     numpy.ndarray[weight_t, ndim=1] weights, 
-                    numpy.ndarray[weight_t, ndim=1] fluxes, 
+                    numpy.ndarray[weight_t, ndim=2] fluxes, 
                     numpy.ndarray[weight_t, ndim=1] populations, 
-                    numpy.ndarray[index_t, ndim=1] trans, 
+                    numpy.ndarray[trans_t, ndim=2] trans, 
                     numpy.ndarray[index_t, ndim=2] mask):
     cdef:
         Py_ssize_t i,k

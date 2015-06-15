@@ -12,7 +12,7 @@ from west.data_manager import seg_id_dtype
 from westpa.binning import index_dtype
 from westtools import (WESTTool, WESTDataReader, IterRangeSelection,
                        ProgressIndicatorComponent)
-from postanalysis.stats import stats_process
+from postanalysis import stats_process
 
 log = logging.getLogger('westtools.w_postanalysis_matrix')
 
