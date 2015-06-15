@@ -291,6 +291,7 @@ class WESTRC:
             self._propagator = self.new_propagator()
         return self._propagator
             
+    ## MODIFIED BY ALI FOR YAML PARSING OF THE SYSTEM
     def new_system_driver(self):
         ''' 
         Returns a new system object either from the driver OR from the YAML
@@ -352,7 +353,7 @@ class WESTRC:
                  system = self.system_from_yaml(yamloptions)
         
         if system:
-            system_driver.initialize()
+            system.initialize()
             return system
         else: 
             log.info("No system specified! Exiting program.")
@@ -381,8 +382,8 @@ class WESTRC:
             ['west', 'system', 'system_options', 'pcoord_ndim'])
         plen  = self.config.require(\
             ['west', 'system', 'system_options', 'pcoord_len'])
-        # Dtype needs to be ran as code from YAML file, document YAML 
-        # code execution syntax somewhere
+        # Dtype needs to be ran as code from YAML file, document YAML code execution syntax
+        # somewhere
         ptype = self.config.require(\
             ['west', 'system', 'system_options', 'pcoord_dtype'])
         # Bins
@@ -469,9 +470,12 @@ class WESTRC:
                   "Counts are not integer valued, ambiguous input"
                 trgt_cnt_arr    = numpy.zeros(init_system.bin_mapper.nbins)
                 trgt_cnt_arr[:] = int(trgt_cnt)
+            print("Reseting the target counts array")
+            print(trgt_cnt_arr)
             setattr(init_system, 'bin_target_counts', trgt_cnt_arr)
         except KeyError:
              pass
+        print(init_system.bin_target_counts)
         # The generic attribute settings added here
         for attr in system_dict.iterkeys():
             if not hasattr(init_system, attr):
