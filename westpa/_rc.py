@@ -337,9 +337,9 @@ class WESTRC:
             log.info("System driver not specified")
         else:
             log.info('loading system driver %r' % sysdrivername)
-            system_driver = extloader.get_object(sysdrivername)(rc=self)
-            log.debug('loaded system driver {!r}'.format(system_driver))        
-            system = system_driver
+            system = extloader.get_object(sysdrivername)(rc=self)
+            log.debug('loaded system driver {!r}'.format(system))        
+            system.initialize()
         # Second let's see if we have info in the YAML file 
         yamloptions = self.config.get(['west','system','system_options'])
         if not yamloptions:
@@ -353,7 +353,6 @@ class WESTRC:
                  system = self.system_from_yaml(yamloptions)
         
         if system:
-            system.initialize()
             return system
         else: 
             log.info("No system specified! Exiting program.")
@@ -470,12 +469,9 @@ class WESTRC:
                   "Counts are not integer valued, ambiguous input"
                 trgt_cnt_arr    = numpy.zeros(init_system.bin_mapper.nbins)
                 trgt_cnt_arr[:] = int(trgt_cnt)
-            print("Reseting the target counts array")
-            print(trgt_cnt_arr)
             setattr(init_system, 'bin_target_counts', trgt_cnt_arr)
         except KeyError:
              pass
-        print(init_system.bin_target_counts)
         # The generic attribute settings added here
         for attr in system_dict.iterkeys():
             if not hasattr(init_system, attr):
