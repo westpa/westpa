@@ -291,7 +291,6 @@ class WESTRC:
             self._propagator = self.new_propagator()
         return self._propagator
             
-    ## MODIFIED BY ALI FOR YAML PARSING OF THE SYSTEM
     def new_system_driver(self):
         ''' 
         Returns a new system object either from the driver OR from the YAML
@@ -327,7 +326,7 @@ class WESTRC:
         
         # Still still has the end-user issue of possibly confusing 
         # people, maybe KISS is better, not sure. I'll keep this 
-        # for development purposes.
+        # for development purposes if nothing else.
 
         system = None
         # Get method checks for us  
@@ -373,6 +372,7 @@ class WESTRC:
         """
         
         yamlSystem = YAMLSystem()
+        print("System building only off of the configuration file")  
         # Now for the building of the system from YAML we need to use
         # require for these settings since they are musts. 
         
@@ -447,15 +447,17 @@ class WESTRC:
         
         # First we want to overwrite whatever we have from the YAML
         # file.
+        print("Updating system with the options from the configuration file")
         for key, value in system_dict.iteritems():
             if key == 'pcoord_ndim':
-                setattr(init_system, key, value)
+                self.overwrite_option(init_system, key, value)
             elif key == 'pcoord_len':
-                setattr(init_system, key, value)
+                self.overwrite_option(init_system, key, value)
             elif key == 'pcoord_dtype':
-                setattr(init_system, key, value)
+                self.overwrite_option(init_system, key, value)
             elif key == "bins":
-                setattr(init_system, "bin_mapper", bins_from_yaml_dict(value))
+                self.overwrite_option(init_system, 'bin_mapper',\
+                     bins_from_yaml_dict(value))
         # Target counts have to be parsed after we have a mapper in
         # place
         try: 
@@ -469,7 +471,7 @@ class WESTRC:
                   "Counts are not integer valued, ambiguous input"
                 trgt_cnt_arr    = numpy.zeros(init_system.bin_mapper.nbins)
                 trgt_cnt_arr[:] = int(trgt_cnt)
-            setattr(init_system, 'bin_target_counts', trgt_cnt_arr)
+            self.overwrite_option(init_system, 'bin_target_counts', trgt_cnt_arr)
         except KeyError:
              pass
         # The generic attribute settings added here
@@ -478,6 +480,10 @@ class WESTRC:
                 setattr(init_system, attr, system_dict[attr])
         return init_system
 
+    def overwrite_option(self, system, key, value):
+        if hasattr(system, key):
+            log.info("Overwriting system option: %s"%key)
+        setattr(system, key, value)
 
     def get_system_driver(self):
         if self._system is None:
