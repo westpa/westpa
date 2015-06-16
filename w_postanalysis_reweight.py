@@ -319,7 +319,8 @@ Command-line options
                     for k in xrange(nstates):
                         for j in xrange(nstates):
                             # Normalize such that we report the flux per tau (tau being the weighted ensemble iteration)
-                            flux_evol[iblock]['expected'][k,j] = rw_state_flux[k,j] * npts
+                            # npts always includes a 0th time point
+                            flux_evol[iblock]['expected'][k,j] = rw_state_flux[k,j] * (npts - 1)
                             flux_evol[iblock]['iter_start'][k,j] = start
                             flux_evol[iblock]['iter_stop'][k,j] = stop
 
@@ -348,7 +349,8 @@ Command-line options
                     for k in xrange(nstates):
                         for j in xrange(nstates):
                             # Normalize such that we report the flux per tau (tau being the weighted ensemble iteration)
-                            flux_evol[iblock]['expected'][k,j] = rw_state_flux[k,j] * npts
+                            # npts always includes a 0th time point
+                            flux_evol[iblock]['expected'][k,j] = rw_state_flux[k,j] * (npts - 1)
                             flux_evol[iblock]['iter_start'][k,j] = start
                             flux_evol[iblock]['iter_stop'][k,j] = stop
 
