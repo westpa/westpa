@@ -41,6 +41,7 @@ class TestZMQWorkerBasic(ZMQTestBase):
         self.test_worker = ZMQWorker(self.rr_endpoint, self.ann_endpoint)
         self.test_worker.validation_fail_action = 'raise'
         self.test_worker.shutdown_timeout = 0.5
+        self.test_worker.master_beacon_period = BEACON_PERIOD
         self.test_worker.startup()
         
         self.test_core.master_id = self.test_core.node_id

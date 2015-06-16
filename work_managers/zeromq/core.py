@@ -6,6 +6,11 @@ Created on May 29, 2015
 
 from __future__ import division, print_function; __metaclass__ = type
 
+try:
+    from cPickle import UnpicklingError
+except (NameError,AttributeError):
+    from pickle import UnpicklingError
+
 # Every ten seconds the master requests a status report from workers.
 # This also notifies workers that the master is still alive
 DEFAULT_STATUS_POLL = 10 
@@ -221,6 +226,12 @@ class PassiveMultiTimer:
         self._identifiers[new_idx] = identifier
         self._indices[identifier] = new_idx
         
+    def remove_timer(self, identifier):
+        idx = self._indices.pop(identifier)
+        self._durations = numpy.delete(self._durations, idx)
+        self._started = numpy.delete(self._started, idx)
+        self._identifiers = numpy.delete(self._identifiers, idx)
+        
     def change_duration(self, identifier, duration):
         idx = self._indices[identifier]
         self._durations[idx] = duration
@@ -248,6 +259,11 @@ class PassiveMultiTimer:
         idx = (self._started + self._durations - at).argmin()
         next_at = self._started[idx] + self._durations[idx] - at
         return next_at if next_at > 0 else 0
+    
+    def which_expired(self, at=None):
+        at = at or time.time()
+        expired_indices = (at - self._started) > self._durations
+        return self._identifiers[expired_indices]
         
 class ZMQCore:
     
@@ -317,15 +333,24 @@ class ZMQCore:
         # Identifier of the task distribution network (work manager)
         self.network_id = None
         
-        # Beacons 
-        # Master drops workers that don't check in during the beacon
-        # period Workers exit if they haven't heard from master in the beacon
-        # period
-        self.worker_beacon_period = 5
-        self.master_beacon_period = 5
+        # Beacons
+        # Workers expect to hear from the master at least every master_beacon_period
+        # Master expects to hear from the workers at least every worker_beacon_period
+        # If more than {master,worker}_beacon_period*timeout_factor elapses, the 
+        # master/worker is considered missing.
+         
+        self.worker_beacon_period = 2
+        self.master_beacon_period = 2
+        self.timeout_factor = 5
+        
         # These should allow for some fuzz, and should ratchet up as more and
         # more workers become available (maybe order 1 s for 100 workers?) This
         # should also account appropriately for startup delay on difficult
+        # systems.
+        
+        # Number of seconds to allow first contact between at least one worker
+        # and the master.
+        self.startup_timeout = 120
         
         
         # A friendlier description for logging
@@ -354,6 +379,11 @@ class ZMQCore:
         self._inproc_socket = None
         
         self.master_id = None
+        
+        if os.environ.get('WWMGR_ZMQ_DEBUG_MESSAGES', 'n').upper() in {'Y', 'YES', '1', 'T', 'TRUE'}:
+            self._super_debug = True
+        else:
+            self._super_debug = None
 
     def __repr__(self):
         return '<{!s} {!s}>'.format(self.__class__.__name__, self.node_id)
@@ -423,8 +453,8 @@ class ZMQCore:
             finally:
                 poller.unregister(socket)
         
-        # Uncomment this to reveal *all* communication. Very verbose.
-        self.log.debug('received {!r}'.format(message))
+        if self._super_debug:
+            self.log.debug('received {!r}'.format(message))
         if validate:
             with self.message_validation(message):
                 self.validate_message(message)
@@ -458,8 +488,8 @@ class ZMQCore:
             message.master_id = self.master_id
         message.src_id=self.node_id
         
-        # Uncomment this to reveal *all* communication. Very verbose.
-        self.log.debug('sending {!r}'.format(message))
+        if self._super_debug:
+            self.log.debug('sending {!r}'.format(message))
         socket.send_pyobj(message,flags)
                     
     def send_reply(self, socket, original_message, reply=Message.ACK, payload=None,flags=0):

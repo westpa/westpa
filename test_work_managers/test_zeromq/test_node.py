@@ -19,7 +19,7 @@ from . import SETUP_WAIT, TEARDOWN_WAIT, SHUTDOWN_WAIT, BEACON_PERIOD, BEACON_WA
 from . import ZMQTestBase
 
 class TestZMQNode(ZMQTestBase,CommonWorkManagerTests):
-    n_workers = 4
+    n_workers = 2
     
     '''Tests for the core task dispersal/retrieval and shutdown operations
     (the parts of the WM that do not require ZMQWorker).'''
@@ -49,6 +49,7 @@ class TestZMQNode(ZMQTestBase,CommonWorkManagerTests):
         
         for worker in self.test_workers:
             worker.master_beacon_period = BEACON_WAIT
+            worker.shutdown_timeout = 0.5
             worker.startup()
 
         self.test_node.startup()

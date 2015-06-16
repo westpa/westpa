@@ -1,8 +1,9 @@
-from core import ZMQWMError, ZMQWMTimeout, ZMQWMEnvironmentError, ZMQCore
+from core import ZMQWMError, ZMQWMTimeout, ZMQWMEnvironmentError, ZMQWorkerMissing, ZMQCore
 from node import ZMQNode
 from worker import ZMQWorker
 from work_manager import ZMQWorkManager
 
 import atexit
-for cls in ZMQCore, ZMQNode, ZMQWorkManager, ZMQWorker:
-    atexit.register(cls.remove_ipc_endpoints)
+atexit.register(ZMQCore.remove_ipc_endpoints)
+del atexit
+

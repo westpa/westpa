@@ -53,7 +53,7 @@ class ZMQWorker(ZMQCore):
     def identify(self, rr_socket):
         if self.master_id is None or self.identified or self.timers.expired(TIMEOUT_MASTER_BEACON): return
         self.send_message(rr_socket, Message.IDENTIFY, payload=self.get_identification())
-        self.recv_ack(rr_socket,timeout=self.master_beacon_period*1000)
+        self.recv_ack(rr_socket,timeout=self.master_beacon_period*self.timeout_factor*1000)
         self.identified = True
         
     def request_task(self, rr_socket, task_socket):
@@ -62,7 +62,8 @@ class ZMQWorker(ZMQCore):
         elif self.timers.expired(TIMEOUT_MASTER_BEACON): return
         else:
             self.send_message(rr_socket, Message.TASK_REQUEST)
-            reply = self.recv_message(rr_socket,timeout=self.master_beacon_period*1000)
+            reply = self.recv_message(rr_socket,timeout=self.master_beacon_period*self.timeout_factor*1000)
+            self.update_master_info(reply)
             if reply.message == Message.NAK:
                 # No task available
                 return 
@@ -90,7 +91,8 @@ class ZMQWorker(ZMQCore):
         msg.src_id = self.node_id
         self.pending_task = None
         self.send_message(rr_socket, msg)
-        self.recv_ack(rr_socket, timeout=self.master_beacon_period*1000)
+        reply = self.recv_ack(rr_socket, timeout=self.master_beacon_period*self.timeout_factor*1000)
+        self.update_master_info(reply)
     
     def comm_loop(self):
         '''Master communication loop for the worker process.'''
@@ -110,6 +112,8 @@ class ZMQWorker(ZMQCore):
         timers = self.timers = PassiveMultiTimer()
         timers.add_timer(TIMEOUT_MASTER_BEACON, self.master_beacon_period)
         timers.add_timer('worker_beacon', self.worker_beacon_period)
+        timers.add_timer('startup_timeout', self.startup_timeout)
+        peer_found = False
         
         try:
             rr_socket.connect(self.rr_endpoint)            
@@ -129,6 +133,10 @@ class ZMQWorker(ZMQCore):
                 # zeromq interprets as infinite wait; so instead we select a 1 ms wait in this
                 # case.
                 poll_results = dict(poller.poll((timers.next_expiration_in() or 0.001)*1000))
+                
+                if poll_results and not peer_found:
+                    timers.remove_timer('startup_timeout')
+                    peer_found = True
                 
                 announcements = []   
                 
@@ -162,6 +170,7 @@ class ZMQWorker(ZMQCore):
                         self.update_master_info(msg)
                         self.identify(rr_socket)
                     elif msg.message == Message.RECONFIGURE_TIMEOUT:
+                        self.update_master_info(msg)
                         self.handle_reconfigure_timeout(msg, timers)
                     elif msg.message == Message.TASKS_AVAILABLE:
                         self.update_master_info(msg)
@@ -169,16 +178,22 @@ class ZMQWorker(ZMQCore):
                 del announcements
             
                 # Process timeouts
-                #if timers.expired('worker_beacon'):
-                    #self.log.debug('worker_beacon timeout')
-                    #self.identify(rr_socket)
+                if self.master_id is not None and timers.expired('worker_beacon'):
+                    self.identify(rr_socket)
+                    timers.reset('worker_beacon')
 
                 if timers.expired(TIMEOUT_MASTER_BEACON):
                     self.log.error('no contact from master; shutting down')
                     return
+                
+                if not peer_found and timers.expired('startup_timeout'):
+                    self.log.error('startup phase elapsed with no contact from master; shutting down')
+                    break
         
         except ZMQWMTimeout:
-            # both handle_result() and request_task() have receive timeouts set to self.master_beacon_period
+            # both handle_result() and request_task() have receive timeouts set to 
+            # self.master_beacon_period*self.timeout_factor, and timeout exceptions
+            # propagate to this point.
             self.log.error('timeout communicating with peer; shutting down')
         finally:
             self.shutdown_executor()
@@ -250,6 +265,8 @@ class ZMQExecutor(ZMQCore):
             while True:
                 try:
                     msg = self.recv_message(task_socket,timeout=100)
+                except KeyboardInterrupt:
+                    break
                 except ZMQWMTimeout:
                     continue
                 else:

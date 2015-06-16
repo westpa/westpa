@@ -7,8 +7,8 @@ Created on Jun 2, 2015
 from __future__ import division, print_function; __metaclass__ = type
 
 import time
-from work_managers.zeromq import ZMQWorkManager
-from work_managers.zeromq.core import Message, Task, Result
+from work_managers.zeromq import ZMQWorkManager, ZMQWorker, ZMQWorkerMissing
+from work_managers.zeromq.core import Message, Task
 from test_work_managers.tsupport import *
 
 from contextlib import contextmanager
@@ -175,14 +175,8 @@ class TestZMQWorkManagerBasic(ZMQTestBase):
             result = task.execute()
             self.test_core.send_message(s, Message.RESULT, result)
         assert future.result == r
-        
-
-
 
 class BaseInternal(ZMQTestBase,CommonWorkManagerTests):
-    
-    '''Tests for the core task dispersal/retrieval and shutdown operations
-    (the parts of the WM that do not require ZMQWorker).'''
     def setUp(self):
         super(BaseInternal,self).setUp()
         
@@ -196,6 +190,8 @@ class BaseInternal(ZMQTestBase,CommonWorkManagerTests):
         self.test_wm.validation_fail_action = 'raise'
         self.test_wm.master_beacon_period = BEACON_PERIOD
         self.test_wm.task_beacon_period = BEACON_PERIOD
+        self.test_wm.startup_timeout = 1.0
+        self.test_wm.shutdown_timeout = 0.5
 
         self.rr_endpoint = self.make_endpoint()
         self.ann_endpoint = self.make_endpoint()
@@ -247,10 +243,114 @@ class BaseInternal(ZMQTestBase,CommonWorkManagerTests):
     def test_hung_worker_uninterruptible(self):
         self.test_wm.submit(will_busyhang_uninterruptible, (), {})
         time.sleep(1.0)
+        
+class TestZMQWorkManagerInternalNone(ZMQTestBase):
+    n_workers = 0
+ 
+    def setUp(self):
+        super(TestZMQWorkManagerInternalNone,self).setUp()
+        
+        
+        self.test_wm = ZMQWorkManager(n_local_workers=self.n_workers)
+        for worker in self.test_wm.local_workers:
+            worker.validation_fail_action = 'raise'
+            worker.shutdown_timeout = 0.5
+
+        # Set operation parameters 
+        self.test_wm.validation_fail_action = 'raise'
+        self.test_wm.master_beacon_period = BEACON_PERIOD
+        self.test_wm.task_beacon_period = BEACON_PERIOD
+        self.test_wm.startup_timeout = 1.0
+        self.test_wm.shutdown_timeout = 0.5
+
+        self.rr_endpoint = self.make_endpoint()
+        self.ann_endpoint = self.make_endpoint()
+        self.test_wm.rr_endpoints.append(self.rr_endpoint)
+        self.test_wm.ann_endpoints.append(self.ann_endpoint)
+        self.test_wm.startup()
+        
+        self.test_core.master_id = self.test_wm.master_id
+        
+        self.work_manager = self.test_wm
+        
+        time.sleep(SETUP_WAIT)
+
+    def tearDown(self):
+        time.sleep(TEARDOWN_WAIT)
+        
+        self.test_wm.signal_shutdown()
+        self.test_wm.comm_thread.join()
+        
+        super(TestZMQWorkManagerInternalNone,self).tearDown()
+ 
+    
+    def test_shutdown_without_workers(self):
+        time.sleep(1.5)
+        assert not self.test_wm.comm_thread.is_alive()
+        
+    def test_shutdown_without_workers_after_submission(self):
+        self.test_wm.submit(identity, (1,), {})
+        time.sleep(1.5)
+        assert not self.test_wm.comm_thread.is_alive()
+        
+    def test_shutdown_without_workers_raises_future_error(self):
+        future = self.test_wm.submit(identity, (1,), {})
+        time.sleep(1.5)
+        assert isinstance(future.get_exception(),ZMQWorkerMissing)
                  
 class TestZMQWorkManagerInternalSingle(BaseInternal):
     n_workers = 1
     
 class TestZMQWorkManagerInternalMultiple(BaseInternal):
     n_workers = 4
+
+class BaseExternal(ZMQTestBase,CommonWorkManagerTests):
+
+    def setUp(self):
+        super(BaseExternal,self).setUp()
+        
+        
+        self.test_wm = ZMQWorkManager(n_local_workers=0)
+        
+        # Set operation parameters 
+        self.test_wm.validation_fail_action = 'raise'
+        self.test_wm.master_beacon_period = BEACON_PERIOD
+        self.test_wm.task_beacon_period = BEACON_PERIOD
+        self.test_wm.worker_beacon_period = BEACON_PERIOD
+        self.test_wm.worker_timeout_check = BEACON_WAIT
+
+        self.rr_endpoint = self.make_endpoint()
+        self.ann_endpoint = self.make_endpoint()
+        self.test_wm.rr_endpoints.append(self.rr_endpoint)
+        self.test_wm.ann_endpoints.append(self.ann_endpoint)
+        self.test_wm.startup()
+
+        self.workers = [ZMQWorker(self.rr_endpoint, self.ann_endpoint)]        
+        for worker in self.workers:
+            worker.validation_fail_action = 'raise'
+            worker.master_beacon_period = BEACON_PERIOD
+            worker.shutdown_timeout = 0.5
+            worker.startup()
+        
+        
+        self.test_core.master_id = self.test_wm.master_id
+        
+        self.work_manager = self.test_wm
+        
+        time.sleep(SETUP_WAIT)
+
+    def tearDown(self):
+        time.sleep(TEARDOWN_WAIT)
+        
+        self.test_wm.signal_shutdown()
+        self.test_wm.comm_thread.join()
+        
+        super(BaseExternal,self).tearDown()
+    
+class TestZMQWorkManagerExternalSingle(BaseExternal):
+    n_workers = 1
+    
+class TestZMQWorkManagerExternalMultiple(BaseExternal):
+    n_workers = 4
+
     
