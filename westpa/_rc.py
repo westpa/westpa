@@ -344,7 +344,6 @@ class WESTRC:
         if not yamloptions:
             # Same here, yaml file doesn't have sys info
             log.info("Config file doesn't contain any system info")
-            print("System built only off of the system driver")
         else:
              log.info("Loading system options from configuration file")
              if system:
@@ -353,6 +352,8 @@ class WESTRC:
                  system = self.system_from_yaml(yamloptions)
         
         if system:
+            if not yamloptions:
+                print("System is being built only off of the system driver")
             return system
         else: 
             log.info("No system specified! Exiting program.")
