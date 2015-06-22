@@ -50,7 +50,7 @@ class TESTSystem(ycf.YAMLSystem):
 # A class to test both paths at the same time
 # if it works we assure we can load the driver
 # AND overwrite it properly
-class TestYAMLFrontEndDriver:
+class TestYAMLFrontEnd:
     
     def __init__(self):
         # First the objects that will be used for testing
@@ -73,7 +73,7 @@ class TestYAMLFrontEndDriver:
 
         self.system = rc.new_system_driver()
 
-    def testYAMLFE(self):
+    def testYAMLFEDriver(self):
         '''
         Test method to ensure the YAML system generator works as
         advertised
@@ -92,12 +92,7 @@ class TestYAMLFrontEndDriver:
         ## These should be the same as the original
         assert system.test_variable_2 == "And I'm the second one"
 
-# Now one with only the YAML config file
-# This ensures we can get the system off of 
-# the yaml file only
-class TestYAMLFrontEndConfig:
-    
-    def __init__(self):
+    def testYAMLFEConfig(self):
         # First the objects that will be used for testing
         rc = westpa.rc
         yamlConf = ycf.YAMLConfig()    
@@ -117,11 +112,6 @@ class TestYAMLFrontEndConfig:
 
         self.system = rc.new_system_driver()
 
-    def testYAMLFE(self):
-        '''
-        Test method to ensure the YAML system generator works as
-        advertised
-        '''
         system = self.system
         # Assert we have the right options
         # This needs some more documentation and alerts for the assertions
