@@ -29,7 +29,6 @@ from yamlcfg import YAMLSystem
 from . import extloader
 from work_managers import SerialWorkManager
 
-# For making it's own mapper - Ali
 from westpa.binning import RectilinearBinMapper
     
 def bins_from_yaml_dict(bin_dict):
