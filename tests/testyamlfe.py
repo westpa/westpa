@@ -52,7 +52,12 @@ class TESTSystem(ycf.YAMLSystem):
 # AND overwrite it properly
 class TestYAMLFrontEnd:
     
-    def __init__(self):
+    def testYAMLFEDriver(self):
+        '''
+        Test method to ensure the YAML system generator works as
+        advertised
+        '''
+
         # First the objects that will be used for testing
         rc = westpa.rc
         yamlConf = ycf.YAMLConfig()    
@@ -72,12 +77,6 @@ class TestYAMLFrontEnd:
         rc.config = yamlConf
 
         self.system = rc.new_system_driver()
-
-    def testYAMLFEDriver(self):
-        '''
-        Test method to ensure the YAML system generator works as
-        advertised
-        '''
        
         system = self.system
         # Assert we have the right options
