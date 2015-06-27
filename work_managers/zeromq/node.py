@@ -26,7 +26,7 @@ class ZMQNode(ZMQCore,IsNode):
     def is_master(self):
         return False
         
-    
+        
     def comm_loop(self):
         self.context = zmq.Context.instance() 
         # or else the proxies create sockets in a different context

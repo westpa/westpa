@@ -7,7 +7,7 @@ Created on Jun 10, 2015
 import logging
 log = logging.getLogger(__name__)
 
-from core import ZMQCore, Message, Task, Result, ZMQWorkerMissing, IsNode
+from core import ZMQCore, Message, Task, Result, ZMQWorkerMissing, ZMQWMEnvironmentError, IsNode
 from core import randport
 from worker import ZMQWorker
 from node import ZMQNode
@@ -114,6 +114,9 @@ class ZMQWorkManager(ZMQCore,WorkManager,IsNode):
         # 0 with mode=='node' is a dedicated communications process (former ZMQRouter)
         n_workers = wmenv.get_val('n_workers', multiprocessing.cpu_count(), int)
         
+        # We set this at the class level, because outside of testing, a node either
+        # can support IPC or it can't, and there is no obvious need (currently)
+        # to support both modes on an instance-by-instance basis
         comm_mode = wmenv.get_val('zmq_comm_mode', cls.default_comm_mode)
         ZMQWorkManager.internal_transport = comm_mode
         ZMQWorker.internal_transport = comm_mode
@@ -128,19 +131,48 @@ class ZMQWorkManager(ZMQCore,WorkManager,IsNode):
         
         
         if mode == 'master':
-            downstream_rr_endpoint = cls.canonicalize_endpoint(wmenv.get_val('zmq_downstream_rr_endpoint', 'tcp://*:{}'.format(randport)))
-            downstream_ann_endpoint = cls.canonicalize_endpoint(wmenv.get_val('zmq_downstream_ann_endpoint', 'tcp://*:{}'.format(randport)))
+            downstream_rr_endpoint = cls.canonicalize_endpoint(wmenv.get_val('zmq_downstream_rr_endpoint', 
+                                                                             'tcp://*:{}'.format(randport)))
+            downstream_ann_endpoint = cls.canonicalize_endpoint(wmenv.get_val('zmq_downstream_ann_endpoint', 
+                                                                              'tcp://*:{}'.format(randport)))
             instance = ZMQWorkManager(n_workers)
             instance.downstream_rr_endpoint = downstream_rr_endpoint
             instance.downstream_ann_endpoint = downstream_ann_endpoint
         else: # mode =='node'
             
-            return ZMQNode.from_environ(wmenv)
+            upstream_info = {}
+            if read_host_info:
+                upstream_info.update(cls.read_host_info(read_host_info))
+            
+            upstream_rr_endpoint = wmenv.get_val('zmq_upstream_rr_endpoint', upstream_info.get('rr_endpoint'))
+            upstream_ann_endpoint = wmenv.get_val('zmq_upstream_ann_endpoint', upstream_info.get('ann_endpoint'))
+            
+            if not (upstream_rr_endpoint and upstream_ann_endpoint):
+                raise ZMQWMEnvironmentError('at least one upstream endpoint unspecified')
+            
+            # expand hostnames, if present, to IP addresses
+            # reject wildcard hostnames, which is a logic error (can't connect to a host
+            # without specifying an address)
+            upstream_rr_endpoint = cls.canonicalize_endpoint(upstream_rr_endpoint, allow_wildcard_host=False)
+            upstream_ann_endpoint = cls.canonicalize_endpoint(upstream_ann_endpoint, allow_wildcard_host=False)
+            
+            instance = ZMQNode(upstream_ann_endpoint=upstream_ann_endpoint, 
+                               upstream_rr_endpoint=upstream_rr_endpoint, 
+                               n_local_workers=n_workers)
+            
         
         instance.master_beacon_period = master_heartbeat
         instance.worker_beacon_period = worker_heartbeat
         instance.timeout_factor = timeout_factor
         instance.startup_timeout = startup_timeout
+        
+        assert isinstance(instance, IsNode)
+        for worker in instance.local_workers:
+            worker.master_beacon_period = master_heartbeat
+            worker.worker_beacon_period = worker_heartbeat
+            worker.timeout_factor = timeout_factor
+            worker.startup_timeout = startup_timeout
+        
         
         # We always write host info (since we are always either master or node)
         # we choose not to in the special case that read_host_info is '' but not None
@@ -149,6 +181,14 @@ class ZMQWorkManager(ZMQCore,WorkManager,IsNode):
         if write_host_info != '':
             instance.write_host_info(write_host_info)
             
+    
+        return instance
+    
+    @classmethod
+    def read_host_info(cls, filename):
+        return json.load(open(filename,'rt'))
+        
+    
 
     @classmethod
     def canonicalize_endpoint(endpoint, allow_wildcard_host = True):
