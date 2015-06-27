@@ -7,8 +7,11 @@ Created on Jun 10, 2015
 import logging
 log = logging.getLogger(__name__)
 
-from core import ZMQCore, Message, Task, Result, ZMQWMEnvironmentError, ZMQWorkerMissing
+from core import ZMQCore, Message, Task, Result, ZMQWorkerMissing, IsNode
+from core import randport
 from worker import ZMQWorker
+from node import ZMQNode
+import work_managers
 from work_managers import WorkManager, WMFuture
 import multiprocessing
 
@@ -18,31 +21,169 @@ import zmq
 
 from collections import deque
 
-class ZMQWorkManager(ZMQCore,WorkManager):
+import socket, re, json
+
+class ZMQWorkManager(ZMQCore,WorkManager,IsNode):
+    
+    @classmethod
+    def add_wm_args(cls, parser, wmenv=None):
+        if wmenv is None:
+            wmenv = work_managers.environment.default_env
+            
+            wm_group = parser.add_argument_group('options for ZeroMQ ("zmq") work manager (master or node)')
+            
+            wm_group.add_argument(wmenv.arg_flag('zmq_mode'), metavar='MODE', choices=('master','node','server','client'),
+                                  default='master',
+                                  help='Operate as a master (server) or a node (workers/client). '
+                                      +'"server" is a deprecated synonym for "master" and "client" is a '
+                                      +'deprecated synonym for "node".')
+            wm_group.add_argument(wmenv.arg_flag('zmq_comm_mode'), metavar='COMM_MODE', choices=('ipc', 'tcp'),
+                                  default=cls.default_comm_mode,
+                                  help='Use the given communication mode -- TCP or IPC (Unix-domain) -- sockets '
+                                      +'for communication within a node. IPC (the default) may be more '
+                                      +'efficient but is not available on (exceptionally rare) systems '
+                                      +'without node-local storage (e.g. /tmp); on such systems, TCP may be used instead.')
+            wm_group.add_argument(wmenv.arg_flag('zmq_write_host_info'), metavar='INFO_FILE',
+                                  help='Store hostname and port information needed to connect to this instance '
+                                      +'in INFO_FILE. This allows the master and nodes assisting in '
+                                      +'coordinating the communication of other nodes to choose ports '
+                                      +'randomly. Downstream nodes read this file with '
+                                      +wmenv.arg_flag('zmq_read_host_info') + ' and know where how to connect.')
+            wm_group.add_argument(wmenv.arg_flag('zmq_read_host_info'), metavar='INFO_FILE',
+                                  help='Read hostname and port information needed to connect to the master '
+                                      +'(or other coordinating node) from INFO_FILE. '
+                                      +'This allows the master and nodes assisting in '
+                                      +'coordinating the communication of other nodes to choose ports '
+                                      +'randomly, writing that information with '
+                                      +wmenv.arg_flag('zmq_write_host_info') + ' for this instance to read.')
+            wm_group.add_argument(wmenv.arg_flag('zmq_upstream_rr_endpoint'), metavar='ENDPOINT',
+                                  help='ZeroMQ endpoint to which to send request/response (task and result) '
+                                      +'traffic toward the master.')
+            wm_group.add_argument(wmenv.arg_flag('zmq_upstream_ann_endpoint'), metavar='ENDPOINT',
+                                  help='ZeroMQ endpoint on which to receive announcement '
+                                      +'(heartbeat and shutdown notification) traffic from the master.')
+            wm_group.add_argument(wmenv.arg_flag('zmq_downstream_rr_endpoint'), metavar='ENDPOINT',
+                                  help='ZeroMQ endpoint on which to listen for request/response '
+                                      +'(task and result) traffic from subsidiary workers.')
+            wm_group.add_argument(wmenv.arg_flag('zmq_downstream_ann_endpoint'), metavar='ENDPOINT',
+                                  help='ZeroMQ endpoint on which to send announcement '
+                                      +'(heartbeat and shutdown notification) traffic toward workers.')
+            wm_group.add_argument(wmenv.arg_flag('zmq_master_heartbeat'), metavar='MASTER_HEARTBEAT',
+                                  type=float, default = cls.default_master_heartbeat,
+                                  help='Every MASTER_HEARTBEAT seconds, the master announces its presence '
+                                      +'to workers. (Default: %(default)3.1f)')
+            wm_group.add_argument(wmenv.arg_flag('zmq_worker_heartbeat'), metavar='WORKER_HEARTBEAT',
+                                  type=float, default = cls.default_worker_heartbeat,
+                                  help='Every WORKER_HEARTBEAT seconds, workers announce their presence '
+                                      +'to the master. (Default; %(default)3.1f')
+            wm_group.add_argument(wmenv.arg_flag('zmq_timeout_factor'), metavar='FACTOR',
+                                  type=float, default=cls.default_timeout_factor,
+                                  help='Scaling factor for heartbeat timeouts. '
+                                      +"If the master doesn't hear from a worker in WORKER_HEARTBEAT*FACTOR, "
+                                      +"the worker is assumed to have crashed. If a worker doesn't hear from "
+                                      +"the master in MASTER_HEARTBEAT*FACTOR seconds, the master is assumed "
+                                      +"to have crashed. Both cases result in shutdown. "
+                                      +"(Default: %(default)3.1f)")
+            wm_group.add_argument(wmenv.arg_flag('zmq_startup_timeout'), metavar='STARTUP_TIMEOUT', 
+                                  type=float, default=cls.default_startup_timeout,
+                                  help='Amount of time (in seconds) to wait for communication between '
+                                      +'the master and at least one worker. This may need to be changed '
+                                      +'on very large, heavily-loaded computer systems that start all processes '
+                                      +'simultaneously. '
+                                      +'(Default: %(default)d)')
+            wm_group.add_argument(wmenv.arg_flag('zmq_shutdown_timeout'), metavar='SHUTDOWN_TIMEOUT', 
+                                  type=float, default=cls.default_shutdown_timeout,
+                                  help='Amount of time (in seconds) to wait for workers to shut down.')
+    
+    @classmethod
+    def from_environ(cls, wmenv=None):
+        if wmenv is None:
+            wmenv = work_managers.environment.default_env
+            
+        # determine mode
+        mode = wmenv.get_val('zmq_mode', 'master').lower()
+        if mode in {'master', 'server'}:
+            mode = 'master'
+        elif mode in {'node', 'client'}:
+            mode = 'node'
+        else:
+            raise ValueError('invalid ZMQ work manager mode {!r}'.format(mode))
+        
+        # determine number of workers
+        # 0 with mode=='master' is a dedicated master
+        # 0 with mode=='node' is a dedicated communications process (former ZMQRouter)
+        n_workers = wmenv.get_val('n_workers', multiprocessing.cpu_count(), int)
+        
+        comm_mode = wmenv.get_val('zmq_comm_mode', cls.default_comm_mode)
+        ZMQWorkManager.internal_transport = comm_mode
+        ZMQWorker.internal_transport = comm_mode
+        ZMQNode.internal_transport = comm_mode
+        
+        write_host_info = wmenv.get_val('zmq_write_host_info')
+        read_host_info  = wmenv.get_val('zmq_read_host_info')
+        master_heartbeat = wmenv.get_val('zmq_master_heartbeat', cls.default_master_heartbeat)
+        worker_heartbeat = wmenv.get_val('zmq_worker_heartbeat', cls.default_worker_heartbeat)
+        timeout_factor = wmenv.get_val('zmq_timeout_factor', cls.default_timeout_factor)
+        startup_timeout = wmenv.get_val('zmq_startup_timeout', cls.default_startup_timeout)
+        
+        
+        if mode == 'master':
+            downstream_rr_endpoint = cls.canonicalize_endpoint(wmenv.get_val('zmq_downstream_rr_endpoint', 'tcp://*:{}'.format(randport)))
+            downstream_ann_endpoint = cls.canonicalize_endpoint(wmenv.get_val('zmq_downstream_ann_endpoint', 'tcp://*:{}'.format(randport)))
+            instance = ZMQWorkManager(n_workers)
+            instance.downstream_rr_endpoint = downstream_rr_endpoint
+            instance.downstream_ann_endpoint = downstream_ann_endpoint
+        else: # mode =='node'
+            
+            return ZMQNode.from_environ(wmenv)
+        
+        instance.master_beacon_period = master_heartbeat
+        instance.worker_beacon_period = worker_heartbeat
+        instance.timeout_factor = timeout_factor
+        instance.startup_timeout = startup_timeout
+        
+        # We always write host info (since we are always either master or node)
+        # we choose not to in the special case that read_host_info is '' but not None
+        # (None implies nothing found on command line or in environment variables, but ''
+        # implies that it was found somewhere but it is empty)
+        if write_host_info != '':
+            instance.write_host_info(write_host_info)
+            
+
+    @classmethod
+    def canonicalize_endpoint(endpoint, allow_wildcard_host = True):
+        if endpoint.startswith('ipc://'):
+            return endpoint
+        elif endpoint.startswith('tcp://'):
+            fields = endpoint[6:].split(':')
+            
+            # get IP address
+            if fields[0] != '*':
+                ipaddr = socket.gethostbyname(fields[0])
+            else:
+                if allow_wildcard_host:
+                    ipaddr = '*'
+                else:
+                    raise ValueError('wildcard host not permitted')
+            
+            # get/generate port
+            try:
+                port = fields[1]
+            except IndexError:
+                # no port given; select one
+                port = randport()
+            else:
+                port = int(fields[1])
+                
+            return 'tcp://{}:{}'.format(ipaddr,port)
+        else:
+            raise ValueError('unrecognized/unsupported endpoint: {!r}'.format(endpoint))        
+    
     def __init__(self, n_local_workers=1):
         ZMQCore.__init__(self)
         WorkManager.__init__(self)
-        
-        # Endpoints for announcements and request/replies
-        # We can use IPC for node-local workers and TCP for remote
-        # at the same time
-        self.ann_endpoints = []
-        self.rr_endpoints = []
-        
-        # Node-local workers (one thread/process each)
-        if n_local_workers > 0:
-            local_ann_endpoint = self.make_internal_endpoint()
-            local_rr_endpoint = self.make_internal_endpoint()
-            self.ann_endpoints.append(local_ann_endpoint)
-            self.rr_endpoints.append(local_rr_endpoint)
-            
-            self.local_workers = [ZMQWorker(local_rr_endpoint, local_ann_endpoint) for _n in xrange(n_local_workers)]
-            
-        else:
-            self.local_workers = []
-            
-        self.local_worker_processes = [multiprocessing.Process(target = worker.startup) for worker in self.local_workers]    
-                
+        IsNode.__init__(self, n_local_workers)
+                                
         # Futures indexed by task ID
         self.futures = dict()
         
@@ -55,10 +196,7 @@ class ZMQWorkManager(ZMQCore,WorkManager):
         # Identity information and last contact from workers
         self.worker_information = dict() # indexed by worker_id
         self.worker_timeouts = PassiveMultiTimer() # indexed by worker_id
-        
-        # How may seconds between task available announcements
-        self.task_beacon_period = 1.0
-        
+                
         # Number of seconds between checks to see which workers have timed out
         self.worker_timeout_check = 5.0
         
@@ -66,12 +204,11 @@ class ZMQWorkManager(ZMQCore,WorkManager):
         self.shutdown_timeout = 0.5
         
         self.master_id = self.node_id
-        
-    def startup(self):
-        for process in self.local_worker_processes:
-            process.start()
-        super(ZMQWorkManager,self).startup()
-        
+            
+    @property
+    def n_workers(self):
+        return len(self.worker_information)
+                
     def submit(self, fn, args=None, kwargs=None):
         future = WMFuture()
         task = Task(fn, args or (), kwargs or {}, task_id = future.task_id)
@@ -165,11 +302,11 @@ class ZMQWorkManager(ZMQCore,WorkManager):
         rr_socket = self.context.socket(zmq.REP)
         ann_socket = self.context.socket(zmq.PUB)
         
-        for endpoint in self.rr_endpoints:
-            rr_socket.bind(endpoint)
+        for endpoint in (self.local_rr_endpoint, self.downstream_rr_endpoint):
+            if endpoint: rr_socket.bind(endpoint)
             
-        for endpoint in self.ann_endpoints:
-            ann_socket.bind(endpoint)
+        for endpoint in (self.local_ann_endpoint, self.downstream_ann_endpoint):
+            if endpoint: ann_socket.bind(endpoint)
 
         inproc_socket = self.context.socket(zmq.SUB)
         inproc_socket.setsockopt(zmq.SUBSCRIBE,'')
@@ -180,9 +317,9 @@ class ZMQWorkManager(ZMQCore,WorkManager):
         poller.register(rr_socket, zmq.POLLIN)
         
         timers = PassiveMultiTimer()
-        timers.add_timer('tasks_avail', self.task_beacon_period)
+        timers.add_timer('tasks_avail', self.master_beacon_period)
         timers.add_timer('master_beacon', self.master_beacon_period)
-        timers.add_timer('worker_timeout_check', self.worker_timeout_check)
+        timers.add_timer('worker_timeout_check', self.worker_beacon_period*self.timeout_factor)
         timers.add_timer('startup_timeout', self.startup_timeout)
         timers.reset()
         
@@ -260,5 +397,7 @@ class ZMQWorkManager(ZMQCore,WorkManager):
             self.context = None
             self.remove_ipc_endpoints()
     
-    
+    def startup(self):
+        IsNode.startup(self)
+        super(ZMQWorkManager,self).startup()
         

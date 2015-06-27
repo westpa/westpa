@@ -8,20 +8,23 @@ Created on Jun 11, 2015
 import logging
 log = logging.getLogger(__name__)
 
-from core import ZMQCore, Message, PassiveMultiTimer
+from core import ZMQCore, Message, PassiveMultiTimer, IsNode
 
 import zmq
 from zmq.devices import ThreadProxy
 
-class ZMQNode(ZMQCore):
-    def __init__(self, upstream_rr_endpoint, upstream_ann_endpoint):
+class ZMQNode(ZMQCore,IsNode):
+    def __init__(self, upstream_rr_endpoint, upstream_ann_endpoint, n_local_workers=None):
         super(ZMQNode,self).__init__()
+        IsNode.__init__(self,n_local_workers)
         
         self.upstream_rr_endpoint = upstream_rr_endpoint
         self.upstream_ann_endpoint = upstream_ann_endpoint
         
-        self.downstream_rr_endpoints = []
-        self.downstream_ann_endpoints = []
+        
+    @property
+    def is_master(self):
+        return False
         
     
     def comm_loop(self):
@@ -49,12 +52,13 @@ class ZMQNode(ZMQCore):
         ann_mon_endpoint = 'inproc://{:x}'.format(id(ann_monitor))
         ann_monitor.bind(ann_mon_endpoint)
         
-        for endpoint in self.downstream_rr_endpoints:
-            rr_proxy.bind_in(endpoint)
+    
+        rr_proxy.bind_in(self.downstream_rr_endpoint)
+        if self.local_rr_endpoint: rr_proxy.bind_in(self.local_rr_endpoint)
         rr_proxy.connect_out(self.upstream_rr_endpoint)
             
-        for endpoint in self.downstream_ann_endpoints:
-            ann_proxy.bind_out(endpoint)
+        ann_proxy.bind_out(self.downstream_ann_endpoint)
+        if self.local_ann_endpoint: ann_proxy.bind_out(self.local_ann_endpoint)
         ann_proxy.connect_in(self.upstream_ann_endpoint)
         ann_proxy.setsockopt_in(zmq.SUBSCRIBE, '')        
         ann_proxy.connect_mon(ann_mon_endpoint)
@@ -94,17 +98,20 @@ class ZMQNode(ZMQCore):
                     if Message.SHUTDOWN in message_tags:
                         self.log.debug('shutdown received')
                         break
-                    if Message.MASTER_BEACON in message_tags or Message.TASKS_AVAILABLE in message_tags:
-                        pass
-                        #peer_found = True
-                        #timers.remove_timer('startup_timeout')
+                    if not peer_found and (Message.MASTER_BEACON in message_tags or Message.TASKS_AVAILABLE in message_tags):
+                        peer_found = True
+                        timers.remove_timer('startup_timeout')
                         
                         
-                #if not peer_found and timers.expired('startup_timeout'):
-                #    self.log.error('startup phase elapsed with no contact from peer; shutting down')
+                if not peer_found and timers.expired('startup_timeout'):
+                    self.log.error('startup phase elapsed with no contact from peer; shutting down')
+                    break
             
         finally:
             self.log.debug('exiting')
-            #self.context.destroy(linger=100)
             self.context = None
             self.remove_ipc_endpoints()
+
+    def startup(self):
+        IsNode.startup(self)
+        super(ZMQNode,self).startup()

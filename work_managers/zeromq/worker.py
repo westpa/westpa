@@ -44,6 +44,11 @@ class ZMQWorker(ZMQCore):
         
         self.shutdown_timeout = 5.0 # Five second wait between shutdown message and SIGINT and SIGINT and SIGKILL
         self.executor_process = None
+
+    @property
+    def is_master(self):
+        return False
+
                     
     def update_master_info(self, msg):
         if self.master_id is None:

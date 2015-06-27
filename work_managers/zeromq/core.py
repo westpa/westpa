@@ -24,7 +24,7 @@ import logging
 log = logging.getLogger(__name__)
 
 #import gevent
-import sys, uuid, socket, os,tempfile, errno, time, threading, contextlib, traceback, atexit
+import sys, uuid, socket, os,tempfile, errno, time, threading, contextlib, traceback, multiprocessing, json, re
 from collections import OrderedDict
 
 import signal
@@ -113,31 +113,7 @@ class Message:
 
 TIMEOUT_MASTER_BEACON = 'master_beacon'
 TIMEOUT_WORKER_CONTACT = 'worker_contact'
-           
-
-# No need for this, since we can just put the futures in a dictionary indexed by task_id
-
-# class TaskUpstream:
-#     def __init__(self, fn, args, kwargs, future=None):
-#         if future is None:
-#             self.future = WMFuture()
-#         else:
-#             self.future = future
-#             
-#         self.task_id = self.future.task_id
-# 
-#         # Task data                    
-#         self.fn = fn
-#         self.args = args
-#         self.kwargs = kwargs
-#         
-#     def __repr__(self):
-#         return '<{} {task_id!s} {fn!r} {:d} args {:d} kwargs>'\
-#                .format(len(self.args), len(self.kwargs), **self.__dict__)
-#                
-#     def __hash__(self):
-#         return hash(self.task_id)
-    
+               
 class Task:
     def __init__(self, fn, args, kwargs, task_id = None):
         self.task_id = task_id or uuid.uuid4()
@@ -288,6 +264,14 @@ class ZMQCore:
     # IPC should work except on really odd systems with no local storage
     internal_transport = 'ipc'
     
+    default_comm_mode = 'ipc'
+    default_master_heartbeat = 2.0
+    default_worker_heartbeat = 2.0
+    default_timeout_factor = 5.0
+    default_startup_timeout = 120.0
+    default_shutdown_timeout = 5.0
+        
+    
     
     _ipc_endpoints_to_delete = []
     
@@ -339,9 +323,9 @@ class ZMQCore:
         # If more than {master,worker}_beacon_period*timeout_factor elapses, the 
         # master/worker is considered missing.
          
-        self.worker_beacon_period = 2
-        self.master_beacon_period = 2
-        self.timeout_factor = 5
+        self.worker_beacon_period = self.default_worker_heartbeat
+        self.master_beacon_period = self.default_master_heartbeat
+        self.timeout_factor = self.default_timeout_factor
         
         # These should allow for some fuzz, and should ratchet up as more and
         # more workers become available (maybe order 1 s for 100 workers?) This
@@ -350,7 +334,7 @@ class ZMQCore:
         
         # Number of seconds to allow first contact between at least one worker
         # and the master.
-        self.startup_timeout = 120
+        self.startup_timeout = self.default_startup_timeout
         
         
         # A friendlier description for logging
@@ -564,3 +548,37 @@ class ZMQCore:
                 break
 
 
+class IsNode:
+    def __init__(self, n_local_workers=None):
+        from work_managers.zeromq.worker import ZMQWorker
+        
+        if n_local_workers is None:
+            n_local_workers = multiprocessing.cpu_count()
+        
+        self.downstream_rr_endpoint = None
+        self.downstream_ann_endpoint = None
+
+        if n_local_workers:
+            self.local_ann_endpoint = self.make_internal_endpoint()
+            self.local_rr_endpoint = self.make_internal_endpoint()
+            self.local_workers = [ZMQWorker(self.local_rr_endpoint, self.local_ann_endpoint) for _n in xrange(n_local_workers)]
+        else:
+            self.local_ann_endpoint = None
+            self.local_rr_endpoint = None
+            self.local_workers = []
+            
+        self.local_worker_processes = [multiprocessing.Process(target = worker.startup) for worker in self.local_workers]           
+
+    def write_host_info(self, filename=None):
+        filename = filename or 'zmq_host_info_{}.json'.format(self.node_id.hex)
+        hostname = socket.gethostname()
+                        
+        with open(filename, 'wt') as infofile:
+            info = {}
+            info['rr_endpoint'] = re.sub(r'\*', hostname, self.remote_rr_endpoint or '')
+            info['ann_endpoint'] = re.sub(r'\*', hostname, self.remote_ann_endpoint or '')
+            json.dump(info,infofile)
+
+    def startup(self):
+        for process in self.local_worker_processes:
+            process.start()

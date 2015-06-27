@@ -41,8 +41,8 @@ class TestZMQWorkManagerBasic(ZMQTestBase):
 
         self.rr_endpoint = self.make_endpoint()
         self.ann_endpoint = self.make_endpoint()
-        self.test_wm.rr_endpoints.append(self.rr_endpoint)
-        self.test_wm.ann_endpoints.append(self.ann_endpoint)
+        self.test_wm.downstream_rr_endpoint = self.rr_endpoint
+        self.test_wm.downstream_ann_endpoint = self.ann_endpoint
         self.test_wm.startup()
         
         self.test_core.master_id = self.test_wm.master_id
@@ -193,10 +193,6 @@ class BaseInternal(ZMQTestBase,CommonWorkManagerTests):
         self.test_wm.startup_timeout = 1.0
         self.test_wm.shutdown_timeout = 0.5
 
-        self.rr_endpoint = self.make_endpoint()
-        self.ann_endpoint = self.make_endpoint()
-        self.test_wm.rr_endpoints.append(self.rr_endpoint)
-        self.test_wm.ann_endpoints.append(self.ann_endpoint)
         self.test_wm.startup()
         
         self.test_core.master_id = self.test_wm.master_id
@@ -263,10 +259,6 @@ class TestZMQWorkManagerInternalNone(ZMQTestBase):
         self.test_wm.startup_timeout = 1.0
         self.test_wm.shutdown_timeout = 0.5
 
-        self.rr_endpoint = self.make_endpoint()
-        self.ann_endpoint = self.make_endpoint()
-        self.test_wm.rr_endpoints.append(self.rr_endpoint)
-        self.test_wm.ann_endpoints.append(self.ann_endpoint)
         self.test_wm.startup()
         
         self.test_core.master_id = self.test_wm.master_id
@@ -321,8 +313,8 @@ class BaseExternal(ZMQTestBase,CommonWorkManagerTests):
 
         self.rr_endpoint = self.make_endpoint()
         self.ann_endpoint = self.make_endpoint()
-        self.test_wm.rr_endpoints.append(self.rr_endpoint)
-        self.test_wm.ann_endpoints.append(self.ann_endpoint)
+        self.test_wm.downstream_rr_endpoint = self.rr_endpoint
+        self.test_wm.downstream_ann_endpoint = self.ann_endpoint
         self.test_wm.startup()
 
         self.workers = [ZMQWorker(self.rr_endpoint, self.ann_endpoint)]        
