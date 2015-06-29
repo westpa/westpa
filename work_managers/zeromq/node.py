@@ -20,8 +20,17 @@ class ZMQNode(ZMQCore,IsNode):
         
         self.upstream_rr_endpoint = upstream_rr_endpoint
         self.upstream_ann_endpoint = upstream_ann_endpoint
+
+    def __enter__(self):
+        return self
         
-        
+    def __exit__(self, exc_type, exc_val, exc_traceback):
+        self.shutdown()
+        return False
+    
+    def run(self):
+        self.startup()
+            
     @property
     def is_master(self):
         return False
@@ -55,11 +64,13 @@ class ZMQNode(ZMQCore,IsNode):
     
         rr_proxy.bind_in(self.downstream_rr_endpoint)
         if self.local_rr_endpoint: rr_proxy.bind_in(self.local_rr_endpoint)
+        self.log.debug('connecting upstream_rr_endpoint = {!r}'.format(self.upstream_rr_endpoint))
         rr_proxy.connect_out(self.upstream_rr_endpoint)
             
         ann_proxy.bind_out(self.downstream_ann_endpoint)
         if self.local_ann_endpoint: ann_proxy.bind_out(self.local_ann_endpoint)
         ann_proxy.connect_in(self.upstream_ann_endpoint)
+        self.log.debug('connecting upstream_ann_endpoint = {!r}'.format(self.upstream_ann_endpoint))        
         ann_proxy.setsockopt_in(zmq.SUBSCRIBE, '')        
         ann_proxy.connect_mon(ann_mon_endpoint)
         

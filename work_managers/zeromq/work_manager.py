@@ -30,70 +30,70 @@ class ZMQWorkManager(ZMQCore,WorkManager,IsNode):
         if wmenv is None:
             wmenv = work_managers.environment.default_env
             
-            wm_group = parser.add_argument_group('options for ZeroMQ ("zmq") work manager (master or node)')
-            
-            wm_group.add_argument(wmenv.arg_flag('zmq_mode'), metavar='MODE', choices=('master','node','server','client'),
-                                  default='master',
-                                  help='Operate as a master (server) or a node (workers/client). '
-                                      +'"server" is a deprecated synonym for "master" and "client" is a '
-                                      +'deprecated synonym for "node".')
-            wm_group.add_argument(wmenv.arg_flag('zmq_comm_mode'), metavar='COMM_MODE', choices=('ipc', 'tcp'),
-                                  default=cls.default_comm_mode,
-                                  help='Use the given communication mode -- TCP or IPC (Unix-domain) -- sockets '
-                                      +'for communication within a node. IPC (the default) may be more '
-                                      +'efficient but is not available on (exceptionally rare) systems '
-                                      +'without node-local storage (e.g. /tmp); on such systems, TCP may be used instead.')
-            wm_group.add_argument(wmenv.arg_flag('zmq_write_host_info'), metavar='INFO_FILE',
-                                  help='Store hostname and port information needed to connect to this instance '
-                                      +'in INFO_FILE. This allows the master and nodes assisting in '
-                                      +'coordinating the communication of other nodes to choose ports '
-                                      +'randomly. Downstream nodes read this file with '
-                                      +wmenv.arg_flag('zmq_read_host_info') + ' and know where how to connect.')
-            wm_group.add_argument(wmenv.arg_flag('zmq_read_host_info'), metavar='INFO_FILE',
-                                  help='Read hostname and port information needed to connect to the master '
-                                      +'(or other coordinating node) from INFO_FILE. '
-                                      +'This allows the master and nodes assisting in '
-                                      +'coordinating the communication of other nodes to choose ports '
-                                      +'randomly, writing that information with '
-                                      +wmenv.arg_flag('zmq_write_host_info') + ' for this instance to read.')
-            wm_group.add_argument(wmenv.arg_flag('zmq_upstream_rr_endpoint'), metavar='ENDPOINT',
-                                  help='ZeroMQ endpoint to which to send request/response (task and result) '
-                                      +'traffic toward the master.')
-            wm_group.add_argument(wmenv.arg_flag('zmq_upstream_ann_endpoint'), metavar='ENDPOINT',
-                                  help='ZeroMQ endpoint on which to receive announcement '
-                                      +'(heartbeat and shutdown notification) traffic from the master.')
-            wm_group.add_argument(wmenv.arg_flag('zmq_downstream_rr_endpoint'), metavar='ENDPOINT',
-                                  help='ZeroMQ endpoint on which to listen for request/response '
-                                      +'(task and result) traffic from subsidiary workers.')
-            wm_group.add_argument(wmenv.arg_flag('zmq_downstream_ann_endpoint'), metavar='ENDPOINT',
-                                  help='ZeroMQ endpoint on which to send announcement '
-                                      +'(heartbeat and shutdown notification) traffic toward workers.')
-            wm_group.add_argument(wmenv.arg_flag('zmq_master_heartbeat'), metavar='MASTER_HEARTBEAT',
-                                  type=float, default = cls.default_master_heartbeat,
-                                  help='Every MASTER_HEARTBEAT seconds, the master announces its presence '
-                                      +'to workers. (Default: %(default)3.1f)')
-            wm_group.add_argument(wmenv.arg_flag('zmq_worker_heartbeat'), metavar='WORKER_HEARTBEAT',
-                                  type=float, default = cls.default_worker_heartbeat,
-                                  help='Every WORKER_HEARTBEAT seconds, workers announce their presence '
-                                      +'to the master. (Default; %(default)3.1f')
-            wm_group.add_argument(wmenv.arg_flag('zmq_timeout_factor'), metavar='FACTOR',
-                                  type=float, default=cls.default_timeout_factor,
-                                  help='Scaling factor for heartbeat timeouts. '
-                                      +"If the master doesn't hear from a worker in WORKER_HEARTBEAT*FACTOR, "
-                                      +"the worker is assumed to have crashed. If a worker doesn't hear from "
-                                      +"the master in MASTER_HEARTBEAT*FACTOR seconds, the master is assumed "
-                                      +"to have crashed. Both cases result in shutdown. "
-                                      +"(Default: %(default)3.1f)")
-            wm_group.add_argument(wmenv.arg_flag('zmq_startup_timeout'), metavar='STARTUP_TIMEOUT', 
-                                  type=float, default=cls.default_startup_timeout,
-                                  help='Amount of time (in seconds) to wait for communication between '
-                                      +'the master and at least one worker. This may need to be changed '
-                                      +'on very large, heavily-loaded computer systems that start all processes '
-                                      +'simultaneously. '
-                                      +'(Default: %(default)d)')
-            wm_group.add_argument(wmenv.arg_flag('zmq_shutdown_timeout'), metavar='SHUTDOWN_TIMEOUT', 
-                                  type=float, default=cls.default_shutdown_timeout,
-                                  help='Amount of time (in seconds) to wait for workers to shut down.')
+        wm_group = parser.add_argument_group('options for ZeroMQ ("zmq") work manager (master or node)')
+        
+        wm_group.add_argument(wmenv.arg_flag('zmq_mode'), metavar='MODE', choices=('master','node','server','client'),
+                              default='master',
+                              help='Operate as a master (server) or a node (workers/client). '
+                                  +'"server" is a deprecated synonym for "master" and "client" is a '
+                                  +'deprecated synonym for "node".')
+        wm_group.add_argument(wmenv.arg_flag('zmq_comm_mode'), metavar='COMM_MODE', choices=('ipc', 'tcp'),
+                              default=cls.default_comm_mode,
+                              help='Use the given communication mode -- TCP or IPC (Unix-domain) -- sockets '
+                                  +'for communication within a node. IPC (the default) may be more '
+                                  +'efficient but is not available on (exceptionally rare) systems '
+                                  +'without node-local storage (e.g. /tmp); on such systems, TCP may be used instead.')
+        wm_group.add_argument(wmenv.arg_flag('zmq_write_host_info'), metavar='INFO_FILE',
+                              help='Store hostname and port information needed to connect to this instance '
+                                  +'in INFO_FILE. This allows the master and nodes assisting in '
+                                  +'coordinating the communication of other nodes to choose ports '
+                                  +'randomly. Downstream nodes read this file with '
+                                  +wmenv.arg_flag('zmq_read_host_info') + ' and know where how to connect.')
+        wm_group.add_argument(wmenv.arg_flag('zmq_read_host_info'), metavar='INFO_FILE',
+                              help='Read hostname and port information needed to connect to the master '
+                                  +'(or other coordinating node) from INFO_FILE. '
+                                  +'This allows the master and nodes assisting in '
+                                  +'coordinating the communication of other nodes to choose ports '
+                                  +'randomly, writing that information with '
+                                  +wmenv.arg_flag('zmq_write_host_info') + ' for this instance to read.')
+        wm_group.add_argument(wmenv.arg_flag('zmq_upstream_rr_endpoint'), metavar='ENDPOINT',
+                              help='ZeroMQ endpoint to which to send request/response (task and result) '
+                                  +'traffic toward the master.')
+        wm_group.add_argument(wmenv.arg_flag('zmq_upstream_ann_endpoint'), metavar='ENDPOINT',
+                              help='ZeroMQ endpoint on which to receive announcement '
+                                  +'(heartbeat and shutdown notification) traffic from the master.')
+        wm_group.add_argument(wmenv.arg_flag('zmq_downstream_rr_endpoint'), metavar='ENDPOINT',
+                              help='ZeroMQ endpoint on which to listen for request/response '
+                                  +'(task and result) traffic from subsidiary workers.')
+        wm_group.add_argument(wmenv.arg_flag('zmq_downstream_ann_endpoint'), metavar='ENDPOINT',
+                              help='ZeroMQ endpoint on which to send announcement '
+                                  +'(heartbeat and shutdown notification) traffic toward workers.')
+        wm_group.add_argument(wmenv.arg_flag('zmq_master_heartbeat'), metavar='MASTER_HEARTBEAT',
+                              type=float, default = cls.default_master_heartbeat,
+                              help='Every MASTER_HEARTBEAT seconds, the master announces its presence '
+                                  +'to workers. (Default: %(default)3.1f)')
+        wm_group.add_argument(wmenv.arg_flag('zmq_worker_heartbeat'), metavar='WORKER_HEARTBEAT',
+                              type=float, default = cls.default_worker_heartbeat,
+                              help='Every WORKER_HEARTBEAT seconds, workers announce their presence '
+                                  +'to the master. (Default; %(default)3.1f')
+        wm_group.add_argument(wmenv.arg_flag('zmq_timeout_factor'), metavar='FACTOR',
+                              type=float, default=cls.default_timeout_factor,
+                              help='Scaling factor for heartbeat timeouts. '
+                                  +"If the master doesn't hear from a worker in WORKER_HEARTBEAT*FACTOR, "
+                                  +"the worker is assumed to have crashed. If a worker doesn't hear from "
+                                  +"the master in MASTER_HEARTBEAT*FACTOR seconds, the master is assumed "
+                                  +"to have crashed. Both cases result in shutdown. "
+                                  +"(Default: %(default)3.1f)")
+        wm_group.add_argument(wmenv.arg_flag('zmq_startup_timeout'), metavar='STARTUP_TIMEOUT', 
+                              type=float, default=cls.default_startup_timeout,
+                              help='Amount of time (in seconds) to wait for communication between '
+                                  +'the master and at least one worker. This may need to be changed '
+                                  +'on very large, heavily-loaded computer systems that start all processes '
+                                  +'simultaneously. '
+                                  +'(Default: %(default)d)')
+        wm_group.add_argument(wmenv.arg_flag('zmq_shutdown_timeout'), metavar='SHUTDOWN_TIMEOUT', 
+                              type=float, default=cls.default_shutdown_timeout,
+                              help='Amount of time (in seconds) to wait for workers to shut down.')
     
     @classmethod
     def from_environ(cls, wmenv=None):
@@ -131,18 +131,13 @@ class ZMQWorkManager(ZMQCore,WorkManager,IsNode):
         
         
         if mode == 'master':
-            downstream_rr_endpoint = cls.canonicalize_endpoint(wmenv.get_val('zmq_downstream_rr_endpoint', 
-                                                                             'tcp://*:{}'.format(randport())))
-            downstream_ann_endpoint = cls.canonicalize_endpoint(wmenv.get_val('zmq_downstream_ann_endpoint', 
-                                                                              'tcp://*:{}'.format(randport())))
             instance = ZMQWorkManager(n_workers)
-            instance.downstream_rr_endpoint = downstream_rr_endpoint
-            instance.downstream_ann_endpoint = downstream_ann_endpoint
         else: # mode =='node'
             
             upstream_info = {}
             if read_host_info:
                 upstream_info.update(cls.read_host_info(read_host_info))
+            log.debug('upstream_info: {!r}'.format(upstream_info))
             
             upstream_rr_endpoint = wmenv.get_val('zmq_upstream_rr_endpoint', upstream_info.get('rr_endpoint'))
             upstream_ann_endpoint = wmenv.get_val('zmq_upstream_ann_endpoint', upstream_info.get('ann_endpoint'))
@@ -156,10 +151,22 @@ class ZMQWorkManager(ZMQCore,WorkManager,IsNode):
             upstream_rr_endpoint = cls.canonicalize_endpoint(upstream_rr_endpoint, allow_wildcard_host=False)
             upstream_ann_endpoint = cls.canonicalize_endpoint(upstream_ann_endpoint, allow_wildcard_host=False)
             
+            log.debug('upstream_rr_endpoint = {}'.format(upstream_rr_endpoint))
+            log.debug('upstream_ann_endpoint = {}'.format(upstream_ann_endpoint))
+            
             instance = ZMQNode(upstream_ann_endpoint=upstream_ann_endpoint, 
                                upstream_rr_endpoint=upstream_rr_endpoint, 
                                n_local_workers=n_workers)
-            
+        
+        # Both server and node bind downstream endpoints, so that users get fan-out communications
+        # "for free" when starting up a computational node    
+        downstream_rr_endpoint = cls.canonicalize_endpoint(wmenv.get_val('zmq_downstream_rr_endpoint', 
+                                                                         'tcp://*:{}'.format(randport())))
+        downstream_ann_endpoint = cls.canonicalize_endpoint(wmenv.get_val('zmq_downstream_ann_endpoint', 
+                                                                          'tcp://*:{}'.format(randport())))
+        instance.downstream_rr_endpoint = downstream_rr_endpoint
+        instance.downstream_ann_endpoint = downstream_ann_endpoint
+
         
         instance.master_beacon_period = master_heartbeat
         instance.worker_beacon_period = worker_heartbeat
@@ -178,7 +185,7 @@ class ZMQWorkManager(ZMQCore,WorkManager,IsNode):
         # we choose not to in the special case that read_host_info is '' but not None
         # (None implies nothing found on command line or in environment variables, but ''
         # implies that it was found somewhere but it is empty)
-        if write_host_info != '':
+        if write_host_info is not None and write_host_info != '':
             instance.write_host_info(write_host_info)
             
     

@@ -586,7 +586,9 @@ class IsNode:
             self.local_rr_endpoint = None
             self.local_workers = []
             
-        self.local_worker_processes = [multiprocessing.Process(target = worker.startup) for worker in self.local_workers]           
+        self.local_worker_processes = [multiprocessing.Process(target = worker.startup) for worker in self.local_workers]
+        
+        self.host_info_files = []           
 
     def write_host_info(self, filename=None):
         filename = filename or 'zmq_host_info_{}.json'.format(self.node_id.hex)
@@ -597,6 +599,7 @@ class IsNode:
             info['rr_endpoint'] = re.sub(r'\*', hostname, self.downstream_rr_endpoint or '')
             info['ann_endpoint'] = re.sub(r'\*', hostname, self.downstream_ann_endpoint or '')
             json.dump(info,infofile)
+        self.host_info_files.append(filename)
 
     def startup(self):
         for process in self.local_worker_processes:
@@ -610,4 +613,10 @@ class IsNode:
             
         for process in self.local_worker_processes:
             shutdown_process(process, shutdown_timeout)
+            
+        for host_info_file in self.host_info_files:
+            try:
+                os.unlink(host_info_file)
+            except OSError:
+                pass
             
