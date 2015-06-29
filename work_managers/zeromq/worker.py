@@ -98,7 +98,7 @@ class ZMQWorker(ZMQCore):
         self.send_message(rr_socket, msg)
         reply = self.recv_ack(rr_socket, timeout=self.master_beacon_period*self.timeout_factor*1000)
         self.update_master_info(reply)
-    
+            
     def comm_loop(self):
         '''Master communication loop for the worker process.'''
         
@@ -115,7 +115,7 @@ class ZMQWorker(ZMQCore):
         self.log.info('This is {}'.format(self.node_description))
         
         timers = self.timers = PassiveMultiTimer()
-        timers.add_timer(TIMEOUT_MASTER_BEACON, self.master_beacon_period)
+        timers.add_timer(TIMEOUT_MASTER_BEACON, 86400)
         timers.add_timer('worker_beacon', self.worker_beacon_period)
         timers.add_timer('startup_timeout', self.startup_timeout)
         peer_found = False
@@ -142,6 +142,8 @@ class ZMQWorker(ZMQCore):
                 if poll_results and not peer_found:
                     timers.remove_timer('startup_timeout')
                     peer_found = True
+                    timers.change_duration(TIMEOUT_MASTER_BEACON, self.master_beacon_period)
+                    timers.reset(TIMEOUT_MASTER_BEACON)
                 
                 announcements = []   
                 
@@ -233,8 +235,15 @@ class ZMQWorker(ZMQCore):
             self.log.debug('worker process {:d} terminated gracefully with code {:d}'.format(self.executor_process.pid, self.executor_process.exitcode))        
         assert not self.executor_process.is_alive()
         
+    def install_signal_handlers(self, signals = None):
+        if not signals:
+            signals = {signal.SIGINT, signal.SIGQUIT, signal.SIGTERM}
+        
+        for sig in signals:
+            signal.signal(sig, signal.SIG_IGN)
 
     def startup(self):
+        self.install_signal_handlers()
         executor = ZMQExecutor(self.task_endpoint, self.result_endpoint)
         self.executor_process = multiprocessing.Process(target = executor.startup)
         self.executor_process.start()

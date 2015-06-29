@@ -132,9 +132,9 @@ class ZMQWorkManager(ZMQCore,WorkManager,IsNode):
         
         if mode == 'master':
             downstream_rr_endpoint = cls.canonicalize_endpoint(wmenv.get_val('zmq_downstream_rr_endpoint', 
-                                                                             'tcp://*:{}'.format(randport)))
+                                                                             'tcp://*:{}'.format(randport())))
             downstream_ann_endpoint = cls.canonicalize_endpoint(wmenv.get_val('zmq_downstream_ann_endpoint', 
-                                                                              'tcp://*:{}'.format(randport)))
+                                                                              'tcp://*:{}'.format(randport())))
             instance = ZMQWorkManager(n_workers)
             instance.downstream_rr_endpoint = downstream_rr_endpoint
             instance.downstream_ann_endpoint = downstream_ann_endpoint
@@ -191,7 +191,7 @@ class ZMQWorkManager(ZMQCore,WorkManager,IsNode):
     
 
     @classmethod
-    def canonicalize_endpoint(endpoint, allow_wildcard_host = True):
+    def canonicalize_endpoint(cls, endpoint, allow_wildcard_host = True):
         if endpoint.startswith('ipc://'):
             return endpoint
         elif endpoint.startswith('tcp://'):
@@ -250,20 +250,30 @@ class ZMQWorkManager(ZMQCore,WorkManager,IsNode):
         return len(self.worker_information)
                 
     def submit(self, fn, args=None, kwargs=None):
+        if self.futures is None:
+            # We are shutting down
+            raise ZMQWMEnvironmentError('work manager is shutting down')
         future = WMFuture()
         task = Task(fn, args or (), kwargs or {}, task_id = future.task_id)
         self.futures[task.task_id] = future
         self.outgoing_tasks.append(task)
+        # Wake up the communications loop (if necessary) to announce new tasks
+        self.send_inproc_message(Message.TASKS_AVAILABLE)
         return future
 
     def submit_many(self, tasks):
+        if self.futures is None:
+            # We are shutting down
+            raise ZMQWMEnvironmentError('work manager is shutting down')
         futures = []        
         for (fn,args,kwargs) in tasks:
             future = WMFuture()
             task = Task(fn, args, kwargs, task_id = future.task_id)
             self.futures[task.task_id] = future
             self.outgoing_tasks.append(task)
-            futures.append(future)        
+            futures.append(future)
+        # Wake up the communications loop (if necessary) to announce new tasks            
+        self.send_inproc_message(Message.TASKS_AVAILABLE)
         return futures
 
     def send_message(self, socket, message, payload=None, flags=0):
@@ -322,7 +332,7 @@ class ZMQWorkManager(ZMQCore,WorkManager,IsNode):
             
             self.log.error('no contact from worker {}'.format(expired_worker_id, worker_description))
                
-            self.remove_worker(expired_worker_id)
+            self.remove_worker(expired_worker_id)            
                                         
     def remove_worker(self, worker_id):
         try:
@@ -334,7 +344,15 @@ class ZMQWorkManager(ZMQCore,WorkManager,IsNode):
                            .format(expired_task, worker_id))
             future = self.futures.pop(expired_task.task_id)
             future._set_exception(ZMQWorkerMissing('worker running this task disappeared'))
-
+        del self.worker_information[worker_id]
+        
+    def shutdown_clear_tasks(self):
+        '''Abort pending tasks with error on shutdown.'''
+        while self.futures:
+            task_id, future = self.futures.popitem()
+            future._set_exception(ZMQWMEnvironmentError('work manager shut down during task'))
+        self.futures = None
+            
     
     def comm_loop(self):
         self.context = zmq.Context()
@@ -372,8 +390,11 @@ class ZMQWorkManager(ZMQCore,WorkManager,IsNode):
             while True:
                 # If a timer is already expired, next_expiration_in() will return 0, which
                 # zeromq interprets as infinite wait; so instead we select a 1 ms wait in this
-                # case.                
-                poll_results = dict(poller.poll((timers.next_expiration_in() or 0.001)*1000))
+                # case.
+                timeout = (timers.next_expiration_in() or 0.001)*1000
+                # Wake up every second to check for signals
+                timeout = min(timeout, 1000)
+                poll_results = dict(poller.poll(timeout))
                 
                 if poll_results and not peer_found:
                     timers.remove_timer('startup_timeout')
@@ -388,7 +409,7 @@ class ZMQWorkManager(ZMQCore,WorkManager,IsNode):
                     # Check for any other wake-up messages
                     for msg in msgs:
                         if msg.message == Message.TASKS_AVAILABLE:
-                            pass
+                            self.send_message(ann_socket, Message.TASKS_AVAILABLE)
                 
                 if rr_socket in poll_results:
                     msg = self.recv_message(rr_socket)
@@ -410,6 +431,9 @@ class ZMQWorkManager(ZMQCore,WorkManager,IsNode):
                     timers.reset('master_beacon')
                 if timers.expired('worker_timeout_check'):
                     self.check_workers()
+                    if not self.worker_information:
+                        self.log.error('all workers disappeared; exiting')
+                        break
                     timers.reset('worker_timeout_check')
                 if not peer_found and timers.expired('startup_timeout'):
                     self.log.error('startup phase elapsed with no contact from workers; shutting down')
@@ -422,6 +446,9 @@ class ZMQWorkManager(ZMQCore,WorkManager,IsNode):
             self.log.debug('sending shutdown on ann_socket')
             self.send_message(ann_socket, Message.SHUTDOWN)            
             poller.unregister(inproc_socket)
+            
+            # Clear tasks
+            self.shutdown_clear_tasks()
             
             # Clear incoming queue of requests, to let clients exit request/reply states gracefully
             # (clients will still timeout in these states if necessary)
@@ -440,4 +467,10 @@ class ZMQWorkManager(ZMQCore,WorkManager,IsNode):
     def startup(self):
         IsNode.startup(self)
         super(ZMQWorkManager,self).startup()
+        
+    def shutdown(self):
+        self.signal_shutdown()
+        IsNode.shutdown(self)
+        self.join()
+        super(ZMQWorkManager,self).shutdown()
         

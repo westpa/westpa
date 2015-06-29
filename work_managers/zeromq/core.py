@@ -530,6 +530,9 @@ class ZMQCore:
         
         for sig in signals:
             signal.signal(sig, self.shutdown_handler)
+            
+    def install_sigint_handler(self):
+        self.install_signal_handlers()
 
     def startup(self):
         self.context = zmq.Context()
@@ -547,6 +550,22 @@ class ZMQCore:
             if not self.comm_thread.is_alive():
                 break
 
+
+def shutdown_process(process, timeout=1.0):
+    process.join(timeout)
+    if process.is_alive():            
+        log.debug('sending SIGINT to process {:d}'.format(process.pid))
+        os.kill(process.pid, signal.SIGINT)
+        process.join(timeout)
+        if process.is_alive():
+            log.warning('sending SIGKILL to worker process {:d}'.format(process.pid))
+            os.kill(process.pid, signal.SIGKILL)
+            process.join()
+            
+        log.debug('process {:d} terminated with code {:d}'.format(process.pid, process.exitcode))
+    else:
+        log.debug('worker process {:d} terminated gracefully with code {:d}'.format(process.pid, process.exitcode))        
+    assert not process.is_alive()    
 
 class IsNode:
     def __init__(self, n_local_workers=None):
@@ -575,10 +594,20 @@ class IsNode:
                         
         with open(filename, 'wt') as infofile:
             info = {}
-            info['rr_endpoint'] = re.sub(r'\*', hostname, self.remote_rr_endpoint or '')
-            info['ann_endpoint'] = re.sub(r'\*', hostname, self.remote_ann_endpoint or '')
+            info['rr_endpoint'] = re.sub(r'\*', hostname, self.downstream_rr_endpoint or '')
+            info['ann_endpoint'] = re.sub(r'\*', hostname, self.downstream_ann_endpoint or '')
             json.dump(info,infofile)
 
     def startup(self):
         for process in self.local_worker_processes:
             process.start()
+            
+    def shutdown(self):
+        try:
+            shutdown_timeout = self.shutdown_timeout
+        except AttributeError:
+            shutdown_timeout = 1.0
+            
+        for process in self.local_worker_processes:
+            shutdown_process(process, shutdown_timeout)
+            
