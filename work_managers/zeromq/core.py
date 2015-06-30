@@ -586,7 +586,8 @@ class IsNode:
             self.local_rr_endpoint = None
             self.local_workers = []
             
-        self.local_worker_processes = [multiprocessing.Process(target = worker.startup) for worker in self.local_workers]
+        self.local_worker_processes = [multiprocessing.Process(target = worker.startup, args=(n,)) 
+                                       for (n, worker) in enumerate(self.local_workers)]
         
         self.host_info_files = []           
 

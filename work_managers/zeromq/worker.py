@@ -242,10 +242,10 @@ class ZMQWorker(ZMQCore):
         for sig in signals:
             signal.signal(sig, signal.SIG_IGN)
 
-    def startup(self):
+    def startup(self, process_index=None):
         self.install_signal_handlers()
         executor = ZMQExecutor(self.task_endpoint, self.result_endpoint)
-        self.executor_process = multiprocessing.Process(target = executor.startup)
+        self.executor_process = multiprocessing.Process(target = executor.startup, args=(process_index,))
         self.executor_process.start()
         self.context = zmq.Context()
         self.comm_thread = threading.Thread(target=self.comm_loop)
@@ -295,7 +295,12 @@ class ZMQExecutor(ZMQCore):
             self.context = None
             
             
-    def startup(self):
+    def startup(self, process_index=None):
+        if process_index is not None:
+            from work_managers import environment
+            pi_name = '{}_PROCESS_INDEX'.format(environment.WMEnvironment.env_prefix)
+            self.log.debug('Setting {}={}'.format(pi_name, process_index))
+            os.environ[pi_name] = str(process_index)
         self.context = zmq.Context()
         self.comm_loop()
 

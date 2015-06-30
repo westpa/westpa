@@ -436,7 +436,7 @@ class ZMQWorkManager(ZMQCore,WorkManager,IsNode):
                 if timers.expired('master_beacon'):
                     self.send_message(ann_socket, Message.MASTER_BEACON)
                     timers.reset('master_beacon')
-                if timers.expired('worker_timeout_check'):
+                if peer_found and timers.expired('worker_timeout_check'):
                     self.check_workers()
                     if not self.worker_information:
                         self.log.error('all workers disappeared; exiting')
