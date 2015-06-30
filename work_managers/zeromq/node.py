@@ -15,7 +15,7 @@ from zmq.devices import ThreadProxy
 
 class ZMQNode(ZMQCore,IsNode):
     def __init__(self, upstream_rr_endpoint, upstream_ann_endpoint, n_local_workers=None):
-        super(ZMQNode,self).__init__()
+        ZMQCore.__init__(self)
         IsNode.__init__(self,n_local_workers)
         
         self.upstream_rr_endpoint = upstream_rr_endpoint
@@ -86,6 +86,9 @@ class ZMQNode(ZMQCore,IsNode):
         timers.add_timer('master_beacon', self.master_beacon_period)
         timers.add_timer('startup_timeout', self.startup_timeout)
         timers.reset()
+        
+        self.log.debug('master beacon period: {!r}'.format(self.master_beacon_period))
+        self.log.debug('startup timeout: {!r}'.format(self.startup_timeout))
         
         peer_found = False
         

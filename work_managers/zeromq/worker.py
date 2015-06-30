@@ -142,7 +142,7 @@ class ZMQWorker(ZMQCore):
                 if poll_results and not peer_found:
                     timers.remove_timer('startup_timeout')
                     peer_found = True
-                    timers.change_duration(TIMEOUT_MASTER_BEACON, self.master_beacon_period)
+                    timers.change_duration(TIMEOUT_MASTER_BEACON, self.master_beacon_period*self.timeout_factor)
                     timers.reset(TIMEOUT_MASTER_BEACON)
                 
                 announcements = []   
@@ -157,11 +157,23 @@ class ZMQWorker(ZMQCore):
                     
                 #announcements = Message.coalesce_announcements(announcements)
                 #self.log.debug('received {:d} announcements'.format(len(announcements)))
+                
+                messages_by_tag = {}
+                for msg in announcements:
+                    messages_by_tag.setdefault(msg.message, list()).append(msg)
                     
                 # Check for shutdown messages
-                if Message.SHUTDOWN in (msg.message for msg in announcements):
+                if Message.SHUTDOWN in messages_by_tag:
                     self.log.debug('received shutdown message')
                     return
+                elif Message.TASKS_AVAILABLE in messages_by_tag:
+                    self.update_master_info(messages_by_tag[Message.TASKS_AVAILABLE][0])
+                elif Message.MASTER_BEACON in messages_by_tag:
+                    self.update_master_info(messages_by_tag[Message.MASTER_BEACON][0])
+                    
+                if self.master_id is not None and timers.expired('worker_beacon'):
+                    self.identify(rr_socket)
+                    timers.reset('worker_beacon')
                 
                 # Handle results, so that we clear ourselves of completed tasks
                 # before asking for more
@@ -171,24 +183,18 @@ class ZMQWorker(ZMQCore):
                     if not timers.expired(TIMEOUT_MASTER_BEACON):
                         self.request_task(rr_socket, task_socket)
                 
-                # Handle any remaining messages                    
-                for msg in announcements:
-                    if msg.message == Message.MASTER_BEACON:
-                        self.update_master_info(msg)
+                # Handle any remaining messages
+                for tag, msgs in messages_by_tag.iteritems():
+                    if tag == Message.MASTER_BEACON:
                         self.identify(rr_socket)
-                    elif msg.message == Message.RECONFIGURE_TIMEOUT:
-                        self.update_master_info(msg)
-                        self.handle_reconfigure_timeout(msg, timers)
-                    elif msg.message == Message.TASKS_AVAILABLE:
-                        self.update_master_info(msg)
-                        self.request_task(rr_socket,task_socket)
-                del announcements
+                    elif tag == Message.RECONFIGURE_TIMEOUT:
+                        for msg in msgs:
+                            self.handle_reconfigure_timeout(msg, timers)
+                    elif tag == Message.TASKS_AVAILABLE:
+                        self.request_task(rr_socket,task_socket)      
+                        
+                del announcements, messages_by_tag
             
-                # Process timeouts
-                if self.master_id is not None and timers.expired('worker_beacon'):
-                    self.identify(rr_socket)
-                    timers.reset('worker_beacon')
-
                 if timers.expired(TIMEOUT_MASTER_BEACON):
                     self.log.error('no contact from master; shutting down')
                     return

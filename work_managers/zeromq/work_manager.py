@@ -33,12 +33,10 @@ class ZMQWorkManager(ZMQCore,WorkManager,IsNode):
         wm_group = parser.add_argument_group('options for ZeroMQ ("zmq") work manager (master or node)')
         
         wm_group.add_argument(wmenv.arg_flag('zmq_mode'), metavar='MODE', choices=('master','node','server','client'),
-                              default='master',
                               help='Operate as a master (server) or a node (workers/client). '
                                   +'"server" is a deprecated synonym for "master" and "client" is a '
                                   +'deprecated synonym for "node".')
         wm_group.add_argument(wmenv.arg_flag('zmq_comm_mode'), metavar='COMM_MODE', choices=('ipc', 'tcp'),
-                              default=cls.default_comm_mode,
                               help='Use the given communication mode -- TCP or IPC (Unix-domain) -- sockets '
                                   +'for communication within a node. IPC (the default) may be more '
                                   +'efficient but is not available on (exceptionally rare) systems '
@@ -69,30 +67,30 @@ class ZMQWorkManager(ZMQCore,WorkManager,IsNode):
                               help='ZeroMQ endpoint on which to send announcement '
                                   +'(heartbeat and shutdown notification) traffic toward workers.')
         wm_group.add_argument(wmenv.arg_flag('zmq_master_heartbeat'), metavar='MASTER_HEARTBEAT',
-                              type=float, default = cls.default_master_heartbeat,
+                              type=float,
                               help='Every MASTER_HEARTBEAT seconds, the master announces its presence '
-                                  +'to workers. (Default: %(default)3.1f)')
+                                  +'to workers.')
         wm_group.add_argument(wmenv.arg_flag('zmq_worker_heartbeat'), metavar='WORKER_HEARTBEAT',
-                              type=float, default = cls.default_worker_heartbeat,
+                              type=float,
                               help='Every WORKER_HEARTBEAT seconds, workers announce their presence '
-                                  +'to the master. (Default; %(default)3.1f')
+                                  +'to the master.')
         wm_group.add_argument(wmenv.arg_flag('zmq_timeout_factor'), metavar='FACTOR',
-                              type=float, default=cls.default_timeout_factor,
+                              type=float,
                               help='Scaling factor for heartbeat timeouts. '
                                   +"If the master doesn't hear from a worker in WORKER_HEARTBEAT*FACTOR, "
                                   +"the worker is assumed to have crashed. If a worker doesn't hear from "
                                   +"the master in MASTER_HEARTBEAT*FACTOR seconds, the master is assumed "
                                   +"to have crashed. Both cases result in shutdown. "
-                                  +"(Default: %(default)3.1f)")
+                                  )
         wm_group.add_argument(wmenv.arg_flag('zmq_startup_timeout'), metavar='STARTUP_TIMEOUT', 
-                              type=float, default=cls.default_startup_timeout,
+                              type=float,
                               help='Amount of time (in seconds) to wait for communication between '
                                   +'the master and at least one worker. This may need to be changed '
                                   +'on very large, heavily-loaded computer systems that start all processes '
                                   +'simultaneously. '
-                                  +'(Default: %(default)d)')
+                                  )
         wm_group.add_argument(wmenv.arg_flag('zmq_shutdown_timeout'), metavar='SHUTDOWN_TIMEOUT', 
-                              type=float, default=cls.default_shutdown_timeout,
+                              type=float,
                               help='Amount of time (in seconds) to wait for workers to shut down.')
     
     @classmethod
@@ -124,10 +122,10 @@ class ZMQWorkManager(ZMQCore,WorkManager,IsNode):
         
         write_host_info = wmenv.get_val('zmq_write_host_info')
         read_host_info  = wmenv.get_val('zmq_read_host_info')
-        master_heartbeat = wmenv.get_val('zmq_master_heartbeat', cls.default_master_heartbeat)
-        worker_heartbeat = wmenv.get_val('zmq_worker_heartbeat', cls.default_worker_heartbeat)
-        timeout_factor = wmenv.get_val('zmq_timeout_factor', cls.default_timeout_factor)
-        startup_timeout = wmenv.get_val('zmq_startup_timeout', cls.default_startup_timeout)
+        master_heartbeat = wmenv.get_val('zmq_master_heartbeat', cls.default_master_heartbeat, float)
+        worker_heartbeat = wmenv.get_val('zmq_worker_heartbeat', cls.default_worker_heartbeat, float)
+        timeout_factor = wmenv.get_val('zmq_timeout_factor', cls.default_timeout_factor, float)
+        startup_timeout = wmenv.get_val('zmq_startup_timeout', cls.default_startup_timeout, float)
         
         
         if mode == 'master':
@@ -180,15 +178,19 @@ class ZMQWorkManager(ZMQCore,WorkManager,IsNode):
             worker.timeout_factor = timeout_factor
             worker.startup_timeout = startup_timeout
         
-        
         # We always write host info (since we are always either master or node)
         # we choose not to in the special case that read_host_info is '' but not None
         # (None implies nothing found on command line or in environment variables, but ''
         # implies that it was found somewhere but it is empty)
         if write_host_info is not None and write_host_info != '':
             instance.write_host_info(write_host_info)
-            
-    
+
+        log.debug('prepared {!r} with:'.format(instance))
+        log.debug('n_workers = {}'.format(n_workers))
+        for attr in ('master_beacon_period', 'worker_beacon_period', 'startup_timeout', 'timeout_factor',
+                     'downstream_rr_endpoint', 'downstream_ann_endpoint'):
+            log.debug('{} = {!r}'.format(attr, getattr(instance, attr)))
+                
         return instance
     
     @classmethod
@@ -318,15 +320,17 @@ class ZMQWorkManager(ZMQCore,WorkManager,IsNode):
             self.send_message(socket, Message.TASK, task)
             
     def update_worker_information(self, msg):
-        try:
-            self.worker_timeouts.reset(msg.src_id)
-        except KeyError:
-            self.worker_timeouts.add_timer(msg.src_id,self.worker_beacon_period*self.timeout_factor)
-        
         if msg.message == Message.IDENTIFY:
             with self.message_validation(msg):
                 assert isinstance(msg.payload, dict)
             self.worker_information[msg.src_id] = msg.payload
+        else:
+            self.worker_information[msg.src_id] = {}
+        
+        try:
+            self.worker_timeouts.reset(msg.src_id)
+        except KeyError:
+            self.worker_timeouts.add_timer(msg.src_id,self.worker_beacon_period*self.timeout_factor)
         
     def check_workers(self):
         expired_worker_ids = self.worker_timeouts.which_expired()
@@ -388,6 +392,9 @@ class ZMQWorkManager(ZMQCore,WorkManager,IsNode):
         timers.add_timer('startup_timeout', self.startup_timeout)
         timers.reset()
         
+        self.log.debug('master beacon period: {!r}'.format(self.master_beacon_period))
+        self.log.debug('startup timeout: {!r}'.format(self.startup_timeout))
+                
         peer_found = False
         
         try:
@@ -402,11 +409,7 @@ class ZMQWorkManager(ZMQCore,WorkManager,IsNode):
                 # Wake up every second to check for signals
                 timeout = min(timeout, 1000)
                 poll_results = dict(poller.poll(timeout))
-                
-                if poll_results and not peer_found:
-                    timers.remove_timer('startup_timeout')
-                    peer_found = True
-                
+                                
                 if inproc_socket in poll_results:
                     msgs = self.recv_all(inproc_socket,validate=False)
                     # Check for shutdown; do nothing else if shutdown is signalled
@@ -428,20 +431,26 @@ class ZMQWorkManager(ZMQCore,WorkManager,IsNode):
                         self.handle_result(rr_socket, msg)
                     else:
                         self.send_ack(rr_socket, msg)
+                        
+                    if self.worker_information:
+                        peer_found = True
                 
                 if timers.expired('tasks_avail'):
                     if self.outgoing_tasks:
                         self.send_message(ann_socket, Message.TASKS_AVAILABLE)
                     timers.reset('tasks_avail')
+                    
                 if timers.expired('master_beacon'):
                     self.send_message(ann_socket, Message.MASTER_BEACON)
                     timers.reset('master_beacon')
+                    
                 if peer_found and timers.expired('worker_timeout_check'):
                     self.check_workers()
                     if not self.worker_information:
                         self.log.error('all workers disappeared; exiting')
                         break
                     timers.reset('worker_timeout_check')
+                    
                 if not peer_found and timers.expired('startup_timeout'):
                     self.log.error('startup phase elapsed with no contact from workers; shutting down')
                     while self.futures:
