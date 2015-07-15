@@ -22,7 +22,7 @@ from __future__ import division, print_function; __metaclass__ = type
 import logging
 log = logging.getLogger('westpa.rc')
 
-import os, sys, errno, numpy
+import os, sys, errno, numpy, math
 import westpa
 from yamlcfg import YAMLConfig
 from yamlcfg import YAMLSystem
@@ -42,11 +42,14 @@ def bins_from_yaml_dict(bin_dict):
     
     if typename == 'RectilinearBinMapper':
         boundary_lists = kwargs.pop('boundaries')
-        for ilist, boundaries in enumerate(boundary_lists):
-            boundary_lists[ilist] = map((lambda x: 
-                                           float('inf') 
-                                           if (x if isinstance(x, basestring) else '').lower() == 'inf' 
-                                           else x), boundaries)
+        if boundary_lists[0].__class__ == str and len(boundary_lists) == 1:
+            boundary_lists = parsePCV(boundary_lists[0])
+        else:
+            for ilist, boundaries in enumerate(boundary_lists):
+                boundary_lists[ilist] = map((lambda x: 
+                                               float('inf') 
+                                               if (x if isinstance(x, basestring) else '').lower() == 'inf' 
+                                               else x), boundaries)
         return mapper_type(boundary_lists)
     else:
         try:
@@ -67,7 +70,8 @@ def parsePCV(pc_str):
         arr.shape = (1,) + arr.shape 
     else:
         raise ValueError('too many dimensions')
-    return arr
+    #return list(arr[...])
+    return arr[...]
 
 def lazy_loaded(backing_name, loader, docstring = None):
     def getter(self):
