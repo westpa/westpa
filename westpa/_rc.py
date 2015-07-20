@@ -42,7 +42,10 @@ def bins_from_yaml_dict(bin_dict):
     
     if typename == 'RectilinearBinMapper':
         boundary_lists = kwargs.pop('boundaries')
-        if boundary_lists[0].__class__ == str and len(boundary_lists) == 1:
+        if isinstance(boundary_lists[0], basestring) and len(boundary_lists) == 1:
+            # The idea here is that if I have a single point I can't be a boundary list
+            # and I also can't be a string if I'm a boundary thus I can now assume that
+            # the boundary given is actually a code and run the parser on the code instead.
             boundary_lists = parsePCV(boundary_lists[0])
         else:
             for ilist, boundaries in enumerate(boundary_lists):
@@ -59,6 +62,9 @@ def bins_from_yaml_dict(bin_dict):
             raise
 
 def parsePCV(pc_str):
+    # Execute arbitrary code within a limited
+    # scope to avoid nastyness. Stolen fully from 
+    # other parts of the WESTPA code. 
     namespace = {'math': math,
                  'numpy': numpy,
                  'inf': float('inf')}
