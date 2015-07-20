@@ -42,7 +42,7 @@ def bins_from_yaml_dict(bin_dict):
     
     if typename == 'RectilinearBinMapper':
         boundary_lists = kwargs.pop('boundaries')
-        if isinstance(boundary_lists[0], basestring) and len(boundary_lists) == 1:
+        if boundary_lists[0].__class__ == str and len(boundary_lists) == 1:
             # The idea here is that if I have a single point I can't be a boundary list
             # and I also can't be a string if I'm a boundary thus I can now assume that
             # the boundary given is actually a code and run the parser on the code instead.

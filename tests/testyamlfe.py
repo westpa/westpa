@@ -50,14 +50,9 @@ class TESTSystem(ycf.YAMLSystem):
 # A class to test both paths at the same time
 # if it works we assure we can load the driver
 # AND overwrite it properly
-class TestYAMLFrontEnd:
+class TestYAMLFrontEndDriver:
     
-    def testYAMLFEDriver(self):
-        '''
-        Test method to ensure the YAML system generator works as
-        advertised
-        '''
-
+    def __init__(self):
         # First the objects that will be used for testing
         rc = westpa.rc
         yamlConf = ycf.YAMLConfig()    
@@ -77,6 +72,12 @@ class TestYAMLFrontEnd:
         rc.config = yamlConf
 
         self.system = rc.new_system_driver()
+
+    def testYAMLFE(self):
+        '''
+        Test method to ensure the YAML system generator works as
+        advertised
+        '''
        
         system = self.system
         # Assert we have the right options
@@ -91,7 +92,12 @@ class TestYAMLFrontEnd:
         ## These should be the same as the original
         assert system.test_variable_2 == "And I'm the second one"
 
-    def testYAMLFEConfig(self):
+# Now one with only the YAML config file
+# This ensures we can get the system off of 
+# the yaml file only
+class TestYAMLFrontEndConfig:
+    
+    def __init__(self):
         # First the objects that will be used for testing
         rc = westpa.rc
         yamlConf = ycf.YAMLConfig()    
@@ -104,13 +110,18 @@ class TestYAMLFrontEnd:
                            "bin_target_counts": 10,
                              "bins": {
                                "type":"RectilinearBinMapper", 
-                                 "boundaries": [[0.0, 0.5, 1.5, 2.5, 3.5, 'inf']]
+                                 "boundaries": ["numpy.arange(0.0, 5.0, 0.5)"]
                                  }}}}}
         yamlConf._data = test_dict
         rc.config = yamlConf
 
         self.system = rc.new_system_driver()
 
+    def testYAMLFE(self):
+        '''
+        Test method to ensure the YAML system generator works as
+        advertised
+        '''
         system = self.system
         # Assert we have the right options
         # This needs some more documentation and alerts for the assertions
@@ -118,6 +129,6 @@ class TestYAMLFrontEnd:
         assert system.test_variable == "I'm a test variable"
         # This one in particular checks if the bins are passed correctly
         assert (system.bin_mapper.boundaries == \
-               numpy.array([[0.0, 0.5, 1.5, 2.5, 3.5, 'inf']], dtype=numpy.float32)).all()
+               numpy.arange(0.0, 5.0, 0.5)).all()
         assert system.pcoord_len == 10
         assert system.pcoord_dtype == numpy.float32
