@@ -76,8 +76,7 @@ def parsePCV(pc_str):
         arr.shape = (1,) + arr.shape 
     else:
         raise ValueError('too many dimensions')
-    #return list(arr[...])
-    return arr[...]
+    return arr
 
 def lazy_loaded(backing_name, loader, docstring = None):
     def getter(self):
