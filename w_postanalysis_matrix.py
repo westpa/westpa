@@ -12,6 +12,7 @@ from west.data_manager import seg_id_dtype
 from westpa.binning import index_dtype
 from westtools import (WESTTool, WESTDataReader, IterRangeSelection,
                        ProgressIndicatorComponent)
+from postanalysis import stats_process
 
 log = logging.getLogger('westtools.w_postanalysis_matrix')
 
@@ -113,17 +114,6 @@ either equilibrium or steady-state conditions without recycling target states.
                 nsegs, npts = iter_group['pcoord'].shape[0:2] 
                 weights = seg_index['weight']
 
-                # Check to make sure there aren't intermediate time points saved, since this invalidates
-                # the analysis. 
-                if npts > 2:
-                    err_msg = '''\
-The post-analysis reweighting method requires assignments calculated from only
-the initial and final time points for each trajectory segment. If you are using
-an assignment file generated from a subsampled h5 file, please ensure that you 
-specify the -W flag so that w_postanalysis_matrix extracts data from matching
-assignment and WEST data files.
-'''
-                    raise ValueError(err_msg)
 
                 # Get bin and traj. ensemble assignments from the previously-generated assignments file
                 assignment_iiter = h5io.get_iteration_entry(self.assignments_file, n_iter)
@@ -168,24 +158,9 @@ assignment and WEST data files.
 
                 pi.progress += 1
 
-
-def stats_process(bin_assignments, weights, fluxes, populations, trans, mask):
-    nsegs = bin_assignments.shape[0]
-    npts = bin_assignments.shape[1]
-
-    for k in xrange(nsegs):
-        ibin = bin_assignments[k,0]
-        fbin = bin_assignments[k, npts - 1]
-
-        if mask[k, 0] == 1:
-            continue
-
-        w = weights[k]
-
-        fluxes[ibin, fbin] += w
-        trans[ibin, fbin] += 1
-        populations[ibin] += w
-
+            # Check and save the number of intermediate time points; this will be used to normalize the
+            # flux and kinetics to tau in w_postanalysis_reweight.
+            self.output_file.attrs['npts'] = npts
 
 def calc_stats(bin_assignments, weights, fluxes, populations, trans, mask):
     fluxes.fill(0.0)
