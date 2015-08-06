@@ -74,7 +74,7 @@ h1 {
 h2 {
   padding-bottom: 10px;
   font-size: 32px;
-  background: url('../images/bg_hr.png') repeat-x bottom;
+  color:black;
 }
 
 h3 {
@@ -287,7 +287,7 @@ Full-Width Styles
 }
 
 #header_wrap {
-  background: #000000;
+  background: white;
 }
 
 #header_wrap .inner {
