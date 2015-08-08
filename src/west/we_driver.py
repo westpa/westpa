@@ -1,31 +1,16 @@
-# Copyright (C) 2013 Matthew C. Zwier and Lillian T. Chong
-#
-# This file is part of WESTPA.
-#
-# WESTPA is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# WESTPA is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
-
 from __future__ import division; __metaclass__ = type
 import logging
 log = logging.getLogger(__name__)
 import numpy
 import operator
+import h5py
 from math import ceil
 import random
 from itertools import izip
 
 import westpa
 from west import Segment
+import data_manager
 
 class ConsistencyError(RuntimeError):
     pass
@@ -390,7 +375,7 @@ class WEDriver:
     def _split_walker(self, segment, m, bin):
         '''Split the walker ``segment`` (in ``bin``) into ``m`` walkers'''
 
-        bin.remove(segment)
+#        bin.remove(segment)
             
         new_segments = []
         for _inew in xrange(0,m):
@@ -401,9 +386,13 @@ class WEDriver:
                                   pcoord = segment.pcoord.copy(),
                                   status = Segment.SEG_STATUS_PREPARED)
             new_segment.pcoord[0,:] = segment.pcoord[0,:]
+#            try:
+#                new_segment.id_hist = segment.id_hist
+#            except AttributeError:
+#                pass
             new_segments.append(new_segment)
             
-        bin.update(new_segments)
+#        bin.update(new_segments)
 
         if log.isEnabledFor(logging.DEBUG):
             log.debug('splitting {!r} into {:d}:\n    {!r}'.format(segment, m, new_segments))
@@ -443,7 +432,7 @@ class WEDriver:
             glom.wtg_parent_ids |= segment.wtg_parent_ids
         
         # Remove merged walkers from consideration before treating initial states
-        bin.difference_update(segments)            
+#        bin.difference_update(segments)            
             
         # The historical parent of gparent is continued; all others are marked as merged
         for segment in segments:
@@ -451,6 +440,10 @@ class WEDriver:
                 # we must ignore initial states here...
                 if segment.parent_id >= 0:
                     self._parent_map[segment.parent_id].endpoint_type = Segment.SEG_ENDPOINT_CONTINUES
+#                    try:
+#                        glom.id_hist = segment.id_hist
+#                    except AttributeError:
+#                        pass
             else:
                 # and "unuse" an initial state here (recall that initial states are in 1:1 correspondence
                 # with the segments they initiate), except when a previously-split particle is being
@@ -469,36 +462,37 @@ class WEDriver:
         if log.isEnabledFor(logging.DEBUG):
             log.debug('merging ({:d}) {!r} into 1:\n    {!r}'.format(len(segments), segments, glom))
                 
-
-        bin.add(glom)
+#        print "New weight is: " + str(glom.weight)
+#        bin.add(glom)
+#       Make sure gparent_seg is who we should be inheriting history from
+        return glom, gparent_seg
         
-    def _split_by_weight(self, ibin):
+    def _split_by_weight(self, bin, target_count, ideal_weight, number_of_groups):
         '''Split overweight particles'''
         
-        bin = self.next_iter_binning[ibin]
-        target_count = self.bin_target_counts[ibin]
         segments = numpy.array(sorted(bin, key=operator.attrgetter('weight')), dtype=numpy.object_)
         weights = numpy.array(map(operator.attrgetter('weight'), segments))
-        ideal_weight = weights.sum() / target_count
+
  
         if len(bin) > 0:
             assert target_count > 0
-               
+
         to_split = segments[weights > self.weight_split_threshold*ideal_weight]
-        
+
         for segment in to_split:
             m = int(ceil(segment.weight / ideal_weight))
-            self._split_walker(segment, m, bin)
+            bin.remove(segment)
+            new_segments_list = self._split_walker(segment, m, bin)
+            bin.update(new_segments_list)
+            for new_segment in new_segments_list:
+                try:
+                    new_segment.id_hist = list(segment.id_hist)
+                except AttributeError:
+                    pass
 
     
-    def _merge_by_weight(self, ibin):
+    def _merge_by_weight(self, bin, target_count, ideal_weight, number_of_groups):
         '''Merge underweight particles'''
-        
-        bin = self.next_iter_binning[ibin]
-        target_count = self.bin_target_counts[ibin]
-        weight = sum(map(operator.attrgetter('weight'), bin))
-        target_count = self.bin_target_counts[ibin]
-        ideal_weight = weight / target_count    
         
         while True:
             segments = numpy.array(sorted(bin, key=operator.attrgetter('weight')), dtype=numpy.object_)
@@ -506,14 +500,20 @@ class WEDriver:
             cumul_weight = numpy.add.accumulate(weights)
             
             to_merge = segments[cumul_weight <= ideal_weight*self.weight_merge_cutoff]
+
             if len(to_merge) < 2:
                 return
-            
-            self._merge_walkers(to_merge, cumul_weight, bin)
+            bin.difference_update(to_merge)
+            new_segment, parent = self._merge_walkers(to_merge, cumul_weight, bin)
+            bin.add(new_segment)
+            try:
+                new_segment.id_hist = list(parent.id_hist)
+            except AttributeError:
+                pass
+
+
     
-    def _adjust_count(self, ibin):
-        bin = self.next_iter_binning[ibin]
-        target_count = self.bin_target_counts[ibin]
+    def _adjust_count_no_groups(self, bin, target_count):
         weight_getter = operator.attrgetter('weight')
 
         # split        
@@ -521,14 +521,89 @@ class WEDriver:
             log.debug('adjusting counts by splitting')
             # always split the highest probability walker into two
             segments = sorted(bin, key=weight_getter)
-            self._split_walker(segments[-1], 2, bin)
+            bin.remove(segments[-1])
+            new_segments_list = self._split_walker(segments[-1], 2, bin)
+            bin.update(new_segments_list)
+            for new_segment in new_segments_list:
+                try:
+                    new_segment.id_hist = list(segments[-1].id_hist)
+                except AttributeError:
+                    pass
             
         # merge
         while len(bin) > target_count:
             log.debug('adjusting counts by merging')
             # always merge the two lowest-probability walkers
             segments = sorted(bin, key=weight_getter)
-            self._merge_walkers(segments[:2], cumul_weight=None, bin=bin)
+            bin.difference_update(segments[:2])
+            new_segment, parent = self._merge_walkers(segments[:2], cumul_weight=None, bin=bin)
+            bin.add(new_segment)
+            try:
+                new_segment.id_hist = list(parent.id_hist)
+            except AttributeError:
+                pass
+
+#            bin.difference_update(segments[:2])
+#            bin.add(self._merge_walkers(segments[:2], cumul_weight=None, bin=bin))
+
+    def _adjust_count(self, bin, groups, target_count):
+        weight_getter = operator.attrgetter('weight')
+        # Order groups by the sum of their weights.
+        if len(groups) > target_count:
+            sorted_groups = [set()]
+            for i in bin:
+                sorted_groups[0].add(i)
+        else:
+            sorted_groups = sorted(groups, key=lambda gp:sum(seg.weight for seg in gp))
+        # Loops over the groups, splitting/merging until the proper count has been reached.  This way, no trajectories are accidentally destroyed.
+        while len(bin) < target_count:
+            for i in sorted_groups:
+                log.debug('adjusting counts by splitting')
+                # always split the highest probability walker into two
+                segments = sorted(i, key=weight_getter)
+                bin.remove(segments[-1])
+                i.remove(segments[-1])
+                new_segments_list = self._split_walker(segments[-1], 2, bin)
+#                bin.update(new_segments_list)
+                for new_segment in new_segments_list:
+                    try:
+                        new_segment.id_hist = list(segments[-1].id_hist)
+                    except AttributeError:
+                        pass
+#                split_segments = self._split_walker(segments[-1], 2, bin)
+                i.update(new_segments_list)
+                bin.update(new_segments_list)
+                
+                if len(bin) == target_count:
+                    break
+            
+        # merge
+        while len(bin) > target_count:
+            sorted_groups.reverse()
+#           Adjust to go from lowest weight group to highest to merge
+            for i in sorted_groups:
+                # Ensures that there are least two walkers to merge
+                if len(i) > 1:
+                    log.debug('adjusting counts by merging')
+                    # always merge the two lowest-probability walkers
+                    segments = sorted(i, key=weight_getter)
+                    bin.difference_update(segments[:2])
+                    i.difference_update(segments[:2])
+                    merged_segment, parent = self._merge_walkers(segments[:2], cumul_weight=None, bin=bin)
+#                    bin.add(new_segment)
+                    try:
+                        merged_segment.id_hist = list(parent.id_hist)
+                    except AttributeError:
+                        pass
+#                    merged_segment = self._merge_walkers(segments[:2], cumul_weight=None, bin=bin)
+                    i.add(merged_segment)
+                    bin.add(merged_segment)
+                    # As long as we're changing the merge_walkers and split_walkers, adjust them so that they don't update the bin within the function
+                    # and instead update the bin here.  Assuming nothing else relies on those.  Make sure with grin.
+                    # in bash, "find . -name \*.py | xargs fgrep -n '_merge_walkers'"
+                    if len(bin) == target_count:
+                        break
+
 
     def _check_pre(self):
         for ibin, _bin in enumerate(self.next_iter_binning):
@@ -537,7 +612,7 @@ class WEDriver:
 
     def _check_post(self):
         for segment in self.next_iter_segments:
-            if segment.weight == 0:
+            if segment.weight == float(0):
                 raise ConsistencyError('segment {!r} has weight of zero')
             
     def _prep_we(self):
@@ -555,14 +630,60 @@ class WEDriver:
         
         # Regardless of current particle count, always split overweight particles and merge underweight particles
         # Then and only then adjust for correct particle count
+        total_number_of_groups = 0
+        total_number_of_particles = 0
         for (ibin,bin) in enumerate(self.next_iter_binning):
             if len(bin) == 0: 
                 continue
-                        
-            self._split_by_weight(ibin)
-            self._merge_by_weight(ibin)
-            if self.do_adjust_counts:
-                self._adjust_count(ibin)
+            # Splits the bin into groups as defined by the called function (nominally, to separate trajectories by history)
+            target_count = self.bin_target_counts[ibin]
+            groups = self._group_walkers_by_history(ibin)
+            total_number_of_groups += len(groups)
+            # Clear the bin
+            segments = numpy.array(sorted(bin, key=operator.attrgetter('weight')), dtype=numpy.object_)
+            weights = numpy.array(map(operator.attrgetter('weight'), segments))
+            ideal_weight = (weights.sum() / target_count)
+            bin.clear()
+            # Determines to see whether we have more sub bins than we have target walkers in a bin (or equal to), and then uses
+            # different logic to deal with those cases.  Should devolve to the Huber/Kim algorithm in the case of few subgroups.
+            if len(groups) >= target_count:
+                for i in groups:
+                    # Merges all members of set i.  Checks to see whether there are any to merge.
+                    if len(i) > 1:
+                        (segment, parent) = self._merge_walkers(list(i), numpy.add.accumulate(numpy.array(map(operator.attrgetter('weight'), i))), i)
+                        i.clear()
+                        i.add(segment)
+                        try:
+                            segment.id_hist = list(parent.id_hist)
+                        except AttributeError:
+                            pass
+                    # Add all members of the set i to the bin.  This keeps the bins in sync for the adjustment step.
+                    bin.update(i)
+                # Runs the splitting/merging process.
+#                groups = self._group_walkers_identity(ibin)
+#                bin.clear()
+#                for i in groups:
+#                    self._split_by_weight(i, target_count, ideal_weight, len(groups))
+#                    self._merge_by_weight(i, target_count, ideal_weight, len(groups))
+#                    bin.update(i)
+#                if self.do_adjust_counts:
+#                    self._adjust_count(bin, groups, target_count)
+                if len(groups) > target_count:                
+                    self._adjust_count(bin, groups, target_count)
+            if len(groups) < target_count:
+                for i in groups:
+                    self._split_by_weight(i, target_count, ideal_weight, len(groups))
+                    self._merge_by_weight(i, target_count, ideal_weight, len(groups))
+                    # Same logic here.
+                    bin.update(i)
+                if self.do_adjust_counts:
+                    # A modified adjustment routine is necessary to ensure we don't unnecessarily destroy trajectory pathways.
+                    self._adjust_count(bin, groups, target_count)
+            total_number_of_particles += len(bin)
+#        print "There are " + str(total_number_of_particles) + " particles."
+#        if len(bin) != target_count:
+#            print len(bin)
+        print "There are " + str(total_number_of_groups) + " groups."
             
         self._check_post()
         
@@ -571,6 +692,64 @@ class WEDriver:
         log.debug('used initial states: {!r}'.format(self.used_initial_states))
         log.debug('available initial states: {!r}'.format(self.avail_initial_states))
 
+    def _group_walkers_by_history(self, ibin):
+        '''Groups walkers inside of a bin according to their history.  
+
+        Creates a group, which takes the same data format as a bin, and then passes into the 
+        normal split/merge functions.'''
+        # Pass in the bin object instead of the index
+        bin = self.next_iter_binning[ibin]
+        groups = dict()
+        z = 0
+        for segment in bin:
+            if segment.n_iter > 1:
+                par_iter = self._find_parent_n(segment, 25)
+            else:
+                par_iter = (0, 1)
+            try:
+                groups[par_iter].add(segment)
+            except KeyError:
+                groups[par_iter] = set([segment])
+        return groups.values()
+
+    def _find_parent_n(self, segment, n):
+        iteration = (segment.n_iter - 1)
+        parent_id = segment.parent_id
+        try:
+#            segment.id_hist = segment.id_hist
+            if (len(segment.id_hist) < n):
+                segment.id_hist = [(parent_id, iteration)] + segment.id_hist
+            else:
+                segment.id_hist.reverse()
+                segment.id_hist.append((segment.parent_id, (segment.n_iter - 1)))
+                segment.id_hist.reverse()
+                del segment.id_hist[n:]    
+            parent_id = segment.id_hist[(len(segment.id_hist) - 1)][0]
+            iteration = segment.id_hist[(len(segment.id_hist) - 1)][1]
+        except AttributeError:
+            data_manager = westpa.rc.get_data_manager()
+            i = 0
+            while (i < n) and parent_id >= 0:
+                seg_id = parent_id
+                iter_group = data_manager.get_iter_group(iteration)
+                seg_index = iter_group['seg_index']
+                parent_id = seg_index[seg_id]['parent_id']
+                try:
+                    segment.id_hist.append((parent_id, iteration))
+                except AttributeError:
+                    segment.id_hist = list()
+                    segment.id_hist.append((parent_id, iteration))
+                iteration -= 1
+                i += 1
+            iteration += 1
+        return (parent_id, iteration)        
+
+    def _group_walkers_identity(self, ibin):
+        bin_set = self.next_iter_binning[ibin]
+        list_bins = [set()]
+        for i in bin_set:
+            list_bins[0].add(i)
+        return list_bins
             
     def populate_initial(self, initial_states, weights, system=None):
         '''Create walkers for a new weighted ensemble simulation.
@@ -663,6 +842,10 @@ class WEDriver:
                                       pcoord=new_pcoord_array(),
                                       status=Segment.SEG_STATUS_PREPARED)
                 new_segment.pcoord[0] = segment.pcoord[0]
+                try:
+                    new_segment.id_hist = segment.id_hist
+                except AttributeError:
+                    pass
                 self.next_iter_binning[ibin].add(new_segment)
                 
         self._run_we()
@@ -702,6 +885,10 @@ class WEDriver:
                                       pcoord=new_pcoord_array(),
                                       status=Segment.SEG_STATUS_PREPARED)
                 new_segment.pcoord[0] = segment.pcoord[-1]
+                try:
+                    new_segment.id_hist = segment.id_hist
+                except AttributeError:
+                    pass
                 self.next_iter_binning[ibin].add(new_segment)
                 
                 # Store a link to the parent segment, so we can update its endpoint status as we need,
