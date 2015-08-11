@@ -315,17 +315,19 @@ Full-Width Styles
 
 #page_links{
   position: absolute;
-  width: 100px;
+  width: 300px;
   z-index: 10;
-  bottom: -10px;
+  bottom: -15px;
   left: 0;
   height: 30px;
 }
 
 .page_link {
+  display: block;
   float: left;
   width: 100px;
   height: 30px;
+  overflow: hidden;
 }
 
 .zip_download_link {
