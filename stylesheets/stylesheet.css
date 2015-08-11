@@ -313,7 +313,7 @@ Full-Width Styles
   background: url('../images/icon_download.png') no-repeat 0% 90%;
 }
 
-#page_links{
+#age_links{
   position: absolute;
   width: 350px;
   z-index: 10;
@@ -327,8 +327,12 @@ Full-Width Styles
   width: 100px;
   height: 40px;
   display: block;
-  padding-left: 25px;
-  padding-right: 0px;
+  padding-right: 25px;
+  color: black;
+}
+
+.page_link:hover {
+ color: red;
 }
 
 .zip_download_link {
