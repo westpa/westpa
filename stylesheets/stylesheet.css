@@ -315,7 +315,7 @@ Full-Width Styles
 
 .page_link {
   display: block;
-  float: right;
+  float: left;
   width: 90px;
   height:70px;
   text-indent: -5000px;
