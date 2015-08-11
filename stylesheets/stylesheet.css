@@ -299,7 +299,7 @@ Full-Width Styles
 
 #project_tagline {
   color: black;
-  font-size: 24px;
+  font-size: 20px;
   background: none;
 }
 
@@ -409,7 +409,7 @@ Small Device Styles
   }
 
   h2 {
-    font-size: 24px;
+    font-size: 20px;
   }
 
   h3 {
