@@ -315,16 +315,16 @@ Full-Width Styles
 
 #page_links{
   position: absolute;
-  width: 210px;
+  width: 300px;
   z-index: 10;
-  bottom: 0px;
+  bottom: -10px;
   left: 0;
   height: 70px;
 }
 
 .page_link {
   float: left;
-  width: 90px;
+  width: 300px;
   height:70px;
 }
 
