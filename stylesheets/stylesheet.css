@@ -319,13 +319,13 @@ Full-Width Styles
   z-index: 10;
   bottom: -10px;
   left: 0;
-  height: 50px;
+  height: 30px;
 }
 
 .page_link {
   float: left;
   width: 100px;
-  height: 50px;
+  height: 30px;
 }
 
 .zip_download_link {
