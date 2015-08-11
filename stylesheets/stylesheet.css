@@ -313,7 +313,7 @@ Full-Width Styles
   background: url('../images/icon_download.png') no-repeat 0% 90%;
 }
 
-#age_links{
+#page_links{
   position: absolute;
   width: 350px;
   z-index: 10;
