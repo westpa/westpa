@@ -72,7 +72,7 @@ h1 {
 }
 
 h2 {
-  padding-bottom: 30px;
+  padding-bottom: 25px;
   font-size: 30px;
   color:black;
   font-family: 'Myriad Pro', Calibri, Helvetica, Arial, sans-serif;
@@ -317,7 +317,7 @@ Full-Width Styles
   position: absolute;
   width: 350px;
   z-index: 10;
-  bottom: -15px;
+  bottom: -25px;
   left: 0;
   height: 50px;
 }
