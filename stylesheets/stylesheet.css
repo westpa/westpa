@@ -328,6 +328,7 @@ Full-Width Styles
   height: 40px;
   display: block;
   padding-left: 25px;
+  padding-right: 0px;
 }
 
 .zip_download_link {
