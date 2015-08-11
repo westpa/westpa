@@ -315,7 +315,7 @@ Full-Width Styles
 
 #page_links{
   position: absolute;
-  width: 400px;
+  width: 450px;
   z-index: 10;
   bottom: -25px;
   left: 10;
@@ -324,7 +324,7 @@ Full-Width Styles
 
 .page_link {
   float: left;
-  width: 100px;
+  width: 200px;
   height: 40px;
   display: block;
   padding-right: 25px;
