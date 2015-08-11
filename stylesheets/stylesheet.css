@@ -315,7 +315,7 @@ Full-Width Styles
 
 #page_links{
   position: absolute;
-  width: 300px;
+  width: 350px;
   z-index: 10;
   bottom: -15px;
   left: 0;
@@ -325,7 +325,8 @@ Full-Width Styles
 .page_link {
   float: left;
   width: 100px;
-  height: 30px;
+  height: 40px;
+  display: block;
 }
 
 .zip_download_link {
