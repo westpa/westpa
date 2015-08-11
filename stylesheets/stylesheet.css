@@ -299,7 +299,7 @@ Full-Width Styles
 
 #project_tagline {
   color: black;
-  font-size: 20px;
+  font-size: 22px;
   background: none;
 }
 
@@ -317,24 +317,15 @@ Full-Width Styles
   position: absolute;
   width: 210px;
   z-index: 10;
-  bottom: -40px;
+  bottom: 0px;
   left: 0;
   height: 70px;
-  background: url('../images/icon_download.png') no-repeat 0% 90%;
 }
 
 .page_link {
-  display: block;
   float: left;
   width: 90px;
   height:70px;
-  text-indent: -5000px;
-  overflow: hidden;
-  background: url(../images/sprite_download.png) no-repeat bottom left;
-}
-
-.page_link:hover {
-  background: url(../images/sprite_download.png) no-repeat top left;
 }
 
 .zip_download_link {
@@ -409,7 +400,7 @@ Small Device Styles
   }
 
   h2 {
-    font-size: 20px;
+    font-size: 22px;
   }
 
   h3 {
