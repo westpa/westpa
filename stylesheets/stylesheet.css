@@ -368,6 +368,9 @@ Full-Width Styles
 #main_content_wrap {
   background: white;
   border-top: 1px solid #111;
+  position: absolute;
+  left: 100px;
+  right: 100px;
   border-bottom: 1px solid #111;
 }
 
