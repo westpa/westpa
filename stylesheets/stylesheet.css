@@ -324,10 +324,10 @@ Full-Width Styles
 
 .page_link {
   float: left;
-  width: 100px;
+  width: 120px;
   height: 40px;
   display: block;
-  padding-right: 30px;
+  padding-right: 20px;
   color: black;
   font-size: 18px;
 }
