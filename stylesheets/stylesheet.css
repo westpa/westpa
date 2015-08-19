@@ -327,7 +327,7 @@ Full-Width Styles
   width: 125px;
   height: 40px;
   display: block;
-  padding-right: 25px;
+  padding-right: 20px;
   color: black;
   font-size: 18px;
 }
@@ -337,12 +337,13 @@ Full-Width Styles
 }
 
 .logo_link {
+  position: relative;
+  bottom: 100px;
   float: left;
   width: 150px;
   height: 71.6
   display: block;
-  padding-bottom: 100px;
-  padding-right: 25px;
+  padding-right: 20px;
 }
 
 .zip_download_link {
