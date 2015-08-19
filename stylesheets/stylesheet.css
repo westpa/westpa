@@ -341,7 +341,8 @@ Full-Width Styles
   width: 150px;
   height: 71.6
   display: block;
-  padding-bottom: 10px;
+  padding-bottom: 100px;
+  padding-right: 25px;
 }
 
 .zip_download_link {
