@@ -324,6 +324,16 @@ Full-Width Styles
 
 .page_link {
   float: left;
+  width: 100px;
+  height: 40px;
+  display: block;
+  padding-right: 20px;
+  color: black;
+  font-size: 18px;
+}
+
+.gh_link {
+  float: left;
   width: 120px;
   height: 40px;
   display: block;
