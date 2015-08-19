@@ -319,7 +319,7 @@ Full-Width Styles
   z-index: 10;
   bottom: -25px;
   left: 10;
-  height: 50px;
+  height: 60px;
 }
 
 .page_link {
@@ -327,7 +327,7 @@ Full-Width Styles
   width: 100px;
   height: 40px;
   display: block;
-  padding-right: 20px;
+  padding-right: 30px;
   color: black;
   font-size: 18px;
 }
@@ -337,7 +337,7 @@ Full-Width Styles
   width: 120px;
   height: 40px;
   display: block;
-  padding-right: 20px;
+  padding-right: 0px;
   color: black;
   font-size: 18px;
 }
