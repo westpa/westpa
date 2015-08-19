@@ -332,6 +332,10 @@ Full-Width Styles
   font-size: 18px;
 }
 
+.pub_link:hover {
+ color: red;
+}
+
 .doc_link {
   float: left;
   width: 100px;
@@ -340,6 +344,10 @@ Full-Width Styles
   padding-right: 30px;
   color: black;
   font-size: 18px;
+}
+
+.doc_link:hover {
+ color: red;
 }
 
 .gh_link {
@@ -352,7 +360,7 @@ Full-Width Styles
   font-size: 18px;
 }
 
-.page_link:hover {
+.gh_link:hover {
  color: red;
 }
 
