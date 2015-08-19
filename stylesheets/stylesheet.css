@@ -336,6 +336,15 @@ Full-Width Styles
  color: red;
 }
 
+.logo_link {
+  position: absolute;
+  width: 150px;
+  bottom: 0px;
+  left: 10;
+  height: 71.6
+  display: block;
+}
+
 .zip_download_link {
   display: block;
   float: right;
