@@ -42,7 +42,7 @@ Development
 .. toctree::
    :maxdepth: 1
 
-    Overview                <development/overview>
-    Coding practices        <development/coding>
-    Documentation practices <development/documentation>
-    Source code management  <development/source_code>
+    Overview                           <development/overview>
+    Code and documentation style guide <development/style_guide>
+    Source code management             <development/source_code>
+    Building the documentation         <development/documentation>
