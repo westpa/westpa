@@ -1,3 +1,5 @@
+.. _namd_tutorial:
+
 NAMD Tutorial: Molecular Dynamics of Na\ :sup:`+`/Cl\ :sup:`-` Association
 ==========================================================================
 
@@ -262,8 +264,8 @@ and run using the command::
 ``init.sh`` and ``run.sh`` call ``w_init`` and ``w_run`` from WESTPA. By
 default WESTPA will use as many cores as are available on the host machine. If
 the simulation is run on a computing cluster, ``w_run`` may be executed from
-a batch script. See the `Running <UserGuide:Running>`_ page for more
-information on how to submit jobs to specific clusters.
+a batch script. See the :ref:`running` page for more information on how to
+submit jobs to specific clusters.
 
 Analyzing the data
 ------------------

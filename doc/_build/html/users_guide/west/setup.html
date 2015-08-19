@@ -1,0 +1,859 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Setup &mdash; WESTPA 1.0b1 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '1.0b1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="top" title="WESTPA 1.0b1 documentation" href="../../index.html" />
+    <link rel="up" title="WEST" href="../west.html" />
+    <link rel="next" title="Running" href="running.html" />
+    <link rel="prev" title="WEST" href="../west.html" />
+   
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9">
+
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="running.html" title="Running"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="../west.html" title="WEST"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">WESTPA 1.0b1 documentation</a> &raquo;</li>
+          <li class="nav-item nav-item-1"><a href="../west.html" accesskey="U">WEST</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="setup">
+<span id="id1"></span><h1>Setup<a class="headerlink" href="#setup" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="defining-and-calculating-progress-coordinates">
+<h2>Defining and Calculating Progress Coordinates<a class="headerlink" href="#defining-and-calculating-progress-coordinates" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="binning">
+<h2>Binning<a class="headerlink" href="#binning" title="Permalink to this headline">¶</a></h2>
+<p>The Weighted Ensemble method enhances sampling by partitioning the space
+defined by the progress coordinates into non-overlapping bins. WESTPA provides
+a number of pre-defined types of bins that the user must parameterize within
+the system.py file, which are detailed below.</p>
+<p>Users are also free to implement their own mappers. A bin mapper must
+implement, at least, an <code class="docutils literal"><span class="pre">assign(coords,</span> <span class="pre">mask=None,</span> <span class="pre">output=None)</span></code> method,
+which is responsible for mapping each of the vector of coordinate tuples
+<code class="docutils literal"><span class="pre">coords</span></code> to an integer (<code class="docutils literal"><span class="pre">numpy.uint16</span></code>) indicating what bin that coordinate
+tuple falls into. The optional <code class="docutils literal"><span class="pre">mask</span></code> (a numpy bool array) specifies that
+some coordinates are to be skipped; this is used, for instance, by the
+recursive (nested) bin mapper to minimize the number of calculations required
+to definitively assign a coordinate tuple to a bin. Similarly, the optional
+<code class="docutils literal"><span class="pre">output</span></code> must be an integer (<code class="docutils literal"><span class="pre">uint16</span></code>) array of the same length as
+<code class="docutils literal"><span class="pre">coords</span></code>, into which assignments are written. The <code class="docutils literal"><span class="pre">assign()</span></code> function must
+return a reference to <code class="docutils literal"><span class="pre">output</span></code>. (This is used to avoid allocating many
+temporary output arrays in complex binning scenarios.)</p>
+<p>A user-defined bin mapper must also make an <code class="docutils literal"><span class="pre">nbins</span></code> property available,
+containing the total number of bins within the mapper.</p>
+<div class="section" id="rectilinearbinmapper">
+<h3>RectilinearBinMapper<a class="headerlink" href="#rectilinearbinmapper" title="Permalink to this headline">¶</a></h3>
+<p>Creates an N-dimensional grid of bins. The Rectilinear bin mapper is
+initialized by defining a set of bin boundaries:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="bp">self</span><span class="o">.</span><span class="n">bin_mapper</span> <span class="o">=</span> <span class="n">RectilinearBinMapper</span><span class="p">(</span><span class="n">boundaries</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>where <code class="docutils literal"><span class="pre">boundaries</span></code> is a list or other iterable containing the bin boundaries
+along each dimension. The bin boundaries must be monotonically increasing along
+each dimension. It is important to note that a one-dimensional bin space must
+still be represented as a list of lists as in the following example::</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">bounds</span> <span class="o">=</span> <span class="p">[</span><span class="o">-</span><span class="nb">float</span><span class="p">(</span><span class="s">&#39;inf&#39;</span><span class="p">),</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">,</span> <span class="mf">3.0</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="s">&#39;inf&#39;</span><span class="p">)]</span>
+<span class="bp">self</span><span class="o">.</span><span class="n">bin_mapper</span> <span class="o">=</span> <span class="n">RectilinearBinMapper</span><span class="p">([</span><span class="n">bounds</span><span class="p">])</span>
+</pre></div>
+</div>
+<p>A two-dimensional system might look like::</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">boundaries</span> <span class="o">=</span> <span class="p">[(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="o">-</span><span class="mf">0.5</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mf">0.5</span><span class="p">,</span><span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="o">-</span><span class="mf">0.5</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mf">0.5</span><span class="p">,</span><span class="mi">1</span><span class="p">)]</span>
+<span class="bp">self</span><span class="o">.</span><span class="n">bin_mapper</span> <span class="o">=</span> <span class="n">RectilinearBinMapper</span><span class="p">(</span><span class="n">boundaries</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>where the first tuple in the list defines the boundaries along the first
+progress coordinate, and the second tuple defines the boundaries along the
+second. Of course a list of arbitrary dimensions can be defined to create an
+N-dimensional grid discretizing the progress coordinate space.</p>
+</div>
+<div class="section" id="voronoibinmapper">
+<h3>VoronoiBinMapper<a class="headerlink" href="#voronoibinmapper" title="Permalink to this headline">¶</a></h3>
+<p>A one-dimensional mapper which assigns a multidimensional progress coordinate
+to the closest center based on a distance metric. The Voronoi bin mapper is
+initialized with the following signature within the
+<code class="docutils literal"><span class="pre">WESTSystem.initialize</span></code>::</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="bp">self</span><span class="o">.</span><span class="n">bin_mapper</span> <span class="o">=</span> <span class="n">VoronoiBinMapper</span><span class="p">(</span><span class="n">dfunc</span><span class="p">,</span> <span class="n">centers</span><span class="p">,</span> <span class="n">dfargs</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">dfkwargs</span><span class="o">=</span><span class="bp">None</span><span class="p">)</span>
+</pre></div>
+</div>
+<ul>
+<li><p class="first"><code class="docutils literal"><span class="pre">centers</span></code> is a <code class="docutils literal"><span class="pre">(n_centers,</span> <span class="pre">pcoord_ndim)</span></code> shaped numpy array defining
+the generators of the Voronoi cells</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">dfunc</span></code> is a method written in Python that returns an <code class="docutils literal"><span class="pre">(n_centers,</span> <span class="pre">)</span></code>
+shaped array containing the distance between a single set of progress
+coordinates for a segment and all of the centers defining the Voronoi
+tessellation. It takes the general form::</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="k">def</span> <span class="nf">dfunc</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">centers</span><span class="p">,</span> <span class="o">*</span><span class="n">dfargs</span><span class="p">,</span> <span class="o">**</span><span class="n">dfkwargs</span><span class="p">):</span>
+    <span class="o">...</span>
+    <span class="k">return</span> <span class="n">d</span>
+</pre></div>
+</div>
+</li>
+</ul>
+<p>where <code class="docutils literal"><span class="pre">p</span></code> is the progress coordinates of a single segment at one time slice
+of shape <code class="docutils literal"><span class="pre">(pcoord_ndim,)</span></code>, <code class="docutils literal"><span class="pre">centers</span></code> is the full set of centers, <code class="docutils literal"><span class="pre">dfargs</span></code>
+is a tuple or list of positional arguments and <code class="docutils literal"><span class="pre">dfwargs</span></code> is a dictionary of
+keyword arguments. The bin mapper&#8217;s <code class="docutils literal"><span class="pre">assign</span></code> method then assigns the progress
+coordinates to the closest bin (minimum distance). It is the responsibility of
+the user to ensure that the distance is calculated using the appropriate
+metric.</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">dfargs</span></code> is an optional list or tuple of positional arguments to pass into
+<code class="docutils literal"><span class="pre">dfunc</span></code>.</li>
+<li><code class="docutils literal"><span class="pre">dfkwargs</span></code> is an optional dict of keyword arguments to pass into <code class="docutils literal"><span class="pre">dfunc</span></code>.</li>
+</ul>
+</div>
+<div class="section" id="funcbinmapper">
+<h3>FuncBinMapper<a class="headerlink" href="#funcbinmapper" title="Permalink to this headline">¶</a></h3>
+<p>A bin mapper that employs a set of user-defined function, which directly
+calculate bin assignments for a number of coordinate values. The function is
+responsible for iterating over the entire coordinate set. This is best used
+with C/Cython/Numba methods, or intellegently-tuned numpy-based Python
+functions.</p>
+<p>The <code class="docutils literal"><span class="pre">FuncBinMapper</span></code> is initialized as::</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="bp">self</span><span class="o">.</span><span class="n">bin_mapper</span> <span class="o">=</span> <span class="n">FuncBinMapper</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="n">nbins</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">kwargs</span><span class="o">=</span><span class="bp">None</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>where <code class="docutils literal"><span class="pre">func</span></code> is the user-defined method to assign coordinates to bins,
+<code class="docutils literal"><span class="pre">nbins</span></code> is the number of bins in the partitioning space, and <code class="docutils literal"><span class="pre">args</span></code> and
+<code class="docutils literal"><span class="pre">kwargs</span></code> are optional positional and keyword arguments, respectively, that
+are passed into <code class="docutils literal"><span class="pre">func</span></code> when it is called.</p>
+<p>The user-defined function should have the following form::</p>
+<div class="highlight-python"><div class="highlight"><pre>def func(coords, mask, output, *args, **kwargs)
+    ....
+</pre></div>
+</div>
+<p>where the assignments returned in the <code class="docutils literal"><span class="pre">output</span></code> array, which is modified
+in-place.</p>
+<p>As a contrived example, the following function would assign all segments to bin
+0 if the sum of the first two progress coordinates was less than <code class="docutils literal"><span class="pre">s*0.5</span></code>, and
+to bin 1 otherwise, where <code class="docutils literal"><span class="pre">s=1.5</span></code>::</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="k">def</span> <span class="nf">func</span><span class="p">(</span><span class="n">coords</span><span class="p">,</span> <span class="n">mask</span><span class="p">,</span> <span class="n">output</span><span class="p">,</span> <span class="n">s</span><span class="p">):</span>
+    <span class="n">output</span><span class="p">[</span><span class="n">coords</span><span class="p">[:,</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">coords</span><span class="p">[:,</span><span class="mi">1</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">s</span><span class="o">*</span><span class="mf">0.5</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">output</span><span class="p">[</span><span class="n">coords</span><span class="p">[:,</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">coords</span><span class="p">[:,</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">s</span><span class="o">*</span><span class="mf">0.5</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+
+<span class="o">....</span>
+
+<span class="bp">self</span><span class="o">.</span><span class="n">bin_mapper</span> <span class="o">=</span> <span class="n">FuncBinMapper</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="mf">1.5</span><span class="p">,))</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="vectorizingfuncbinmapper">
+<h3>VectorizingFuncBinMapper<a class="headerlink" href="#vectorizingfuncbinmapper" title="Permalink to this headline">¶</a></h3>
+<p>Like the <code class="docutils literal"><span class="pre">FuncBinMapper</span></code>, the <code class="docutils literal"><span class="pre">VectorizingFuncBinMapper</span></code> uses a
+user-defined method to calculate bin assignments. They differ, however, in that
+while the user-defined method passed to an instance of the <code class="docutils literal"><span class="pre">FuncBinMapper</span></code> is
+responsible for iterating over all coordinate sets passed to it, the function
+associated with the <code class="docutils literal"><span class="pre">VectorizingFuncBinMapper</span></code> is evaluated once for each
+unmasked coordinate tuple provided. It is not responsible explicitly for
+iterating over multiple progress coordinate sets.</p>
+<p>The <code class="docutils literal"><span class="pre">VectorizingFuncBinMapper</span></code> is initialized as::</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="bp">self</span><span class="o">.</span><span class="n">bin_mapper</span> <span class="o">=</span> <span class="n">VectorizingFuncBinMapper</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="n">nbins</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">kwargs</span><span class="o">=</span><span class="bp">None</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>where <code class="docutils literal"><span class="pre">func</span></code> is the user-defined method to assign coordinates to bins,
+<code class="docutils literal"><span class="pre">nbins</span></code> is the number of bins in the partitioning space, and <code class="docutils literal"><span class="pre">args</span></code> and
+<code class="docutils literal"><span class="pre">kwargs</span></code> are optional positional and keyword arguments, respectively, that
+are passed into <code class="docutils literal"><span class="pre">func</span></code> when it is called.</p>
+<p>The user-defined function should have the following form::</p>
+<div class="highlight-python"><div class="highlight"><pre>def func(coords, *args, **kwargs)
+    ....
+</pre></div>
+</div>
+<p>Mirroring the simple example shown for the <code class="docutils literal"><span class="pre">FuncBinMapper</span></code>, the following
+should result in the same result for a given set of coordinates. Here segments
+would be assigned to bin 0 if the sum of the first two progress coordinates was
+less than <code class="docutils literal"><span class="pre">s*0.5</span></code>, and to bin 1 otherwise, where <code class="docutils literal"><span class="pre">s=1.5</span></code>::</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="k">def</span> <span class="nf">func</span><span class="p">(</span><span class="n">coords</span><span class="p">,</span> <span class="n">s</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">coords</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">coords</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">s</span><span class="o">*</span><span class="mf">0.5</span><span class="p">:</span>
+        <span class="k">return</span> <span class="mi">0</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="mi">1</span>
+<span class="o">....</span>
+
+<span class="bp">self</span><span class="o">.</span><span class="n">bin_mapper</span> <span class="o">=</span> <span class="n">VectorizingFuncBinMapper</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="mf">1.5</span><span class="p">,))</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="piecewisebinmapper">
+<h3>PiecewiseBinMapper<a class="headerlink" href="#piecewisebinmapper" title="Permalink to this headline">¶</a></h3>
+</div>
+<div class="section" id="recursivebinmapper">
+<h3>RecursiveBinMapper<a class="headerlink" href="#recursivebinmapper" title="Permalink to this headline">¶</a></h3>
+<p>The <code class="docutils literal"><span class="pre">RecursiveBinMapper</span></code> is used for assembling more complex bin spaces from
+simpler components and nesting one set of bins within another. It is
+initialized as::</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="bp">self</span><span class="o">.</span><span class="n">bin_mapper</span> <span class="o">=</span> <span class="n">RecursiveBinMapper</span><span class="p">(</span><span class="n">base_mapper</span><span class="p">,</span> <span class="n">start_index</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The <code class="docutils literal"><span class="pre">base_mapper</span></code> is an instance of one of the other bin mappers, and
+<code class="docutils literal"><span class="pre">start_index</span></code> is an (optional) offset for indexing the bins. Starting with
+the <code class="docutils literal"><span class="pre">base_mapper</span></code>, additional bins can be nested into it using the
+<code class="docutils literal"><span class="pre">add_mapper(mapper,</span> <span class="pre">replaces_bin_at)</span></code>. This method will replace the bin
+containing the coordinate tuple <code class="docutils literal"><span class="pre">replaces_bin_at</span></code> with the mapper specified
+by <code class="docutils literal"><span class="pre">mapper</span></code>.</p>
+<p>As a simple example consider a bin space in which the <code class="docutils literal"><span class="pre">base_mapper</span></code> assigns a
+segment with progress coordinate with values &lt;1 into one bin and &gt;= 1 into
+another. Within the former bin, we will nest a second mapper which partitions
+progress coordinate space into one bin for progress coordinate values &lt;0.5 and
+another for progress coordinates with values &gt;=0.5. The bin space would look
+like the following with corresponding code::</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">             0                            1                      2</span>
+<span class="sd">             +----------------------------+----------------------+</span>
+<span class="sd">             |            0.5             |                      |</span>
+<span class="sd">             | +-----------+------------+ |                      |</span>
+<span class="sd">             | |           |            | |                      |</span>
+<span class="sd">             | |     1     |     2      | |          0           |</span>
+<span class="sd">             | |           |            | |                      |</span>
+<span class="sd">             | |           |            | |                      |</span>
+<span class="sd">             | +-----------+------------+ |                      |prettyprint</span>
+<span class="sd">             +---------------------------------------------------+</span>
+<span class="sd">&#39;&#39;&#39;</span>
+
+<span class="k">def</span> <span class="nf">fn1</span><span class="p">(</span><span class="n">coords</span><span class="p">,</span> <span class="n">mask</span><span class="p">,</span> <span class="n">output</span><span class="p">):</span>
+    <span class="n">test</span> <span class="o">=</span> <span class="n">coords</span><span class="p">[:,</span><span class="mi">0</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mi">1</span>
+    <span class="n">output</span><span class="p">[</span><span class="n">mask</span> <span class="o">&amp;</span> <span class="n">test</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">output</span><span class="p">[</span><span class="n">mask</span> <span class="o">&amp;</span> <span class="o">~</span><span class="n">test</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+
+<span class="k">def</span> <span class="nf">fn2</span><span class="p">(</span><span class="n">coords</span><span class="p">,</span> <span class="n">mask</span><span class="p">,</span> <span class="n">output</span><span class="p">):</span>
+    <span class="n">test</span> <span class="o">=</span> <span class="n">coords</span><span class="p">[:,</span><span class="mi">0</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mf">0.5</span>
+    <span class="n">output</span><span class="p">[</span><span class="n">mask</span> <span class="o">&amp;</span> <span class="n">test</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">output</span><span class="p">[</span><span class="n">mask</span> <span class="o">&amp;</span> <span class="o">~</span><span class="n">test</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+
+<span class="n">outer_mapper</span> <span class="o">=</span> <span class="n">FuncBinMapper</span><span class="p">(</span><span class="n">fn1</span><span class="p">,</span><span class="mi">2</span><span class="p">)</span>
+<span class="n">inner_mapper</span> <span class="o">=</span> <span class="n">FuncBinMapper</span><span class="p">(</span><span class="n">fn2</span><span class="p">,</span><span class="mi">2</span><span class="p">)</span>
+<span class="n">rmapper</span> <span class="o">=</span> <span class="n">RecursiveBinMapper</span><span class="p">(</span><span class="n">outer_mapper</span><span class="p">)</span>
+<span class="n">rmapper</span><span class="o">.</span><span class="n">add_mapper</span><span class="p">(</span><span class="n">inner_mapper</span><span class="p">,</span> <span class="p">[</span><span class="mf">0.5</span><span class="p">])</span>
+</pre></div>
+</div>
+<p>Examples of more complicated nesting schemes can be found in the <a class="reference external" href="https://chong.chem.pitt.edu/redmine/projects/westpa/repository/tools/entry/tests/testbinning.py">tests</a>
+for the WESTPA binning apparatus.</p>
+</div>
+</div>
+<div class="section" id="initial-basis-states">
+<h2>Initial/Basis States<a class="headerlink" href="#initial-basis-states" title="Permalink to this headline">¶</a></h2>
+<p>A WESTPA simulation is initialized using <code class="docutils literal"><span class="pre">w_init</span></code> with an initial
+distribution of replicas generated from a set of basis states. These basis
+states are used to generate initial states for new trajectories, either at the
+beginning of the simulation or due to recycling. Basis states are specified
+when running <code class="docutils literal"><span class="pre">w_init</span></code> either in a file specified with <code class="docutils literal"><span class="pre">--bstates-from</span></code>, or
+by one or more <code class="docutils literal"><span class="pre">--bstate</span></code> arguments. If neither <code class="docutils literal"><span class="pre">--bstates-from</span></code> nor at
+least one <code class="docutils literal"><span class="pre">--bstate</span></code> argument is provided, then a default basis state of
+probability one identified by the state ID zero and label &#8220;basis&#8221; will be
+created (a warning will be printed in this case, to remind you of this
+behavior, in case it is not what you wanted).</p>
+<p>When using a file passed to <code class="docutils literal"><span class="pre">w_init</span></code> using <code class="docutils literal"><span class="pre">--bstates-from</span></code>, each line in
+that file defines a state, and contains a label, the probability, and
+optionally a data reference, separated by whitespace, as in::</p>
+<div class="highlight-python"><div class="highlight"><pre>unbound    1.0
+</pre></div>
+</div>
+<p>or:</p>
+<div class="highlight-python"><div class="highlight"><pre>unbound_0    0.6        state0.pdb
+unbound_1    0.4        state1.pdb
+</pre></div>
+</div>
+<p>Basis states can also be supplied at the command line using one or more
+<code class="docutils literal"><span class="pre">--bstate</span></code> flags, where the argument matches the format used in the state
+file above. The total probability summed over all basis states should equal
+unity, however WESTPA will renormalize the distribution if this condition is
+not met.</p>
+<p>Initial states are the generated from the basis states by optionally applying
+some perturbation or modification to the basis state. For example if WESTPA was
+being used to simulate ligand binding, one might want to have a basis state
+where the ligand was some set distance from the binding partner, and initial
+states are generated by randomly orienting the ligand at that distance. When
+using the executable propagator, this is done using the script specified under
+the <code class="docutils literal"><span class="pre">gen_istate</span></code> section of the <code class="docutils literal"><span class="pre">executable</span></code> configuration. Otherwise, if
+defining a custom propagator, the user must override the <code class="docutils literal"><span class="pre">gen_istate</span></code> method
+of <code class="docutils literal"><span class="pre">WESTPropagator</span></code>.</p>
+<p>When using the executable propagator, the the script specified by
+<code class="docutils literal"><span class="pre">gen_istate</span></code> should take the data supplied by the environmental variable
+<code class="docutils literal"><span class="pre">$WEST_BSTATE_DATA_REF</span></code> and return the generated initial state to
+<code class="docutils literal"><span class="pre">$WEST_ISTATE_DATA_REF</span></code>. If no transform need be performed, the user may
+simply copy the data directly without modification. This data will then be
+available via <code class="docutils literal"><span class="pre">$WEST_PARENT_DATA_REF</span></code> if <code class="docutils literal"><span class="pre">$WEST_CURRENT_SEG_INITPOINT_TYPE</span></code>
+is <code class="docutils literal"><span class="pre">SEG_INITPOINT_NEWTRAJ</span></code>.</p>
+</div>
+<div class="section" id="target-states">
+<h2>Target States<a class="headerlink" href="#target-states" title="Permalink to this headline">¶</a></h2>
+<p>WESTPA can be run in a recycling mode in which replicas reaching a target state
+are removed from the simulation and their weights are assigned to new replicas
+created from one of the initial states. This mode creates a non-equilibrium
+steady-state that isolates members of the trajectory ensemble originating in
+the set of initial states and transitioning to the target states. The flux of
+probability into the target state is then inversely proportional to the mean
+first passage time (MFPT) of the transition.</p>
+<p>Target states are defined when initializing a WESTPA simulation when calling
+<code class="docutils literal"><span class="pre">w_init</span></code>. Target states are specified either in a file specified with
+<code class="docutils literal"><span class="pre">--tstates-from</span></code>, or by one or more <code class="docutils literal"><span class="pre">--tstate</span></code> arguments. If neither
+<code class="docutils literal"><span class="pre">--tstates-from</span></code> nor at least one <code class="docutils literal"><span class="pre">--tstate</span></code> argument is provided, then an
+equilibrium simulation (without any sinks) will be performed.</p>
+<p>Target states can be defined using a text file, where each line defines a
+state, and contains a label followed by a representative progress coordinate
+value, separated by whitespace, as in::</p>
+<div class="highlight-python"><div class="highlight"><pre>bound     0.02
+</pre></div>
+</div>
+<p>for a single target and one-dimensional progress coordinates or::</p>
+<div class="highlight-python"><div class="highlight"><pre>bound    2.7    0.0
+drift    100    50.0
+</pre></div>
+</div>
+<p>for two targets and a two-dimensional progress coordinate.</p>
+<p>The argument associated with <code class="docutils literal"><span class="pre">--tstate</span></code> is a string of the form <code class="docutils literal"><span class="pre">'label,</span>
+<span class="pre">pcoord0</span> <span class="pre">[,pcoord1[,...]]'</span></code>, similar to a line in the example target state
+definition file above. This argument may be specified more than once, in which
+case the given states are appended to the list of target states for the
+simulation in the order they appear on the command line, after those that are
+specified by <code class="docutils literal"><span class="pre">--tstates-from</span></code>, if any.</p>
+<p>WESTPA uses the representative progress coordinate of a target-state and
+converts the <strong>entire</strong> bin containing that progress coordinate into a
+recycling sink.</p>
+</div>
+<div class="section" id="propagators">
+<h2>Propagators<a class="headerlink" href="#propagators" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="the-executable-propagator">
+<h3>The Executable Propagator<a class="headerlink" href="#the-executable-propagator" title="Permalink to this headline">¶</a></h3>
+</div>
+<div class="section" id="writing-custom-propagators">
+<h3>Writing custom propagators<a class="headerlink" href="#writing-custom-propagators" title="Permalink to this headline">¶</a></h3>
+<p>While most users will use the Executable propagator to run dynamics by calling
+out to an external piece of software, it is possible to write custom
+propagators that can be used to generate sampling directly through the python
+interface. This is particularly useful when simulating simple systems, where
+the overhead of starting up an external program is large compared to the actual
+cost of computing the trajectory segment. Other use cases might include running
+sampling with software that has a Python API (e.g. <a class="reference external" href="https://simtk.org/home/openmm">OpenMM</a>).</p>
+<p>In order to create a custom propagator, users must define a class that inherits
+from <code class="docutils literal"><span class="pre">WESTPropagator</span></code> and implement three methods:</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">get_pcoord(self,</span> <span class="pre">state)</span></code>: Get the progress coordinate of the given basis
+or initial state.</li>
+<li><code class="docutils literal"><span class="pre">gen_istate(self,</span> <span class="pre">basis_state,</span> <span class="pre">initial_state)</span></code>: Generate a new initial
+state from the given basis state. This method is optional if <code class="docutils literal"><span class="pre">gen_istates</span></code>
+is set to <code class="docutils literal"><span class="pre">False</span></code> in the propagation section of the configuration file,
+which is the default setting.</li>
+<li><code class="docutils literal"><span class="pre">propagate(self,</span> <span class="pre">segments)</span></code>: Propagate one or more segments, including any
+necessary per-iteration setup and teardown for this propagator.</li>
+</ul>
+<p>There are also two stubs that that, if overridden, provide a mechanism for
+modifying the simulation before or after the iteration:</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">prepare_iteration(self,</span> <span class="pre">n_iter,</span> <span class="pre">segments)</span></code>: Perform any necessary
+per-iteration preparation. This is run by the work manager.</li>
+<li><code class="docutils literal"><span class="pre">finalize_iteration(self,</span> <span class="pre">n_iter,</span> <span class="pre">segments)</span></code>: Perform any necessary
+post-iteration cleanup. This is run by the work manager.</li>
+</ul>
+<p>Several examples of custom propagators are available:</p>
+<ul class="simple">
+<li><a class="reference external" href="https://chong.chem.pitt.edu/redmine/projects/westpa/repository/entry/lib/examples/odld/odld_system.py">1D Over-damped Langevin dynamics</a></li>
+<li><a class="reference external" href="https://bitbucket.org/joshua.adelman/stringmethodexamples/src/tip/examples/DicksonRingPotential/we_base/system.py">2D Langevin dynamics</a></li>
+<li><a class="reference external" href="https://bitbucket.org/joshua.adelman/stringmethodexamples/src/tip/examples/ElasticNetworkModel/we_base/system.py">Langevin dynamics - CA atom Elastic Network Model</a></li>
+</ul>
+</div>
+</div>
+<div class="section" id="configuration-file">
+<h2>Configuration File<a class="headerlink" href="#configuration-file" title="Permalink to this headline">¶</a></h2>
+<p>The configuration of a WESTPA simulation is specified using a plain text file
+written in <a class="reference external" href="http://en.wikipedia.org/wiki/YAML">YAML</a>. This file specifies,
+among many other things, the length of the simulation, which modules should be
+loaded for specifying the system, how external data should be organized on the
+file system, and which plugins should used. YAML is a hierarchical format and
+WESTPA organizes the configuration settings into blocks for each component.
+While below, the configuration file will be referred to as <strong>west.cfg</strong>, the
+user is free to name the configuration file something else. Most of the scripts
+and tools that WESTPA provides, however, require that the name of the
+configuration file be specified if the default name is not used.</p>
+<p>The top most heading in <em>west.cfg</em> should be specified as::</p>
+<div class="highlight-python"><div class="highlight"><pre>---
+west:
+    ...
+</pre></div>
+</div>
+<p>with all sub-section specified below it. A complete example can be found for
+the methane example:
+<a class="reference external" href="https://chong.chem.pitt.edu/redmine/projects/westpa/repository/entry/lib/examples/methane_gmx/west.cfg">https://chong.chem.pitt.edu/redmine/projects/westpa/repository/entry/lib/examples/methane_gmx/west.cfg</a></p>
+<p>In the following section, the specifications for each section of the file can
+be found, along with default parameters and descriptions. Required parameters
+are indicated as REQUIRED.:</p>
+<div class="highlight-python"><div class="highlight"><pre>---
+west:
+    ...
+    system:
+        driver: REQUIRED
+        module_path: []
+</pre></div>
+</div>
+<p>The <code class="docutils literal"><span class="pre">driver</span></code> parameter must be set to a subclass of <code class="docutils literal"><span class="pre">WESTSystem</span></code>, and given
+in the form <em>module.class</em>. The <code class="docutils literal"><span class="pre">module_path</span></code> parameter is appended to the
+system path and indicates where the class is defined.:</p>
+<div class="highlight-python"><div class="highlight"><pre>---
+west:
+    ...
+    we:
+        adjust_counts: True
+        weight_split_threshold: 2.0
+        weight_merge_cutoff: 1.0
+</pre></div>
+</div>
+<p>The <code class="docutils literal"><span class="pre">we</span></code> section section specifies parameters related to the Huber and Kim
+resampling algorithm. WESTPA implements a variation of the method, in which
+setting <code class="docutils literal"><span class="pre">adust_counts</span></code> to <code class="docutils literal"><span class="pre">True</span></code> strictly enforces that the number of
+replicas per bin is exactly <code class="docutils literal"><span class="pre">system.bin_target_counts</span></code>. Otherwise, the number
+of replicas per is allowed to fluctuate as in the original implementation of
+the algorithm. Adjusting the counts can improve load balancing for parallel
+simulations. Replicas with weights greater than <code class="docutils literal"><span class="pre">weight_split_threshold</span></code>
+times the ideal weight per bin are tagged as candidates for splitting. Replicas
+with weights less than <code class="docutils literal"><span class="pre">weight_merge_cutoff</span></code> times the ideal weight per bin
+are candidates for merging.:</p>
+<div class="highlight-python"><div class="highlight"><pre>---
+west:
+    ...
+    propagation:
+        gen_istates: False
+        block_size: 1
+        save_transition_matrices: False
+        max_run_wallclock: None
+        max_total_iterations: None
+</pre></div>
+</div>
+<ul>
+<li><p class="first"><code class="docutils literal"><span class="pre">gen_istates</span></code>: Boolean specifying whether to generate initial states from
+the basis states. The executable propagator defines a specific configuration
+block (<em>add internal link to other section</em>), and custom propagators should
+override the <code class="docutils literal"><span class="pre">WESTPropagator.gen_istate()</span></code> method.</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">block_size</span></code>: An integer defining how many segments should be passed to a
+worker at a time. When using the serial work manager, this value should be
+set to the maximum number of segments per iteration to avoid significant
+overhead incurred by the locking mechanism in the WMFutures framework.
+Parallel work managers might benefit from setting this value greater than one
+in some instances to decrease network communication load.</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">save_transition_matrices</span></code>:</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">max_run_wallclock</span></code>: A time in dd:hh:mm:ss or hh:mm:ss specifying the
+maximum wallclock time of a particular WESTPA run. If running on a batch
+queuing system, this time should be set to less than the job allocation time
+to ensure that WESTPA shuts down cleanly.</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">max_total_iterations</span></code>: An integer value specifying the number of
+iterations to run. This parameter is checked against the last completed
+iteration stored in the HDF5 file, not the number of iterations completed for
+a specific run. The default value of <code class="docutils literal"><span class="pre">None</span></code> only stops upon external
+termination of the code.:</p>
+<div class="highlight-python"><div class="highlight"><pre>---
+west:
+    ...
+    data:
+        west_data_file: REQUIRED
+        aux_compression_threshold: 1048576
+        iter_prec: 8
+        datasets:
+            -name: REQUIRED
+             h5path:
+             store: True
+             load: False
+             dtype:
+             scaleoffset: None
+             compression: None
+             chunks: None
+        data_refs:
+            segment:
+            basis_state:
+            initial_state:
+</pre></div>
+</div>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">west_data_file</span></code>: The name of the main HDF5 data storage file for the
+WESTPA simulation.</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">aux_compression_threshold</span></code>: The threshold in bytes for compressing the
+auxiliary data in a dataset on an iteration-by-iteration basis.</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">iter_prec</span></code>: The length of the iteration index with zero-padding. For the
+default value, iteration 1 would be specified as iter_00000001.</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">datasets</span></code>:</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">data_refs</span></code>:</p>
+</li>
+<li><p class="first">plugins</p>
+</li>
+<li><p class="first">executable</p>
+</li>
+</ul>
+</div>
+<div class="section" id="environmental-variables">
+<h2>Environmental Variables<a class="headerlink" href="#environmental-variables" title="Permalink to this headline">¶</a></h2>
+<p>There are a number of environmental variables that can be set by the user in
+order to configure a WESTPA simulation:</p>
+<ul class="simple">
+<li>WEST_ROOT: path to the base directory containing the WESTPA install</li>
+<li>WEST_SIM_ROOT: path to the base directory of the WESTPA simulation</li>
+<li>WEST_PYTHON: path to python executable to run the WESTPA simulation</li>
+<li>WEST_PYTHONPATH: path to any additional modules that WESTPA will require to
+run the simulation</li>
+<li>WEST_KERNPROF: path to <code class="docutils literal"><span class="pre">kernprof.py</span></code> script to perform line-by-line
+profiling of a WESTPA simulation (see <a class="reference external" href="http://pythonhosted.org/line_profiler">python line_profiler</a>). This is only required for users
+who need to profile specific methods in a running WESTPA simulation.</li>
+</ul>
+<p>Work manager related environmental variables:</p>
+<ul class="simple">
+<li>WM_WORK_MANAGER</li>
+<li>WM_N_WORKERS</li>
+</ul>
+<p>WESTPA makes available to any script executed by it (e.g. <strong>runseg.sh</strong>), a
+number of environmental variables that are set dynamically by the executable
+propagator from the running simulation.</p>
+<div class="section" id="programs-executed-for-an-iteration">
+<h3>Programs executed for an iteration<a class="headerlink" href="#programs-executed-for-an-iteration" title="Permalink to this headline">¶</a></h3>
+<p>The following environment variables are passed to programs executed on a
+per-iteration basis, notably pre-iteration and post-iteration scripts.</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="25%" />
+<col width="25%" />
+<col width="51%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Variable</th>
+<th class="head">Possible values</th>
+<th class="head">Function</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>WEST_CURRENT_ITER</td>
+<td>Integer &gt;=1</td>
+<td>Current iteration number</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="programs-executed-for-a-segment">
+<h3>Programs executed for a segment<a class="headerlink" href="#programs-executed-for-a-segment" title="Permalink to this headline">¶</a></h3>
+<p>The following environment variables are passed to programs executed on a
+per-segment basis, notably dynamics propagation.</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="40%" />
+<col width="35%" />
+<col width="25%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Variable</th>
+<th class="head">Possible values</th>
+<th class="head">Function</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>WEST_CURRENT_ITER</td>
+<td>Integer &gt;=1</td>
+<td>Current iteration
+number</td>
+</tr>
+<tr class="row-odd"><td>WEST_CURRENT_SEG_ID</td>
+<td>Integer &gt;=0</td>
+<td>Current segment ID</td>
+</tr>
+<tr class="row-even"><td>WEST_CURRENT_SEG_DATA_REF</td>
+<td>String</td>
+<td>General-purpose
+reference, based on
+current segment
+information,
+configured in
+west.cfg. Usually
+used for storage
+paths</td>
+</tr>
+<tr class="row-odd"><td>WEST_CURRENT_SEG_INITPOINT_TYPE</td>
+<td>Enumeration:
+SEG_INITPOINT_CONTINUES,
+SEG_INITPOINT_NEWTRAJ</td>
+<td>Whether this
+segment continues a
+previous trajectory
+or initiates a new
+one.</td>
+</tr>
+<tr class="row-even"><td>WEST_PARENT_ID</td>
+<td>Integer</td>
+<td>Segment ID of
+parent segment.
+Negative for
+initial points.</td>
+</tr>
+<tr class="row-odd"><td>WEST_PARENT_DATA_REF</td>
+<td>String</td>
+<td>General purpose
+reference, based on
+parent segment
+information,
+configured in
+west.cfg. Usually
+used for storage
+paths</td>
+</tr>
+<tr class="row-even"><td>WEST_PCOORD_RETURN</td>
+<td>Filename</td>
+<td>Where progress
+coordinate data
+must be stored</td>
+</tr>
+<tr class="row-odd"><td>WEST_RAND16</td>
+<td>Integer</td>
+<td>16-bit random
+integer</td>
+</tr>
+<tr class="row-even"><td>WEST_RAND32</td>
+<td>Integer</td>
+<td>32-bit random
+integer</td>
+</tr>
+<tr class="row-odd"><td>WEST_RAND64</td>
+<td>Integer</td>
+<td>64-bit random
+integer</td>
+</tr>
+<tr class="row-even"><td>WEST_RAND128</td>
+<td>Integer</td>
+<td>128-bit random
+integer</td>
+</tr>
+<tr class="row-odd"><td>WEST_RANDFLOAT</td>
+<td>Floating-point</td>
+<td>Random number in
+[0,1).</td>
+</tr>
+</tbody>
+</table>
+<p>Additionally for any additional datasets specified in the configuration file,
+WESTPA automatically provides <code class="docutils literal"><span class="pre">WEST_X_RETURN</span></code>, where <code class="docutils literal"><span class="pre">X</span></code> is the uppercase
+name of the dataset. For example if the configuration file contains the
+following:</p>
+<div class="highlight-python"><div class="highlight"><pre>data:
+    ...
+    datasets: # dataset storage options
+      - name: energy
+</pre></div>
+</div>
+<p>WESTPA would make <code class="docutils literal"><span class="pre">WEST_ENERGY_RETURN</span></code> available.</p>
+</div>
+<div class="section" id="programs-executed-for-a-single-point">
+<h3>Programs executed for a single point<a class="headerlink" href="#programs-executed-for-a-single-point" title="Permalink to this headline">¶</a></h3>
+<p>Programs used for creating initial states from basis states (<code class="docutils literal"><span class="pre">gen_istate.sh</span></code>)
+or extracting progress coordinates from structures (e.g. <code class="docutils literal"><span class="pre">get_pcoord.sh</span></code>) are
+provided the following environment variables:</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="30%" />
+<col width="20%" />
+<col width="20%" />
+<col width="30%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Variable</th>
+<th class="head">Available for</th>
+<th class="head">Possible values</th>
+<th class="head">Function</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>WEST_STRUCT_DATA_REF</td>
+<td>All
+single-point
+calculations</td>
+<td>String</td>
+<td>General-purpose
+reference, usually a
+pathname, associated
+with the basis/initial
+state.</td>
+</tr>
+<tr class="row-odd"><td>WEST_BSTATE_ID</td>
+<td>get_pcoord for
+basis state,
+gen_istate</td>
+<td>Integer &gt;= 0</td>
+<td>Basis state ID</td>
+</tr>
+<tr class="row-even"><td>WEST_BSTATE_DATA_REF</td>
+<td>get_pcoord for
+basis state,
+gen_istate</td>
+<td>String</td>
+<td>Basis state data
+reference</td>
+</tr>
+<tr class="row-odd"><td>WEST_ISTATE_ID</td>
+<td>get_pcoord for
+initial state,
+gen_istate</td>
+<td>Integer &gt;= 0</td>
+<td>Inital state ID</td>
+</tr>
+<tr class="row-even"><td>WEST_ISTATE_DATA_REF</td>
+<td>get_pcoord for
+initial state,
+gen_istate</td>
+<td>String</td>
+<td>Initial state data
+references, usually a
+pathname</td>
+</tr>
+<tr class="row-odd"><td>WEST_PCOORD_RETURN</td>
+<td>get_pcoord for
+basis or
+initial state</td>
+<td>Pathname</td>
+<td>Where progress
+coordinate data is
+expected to be found
+after execution</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="section" id="plugins">
+<h2>Plugins<a class="headerlink" href="#plugins" title="Permalink to this headline">¶</a></h2>
+<p>WESTPA has a extensible plugin architecture that allows the user to manipulate
+the simulation at specified points during an iteration.</p>
+<ul class="simple">
+<li>Activating plugins in the config file</li>
+<li>Plugin execution order/priority</li>
+</ul>
+</div>
+<div class="section" id="weighted-ensemble-algorithm-resampling">
+<h2>Weighted Ensemble Algorithm (Resampling)<a class="headerlink" href="#weighted-ensemble-algorithm-resampling" title="Permalink to this headline">¶</a></h2>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Setup</a><ul>
+<li><a class="reference internal" href="#defining-and-calculating-progress-coordinates">Defining and Calculating Progress Coordinates</a></li>
+<li><a class="reference internal" href="#binning">Binning</a><ul>
+<li><a class="reference internal" href="#rectilinearbinmapper">RectilinearBinMapper</a></li>
+<li><a class="reference internal" href="#voronoibinmapper">VoronoiBinMapper</a></li>
+<li><a class="reference internal" href="#funcbinmapper">FuncBinMapper</a></li>
+<li><a class="reference internal" href="#vectorizingfuncbinmapper">VectorizingFuncBinMapper</a></li>
+<li><a class="reference internal" href="#piecewisebinmapper">PiecewiseBinMapper</a></li>
+<li><a class="reference internal" href="#recursivebinmapper">RecursiveBinMapper</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#initial-basis-states">Initial/Basis States</a></li>
+<li><a class="reference internal" href="#target-states">Target States</a></li>
+<li><a class="reference internal" href="#propagators">Propagators</a><ul>
+<li><a class="reference internal" href="#the-executable-propagator">The Executable Propagator</a></li>
+<li><a class="reference internal" href="#writing-custom-propagators">Writing custom propagators</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#configuration-file">Configuration File</a></li>
+<li><a class="reference internal" href="#environmental-variables">Environmental Variables</a><ul>
+<li><a class="reference internal" href="#programs-executed-for-an-iteration">Programs executed for an iteration</a></li>
+<li><a class="reference internal" href="#programs-executed-for-a-segment">Programs executed for a segment</a></li>
+<li><a class="reference internal" href="#programs-executed-for-a-single-point">Programs executed for a single point</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#plugins">Plugins</a></li>
+<li><a class="reference internal" href="#weighted-ensemble-algorithm-resampling">Weighted Ensemble Algorithm (Resampling)</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="../west.html"
+                        title="previous chapter">WEST</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="running.html"
+                        title="next chapter">Running</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../../_sources/users_guide/west/setup.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2015, Matthew C. Zwier and Lillian T. Chong.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.3</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.2</a>
+      
+      |
+      <a href="../../_sources/users_guide/west/setup.txt"
+          rel="nofollow">Page source</a></li>
+    </div>
+
+    
+
+    
+  </body>
+</html>
