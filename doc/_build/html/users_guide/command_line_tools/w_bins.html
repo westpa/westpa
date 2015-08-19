@@ -1,0 +1,246 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>w_bins &mdash; WESTPA 1.0b1 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '1.0b1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="top" title="WESTPA 1.0b1 documentation" href="../../index.html" />
+    <link rel="up" title="Command Line Tool Index" href="../command_line_tools.html" />
+    <link rel="next" title="w_crawl" href="w_crawl.html" />
+    <link rel="prev" title="w_assign" href="w_assign.html" />
+   
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9">
+
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="w_crawl.html" title="w_crawl"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="w_assign.html" title="w_assign"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">WESTPA 1.0b1 documentation</a> &raquo;</li>
+          <li class="nav-item nav-item-1"><a href="../command_line_tools.html" accesskey="U">Command Line Tool Index</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="w-bins">
+<span id="id1"></span><h1>w_bins<a class="headerlink" href="#w-bins" title="Permalink to this headline">¶</a></h1>
+<p><code class="docutils literal"><span class="pre">w_bins</span></code> deals with binning modification and statistics</p>
+<div class="section" id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h2>
+<p>Usage:</p>
+<div class="highlight-python"><div class="highlight"><pre>$WEST_ROOT/bin/w_bins [-h] [-r RCFILE] [--quiet | --verbose | --debug] [--version]
+             [-W WEST_H5FILE]
+             {info,rebin} ...
+</pre></div>
+</div>
+<p>Display information and statistics about binning in a WEST simulation, or
+modify the binning for the current iteration of a WEST simulation.</p>
+</div>
+<div class="section" id="command-line-options">
+<h2>Command-Line Options<a class="headerlink" href="#command-line-options" title="Permalink to this headline">¶</a></h2>
+<p>See the <a class="reference external" href="UserGuide:ToolRefs">general command-line tool reference</a> for
+more information on the general options.</p>
+<div class="section" id="options-under-info">
+<h3>Options Under &#8216;info&#8217;<a class="headerlink" href="#options-under-info" title="Permalink to this headline">¶</a></h3>
+<p>Usage:</p>
+<div class="highlight-python"><div class="highlight"><pre>$WEST_ROOT/bin/w_bins info [-h] [-n N_ITER] [--detail]
+                  [--bins-from-system | --bins-from-expr BINS_FROM_EXPR | --bins-from-function BINS_FROM_FUNCTION | --bins-from-file]
+</pre></div>
+</div>
+<p>Positional options:</p>
+<div class="highlight-python"><div class="highlight"><pre>info
+  Display information about binning.
+</pre></div>
+</div>
+<p>Options for &#8216;info&#8217;:</p>
+<div class="highlight-python"><div class="highlight"><pre>-n N_ITER, --n-iter N_ITER
+  Consider initial points of segment N_ITER (default: current
+  iteration).
+
+--detail
+  Display detailed per-bin information in addition to summary
+  information.
+</pre></div>
+</div>
+<p>Binning options for &#8216;info&#8217;:</p>
+<div class="highlight-python"><div class="highlight"><pre>--bins-from-system
+  Bins are constructed by the system driver specified in the WEST
+  configuration file (default where stored bin definitions not
+  available).
+
+--bins-from-expr BINS_FROM_EXPR, --binbounds BINS_FROM_EXPR
+  Construct bins on a rectilinear grid according to the given BINEXPR.
+  This must be a list of lists of bin boundaries (one list of bin
+  boundaries for each dimension of the progress coordinate), formatted
+  as a Python expression. E.g. &quot;[[0,1,2,4,inf],[-inf,0,inf]]&quot;. The
+  numpy module and the special symbol &quot;inf&quot; (for floating-point
+  infinity) are available for use within BINEXPR.
+
+--bins-from-function BINS_FROM_FUNCTION, --binfunc BINS_FROM_FUNCTION
+  Supply an external function which, when called, returns a properly
+  constructed bin mapper which will then be used for bin assignments.
+  This should be formatted as &quot;[PATH:]MODULE.FUNC&quot;, where the function
+  FUNC in module MODULE will be used; the optional PATH will be
+  prepended to the module search path when loading MODULE.
+
+--bins-from-file
+  Load bin specification from the data file being examined (default
+  where stored bin definitions available).
+</pre></div>
+</div>
+</div>
+<div class="section" id="options-under-rebin">
+<h3>Options Under &#8216;rebin&#8217;<a class="headerlink" href="#options-under-rebin" title="Permalink to this headline">¶</a></h3>
+<p>Usage:</p>
+<div class="highlight-python"><div class="highlight"><pre>$WEST_ROOT/bin/w_bins rebin [-h] [--confirm] [--detail]
+                   [--bins-from-system | --bins-from-expr BINS_FROM_EXPR | --bins-from-function BINS_FROM_FUNCTION]
+                   [--target-counts TARGET_COUNTS | --target-counts-from FILENAME]
+</pre></div>
+</div>
+<p>Positional option:</p>
+<div class="highlight-python"><div class="highlight"><pre>rebin
+  Rebuild current iteration with new binning.
+</pre></div>
+</div>
+<p>Options for &#8216;rebin&#8217;:</p>
+<div class="highlight-python"><div class="highlight"><pre>--confirm
+  Commit the revised iteration to HDF5; without this option, the
+  effects of the new binning are only calculated and printed.
+
+--detail
+  Display detailed per-bin information in addition to summary
+  information.
+</pre></div>
+</div>
+<p>Binning options for &#8216;rebin&#8217;;</p>
+<p>Same as the binning options for &#8216;info&#8217;.</p>
+<p>Bin target count options for &#8216;rebin&#8217;;:</p>
+<div class="highlight-python"><div class="highlight"><pre>--target-counts TARGET_COUNTS
+  Use TARGET_COUNTS instead of stored or system driver target counts.
+  TARGET_COUNTS is a comma-separated list of integers. As a special
+  case, a single integer is acceptable, in which case the same target
+  count is used for all bins.
+
+--target-counts-from FILENAME
+  Read target counts from the text file FILENAME instead of using
+  stored or system driver target counts. FILENAME must contain a list
+  of integers, separated by arbitrary whitespace (including newlines).
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="input-options">
+<h2>Input Options<a class="headerlink" href="#input-options" title="Permalink to this headline">¶</a></h2>
+<div class="highlight-python"><div class="highlight"><pre>-W WEST_H5FILE, --west_data WEST_H5FILE
+  Take WEST data from WEST_H5FILE (default: read from the HDF5 file
+  specified in west.cfg).
+</pre></div>
+</div>
+</div>
+<div class="section" id="examples">
+<h2>Examples<a class="headerlink" href="#examples" title="Permalink to this headline">¶</a></h2>
+<p>(TODO: Write up an example)</p>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">w_bins</a><ul>
+<li><a class="reference internal" href="#overview">Overview</a></li>
+<li><a class="reference internal" href="#command-line-options">Command-Line Options</a><ul>
+<li><a class="reference internal" href="#options-under-info">Options Under &#8216;info&#8217;</a></li>
+<li><a class="reference internal" href="#options-under-rebin">Options Under &#8216;rebin&#8217;</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#input-options">Input Options</a></li>
+<li><a class="reference internal" href="#examples">Examples</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="w_assign.html"
+                        title="previous chapter">w_assign</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="w_crawl.html"
+                        title="next chapter">w_crawl</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../../_sources/users_guide/command_line_tools/w_bins.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2015, Matthew C. Zwier and Lillian T. Chong.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.3</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.2</a>
+      
+      |
+      <a href="../../_sources/users_guide/command_line_tools/w_bins.txt"
+          rel="nofollow">Page source</a></li>
+    </div>
+
+    
+
+    
+  </body>
+</html>

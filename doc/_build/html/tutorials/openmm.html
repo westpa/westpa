@@ -24,7 +24,7 @@
     <script type="text/javascript" src="../_static/underscore.js"></script>
     <script type="text/javascript" src="../_static/doctools.js"></script>
     <link rel="top" title="WESTPA 1.0b1 documentation" href="../index.html" />
-    <link rel="next" title="WEST" href="../code/west.html" />
+    <link rel="next" title="Overview" href="../development/overview.html" />
     <link rel="prev" title="NAMD Tutorial: Molecular Dynamics of Na+/Cl- Association" href="namd.html" />
    
   
@@ -39,7 +39,7 @@
           <a href="../genindex.html" title="General Index"
              accesskey="I">index</a></li>
         <li class="right" >
-          <a href="../code/west.html" title="WEST"
+          <a href="../development/overview.html" title="Overview"
              accesskey="N">next</a> |</li>
         <li class="right" >
           <a href="namd.html" title="NAMD Tutorial: Molecular Dynamics of Na+/Cl- Association"
@@ -69,7 +69,7 @@ using the distance between the two ions as the progress coordinate.
 <a class="reference external" href="http://openmm.org">OpenMM</a> will be used to run the
 molecular dynamics, and familiarity with it is a prerequisite (see <a class="reference external" href="http://docs.openmm.org/6.2.0/userguide/index.html">tutorials</a>).</p>
 <p>This tutorial uses the same starting files, generated using Amber, as the
-<a class="reference internal" href="amber.html"><em>Introductory Amber Tutorial</em></a>.
+<a class="reference internal" href="amber.html#amber-tutorial"><span>Introductory Amber Tutorial</span></a>.
 Instead of using Amber (<code class="docutils literal"><span class="pre">pmemd</span></code> or <code class="docutils literal"><span class="pre">sander</span></code>) to run the dynamics, we
 will use the OpenMM framework along with its python wrapper to propagate the
 system.</p>
@@ -156,7 +156,7 @@ west.h5 file</td>
 <h3>system.py<a class="headerlink" href="#system-py" title="Permalink to this headline">¶</a></h3>
 <p>This file contains information about the progress coodinate, binning, walkers
 per bin and more. This file is nearly identical to one defined in the
-<a class="reference external" href="IntroductoryTutorial:AMBER">Introductory Amber Tutorial</a>. In this example
+<cite>Introductory Amber Tutorial &lt;amber_tutorial&gt;</cite>. In this example
 we will be using the distance between the two ions as the progress coordinate,
 giving us a one dimensional coordinate:</p>
 <div class="highlight-python"><div class="highlight"><pre>self.pcoord_ndim = 1
@@ -480,13 +480,13 @@ simulation is approaching steady-state conditions.</p>
 <h3>Visualizing a selected pathway<a class="headerlink" href="#visualizing-a-selected-pathway" title="Permalink to this headline">¶</a></h3>
 <p>In order to visualize a binding event, you will need to stitch together the
 individual trajectory segments that start at the initial state and then reach
-the bound state. The <a class="reference external" href="IntroductoryTutorial:AMBER">introductory Amber tutorial</a> provides directions on how to extract the sequence of segments in a
-set of successful binding events, however the script to construct a
-visualization of the pathway will not work for this example since we have
-stored all of the relevant data directly in the <code class="docutils literal"><span class="pre">west.h5</span></code> file. For this
-example, we leave writing the necessary script as an exercise. To create a
-netcdf-formatted Amber trajectory file, you might want to take a look at
-<a class="reference external" href="https://bitbucket.org/joshua.adelman/stringmethodexamples/raw/tip/shared/elasticnetwork-langevin/netcdf4storage.py">netcdf4storage.py</a>
+the bound state. The <cite>introductory Amber tutorial &lt;amber_tutorial&gt;</cite> provides
+directions on how to extract the sequence of segments in a set of successful
+binding events, however the script to construct a visualization of the pathway
+will not work for this example since we have stored all of the relevant data
+directly in the <code class="docutils literal"><span class="pre">west.h5</span></code> file. For this example, we leave writing the
+necessary script as an exercise. To create a netcdf-formatted Amber trajectory
+file, you might want to take a look at <a class="reference external" href="https://bitbucket.org/joshua.adelman/stringmethodexamples/raw/tip/shared/elasticnetwork-langevin/netcdf4storage.py">netcdf4storage.py</a>
 or you might consider using the dcd writer built into OpenMM which can imported
 into python using:</p>
 <div class="highlight-python"><div class="highlight"><pre>import simtk.openmm.app.dcdfile
@@ -566,8 +566,8 @@ Na+/Cl−, Methane/Benzene, and K+/18-Crown-6 Ether. J Chem Theory Comput.
   <p class="topless"><a href="namd.html"
                         title="previous chapter">NAMD Tutorial: Molecular Dynamics of Na<sup>+</sup>/Cl<sup>-</sup> Association</a></p>
   <h4>Next topic</h4>
-  <p class="topless"><a href="../code/west.html"
-                        title="next chapter">WEST</a></p>
+  <p class="topless"><a href="../development/overview.html"
+                        title="next chapter">Overview</a></p>
   <div role="note" aria-label="source link">
     <h3>This Page</h3>
     <ul class="this-page-menu">
@@ -596,8 +596,8 @@ Na+/Cl−, Methane/Benzene, and K+/18-Crown-6 Ether. J Chem Theory Comput.
       &copy;2015, Matthew C. Zwier and Lillian T. Chong.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.3b3</a>
-      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.1</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.3</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.2</a>
       
       |
       <a href="../_sources/tutorials/openmm.txt"

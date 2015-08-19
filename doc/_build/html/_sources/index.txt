@@ -1,5 +1,18 @@
 .. include:: ../README.rst
 
+User's Guide
+============
+
+.. toctree::
+   :maxdepth: 1
+
+    WEST                    <users_guide/west>
+    WEST tools              <users_guide/west_tools>
+    WEST work manager       <users_guide/wwmgr>
+    WEST extensions         <users_guide/westext>
+    Command line tool index <users_guide/command_line_tools>
+    HDF5 file schema        <users_guide/hdf5>
+
 Tutorials
 =========
 
@@ -20,14 +33,15 @@ Advanced
    :maxdepth: 1
 
    OpenMM <tutorials/openmm>
+   Weighted ensemble-based string method <http://stringmethodexamples.readthedocs.org/>
 
-Code
-====
+Development
+===========
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
 
-    WEST              <code/west>
-    WEST tools        <code/westtools>
-    WEST work manager <code/wwmgr>
-    WEST extensions   <code/westext>
+    Overview                <development/overview>
+    Coding practices        <development/coding>
+    Documentation practices <development/documentation>
+    Source code management  <development/source_code>
