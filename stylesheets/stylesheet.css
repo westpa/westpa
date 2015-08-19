@@ -337,12 +337,11 @@ Full-Width Styles
 }
 
 .logo_link {
-  position: absolute;
+  float: left;
   width: 150px;
-  bottom: 0px;
-  left: 10;
   height: 71.6
   display: block;
+  padding-bottom: 10px;
 }
 
 .zip_download_link {
