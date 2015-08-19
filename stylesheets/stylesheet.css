@@ -338,13 +338,13 @@ Full-Width Styles
 
 .logo_link {
   position: relative;
-  bottom: 55px;
+  bottom: 60px;
   float: left;
   width: 125px;
   height: 59.6 
   display: block;
   padding-right: 20px;
-  padding-top: 20px;
+  padding-top: 10px;
 }
 
 .zip_download_link {
