@@ -1,0 +1,174 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>w_run &mdash; WESTPA 1.0b1 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '1.0b1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="top" title="WESTPA 1.0b1 documentation" href="../../sphinx_index.html" />
+    <link rel="up" title="Command Line Tool Index" href="../command_line_tools.html" />
+    <link rel="next" title="w_select" href="w_select.html" />
+    <link rel="prev" title="w_pdist" href="w_pdist.html" />
+   
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9">
+
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../gensphinx_index.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="w_select.html" title="w_select"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="w_pdist.html" title="w_pdist"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../sphinx_index.html">WESTPA 1.0b1 documentation</a> &raquo;</li>
+          <li class="nav-item nav-item-1"><a href="../command_line_tools.html" accesskey="U">Command Line Tool Index</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="w-run">
+<span id="id1"></span><h1>w_run<a class="headerlink" href="#w-run" title="Permalink to this headline">¶</a></h1>
+<p><code class="docutils literal"><span class="pre">w_run</span></code> starts or continues a weighted ensemble simualtion.</p>
+<div class="section" id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h2>
+<p>Usage:</p>
+<div class="highlight-python"><div class="highlight"><pre>$WEST_ROOT/bin/w_run [-h] [-r RCFILE] [--quiet | --verbose | --debug] [--version]
+             [--oneseg ] [--wm-work-manager WORK_MANAGER]
+             [--wm-n-workers N_WORKERS] [--wm-zmq-mode MODE]
+             [--wm-zmq-info INFO_FILE] [--wm-zmq-task-endpoint TASK_ENDPOINT]
+             [--wm-zmq-result-endpoint RESULT_ENDPOINT]
+             [--wm-zmq-announce-endpoint ANNOUNCE_ENDPOINT]
+             [--wm-zmq-heartbeat-interval INTERVAL]
+             [--wm-zmq-task-timeout TIMEOUT] [--wm-zmq-client-comm-mode MODE]
+</pre></div>
+</div>
+</div>
+<div class="section" id="command-line-options">
+<h2>Command-Line Options<a class="headerlink" href="#command-line-options" title="Permalink to this headline">¶</a></h2>
+<p>See the <a class="reference internal" href="../command_line_tools.html#command-line-tool-index"><span>command-line tool index</span></a> for
+more information on the general options.</p>
+<div class="section" id="segment-options">
+<h3>Segment Options<a class="headerlink" href="#segment-options" title="Permalink to this headline">¶</a></h3>
+<dl class="docutils">
+<dt>::</dt>
+<dd><table class="first last docutils option-list" frame="void" rules="none">
+<col class="option" />
+<col class="description" />
+<tbody valign="top">
+<tr><td class="option-group">
+<kbd><span class="option">--oneseg</span></kbd></td>
+<td>Only propagate one segment (useful for debugging propagators)</td></tr>
+</tbody>
+</table>
+</dd>
+</dl>
+</div>
+</div>
+<div class="section" id="example">
+<h2>Example<a class="headerlink" href="#example" title="Permalink to this headline">¶</a></h2>
+<p>A simple example for using w_run (mostly taken from odld example that
+is available in the main WESTPA distribution):</p>
+<div class="highlight-python"><div class="highlight"><pre>$WEST_ROOT/bin/w_run &amp;&gt; west.log
+</pre></div>
+</div>
+<p>This commands starts up a serial weighted ensemble run and pipes the results
+into the west.log file. As a side note <code class="docutils literal"><span class="pre">--debug</span></code> option is very useful for
+debugging the code if something goes wrong.</p>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../../sphinx_index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">w_run</a><ul>
+<li><a class="reference internal" href="#overview">Overview</a></li>
+<li><a class="reference internal" href="#command-line-options">Command-Line Options</a><ul>
+<li><a class="reference internal" href="#segment-options">Segment Options</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#example">Example</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="w_pdist.html"
+                        title="previous chapter">w_pdist</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="w_select.html"
+                        title="next chapter">w_select</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../../_sources/users_guide/command_line_tools/w_run.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2015, Matthew C. Zwier and Lillian T. Chong.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.3</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.2</a>
+      
+      |
+      <a href="../../_sources/users_guide/command_line_tools/w_run.txt"
+          rel="nofollow">Page source</a></li>
+    </div>
+
+    
+
+    
+  </body>
+</html>

@@ -1,0 +1,176 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Running &mdash; WESTPA 1.0b1 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '1.0b1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="top" title="WESTPA 1.0b1 documentation" href="../../sphinx_index.html" />
+    <link rel="up" title="WEST" href="../west.html" />
+    <link rel="next" title="Analysis" href="analysis.html" />
+    <link rel="prev" title="Setup" href="setup.html" />
+   
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9">
+
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../gensphinx_index.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="analysis.html" title="Analysis"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="setup.html" title="Setup"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../sphinx_index.html">WESTPA 1.0b1 documentation</a> &raquo;</li>
+          <li class="nav-item nav-item-1"><a href="../west.html" accesskey="U">WEST</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="running">
+<span id="id1"></span><h1>Running<a class="headerlink" href="#running" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h2>
+<p>The <strong>w_run</strong> command is used to run weighted ensemble simulations
+<cite>configured &lt;setup&gt;</cite> with <strong>w_init</strong>.</p>
+</div>
+<div class="section" id="setting-simulation-limits">
+<h2>Setting simulation limits<a class="headerlink" href="#setting-simulation-limits" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="running-a-simulation">
+<h2>Running a simulation<a class="headerlink" href="#running-a-simulation" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="running-on-a-single-node">
+<h3>Running on a single node<a class="headerlink" href="#running-on-a-single-node" title="Permalink to this headline">¶</a></h3>
+</div>
+<div class="section" id="running-on-multiple-nodes-with-mpi">
+<h3>Running on multiple nodes with MPI<a class="headerlink" href="#running-on-multiple-nodes-with-mpi" title="Permalink to this headline">¶</a></h3>
+</div>
+<div class="section" id="running-on-multiple-nodes-with-zeromq">
+<h3>Running on multiple nodes with ZeroMQ<a class="headerlink" href="#running-on-multiple-nodes-with-zeromq" title="Permalink to this headline">¶</a></h3>
+</div>
+</div>
+<div class="section" id="managing-data">
+<h2>Managing data<a class="headerlink" href="#managing-data" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="recovering-from-errors">
+<h2>Recovering from errors<a class="headerlink" href="#recovering-from-errors" title="Permalink to this headline">¶</a></h2>
+<p>By default, information about simulation progress is stored in
+<strong>west-JOBID.log</strong> (where JOBID refers to the job ID given by the submission
+engine); any errors will be logged here.</p>
+<ul class="simple">
+<li>The error &#8220;could not read pcoord from &#8216;tempfile&#8217;: progress coordinate has
+incorrect shape&#8221; may come about from multiple causes; it is possible that the
+progress coordinate length is incorrectly specified in system.py
+(<strong>self.pcoord_len</strong>), or that GROMACS (or whatever simulation package you
+are using) had an error during the simulation.</li>
+<li>The first case will be obvious by what comes after the message: (XX, YY)
+(where XX is non-zero), expected (ZZ, GG) (whatever is in system.py). This
+can be corrected by adjusting system.py.</li>
+<li>In the second case, the progress coordinate length is 0; this
+indicates that no progress coordinate data exists (null string), which
+implies that the simulation software did not complete successfully. By
+default, the simulation package (GROMACS or otherwise) terminal output is
+stored in a log file inside of seg_logs. Any error that occurred during the
+actual simulation will be logged here, and can be corrected as needed.</li>
+</ul>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../../sphinx_index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Running</a><ul>
+<li><a class="reference internal" href="#overview">Overview</a></li>
+<li><a class="reference internal" href="#setting-simulation-limits">Setting simulation limits</a></li>
+<li><a class="reference internal" href="#running-a-simulation">Running a simulation</a><ul>
+<li><a class="reference internal" href="#running-on-a-single-node">Running on a single node</a></li>
+<li><a class="reference internal" href="#running-on-multiple-nodes-with-mpi">Running on multiple nodes with MPI</a></li>
+<li><a class="reference internal" href="#running-on-multiple-nodes-with-zeromq">Running on multiple nodes with ZeroMQ</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#managing-data">Managing data</a></li>
+<li><a class="reference internal" href="#recovering-from-errors">Recovering from errors</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="setup.html"
+                        title="previous chapter">Setup</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="analysis.html"
+                        title="next chapter">Analysis</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../../_sources/users_guide/west/running.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2015, Matthew C. Zwier and Lillian T. Chong.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.3</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.2</a>
+      
+      |
+      <a href="../../_sources/users_guide/west/running.txt"
+          rel="nofollow">Page source</a></li>
+    </div>
+
+    
+
+    
+  </body>
+</html>

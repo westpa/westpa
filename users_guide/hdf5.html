@@ -1,0 +1,367 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>HDF5 File Schema &mdash; WESTPA 1.0b1 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '1.0b1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="top" title="WESTPA 1.0b1 documentation" href="../sphinx_index.html" />
+    <link rel="next" title="AMBER Tutorial: Molecular Dynamics of Na+/Cl- Association" href="../tutorials/amber.html" />
+    <link rel="prev" title="plothist" href="command_line_tools/plothist.html" />
+   
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9">
+
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../gensphinx_index.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../tutorials/amber.html" title="AMBER Tutorial: Molecular Dynamics of Na+/Cl- Association"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="command_line_tools/plothist.html" title="plothist"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../sphinx_index.html">WESTPA 1.0b1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="hdf5-file-schema">
+<h1>HDF5 File Schema<a class="headerlink" href="#hdf5-file-schema" title="Permalink to this headline">¶</a></h1>
+<p>WESTPA stores all of its simulation data in the cross-platform, self-describing
+<a class="reference external" href="http://www.hdfgroup.org/HDF5">HDF5</a> file format. This file format can be
+read and written by a variety of languages and toolkits, including C/C++,
+Fortran, Python, Java, and <a class="reference external" href="http://www.mathworks.com/help/matlab/ref/hdf5read.html">Matlab</a> so that analysis of
+weighted ensemble simulations is not tied to using the WESTPA framework. HDF5
+files are organized like a filesystem, where arbitrarily-nested groups (i.e.
+directories) are used to organize datasets (i.e. files). The excellent <a class="reference external" href="http://www.hdfgroup.org/hdf-java-html/hdfview/">HDFView</a> program may be used to
+explore WEST data files.</p>
+<p>The canonical file format reference for a given version of the WEST code is
+described in <a class="reference external" href="https://chong.chem.pitt.edu/redmine/projects/westpa/repository/entry/src/west/data_manager.py">src/west/data_manager.py</a>.</p>
+<div class="section" id="overall-structure">
+<h2>Overall structure<a class="headerlink" href="#overall-structure" title="Permalink to this headline">¶</a></h2>
+<div class="highlight-python"><div class="highlight"><pre>/
+    #ibstates/
+        index
+        naming
+            bstate_index
+            bstate_pcoord
+            istate_index
+            istate_pcoord
+    #tstates/
+        index
+    bin_topologies/
+        index
+        pickles
+    iterations/
+        iter_XXXXXXXX/\|iter_XXXXXXXX/
+            auxdata/
+            bin_target_counts
+            ibstates/
+                bstate_index
+                bstate_pcoord
+                istate_index
+                istate_pcoord
+            pcoord
+            seg_index
+            wtgraph
+        ...
+    summary
+</pre></div>
+</div>
+</div>
+<div class="section" id="the-root-group">
+<h2>The root group (/)<a class="headerlink" href="#the-root-group" title="Permalink to this headline">¶</a></h2>
+<p>The root of the WEST HDF5 file contains the following entries (where a
+trailing &#8220;/&#8221; denotes a group):</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="19%" />
+<col width="30%" />
+<col width="51%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Name</th>
+<th class="head">Type</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>ibstates/</td>
+<td>Group</td>
+<td>Initial and basis states for this
+simulation</td>
+</tr>
+<tr class="row-odd"><td>tstates/</td>
+<td>Group</td>
+<td>Target (recycling) states for this
+simulation; may be empty</td>
+</tr>
+<tr class="row-even"><td>bin_topologies/</td>
+<td>Group</td>
+<td>Data pertaining to the binning scheme
+used in each iteration</td>
+</tr>
+<tr class="row-odd"><td>iterations/</td>
+<td>Group</td>
+<td>Iteration data</td>
+</tr>
+<tr class="row-even"><td>summary</td>
+<td>Dataset (1-dimensional,
+compound)</td>
+<td>Summary data by iteration</td>
+</tr>
+</tbody>
+</table>
+<div class="section" id="the-iteration-summary-table-summary">
+<h3>The iteration summary table (/summary)<a class="headerlink" href="#the-iteration-summary-table-summary" title="Permalink to this headline">¶</a></h3>
+<table border="1" class="docutils">
+<colgroup>
+<col width="19%" />
+<col width="81%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Field</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>n_particles</td>
+<td>the total number of walkers in this iteration</td>
+</tr>
+<tr class="row-odd"><td>norm</td>
+<td>total probability, for stability monitoring</td>
+</tr>
+<tr class="row-even"><td>min_bin_prob</td>
+<td>smallest probability contained in a bin</td>
+</tr>
+<tr class="row-odd"><td>max_bin_prob</td>
+<td>largest probability contained in a bin</td>
+</tr>
+<tr class="row-even"><td>min_seg_prob</td>
+<td>smallest probability carried by a walker</td>
+</tr>
+<tr class="row-odd"><td>max_seg_prob</td>
+<td>largest probability carried by a walker</td>
+</tr>
+<tr class="row-even"><td>cputime</td>
+<td>total CPU time (in seconds) spent on propagation for this
+iteration</td>
+</tr>
+<tr class="row-odd"><td>walltime</td>
+<td>total wallclock time (in seconds) spent on this iteration</td>
+</tr>
+<tr class="row-even"><td>binhash</td>
+<td>a hex string identifying the binning used in this iteration</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="section" id="per-iteration-data-iterations-iter-xxxxxxxx">
+<h2>Per iteration data (/iterations/iter_XXXXXXXX)<a class="headerlink" href="#per-iteration-data-iterations-iter-xxxxxxxx" title="Permalink to this headline">¶</a></h2>
+<p>Data for each iteration is stored in its own group, named according to the
+iteration number and zero-padded out to 8 digits, as in
+<code class="docutils literal"><span class="pre">/iterations/iter_00000001</span></code> for iteration 1. This is done solely for
+convenience in dealing with the data in external utilities that sort output by
+group name lexicographically. The field width is in fact configurable via the
+<code class="docutils literal"><span class="pre">iter_prec</span></code> configuration entry under <code class="docutils literal"><span class="pre">data</span></code> section of the WESTPA
+configuration file.</p>
+<p>The HDF5 group for each iteration contains the following elements:</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="25%" />
+<col width="30%" />
+<col width="45%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Name</th>
+<th class="head">Type</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>auxdata/</td>
+<td>Group</td>
+<td>All user-defined auxiliary data0
+sets</td>
+</tr>
+<tr class="row-odd"><td>bin_target_counts</td>
+<td>Dataset (1-dimensional)</td>
+<td>The per-bin target count for the
+iteration</td>
+</tr>
+<tr class="row-even"><td>ibstates/</td>
+<td>Group</td>
+<td>Initial and basis state data for
+the iteration</td>
+</tr>
+<tr class="row-odd"><td>pcoord</td>
+<td>Dataset (3-dimensional)</td>
+<td>Progress coordinate data for the
+iteration stored as a (num of
+segments, pcoord_len, pcoord_ndim)
+array</td>
+</tr>
+<tr class="row-even"><td>seg_index</td>
+<td>Dataset (1-dimensional,
+compound)</td>
+<td>Summary data for each segment</td>
+</tr>
+<tr class="row-odd"><td>wtgraph</td>
+<td>Dataset (1-dimensional)</td>
+<td>&nbsp;</td>
+</tr>
+</tbody>
+</table>
+<div class="section" id="the-segment-summary-table-iterations-iter-xxxxxxxx-seg-index">
+<h3>The segment summary table (/iterations/iter_XXXXXXXX/seg_index)<a class="headerlink" href="#the-segment-summary-table-iterations-iter-xxxxxxxx-seg-index" title="Permalink to this headline">¶</a></h3>
+<table border="1" class="docutils">
+<colgroup>
+<col width="19%" />
+<col width="81%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Field</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>weight</td>
+<td>Segment weight</td>
+</tr>
+<tr class="row-odd"><td>parent_id</td>
+<td>Index of parent</td>
+</tr>
+<tr class="row-even"><td>wtg_n_parents</td>
+<td>&nbsp;</td>
+</tr>
+<tr class="row-odd"><td>wtg_offset</td>
+<td>&nbsp;</td>
+</tr>
+<tr class="row-even"><td>cputime</td>
+<td>Total cpu time required to run the segment</td>
+</tr>
+<tr class="row-odd"><td>walltime</td>
+<td>Total walltime required to run the segment</td>
+</tr>
+<tr class="row-even"><td>endpoint_type</td>
+<td>&nbsp;</td>
+</tr>
+<tr class="row-odd"><td>status</td>
+<td>&nbsp;</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="section" id="bin-topologies-group-bin-topologies">
+<h2>Bin Topologies group (/bin_topologies)<a class="headerlink" href="#bin-topologies-group-bin-topologies" title="Permalink to this headline">¶</a></h2>
+<p>Bin topologies used during a WE simulation are stored as a unique hash
+identifier and a serialized <code class="docutils literal"><span class="pre">BinMapper</span></code> object in <a class="reference external" href="http://docs.python.org/2/library/pickle.html">python pickle</a> format. This group contains
+two datasets:</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">index</span></code>: Compound array containing the bin hash and pickle length</li>
+<li><code class="docutils literal"><span class="pre">pickle</span></code>: The pickled <code class="docutils literal"><span class="pre">BinMapper</span></code> objects for each unique mapper stored
+in a (num unique mappers, max pickled size) array</li>
+</ul>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../sphinx_index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">HDF5 File Schema</a><ul>
+<li><a class="reference internal" href="#overall-structure">Overall structure</a></li>
+<li><a class="reference internal" href="#the-root-group">The root group (/)</a><ul>
+<li><a class="reference internal" href="#the-iteration-summary-table-summary">The iteration summary table (/summary)</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#per-iteration-data-iterations-iter-xxxxxxxx">Per iteration data (/iterations/iter_XXXXXXXX)</a><ul>
+<li><a class="reference internal" href="#the-segment-summary-table-iterations-iter-xxxxxxxx-seg-index">The segment summary table (/iterations/iter_XXXXXXXX/seg_index)</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#bin-topologies-group-bin-topologies">Bin Topologies group (/bin_topologies)</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="command_line_tools/plothist.html"
+                        title="previous chapter">plothist</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="../tutorials/amber.html"
+                        title="next chapter">AMBER Tutorial: Molecular Dynamics of Na<sup>+</sup>/Cl<sup>-</sup> Association</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../_sources/users_guide/hdf5.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2015, Matthew C. Zwier and Lillian T. Chong.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.3</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.2</a>
+      
+      |
+      <a href="../_sources/users_guide/hdf5.txt"
+          rel="nofollow">Page source</a></li>
+    </div>
+
+    
+
+    
+  </body>
+</html>
