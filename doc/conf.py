@@ -31,7 +31,7 @@ import os
 extensions = ['sphinx.ext.autodoc', 'sphinx.ext.napoleon']
 
 # Add any paths that contain templates here, relative to this directory.
-templates_path = ['_templates']
+templates_path = ['templates']
 
 # The suffix of source filenames.
 source_suffix = '.rst'
@@ -40,7 +40,7 @@ source_suffix = '.rst'
 #source_encoding = 'utf-8-sig'
 
 # The master toctree document.
-master_doc = 'index'
+master_doc = 'sphinx_index'
 
 # General information about the project.
 project = u'WESTPA'
