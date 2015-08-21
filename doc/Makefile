@@ -64,10 +64,10 @@ ghpages:
 	mv $(BUILDDIR)/html/_static $(BUILDDIR)/html/static
 	git checkout gh-pages
 	cp -r $(BUILDDIR)/html/* ../.
-	find . -name '../*.html' -exec sed -i 's/_sources/sources/g' {} \;
-	find . -name '../*.html' -exec sed -i 's/_static/static/g' {} \;
-	find . -name '../*.html' -exec sed -i 's/_images/images/g' {} \;
-	find . -name '../*.html' -exec sed -i 's/[^a-z]index.html/sphinx_index.html/g' {} \;
+	find ../ -name '*.html' -exec sed -i 's/_sources/sources/g' {} \;
+	find ../ -name '*.html' -exec sed -i 's/_static/static/g' {} \;
+	find ../ -name '*.html' -exec sed -i 's/_images/images/g' {} \;
+	find ../ -name '*.html' -exec sed -i 's/[^a-z]index.html/sphinx_index.html/g' {} \;
 
 dirhtml:
 	$(SPHINXBUILD) -b dirhtml $(ALLSPHINXOPTS) $(BUILDDIR)/dirhtml
