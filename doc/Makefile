@@ -55,6 +55,21 @@ html:
 	@echo
 	@echo "Build finished. The HTML pages are in $(BUILDDIR)/html."
 
+ghpages:
+	make html
+	cd $(BUILDDIR)/html
+	mv $(BUILDDIR)/html/index.html $(BUILDDIR)/html/sphinx_index.html
+	mv $(BUILDDIR)/../development/images $(BUILDDIR)/html/images
+	mv $(BUILDDIR)/html/_sources $(BUILDDIR)/html/sources
+	mv $(BUILDDIR)/html/_static $(BUILDDIR)/html/static
+	cp -r $(BUILDDIR)/html/ /tmp/_CURR_BUILD_HTML_SPHINX
+	git checkout gh-pages
+	cp -r /tmp/_CURR_BUILD_HTML_SPHINX/* .
+	find . -name '*.html' -exec sed -i 's/_sources/sources/g' {} \;
+	find . -name '*.html' -exec sed -i 's/_static/static/g' {} \;
+	find . -name '*.html' -exec sed -i 's/_images/images/g' {} \;
+	find . -name '*.html' -exec sed -i 's/[^a-z]index.html/sphinx_index.html/g' {} \;
+
 dirhtml:
 	$(SPHINXBUILD) -b dirhtml $(ALLSPHINXOPTS) $(BUILDDIR)/dirhtml
 	@echo

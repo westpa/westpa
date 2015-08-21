@@ -1,4 +1,0 @@
-.. _ploterr:
-
-ploterr
-=======
