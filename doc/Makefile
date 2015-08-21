@@ -62,14 +62,13 @@ ghpages:
 	mv $(BUILDDIR)/html/_images $(BUILDDIR)/html/images
 	mv $(BUILDDIR)/html/_sources $(BUILDDIR)/html/sources
 	mv $(BUILDDIR)/html/_static $(BUILDDIR)/html/static
-	cp -r $(BUILDDIR)/html /tmp/_CURR_BUILD_HTML_SPHINX
-	cd ../
 	git checkout gh-pages
-	cp -r /tmp/_CURR_BUILD_HTML_SPHINX/* .
-	find . -name '*.html' -exec sed -i 's/_sources/sources/g' {} \;
-	find . -name '*.html' -exec sed -i 's/_static/static/g' {} \;
-	find . -name '*.html' -exec sed -i 's/_images/images/g' {} \;
-	find . -name '*.html' -exec sed -i 's/[^a-z]index.html/sphinx_index.html/g' {} \;
+	cp $(BUILDDIR)/html/* ../.
+	find . -name '../*.html' -exec sed -i 's/_sources/sources/g' {} \;
+	find . -name '../*.html' -exec sed -i 's/_static/static/g' {} \;
+	find . -name '../*.html' -exec sed -i 's/_images/images/g' {} \;
+	find . -name '../*.html' -exec sed -i 's/[^a-z]index.html/sphinx_index.html/g' {} \;
+	rm -rf ../doc
 
 dirhtml:
 	$(SPHINXBUILD) -b dirhtml $(ALLSPHINXOPTS) $(BUILDDIR)/dirhtml
