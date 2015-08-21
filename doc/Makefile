@@ -45,6 +45,7 @@ help:
 	@echo "  pseudoxml  to make pseudoxml-XML files for display purposes"
 	@echo "  linkcheck  to check all external links for integrity"
 	@echo "  doctest    to run all doctests embedded in the documentation (if enabled)"
+	@echo "  ghpages    to update the current gh-pages branch
 	@echo "  coverage   to run coverage check of the documentation (if enabled)"
 
 clean:
@@ -54,6 +55,17 @@ html:
 	$(SPHINXBUILD) -b html $(ALLSPHINXOPTS) $(BUILDDIR)/html
 	@echo
 	@echo "Build finished. The HTML pages are in $(BUILDDIR)/html."
+
+ghpages:
+	make html
+	mv $(BUILDDIR)/html/_images $(BUILDDIR)/html/images
+	find $(BUILDDIR)/html/* -name '*.html' -exec sed -i 's/_images/images/g' {} \;
+	mv $(BUILDDIR)/html/_sources $(BUILDDIR)/html/sources
+	find $(BUILDDIR)/html/* -name '*.html' -exec sed -i 's/_sources/sources/g' {} \;
+	mv $(BUILDDIR)/html/_static $(BUILDDIR)/html/static
+	find $(BUILDDIR)/html/* -name '*.html' -exec sed -i 's/_static/static/g' {} \;
+	git checkout gh-pages
+	cp -r $(BUILDDIR)/html/* ../.
 
 dirhtml:
 	$(SPHINXBUILD) -b dirhtml $(ALLSPHINXOPTS) $(BUILDDIR)/dirhtml
