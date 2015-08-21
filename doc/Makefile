@@ -62,7 +62,7 @@ ghpages:
 	mv $(BUILDDIR)/../development/images $(BUILDDIR)/html/images
 	mv $(BUILDDIR)/html/_sources $(BUILDDIR)/html/sources
 	mv $(BUILDDIR)/html/_static $(BUILDDIR)/html/static
-	cp -r $(BUILDDIR)/html/ /tmp/_CURR_BUILD_HTML_SPHINX
+	cp -r $(BUILDDIR)/html /tmp/_CURR_BUILD_HTML_SPHINX
 	git checkout gh-pages
 	cp -r /tmp/_CURR_BUILD_HTML_SPHINX/* .
 	find . -name '*.html' -exec sed -i 's/_sources/sources/g' {} \;
