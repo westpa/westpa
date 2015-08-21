@@ -1,0 +1,239 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Analysis &mdash; WESTPA 1.0b1 documentation</title>
+    
+    <link rel="stylesheet" href="../../static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '1.0b1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../static/jquery.js"></script>
+    <script type="text/javascript" src="../../static/underscore.js"></script>
+    <script type="text/javascript" src="../../static/doctools.js"></script>
+    <link rel="top" title="WESTPA 1.0b1 documentation" href="../../sphinx_index.html" />
+    <link rel="up" title="WEST" href="../west.html" />
+    <link rel="next" title="WEST Tools" href="../west_tools.html" />
+    <link rel="prev" title="Running" href="running.html" />
+   
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9">
+
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../west_tools.html" title="WEST Tools"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="running.html" title="Running"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../sphinx_index.html">WESTPA 1.0b1 documentation</a> &raquo;</li>
+          <li class="nav-item nav-item-1"><a href="../west.html" accesskey="U">WEST</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="analysis">
+<h1>Analysis<a class="headerlink" href="#analysis" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="gauging-simulation-progress-and-convergence">
+<h2>Gauging simulation progress and convergence<a class="headerlink" href="#gauging-simulation-progress-and-convergence" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="progress-coordinate-distribution-w-pcpdist">
+<h3>Progress coordinate distribution (w_pcpdist)<a class="headerlink" href="#progress-coordinate-distribution-w-pcpdist" title="Permalink to this headline">¶</a></h3>
+<p>w_pcpdist and plothist</p>
+</div>
+<div class="section" id="kinetics-for-source-sink-simulations">
+<h3>Kinetics for source/sink simulations<a class="headerlink" href="#kinetics-for-source-sink-simulations" title="Permalink to this headline">¶</a></h3>
+<p>w_fluxanl</p>
+</div>
+<div class="section" id="kinetics-for-arbitrary-state-definitions">
+<h3>Kinetics for arbitrary state definitions<a class="headerlink" href="#kinetics-for-arbitrary-state-definitions" title="Permalink to this headline">¶</a></h3>
+<p>In order to calculate rate constants, it is necessary to run three different
+tools:</p>
+<div class="highlight-python"><div class="highlight"><pre>- :ref:`w_assign`
+- :ref:`w_kinetics`
+- :ref:`w_kinavg`
+</pre></div>
+</div>
+<p>The w_assign tool assigns trajectories to states (states which correspond to a
+target bin) at a sub-tau resolution. This allows w_kinetics to properly trace
+the trajectories and prepare the data for further analysis.</p>
+<p>Although the bin and state definitions can be pulled from the system, it is
+frequently more convenient to specify custom bin boundaries and states; this
+eliminates the need to know what constitutes a state prior to starting the
+simulation. Both files must be in the YAML format, of which there are numerous
+examples of online. A quick example for each file follows:</p>
+<div class="highlight-python"><div class="highlight"><pre>States:
+---
+states:
+  - label: unbound
+    coords:
+      - [25,0]
+  - label: boun
+    coords:
+      - [1.5,33.0]
+
+Bins:
+---
+bins:
+  type: RectilinearBinMapper
+  boundaries: [[0.0,1.57,25.0,10000],[0.0,33.0,10000]]
+</pre></div>
+</div>
+<p>This system has a two dimensional progress coordinate, and two definite states,
+as defined by the PMF. The binning used during the simulation was significantly
+more complex; defining a smaller progress coordinate (in which we have three
+regions: bound, unbound, and in between) is simply a matter of convenience.
+Note that these custom bins do not change the simulation in any fashion; you
+can adjust state definitions and bin boundaries at will without altering the
+way the simulation runs.</p>
+<p>The help definition, included by running:</p>
+<div class="highlight-python"><div class="highlight"><pre>w_assign --help
+</pre></div>
+</div>
+<p>usually contains the most up-to-date help information, and so more
+information about command line options can be obtained from there. To
+run with the above YAML files, assuming they are named STATES and BINS,
+you would run the following command:</p>
+<div class="highlight-python"><div class="highlight"><pre>w_assign --states-from-file STATES --bins-from-file BINS
+</pre></div>
+</div>
+<p>By default, this produces a .h5 file (named assign.h5); this can be changed via
+the command line.</p>
+<p>The w_kinetics tool uses the information generated from w_assign to trace
+through trajectories and calculate flux with included color information. There
+are two main methods to run w_kinetics:</p>
+<div class="highlight-python"><div class="highlight"><pre>w_kinetics trace
+w_kinetics matrix
+</pre></div>
+</div>
+<p>The matrix method is still in development; at this time, trace is the
+recommended method.</p>
+<p>Once the w_kinetics analysis is complete, you can check for convergence of the
+rate constants. WESTPA includes two tools to help you do this: w_kinavg and
+ploterr. First, begin by running the following command (keep in mind that
+w_kinavg has the same type of analysis as w_kinetics does; whatever method you
+chose (trace or matrix) in the w_kinetics step should be used here, as well):</p>
+<div class="highlight-python"><div class="highlight"><pre>w_kinavg trace -e cumulative
+</pre></div>
+</div>
+<p>This instructs w_kinavg to produce a .h5 file with the cumulative rate
+information; by then using ploterr, you can determine whether the rates
+have stopped changing:</p>
+<div class="highlight-python"><div class="highlight"><pre>ploterr kinavg
+</pre></div>
+</div>
+<p>By default, this produces a set of .pdf files, containing cumulative rate and
+flux information for each state-to-state transition as a function of the WESTPA
+iteration. Determine at which iteration the rate stops changing; then, rerun
+w_kinavg with the following systems:</p>
+<div class="highlight-python"><div class="highlight"><pre>w_kinavg trace --first-iter ITER
+</pre></div>
+</div>
+<p>where ITER is the beginning of the unchanging region. This will then
+output information much like the following:</p>
+<div class="highlight-python"><div class="highlight"><pre>fluxes into macrostates:
+unbound: mean=1.712580005863456e-02 CI=(1.596595628304422e-02, 1.808249529394858e-02) * tau^-1
+bound  : mean=5.944989301935855e-04 CI=(4.153556214886056e-04, 7.789568983584020e-04) * tau^-1
+
+fluxes from state to state:
+unbound -&gt; bound  : mean=5.944989301935855e-04 CI=(4.253003401668849e-04, 7.720997503648696e-04) * tau^-1
+bound   -&gt; unbound: mean=1.712580005863456e-02 CI=(1.590547796439216e-02, 1.808154616175579e-02) * tau^-1
+
+rates from state to state:
+unbound -&gt; bound  : mean=9.972502012305491e-03 CI=(7.165030136921814e-03, 1.313767180582492e-02) * tau^-1
+bound   -&gt; unbound: mean=1.819520888349874e-02 CI=(1.704608273094848e-02, 1.926165865735958e-02) * tau^-1
+</pre></div>
+</div>
+<p>Divide by tau to calculate your rate constant.</p>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../../sphinx_index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Analysis</a><ul>
+<li><a class="reference internal" href="#gauging-simulation-progress-and-convergence">Gauging simulation progress and convergence</a><ul>
+<li><a class="reference internal" href="#progress-coordinate-distribution-w-pcpdist">Progress coordinate distribution (w_pcpdist)</a></li>
+<li><a class="reference internal" href="#kinetics-for-source-sink-simulations">Kinetics for source/sink simulations</a></li>
+<li><a class="reference internal" href="#kinetics-for-arbitrary-state-definitions">Kinetics for arbitrary state definitions</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="running.html"
+                        title="previous chapter">Running</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="../west_tools.html"
+                        title="next chapter">WEST Tools</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../../sources/users_guide/west/analysis.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2015, Matthew C. Zwier and Lillian T. Chong.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.3.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.3</a>
+      
+      |
+      <a href="../../sources/users_guide/west/analysis.txt"
+          rel="nofollow">Page source</a></li>
+    </div>
+
+    
+
+    
+  </body>
+</html>

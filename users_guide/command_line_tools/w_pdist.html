@@ -1,0 +1,234 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>w_pdist &mdash; WESTPA 1.0b1 documentation</title>
+    
+    <link rel="stylesheet" href="../../static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '1.0b1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../static/jquery.js"></script>
+    <script type="text/javascript" src="../../static/underscore.js"></script>
+    <script type="text/javascript" src="../../static/doctools.js"></script>
+    <link rel="top" title="WESTPA 1.0b1 documentation" href="../../sphinx_index.html" />
+    <link rel="up" title="Command Line Tool Index" href="../command_line_tools.html" />
+    <link rel="next" title="w_run" href="w_run.html" />
+    <link rel="prev" title="w_ntop" href="w_ntop.html" />
+   
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9">
+
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="w_run.html" title="w_run"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="w_ntop.html" title="w_ntop"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../sphinx_index.html">WESTPA 1.0b1 documentation</a> &raquo;</li>
+          <li class="nav-item nav-item-1"><a href="../command_line_tools.html" accesskey="U">Command Line Tool Index</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="w-pdist">
+<span id="id1"></span><h1>w_pdist<a class="headerlink" href="#w-pdist" title="Permalink to this headline">¶</a></h1>
+<p><code class="docutils literal"><span class="pre">w_pcpdist</span></code> constructs and calculates the progress coordinate probability
+distribution&#8217;s evolution over a user-specified number of simulation iterations.
+<code class="docutils literal"><span class="pre">w_pcpdist</span></code> supports progress coordinates with dimensionality ≥ 1.</p>
+<p>The resulting distribution can be viewed with the <a class="reference internal" href="plothist.html#plothist"><span>plothist</span></a> tool.</p>
+<div class="section" id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h2>
+<p>Usage:</p>
+<div class="highlight-python"><div class="highlight"><pre>$WEST_ROOT/bin/w_pdist [-h] [-r RCFILE] [--quiet | --verbose | --debug] [--version]
+                       [-W WEST_H5FILE] [--first-iter N_ITER] [--last-iter N_ITER]
+                       [-b BINEXPR] [-o OUTPUT]
+                       [--construct-dataset CONSTRUCT_DATASET | --dsspecs DSSPEC [DSSPEC ...]]
+                       [--serial | --parallel | --work-manager WORK_MANAGER]
+                       [--n-workers N_WORKERS] [--zmq-mode MODE]
+                       [--zmq-info INFO_FILE] [--zmq-task-endpoint TASK_ENDPOINT]
+                       [--zmq-result-endpoint RESULT_ENDPOINT]
+                       [--zmq-announce-endpoint ANNOUNCE_ENDPOINT]
+                       [--zmq-listen-endpoint ANNOUNCE_ENDPOINT]
+                       [--zmq-heartbeat-interval INTERVAL]
+                       [--zmq-task-timeout TIMEOUT] [--zmq-client-comm-mode MODE]
+</pre></div>
+</div>
+<p>Note: This tool supports parallelization, which may be more efficient for
+especially large datasets.</p>
+</div>
+<div class="section" id="command-line-options">
+<h2>Command-Line Options<a class="headerlink" href="#command-line-options" title="Permalink to this headline">¶</a></h2>
+<p>See the <a class="reference external" href="UserGuide:ToolRefs">general command-line tool reference</a> for more
+information on the general options.</p>
+<div class="section" id="input-output-options">
+<h3>Input/output options<a class="headerlink" href="#input-output-options" title="Permalink to this headline">¶</a></h3>
+<p>These arguments allow the user to specify where to read input simulation result
+data and where to output calculated progress coordinate probability
+distribution data.</p>
+<p>Both input and output files are <em>hdf5</em> format:</p>
+<div class="highlight-python"><div class="highlight"><pre>-W, --WEST_H5FILE file
+  Read simulation result data from file *file*. (**Default:** The
+  *hdf5* file specified in the configuration file (default config file
+  is *west.h5*))
+
+-o, --output file
+  Store this tool&#39;s output in *file*. (**Default:** The *hdf5* file
+  **pcpdist.h5**)
+</pre></div>
+</div>
+</div>
+<div class="section" id="iteration-range-options">
+<h3>Iteration range options<a class="headerlink" href="#iteration-range-options" title="Permalink to this headline">¶</a></h3>
+<p>Specify the range of iterations over which to construct the progress
+coordinate probability distribution.:</p>
+<div class="highlight-python"><div class="highlight"><pre>--first-iter n_iter
+  Construct probability distribution starting with iteration *n_iter*
+  (**Default:** 1)
+
+--last-iter n_iter
+  Construct probability distribution&#39;s time evolution up to (and
+  including) iteration *n_iter* (**Default:** Last completed
+  iteration)
+</pre></div>
+</div>
+</div>
+<div class="section" id="probability-distribution-binning-options">
+<h3>Probability distribution binning options<a class="headerlink" href="#probability-distribution-binning-options" title="Permalink to this headline">¶</a></h3>
+<p>Specify the number of bins to use when constructing the progress
+coordinate probability distribution. If using a multidimensional
+progress coordinate, different binning schemes can be used for the
+probability distribution for each progress coordinate.:</p>
+<div class="highlight-python"><div class="highlight"><pre>-b binexpr
+  *binexpr* specifies the number and formatting of the bins. Its
+  format can be as follows:
+
+      1. an integer, in which case all distributions have that many
+      equal sized bins
+      2. a python-style list of integers, of length corresponding to
+      the number of dimensions of the progress coordinate, in which
+      case each progress coordinate&#39;s probability distribution has the
+      corresponding number of bins
+      3. a python-style list of lists of scalars, where the list at
+      each index corresponds to each dimension of the progress
+      coordinate and specifies specific bin boundaries for that
+      progress coordinate&#39;s probability distribution.
+
+  (**Default:** 100 bins for all progress coordinates)
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="examples">
+<h2>Examples<a class="headerlink" href="#examples" title="Permalink to this headline">¶</a></h2>
+<p>Assuming simulation results are stored in <em>west.h5</em> (which is specified in the
+configuration file named <em>west.cfg</em>), for a simulation with a 1-dimensional
+progress coordinate:</p>
+<p>Calculate a probability distribution histogram using all default options
+(output file: <em>pdist.h5</em>; histogram binning: 100 equal sized bins; probability
+distribution over the lowest reached progress coordinate to the largest; work
+is parallelized over all available local cores using the &#8216;processes&#8217; work
+manager):</p>
+<div class="highlight-python"><div class="highlight"><pre>$WEST_ROOT/bin/w_pdist
+</pre></div>
+</div>
+<p>Same as above, except using the serial work manager (which may be more
+efficient for smaller datasets):</p>
+<div class="highlight-python"><div class="highlight"><pre>$WEST_ROOT/bin/w_pdist --serial
+</pre></div>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../../sphinx_index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">w_pdist</a><ul>
+<li><a class="reference internal" href="#overview">Overview</a></li>
+<li><a class="reference internal" href="#command-line-options">Command-Line Options</a><ul>
+<li><a class="reference internal" href="#input-output-options">Input/output options</a></li>
+<li><a class="reference internal" href="#iteration-range-options">Iteration range options</a></li>
+<li><a class="reference internal" href="#probability-distribution-binning-options">Probability distribution binning options</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#examples">Examples</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="w_ntop.html"
+                        title="previous chapter">w_ntop</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="w_run.html"
+                        title="next chapter">w_run</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../../sources/users_guide/command_line_tools/w_pdist.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2015, Matthew C. Zwier and Lillian T. Chong.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.3.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.3</a>
+      
+      |
+      <a href="../../sources/users_guide/command_line_tools/w_pdist.txt"
+          rel="nofollow">Page source</a></li>
+    </div>
+
+    
+
+    
+  </body>
+</html>

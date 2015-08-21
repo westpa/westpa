@@ -58,7 +58,7 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-h1, h2, h3, h4, h5, h6 {
+h1, h3, h4, h5, h6 {
   margin: 10px 0;
   font-weight: 700;
   color:#222222;
@@ -67,14 +67,16 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 h1 {
-  font-size: 36px;
+  font-size: 22px;
   font-weight: 700;
 }
 
 h2 {
-  padding-bottom: 10px;
-  font-size: 32px;
-  background: url('../images/bg_hr.png') repeat-x bottom;
+  padding-bottom: 25px;
+  font-size: 22px;
+  color:black;
+  font-family: 'Myriad Pro', Calibri, Helvetica, Arial, sans-serif;
+  letter-spacing: -1px;
 }
 
 h3 {
@@ -139,13 +141,6 @@ img {
   max-width: 739px;
   padding: 5px;
   margin: 10px 0 10px 0;
-  border: 1px solid #ebebeb;
-
-  box-shadow: 0 0 5px #ebebeb;
-  -webkit-box-shadow: 0 0 5px #ebebeb;
-  -moz-box-shadow: 0 0 5px #ebebeb;
-  -o-box-shadow: 0 0 5px #ebebeb;
-  -ms-box-shadow: 0 0 5px #ebebeb;
 }
 
 p img {
@@ -287,12 +282,7 @@ Full-Width Styles
 }
 
 #header_wrap {
-  background: #212121;
-  background: -moz-linear-gradient(top, #373737, #212121);
-  background: -webkit-linear-gradient(top, #373737, #212121);
-  background: -ms-linear-gradient(top, #373737, #212121);
-  background: -o-linear-gradient(top, #373737, #212121);
-  background: linear-gradient(top, #373737, #212121);
+  background: white;
 }
 
 #header_wrap .inner {
@@ -308,11 +298,9 @@ Full-Width Styles
 }
 
 #project_tagline {
-  color: #fff;
-  font-size: 24px;
-  font-weight: 300;
+  color: black;
+  font-size: 22px;
   background: none;
-  text-shadow: #111 0px 0px 10px;
 }
 
 #downloads {
@@ -323,6 +311,68 @@ Full-Width Styles
   right: 0;
   height: 70px;
   background: url('../images/icon_download.png') no-repeat 0% 90%;
+}
+
+#page_links{
+  position: absolute;
+  width: 750;
+  z-index: 10;
+  bottom: -25px;
+  left: 10;
+  height: 50px;
+}
+
+.pub_link {
+  float: left;
+  width: 80px;
+  height: 40px;
+  display: block;
+  padding-right: 30px;
+  color: black;
+  font-size: 18px;
+}
+
+.pub_link:hover {
+ color: red;
+}
+
+.doc_link {
+  float: left;
+  width: 100px;
+  height: 40px;
+  display: block;
+  padding-right: 30px;
+  color: black;
+  font-size: 18px;
+}
+
+.doc_link:hover {
+ color: red;
+}
+
+.gh_link {
+  float: left;
+  width: 200px;
+  height: 40px;
+  display: block;
+  padding-right: 0px;
+  color: black;
+  font-size: 18px;
+}
+
+.gh_link:hover {
+ color: red;
+}
+
+.logo_link {
+  position: relative;
+  bottom: 60px;
+  float: left;
+  width: 125px;
+  height: 59.6 
+  display: block;
+  padding-right: 20px;
+  padding-top: 10px;
 }
 
 .zip_download_link {
@@ -355,7 +405,7 @@ Full-Width Styles
 }
 
 #main_content_wrap {
-  background: #f2f2f2;
+  background: white;
   border-top: 1px solid #111;
   border-bottom: 1px solid #111;
 }
@@ -397,7 +447,7 @@ Small Device Styles
   }
 
   h2 {
-    font-size: 24px;
+    font-size: 22px;
   }
 
   h3 {

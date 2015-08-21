@@ -1,0 +1,486 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Style Guide &mdash; WESTPA 1.0b1 documentation</title>
+    
+    <link rel="stylesheet" href="../static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '1.0b1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../static/jquery.js"></script>
+    <script type="text/javascript" src="../static/underscore.js"></script>
+    <script type="text/javascript" src="../static/doctools.js"></script>
+    <link rel="top" title="WESTPA 1.0b1 documentation" href="../sphinx_index.html" />
+    <link rel="next" title="Source Code Management" href="source_code.html" />
+    <link rel="prev" title="Overview" href="overview.html" />
+   
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9">
+
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="source_code.html" title="Source Code Management"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="overview.html" title="Overview"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../sphinx_index.html">WESTPA 1.0b1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="style-guide">
+<h1>Style Guide<a class="headerlink" href="#style-guide" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="preface">
+<h2>Preface<a class="headerlink" href="#preface" title="Permalink to this headline">¶</a></h2>
+<p>The WESTPA documentation should help the user to understand how WESTPA works
+and how to use it. To aid in effective communication, a number of guidelines
+appear below.</p>
+<p>When writing in the WESTPA documentation, please be:</p>
+<ul class="simple">
+<li>Correct</li>
+<li>Clear</li>
+<li>Consistent</li>
+<li>Concise</li>
+</ul>
+<p>Articles in this documentation should follow the guidelines on this page.
+However, there may be cases when following these guidelines will make an
+article confusing: when in doubt, use your best judgment and ask for the
+opinions of those around you.</p>
+</div>
+<div class="section" id="style-and-usage">
+<h2>Style and Usage<a class="headerlink" href="#style-and-usage" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="acronyms-and-abbreviations">
+<h3>Acronyms and abbreviations<a class="headerlink" href="#acronyms-and-abbreviations" title="Permalink to this headline">¶</a></h3>
+<ul>
+<li><p class="first">Software documentation often involves extensive use of acronyms and
+abbreviations.</p>
+<p>Acronym: A word formed from the initial letter or letters of each or most of
+the parts of a compound term</p>
+<p>Abbreviation: A shortened form of a written word or name that is used in
+place of the full word or name</p>
+</li>
+<li><p class="first">Define non-standard acronyms and abbreviations on their first use by using
+the full-length term, followed by the acronym or abbreviation in parentheses.</p>
+<p>A potential of mean force (PMF) diagram may aid the user in visuallizing the
+energy landscape of the simulation.</p>
+</li>
+<li><p class="first">Only use acronyms and abbreviations when they make an idea more clear than
+spelling out the full term. Consider clarity from the point of view of a new
+user who is intelligent but may have little experience with computers.</p>
+<p>Correct: The WESTPA wiki supports HyperText Markup Language (HTML). For
+example, the user may use HTML tags to give text special formatting. However,
+be sure to test that the HTML tag gives the desired effect by previewing
+edits before saving.</p>
+<p>Avoid: The WESTPA wiki supports HyperText Markup Language. For example, the
+user may use HyperText Markup Language tags to give text special formatting.
+However, be sure to test that the HyperText Markup Language tag gives the
+desired effect by previewing edits before saving.</p>
+<p>Avoid: For each iter, make sure to return the pcoord and any auxdata.</p>
+</li>
+<li><p class="first">Use all capital letters for abbreviating file types. File extensions should
+be lowercase.</p>
+<p>HDF5, PNG, MP4, GRO, XTC</p>
+<p>west.h5, bound.png, unfolding.mp4, protein.gro, segment.xtc</p>
+</li>
+<li><p class="first">Provide pronunciations for acronyms that may be difficult to sound out.</p>
+</li>
+<li><p class="first">Do not use periods in acronyms and abbreviations except where it is
+customary:</p>
+<p>Correct: HTML, U.S.</p>
+<p>Avoid: H.T.M.L., US</p>
+</li>
+</ul>
+</div>
+<div class="section" id="capitalization">
+<h3>Capitalization<a class="headerlink" href="#capitalization" title="Permalink to this headline">¶</a></h3>
+<ul class="simple">
+<li>Capitalize at the beginning of each sentence.</li>
+<li>Do not capitalize after a semicolon.</li>
+<li>Do not capitalize after a colon, unless multiple sentences follow the colon.</li>
+<li>In this case, capitalize each sentence.</li>
+<li>Preserve the capitalization of computer language elements (commands,</li>
+<li>utilities, variables, modules, classes, and arguments).</li>
+<li>Capitilize generic Python variables according to the</li>
+<li><a class="reference external" href="http://www.python.org/dev/peps/pep-0008/#class-names">PEP 0008 Python Style Guide</a>. For example,
+generic class names should follow the <em>CapWords</em> convention, such as
+<code class="docutils literal"><span class="pre">GenericClass</span></code>.</li>
+</ul>
+</div>
+<div class="section" id="contractions">
+<h3>Contractions<a class="headerlink" href="#contractions" title="Permalink to this headline">¶</a></h3>
+<ul>
+<li><p class="first">Do not use contractions. Contractions are a shortened version of word
+characterized by the omission of internal letters.</p>
+<p>Avoid: can&#8217;t, don&#8217;t, shouldn&#8217;t</p>
+</li>
+<li><p class="first">Possessive nouns are not contractions. Use possessive nouns freely.</p>
+</li>
+</ul>
+</div>
+<div class="section" id="internationalization">
+<h3>Internationalization<a class="headerlink" href="#internationalization" title="Permalink to this headline">¶</a></h3>
+<ul class="simple">
+<li>Use short sentences (less than 25 words). Although we do not maintain
+WESTPA documentation in languages other than English, some users may use
+automatic translation programs. These programs function best with short
+sentences.</li>
+<li>Do not use technical terms where a common term would be equally or more
+clear.</li>
+<li>Use multiple simple sentences in place of a single complicated sentence.</li>
+</ul>
+</div>
+<div class="section" id="italics">
+<h3>Italics<a class="headerlink" href="#italics" title="Permalink to this headline">¶</a></h3>
+<ul>
+<li><p class="first">Use italics (surround the word with * * on each side) to highlight words
+that are not part of a sentence&#8217;s normal grammer.</p>
+<p>Correct: The word <em>istates</em> refers to the initial states that WESTPA uses to
+begin trajectories.</p>
+</li>
+</ul>
+</div>
+<div class="section" id="non-english-words">
+<h3>Non-English words<a class="headerlink" href="#non-english-words" title="Permalink to this headline">¶</a></h3>
+<ul>
+<li><p class="first">Avoid Latin words and abbreviations.</p>
+<p>Avoid: etc., et cetera, e.g., i.e.</p>
+</li>
+</ul>
+</div>
+<div class="section" id="specially-formatted-characters">
+<h3>Specially formatted characters<a class="headerlink" href="#specially-formatted-characters" title="Permalink to this headline">¶</a></h3>
+<ul>
+<li><p class="first">Never begin a sentence with a specially formatted character. This includes
+abbreviations, variable names, and anything else this guide instructs to use
+with special tags. Sentences may begin with <em>WESTPA</em>.</p>
+<p>Correct: The program <code class="docutils literal"><span class="pre">ls</span></code> allows the user to see the contents of a
+directory.</p>
+<p>Avoid: <code class="docutils literal"><span class="pre">ls</span></code> allows the user to see the contents of a directory.</p>
+</li>
+<li><p class="first">Use the word <em>and</em> rather than an <code class="docutils literal"><span class="pre">&amp;</span></code> ampersand .</p>
+</li>
+<li><p class="first">When a special character has a unique meaning to a program, first use the
+character surrounded by `` tags and then spell it out.</p>
+<p>Correct: Append an <code class="docutils literal"><span class="pre">&amp;</span></code> ampersand to a command to let it run in the
+background.</p>
+<p>Avoid: Append an &#8220;&amp;&#8221; to a command... Append an <code class="docutils literal"><span class="pre">&amp;</span></code> to a command... Append
+an ampersand to a command...</p>
+</li>
+<li><p class="first">There are many names for the <code class="docutils literal"><span class="pre">#</span></code> hash mark, including hash tag, number
+sign, pound sign, and octothorpe. Refer to this symbol as a &#8220;hash mark&#8221;.</p>
+</li>
+</ul>
+</div>
+<div class="section" id="subject">
+<h3>Subject<a class="headerlink" href="#subject" title="Permalink to this headline">¶</a></h3>
+<ul>
+<li><p class="first">Refer to the end WESTPA user as <em>the user</em> in software documentation.</p>
+<p>Correct: The user should use the <code class="docutils literal"><span class="pre">processes</span></code> work manager to run segments
+in parallel on a single node.</p>
+</li>
+<li><p class="first">Refer to the end WESTPA user as <em>you</em> in tutorials (you is the implied
+subject of commands). It is also acceptable to use personal pronouns such as
+<em>we</em> and <em>our</em>. Be consistent within the tutorial.</p>
+<p>Correct: You should have two files in this directory, named <code class="docutils literal"><span class="pre">system.py</span></code> and
+<code class="docutils literal"><span class="pre">west.cfg</span></code>.</p>
+</li>
+</ul>
+</div>
+<div class="section" id="tense">
+<h3>Tense<a class="headerlink" href="#tense" title="Permalink to this headline">¶</a></h3>
+<ul>
+<li><p class="first">Use <em>should</em> to specify proper usage.</p>
+<p>Correct: The user should run <code class="docutils literal"><span class="pre">w_truncate</span> <span class="pre">-n</span> <span class="pre">&lt;var&gt;iter&lt;/var&gt;</span></code> to remove
+iterations after and including iter from the HDF5 file specified in the
+WESTPA configuration file.</p>
+</li>
+<li><p class="first">Use <em>will</em> to specify expected results and output.</p>
+<p>Correct: WESTPA will create a HDF5 file when the user runs <code class="docutils literal"><span class="pre">w_init</span></code>.</p>
+</li>
+</ul>
+</div>
+<div class="section" id="voice">
+<h3>Voice<a class="headerlink" href="#voice" title="Permalink to this headline">¶</a></h3>
+<ul>
+<li><p class="first">Use active voice. Passive voice can obscure a sentence and add unnecessary
+words.</p>
+<p>Correct: WESTPA will return an error if the sum of the weights of segments
+does not equal one.</p>
+<p>Avoid: An error will be returned if the sum of the weights of segments does
+not equal one.</p>
+</li>
+</ul>
+</div>
+<div class="section" id="weighted-ensemble">
+<h3>Weighted ensemble<a class="headerlink" href="#weighted-ensemble" title="Permalink to this headline">¶</a></h3>
+<ul>
+<li><p class="first">Refer to weighted ensemble in all lowercase, unless at the beginning of a
+sentence. Do not hyphenate.</p>
+<p>Correct: WESTPA is an implementation of the weighted ensemble algorithm.</p>
+<p>Avoid: WESTPA is an implementation of the weighted-ensemble algorithm.</p>
+<p>Avoid: WESTPA is an implementation of the Weighted Ensemble algorithm.</p>
+</li>
+</ul>
+</div>
+<div class="section" id="westpa">
+<h3>WESTPA<a class="headerlink" href="#westpa" title="Permalink to this headline">¶</a></h3>
+<ul>
+<li><p class="first">Refer to WESTPA in all capitals. Do not use bold, italics, or other special
+formatting except when another guideline from this style guide applies.</p>
+<p>Correct: Install the WESTPA software package.</p>
+</li>
+<li><p class="first">The word <em>WESTPA</em> may refer to the software package or a entity of running
+software.</p>
+<p>Correct: WESTPA includes a number of analysis utilities.</p>
+<p>Correct: WESTPA will return an error if the user does not supply a
+configuration file.</p>
+</li>
+</ul>
+</div>
+</div>
+<div class="section" id="computer-language-elements">
+<h2>Computer Language Elements<a class="headerlink" href="#computer-language-elements" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="classes-modules-and-libraries">
+<h3>Classes, modules, and libraries<a class="headerlink" href="#classes-modules-and-libraries" title="Permalink to this headline">¶</a></h3>
+<ul>
+<li><p class="first">Display class names in fixed-width font using the <code class="docutils literal"><span class="pre">``</span></code> tag.</p>
+<p>Correct: <code class="docutils literal"><span class="pre">WESTPropagator</span></code></p>
+<p>Correct: The <code class="docutils literal"><span class="pre">numpy</span></code> library provides access to various low-level
+mathematical and scientific calculation routines.</p>
+</li>
+<li><p class="first">Generic class names should be relevant to the properties of the class; do not
+use <em>foo</em> or <em>bar</em></p>
+<blockquote>
+<div><p><code class="docutils literal"><span class="pre">class</span> <span class="pre">UserDefinedBinMapper(RectilinearBinMapper)</span></code></p>
+</div></blockquote>
+</li>
+</ul>
+</div>
+<div class="section" id="methods-and-commands">
+<h3>Methods and commands<a class="headerlink" href="#methods-and-commands" title="Permalink to this headline">¶</a></h3>
+<ul>
+<li><p class="first">Refer to a method by its name without parentheses, and without prepending
+the name of its class. Display methods in fixed-width font using the <code class="docutils literal"><span class="pre">``</span></code>
+tag.</p>
+<p>Correct: the <code class="docutils literal"><span class="pre">arange</span></code> method of the <code class="docutils literal"><span class="pre">numpy</span></code> library</p>
+<p>Avoid: the <code class="docutils literal"><span class="pre">arange()</span></code> method of the <code class="docutils literal"><span class="pre">numpy</span></code> library</p>
+<p>Avoid: the <code class="docutils literal"><span class="pre">numpy.arange</span></code> method</p>
+</li>
+<li><p class="first">When referring to the arguments that a method expects, mention the method
+without arguments first, and then use the method&#8217;s name followed by
+parenthesis and arguments.</p>
+<p>Correct: WESTPA calls the <code class="docutils literal"><span class="pre">assign</span></code> method as assign(coords, mask=None,
+output=None)</p>
+</li>
+<li><p class="first">Never use a method or command as a verb.</p>
+<p>Correct: Run <code class="docutils literal"><span class="pre">cd</span></code> to change the current working directory.</p>
+<p>Avoid: <code class="docutils literal"><span class="pre">cd</span></code> into the main simulation directory.</p>
+</li>
+</ul>
+</div>
+<div class="section" id="programming-languages">
+<h3>Programming languages<a class="headerlink" href="#programming-languages" title="Permalink to this headline">¶</a></h3>
+<ul>
+<li><p class="first">Some programming languages are both a language and a command. When referring
+to the language, capitalize the word and use standard font. When referring
+to the command, preserve capitalization as it would appear in a terminal and
+use the <code class="docutils literal"><span class="pre">``</span></code> tag.</p>
+<p>Using WESTPA requires some knowledge of Python.</p>
+<p>Run <code class="docutils literal"><span class="pre">python</span></code> to launch an interactive session.</p>
+<p>The Bash shell provides some handy capabilities, such as wildcard matching.</p>
+<p>Use <code class="docutils literal"><span class="pre">bash</span></code> to run <code class="docutils literal"><span class="pre">example.sh</span></code>.</p>
+</li>
+</ul>
+</div>
+<div class="section" id="scripts">
+<h3>Scripts<a class="headerlink" href="#scripts" title="Permalink to this headline">¶</a></h3>
+<ul class="simple">
+<li>Use the <code class="docutils literal"><span class="pre">..</span> <span class="pre">code-block::</span></code> directive for short scripts. Options are
+available for some languages, such as <code class="docutils literal"><span class="pre">..</span> <span class="pre">code-block::</span> <span class="pre">bash</span></code> and
+<code class="docutils literal"><span class="pre">..</span> <span class="pre">code-block::</span> <span class="pre">python</span></code>.</li>
+</ul>
+<div class="highlight-bash"><div class="highlight"><pre><span class="c">#!/bin/bash</span>
+<span class="c"># This is a generic Bash script.</span>
+
+<span class="nv">BASHVAR</span><span class="o">=</span><span class="s2">&quot;Hello, world!&quot;</span>
+<span class="nb">echo</span> <span class="nv">$BASHVAR</span>
+</pre></div>
+</div>
+<div class="highlight-python"><div class="highlight"><pre><span class="c">#!/usr/bin/env python</span>
+<span class="c"># This is a generic Python script.</span>
+
+<span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
+    <span class="n">pythonstr</span> <span class="o">=</span> <span class="s">&quot;Hello, world!&quot;</span>
+    <span class="k">print</span><span class="p">(</span><span class="n">pythonstr</span><span class="p">)</span>
+    <span class="k">return</span>
+<span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="n">main</span><span class="p">()</span>
+</pre></div>
+</div>
+<ul class="simple">
+<li>Begin a code snippet with a <code class="docutils literal"><span class="pre">#!</span></code> <em>shebang</em> (yes, this is the real term),
+followed by the usual path to a program. The line after the shebang should be
+an ellipsis, followed by lines of code. Use <code class="docutils literal"><span class="pre">#!/bin/bash</span></code> for Bash scripts,
+<code class="docutils literal"><span class="pre">#!/bin/sh</span></code> for generic shell scripts, and <code class="docutils literal"><span class="pre">#!/usr/bin/env</span> <span class="pre">python</span></code> for
+Python scripts. For Python code snippets that are not a stand-alone script,
+place any import commands between the shebang line and ellipsis.</li>
+</ul>
+<div class="highlight-python"><div class="highlight"><pre><span class="c">#!/usr/bin/env python</span>
+<span class="kn">import</span> <span class="nn">numpy</span>
+<span class="o">...</span>
+<span class="k">def</span> <span class="nf">some_function</span><span class="p">(</span><span class="n">generic_vals</span><span class="p">):</span>
+    <span class="k">return</span> <span class="mi">1</span> <span class="o">+</span> <span class="n">numpy</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">generic_vals</span><span class="p">)</span>
+</pre></div>
+</div>
+<ul class="simple">
+<li>Follow the <a class="reference external" href="http://www.python.org/dev/peps/pep-0008/#class-names">PEP 0008 Python Style Guide</a> for Python scripts.<ul>
+<li>Indents are four spaces.</li>
+<li>For comments, use the <code class="docutils literal"><span class="pre">#</span></code> hash mark followed by a single space, and
+then the comment&#8217;s text.</li>
+<li>Break lines after 80 characters.</li>
+</ul>
+</li>
+<li>For Bash scripts, consider following <a class="reference external" href="https://google-styleguide.googlecode.com/svn/trunk/shell.xml">Google&#8217;s Shell Style Guide</a></li>
+</ul>
+<blockquote>
+<div><ul class="simple">
+<li>Indents are two spaces.</li>
+<li>Use blank lines to improve readability</li>
+<li>Use <code class="docutils literal"><span class="pre">;</span> <span class="pre">do</span></code> and <code class="docutils literal"><span class="pre">;</span> <span class="pre">then</span></code> on the same line as <code class="docutils literal"><span class="pre">while</span></code>, <code class="docutils literal"><span class="pre">for</span></code>, and
+<code class="docutils literal"><span class="pre">if</span></code>.</li>
+<li>Break lines after 80 characters.</li>
+</ul>
+</div></blockquote>
+<ul class="simple">
+<li>For other languages, consider following a logical style guide. At minimum, be
+consistent.</li>
+</ul>
+</div>
+<div class="section" id="variables">
+<h3>Variables<a class="headerlink" href="#variables" title="Permalink to this headline">¶</a></h3>
+<ul>
+<li><p class="first">Use the fixed-width <code class="docutils literal"><span class="pre">``</span></code> tag when referring to a variable.</p>
+<p>the <code class="docutils literal"><span class="pre">ndim</span></code> attribute</p>
+</li>
+<li><p class="first">When explicitly referring to an attribute as well as its class, refer to an
+attribute as: the <code class="docutils literal"><span class="pre">attr</span></code> attribute of <code class="docutils literal"><span class="pre">GenericClass</span></code>, rather than
+<code class="docutils literal"><span class="pre">GenericClass.attr</span></code></p>
+</li>
+<li><p class="first">Use the <code class="docutils literal"><span class="pre">$</span></code> dollar sign before Bash variables.</p>
+<p>WESTPA makes the variable <code class="docutils literal"><span class="pre">$WEST_BSTATE_DATA_REF</span></code> available to new
+trajectories.</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../sphinx_index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Style Guide</a><ul>
+<li><a class="reference internal" href="#preface">Preface</a></li>
+<li><a class="reference internal" href="#style-and-usage">Style and Usage</a><ul>
+<li><a class="reference internal" href="#acronyms-and-abbreviations">Acronyms and abbreviations</a></li>
+<li><a class="reference internal" href="#capitalization">Capitalization</a></li>
+<li><a class="reference internal" href="#contractions">Contractions</a></li>
+<li><a class="reference internal" href="#internationalization">Internationalization</a></li>
+<li><a class="reference internal" href="#italics">Italics</a></li>
+<li><a class="reference internal" href="#non-english-words">Non-English words</a></li>
+<li><a class="reference internal" href="#specially-formatted-characters">Specially formatted characters</a></li>
+<li><a class="reference internal" href="#subject">Subject</a></li>
+<li><a class="reference internal" href="#tense">Tense</a></li>
+<li><a class="reference internal" href="#voice">Voice</a></li>
+<li><a class="reference internal" href="#weighted-ensemble">Weighted ensemble</a></li>
+<li><a class="reference internal" href="#westpa">WESTPA</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#computer-language-elements">Computer Language Elements</a><ul>
+<li><a class="reference internal" href="#classes-modules-and-libraries">Classes, modules, and libraries</a></li>
+<li><a class="reference internal" href="#methods-and-commands">Methods and commands</a></li>
+<li><a class="reference internal" href="#programming-languages">Programming languages</a></li>
+<li><a class="reference internal" href="#scripts">Scripts</a></li>
+<li><a class="reference internal" href="#variables">Variables</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="overview.html"
+                        title="previous chapter">Overview</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="source_code.html"
+                        title="next chapter">Source Code Management</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../sources/development/style_guide.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2015, Matthew C. Zwier and Lillian T. Chong.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.3.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.3</a>
+      
+      |
+      <a href="../sources/development/style_guide.txt"
+          rel="nofollow">Page source</a></li>
+    </div>
+
+    
+
+    
+  </body>
+</html>
