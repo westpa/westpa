@@ -58,18 +58,6 @@ html:
 
 ghpages:
 	make html
-	mv $(BUILDDIR)/html/index.html $(BUILDDIR)/html/sphinx_index.html
-	find $(BUILDDIR)/html/* -name '*.html' -exec sed -i 's/genindex.html/genind.html/g' {} \;
-	find $(BUILDDIR)/html/* -name '*.html' -exec sed -i 's/searchindex.html/searchind.html/g' {} \;
-	find $(BUILDDIR)/html/* -name '*.html' -exec sed -i 's/namd-index.html/namd-ind.html/g' {} \;
-	find $(BUILDDIR)/html/* -name '*.html' -exec sed -i 's:html/index.html:html/ind.html:g' {} \;
-	find $(BUILDDIR)/html/* -name '*.html' -exec sed -i 's:userguide/index.html:userguide/ind.html:g' {} \;
-	find $(BUILDDIR)/html/* -name '*.html' -exec sed -i 's/index.html/sphinx_index.html/g' {} \;
-	find $(BUILDDIR)/html/* -name '*.html' -exec sed -i 's:userguide/ind.html:userguide/index.html:g' {} \;
-	find $(BUILDDIR)/html/* -name '*.html' -exec sed -i 's:html/ind.html:html/index.html:g' {} \;
-	find $(BUILDDIR)/html/* -name '*.html' -exec sed -i 's/namd-ind.html/namd-index.html/g' {} \;
-	find $(BUILDDIR)/html/* -name '*.html' -exec sed -i 's/searchind.html/searchindex.html/g' {} \;
-	find $(BUILDDIR)/html/* -name '*.html' -exec sed -i 's/genind.html/genindex.html/g' {} \;
 	mv $(BUILDDIR)/html/_images $(BUILDDIR)/html/images
 	find $(BUILDDIR)/html/* -name '*.html' -exec sed -i 's/_images/images/g' {} \;
 	mv $(BUILDDIR)/html/_sources $(BUILDDIR)/html/sources
