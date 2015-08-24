@@ -63,7 +63,7 @@ class Segment:
                  parent_id = None,  wtg_parent_ids = None, 
                  pcoord = None,
                  status = None, walltime = None, cputime = None,
-                 data = None):
+                 data = None, color = -1):
         # NaNs appear sometimes if a WEST program is terminated unexpectedly; replace with zero
         walltime = 0.0 if walltime is None or isnan(walltime) else walltime
         cputime  = 0.0 if cputime  is None or isnan(cputime)  else cputime
@@ -84,11 +84,12 @@ class Segment:
         self.walltime = walltime
         self.cputime = cputime
         self.data = data if data else {}
+        self.color = color
 
     def __repr__(self):
-        return '<%s(%s) n_iter=%r seg_id=%r weight=%r parent_id=%r wtg_parent_ids=%r pcoord[0]=%r pcoord[-1]=%r>' \
+        return '<%s(%s) n_iter=%r seg_id=%r weight=%r parent_id=%r wtg_parent_ids=%r color=%r pcoord[0]=%r pcoord[-1]=%r>' \
                % (self.__class__.__name__, hex(id(self)),
-                  self.n_iter, self.seg_id, self.weight, self.parent_id, tuple(self.wtg_parent_ids or ()),
+                  self.n_iter, self.seg_id, self.weight, self.parent_id, tuple(self.wtg_parent_ids or ()), self.color,
                   self.pcoord[0] if self.pcoord is not None else None,
                   self.pcoord[-1] if self.pcoord is not None else None)
                

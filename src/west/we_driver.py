@@ -34,6 +34,50 @@ def _group_walkers_by_history(we_driver, ibin, hist_length=25, **kwargs):
             groups[par_iter] = set([segment])
     return groups.values()
 
+def _group_walkers_by_color(we_driver, ibin, states, **kwargs):
+    '''Groups walkers inside of a bin according to a user defined state definition.
+    Must be n-dimensional.
+
+    Creates a group, which takes the same data format as a bin, and then passes into the 
+    normal split/merge functions.'''
+    # Pass in the bin object instead of the index
+    log.debug('using we_driver._group_walkers_by_color')
+    log.debug('state definitions: {!r}'.format(states))
+    # Generate a dictionary which contains bin indices for the states.
+    states_ibin = {}
+    for i in states.keys():
+        for pcoord in states[i]:
+            try:
+                states_ibin[i].append(we_driver.bin_mapper.assign([pcoord])[0])
+            except:
+                states_ibin[i] = []
+                states_ibin[i].append(we_driver.bin_mapper.assign([pcoord])[0])
+    for state in states_ibin:
+        states_ibin[state] = list(set(states_ibin[state]))
+    #print('state definitions: {!r}'.format(states))
+    log.debug('state bins: {!r}'.format(states_ibin))
+    bin = we_driver.next_iter_binning[ibin]
+    groups = dict()
+    z = 0
+    for segment in bin:
+        color = we_driver.bin_mapper.assign([segment.pcoord[0,:]])[0]
+        for i in states_ibin.keys():
+            if color in set(states_ibin[i]):
+                segment.color = numpy.float64(i)
+        #par_iter = segment.color
+        #except:
+        #    # I don't think this ever fires.
+        #    color = we_driver.bin_mapper.assign([segment.pcoord[0]])[0]
+        #    for i in states_ibin.keys():
+        #        if color in set(states_ibin[i]):
+        #            segment.color = numpy.float64(i)
+        #    par_iter = segment.color
+        try:
+            groups[segment.color].add(segment)
+        except KeyError:
+            groups[segment.color] = set([segment])
+    return groups.values()
+
 def _group_walkers_identity(we_driver, ibin, **kwargs):
     log.debug('using we_driver._group_walkers_identity')
     bin_set = we_driver.next_iter_binning[ibin]
@@ -418,8 +462,10 @@ class WEDriver:
                                   parent_id = segment.parent_id,
                                   wtg_parent_ids = set(segment.wtg_parent_ids),
                                   pcoord = segment.pcoord.copy(),
-                                  status = Segment.SEG_STATUS_PREPARED)
+                                  status = Segment.SEG_STATUS_PREPARED,
+                                  color = segment.color)
             new_segment.pcoord[0,:] = segment.pcoord[0,:]
+            new_segment.color = segment.color
 #            try:
 #                new_segment.id_hist = segment.id_hist
 #            except AttributeError:
@@ -444,7 +490,7 @@ class WEDriver:
                        weight = cumul_weight[len(segments)-1],
                        status = Segment.SEG_STATUS_PREPARED,
                        pcoord = self.system.new_pcoord_array(),
-                       )
+                       color = None)
                 
         # Select the history to use
         # The following takes a random number in the interval 0 <= x < glom.weight, then
@@ -458,6 +504,7 @@ class WEDriver:
         # parent). 
         glom.parent_id = gparent_seg.parent_id
         glom.pcoord[0,:] = gparent_seg.pcoord[0,:]
+        glom.color = gparent_seg.color
         
         # Weight comes from all segments being merged, and therefore all their
         # parent segments
@@ -710,6 +757,7 @@ class WEDriver:
 #                if self.do_adjust_counts:
 #                    self._adjust_count(bin, groups, target_count)
                 if len(groups) > target_count:                
+                    #self._adjust_count(bin, groups, target_count)
                     self._adjust_count(bin, groups, target_count)
             if len(groups) < target_count:
                 for i in groups:
@@ -827,6 +875,7 @@ class WEDriver:
                                     wtg_parent_ids=set([-(initial_state.state_id+1)]),
                                     pcoord=system.new_pcoord_array(),
                                     status=Segment.SEG_STATUS_PREPARED)
+                                    #color=None)
             dummy_segment.pcoord[[0,-1]] = initial_state.pcoord
             segments.append(dummy_segment)
         
@@ -887,8 +936,10 @@ class WEDriver:
                                       weight=segment.weight,
                                       wtg_parent_ids=set(segment.wtg_parent_ids or []),
                                       pcoord=new_pcoord_array(),
-                                      status=Segment.SEG_STATUS_PREPARED)
+                                      status=Segment.SEG_STATUS_PREPARED,
+                                      color=segment.color)
                 new_segment.pcoord[0] = segment.pcoord[0]
+                new_segment.color = segment.color
                 try:
                     new_segment.id_hist = segment.id_hist
                 except AttributeError:
@@ -930,8 +981,10 @@ class WEDriver:
                                       weight=segment.weight,
                                       wtg_parent_ids=[segment.seg_id],
                                       pcoord=new_pcoord_array(),
-                                      status=Segment.SEG_STATUS_PREPARED)
+                                      status=Segment.SEG_STATUS_PREPARED,
+                                      color=segment.color)
                 new_segment.pcoord[0] = segment.pcoord[-1]
+                new_segment.color = segment.color
                 try:
                     new_segment.id_hist = segment.id_hist
                 except AttributeError:

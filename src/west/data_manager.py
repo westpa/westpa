@@ -149,6 +149,7 @@ seg_index_dtype = numpy.dtype( [ ('weight', weight_dtype),              # Statis
                                  ('walltime', utime_dtype),             # Wallclock time used in propagating this segment
                                  ('endpoint_type', seg_endpoint_dtype), # Endpoint type (will continue, merged, or recycled) 
                                  ('status', seg_status_dtype),          # Status of propagation of this segment
+                                 ('color', seg_id_dtype),          # Status of propagation of this segment
                                  ] )
 
 # Index to basis/initial states
@@ -744,6 +745,7 @@ class WESTDataManager:
                 seg_index_table[seg_id]['parent_id'] = segment.parent_id                
                 seg_index_table[seg_id]['wtg_n_parents'] = len(segment.wtg_parent_ids)
                 seg_index_table[seg_id]['wtg_offset'] = total_parents
+                seg_index_table[seg_id]['color'] = segment.color
                 total_parents += len(segment.wtg_parent_ids)
     
                 # Assign progress coordinate if any exists
@@ -861,6 +863,7 @@ class WESTDataManager:
                 ientry['cputime'] = segment.cputime
                 ientry['walltime'] = segment.walltime
                 ientry['weight'] = segment.weight
+                ientry['color'] = segment.color
     
                 pcoord_entries[iseg] = segment.pcoord
                 
@@ -959,7 +962,8 @@ class WESTDataManager:
                                   endpoint_type = int(row['endpoint_type']),
                                   walltime = float(row['walltime']),
                                   cputime = float(row['cputime']),
-                                  weight = float(row['weight']))
+                                  weight = float(row['weight']),
+                                  color = float(row['color']))
                 
                 if load_pcoords:
                     segment.pcoord = pcoord_entries[iseg]
