@@ -12,6 +12,36 @@ import westpa
 from west import Segment
 import data_manager
 
+def _group_walkers_by_history(we_driver, ibin, hist_length=25, **kwargs):
+    '''Groups walkers inside of a bin according to their history.  
+
+    Creates a group, which takes the same data format as a bin, and then passes into the 
+    normal split/merge functions.'''
+    # Pass in the bin object instead of the index
+    log.debug('using we_driver._group_walkers_by_history')
+    log.debug('history length: {!r}'.format(hist_length))
+    bin = we_driver.next_iter_binning[ibin]
+    groups = dict()
+    z = 0
+    for segment in bin:
+        if segment.n_iter > 1:
+            par_iter = we_driver._find_parent_n(segment, hist_length)
+        else:
+            par_iter = (0, 1)
+        try:
+            groups[par_iter].add(segment)
+        except KeyError:
+            groups[par_iter] = set([segment])
+    return groups.values()
+
+def _group_walkers_identity(we_driver, ibin, **kwargs):
+    log.debug('using we_driver._group_walkers_identity')
+    bin_set = we_driver.next_iter_binning[ibin]
+    list_bins = [set()]
+    for i in bin_set:
+        list_bins[0].add(i)
+    return list_bins
+
 class ConsistencyError(RuntimeError):
     pass
 
@@ -95,6 +125,10 @@ class WEDriver:
         self.used_initial_states = None
         
         self.avail_initial_states = None
+
+        # Make property for grouping function.
+        self.group_function = None
+        self.group_function_kwargs = {}
         
         self.process_config()
     
@@ -637,7 +671,14 @@ class WEDriver:
                 continue
             # Splits the bin into groups as defined by the called function (nominally, to separate trajectories by history)
             target_count = self.bin_target_counts[ibin]
-            groups = self._group_walkers_by_history(ibin)
+            # Probably a bit hackish.  If the dictionary isn't empty, pass it in (no arguments are required for all functions...)
+            # Probably not necessary now.  Modified it to always pass in a dictionary.
+            #try:
+            #    log.debug('Passing in optional arguments into grouping function')
+            #except(TypeError):
+            #    log.debug('Not passing in optional arguments into grouping function')
+            #    groups = self.group_function(ibin)
+            groups = self.group_function(self, ibin, **self.group_function_kwargs)
             total_number_of_groups += len(groups)
             # Clear the bin
             segments = numpy.array(sorted(bin, key=operator.attrgetter('weight')), dtype=numpy.object_)
@@ -683,7 +724,8 @@ class WEDriver:
 #        print "There are " + str(total_number_of_particles) + " particles."
 #        if len(bin) != target_count:
 #            print len(bin)
-        print "There are " + str(total_number_of_groups) + " groups."
+        #print("There are " + str(total_number_of_groups) + " groups.")
+        print('Total number of groups: {!r}'.format(total_number_of_groups))
             
         self._check_post()
         
@@ -692,25 +734,28 @@ class WEDriver:
         log.debug('used initial states: {!r}'.format(self.used_initial_states))
         log.debug('available initial states: {!r}'.format(self.avail_initial_states))
 
-    def _group_walkers_by_history(self, ibin):
-        '''Groups walkers inside of a bin according to their history.  
+    # Moved outside of the class
+    #def _group_walkers_by_history(self, ibin, hist_length=25, **kwargs):
+    #    '''Groups walkers inside of a bin according to their history.  
 
-        Creates a group, which takes the same data format as a bin, and then passes into the 
-        normal split/merge functions.'''
-        # Pass in the bin object instead of the index
-        bin = self.next_iter_binning[ibin]
-        groups = dict()
-        z = 0
-        for segment in bin:
-            if segment.n_iter > 1:
-                par_iter = self._find_parent_n(segment, 25)
-            else:
-                par_iter = (0, 1)
-            try:
-                groups[par_iter].add(segment)
-            except KeyError:
-                groups[par_iter] = set([segment])
-        return groups.values()
+    #    Creates a group, which takes the same data format as a bin, and then passes into the 
+    #    normal split/merge functions.'''
+    #    # Pass in the bin object instead of the index
+    #    log.debug('using we_driver._group_walkers_by_history')
+    #    log.debug('history length: {!r}'.format(hist_length))
+    #    bin = self.next_iter_binning[ibin]
+    #    groups = dict()
+    #    z = 0
+    #    for segment in bin:
+    #        if segment.n_iter > 1:
+    #            par_iter = self._find_parent_n(segment, hist_length)
+    #        else:
+    #            par_iter = (0, 1)
+    #        try:
+    #            groups[par_iter].add(segment)
+    #        except KeyError:
+    #            groups[par_iter] = set([segment])
+    #    return groups.values()
 
     def _find_parent_n(self, segment, n):
         iteration = (segment.n_iter - 1)
@@ -744,12 +789,14 @@ class WEDriver:
             iteration += 1
         return (parent_id, iteration)        
 
-    def _group_walkers_identity(self, ibin):
-        bin_set = self.next_iter_binning[ibin]
-        list_bins = [set()]
-        for i in bin_set:
-            list_bins[0].add(i)
-        return list_bins
+    # Moved outside of the class, as well.
+    #def _group_walkers_identity(self, ibin, **kwargs):
+    #    log.debug('using we_driver._group_walkers_identity')
+    #    bin_set = self.next_iter_binning[ibin]
+    #    list_bins = [set()]
+    #    for i in bin_set:
+    #        list_bins[0].add(i)
+    #    return list_bins
             
     def populate_initial(self, initial_states, weights, system=None):
         '''Create walkers for a new weighted ensemble simulation.
