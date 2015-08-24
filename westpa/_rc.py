@@ -277,6 +277,9 @@ class WESTRC:
         elif group_function.lower() == 'history':
             group_function = 'west.we_driver._group_walkers_by_history'
             we_driver.group_function = west.we_driver._group_walkers_by_history
+        elif group_function.lower() == 'color':
+            group_function = 'west.we_driver._group_walkers_by_color'
+            we_driver.group_function = west.we_driver._group_walkers_by_color
         else:
             we_driver.group_function = extloader.get_object(group_function)
         we_driver.group_function_kwargs = self.config.get(['west', 'drivers', 'group_arguments'])
