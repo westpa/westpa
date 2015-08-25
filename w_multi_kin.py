@@ -31,7 +31,16 @@ from west.data_manager import weight_dtype, n_iter_dtype
 from westtools import (WESTTool, WESTDataReader, IterRangeSelection, WESTSubcommand,
                        ProgressIndicatorComponent)
 from westpa import h5io
-from westtools.dtypes import iter_block_ci_dtype as ci_dtype
+#from westtools.dtypes import iter_block_ci_dtype as ci_dtype
+
+ci_dtype = numpy.dtype([('iter_start', n_iter_dtype),
+                        ('iter_stop', n_iter_dtype),
+                        ('expected', numpy.float64),
+                        ('ci_lbound', numpy.float64),
+                        ('ci_ubound', numpy.float64),
+                        ('corr_len', n_iter_dtype),
+                        ('variance', numpy.float64),
+                        ('stderrormean', numpy.float64)])
 
 # directory locations are stored in a .yaml file with this format:
 # ---
@@ -199,7 +208,6 @@ Command-line options
                     #if self.non_markovian == False:
                         avg_rate_loaf[iter,:,:] += kin_trial['rate_evolution']['expected'][iter,:,:]
                         avg_flux_loaf[iter,:,:] += kin_trial['conditional_flux_evolution']['expected'][iter,:,:]
-                        state_labels = kin_trial['state_labels']
                         try:
                             avg_state_prob_loaf[iter,:] += kin_trial['state_prob_evolution'][iter,:]
                             avg_color_prob_loaf[iter,:] += kin_trial['color_prob_evolution'][iter,:]
@@ -247,11 +255,17 @@ Command-line options
                     #            data[ii] = None
                     #            dataset['rate_evolution'][:,istate,jstate] = data
                     #    kin_trial = dataset
-                    sigma_rate = numpy.add( sigma_rate, numpy.square( numpy.subtract( avg_rate_loaf[iter,:,:],kin_trial['rate_evolution']['expected'][iter,:,:] ))/(self.ntrials - 1))
-                    sigma_flux = numpy.add( sigma_flux, numpy.square( numpy.subtract( avg_flux_loaf[iter,:,:],kin_trial['conditional_flux_evolution']['expected'][iter,:,:] ))/(self.ntrials - 1))
+                    #sigma_rate = numpy.add( sigma_rate, numpy.square( numpy.subtract( avg_rate_loaf[iter,:,:],kin_trial['rate_evolution']['expected'][iter,:,:] ))/(self.ntrials - 1))
+                    #sigma_flux = numpy.add( sigma_flux, numpy.square( numpy.subtract( avg_flux_loaf[iter,:,:],kin_trial['conditional_flux_evolution']['expected'][iter,:,:] ))/(self.ntrials - 1))
+                    sigma_rate = numpy.add( sigma_rate, numpy.square( numpy.subtract( avg_rate_loaf[iter,:,:],kin_trial['rate_evolution']['expected'][iter,:,:] )))
+                    sigma_flux = numpy.add( sigma_flux, numpy.square( numpy.subtract( avg_flux_loaf[iter,:,:],kin_trial['conditional_flux_evolution']['expected'][iter,:,:] )))
 
-                sigma_rate = numpy.power(sigma_rate,0.5)
-                sigma_flux = numpy.power(sigma_flux,0.5)
+                # Calculate the variance, assuming no standard error of the mean
+                var_rate = sigma_rate / (self.ntrials-1)
+                var_flux = sigma_flux / (self.ntrials-1)
+                # Convert to standard error
+                sigma_rate = numpy.power((sigma_rate/(self.ntrials-1)),0.5)
+                sigma_flux = numpy.power((sigma_flux/(self.ntrials-1)),0.5)
                 # We'll assume that we have enough independent trials to evoke the central
                 # limit theorem, so we'll approximate the error using a Gaussian
                 # distribution.
@@ -281,12 +295,18 @@ Command-line options
                         # Everything should be computed now so let's go ahead an wrap it all
                         # up in a neat little package.
                         avgd_rate_evol[iter]['expected'][i,j] = avg_rate_loaf[iter,i,j] / self.tau
+                        #avgd_rate_evol[iter]['variance'][i,j] = numpy.square(sigma_rate[i,j])
+                        avgd_rate_evol[iter]['variance'][i,j] = var_rate[i,j]
+                        avgd_rate_evol[iter]['stderrormean'][i,j] = sigma_rate[i,j] / numpy.sqrt(self.ntrials-1)
                         avgd_rate_evol[iter]['ci_ubound'][i,j] = ubound_rate_loaf[iter,i,j] / self.tau
                         avgd_rate_evol[iter]['ci_lbound'][i,j] = lbound_rate_loaf[iter,i,j] / self.tau
                         avgd_rate_evol[iter]['iter_start'][i,j] = self.first_iter
                         avgd_rate_evol[iter]['iter_stop'][i,j] = self.first_iter + (iter*self.block_size)
 
                         avgd_flux_evol[iter]['expected'][i,j] = avg_flux_loaf[iter,i,j] / self.tau
+                        #avgd_flux_evol[iter]['variance'][i,j] = numpy.square(sigma_flux[i,j])
+                        avgd_flux_evol[iter]['variance'][i,j] = var_flux[i,j]
+                        avgd_flux_evol[iter]['stderrormean'][i,j] = sigma_flux[i,j] / numpy.sqrt(self.ntrials-1)
                         avgd_flux_evol[iter]['ci_ubound'][i,j] = ubound_flux_loaf[iter,i,j] / self.tau
                         avgd_flux_evol[iter]['ci_lbound'][i,j] = lbound_flux_loaf[iter,i,j] / self.tau
                         avgd_flux_evol[iter]['iter_start'][i,j] = self.first_iter
@@ -302,7 +322,6 @@ Command-line options
         ds_rate_evol = self.output_file.create_dataset('conditional_flux_evolution', data=avgd_flux_evol, shuffle=True, compression = 9)
         ds_color_prob_evol = self.output_file.create_dataset('color_prob_evolution', data=avgd_color_prob, shuffle=True, compression = 9)
         ds_color_prob_evol = self.output_file.create_dataset('state_prob_evolution', data=avgd_state_prob, shuffle=True, compression = 9)
-        ds_color_prob_evol = self.output_file.create_dataset('state_labels', data=state_labels, shuffle=True, compression = 9)
         ds_flux_evol = self.output_file.create_dataset('n_particles', data=self.total_walkers, shuffle=True, compression = 9)
 
 if __name__ == '__main__':
