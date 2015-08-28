@@ -1,8 +1,11 @@
-import logging, sys
+from __future__ import division, print_function; __metaclass__ = type
+
+import logging, sys, re
 
 from collections import deque
 from mpi4py import MPI
 from core import WorkManager, WMFuture
+#from . import WorkManager, WMFuture
 
 log = logging.getLogger( __name__ )
 
@@ -30,6 +33,10 @@ class MPIWorkManager( WorkManager ):
     """MPI work manager factory.
     """
 
+    @classmethod
+    def from_environ( cls, wmenv=None ):
+        return cls()
+        
 
     def __new__( cls ):
         rank = MPI.COMM_WORLD.Get_rank()
@@ -43,6 +50,7 @@ class MPIWorkManager( WorkManager ):
 
     
     def __init__( self ):
+        super( MPIWorkManager, self ).__init__()
         comm = MPI.COMM_WORLD
         self.comm = MPI.COMM_WORLD
         self.rank = comm.Get_rank()
@@ -105,29 +113,40 @@ class Master( MPIWorkManager ):
         self.init_dests = self.slaveIDs[:]
         assert self.nslaves == len( self.slaveIDs )
         
+        self.pending_futures = dict()
+        
 
     def _dispatch( self, task ):
         """The first self.nslaves tasks are dispatched to the individual
         slaves.  Subsequently, slaves get more work when they are finished 
         with a given task.
         """
-        log.debug( 'Master._dispatch() %s' % self.rank )
+        log.debug( 'Master._dispatch() %s' )
         
         # the first self.nclient jobs
         if self.init_dests:
             # send work
             self.comm.isend( task, dest=self.init_dests.pop(), tag=self.task_tag )
         else:
+            log.info( "Master._dispatch() waiting to receive something..." )
             # who is done?
             stat = MPI.Status()
             ( tid, msg, val ) = self.comm.recv( source=MPI.ANY_SOURCE, tag=self.result_tag, status=stat )
+            
+            log.info( "Master._dispatch() received results." )
             
             # send the new task to the now idle client
             dest = stat.Get_source()
             self.comm.isend( task, dest=dest, tag=self.task_tag )
             
             # TODO: update the future of the received result
-            pass
+            ft = self.pending_futures.pop( tid )
+            if msg == 'exception':
+                ft._set_exception( *val )
+            else:
+                ft.set_result( val )
+                
+        log.debug( 'Leaving Master._dispatch()' )
             
         # TODO: check the status of the non-blocking sends
         
@@ -142,8 +161,11 @@ class Master( MPIWorkManager ):
         ft = WMFuture()
         task_id = ft.task_id
         task = Task( task_id, fn, args, kwargs )
+        self.pending_futures[task_id] = ft
         
         self._dispatch( task )
+        
+        return ft
 
 
     def shutdown( self ):
@@ -195,6 +217,8 @@ class Slave( MPIWorkManager ):
             task = comm.recv( source=self.masterID, 
                              tag=MPI.ANY_TAG,
                              status=stat )
+
+            log.info( "Slave.clockIn() received task." )
                              
             tag = stat.Get_tag()
             
@@ -203,6 +227,7 @@ class Slave( MPIWorkManager ):
                 # do the work
                 try:
                     rv = task.fn( *task.args, **task.kwargs )
+                    log.debug( "Slave.clockIn() does this function evaluate?" )
                 except Exception:
                     # TODO: better return value?
                     ro = ( task.task_id, 'exception', None )
@@ -211,8 +236,8 @@ class Slave( MPIWorkManager ):
                 
                 # TODO: remove - temporary for testing
                 # simulate some work done
-                time.sleep( 5 )
-                print( "I am client %s.  I just did some work." % self.rank )
+                #time.sleep( 5 )
+                #print( "I am client %s.  I just did some work." % self.rank )
                 
                 # send result back to master
                 comm.isend( ro, dest=self.masterID, tag=self.result_tag )
@@ -222,6 +247,7 @@ class Slave( MPIWorkManager ):
                 return
             
 
+            log.debug( "Slave.clockIn() leaving..." )
 
 
 
@@ -229,8 +255,7 @@ class Slave( MPIWorkManager ):
 
 
 
-
-#
+"""
 m = MPIWorkManager()
     
 with m:
@@ -238,5 +263,5 @@ with m:
     for task_id in range( 10 ):
         t = Task( task_id, max, None, None )
         m.submit( t.fn, t.args, t.kwargs )
-
+"""
 
