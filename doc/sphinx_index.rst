@@ -23,10 +23,10 @@ Introductory
 .. toctree::
    :maxdepth: 1
 
-   `An introduction to WESTPA <https://https://www.youtube.com/watch?v=YpltPzpcmLY>`_
-   `Analysis Tools <https://www.youtube.com/watch?v=rMFvcHOOxZc>`_
-   `Molecular Scale Systems <https://www.youtube.com/watch?v=l1SmGx77hKo>`_
-   `Non-spatial Systems <https://www.youtube.com/watch?v=rY-IJcLFiaM>`_
+   An introduction to WESTPA <https://https://www.youtube.com/watch?v=YpltPzpcmLY>
+   Analysis Tools <https://www.youtube.com/watch?v=rMFvcHOOxZc>
+   Molecular Scale Systems <https://www.youtube.com/watch?v=l1SmGx77hKo>
+   Non-spatial Systems <https://www.youtube.com/watch?v=rY-IJcLFiaM>
    AMBER   <tutorials/amber>
    GROMACS <tutorials/gromacs>
    NAMD    <tutorials/namd>
