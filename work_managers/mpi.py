@@ -250,7 +250,12 @@ class Slave( MPIWorkManager ):
             log.debug( "Slave.clockIn() leaving..." )
 
 
-
+    @property
+    def is_master( self ):
+        """Slave processes need to be marked as not master.  This ensures that
+        the proper branching is followed in w_run.py.
+        """
+        return False
 
 
 
