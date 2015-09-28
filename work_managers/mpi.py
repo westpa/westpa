@@ -1,4 +1,4 @@
-# TODO: License 
+# TODO: Add license 
 #
 #
 from __future__ import division, print_function; __metaclass__ = type
@@ -42,12 +42,15 @@ class MPIWorkManager( WorkManager ):
         
 
     def __new__( cls ):
-        print( 'MPIWorkManager.__new__()' )
-        print( 'Is_initialized(): %s' % MPI.Is_initialized() )
-        print( 'Is_thread_main(): %s' % MPI.Is_thread_main() )
+        # TODO: add docstring
+        """
+        """
+        log.debug( 'MPIWorkManager.__new__()' )
+        assert( MPI.Is_initialized() )
+        assert( MPI.Is_thread_main() )
+        
         rank = MPI.COMM_WORLD.Get_rank()
         size = MPI.COMM_WORLD.Get_size()
-        
         
         if size == 1:
             return super( MPIWorkManager, cls ).__new__( Serial )
@@ -58,6 +61,11 @@ class MPIWorkManager( WorkManager ):
 
     
     def __init__( self ):
+        # TODO: add docstring
+        """
+        """
+        log.debug( 'MPIWorkManager.__init__()' )
+        
         super( MPIWorkManager, self ).__init__()
         comm = MPI.COMM_WORLD
         self.comm = MPI.COMM_WORLD
@@ -74,12 +82,18 @@ class MPIWorkManager( WorkManager ):
         
         
     def submit( self, fn, args=None, kwargs=None ):
+        # TODO: add docstring
+        """
+        """
+        
+        # TODO: assert that this function is never called
         pass
 
 
 # +--------+
 # | Serial |
 # +--------+
+# TODO: no need for the code replication here, just use the original serial wm
 class Serial( MPIWorkManager ):
     """Replication of the serial work manager.  This is a fallback for MPI runs 
     that request only 1 processor.
@@ -87,13 +101,15 @@ class Serial( MPIWorkManager ):
     
     def __init__( self ):
         super( Serial, self ).__init__()
-        print( 'Serial construction' )
+        log.debug( 'Serial.__init__()' )
         
         
     def submit( self, fn, args=None, kwargs=None ):
         # TODO: add docstring
         """
         """
+        log.debug( 'Serial.__init__()' )
+        
         ft = WMFuture()
         try:
             result = fn( *(args if args is not None else ()), 
@@ -114,24 +130,39 @@ class Master( MPIWorkManager ):
     """
 
     def __init__( self ):
+        # TODO: add docstring        
+        """
+        """
         super( Master, self ).__init__()
-        log.debug( 'Master construction' )
-        print( 'Master.__init__()' )
+        log.debug( 'Master__init__()' )  
 
-        # TODO: doc        
-        self.nslaves   = self.size - 1        
-        self.slaveIDs  = range( 1, self.size )
+        # number of slaves
+        self.nslaves = self.size - 1
         
-        self.dests     = deque( self.slaveIDs ) 
-        self.tasks     = deque()
-        self.nPending  = 0 # number of unmatched send/recv pairs
-        
-        self.shutItDown = False
-        
+        # list of slave ranks
+        self.slaveIDs = range( 1, self.size )
         assert self.nslaves == len( self.slaveIDs )
         
+        # deque of idle slaves
+        self.dests = deque( self.slaveIDs ) 
+        
+        # deque of tesks
+        self.tasks = deque()
+        
+        # number of unmatched send/receive pairs
+        self.nPending = 0
+        
+        # thread shutdown sentinel
+        self.shutItDown = False
+        
+        # dict of pending futures, key is task ID  
         self.pending_futures = dict()
+        
+        # list of master threads
         self.workers = []
+        
+        # thread lock
+        self.lock = threading.Lock()
 
         
     def startup( self ):
@@ -139,15 +170,16 @@ class Master( MPIWorkManager ):
         """
         """
         log.debug( 'Master.startup()' )
-        print( 'Master.startup()' )
         
         if not self.running:
-            self.workers.append( threading.Thread( name='dispatcher', target=self._dispatcher) )
-            self.workers.append( threading.Thread( name='receiver', target=self._receiver ) )
+            self.workers.append( threading.Thread( name='dispatcher', 
+                                                   target=self._dispatcher) )
+            self.workers.append( threading.Thread( name='receiver', 
+                                                   target=self._receiver ) )
             
             for t in self.workers:
-                log.info( 'Starting thread: %s' % t.getName() )
                 t.start()
+                log.info( 'Started thread: %s' % t.getName() )
                 
             self.running = True
         
@@ -166,14 +198,15 @@ class Master( MPIWorkManager ):
             # do we have work and somewhere to send it?
             while self.tasks and self.dests:
                 
-                ## TODO: do we need to lock here
-                task = self.tasks.popleft()
-                sendTo = self.dests.popleft()
-                self.nPending += 1
-                print( "_dispatcher.nPending: %s" % self.nPending )
-                ## unlock
+                # TODO: is the lock necessary?
+                with self.lock:
+                    task = self.tasks.popleft()
+                    sendTo = self.dests.popleft()
+                    self.nPending += 1
                 
-                req.append( self.comm.isend( task, dest=sendTo, tag=self.task_tag ) )
+                req.append( self.comm.isend( task, 
+                                             dest=sendTo, 
+                                             tag=self.task_tag ) )
                 
             # make sure all sends completed
             MPI.Request.Waitall( requests=req )
@@ -194,28 +227,27 @@ class Master( MPIWorkManager ):
             
                 stat = MPI.Status()
                 ( tid, msg, val ) = self.comm.recv( source=MPI.ANY_SOURCE, 
-                                        tag=self.result_tag, status=stat )
-                print( "Master._receiver() received result" )
+                                                    tag=self.result_tag, 
+                                                    status=stat )
+                log.debug( 'Master._receiver received task: %s' % tid )
             
+                # update future
                 ft = self.pending_futures.pop( tid )
                 if msg == 'exception':
                     ft._set_exception( val )
                 else:
                     ft._set_result( val )
             
-                ## TODO: do we need a lock here
-                self.dests.append( stat.Get_source() )
-                self.nPending -= 1
-                print( "_receiver.nPending: %s" % self.nPending )
-                ## unlock
-        
+                ## TODO: is the lock necessary
+                with self.lock:
+                    self.dests.append( stat.Get_source() )
+                    self.nPending -= 1
     
 
     def submit( self, fn, args=None, kwargs=None ):
         """Receive task from simulation manager.
         """
         log.debug( 'Master.submit()' )
-        print( 'Master.submit()' )
         
         ft = WMFuture()
         task_id = ft.task_id
@@ -229,7 +261,6 @@ class Master( MPIWorkManager ):
         """Send shutdown tag to all slave processes.
         """
         log.debug( 'Master.shutdown()' )
-        print( 'Master.shutdown()' )
         
         # wait on any unfinished work
         while self.pending_futures:
@@ -238,7 +269,9 @@ class Master( MPIWorkManager ):
         # send shutdown msg to all slaves
         req = [ MPI.REQUEST_NULL ]*self.nslaves        
         for rank in self.slaveIDs:
-            req[rank-1] = self.comm.isend( MPI.BOTTOM, dest=rank, tag=self.shutdown_tag )
+            req[rank-1] = self.comm.isend( MPI.BOTTOM, 
+                                           dest=rank, 
+                                           tag=self.shutdown_tag )
             
         MPI.Request.Waitall( requests=req )
         
@@ -246,9 +279,8 @@ class Master( MPIWorkManager ):
         self.shutItDown = True
         
         for t in self.workers:
-            print( 'Stopping thread: %s' % t.getName() )
-            log.info( 'Stopping thread: %s' % t.getName() )
             t.join()
+            log.info( 'Stopped thread: %s' % t.getName() )
         
         self.running = False
     
@@ -262,9 +294,11 @@ class Slave( MPIWorkManager ):
     """
 
     def __init__( self ):
+        # TODO: add docstring
+        """
+        """
         super( Slave, self ).__init__()
-        log.debug( 'Slave construction %s' % self.rank )
-        print("I am the slave. %s" % self.rank )
+        log.debug( 'Slave.__init__() %s' % self.rank )
         
         # get ready to work
         self.clockIn()
@@ -275,30 +309,26 @@ class Slave( MPIWorkManager ):
         notice to the master that more work is welcome.
         """
         log.debug( 'Slave.clockIn()' )
-        
         log.info( 'Slave %s clocking in.' % self.rank )
+        
         comm = self.comm
         
         while True:
             
-            print( "Slave waiting for work..." )
             stat = MPI.Status()
             task = comm.recv( source=self.masterID, 
                              tag=MPI.ANY_TAG,
                              status=stat )
-            print ( "Slave got work" )
-
-            log.info( "Slave.clockIn() received task." )
                              
             tag = stat.Get_tag()
-            print( "Slave msg tag: %s" % tag )
             
             if tag == self.task_tag:
+                
+                log.debug( 'Slave %s received task: %s' % ( self.rank, task.task_id ) )
                 
                 # do the work
                 try:
                     rv = task.fn( *task.args, **task.kwargs )
-                    log.debug( "Slave.clockIn() does this function evaluate?" )
                 except Exception:
                     # TODO: better return value?
                     ro = ( task.task_id, 'exception', None )
@@ -309,8 +339,7 @@ class Slave( MPIWorkManager ):
                 comm.isend( ro, dest=self.masterID, tag=self.result_tag )
                 
             if tag == self.shutdown_tag:
-                print( 'Slave %s clocking out' % self.rank )
-                log.info( 'Slave %s clocking out' % self.rank )
+                log.info( 'Slave %s clocking out.' % self.rank )
                 return
 
 
@@ -324,6 +353,7 @@ class Slave( MPIWorkManager ):
 
 
 """
+# Stand-alone debugging
 m = MPIWorkManager()
     
 with m:
