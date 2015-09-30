@@ -3,12 +3,11 @@
 #
 from __future__ import division, print_function; __metaclass__ = type
 
-import logging, sys, re, threading
+import logging, sys, threading
 
 from collections import deque
 from mpi4py import MPI
 from core import WorkManager, WMFuture
-#from . import WorkManager, WMFuture
 
 log = logging.getLogger( __name__ )
 
@@ -33,7 +32,7 @@ class Task:
 # | MPIWorkManager |
 # +----------------+
 class MPIWorkManager( WorkManager ):
-    """MPI work manager factory.
+    """MPIWorkManager factory.
     """
 
     @classmethod
@@ -42,8 +41,8 @@ class MPIWorkManager( WorkManager ):
         
 
     def __new__( cls ):
-        # TODO: add docstring
-        """
+        """Creates a Serial WorkManager if size is 1.  Otherwise creates a 
+        single Master and size-1 Slaves.
         """
         log.debug( 'MPIWorkManager.__new__()' )
         assert( MPI.Is_initialized() )
@@ -61,8 +60,7 @@ class MPIWorkManager( WorkManager ):
 
     
     def __init__( self ):
-        # TODO: add docstring
-        """
+        """Initialize info shared by Master and Slave classes.
         """
         log.debug( 'MPIWorkManager.__init__()' )
         
@@ -82,12 +80,10 @@ class MPIWorkManager( WorkManager ):
         
         
     def submit( self, fn, args=None, kwargs=None ):
-        # TODO: add docstring
+        """Adhere to WorkManager interface.  This method should never be 
+        called.
         """
-        """
-        
-        # TODO: assert that this function is never called
-        pass
+        assert( False )
 
 
 # +--------+
@@ -96,7 +92,7 @@ class MPIWorkManager( WorkManager ):
 # TODO: no need for the code replication here, just use the original serial wm
 class Serial( MPIWorkManager ):
     """Replication of the serial work manager.  This is a fallback for MPI runs 
-    that request only 1 processor.
+    that request only 1 (size=1) processor.
     """
     
     def __init__( self ):
@@ -105,9 +101,6 @@ class Serial( MPIWorkManager ):
         
         
     def submit( self, fn, args=None, kwargs=None ):
-        # TODO: add docstring
-        """
-        """
         log.debug( 'Serial.__init__()' )
         
         ft = WMFuture()
@@ -125,13 +118,13 @@ class Serial( MPIWorkManager ):
 # | Master |
 # +--------+
 class Master( MPIWorkManager ):
-    """Master class of the MPI work manager for distributing tasks as received 
-    through the sim manager through submit.
+    """Master of the MPIWorkManage.  Distributes tasks to Slaves as they are 
+    received from the sim_manager.  In addition to the main thread, this class 
+    spawns two threads, a receiver and a dispatcher.
     """
 
     def __init__( self ):
-        # TODO: add docstring        
-        """
+        """Initialize different state variables used by Master.
         """
         super( Master, self ).__init__()
         log.debug( 'Master__init__()' )  
@@ -155,7 +148,7 @@ class Master( MPIWorkManager ):
         # thread shutdown sentinel
         self.shutItDown = False
         
-        # dict of pending futures, key is task ID  
+        # task_id, future key value pair
         self.pending_futures = dict()
         
         # list of master threads
@@ -166,8 +159,7 @@ class Master( MPIWorkManager ):
 
         
     def startup( self ):
-        # TODO: add docstring
-        """
+        """Spawns the dispatcher and receiver threads.
         """
         log.debug( 'Master.startup()' )
         
@@ -185,8 +177,8 @@ class Master( MPIWorkManager ):
         
         
     def _dispatcher( self ):
-        # TODO: add docstring
-        """
+        """Continuously dispatches tasks to idle destinations until the 
+        shutdown sentinel is set.
         """
         log.debug( 'Master._dispatcher()' )
         assert( MPI.Is_thread_main() == False )
@@ -214,7 +206,8 @@ class Master( MPIWorkManager ):
     
     def _receiver( self ):
         # TODO: add docstring
-        """
+        """Continuously receives futures from slaves until the shutdown 
+        sentinel is set.
         """
         log.debug( 'Master._receiver()' )
         assert( MPI.Is_thread_main() == False )
@@ -245,7 +238,7 @@ class Master( MPIWorkManager ):
     
 
     def submit( self, fn, args=None, kwargs=None ):
-        """Receive task from simulation manager.
+        """Receive task from simulation manager and add it to pending_futures.
         """
         log.debug( 'Master.submit()' )
         
@@ -258,7 +251,8 @@ class Master( MPIWorkManager ):
 
 
     def shutdown( self ):
-        """Send shutdown tag to all slave processes.
+        """Send shutdown tag to all slave processes, and set the shutdown 
+        sentinel to stop the receiver and dispatcher loops.
         """
         log.debug( 'Master.shutdown()' )
         
@@ -294,8 +288,7 @@ class Slave( MPIWorkManager ):
     """
 
     def __init__( self ):
-        # TODO: add docstring
-        """
+        """Prepare slave to start listening for work.
         """
         super( Slave, self ).__init__()
         log.debug( 'Slave.__init__() %s' % self.rank )
@@ -349,18 +342,4 @@ class Slave( MPIWorkManager ):
         the proper branching is followed in w_run.py.
         """
         return False
-
-
-
-"""
-# Stand-alone debugging
-m = MPIWorkManager()
-    
-with m:
-    
-    print( '%s' % MPI.Is_thread_main() )
-    # submit a series of tasks as in the code
-    for task_id in range( 5 ):
-        t = Task( task_id, max, None, None )
-        m.submit( t.fn, t.args, t.kwargs )
-"""
+        
