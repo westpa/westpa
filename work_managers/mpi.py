@@ -323,13 +323,12 @@ class Slave( MPIWorkManager ):
                 try:
                     rv = task.fn( *task.args, **task.kwargs )
                 except Exception:
-                    # TODO: better return value?
-                    ro = ( task.task_id, 'exception', None )
+                    ro = ( task.task_id, 'exception', rv )
                 else:
                     ro = ( task.task_id, 'result', rv )
                 
                 # send result back to master
-                comm.isend( ro, dest=self.masterID, tag=self.result_tag )
+                comm.send( ro, dest=self.masterID, tag=self.result_tag )
                 
             if tag == self.shutdown_tag:
                 log.info( 'Slave %s clocking out.' % self.rank )
