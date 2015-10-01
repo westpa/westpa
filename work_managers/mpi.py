@@ -3,7 +3,7 @@
 #
 from __future__ import division, print_function; __metaclass__ = type
 
-import logging, sys, threading
+import logging, sys, threading, time, traceback
 
 from collections import deque
 from mpi4py import MPI
@@ -190,7 +190,6 @@ class Master( MPIWorkManager ):
             # do we have work and somewhere to send it?
             while self.tasks and self.dests:
                 
-                # TODO: is the lock necessary?
                 with self.lock:
                     task = self.tasks.popleft()
                     sendTo = self.dests.popleft()
@@ -202,10 +201,12 @@ class Master( MPIWorkManager ):
                 
             # make sure all sends completed
             MPI.Request.Waitall( requests=req )
+            
+            # force context switching ( 1ms )
+            time.sleep( 0.001 )
         
     
     def _receiver( self ):
-        # TODO: add docstring
         """Continuously receives futures from slaves until the shutdown 
         sentinel is set.
         """
@@ -227,14 +228,16 @@ class Master( MPIWorkManager ):
                 # update future
                 ft = self.pending_futures.pop( tid )
                 if msg == 'exception':
-                    ft._set_exception( val )
+                    ft._set_exception( *val )
                 else:
                     ft._set_result( val )
             
-                ## TODO: is the lock necessary
                 with self.lock:
                     self.dests.append( stat.Get_source() )
                     self.nPending -= 1
+                    
+            # force context switching ( 1ms )
+            time.sleep( 0.001 )
     
 
     def submit( self, fn, args=None, kwargs=None ):
@@ -244,8 +247,9 @@ class Master( MPIWorkManager ):
         
         ft = WMFuture()
         task_id = ft.task_id
-        self.tasks.append( Task( task_id, fn, args, kwargs ) )
-        self.pending_futures[task_id] = ft
+        with self.lock:
+            self.tasks.append( Task( task_id, fn, args, kwargs ) )
+            self.pending_futures[task_id] = ft
         
         return ft
 
@@ -288,20 +292,25 @@ class Slave( MPIWorkManager ):
     """
 
     def __init__( self ):
-        """Prepare slave to start listening for work.
-        """
         super( Slave, self ).__init__()
         log.debug( 'Slave.__init__() %s' % self.rank )
         
-        # get ready to work
-        self.clockIn()
+    
+    def startup( self ):
+        """Clock the slave in for work.
+        """
+        log.debug( 'Slave.startup() %s' % self.rank )
+        if not self.running:
+            
+            self.clockIn()
+            
+            self.running = True
 
     
     def clockIn( self ):
         """Do each task as it comes in.  The completion of a task is
         notice to the master that more work is welcome.
         """
-        log.debug( 'Slave.clockIn()' )
         log.info( 'Slave %s clocking in.' % self.rank )
         
         comm = self.comm
@@ -317,13 +326,16 @@ class Slave( MPIWorkManager ):
             
             if tag == self.task_tag:
                 
-                log.debug( 'Slave %s received task: %s' % ( self.rank, task.task_id ) )
+                log.debug( 'Slave %s received task: %s' % 
+                           ( self.rank, task.task_id ) )
                 
                 # do the work
                 try:
                     rv = task.fn( *task.args, **task.kwargs )
-                except Exception:
-                    ro = ( task.task_id, 'exception', rv )
+                except BaseException as e:
+                    ro = ( task.task_id, 
+                           'exception', 
+                           ( e, traceback.format_exc() ) )
                 else:
                     ro = ( task.task_id, 'result', rv )
                 
