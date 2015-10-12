@@ -82,8 +82,6 @@ class TargetRatio:
             self.system.bin_target_counts[active_state_list[np.random.randint(0,active_states)]] += (self.max_replicas - active_walkers)
             self.we_driver.bin_target_counts[active_state_list[np.random.randint(0,active_states)]] += (self.max_replicas - active_walkers)
 
-        endtime = time.time()
-
         # Report stats
         westpa.rc.pstatus('-----------stats-for-next-iteration-')
         westpa.rc.pstatus('target counts: {}'.format(bin_counts))
