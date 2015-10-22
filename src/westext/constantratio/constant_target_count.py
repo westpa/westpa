@@ -48,6 +48,7 @@ class TargetRatio:
         if self.states == 'None':
             for i in (set(assignments)):
                 state_bins.append(i)
+            self.state_to_trajectory = [1] * len(state_bins)
         else:
             for i in self.states:
                 state_bins.append(bin_mapper.assign([[i]]))
@@ -79,13 +80,16 @@ class TargetRatio:
             extra = 0
         self.system.bin_target_counts = target_counts
         self.we_driver.bin_target_counts = target_counts
-        for s_bin,t_bin in itertools.izip(state_bins, self.state_to_trajectory):
-            self.system.bin_target_counts[s_bin] = (bin_counts * (t_bin)) + extra
-            self.we_driver.bin_target_counts[s_bin] = (bin_counts * (t_bin)) + extra
-        active_walkers = int(((active_bins)*bin_counts) + (extra*active_states))
+        #for s_bin,t_bin in itertools.izip(state_bins, self.state_to_trajectory):
+        #    self.system.bin_target_counts[s_bin] = (bin_counts * (t_bin)) + extra
+        #    self.we_driver.bin_target_counts[s_bin] = (bin_counts * (t_bin)) + extra
+        #active_walkers = int(((active_bins)*bin_counts) + (extra*active_states))
+        active_walkers = int(((active_bins)*bin_counts))
         if active_walkers < self.max_replicas:
-            self.system.bin_target_counts[active_state_list[np.random.randint(0,active_states)]] += (self.max_replicas - active_walkers)
-            self.we_driver.bin_target_counts[active_state_list[np.random.randint(0,active_states)]] += (self.max_replicas - active_walkers)
+            for i in xrange(0, self.max_replicas - active_walkers):
+                rand = np.random.randint(0,active_states)
+                self.system.bin_target_counts[active_state_list[rand]] += 1
+                self.we_driver.bin_target_counts[active_state_list[rand]] += 1
 
         # Report stats
         westpa.rc.pstatus('-----------stats-for-next-iteration-')
@@ -93,6 +97,7 @@ class TargetRatio:
         for ii_s_bin, s_bin in enumerate(state_bins):
             target = np.bincount(assignments)[s_bin]
             if target != 0 and self.states != 'None':
+            #if target != 0:
                 #westpa.rc.pstatus('state {}, bin {} target counts: {}'.format(ii_s_bin, s_bin, np.bincount(assignments)[s_bin]))
                 westpa.rc.pstatus('state {}, bin {} target counts: {}'.format(ii_s_bin, s_bin, self.we_driver.bin_target_counts[s_bin]))
         westpa.rc.pstatus('')
@@ -137,6 +142,7 @@ class TargetRatio:
         for ii_s_bin, s_bin in enumerate(state_bins):
             target = np.bincount(assignments)[s_bin]
             if target != 0 and self.states != 'None':
+            #if target != 0:
                 westpa.rc.pstatus('state {}, bin {} target counts: {}'.format(ii_s_bin, s_bin, np.bincount(assignments)[s_bin]))
         westpa.rc.pstatus('')
         westpa.rc.pflush()
