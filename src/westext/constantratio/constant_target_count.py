@@ -44,10 +44,15 @@ class TargetRatio:
         assignments = bin_mapper.assign(final_pcoords)
 
         state_bins = []
-        for i in self.states:
-            state_bins.append(bin_mapper.assign([[i]]))
+        #if self.states == 'None':
+        if self.states == 'None':
+            for i in (set(assignments)):
+                state_bins.append(i)
+        else:
+            for i in self.states:
+                state_bins.append(bin_mapper.assign([[i]]))
 
-        # Now pull the 'ratio' (statically defined here, for the moment
+        # Now pull the 'ratio' (statically defined here, for the moment)
         active_bins = len(set(assignments))
         active_states = 0
         active_state_list = []
@@ -86,7 +91,10 @@ class TargetRatio:
         westpa.rc.pstatus('-----------stats-for-next-iteration-')
         westpa.rc.pstatus('target counts: {}'.format(bin_counts))
         for ii_s_bin, s_bin in enumerate(state_bins):
-            westpa.rc.pstatus('state {} target counts: {}'.format(ii_s_bin, self.we_driver.bin_target_counts[s_bin]))
+            target = np.bincount(assignments)[s_bin]
+            if target != 0 and self.states != 'None':
+                #westpa.rc.pstatus('state {}, bin {} target counts: {}'.format(ii_s_bin, s_bin, np.bincount(assignments)[s_bin]))
+                westpa.rc.pstatus('state {}, bin {} target counts: {}'.format(ii_s_bin, s_bin, self.we_driver.bin_target_counts[s_bin]))
         westpa.rc.pstatus('')
         westpa.rc.pflush()
 
@@ -106,8 +114,12 @@ class TargetRatio:
         # Actually, we'll need the assignments so that we know what bins are populated, now that I think about it.
 
         state_bins = []
-        for i in self.states:
-            state_bins.append(bin_mapper.assign([[i]]))
+        if self.states == 'None':
+            for i in (set(assignments)):
+                state_bins.append(i)
+        else:
+            for i in self.states:
+                state_bins.append(bin_mapper.assign([[i]]))
         active_bins = len(set(assignments))
         active_states = 0
         for s_bin,t_bin in itertools.izip(state_bins, self.state_to_trajectory):
@@ -120,7 +132,11 @@ class TargetRatio:
         # Report level statistics
         westpa.rc.pstatus('')
         westpa.rc.pstatus('-----------stats-for-this-iteration-')
+        westpa.rc.pstatus('target counts: {}'.format(bin_counts))
+        #for ii_s_bin, s_bin in enumerate(state_bins):
         for ii_s_bin, s_bin in enumerate(state_bins):
-            westpa.rc.pstatus('state {} target counts: {}'.format(ii_s_bin, np.bincount(assignments)[s_bin]))
+            target = np.bincount(assignments)[s_bin]
+            if target != 0 and self.states != 'None':
+                westpa.rc.pstatus('state {}, bin {} target counts: {}'.format(ii_s_bin, s_bin, np.bincount(assignments)[s_bin]))
         westpa.rc.pstatus('')
         westpa.rc.pflush()
