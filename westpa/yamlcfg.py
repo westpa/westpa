@@ -227,7 +227,7 @@ class YAMLConfig:
         if type_ is bool and not isinstance(item, bool):
             warn_dubious_config_entry(key, item, bool)
             
-        return type(item)
+        return type_(item)
     
     def get_path(self, key, default=NotProvided, expandvars = True, expanduser = True, realpath = True, abspath = True):
         try:
