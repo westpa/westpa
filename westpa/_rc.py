@@ -42,18 +42,13 @@ def bins_from_yaml_dict(bin_dict):
     
     if typename == 'RectilinearBinMapper':
         boundary_lists = kwargs.pop('boundaries')
-        if boundary_lists[0].__class__ == str and len(boundary_lists) == 1:
-            # The idea here is that if I have a single point I can't be a boundary list
-            # and I also can't be a string if I'm a boundary thus I can now assume that
-            # the boundary given is actually a code and run the parser on the code instead.
-            boundary_lists = parsePCV(boundary_lists[0])
-        else:
-            for ilist, boundaries in enumerate(boundary_lists):
-                boundary_lists[ilist] = map((lambda x: 
-                                               float('inf') 
-                                               if (x if isinstance(x, basestring) else '').lower() == 'inf' 
-                                               else x), boundaries)
-        return mapper_type(boundary_lists)
+        parsed_lists = boundary_lists[:]
+        for iboundary, boundary in enumerate(boundary_lists):
+            if boundary.__class__ == str:
+                parsed_lists[iboundary] = list(parsePCV(boundary)[0])
+            else: 
+                parsed_lists[iboundary] = map((lambda x: float('inf') if (x if isinstance(x, basestring) else '').lower() == 'inf' else x), boundary)
+        return mapper_type(parsed_lists)
     else:
         try:
             return mapper_type(**kwargs)
@@ -76,7 +71,8 @@ def parsePCV(pc_str):
         arr.shape = (1,) + arr.shape 
     else:
         raise ValueError('too many dimensions')
-    return arr
+    #return list(arr[...])
+    return arr[...]
 
 def lazy_loaded(backing_name, loader, docstring = None):
     def getter(self):
