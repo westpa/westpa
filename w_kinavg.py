@@ -147,6 +147,7 @@ class KinAvgSubcommands(WESTSubcommand):
         
 def _eval_block(iblock, start, stop, nstates, total_fluxes, cond_fluxes, rates, mcbs_alpha, mcbs_nsets, mcbs_acalpha):
     results = [[],[],[]]
+    print(cond_fluxes.shape)
     # results are target fluxes, conditional fluxes, rates
     for istate in xrange(nstates):
         ci_res = mcbs_ci_correl(total_fluxes[:,istate],estimator=numpy.mean,

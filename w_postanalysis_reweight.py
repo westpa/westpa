@@ -19,6 +19,7 @@ from __future__ import print_function, division; __metaclass__ = type
 import logging
 
 import numpy as np
+import numpy
 import scipy.sparse as sp
 from scipy.sparse import csgraph
 import h5py
@@ -27,13 +28,55 @@ from collections import Counter
 
 import westpa
 from west.data_manager import weight_dtype, n_iter_dtype
-from westtools import (WESTTool, WESTDataReader, IterRangeSelection,
+from westtools import (WESTTool, WESTParallelTool, WESTDataReader, IterRangeSelection,
                        ProgressIndicatorComponent)
 from westpa import h5io
 from westtools.dtypes import iter_block_ci_dtype as ci_dtype
 
 log = logging.getLogger('westtools.w_postanalysis_reweight')
 
+import mclib
+from mclib import mcbs_correltime, mcbs_ci_correl
+
+#def _eval_block(iblock, start, stop, nstates, total_fluxes, cond_fluxes, rates, mcbs_alpha, mcbs_nsets, mcbs_acalpha):
+#    results = [[],[],[]]
+    # results are target fluxes, conditional fluxes, rates
+#    for istate in xrange(nstates):
+#        ci_res = mcbs_ci_correl(total_fluxes[:,istate],estimator=numpy.mean,
+#                                    alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
+#                                    subsample=numpy.mean)
+#        results[0].append((iblock,istate,(start,stop)+ci_res))
+        
+#        for jstate in xrange(nstates):
+#            if istate == jstate: continue
+#            ci_res = mcbs_ci_correl(cond_fluxes[:,istate,jstate],estimator=numpy.mean,
+#                                    alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
+#                                    subsample=numpy.mean)
+#            results[1].append((iblock, istate, jstate, (start,stop) + ci_res))
+#            
+#            ci_res = mcbs_ci_correl(rates[:,istate,jstate],estimator=numpy.mean,
+#                                    alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
+#                                    subsample=numpy.mean)
+#            results[2].append((iblock, istate, jstate, (start,stop) + ci_res))
+#    return results
+
+def _eval_block(iblock, start, stop, nstates, total_fluxes, rates, mcbs_alpha, mcbs_nsets, mcbs_acalpha):
+    results = [[],[]]
+    # results are target fluxes, conditional fluxes, rates
+    for istate in xrange(nstates):
+        for jstate in xrange(nstates):
+            if istate == jstate: continue
+            ci_res = mcbs_ci_correl(total_fluxes[:,istate,jstate],estimator=numpy.mean,
+                                    alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
+                                    subsample=numpy.mean)
+            results[0].append((iblock, istate, jstate, (start,stop) + ci_res))
+
+            ci_res = mcbs_ci_correl(rates[:,istate,jstate],estimator=numpy.mean,
+                                    alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
+                                    subsample=numpy.mean)
+            results[1].append((iblock, istate, jstate, (start,stop) + ci_res))
+        
+    return results
 
 def normalize(m):
     nm = m.copy()
@@ -145,7 +188,7 @@ def calc_state_flux(trans_matrix, index1, index2, bin_probs, bin_last_state_map,
 
 
 
-class WPostAnalysisReweightTool(WESTTool):
+class WPostAnalysisReweightTool(WESTParallelTool):
     prog ='w_postanalysis_reweight'
     description = '''\
 Calculate average rates from weighted ensemble data using the postanalysis
@@ -211,6 +254,16 @@ Command-line options
         self.kinetics_file = None
         
         self.evolution_mode = None
+
+        self.mcbs_enable = None
+        self.mcbs_alpha = None
+        self.mcbs_acalpha = None
+        self.mcbs_nsets = None
+        
+    def stamp_mcbs_info(self, dataset):
+        dataset.attrs['mcbs_alpha'] = self.mcbs_alpha
+        dataset.attrs['mcbs_acalpha'] = self.mcbs_acalpha
+        dataset.attrs['mcbs_nsets'] = self.mcbs_nsets
         
     def add_args(self, parser):
         self.progress.add_args(parser)
@@ -229,6 +282,18 @@ Command-line options
         iogroup.add_argument('-o', '--output', dest='output', default='kinrw.h5',
                             help='''Store results in OUTPUT (default: %(default)s).''')
 
+        cgroup = parser.add_argument_group('confidence interval calculation options')
+        cgroup.add_argument('--bootstrap', dest='bootstrap', action='store_const', const=True,
+                             help='''Enable the use of Monte Carlo Block Bootstrapping.''')
+        cgroup.add_argument('--alpha', type=float, default=0.05, 
+                             help='''Calculate a (1-ALPHA) confidence interval'
+                             (default: %(default)s)''')
+        cgroup.add_argument('--autocorrel-alpha', type=float, dest='acalpha', metavar='ACALPHA',
+                             help='''Evaluate autocorrelation to (1-ACALPHA) significance.
+                             Note that too small an ACALPHA will result in failure to detect autocorrelation
+                             in a noisy flux signal. (Default: same as ALPHA.)''')
+        cgroup.add_argument('--nsets', type=int,
+                             help='''Use NSETS samples for bootstrapping (default: chosen based on ALPHA)''')
         cogroup = parser.add_argument_group('calculation options')
         cogroup.add_argument('-e', '--evolution-mode', choices=['cumulative', 'blocked'], default='cumulative',
                              help='''How to calculate time evolution of rate estimates.
@@ -267,6 +332,11 @@ Command-line options
         self.output_filename = args.output
         self.assignments_filename = args.assignments
         self.kinetics_filename = args.kinetics
+
+        self.mcbs_enable = args.bootstrap
+        self.mcbs_alpha = args.alpha
+        self.mcbs_acalpha = args.acalpha if args.acalpha else self.mcbs_alpha
+        self.mcbs_nsets = args.nsets if args.nsets else mclib.get_bssize(self.mcbs_alpha)
                 
         self.evolution_mode = args.evolution_mode
         self.evol_window_frac = args.window_frac
@@ -295,6 +365,9 @@ Command-line options
 
             start_pts = range(start_iter, stop_iter, step_iter)
             flux_evol = np.zeros((len(start_pts), nstates, nstates), dtype=ci_dtype)
+            rate_evol = np.zeros((len(start_pts), nstates, nstates), dtype=ci_dtype)
+            flux_evol_bootstrap = np.zeros((len(start_pts), nstates, nstates), dtype=ci_dtype)
+            rate_evol_bootstrap = np.zeros((len(start_pts), nstates, nstates), dtype=ci_dtype)
             color_prob_evol = np.zeros((len(start_pts), nstates))
             state_prob_evol = np.zeros((len(start_pts), nstates))
             bin_prob_evol = np.zeros((len(start_pts), nfbins))
@@ -323,6 +396,11 @@ Command-line options
                             flux_evol[iblock]['expected'][k,j] = rw_state_flux[k,j] * (npts - 1)
                             flux_evol[iblock]['iter_start'][k,j] = start
                             flux_evol[iblock]['iter_stop'][k,j] = stop
+                            rate_evol[iblock]['expected'][k,j] = (rw_state_flux[k,j] * (npts - 1)) / rw_color_probs[k]
+                            if rw_color_probs[k] == 0.0  or flux_evol[iblock]['expected'][k,j] == 0.0:
+                                rate_evol[iblock]['expected'][k,j] = 0
+                            rate_evol[iblock]['iter_start'][k,j] = start
+                            rate_evol[iblock]['iter_stop'][k,j] = stop
 
                     color_prob_evol[iblock] = rw_color_probs
                     state_prob_evol[iblock] = rw_state_probs[:-1]
@@ -353,17 +431,69 @@ Command-line options
                             flux_evol[iblock]['expected'][k,j] = rw_state_flux[k,j] * (npts - 1)
                             flux_evol[iblock]['iter_start'][k,j] = start
                             flux_evol[iblock]['iter_stop'][k,j] = stop
+                            rate_evol[iblock]['expected'][k,j] = (rw_state_flux[k,j] * (npts - 1)) / rw_color_probs[k]
+                            if rw_color_probs[k] == 0.0  or flux_evol[iblock]['expected'][k,j] == 0.0:
+                                rate_evol[iblock]['expected'][k,j] = 0
+                            rate_evol[iblock]['iter_start'][k,j] = start
+                            rate_evol[iblock]['iter_stop'][k,j] = stop
 
                     color_prob_evol[iblock] = rw_color_probs
                     state_prob_evol[iblock] = rw_state_probs[:-1]
                     bin_prob_evol[iblock] = rw_bin_probs
 
+            if self.mcbs_enable == True:
+                futures = []
+                all_items = np.arange(1,len(start_pts)+1)
+                bootstrap_length = 0.5*(len(start_pts)*(len(start_pts)+1)) - np.delete(all_items, np.arange(1, len(start_pts)+1, step_iter))
+                pi.new_operation('Calculating Monte Carlo Bootstrap', bootstrap_length[0])
+                for iblock, start in enumerate(start_pts):
+                    stop = min(start+step_iter, stop_iter)
+                    if self.evolution_mode == 'cumulative':
+                        windowsize = max(1, int(self.evol_window_frac * (stop - start_iter)))
+                        block_start = max(start_iter, stop - windowsize)
+                    else:   # self.evolution_mode == 'blocked'
+                        block_start = start
+                    #print(rate_evol[block_start:stop,:,:]['expected'])
+                    future = self.work_manager.submit(_eval_block, kwargs=dict(iblock=iblock, start=block_start, stop=stop,
+                                                                               nstates=nstates,
+                                                                               total_fluxes=flux_evol[block_start:stop,:,:]['expected'],
+                                                                               rates=rate_evol[block_start:stop,:,:]['expected'],
+                                                                               mcbs_alpha=self.mcbs_alpha, mcbs_nsets=self.mcbs_nsets,
+                                                                               mcbs_acalpha=self.mcbs_acalpha))
+                    futures.append(future)
+                
+                for future in self.work_manager.as_completed(futures):
+                    #target_results, condflux_results, rate_results = future.get_result(discard=True)
+                    condflux_results, rate_results = future.get_result(discard=True)
+                    #condflux_results = future._result
+                    #for result in target_results:
+                    #    iblock,istate,ci_result = result
+                    #    target_evol[iblock,istate] = ci_result
+                        
+                    for result in condflux_results:
+                        iblock,istate,jstate,ci_result = result
+                        flux_evol_bootstrap[iblock, istate, jstate] = ci_result
+                    
+                    for result in rate_results:
+                        iblock, istate, jstate, ci_result = result 
+                        rate_evol_bootstrap[iblock, istate, jstate] = ci_result
+                    pi.progress += iblock / step_iter
+            else:
+                flux_evol_bootstrap = flux_evol
+                rate_evol_bootstrap = rate_evol
 
-            ds_flux_evol = self.output_file.create_dataset('conditional_flux_evolution', data=flux_evol, shuffle=True, compression=9)
+
+
+            ds_flux_evol = self.output_file.create_dataset('conditional_flux_evolution', data=flux_evol_bootstrap, shuffle=True, compression=9)
+            ds_flux_evol = self.output_file.create_dataset('rate_evolution', data=rate_evol_bootstrap, shuffle=True, compression=9)
             ds_state_prob_evol = self.output_file.create_dataset('state_prob_evolution', data=state_prob_evol, compression=9)
             ds_color_prob_evol = self.output_file.create_dataset('color_prob_evolution', data=color_prob_evol, compression=9)
             ds_bin_prob_evol = self.output_file.create_dataset('bin_prob_evolution', data=bin_prob_evol, compression=9)
             ds_state_labels = self.output_file.create_dataset('state_labels', data=state_labels)
+
+            if self.mcbs_enable == True:
+                for ds in (ds_flux_evol, ds_state_prob_evol, ds_color_prob_evol, ds_bin_prob_evol):
+                    self.stamp_mcbs_info(ds)
 
 
 if __name__ == '__main__':
