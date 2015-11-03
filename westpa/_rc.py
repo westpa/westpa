@@ -45,7 +45,7 @@ def bins_from_yaml_dict(bin_dict):
         parsed_lists = boundary_lists[:]
         for iboundary, boundary in enumerate(boundary_lists):
             if boundary.__class__ == str:
-                parsed_lists[iboundary] = list(parsePCV(boundary)[0])
+                parsed_lists[iboundary] = parsePCV(boundary)[0]
             else: 
                 parsed_lists[iboundary] = map((lambda x: float('inf') if (x if isinstance(x, basestring) else '').lower() == 'inf' else x), boundary)
         return mapper_type(parsed_lists)
