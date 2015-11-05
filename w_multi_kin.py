@@ -23,6 +23,7 @@ import scipy.stats
 import logging
 import re, os
 import numpy, h5py
+import numpy as np
 import matplotlib
 import argparse
 from matplotlib import pyplot
@@ -64,6 +65,7 @@ Command-line options
         self.output_file = None
         self.input_file = None
         self.winput_file = None
+        self.ainput_file = None
         self.ntrials = 0
         self.nstates = 0
         self.kin_trial = {}
@@ -81,6 +83,9 @@ Command-line options
                              yaml format (default: %(default)s).''')
         iogroup.add_argument('-wi','--winput-file', default='west_directories.yaml', 
                             help='''File storing locations of west.h5 files for each simulation in
+                             yaml format (default: %(default)s).''')
+        iogroup.add_argument('-ai','--ainput-file', default='west_directories.yaml', 
+                            help='''File storing locations of assign.h5 files for each simulation in
                              yaml format (default: %(default)s).''')
         iogroup.add_argument('--non-markovian', action='store_true',
                             help='''Determine whether or not the output is from the non-Markovian
@@ -104,10 +109,48 @@ Command-line options
         h5io.stamp_creator_data(self.output_file)
         west_files = yaml.load(open(self.winput_file))['PATHS']
         directory_list = yaml.load(open(self.input_file))['PATHS']
+        assign_list = yaml.load(open(self.ainput_file))['PATHS']
         for trial in range(self.ntrials):
             self.west[trial] = (h5py.File(west_files[trial]))
             if self.non_markovian == False:
-                self.kin_trial[trial] = (h5py.File(directory_list[trial]))
+                #self.kin_trial[trial] = (h5py.File(directory_list[trial]))
+                h5 = h5py.File(directory_list[trial])
+                assign = h5py.File(assign_list[trial])
+                dataset = {}
+                for key, value in h5.iteritems():
+                    dataset[key] = value
+                dataset['rate_evolution'] = numpy.zeros((self.niters, self.nstates, self.nstates), dtype=ci_dtype)
+                dataset['conditional_flux_evolution'] = numpy.zeros((self.niters, self.nstates, self.nstates), dtype=ci_dtype)
+                cfe = h5['conditional_fluxes']
+                nstates = assign.attrs['nstates']
+                nbins = assign.attrs['nbins']
+                for istate in xrange(self.nstates):
+                    for jstate in xrange(self.nstates):
+                        #flux = cfe['expected'][:,istate,jstate]
+                        flux = cfe[:,istate,jstate]
+                        Pop = assign['labeled_populations'][:]
+                        P = Pop[:,istate,:].sum(axis=1)
+                        #P = P[:,istate]
+                        #ii = numpy.where((P == 0.0))
+                        data = numpy.absolute(flux / P)
+                        data[numpy.isnan(data)] = 0
+                        data[numpy.isinf(data)] = 0
+                        #data_to_write = numpy.zeros(shape=self.niters+self.first_iter)
+                        data_to_write = numpy.zeros(shape=self.niters)
+                        cfe_to_write = numpy.zeros(shape=self.niters)
+                        data = numpy.cumsum(data[self.first_iter:self.niters])
+                        cfedata = numpy.cumsum(cfe[self.first_iter:self.niters,istate,jstate])
+                        for ii, i in enumerate(data):
+                            if ii != 0:
+                                #data[ii] = (i-data[ii-1]) / ii+1
+                                data[ii] = i / ii
+                                cfedata[ii] = cfedata[ii] / ii
+                        #data[ii] = None
+                        data_to_write[self.first_iter:self.niters] = data
+                        cfe_to_write[self.first_iter:self.niters] = cfedata
+                        dataset['rate_evolution'][:,istate,jstate]['expected'] = data_to_write
+                        dataset['conditional_flux_evolution'][:,istate,jstate]['expected'] = cfe_to_write
+                self.kin_trial[trial] = dataset
             else:
                 h5 = h5py.File(directory_list[trial])
                 #flux = h5['conditional_flux_evolution']['expected']
@@ -132,14 +175,37 @@ Command-line options
                         dataset['rate_evolution'][:,istate,jstate]['expected'] = data[:self.niters]
                 self.kin_trial[trial] = dataset
 
+    def monte_carlo(self, dataset, func=np.mean, alpha=.05, trials=1000):
+        trial_run = np.zeros(shape=trials)
+        rand_array = dataset[np.random.randint(0, dataset.shape[0], size=(dataset.shape[0], trials))]
+        #for i in xrange(0, trials):
+            #for pull in dataset:
+            #trial_run[i] = func(dataset[rand_array[:,i]])
+        trial_run[:] = func(rand_array, axis=0)
+        trial_run = np.sort(trial_run)
+        return_array = np.zeros((1), dtype=ci_dtype)
+        return_array['expected'] = np.mean(trial_run)
+        return_array['ci_lbound'] = trial_run[trials*(alpha/2)]
+        return_array['ci_ubound'] = trial_run[trials*(1 - alpha/2)]
+        return return_array
+
+    def monte_carlo_pop(self, dataset, func=np.mean, alpha=.05, trials=1000):
+        trial_run = []
+        for i in xrange(0, trials):
+            #for pull in dataset:
+            trial_run.append(func(dataset[np.random.randint(0, dataset.shape[0], size=dataset.shape[0])]))
+        trial_run = np.sort(trial_run)
+        return_array = np.mean(trial_run)
+        return return_array
 
     def process_args(self, args):
         self.progress.process_args(args)
         self.output_file = args.output_file
         self.input_file = args.input_file
         self.winput_file = args.winput_file
+        self.ainput_file = args.ainput_file
         self.non_markovian = args.non_markovian
-        self.first_iter = args.first_iter
+        self.first_iter = args.first_iter - 1
         self.block_size = args.block_size
         self.tau = args.tau
         directory_dictionary = yaml.load(open(self.input_file))
@@ -148,8 +214,8 @@ Command-line options
             kinavg_file = h5py.File(directory_dictionary['PATHS'][trial],'r')
             self.nstates = len(kinavg_file['state_labels'])
             if self.non_markovian == False:
-                if len(kinavg_file['rate_evolution']) < self.niters:
-                    self.niters = len(kinavg_file['rate_evolution'])
+                if len(kinavg_file['conditional_fluxes']) < self.niters:
+                    self.niters = len(kinavg_file['conditional_fluxes'])
             else:
                 if len(kinavg_file['conditional_flux_evolution']) < self.niters:
                     self.niters = len(kinavg_file['conditional_flux_evolution'])
@@ -203,120 +269,37 @@ Command-line options
                 # We're going to grab each slice of bread and cumulatively average the rates
                 # between each state by just adding expected rate evolution data from each
                 # trial, then normalizing in the end by the number of trials.
-                for key,kin_trial in self.kin_trial.iteritems():
+                expected_rate = np.zeros((self.ntrials, self.nstates, self.nstates))
+                expected_flux = np.zeros((self.ntrials, self.nstates, self.nstates))
+                expected_state_prob = np.zeros((self.ntrials, self.nstates))
+                expected_color_prob = np.zeros((self.ntrials, self.nstates))
+                for i, (key,kin_trial) in enumerate(self.kin_trial.iteritems()):
                     #kin_trial = h5py.File(directory_list[trial])
                     #if self.non_markovian == False:
-                        avg_rate_loaf[iter,:,:] += kin_trial['rate_evolution']['expected'][iter,:,:]
-                        avg_flux_loaf[iter,:,:] += kin_trial['conditional_flux_evolution']['expected'][iter,:,:]
+                        #avg_rate_loaf[iter,:,:] += kin_trial['rate_evolution']['expected'][iter,:,:]
+                        #avg_flux_loaf[iter,:,:] += kin_trial['conditional_flux_evolution']['expected'][iter,:,:]
+                        expected_rate[i, :, :] = kin_trial['rate_evolution']['expected'][iter,:,:]
+                        expected_flux[i, :, :] = kin_trial['conditional_flux_evolution']['expected'][iter,:,:]
                         try:
-                            avg_state_prob_loaf[iter,:] += kin_trial['state_prob_evolution'][iter,:]
-                            avg_color_prob_loaf[iter,:] += kin_trial['color_prob_evolution'][iter,:]
+                            #avg_state_prob_loaf[iter,:] += kin_trial['state_prob_evolution'][iter,:]
+                            #avg_color_prob_loaf[iter,:] += kin_trial['color_prob_evolution'][iter,:]
+                            expected_state_prob[i,:,:] = kin_trial['state_prob_evolution'][iter,:]
+                            expected_color_prob[i,:,:] = kin_trial['color_prob_evolution'][iter,:]
                         except:
                             # Temp hack to get everything up and working.  Ultimately, we should just remove this if we don't have it.
                             pass
-                    #else:
-                    #    flux = kin_trial['conditional_flux_evolution']['expected']
-                    #    P = kin_trial['color_prob_evolution']
-                    #    dataset = {}
-                    #    dataset['rate_evolution'] = numpy.zeros(flux.shape, dtype=ci_dtype)
-                    #    for istate in xrange(self.nstates):
-                    #        for jstate in xrange(self.nstates):
-                    #            data = (flux[:,istate,jstate] / P[:, istate])
-                    #            ii = numpy.where(P[:,istate] == 0.0)
-                    #            data[ii] = None
-                    #            dataset['rate_evolution'][:,istate,jstate] = data
-                    #    kin_trial = dataset
-                    #    avg_loaf[iter,:,:] = avg_loaf[iter,:,:] + kin_trial['rate_evolution']['expected'][iter,:,:]
-
-                    
-
-                avg_rate_loaf[iter,:,:] /= self.ntrials
-                avg_flux_loaf[iter,:,:] /= self.ntrials
-                avg_color_prob_loaf[iter,:] /= self.ntrials
-                avg_state_prob_loaf[iter,:] /= self.ntrials
-                sigma_rate = numpy.zeros( (self.nstates, self.nstates) )
-                sigma_flux = numpy.zeros( (self.nstates, self.nstates) )
-
-                # Now that we have the average values for the rates between states for
-                # this iter, let's also go ahead and calculate the upper and lower bound
-                # of the confidence interval.
-                #for trial in range(self.ntrials):
-                for key,kin_trial in self.kin_trial.iteritems():
-                    #kin_trial = h5py.File(directory_list[trial])
-                    #if self.non_markovian == True:
-                    #    flux = kin_trial['conditional_flux_evolution']['expected']
-                    #    P = kin_trial['color_prob_evolution']
-                    #    dataset = {}
-                    #    dataset['rate_evolution'] = numpy.zeros(flux.shape, dtype=ci_dtype)
-                    #    for istate in xrange(self.nstates):
-                    #        for jstate in xrange(self.nstates):
-                    #            data = (flux[:,istate,jstate] / P[:, istate])
-                    #            ii = numpy.where(P[:,istate] == 0.0)
-                    #            data[ii] = None
-                    #            dataset['rate_evolution'][:,istate,jstate] = data
-                    #    kin_trial = dataset
-                    #sigma_rate = numpy.add( sigma_rate, numpy.square( numpy.subtract( avg_rate_loaf[iter,:,:],kin_trial['rate_evolution']['expected'][iter,:,:] ))/(self.ntrials - 1))
-                    #sigma_flux = numpy.add( sigma_flux, numpy.square( numpy.subtract( avg_flux_loaf[iter,:,:],kin_trial['conditional_flux_evolution']['expected'][iter,:,:] ))/(self.ntrials - 1))
-                    sigma_rate = numpy.add( sigma_rate, numpy.square( numpy.subtract( avg_rate_loaf[iter,:,:],kin_trial['rate_evolution']['expected'][iter,:,:] )))
-                    sigma_flux = numpy.add( sigma_flux, numpy.square( numpy.subtract( avg_flux_loaf[iter,:,:],kin_trial['conditional_flux_evolution']['expected'][iter,:,:] )))
-
-                # Calculate the variance, assuming no standard error of the mean
-                var_rate = sigma_rate / (self.ntrials-1)
-                var_flux = sigma_flux / (self.ntrials-1)
-                # Convert to standard error
-                sigma_rate = numpy.power((sigma_rate/(self.ntrials-1)),0.5)
-                sigma_flux = numpy.power((sigma_flux/(self.ntrials-1)),0.5)
-                # We'll assume that we have enough independent trials to evoke the central
-                # limit theorem, so we'll approximate the error using a Gaussian
-                # distribution.
-
-                for i in range(self.nstates):
-                    for j in range(self.nstates):
-                        if sigma_rate[i,j] == 0:
-                            lbound_rate_loaf[iter,i,j] = 0
-                            ubound_rate_loaf[iter,i,j] = 0
-                        else:
-                            bounds = scipy.stats.norm.interval(0.95, loc = avg_rate_loaf[iter,i,j], scale = sigma_rate[i,j] / numpy.sqrt(self.ntrials))
-                            #bounds = scipy.stats.norm.interval(0.95, loc = avg_loaf[iter,i,j], scale = sigma[i,j])
-                            c_radius = (bounds[1]-bounds[0])/2
-                            lbound_rate_loaf[iter,i,j] = avg_rate_loaf[iter,i,j] - c_radius
-                            ubound_rate_loaf[iter,i,j] = avg_rate_loaf[iter,i,j] + c_radius
-
-                        if sigma_flux[i,j] == 0:
-                            lbound_flux_loaf[iter,i,j] = 0
-                            ubound_flux_loaf[iter,i,j] = 0
-                        else:
-                            bounds = scipy.stats.norm.interval(0.95, loc = avg_flux_loaf[iter,i,j], scale = sigma_flux[i,j] / numpy.sqrt(self.ntrials))
-                            #bounds = scipy.stats.norm.interval(0.95, loc = avg_loaf[iter,i,j], scale = sigma[i,j])
-                            c_radius = (bounds[1]-bounds[0])/2
-                            lbound_flux_loaf[iter,i,j] = avg_flux_loaf[iter,i,j] - c_radius
-                            ubound_flux_loaf[iter,i,j] = avg_flux_loaf[iter,i,j] + c_radius
-
-                        # Everything should be computed now so let's go ahead an wrap it all
-                        # up in a neat little package.
-                        avgd_rate_evol[iter]['expected'][i,j] = avg_rate_loaf[iter,i,j] / self.tau
-                        #avgd_rate_evol[iter]['variance'][i,j] = numpy.square(sigma_rate[i,j])
-                        avgd_rate_evol[iter]['variance'][i,j] = var_rate[i,j]
-                        avgd_rate_evol[iter]['stderrormean'][i,j] = sigma_rate[i,j] / numpy.sqrt(self.ntrials-1)
-                        avgd_rate_evol[iter]['ci_ubound'][i,j] = ubound_rate_loaf[iter,i,j] / self.tau
-                        avgd_rate_evol[iter]['ci_lbound'][i,j] = lbound_rate_loaf[iter,i,j] / self.tau
-                        avgd_rate_evol[iter]['iter_start'][i,j] = self.first_iter
-                        avgd_rate_evol[iter]['iter_stop'][i,j] = self.first_iter + (iter*self.block_size)
-
-                        avgd_flux_evol[iter]['expected'][i,j] = avg_flux_loaf[iter,i,j] / self.tau
-                        #avgd_flux_evol[iter]['variance'][i,j] = numpy.square(sigma_flux[i,j])
-                        avgd_flux_evol[iter]['variance'][i,j] = var_flux[i,j]
-                        avgd_flux_evol[iter]['stderrormean'][i,j] = sigma_flux[i,j] / numpy.sqrt(self.ntrials-1)
-                        avgd_flux_evol[iter]['ci_ubound'][i,j] = ubound_flux_loaf[iter,i,j] / self.tau
-                        avgd_flux_evol[iter]['ci_lbound'][i,j] = lbound_flux_loaf[iter,i,j] / self.tau
-                        avgd_flux_evol[iter]['iter_start'][i,j] = self.first_iter
-                        avgd_flux_evol[iter]['iter_stop'][i,j] = self.first_iter + (iter*self.block_size)
-                
-                    avgd_color_prob[iter,i] = avg_color_prob_loaf[iter,i]
-                    avgd_state_prob[iter,i] = avg_state_prob_loaf[iter,i]
+                for i in xrange(0, self.nstates):
+                    for j in xrange(0, self.nstates):
+                        if i != j:
+                            avgd_rate_evol[iter,i,j] = self.monte_carlo(expected_rate[:,i,j], np.mean)
+                            avgd_flux_evol[iter,i,j] = self.monte_carlo(expected_flux[:,i,j], np.mean)
+                        #avgd_color_prob[iter,i] = self.monte_carlo_pop(expected_color_prob[:,i])
+                        #avgd_state_prob[iter,i] = self.monte_carlo_pop(expected_state_prob[:,i])
+                        avgd_color_prob[iter,i] = np.average(expected_color_prob[:,i])
+                        avgd_state_prob[iter,i] = np.average(expected_state_prob[:,i])
+                        
 
                 pi.progress +=1 
-            print(avgd_flux_evol)
         pi.new_operation('Writing to file...')
         ds_rate_evol = self.output_file.create_dataset('rate_evolution', data=avgd_rate_evol, shuffle=True, compression = 9)
         ds_rate_evol = self.output_file.create_dataset('conditional_flux_evolution', data=avgd_flux_evol, shuffle=True, compression = 9)
