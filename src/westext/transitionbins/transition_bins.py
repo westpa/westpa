@@ -184,52 +184,53 @@ class TargetRatio:
                 if bins[ibin]['active'] == True:
                     transitions = np.where(transition_matrix[ibin,:] >= 0.15)[0]
                     # First, we check to see if any bins are too small... and that our relative weight range is low.  Under a little more than a KT or so.
-                    if transitions.size != 0: 
-                        largest_transition = np.sort(transitions)[-1]
-                        if ibin == largest_transition and transitions.size != 1:
-                            largest_transition = np.sort(transitions[-2])
-                            if largest_transition == ibin:
-                                break
-                        if weight_variance[ibin] < 0.36:
-                            if transition_matrix[ibin,largest_transition] >= 0.15:
-                                if bins[ibin]['active'] == True:
-                                    bound_width_diff = (bins[ibin]['boundary_width']*pcoord_variance[ibin]*1.96) - bins[ibin]['boundary_width']
-                                    bins[ibin]['boundary_width'] += bound_width_diff
-                                    bins[ibin]['modified'] = True
-                                    if ibin != bin_mapper.nbins-1:
-                                        for new_bin in range(ibin+1, bin_mapper.nbins-1):
-                                            if bins[new_bin]['active'] == True:
-                                                weight_ratio = bin_weights[ibin] / bin_weights[new_bin]
-                                                if bins[new_bin]['boundary_width'] <= bound_width_diff /2:
-                                                    bins[ibin]['boundary_width'] += bins[new_bin]['boundary_width']
-                                                    bins[new_bin]['active'] = False
-                                                    break
-                                                if weight_ratio <= 0.8 or weight_ratio >= 1.2:
-                                                    bins[new_bin]['boundary_width'] -= bound_width_diff / 2
-                                                    break
-                                                elif bins[new_bin]['boundary_width'] <= bound_width_diff /2:
-                                                    bins[ibin]['boundary_width'] += bins[new_bin]['boundary_width']
-                                                    bins[new_bin]['active'] = False
-                                                    break
-                                    elif ibin == bin_mapper.nbins-1:
-                                        bins[ibin]['boundary_width'] += bound_width_diff / 2
-                                    if ibin != 0:
-                                        for new_bin in reversed(range(0, ibin)):
-                                            if bins[new_bin]['active'] == True:
-                                                weight_ratio = bin_weights[ibin] / bin_weights[new_bin]
-                                                if bins[new_bin]['boundary_width'] <= bound_width_diff /2:
-                                                    bins[ibin]['boundary_width'] += bins[new_bin]['boundary_width']
-                                                    bins[new_bin]['active'] = False
-                                                    break
-                                                if weight_ratio <= 0.8 or weight_ratio >= 1.2:
-                                                    bins[new_bin]['boundary_width'] -= bound_width_diff / 2
-                                                    break
-                                                else:
-                                                    bins[ibin]['boundary_width'] += bins[new_bin]['boundary_width']
-                                                    bins[new_bin]['active'] = False
-                                                    break
-                                    elif ibin == 0:
-                                        bins[ibin]['boundary_width'] += bound_width_diff / 2
+                    #if transitions.size != 0: 
+                    #    largest_transition = np.sort(transitions)[-1]
+                    #    if ibin == largest_transition and transitions.size != 1:
+                    #        largest_transition = np.sort(transitions[-2])
+                    #        if largest_transition == ibin:
+                    #            break
+                    if weight_variance[ibin] < 0.20:
+                        #f transition_matrix[ibin,largest_transition] >= 0.15:
+                        if True:
+                            if bins[ibin]['active'] == True:
+                                bound_width_diff = (bins[ibin]['boundary_width']*pcoord_variance[ibin]*3) - bins[ibin]['boundary_width']
+                                bins[ibin]['boundary_width'] += bound_width_diff
+                                bins[ibin]['modified'] = True
+                                if ibin != bin_mapper.nbins-1:
+                                    for new_bin in range(ibin+1, bin_mapper.nbins-1):
+                                        if bins[new_bin]['active'] == True:
+                                            weight_ratio = bin_weights[ibin] / bin_weights[new_bin]
+                                            if bound_width_diff/bins[new_bin]['boundary_width'] <= 2:
+                                                bins[ibin]['boundary_width'] += bins[new_bin]['boundary_width']
+                                                bins[new_bin]['active'] = False
+                                                break
+                                            elif weight_ratio >= 0.8 and weight_ratio <= 1.25:
+                                                bins[ibin]['boundary_width'] += bins[new_bin]['boundary_width']
+                                                bins[new_bin]['active'] = False
+                                                break
+                                            else:
+                                                bins[new_bin]['boundary_width'] -= bound_width_diff / 2
+                                                break
+                                elif ibin == bin_mapper.nbins-1:
+                                    bins[ibin]['boundary_width'] += bound_width_diff / 2
+                                if ibin != 0:
+                                    for new_bin in reversed(range(0, ibin)):
+                                        if bins[new_bin]['active'] == True:
+                                            weight_ratio = bin_weights[ibin] / bin_weights[new_bin]
+                                            if bound_width_diff/bins[new_bin]['boundary_width'] <= 2:
+                                                bins[ibin]['boundary_width'] += bins[new_bin]['boundary_width']
+                                                bins[new_bin]['active'] = False
+                                                break
+                                            elif weight_ratio >= 0.8 and weight_ratio <= 1.25:
+                                                bins[ibin]['boundary_width'] += bins[new_bin]['boundary_width']
+                                                bins[new_bin]['active'] = False
+                                                break
+                                            else:
+                                                bins[new_bin]['boundary_width'] -= bound_width_diff / 2
+                                                break
+                                elif ibin == 0:
+                                    bins[ibin]['boundary_width'] += bound_width_diff / 2
 
 
             new_bins = {}
@@ -242,27 +243,36 @@ class TargetRatio:
                         print("what's the deviation, kenneth?")
                         print(pcoord_variance[ibin])
                         print(np.log(weight_variance[ibin]))
+                        print((weight_variance[ibin]))
                         print(bin_corr_coef[ibin])
                         #if transition_matrix[ibin,ibin] >= 0.90 and (bin_corr_coef[ibin] < 0.8 or np.log(weight_variance[ibin]) <= -1):
                         # About a KT; this only works if they're stuck in a well.
-                        if transition_matrix[ibin,ibin] >= 0.90 and np.absolute(bin_corr_coef[ibin]) < 0.7 and weight_variance[ibin] >= 0.36:
-                            bound_width_diff = bin['boundary_width'] - (bin['boundary_width']*pcoord_variance[ibin]*3)
+                        #if transition_matrix[ibin,ibin] >= 0.80 and np.absolute(bin_corr_coef[ibin]) < 0.8 and weight_variance[ibin] >= .36:
+                        if transition_matrix[ibin,ibin] >= 0.80 and weight_variance[ibin] >= .36:
+                            bound_width_diff = bin['boundary_width'] - (bin['boundary_width']*pcoord_variance[ibin]*2.5)
                             bound_width = bin['boundary_width']
                             bin['boundary_width'] = (bound_width + bound_width_diff)/3
                             bin['split'] = 3
                             index_adjustment += 2
-                            new_bins[bin_mapper.nbins+index_adjustment-1] = {'old_index': [ibin,1], 'new_index': (ibin,1), 'active': True, 'modified': False, 'boundary_width': (bound_width+bound_width_diff)/3, 'split': 3}
-                            new_bins[bin_mapper.nbins+index_adjustment] = {'old_index': [ibin,2], 'new_index': (ibin,2), 'active': True, 'modified': False, 'boundary_width': (bound_width+bound_width_diff)/3, 'split': 3}
+                            new_bins[(ibin,1)] = {'old_index': [ibin,1], 'new_index': (ibin,1), 'active': True, 'modified': False, 'boundary_width': (bound_width+bound_width_diff)/3, 'split': 3}
+                            new_bins[(ibin,2)] = {'old_index': [ibin,2], 'new_index': (ibin,2), 'active': True, 'modified': False, 'boundary_width': (bound_width+bound_width_diff)/3, 'split': 3}
                             # Now, modify the bins surrounding them...
                             for i,ad_bin in bins.iteritems():
                                 weight_ratio = bin_weights[ibin] / bin_weights[i]
                                 if ad_bin['new_index'] == (bin['new_index'][0] - 1, ad_bin['split'] - 1):
                                     if ad_bin['active'] == True:
                                         print("Removing from previous bin!")
-                                        ad_bin['boundary_width'] -= bound_width_diff/2
-                                        if ad_bin['boundary_width'] < 0:
-                                            ad_bin['active'] = False
-                                            bin['boundary_width'] += ad_bin['boundary_width']
+                                        if ad_bin['split'] > 1:
+                                            new_bins[(ibin,ad_bin['split'])]['boundary_width'] -= (bound_width_diff/2)
+                                            if new_bins[(ibin,ad_bin['split'])]['boundary_width'] < 0:
+                                                new_bins[(ibin,ad_bin['split'])]['active'] = False
+                                                bin['boundary_width'] += new_bins[(ibin,ad_bin['split'])]['boundary_width'] + (bound_width_diff/2)
+                                        else:
+                                            new_bin = ad_bin
+                                            ad_bin['boundary_width'] -= (bound_width_diff/2)
+                                            if ad_bin['boundary_width'] < 0:
+                                                ad_bin['active'] = False
+                                                bin['boundary_width'] += ad_bin['boundary_width'] + (bound_width_diff/2)
                                 # For those who haven't yet been modified by the index counter
                                 if ad_bin['new_index'] == (bin['new_index'][0] + 1, 0):
                                     if ad_bin['active'] == True:
@@ -270,16 +280,16 @@ class TargetRatio:
                                         ad_bin['boundary_width'] -= bound_width_diff/2
                                         if ad_bin['boundary_width'] < 0:
                                             ad_bin['active'] = False
-                                            new_bins[bin_mapper.nbins+index_adjustment]['boundary_width'] += ad_bin['boundary_width']
-                        if np.absolute(bin_corr_coef[ibin]) >= 0.7 and weight_variance[ibin] >= 0.36:
-                            print("Linear region")
-                            bound_width = bin['boundary_width']/3
-                            print(bound_width)
-                            bin['boundary_width'] /= 3
-                            bin['split'] = 3
-                            index_adjustment += 2
-                            new_bins[bin_mapper.nbins+index_adjustment-1] = {'old_index': (ibin,1), 'new_index': (ibin, 1), 'active': True, 'modified': False, 'boundary_width': bound_width, 'split': 3}
-                            new_bins[bin_mapper.nbins+index_adjustment] = {'old_index': (ibin,2), 'new_index': (ibin, 2), 'active': True, 'modified': False, 'boundary_width': bound_width, 'split': 3}
+                                            bin['boundary_width'] += ad_bin['boundary_width'] + (bound_width_diff/2)
+                        #if transition_matrix[ibin,ibin] >= .80 and np.absolute(bin_corr_coef[ibin]) >= 0.8 and weight_variance[ibin] >= .36:
+                        #    print("Linear region")
+                        #    bound_width = bin['boundary_width']/3
+                        #    print(bound_width)
+                        #    bin['boundary_width'] /= 3
+                        #    bin['split'] = 3
+                        #    index_adjustment += 2
+                        #    new_bins[bin_mapper.nbins+index_adjustment-1] = {'old_index': (ibin,1), 'new_index': (ibin, 1), 'active': True, 'modified': False, 'boundary_width': bound_width, 'split': 3}
+                        #    new_bins[bin_mapper.nbins+index_adjustment] = {'old_index': (ibin,2), 'new_index': (ibin, 2), 'active': True, 'modified': False, 'boundary_width': bound_width, 'split': 3}
                         #if bin_corr_coef[ibin] < 0.8 and np.log(weight_variance[ibin] <= -1):
                         #    print("Non-Linear region")
                         #    bound_width = bin['boundary_width']/2
