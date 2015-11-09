@@ -1,0 +1,280 @@
+# Modified from Josh's WExplore method
+from __future__ import division; __metaclass__ = type
+import logging
+log = logging.getLogger(__name__)
+
+import numpy as np
+import itertools
+
+import westpa, west
+from westpa import extloader
+from westpa.yamlcfg import check_bool, ConfigItemMissing
+from westpa.binning import RectilinearBinMapper
+
+class TargetRatio:
+    def __init__(self, sim_manager, plugin_config):
+
+        if not sim_manager.work_manager.is_master:
+                return
+
+        # Define the bin types...
+        function_mapper = {
+                'RectilinearBinMapper': RectilinearBinMapper
+                }
+        self.sim_manager = sim_manager
+        self.data_manager = sim_manager.data_manager
+        self.system = sim_manager.system
+        self.we_driver = sim_manager.we_driver
+        self.priority = plugin_config.get('priority', 0)
+        n_iter = self.sim_manager.n_iter
+
+        # This is non optional; do not disable.  There is no on-the-fly calculation possible.
+        self.save_data = plugin_config.get('store_data', True)
+        if self.sim_manager.n_iter == None or self.sim_manager.n_iter == 1:
+            self.bin_boundaries = plugin_config.get('bin_boundaries', True)
+            self.since_last_rebin = 0
+        else:
+            self.bin_boundaries = self.data_manager.get_iter_group(n_iter)['transitionbins']['bin_boundaries']
+            self.since_last_rebin = self.data_manager.get_iter_group(n_iter)['transitionbins']['since_last_rebin']
+            print('pulling from .h5...')
+        self.bin_mapper_type = function_mapper[plugin_config.get('bin_mapper', True)]
+        self.bin_mapper = function_mapper[plugin_config.get('bin_mapper', True)]([self.bin_boundaries])
+        self.bin_target_counts = plugin_config.get('target_counts', True)
+        self.nbins = self.bin_mapper.nbins
+        
+        # Register callback
+        #sim_manager.register_callback(sim_manager.prepare_iteration, self.post_we, self.priority)
+        sim_manager.register_callback(sim_manager.pre_we, self.pre_we, self.priority)
+        sim_manager.register_callback(sim_manager.prepare_iteration, self.prepare_new_iteration, self.priority)
+        sim_manager.register_callback(sim_manager.post_we, self.prepare_new_iteration, self.priority)
+
+    def normalize(self,m):
+        # Taken shamelessly from Josh Adelman
+        nm = m.copy()
+
+        row_sum = m.sum(1)
+        ii = np.nonzero(row_sum)[0]
+        nm[ii,:] = m[ii,:] / row_sum[ii][:, np.newaxis]
+
+        return nm
+
+    def prepare_new_iteration(self):
+
+        n_iter = self.sim_manager.n_iter
+        bin_mapper = self.system.bin_mapper
+
+        self.system.bin_mapper = self.bin_mapper_type([self.bin_boundaries])
+        self.system.bin_target_counts = np.empty((bin_mapper.nbins,), np.int_)
+        self.system.bin_target_counts[...] = 10
+        print('preparing new iteration...')
+
+    def pre_we(self):
+
+        print('rebinning...')
+        # This builds the transition matrix for the current set of bins.
+        
+        print(self.nbins)
+        n_iter = self.sim_manager.n_iter
+        bin_mapper = self.system.bin_mapper
+        segments = self.sim_manager.segments.values()
+        transition_matrix = np.zeros((bin_mapper.nbins, bin_mapper.nbins), dtype=np.float64)
+
+        pcoords = np.empty((len(segments), 2, self.system.pcoord_ndim), dtype=self.system.pcoord_dtype)
+        assignments = np.empty((len(segments), 2), dtype=self.system.pcoord_dtype)
+
+        self.system.bin_mapper = self.bin_mapper_type([self.bin_boundaries])
+        self.system.bin_target_counts = np.empty((bin_mapper.nbins,), np.int_)
+        self.system.bin_target_counts[...] = self.bin_target_counts
+
+        for iseg, segment in enumerate(segments):
+            pcoords[iseg,1] = segment.pcoord[-1,:]
+            pcoords[iseg,0] = segment.pcoord[0,:]
+
+        assignments[:,0] = bin_mapper.assign(pcoords[:,0])
+        assignments[:,1] = bin_mapper.assign(pcoords[:,1])
+
+        # Okay, so we've assigned the first and last time point of each walker into the assignment array.
+
+        for iseg, segment in enumerate(segments):
+            k = assignments[iseg,0]
+            j = assignments[iseg,1]
+            transition_matrix[k,j] += 1
+
+        #transition_matrix = self.normalize(transition_matrix)
+
+        # Write out that matrix!
+
+        if self.save_data:
+            # Create storage for ourselves
+            with self.data_manager.lock:
+                iter_group = self.data_manager.get_iter_group(n_iter)
+                try:
+                    del iter_group['transitionbins']
+                except KeyError:
+                    pass
+
+        bin_iter_group = iter_group.create_group('transitionbins')
+        bin_iter_group.create_dataset('transition_matrix', data=transition_matrix, compression=9)
+        self.since_last_rebin += 1
+        print(self.since_last_rebin)
+
+        # Let's assume we're at the correct number of iterations to rebin.
+        if self.since_last_rebin == 10:
+            transition_matrix = np.empty((bin_mapper.nbins, bin_mapper.nbins), dtype=np.float64)
+            low_value = max(1, n_iter-9)
+            for iter in range(low_value,n_iter):
+                transition_matrix = np.add(transition_matrix, self.data_manager.get_iter_group(iter)['transitionbins']['transition_matrix'][...])
+
+            transition_matrix = self.normalize(transition_matrix)
+            boundary_width = np.diff(self.bin_boundaries)
+            bins_to_go_over = [True] * bin_mapper.nbins
+            bin_adjustment = 0
+            matrix_adjustment = 0
+            # Let's do this in two rounds...
+            # Bin Deletion Round
+            active_bins = [True] * bin_mapper.nbins
+            modified_bins = [False] * bin_mapper.nbins
+            print(active_bins)
+            new_boundary_widths = []
+            print(boundary_width)
+            for ibin in range(0, bin_mapper.nbins):
+                loop_fired = False
+                print(ibin, len(active_bins))
+                print(boundary_width)
+                print(new_boundary_widths)
+                transitions = np.where(transition_matrix[ibin,:] >= 0.15)[0]
+                # First, we check to see if any bins are too large...
+                if transitions.size != 0: 
+                    loop_fired = True
+                    largest_transition = np.sort(transitions)[-1]
+                    if ibin == largest_transition and transitions.size != 1:
+                        largest_transition = np.sort(transitions[-2])
+                        if largest_transition == ibin:
+                            break
+                    if largest_transition > ibin:
+                        if active_bins[ibin] == True:
+                            if transition_matrix[ibin,largest_transition] >= 0.15:
+                                if (largest_transition - ibin) != 1:
+                                    print("Going to remove a few bins...")
+                                    print(largest_transition - ibin)
+                                    #boundary_width[ibin] += (np.sum(boundary_width[ibin+1:largest_transition]))/2
+                                    new_boundary_widths.append((boundary_width[ibin] + np.sum(boundary_width[ibin:largest_transition]))/2)
+                                    boundary_width[largest_transition] += np.sum(boundary_width[ibin:largest_transition])/2
+                                    #boundary_width = np.delete(boundary_width, range(ibin+1,largest_transition))
+                                    active_bins[ibin+1:largest_transition-1] = [False]
+                                    modified_bins[ibin] = True
+                                    modified_bins[largest_transition] = True
+                                else:
+                                    print("Going to modify a nearby bin boundary.")
+                                    #boundary_width[ibin] += boundary_width[largest_transition]/2
+                                    new_boundary_widths.append(boundary_width[ibin] + np.sum(boundary_width[largest_transition]/2))
+                                    boundary_width[largest_transition] /= 2
+                                    #boundary_width = np.delete(boundary_width, [largest_transition])
+                                    modified_bins[ibin] = True
+                                    modified_bins[largest_transition] = True
+                                    #active_bins[largest_transition] = [True]
+                            else:
+                                print("Appending bin without modifications...")
+                                new_boundary_widths.append(boundary_width[ibin])
+                    elif largest_transition < ibin:
+                        if active_bins[ibin] == True:
+                            if transition_matrix[ibin,largest_transition] >= 0.15:
+                                #boundary_width[ibin] += (np.sum(boundary_width[largest_transition:ibin]))/2
+                                new_boundary_widths.append(boundary_width[ibin] + (np.sum(boundary_width[largest_transition:ibin]))/2)
+                                boundary_width[largest_transition] += np.sum(boundary_width[largest_transition:ibin])/2
+                                #boundary_width = np.delete(boundary_width, range(largest_transition,ibin))
+                                active_bins[largest_transition+1:ibin-1] = [False]
+                                modified_bins[ibin] = True
+                                modified_bins[largest_transition] = True
+                            else:
+                                new_boundary_widths.append(boundary_width[ibin])
+                    else:
+                        if active_bins[ibin] == True:
+                            new_boundary_widths.append(boundary_width[ibin])
+                if loop_fired == False:
+                    print("Appending bin without modifications...")
+                    new_boundary_widths.append(boundary_width[ibin])
+                    loop_fired = True
+
+            print("Let's see how many new bins we have!")
+            print(new_boundary_widths)
+            boundary_width = np.array(new_boundary_widths)
+            new_boundary_widths = []
+            index = 0
+            for ibin in range(0, bin_mapper.nbins):
+                index = ibin + bin_adjustment
+                print(index, len(boundary_width))
+                print(active_bins)
+                if active_bins[ibin] == True:
+                    if modified_bins[ibin] == False:
+                        largest_transition = np.where(transition_matrix[ibin,:] == np.amax(transition_matrix[ibin,:]))[0][0]
+                        second_largest_transition = np.where(transition_matrix[ibin,:] == np.sort(transition_matrix[ibin,:])[-2])[0][0]
+                        if ibin == largest_transition:
+                            largest_transition = second_largest_transition
+                        if transition_matrix[ibin,largest_transition] < 0.05:
+                            print("adding a bin")
+                            new_boundary_widths.append(boundary_width[index]/2)
+                            new_boundary_widths.append(boundary_width[index]/2)
+                        else:
+                            new_boundary_widths.append(boundary_width[index])
+                    else:
+                        new_boundary_widths.append(boundary_width[index])
+                else:
+                    bin_adjustment -= 1
+            boundary_width = np.array(new_boundary_widths)
+            print(boundary_width)
+            self.bin_boundaries = [0] + list(np.cumsum(boundary_width))
+            self.since_last_rebin = 0
+            print(self.bin_boundaries)
+
+  
+        bin_iter_group.create_dataset('since_last_rebin', data=(self.since_last_rebin))
+        bin_iter_group.create_dataset('bin_boundaries', data=self.bin_boundaries, compression=9)
+        self.system.bin_mapper = self.bin_mapper_type([self.bin_boundaries])
+        self.system.bin_target_counts = np.empty((bin_mapper.nbins,), np.int_)
+        self.system.bin_target_counts[...] = self.bin_target_counts
+ 
+ 
+    def post_we(self):
+        # There's a lot we don't care about here, such as coordinates, etc.  We're not changing the bin mapper, just the counts.
+        segments = self.sim_manager.segments.values()
+        bin_mapper = self.system.bin_mapper
+
+        final_pcoords = np.empty((len(segments), self.system.pcoord_ndim), dtype=self.system.pcoord_dtype)
+
+        for iseg, segment in enumerate(segments):
+            final_pcoords[iseg] = segment.pcoord[0,:]
+
+        assignments = bin_mapper.assign(final_pcoords)
+
+        # And ensure the ratio is set properly.  Let's define two particular bins as being 'state' bins, and adjust the count accordingly.
+        # Actually, we'll need the assignments so that we know what bins are populated, now that I think about it.
+
+        state_bins = []
+        if self.states == 'None':
+            for i in (set(assignments)):
+                state_bins.append(i)
+        else:
+            for i in self.states:
+                state_bins.append(bin_mapper.assign([[i]]))
+        active_bins = len(set(assignments))
+        active_states = 0
+        for s_bin,t_bin in itertools.izip(state_bins, self.state_to_trajectory):
+            if s_bin in assignments:
+                active_bins += t_bin - 1
+                active_states += 1
+        target_counts = np.empty((bin_mapper.nbins,), np.int_)
+        bin_counts = int(np.floor(self.max_replicas / active_bins))
+
+        # Report level statistics
+        westpa.rc.pstatus('')
+        westpa.rc.pstatus('-----------stats-for-this-iteration-')
+        westpa.rc.pstatus('target counts: {}'.format(bin_counts))
+        #for ii_s_bin, s_bin in enumerate(state_bins):
+        for ii_s_bin, s_bin in enumerate(state_bins):
+            target = np.bincount(assignments)[s_bin]
+            if target != 0 and self.states != 'None':
+            #if target != 0:
+                westpa.rc.pstatus('state {}, bin {} target counts: {}'.format(ii_s_bin, s_bin, np.bincount(assignments)[s_bin]))
+        westpa.rc.pstatus('')
+        westpa.rc.pflush()
