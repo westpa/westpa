@@ -221,6 +221,8 @@ Command-line options
                                                 dtype=index_dtype)
                 label_assignments = numpy.require(self.assignments_file['trajlabels'][assignment_iiter + numpy.s_[:nsegs,:npts]],
                                                   dtype=index_dtype)
+                state_assignments = numpy.require(self.assignments_file['statelabels'][assignment_iiter + numpy.s_[:nsegs,:npts]],
+                                                  dtype=index_dtype)
                 
                 # Prepare to run analysis
                 cond_fluxes = numpy.zeros((nstates,nstates), weight_dtype)
@@ -232,7 +234,7 @@ Command-line options
                 # Estimate macrostate fluxes and calculate event durations using trajectory tracing
                 # state is opaque to the find_macrostate_transitions function            
                 state = _fast_transition_state_copy(iiter, nstates, parent_ids, last_state)
-                find_macrostate_transitions(nstates, weights, label_assignments, 1.0/(npts-1), state,
+                find_macrostate_transitions(nstates, weights, label_assignments, state_assignments, 1.0/(npts-1), state,
                                             cond_fluxes, cond_counts, total_fluxes, total_counts, durations)
                 last_state = state
                 

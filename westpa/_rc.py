@@ -22,12 +22,52 @@ from __future__ import division, print_function; __metaclass__ = type
 import logging
 log = logging.getLogger('westpa.rc')
 
-import os, sys, errno
+import os, sys, errno, numpy
 import westpa
 from yamlcfg import YAMLConfig
+from yamlcfg import YAMLSystem
 from . import extloader
 from work_managers import SerialWorkManager
 
+from westpa.binning import RectilinearBinMapper
+    
+def bins_from_yaml_dict(bin_dict):
+    typename = bin_dict.pop('type')
+    kwargs = bin_dict
+    
+    try:
+        mapper_type = getattr(sys.modules['westpa.binning'], typename)
+    except AttributeError:
+        raise KeyError('unknown bin mapper type {!r} in config file {!r}'.format(typename))
+    
+    if typename == 'RectilinearBinMapper':
+        boundary_lists = kwargs.pop('boundaries')
+        for ilist, boundaries in enumerate(boundary_lists):
+            boundary_lists[ilist] = map((lambda x: 
+                                           float('inf') 
+                                           if (x if isinstance(x, basestring) else '').lower() == 'inf' 
+                                           else x), boundaries)
+        return mapper_type(boundary_lists)
+    else:
+        try:
+            return mapper_type(**kwargs)
+        except Exception:
+            log.exception('exception instantiating mapper')
+            raise
+
+def parsePCV(pc_str):
+    namespace = {'math': math,
+                 'numpy': numpy,
+                 'inf': float('inf')}
+    
+    arr = numpy.array(eval(pc_str,namespace))
+    if arr.ndim == 0:
+        arr.shape = (1,1)
+    elif arr.ndim == 1:
+        arr.shape = (1,) + arr.shape 
+    else:
+        raise ValueError('too many dimensions')
+    return arr
 
 def lazy_loaded(backing_name, loader, docstring = None):
     def getter(self):
@@ -251,13 +291,201 @@ class WESTRC:
         return self._propagator
             
     def new_system_driver(self):
-        sysdrivername = self.config.require(['west', 'system', 'driver'])
-        log.info('loading system driver %r' % sysdrivername)
-        system = extloader.get_object(sysdrivername)(rc=self)
-        system.initialize()
-        log.debug('loaded system driver {!r}'.format(system))        
-        return system
-    
+        ''' 
+        Returns a new system object either from the driver OR from the YAML
+        file. Currently builds off of system then updates with YAML
+        overwriting the previous settings if both are specified.
+
+        There are no default settings, all settings MUST be specified
+        in the config YAML file OR the system driver. 
+
+        Settings that are specified here are: 
+          Progress coordinate settings:
+            Progress coordinate dimensionality
+            Progress coordinate length/number of data points in each tau
+            Progress coordinate data type 
+          Bin settings: 
+            Bin mapper type
+            Bins 
+            Target simulation counts for each bin 
+          Generic setting for flexibility:
+            Both paths allow for generic attribute setting for
+            future flexibility.
+        '''
+
+        # First step is to see if we have a driver specified
+        # if so load that one first, setting the defaults for
+        # YAML to possibly modify. 
+
+        # I will keep this as is for now since I like the idea
+        # of being able to set some defaults from the system 
+        # driver and then just modify the YAML instead for basic
+        # stuff. This might make it easier to set up systems since
+        # playing around with the YAML format is easier. 
+        
+        # Still still has the end-user issue of possibly confusing 
+        # people, maybe KISS is better, not sure. I'll keep this 
+        # for development purposes if nothing else.
+
+        system = None
+        # Get method checks for us  
+        sysdrivername = self.config.get(['west', 'system', 'driver']) 
+        if not sysdrivername:
+            # Warn user that driver is not specified
+            log.info("System driver not specified")
+        else:
+            log.info('loading system driver %r' % sysdrivername)
+            system = extloader.get_object(sysdrivername)(rc=self)
+            log.debug('loaded system driver {!r}'.format(system))        
+            system.initialize()
+        # Second let's see if we have info in the YAML file 
+        yamloptions = self.config.get(['west','system','system_options'])
+        if not yamloptions:
+            # Same here, yaml file doesn't have sys info
+            log.info("Config file doesn't contain any system info")
+        else:
+             log.info("Loading system options from configuration file")
+             if system:
+                 system = self.update_from_yaml(system, yamloptions)
+             else:
+                 system = self.system_from_yaml(yamloptions)
+        
+        if system:
+            if not yamloptions:
+                print("System is being built only off of the system driver")
+            return system
+        else: 
+            log.info("No system specified! Exiting program.")
+            # Gracefully exit
+            raise ValueError("No system defined!")
+
+    def system_from_yaml(self, system_dict):
+        """
+        System builder directly from the config YAML file. 
+
+        Arguments: 
+          system_dict (dict): Parsed YAML file as a dictionary, parsed by 
+            PyYAML by default.
+
+        Returns: 
+          A modified WESTSystem object as defined in yamlcfg.py with 
+          the parsed settings from the config file.
+        """
+        
+        yamlSystem = YAMLSystem()
+        print("System building only off of the configuration file")  
+        # Now for the building of the system from YAML we need to use
+        # require for these settings since they are musts. 
+        
+        # First basic pcoord settings
+        ndim  = self.config.require(\
+            ['west', 'system', 'system_options', 'pcoord_ndim'])
+        plen  = self.config.require(\
+            ['west', 'system', 'system_options', 'pcoord_len'])
+        # Dtype needs to be ran as code from YAML file, document YAML code execution syntax
+        # somewhere
+        ptype = self.config.require(\
+            ['west', 'system', 'system_options', 'pcoord_dtype'])
+        # Bins
+        bins_obj = self.config.require(\
+            ['west', 'system', 'system_options', 'bins'])
+        trgt_cnt = self.config.require(\
+            ['west', 'system', 'system_options', 'bin_target_counts'])
+        # Now add the parsed settings to the system
+        mapper   = bins_from_yaml_dict(bins_obj)
+        setattr(yamlSystem, 'pcoord_ndim', ndim)
+        setattr(yamlSystem, 'pcoord_len', plen)
+        setattr(yamlSystem, 'pcoord_dtype', ptype)
+        setattr(yamlSystem, 'bin_mapper', mapper)
+        # Check if the supplied target count object is 
+        # an iterable or not, 
+
+        # This one I designed in a way that you can either
+        # directly supply an iterable that has the correct
+        # size OR an integer. Anything else will fail. 
+        
+        # Main issue: For higher bin dimensions this 
+        # is tough since the bins might not correspond
+        # properly to the flattened array you are supplying.
+
+        # I might just scrap the iterable later and only allow
+        # integers.
+        if hasattr(trgt_cnt, "__iter__"):
+            assert len(trgt_cnt) == mapper.nbins, \
+              "Count iterable size doesn't match the number of bins"
+            trgt_cnt_arr = trgt_cnt
+        else:
+            assert trgt_cnt == numpy.int(trgt_cnt), \
+              "Counts are not integer valued, ambiguous input"
+            trgt_cnt_arr    = numpy.zeros(mapper.nbins)
+            trgt_cnt_arr[:] = trgt_cnt
+        setattr(yamlSystem, 'bin_target_counts', trgt_cnt_arr)
+
+        # Attach generic attribute to system 
+        for attr in system_dict.iterkeys():
+            if not hasattr(yamlSystem, attr):
+                setattr(yamlSystem, attr, system_dict[attr])
+
+        # Return complete system
+        return yamlSystem
+
+
+    def update_from_yaml(self, init_system, system_dict):
+        """
+        Updates the system built from the driver with the options
+        from the YAML file. For now it overwrites everything specified
+        in the system driver.
+
+        Arguments: 
+          system_dict (dict): Parsed YAML file as a dictionary, parsed by 
+            PyYAML by default.
+          init_system (WESTSystem): System returned by the driver.
+
+        Returns: 
+          A modified WESTSystem object with settings from the system
+          driver and the config YAML file.
+        """
+        
+        # First we want to overwrite whatever we have from the YAML
+        # file.
+        print("Updating system with the options from the configuration file")
+        for key, value in system_dict.iteritems():
+            if key == 'pcoord_ndim':
+                self.overwrite_option(init_system, key, value)
+            elif key == 'pcoord_len':
+                self.overwrite_option(init_system, key, value)
+            elif key == 'pcoord_dtype':
+                self.overwrite_option(init_system, key, value)
+            elif key == "bins":
+                self.overwrite_option(init_system, 'bin_mapper',\
+                     bins_from_yaml_dict(value))
+        # Target counts have to be parsed after we have a mapper in
+        # place
+        try: 
+            trgt_cnt = system_dict['bin_target_counts']
+            if hasattr(trgt_cnt, "__iter__"):
+                assert len(trgt_cnt) == init_system.bin_mapper.nbins, \
+                  "Count iterable size doesn't match the number of bins"
+                trgt_cnt_arr = trgt_cnt
+            else:
+                assert trgt_cnt == numpy.int(trgt_cnt), \
+                  "Counts are not integer valued, ambiguous input"
+                trgt_cnt_arr    = numpy.zeros(init_system.bin_mapper.nbins)
+                trgt_cnt_arr[:] = int(trgt_cnt)
+            self.overwrite_option(init_system, 'bin_target_counts', trgt_cnt_arr)
+        except KeyError:
+             pass
+        # The generic attribute settings added here
+        for attr in system_dict.iterkeys():
+            if not hasattr(init_system, attr):
+                setattr(init_system, attr, system_dict[attr])
+        return init_system
+
+    def overwrite_option(self, system, key, value):
+        if hasattr(system, key):
+            log.info("Overwriting system option: %s"%key)
+        setattr(system, key, value)
+
     def get_system_driver(self):
         if self._system is None:
             self._system = self.new_system_driver()

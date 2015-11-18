@@ -214,7 +214,7 @@ cpdef assign_and_label(Py_ssize_t nsegs_lb,
     
     cdef:
         Py_ssize_t ipt, nsegs, npts, iseg
-        index_t[:,:] _assignments, _trajlabels
+        index_t[:,:] _assignments, _trajlabels, _statelabels
         index_t[:] seg_assignments
         long seg_id, parent_id, msegid
         index_t ptlabel
@@ -223,9 +223,11 @@ cpdef assign_and_label(Py_ssize_t nsegs_lb,
     npts = pcoords.shape[1]
     assignments = numpy.empty((nsegs,npts), index_dtype)
     trajlabels = numpy.empty((nsegs,npts), index_dtype)
+    statelabels = numpy.empty((nsegs,npts), index_dtype)
     
     _assignments = assignments
     _trajlabels = trajlabels
+    _statelabels = statelabels
     mask = numpy.ones((npts,), numpy.bool_)
     
     for iseg in range(nsegs):
@@ -238,11 +240,13 @@ cpdef assign_and_label(Py_ssize_t nsegs_lb,
                 parent_id = parent_ids[iseg]
                 for ipt in range(npts):
                     ptlabel = state_map[_assignments[iseg,ipt]]
+                    _statelabels[iseg,ipt] = ptlabel
                     if ptlabel == nstates: # unknown state/transition region 
                         if ipt == 0:
                             if parent_id < 0:
                                 # We have started a trajectory in a transition region
                                 _trajlabels[iseg,ipt] = nstates
+                                _statelabels[iseg,ipt] = nstates
                             else:
                                 # We can inherit the ending point from the previous iteration
                                 # This should be nstates (unknown_state) for the first iteration
@@ -255,8 +259,9 @@ cpdef assign_and_label(Py_ssize_t nsegs_lb,
                         _trajlabels[iseg,ipt] = ptlabel
     else:
         trajlabels.fill(nstates)
+        statelabels.fill(nstates)
             
-    return assignments, trajlabels
+    return assignments, trajlabels, statelabels
 
 @cython.cdivision(True)
 @cython.boundscheck(False)

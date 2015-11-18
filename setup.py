@@ -56,5 +56,9 @@ setup(cmdclass = cmdclass,
                      Extension("westpa.kinetics._kinetics",
                                 ["westpa/kinetics/_kinetics.{}".format(suffix)],
                                 include_dirs=['.', numpy_include],
+                                extra_compile_args=['-O3']),
+                     Extension("postanalysis._stats",
+                                ["postanalysis/_stats.{}".format(suffix)],
+                                include_dirs=['.', numpy_include],
                                 extra_compile_args=['-O3']),])
 

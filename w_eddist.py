@@ -411,7 +411,7 @@ Command-line options
             # the maximum in the histogram
             ub *= 1.01
             
-            lb -= 0.01
+            #lb -= 0.01
             
             boundset = numpy.linspace(lb,ub,bins+1)
             midpoints = (boundset[:-1] + boundset[1:]) / 2.0
