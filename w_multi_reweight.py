@@ -73,34 +73,196 @@ def steadystate_solve(K):
 
     return bin_prob
 
+def get_transmat_and_obsmat_sum(fluxmatH5_list, start_iter, stop_iter, nbins, 
+                                recycling_bin_list=None):
+    '''
+    Find the sum of transition matrices from a set of simulations, for a given 
+    set of timepoints. 
 
-def accumulate_statistics(h5file, start_iter, stop_iter, nbins, total_fluxes=None, total_obs=None):
-    if total_fluxes is None:
-        assert total_obs is None
-        total_fluxes = np.zeros((nbins, nbins), weight_dtype)
-        total_obs = np.zeros((nbins, nbins), np.int64)
+    Return: 
+    (1) a numpy array representing the sum of the transition matrices for each 
+    simulation, for each timepoint for which the transition probability is 
+    well-defined (ie, if the bin in which the transition originates is not 
+    subject to recycling for the given simulation, and if this bin is not 
+    unoccupied. 
+    Elements for which no observations were made are set
+    to ``NaN`` (not a number). 
+    (2) a numpy array where each element represents the count of all timepoints
+    for all simulations in which the transition probably represented in (1) was
+    well-defined.
 
-    rows = []
-    cols = []
-    obs = []
-    flux = []
+    fluxmatH5_list: a list of flux matrix h5 files
+    start_iter: integer; first weighted ensemble iteration to include in the
+            average.
+    stop_iter: integer; iteration at which to stop averaging.  Averages will 
+            include UP TO stop_iter, BUT NOT stop_iter itself. 
+    nbins: integer; the number of bins used in building the flux matrices. This
+            should match the dimensions of the flux matrices in each HDF5 file 
+            of fluxmatH5_list
+    recycling_bin_list: A list of numpy arrays.  The order of the arrays should
+            be the same as fluxmatH5_list. Each array should specify the indices
+            of bins that were subject to recycling during the corresponding 
+            weighted ensemble simulation. If all simulations were not subject
+            to recycling (default), this option may be simply set to ``None``.
+            If only select simulations were not subject to recycling, ``None`` 
+            may be instead specified at the corresponding index of 
+            recycling_bin_list. 
+    '''
+    
+    # Array for holding the running sum of transition matrix
+    transmat_sum = np.empty((nbins, nbins), np.float64)
+    transmat_sum.fill(np.nan)
+    temp_array = np.zeros((nbins, nbins), np.float64)
+    # Array for holding the count of elements added to the transmat_sum 
+    obsmat_sum = np.zeros((nbins, nbins), np.int64)
+    
+    # Load all the populations into physical memory ahead of time.  This should
+    # be small enough to store without running into memory issues. Only read in
+    # the specified iteration range. Note that the iteration indexing of these 
+    # vectors is offset from the h5file itself!
+    pops_list = []
+    for fluxmatH5 in fluxmatH5_list:
+        pops_list.append(
+                np.array(fluxmatH5['bin_populations'][start_iter-1:stop_iter-1, :])
+                         ) 
 
+    np.seterr(divide='ignore')
+    # Iterate over each iteration of each simulation
     for iiter in xrange(start_iter, stop_iter):
-        iter_grp = h5file['iterations']['iter_{:08d}'.format(iiter)]
+        for isim, fluxmatH5 in enumerate(fluxmatH5_list):
+            iter_group = fluxmatH5['iterations/iter_{:08d}'.format(iiter)]
+            # Reset the temporary matrix to all zeros.
+            temp_array[...] = 0 
+            # Load flux matrix from the HDF5 file. The matrix is stored based
+            # on the ``coo_matrix`` format from the sparse module of the SciPy 
+            # library. The row index, column index, and associated data is 
+            # stored in vectors, for nonzero elements of the array.
+            row_idxs = iter_group['rows']
+            col_idxs = iter_group['cols']
+            flux_data = iter_group['flux']
+            # Reconstruct the (dense) matrix.
+            temp_array[row_idxs, col_idxs] = flux_data
+            # Divide each row of the matrix by the population in corresponding
+            # bin.  This gives ``NaN`` for values where the population of the 
+            # corresponding bin is zero (ie, 0/0). 
+            temp_array = np.divide(temp_array, 
+                                   pops_list[isim][iiter-start_iter][:,np.newaxis]
+                                   )
+            # Set rows corresponding to bins involved in recycling to NaN, as 
+            # well. 
+            if recycling_bin_list is not None:
+                if recycling_bin_list[isim] is not None:
+                    temp_array[recycling_bin_list[isim]] = np.nan 
+            # Make a mask that lets through the values that are not 
+            # ``Not a Number``
+            good_value_mask = np.isfinite(temp_array) 
+            # Add the good values to the running sum
+            # We could also experiment with weighting elements by the number of
+            # observations here!
+            transmat_sum = np.nansum(np.dstack((transmat_sum, temp_array)),
+                                     axis=2)
+            obsmat_sum += good_value_mask
+    return transmat_sum, obsmat_sum
 
-        rows.append(iter_grp['rows'][...])
-        cols.append(iter_grp['cols'][...])
-        obs.append(iter_grp['obs'][...])
-        flux.append(iter_grp['flux'][...])
+def get_average_transition_mat(fluxmatH5_list, start_iter, stop_iter, nbins, 
+                               recycling_bin_list=None): 
+    '''
+    Find an average transition matrix from a set of simulations, for a given 
+    set of timepoints. Return a numpy matrix representing the average 
+    transition matrix, with elements for which no observations were made set
+    to ``NaN`` (not a number). 
 
-    rows, cols, obs, flux = map(np.hstack, [rows, cols, obs, flux])
+    fluxmatH5_list: a list of flux matrix h5 files
+    start_iter: integer; first weighted ensemble iteration to include in the
+            average.
+    stop_iter: integer; iteration at which to stop averaging.  Averages will 
+            include UP TO stop_iter, BUT NOT stop_iter itself. 
+    nbins: integer; the number of bins used in building the flux matrices. This
+            should match the dimensions of the flux matrices in each HDF5 file 
+            of fluxmatH5_list
+    recycling_bin_list: A list of numpy arrays.  The order of the arrays should
+            be the same as fluxmatH5_list. Each array should specify the indices
+            of bins that were subject to recycling during the corresponding 
+            weighted ensemble simulation. If all simulations were not subject
+            to recycling (default), this option may be simply set to ``None``.
+            If only select simulations were not subject to recycling, ``None`` 
+            may be instead specified at the corresponding index of 
+            recycling_bin_list. 
+    '''
+    transmat_sum, obsmat_sum = get_transmat_and_obsmat_sum(
+                                        fluxmatH5_list, start_iter, stop_iter, 
+                                        nbins, 
+                                        recycling_bin_list=recycling_bin_list
+                                                           )
+    
+    # Finally, get the average transition matrix and return it.
+    transmat = np.divide(transmat_sum, obsmat_sum)
+    return transmat
+            
+def transmat_cumulative_mean_generator(fluxmatH5_list, start_iter, stop_iter, 
+                                       step_iter, nbins, 
+                                       recycling_bin_list=None):
+    '''
+    Generator for fast calculations of cumulatively averaged transition matrix 
+    estimates.
 
-    total_fluxes += sp.coo_matrix((flux, (rows, cols)), shape=(nbins, nbins)).todense()
-    total_obs += sp.coo_matrix((obs, (rows, cols)), shape=(nbins, nbins)).todense()
+    Find an average transition matrix from a set of simulations, for a given 
+    set of timepoints. Return a numpy matrix representing the average 
+    transition matrix, with elements for which no observations were made set
+    to ``NaN`` (not a number). 
 
-    total_pop = np.sum(h5file['bin_populations'][start_iter:stop_iter, :], axis=0)
+    fluxmatH5_list: a list of flux matrix h5 files
+    start_iter: integer; first weighted ensemble iteration to include in the
+            average.
+    stop_iter: integer; iteration at which to stop averaging.  Averages will 
+            include UP TO stop_iter, BUT NOT stop_iter itself. 
+    step_iter: for each cumulative mean, include another step_iter iterations
+    nbins: integer; the number of bins used in building the flux matrices. This
+            should match the dimensions of the flux matrices in each HDF5 file 
+            of fluxmatH5_list
+    recycling_bin_list: A list of numpy arrays.  The order of the arrays should
+            be the same as fluxmatH5_list. Each array should specify the indices
+            of bins that were subject to recycling during the corresponding 
+            weighted ensemble simulation. If all simulations were not subject
+            to recycling (default), this option may be simply set to ``None``.
+            If only select simulations were not subject to recycling, ``None`` 
+            may be instead specified at the corresponding index of 
+            recycling_bin_list. 
+    '''
+    # Build first cumulative_sum, from start_iter to start_iter + step_iter 
+    # CHANGE: raise a more descriptive/accurate error here.
+    if start_iter + step_iter >= stop_iter:
+        raise ValueError
+    transmat_sum, obsmat_sum = get_transmat_and_obsmat_sum(
+                                        fluxmatH5_list, start_iter, 
+                                        start_iter+step_iter, nbins, 
+                                        recycling_bin_list=recycling_bin_list
+                                                           )
+    transmat = np.divide(transmat_sum, obsmat_sum)
+    # Yield the mean transition matrix from the first averaging window.
+    yield transmat
+    
+    # From here on out, we can iterate.
+    for cumsum_stop_iter in xrange(start_iter+step_iter, stop_iter, step_iter):
+        # Get the sums between cumsum_stop_iter-step_iter and cumsum_stop_iter 
+        temp_transmat_sum, temp_obsmat_sum = get_transmat_and_obsmat_sum(
+                                        fluxmatH5_list, 
+                                        cumsum_stop_iter-step_iter, 
+                                        cumsum_stop_iter, nbins, 
+                                        recycling_bin_list=recycling_bin_list
+                                                                         )
+        print("Dimensions of transmat_sum:")
+        print(transmat_sum.shape)
+        print("Dimensions of temp_transmat_sum:")
+        print(temp_transmat_sum.shape)
+        transmat_sum = np.nansum(np.dstack((transmat_sum, temp_transmat_sum)),
+                                 axis=2)
+        obsmat_sum += temp_obsmat_sum
 
-    return total_fluxes, total_obs, total_pop
+        transmat = np.divide(transmat_sum, obsmat_sum)
+
+        # Yield the mean transition matrix from the  averaging window.
+        yield transmat
 
 
 def reweight(h5file, start, stop, nstates, nbins, state_labels, state_map, nfbins, obs_threshold=1, total_fluxes=None, total_obs=None):
@@ -219,13 +381,22 @@ Command-line options
         self.iter_range.add_args(parser)
 
         iogroup = parser.add_argument_group('input/output options')
-        iogroup.add_argument('-a', '--assignments', default='assign.h5',
-                            help='''Bin assignments and macrostate definitions are in ASSIGNMENTS
-                            (default: %(default)s).''')
+        iogroup.add_argument('-y', '--yaml', dest=yamlfilepath, 
+                             metavar='YAMLFILE', 
+                             default='multi_reweight.yaml',
+                             help='''Load options from YAMLFILE. For each 
+                             simulation, specify an assignments file and flux
+                             matrices file. Search for files in 
+                             ['simulations'][SIMNAME]['assignments'] and
+                             ['simulations'][SIMNAME]['kinetics']
+                             '''
+        #iogroup.add_argument('-a', '--assignments', default='assign.h5',
+        #                    help='''Bin assignments and macrostate definitions are in ASSIGNMENTS
+        #                    (default: %(default)s).''')
 
-        iogroup.add_argument('-k', '--kinetics', default='flux_matrices.h5',
-                            help='''Per-iteration flux matrices calculated by w_postanalysis_matrix 
-                            (default: %(default)s).''')
+        #iogroup.add_argument('-k', '--kinetics', default='flux_matrices.h5',
+        #                    help='''Per-iteration flux matrices calculated by w_postanalysis_matrix 
+        #                    (default: %(default)s).''')
         iogroup.add_argument('-o', '--output', dest='output', default='kinrw.h5',
                             help='''Store results in OUTPUT (default: %(default)s).''')
 
@@ -243,18 +414,7 @@ Command-line options
         cogroup.add_argument('--obs-threshold', type=int, default=1,
                              help='''The minimum number of observed transitions between two states i and j necessary to include
                              fluxes in the reweighting estimate''')
-        
-    def open_files(self):
-        self.output_file = h5io.WESTPAH5File(self.output_filename, 'w', creating_program=True)
-        h5io.stamp_creator_data(self.output_file)
-        self.assignments_file = h5io.WESTPAH5File(self.assignments_filename, 'r')#, driver='core', backing_store=False)
-        self.kinetics_file = h5io.WESTPAH5File(self.kinetics_filename, 'r')#, driver='core', backing_store=False)
-        if not self.iter_range.check_data_iter_range_least(self.assignments_file):
-            raise ValueError('assignments data do not span the requested iterations')
-
-        if not self.iter_range.check_data_iter_range_least(self.kinetics_file):
-            raise ValueError('kinetics data do not span the requested iterations')
-
+                                                         
     def process_args(self, args):
         self.progress.process_args(args)
         self.data_reader.process_args(args)
@@ -265,8 +425,8 @@ Command-line options
             self.iter_range.iter_step = max(1, (self.iter_range.iter_stop - self.iter_range.iter_start) // 10)
         
         self.output_filename = args.output
-        self.assignments_filename = args.assignments
-        self.kinetics_filename = args.kinetics
+        #self.assignments_filename = args.assignments
+        #self.kinetics_filename = args.kinetics
                 
         self.evolution_mode = args.evolution_mode
         self.evol_window_frac = args.window_frac
@@ -274,15 +434,95 @@ Command-line options
             raise ValueError('Parameter error -- fractional window defined by --window-frac must be in (0,1]')
         self.obs_threshold = args.obs_threshold
 
+    def open_files(self):
+        '''
+        Create the output file.  Open input files, including assignments and 
+        kinetics files for each simulation specified.  Make the output file 
+        available as an attributue of ``self``, ``output_file``.  Similarly,
+        make lists of the input files available as attributes, 
+        ``assignments_file_list`` and ``kinetics_files_list``.
+        '''
+        self.output_file = h5io.WESTPAH5File(self.output_filename, 'w', creating_program=True)
+        h5io.stamp_creator_data(self.output_file)
+        self.assignments_file_list = []
+        self.kinetics_file_list = []
+        self.simname_list = []
+        # Open the assignments and kinetics (flux matrices) files for each
+        # simulation.  assignments_file_list[i] and kinetcs_file_list[i] 
+        # correspond to the same simulation.
+        for simname in self.yamldict['simulations'].keys():
+            assignments_filename = self.yamldict['simulations'][simname]\
+                                                ['assignments']
+            assignH5 = h5io.WESTPAH5File(assignments_filename, 'r')
+            # Double check that adding this file to the list adds the file
+            # itself, and not a pointer to the assignH5 variable.
+            self.assignments_file_list.append(assignH5)  
+            kinetics_filename = self.yamldict['simulations'][simname]\
+                                             ['kinetics']
+            kinetH5 = h5io.WESTPAH5File(kinetics_filename, 'r')
+            self.kinetics_file_list.append(kinetH5)
 
+            # Keep track of the name associated with each simulation. This tool
+            # uses these names later to help give descriptive errors!
+            self.simname_list.append(simname)
+            # Check that the specified assignment and kinetics (flux matrices)
+            # files span the requested iterations.
+            if not self.iter_range.check_data_iter_range_least(assignH5):
+                raise ValueError('Assignments data {:s} do not span the '
+                                 'requested iterations for simulation '
+                                 '{:s}'.format(assignments_filename, simname))
+
+            if not self.iter_range.check_data_iter_range_least(kinetH5):
+                raise ValueError('Kinetics data {:s} do not span the '
+                                 'requested iterations for simulation '
+                                 '{:s}'.format(kinetics_filename, simname))
+
+    def check_consistency_of_input_files(self):
+        '''
+        Check the input files for consistency.  This requires that the number of
+        bins used to create all the assignment files and all the kinetics (flux
+        matrices) files is the same. 
+        '''
+        old_nrows = None
+        for i, fmH5 in enumerate(self.kinetics_file_list):
+            nrows = fmH5.attrs['nrows'] 
+            if old_nrows is not None:
+                if nrows != old_nrows:
+                    # Could make this error more descriptive.
+                    prev_simname = self.simname_list[i-1]
+                    curr_simname = self.simname_list[i]
+                    raise ValueError("Number of bins specified in simulation "
+                                     "{:s} ({:d}) is not the same as simulation"
+                                     " {:s} ({:d}).".format(prev_simname, 
+                                                            old_nrows,
+                                                            curr_simname,
+                                                            nrows))
+            old_nrows = nrows
+        # Check that the number of bins used in making the assignments files
+        # does not exceed the number of rows in the transition matrix; this 
+        # could happen if the user specifies a kinetics file that was not 
+        # created from the given assignments file.
+        for i, assignH5 in enumerate(self.assignments_file_list):
+            # Use 'bin_labels' as a reference.  Check This!
+            bincount = len(assignH5['bin_labels'])
+            if bincount != maxrows:
+                curr_simname = self.simname_list[i]
+                raise ValueError("Number of bins ({:d}) used in assignments "
+                                 "file for simulation {:s} does not match "
+                                 "the number of rows used in kinetics "
+                                 "files! ({:d})".format(bincount,
+                                                        curr_simname,
+                                                        nrows))
 
     def go(self):
+        '''Run the main analysis.'''
         pi = self.progress.indicator
         with pi:
             pi.new_operation('Initializing')
             self.open_files()
-            nstates = self.assignments_file.attrs['nstates']
-            nbins = self.assignments_file.attrs['nbins']
+            nstates = self.assignment_file_list[0].attrs['nstates']
+            nbins = self.assignment_file_list[0].attrs['nbins']
+            # Last edit here.
             state_labels = self.assignments_file['state_labels'][...]
             state_map = self.assignments_file['state_map'][...]
             nfbins = self.kinetics_file.attrs['nrows']
