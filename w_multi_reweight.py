@@ -34,6 +34,9 @@ from westtools.dtypes import iter_block_ci_dtype as ci_dtype
 
 log = logging.getLogger('westtools.w_postanalysis_reweight')
 
+# TODO: add ability to read YAML files (part of westtools core)
+# TODO: add in option to actually use the cumulative mean generator
+
 
 def normalize(m):
     nm = m.copy()
@@ -209,7 +212,7 @@ def transmat_cumulative_mean_generator(fluxmatH5_list, start_iter, stop_iter,
     Find an average transition matrix from a set of simulations, for a given 
     set of timepoints. Return a numpy matrix representing the average 
     transition matrix, with elements for which no observations were made set
-    to ``NaN`` (not a number). 
+    to ``NaN`` (Not a Number). 
 
     fluxmatH5_list: a list of flux matrix h5 files
     start_iter: integer; first weighted ensemble iteration to include in the
@@ -251,10 +254,6 @@ def transmat_cumulative_mean_generator(fluxmatH5_list, start_iter, stop_iter,
                                         cumsum_stop_iter, nbins, 
                                         recycling_bin_list=recycling_bin_list
                                                                          )
-        print("Dimensions of transmat_sum:")
-        print(transmat_sum.shape)
-        print("Dimensions of temp_transmat_sum:")
-        print(temp_transmat_sum.shape)
         transmat_sum = np.nansum(np.dstack((transmat_sum, temp_transmat_sum)),
                                  axis=2)
         obsmat_sum += temp_obsmat_sum
@@ -265,14 +264,15 @@ def transmat_cumulative_mean_generator(fluxmatH5_list, start_iter, stop_iter,
         yield transmat
 
 
-def reweight(h5file, start, stop, nstates, nbins, state_labels, state_map, nfbins, obs_threshold=1, total_fluxes=None, total_obs=None):
+def reweight(transition_matrix, nstates, nbins, state_map): 
+    ''' Apply the non-Markovian reweighting procedure to the given transition 
+    matrix.'''
+    # TODO: add in observation threshold?
+    # TODO: remove unnecessary arguments.
 
-    total_fluxes, total_obs, total_pop = accumulate_statistics(h5file, start, stop, nfbins, total_fluxes, total_obs)
-
-    flux_matrix = total_fluxes.copy()
-    flux_matrix[total_obs < obs_threshold] = 0.0
-    transition_matrix = normalize(flux_matrix)
-
+    # Need to get rid of "NaN" values in the trans_mat.  Set these to zero.
+    transition_matrix[np.isnan(transition_matrix)] = 0.0
+    # Solve for the steady-state (stationary) distribution.
     rw_bin_probs = steadystate_solve(transition_matrix)
 
     bin_last_state_map = np.tile(np.arange(nstates, dtype=np.int), nbins)
@@ -390,13 +390,6 @@ Command-line options
                              ['simulations'][SIMNAME]['assignments'] and
                              ['simulations'][SIMNAME]['kinetics']
                              '''
-        #iogroup.add_argument('-a', '--assignments', default='assign.h5',
-        #                    help='''Bin assignments and macrostate definitions are in ASSIGNMENTS
-        #                    (default: %(default)s).''')
-
-        #iogroup.add_argument('-k', '--kinetics', default='flux_matrices.h5',
-        #                    help='''Per-iteration flux matrices calculated by w_postanalysis_matrix 
-        #                    (default: %(default)s).''')
         iogroup.add_argument('-o', '--output', dest='output', default='kinrw.h5',
                             help='''Store results in OUTPUT (default: %(default)s).''')
 
@@ -410,7 +403,7 @@ Command-line options
         cogroup.add_argument('--window-frac', type=float, default=1.0,
                              help='''Fraction of iterations to use in each window when running in ``cumulative`` mode.
                              The (1 - frac) fraction of iterations will be discarded from the start of each window.''')
-
+        # Currently not implemented! (TODO) 
         cogroup.add_argument('--obs-threshold', type=int, default=1,
                              help='''The minimum number of observed transitions between two states i and j necessary to include
                              fluxes in the reweighting estimate''')
@@ -433,6 +426,17 @@ Command-line options
         if self.evol_window_frac <= 0 or self.evol_window_frac > 1:
             raise ValueError('Parameter error -- fractional window defined by --window-frac must be in (0,1]')
         self.obs_threshold = args.obs_threshold
+
+        # Get the list of recycling bins from the YAML file, setting to None
+        # if not specified.
+        self.recycling_bin_list = [] 
+        for simname in self.yamlargdict['simulations'].keys():
+            simdict = self.yamlargdict['simulations'][simname]
+            if 'recycling_bin_list' in simdict.keys(): 
+                self.recycling_bin_list.append(simdict['recycling_bin_list'])
+            else:
+                self.recycling_bin_list.append(None)
+                        
 
     def open_files(self):
         '''
@@ -481,38 +485,61 @@ Command-line options
         '''
         Check the input files for consistency.  This requires that the number of
         bins used to create all the assignment files and all the kinetics (flux
-        matrices) files is the same. 
+        matrices) files is the same. Additionally, "npts" (timepoints per
+        iteration) must be consistent between flux matrix files.
         '''
         old_nrows = None
         for i, fmH5 in enumerate(self.kinetics_file_list):
             nrows = fmH5.attrs['nrows'] 
             if old_nrows is not None:
                 if nrows != old_nrows:
-                    # Could make this error more descriptive.
                     prev_simname = self.simname_list[i-1]
                     curr_simname = self.simname_list[i]
+                    # Could make this error more descriptive than ValueError
                     raise ValueError("Number of bins specified in simulation "
                                      "{:s} ({:d}) is not the same as simulation"
                                      " {:s} ({:d}).".format(prev_simname, 
                                                             old_nrows,
                                                             curr_simname,
-                                                            nrows))
+                                                            nrows)
+                                     )
             old_nrows = nrows
         # Check that the number of bins used in making the assignments files
         # does not exceed the number of rows in the transition matrix; this 
         # could happen if the user specifies a kinetics file that was not 
         # created from the given assignments file.
         for i, assignH5 in enumerate(self.assignments_file_list):
-            # Use 'bin_labels' as a reference.  Check This!
-            bincount = len(assignH5['bin_labels'])
-            if bincount != maxrows:
+            statecount = assignH5.attrs['nstates']
+            bincount = assignH5.attrs['nbins']
+            # Check that the number of bins used in the kinetics and assignment
+            # files are consistent; valid only for non-markovian (colored) matrix
+            if bincount*statecount != maxrows:
                 curr_simname = self.simname_list[i]
                 raise ValueError("Number of bins ({:d}) used in assignments "
                                  "file for simulation {:s} does not match "
                                  "the number of rows used in kinetics "
                                  "files! ({:d})".format(bincount,
                                                         curr_simname,
-                                                        nrows))
+                                                        nrows)
+                                 )
+
+        # Check that npts (timepoints per iteration) is consistent.
+        prev_npts = None
+        for i, fmH5 in enumerate(self.kinetics_file_list):
+            npts = fmH5.attrs['npts']
+            if prev_npts is not None:
+                if npts != prev_npts:
+                    curr_simname = self.simname_list[i]
+                    prev_simname = self.simname_list[i-1]
+                    raise ValueError("Number of timepoints ({:d}) used in "
+                                     "kinetics (flux matrices) file for "
+                                     "simulation {:s} does not match the number"
+                                     " of timepoints used in simulation {:s} "
+                                     "({:d})".format(npts, curr_simname,
+                                                     prev_npts, prev_simname)
+                                     ) 
+            prev_npts = npts
+             
 
     def go(self):
         '''Run the main analysis.'''
@@ -520,11 +547,22 @@ Command-line options
         with pi:
             pi.new_operation('Initializing')
             self.open_files()
+            # Get the number of states and the number of bins for the
+            # simulations (this should be the same across all the simulations,
+            # since this was already checked with 
+            # ``check_consistency_of_input_files``).
             nstates = self.assignment_file_list[0].attrs['nstates']
             nbins = self.assignment_file_list[0].attrs['nbins']
-            # Last edit here.
-            state_labels = self.assignments_file['state_labels'][...]
+            # Get the state labels for each simulation.  These should also be
+            # consistent across simulations, but this is up to the user to make
+            # sure of.  We could add in a check here later if we decide it
+            # makes more sense.
+            state_labels = self.assignment_file_list[0].['state_labels'][...]
+            # State map *should* also be consistent, but we do not explicitly 
+            # enforce that it is.
             state_map = self.assignments_file['state_map'][...]
+            # Get nfbins and npts (forced to be consistent by
+            # ``check_consistency_of_input_files``).
             nfbins = self.kinetics_file.attrs['nrows']
             npts = self.kinetics_file.attrs['npts']
 
@@ -540,65 +578,52 @@ Command-line options
             bin_prob_evol = np.zeros((len(start_pts), nfbins))
             pi.new_operation('Calculating flux evolution', len(start_pts))
 
-            if self.evolution_mode == 'cumulative' and self.evol_window_frac == 1.0:
-                print('Using fast streaming accumulation')
+            # Set up the generator, if needed; The generator reduces repetitive
+            # calculations 
+            if self.evolution_mode == 'cumulative' \
+                    and self.evol_window_frac == 1.0:
+                gen = transmat_cumulative_mean_generator(fluxmatH5_list,
+                                                         start_iter, stop_iter,
+                                                         step_iter, nbins,
+                                                         recycling_bin_list
+                                                         ) 
+            for iblock, start in enumerate(start_pts):
+                pi.progress += 1
 
-                total_fluxes = np.zeros((nfbins, nfbins), weight_dtype)
-                total_obs = np.zeros((nfbins, nfbins), np.int64)
-
-                for iblock, start in enumerate(start_pts):
-                    pi.progress += 1
-                    stop = min(start + step_iter, stop_iter)
-
-                    params = dict(start=start, stop=stop, nstates=nstates, nbins=nbins,
-                                  state_labels=state_labels, state_map=state_map, nfbins=nfbins,
-                                  total_fluxes=total_fluxes, total_obs=total_obs,
-                                  h5file=self.kinetics_file, obs_threshold=self.obs_threshold)
-
-                    rw_state_flux, rw_color_probs, rw_state_probs, rw_bin_probs, rw_bin_flux = reweight(**params)
-                    for k in xrange(nstates):
-                        for j in xrange(nstates):
-                            # Normalize such that we report the flux per tau (tau being the weighted ensemble iteration)
-                            # npts always includes a 0th time point
-                            flux_evol[iblock]['expected'][k,j] = rw_state_flux[k,j] * (npts - 1)
-                            flux_evol[iblock]['iter_start'][k,j] = start
-                            flux_evol[iblock]['iter_stop'][k,j] = stop
-
-                    color_prob_evol[iblock] = rw_color_probs
-                    state_prob_evol[iblock] = rw_state_probs[:-1]
-                    bin_prob_evol[iblock] = rw_bin_probs
-
-
-            else:
-                for iblock, start in enumerate(start_pts):
-                    pi.progress += 1
-                    
-                    stop = min(start + step_iter, stop_iter)
+                stop = min(start + step_iter, stop_iter)
+                # Get the transition matrix; depends on the averaging scheme 
+                if self.evolution_mode == 'cumulative' \
+                        and self.evol_window_frac == 1.0:
+                    transition_matrix = gen.next() 
+                else: 
                     if self.evolution_mode == 'cumulative':
                         windowsize = max(1, int(self.evol_window_frac * (stop - start_iter)))
                         block_start = max(start_iter, stop - windowsize)
                     else:   # self.evolution_mode == 'blocked'
                         block_start = start
+                    transition_matrix = get_average_transition_mat(
+                                                         fluxmatH5_list
+                                                         start_iter, stop_iter,
+                                                         nbins,
+                                                         recycling_bin_list
+                                                                   ) 
+                # Apply reweighting procedure 
+                rw_state_flux, rw_color_probs, rw_state_probs, \
+                        rw_bin_probs, rw_bin_flux = reweight(transition_matrix
+                                                             nstates, nbins,
+                                                             state_map)
+                for k in xrange(nstates):
+                    for j in xrange(nstates):
+                        # Normalize such that we report the flux per tau (tau being the weighted ensemble iteration)
+                        # npts always includes a 0th time point
+                        flux_evol[iblock]['expected'][k,j] = rw_state_flux[k,j] * (npts - 1)
+                        flux_evol[iblock]['iter_start'][k,j] = start
+                        flux_evol[iblock]['iter_stop'][k,j] = stop
 
-                    params = dict(start=block_start, stop=stop, nstates=nstates, nbins=nbins,
-                                  state_labels=state_labels, state_map=state_map, nfbins=nfbins,
-                                  total_fluxes=None, total_obs=None,
-                                  h5file=self.kinetics_file)
-
-                    rw_state_flux, rw_color_probs, rw_state_probs, rw_bin_probs, rw_bin_flux = reweight(**params)
-                    for k in xrange(nstates):
-                        for j in xrange(nstates):
-                            # Normalize such that we report the flux per tau (tau being the weighted ensemble iteration)
-                            # npts always includes a 0th time point
-                            flux_evol[iblock]['expected'][k,j] = rw_state_flux[k,j] * (npts - 1)
-                            flux_evol[iblock]['iter_start'][k,j] = start
-                            flux_evol[iblock]['iter_stop'][k,j] = stop
-
-                    color_prob_evol[iblock] = rw_color_probs
-                    state_prob_evol[iblock] = rw_state_probs[:-1]
-                    bin_prob_evol[iblock] = rw_bin_probs
-
-
+                color_prob_evol[iblock] = rw_color_probs
+                state_prob_evol[iblock] = rw_state_probs[:-1]
+                bin_prob_evol[iblock] = rw_bin_probs
+            # Save the data sets
             ds_flux_evol = self.output_file.create_dataset('conditional_flux_evolution', data=flux_evol, shuffle=True, compression=9)
             ds_state_prob_evol = self.output_file.create_dataset('state_prob_evolution', data=state_prob_evol, compression=9)
             ds_color_prob_evol = self.output_file.create_dataset('color_prob_evolution', data=color_prob_evol, compression=9)
