@@ -197,6 +197,17 @@ class WESTMultiTool(WESTTool):
         self.process_all_args(args)
         return args
 
+    def parse_from_yaml(self, yamlfilepath):
+        '''Parse options from YAML input file. Command line arguments take 
+        precedence over options specified in the YAML hierarchy.
+        TODO: add description on how YAML files should be constructed.
+        '''
+        import yaml
+        with open(yamlfilepath, 'r') as yamlfile:
+            self.yamlargdict = yaml.load(yamlfile) 
+        # add in options here for intelligent processing of files
+
+
     def add_args(self, parser):
         mgroup = parser.add_argument_group('multiple simulation options')
         mgroup.add_argument('-m','--master', default=os.getcwd(), 
