@@ -27,18 +27,21 @@ from collections import Counter
 
 import westpa
 from west.data_manager import weight_dtype, n_iter_dtype
-from westtools import (WESTTool, WESTDataReader, IterRangeSelection,
+from westtools import (WESTMultiTool, WESTDataReader, IterRangeSelection,
                        ProgressIndicatorComponent)
 from westpa import h5io
 from westtools.dtypes import iter_block_ci_dtype as ci_dtype
 
-log = logging.getLogger('westtools.w_postanalysis_reweight')
+log = logging.getLogger('westtools.w_multi_reweight')
 
 # TODO: add ability to read YAML files (part of westtools core)
 # TODO: add in option to actually use the cumulative mean generator
-
+# TODO: add in automatic conversion from states indices to bins
+# TODO: add in ability to save transition matrices
 
 def normalize(m):
+    '''Row normalize the numpy array m, such that each row sums to one.  Return
+    a new matrix.'''
     nm = m.copy()
 
     row_sum = m.sum(1)
@@ -47,8 +50,12 @@ def normalize(m):
 
     return nm
 
-
 def steadystate_solve(K):
+    '''Given a numpy array K representing a right stochastic matrix, use
+    eigenvector/eigenvalue calculations to find the stationary distribution
+    of the associated Markov chain in which probability is restricted to the
+    largest, strongly-connected sub-graph. Return an array representing this
+    probability vector.'''
     # Reformulate K to remove sink/source states
     n_components, component_assignments = csgraph.connected_components(K, connection="strong")
     largest_component = Counter(component_assignments).most_common(1)[0][0]
@@ -307,8 +314,8 @@ def calc_state_flux(trans_matrix, index1, index2, bin_probs, bin_last_state_map,
 
 
 
-class WPostAnalysisReweightTool(WESTTool):
-    prog ='w_postanalysis_reweight'
+class WMultiReweightTool(WESTMultiTool):
+    prog ='w_multi_reweight'
     description = '''\
 Calculate average rates from weighted ensemble data using the postanalysis
 reweighting scheme. Bin assignments (usually "assignments.h5") and pre-calculated 
@@ -358,10 +365,9 @@ Command-line options
 '''
 
     def __init__(self):
-        super(WPostAnalysisReweightTool, self).__init__()
+        super(WMultiReweightTool, self).__init__()
         
         self.data_reader = WESTDataReader()
-        self.iter_range = IterRangeSelection()
         self.progress = ProgressIndicatorComponent()
         
         self.output_filename = None
@@ -377,11 +383,11 @@ Command-line options
     def add_args(self, parser):
         self.progress.add_args(parser)
         self.data_reader.add_args(parser)
-        self.iter_range.include_args['iter_step'] = True
-        self.iter_range.add_args(parser)
+        ##self.iter_range.include_args['iter_step'] = True
+        ##self.iter_range.add_args(parser)
 
         iogroup = parser.add_argument_group('input/output options')
-        iogroup.add_argument('-y', '--yaml', dest=yamlfilepath, 
+        iogroup.add_argument('-y', '--yaml', dest='yamlpath', 
                              metavar='YAMLFILE', 
                              default='multi_reweight.yaml',
                              help='''Load options from YAMLFILE. For each 
@@ -389,7 +395,7 @@ Command-line options
                              matrices file. Search for files in 
                              ['simulations'][SIMNAME]['assignments'] and
                              ['simulations'][SIMNAME]['kinetics']
-                             '''
+                             ''')
         iogroup.add_argument('-o', '--output', dest='output', default='kinrw.h5',
                             help='''Store results in OUTPUT (default: %(default)s).''')
 
@@ -404,29 +410,52 @@ Command-line options
                              help='''Fraction of iterations to use in each window when running in ``cumulative`` mode.
                              The (1 - frac) fraction of iterations will be discarded from the start of each window.''')
         # Currently not implemented! (TODO) 
-        cogroup.add_argument('--obs-threshold', type=int, default=1,
-                             help='''The minimum number of observed transitions between two states i and j necessary to include
-                             fluxes in the reweighting estimate''')
+        #cogroup.add_argument('--obs-threshold', type=int, default=1,
+        #                     help='''The minimum number of observed transitions between two states i and j necessary to include
+        #                     fluxes in the reweighting estimate''')
+        cogroup.add_argument('--first-iter', default='1', dest='first_iter',
+                             type=int,
+                             help='''Begin calculations starting at iteration 
+                             FIRST_ITER''')
+        cogroup.add_argument('--last-iter', default=None, dest='last_iter',
+                             type=int,
+                             help='''Include iterations up to and including 
+                             LAST_ITER in calculations.''')
+        cogroup.add_argument('--step-iter', default=None, dest='step_iter',
+                             type=int,
+                             help='''Move averaging windows forward in widths
+                             of STEP_ITER.  For cumulative average, begin
+                             averaging with the first window including
+                             iterations from FIRST_ITER to FIRST_ITER + 
+                             STEP_ITER, and then expand with window forward in 
+                             widths of STEP_ITER.  For blocked averaging, use 
+                             blocks of size STEP_ITER; the first window will 
+                             include data from iteration FIRST_ITER to 
+                             FIRST_ITER + STEP_ITER, while the second iteration 
+                             will include data from iteration FIRST_ITER + 
+                             STEP_ITER to FIRST_ITER + 2*STEP_ITER, etc.''')
                                                          
     def process_args(self, args):
         self.progress.process_args(args)
         self.data_reader.process_args(args)
-        with self.data_reader:
-            self.iter_range.process_args(args, default_iter_step=None)
-        if self.iter_range.iter_step is None:
-            #use about 10 blocks by default
-            self.iter_range.iter_step = max(1, (self.iter_range.iter_stop - self.iter_range.iter_start) // 10)
+        #with self.data_reader:
+        ##self.iter_range.process_args(args, default_iter_step=None)
+        #if self.iter_range.iter_step is None:
+        self.iter_range = {'first_iter': args.first_iter,
+                           'last_iter':  args.last_iter,
+                           'step_iter':  args.step_iter  
+                           }
+    
         
         self.output_filename = args.output
-        #self.assignments_filename = args.assignments
-        #self.kinetics_filename = args.kinetics
-                
         self.evolution_mode = args.evolution_mode
         self.evol_window_frac = args.window_frac
         if self.evol_window_frac <= 0 or self.evol_window_frac > 1:
-            raise ValueError('Parameter error -- fractional window defined by --window-frac must be in (0,1]')
-        self.obs_threshold = args.obs_threshold
+            raise ValueError('Parameter error -- fractional window defined by '
+                             '--window-frac must be in (0,1]')
+        #self.obs_threshold = args.obs_threshold
 
+        self.parse_from_yaml(args.yamlpath)
         # Get the list of recycling bins from the YAML file, setting to None
         # if not specified.
         self.recycling_bin_list = [] 
@@ -446,7 +475,10 @@ Command-line options
         make lists of the input files available as attributes, 
         ``assignments_file_list`` and ``kinetics_files_list``.
         '''
-        self.output_file = h5io.WESTPAH5File(self.output_filename, 'w', creating_program=True)
+        # What is opening this file before I do?
+        # Need to figure out what's going on here...
+        self.output_file = h5io.WESTPAH5File(self.output_filename, 'a', 
+                                             creating_program=True)
         h5io.stamp_creator_data(self.output_file)
         self.assignments_file_list = []
         self.kinetics_file_list = []
@@ -454,15 +486,15 @@ Command-line options
         # Open the assignments and kinetics (flux matrices) files for each
         # simulation.  assignments_file_list[i] and kinetcs_file_list[i] 
         # correspond to the same simulation.
-        for simname in self.yamldict['simulations'].keys():
-            assignments_filename = self.yamldict['simulations'][simname]\
-                                                ['assignments']
+        for simname in self.yamlargdict['simulations'].keys():
+            assignments_filename = self.yamlargdict['simulations'][simname]\
+                                                   ['assignments']
             assignH5 = h5io.WESTPAH5File(assignments_filename, 'r')
             # Double check that adding this file to the list adds the file
             # itself, and not a pointer to the assignH5 variable.
             self.assignments_file_list.append(assignH5)  
-            kinetics_filename = self.yamldict['simulations'][simname]\
-                                             ['kinetics']
+            kinetics_filename = self.yamlargdict['simulations'][simname]\
+                                                ['kinetics']
             kinetH5 = h5io.WESTPAH5File(kinetics_filename, 'r')
             self.kinetics_file_list.append(kinetH5)
 
@@ -471,15 +503,6 @@ Command-line options
             self.simname_list.append(simname)
             # Check that the specified assignment and kinetics (flux matrices)
             # files span the requested iterations.
-            if not self.iter_range.check_data_iter_range_least(assignH5):
-                raise ValueError('Assignments data {:s} do not span the '
-                                 'requested iterations for simulation '
-                                 '{:s}'.format(assignments_filename, simname))
-
-            if not self.iter_range.check_data_iter_range_least(kinetH5):
-                raise ValueError('Kinetics data {:s} do not span the '
-                                 'requested iterations for simulation '
-                                 '{:s}'.format(kinetics_filename, simname))
 
     def check_consistency_of_input_files(self):
         '''
@@ -513,7 +536,7 @@ Command-line options
             bincount = assignH5.attrs['nbins']
             # Check that the number of bins used in the kinetics and assignment
             # files are consistent; valid only for non-markovian (colored) matrix
-            if bincount*statecount != maxrows:
+            if bincount*statecount != nrows:
                 curr_simname = self.simname_list[i]
                 raise ValueError("Number of bins ({:d}) used in assignments "
                                  "file for simulation {:s} does not match "
@@ -539,10 +562,81 @@ Command-line options
                                                      prev_npts, prev_simname)
                                      ) 
             prev_npts = npts
-             
 
+
+    def get_iteration_ranges(self):
+        '''Set default iteration ranges for those that were not specified.'''
+        # Set the last iteration to be used in analysis to the least of the 
+        # last iterations specified in any of the assignments or flux matrix 
+        # files
+        if self.iter_range['last_iter'] is None:
+            least_last_iter = self.assignments_file_list[0]\
+                    ['assignments'].attrs['iter_stop']-1 
+            for isim, simname in enumerate(self.simname_list):
+                # Check the "-1" term!
+                curr_last_iter = self.assignments_file_list[0]\
+                        ['assignments'].attrs['iter_stop']-1
+                if least_last_iter > curr_last_iter:
+                    least_last_iter = curr_last_iter 
+                curr_last_iter = self.kinetics_file_list[0]\
+                        ['bin_populations'].attrs['iter_stop']-1
+                if least_last_iter > curr_last_iter:
+                    least_last_iter = curr_last_iter 
+            self.iter_range['last_iter'] = least_last_iter 
+        # Use about 10 blocks by default, if iter_step is not specified.
+        if self.iter_range['step_iter'] is None:
+            self.iter_range['step_iter'] = max(1, 
+              (self.iter_range['last_iter']-self.iter_range['first_iter']) // 10
+                                               )
+
+    def check_iteration_ranges(self):
+        '''Check that the iteration ranges specified or calculated from the
+        input files are actually available from the input files, and make 
+        sense.'''
+        if self.iter_range['last_iter'] <= self.iter_range['first_iter']:
+            raise ValueError('Error. The specified or calculated iteration does'
+                             ' not make sense (start_iter: {:d} >= '
+                             'last_iter: {:d}). Check the iteration range you ' 
+                             'specified (if applicable), or otherwise check the'
+                             ' supplied input files to make sure they have '
+                             'overlapping iteration ranges.')
+        # Check that all the supplied files contain the needed iteration ranges
+        for isim in xrange(len(self.simname_list)):
+            assignH5 = self.assignments_file_list[isim]
+            kinetH5 = self.kinetics_file_list[isim]
+            if not (assignH5['assignments'].attrs['iter_stop'] >= \
+                    self.iter_range['last_iter'] and \
+                    assignH5['assignments'].attrs['iter_start'] <= \
+                    self.iter_range['first_iter']):
+                raise ValueError('Assignments data {:s} do not span the '
+                                 'requested iterations ({:d} to {:d} for '
+                                 'simulation {:s}'.format(
+                                 assignments_filename, 
+                                 self.iter_range['first_iter'],
+                                 self.iter_range['last_iter'], simname
+                                                          )
+                                 )
+
+            if not (kinetH5['bin_populations'].attrs['iter_stop'] >= \
+                    self.iter_range['last_iter'] and \
+                    kinetH5['bin_populations'].attrs['iter_start'] <= \
+                    self.iter_range['first_iter']):
+                raise ValueError('Kinetics data {:s} do not span the '
+                                 'requested iterations ({:d} to {:d} for '
+                                 'simulation {:s}'.format(
+                                 assignments_filename, 
+                                 self.iter_range['first_iter'],
+                                 self.iter_range['last_iter'], simname
+                                                          )
+                                 )
+             
     def go(self):
         '''Run the main analysis.'''
+        # First, check over the input files and set up the iteration ranges. 
+        self.open_files()
+        self.check_consistency_of_input_files()
+        self.get_iteration_ranges()
+        self.check_iteration_ranges()
         pi = self.progress.indicator
         with pi:
             pi.new_operation('Initializing')
@@ -551,25 +645,26 @@ Command-line options
             # simulations (this should be the same across all the simulations,
             # since this was already checked with 
             # ``check_consistency_of_input_files``).
-            nstates = self.assignment_file_list[0].attrs['nstates']
-            nbins = self.assignment_file_list[0].attrs['nbins']
+            nstates = self.assignments_file_list[0].attrs['nstates']
+            nbins = self.assignments_file_list[0].attrs['nbins']
             # Get the state labels for each simulation.  These should also be
             # consistent across simulations, but this is up to the user to make
             # sure of.  We could add in a check here later if we decide it
             # makes more sense.
-            state_labels = self.assignment_file_list[0].['state_labels'][...]
+            state_labels = self.assignments_file_list[0]['state_labels'][...]
             # State map *should* also be consistent, but we do not explicitly 
             # enforce that it is.
-            state_map = self.assignments_file['state_map'][...]
+            state_map = self.assignments_file_list[0]['state_map'][...]
             # Get nfbins and npts (forced to be consistent by
             # ``check_consistency_of_input_files``).
-            nfbins = self.kinetics_file.attrs['nrows']
-            npts = self.kinetics_file.attrs['npts']
+            nfbins = self.kinetics_file_list[0].attrs['nrows']
+            npts = self.kinetics_file_list[0].attrs['npts']
 
             assert nstates == len(state_labels)
             assert nfbins == nbins * nstates
 
-            start_iter, stop_iter, step_iter = self.iter_range.iter_start, self.iter_range.iter_stop, self.iter_range.iter_step
+            start_iter, stop_iter, step_iter = self.iter_range['first_iter'], \
+                    self.iter_range['last_iter'], self.iter_range['step_iter']
 
             start_pts = range(start_iter, stop_iter, step_iter)
             flux_evol = np.zeros((len(start_pts), nstates, nstates), dtype=ci_dtype)
@@ -582,10 +677,10 @@ Command-line options
             # calculations 
             if self.evolution_mode == 'cumulative' \
                     and self.evol_window_frac == 1.0:
-                gen = transmat_cumulative_mean_generator(fluxmatH5_list,
+                gen = transmat_cumulative_mean_generator(self.kinetics_file_list,
                                                          start_iter, stop_iter,
-                                                         step_iter, nbins,
-                                                         recycling_bin_list
+                                                         step_iter, nfbins,
+                                                         self.recycling_bin_list
                                                          ) 
             for iblock, start in enumerate(start_pts):
                 pi.progress += 1
@@ -602,14 +697,14 @@ Command-line options
                     else:   # self.evolution_mode == 'blocked'
                         block_start = start
                     transition_matrix = get_average_transition_mat(
-                                                         fluxmatH5_list
+                                                         self.kinetics_file_list,
                                                          start_iter, stop_iter,
-                                                         nbins,
-                                                         recycling_bin_list
+                                                         nfbins,
+                                                         self.recycling_bin_list
                                                                    ) 
                 # Apply reweighting procedure 
                 rw_state_flux, rw_color_probs, rw_state_probs, \
-                        rw_bin_probs, rw_bin_flux = reweight(transition_matrix
+                        rw_bin_probs, rw_bin_flux = reweight(transition_matrix,
                                                              nstates, nbins,
                                                              state_map)
                 for k in xrange(nstates):
@@ -632,4 +727,4 @@ Command-line options
 
 
 if __name__ == '__main__':
-    WPostAnalysisReweightTool().main()
+    WMultiReweightTool().main()
