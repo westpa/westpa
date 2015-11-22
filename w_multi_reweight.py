@@ -34,10 +34,9 @@ from westtools.dtypes import iter_block_ci_dtype as ci_dtype
 
 log = logging.getLogger('westtools.w_multi_reweight')
 
-# TODO: add ability to read YAML files (part of westtools core)
-# TODO: add in option to actually use the cumulative mean generator
 # TODO: add in automatic conversion from states indices to bins
 # TODO: add in ability to save transition matrices
+# TODO: remove unnecessary imports
 
 def normalize(m):
     '''Row normalize the numpy array m, such that each row sums to one.  Return
@@ -275,7 +274,6 @@ def reweight(transition_matrix, nstates, nbins, state_map):
     ''' Apply the non-Markovian reweighting procedure to the given transition 
     matrix.'''
     # TODO: add in observation threshold?
-    # TODO: remove unnecessary arguments.
 
     # Need to get rid of "NaN" values in the trans_mat.  Set these to zero.
     transition_matrix[np.isnan(transition_matrix)] = 0.0
@@ -574,11 +572,11 @@ Command-line options
                     ['assignments'].attrs['iter_stop']-1 
             for isim, simname in enumerate(self.simname_list):
                 # Check the "-1" term!
-                curr_last_iter = self.assignments_file_list[0]\
+                curr_last_iter = self.assignments_file_list[isim]\
                         ['assignments'].attrs['iter_stop']-1
                 if least_last_iter > curr_last_iter:
                     least_last_iter = curr_last_iter 
-                curr_last_iter = self.kinetics_file_list[0]\
+                curr_last_iter = self.kinetics_file_list[isim]\
                         ['bin_populations'].attrs['iter_stop']-1
                 if least_last_iter > curr_last_iter:
                     least_last_iter = curr_last_iter 
@@ -609,11 +607,11 @@ Command-line options
                     assignH5['assignments'].attrs['iter_start'] <= \
                     self.iter_range['first_iter']):
                 raise ValueError('Assignments data {:s} do not span the '
-                                 'requested iterations ({:d} to {:d} for '
+                                 'requested iterations ({:d} to {:d}) for '
                                  'simulation {:s}'.format(
-                                 assignments_filename, 
-                                 self.iter_range['first_iter'],
-                                 self.iter_range['last_iter'], simname
+                                         assignments_filename, 
+                                         self.iter_range['first_iter'],
+                                         self.iter_range['last_iter'], simname
                                                           )
                                  )
 
@@ -622,11 +620,11 @@ Command-line options
                     kinetH5['bin_populations'].attrs['iter_start'] <= \
                     self.iter_range['first_iter']):
                 raise ValueError('Kinetics data {:s} do not span the '
-                                 'requested iterations ({:d} to {:d} for '
+                                 'requested iterations ({:d} to {:d}) for '
                                  'simulation {:s}'.format(
-                                 assignments_filename, 
-                                 self.iter_range['first_iter'],
-                                 self.iter_range['last_iter'], simname
+                                         assignments_filename, 
+                                         self.iter_range['first_iter'],
+                                         self.iter_range['last_iter'], simname
                                                           )
                                  )
              
