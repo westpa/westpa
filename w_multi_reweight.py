@@ -396,6 +396,15 @@ Command-line options
                              ''')
         iogroup.add_argument('-o', '--output', dest='output', default='kinrw.h5',
                             help='''Store results in OUTPUT (default: %(default)s).''')
+        iogroup.add_argument('-t', '--save-transition-matrices', 
+                             dest='save_transition_matrices', 
+                             action='store_true',
+                             help='''Include transition matrices in output file. 
+                             Save transition matrices in ['iterations/iter%08d/]
+                             as three datasets keyed as 'rows', 'cols', and 'k',
+                             corresponding to a sparse matrix format. The  
+                             transition matrix ``T`` may be reconstructed as 
+                             T[rows][cols] = k, with T elsewhere zero.''')
 
         cogroup = parser.add_argument_group('calculation options')
         cogroup.add_argument('-e', '--evolution-mode', choices=['cumulative', 'blocked'], default='cumulative',
@@ -451,7 +460,10 @@ Command-line options
         if self.evol_window_frac <= 0 or self.evol_window_frac > 1:
             raise ValueError('Parameter error -- fractional window defined by '
                              '--window-frac must be in (0,1]')
-        #self.obs_threshold = args.obs_threshold
+        if args.save_transition_matrices:
+            self.save_transition_matrices = True
+        else:
+            self.save_transition_matrices = False
 
         self.parse_from_yaml(args.yamlpath)
         # Get the list of recycling bins from the YAML file, setting to None
@@ -671,6 +683,9 @@ Command-line options
             bin_prob_evol = np.zeros((len(start_pts), nfbins))
             pi.new_operation('Calculating flux evolution', len(start_pts))
 
+            if self.save_transition_matrices:
+                self.output_file.create_group('iterations')
+
             # Set up the generator, if needed; The generator reduces repetitive
             # calculations 
             if self.evolution_mode == 'cumulative' \
@@ -716,6 +731,12 @@ Command-line options
                 color_prob_evol[iblock] = rw_color_probs
                 state_prob_evol[iblock] = rw_state_probs[:-1]
                 bin_prob_evol[iblock] = rw_bin_probs
+
+                # Save the transition matrix if desired.
+                # Not finished yet!
+                #if self.save_transition_matrices:
+                #    self.output_file['iterations'].create_group('iter_{:08d}'
+                #            .format(
             # Save the data sets
             ds_flux_evol = self.output_file.create_dataset('conditional_flux_evolution', data=flux_evol, shuffle=True, compression=9)
             ds_state_prob_evol = self.output_file.create_dataset('state_prob_evolution', data=state_prob_evol, compression=9)
