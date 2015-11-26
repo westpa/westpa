@@ -104,7 +104,7 @@ class TestYAMLFrontEnd:
                            "bin_target_counts": 10,
                              "bins": {
                                "type":"RectilinearBinMapper", 
-                                 "boundaries": [[0.0, 0.5, 1.5, 2.5, 3.5, 'inf']]
+                                 "boundaries": ["numpy.arange(0.0, 5.0, 0.5)"]
                                  }}}}}
         yamlConf._data = test_dict
         rc.config = yamlConf
@@ -118,6 +118,6 @@ class TestYAMLFrontEnd:
         assert system.test_variable == "I'm a test variable"
         # This one in particular checks if the bins are passed correctly
         assert (system.bin_mapper.boundaries == \
-               numpy.array([[0.0, 0.5, 1.5, 2.5, 3.5, 'inf']], dtype=numpy.float32)).all()
+               numpy.arange(0.0, 5.0, 0.5)).all()
         assert system.pcoord_len == 10
         assert system.pcoord_dtype == numpy.float32

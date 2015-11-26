@@ -22,7 +22,7 @@ from __future__ import division, print_function; __metaclass__ = type
 import logging
 log = logging.getLogger('westpa.rc')
 
-import os, sys, errno, numpy
+import os, sys, errno, numpy, math
 import westpa
 from yamlcfg import YAMLConfig
 from yamlcfg import YAMLSystem
@@ -42,12 +42,13 @@ def bins_from_yaml_dict(bin_dict):
     
     if typename == 'RectilinearBinMapper':
         boundary_lists = kwargs.pop('boundaries')
-        for ilist, boundaries in enumerate(boundary_lists):
-            boundary_lists[ilist] = map((lambda x: 
-                                           float('inf') 
-                                           if (x if isinstance(x, basestring) else '').lower() == 'inf' 
-                                           else x), boundaries)
-        return mapper_type(boundary_lists)
+        parsed_lists = boundary_lists[:]
+        for iboundary, boundary in enumerate(boundary_lists):
+            if boundary.__class__ == str:
+                parsed_lists[iboundary] = parsePCV(boundary)[0]
+            else: 
+                parsed_lists[iboundary] = map((lambda x: float('inf') if (x if isinstance(x, basestring) else '').lower() == 'inf' else x), boundary)
+        return mapper_type(parsed_lists)
     else:
         try:
             return mapper_type(**kwargs)
@@ -56,6 +57,9 @@ def bins_from_yaml_dict(bin_dict):
             raise
 
 def parsePCV(pc_str):
+    # Execute arbitrary code within a limited
+    # scope to avoid nastyness. Stolen fully from 
+    # other parts of the WESTPA code. 
     namespace = {'math': math,
                  'numpy': numpy,
                  'inf': float('inf')}
@@ -67,7 +71,8 @@ def parsePCV(pc_str):
         arr.shape = (1,) + arr.shape 
     else:
         raise ValueError('too many dimensions')
-    return arr
+    #return list(arr[...])
+    return arr[...]
 
 def lazy_loaded(backing_name, loader, docstring = None):
     def getter(self):
