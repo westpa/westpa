@@ -357,7 +357,7 @@ The structure of the final dataset is as follows:
 
 (Optional)
 If specified, transition matrices are saved (-t/--save-transition-matrices)
-in /iterations/iter_%08d/ as a sparse matrix.
+in /iterations/iter_08d/ as a sparse matrix.
 
 
 -----------------------------------------------------------------------------
@@ -418,7 +418,7 @@ Command-line options
                              dest='save_transition_matrices', 
                              action='store_true',
                              help='''Include transition matrices in output file. 
-                             Save transition matrices in ['iterations/iter%08d/]
+                             Save transition matrices in ['iterations/iter_08d/]
                              as three datasets keyed as 'rows', 'cols', and 'k',
                              corresponding to a sparse matrix format. The  
                              transition matrix ``T`` may be reconstructed as 
@@ -798,7 +798,7 @@ Command-line options
                     iter_group.create_dataset('cols', data=col, compression=9)
                     iter_group.create_dataset('k',    data=k,   compression=9)
                     iter_group.attrs.create('iter_start', start)
-                    iter_group.attrs.create('iter_stop', stop)`
+                    iter_group.attrs.create('iter_stop', stop)
                                             
             # Save the data sets
             ds_flux_evol = self.output_file.create_dataset('conditional_flux_evolution', data=flux_evol, shuffle=True, compression=9)
