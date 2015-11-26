@@ -355,6 +355,10 @@ The structure of the final dataset is as follows:
     (Floating-point) Expected (mean) value of the rate as evaluated within
     this window, in units of inverse tau.
 
+(Optional)
+If specified, transition matrices are saved (-t/--save-transition-matrices)
+in /iterations/iter_%08d/ as a sparse matrix.
+
 
 -----------------------------------------------------------------------------
 Command-line options
@@ -793,6 +797,8 @@ Command-line options
                     iter_group.create_dataset('rows', data=row, compression=9)
                     iter_group.create_dataset('cols', data=col, compression=9)
                     iter_group.create_dataset('k',    data=k,   compression=9)
+                    iter_group.attrs.create('iter_start', start)
+                    iter_group.attrs.create('iter_stop', stop)`
                                             
             # Save the data sets
             ds_flux_evol = self.output_file.create_dataset('conditional_flux_evolution', data=flux_evol, shuffle=True, compression=9)
