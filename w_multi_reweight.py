@@ -34,8 +34,6 @@ from westtools.dtypes import iter_block_ci_dtype as ci_dtype
 
 log = logging.getLogger('westtools.w_multi_reweight')
 
-# TODO: add in automatic conversion from states indices to bins
-# TODO: add in ability to save transition matrices
 # TODO: remove unnecessary imports
 
 def normalize(m):
@@ -62,6 +60,7 @@ def steadystate_solve(K):
 
     ii = np.ix_(components, components)
     K_mod = K[ii]
+    # This shouldn't really be needed any more, but shouldn't hurt.
     K_mod = normalize(K_mod)
 
     eigvals, eigvecs = np.linalg.eig(K_mod.T)
@@ -388,14 +387,29 @@ Command-line options
         iogroup.add_argument('-y', '--yaml', dest='yamlpath', 
                              metavar='YAMLFILE', 
                              default='multi_reweight.yaml',
+                             required=True,
                              help='''Load options from YAMLFILE. For each 
                              simulation, specify an assignments file and flux
                              matrices file. Search for files in 
                              ['simulations'][SIMNAME]['assignments'] and
-                             ['simulations'][SIMNAME]['kinetics']
+                             ['simulations'][SIMNAME]['kinetics']. Also search
+                             for lists of bins indicating those subject to 
+                             recycling during the simulation 
+                             ('recycling_bin_list'), or lists of states
+                             indicating those subject to recycling during the 
+                             simulation ('recycling_state_list').  Search in
+                             ['simulations'][SIMNAME]['recycling_bin_list']
+                             and ['simulations'][SIMNAME]['recycling_state_list'].
+                             If supplied, elements of the transition rate matrix
+                             corresponding to rates originating from bins in 
+                             either of these lists are excluded from
+                             contributing to the estimate for that element of
+                             the transition rate matrix. 
                              ''')
+
         iogroup.add_argument('-o', '--output', dest='output', default='kinrw.h5',
                             help='''Store results in OUTPUT (default: %(default)s).''')
+
         iogroup.add_argument('-t', '--save-transition-matrices', 
                              dest='save_transition_matrices', 
                              action='store_true',
@@ -404,7 +418,11 @@ Command-line options
                              as three datasets keyed as 'rows', 'cols', and 'k',
                              corresponding to a sparse matrix format. The  
                              transition matrix ``T`` may be reconstructed as 
-                             T[rows][cols] = k, with T elsewhere zero.''')
+                             T[rows][cols] = k, with T elsewhere zero.
+                             Transition matrices are right stochastic, with the
+                             i'th, j'th element corresponding to the transition
+                             rate constant estimate from bin i to bin j for the
+                             supplied lag time.''')
 
         cogroup = parser.add_argument_group('calculation options')
         cogroup.add_argument('-e', '--evolution-mode', choices=['cumulative', 'blocked'], default='cumulative',
@@ -465,14 +483,41 @@ Command-line options
         else:
             self.save_transition_matrices = False
 
+        # Load the yaml input file; Make self.yamlargdict available
         self.parse_from_yaml(args.yamlpath)
+        # Open indicated files and check for consistency.
+        self.open_files()
+        self.check_consistency_of_input_files()
+        self.load_recycling_bins()
+
+
+    def load_recycling_bins(self):
+        '''Load the list of bins that were subject to recycling in each
+        simulation.  Check in ``yamldict`` under ['simulations'][SIMNAME],
+        looking for the keys 'recycling_bin_list' or 'recycling_state_list'.
+        Use the state_map in each assignments file to convert state indices to 
+        bin indices, if need be, and union over the bin indices given in 
+        'recycling_bin_list' and those corresponding to states indicated in 
+        'recycling_state_list'.'''
         # Get the list of recycling bins from the YAML file, setting to None
         # if not specified.
         self.recycling_bin_list = [] 
-        for simname in self.yamlargdict['simulations'].keys():
+        for isim, simname in enumerate(self.yamlargdict['simulations'].keys()):
             simdict = self.yamlargdict['simulations'][simname]
+            binset = set()
             if 'recycling_bin_list' in simdict.keys(): 
-                self.recycling_bin_list.append(simdict['recycling_bin_list'])
+                binset = union(binset, set(simdict['recycling_bin_list'])) 
+            if 'recycling_state_list' in simdict.keys():
+                state_idxs = simdict['recycling_state_list']
+                state_map = self.assignments_file_list[isim]['state_map']
+                bin_idxs = set() 
+                for state_idx in state_idxs:
+                    bin_idxs = union(bin_idxs, 
+                                     set(np.where(state_map == state_idx)[0]) 
+                                     )
+                binset = union(binset, bin_idxs)
+            if binset:
+                self.recycling_bin_list.append(list(binset))
             else:
                 self.recycling_bin_list.append(None)
                         
@@ -599,6 +644,7 @@ Command-line options
               (self.iter_range['last_iter']-self.iter_range['first_iter']) // 10
                                                )
 
+
     def check_iteration_ranges(self):
         '''Check that the iteration ranges specified or calculated from the
         input files are actually available from the input files, and make 
@@ -643,8 +689,6 @@ Command-line options
     def go(self):
         '''Run the main analysis.'''
         # First, check over the input files and set up the iteration ranges. 
-        self.open_files()
-        self.check_consistency_of_input_files()
         self.get_iteration_ranges()
         self.check_iteration_ranges()
         pi = self.progress.indicator
@@ -711,7 +755,7 @@ Command-line options
                         block_start = start
                     transition_matrix = get_average_transition_mat(
                                                          self.kinetics_file_list,
-                                                         start_iter, stop_iter,
+                                                         block_start, stop, 
                                                          nfbins,
                                                          self.recycling_bin_list
                                                                    ) 
@@ -733,10 +777,23 @@ Command-line options
                 bin_prob_evol[iblock] = rw_bin_probs
 
                 # Save the transition matrix if desired.
-                # Not finished yet!
-                #if self.save_transition_matrices:
-                #    self.output_file['iterations'].create_group('iter_{:08d}'
-                #            .format(
+                if self.save_transition_matrices:
+                    iter_group = self.output_file['iterations']\
+                            .create_group('iter_{:08d}'.format(stop-1))
+
+                    # transition_matrix should already have the 'NaN' elements
+                    # set to zero.
+                    # Convert to SciPy's sparse coordinate matrix format 
+                    sparse_transmat = sp.coo_matrix(transition_matrix)
+                     
+                    row = sparse_transmat.row
+                    col = sparse_transmat.col
+                    k   = sparse_transmat.data
+
+                    iter_group.create_dataset('rows', data=row, compression=9)
+                    iter_group.create_dataset('cols', data=col, compression=9)
+                    iter_group.create_dataset('k',    data=k,   compression=9)
+                                            
             # Save the data sets
             ds_flux_evol = self.output_file.create_dataset('conditional_flux_evolution', data=flux_evol, shuffle=True, compression=9)
             ds_state_prob_evol = self.output_file.create_dataset('state_prob_evolution', data=state_prob_evol, compression=9)
