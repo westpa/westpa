@@ -41,17 +41,34 @@ cpdef stats_process(numpy.ndarray[index_t, ndim=2] bin_assignments,
                     numpy.ndarray[weight_t, ndim=2] fluxes, 
                     numpy.ndarray[weight_t, ndim=1] populations, 
                     numpy.ndarray[trans_t, ndim=2] trans, 
-                    numpy.ndarray[index_t, ndim=2] mask):
+                    numpy.ndarray[index_t, ndim=2] mask,
+                    str interval='timepoint'                        ):
     cdef:
         Py_ssize_t i,k
         index_t ibin,fbin,nsegs,npts
     nsegs = bin_assignments.shape[0]
     npts = bin_assignments.shape[1]
 
-    for i in xrange(0,npts - 1):
+    if interval == 'timepoint':
+        for i in xrange(0,npts - 1):
+            for k in xrange(nsegs):
+                ibin = bin_assignments[k,i]
+                fbin = bin_assignments[k, i + 1]
+
+                if mask[k, 0] == 1:
+                    continue
+
+                w = weights[k]
+
+                fluxes[ibin, fbin] += w
+                trans[ibin, fbin] += 1
+                populations[ibin] += w
+        return
+
+    if interval == 'iteration':
         for k in xrange(nsegs):
             ibin = bin_assignments[k,i]
-            fbin = bin_assignments[k, i + 1]
+            fbin = bin_assignments[k, npts - 1]
 
             if mask[k, 0] == 1:
                 continue
@@ -61,4 +78,4 @@ cpdef stats_process(numpy.ndarray[index_t, ndim=2] bin_assignments,
             fluxes[ibin, fbin] += w
             trans[ibin, fbin] += 1
             populations[ibin] += w
-    return
+        return
