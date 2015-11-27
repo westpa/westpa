@@ -510,16 +510,16 @@ Command-line options
             simdict = self.yamlargdict['simulations'][simname]
             binset = set()
             if 'recycling_bin_list' in simdict.keys(): 
-                binset = union(binset, set(simdict['recycling_bin_list'])) 
+                binset = binset.union(set(simdict['recycling_bin_list'])) 
             if 'recycling_state_list' in simdict.keys():
                 state_idxs = simdict['recycling_state_list']
                 state_map = self.assignments_file_list[isim]['state_map']
                 bin_idxs = set() 
                 for state_idx in state_idxs:
-                    bin_idxs = union(bin_idxs, 
-                                     set(np.where(state_map == state_idx)[0]) 
-                                     )
-                binset = union(binset, bin_idxs)
+                    bin_idxs = bin_idxs.union( 
+                                   set(np.where(state_map[...] == state_idx)[0])
+                                              )
+                binset = binset.union(bin_idxs)
             if binset:
                 self.recycling_bin_list.append(list(binset))
             else:
