@@ -524,8 +524,28 @@ Command-line options
                 self.recycling_bin_list.append(list(binset))
             else:
                 self.recycling_bin_list.append(None)
-                        
 
+
+    def adjust_recycling_bins_for_color(self, nstates):
+        '''For all the specified recycling bins, adjust the indices to match
+        the colored matrix (with int ``nstates`` colors) indices.  E.g., if 
+        the user specifies bin index ``i`` as a recycling bin, and there are
+        ``nstates`` different colors, then indices 
+            nstates*i
+            nstates*i + 1
+            nstates*i + 2 
+            ...
+            nstates*i + (nstates-1)
+        correspond to recycling bins in the colored matrix.'''
+        for isim, recycling_bins in enumerate(self.recycling_bin_list):
+            if recycling_bins is not None:
+                new_recycling_bins = []
+                for bin_index in recycling_bins:
+                    for j in xrange(nstates):
+                       new_recycling_bins.append(nstates*bin_index + j)
+                self.recycling_bin_list[isim] = new_recycling_bins 
+            
+         
     def open_files(self):
         '''
         Create the output file.  Open input files, including assignments and 
@@ -705,6 +725,10 @@ Command-line options
             # ``check_consistency_of_input_files``).
             nstates = self.assignments_file_list[0].attrs['nstates']
             nbins = self.assignments_file_list[0].attrs['nbins']
+
+            # Adjust the recycling bins for the colored matrix
+            self.adjust_recycling_bins_for_color(nstates)
+
             # Get the state labels for each simulation.  These should also be
             # consistent across simulations, but this is up to the user to make
             # sure of.  We could add in a check here later if we decide it
