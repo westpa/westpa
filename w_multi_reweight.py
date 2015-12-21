@@ -81,13 +81,236 @@ def steadystate_solve(K):
 
     return bin_prob
 
+def get_fluxmat_and_pop_sum(fluxmatH5_list, start_iter, stop_iter, nbins, 
+                            recycling_bin_list=None):
+    '''
+    Find the sum of flux matrices and population vectors from a set of 
+    simulations, for a given set of timepoints. 
+
+    Returns: 
+    (1) an N*N numpy array representing the sum of fluxes for each bin in all 
+    simulations where the bin from which the flux originates is not a recycling
+    bine. Elements for which no observations were made are set
+    to ``NaN`` (not a number). 
+    (2) an N*1 numpy array where each element represents the total probability 
+    observed in each bin, for simulations where the bin is not a recycling bin. 
+
+    Arguments:
+    fluxmatH5_list: a list of flux matrix h5 files
+    start_iter: integer; first weighted ensemble iteration to include in the
+            average.
+    stop_iter: integer; iteration at which to stop averaging.  Averages will 
+            include UP TO stop_iter, BUT NOT stop_iter itself. 
+    nbins: integer; the number of bins used in building the flux matrices. This
+            should match the dimensions of the flux matrices in each HDF5 file 
+            of fluxmatH5_list
+    recycling_bin_list: A list of numpy arrays.  The order of the arrays should
+            be the same as fluxmatH5_list. Each array should specify the indices
+            of bins that were subject to recycling during the corresponding 
+            weighted ensemble simulation. If all simulations were not subject
+            to recycling (default), this option may be simply set to ``None``.
+            If only select simulations were not subject to recycling, ``None`` 
+            may be instead specified at the corresponding index of 
+            recycling_bin_list. 
+    '''
+    # Get the population sums. First initialize the array to hold the sum
+    pops_sum_arr = np.zeros(fluxmatH5_list[0]['bin_populations'].shape[1])
+    temp_pop_arr = np.zeros(pops_sum_arr.shape)
+    pops_sum_arr.fill(np.nan)
+    temp_pop_arr.fill(np.nan)
+    for isim, fluxmatH5 in enumerate(fluxmatH5_list):
+        # Calculate the summed weight for this simulation.  Note that iteration 
+        # indices are offset by 1 in 'bin_populations', being zero- rather than
+        # one-indexed.
+        temp_pop_arr = np.sum(fluxmatH5['bin_populations'][start_iter-1:stop_iter-1],
+                              axis=0)
+        # Set the recycling bins to a value of NaN (not a number)
+        if recycling_bin_list is not None:
+            if recycling_bin_list[isim] is not None:
+                temp_pop_arr[recycling_bin_list[isim]] = np.nan 
+        # Check the axis number here.
+        pops_sum_arr = np.nansum(np.vstack((temp_pop_arr, pops_sum_arr)),
+                                 axis=0)
+
+    # Get the flux sums.  First initialize the array to hold the sum.
+    flux_sum_arr = np.zeros((nbins,nbins))
+    temp_flux_arr = np.zeros(flux_sum_arr.shape)
+    flux_sum_arr.fill(np.nan)
+    temp_flux_arr.fill(np.nan)
+    obs_sum_arr = np.zeros(flux_sum_arr.shape)
+    temp_obs_arr = np.zeros(flux_sum_arr.shape)
+
+    for isim, fluxmatH5 in enumerate(fluxmatH5_list):
+        rows = []
+        cols = []
+        obs = []
+        flux = []
+        # Nearly identical code to w_postanalysis_reweight
+        for iiter in xrange(start_iter, stop_iter):
+            iter_grp = fluxmatH5['iterations']['iter_{:08d}'.format(iiter)]
+            # We need to reconstruct a dense matrix from the stored sparse
+            # CooMatrix format.
+            rows.append(iter_grp['rows'][...])
+            cols.append(iter_grp['cols'][...])
+            obs.append(iter_grp['obs'][...])
+            flux.append(iter_grp['flux'][...])
+
+        rows, cols, obs, flux = map(np.hstack, [rows, cols, obs, flux])
+        # Convert to dense matrix AND sum the fluxes from each iteration, all 
+        # in one line.
+        temp_flux_arr = sp.coo_matrix((flux, (rows, cols)), shape=(nbins, nbins)).todense()
+        # Convert the numpy "matrix" to a numpy "array", which can have more 
+        # than 2 dimensions
+        temp_flux_arr = np.array(temp_flux_arr)
+        # Set the fluxes for the recycling bins (if any) to NaN
+        if recycling_bin_list is not None:
+            if recycling_bin_list[isim] is not None:
+                temp_flux_arr[recycling_bin_list[isim]] = np.nan 
+        # Add the fluxes for this simulation to the running total.
+        flux_sum_arr = np.nansum(np.dstack((flux_sum_arr,temp_flux_arr)), axis=2)
+
+        # Calculate the number of observations, accounting for the fact that we
+        # ignore observations starting in recycling bins. Right now, this is not 
+        # used anywhere. 
+        temp_obs_arr = sp.coo_matrix((obs, (rows, cols)), shape=(nbins, nbins)).todense()
+        temp_obs_arr[recycling_bin_list[isim]] = 0 
+        obs_sum_arr += temp_obs_arr
+    
+    return flux_sum_arr, pops_sum_arr
+        
+    
+def get_average_transition_mat_1(fluxmatH5_list, start_iter, stop_iter, nbins, 
+                                 recycling_bin_list=None): 
+    '''
+    Find a transition matrix estimate from a set of simulations, for a given 
+    set of timepoints. Return a numpy array representing the transition  
+    matrix estimate, with elements for which no observations were made set
+    to ``NaN`` (not a number). Estimate transition matrix elements as 
+                          T_{i,j} = <w_{i,j}>/<w_i>
+    where T_{i,j} represents the estimated probability of making a transition
+    from bin i to bin j, w_{i,j} represents the observed flux from bin i to bin
+    j in a given iteration of a given simulation, and w_i represents the
+    probability observed in bin i during a given timepoint of a given 
+    simulation. 
+
+    Returns: 
+    An N*N numpy array representing the estimated right-stochastic
+    transition matrix.  Elements T_{i,j} of the matrix for which no probability
+    was observed in bin i are set to "NaN" (not a number). 
+
+    Arguments:
+    fluxmatH5_list: a list of flux matrix h5 files
+    start_iter: integer; first weighted ensemble iteration to include in the
+            average.
+    stop_iter: integer; iteration at which to stop averaging.  Averages will 
+            include UP TO stop_iter, BUT NOT stop_iter itself. 
+    nbins: integer; the number of bins used in building the flux matrices. This
+            should match the dimensions of the flux matrices in each HDF5 file 
+            of fluxmatH5_list
+    recycling_bin_list: A list of numpy arrays.  The order of the arrays should
+            be the same as fluxmatH5_list. Each array should specify the indices
+            of bins that were subject to recycling during the corresponding 
+            weighted ensemble simulation. If all simulations were not subject
+            to recycling (default), this option may be simply set to ``None``.
+            If only select simulations were not subject to recycling, ``None`` 
+            may be instead specified at the corresponding index of 
+            recycling_bin_list. 
+    '''
+    fluxmat_sum, pop_sum = get_fluxmat_and_pop_sum(
+                                        fluxmatH5_list, start_iter, stop_iter, 
+                                        nbins, 
+                                        recycling_bin_list=recycling_bin_list
+                                                    )
+    
+    # Finally, get the average transition matrix and return it.
+    transmat = np.divide(fluxmat_sum, pop_sum[:,np.newaxis])
+    return transmat
+
+
+def cumulative_transmat_generator_1(fluxmatH5_list, start_iter, stop_iter, 
+                                         step_iter, nbins, 
+                                         recycling_bin_list=None):
+    '''
+    Generator for fast calculations of cumulatively averaged transition matrix 
+    estimates. Uses the "ratio of the averages" for the bin-to-bin fluxes and
+    populations.
+
+    Find a transition matrix estimate from a set of simulations, for a given 
+    set of timepoints. Return a numpy matrix representing the transition matrix
+    estimate, with elements for which no observations were made set
+    to ``NaN`` (Not a Number). Estimate transition matrix elements as 
+                          T_{i,j} = <w_{i,j}>/<w_i>
+    where T_{i,j} represents the estimated probability of making a transition
+    from bin i to bin j, w_{i,j} represents the observed flux from bin i to bin
+    j in a given iteration of a given simulation, and w_i represents the
+    probability observed in bin i during a given timepoint of a given 
+    simulation. 
+
+    Yields: 
+    N*N numpy arrays representing the estimated right-stochastic transition
+    matrix based on data from windows of increasing width, starting with
+    start_iter:start_iter+step_iter, and increasing in width by intervals of 
+    step_iter until the window is start_iter:stop_iter. Elements T_{i,j} of 
+    the matrix for which no probability was observed in bin i are set to "NaN" 
+    (not a number). 
+
+    Arguments:
+    fluxmatH5_list: a list of flux matrix h5 files
+    start_iter: integer; first weighted ensemble iteration to include in the
+            average.
+    stop_iter: integer; iteration at which to stop averaging.  Averages will 
+            include UP TO stop_iter, BUT NOT stop_iter itself. 
+    nbins: integer; the number of bins used in building the flux matrices. This
+            should match the dimensions of the flux matrices in each HDF5 file 
+            of fluxmatH5_list
+    recycling_bin_list: A list of numpy arrays.  The order of the arrays should
+            be the same as fluxmatH5_list. Each array should specify the indices
+            of bins that were subject to recycling during the corresponding 
+            weighted ensemble simulation. If all simulations were not subject
+            to recycling (default), this option may be simply set to ``None``.
+            If only select simulations were not subject to recycling, ``None`` 
+            may be instead specified at the corresponding index of 
+            recycling_bin_list. 
+    '''
+    # Build first cumulative_sum, from start_iter to start_iter + step_iter 
+    # CHANGE: raise a more descriptive/accurate error here.
+    if start_iter + step_iter > stop_iter:
+        raise ValueError
+    fluxmat_sum, pop_sum = get_fluxmat_and_pop_sum(fluxmatH5_list, start_iter,
+                                           start_iter+step_iter, nbins, 
+                                           recycling_bin_list=recycling_bin_list
+                                                   )
+    transmat = np.divide(fluxmat_sum, pop_sum[:,np.newaxis])
+    # Yield the mean transition matrix from the first averaging window.
+    yield transmat
+    
+    # From here on out, we can iterate.
+    for cumsum_stop_iter in xrange(start_iter+step_iter, stop_iter, step_iter):
+        # Get the sums between cumsum_stop_iter-step_iter and cumsum_stop_iter 
+        temp_fluxmat_sum, temp_pop_sum = get_fluxmat_and_pop_sum(
+                                         fluxmatH5_list, 
+                                         cumsum_stop_iter-step_iter, 
+                                         cumsum_stop_iter, nbins, 
+                                         recycling_bin_list=recycling_bin_list
+                                                                 )
+        fluxmat_sum = np.nansum(np.dstack((fluxmat_sum, temp_fluxmat_sum)),
+                                axis=2)
+        print("Nonzero elements of fluxmat_sum: {:d}".format(np.count_nonzero(fluxmat_sum)))
+        pop_sum += temp_pop_sum
+        
+        transmat = np.divide(fluxmat_sum, pop_sum[:,np.newaxis])
+
+        # Yield the mean transition matrix from the  averaging window.
+        yield transmat
+
+
 def get_transmat_and_obsmat_sum(fluxmatH5_list, start_iter, stop_iter, nbins, 
                                 recycling_bin_list=None):
     '''
     Find the sum of transition matrices from a set of simulations, for a given 
     set of timepoints. 
 
-    Return: 
+    Returns: 
     (1) a numpy array representing the sum of the transition matrices for each 
     simulation, for each timepoint for which the transition probability is 
     well-defined (ie, if the bin in which the transition originates is not 
@@ -99,6 +322,7 @@ def get_transmat_and_obsmat_sum(fluxmatH5_list, start_iter, stop_iter, nbins,
     for all simulations in which the transition probably represented in (1) was
     well-defined.
 
+    Arguments:
     fluxmatH5_list: a list of flux matrix h5 files
     start_iter: integer; first weighted ensemble iteration to include in the
             average.
@@ -172,14 +396,20 @@ def get_transmat_and_obsmat_sum(fluxmatH5_list, start_iter, stop_iter, nbins,
             obsmat_sum += good_value_mask
     return transmat_sum, obsmat_sum
 
-def get_average_transition_mat(fluxmatH5_list, start_iter, stop_iter, nbins, 
-                               recycling_bin_list=None): 
+def get_average_transition_mat_2(fluxmatH5_list, start_iter, stop_iter, nbins, 
+                                 recycling_bin_list=None): 
     '''
     Find an average transition matrix from a set of simulations, for a given 
-    set of timepoints. Return a numpy matrix representing the average 
+    set of timepoints. Return a numpy array representing the average 
     transition matrix, with elements for which no observations were made set
     to ``NaN`` (not a number). 
 
+    Returns: 
+    An N*N numpy array representing the estimated right-stochastic
+    transition matrix.  Elements T_{i,j} of the matrix for which no probability
+    was observed in bin i are set to "NaN" (not a number). 
+
+    Arguments:
     fluxmatH5_list: a list of flux matrix h5 files
     start_iter: integer; first weighted ensemble iteration to include in the
             average.
@@ -207,18 +437,28 @@ def get_average_transition_mat(fluxmatH5_list, start_iter, stop_iter, nbins,
     transmat = np.divide(transmat_sum, obsmat_sum)
     return transmat
             
-def transmat_cumulative_mean_generator(fluxmatH5_list, start_iter, stop_iter, 
-                                       step_iter, nbins, 
-                                       recycling_bin_list=None):
+def cumulative_transmat_generator_2(fluxmatH5_list, start_iter, stop_iter, 
+                                         step_iter, nbins, 
+                                         recycling_bin_list=None):
     '''
     Generator for fast calculations of cumulatively averaged transition matrix 
-    estimates.
+    estimates. Uses the "average ratio" of the bin-to-bin fluxes and the bin 
+    populations.
 
     Find an average transition matrix from a set of simulations, for a given 
     set of timepoints. Return a numpy matrix representing the average 
     transition matrix, with elements for which no observations were made set
     to ``NaN`` (Not a Number). 
 
+    Yields: 
+    N*N numpy arrays representing the estimated right-stochastic transition
+    matrix based on data from windows of increasing width, starting with
+    start_iter:start_iter+step_iter, and increasing in width by intervals of 
+    step_iter until the window is start_iter:stop_iter. Elements T_{i,j} of 
+    the matrix for which no probability was observed in bin i are set to "NaN" 
+    (not a number). 
+
+    Arguments:
     fluxmatH5_list: a list of flux matrix h5 files
     start_iter: integer; first weighted ensemble iteration to include in the
             average.
@@ -463,6 +703,21 @@ Command-line options
                              FIRST_ITER + STEP_ITER, while the second iteration 
                              will include data from iteration FIRST_ITER + 
                              STEP_ITER to FIRST_ITER + 2*STEP_ITER, etc.''')
+        cogroup.add_argument('-s', '--estimation-scheme', choices=[1,2],
+                             dest='estimation_scheme',
+                             default=1, type=int,
+                             help='''Estimate bin-to-bin transition rates using
+                             one of the following schemes. 
+
+                             Scheme (1) [default]: use the ratio of the average 
+                             flux and average bin population, i.e. 
+                             <w_{i,j}>/<w_i>, where w_{i,j} is the flux from bin
+                             i to bin j in a given iteration, and w_i is the 
+                             probability in bin i in a given iteration.
+
+                             Scheme (2): use the average ratio of flux and bin
+                             population, i.e. <w_{i,j}/w_i>.''') 
+                              
                                                          
     def process_args(self, args):
         self.progress.process_args(args)
@@ -478,6 +733,7 @@ Command-line options
         
         self.output_filename = args.output
         self.evolution_mode = args.evolution_mode
+        self.estimation_scheme = args.estimation_scheme
         self.evol_window_frac = args.window_frac
         if self.evol_window_frac <= 0 or self.evol_window_frac > 1:
             raise ValueError('Parameter error -- fractional window defined by '
@@ -762,11 +1018,26 @@ Command-line options
             # calculations 
             if self.evolution_mode == 'cumulative' \
                     and self.evol_window_frac == 1.0:
-                gen = transmat_cumulative_mean_generator(self.kinetics_file_list,
-                                                         start_iter, stop_iter,
-                                                         step_iter, nfbins,
-                                                         self.recycling_bin_list
-                                                         ) 
+                if self.estimation_scheme == 1:
+                    gen = cumulative_transmat_generator_1(self.kinetics_file_list,
+                                                          start_iter, stop_iter,
+                                                          step_iter, nfbins,
+                                                          self.recycling_bin_list
+                                                          ) 
+                if self.estimation_scheme == 2:
+                    gen = cumulative_transmat_generator_2(self.kinetics_file_list,
+                                                          start_iter, stop_iter,
+                                                          step_iter, nfbins,
+                                                          self.recycling_bin_list
+                                                          ) 
+            else:
+                # set "get_transmat" to be the correct function for estimating
+                # the transition matrix, based on the specified scheme.
+                if self.estimation_scheme == 1:
+                    get_transmat = get_average_transition_mat_1
+                if self.estimation_scheme == 2:
+                    get_transmat = get_average_transition_mat_2
+
             for iblock, start in enumerate(start_pts):
                 pi.progress += 1
 
@@ -781,12 +1052,10 @@ Command-line options
                         block_start = max(start_iter, stop - windowsize)
                     else:   # self.evolution_mode == 'blocked'
                         block_start = start
-                    transition_matrix = get_average_transition_mat(
-                                                         self.kinetics_file_list,
-                                                         block_start, stop, 
-                                                         nfbins,
-                                                         self.recycling_bin_list
-                                                                   ) 
+                    transition_matrix = get_transmat(self.kinetics_file_list,
+                                                     block_start, stop, 
+                                                     nfbins,
+                                                     self.recycling_bin_list)
                 # Apply reweighting procedure 
                 rw_state_flux, rw_color_probs, rw_state_probs, \
                         rw_bin_probs, rw_bin_flux = reweight(transition_matrix,
