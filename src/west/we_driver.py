@@ -112,6 +112,34 @@ class WEDriver:
         self.avail_initial_states = None
         
         self.process_config()
+
+        self._callback_table = {}
+        self._valid_callbacks = set((self.post_recycle, self.null))
+        self._callbacks_by_name = {fn.__name__: fn for fn in self._valid_callbacks}
+
+    def register_callback(self, hook, function, priority=0):
+        '''Registers a callback to execute during the given ``hook`` into the simulation loop. The optional
+        priority is used to order when the function is called relative to other registered callbacks.'''
+        
+        if hook not in self._valid_callbacks:
+            try:
+                hook = self._callbacks_by_name[hook]
+            except KeyError:
+                raise KeyError('invalid hook {!r}'.format(hook))
+            
+        try:
+            self._callback_table[hook].add((priority,function.__name__,function))
+        except KeyError:
+            self._callback_table[hook] = set([(priority,function.__name__,function)])
+        
+        log.debug('registered callback {!r} for hook {!r}'.format(function, hook))
+
+    def invoke_callbacks(self, hook, *args, **kwargs):
+        callbacks = self._callback_table.get(hook, [])
+        sorted_callbacks = sorted(callbacks)
+        for (priority, name, fn) in sorted_callbacks:
+            log.debug('invoking callback {!r} for hook {!r}'.format(fn,hook))
+            fn(*args, **kwargs)
     
     def process_config(self):
         config = self.rc.config
@@ -549,6 +577,8 @@ class WEDriver:
         '''Run recycle/split/merge. Do not call this function directly; instead, use
         populate_initial(), rebin_current(), or construct_next().'''
         self._recycle_walkers()
+        log.debug("Recycling has been run.  Calling post_recycle function.")
+        self.post_recycle()
         
         # sanity check
         self._check_pre()
@@ -733,3 +763,10 @@ class WEDriver:
             log.log(level, log_msg)
                     
             
+    def post_recycle(self):
+        log.debug("Post recycling function being called.")
+        self.invoke_callbacks(self.post_recycle)
+    
+    def null(self):
+        log.debug("Not called.")
+        return 0

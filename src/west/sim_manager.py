@@ -72,7 +72,8 @@ class WESimManager:
         self._valid_callbacks = set((self.prepare_run, self.finalize_run,
                                      self.prepare_iteration, self.finalize_iteration,
                                      self.pre_propagation, self.post_propagation,
-                                     self.pre_we, self.post_we, self.prepare_new_iteration))
+                                     self.pre_we, self.post_we, self.prepare_new_iteration,
+                                     self.pre_prepare_iteration))
         self._callbacks_by_name = {fn.__name__: fn for fn in self._valid_callbacks}
         self.n_propagated = 0
         
@@ -336,6 +337,9 @@ class WESimManager:
     def prepare_iteration(self):
         log.debug('beginning iteration {:d}'.format(self.n_iter))
                 
+        # Invoke callbacks
+        self.invoke_callbacks(self.pre_prepare_iteration)
+
         # the WE driver needs a list of all target states for this iteration
         # along with information about any new weights introduced (e.g. by recycling)
         target_states = self.data_manager.get_target_states(self.n_iter)
@@ -711,3 +715,9 @@ class WESimManager:
     
     def post_we(self):
         self.invoke_callbacks(self.post_we)
+
+    def pre_prepare_iteration(self):
+        self.invoke_callbacks(self.null)
+    
+    def null(self):
+        return 0
