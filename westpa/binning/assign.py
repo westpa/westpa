@@ -409,6 +409,7 @@ class RecursiveBinMapper(BinMapper):
         self.start_index = 0
         mapper_list = dict(self.mapper_list)
         self.mapper_list = {}
+        self._output_map = numpy.arange(self._start_index, self._start_index + self.nbins, dtype=index_dtype)
         for mapper,value in mapper_list.iteritems():
             self.add_mapper(value['base_mapper'], mapper.replaces_bin_at)
 
