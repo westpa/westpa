@@ -46,11 +46,18 @@ dm.open_backing()
 max_iter = dm.current_iteration
 n_iter = args.n_iter if args.n_iter > 0 else dm.current_iteration
 
+# We also need to delete any target state information, if present.
+
 for i in xrange(n_iter, dm.current_iteration+1):
     dm.del_iter_group(i)
+for i in xrange(n_iter, dm.current_iteration+2):
+    dm.del_tstate_group(i)
 
 dm.del_iter_summary(n_iter)
+dm.del_tstate_entries(n_iter)
 dm.current_iteration = n_iter - 1
+
+
 
 print('simulation data truncated after iteration {}'.format(dm.current_iteration))
 print('\n' + warning_string)

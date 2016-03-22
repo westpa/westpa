@@ -455,6 +455,14 @@ class WESTDataManager:
     def find_ibstate_group(self, n_iter):
         return self._find_multi_iter_group(n_iter, 'ibstates')
 
+    def del_tstate_entries(self, min_iter): #delete the iterations starting at min_iter      
+        with self.lock:
+            self.we_h5file['tstates']['index'].resize((min_iter - 1,))
+
+    def del_tstate_group(self, n_iter):
+        with self.lock:
+            del self.we_h5file['/tstates/{0}'.format(long(n_iter))]
+
     def get_target_states(self, n_iter):
         '''Return a list of Target objects representing the target (sink) states that are in use for iteration n_iter.
         Future iterations are assumed to continue from the most recent set of states.'''
