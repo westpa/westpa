@@ -456,8 +456,8 @@ class WESTDataManager:
         return self._find_multi_iter_group(n_iter, 'ibstates')
 
     def del_tstate_entries(self, min_iter): #delete the tstates that no longer exist.
-        new_array_size = min(min_iter - 1, self.we_h5file['tstates']['index'].shape[0])
         with self.lock:
+            new_array_size = min(min_iter - 1, self.we_h5file['tstates']['index'].shape[0])
             self.we_h5file['tstates']['index'].resize((new_array_size,))
 
     def del_tstate_group(self, n_iter):
