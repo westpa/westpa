@@ -145,14 +145,52 @@ def accumulate_statistics(h5file, start_iter, stop_iter, nbins, total_fluxes=Non
 
     return total_fluxes, total_obs, total_pop
 
+def accumulate_statistics_t(h5file, start_iter, stop_iter, nbins, total_fluxes=None, total_obs=None):
+    if total_fluxes is None:
+        assert total_obs is None
+        total_fluxes = np.zeros((nbins, nbins), weight_dtype)
+        total_obs = np.zeros((nbins, nbins), np.int64)
+
+    rows = []
+    cols = []
+    obs = []
+    flux = []
+
+    iter_grp = h5file['iterations']['iter_{:08d}'.format(start_iter)]
+
+    rows = (iter_grp['rows'][...])
+    cols = (iter_grp['cols'][...])
+    obs = (iter_grp['obs'][...])
+    flux = (iter_grp['flux'][...])
+
+    #rows, cols, obs, flux = map(np.hstack, [rows, cols, obs, flux])
+
+    total_fluxes += sp.coo_matrix((flux, (rows, cols)), shape=(nbins, nbins)).todense()
+    total_obs += sp.coo_matrix((obs, (rows, cols)), shape=(nbins, nbins)).todense()
+
+    total_pop = np.sum(h5file['bin_populations'][start_iter:stop_iter, :], axis=0)
+
+    return total_fluxes, total_obs, total_pop
 
 def reweight(h5file, start, stop, nstates, nbins, state_labels, state_map, nfbins, obs_threshold=1, total_fluxes=None, total_obs=None):
 
+    # We're going to make some changes to this to work... hacks.
     total_fluxes, total_obs, total_pop = accumulate_statistics(h5file, start, stop, nfbins, total_fluxes, total_obs)
 
     flux_matrix = total_fluxes.copy()
     flux_matrix[total_obs < obs_threshold] = 0.0
     transition_matrix = normalize(flux_matrix)
+    #for iiter in xrange(start, stop):
+    #    total_fluxes, total_obs, total_pop = accumulate_statistics_t(h5file, iiter, iiter, nfbins, total_fluxes, total_obs)
+#
+#        flux_matrix = total_fluxes.copy()
+#        flux_matrix[total_obs < obs_threshold] = 0.0
+#        t_matrix = normalize(flux_matrix)
+#        if iiter == start:
+#            transition_matrix = t_matrix
+#        else:
+#            transition_matrix += t_matrix
+#    transition_matrix = normalize(transition_matrix)
 
     rw_bin_probs = steadystate_solve(transition_matrix)
 
@@ -393,18 +431,24 @@ Command-line options
                         for j in xrange(nstates):
                             # Normalize such that we report the flux per tau (tau being the weighted ensemble iteration)
                             # npts always includes a 0th time point
-                            flux_evol[iblock]['expected'][k,j] = rw_state_flux[k,j] * (npts - 1)
+                            flux_evol[iblock]['expected'][k,j] = rw_state_flux[k,j]
                             flux_evol[iblock]['iter_start'][k,j] = start
                             flux_evol[iblock]['iter_stop'][k,j] = stop
                             rate_evol[iblock]['expected'][k,j] = (rw_state_flux[k,j] * (npts - 1)) / rw_color_probs[k]
+                            #if iblock != 0:
+                            #    rate_evol[iblock]['expected'][k,j] = (flux_evol[:iblock+1]['expected'][k,j].sum()) / (rw_color_probs[k] + color_prob_evol[:iblock,k].sum()) * (npts - 1)
+                            #else:
+                            #    rate_evol[iblock]['expected'][k,j] = (rw_state_flux[k,j] * (npts - 1)) / rw_color_probs[k] * (npts - 1)
                             if rw_color_probs[k] == 0.0  or flux_evol[iblock]['expected'][k,j] == 0.0:
                                 rate_evol[iblock]['expected'][k,j] = 0
+                            # Do the normalisation now.
                             rate_evol[iblock]['iter_start'][k,j] = start
                             rate_evol[iblock]['iter_stop'][k,j] = stop
 
                     color_prob_evol[iblock] = rw_color_probs
                     state_prob_evol[iblock] = rw_state_probs[:-1]
                     bin_prob_evol[iblock] = rw_bin_probs
+                flux_evol[:]['expected'][k,j] *= (npts - 1)
 
 
             else:

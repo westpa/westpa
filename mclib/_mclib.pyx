@@ -94,7 +94,7 @@ cpdef Py_ssize_t get_bssize(double alpha) nogil:
         bssize *= 10
     return bssize
 
-cpdef mcbs_ci(dataset, estimator, alpha, n_sets=None, args=None, kwargs=None, sort=numpy.msort):
+cpdef mcbs_ci(dataset, estimator, alpha, n_sets=None, args=None, kwargs=None, sort=numpy.msort, pops=None, istate=None, jstate=None):
     '''Perform a Monte Carlo bootstrap estimate for the (1-``alpha``) confidence interval
     on the given ``dataset`` with the given ``estimator``.  This routine is not appropriate
     for time-correlated data.
@@ -125,7 +125,10 @@ cpdef mcbs_ci(dataset, estimator, alpha, n_sets=None, args=None, kwargs=None, so
     dataset = numpy.asanyarray(dataset)
     dlen = len(dataset)
     
-    fhat = estimator(dataset, *args, **kwargs)
+    if pops == None:
+        fhat = estimator(dataset, *args, **kwargs)
+    else:
+        fhat = estimator(dataset=dataset, pops=pops, istate=istate, jstate=jstate)
     
     try:
         estimator_shape = fhat.shape
@@ -143,7 +146,10 @@ cpdef mcbs_ci(dataset, estimator, alpha, n_sets=None, args=None, kwargs=None, so
     
     for i in xrange(n_sets):
         indices = numpy.random.randint(dlen, size=(dlen,))
-        f_synth[i] = estimator(numpy.take(dataset,indices), *args, **kwargs)
+        if pops == None:
+            f_synth[i] = estimator(numpy.take(dataset,indices), *args, **kwargs)
+        else:
+            f_synth[i] = estimator(numpy.take(dataset,indices), pops=numpy.take(pops, indices), istate=istate, jstate=jstate)
         del indices
         
     f_synth_sorted = sort(f_synth)
@@ -151,6 +157,11 @@ cpdef mcbs_ci(dataset, estimator, alpha, n_sets=None, args=None, kwargs=None, so
     ubi = int(math.ceil(n_sets*(1-alpha/2.0)))                     
     lb = f_synth_sorted[lbi]
     ub = f_synth_sorted[ubi]
+    # New code.  Maybe erase.
+    #SE = (lb - ub) / 2
+    #SE *= numpy.sqrt(dlen)
+    #lb = fhat - SE
+    #ub = fhat + SE
     
     del f_synth_sorted, f_synth
     return (fhat, lb, ub)

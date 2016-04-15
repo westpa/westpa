@@ -24,7 +24,8 @@ import math, numpy
 from _mclib import autocorrel_elem, mcbs_correltime, get_bssize, mcbs_ci #@UnresolvedImport
 
 def mcbs_ci_correl(dataset, estimator, alpha, n_sets=None, args=None, kwargs=None,
-                   autocorrel_alpha = None, autocorrel_n_sets=None, subsample=None):
+                   autocorrel_alpha = None, autocorrel_n_sets=None, subsample=None, pops=None,
+                   istate=None, jstate=None):
     '''Perform a Monte Carlo bootstrap estimate for the (1-``alpha``) confidence interval
     on the given ``dataset`` with the given ``estimator``.  This routine is appropriate
     for time-correlated data, using the method described in Huber & Kim, "Weighted-ensemble
@@ -72,24 +73,51 @@ def mcbs_ci_correl(dataset, estimator, alpha, n_sets=None, args=None, kwargs=Non
     dlen = len(dataset)
     n_sets = n_sets or get_bssize(alpha)
     autocorrel_n_sets = autocorrel_n_sets or get_bssize(autocorrel_alpha)
+
+    if kwargs == None:
+        kwargs = {}
+    # We're adding in this stuff.  Bit hackish, but.
     
     correl_len = mcbs_correltime(dataset, autocorrel_alpha, autocorrel_n_sets)
+    if pops != None:
+        kwargs['pops'] = pops
+        kwargs['istate'] = istate
+        kwargs['jstate'] = jstate
     if correl_len == len(dataset):
+        #if pops == None:
         # too correlated for meaningful calculations
         return estimator(dataset, *(args or ()), **(kwargs or {})), dataset.min(), dataset.max(), correl_len
+        #else:
+        #    return estimator(dataset, dataset_two=pops, istate=istate, jstate=jstate, *(args or ()), **(kwargs or {})), dataset.min(), dataset.max(), correl_len
         
     # else, do a blocked bootstrap
     stride = correl_len + 1
     
     if stride == 1:
         return mcbs_ci(dataset, estimator, alpha, n_sets, args, kwargs, numpy.msort) + (correl_len,)
+        #else:
+            #return mcbs_ci(dataset, estimator, alpha, n_sets, args, kwargs, numpy.msort, dataset_two=pops, istate=istate, jstate=jstate) + (correl_len,)
     else:
         n_slices = dlen // stride
         #if dlen % stride > 0: n_slices += 1
         subsample = subsample or (lambda x: x[numpy.random.randint(len(x))])
         decim_set = numpy.empty((n_slices,), dtype=dataset.dtype)
+        if pops != None:
+            decim_pops = numpy.empty((n_slices, pops.shape[1]), dtype=dataset.dtype)
         for iout, istart in enumerate(xrange(0,dlen-stride+1,stride)):
-            sl = dataset[istart:istart+stride]
-            decim_set[iout] = subsample(sl)
+            #decim_set[iout] = subsample(sl, **kwargs)
+            if pops == None:
+                sl = dataset[istart:istart+stride]
+                decim_set[iout] = subsample(sl)
+            else:
+                sl = dataset[istart:istart+stride]
+                decim_set[iout] = subsample(sl)
+                pl = pops[istart:istart+stride, :]
+                decim_pops[iout, :] = subsample(pl, axis=0)
+                #decim_set[iout] /= n_slices
+                #decim_pops[iout, :] /= n_slices
+        if pops != None:
+            kwargs['pops'] = decim_pops
         
+        #return mcbs_ci(decim_set, estimator, alpha, n_sets, args, kwargs, numpy.msort, dataset_two=pops, istate=istate, jstate=jstate) + (correl_len,)
         return mcbs_ci(decim_set, estimator, alpha, n_sets, args, kwargs, numpy.msort) + (correl_len,)
