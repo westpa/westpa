@@ -178,7 +178,7 @@ class WESTParallelTool(WESTTool):
             else:
                 self.work_manager.run()
 
-class WESTMultiTool(WESTTool):
+class WESTMultiTool(WESTParallelTool):
     '''Base class for command-line tools which work with multiple simulations.  Automatically parses for
     and gives commands to load multiple files.'''
 
