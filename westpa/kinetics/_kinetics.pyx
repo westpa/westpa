@@ -390,7 +390,6 @@ cpdef sequence_macro_flux_to_rate_bs(weight_t[:] dataset, weight_t[:,:] pops, Py
     cdef:
         Py_ssize_t iiter, nstates, itersum
         weight_t[:] _rates, _fluxsum, _pairsum, _psum
-        #weight_t rates
         
     rates = numpy.empty((dataset.shape[0]), dtype=weight_dtype)
     #rates = 0.0

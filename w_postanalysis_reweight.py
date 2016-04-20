@@ -38,44 +38,28 @@ log = logging.getLogger('westtools.w_postanalysis_reweight')
 import mclib
 from mclib import mcbs_correltime, mcbs_ci_correl
 
-#def _eval_block(iblock, start, stop, nstates, total_fluxes, cond_fluxes, rates, mcbs_alpha, mcbs_nsets, mcbs_acalpha):
-#    results = [[],[],[]]
-    # results are target fluxes, conditional fluxes, rates
-#    for istate in xrange(nstates):
-#        ci_res = mcbs_ci_correl(total_fluxes[:,istate],estimator=numpy.mean,
-#                                    alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
-#                                    subsample=numpy.mean)
-#        results[0].append((iblock,istate,(start,stop)+ci_res))
-        
-#        for jstate in xrange(nstates):
-#            if istate == jstate: continue
-#            ci_res = mcbs_ci_correl(cond_fluxes[:,istate,jstate],estimator=numpy.mean,
-#                                    alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
-#                                    subsample=numpy.mean)
-#            results[1].append((iblock, istate, jstate, (start,stop) + ci_res))
-#            
-#            ci_res = mcbs_ci_correl(rates[:,istate,jstate],estimator=numpy.mean,
-#                                    alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
-#                                    subsample=numpy.mean)
-#            results[2].append((iblock, istate, jstate, (start,stop) + ci_res))
-#    return results
-
-def _eval_block(iblock, start, stop, nstates, total_fluxes, rates, mcbs_alpha, mcbs_nsets, mcbs_acalpha):
-    results = [[],[]]
+def _mod_eval_block(iblock, start, stop, nstates, total_fluxes, cond_fluxes, pops, mcbs_alpha, mcbs_nsets, mcbs_acalpha, **kwargs):
+    results = [[],[],[]]
     # results are target fluxes, conditional fluxes, rates
     for istate in xrange(nstates):
+        ci_res = mcbs_ci_correl(total_fluxes[:,istate],estimator=numpy.mean,
+                                    alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
+                                    subsample=numpy.mean)
+        results[0].append((iblock,istate,(start,stop)+ci_res))
+        
         for jstate in xrange(nstates):
             if istate == jstate: continue
-            ci_res = mcbs_ci_correl(total_fluxes[:,istate,jstate],estimator=numpy.mean,
+            ci_res = mcbs_ci_correl_rw(h5file, estimator=reweight_for_c,
                                     alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
-                                    subsample=numpy.mean)
-            results[0].append((iblock, istate, jstate, (start,stop) + ci_res))
-
-            ci_res = mcbs_ci_correl(rates[:,istate,jstate],estimator=numpy.mean,
-                                    alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
-                                    subsample=numpy.mean)
+                                    subsample=numpy.mean, istate=istate, jstate=jstate)
+            # ci_res normally outputs:
+            # Here, we're outputting different things.
+            # If we're smart, we'll do it all in one go with this modified function,
+            # as there's no need to bootstrap twice.
+            # Should limit the number of bootstrap calculations we do.
+            # We'll also need to write a new subsample function, which is a pain.
             results[1].append((iblock, istate, jstate, (start,stop) + ci_res))
-        
+
     return results
 
 def normalize(m):
@@ -145,7 +129,7 @@ def accumulate_statistics(h5file, start_iter, stop_iter, nbins, total_fluxes=Non
 
     return total_fluxes, total_obs, total_pop
 
-def accumulate_statistics_t(h5file, start_iter, stop_iter, nbins, total_fluxes=None, total_obs=None):
+def accumulate_statistics_list(h5file, iterations, nbins, total_fluxes=None, total_obs=None):
     if total_fluxes is None:
         assert total_obs is None
         total_fluxes = np.zeros((nbins, nbins), weight_dtype)
@@ -156,14 +140,15 @@ def accumulate_statistics_t(h5file, start_iter, stop_iter, nbins, total_fluxes=N
     obs = []
     flux = []
 
-    iter_grp = h5file['iterations']['iter_{:08d}'.format(start_iter)]
+    for iiter in xrange(iterations):
+        iter_grp = h5file['iterations']['iter_{:08d}'.format(iiter)]
 
-    rows = (iter_grp['rows'][...])
-    cols = (iter_grp['cols'][...])
-    obs = (iter_grp['obs'][...])
-    flux = (iter_grp['flux'][...])
+        rows.append(iter_grp['rows'][...])
+        cols.append(iter_grp['cols'][...])
+        obs.append(iter_grp['obs'][...])
+        flux.append(iter_grp['flux'][...])
 
-    #rows, cols, obs, flux = map(np.hstack, [rows, cols, obs, flux])
+    rows, cols, obs, flux = map(np.hstack, [rows, cols, obs, flux])
 
     total_fluxes += sp.coo_matrix((flux, (rows, cols)), shape=(nbins, nbins)).todense()
     total_obs += sp.coo_matrix((obs, (rows, cols)), shape=(nbins, nbins)).todense()
@@ -172,25 +157,44 @@ def accumulate_statistics_t(h5file, start_iter, stop_iter, nbins, total_fluxes=N
 
     return total_fluxes, total_obs, total_pop
 
+def reweight_for_c(h5file, indices, nstates, nbins, state_labels, state_map, nfbins, istate, jstate, obs_threshold=1, total_fluxes=None, total_obs=None):
+
+    # Instead of pulling in start and stop, we'll pull in a list of indices.
+    # This way, it should support the bootstrap.
+    total_fluxes, total_obs, total_pop = accumulate_statistics_list(h5file, indices, nfbins, total_fluxes, total_obs)
+
+    flux_matrix = total_fluxes.copy()
+    flux_matrix[total_obs < obs_threshold] = 0.0
+    transition_matrix = normalize(flux_matrix)
+
+    rw_bin_probs = steadystate_solve(transition_matrix)
+
+    bin_last_state_map = np.tile(np.arange(nstates, dtype=np.int), nbins)
+    bin_state_map = np.repeat(state_map[:-1], nstates)
+
+    rw_color_probs = np.bincount(bin_last_state_map, weights=rw_bin_probs) 
+    rw_state_probs = np.bincount(bin_state_map, weights=rw_bin_probs)
+
+    rw_bin_transition_matrix = transition_matrix
+
+    ii = np.nonzero(transition_matrix)
+
+    rw_state_flux = calc_state_flux(rw_bin_transition_matrix[ii], ii[0], ii[1], rw_bin_probs, 
+            bin_last_state_map, bin_state_map, nstates)
+
+    # In truth, let's just return the rates for now.
+    #return rw_state_flux, rw_color_probs, rw_state_probs, rw_bin_probs, rw_bin_transition_matrix
+    return rw_state_flux[istate,jstate] / (rw_color_probs[istate] / (rw_color_probs[istate] + rw_color_probs[jstate])
+
 def reweight(h5file, start, stop, nstates, nbins, state_labels, state_map, nfbins, obs_threshold=1, total_fluxes=None, total_obs=None):
 
-    # We're going to make some changes to this to work... hacks.
+    # Instead of pulling in start and stop, we'll pull in a list of indices.
+    # This way, it should support the bootstrap.
     total_fluxes, total_obs, total_pop = accumulate_statistics(h5file, start, stop, nfbins, total_fluxes, total_obs)
 
     flux_matrix = total_fluxes.copy()
     flux_matrix[total_obs < obs_threshold] = 0.0
     transition_matrix = normalize(flux_matrix)
-    #for iiter in xrange(start, stop):
-    #    total_fluxes, total_obs, total_pop = accumulate_statistics_t(h5file, iiter, iiter, nfbins, total_fluxes, total_obs)
-#
-#        flux_matrix = total_fluxes.copy()
-#        flux_matrix[total_obs < obs_threshold] = 0.0
-#        t_matrix = normalize(flux_matrix)
-#        if iiter == start:
-#            transition_matrix = t_matrix
-#        else:
-#            transition_matrix += t_matrix
-#    transition_matrix = normalize(transition_matrix)
 
     rw_bin_probs = steadystate_solve(transition_matrix)
 
@@ -498,10 +502,12 @@ Command-line options
                     else:   # self.evolution_mode == 'blocked'
                         block_start = start
                     #print(rate_evol[block_start:stop,:,:]['expected'])
-                    future = self.work_manager.submit(_eval_block, kwargs=dict(iblock=iblock, start=block_start, stop=stop,
-                                                                               nstates=nstates,
-                                                                               total_fluxes=flux_evol[block_start:stop,:,:]['expected'],
-                                                                               rates=rate_evol[block_start:stop,:,:]['expected'],
+                    future = self.work_manager.submit(_eval_block_mod, kwargs=dict(iblock=iblock, start=block_start, stop=stop,
+                                                                               nstates=nstates, nbins=nbins, nfbins=nfbins,
+                                                                               state_labels=state_labels, 
+                                                                               h5file=self.kinetics_file,
+                                                                               total_fluxes=None, total_obs=None,
+                                                                               #rates=rate_evol[block_start:stop,:,:]['expected'],
                                                                                mcbs_alpha=self.mcbs_alpha, mcbs_nsets=self.mcbs_nsets,
                                                                                mcbs_acalpha=self.mcbs_acalpha))
                     futures.append(future)

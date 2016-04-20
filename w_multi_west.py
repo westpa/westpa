@@ -120,7 +120,7 @@ Command-line options
             # It should then be compatible with existing toolsets.
             # Isn't really going to start with auxdata, but we'll add it in.
 
-            self.niters = 500
+            self.niters = 2000
             pi.new_operation('Recreating...', self.niters)
             westh5 = []
             for ifile, (key, west) in enumerate(self.westH5.iteritems()):
@@ -134,34 +134,39 @@ Command-line options
                 # wtgraph
                 # wtgraph is going to be a little more complex to handle, but not too bad.
                 iter += 1
-                for ifile, west in enumerate(westh5):
+                ifile = 0
+                for west in westh5:
                     if iter == 1:
                         summary = west['summary'][...]
                     # We're going to (temporarily) assume we follow iter_00000 blah.
-                    seg_index = west['iterations/iter_{0:08d}'.format(iter)]['seg_index'][...]
-                    pcoord = west['iterations/iter_{0:08d}'.format(iter)]['pcoord'][...]
-                    wtgraph = west['iterations/iter_{0:08d}'.format(iter)]['wtgraph'][...]
-                    if ifile == 0:
-                        mseg = seg_index
-                        mpco = pcoord
-                        mwtg = wtgraph
-                        start_point.append(0)
-                    if ifile != 0:
-                        #print(mseg.shape, seg_index.shape, ifile)
-                        #print(mpco.shape, pcoord.shape, ifile)
-                        #print(mwtg.shape, wtgraph.shape, ifile)
-                        if iter != 1:
-                            addition = prev_start_point[ifile]
-                        else:
-                            addition = mseg.shape[0]
-                        seg_index['parent_id'][np.where(seg_index['parent_id'] >= 0)] += addition
-                        seg_index['parent_id'][np.where(seg_index['parent_id'] < 0)] -= addition
-                        seg_index['wtg_offset'] += mwtg.shape[0]
-                        start_point.append(mseg.shape[0])
-                        wtgraph += mwtg.shape[0]
-                        mseg = np.concatenate((mseg, seg_index))
-                        mpco = np.concatenate((mpco, pcoord))
-                        mwtg = np.concatenate((mwtg, wtgraph))
+                    try:
+                        seg_index = west['iterations/iter_{0:08d}'.format(iter)]['seg_index'][...]
+                        pcoord = west['iterations/iter_{0:08d}'.format(iter)]['pcoord'][...]
+                        wtgraph = west['iterations/iter_{0:08d}'.format(iter)]['wtgraph'][...]
+                        if ifile == 0:
+                            mseg = seg_index
+                            mpco = pcoord
+                            mwtg = wtgraph
+                            start_point.append(0)
+                        if ifile != 0:
+                            #print(mseg.shape, seg_index.shape, ifile)
+                            #print(mpco.shape, pcoord.shape, ifile)
+                            #print(mwtg.shape, wtgraph.shape, ifile)
+                            if iter != 1:
+                                addition = prev_start_point[ifile]
+                            else:
+                                addition = mseg.shape[0]
+                            seg_index['parent_id'][np.where(seg_index['parent_id'] >= 0)] += addition
+                            seg_index['parent_id'][np.where(seg_index['parent_id'] < 0)] -= addition
+                            seg_index['wtg_offset'] += mwtg.shape[0]
+                            start_point.append(mseg.shape[0])
+                            wtgraph += mwtg.shape[0]
+                            mseg = np.concatenate((mseg, seg_index))
+                            mpco = np.concatenate((mpco, pcoord))
+                            mwtg = np.concatenate((mwtg, wtgraph))
+                        ifile += 1
+                    except:
+                        continue
                 prev_start_point = start_point
                 start_point = []
                 mseg['weight'] /= mseg['weight'].sum()

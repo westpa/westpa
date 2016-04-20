@@ -94,7 +94,7 @@ cpdef Py_ssize_t get_bssize(double alpha) nogil:
         bssize *= 10
     return bssize
 
-cpdef mcbs_ci(dataset, estimator, alpha, n_sets=None, args=None, kwargs=None, sort=numpy.msort, pops=None, istate=None, jstate=None):
+cpdef mcbs_ci(dataset, estimator, alpha, dlen, n_sets=None, args=None, kwargs=None, sort=numpy.msort):
     '''Perform a Monte Carlo bootstrap estimate for the (1-``alpha``) confidence interval
     on the given ``dataset`` with the given ``estimator``.  This routine is not appropriate
     for time-correlated data.
@@ -122,13 +122,17 @@ cpdef mcbs_ci(dataset, estimator, alpha, n_sets=None, args=None, kwargs=None, so
     
     args = args or ()
     kwargs = kwargs or {}
-    dataset = numpy.asanyarray(dataset)
-    dlen = len(dataset)
     
-    if pops == None:
-        fhat = estimator(dataset, *args, **kwargs)
-    else:
-        fhat = estimator(dataset=dataset, pops=pops, istate=istate, jstate=jstate)
+    # dataset SHOULD be a dictionary.
+    d_input = dataset.copy()
+    try:
+        d_input.update(kwargs)
+    except:
+        pass
+
+    fhat = estimator(**d_input)
+    #else:
+    #    fhat = estimator(dataset=dataset, pops=pops, istate=istate, jstate=jstate)
     
     try:
         estimator_shape = fhat.shape
@@ -146,10 +150,19 @@ cpdef mcbs_ci(dataset, estimator, alpha, n_sets=None, args=None, kwargs=None, so
     
     for i in xrange(n_sets):
         indices = numpy.random.randint(dlen, size=(dlen,))
-        if pops == None:
-            f_synth[i] = estimator(numpy.take(dataset,indices), *args, **kwargs)
-        else:
-            f_synth[i] = estimator(numpy.take(dataset,indices), pops=numpy.take(pops, indices), istate=istate, jstate=jstate)
+        d_synth = {}
+        for key, dset in dataset.iteritems():
+            d_synth[key] = numpy.take(dset, indices, axis=0)
+        #f_synth[i] = estimator(numpy.take(dataset,indices), *args, **kwargs)
+        d_input = d_synth.copy()
+        try:
+            d_input.update(kwargs)
+        except:
+            pass
+        f_synth[i] = estimator(**d_input)
+        # Truth be told, if we're doing the reweighting, we're just passing in a list of iterations to use anyway.
+        #else:
+        #    f_synth[i] = estimator(numpy.take(dataset,indices), pops=numpy.take(pops, indices), istate=istate, jstate=jstate)
         del indices
         
     f_synth_sorted = sort(f_synth)
@@ -157,11 +170,6 @@ cpdef mcbs_ci(dataset, estimator, alpha, n_sets=None, args=None, kwargs=None, so
     ubi = int(math.ceil(n_sets*(1-alpha/2.0)))                     
     lb = f_synth_sorted[lbi]
     ub = f_synth_sorted[ubi]
-    # New code.  Maybe erase.
-    #SE = (lb - ub) / 2
-    #SE *= numpy.sqrt(dlen)
-    #lb = fhat - SE
-    #ub = fhat + SE
     
     del f_synth_sorted, f_synth
     return (fhat, lb, ub)

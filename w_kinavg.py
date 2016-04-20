@@ -31,7 +31,7 @@ from westpa.kinetics import labeled_flux_to_rate, sequence_macro_flux_to_rate, s
 from westpa.kinetics.matrates import get_macrostate_rates
 
 import mclib
-from mclib import mcbs_correltime, mcbs_ci_correl
+from mclib import mcbs_correltime, mcbs_ci_correl, mcbs_ci_correl_rw
 
 
 log = logging.getLogger('westtools.w_kinavg')
@@ -168,26 +168,31 @@ def _eval_block(iblock, start, stop, nstates, total_fluxes, cond_fluxes, rates, 
 
     return results
 
-def _mod_eval_block(iblock, start, stop, nstates, total_fluxes, cond_fluxes, pops, mcbs_alpha, mcbs_nsets, mcbs_acalpha):
+def _mod_eval_block(iblock, start, stop, nstates, total_fluxes, cond_fluxes, pops, rates, mcbs_alpha, mcbs_nsets, mcbs_acalpha):
     results = [[],[],[]]
     # results are target fluxes, conditional fluxes, rates
     for istate in xrange(nstates):
-        ci_res = mcbs_ci_correl(total_fluxes[:,istate],estimator=numpy.mean,
-                                    alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
-                                    subsample=numpy.mean)
-        results[0].append((iblock,istate,(start,stop)+ci_res))
+        #dataset = {'a': total_fluxes[:, istate]}
+        #ci_res = mcbs_ci_correl_rw(dataset,estimator=numpy.mean,
+        #                            alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
+        #                            subsample=numpy.mean)
+        #results[0].append((iblock,istate,(start,stop)+ci_res))
         
         for jstate in xrange(nstates):
             if istate == jstate: continue
-            ci_res = mcbs_ci_correl(cond_fluxes[:,istate,jstate],estimator=numpy.mean,
-                                    alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
-                                    subsample=numpy.mean)
-            results[1].append((iblock, istate, jstate, (start,stop) + ci_res))
+            #dataset = {'a': cond_fluxes[:, istate, jstate]}
+            #ci_res = mcbs_ci_correl_rw(dataset,estimator=numpy.mean,
+            #                        alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
+            #                        subsample=numpy.mean)
+            #results[1].append((iblock, istate, jstate, (start,stop) + ci_res))
             
-            import scipy
-            ci_res = mcbs_ci_correl(cond_fluxes[:,istate,jstate],estimator=sequence_macro_flux_to_rate_bs,pops=pops,
+            # macro_flux_to_rate_bs needs the following:
+            # dataset, pops, istate, jstate
+            kwargs = { 'istate' : istate, 'jstate': jstate }
+            dataset = {'dataset': cond_fluxes[:, istate, jstate], 'pops': pops}
+            ci_res = mcbs_ci_correl_rw(dataset,estimator=sequence_macro_flux_to_rate_bs,
                                     alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
-                                    subsample=numpy.mean, istate=istate, jstate=jstate)
+                                    subsample=numpy.mean, pre_calculated=rates[:,istate,jstate], **kwargs)
             results[2].append((iblock, istate, jstate, (start,stop) + ci_res))
 
     return results
@@ -319,6 +324,7 @@ class AvgTraceSubcommand(KinAvgSubcommands):
                                                                            total_fluxes=total_fluxes.iter_slice(block_start,stop),
                                                                            cond_fluxes = cond_fluxes.iter_slice(block_start,stop),
                                                                            pops=pops.iter_slice(block_start,stop),
+                                                                           rates=rates.iter_slice(block_start,stop),
                                                                            mcbs_alpha=self.mcbs_alpha, mcbs_nsets=self.mcbs_nsets,
                                                                            mcbs_acalpha=self.mcbs_acalpha))
                 futures.append(future)
