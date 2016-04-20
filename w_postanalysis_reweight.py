@@ -25,6 +25,7 @@ from scipy.sparse import csgraph
 import h5py
 
 from collections import Counter
+from postanalysis import reweight_for_c
 
 import westpa
 from west.data_manager import weight_dtype, n_iter_dtype
@@ -36,22 +37,25 @@ from westtools.dtypes import iter_block_ci_dtype as ci_dtype
 log = logging.getLogger('westtools.w_postanalysis_reweight')
 
 import mclib
-from mclib import mcbs_correltime, mcbs_ci_correl
+from mclib import mcbs_correltime, mcbs_ci_correl_rw
 
-def _mod_eval_block(iblock, start, stop, nstates, total_fluxes, cond_fluxes, pops, mcbs_alpha, mcbs_nsets, mcbs_acalpha, **kwargs):
-    results = [[],[],[]]
+def _mod_eval_block(iblock, start, stop, nstates, nbins, total_fluxes, cond_fluxes, mcbs_alpha, mcbs_nsets, mcbs_acalpha, rates, state_map, **kwargs):
+    results = [[],[]]
     # results are target fluxes, conditional fluxes, rates
     for istate in xrange(nstates):
-        ci_res = mcbs_ci_correl(total_fluxes[:,istate],estimator=numpy.mean,
-                                    alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
-                                    subsample=numpy.mean)
-        results[0].append((iblock,istate,(start,stop)+ci_res))
+        #dataset = { 'a' : total_fluxes[:,istate] }
+        #ci_res = mcbs_ci_correl_rw(dataset,estimator=numpy.mean,
+        #                            alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
+        #                            subsample=numpy.mean)
+        #results[0].append((iblock,istate,(start,stop)+ci_res))
         
         for jstate in xrange(nstates):
             if istate == jstate: continue
-            ci_res = mcbs_ci_correl_rw(h5file, estimator=reweight_for_c,
+            dataset = { 'indices' : np.array(range(start, stop+1)) }
+            kwargs.update({ 'istate' : istate, 'jstate': jstate, 'nstates' : nstates, 'nbins' : nbins , 'state_map': state_map})
+            ci_res = mcbs_ci_correl_rw(dataset, estimator=reweight_for_c,
                                     alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
-                                    subsample=numpy.mean, istate=istate, jstate=jstate)
+                                    subsample=numpy.mean, pre_calculated=rates[:,istate,jstate], **kwargs)
             # ci_res normally outputs:
             # Here, we're outputting different things.
             # If we're smart, we'll do it all in one go with this modified function,
@@ -157,34 +161,6 @@ def accumulate_statistics_list(h5file, iterations, nbins, total_fluxes=None, tot
 
     return total_fluxes, total_obs, total_pop
 
-def reweight_for_c(h5file, indices, nstates, nbins, state_labels, state_map, nfbins, istate, jstate, obs_threshold=1, total_fluxes=None, total_obs=None):
-
-    # Instead of pulling in start and stop, we'll pull in a list of indices.
-    # This way, it should support the bootstrap.
-    total_fluxes, total_obs, total_pop = accumulate_statistics_list(h5file, indices, nfbins, total_fluxes, total_obs)
-
-    flux_matrix = total_fluxes.copy()
-    flux_matrix[total_obs < obs_threshold] = 0.0
-    transition_matrix = normalize(flux_matrix)
-
-    rw_bin_probs = steadystate_solve(transition_matrix)
-
-    bin_last_state_map = np.tile(np.arange(nstates, dtype=np.int), nbins)
-    bin_state_map = np.repeat(state_map[:-1], nstates)
-
-    rw_color_probs = np.bincount(bin_last_state_map, weights=rw_bin_probs) 
-    rw_state_probs = np.bincount(bin_state_map, weights=rw_bin_probs)
-
-    rw_bin_transition_matrix = transition_matrix
-
-    ii = np.nonzero(transition_matrix)
-
-    rw_state_flux = calc_state_flux(rw_bin_transition_matrix[ii], ii[0], ii[1], rw_bin_probs, 
-            bin_last_state_map, bin_state_map, nstates)
-
-    # In truth, let's just return the rates for now.
-    #return rw_state_flux, rw_color_probs, rw_state_probs, rw_bin_probs, rw_bin_transition_matrix
-    return rw_state_flux[istate,jstate] / (rw_color_probs[istate] / (rw_color_probs[istate] + rw_color_probs[jstate])
 
 def reweight(h5file, start, stop, nstates, nbins, state_labels, state_map, nfbins, obs_threshold=1, total_fluxes=None, total_obs=None):
 
@@ -452,7 +428,7 @@ Command-line options
                     color_prob_evol[iblock] = rw_color_probs
                     state_prob_evol[iblock] = rw_state_probs[:-1]
                     bin_prob_evol[iblock] = rw_bin_probs
-                flux_evol[:]['expected'][k,j] *= (npts - 1)
+                #flux_evol[:]['expected'][k,j] *= (npts - 1)
 
 
             else:
@@ -501,13 +477,14 @@ Command-line options
                         block_start = max(start_iter, stop - windowsize)
                     else:   # self.evolution_mode == 'blocked'
                         block_start = start
-                    #print(rate_evol[block_start:stop,:,:]['expected'])
-                    future = self.work_manager.submit(_eval_block_mod, kwargs=dict(iblock=iblock, start=block_start, stop=stop,
+                    future = self.work_manager.submit(_mod_eval_block, kwargs=dict(iblock=iblock, start=block_start, stop=stop,
                                                                                nstates=nstates, nbins=nbins, nfbins=nfbins,
                                                                                state_labels=state_labels, 
                                                                                h5file=self.kinetics_file,
-                                                                               total_fluxes=None, total_obs=None,
-                                                                               #rates=rate_evol[block_start:stop,:,:]['expected'],
+                                                                               total_fluxes=None, cond_fluxes=None,
+                                                                               total_obs=None,
+                                                                               state_map=state_map,
+                                                                               rates=rate_evol[block_start-1:stop,:,:]['expected'],
                                                                                mcbs_alpha=self.mcbs_alpha, mcbs_nsets=self.mcbs_nsets,
                                                                                mcbs_acalpha=self.mcbs_acalpha))
                     futures.append(future)
@@ -520,9 +497,9 @@ Command-line options
                     #    iblock,istate,ci_result = result
                     #    target_evol[iblock,istate] = ci_result
                         
-                    for result in condflux_results:
-                        iblock,istate,jstate,ci_result = result
-                        flux_evol_bootstrap[iblock, istate, jstate] = ci_result
+                    #for result in condflux_results:
+                    #    iblock,istate,jstate,ci_result = result
+                    #    flux_evol_bootstrap[iblock, istate, jstate] = ci_result
                     
                     for result in rate_results:
                         iblock, istate, jstate, ci_result = result 

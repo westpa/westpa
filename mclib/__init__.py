@@ -190,6 +190,7 @@ def mcbs_ci_correl_rw(dataset, estimator, alpha, n_sets=None, args=None,
         except:
             pass
 
+        print(d_input)
         return estimator(**d_input), pre_calculated.min(), pre_calculated.max(), correl_len
         
     # else, do a blocked bootstrap
