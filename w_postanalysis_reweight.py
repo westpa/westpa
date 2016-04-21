@@ -39,7 +39,7 @@ log = logging.getLogger('westtools.w_postanalysis_reweight')
 import mclib
 from mclib import mcbs_correltime, mcbs_ci_correl_rw
 
-def _mod_eval_block(iblock, start, stop, nstates, nbins, total_fluxes, cond_fluxes, mcbs_alpha, mcbs_nsets, mcbs_acalpha, rates, state_map, **kwargs):
+def _mod_eval_block(iblock, start, stop, nstates, nbins, mcbs_alpha, mcbs_nsets, mcbs_acalpha, rates, state_map, **kwargs):
     results = [[],[]]
     # results are target fluxes, conditional fluxes, rates
     for istate in xrange(nstates):
@@ -48,14 +48,15 @@ def _mod_eval_block(iblock, start, stop, nstates, nbins, total_fluxes, cond_flux
         #                            alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
         #                            subsample=numpy.mean)
         #results[0].append((iblock,istate,(start,stop)+ci_res))
+        # Let's bullshit the dataset.  Ultimately, we should do this in the main block, not here.
         
         for jstate in xrange(nstates):
             if istate == jstate: continue
-            dataset = { 'indices' : np.array(range(start, stop+1)) }
+            dataset = { 'indices' : np.array(range(start-1, stop-1), dtype=np.uint16) }
             kwargs.update({ 'istate' : istate, 'jstate': jstate, 'nstates' : nstates, 'nbins' : nbins , 'state_map': state_map})
             ci_res = mcbs_ci_correl_rw(dataset, estimator=reweight_for_c,
                                     alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
-                                    subsample=numpy.mean, pre_calculated=rates[:,istate,jstate], **kwargs)
+                                    subsample=(lambda x: x[0]), pre_calculated=rates[:,istate,jstate], **kwargs)
             # ci_res normally outputs:
             # Here, we're outputting different things.
             # If we're smart, we'll do it all in one go with this modified function,
@@ -470,6 +471,33 @@ Command-line options
                 all_items = np.arange(1,len(start_pts)+1)
                 bootstrap_length = 0.5*(len(start_pts)*(len(start_pts)+1)) - np.delete(all_items, np.arange(1, len(start_pts)+1, step_iter))
                 pi.new_operation('Calculating Monte Carlo Bootstrap', bootstrap_length[0])
+                rows = []
+                cols = []
+                obs = []
+                flux = []
+                insert = []
+
+                for iiter in xrange(start_iter, stop_iter):
+                    iter_grp = self.kinetics_file['iterations']['iter_{:08d}'.format(iiter)]
+
+                    rows.append(iter_grp['rows'][...])
+                    cols.append(iter_grp['cols'][...])
+                    obs.append(iter_grp['obs'][...])
+                    flux.append(iter_grp['flux'][...])
+                    if iiter != start_iter:
+                        insert.append(iter_grp['rows'][...].shape[0] + insert[-1])
+                    else:
+                        insert.append(iter_grp['rows'][...].shape[0])
+                rows = np.concatenate(rows)
+                cols = np.concatenate(cols)
+                obs = np.concatenate(obs)
+                flux = np.concatenate(flux)
+                ins = []
+                ins.append(0)
+                ins += insert
+                insert = np.array(ins, dtype=np.intc)
+
+        
                 for iblock, start in enumerate(start_pts):
                     stop = min(start+step_iter, stop_iter)
                     if self.evolution_mode == 'cumulative':
@@ -479,10 +507,8 @@ Command-line options
                         block_start = start
                     future = self.work_manager.submit(_mod_eval_block, kwargs=dict(iblock=iblock, start=block_start, stop=stop,
                                                                                nstates=nstates, nbins=nbins, nfbins=nfbins,
+                                                                               rows=rows, cols=cols, obs=obs, flux=flux, insert=insert,
                                                                                state_labels=state_labels, 
-                                                                               h5file=self.kinetics_file,
-                                                                               total_fluxes=None, cond_fluxes=None,
-                                                                               total_obs=None,
                                                                                state_map=state_map,
                                                                                rates=rate_evol[block_start-1:stop,:,:]['expected'],
                                                                                mcbs_alpha=self.mcbs_alpha, mcbs_nsets=self.mcbs_nsets,

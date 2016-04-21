@@ -185,12 +185,12 @@ def mcbs_ci_correl_rw(dataset, estimator, alpha, n_sets=None, args=None,
     if correl_len == len(pre_calculated):
         # too correlated for meaningful calculations
         d_input = dataset.copy()
+        kwargs['stride'] = 1
         try:
             d_input.update(kwargs)
         except:
             pass
 
-        print(d_input)
         return estimator(**d_input), pre_calculated.min(), pre_calculated.max(), correl_len
         
     # else, do a blocked bootstrap
@@ -198,6 +198,7 @@ def mcbs_ci_correl_rw(dataset, estimator, alpha, n_sets=None, args=None,
     
     if stride == 1:
         #return mcbs_ci(dataset, estimator, alpha, dlen, n_sets, args, kwargs, numpy.msort) + (correl_len,)
+        kwargs['stride'] = stride
         return mcbs_ci(dataset=dataset, estimator=estimator, alpha=alpha, dlen=dlen, n_sets=n_sets, args=args, kwargs=kwargs, sort=numpy.msort) + (correl_len,)
     else:
         #n_slices = dlen // stride
@@ -214,8 +215,10 @@ def mcbs_ci_correl_rw(dataset, estimator, alpha, n_sets=None, args=None,
             for iout, istart in enumerate(xrange(0,dset.shape[0]-stride+1,stride)):
                 sl = dset[istart:istart+stride]
                 # We assume time is the 0th axis.
-                decim_set[iout] = subsample(sl, axis=0)
+                #decim_set[iout] = subsample(sl, axis=0)
+                decim_set[iout] = subsample(sl)
             decim_list[key] = decim_set
             dlen = dset_shape[0]
+            kwargs['stride'] = stride
         
         return mcbs_ci(dataset=decim_list, estimator=estimator, alpha=alpha, dlen=dlen, n_sets=n_sets, args=args, kwargs=kwargs, sort=numpy.msort) + (correl_len,)
