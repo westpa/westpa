@@ -36,6 +36,7 @@ ctypedef numpy.float64_t weight_t
 ctypedef numpy.uint8_t bool_t
 ctypedef numpy.int64_t trans_t
 ctypedef numpy.uint_t uint_t # 32 bits on 32-bit systems, 64 bits on 64-bit systems
+ctypedef unsigned short Ushort
 
 weight_dtype = numpy.float64  
 index_dtype = numpy.uint16
@@ -91,6 +92,7 @@ cpdef stats_process(numpy.ndarray[index_t, ndim=2] bin_assignments,
 @cython.boundscheck(False)
 @cython.wraparound(False)
 @cython.cdivision(True)
+#cpdef weight_t[:,:] normalize(weight_t[:,:] m):
 cpdef normalize(numpy.ndarray[weight_t, ndim=2] tm):
 
     cdef:
@@ -98,10 +100,12 @@ cpdef normalize(numpy.ndarray[weight_t, ndim=2] tm):
         Py_ssize_t x, y, nfbins
         numpy.ndarray[weight_t, ndim=2] m
 
-    m = tm.copy()
     # We should send this in, rather than calculating it here.
     # We also want to convert to memoryviews, ultimately, if possible.
+    # However, doing that means we pass nothing BUT memoryviews, which I'm not yet ready for.
+    m = tm.copy()
     nfbins = m.shape[0]
+
 
     with nogil:
         for y in range(nfbins):
@@ -134,6 +138,7 @@ def reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, nbins, state
 
     # We want to reconstruct the missing datasets, so we assume we have the first part of the block and
     # reconstruct appropriately.
+    # There is probably a better way to do this.
     if stride > 1:
     #    print("Show me!")
         new_indices = np.repeat(indices, stride)
@@ -151,6 +156,7 @@ def reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, nbins, state
 
     # This is a temporary measure that fixes some segfaults, which implies I'm probably off by
     # a little bit.  Memory heavy, but whatever.
+    # It breaks depending on things, so I need to root that out.  Clearly, nnz is larger than that.
     nnz = len(rows)*2
     indices = np.sort(indices)
     total_fluxes, total_obs = accumulate_statistics_list(_rows, _cols, _obs, _flux, _ins, indices, nfbins, nnz)
@@ -224,14 +230,11 @@ cpdef accumulate_statistics_list(int[:] hrows, int[:] hcols, int[:] hobs, weight
         for iter in range(itermax):
             iiter = iterations[iter]
             for ilem in range(hins[iiter], hins[iiter+1]):
-                #print(nnz, iter, iiter, ilem, curriter, iterations)
                 _rows[curriter] = hrows[ilem]
                 _cols[curriter] = hcols[ilem]
                 _obs[curriter] = hobs[ilem]
                 _flux[curriter] = hflux[ilem]
                 curriter += 1
-            # Sum along the axis, here...
-            # Wait, we're not even using this,
 
     total_fluxes = sp.coo_matrix((_flux, (_rows, _cols)), shape=(nbins, nbins)).todense()
     total_obs = sp.coo_matrix((_obs, (_rows, _cols)), shape=(nbins, nbins)).todense()
@@ -239,30 +242,39 @@ cpdef accumulate_statistics_list(int[:] hrows, int[:] hcols, int[:] hobs, weight
 
     return total_fluxes, total_obs
 
-def calc_state_flux(trans_matrix, index1, index2, bin_probs, bin_last_state_map, bin_state_map, nstates):
+@cython.boundscheck(False)
+@cython.wraparound(False)
+@cython.cdivision(True)
+cpdef calc_state_flux(trans_matrix, index1, index2, bin_probs, bin_last_state_map, bin_state_map, nstates):
     
     cdef:
         weight_t[:,:] _trans_matrix, _state_flux
         weight_t[:] _bin_probs
-        Py_ssize_t k
+        Ushort[:] _bin_state_map
+        long[:] _bin_last_state_map, _index1, _index2
+        int k, n_trans, ii, jj, _nstates
 
     state_flux = np.zeros((nstates, nstates), np.float64)
     _state_flux = state_flux
+    _bin_state_map = bin_state_map
+    _bin_last_state_map = bin_last_state_map
     _trans_matrix = trans_matrix
     _bin_probs = bin_probs
+    _index1 = index1
+    _index2 = index2
+    _nstates = nstates
 
     n_trans = index1.shape[0]
-    for k in xrange(n_trans):
-        ii = bin_last_state_map[index1[k]]
-        jj = bin_state_map[index2[k]]
 
-        if jj != nstates:
-            # This isn't working because we're not slicing the trans_matrix correctly.
-            # Unsure (doubtful) that it's working correctly, currently.
+    with nogil:
+        for k in xrange(n_trans):
+            ii = _bin_last_state_map[_index1[k]]
+            jj = _bin_state_map[_index2[k]]
 
-            #_state_flux[ii, jj] += (_trans_matrix[0, k] * _bin_probs[index1[k]])
-            #print(trans_matrix[0,k], bin_probs[index1[k]])
-            _state_flux[ii, jj] += (trans_matrix[0, k] * bin_probs[index1[k]])
+            # Cython plays a fun game called "shape the matrix differently than pure python".
+            # Instead of a vector of size N, we get a matrix of size 1,N.
+            if jj != _nstates:
+                _state_flux[ii, jj] += (_trans_matrix[0, k] * _bin_probs[_index1[k]])
 
     return state_flux
 
@@ -271,6 +283,7 @@ def steadystate_solve(K):
     cdef:
         weight_t[:] _bin_prob
 
+    # I don't even want to start cythonizing this.
     bin_prob = np.zeros(K.shape[0])
     _bin_prob = bin_prob
     # Reformulate K to remove sink/source states
@@ -292,7 +305,8 @@ def steadystate_solve(K):
         for i in range(diag.shape[1]):
             _bin_prob[i] = diag[0, i]
         bin_prob = bin_prob / np.sum(bin_prob)
-        # THIS PART CAN GET BENT ASSHOLE
+        # Make sure you account for the shape of this properly, as Cython
+        # doesn't immediately return vectors in the way python does.
         return bin_prob
 
     sub_bin_prob = eigvecs[:, maxi] / np.sum(eigvecs[:, maxi])
