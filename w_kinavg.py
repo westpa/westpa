@@ -309,7 +309,10 @@ class AvgTraceSubcommand(KinAvgSubcommands):
             target_evol = numpy.zeros((len(start_pts), nstates), dtype=ci_dtype)
             flux_evol = numpy.zeros((len(start_pts), nstates, nstates), dtype=ci_dtype)
             rate_evol = numpy.zeros((len(start_pts), nstates, nstates), dtype=ci_dtype)
-            pi.new_operation('Calculating flux/rate evolution', len(start_pts))
+            all_items = numpy.arange(1,len(start_pts)+1)
+            bootstrap_length = 0.5*(len(start_pts)*(len(start_pts)+1)) - numpy.delete(all_items, numpy.arange(1, len(start_pts)+1, step_iter))
+            #pi.new_operation('Calculating flux/rate evolution', len(start_pts))
+            pi.new_operation('Calculating flux/rate evolution', bootstrap_length[0])
             futures = []
             for iblock, start in enumerate(start_pts):
                 stop = min(start+step_iter, stop_iter)
@@ -330,7 +333,8 @@ class AvgTraceSubcommand(KinAvgSubcommands):
                 futures.append(future)
             
             for future in self.work_manager.as_completed(futures):
-                pi.progress += 1
+                #pi.progress += 1
+                pi.progress += iblock / step_iter
                 #target_results, condflux_results, rate_results = future.get_result(discard=True)
                 target_results, condflux_results, rate_results = future.get_result(discard=True)
                 for result in target_results:

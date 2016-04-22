@@ -172,22 +172,10 @@ def reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, nbins, state
     # We want to reconstruct the missing datasets, so we assume we have the first part of the block and
     # reconstruct appropriately.
     # There is probably a better way to do this.
-    if stride > 1:
-    #    print("Show me!")
-        new_indices = np.repeat(indices, stride)
-        new_indices = np.ones_like(new_indices)
-        curriter = 0
-        for ind in range(len(indices)):
-            i = indices[ind]
-            for x in range(stride):
-                if curriter < len(indices)*stride:
-                    if i+x < len(insert)-1:
-                        new_indices[curriter] = i+x
-                        curriter +=1
-        indices = new_indices
+    new_indices = np.zeros(((indices.shape[0]*stride)), dtype=indices.dtype)
+    indices = regenerate_subsampled_indices(indices, new_indices, len(indices), stride)
 
 
-    indices = np.sort(indices)
     _total_fluxes, _total_obs = accumulate_statistics_list(_rows, _cols, _obs, _flux, _ins, indices, nfbins, nnz, total_fluxes, total_obs, nrows, ncols, nobs, nflux, len(indices))
 
     # This is still an issue.  Clean up the handling of numpy arrays vs. memoryviews.
@@ -195,7 +183,7 @@ def reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, nbins, state
     transition_matrix = np.asarray(total_fluxes.copy())
     transition_matrix = np.asarray(normalize(transition_matrix))
 
-    rw_bin_probs = np.asarray(steadystate_solve(transition_matrix))
+    rw_bin_probs = np.asarray(steadystate_solve(transition_matrix.copy()))
 
     bin_last_state_map = np.tile(np.arange(nstates, dtype=np.int), nbins)
     bin_state_map = np.repeat(state_map[:-1], nstates)
@@ -212,7 +200,25 @@ def reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, nbins, state
     rw_state_flux = calc_state_flux(rw_bin_transition_matrix[ii], ii[0], ii[1], rw_bin_probs, 
             bin_last_state_map, bin_state_map, nstates, state_flux, n_trans)
 
-    return (rw_state_flux[istate,jstate] / (rw_color_probs[istate] / (rw_color_probs[istate] + rw_color_probs[jstate])))
+    if rw_color_probs[istate] != 0.0:
+        return (rw_state_flux[istate,jstate] / (rw_color_probs[istate] / (rw_color_probs[istate] + rw_color_probs[jstate])))
+    else:
+        return 0.0
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+@cython.cdivision(True)
+cpdef regenerate_subsampled_indices(Ushort[:] iin, Ushort[:] iout, int ilen, int stride):
+
+    cdef:
+        int i, si
+
+    with nogil:
+        for i in range(ilen):
+            for si in range(stride):
+                iout[(i*stride)+si] = iin[i] + si
+
+    return iout
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
@@ -310,12 +316,7 @@ def steadystate_solve(K):
     maxi = np.argmax(eigvals)
     if not np.allclose(np.abs(eigvals[maxi]), 1.0):
         bin_prob = K.diagonal().copy()
-        #print(diag.shape)
-        #for i in range(diag.shape[1]):
-        #    _bin_prob[i] = diag[0, i]
         bin_prob = bin_prob / np.sum(bin_prob)
-        # Make sure you account for the shape of this properly, as Cython
-        # doesn't immediately return vectors in the way python does.
         return bin_prob
 
     sub_bin_prob = eigvecs[:, maxi] / np.sum(eigvecs[:, maxi])

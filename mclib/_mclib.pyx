@@ -153,16 +153,12 @@ cpdef mcbs_ci(dataset, estimator, alpha, dlen, n_sets=None, args=None, kwargs=No
         d_synth = {}
         for key, dset in dataset.iteritems():
             d_synth[key] = numpy.take(dset, indices, axis=0)
-        #f_synth[i] = estimator(numpy.take(dataset,indices), *args, **kwargs)
         d_input = d_synth.copy()
         try:
             d_input.update(kwargs)
         except:
             pass
         f_synth[i] = estimator(**d_input)
-        # Truth be told, if we're doing the reweighting, we're just passing in a list of iterations to use anyway.
-        #else:
-        #    f_synth[i] = estimator(numpy.take(dataset,indices), pops=numpy.take(pops, indices), istate=istate, jstate=jstate)
         del indices
         
     f_synth_sorted = sort(f_synth)
