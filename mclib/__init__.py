@@ -215,8 +215,11 @@ def mcbs_ci_correl_rw(dataset, estimator, alpha, n_sets=None, args=None,
             for iout, istart in enumerate(xrange(0,dset.shape[0]-stride+1,stride)):
                 sl = dset[istart:istart+stride]
                 # We assume time is the 0th axis.
-                #decim_set[iout] = subsample(sl, axis=0)
-                decim_set[iout] = subsample(sl)
+                # Okay, so non-optimal.  Population requires the axis subsampling to be done just so...
+                try:
+                    decim_set[iout] = subsample(sl, axis=0)
+                except:
+                    decim_set[iout] = subsample(sl)
             decim_list[key] = decim_set
             dlen = dset_shape[0]
             kwargs['stride'] = stride

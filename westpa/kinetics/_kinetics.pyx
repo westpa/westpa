@@ -377,7 +377,7 @@ cpdef labeled_flux_to_rate(weight_t[:,:,:,:] labeled_fluxes, weight_t[:,:] label
 @cython.boundscheck(False)
 @cython.wraparound(False)
 @cython.cdivision(True)
-cpdef sequence_macro_flux_to_rate_bs(weight_t[:] dataset, weight_t[:,:] pops, Py_ssize_t istate, Py_ssize_t jstate, bint pairwise=True):
+cpdef sequence_macro_flux_to_rate_bs(weight_t[:] dataset, weight_t[:,:] pops, Py_ssize_t istate, Py_ssize_t jstate, bint pairwise=True, stride=None):
     '''Convert a sequence of macrostate fluxes and corresponding list of trajectory ensemble populations
     to a sequence of rate matrices.
     

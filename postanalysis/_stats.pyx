@@ -190,12 +190,12 @@ def reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, nbins, state
     indices = np.sort(indices)
     _total_fluxes, _total_obs = accumulate_statistics_list(_rows, _cols, _obs, _flux, _ins, indices, nfbins, nnz, total_fluxes, total_obs, nrows, ncols, nobs, nflux, len(indices))
 
+    # This is still an issue.  Clean up the handling of numpy arrays vs. memoryviews.
     total_fluxes[total_obs < obs_threshold] = 0.0
     transition_matrix = np.asarray(total_fluxes.copy())
     transition_matrix = np.asarray(normalize(transition_matrix))
 
     rw_bin_probs = np.asarray(steadystate_solve(transition_matrix))
-    #print(transition_matrix)
 
     bin_last_state_map = np.tile(np.arange(nstates, dtype=np.int), nbins)
     bin_state_map = np.repeat(state_map[:-1], nstates)
@@ -213,8 +213,6 @@ def reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, nbins, state
             bin_last_state_map, bin_state_map, nstates, state_flux, n_trans)
 
     return (rw_state_flux[istate,jstate] / (rw_color_probs[istate] / (rw_color_probs[istate] + rw_color_probs[jstate])))
-    #print(rw_state_flux[istate,jstate], rw_color_probs[istate])
-    #return rw_state_flux[istate,jstate]
 
 @cython.boundscheck(False)
 @cython.wraparound(False)

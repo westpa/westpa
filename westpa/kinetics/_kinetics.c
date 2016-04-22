@@ -886,13 +886,14 @@ struct __pyx_opt_args_6westpa_8kinetics_9_kinetics_labeled_flux_to_rate {
 /* "westpa/kinetics/_kinetics.pyx":380
  * @cython.wraparound(False)
  * @cython.cdivision(True)
- * cpdef sequence_macro_flux_to_rate_bs(weight_t[:] dataset, weight_t[:,:] pops, Py_ssize_t istate, Py_ssize_t jstate, bint pairwise=True):             # <<<<<<<<<<<<<<
+ * cpdef sequence_macro_flux_to_rate_bs(weight_t[:] dataset, weight_t[:,:] pops, Py_ssize_t istate, Py_ssize_t jstate, bint pairwise=True, stride=None):             # <<<<<<<<<<<<<<
  *     '''Convert a sequence of macrostate fluxes and corresponding list of trajectory ensemble populations
  *     to a sequence of rate matrices.
  */
 struct __pyx_opt_args_6westpa_8kinetics_9_kinetics_sequence_macro_flux_to_rate_bs {
   int __pyx_n;
   int pairwise;
+  PyObject *stride;
 };
 
 /* "westpa/kinetics/_kinetics.pyx":428
@@ -1796,6 +1797,7 @@ static char __pyx_k_istate[] = "istate";
 static char __pyx_k_jstate[] = "jstate";
 static char __pyx_k_name_2[] = "__name__";
 static char __pyx_k_output[] = "output";
+static char __pyx_k_stride[] = "stride";
 static char __pyx_k_struct[] = "struct";
 static char __pyx_k_uint16[] = "uint16";
 static char __pyx_k_unpack[] = "unpack";
@@ -1991,6 +1993,7 @@ static PyObject *__pyx_n_s_state;
 static PyObject *__pyx_n_s_state_assignments;
 static PyObject *__pyx_n_s_step;
 static PyObject *__pyx_n_s_stop;
+static PyObject *__pyx_n_s_stride;
 static PyObject *__pyx_kp_s_strided_and_direct;
 static PyObject *__pyx_kp_s_strided_and_direct_or_indirect;
 static PyObject *__pyx_kp_s_strided_and_indirect;
@@ -2025,7 +2028,7 @@ static PyObject *__pyx_pf_6westpa_8kinetics_9_kinetics_14flat_to_nested_matrix(C
 static PyObject *__pyx_pf_6westpa_8kinetics_9_kinetics_16flat_to_nested_vector(CYTHON_UNUSED PyObject *__pyx_self, Py_ssize_t __pyx_v_nstates, Py_ssize_t __pyx_v_nbins, __Pyx_memviewslice __pyx_v_input); /* proto */
 static PyObject *__pyx_pf_6westpa_8kinetics_9_kinetics_18_reduce_labeled_rate_matrix_to_macro(CYTHON_UNUSED PyObject *__pyx_self, Py_ssize_t __pyx_v_nstates, Py_ssize_t __pyx_v_nbins, __Pyx_memviewslice __pyx_v_rates, __Pyx_memviewslice __pyx_v_pops); /* proto */
 static PyObject *__pyx_pf_6westpa_8kinetics_9_kinetics_20labeled_flux_to_rate(CYTHON_UNUSED PyObject *__pyx_self, __Pyx_memviewslice __pyx_v_labeled_fluxes, __Pyx_memviewslice __pyx_v_labeled_pops, PyObject *__pyx_v_output); /* proto */
-static PyObject *__pyx_pf_6westpa_8kinetics_9_kinetics_22sequence_macro_flux_to_rate_bs(CYTHON_UNUSED PyObject *__pyx_self, __Pyx_memviewslice __pyx_v_dataset, __Pyx_memviewslice __pyx_v_pops, Py_ssize_t __pyx_v_istate, Py_ssize_t __pyx_v_jstate, int __pyx_v_pairwise); /* proto */
+static PyObject *__pyx_pf_6westpa_8kinetics_9_kinetics_22sequence_macro_flux_to_rate_bs(CYTHON_UNUSED PyObject *__pyx_self, __Pyx_memviewslice __pyx_v_dataset, __Pyx_memviewslice __pyx_v_pops, Py_ssize_t __pyx_v_istate, Py_ssize_t __pyx_v_jstate, int __pyx_v_pairwise, PyObject *__pyx_v_stride); /* proto */
 static PyObject *__pyx_pf_6westpa_8kinetics_9_kinetics_24sequence_macro_flux_to_rate(CYTHON_UNUSED PyObject *__pyx_self, __Pyx_memviewslice __pyx_v_fluxes, __Pyx_memviewslice __pyx_v_traj_ens_pops, int __pyx_v_pairwise); /* proto */
 static PyObject *__pyx_pf_6westpa_8kinetics_9_kinetics_26_fast_transition_state_copy(CYTHON_UNUSED PyObject *__pyx_self, Py_ssize_t __pyx_v_iiter, Py_ssize_t __pyx_v_nstates, __Pyx_memviewslice __pyx_v_parent_ids, PyObject *__pyx_v_last_state); /* proto */
 static PyObject *__pyx_pf_6westpa_8kinetics_9_kinetics_28find_macrostate_transitions(CYTHON_UNUSED PyObject *__pyx_self, Py_ssize_t __pyx_v_nstates, __Pyx_memviewslice __pyx_v_weights, __Pyx_memviewslice __pyx_v_label_assignments, __Pyx_memviewslice __pyx_v_state_assignments, double __pyx_v_dt, PyObject *__pyx_v_state, __Pyx_memviewslice __pyx_v_macro_fluxes, __Pyx_memviewslice __pyx_v_macro_counts, __Pyx_memviewslice __pyx_v_target_fluxes, __Pyx_memviewslice __pyx_v_target_counts, PyObject *__pyx_v_durations); /* proto */
@@ -6581,7 +6584,7 @@ static PyObject *__pyx_pf_6westpa_8kinetics_9_kinetics_20labeled_flux_to_rate(CY
 /* "westpa/kinetics/_kinetics.pyx":380
  * @cython.wraparound(False)
  * @cython.cdivision(True)
- * cpdef sequence_macro_flux_to_rate_bs(weight_t[:] dataset, weight_t[:,:] pops, Py_ssize_t istate, Py_ssize_t jstate, bint pairwise=True):             # <<<<<<<<<<<<<<
+ * cpdef sequence_macro_flux_to_rate_bs(weight_t[:] dataset, weight_t[:,:] pops, Py_ssize_t istate, Py_ssize_t jstate, bint pairwise=True, stride=None):             # <<<<<<<<<<<<<<
  *     '''Convert a sequence of macrostate fluxes and corresponding list of trajectory ensemble populations
  *     to a sequence of rate matrices.
  */
@@ -7077,7 +7080,7 @@ static PyObject *__pyx_f_6westpa_8kinetics_9_kinetics_sequence_macro_flux_to_rat
   /* "westpa/kinetics/_kinetics.pyx":380
  * @cython.wraparound(False)
  * @cython.cdivision(True)
- * cpdef sequence_macro_flux_to_rate_bs(weight_t[:] dataset, weight_t[:,:] pops, Py_ssize_t istate, Py_ssize_t jstate, bint pairwise=True):             # <<<<<<<<<<<<<<
+ * cpdef sequence_macro_flux_to_rate_bs(weight_t[:] dataset, weight_t[:,:] pops, Py_ssize_t istate, Py_ssize_t jstate, bint pairwise=True, stride=None):             # <<<<<<<<<<<<<<
  *     '''Convert a sequence of macrostate fluxes and corresponding list of trajectory ensemble populations
  *     to a sequence of rate matrices.
  */
@@ -7114,6 +7117,7 @@ static PyObject *__pyx_pw_6westpa_8kinetics_9_kinetics_23sequence_macro_flux_to_
   Py_ssize_t __pyx_v_istate;
   Py_ssize_t __pyx_v_jstate;
   int __pyx_v_pairwise;
+  PyObject *__pyx_v_stride = 0;
   int __pyx_lineno = 0;
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
@@ -7121,12 +7125,14 @@ static PyObject *__pyx_pw_6westpa_8kinetics_9_kinetics_23sequence_macro_flux_to_
   __Pyx_RefNannyDeclarations
   __Pyx_RefNannySetupContext("sequence_macro_flux_to_rate_bs (wrapper)", 0);
   {
-    static PyObject **__pyx_pyargnames[] = {&__pyx_n_s_dataset,&__pyx_n_s_pops,&__pyx_n_s_istate,&__pyx_n_s_jstate,&__pyx_n_s_pairwise,0};
-    PyObject* values[5] = {0,0,0,0,0};
+    static PyObject **__pyx_pyargnames[] = {&__pyx_n_s_dataset,&__pyx_n_s_pops,&__pyx_n_s_istate,&__pyx_n_s_jstate,&__pyx_n_s_pairwise,&__pyx_n_s_stride,0};
+    PyObject* values[6] = {0,0,0,0,0,0};
+    values[5] = ((PyObject *)Py_None);
     if (unlikely(__pyx_kwds)) {
       Py_ssize_t kw_args;
       const Py_ssize_t pos_args = PyTuple_GET_SIZE(__pyx_args);
       switch (pos_args) {
+        case  6: values[5] = PyTuple_GET_ITEM(__pyx_args, 5);
         case  5: values[4] = PyTuple_GET_ITEM(__pyx_args, 4);
         case  4: values[3] = PyTuple_GET_ITEM(__pyx_args, 3);
         case  3: values[2] = PyTuple_GET_ITEM(__pyx_args, 2);
@@ -7143,22 +7149,27 @@ static PyObject *__pyx_pw_6westpa_8kinetics_9_kinetics_23sequence_macro_flux_to_
         case  1:
         if (likely((values[1] = PyDict_GetItem(__pyx_kwds, __pyx_n_s_pops)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("sequence_macro_flux_to_rate_bs", 0, 4, 5, 1); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 380; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
+          __Pyx_RaiseArgtupleInvalid("sequence_macro_flux_to_rate_bs", 0, 4, 6, 1); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 380; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
         }
         case  2:
         if (likely((values[2] = PyDict_GetItem(__pyx_kwds, __pyx_n_s_istate)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("sequence_macro_flux_to_rate_bs", 0, 4, 5, 2); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 380; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
+          __Pyx_RaiseArgtupleInvalid("sequence_macro_flux_to_rate_bs", 0, 4, 6, 2); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 380; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
         }
         case  3:
         if (likely((values[3] = PyDict_GetItem(__pyx_kwds, __pyx_n_s_jstate)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("sequence_macro_flux_to_rate_bs", 0, 4, 5, 3); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 380; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
+          __Pyx_RaiseArgtupleInvalid("sequence_macro_flux_to_rate_bs", 0, 4, 6, 3); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 380; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
         }
         case  4:
         if (kw_args > 0) {
           PyObject* value = PyDict_GetItem(__pyx_kwds, __pyx_n_s_pairwise);
           if (value) { values[4] = value; kw_args--; }
+        }
+        case  5:
+        if (kw_args > 0) {
+          PyObject* value = PyDict_GetItem(__pyx_kwds, __pyx_n_s_stride);
+          if (value) { values[5] = value; kw_args--; }
         }
       }
       if (unlikely(kw_args > 0)) {
@@ -7166,6 +7177,7 @@ static PyObject *__pyx_pw_6westpa_8kinetics_9_kinetics_23sequence_macro_flux_to_
       }
     } else {
       switch (PyTuple_GET_SIZE(__pyx_args)) {
+        case  6: values[5] = PyTuple_GET_ITEM(__pyx_args, 5);
         case  5: values[4] = PyTuple_GET_ITEM(__pyx_args, 4);
         case  4: values[3] = PyTuple_GET_ITEM(__pyx_args, 3);
         values[2] = PyTuple_GET_ITEM(__pyx_args, 2);
@@ -7184,23 +7196,24 @@ static PyObject *__pyx_pw_6westpa_8kinetics_9_kinetics_23sequence_macro_flux_to_
     } else {
       __pyx_v_pairwise = ((int)1);
     }
+    __pyx_v_stride = values[5];
   }
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("sequence_macro_flux_to_rate_bs", 0, 4, 5, PyTuple_GET_SIZE(__pyx_args)); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 380; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
+  __Pyx_RaiseArgtupleInvalid("sequence_macro_flux_to_rate_bs", 0, 4, 6, PyTuple_GET_SIZE(__pyx_args)); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 380; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
   __pyx_L3_error:;
   __Pyx_AddTraceback("westpa.kinetics._kinetics.sequence_macro_flux_to_rate_bs", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
   return NULL;
   __pyx_L4_argument_unpacking_done:;
-  __pyx_r = __pyx_pf_6westpa_8kinetics_9_kinetics_22sequence_macro_flux_to_rate_bs(__pyx_self, __pyx_v_dataset, __pyx_v_pops, __pyx_v_istate, __pyx_v_jstate, __pyx_v_pairwise);
+  __pyx_r = __pyx_pf_6westpa_8kinetics_9_kinetics_22sequence_macro_flux_to_rate_bs(__pyx_self, __pyx_v_dataset, __pyx_v_pops, __pyx_v_istate, __pyx_v_jstate, __pyx_v_pairwise, __pyx_v_stride);
 
   /* function exit code */
   __Pyx_RefNannyFinishContext();
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_6westpa_8kinetics_9_kinetics_22sequence_macro_flux_to_rate_bs(CYTHON_UNUSED PyObject *__pyx_self, __Pyx_memviewslice __pyx_v_dataset, __Pyx_memviewslice __pyx_v_pops, Py_ssize_t __pyx_v_istate, Py_ssize_t __pyx_v_jstate, int __pyx_v_pairwise) {
+static PyObject *__pyx_pf_6westpa_8kinetics_9_kinetics_22sequence_macro_flux_to_rate_bs(CYTHON_UNUSED PyObject *__pyx_self, __Pyx_memviewslice __pyx_v_dataset, __Pyx_memviewslice __pyx_v_pops, Py_ssize_t __pyx_v_istate, Py_ssize_t __pyx_v_jstate, int __pyx_v_pairwise, PyObject *__pyx_v_stride) {
   PyObject *__pyx_r = NULL;
   __Pyx_RefNannyDeclarations
   PyObject *__pyx_t_1 = NULL;
@@ -7212,8 +7225,9 @@ static PyObject *__pyx_pf_6westpa_8kinetics_9_kinetics_22sequence_macro_flux_to_
   __Pyx_XDECREF(__pyx_r);
   if (unlikely(!__pyx_v_dataset.memview)) { __Pyx_RaiseUnboundLocalError("dataset"); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 380; __pyx_clineno = __LINE__; goto __pyx_L1_error;} }
   if (unlikely(!__pyx_v_pops.memview)) { __Pyx_RaiseUnboundLocalError("pops"); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 380; __pyx_clineno = __LINE__; goto __pyx_L1_error;} }
-  __pyx_t_2.__pyx_n = 1;
+  __pyx_t_2.__pyx_n = 2;
   __pyx_t_2.pairwise = __pyx_v_pairwise;
+  __pyx_t_2.stride = __pyx_v_stride;
   __pyx_t_1 = __pyx_f_6westpa_8kinetics_9_kinetics_sequence_macro_flux_to_rate_bs(__pyx_v_dataset, __pyx_v_pops, __pyx_v_istate, __pyx_v_jstate, 0, &__pyx_t_2); if (unlikely(!__pyx_t_1)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 380; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
@@ -28486,6 +28500,7 @@ static __Pyx_StringTabEntry __pyx_string_tab[] = {
   {&__pyx_n_s_state_assignments, __pyx_k_state_assignments, sizeof(__pyx_k_state_assignments), 0, 0, 1, 1},
   {&__pyx_n_s_step, __pyx_k_step, sizeof(__pyx_k_step), 0, 0, 1, 1},
   {&__pyx_n_s_stop, __pyx_k_stop, sizeof(__pyx_k_stop), 0, 0, 1, 1},
+  {&__pyx_n_s_stride, __pyx_k_stride, sizeof(__pyx_k_stride), 0, 0, 1, 1},
   {&__pyx_kp_s_strided_and_direct, __pyx_k_strided_and_direct, sizeof(__pyx_k_strided_and_direct), 0, 0, 1, 0},
   {&__pyx_kp_s_strided_and_direct_or_indirect, __pyx_k_strided_and_direct_or_indirect, sizeof(__pyx_k_strided_and_direct_or_indirect), 0, 0, 1, 0},
   {&__pyx_kp_s_strided_and_indirect, __pyx_k_strided_and_indirect, sizeof(__pyx_k_strided_and_indirect), 0, 0, 1, 0},
