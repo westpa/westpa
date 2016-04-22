@@ -530,6 +530,9 @@ Command-line options
                     for result in rate_results:
                         iblock, istate, jstate, ci_result = result 
                         rate_evol_bootstrap[iblock, istate, jstate] = ci_result
+                        rate_evol_bootstrap[iblock, istate, jstate]['expected'] = ci_result[2] * (npts - 1)
+                        rate_evol_bootstrap[iblock, istate, jstate]['ci_lbound'] = ci_result[3] * (npts - 1)
+                        rate_evol_bootstrap[iblock, istate, jstate]['ci_ubound'] = ci_result[4] * (npts - 1)
                     pi.progress += iblock / step_iter
             else:
                 flux_evol_bootstrap = flux_evol

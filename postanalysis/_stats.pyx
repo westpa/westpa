@@ -261,6 +261,7 @@ def calc_state_flux(trans_matrix, index1, index2, bin_probs, bin_last_state_map,
             # Unsure (doubtful) that it's working correctly, currently.
 
             #_state_flux[ii, jj] += (_trans_matrix[0, k] * _bin_probs[index1[k]])
+            #print(trans_matrix[0,k], bin_probs[index1[k]])
             _state_flux[ii, jj] += (trans_matrix[0, k] * bin_probs[index1[k]])
 
     return state_flux
