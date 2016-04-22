@@ -128,13 +128,46 @@ def reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, nbins, state
     # Instead of pulling in start and stop, we'll pull in a list of indices.
     # This way, it should support the bootstrap.
     cdef:
-        int[:] _rows, _cols, _obs, _int
-        weight_t[:] _flux, _total_pop, rw_bin_probs
+        int[:] _rows, _cols, _obs, _ins, _nrows, _ncols, _nobs
+        weight_t[:] _flux, _total_pop, rw_bin_probs, _nflux
+        int n_trans, _nstates
+        long[:,:] _ii
+
+        weight_t[:,:] _total_fluxes
+        int[:,:] _total_obs
+
+
+
+    # CREATE NUMPY ARRAYS
+    # This is a temporary measure that fixes some segfaults, which implies I'm probably off by
+    # a little bit.  Memory heavy, but whatever.
+    # It breaks depending on things, so I need to root that out.  Clearly, nnz is larger than that.
+    nnz = len(rows)*2
+    total_fluxes = np.zeros((nfbins, nfbins), weight_dtype)
+    total_obs = np.zeros((nfbins, nfbins), intc_dtype)
+    transition_matrix = np.zeros((nfbins, nfbins), weight_dtype)
+    nrows = np.zeros((nnz), intc_dtype)
+    ncols = np.zeros((nnz), intc_dtype)
+    nobs = np.zeros((nnz), intc_dtype)
+    nflux = np.zeros((nnz), weight_dtype)
+
+
+    # CREATE MEMORYVIEWS
+    # These are for what we sent in...
     _rows = rows
     _cols = cols
     _obs = obs
     _flux = flux
     _ins = insert
+    _nstates = nstates
+    # ... these are for functions we'll be using.
+    _nrows = nrows
+    _ncols = ncols
+    _nobs = nobs
+    _nflux = nflux
+    _total_fluxes = total_fluxes
+    _total_obs = total_obs
+
 
     # We want to reconstruct the missing datasets, so we assume we have the first part of the block and
     # reconstruct appropriately.
@@ -154,18 +187,15 @@ def reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, nbins, state
         indices = new_indices
 
 
-    # This is a temporary measure that fixes some segfaults, which implies I'm probably off by
-    # a little bit.  Memory heavy, but whatever.
-    # It breaks depending on things, so I need to root that out.  Clearly, nnz is larger than that.
-    nnz = len(rows)*2
     indices = np.sort(indices)
-    total_fluxes, total_obs = accumulate_statistics_list(_rows, _cols, _obs, _flux, _ins, indices, nfbins, nnz)
+    _total_fluxes, _total_obs = accumulate_statistics_list(_rows, _cols, _obs, _flux, _ins, indices, nfbins, nnz, total_fluxes, total_obs, nrows, ncols, nobs, nflux, len(indices))
 
-    flux_matrix = total_fluxes.copy()
-    flux_matrix[total_obs < obs_threshold] = 0.0
-    transition_matrix = normalize(flux_matrix)
+    total_fluxes[total_obs < obs_threshold] = 0.0
+    transition_matrix = np.asarray(total_fluxes.copy())
+    transition_matrix = np.asarray(normalize(transition_matrix))
 
-    rw_bin_probs = steadystate_solve(transition_matrix)
+    rw_bin_probs = np.asarray(steadystate_solve(transition_matrix))
+    #print(transition_matrix)
 
     bin_last_state_map = np.tile(np.arange(nstates, dtype=np.int), nbins)
     bin_state_map = np.repeat(state_map[:-1], nstates)
@@ -177,67 +207,37 @@ def reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, nbins, state
 
     ii = np.nonzero(transition_matrix)
 
+    n_trans = ii[0].shape[0]
+    state_flux = np.zeros((nstates, nstates), np.float64)
     rw_state_flux = calc_state_flux(rw_bin_transition_matrix[ii], ii[0], ii[1], rw_bin_probs, 
-            bin_last_state_map, bin_state_map, nstates)
+            bin_last_state_map, bin_state_map, nstates, state_flux, n_trans)
 
-    # In truth, let's just return the rates for now.
-    #return rw_state_flux, rw_color_probs, rw_state_probs, rw_bin_probs, rw_bin_transition_matrix
     return (rw_state_flux[istate,jstate] / (rw_color_probs[istate] / (rw_color_probs[istate] + rw_color_probs[jstate])))
-    # Truth be told, this shouldn't really happen.  But we should make sure we're not gonna blow out with NaNs.
-    #if rw_color_probs[istate] == 0:
-    #    return 0
-    #else:
-        #print(rw_state_flux[istate,jstate] / rw_color_probs[istate])
-    #    return (rw_state_flux[istate,jstate] / (rw_color_probs[istate]))
+    #print(rw_state_flux[istate,jstate], rw_color_probs[istate])
     #return rw_state_flux[istate,jstate]
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
 @cython.cdivision(True)
-cpdef accumulate_statistics_list(int[:] hrows, int[:] hcols, int[:] hobs, weight_t[:] hflux, int[:] hins, index_t[:] iterations, Py_ssize_t nbins, Py_ssize_t nnz):
+cpdef accumulate_statistics_list(int[:] hrows, int[:] hcols, int[:] hobs, weight_t[:] hflux, int[:] hins, index_t[:] iterations, Py_ssize_t nbins, Py_ssize_t nnz, weight_t[:,:] total_fluxes, int[:,:] total_obs, int[:] rows, int[:] cols, int[:] obs, weight_t[:] flux, int itermax):
 
     cdef:
-        int[:] _rows, _cols, _obs, _ins
-        weight_t[:] _flux
         index_t curriter, elem, iiter, ilem, ipop
-        weight_t[:,:] _total_fluxes
-        int[:,:] _total_obs
-
-    # We need to know how many nonzero elements we have.
-    # Bit nasty, since we'll need to iterate through and get them all in one place.
-    # Ugh, basically.  Probably best to feed this in from the main function call.
-    itermax = len(iterations)
-
-    total_fluxes = np.zeros((nbins, nbins), weight_dtype)
-    total_obs = np.zeros((nbins, nbins), intc_dtype)
-    rows = np.zeros((nnz), intc_dtype)
-    cols = np.zeros((nnz), intc_dtype)
-    obs = np.zeros((nnz), intc_dtype)
-    flux = np.zeros((nnz), weight_dtype)
-    _rows = rows
-    _cols = cols
-    _obs = obs
-    _flux = flux
-
 
     curriter = 0
-
-    # Memory view for numpy arrays.
-    _total_fluxes = total_fluxes
-    _total_obs = total_obs
 
     with nogil:
         for iter in range(itermax):
             iiter = iterations[iter]
             for ilem in range(hins[iiter], hins[iiter+1]):
-                _rows[curriter] = hrows[ilem]
-                _cols[curriter] = hcols[ilem]
-                _obs[curriter] = hobs[ilem]
-                _flux[curriter] = hflux[ilem]
+                rows[curriter] = hrows[ilem]
+                cols[curriter] = hcols[ilem]
+                obs[curriter] = hobs[ilem]
+                flux[curriter] = hflux[ilem]
                 curriter += 1
 
-    total_fluxes = sp.coo_matrix((_flux, (_rows, _cols)), shape=(nbins, nbins)).todense()
-    total_obs = sp.coo_matrix((_obs, (_rows, _cols)), shape=(nbins, nbins)).todense()
+        total_fluxes = dense_to_sparse_float(rows, cols, flux, curriter, total_fluxes)
+        total_obs = dense_to_sparse_int(rows, cols, obs, curriter, total_obs)
 
 
     return total_fluxes, total_obs
@@ -245,36 +245,46 @@ cpdef accumulate_statistics_list(int[:] hrows, int[:] hcols, int[:] hobs, weight
 @cython.boundscheck(False)
 @cython.wraparound(False)
 @cython.cdivision(True)
-cpdef calc_state_flux(trans_matrix, index1, index2, bin_probs, bin_last_state_map, bin_state_map, nstates):
+cpdef weight_t[:,:] dense_to_sparse_float(int[:] rows, int[:] cols, weight_t[:] flux, int elem, weight_t[:,:] total_fluxes) nogil:
+
+    cdef:
+        int i
+
+    for i in range(elem):
+        total_fluxes[rows[i], cols[i]] += flux[i]
+
+    return total_fluxes
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+@cython.cdivision(True)
+cpdef int[:,:] dense_to_sparse_int(int[:] rows, int[:] cols, int[:] obs, int elem, int[:,:] total_obs) nogil:
+
+    cdef:
+        int i
+
+    for i in range(elem):
+        total_obs[rows[i], cols[i]] += obs[i]
+
+    return total_obs
+
+
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+@cython.cdivision(True)
+cpdef weight_t[:,:] calc_state_flux(weight_t[:] trans_matrix, long[:] index1, long[:] index2, weight_t[:] bin_probs, long[:] bin_last_state_map, Ushort[:] bin_state_map, int nstates, weight_t[:,:] state_flux, int n_trans) nogil:
     
     cdef:
-        weight_t[:,:] _trans_matrix, _state_flux
-        weight_t[:] _bin_probs
-        Ushort[:] _bin_state_map
-        long[:] _bin_last_state_map, _index1, _index2
-        int k, n_trans, ii, jj, _nstates
+        int k, ii, jj
 
-    state_flux = np.zeros((nstates, nstates), np.float64)
-    _state_flux = state_flux
-    _bin_state_map = bin_state_map
-    _bin_last_state_map = bin_last_state_map
-    _trans_matrix = trans_matrix
-    _bin_probs = bin_probs
-    _index1 = index1
-    _index2 = index2
-    _nstates = nstates
 
-    n_trans = index1.shape[0]
+    for k in xrange(n_trans):
+        ii = bin_last_state_map[index1[k]]
+        jj = bin_state_map[index2[k]]
 
-    with nogil:
-        for k in xrange(n_trans):
-            ii = _bin_last_state_map[_index1[k]]
-            jj = _bin_state_map[_index2[k]]
-
-            # Cython plays a fun game called "shape the matrix differently than pure python".
-            # Instead of a vector of size N, we get a matrix of size 1,N.
-            if jj != _nstates:
-                _state_flux[ii, jj] += (_trans_matrix[0, k] * _bin_probs[_index1[k]])
+        if jj != nstates:
+            state_flux[ii, jj] += (trans_matrix[k] * bin_probs[index1[k]])
 
     return state_flux
 
@@ -282,8 +292,8 @@ def steadystate_solve(K):
 
     cdef:
         weight_t[:] _bin_prob
+        weight_t[:,:] K_mod
 
-    # I don't even want to start cythonizing this.
     bin_prob = np.zeros(K.shape[0])
     _bin_prob = bin_prob
     # Reformulate K to remove sink/source states
@@ -292,8 +302,8 @@ def steadystate_solve(K):
     components = np.where(component_assignments == largest_component)[0]
 
     ii = np.ix_(components, components)
-    K_mod = K[ii]
-    K_mod = normalize(K_mod)
+    K_mod = K[ii].copy()
+    K_mod = normalize(np.asarray(K_mod))
 
     eigvals, eigvecs = np.linalg.eig(K_mod.T)
     eigvals = np.real(eigvals)
@@ -301,9 +311,10 @@ def steadystate_solve(K):
 
     maxi = np.argmax(eigvals)
     if not np.allclose(np.abs(eigvals[maxi]), 1.0):
-        diag = K.diagonal().copy()
-        for i in range(diag.shape[1]):
-            _bin_prob[i] = diag[0, i]
+        bin_prob = K.diagonal().copy()
+        #print(diag.shape)
+        #for i in range(diag.shape[1]):
+        #    _bin_prob[i] = diag[0, i]
         bin_prob = bin_prob / np.sum(bin_prob)
         # Make sure you account for the shape of this properly, as Cython
         # doesn't immediately return vectors in the way python does.
