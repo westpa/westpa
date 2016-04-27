@@ -311,7 +311,7 @@ Command-line options
                              help='''Evaluate autocorrelation to (1-ACALPHA) significance.
                              Note that too small an ACALPHA will result in failure to detect autocorrelation
                              in a noisy flux signal. (Default: same as ALPHA.)''')
-        cgroup.add_argument('--nsets', type=int,
+        cgroup.add_argument('--nsets', type=int, default=250,
                              help='''Use NSETS samples for bootstrapping (default: chosen based on ALPHA)''')
         cogroup = parser.add_argument_group('calculation options')
         cogroup.add_argument('-e', '--evolution-mode', choices=['cumulative', 'blocked'], default='cumulative',
@@ -488,9 +488,12 @@ Command-line options
                         insert.append(iter_grp['rows'][...].shape[0] + insert[-1])
                     else:
                         insert.append(iter_grp['rows'][...].shape[0])
+                    #if iiter == stop_iter:
+                    #    insert.append(iter_grp['rows'][...].shape[0] + insert[-1])
                 rows = np.concatenate(rows)
                 cols = np.concatenate(cols)
                 obs = np.concatenate(obs)
+                assert insert[-1] == len(rows)
                 flux = np.concatenate(flux)
                 ins = []
                 ins.append(0)
