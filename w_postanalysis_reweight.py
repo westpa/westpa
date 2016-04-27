@@ -164,7 +164,8 @@ def reweight(h5file, start, stop, nstates, nbins, state_labels, state_map, nfbin
     #bin_last_state_map[4:8] = 0
     bin_last_state_map = state_map[:-1][...]
     # We need to change our 'unknown' states to the initial state, because we know it.  Nothing is 'unknown' in a steady state.
-    bin_last_state_map[np.where(bin_last_state_map == nstates)] = 1
+    # CHANGE ME
+    bin_last_state_map[np.where(bin_last_state_map == nstates)] = 0
     #print(bin_last_state_map)
     #bin_state_map = np.repeat(state_map[:-1], nstates)
     bin_state_map = state_map[:-1]

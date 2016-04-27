@@ -135,7 +135,7 @@ either equilibrium or steady-state conditions without recycling target states.
                 # We're sending in ones that have an endpoint recycling type.  We'll grab their final bins and adjust their populations.
                 # We need an initial state, however.  Where do we go after recycling?
                 # Should be a bin number.  Can be pulled from the assignment file, but.
-                istate = 0
+                istate = 2
                 tstates = np.where(self.assignments_file['tstate_map'][...] == 1)[0]
                 print(tstates)
 
