@@ -156,8 +156,18 @@ def reweight(h5file, start, stop, nstates, nbins, state_labels, state_map, nfbin
 
     rw_bin_probs = steadystate_solve(transition_matrix)
 
-    bin_last_state_map = np.tile(np.arange(nstates, dtype=np.int), nbins)
-    bin_state_map = np.repeat(state_map[:-1], nstates)
+    #bin_last_state_map = np.tile(np.arange(nstates, dtype=np.int), nbins)
+    # This is expecting to be a state map for each bin.  Since we're in a single state, it should just be either 1 or 0, but we'll have to remap it appropriately.
+    #bin_last_state_map = np.ones(shape=nbins, dtype=np.int)
+
+    #bin_last_state_map[2] = 0
+    #bin_last_state_map[4:8] = 0
+    bin_last_state_map = state_map[:-1][...]
+    # We need to change our 'unknown' states to the initial state, because we know it.  Nothing is 'unknown' in a steady state.
+    bin_last_state_map[np.where(bin_last_state_map == nstates)] = 1
+    #print(bin_last_state_map)
+    #bin_state_map = np.repeat(state_map[:-1], nstates)
+    bin_state_map = state_map[:-1]
 
     rw_color_probs = np.bincount(bin_last_state_map, weights=rw_bin_probs) 
     rw_state_probs = np.bincount(bin_state_map, weights=rw_bin_probs)
@@ -166,6 +176,8 @@ def reweight(h5file, start, stop, nstates, nbins, state_labels, state_map, nfbin
 
     ii = np.nonzero(transition_matrix)
 
+    #rw_state_flux = calc_state_flux(rw_bin_transition_matrix[ii], ii[0], ii[1], rw_bin_probs, 
+    #        bin_last_state_map, bin_state_map, nstates)
     rw_state_flux = calc_state_flux(rw_bin_transition_matrix[ii], ii[0], ii[1], rw_bin_probs, 
             bin_last_state_map, bin_state_map, nstates)
 
@@ -177,12 +189,16 @@ def calc_state_flux(trans_matrix, index1, index2, bin_probs, bin_last_state_map,
     
     n_trans = index1.shape[0]
     for k in xrange(n_trans):
-        ii = bin_last_state_map[index1[k]]
+        #ii = bin_last_state_map[index1[k]]
+        ii = bin_state_map[index1[k]]
         jj = bin_state_map[index2[k]]
 
         if jj != nstates:
-            state_flux[ii, jj] += trans_matrix[k] * bin_probs[index1[k]]
+            if ii != nstates:
+                state_flux[ii, jj] += trans_matrix[k] * bin_probs[index1[k]]
 
+    print("State flux!")
+    print(state_flux)
     return state_flux
 
 
@@ -359,7 +375,8 @@ Command-line options
             npts = self.kinetics_file.attrs['npts']
 
             assert nstates == len(state_labels)
-            assert nfbins == nbins * nstates
+            #assert nfbins == nbins * nstates
+            assert nfbins == nbins
 
             start_iter, stop_iter, step_iter = self.iter_range.iter_start, self.iter_range.iter_stop, self.iter_range.iter_step
 
@@ -389,20 +406,23 @@ Command-line options
                                   h5file=self.kinetics_file, obs_threshold=self.obs_threshold)
 
                     rw_state_flux, rw_color_probs, rw_state_probs, rw_bin_probs, rw_bin_flux = reweight(**params)
+                    print("RW flux!")
+                    print(rw_state_flux)
                     for k in xrange(nstates):
                         for j in xrange(nstates):
                             # Normalize such that we report the flux per tau (tau being the weighted ensemble iteration)
                             # npts always includes a 0th time point
-                            flux_evol[iblock]['expected'][k,j] = rw_state_flux[k,j] * (npts - 1)
+                            flux_evol[iblock]['expected'][k,j] = rw_state_flux[k,j]
                             flux_evol[iblock]['iter_start'][k,j] = start
                             flux_evol[iblock]['iter_stop'][k,j] = stop
-                            rate_evol[iblock]['expected'][k,j] = (rw_state_flux[k,j] * (npts - 1)) / rw_color_probs[k]
+                            #rate_evol[iblock]['expected'][k,j] = (rw_state_flux[k,j]) / rw_color_probs[k]
+                            rate_evol[iblock]['expected'][k,j] = (rw_state_flux[k,j])
                             if rw_color_probs[k] == 0.0  or flux_evol[iblock]['expected'][k,j] == 0.0:
                                 rate_evol[iblock]['expected'][k,j] = 0
                             rate_evol[iblock]['iter_start'][k,j] = start
                             rate_evol[iblock]['iter_stop'][k,j] = stop
 
-                    color_prob_evol[iblock] = rw_color_probs
+                    color_prob_evol[iblock] = rw_color_probs[:-1]
                     state_prob_evol[iblock] = rw_state_probs[:-1]
                     bin_prob_evol[iblock] = rw_bin_probs
 
@@ -428,10 +448,10 @@ Command-line options
                         for j in xrange(nstates):
                             # Normalize such that we report the flux per tau (tau being the weighted ensemble iteration)
                             # npts always includes a 0th time point
-                            flux_evol[iblock]['expected'][k,j] = rw_state_flux[k,j] * (npts - 1)
+                            flux_evol[iblock]['expected'][k,j] = rw_state_flux[k,j]
                             flux_evol[iblock]['iter_start'][k,j] = start
                             flux_evol[iblock]['iter_stop'][k,j] = stop
-                            rate_evol[iblock]['expected'][k,j] = (rw_state_flux[k,j] * (npts - 1)) / rw_color_probs[k]
+                            rate_evol[iblock]['expected'][k,j] = (rw_state_flux[k,j])
                             if rw_color_probs[k] == 0.0  or flux_evol[iblock]['expected'][k,j] == 0.0:
                                 rate_evol[iblock]['expected'][k,j] = 0
                             rate_evol[iblock]['iter_start'][k,j] = start
