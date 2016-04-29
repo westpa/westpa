@@ -512,6 +512,8 @@ Command-line options
                                                                                nstates=nstates, nbins=nbins, nfbins=nfbins,
                                                                                rows=rows, cols=cols, obs=obs, flux=flux, insert=insert,
                                                                                state_labels=state_labels, 
+                                                                               bin_last_state_map=np.tile(np.arange(nstates, dtype=np.int), nbins), 
+                                                                               bin_state_map=np.repeat(state_map[:-1], nstates),
                                                                                state_map=state_map,
                                                                                rates=rate_evol[block_start-1:stop,:,:]['expected'],
                                                                                mcbs_alpha=self.mcbs_alpha, mcbs_nsets=self.mcbs_nsets,

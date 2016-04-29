@@ -28,6 +28,9 @@ import warnings
 from collections import Counter
 cimport numpy
 cimport numpy as np
+cimport scipy.linalg.cython_lapack as cl
+cimport scipy.linalg
+import scipy.linalg
 
 ctypedef numpy.uint16_t index_t
 ctypedef numpy.float64_t weight_t
@@ -35,6 +38,7 @@ ctypedef numpy.uint8_t bool_t
 ctypedef numpy.int64_t trans_t
 ctypedef numpy.uint_t uint_t # 32 bits on 32-bit systems, 64 bits on 64-bit systems
 ctypedef unsigned short Ushort
+ctypedef double complex Cdouble
 
 weight_dtype = numpy.float64  
 index_dtype = numpy.uint16
@@ -109,7 +113,7 @@ cpdef int normalize(weight_t[:,:] m, Py_ssize_t nfbins) nogil:
 #@cython.boundscheck(False)
 #@cython.wraparound(False)
 #@cython.cdivision(True)
-def reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, nbins, state_labels, state_map, nfbins, istate, jstate, stride, obs_threshold=1):
+def reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, nbins, state_labels, state_map, nfbins, istate, jstate, stride, bin_last_state_map, bin_state_map, obs_threshold=1):
 
 
 
@@ -117,7 +121,7 @@ def reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, nbins, state
     # This way, it should support the bootstrap.
     cdef:
         int[:] _rows, _cols, _obs, _ins, _nrows, _ncols, _nobs
-        weight_t[:] _flux, _total_pop, rw_bin_probs, _nflux
+        weight_t[:] _flux, _total_pop, _rw_bin_probs, _nflux
         int n_trans, _nstates, lind, _nfbins, _stride, _obs_threshold, nnz, nlind
         long[:,:] _ii
         Ushort[:] _indices
@@ -125,6 +129,8 @@ def reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, nbins, state
 
         weight_t[:,:] _total_fluxes, _transition_matrix, _rw_state_flux
         int[:,:] _total_obs
+        #double[:] eigvals, eigvalsi
+        #double[:,:] eigvecs, WORK
 
 
 
@@ -144,6 +150,10 @@ def reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, nbins, state
     new_indices = np.zeros(((nlind)), dtype=indices.dtype)
     rw_state_flux = np.zeros((nstates, nstates), np.float64)
     state_flux = np.zeros((nstates, nstates), np.float64)
+    eigvals = np.zeros((nfbins), np.float64)
+    eigvalsi = np.zeros((nfbins), np.float64)
+    eigvecs = np.zeros((nfbins, nfbins), np.float64)
+    WORK = np.zeros((nfbins*4, nfbins*4), np.float64)
 
 
     # CREATE MEMORYVIEWS
@@ -164,6 +174,7 @@ def reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, nbins, state
     _indices = indices
     _new_indices = new_indices
     _rw_state_flux = rw_state_flux
+    _rw_bin_probs = rw_bin_probs
 
 
     #NOGIL
@@ -177,13 +188,15 @@ def reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, nbins, state
 
     remove_under_obs(transition_matrix, total_obs, obs_threshold, nfbins)
     normalize(_transition_matrix, _nfbins)
-    rw_bin_transition_matrix = transition_matrix.copy()
 
-    # FUCK THIS FUNCTION IN THE ASS.
-    rw_bin_probs = steadystate_solve(transition_matrix, strong_transition_matrix)
+    #print("new round!")
+    steadystate_solve(transition_matrix, strong_transition_matrix, rw_bin_probs, nfbins, eigvals, eigvalsi, eigvecs, WORK)
+    #print(np.real(eigvals))
+    #print(np.real(eigvecs))
 
-    bin_last_state_map = np.tile(np.arange(nstates, dtype=np.int), nbins)
-    bin_state_map = np.repeat(state_map[:-1], nstates)
+    # Can kill this calculation by sending in the data already...
+    #bin_last_state_map = np.tile(np.arange(nstates, dtype=np.int), nbins)
+    #bin_state_map = np.repeat(state_map[:-1], nstates)
 
     rw_color_probs = np.bincount(bin_last_state_map, weights=rw_bin_probs) 
     rw_state_probs = np.bincount(bin_state_map, weights=rw_bin_probs)
@@ -192,9 +205,11 @@ def reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, nbins, state
     ii = np.nonzero(transition_matrix)
 
     n_trans = ii[0].shape[0]
-    calc_state_flux(rw_bin_transition_matrix[ii], ii[0], ii[1], rw_bin_probs, 
+    calc_state_flux(transition_matrix[ii], ii[0], ii[1], rw_bin_probs, 
             bin_last_state_map, bin_state_map, nstates, rw_state_flux, n_trans)
 
+    #print(rw_color_probs)
+    #print(rw_state_flux)
     if rw_color_probs[istate] != 0.0:
         #print(rw_state_flux[istate,jstate] / (rw_color_probs[istate] / (rw_color_probs[istate] + rw_color_probs[jstate])))
         return (rw_state_flux[istate,jstate] / (rw_color_probs[istate] / (rw_color_probs[istate] + rw_color_probs[jstate])))
@@ -321,38 +336,92 @@ cpdef int calc_state_flux(weight_t[:] trans_matrix, long[:] index1, long[:] inde
 @cython.boundscheck(False)
 @cython.wraparound(False)
 @cython.cdivision(True)
-cpdef steadystate_solve(numpy.ndarray[weight_t, ndim=2] K, numpy.ndarray[weight_t, ndim=2] K_mod):
+cpdef int steadystate_solve(weight_t[:,:] K, weight_t[:,:] K_mod, weight_t[:] bin_prob, int K_shape, double[:] eigvals, double[:] eigvalsi, double[:,:] eigvecs, double[:,:] WORK):
 
     cdef:
-        weight_t[:] _bin_prob, sub_bin_prob
-        int n_components, components_assignments, largest_component
+        #double[:] eigvals, eigvalsi
+        #double[:,:] eigvecs, WORK
+        #double[:] eigvals_o
+        #double[:,:] eigvecs_o
+        long[:] components
+        double max, eigsum
+        int n_components, components_assignments, largest_component, maxi, x, y, n, INFO, LWORK
+
+        # POINTERS
+
+        int  *_INFO, *_K_shape, *_LWORK
+        double *_K_mod, *_eigvals, *_eigvecs, *_WORK, *_eigvalsi, *_eigvals_o, *_eigvalsi_o
+    _K_shape = &K_shape
+    _INFO = &INFO
+    _LWORK = &LWORK
+    INFO = 0
+    LWORK = K_shape * 4
+    _K_mod = &K_mod[0,0]
+    _eigvals = &eigvals[0]
+    #_eigvals_o = &eigvals_o[0]
+    #_eigvalsi_0 = &eigvalsi_o[0]
+    _eigvecs = &eigvecs[0,0]
+    _eigvalsi = &eigvalsi[0]
+    _WORK = &WORK[0,0]
 
     # CREATE NUMPY STRUCTURES
-    bin_prob = np.zeros(K.shape[0])
     # Reformulate K to remove sink/source states
     n_components, component_assignments = csgraph.connected_components(K, connection="strong")
     largest_component = Counter(component_assignments).most_common(1)[0][0]
     components = np.where(component_assignments == largest_component)[0]
+    n = len(components)
+    #maxi = 0
 
-    ii = np.ix_(components, components)
-    # This is a step that can cause major problems, so be careful.
-    K_mod[ii] = K[ii]
-    #K_mod = K.copy()
-    normalize(np.asarray(K_mod), K.shape[0])
+    # This works.
+    for x in range(n):
+        for y in range(n):
+            K_mod[components[x], components[y]] = K[components[x], components[y]]
+    normalize(K_mod, K_shape)
 
-    eigvals, eigvecs = np.linalg.eig(K_mod.T)
-    eigvals = np.real(eigvals)
-    eigvecs = np.real(eigvecs)
+    #eigvals, eigvecs = np.linalg.eig(K_mod.T)
+    #eigvals, eigvecs = cl.dgeev(JOBVL, JOBVR, N, A, LDA, WR, WI, VL, LDVL, VR, LDVR, WORK, LWORK, INFO)
+    # JOBVL: 'V' left eigenvectors
+    # JOBVR: 'N' right eigenvectors
+    # N: Matrix order.  K_shape
+    # A: Transition matrix
+    # LDA: Leading dimension of the array.  Also K_shape, as we're square.
+    # WR, WI: Real and imaginary eigenvalues.
+    # VL: Left eigenvectors
+    # LDVL: leading dimension of the array VL.  Should be K_shape
+    # VR: Right eigenvectors
+    # LDVR: same as for LDVL
+    # WORK: 
+    eigsum = 0.0
 
-    maxi = np.argmax(eigvals)
-    if not np.allclose(np.abs(eigvals[maxi]), 1.0):
-        bin_prob = K.diagonal().copy()
-        bin_prob = bin_prob / np.sum(bin_prob)
-        return bin_prob
+    with nogil:
+        cl.dgeev('N', 'V', _K_shape, _K_mod, _K_shape, _eigvals, _eigvalsi, _eigvecs, _K_shape, _eigvecs, _K_shape, _WORK, _LWORK, _INFO)
+        # Second _eigvecs can probably be null.
+        for x in range(K_shape):
+            if x == 0:
+                max = eigvals[0]
+                maxi = x
+            else:
+                if max < eigvals[x]:
+                    max = eigvals[x]
+                    maxi = x
+        #if not np.allclose(np.abs(eigvals[maxi]), 1.0):
+            # Need to fix.
+            #bin_prob = K.diagonal().copy()
+            #bin_prob = bin_prob / np.sum(bin_prob)
+        #    return 0
+            #return bin_prob
 
-    sub_bin_prob = eigvecs[:, maxi] / np.sum(eigvecs[:, maxi])
+        # Apparently, for a memoryview object, you have to explicitly set everything by hand.  Which is adorable.
+        # This works, as well.
+        #for i in range(n):
+        #    eigsum += eigvecs[components[i], maxi]
+        #for i in range(n):
+        #    bin_prob[components[i]] = eigvecs[components[i], maxi]
+        #    bin_prob[components[i]] /= eigsum
+        for i in range(n):
+            eigsum += eigvecs[maxi, components[i]]
+        for i in range(n):
+            bin_prob[components[i]] = eigvecs[maxi, components[i]]
+            bin_prob[components[i]] /= eigsum
 
-    #bin_prob[components] = sub_bin_prob
-    bin_prob = sub_bin_prob
-
-    return bin_prob
+    return 0
