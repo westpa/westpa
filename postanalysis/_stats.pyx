@@ -119,7 +119,7 @@ def reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, nbins, state
     # Instead of pulling in start and stop, we'll pull in a list of indices.
     # This way, it should support the bootstrap.
     cdef:
-        int[:] _rows, _cols, _obs, _ins, _nrows, _ncols, _nobs
+        int[:] _rows, _cols, _obs, _ins, _nrows, _ncols, _nobs, _visited
         weight_t[:] _flux, _total_pop, _rw_bin_probs, _nflux
         double[:] _eigvals, _eigvalsi
         int n_trans, _nstates, lind, _nfbins, _stride, _obs_threshold, nnz, nlind
@@ -127,9 +127,9 @@ def reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, nbins, state
         Ushort[:] _indices
         Ushort[:] _new_indices
 
-        weight_t[:,:] _total_fluxes, _transition_matrix, _rw_state_flux, _strong_transition_matrix
+        weight_t[:,:] _total_fluxes, _transition_matrix, _rw_state_flux, _strong_transition_matrix, _K_strong
         double[:,:] _WORK, _eigvecs
-        int[:,:] _total_obs
+        int[:,:] _total_obs, _graph
         #double[:] eigvals, eigvalsi
         #double[:,:] eigvecs, WORK
 
@@ -147,6 +147,9 @@ def reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, nbins, state
     total_obs = np.zeros((nfbins, nfbins), intc_dtype)
     transition_matrix = np.zeros((nfbins, nfbins), weight_dtype)
     strong_transition_matrix = np.zeros((nfbins, nfbins), weight_dtype)
+    visited = np.zeros((nfbins), intc_dtype)
+    K_strong = np.zeros((nfbins, nfbins), weight_dtype)
+    graph = np.zeros((nfbins, nfbins+1), dtype=intc_dtype)
     rw_bin_probs = np.zeros(nfbins, weight_dtype)
     new_indices = np.zeros(((nlind)), dtype=indices.dtype)
     rw_state_flux = np.zeros((nstates, nstates), np.float64)
@@ -182,10 +185,16 @@ def reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, nbins, state
     _eigvals = eigvals
     _eigvecs = eigvecs
     _WORK = WORK
+    _graph = graph
+    _K_strong = K_strong
+    _visited = visited
 
 
     #NOGIL
     # Reconstruct dataset.  We're just passing the same thing back and forth between functions.
+    for i in range(nfbins):
+        for j in range(1, nfbins+1):
+            _graph[i, j] = nfbins
     with nogil:
         regenerate_subsampled_indices(_indices, _new_indices, lind, _stride)
         accumulate_fluxes(_rows, _cols, _obs, _flux, _ins, _new_indices, nnz, _transition_matrix, nlind)
@@ -194,12 +203,22 @@ def reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, nbins, state
         remove_under_obs(_transition_matrix, _total_obs, _obs_threshold, _nfbins)
         normalize(_transition_matrix, _nfbins)
 
-    steadystate_solve(_transition_matrix, _strong_transition_matrix, _rw_bin_probs, _nfbins, _eigvals, _eigvalsi, _eigvecs, _WORK)
+    #print("np, then dgeev")
+    steadystate_solve(_transition_matrix, _strong_transition_matrix, _K_strong, _rw_bin_probs, _nfbins, _eigvals, _eigvalsi, _eigvecs, _WORK, _graph, _visited)
+    #print(rw_bin_probs)
+    #print(eigvecs.T)
+    #print("graph!")
+    #print(graph)
+    #print("modified!")
+    #print(strong_transition_matrix)
+    #print("old method!")
+    #print(K_strong)
 
     rw_color_probs = np.bincount(bin_last_state_map, weights=rw_bin_probs) 
     rw_state_probs = np.bincount(bin_state_map, weights=rw_bin_probs)
 
 
+    # We'll probably remove this call, ultimately, and just iterate through everything instead.
     ii = np.nonzero(transition_matrix)
 
     n_trans = ii[0].shape[0]
@@ -295,23 +314,25 @@ cpdef int calc_state_flux(weight_t[:] trans_matrix, long[:] index1, long[:] inde
 @cython.boundscheck(False)
 @cython.wraparound(False)
 @cython.cdivision(True)
-cpdef int steadystate_solve(weight_t[:,:] K, weight_t[:,:] K_mod, weight_t[:] bin_prob, int K_shape, double[:] eigvals, double[:] eigvalsi, double[:,:] eigvecs, double[:,:] WORK):
+cpdef int steadystate_solve(weight_t[:,:] K, weight_t[:,:] K_mod, weight_t[:,:] K_second, weight_t[:] bin_prob, int K_shape, double[:] eigvals, double[:] eigvalsi, double[:,:] eigvecs, double[:,:] WORK, int[:,:] graph, int[:] visited):
 
     cdef:
-        long[:] components
+        #int[:] components
+        #long[:] ncomponents
         double max, eigsum
-        int n_components, components_assignments, largest_component, maxi, x, y, n, INFO, LWORK
+        int n_components, components_assignments, largest_component, maxi, x, y, n, INFO, LWORK, i, j
 
         # POINTERS
 
         int  *_INFO, *_K_shape, *_LWORK
-        double *_K_mod, *_eigvals, *_eigvecs, *_WORK, *_eigvalsi
+        double *_K_mod, *_eigvals, *_eigvecs, *_WORK, *_eigvalsi, *_K_second
     _K_shape = &K_shape
     _INFO = &INFO
     _LWORK = &LWORK
     INFO = 0
     LWORK = K_shape * 4
     _K_mod = &K_mod[0,0]
+    _K_second = &K_second[0,0]
     _eigvals = &eigvals[0]
     _eigvecs = &eigvecs[0,0]
     _eigvalsi = &eigvalsi[0]
@@ -320,31 +341,164 @@ cpdef int steadystate_solve(weight_t[:,:] K, weight_t[:,:] K_mod, weight_t[:] bi
     # CREATE NUMPY STRUCTURES
     # Reformulate K to remove sink/source states
     n_components, component_assignments = csgraph.connected_components(K, connection="strong")
+    #print("new iter!")
+    #print(component_assignments)
     largest_component = Counter(component_assignments).most_common(1)[0][0]
-    components = np.where(component_assignments == largest_component)[0]
-    n = len(components)
-    maxi = 0
+    ncomponents = np.where(component_assignments == largest_component)[0]
+    #print(ncomponents)
+    nn = len(ncomponents)
+    for x in range(nn):
+        for y in range(nn):
+            K_second[ncomponents[x], ncomponents[y]] = K[ncomponents[x], ncomponents[y]]
+    normalize(K_second, K_shape)
 
-    with nogil:
-        eigsum = 0.0
-        # This works.
-        for x in range(n):
-            for y in range(n):
-                K_mod[components[x], components[y]] = K[components[x], components[y]]
-        normalize(K, K_shape)
-        cl.dgeev('N', 'V', _K_shape, _K_mod, _K_shape, _eigvals, _eigvalsi, _eigvecs, _K_shape, _eigvecs, _K_shape, _WORK, _LWORK, _INFO)
-        for x in range(K_shape):
-            if x == 0:
-                max = eigvals[0]
+    #with nogil:
+    # This seems to work!  So what's the issue, exactly...?
+    #return_largest_component_cs(K, K_shape, graph)
+    #return_adjacency_matrix(K, K_shape, graph)
+    for i in range(K_shape):
+        if visited[i] == 0:
+            visited[i] = 1
+            return_strong_component(K, K_shape, graph[i,:], i, visited)
+    # We want ALL the large networks, not just one...
+    # We SHOULD have a few different networks, right?
+    n = 0
+    for i in range(K_shape):
+        if graph[i, 0] >= graph[n, 0]:
+            n = i
+    components = graph[n, :]
+
+    #print("cython algo")
+    #for i in range(len(components)):
+    #    print(components[i])
+    #print(n, components[0], nn)
+    maxi = 0
+    eigsum = 0.0
+    # This all works!
+    for x in range(K_shape):
+        i = components[x+1]
+        for y in range(K_shape):
+            j = components[y+1]
+            if i != K_shape and j != K_shape:
+                K_mod[i, j] = K[i, j]
+        # Explicitly include our main node.
+        if i != K_shape:
+            K_mod[i, n] = K[i, n]
+            K_mod[n, i] = K[n, i]
+    normalize(K_mod, K_shape)
+    neigvals, neigvecs = np.linalg.eig(K_second.T)
+    cl.dgeev('N', 'V', _K_shape, _K_mod, _K_shape, _eigvals, _eigvalsi, _eigvecs, _K_shape, _eigvecs, _K_shape, _WORK, _LWORK, _INFO)
+    #print(neigvecs)
+    for x in range(K_shape):
+        if x == 0:
+            max = eigvals[0]
+            maxi = x
+        else:
+            if max < eigvals[x]:
+                max = eigvals[x]
                 maxi = x
-            else:
-                if max < eigvals[x]:
-                    max = eigvals[x]
-                    maxi = x
-        for i in range(n):
-            eigsum += eigvecs[maxi, components[i]]
-        for i in range(n):
-            bin_prob[components[i]] = eigvecs[maxi, components[i]]
-            bin_prob[components[i]] /= eigsum
+    # We need to go over the whole range and pick out non K_shape elements.
+    for i in range(K_shape):
+        x = components[i+1]
+        if x != K_shape:
+            eigsum += eigvecs[maxi, components[i+1]]
+        #eigsum += neigvecs[ncomponents[i], maxi]
+    for i in range(K_shape):
+        x = components[i+1]
+        if x != K_shape:
+            bin_prob[components[i+1]] = eigvecs[maxi, components[i+1]]
+            #bin_prob[ncomponents[i]] = neigvecs[ncomponents[i], maxi]
+            bin_prob[components[i+1]] /= eigsum
+
+    return 0
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+@cython.cdivision(True)
+cpdef int return_largest_component(weight_t[:,:] K, int K_shape, int[:,:] graph) nogil:
+
+    cdef:
+        int i, j, x, y, z, match
+
+    for i in range(K_shape):
+        #graph[i, 0] = 1
+        #graph[i, 1] = i
+        for j in range(K_shape):
+            # We're building an adjacency list
+            if K[i, j] > 0.0:
+                graph[i, graph[i, 0]+1] = j
+                graph[i, 0] += 1
+
+    # Okay, that seems to work.
+    # The 0th element of the row is the number of elements in the list
+    # The 1st element of the row is the index number of the bin, as it's part of its own graph.
+    # Afterwards, we have the extra components.
+
+    for i in range(K_shape):
+        # Now, to only include elements which appear in ALL lists...
+        # For each element in a list, we need to see if the corresponding list has said element.
+        #for j in range(2, graph[i, 0]):
+        for j in range(graph[i, 0]):
+            y = graph[i, j+1]
+            # j corresponds to the element index for the bin.
+            # So our actual bin is graph[i, j]
+            match = 0
+            #for x in range(graph[graph[i,j+1],0]):
+            for z in range(graph[y,0]):
+                x = graph[y,z+1]
+                # Okay, so now x corresponds to the bins in the OTHER list.
+                if x == i:
+                    # hooray, we have a match!
+                    match = 1
+            if match == 0:
+                # if we didn't end up with a match, we want to remove the element from the list and shrink it.
+                # We'll set it to be K_shape, as we know no bin has that index.
+                graph[i, 0] -= 1
+                graph[i, j+1] = K_shape
+
+    return 0
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+@cython.cdivision(True)
+cpdef int return_adjacency_matrix(weight_t[:,:] K, int K_shape, int[:,:] graph) nogil:
+
+    cdef:
+        int i, j, x, y, z, match
+
+    for i in range(K_shape):
+        for j in range(K_shape):
+            # We're building an adjacency list
+            if K[i, j] > 0.0:
+                graph[i, graph[i, 0]+1] = j
+                graph[i, 0] += 1
+
+    return 0
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+@cython.cdivision(True)
+cpdef int return_strong_component(weight_t[:,:] K, int K_shape, int[:] graph, int i, int[:] visited):
+
+    cdef:
+        int j 
+
+    if graph[0] == 0:
+        graph[0] += 1
+        graph[1] = i
+    for j in xrange(K_shape):
+        if i != j:
+            #if K[i, j] > 0.0 and K[j, i] > 0.0:
+            if K[i, j] > 0.0:
+                # Strongly connected!
+                if visited[j] == 0:
+                    graph[0] += 1
+                    graph[graph[0]] = j
+                    # This fails miserably, for some reason.
+                    # We only want to call it when we haven't visited it before.
+                    # We don't want to call, THEN modify and check.  Otherwise, we could be doing many calls.
+                    visited[j] = 1
+                    return_strong_component(K, K_shape, graph, j, visited)
+
 
     return 0
