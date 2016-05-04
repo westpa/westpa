@@ -78,6 +78,7 @@ cpdef stats_process(numpy.ndarray[index_t, ndim=2] bin_assignments,
 
     if interval == 'iteration':
         for k in xrange(nsegs):
+            # Should this be 0?
             ibin = bin_assignments[k,i]
             fbin = bin_assignments[k, npts - 1]
 
@@ -209,10 +210,7 @@ cpdef weight_t reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, n
 
         remove_under_obs(_transition_matrix, _total_obs, _obs_threshold, _nfbins)
         normalize(_transition_matrix, _nfbins)
-    steadystate_solve(_transition_matrix, _strong_transition_matrix, _rw_bin_probs, _nfbins, _eigvals, _eigvalsi, _eigvecs, _WORK, _graph, _visited)
-
-    with nogil:
-
+        steadystate_solve(_transition_matrix, _strong_transition_matrix, _rw_bin_probs, _nfbins, _eigvals, _eigvalsi, _eigvecs, _WORK, _graph, _visited)
 
         for i in range(_nfbins):
             _rw_color_probs[_bin_last_state_map[i]] += _rw_bin_probs[i]
@@ -336,76 +334,81 @@ cpdef int steadystate_solve(weight_t[:,:] K, weight_t[:,:] K_mod, weight_t[:] bi
     _WORK = &WORK[0,0]
     _graph = graph
 
-    with nogil:
-        for i in range(K_shape):
-            if visited[i] == 0:
-                visited[i] = 1
-                return_strong_component(K, K_shape, _graph[i,:], i, visited)
-        n = 0
-        for i in range(K_shape):
-            if graph[i, 0] >= graph[n, 0]:
-                n = i
-        components = _graph[n, :K_shape+1]
+    for i in range(K_shape):
+        if visited[i] == 0:
+            visited[i] = 1
+            return_strong_component(K, K_shape, _graph, i, i, visited)
+    n = 0
+    for i in range(K_shape):
+        if graph[i, 0] >= graph[n, 0]:
+            n = i
+    # I suspect this may be giving us issues?
+    #components = _graph[n, :K_shape+1]
 
-        maxi = 0
-        eigsum = 0.0
-        # This all works!
-        for x in range(K_shape):
-            i = components[x+1]
-            for y in range(K_shape):
-                j = components[y+1]
-                if i != K_shape and j != K_shape:
-                    K_mod[i, j] = K[i, j]
-            # Explicitly include our main node.
-            #if i != K_shape:
-            #    K_mod[i, n] = K[i, n]
-            #    K_mod[n, i] = K[n, i]
-        normalize(K_mod, K_shape)
-        cl.dgeev('N', 'V', _K_shape, _K_mod, _K_shape, _eigvals, _eigvalsi, _eigvecs, _K_shape, _eigvecs, _K_shape, _WORK, _LWORK, _INFO)
-        for x in range(K_shape):
-            if x == 0:
-                max = eigvals[0]
+    maxi = 0
+    eigsum = 0.0
+    # This all works!
+    for x in range(K_shape):
+        #i = components[x+1]
+        i = graph[n, x+1]
+        for y in range(K_shape):
+            #j = components[y+1]
+            j = graph[n, y+1]
+            if i != K_shape and j != K_shape:
+                K_mod[i, j] = K[i, j]
+    normalize(K_mod, K_shape)
+    cl.dgeev('N', 'V', _K_shape, _K_mod, _K_shape, _eigvals, _eigvalsi, _eigvecs, _K_shape, _eigvecs, _K_shape, _WORK, _LWORK, _INFO)
+    for x in range(K_shape):
+        if x == 0:
+            max = eigvals[0]
+            maxi = x
+        else:
+            if max < eigvals[x]:
+                max = eigvals[x]
                 maxi = x
-            else:
-                if max < eigvals[x]:
-                    max = eigvals[x]
-                    maxi = x
-        # We need to go over the whole range and pick out non K_shape elements.
-        for i in range(K_shape):
-            x = components[i+1]
-            if x != K_shape:
-                eigsum += eigvecs[maxi, components[i+1]]
-        for i in range(K_shape):
-            x = components[i+1]
-            if x != K_shape:
-                bin_prob[components[i+1]] = eigvecs[maxi, components[i+1]]
-                bin_prob[components[i+1]] /= eigsum
+    # We need to go over the whole range and pick out non K_shape elements.
+    # This probably no longer needs to be done, now...
+    for i in range(K_shape):
+        #x = components[i+1]
+        x = graph[n, i+1]
+        if x != K_shape:
+            #eigsum += eigvecs[maxi, components[i+1]]
+            eigsum += eigvecs[maxi, x]
+    for i in range(K_shape):
+        #x = components[i+1]
+        x = graph[n, i+1]
+        if x != K_shape:
+            #bin_prob[components[i+1]] = eigvecs[maxi, components[i+1]]
+            #bin_prob[components[i+1]] /= eigsum
+            bin_prob[x] = eigvecs[maxi, x]
+            bin_prob[x] /= eigsum
 
     return 0
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
 @cython.cdivision(True)
-cpdef int return_strong_component(weight_t[:,:] K, int K_shape, int[:] graph, int i, int[:] visited) nogil:
+cpdef int return_strong_component(weight_t[:,:] K, int K_shape, int[:, :] graph, int i, int z, int[:] visited) nogil:
 
     cdef:
-        int j 
+        int j, y 
 
-    if graph[0] == 0:
-        graph[0] += 1
-        graph[1] = i
+    if graph[z, 0] == 0:
+        graph[z, 0] += 1
+        graph[z, 1] = i
     for j in xrange(K_shape):
         if i != j:
             if K[i, j] > 0.0:
                 # Strongly connected!
                 if visited[j] == 0:
-                    graph[0] += 1
-                    graph[graph[0]] = j
+                    graph[z, 0] += 1
+                    y = graph[z, 0]
+                    graph[z, y] = j
                     # This fails miserably, for some reason.
                     # We only want to call it when we haven't visited it before.
                     # We don't want to call, THEN modify and check.  Otherwise, we could be doing many calls.
                     visited[j] = 1
-                    return_strong_component(K, K_shape, graph, j, visited)
+                    return_strong_component(K, K_shape, graph, j, z, visited)
 
 
     return 0
