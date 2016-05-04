@@ -120,11 +120,12 @@ def reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, nbins, state
     # This way, it should support the bootstrap.
     cdef:
         int[:] _rows, _cols, _obs, _ins, _nrows, _ncols, _nobs, _visited
-        weight_t[:] _flux, _total_pop, _rw_bin_probs, _nflux
+        long[:]  _bin_last_state_map
+        weight_t[:] _flux, _total_pop, _rw_bin_probs, _nflux, _rw_color_probs, _rw_state_probs
         double[:] _eigvals, _eigvalsi
-        int n_trans, _nstates, lind, _nfbins, _stride, _obs_threshold, nnz, nlind
-        long[:,:] _ii
-        Ushort[:] _indices
+        int n_trans, _nstates, lind, _nfbins, _stride, _obs_threshold, nnz, nlind, i, j
+        Ushort[:] _indices, _bin_state_map
+
         Ushort[:] _new_indices
 
         weight_t[:,:] _total_fluxes, _transition_matrix, _rw_state_flux, _strong_transition_matrix
@@ -157,6 +158,8 @@ def reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, nbins, state
     eigvalsi = np.zeros((nfbins), np.float64)
     eigvecs = np.zeros((nfbins, nfbins), np.float64)
     WORK = np.zeros((nfbins*4, nfbins*4), np.float64)
+    rw_color_probs = np.zeros((nstates), weight_dtype)
+    rw_state_probs = np.zeros((nbins), weight_dtype)
 
 
     # CREATE MEMORYVIEWS
@@ -186,42 +189,33 @@ def reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, nbins, state
     _WORK = WORK
     _graph = graph
     _visited = visited
+    _rw_color_probs = rw_color_probs
+    _rw_state_probs = rw_state_probs
+    _bin_last_state_map = bin_last_state_map
+    _bin_state_map = bin_state_map
 
 
     #NOGIL
     # Reconstruct dataset.  We're just passing the same thing back and forth between functions.
-    for i in range(nfbins):
-        for j in range(1, nfbins+1):
-            _graph[i, j] = nfbins
     with nogil:
+        for i in range(_nfbins):
+            for j in range(1, _nfbins+1):
+                _graph[i, j] = _nfbins
         regenerate_subsampled_indices(_indices, _new_indices, lind, _stride)
         accumulate_fluxes(_rows, _cols, _obs, _flux, _ins, _new_indices, nnz, _transition_matrix, nlind)
         accumulate_obs(_rows, _cols, _obs, _flux, _ins, _new_indices, nnz, _total_obs, nlind)
 
         remove_under_obs(_transition_matrix, _total_obs, _obs_threshold, _nfbins)
         normalize(_transition_matrix, _nfbins)
-
-    #print("np, then dgeev")
     steadystate_solve(_transition_matrix, _strong_transition_matrix, _rw_bin_probs, _nfbins, _eigvals, _eigvalsi, _eigvecs, _WORK, _graph, _visited)
-    #print(rw_bin_probs)
-    #print(eigvecs.T)
-    #print("graph!")
-    #print(graph)
-    #print("modified!")
-    #print(strong_transition_matrix)
-    #print("old method!")
-    #print(K_strong)
-
-    rw_color_probs = np.bincount(bin_last_state_map, weights=rw_bin_probs) 
-    rw_state_probs = np.bincount(bin_state_map, weights=rw_bin_probs)
 
 
-    # We'll probably remove this call, ultimately, and just iterate through everything instead.
-    ii = np.nonzero(transition_matrix)
+    for i in range(_nfbins):
+        _rw_color_probs[_bin_last_state_map[i]] += _rw_bin_probs[i]
+        _rw_state_probs[_bin_state_map[i]] += _rw_bin_probs[i]
 
-    n_trans = ii[0].shape[0]
-    calc_state_flux(transition_matrix[ii], ii[0], ii[1], rw_bin_probs, 
-            bin_last_state_map, bin_state_map, nstates, rw_state_flux, n_trans)
+
+    calc_state_flux(_transition_matrix, _rw_bin_probs, _bin_last_state_map, _bin_state_map, _nstates, _rw_state_flux, _nfbins)
 
     if rw_color_probs[istate] != 0.0:
         return (rw_state_flux[istate,jstate] / (rw_color_probs[istate] / (rw_color_probs[istate] + rw_color_probs[jstate])))
@@ -294,28 +288,31 @@ cpdef int remove_under_obs(weight_t[:,:] flux, int[:,:] obs, int threshold, int 
 @cython.boundscheck(False)
 @cython.wraparound(False)
 @cython.cdivision(True)
-cpdef int calc_state_flux(weight_t[:] trans_matrix, long[:] index1, long[:] index2, weight_t[:] bin_probs, long[:] bin_last_state_map, Ushort[:] bin_state_map, int nstates, weight_t[:,:] state_flux, int n_trans) nogil:
+cpdef int calc_state_flux(weight_t[:, :] trans_matrix, weight_t[:] bin_probs, long[:] bin_last_state_map, Ushort[:] bin_state_map, int nstates, weight_t[:,:] state_flux, int K_shape) nogil:
     
     cdef:
-        int k, ii, jj
+        int i, j, ii, jj
 
 
-    for k in xrange(n_trans):
-        ii = bin_last_state_map[index1[k]]
-        jj = bin_state_map[index2[k]]
+    for i in range(K_shape):
+        for j in range(K_shape):
 
-        if jj != nstates:
-            state_flux[ii, jj] += (trans_matrix[k] * bin_probs[index1[k]])
+            ii = bin_last_state_map[i]
+            jj = bin_state_map[j]
+
+            if jj != nstates:
+                state_flux[ii, jj] += (trans_matrix[i, j] * bin_probs[i])
 
     return 0
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
 @cython.cdivision(True)
-cpdef int steadystate_solve(weight_t[:,:] K, weight_t[:,:] K_mod, weight_t[:] bin_prob, int K_shape, double[:] eigvals, double[:] eigvalsi, double[:,:] eigvecs, double[:,:] WORK, int[:,:] graph, int[:] visited):
+cpdef int steadystate_solve(weight_t[:,:] K, weight_t[:,:] K_mod, weight_t[:] bin_prob, int K_shape, double[:] eigvals, double[:] eigvalsi, double[:,:] eigvecs, double[:,:] WORK, int[:,:] graph, int[:] visited) nogil:
 
     cdef:
         int[:] components
+        int[:,:] _graph
         double max, eigsum
         int n_components, components_assignments, largest_component, maxi, x, y, n, INFO, LWORK, i, j
 
@@ -333,17 +330,18 @@ cpdef int steadystate_solve(weight_t[:,:] K, weight_t[:,:] K_mod, weight_t[:] bi
     _eigvecs = &eigvecs[0,0]
     _eigvalsi = &eigvalsi[0]
     _WORK = &WORK[0,0]
+    _graph = graph
 
     with nogil:
         for i in range(K_shape):
             if visited[i] == 0:
                 visited[i] = 1
-                return_strong_component(K, K_shape, graph[i,:], i, visited)
+                return_strong_component(K, K_shape, _graph[i,:], i, visited)
         n = 0
         for i in range(K_shape):
             if graph[i, 0] >= graph[n, 0]:
                 n = i
-        components = graph[n, :]
+        components = _graph[n, :K_shape+1]
 
         maxi = 0
         eigsum = 0.0
@@ -355,9 +353,9 @@ cpdef int steadystate_solve(weight_t[:,:] K, weight_t[:,:] K_mod, weight_t[:] bi
                 if i != K_shape and j != K_shape:
                     K_mod[i, j] = K[i, j]
             # Explicitly include our main node.
-            if i != K_shape:
-                K_mod[i, n] = K[i, n]
-                K_mod[n, i] = K[n, i]
+            #if i != K_shape:
+            #    K_mod[i, n] = K[i, n]
+            #    K_mod[n, i] = K[n, i]
         normalize(K_mod, K_shape)
         cl.dgeev('N', 'V', _K_shape, _K_mod, _K_shape, _eigvals, _eigvalsi, _eigvecs, _K_shape, _eigvecs, _K_shape, _WORK, _LWORK, _INFO)
         for x in range(K_shape):
