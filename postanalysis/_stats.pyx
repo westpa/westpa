@@ -112,7 +112,7 @@ cpdef int normalize(weight_t[:,:] m, Py_ssize_t nfbins) nogil:
 @cython.boundscheck(False)
 @cython.wraparound(False)
 @cython.cdivision(True)
-def reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, nbins, state_labels, state_map, nfbins, istate, jstate, stride, bin_last_state_map, bin_state_map, obs_threshold=1):
+cpdef weight_t reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, nbins, state_labels, state_map, nfbins, istate, jstate, stride, bin_last_state_map, bin_state_map, obs_threshold=1):
 
 
 
@@ -123,7 +123,7 @@ def reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, nbins, state
         long[:]  _bin_last_state_map
         weight_t[:] _flux, _total_pop, _rw_bin_probs, _nflux, _rw_color_probs, _rw_state_probs
         double[:] _eigvals, _eigvalsi
-        int n_trans, _nstates, lind, _nfbins, _stride, _obs_threshold, nnz, nlind, i, j
+        int n_trans, _nstates, lind, _nfbins, _stride, _obs_threshold, nnz, nlind, i, j, _istate, _jstate
         Ushort[:] _indices, _bin_state_map
 
         Ushort[:] _new_indices
@@ -153,7 +153,7 @@ def reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, nbins, state
     rw_bin_probs = np.zeros(nfbins, weight_dtype)
     new_indices = np.zeros(((nlind)), dtype=indices.dtype)
     rw_state_flux = np.zeros((nstates, nstates), np.float64)
-    state_flux = np.zeros((nstates, nstates), np.float64)
+    state_flux = np.zeros((nstates, nstates), weight_dtype)
     eigvals = np.zeros((nfbins), np.float64)
     eigvalsi = np.zeros((nfbins), np.float64)
     eigvecs = np.zeros((nfbins, nfbins), np.float64)
@@ -193,6 +193,8 @@ def reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, nbins, state
     _rw_state_probs = rw_state_probs
     _bin_last_state_map = bin_last_state_map
     _bin_state_map = bin_state_map
+    _istate = istate
+    _jstate = jstate
 
 
     #NOGIL
@@ -209,18 +211,20 @@ def reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, nbins, state
         normalize(_transition_matrix, _nfbins)
     steadystate_solve(_transition_matrix, _strong_transition_matrix, _rw_bin_probs, _nfbins, _eigvals, _eigvalsi, _eigvecs, _WORK, _graph, _visited)
 
-
-    for i in range(_nfbins):
-        _rw_color_probs[_bin_last_state_map[i]] += _rw_bin_probs[i]
-        _rw_state_probs[_bin_state_map[i]] += _rw_bin_probs[i]
+    with nogil:
 
 
-    calc_state_flux(_transition_matrix, _rw_bin_probs, _bin_last_state_map, _bin_state_map, _nstates, _rw_state_flux, _nfbins)
+        for i in range(_nfbins):
+            _rw_color_probs[_bin_last_state_map[i]] += _rw_bin_probs[i]
+            _rw_state_probs[_bin_state_map[i]] += _rw_bin_probs[i]
 
-    if rw_color_probs[istate] != 0.0:
-        return (rw_state_flux[istate,jstate] / (rw_color_probs[istate] / (rw_color_probs[istate] + rw_color_probs[jstate])))
-    else:
-        return 0.0
+
+        calc_state_flux(_transition_matrix, _rw_bin_probs, _bin_last_state_map, _bin_state_map, _nstates, _rw_state_flux, _nfbins)
+
+        if _rw_color_probs[_istate] != 0.0:
+            return (_rw_state_flux[_istate,_jstate] / (_rw_color_probs[_istate] / (_rw_color_probs[_istate] + _rw_color_probs[_jstate])))
+        else:
+            return 0.0
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
