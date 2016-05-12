@@ -311,7 +311,7 @@ Command-line options
                              help='''Evaluate autocorrelation to (1-ACALPHA) significance.
                              Note that too small an ACALPHA will result in failure to detect autocorrelation
                              in a noisy flux signal. (Default: same as ALPHA.)''')
-        cgroup.add_argument('--nsets', type=int, default=250,
+        cgroup.add_argument('--nsets', type=int, default=1000,
                              help='''Use NSETS samples for bootstrapping (default: chosen based on ALPHA)''')
         cogroup = parser.add_argument_group('calculation options')
         cogroup.add_argument('-e', '--evolution-mode', choices=['cumulative', 'blocked'], default='cumulative',

@@ -88,6 +88,8 @@ class KinAvgSubcommands(WESTSubcommand):
 
         
         cgroup = parser.add_argument_group('confidence interval calculation options')
+        cgroup.add_argument('--bootstrap', dest='bootstrap', action='store_const', const=True,
+                             help='''Enable the use of Monte Carlo Block Bootstrapping.''')
         cgroup.add_argument('--alpha', type=float, default=0.05, 
                              help='''Calculate a (1-ALPHA) confidence interval'
                              (default: %(default)s)''')
@@ -135,6 +137,7 @@ class KinAvgSubcommands(WESTSubcommand):
         self.assignments_filename = args.assignments
         self.kinetics_filename = args.kinetics
                 
+        self.mcbs_enable = args.bootstrap
         self.mcbs_alpha = args.alpha
         self.mcbs_acalpha = args.acalpha if args.acalpha else self.mcbs_alpha
         self.mcbs_nsets = args.nsets if args.nsets else mclib.get_bssize(self.mcbs_alpha)
@@ -172,19 +175,21 @@ def _mod_eval_block(iblock, start, stop, nstates, total_fluxes, cond_fluxes, pop
     results = [[],[],[]]
     # results are target fluxes, conditional fluxes, rates
     for istate in xrange(nstates):
-        #dataset = {'a': total_fluxes[:, istate]}
-        #ci_res = mcbs_ci_correl_rw(dataset,estimator=numpy.mean,
-        #                            alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
-        #                            subsample=numpy.mean)
-        #results[0].append((iblock,istate,(start,stop)+ci_res))
+        kwargs = { 'istate' : istate }
+        dataset = {'dataset': total_fluxes[:, istate]}
+        ci_res = mcbs_ci_correl_rw(dataset,estimator=(lambda stride, dataset: numpy.mean(dataset)),
+                                    alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
+                                    subsample=numpy.mean, pre_calculated=dataset['dataset'])
+        results[0].append((iblock,istate,(start,stop)+ci_res))
         
         for jstate in xrange(nstates):
             if istate == jstate: continue
-            #dataset = {'a': cond_fluxes[:, istate, jstate]}
-            #ci_res = mcbs_ci_correl_rw(dataset,estimator=numpy.mean,
-            #                        alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
-            #                        subsample=numpy.mean)
-            #results[1].append((iblock, istate, jstate, (start,stop) + ci_res))
+            kwargs = { 'istate' : istate, 'jstate': jstate }
+            dataset = {'dataset': cond_fluxes[:, istate, jstate]}
+            ci_res = mcbs_ci_correl_rw(dataset,estimator=(lambda stride, dataset: numpy.mean(dataset)),
+                                    alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
+                                    subsample=numpy.mean, pre_calculated=dataset['dataset'])
+            results[1].append((iblock, istate, jstate, (start,stop) + ci_res))
             
             # macro_flux_to_rate_bs needs the following:
             # dataset, pops, istate, jstate
@@ -196,7 +201,7 @@ def _mod_eval_block(iblock, start, stop, nstates, total_fluxes, cond_fluxes, pop
             results[2].append((iblock, istate, jstate, (start,stop) + ci_res))
 
     return results
-        
+
 class AvgTraceSubcommand(KinAvgSubcommands):
     subcommand = 'trace'
     help_text = 'averages and CIs for path-tracing kinetics analysis'
@@ -312,58 +317,77 @@ class AvgTraceSubcommand(KinAvgSubcommands):
             all_items = numpy.arange(1,len(start_pts)+1)
             bootstrap_length = 0.5*(len(start_pts)*(len(start_pts)+1)) - numpy.delete(all_items, numpy.arange(1, len(start_pts)+1, step_iter))
             #pi.new_operation('Calculating flux/rate evolution', len(start_pts))
-            pi.new_operation('Calculating flux/rate evolution', bootstrap_length[0])
-            futures = []
-            for iblock, start in enumerate(start_pts):
-                stop = min(start+step_iter, stop_iter)
-                if self.evolution_mode == 'cumulative':
-                    windowsize = int(self.evol_window_frac * (stop - start_iter))
-                    block_start = max(start_iter, stop - windowsize)
-                else: # self.evolution_mode == 'blocked'
-                    block_start = start
-                
-                future = self.work_manager.submit(_mod_eval_block, kwargs=dict(iblock=iblock, start=block_start, stop=stop,
-                                                                           nstates=nstates,
-                                                                           total_fluxes=total_fluxes.iter_slice(block_start,stop),
-                                                                           cond_fluxes = cond_fluxes.iter_slice(block_start,stop),
-                                                                           pops=pops.iter_slice(block_start,stop),
-                                                                           rates=rates.iter_slice(block_start,stop),
-                                                                           mcbs_alpha=self.mcbs_alpha, mcbs_nsets=self.mcbs_nsets,
-                                                                           mcbs_acalpha=self.mcbs_acalpha))
-                futures.append(future)
-            
-            for future in self.work_manager.as_completed(futures):
-                #pi.progress += 1
-                pi.progress += iblock / step_iter
-                #target_results, condflux_results, rate_results = future.get_result(discard=True)
-                target_results, condflux_results, rate_results = future.get_result(discard=True)
-                for result in target_results:
-                    iblock,istate,ci_result = result
-                    target_evol[iblock,istate] = ci_result
+            if self.mcbs_enable == True:
+                pi.new_operation('Calculating flux/rate evolution', bootstrap_length[0])
+                futures = []
+                for iblock, start in enumerate(start_pts):
+                    stop = min(start+step_iter, stop_iter)
+                    if self.evolution_mode == 'cumulative':
+                        windowsize = int(self.evol_window_frac * (stop - start_iter))
+                        block_start = max(start_iter, stop - windowsize)
+                    else: # self.evolution_mode == 'blocked'
+                        block_start = start
                     
-                for result in condflux_results:
-                    iblock,istate,jstate,ci_result = result
-                    flux_evol[iblock,istate, jstate] = ci_result
+                    future = self.work_manager.submit(_mod_eval_block, kwargs=dict(iblock=iblock, start=block_start, stop=stop,
+                                                                               nstates=nstates,
+                                                                               total_fluxes=total_fluxes.iter_slice(block_start,stop),
+                                                                               cond_fluxes = cond_fluxes.iter_slice(block_start,stop),
+                                                                               pops=pops.iter_slice(block_start,stop),
+                                                                               rates=rates.iter_slice(block_start,stop),
+                                                                               mcbs_alpha=self.mcbs_alpha, mcbs_nsets=self.mcbs_nsets,
+                                                                               mcbs_acalpha=self.mcbs_acalpha))
+                    futures.append(future)
                 
-                for result in rate_results:
-                    iblock, istate, jstate, ci_result = result 
-                    rate_evol[iblock, istate, jstate] = ci_result
-                    #fluxue = (flux_evol[iblock,istate,jstate]['ci_ubound'] - flux_evol[iblock,istate,jstate]['expected']) / flux_evol[iblock,istate,jstate]['expected']
-                    #fluxle = (flux_evol[iblock,istate,jstate]['expected'] - flux_evol[iblock,istate,jstate]['ci_lbound']) / flux_evol[iblock,istate,jstate]['expected']
-                    #fluxue = (rate_evol[iblock,istate,jstate]['ci_ubound'] - rate_evol[iblock,istate,jstate]['expected']) / rate_evol[iblock,istate,jstate]['expected']
-                    #fluxle = (rate_evol[iblock,istate,jstate]['expected'] - rate_evol[iblock,istate,jstate]['ci_lbound']) / rate_evol[iblock,istate,jstate]['expected']
-                    # We need the actual number of datasets we used.  This is probably quite imperfect, though.
-                    #fluxue *= numpy.sqrt(iblock / (rate_evol[iblock,istate,jstate]['corr_len'] + 1))
-                    #fluxle *= numpy.sqrt(iblock / (rate_evol[iblock,istate,jstate]['corr_len'] + 1))
-                    #fluxue *= numpy.sqrt(iblock)
-                    #fluxle *= numpy.sqrt(iblock)
-                    #rate_evol[iblock, istate, jstate]['ci_ubound'] = rate_evol[iblock,istate,jstate]['expected'] + (fluxue * rate_evol[iblock,istate,jstate]['expected'])
-                    #rate_evol[iblock, istate, jstate]['ci_lbound'] = rate_evol[iblock,istate,jstate]['expected'] - (fluxle * rate_evol[iblock,istate,jstate]['expected'])
+                for future in self.work_manager.as_completed(futures):
+                    #pi.progress += 1
+                    pi.progress += iblock / step_iter
+                    #target_results, condflux_results, rate_results = future.get_result(discard=True)
+                    target_results, condflux_results, rate_results = future.get_result(discard=True)
+                    for result in target_results:
+                        iblock,istate,ci_result = result
+                        target_evol[iblock,istate] = ci_result
+                        
+                    for result in condflux_results:
+                        iblock,istate,jstate,ci_result = result
+                        flux_evol[iblock,istate, jstate] = ci_result
+                    
+                    for result in rate_results:
+                        iblock, istate, jstate, ci_result = result 
+                        rate_evol[iblock, istate, jstate] = ci_result
+                        #fluxue = (flux_evol[iblock,istate,jstate]['ci_ubound'] - flux_evol[iblock,istate,jstate]['expected']) / flux_evol[iblock,istate,jstate]['expected']
+                        #fluxle = (flux_evol[iblock,istate,jstate]['expected'] - flux_evol[iblock,istate,jstate]['ci_lbound']) / flux_evol[iblock,istate,jstate]['expected']
+                        #fluxue = (rate_evol[iblock,istate,jstate]['ci_ubound'] - rate_evol[iblock,istate,jstate]['expected']) / rate_evol[iblock,istate,jstate]['expected']
+                        #fluxle = (rate_evol[iblock,istate,jstate]['expected'] - rate_evol[iblock,istate,jstate]['ci_lbound']) / rate_evol[iblock,istate,jstate]['expected']
+                        # We need the actual number of datasets we used.  This is probably quite imperfect, though.
+                        #fluxue *= numpy.sqrt(iblock / (rate_evol[iblock,istate,jstate]['corr_len'] + 1))
+                        #fluxle *= numpy.sqrt(iblock / (rate_evol[iblock,istate,jstate]['corr_len'] + 1))
+                        #fluxue *= numpy.sqrt(iblock)
+                        #fluxle *= numpy.sqrt(iblock)
+                        #rate_evol[iblock, istate, jstate]['ci_ubound'] = rate_evol[iblock,istate,jstate]['expected'] + (fluxue * rate_evol[iblock,istate,jstate]['expected'])
+                        #rate_evol[iblock, istate, jstate]['ci_lbound'] = rate_evol[iblock,istate,jstate]['expected'] - (fluxle * rate_evol[iblock,istate,jstate]['expected'])
 
-                #for result in rate_std:
-                #    iblock, istate, jstate, ci_result = result 
-                #    rate_evol[iblock, istate, jstate]['ci_ubound'] = rate_evol[iblock,istate,jstate]['expected'] + (ci_result[4])
-                #    rate_evol[iblock, istate, jstate]['ci_lbound'] = rate_evol[iblock,istate,jstate]['expected'] - (ci_result[4])
+                    #for result in rate_std:
+                    #    iblock, istate, jstate, ci_result = result 
+                    #    rate_evol[iblock, istate, jstate]['ci_ubound'] = rate_evol[iblock,istate,jstate]['expected'] + (ci_result[4])
+                    #    rate_evol[iblock, istate, jstate]['ci_lbound'] = rate_evol[iblock,istate,jstate]['expected'] - (ci_result[4])
+
+            else:
+                for iblock, start in enumerate(start_pts):
+                    stop = min(start+step_iter, stop_iter)
+                    if self.evolution_mode == 'cumulative':
+                        windowsize = int(self.evol_window_frac * (stop - start_iter))
+                        block_start = max(start_iter, stop - windowsize)
+                    else: # self.evolution_mode == 'blocked'
+                        block_start = start
+                    for istate in xrange(nstates):
+                        for jstate in xrange(nstates):
+                            flux_evol[iblock,istate,jstate]['ci_ubound'] = 0.0
+                            flux_evol[iblock,istate,jstate]['ci_lbound'] = 0.0
+                            # Is this right?  Hmmm.
+                            flux_evol[iblock,istate,jstate]['expected'] = numpy.mean(cond_fluxes.iter_slice(block_start, stop)[:, istate, jstate])
+                            rate_evol[iblock,istate,jstate]['ci_ubound'] = 0.0
+                            rate_evol[iblock,istate,jstate]['ci_lbound'] = 0.0
+                            rate_evol[iblock,istate,jstate]['expected'] = rates.iter_slice(block_start, stop)[-1, istate, jstate]
 
             df_ds = self.output_file.create_dataset('conditional_flux_evolution', data=flux_evol, shuffle=True, compression=9)
             tf_ds = self.output_file.create_dataset('target_flux_evolution', data=target_evol, shuffle=True, compression=9)
