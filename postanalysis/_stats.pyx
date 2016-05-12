@@ -244,7 +244,8 @@ cpdef int regenerate_subsampled_indices(Ushort[:] iin, Ushort[:] iout, int ilen,
 cpdef int accumulate_fluxes(int[:] hrows, int[:] hcols, int[:] hobs, weight_t[:] hflux, int[:] hins, Ushort[:] iterations, Py_ssize_t nnz, weight_t[:,:] total_fluxes, int itermax) nogil:
 
     cdef:
-        index_t curriter, elem, iiter, ilem, ipop
+        index_t curriter, elem, iiter, ipop
+        long ilem
 
     curriter = 0
 
@@ -261,7 +262,8 @@ cpdef int accumulate_fluxes(int[:] hrows, int[:] hcols, int[:] hobs, weight_t[:]
 cpdef int accumulate_obs(int[:] hrows, int[:] hcols, int[:] hobs, weight_t[:] hflux, int[:] hins, Ushort[:] iterations, Py_ssize_t nnz, int[:,:] total_obs, int itermax) nogil:
 
     cdef:
-        index_t curriter, elem, iiter, ilem, ipop
+        index_t curriter, elem, iiter, ipop
+        long ilem
 
     curriter = 0
 
