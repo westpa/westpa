@@ -146,7 +146,7 @@ def accumulate_statistics(h5file, start_iter, stop_iter, nbins, total_fluxes=Non
     return total_fluxes, total_obs, total_pop
 
 
-def reweight(h5file, start, stop, nstates, nbins, state_labels, state_map, nfbins, obs_threshold=1, total_fluxes=None, total_obs=None):
+def reweight(h5file, start, stop, nstates, nbins, state_labels, state_map, nfbins, obs_threshold=1, total_fluxes=None, total_obs=None, istate=None):
 
     total_fluxes, total_obs, total_pop = accumulate_statistics(h5file, start, stop, nfbins, total_fluxes, total_obs)
 
@@ -165,7 +165,14 @@ def reweight(h5file, start, stop, nstates, nbins, state_labels, state_map, nfbin
     bin_last_state_map = state_map[:-1][...]
     # We need to change our 'unknown' states to the initial state, because we know it.  Nothing is 'unknown' in a steady state.
     # CHANGE ME
-    bin_last_state_map[np.where(bin_last_state_map == nstates)] = 0
+    #bin_last_state_map[np.where(bin_last_state_map == nstates)] = 0
+    # We'll set this to the initial state.  Then, things should work...
+    # but we do need the assignment file.
+    if istate != None:
+        bin_last_state_map[np.where(bin_last_state_map == nstates)] = istate
+    else:
+        # Assume 0, and log a warning.
+        bin_last_state_map[np.where(bin_last_state_map == nstates)] = 0
     #print(bin_last_state_map)
     #bin_state_map = np.repeat(state_map[:-1], nstates)
     bin_state_map = state_map[:-1]
@@ -404,7 +411,8 @@ Command-line options
                     params = dict(start=start, stop=stop, nstates=nstates, nbins=nbins,
                                   state_labels=state_labels, state_map=state_map, nfbins=nfbins,
                                   total_fluxes=total_fluxes, total_obs=total_obs,
-                                  h5file=self.kinetics_file, obs_threshold=self.obs_threshold)
+                                  h5file=self.kinetics_file, obs_threshold=self.obs_threshold,
+                                  istate=self.assignments_file['istate_index'])
 
                     rw_state_flux, rw_color_probs, rw_state_probs, rw_bin_probs, rw_bin_flux = reweight(**params)
                     print("RW flux!")

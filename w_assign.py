@@ -236,6 +236,7 @@ Command-line options
         self.output_file = None
         self.output_filename = None
         self.states = []
+        self.istate = None
     
     def add_args(self, parser):
         self.data_reader.add_args(parser)
@@ -321,6 +322,9 @@ Command-line options
             elif coords.ndim > 2:
                 raise ValueError('coordinates must be 2-D')
             state['coords'] = coords
+            if state['label'] == 'SOURCE':
+                self.istate = state
+                self.istate_n = istate
             states.append(state)
         self.states = states
 
@@ -419,13 +423,21 @@ Command-line options
             # For recycled simulations, it would be convenient to know what the recycling target maps to.
             recycle_map = numpy.empty((self.binning.mapper.nbins+1,), index_dtype)
             recycle_map[:] = 0 # state_id == nstates => unknown state
+            istate_map = numpy.empty((self.binning.mapper.nbins+1,), index_dtype)
             # We're making the assumption that the physical recycling coordinate doesn't
             # change over the course of the simulation.
             tstate_pcoord = self.data_reader.data_manager.find_tstate_group(0)['pcoord'][...]
+            #istate_pcoord = self.['pcoord'][...]
             for tstate in tstate_pcoord:
                 tstate_assignment = assign([tstate])
                 recycle_map[tstate_assignment] = 1
             self.output_file.create_dataset('tstate_map', data=recycle_map, compression=9, shuffle=True)
+            if self.istate != None:
+                # We're being bad and assuming only one istate.
+                istate_assignment = assign(self.istate['coords'])
+                istate_map[istate_assignment] = 1
+                self.output_file.create_dataset('istate_map', data=istate_map, compression=9, shuffle=True)
+                self.output_file.create_dataset('istate_index', data=self.istate_n)
 
 
 

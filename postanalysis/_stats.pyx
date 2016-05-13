@@ -88,8 +88,8 @@ cpdef stats_process(numpy.ndarray[index_t, ndim=2] bin_assignments,
             if fbin in tstate:
             #trans[fbin,fbin+1:] = 0
             #populations[fbin] = 0
-                fluxes[fbin,:] = 0
-                trans[fbin,:] = 0
+                #fluxes[fbin,:] = 0
+                #trans[fbin,:] = 0
                 fluxes[fbin, istate] += w
                 trans[fbin, istate] += 1
                 populations[fbin] += w

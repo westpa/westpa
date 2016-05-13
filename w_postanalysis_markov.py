@@ -135,9 +135,8 @@ either equilibrium or steady-state conditions without recycling target states.
                 # We're sending in ones that have an endpoint recycling type.  We'll grab their final bins and adjust their populations.
                 # We need an initial state, however.  Where do we go after recycling?
                 # Should be a bin number.  Can be pulled from the assignment file, but.
-                istate = 2
+                istate = np.where(self.assignments_file['istate_map'][...] == 1)[0]
                 tstates = np.where(self.assignments_file['tstate_map'][...] == 1)[0]
-                print(tstates)
 
 
                 # Calculate bin-to-bin fluxes, bin populations and number of obs transitions
@@ -151,8 +150,8 @@ either equilibrium or steady-state conditions without recycling target states.
                 fluxes_sp = sp.coo_matrix(fluxes)
                 trans_sp = sp.coo_matrix(trans)
 
-                print(fluxes, trans)
                 assert fluxes_sp.nnz == trans_sp.nnz
+                print(trans)
 
                 flux_iter_grp = flux_grp.create_group('iter_{:08d}'.format(n_iter))
                 flux_iter_grp.create_dataset('flux', data=fluxes_sp.data, dtype=weight_dtype)
