@@ -443,8 +443,8 @@ class Kinetics(WESTParallelTool):
                 break
             parents = self.__get_data_for_iteration__(iter)['parents']
         current['seg_id'] = list(reversed(current['seg_id']))
-        current['pcoord'] = np.array(list(reversed(current['pcoord'])))
-        current['states'] = np.array(list(reversed(current['states'])))
+        current['pcoord'] = np.concatenate(np.array(list(reversed(current['pcoord']))))
+        current['states'] = np.concatenate(np.array(list(reversed(current['states']))))
         current['bins'] = np.array(list(reversed(current['states'])))
         current['weights'] = list(reversed(current['weights']))
         current['iteration'] = list(reversed(current['iteration']))
