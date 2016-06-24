@@ -266,9 +266,9 @@ class Kinetics(WESTParallelTool):
     def kinetics(self):
         return self.__analysis_schemes__[self.scheme]['kintrace']
 
-    #@property
-    #def west(self):
-    #    return self.
+    @property
+    def west(self):
+        return self.data_reader.data_manager.we_h5file
 
     @property
     def scheme(self):
@@ -341,6 +341,10 @@ class Kinetics(WESTParallelTool):
         '''
         # Returns number of walkers for iteration X.  Assumes current iteration, but can go with different one.
         return self.current['summary']['n_particles']
+
+    @property
+    def aggregate_walkers(self):
+        return self.west['summary']['n_particles'][:self.iteration].sum()
 
     @iteration.setter
     def iteration(self, value):
