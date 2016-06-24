@@ -105,7 +105,6 @@ class Kinetics(WESTParallelTool):
             self.dssynth.process_args(args)
         with self.data_reader:
             self.iter_range.process_args(args)
-        print("Arguments Processed!")
 
     def analysis_structure(self, rerun=False):
         #self.settings = self.config['west']['w_ipython']
@@ -132,8 +131,7 @@ class Kinetics(WESTParallelTool):
                         else:
                             raise Exception("Rerun is set to true, or the output cannot be loaded.")
                     except:
-                        print('Unable to load output from {}'.format(name))
-                        print('Rerunning...')
+                        print('Unable to load output from {}, or a re-run requested.'.format(name))
                         if name == 'assign':
                         #    # For the moment, let's hardcode options.
                         # A lot of this is coded up to avoid the arg parser.  Probably not clean or happy, but it should work for now...
