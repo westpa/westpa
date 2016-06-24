@@ -471,11 +471,11 @@ class Kinetics(WESTParallelTool):
         Returns all information about the children of a given walker in the current iteration.
         '''
         
+        if self.iteration == self.niters:
+            return 0
         iter_data = self.__get_data_for_iteration__(self.iteration+1)
         self._future = { 'kinavg': iter_data['kinavg'], 'weights': [], 'pcoord': [], 'parents': [], 'summary': iter_data['summary'], 'seg_id': [], 'walkers': iter_data['walkers'], 'states': [], 'bins': [] }
         for seg_id in range(0, self.walkers):
-            if self.iteration == self.niters:
-                return 0
             else:
                 children = np.where(iter_data['parents'] == seg_id)[0]
                 if len(children) == 0:
