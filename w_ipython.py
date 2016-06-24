@@ -342,7 +342,8 @@ class Kinetics(WESTParallelTool):
     def iteration(self, value):
         print("Setting iteration to iter {}.".format(value))
         if value < 0:
-            raise ValueError("Iteration must begin at 1.")
+            print("Iteration must begin at 1.")
+            value = 1
         if value > self.niters:
             print("Cannot go beyond {} iterations!".format(self.niters))
             print("Setting to {}".format(self.niters))
