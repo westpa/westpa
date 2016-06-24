@@ -476,33 +476,32 @@ class Kinetics(WESTParallelTool):
         iter_data = self.__get_data_for_iteration__(self.iteration+1)
         self._future = { 'kinavg': iter_data['kinavg'], 'weights': [], 'pcoord': [], 'parents': [], 'summary': iter_data['summary'], 'seg_id': [], 'walkers': iter_data['walkers'], 'states': [], 'bins': [] }
         for seg_id in range(0, self.walkers):
+            children = np.where(iter_data['parents'] == seg_id)[0]
+            if len(children) == 0:
+                error = "No children for seg_id {}.".format(seg_id)
+                self._future['weights'].append(error)
+                self._future['pcoord'].append(error)
+                self._future['parents'].append(error)
+                self._future['seg_id'].append(error)
+                self._future['states'].append(error)
+                self._future['bins'].append(error)
             else:
-                children = np.where(iter_data['parents'] == seg_id)[0]
-                if len(children) == 0:
-                    error = "No children for seg_id {}.".format(seg_id)
-                    self._future['weights'].append(error)
-                    self._future['pcoord'].append(error)
-                    self._future['parents'].append(error)
-                    self._future['seg_id'].append(error)
-                    self._future['states'].append(error)
-                    self._future['bins'].append(error)
-                else:
-                    # Now, we're gonna put them in the thing.
-                    value = self.iteration+1 
-                    self._future['weights'].append(iter_data['weights'][children])
-                    self._future['pcoord'].append(iter_data['pcoord'][...][children, :, :])
+                # Now, we're gonna put them in the thing.
+                value = self.iteration+1 
+                self._future['weights'].append(iter_data['weights'][children])
+                self._future['pcoord'].append(iter_data['pcoord'][...][children, :, :])
+                try:
+                    aux_data = iter_data['auxdata'][...][children, :, :]
                     try:
-                        aux_data = iter_data['auxdata'][...][children, :, :]
-                        try:
-                            current['aux_data'].append(aux_data)
-                        except:
-                            current['aux_data'] = aux_data
+                        current['aux_data'].append(aux_data)
                     except:
-                        pass
-                    self._future['parents'].append(iter_data['parents'][children])
-                    self._future['seg_id'].append(iter_data['seg_id'][children])
-                    self._future['states'].append(self.assign['trajlabels'][value-1, children, :])
-                    self._future['bins'].append(self.assign['assignments'][value-1, children, :])
+                        current['aux_data'] = aux_data
+                except:
+                    pass
+                self._future['parents'].append(iter_data['parents'][children])
+                self._future['seg_id'].append(iter_data['seg_id'][children])
+                self._future['states'].append(self.assign['trajlabels'][value-1, children, :])
+                self._future['bins'].append(self.assign['assignments'][value-1, children, :])
 
 
 
