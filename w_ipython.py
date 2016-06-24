@@ -472,6 +472,7 @@ class Kinetics(WESTParallelTool):
         '''
         
         if self.iteration == self.niters:
+            print("Currently at iteration {}, which is the max.  There are no children!".format(self.iteration))
             return 0
         iter_data = self.__get_data_for_iteration__(self.iteration+1)
         self._future = { 'kinavg': iter_data['kinavg'], 'weights': [], 'pcoord': [], 'parents': [], 'summary': iter_data['summary'], 'seg_id': [], 'walkers': iter_data['walkers'], 'states': [], 'bins': [] }
