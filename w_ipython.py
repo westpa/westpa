@@ -173,7 +173,6 @@ class Kinetics(WESTParallelTool):
                                                                    else x), boundaries)
                             assign.binning.mapper = mapper(boundary_lists)
 
-                            # Fucking thing.  Just to get it to stop complaining...
                             assign.progress.process_args(self.args)
                             assign.work_manager = self.work_manager
                             assign.dssynth = self.dssynth
@@ -285,6 +284,12 @@ class Kinetics(WESTParallelTool):
     @scheme.setter
     def scheme(self, scheme):
         self._future = None
+        if scheme in self.__settings['analysis_schemes']:
+            pass
+        else:
+            for ischeme, schemename in enumerate(self.__settings['analysis_schemes']):
+                if ischeme == scheme:
+                    scheme = schemename
         if self.__settings['analysis_schemes'][scheme]['enabled'] == True or self.__settings['analysis_schemes'][scheme]['enabled'] == None:
             self._scheme = scheme
         else:
@@ -317,6 +322,7 @@ class Kinetics(WESTParallelTool):
                       boundaries: [[0.0, 2.80, 7, 10000]]
         '''
         print("The following schemes are available:")
+        print("Set via name, or via a number.")
         for scheme in self.__settings['analysis_schemes']:
             print(scheme)
 
