@@ -7,7 +7,7 @@ from westpa.h5io import WESTPAH5File
 from westpa.extloader import get_object
 import westpa
 import os, sys
-import w_assign, w_kinetics, w_kinavg
+import w_assign, w_kinetics, w_kinavg, w_postanalysis_matrix, w_postanalysis_reweight
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -98,7 +98,7 @@ class Kinetics(WESTParallelTool):
         self.__settings = self.__config['west']['w_ipython']
         for ischeme, scheme in enumerate(self.__settings['analysis_schemes']):
             if (self.__settings['analysis_schemes'][scheme]['enabled'] == True or self.__settings['analysis_schemes'][scheme]['enabled'] == None):
-                self._scheme = scheme
+                self.scheme = scheme
                 break
         with self.data_reader:
             self.dssynth.h5filename = self.data_reader.we_h5filename
@@ -123,7 +123,11 @@ class Kinetics(WESTParallelTool):
                 except:
                     pass
                 tmp = {}
-                for name in ['assign', 'kintrace', 'kinavg']:
+                if self.__settings['analysis_schemes'][scheme]['postanalysis'] == True:
+                    analysis_files = ['assign', 'kintrace', 'kinavg', 'flux_matrices', 'kinrw']
+                else:
+                    analysis_files = ['assign', 'kintrace', 'kinavg']
+                for name in analysis_files:
                     try:
                         if rerun == False:
                             print(os.path.join(path, '{}.h5'.format(name)), 'r')
@@ -173,7 +177,17 @@ class Kinetics(WESTParallelTool):
                                                                    else x), boundaries)
                             assign.binning.mapper = mapper(boundary_lists)
 
+                            w_assign_config = { 'subsample': False }
+                            try:
+                                w_assign_config.update(self.__settings['w_assign'])
+                            except:
+                                pass
+                            try:
+                                w_assign_config.update(self.__settings['analysis_schemes'][scheme]['w_assign'])
+                            except:
+                                pass
                             assign.progress.process_args(self.args)
+                            assign.subsample = w_assign_config['subsample']
                             assign.work_manager = self.work_manager
                             assign.dssynth = self.dssynth
                             assign.go()
@@ -185,8 +199,18 @@ class Kinetics(WESTParallelTool):
                             assign = tmp['assign']
                             kintrace = w_kinetics.WKinetics()
                             trace = w_kinetics.KinTraceSubcommand(kintrace)
+                            w_kinetics_config = { 'correl': True }
+                            try:
+                                w_kinetics_config.update(self.__settings['w_kinetics'])
+                            except:
+                                pass
+                            try:
+                                w_kinetics_config.update(self.__settings['analysis_schemes'][scheme]['w_kinetics'])
+                            except:
+                                pass
                             trace.progress.process_args(self.args)
                             # Reimplement process_args...
+                            trace.correl = w_kinetics_config['correl']
                             trace.assignments_file = assign
                             trace.data_reader = self.data_reader
                             trace.iter_range = self.iter_range
@@ -207,7 +231,7 @@ class Kinetics(WESTParallelTool):
                         if name == 'kinavg':
                             ktrace = w_kinavg.WKinAvg()
                             ktrace.work_manager = self.work_manager
-                            w_kinavg_config = { 'mcbs_alpha': 0.05, 'mcbs_nsets': 1000, 'evolution': 'cumulative', 'evol_window_frac': 1, 'step_iter': 1, 'bootstrap': True }
+                            w_kinavg_config = { 'mcbs_alpha': 0.05, 'mcbs_nsets': 1000, 'evolution': 'cumulative', 'evol_window_frac': 1, 'step_iter': 1, 'bootstrap': True , 'correl': False}
                             try:
                                 w_kinavg_config.update(self.__settings['w_kinavg'])
                             except:
@@ -228,6 +252,7 @@ class Kinetics(WESTParallelTool):
                             kinavg.evol_window_frac = w_kinavg_config['evol_window_frac']
                             kinavg.iter_range.iter_step = w_kinavg_config['step_iter']
                             kinavg.mcbs_enable = w_kinavg_config['bootstrap']
+                            kinavg.correl = w_kinavg_config['correl']
                             with kinavg.data_reader:
                                 kinavg.iter_range.process_args(self.args, default_iter_step=None)
                             if kinavg.iter_range.iter_step is None:
@@ -245,6 +270,88 @@ class Kinetics(WESTParallelTool):
                             tmp[name] = h5py.File(os.path.join(path, '{}.h5'.format(name)), 'r')
                             # It closes the h5 file.
                             self.data_reader.open()
+                        if name == 'flux_matrices':
+                            fmatrix = w_postanalysis_matrix.MatrixRw()
+                            fmatrix.work_manager = self.work_manager
+
+                            #fmatrix.assignments_file == tmp['assign']
+                            fmatrix.assignments_file = h5io.WESTPAH5File(os.path.join(path, '{}.h5'.format('assign')), 'r')
+                            fmatrix.data_reader = self.data_reader
+                            fmatrix.iter_range = self.iter_range
+                            fmatrix.output_file = h5io.WESTPAH5File(os.path.join(path, '{}.h5'.format(name)), 'w', creating_program=True)
+                            h5io.stamp_creator_data(fmatrix.output_file)
+
+                            matrix_config = { 'sampling_frequency': 'timepoint' }
+                            try:
+                                matrix_config.update(self.__settings['w_kinavg'])
+                            except:
+                                pass
+                            try:
+                                matrix_config.update(self.__settings['analysis_schemes'][scheme]['w_kinavg'])
+                            except:
+                                pass
+                            try:
+                                matrix_config.update(self.__settings['w_postanalysis_matrix'])
+                            except:
+                                pass
+                            try:
+                                matrix_config.update(self.__settings['analysis_schemes'][scheme]['w_postanalysis_matrix'])
+                            except:
+                                pass
+                            fmatrix.progress.process_args(self.args)
+                            fmatrix.sampling_frequency = matrix_config['sampling_frequency']
+
+
+                            self.fmatrix = fmatrix
+                            self.fmatrix.go()
+
+                            tmp[name] = h5py.File(os.path.join(path, '{}.h5'.format(name)), 'r')
+                            # It closes the h5 file.
+                            self.data_reader.open()
+
+                        if name == 'kinrw':
+                            reweight = w_postanalysis_reweight.WPostAnalysisReweightTool()
+                            reweight.work_manager = self.work_manager
+
+                            reweight.assignments_filename = os.path.join(path, '{}.h5'.format('assign'))
+                            reweight.kinetics_filename = os.path.join(path, '{}.h5'.format('flux_matrices'))
+                            reweight.data_reader = self.data_reader
+                            reweight.iter_range = self.iter_range
+                            reweight.output_filename = os.path.join(path, '{}.h5'.format(name))
+
+                            reweight_config = { 'mcbs_alpha': 0.05, 'mcbs_nsets': 1000, 'evolution': 'cumulative', 'evol_window_frac': 1, 'step_iter': 1, 'bootstrap': True , 'correl': False, 'obs_threshold': 1}
+                            try:
+                                reweight_config.update(self.__settings['analysis_schemes'][scheme]['w_kinavg'])
+                            except:
+                                pass
+                            try:
+                                reweight_config.update(self.__settings['w_postanalysis_reweight'])
+                            except:
+                                pass
+                            try:
+                                reweight_config.update(self.__settings['analysis_schemes'][scheme]['w_postanalysis_reweight'])
+                            except:
+                                pass
+
+                            reweight.progress.process_args(self.args)
+                            reweight.mcbs_alpha = reweight_config['mcbs_alpha']
+                            reweight.mcbs_acalpha = reweight.mcbs_alpha
+                            reweight.mcbs_nsets = reweight_config['mcbs_nsets']
+                            reweight.evolution_mode = reweight_config['evolution']
+                            reweight.evol_window_frac = reweight_config['evol_window_frac']
+                            reweight.iter_range.iter_step = reweight_config['step_iter']
+                            reweight.mcbs_enable = reweight_config['bootstrap']
+                            reweight.correl = reweight_config['correl']
+                            reweight.obs_threshold = reweight_config['obs_threshold']
+
+
+                            self.reweight = reweight
+                            self.reweight.go()
+
+                            tmp[name] = h5py.File(os.path.join(path, '{}.h5'.format(name)), 'r')
+                            # It closes the h5 file.
+                            self.data_reader.open()
+
                 self.__analysis_schemes__[scheme] = tmp
 
 
@@ -269,6 +376,24 @@ class Kinetics(WESTParallelTool):
     @property
     def west(self):
         return self.data_reader.data_manager.we_h5file
+
+    @property
+    def kinrw(self):
+        if self.__settings['analysis_schemes'][self.scheme]['postanalysis'] == True:
+            return self.__analysis_schemes__[self.scheme]['kinrw']
+        else:
+            value = "This sort of analysis has not been enabled."
+            current = { 'bin_prob_evolution': value, 'color_prob_evolution': value, 'conditional_flux_evolution': value, 'rate_evolution': value, 'state_labels': value, 'state_prob_evolution': value }
+            return current
+
+    @property
+    def matrix(self):
+        if self.__settings['analysis_schemes'][self.scheme]['postanalysis'] == True:
+            return self.__analysis_schemes__[self.scheme]['flux_matrices']
+        else:
+            value = "This sort of analysis has not been enabled."
+            current = { 'bin_populations': value, 'iterations': value }
+            return current
 
     @property
     def scheme(self):
@@ -372,6 +497,9 @@ class Kinetics(WESTParallelTool):
         if seg_ids == None:
             seg_ids = xrange(0, iter_group['seg_index']['weight'].shape[0])
         current['kinavg'] = self.kinavg['rate_evolution'][value - 1, :, :]
+        # Just make these easier to access.
+        current['k_error'] = (current['kinavg']['ci_ubound'] - current['kinavg']['ci_lbound']) / current['kinavg']['expected']
+        current['k_expected'] = current['kinavg']['expected']
         current['weights'] = iter_group['seg_index']['weight'][seg_ids]
         current['pcoord'] = iter_group['pcoord'][...][seg_ids, :, :]
         try:
@@ -384,6 +512,18 @@ class Kinetics(WESTParallelTool):
         current['walkers'] = current['summary']['n_particles']
         current['states'] = self.assign['trajlabels'][value-1, :current['walkers'], :][seg_ids]
         current['bins'] = self.assign['assignments'][value-1, :current['walkers'], :][seg_ids]
+        try:
+            # We'll make this not a sparse matrix...
+            current['matrix'] = self.matrix['iterations/iter_{:08d}'.format(value)]
+            current['kinrw'] = self.kinrw['rate_evolution'][value - 1, :, :]
+            current['rw_error'] = (current['kinrw']['ci_ubound'] - current['kinrw']['ci_lbound']) / current['kinrw']['expected']
+            current['rw_expected'] = current['kinrw']['expected']
+        except:
+            # This analysis hasn't been enabled, so we'll simply return the default error message.
+            current['matrix'] = self.matrix['bin_populations']
+            current['kinrw'] = self.kinrw['rate_evolution']
+            current['rw_error'] = self.kinrw['rate_evolution']
+            current['rw_expected'] = self.kinrw['rate_evolution']
         return current
 
     @property
@@ -516,13 +656,40 @@ class Kinetics(WESTParallelTool):
                 self._future['bins'].append(self.assign['assignments'][value-1, children, :])
 
 
+    @property
+    def aggregate_matrix(self):
+        if self.__settings['analysis_schemes'][self.scheme]['postanalysis'] == True:
+            try:
+                if self.__analysis_schemes__[self.scheme]['aggregate_matrix'] == None:
+                    print("Calculating aggregate matrix...")
+                    self.__add_matrix__()
+                return self.__analysis_schemes__[self.scheme]['aggregate_matrix']
+            except:
+                print("Calculating aggregate matrix...")
+                self.__add_matrix__()
+                return self.__analysis_schemes__[self.scheme]['aggregate_matrix']
 
+    def __add_matrix__(self):
+        # Hooks into the existing tools in w_postanalysis_reweight
+        matrices = self.__analysis_schemes__[self.scheme]['flux_matrices']
+        nbins = matrices['bin_populations'].shape[1]
+        self.__analysis_schemes__[self.scheme]['aggregate_matrix'] = np.zeros((self.niters, nbins, nbins))
+        self.__analysis_schemes__[self.scheme]['total_pop'] = np.zeros((self.niters, nbins))
+        matrix_accumulator = w_postanalysis_reweight.accumulate_statistics
+        normalize = w_postanalysis_reweight.normalize
+        total_fluxes = np.zeros((nbins, nbins))
+        total_obs = np.zeros((nbins, nbins))
+        for iter in range(2, self.niters+1):
+            total_fluxes, total_obs, total_pop = matrix_accumulator(self.matrix, iter-1, iter, nbins, total_fluxes, total_obs)
+            self.__analysis_schemes__[self.scheme]['aggregate_matrix'][iter-1][:] = normalize(total_fluxes)
 
     def go(self):
         self.data_reader.open()
         self.analysis_structure()
         self.niters = self.kinavg['rate_evolution']['expected'].shape[0]
         self.iteration = 1
+        if self.__settings['analysis_schemes'][self.scheme]['postanalysis'] == True:
+            self.__analysis_schemes__[self.scheme]['aggregate_matrix'] = None
         print(self.__doc__)
 
 west = Kinetics()
