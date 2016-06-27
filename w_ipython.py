@@ -227,7 +227,7 @@ class Kinetics(WESTParallelTool):
                             kinavg.evolution_mode = w_kinavg_config['evolution']
                             kinavg.evol_window_frac = w_kinavg_config['evol_window_frac']
                             kinavg.iter_range.iter_step = w_kinavg_config['step_iter']
-                            kinavg.bootstrap = w_kinavg_config['bootstrap']
+                            kinavg.mcbs_enable = w_kinavg_config['bootstrap']
                             with kinavg.data_reader:
                                 kinavg.iter_range.process_args(self.args, default_iter_step=None)
                             if kinavg.iter_range.iter_step is None:
@@ -382,8 +382,8 @@ class Kinetics(WESTParallelTool):
         current['summary'] = self.data_reader.data_manager.get_iter_summary(value)
         current['seg_id'] = np.array(range(0, iter_group['seg_index'].shape[0]))[seg_ids]
         current['walkers'] = current['summary']['n_particles']
-        current['states'] = self.assign['trajlabels'][value-1, :current['walkers'], :]
-        current['bins'] = self.assign['assignments'][value-1, :current['walkers'], :]
+        current['states'] = self.assign['trajlabels'][value-1, :current['walkers'], :][seg_ids]
+        current['bins'] = self.assign['assignments'][value-1, :current['walkers'], :][seg_ids]
         return current
 
     @property
@@ -428,6 +428,9 @@ class Kinetics(WESTParallelTool):
 
         sorted in chronological order.
         '''
+        if seg_id >= self.walkers:
+            print("Walker seg_id # {} is beyond the max count of {} walkers.".format(seg_id, self.walkers))
+            return 1
         current = { 'seg_id': [seg_id], 'pcoord': [self.current['pcoord'][seg_id]], 'states': [self.current['states'][seg_id]], 'weights': [self.current['weights'][seg_id]], 'iteration': [self.iteration], 'bins': [self.current['bins'][seg_id]] }
         try:
             current['auxdata'] = [self.current['auxdata'][seg_id]]
@@ -526,5 +529,4 @@ west = Kinetics()
 w = west
 if __name__ == '__main__':
     w.main()
-
 

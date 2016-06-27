@@ -61,17 +61,17 @@ else
     export PYTHONWARNINGS="$PYTHONWARNINGS,d"
 fi
 
-# Find where the requested script is stashed
-#if [ "$SCRIPT" == "west" ] ; then
-#    FULLSCRIPT=""
-#elif [ -e "$WEST_ROOT/lib/west_tools/${SCRIPT}.py" ] ; then
-#    FULLSCRIPT="$WEST_ROOT/lib/west_tools/${SCRIPT}.py"
-#elif [ -e "$WEST_ROOT/lib/cmds/${SCRIPT}.py" ] ; then
-#    FULLSCRIPT="$WEST_ROOT/lib/cmds/${SCRIPT}.py"
-#else
-#    echo "script ${SCRIPT}.py not found"
-#    exit 1
-#fi
+ Find where the requested script is stashed
+if [ "$SCRIPT" == "west" ] ; then
+    FULLSCRIPT=""
+elif [ -e "$WEST_ROOT/lib/west_tools/${SCRIPT}.py" ] ; then
+    FULLSCRIPT="$WEST_ROOT/lib/west_tools/${SCRIPT}.py"
+elif [ -e "$WEST_ROOT/lib/cmds/${SCRIPT}.py" ] ; then
+    FULLSCRIPT="$WEST_ROOT/lib/cmds/${SCRIPT}.py"
+else
+    echo "script ${SCRIPT}.py not found"
+    exit 1
+fi
 
 if [ "$1" == "--profile" ]; then
     shift
@@ -89,5 +89,5 @@ elif [ "$1" == "--strace" ]; then
     echo >&2 "Running $SCRIPT under strace"
     strace $WEST_PYTHON $FULLSCRIPT "$@"
 else
-    exec ipython -i /Volumes/Pool/Dropbox/w_ipython.py "$@"
+    exec ipython -i $FULLSCRIPT "$@"
 fi
