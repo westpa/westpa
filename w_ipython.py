@@ -10,6 +10,7 @@ import os, sys
 import w_assign, w_kinetics, w_kinavg, w_postanalysis_matrix, w_postanalysis_reweight
 import warnings
 warnings.filterwarnings('ignore')
+import scipy.sparse as sp
 
 from westtools import (WESTSubcommand, WESTParallelTool, WESTDataReader, WESTDSSynthesizer, BinMappingComponent, 
                        ProgressIndicatorComponent, IterRangeSelection)
@@ -38,10 +39,31 @@ class Kinetics(WESTParallelTool):
             w.list_schemes
             w.current_scheme = OUTPUT FROM w.list_schemes
 
+        To see the states and bins defined in the current analysis scheme:
+
+            w.states
+            w.bin_labels
+
         All information about the current iteration is available in a dictionary called 'current'.
 
             w.current.keys():
-            walkers, summary, states, seg_id, weights, parents, kinavg, pcoord, bins, and auxdata, if it exists.
+            walkers, summary, states, seg_id, weights, parents, kinavg, pcoord, bins, populations, and auxdata, if it exists.
+
+        Populations prints the bin and state populations calculated by w_assign; it contains the following attributes:
+
+            states, bins
+
+            which can be called as w.current['populations'].states to return a numpy object.
+
+        If postanalysis has been run, the following information is also available:
+
+            instant_matrix, matrix (the aggregate matrix), kinrw
+
+        Both the kinrw and kinavg key in 'current' have the following attributes:
+
+            expected, error, flux, ferror, raw
+
+            where raw is returned on a basic call.
 
         kinavg, states, and bins are pulled from the output from w_kinavg and w_assign; they always correspond to
         what is used in the current analysis scheme.  If you change the scheme, those, too, will change.
@@ -55,9 +77,10 @@ class Kinetics(WESTParallelTool):
         
             w.past['parents'][0]
 
-        The kinavg, assign, and kinetics file from the current state are available for raw access from:
+        The kinavg, assign, and kinetics file from the current state are available for raw access from.  The postanalysis output
+        is also available, should it exist:
 
-            w.kinavg, w.assign, and w.kinetics
+            w.kinavg, w.assign, w.kinetics, w.matrix, and w.kinrw
 
         In addition, the function w.trace(seg_id) will run a trace over a seg_id in the current iteration and return a dictionary
         containing all pertinent information about that seg_id's history.  It's best to store this, as the trace can be expensive.
@@ -99,7 +122,6 @@ class Kinetics(WESTParallelTool):
         for ischeme, scheme in enumerate(self.__settings['analysis_schemes']):
             if (self.__settings['analysis_schemes'][scheme]['enabled'] == True or self.__settings['analysis_schemes'][scheme]['enabled'] == None):
                 self.scheme = scheme
-                break
         with self.data_reader:
             self.dssynth.h5filename = self.data_reader.we_h5filename
             self.dssynth.process_args(args)
@@ -302,8 +324,7 @@ class Kinetics(WESTParallelTool):
                             fmatrix.sampling_frequency = matrix_config['sampling_frequency']
 
 
-                            self.fmatrix = fmatrix
-                            self.fmatrix.go()
+                            fmatrix.go()
 
                             tmp[name] = h5py.File(os.path.join(path, '{}.h5'.format(name)), 'r')
                             # It closes the h5 file.
@@ -345,8 +366,7 @@ class Kinetics(WESTParallelTool):
                             reweight.obs_threshold = reweight_config['obs_threshold']
 
 
-                            self.reweight = reweight
-                            self.reweight.go()
+                            reweight.go()
 
                             tmp[name] = h5py.File(os.path.join(path, '{}.h5'.format(name)), 'r')
                             # It closes the h5 file.
@@ -372,6 +392,19 @@ class Kinetics(WESTParallelTool):
     @property
     def kinetics(self):
         return self.__analysis_schemes__[self.scheme]['kintrace']
+
+    @property
+    def state_labels(self):
+        print("State labels and definitions!")
+        for istate, state in enumerate(self.assign['state_labels']):
+            print('{}: {}'.format(istate, state))
+        print('{}: {}'.format(istate+1, 'Unknown'))
+
+    @property
+    def bin_labels(self):
+        print("Bin definitions! ")
+        for istate, state in enumerate(self.assign['bin_labels']):
+            print('{}: {}'.format(istate, state))
 
     @property
     def west(self):
@@ -447,9 +480,11 @@ class Kinetics(WESTParallelTool):
                       boundaries: [[0.0, 2.80, 7, 10000]]
         '''
         print("The following schemes are available:")
-        print("Set via name, or via a number.")
-        for scheme in self.__settings['analysis_schemes']:
-            print(scheme)
+        print("")
+        for ischeme, scheme in enumerate(self.__settings['analysis_schemes']):
+            print('{}. Scheme: {}'.format(ischeme, scheme))
+        print("")
+        print("Set via name, or via the index listed.")
 
     @property
     def iteration(self):
@@ -485,6 +520,39 @@ class Kinetics(WESTParallelTool):
         self._future = None
         return self._iter
 
+    # Returns the raw values, but can also calculate things based on them.
+    class KineticsIteration():
+        def __init__(self, kin_h5file, value):
+            self.raw = kin_h5file['rate_evolution'][value - 1, :, :]
+            self.error = (self.raw['ci_ubound'] - self.raw['ci_lbound']) / (2*self.raw['expected'])
+            self.expected = self.raw['expected']
+            self.flux = kin_h5file['conditional_flux_evolution'][value - 1, :, :]
+            self.ferror = (self.flux['ci_ubound'] - self.flux['ci_lbound']) / (2*self.flux['expected'])
+            self.flux = kin_h5file['conditional_flux_evolution'][value - 1, :, :]['expected']
+        def __repr__(self):
+            return repr(self.raw)
+
+    class PopulationsIterations():
+        def __init__(self, assign, current, scheme):
+            nbins = assign['state_map'].shape[0]
+            # We have to take the 'unknown' state into account
+            nstates = assign['state_labels'].shape[0] + 1
+            self.bins = np.histogram(current['bins'].flatten(), bins=range(0, nbins), weights=np.repeat(current['weights'], current['bins'].shape[1]))[0] / current['bins'].shape[1]
+            self.states = np.histogram(current['states'].flatten(), bins=range(0, nstates + 1), weights=np.repeat(current['weights'], current['states'].shape[1]))[0] / current['states'].shape[1]
+            self.scheme = scheme
+        def __repr__(self):
+            print("The following are populations from the assign.h5 file from scheme: ".format(self.scheme))
+            print("")
+            print("Bin Populations:")
+            print(self.bins)
+            print("")
+            print("State Populations:")
+            print(self.states)
+            print("")
+            print("Use the properties .states and .bins to access these.")
+            #return repr((self.states, self.bins))
+            return (" ")
+
     def __get_data_for_iteration__(self, value, seg_ids = None):
         '''
         This returns all important data for the current iteration.  It is optionally
@@ -496,10 +564,8 @@ class Kinetics(WESTParallelTool):
         current = {}
         if seg_ids == None:
             seg_ids = xrange(0, iter_group['seg_index']['weight'].shape[0])
-        current['kinavg'] = self.kinavg['rate_evolution'][value - 1, :, :]
+        current['kinavg'] = self.KineticsIteration(self.kinavg, value)
         # Just make these easier to access.
-        current['k_error'] = (current['kinavg']['ci_ubound'] - current['kinavg']['ci_lbound']) / current['kinavg']['expected']
-        current['k_expected'] = current['kinavg']['expected']
         current['weights'] = iter_group['seg_index']['weight'][seg_ids]
         current['pcoord'] = iter_group['pcoord'][...][seg_ids, :, :]
         try:
@@ -512,20 +578,27 @@ class Kinetics(WESTParallelTool):
         current['walkers'] = current['summary']['n_particles']
         current['states'] = self.assign['trajlabels'][value-1, :current['walkers'], :][seg_ids]
         current['bins'] = self.assign['assignments'][value-1, :current['walkers'], :][seg_ids]
+        # Calculates the bin population for this iteration.
+        nbins = self.assign['state_map'].shape[0]
+        # We have to take the 'unknown' state into account
+        nstates = self.assign['state_labels'].shape[0] + 1
+        #current['pop_bins'] = np.histogram(current['bins'].flatten(), bins=range(0, nbins), weights=np.repeat(current['weights'], current['bins'].shape[1]))[0] / current['bins'].shape[1]
+        #current['pop_states'] = np.histogram(current['states'].flatten(), bins=range(0, nstates + 1), weights=np.repeat(current['weights'], current['states'].shape[1]))[0] / current['states'].shape[1]
+        current['populations'] = self.PopulationsIterations(self.assign, current, self.scheme)
         try:
             # We'll make this not a sparse matrix...
-            current['matrix'] = self.matrix['iterations/iter_{:08d}'.format(value)]
-            current['kinrw'] = self.kinrw['rate_evolution'][value - 1, :, :]
-            current['rw_error'] = (current['kinrw']['ci_ubound'] - current['kinrw']['ci_lbound']) / current['kinrw']['expected']
-            current['rw_expected'] = current['kinrw']['expected']
-            current['aggregate_matrix'] = self.aggregate_matrix[value-1, :, :]
+            matrix = self.matrix['iterations/iter_{:08d}'.format(value)]
+            # Assume color.
+            current['instant_matrix'] = sp.coo_matrix((matrix['flux'][...], (matrix['rows'][...], matrix['cols'][...])), shape=(nbins*2, nbins*2)).todense()
+            current['kinrw'] = self.KineticsIteration(self.kinrw, value)
+            current['matrix'] = self.aggregate_matrix[value-1, :, :]
         except:
-            # This analysis hasn't been enabled, so we'll simply return the default error message.
-            current['matrix'] = self.matrix['bin_populations']
+          # This analysis hasn't been enabled, so we'll simply return the default error message.
+            current['instant_matrix'] = self.matrix['bin_populations']
             current['kinrw'] = self.kinrw['rate_evolution']
             current['rw_error'] = self.kinrw['rate_evolution']
             current['rw_expected'] = self.kinrw['rate_evolution']
-            current['aggregate_matrix'] = self.matrix['bin_populations']
+            current['matrix'] = self.matrix['bin_populations']
         return current
 
     @property
@@ -698,4 +771,15 @@ west = Kinetics()
 w = west
 if __name__ == '__main__':
     w.main()
+    # Cleanup namespace...
+    #del(w.make_parser)
+    #del(w.make_parser_and_process)
+    del(w.parser)
+    del(w.wm_env)
+    del(w.work_manager)
+    #del(w.usage)
+    del(w.max_queue_len)
+    del(w.args)
+    del(w.arg_defaults)
+    del(w.config_required)
 
