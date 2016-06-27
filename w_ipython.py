@@ -518,12 +518,14 @@ class Kinetics(WESTParallelTool):
             current['kinrw'] = self.kinrw['rate_evolution'][value - 1, :, :]
             current['rw_error'] = (current['kinrw']['ci_ubound'] - current['kinrw']['ci_lbound']) / current['kinrw']['expected']
             current['rw_expected'] = current['kinrw']['expected']
+            current['aggregate_matrix'] = self.aggregate_matrix[value-1, :, :]
         except:
             # This analysis hasn't been enabled, so we'll simply return the default error message.
             current['matrix'] = self.matrix['bin_populations']
             current['kinrw'] = self.kinrw['rate_evolution']
             current['rw_error'] = self.kinrw['rate_evolution']
             current['rw_expected'] = self.kinrw['rate_evolution']
+            current['aggregate_matrix'] = self.matrix['bin_populations']
         return current
 
     @property
