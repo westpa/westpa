@@ -145,21 +145,31 @@ class Kinetics(WESTParallelTool):
                 except:
                     pass
                 tmp = {}
-                if self.__settings['analysis_schemes'][scheme]['postanalysis'] == True:
+                if self.__settings['analysis_schemes'][scheme]['postanalysis'] == True or self.__settings['postanalysis'] == True:
                     analysis_files = ['assign', 'kintrace', 'kinavg', 'flux_matrices', 'kinrw']
                 else:
                     analysis_files = ['assign', 'kintrace', 'kinavg']
                 for name in analysis_files:
                     try:
                         if rerun == False:
-                            print(os.path.join(path, '{}.h5'.format(name)), 'r')
-                            tmp[name] = h5py.File(os.path.join(path, '{}.h5'.format(name)), 'r')
+                            print('Loading {} from scheme: {}'.format(name, scheme))
+                            tmp[name] = h5io.WESTPAH5File(os.path.join(path, '{}.h5'.format(name)), 'r')
+                            # Try to actually load some data.
+                            if name == 'assign':
+                                test = tmp[name]['state_labels']
+                            if name == 'kintrace':
+                                test = tmp[name]['durations']
+                            if name =='kinavg':
+                                test = tmp[name]['rate_evolution']
+                            if name == 'flux_matrices':
+                                test = tmp[name]['bin_populations']
+                            if name == 'kinrw':
+                                test = tmp[name]['rate_evolution']
                         else:
                             raise Exception("Rerun is set to true, or the output cannot be loaded.")
                     except:
                         print('Unable to load output from {}, or a re-run requested.'.format(name))
                         if name == 'assign':
-                        #    # For the moment, let's hardcode options.
                         # A lot of this is coded up to avoid the arg parser.  Probably not clean or happy, but it should work for now...
                             assign = w_assign.WAssign()
 
@@ -213,12 +223,14 @@ class Kinetics(WESTParallelTool):
                             assign.work_manager = self.work_manager
                             assign.dssynth = self.dssynth
                             assign.go()
+                            del(assign)
+
                             # It closes the h5 file.
                             tmp[name] = h5io.WESTPAH5File(os.path.join(path, '{}.h5'.format(name)), 'r')
                             self.data_reader.open()
 
                         if name == 'kintrace':
-                            assign = tmp['assign']
+                            assignment_file = tmp['assign']
                             kintrace = w_kinetics.WKinetics()
                             trace = w_kinetics.KinTraceSubcommand(kintrace)
                             w_kinetics_config = { 'correl': True }
@@ -233,7 +245,7 @@ class Kinetics(WESTParallelTool):
                             trace.progress.process_args(self.args)
                             # Reimplement process_args...
                             trace.correl = w_kinetics_config['correl']
-                            trace.assignments_file = assign
+                            trace.assignments_file = assignment_file
                             trace.data_reader = self.data_reader
                             trace.iter_range = self.iter_range
                             trace.output_file = h5io.WESTPAH5File(os.path.join(path, '{}.h5'.format(name)), 'w', creating_program=True)
@@ -243,10 +255,10 @@ class Kinetics(WESTParallelTool):
                             self.do_compression = True
                             trace.go()
 
-
+                            del(trace)
 
                             # Open!
-                            tmp[name] = h5py.File(os.path.join(path, '{}.h5'.format(name)), 'r')
+                            tmp[name] = h5io.WESTPAH5File(os.path.join(path, '{}.h5'.format(name)), 'r')
                             # It closes the h5 file.
                             self.data_reader.open()
 
@@ -287,21 +299,22 @@ class Kinetics(WESTParallelTool):
                             kinavg.dssynth = self.dssynth
 
                             kinavg.go()
+                            del(kinavg)
 
 
-                            tmp[name] = h5py.File(os.path.join(path, '{}.h5'.format(name)), 'r')
+                            tmp[name] = h5io.WESTPAH5File(os.path.join(path, '{}.h5'.format(name)), 'r')
                             # It closes the h5 file.
                             self.data_reader.open()
                         if name == 'flux_matrices':
                             fmatrix = w_postanalysis_matrix.MatrixRw()
                             fmatrix.work_manager = self.work_manager
 
-                            #fmatrix.assignments_file == tmp['assign']
                             fmatrix.assignments_file = h5io.WESTPAH5File(os.path.join(path, '{}.h5'.format('assign')), 'r')
                             fmatrix.data_reader = self.data_reader
                             fmatrix.iter_range = self.iter_range
                             fmatrix.output_file = h5io.WESTPAH5File(os.path.join(path, '{}.h5'.format(name)), 'w', creating_program=True)
                             h5io.stamp_creator_data(fmatrix.output_file)
+                            fmatrix.dssynth = self.dssynth
 
                             matrix_config = { 'sampling_frequency': 'timepoint' }
                             try:
@@ -325,8 +338,9 @@ class Kinetics(WESTParallelTool):
 
 
                             fmatrix.go()
+                            del(fmatrix)
 
-                            tmp[name] = h5py.File(os.path.join(path, '{}.h5'.format(name)), 'r')
+                            tmp[name] = h5io.WESTPAH5File(os.path.join(path, '{}.h5'.format(name)), 'r')
                             # It closes the h5 file.
                             self.data_reader.open()
 
@@ -364,13 +378,18 @@ class Kinetics(WESTParallelTool):
                             reweight.mcbs_enable = reweight_config['bootstrap']
                             reweight.correl = reweight_config['correl']
                             reweight.obs_threshold = reweight_config['obs_threshold']
+                            reweight.dssynth = self.dssynth
 
 
                             reweight.go()
+                            del(reweight)
 
-                            tmp[name] = h5py.File(os.path.join(path, '{}.h5'.format(name)), 'r')
+                            tmp[name] = h5io.WESTPAH5File(os.path.join(path, '{}.h5'.format(name)), 'r')
                             # It closes the h5 file.
+                            self.data_reader.close()
                             self.data_reader.open()
+                            self.data_reader.parent_id_dsspec._h5file = None
+                            self.data_reader.weight_dsspec._h5file = None
 
                 self.__analysis_schemes__[scheme] = tmp
 
@@ -453,10 +472,6 @@ class Kinetics(WESTParallelTool):
         else:
             print("Scheme cannot be changed to scheme: {}; it is not enabled!".format(scheme))
 
-    #def enable_scheme(self, scheme):
-    #    self.__settings['analysis_schemes'][scheme]['enabled'] = True
-    #    self.analysis_structure()
-
     @property
     def list_schemes(self):
         '''
@@ -521,7 +536,7 @@ class Kinetics(WESTParallelTool):
         return self._iter
 
     # Returns the raw values, but can also calculate things based on them.
-    class KineticsIteration():
+    class KineticsIteration(dict):
         def __init__(self, kin_h5file, value):
             self.raw = kin_h5file['rate_evolution'][value - 1, :, :]
             self.error = (self.raw['ci_ubound'] - self.raw['ci_lbound']) / (2*self.raw['expected'])
@@ -529,8 +544,21 @@ class Kinetics(WESTParallelTool):
             self.flux = kin_h5file['conditional_flux_evolution'][value - 1, :, :]
             self.ferror = (self.flux['ci_ubound'] - self.flux['ci_lbound']) / (2*self.flux['expected'])
             self.flux = kin_h5file['conditional_flux_evolution'][value - 1, :, :]['expected']
+            self.__dict__ = { 'raw': self.raw, 'error': self.error, 'expected': self.expected, 'flux': self.flux, 'ferror': self.ferror }
+        def __getattr__(self, attr):
+            return self.__dict__[attr]
         def __repr__(self):
             return repr(self.raw)
+        def __getitem__(self, value):
+            return self.raw[value]
+        def keys(self):
+            a = []
+            for i in self.raw.dtype.names:
+                a.append(i)
+            return a
+        @property
+        def names(self):
+            return self.keys()
 
     class PopulationsIterations():
         def __init__(self, assign, current, scheme):
@@ -782,4 +810,5 @@ if __name__ == '__main__':
     del(w.args)
     del(w.arg_defaults)
     del(w.config_required)
+
 
