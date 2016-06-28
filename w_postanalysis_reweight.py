@@ -39,16 +39,15 @@ log = logging.getLogger('westtools.w_postanalysis_reweight')
 import mclib
 from mclib import mcbs_correltime, mcbs_ci_correl_rw
 
-def _mod_eval_block(iblock, start, stop, nstates, nbins, mcbs_alpha, mcbs_nsets, mcbs_acalpha, rates, state_map, correl, **kwargs):
+def eval_block(iblock, start, stop, nstates, nbins, mcbs_alpha, mcbs_nsets, mcbs_acalpha, rates, state_map, correl, **kwargs):
     results = [[],[]]
     # results are target fluxes, conditional fluxes, rates
     for istate in xrange(nstates):
-        #dataset = { 'a' : total_fluxes[:,istate] }
-        #ci_res = mcbs_ci_correl_rw(dataset,estimator=numpy.mean,
+        dataset = { 'dataset' : total_fluxes[:,istate] }
+        #ci_res = mcbs_ci_correl_rw(dataset,estimator=(lamba stride, dataset: np.mean(dataset)),
         #                            alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
-        #                            subsample=numpy.mean)
+        #                            subsample=numpy.mean, pre_calculated=dataset['dataset'], correl=correl)
         #results[0].append((iblock,istate,(start,stop)+ci_res))
-        # Let's bullshit the dataset.  Ultimately, we should do this in the main block, not here.
         
         for jstate in xrange(nstates):
             if istate == jstate: continue
@@ -57,12 +56,6 @@ def _mod_eval_block(iblock, start, stop, nstates, nbins, mcbs_alpha, mcbs_nsets,
             ci_res = mcbs_ci_correl_rw(dataset, estimator=reweight_for_c,
                                     alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
                                     subsample=(lambda x: x[0]), pre_calculated=rates[:,istate,jstate], correl=correl, **kwargs)
-            # ci_res normally outputs:
-            # Here, we're outputting different things.
-            # If we're smart, we'll do it all in one go with this modified function,
-            # as there's no need to bootstrap twice.
-            # Should limit the number of bootstrap calculations we do.
-            # We'll also need to write a new subsample function, which is a pain.
             results[1].append((iblock, istate, jstate, (start,stop) + ci_res))
 
     return results
@@ -419,10 +412,6 @@ Command-line options
                             flux_evol[iblock]['iter_start'][k,j] = start
                             flux_evol[iblock]['iter_stop'][k,j] = stop
                             rate_evol[iblock]['expected'][k,j] = (rw_state_flux[k,j] * (npts - 1)) / rw_color_probs[k]
-                            #if iblock != 0:
-                            #    rate_evol[iblock]['expected'][k,j] = (flux_evol[:iblock+1]['expected'][k,j].sum()) / (rw_color_probs[k] + color_prob_evol[:iblock,k].sum()) * (npts - 1)
-                            #else:
-                            #    rate_evol[iblock]['expected'][k,j] = (rw_state_flux[k,j] * (npts - 1)) / rw_color_probs[k] * (npts - 1)
                             if rw_color_probs[k] == 0.0  or flux_evol[iblock]['expected'][k,j] == 0.0:
                                 rate_evol[iblock]['expected'][k,j] = 0
                             # Do the normalisation now.
@@ -455,7 +444,7 @@ Command-line options
                     for k in xrange(nstates):
                         for j in xrange(nstates):
                             # Normalize such that we report the flux per tau (tau being the weighted ensemble iteration)
-                            # npts always includes a 0th time point
+                            # npts DOES NOT always includes a 0th time point; must be a way to gracefully handle this?
                             flux_evol[iblock]['expected'][k,j] = rw_state_flux[k,j] * (npts - 1)
                             flux_evol[iblock]['iter_start'][k,j] = start
                             flux_evol[iblock]['iter_stop'][k,j] = stop
@@ -491,8 +480,6 @@ Command-line options
                         insert.append(iter_grp['rows'][...].shape[0] + insert[-1])
                     else:
                         insert.append(iter_grp['rows'][...].shape[0])
-                    #if iiter == stop_iter:
-                    #    insert.append(iter_grp['rows'][...].shape[0] + insert[-1])
                 rows = np.concatenate(rows)
                 cols = np.concatenate(cols)
                 obs = np.concatenate(obs)
@@ -511,7 +498,7 @@ Command-line options
                         block_start = max(start_iter, stop - windowsize)
                     else:   # self.evolution_mode == 'blocked'
                         block_start = start
-                    future = self.work_manager.submit(_mod_eval_block, kwargs=dict(iblock=iblock, start=block_start, stop=stop,
+                    future = self.work_manager.submit(eval_block, kwargs=dict(iblock=iblock, start=block_start, stop=stop,
                                                                                nstates=nstates, nbins=nbins, nfbins=nfbins,
                                                                                rows=rows, cols=cols, obs=obs, flux=flux, insert=insert,
                                                                                state_labels=state_labels, 
@@ -539,6 +526,8 @@ Command-line options
                     for result in rate_results:
                         iblock, istate, jstate, ci_result = result 
                         rate_evol_bootstrap[iblock, istate, jstate] = ci_result
+                        # Normalisation for the pcoord length, to ensure the results are per tau, not per subtau.
+                        # There should be a way to gracefully handle simulations without a 0th timepoint.
                         rate_evol_bootstrap[iblock, istate, jstate]['expected'] = ci_result[2] * (npts - 1)
                         rate_evol_bootstrap[iblock, istate, jstate]['ci_lbound'] = ci_result[3] * (npts - 1)
                         rate_evol_bootstrap[iblock, istate, jstate]['ci_ubound'] = ci_result[4] * (npts - 1)

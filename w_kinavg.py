@@ -156,7 +156,7 @@ class KinAvgSubcommands(WESTSubcommand):
         if self.evol_window_frac <= 0 or self.evol_window_frac > 1:
             raise ValueError('Parameter error -- fractional window defined by --window-frac must be in (0,1]')
 
-def _mod_eval_block(iblock, start, stop, nstates, total_fluxes, cond_fluxes, pops, rates, mcbs_alpha, mcbs_nsets, mcbs_acalpha, correl):
+def eval_block(iblock, start, stop, nstates, total_fluxes, cond_fluxes, pops, rates, mcbs_alpha, mcbs_nsets, mcbs_acalpha, correl):
     results = [[],[],[]]
     # results are target fluxes, conditional fluxes, rates
     for istate in xrange(nstates):
@@ -226,7 +226,7 @@ class AvgTraceSubcommand(KinAvgSubcommands):
             # a lot of the way the operations work has changed, and it seems cleaner to use one code path, anyway.
             pi.new_operation('Averaging fluxes/rates', nstates)
             futures = []
-            future = self.work_manager.submit(_mod_eval_block, kwargs=dict(iblock=0, start=start_iter, stop=stop_iter,
+            future = self.work_manager.submit(eval_block, kwargs=dict(iblock=0, start=start_iter, stop=stop_iter,
                                                                        nstates=nstates,
                                                                        total_fluxes=total_fluxes.iter_slice(start_iter,stop_iter),
                                                                        cond_fluxes = cond_fluxes.iter_slice(start_iter,stop_iter),
@@ -314,7 +314,7 @@ class AvgTraceSubcommand(KinAvgSubcommands):
                     else: # self.evolution_mode == 'blocked'
                         block_start = start
                     
-                    future = self.work_manager.submit(_mod_eval_block, kwargs=dict(iblock=iblock, start=block_start, stop=stop,
+                    future = self.work_manager.submit(eval_block, kwargs=dict(iblock=iblock, start=block_start, stop=stop,
                                                                                nstates=nstates,
                                                                                total_fluxes=total_fluxes.iter_slice(block_start,stop),
                                                                                cond_fluxes = cond_fluxes.iter_slice(block_start,stop),
