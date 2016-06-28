@@ -113,6 +113,10 @@ class KinAvgSubcommands(WESTSubcommand):
         cogroup.add_argument('--window-frac', type=float, default=1.0,
                              help='''Fraction of iterations to use in each window when running in ``cumulative`` mode.
                              The (1 - frac) fraction of iterations will be discarded from the start of each window.''')
+
+        mgroup = parser.add_argument_group('misc options')
+        mgroup.add_argument('--disable-averages', '-da', dest='display_averages', action='store_false',
+                             help='''Whether or not the averages should be printed to the console (set to FALSE if flag is used).''')
         
     def open_files(self):
         self.output_file = h5io.WESTPAH5File(self.output_filename, 'w', creating_program=True)
@@ -144,6 +148,8 @@ class KinAvgSubcommands(WESTSubcommand):
         self.mcbs_alpha = args.alpha
         self.mcbs_acalpha = args.acalpha if args.acalpha else self.mcbs_alpha
         self.mcbs_nsets = args.nsets if args.nsets else mclib.get_bssize(self.mcbs_alpha)
+
+        self.display_averages = args.display_averages
         
         self.evolution_mode = args.evolution_mode
         self.evol_window_frac = args.window_frac
@@ -207,84 +213,86 @@ class AvgTraceSubcommand(KinAvgSubcommands):
             pops = h5io.IterBlockedDataset(self.assignments_file['labeled_populations'])
             pops.cache_data()
             pops.data = pops.data.sum(axis=2)
-            #cond_fluxes_cum = numpy.cumsum(cond_fluxes.data, axis=0)
-            #pops_cum = numpy.cumsum(pops.data[:nstates,:nbins], axis=0)
             
             rates = h5io.IterBlockedDataset.empty_like(cond_fluxes)
             rates.data = sequence_macro_flux_to_rate(cond_fluxes.data, pops.data[:nstates,:nbins])
-            #rates.data = sequence_macro_flux_to_rate(cond_fluxes_cum, pops_cum)
             
             avg_total_fluxes = numpy.zeros((nstates,), dtype=ci_dtype)
             avg_conditional_fluxes = numpy.zeros((nstates,nstates), dtype=ci_dtype)
             avg_rates = numpy.zeros((nstates,nstates), dtype=ci_dtype)
             
             # Calculate overall average rates
-            #pi.new_operation('Averaging overall fluxes into states', nstates)
-            #for istate in xrange(nstates):
-            #    ci_res = mcbs_ci_correl(total_fluxes.iter_slice(start_iter,stop_iter)[:,istate],estimator=numpy.mean,
-            #                                alpha=self.mcbs_alpha,n_sets=self.mcbs_nsets,autocorrel_alpha=self.mcbs_acalpha,
-            #                                subsample=numpy.mean)
-            #    avg_total_fluxes[istate] = (start_iter, stop_iter) + ci_res
-            #    pi.progress += 1
+            # Replacing the older structure with the futures codepath, because
+            # a lot of the way the operations work has changed, and it seems cleaner to use one code path, anyway.
+            pi.new_operation('Averaging fluxes/rates', nstates)
+            futures = []
+            future = self.work_manager.submit(_mod_eval_block, kwargs=dict(iblock=0, start=start_iter, stop=stop_iter,
+                                                                       nstates=nstates,
+                                                                       total_fluxes=total_fluxes.iter_slice(start_iter,stop_iter),
+                                                                       cond_fluxes = cond_fluxes.iter_slice(start_iter,stop_iter),
+                                                                       pops=pops.iter_slice(start_iter,stop_iter),
+                                                                       rates=rates.iter_slice(start_iter,stop_iter),
+                                                                       mcbs_alpha=self.mcbs_alpha, mcbs_nsets=self.mcbs_nsets,
+                                                                       mcbs_acalpha=self.mcbs_acalpha,
+                                                                       correl=self.correl))
+            futures.append(future)
             
-            #pi.new_operation('Averaging state-to-state fluxes and rates', nstates*(nstates-1))
-            #for istate in xrange(nstates):
-            #    for jstate in xrange(nstates):
-            #        if istate == jstate: continue
+            for future in self.work_manager.as_completed(futures):
+                target_results, condflux_results, rate_results = future.get_result(discard=True)
+                for result in target_results:
+                    iblock,istate,ci_result = result
+                    avg_total_fluxes[istate] = ci_result
                     
-            #        flux_ci_res = mcbs_ci_correl(cond_fluxes.iter_slice(start_iter,stop_iter)[:,istate,jstate],estimator=numpy.mean,
-            #                                     alpha=self.mcbs_alpha,n_sets=self.mcbs_nsets,autocorrel_alpha=self.mcbs_acalpha,
-            #                                     subsample=numpy.mean)
+                for result in condflux_results:
+                    iblock,istate,jstate,ci_result = result
+                    avg_conditional_fluxes[istate, jstate] = ci_result
+                
+                for result in rate_results:
+                    iblock, istate, jstate, ci_result = result 
+                    avg_rates[istate, jstate] = ci_result
                     
-            #        rate_ci_res = mcbs_ci_correl(rates.iter_slice(start_iter,stop_iter)[:,istate,jstate],estimator=numpy.mean,
-            #                                     alpha=self.mcbs_alpha,n_sets=self.mcbs_nsets,autocorrel_alpha=self.mcbs_acalpha,
-            #                                     subsample=numpy.mean)
-                    
-            #        avg_conditional_fluxes[istate, jstate] = (start_iter, stop_iter) + flux_ci_res
-            #        avg_rates[istate, jstate] = (start_iter, stop_iter) + rate_ci_res
-            #        pi.progress += 1
-                    
-            #pi.new_operation('Saving averages')
-            #self.output_file['avg_rates'] = avg_rates
-            #self.output_file['avg_conditional_fluxes'] = avg_conditional_fluxes
-            #self.output_file['avg_total_fluxes'] = avg_total_fluxes
-            #for ds in ('avg_rates', 'avg_conditional_fluxes', 'avg_total_fluxes'):
-            #    self.stamp_mcbs_info(self.output_file[ds])
+            pi.new_operation('Saving averages')
+            self.output_file['avg_rates'] = avg_rates
+            self.output_file['avg_conditional_fluxes'] = avg_conditional_fluxes
+            self.output_file['avg_total_fluxes'] = avg_total_fluxes
+            for ds in ('avg_rates', 'avg_conditional_fluxes', 'avg_total_fluxes'):
+                self.stamp_mcbs_info(self.output_file[ds])
 
             self.output_file['state_labels'] = state_labels
             maxlabellen = max(map(len,state_labels))
             pi.clear()
             
-            #print('fluxes into macrostates:')
-            #for istate in xrange(nstates):
-            #    print('{:{maxlabellen}s}: mean={:21.15e} CI=({:21.15e}, {:21.15e}) * tau^-1'
-            #          .format(state_labels[istate],
-            #                  avg_total_fluxes['expected'][istate],
-            #                  avg_total_fluxes['ci_lbound'][istate],
-            #                  avg_total_fluxes['ci_ubound'][istate],
-            #                  maxlabellen=maxlabellen))
+            if self.display_averages:
+                print('fluxes into macrostates:')
+                for istate in xrange(nstates):
+                    print('{:{maxlabellen}s}: mean={:21.15e} CI=({:21.15e}, {:21.15e}) * tau^-1'
+                          .format(state_labels[istate],
+                                  avg_total_fluxes['expected'][istate],
+                                  avg_total_fluxes['ci_lbound'][istate],
+                                  avg_total_fluxes['ci_ubound'][istate],
+                                  maxlabellen=maxlabellen))
 
-            #print('\nfluxes from state to state:')
-            #for istate in xrange(nstates):
-            #    for jstate in xrange(nstates):
-            #        if istate == jstate: continue
-            #        print('{:{maxlabellen}s} -> {:{maxlabellen}s}: mean={:21.15e} CI=({:21.15e}, {:21.15e}) * tau^-1'
-            #              .format(state_labels[istate], state_labels[jstate],
-            #                      avg_conditional_fluxes['expected'][istate,jstate],
-            #                      avg_conditional_fluxes['ci_lbound'][istate,jstate],
-            #                      avg_conditional_fluxes['ci_ubound'][istate,jstate],
-            #                      maxlabellen=maxlabellen))
-                
-            #print('\nrates from state to state:')
-            #for istate in xrange(nstates):
-            #    for jstate in xrange(nstates):
-            #        if istate == jstate: continue
-            #        print('{:{maxlabellen}s} -> {:{maxlabellen}s}: mean={:21.15e} CI=({:21.15e}, {:21.15e}) * tau^-1'
-            #              .format(state_labels[istate], state_labels[jstate],
-            #                      avg_rates['expected'][istate,jstate],
-            #                      avg_rates['ci_lbound'][istate,jstate],
-            #                      avg_rates['ci_ubound'][istate,jstate],
-            #                      maxlabellen=maxlabellen))
+                print('\nfluxes from state to state:')
+                for istate in xrange(nstates):
+                    for jstate in xrange(nstates):
+                        if istate == jstate: continue
+                        print('{:{maxlabellen}s} -> {:{maxlabellen}s}: mean={:21.15e} CI=({:21.15e}, {:21.15e}) * tau^-1'
+                              .format(state_labels[istate], state_labels[jstate],
+                                      avg_conditional_fluxes['expected'][istate,jstate],
+                                      avg_conditional_fluxes['ci_lbound'][istate,jstate],
+                                      avg_conditional_fluxes['ci_ubound'][istate,jstate],
+                                      maxlabellen=maxlabellen))
+                   
+                print('\nrates from state to state:')
+                for istate in xrange(nstates):
+                    for jstate in xrange(nstates):
+                        if istate == jstate: continue
+                        print('{:{maxlabellen}s} -> {:{maxlabellen}s}: mean={:21.15e} CI=({:21.15e}, {:21.15e}) * tau^-1'
+                              .format(state_labels[istate], state_labels[jstate],
+                                      avg_rates['expected'][istate,jstate],
+                                      avg_rates['ci_lbound'][istate,jstate],
+                                      avg_rates['ci_ubound'][istate,jstate],
+                                      maxlabellen=maxlabellen))
             
             # skip evolution if not requested
             if self.evolution_mode == 'none' or not step_iter: return
@@ -295,7 +303,6 @@ class AvgTraceSubcommand(KinAvgSubcommands):
             rate_evol = numpy.zeros((len(start_pts), nstates, nstates), dtype=ci_dtype)
             all_items = numpy.arange(1,len(start_pts)+1)
             bootstrap_length = 0.5*(len(start_pts)*(len(start_pts)+1)) - numpy.delete(all_items, numpy.arange(1, len(start_pts)+1, step_iter))
-            #pi.new_operation('Calculating flux/rate evolution', len(start_pts))
             if self.mcbs_enable == True:
                 pi.new_operation('Calculating flux/rate evolution', bootstrap_length[0])
                 futures = []
@@ -319,9 +326,7 @@ class AvgTraceSubcommand(KinAvgSubcommands):
                     futures.append(future)
                 
                 for future in self.work_manager.as_completed(futures):
-                    #pi.progress += 1
                     pi.progress += iblock / step_iter
-                    #target_results, condflux_results, rate_results = future.get_result(discard=True)
                     target_results, condflux_results, rate_results = future.get_result(discard=True)
                     for result in target_results:
                         iblock,istate,ci_result = result
@@ -334,22 +339,6 @@ class AvgTraceSubcommand(KinAvgSubcommands):
                     for result in rate_results:
                         iblock, istate, jstate, ci_result = result 
                         rate_evol[iblock, istate, jstate] = ci_result
-                        #fluxue = (flux_evol[iblock,istate,jstate]['ci_ubound'] - flux_evol[iblock,istate,jstate]['expected']) / flux_evol[iblock,istate,jstate]['expected']
-                        #fluxle = (flux_evol[iblock,istate,jstate]['expected'] - flux_evol[iblock,istate,jstate]['ci_lbound']) / flux_evol[iblock,istate,jstate]['expected']
-                        #fluxue = (rate_evol[iblock,istate,jstate]['ci_ubound'] - rate_evol[iblock,istate,jstate]['expected']) / rate_evol[iblock,istate,jstate]['expected']
-                        #fluxle = (rate_evol[iblock,istate,jstate]['expected'] - rate_evol[iblock,istate,jstate]['ci_lbound']) / rate_evol[iblock,istate,jstate]['expected']
-                        # We need the actual number of datasets we used.  This is probably quite imperfect, though.
-                        #fluxue *= numpy.sqrt(iblock / (rate_evol[iblock,istate,jstate]['corr_len'] + 1))
-                        #fluxle *= numpy.sqrt(iblock / (rate_evol[iblock,istate,jstate]['corr_len'] + 1))
-                        #fluxue *= numpy.sqrt(iblock)
-                        #fluxle *= numpy.sqrt(iblock)
-                        #rate_evol[iblock, istate, jstate]['ci_ubound'] = rate_evol[iblock,istate,jstate]['expected'] + (fluxue * rate_evol[iblock,istate,jstate]['expected'])
-                        #rate_evol[iblock, istate, jstate]['ci_lbound'] = rate_evol[iblock,istate,jstate]['expected'] - (fluxle * rate_evol[iblock,istate,jstate]['expected'])
-
-                    #for result in rate_std:
-                    #    iblock, istate, jstate, ci_result = result 
-                    #    rate_evol[iblock, istate, jstate]['ci_ubound'] = rate_evol[iblock,istate,jstate]['expected'] + (ci_result[4])
-                    #    rate_evol[iblock, istate, jstate]['ci_lbound'] = rate_evol[iblock,istate,jstate]['expected'] - (ci_result[4])
 
             else:
                 for iblock, start in enumerate(start_pts):
@@ -363,7 +352,6 @@ class AvgTraceSubcommand(KinAvgSubcommands):
                         for jstate in xrange(nstates):
                             flux_evol[iblock,istate,jstate]['ci_ubound'] = 0.0
                             flux_evol[iblock,istate,jstate]['ci_lbound'] = 0.0
-                            # Is this right?  Hmmm.
                             flux_evol[iblock,istate,jstate]['expected'] = numpy.mean(cond_fluxes.iter_slice(block_start, stop)[:, istate, jstate])
                             rate_evol[iblock,istate,jstate]['ci_ubound'] = 0.0
                             rate_evol[iblock,istate,jstate]['ci_lbound'] = 0.0
