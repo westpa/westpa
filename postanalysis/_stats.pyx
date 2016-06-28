@@ -113,7 +113,7 @@ cpdef int normalize(weight_t[:,:] m, Py_ssize_t nfbins) nogil:
 @cython.boundscheck(False)
 @cython.wraparound(False)
 @cython.cdivision(True)
-cpdef weight_t reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, nbins, state_labels, state_map, nfbins, istate, jstate, stride, bin_last_state_map, bin_state_map, obs_threshold=1):
+cpdef weight_t reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, nbins, state_labels, state_map, nfbins, istate, jstate, stride, bin_last_state_map, bin_state_map, obs_threshold=1, return_flux=False):
 
 
 
@@ -132,6 +132,7 @@ cpdef weight_t reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, n
         weight_t[:,:] _total_fluxes, _transition_matrix, _rw_state_flux, _strong_transition_matrix
         double[:,:] _WORK, _eigvecs
         int[:,:] _total_obs, _graph
+        bint _return_flux
         #double[:] eigvals, eigvalsi
         #double[:,:] eigvecs, WORK
 
@@ -196,6 +197,7 @@ cpdef weight_t reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, n
     _bin_state_map = bin_state_map
     _istate = istate
     _jstate = jstate
+    _return_flux = return_flux
 
 
     #NOGIL
@@ -219,10 +221,13 @@ cpdef weight_t reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, n
 
         calc_state_flux(_transition_matrix, _rw_bin_probs, _bin_last_state_map, _bin_state_map, _nstates, _rw_state_flux, _nfbins)
 
-        if _rw_color_probs[_istate] != 0.0:
-            return (_rw_state_flux[_istate,_jstate] / (_rw_color_probs[_istate] / (_rw_color_probs[_istate] + _rw_color_probs[_jstate])))
+        if _return_flux == False:
+            if _rw_color_probs[_istate] != 0.0:
+                return (_rw_state_flux[_istate,_jstate] / (_rw_color_probs[_istate] / (_rw_color_probs[_istate] + _rw_color_probs[_jstate])))
+            else:
+                return 0.0
         else:
-            return 0.0
+            return _rw_state_flux[_istate,_jstate] 
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
@@ -406,7 +411,6 @@ cpdef int return_strong_component(weight_t[:,:] K, int K_shape, int[:, :] graph,
                     graph[z, 0] += 1
                     y = graph[z, 0]
                     graph[z, y] = j
-                    # This fails miserably, for some reason.
                     # We only want to call it when we haven't visited it before.
                     # We don't want to call, THEN modify and check.  Otherwise, we could be doing many calls.
                     visited[j] = 1
