@@ -39,17 +39,22 @@ log = logging.getLogger('westtools.w_postanalysis_reweight')
 import mclib
 from mclib import mcbs_correltime, mcbs_ci_correl_rw
 
-def eval_block(iblock, start, stop, nstates, nbins, mcbs_alpha, mcbs_nsets, mcbs_acalpha, rates, state_map, correl, **kwargs):
+def eval_block(iblock, start, stop, nstates, nbins, mcbs_alpha, mcbs_nsets, mcbs_acalpha, rates, flux_c, state_map, correl, **kwargs):
     results = [[],[]]
-    # results are target fluxes, conditional fluxes, rates
+    # results are conditional fluxes, rates
+    # It's already too bloody slow.  Not gonna do the target fluxes, for now.
     for istate in xrange(nstates):
-        dataset = { 'dataset' : total_fluxes[:,istate] }
-        #ci_res = mcbs_ci_correl_rw(dataset,estimator=(lamba stride, dataset: np.mean(dataset)),
-        #                            alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
-        #                            subsample=numpy.mean, pre_calculated=dataset['dataset'], correl=correl)
-        #results[0].append((iblock,istate,(start,stop)+ci_res))
-        
         for jstate in xrange(nstates):
+            # Fluxes!
+            if istate == jstate: continue
+            dataset = { 'indices' : np.array(range(start-1, stop-1), dtype=np.uint16) }
+            kwargs.update({ 'istate' : istate, 'jstate': jstate, 'nstates' : nstates, 'nbins' : nbins , 'state_map': state_map, 'return_flux': True})
+            ci_res = mcbs_ci_correl_rw(dataset, estimator=reweight_for_c,
+                                    alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
+                                    subsample=(lambda x: x[0]), pre_calculated=flux_c[:,istate,jstate], correl=correl, **kwargs)
+            results[0].append((iblock, istate, jstate, (start,stop) + ci_res))
+
+            # Rates!
             if istate == jstate: continue
             dataset = { 'indices' : np.array(range(start-1, stop-1), dtype=np.uint16) }
             kwargs.update({ 'istate' : istate, 'jstate': jstate, 'nstates' : nstates, 'nbins' : nbins , 'state_map': state_map})
@@ -498,6 +503,8 @@ Command-line options
                         block_start = max(start_iter, stop - windowsize)
                     else:   # self.evolution_mode == 'blocked'
                         block_start = start
+                    # Why flux_c?
+                    # This is one where we've already calculated the fluxes.  I can probably set it to be different, but.
                     future = self.work_manager.submit(eval_block, kwargs=dict(iblock=iblock, start=block_start, stop=stop,
                                                                                nstates=nstates, nbins=nbins, nfbins=nfbins,
                                                                                rows=rows, cols=cols, obs=obs, flux=flux, insert=insert,
@@ -506,28 +513,28 @@ Command-line options
                                                                                bin_state_map=np.repeat(state_map[:-1], nstates),
                                                                                state_map=state_map,
                                                                                rates=rate_evol[block_start-1:stop,:,:]['expected'],
+                                                                               flux_c=flux_evol[block_start-1:stop,:,:]['expected'],
                                                                                mcbs_alpha=self.mcbs_alpha, mcbs_nsets=self.mcbs_nsets,
                                                                                mcbs_acalpha=self.mcbs_acalpha,
                                                                                correl=self.correl))
                     futures.append(future)
                 
                 for future in self.work_manager.as_completed(futures):
-                    #target_results, condflux_results, rate_results = future.get_result(discard=True)
                     condflux_results, rate_results = future.get_result(discard=True)
                     #condflux_results = future._result
-                    #for result in target_results:
-                    #    iblock,istate,ci_result = result
-                    #    target_evol[iblock,istate] = ci_result
                         
-                    #for result in condflux_results:
-                    #    iblock,istate,jstate,ci_result = result
-                    #    flux_evol_bootstrap[iblock, istate, jstate] = ci_result
+                    for result in condflux_results:
+                        iblock,istate,jstate,ci_result = result
+                        flux_evol_bootstrap[iblock, istate, jstate] = ci_result
+                        # Normalisation for the pcoord length, to ensure the results are per tau, not per subtau.
+                        # There should be a way to gracefully handle simulations without a 0th timepoint.
+                        flux_evol_bootstrap[iblock, istate, jstate]['expected'] = ci_result[2] * (npts - 1)
+                        flux_evol_bootstrap[iblock, istate, jstate]['ci_lbound'] = ci_result[3] * (npts - 1)
+                        flux_evol_bootstrap[iblock, istate, jstate]['ci_ubound'] = ci_result[4] * (npts - 1)
                     
                     for result in rate_results:
                         iblock, istate, jstate, ci_result = result 
                         rate_evol_bootstrap[iblock, istate, jstate] = ci_result
-                        # Normalisation for the pcoord length, to ensure the results are per tau, not per subtau.
-                        # There should be a way to gracefully handle simulations without a 0th timepoint.
                         rate_evol_bootstrap[iblock, istate, jstate]['expected'] = ci_result[2] * (npts - 1)
                         rate_evol_bootstrap[iblock, istate, jstate]['ci_lbound'] = ci_result[3] * (npts - 1)
                         rate_evol_bootstrap[iblock, istate, jstate]['ci_ubound'] = ci_result[4] * (npts - 1)
