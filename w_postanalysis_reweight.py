@@ -39,7 +39,7 @@ log = logging.getLogger('westtools.w_postanalysis_reweight')
 import mclib
 from mclib import mcbs_correltime, mcbs_ci_correl_rw
 
-def _mod_eval_block(iblock, start, stop, nstates, nbins, mcbs_alpha, mcbs_nsets, mcbs_acalpha, rates, state_map, **kwargs):
+def _mod_eval_block(iblock, start, stop, nstates, nbins, mcbs_alpha, mcbs_nsets, mcbs_acalpha, rates, state_map, correl, **kwargs):
     results = [[],[]]
     # results are target fluxes, conditional fluxes, rates
     for istate in xrange(nstates):
@@ -56,7 +56,7 @@ def _mod_eval_block(iblock, start, stop, nstates, nbins, mcbs_alpha, mcbs_nsets,
             kwargs.update({ 'istate' : istate, 'jstate': jstate, 'nstates' : nstates, 'nbins' : nbins , 'state_map': state_map})
             ci_res = mcbs_ci_correl_rw(dataset, estimator=reweight_for_c,
                                     alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
-                                    subsample=(lambda x: x[0]), pre_calculated=rates[:,istate,jstate], **kwargs)
+                                    subsample=(lambda x: x[0]), pre_calculated=rates[:,istate,jstate], correl=correl, **kwargs)
             # ci_res normally outputs:
             # Here, we're outputting different things.
             # If we're smart, we'll do it all in one go with this modified function,
@@ -304,6 +304,8 @@ Command-line options
         cgroup = parser.add_argument_group('confidence interval calculation options')
         cgroup.add_argument('--bootstrap', dest='bootstrap', action='store_const', const=True,
                              help='''Enable the use of Monte Carlo Block Bootstrapping.''')
+        cgroup.add_argument('--correl', dest='correl', action='store_const', const=False,
+                             help='''Disable the correlation analysis.''')
         cgroup.add_argument('--alpha', type=float, default=0.05, 
                              help='''Calculate a (1-ALPHA) confidence interval'
                              (default: %(default)s)''')
@@ -356,6 +358,7 @@ Command-line options
         self.mcbs_alpha = args.alpha
         self.mcbs_acalpha = args.acalpha if args.acalpha else self.mcbs_alpha
         self.mcbs_nsets = args.nsets if args.nsets else mclib.get_bssize(self.mcbs_alpha)
+        self.correl = args.correl
                 
         self.evolution_mode = args.evolution_mode
         self.evol_window_frac = args.window_frac
@@ -517,7 +520,8 @@ Command-line options
                                                                                state_map=state_map,
                                                                                rates=rate_evol[block_start-1:stop,:,:]['expected'],
                                                                                mcbs_alpha=self.mcbs_alpha, mcbs_nsets=self.mcbs_nsets,
-                                                                               mcbs_acalpha=self.mcbs_acalpha))
+                                                                               mcbs_acalpha=self.mcbs_acalpha,
+                                                                               correl=self.correl))
                     futures.append(future)
                 
                 for future in self.work_manager.as_completed(futures):

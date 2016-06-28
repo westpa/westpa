@@ -120,11 +120,12 @@ Command-line options
             # It should then be compatible with existing toolsets.
             # Isn't really going to start with auxdata, but we'll add it in.
 
-            self.niters = 2000
+            #self.niters = 500
             pi.new_operation('Recreating...', self.niters)
             westh5 = []
             for ifile, (key, west) in enumerate(self.westH5.iteritems()):
                 westh5.append(west)
+                self.niters = west.attrs['west_current_iteration'] - 1
             start_point = []
             for iter in range(self.niters):
                 # We have the following datasets in each iteration:

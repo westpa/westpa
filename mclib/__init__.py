@@ -25,7 +25,7 @@ from _mclib import autocorrel_elem, mcbs_correltime, get_bssize, mcbs_ci #@Unres
 
 def mcbs_ci_correl(dataset, estimator, alpha, n_sets=None, args=None, kwargs=None,
                    autocorrel_alpha = None, autocorrel_n_sets=None, subsample=None, pops=None,
-                   istate=None, jstate=None):
+                   istate=None, jstate=None, correl=True):
     '''Perform a Monte Carlo bootstrap estimate for the (1-``alpha``) confidence interval
     on the given ``dataset`` with the given ``estimator``.  This routine is appropriate
     for time-correlated data, using the method described in Huber & Kim, "Weighted-ensemble
@@ -78,7 +78,11 @@ def mcbs_ci_correl(dataset, estimator, alpha, n_sets=None, args=None, kwargs=Non
         kwargs = {}
     # We're adding in this stuff.  Bit hackish, but.
     
-    correl_len = mcbs_correltime(dataset, autocorrel_alpha, autocorrel_n_sets)
+    if correl == True:
+        correl_len = mcbs_correltime(dataset, autocorrel_alpha, autocorrel_n_sets)
+    else:
+        correl_len = 0
+        del kwargs['correl']
     if pops != None:
         kwargs['pops'] = pops
         kwargs['istate'] = istate
@@ -123,7 +127,7 @@ def mcbs_ci_correl(dataset, estimator, alpha, n_sets=None, args=None, kwargs=Non
         return mcbs_ci(decim_set, estimator, alpha, n_sets, args, kwargs, numpy.msort) + (correl_len,)
 
 def mcbs_ci_correl_rw(dataset, estimator, alpha, n_sets=None, args=None,
-        autocorrel_alpha = None, autocorrel_n_sets=None, subsample=None, pre_calculated=None, **kwargs):
+        autocorrel_alpha = None, autocorrel_n_sets=None, subsample=None, pre_calculated=None, correl=False, **kwargs):
     '''Perform a Monte Carlo bootstrap estimate for the (1-``alpha``) confidence interval
     on the given ``dataset`` with the given ``estimator``.  This routine is appropriate
     for time-correlated data, using the method described in Huber & Kim, "Weighted-ensemble
@@ -181,7 +185,10 @@ def mcbs_ci_correl_rw(dataset, estimator, alpha, n_sets=None, args=None,
     # We probably need to get this from the rates, so we'll still end up passing those in.
     # If pre-calculated is not None, we'll use that instead of dataset.
     # We can also assume that it's a 1 dimensional set with nothing needed, so 'key' should work.
-    correl_len = mcbs_correltime(pre_calculated, autocorrel_alpha, autocorrel_n_sets)
+    if correl == True:
+        correl_len = 0
+    else:
+        correl_len = mcbs_correltime(pre_calculated, autocorrel_alpha, autocorrel_n_sets)
     if correl_len == len(pre_calculated):
         # too correlated for meaningful calculations
         d_input = dataset.copy()
@@ -191,7 +198,7 @@ def mcbs_ci_correl_rw(dataset, estimator, alpha, n_sets=None, args=None,
         except:
             pass
 
-        return estimator(**d_input), pre_calculated.min(), pre_calculated.max(), correl_len
+        return estimator(**d_input), pre_calculated.min(), pre_calculated.max(), (numpy.std(pre_calculated)), correl_len
         
     # else, do a blocked bootstrap
     stride = correl_len + 1

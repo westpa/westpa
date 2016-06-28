@@ -416,8 +416,10 @@ cpdef sequence_macro_flux_to_rate_bs(weight_t[:] dataset, weight_t[:,:] pops, Py
                 else:
                     _psum[iiter] = pops[iiter,istate] + _psum[iiter-1]
                 _fluxsum[iiter] = dataset[iiter] + _fluxsum[iiter-1]
-            if _psum[iiter] > 0:
+            if _psum[iiter] > 0 and _fluxsum[iiter] > 0:
                 _rates[iiter] = _fluxsum[iiter] / _psum[iiter]
+            else:
+                _rates[iiter] = 0.0
         #rates /= iiter
 
     return rates[iiter]

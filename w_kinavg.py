@@ -90,6 +90,8 @@ class KinAvgSubcommands(WESTSubcommand):
         cgroup = parser.add_argument_group('confidence interval calculation options')
         cgroup.add_argument('--bootstrap', dest='bootstrap', action='store_const', const=True,
                              help='''Enable the use of Monte Carlo Block Bootstrapping.''')
+        cgroup.add_argument('--correl', dest='correl', action='store_const', const=False,
+                             help='''Disable the correlation analysis.''')
         cgroup.add_argument('--alpha', type=float, default=0.05, 
                              help='''Calculate a (1-ALPHA) confidence interval'
                              (default: %(default)s)''')
@@ -138,6 +140,7 @@ class KinAvgSubcommands(WESTSubcommand):
         self.kinetics_filename = args.kinetics
                 
         self.mcbs_enable = args.bootstrap
+        self.correl = args.correl
         self.mcbs_alpha = args.alpha
         self.mcbs_acalpha = args.acalpha if args.acalpha else self.mcbs_alpha
         self.mcbs_nsets = args.nsets if args.nsets else mclib.get_bssize(self.mcbs_alpha)
@@ -147,31 +150,7 @@ class KinAvgSubcommands(WESTSubcommand):
         if self.evol_window_frac <= 0 or self.evol_window_frac > 1:
             raise ValueError('Parameter error -- fractional window defined by --window-frac must be in (0,1]')
 
-        
-def _eval_block(iblock, start, stop, nstates, total_fluxes, cond_fluxes, rates, mcbs_alpha, mcbs_nsets, mcbs_acalpha):
-    results = [[],[],[]]
-    # results are target fluxes, conditional fluxes, rates
-    for istate in xrange(nstates):
-        ci_res = mcbs_ci_correl(total_fluxes[:,istate],estimator=numpy.mean,
-                                    alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
-                                    subsample=numpy.mean)
-        results[0].append((iblock,istate,(start,stop)+ci_res))
-        
-        for jstate in xrange(nstates):
-            if istate == jstate: continue
-            ci_res = mcbs_ci_correl(cond_fluxes[:,istate,jstate],estimator=numpy.mean,
-                                    alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
-                                    subsample=numpy.mean)
-            results[1].append((iblock, istate, jstate, (start,stop) + ci_res))
-            
-            ci_res = mcbs_ci_correl(rates[:,istate,jstate],estimator=numpy.mean,
-                                    alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
-                                    subsample=numpy.mean)
-            results[2].append((iblock, istate, jstate, (start,stop) + ci_res))
-
-    return results
-
-def _mod_eval_block(iblock, start, stop, nstates, total_fluxes, cond_fluxes, pops, rates, mcbs_alpha, mcbs_nsets, mcbs_acalpha):
+def _mod_eval_block(iblock, start, stop, nstates, total_fluxes, cond_fluxes, pops, rates, mcbs_alpha, mcbs_nsets, mcbs_acalpha, correl):
     results = [[],[],[]]
     # results are target fluxes, conditional fluxes, rates
     for istate in xrange(nstates):
@@ -179,7 +158,7 @@ def _mod_eval_block(iblock, start, stop, nstates, total_fluxes, cond_fluxes, pop
         dataset = {'dataset': total_fluxes[:, istate]}
         ci_res = mcbs_ci_correl_rw(dataset,estimator=(lambda stride, dataset: numpy.mean(dataset)),
                                     alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
-                                    subsample=numpy.mean, pre_calculated=dataset['dataset'])
+                                    subsample=numpy.mean, pre_calculated=dataset['dataset'], correl=correl)
         results[0].append((iblock,istate,(start,stop)+ci_res))
         
         for jstate in xrange(nstates):
@@ -188,7 +167,7 @@ def _mod_eval_block(iblock, start, stop, nstates, total_fluxes, cond_fluxes, pop
             dataset = {'dataset': cond_fluxes[:, istate, jstate]}
             ci_res = mcbs_ci_correl_rw(dataset,estimator=(lambda stride, dataset: numpy.mean(dataset)),
                                     alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
-                                    subsample=numpy.mean, pre_calculated=dataset['dataset'])
+                                    subsample=numpy.mean, pre_calculated=dataset['dataset'], correl=correl)
             results[1].append((iblock, istate, jstate, (start,stop) + ci_res))
             
             # macro_flux_to_rate_bs needs the following:
@@ -197,7 +176,7 @@ def _mod_eval_block(iblock, start, stop, nstates, total_fluxes, cond_fluxes, pop
             dataset = {'dataset': cond_fluxes[:, istate, jstate], 'pops': pops}
             ci_res = mcbs_ci_correl_rw(dataset,estimator=sequence_macro_flux_to_rate_bs,
                                     alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
-                                    subsample=numpy.mean, pre_calculated=rates[:,istate,jstate], **kwargs)
+                                    subsample=numpy.mean, pre_calculated=rates[:,istate,jstate], correl=correl, **kwargs)
             results[2].append((iblock, istate, jstate, (start,stop) + ci_res))
 
     return results
@@ -335,7 +314,8 @@ class AvgTraceSubcommand(KinAvgSubcommands):
                                                                                pops=pops.iter_slice(block_start,stop),
                                                                                rates=rates.iter_slice(block_start,stop),
                                                                                mcbs_alpha=self.mcbs_alpha, mcbs_nsets=self.mcbs_nsets,
-                                                                               mcbs_acalpha=self.mcbs_acalpha))
+                                                                               mcbs_acalpha=self.mcbs_acalpha,
+                                                                               correl=self.correl))
                     futures.append(future)
                 
                 for future in self.work_manager.as_completed(futures):
@@ -391,6 +371,7 @@ class AvgTraceSubcommand(KinAvgSubcommands):
 
             df_ds = self.output_file.create_dataset('conditional_flux_evolution', data=flux_evol, shuffle=True, compression=9)
             tf_ds = self.output_file.create_dataset('target_flux_evolution', data=target_evol, shuffle=True, compression=9)
+            cp_ds = self.output_file.create_dataset('color_prob_evolution', data=pops.data, shuffle=True, compression=9)
             rate_ds = self.output_file.create_dataset('rate_evolution', data=rate_evol, shuffle=True, compression=9)
             
             for ds in (df_ds, tf_ds, rate_ds):

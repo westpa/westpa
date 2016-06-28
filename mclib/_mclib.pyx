@@ -166,9 +166,10 @@ cpdef mcbs_ci(dataset, estimator, alpha, dlen, n_sets=None, args=None, kwargs=No
     ubi = int(math.ceil(n_sets*(1-alpha/2.0)))                     
     lb = f_synth_sorted[lbi]
     ub = f_synth_sorted[ubi]
+    sterr = numpy.std(f_synth_sorted)
     
     del f_synth_sorted, f_synth
-    return (fhat, lb, ub)
+    return (fhat, lb, ub, sterr)
 
 cpdef mcbs_correltime(dataset, alpha, n_sets = None):
     '''Calculate the correlation time of the given ``dataset``, significant to the
