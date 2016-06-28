@@ -117,6 +117,9 @@ class Kinetics(WESTParallelTool):
         self.data_reader.add_args(parser)
         self.dssynth.add_args(parser)
         self.iter_range.add_args(parser)
+        rgroup = parser.add_argument_group('runtime options').add_mutually_exclusive_group()
+        rgroup.add_argument('--analysis-only', '-ao', dest='analysis_mode', action='store_false',
+                             help='''Use this flag to run the analysis and return to the terminal.''')
         
         parser.set_defaults(compression=True)
 
@@ -133,6 +136,7 @@ class Kinetics(WESTParallelTool):
         with self.data_reader:
             self.iter_range.process_args(args)
         self.data_args = args
+        self.analysis_mode = args.analysis_mode
 
     def analysis_structure(self, rerun=False):
         #self.settings = self.config['west']['w_ipython']
@@ -838,9 +842,15 @@ class Kinetics(WESTParallelTool):
     def help(self):
         help_string = '''
         Call as a dictionary item, unless item is a .property; then simply call on the item itself
+
         w.past, w.current, w.future:
             
             weights, pcoord, seg_id, parents, auxdata, summary, walkers, states, bins, matrix, instant_matrix
+
+                matrix          - aggregate transition matrix.
+                instant_matrix  - instant transition matrix (uses current iteration only)
+                bins            - bin assignments for walkers from current assignment file
+                states          - state assignments for walkers from current assignment file
 
             kinavg, kinrw - call as is for native dataset, or:
 
@@ -849,11 +859,14 @@ class Kinetics(WESTParallelTool):
 
             population.states, population.bin
 
-        w.iteration
-        w.scheme
-        w.list_schemes
-        w.bin_labels
-        w.state_labels
+        w.iteration     - Get/set current iteration
+        w.niters        - Maximum number of iterations
+        w.scheme        - Get/set current analysis scheme
+        w.list_schemes  - Lists all analysis schemes, and current
+        w.bin_labels    - pcoord values for bin assignments from current assignment file
+        w.state_labels  - state labels for states from current assignment file
+
+        The following give raw access to the h5 files associated with the current scheme
 
         w.kinavg
         w.kintrace
@@ -877,9 +890,10 @@ if __name__ == '__main__':
     print("Running analysis & loading files.")
     w.main()
     print('Your current scheme, system and iteration are : {}, {}, {}'.format(w.scheme, os.getcwd(), w.iteration))
-    from IPython import embed
-    embed(banner1='',
-         exit_msg='Leaving w_ipython... goodbye.')
+    if w.analysis_mode:
+        from IPython import embed
+        embed(banner1='',
+             exit_msg='Leaving w_ipython... goodbye.')
     print("")
     # Cleanup namespace...
     #del(w.make_parser)
