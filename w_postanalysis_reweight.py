@@ -39,7 +39,7 @@ log = logging.getLogger('westtools.w_postanalysis_reweight')
 import mclib
 from mclib import mcbs_correltime, mcbs_ci_correl_rw
 
-def eval_block(iblock, start, stop, nstates, nbins, mcbs_alpha, mcbs_nsets, mcbs_acalpha, rates, flux_c, state_map, correl, **kwargs):
+def _eval_block(iblock, start, stop, nstates, nbins, mcbs_alpha, mcbs_nsets, mcbs_acalpha, rates, flux_c, state_map, correl, **kwargs):
     results = [[],[]]
     # results are conditional fluxes, rates
     # It's already too bloody slow.  Not gonna do the target fluxes, for now.
@@ -302,7 +302,7 @@ Command-line options
         cgroup = parser.add_argument_group('confidence interval calculation options')
         cgroup.add_argument('--bootstrap', dest='bootstrap', action='store_const', const=True,
                              help='''Enable the use of Monte Carlo Block Bootstrapping.''')
-        cgroup.add_argument('--correl', dest='correl', action='store_const', const=False,
+        cgroup.add_argument('--disable-correl', '-dc', dest='correl', action='store_const', const=False,
                              help='''Disable the correlation analysis.''')
         cgroup.add_argument('--alpha', type=float, default=0.05, 
                              help='''Calculate a (1-ALPHA) confidence interval'
@@ -505,7 +505,7 @@ Command-line options
                         block_start = start
                     # Why flux_c?
                     # This is one where we've already calculated the fluxes.  I can probably set it to be different, but.
-                    future = self.work_manager.submit(eval_block, kwargs=dict(iblock=iblock, start=block_start, stop=stop,
+                    future = self.work_manager.submit(_eval_block, kwargs=dict(iblock=iblock, start=block_start, stop=stop,
                                                                                nstates=nstates, nbins=nbins, nfbins=nfbins,
                                                                                rows=rows, cols=cols, obs=obs, flux=flux, insert=insert,
                                                                                state_labels=state_labels, 
