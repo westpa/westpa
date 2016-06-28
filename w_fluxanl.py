@@ -254,8 +254,10 @@ the true value of ``tau``.
             h5io.label_axes(acorr_ds, ['lag'], ['tau'])
             
             # Calculate overall averages and CIs
-            avg, lb_ci, ub_ci, correl_len = mclib.mcbs_ci_correl(fluxes, numpy.mean, self.alpha, self.n_sets,
-                                                                 autocorrel_alpha=self.autocorrel_alpha, subsample=numpy.mean)
+            #avg, lb_ci, ub_ci, correl_len = mclib.mcbs_ci_correl(fluxes, numpy.mean, self.alpha, self.n_sets,
+            #                                                     autocorrel_alpha=self.autocorrel_alpha, subsample=numpy.mean)
+            avg, lb_ci, ub_ci, correl_len = mclib.mcbs_ci_correl_rw({'dataset': fluxes}, estimator=(lambda stride, dataset: numpy.mean(dataset)), self.alpha, self.n_sets,
+                                                                 autocorrel_alpha=self.autocorrel_alpha, subsample=numpy.mean, pre_calculated=fluxes, correl=False)
             avg_fluxdata[itarget] = (self.iter_range.iter_start, self.iter_range.iter_stop, avg, lb_ci, ub_ci, correl_len)
             westpa.rc.pstatus('target {!r}:'.format(target_label))
             westpa.rc.pstatus('  correlation length = {} tau'.format(correl_len))
@@ -296,9 +298,12 @@ the true value of ``tau``.
                 istop = min((iblock+1)*self.evol_step, len(target_fluxdata['flux']))
                 fluxes = target_fluxdata['flux'][:istop]
                 
-                avg, ci_lb, ci_ub, correl_len = mclib.mcbs_ci_correl(fluxes, numpy.mean, self.alpha, self.n_sets,
+                #avg, ci_lb, ci_ub, correl_len = mclib.mcbs_ci_correl(fluxes, numpy.mean, self.alpha, self.n_sets,
+                #                                                     autocorrel_alpha = self.autocorrel_alpha,
+                #                                                     subsample=numpy.mean)
+                avg, ci_lb, ci_ub, correl_len = mclib.mcbs_ci_correl({'dataset': fluxes}, estimator=(lambda stride, dataset: numpy.mean(dataset), self.alpha, self.n_sets,
                                                                      autocorrel_alpha = self.autocorrel_alpha,
-                                                                     subsample=numpy.mean)
+                                                                     subsample=numpy.mean, pre_calculated: fluxes, correl=False)
                 cis[iblock]['iter_start'] = iter_start
                 cis[iblock]['iter_stop']  = block_iter_stop
                 cis[iblock]['expected'], cis[iblock]['ci_lbound'], cis[iblock]['ci_ubound'] = avg, ci_lb, ci_ub
