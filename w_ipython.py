@@ -1,6 +1,7 @@
 import warnings
 warnings.filterwarnings('ignore', category=DeprecationWarning)
 warnings.filterwarnings('ignore', category=RuntimeWarning)
+warnings.filterwarnings('ignore', category=FutureWarning)
 import numpy as np
 import h5py
 
@@ -16,6 +17,7 @@ import scipy.sparse as sp
 
 from westtools import (WESTSubcommand, WESTParallelTool, WESTDataReader, WESTDSSynthesizer, BinMappingComponent, 
                        ProgressIndicatorComponent, IterRangeSelection)
+
 
 class Kinetics(WESTParallelTool):
     '''
@@ -414,6 +416,8 @@ class Kinetics(WESTParallelTool):
 
                             self.__analysis_schemes__[scheme][name] = h5io.WESTPAH5File(os.path.join(path, '{}.h5'.format(name)), 'r')
                 self.work_manager.shutdown()
+        print("")
+        print("Complete!")
 
 
 
@@ -642,7 +646,7 @@ class Kinetics(WESTParallelTool):
             # We'll make this not a sparse matrix...
             matrix = self.matrix['iterations/iter_{:08d}'.format(value)]
             # Assume color.
-            current['instant_matrix'] = sp.coo_matrix((matrix['flux'][...], (matrix['rows'][...], matrix['cols'][...])), shape=(nbins*2, nbins*2)).todense()
+            current['instant_matrix'] = sp.coo_matrix((matrix['flux'][...], (matrix['rows'][...], matrix['cols'][...])), shape=((nbins-1)*2, (nbins-1)*2)).todense()
             current['kinrw'] = self.KineticsIteration(self.kinrw, value)
             current['matrix'] = self.aggregate_matrix[value-1, :, :]
         except:
@@ -872,6 +876,10 @@ if __name__ == '__main__':
     print("Run w.introduction for a more thorough introduction, or w.help to see a list of options.")
     print("Running analysis & loading files.")
     w.main()
+    print('Your current scheme, system and iteration are : {}, {}, {}'.format(w.scheme, os.getcwd(), w.iteration))
+    from IPython import embed
+    embed(banner1='',
+         exit_msg='Leaving w_ipython... goodbye.')
     print("")
     # Cleanup namespace...
     #del(w.make_parser)

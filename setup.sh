@@ -6,7 +6,7 @@ if [ -z "$WEST_ROOT" ]; then
 fi
 
 chmod +x w_ipython
-cp w_ipython $WEST_ROOT/bin
 cp w_ipython.py $WEST_ROOT/lib/west_tools
+ln -sv $WEST_ROOT/bin/west $WEST_ROOT/bin/w_ipython
 
 echo "Done!"
