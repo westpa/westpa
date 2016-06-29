@@ -284,7 +284,10 @@ Command-line options
         self.output_filename = args.output
 
         if args.config_from_file:
-            self.load_config_from_west(args.scheme)
+            if not args.scheme:
+                raise ValueError('A scheme must be specified.')
+            else:
+                self.load_config_from_west(args.scheme)
         elif args.states:
             self.parse_cmdline_states(args.states)
         elif args.states_from_file:
@@ -313,10 +316,10 @@ Command-line options
         self.states = states
 
     def load_config_from_west(self, scheme):
-        #try:
-        config = westpa.rc.config['west']['w_ipython']
-        #except:
-        #    raise ValueError('There is no configuration file specified.')
+        try:
+            config = westpa.rc.config['west']['w_ipython']
+        except:
+            raise ValueError('There is no configuration file specified.')
         ystates = config['analysis_schemes'][scheme]['states']
         self.states_from_dict(ystates)
         try:

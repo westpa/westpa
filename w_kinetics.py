@@ -68,20 +68,46 @@ class KineticsSubcommands(WESTSubcommand):
                              help='''Do not store kinetics results compressed. This can increase disk
                              use about 100-fold, but can dramatically speed up subsequent analysis
                              for "w_kinavg matrix". Default: compress kinetics results.''')
+        agroup = parser.add_argument_group('other options')
+        agroup.add_argument('--config-from-file', dest='config_from_file', action='store_true', 
+                            help='''Load bins/macrostates from a scheme specified in west.cfg.''')
+        agroup.add_argument('--scheme-name', dest='scheme',
+                            help='''Name of scheme specified in west.cfg.''')
         self.progress.add_args(parser)
         parser.set_defaults(compression=True)
         
     def process_args(self, args):
         self.progress.process_args(args)
-        self.assignments_file = h5io.WESTPAH5File(args.assignments, 'r')
         self.data_reader.process_args(args)
         with self.data_reader:
             self.iter_range.process_args(args)
-        self.output_file = h5io.WESTPAH5File(args.output, 'w', creating_program=True)
+        if args.config_from_file == False:
+            self.assignments_file = h5io.WESTPAH5File(args.assignments, 'r')
+            self.output_file = h5io.WESTPAH5File(args.output, 'w', creating_program=True)
+        if args.config_from_file:
+            if not args.scheme:
+                raise ValueError('A scheme must be specified.')
+            else:
+                self.load_config_from_west(args.scheme)
         h5io.stamp_creator_data(self.output_file)
         if not self.iter_range.check_data_iter_range_least(self.assignments_file):
             raise ValueError('assignments do not span the requested iterations')
         self.do_compression = args.compression
+
+    def load_config_from_west(self, scheme):
+        try:
+            config = westpa.rc.config['west']['w_ipython']
+        except:
+            raise ValueError('There is no configuration file specified.')
+        import os
+        path = os.path.join(os.getcwd(), config['directory'], scheme)
+        try:
+            os.mkdir(config['directory'])
+            os.mkdir(path)
+        except:
+            pass
+        self.output_file = h5io.WESTPAH5File(os.path.join(path, 'kintrace.h5'), 'w', creating_program=True)
+        self.assignments_file = h5io.WESTPAH5File(os.path.join(path, 'assign.h5'), 'r')
         
 
 class KinTraceSubcommand(KineticsSubcommands):

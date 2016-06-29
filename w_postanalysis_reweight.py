@@ -327,6 +327,12 @@ Command-line options
         cogroup.add_argument('--obs-threshold', type=int, default=1,
                              help='''The minimum number of observed transitions between two states i and j necessary to include
                              fluxes in the reweighting estimate''')
+
+        agroup = parser.add_argument_group('other options')
+        agroup.add_argument('--config-from-file', dest='config_from_file', action='store_true', 
+                            help='''Load bins/macrostates from a scheme specified in west.cfg.''')
+        agroup.add_argument('--scheme-name', dest='scheme',
+                            help='''Name of scheme specified in west.cfg.''')
         
     def open_files(self):
         self.output_file = h5io.WESTPAH5File(self.output_filename, 'w', creating_program=True)
@@ -363,6 +369,48 @@ Command-line options
         if self.evol_window_frac <= 0 or self.evol_window_frac > 1:
             raise ValueError('Parameter error -- fractional window defined by --window-frac must be in (0,1]')
         self.obs_threshold = args.obs_threshold
+
+        if args.config_from_file:
+            if not args.scheme:
+                raise ValueError('A scheme must be specified.')
+            else:
+                self.load_config_from_west(args.scheme)
+
+    def load_config_from_west(self, scheme):
+        try:
+            config = westpa.rc.config['west']['w_ipython']
+        except:
+            raise ValueError('There is no configuration file specified.')
+        import os
+        path = os.path.join(os.getcwd(), config['directory'], scheme)
+        try:
+            os.mkdir(config['directory'])
+            os.mkdir(path)
+        except:
+            pass
+        self.output_filename = os.path.join(path, 'kinrw.h5')
+        self.kinetics_filename = os.path.join(path, 'flux_matrices.h5')
+        self.assignments_filename = os.path.join(path, 'assign.h5')
+        w_kinavg_config = { 'mcbs_alpha': 0.05, 'mcbs_nsets': 1000, 'evolution': 'cumulative', 'evol_window_frac': 1, 'step_iter': 1, 'bootstrap': True , 'correl': False, 'obs_threshold': 1 }
+        try:
+            w_kinavg_config.update(config['w_kinavg'])
+        except:
+            pass
+        try:
+            w_kinavg_config.update(config['analysis_schemes'][scheme]['w_kinavg'])
+        except:
+            pass
+        self.mcbs_alpha = w_kinavg_config['mcbs_alpha']
+        # Probably problematic, as we should allow this option itself, but there it is for now.
+        self.mcbs_acalpha = self.mcbs_alpha
+        self.mcbs_nsets = w_kinavg_config['mcbs_nsets']
+        self.evolution_mode = w_kinavg_config['evolution']
+        self.evol_window_frac = w_kinavg_config['evol_window_frac']
+        self.iter_range.iter_step = w_kinavg_config['step_iter']
+        self.mcbs_enable = w_kinavg_config['bootstrap']
+        self.correl = w_kinavg_config['correl']
+        self.obs_threshold = w_kinavg_config['obs_threshold']
+
 
 
 

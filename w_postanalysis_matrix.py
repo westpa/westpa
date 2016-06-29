@@ -65,20 +65,57 @@ either equilibrium or steady-state conditions without recycling target states.
                              for each bin, store the sum of weights in the bin 
                              over all observation points for a given iteration 
                              (['bin_populations']).''' )
+
+        agroup = parser.add_argument_group('other options')
+        agroup.add_argument('--config-from-file', dest='config_from_file', action='store_true', 
+                            help='''Load bins/macrostates from a scheme specified in west.cfg.''')
+        agroup.add_argument('--scheme-name', dest='scheme',
+                            help='''Name of scheme specified in west.cfg.''')
                                        
         self.progress.add_args(parser)
         
     def process_args(self, args):
         self.progress.process_args(args)
-        self.assignments_file = h5io.WESTPAH5File(args.assignments, 'r')
         self.data_reader.process_args(args)
         with self.data_reader:
             self.iter_range.process_args(args)
-        self.output_file = h5io.WESTPAH5File(args.output, 'w', creating_program=True)
+        if args.config_from_file == False:
+            self.output_file = h5io.WESTPAH5File(args.output, 'w', creating_program=True)
+            self.assignments_file = h5io.WESTPAH5File(args.assignments, 'r')
+        if args.config_from_file:
+            if not args.scheme:
+                raise ValueError('A scheme must be specified.')
+            else:
+                self.load_config_from_west(args.scheme)
         h5io.stamp_creator_data(self.output_file)
         if not self.iter_range.check_data_iter_range_least(self.assignments_file):
             raise ValueError('assignments do not span the requested iterations')
         self.sampling_frequency = args.sampling_frequency
+
+    def load_config_from_west(self, scheme):
+        try:
+            config = westpa.rc.config['west']['w_ipython']
+        except:
+            raise ValueError('There is no configuration file specified.')
+        import os
+        path = os.path.join(os.getcwd(), config['directory'], scheme)
+        try:
+            os.mkdir(config['directory'])
+            os.mkdir(path)
+        except:
+            pass
+        self.output_file = h5io.WESTPAH5File(os.path.join(path, 'flux_matrices.h5'), 'w', creating_program=True)
+        self.assignments_file = h5io.WESTPAH5File(os.path.join(path, 'assign.h5'), 'r')
+        matrix_config = { 'sampling_frequency': 'timepoint' }
+        try:
+            matrix_config.update(config['w_postanalysis_matrix'])
+        except:
+            pass
+        try:
+            matrix_config.update(config['analysis_schemes'][scheme]['w_postanalysis_matrix'])
+        except:
+            pass
+        self.sampling_frequency = matrix_config['sampling_frequency']
 
 
     def go(self):
