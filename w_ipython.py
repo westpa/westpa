@@ -118,8 +118,10 @@ class Kinetics(WESTParallelTool):
         self.dssynth.add_args(parser)
         self.iter_range.add_args(parser)
         rgroup = parser.add_argument_group('runtime options').add_mutually_exclusive_group()
-        rgroup.add_argument('--analysis-only', '-ao', dest='analysis_mode', action='store_false',
+        rgroup.add_argument('--analysis-only', '-ao', dest='analysis_mode', action='store_true',
                              help='''Use this flag to run the analysis and return to the terminal.''')
+        rgroup.add_argument('--reanalyze', '-ra', dest='reanalyze', action='store_true',
+                             help='''Use this flag to delete the existing files and reanalyze.''')
         
         parser.set_defaults(compression=True)
 
@@ -137,8 +139,9 @@ class Kinetics(WESTParallelTool):
             self.iter_range.process_args(args)
         self.data_args = args
         self.analysis_mode = args.analysis_mode
+        self.reanalyze = args.reanalyze
 
-    def analysis_structure(self, rerun=False):
+    def analysis_structure(self):
         #self.settings = self.config['west']['w_ipython']
         # Make sure everything exists.
         try:
@@ -173,23 +176,22 @@ class Kinetics(WESTParallelTool):
                     analysis_files = ['assign', 'kintrace', 'kinavg']
                     self.__settings['analysis_schemes'][scheme]['postanalysis'] = False
                 for name in analysis_files:
+                    if self.reanalyze == True:
+                        os.remove(os.path.join(path, '{}.h5'.format(name)))
                     try:
-                        if rerun == False:
-                            #print('Loading {} from scheme: {}'.format(name, scheme))
-                            self.__analysis_schemes__[scheme][name] = h5io.WESTPAH5File(os.path.join(path, '{}.h5'.format(name)), 'r')
-                            # Try to actually load some data.
-                            if name == 'assign':
-                                test = self.__analysis_schemes__[scheme][name]['state_labels']
-                            if name == 'kintrace':
-                                test = self.__analysis_schemes__[scheme][name]['durations']
-                            if name =='kinavg':
-                                test = self.__analysis_schemes__[scheme][name]['rate_evolution']
-                            if name == 'flux_matrices':
-                                test = self.__analysis_schemes__[scheme][name]['bin_populations']
-                            if name == 'kinrw':
-                                test = self.__analysis_schemes__[scheme][name]['rate_evolution']
-                        else:
-                            raise Exception("Rerun is set to true, or the output cannot be loaded.")
+                        #print('Loading {} from scheme: {}'.format(name, scheme))
+                        self.__analysis_schemes__[scheme][name] = h5io.WESTPAH5File(os.path.join(path, '{}.h5'.format(name)), 'r')
+                        # Try to actually load some data.
+                        if name == 'assign':
+                            test = self.__analysis_schemes__[scheme][name]['state_labels']
+                        if name == 'kintrace':
+                            test = self.__analysis_schemes__[scheme][name]['durations']
+                        if name =='kinavg':
+                            test = self.__analysis_schemes__[scheme][name]['rate_evolution']
+                        if name == 'flux_matrices':
+                            test = self.__analysis_schemes__[scheme][name]['bin_populations']
+                        if name == 'kinrw':
+                            test = self.__analysis_schemes__[scheme][name]['rate_evolution']
                     except:
                         self.data_reader.close()
                         print('Unable to load output from {}, or a re-run requested.'.format(name))
@@ -890,7 +892,7 @@ if __name__ == '__main__':
     print("Running analysis & loading files.")
     w.main()
     print('Your current scheme, system and iteration are : {}, {}, {}'.format(w.scheme, os.getcwd(), w.iteration))
-    if w.analysis_mode:
+    if w.analysis_mode == False:
         from IPython import embed
         embed(banner1='',
              exit_msg='Leaving w_ipython... goodbye.')
