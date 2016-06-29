@@ -897,16 +897,3 @@ if __name__ == '__main__':
         embed(banner1='',
              exit_msg='Leaving w_ipython... goodbye.')
     print("")
-    # Cleanup namespace...
-    #del(w.make_parser)
-    #del(w.make_parser_and_process)
-    #del(w.parser)
-    #del(w.wm_env)
-    #del(w.work_manager)
-    #del(w.usage)
-    #del(w.max_queue_len)
-    #del(w.args)
-    #del(w.arg_defaults)
-    #del(w.config_required)
-
-
