@@ -177,8 +177,13 @@ class Kinetics(WESTParallelTool):
                     self.__settings['analysis_schemes'][scheme]['postanalysis'] = False
                 for name in analysis_files:
                     if self.reanalyze == True:
-                        os.remove(os.path.join(path, '{}.h5'.format(name)))
+                        try:
+                            os.remove(os.path.join(path, '{}.h5'.format(name)))
+                        except:
+                            pass
                     try:
+                        if self.reanalyze == True:
+                            raise ValueError('Reanalyze set to true.')
                         #print('Loading {} from scheme: {}'.format(name, scheme))
                         self.__analysis_schemes__[scheme][name] = h5io.WESTPAH5File(os.path.join(path, '{}.h5'.format(name)), 'r')
                         # Try to actually load some data.
