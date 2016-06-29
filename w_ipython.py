@@ -117,7 +117,7 @@ class Kinetics(WESTParallelTool):
         self.data_reader.add_args(parser)
         self.dssynth.add_args(parser)
         self.iter_range.add_args(parser)
-        rgroup = parser.add_argument_group('runtime options').add_mutually_exclusive_group()
+        rgroup = parser.add_argument_group('runtime options')
         rgroup.add_argument('--analysis-only', '-ao', dest='analysis_mode', action='store_true',
                              help='''Use this flag to run the analysis and return to the terminal.''')
         rgroup.add_argument('--reanalyze', '-ra', dest='reanalyze', action='store_true',
