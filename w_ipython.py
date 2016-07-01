@@ -702,6 +702,17 @@ class Kinetics(WESTParallelTool):
         else:
             print("The current iteration is 1; there is no past.")
 
+    def plot(self, kinetics='kinavg', i, j, tau=1):
+        try:
+            from matplotlib import pyplot as plt
+        except:
+            raise ImportError('Unable to import plotting interface.  An X server ($DISPLAY) is required.')
+        if kinetics == 'kinavg':
+            kinfile = self.kinavg
+        else:
+            kinfile = self.kinrw
+        plt.plot(kinfile['rate_evolution'][:self.iteration, i, j] / tau)
+
     def trace(self, seg_id):
         '''
         Runs a trace on a seg_id within the current iteration, all the way back to the beginning,
