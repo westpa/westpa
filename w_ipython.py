@@ -702,7 +702,7 @@ class Kinetics(WESTParallelTool):
         else:
             print("The current iteration is 1; there is no past.")
 
-    def plot(self, kinetics='kinavg', i, j, tau=1):
+    def plot(self, kinetics='kinavg', i=0, j=1, tau=1):
         try:
             from matplotlib import pyplot as plt
         except:
@@ -711,7 +711,10 @@ class Kinetics(WESTParallelTool):
             kinfile = self.kinavg
         else:
             kinfile = self.kinrw
-        plt.plot(kinfile['rate_evolution'][:self.iteration, i, j] / tau)
+        plt.plot(kinfile['rate_evolution']['expected'][:self.iteration, i, j] / tau, color='black')
+        plt.plot(kinfile['rate_evolution']['ci_ubound'][:self.iteration, i, j] / tau, color='grey')
+        plt.plot(kinfile['rate_evolution']['ci_lbound'][:self.iteration, i, j] / tau, color='grey')
+        plt.show()
 
     def trace(self, seg_id):
         '''
