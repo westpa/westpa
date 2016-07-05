@@ -653,6 +653,7 @@ class Kinetics(WESTParallelTool):
         #current['pop_bins'] = np.histogram(current['bins'].flatten(), bins=range(0, nbins), weights=np.repeat(current['weights'], current['bins'].shape[1]))[0] / current['bins'].shape[1]
         #current['pop_states'] = np.histogram(current['states'].flatten(), bins=range(0, nstates + 1), weights=np.repeat(current['weights'], current['states'].shape[1]))[0] / current['states'].shape[1]
         current['populations'] = self.PopulationsIterations(self.assign, current, self.scheme)
+        current['plot'] = self.Plotter(self.kinavg, self.kinrw, self.iteration, self.assign['bin_labels'], self.assign['state_labels'], current['populations'].states, current['populations'].bins)
         try:
             # We'll make this not a sparse matrix...
             matrix = self.matrix['iterations/iter_{:08d}'.format(value)]
@@ -702,19 +703,48 @@ class Kinetics(WESTParallelTool):
         else:
             print("The current iteration is 1; there is no past.")
 
-    def plot(self, kinetics='kinavg', i=0, j=1, tau=1):
-        try:
-            from matplotlib import pyplot as plt
-        except:
-            raise ImportError('Unable to import plotting interface.  An X server ($DISPLAY) is required.')
-        if kinetics == 'kinavg':
-            kinfile = self.kinavg
-        else:
-            kinfile = self.kinrw
-        plt.plot(kinfile['rate_evolution']['expected'][:self.iteration, i, j] / tau, color='black')
-        plt.plot(kinfile['rate_evolution']['ci_ubound'][:self.iteration, i, j] / tau, color='grey')
-        plt.plot(kinfile['rate_evolution']['ci_lbound'][:self.iteration, i, j] / tau, color='grey')
-        plt.show()
+    class Plotter():
+        def __init__(self, kinavg, kinrw, iteration, bin_labels, state_labels, state_pops, bin_pops):
+            self.kinavg_file = kinavg
+            self.kinrw_file = kinrw
+            self.iteration = iteration
+            self.bin_labels = list(bin_labels[...])
+            self.state_labels = list(state_labels[...]) + ['unknown']
+            self.state_populations = state_pops
+            self.bin_populations = bin_pops
+
+        def __generic_ci__(self, h5file, iteration, i, j, tau=1):
+            try:
+                from matplotlib import pyplot as plt
+            except:
+                raise ImportError('Unable to import plotting interface.  An X server ($DISPLAY) is required.')
+                return 1
+            plt.plot(h5file['rate_evolution']['expected'][:iteration, i, j] / tau, color='black')
+            plt.plot(h5file['rate_evolution']['ci_ubound'][:iteration, i, j] / tau, color='grey')
+            plt.plot(h5file['rate_evolution']['ci_lbound'][:iteration, i, j] / tau, color='grey')
+            plt.show()
+
+        def __generic_histo__(self, vector, labels):
+            try:
+                from matplotlib import pyplot as plt
+            except:
+                raise ImportError('Unable to import plotting interface.  An X server ($DISPLAY) is required.')
+                return 1
+            plt.bar(range(0, np.array(vector).shape[0]), vector, linewidth=0, align='center', color='green', tick_label=labels)
+            plt.show()
+
+        def kinavg(self, i=0, j=1, tau=1):
+            self.__generic_ci__(self.kinavg_file, self.iteration, i, j, tau)
+
+        def kinrw(self, i=0, j=1, tau=1):
+            self.__generic_ci__(self.kinrw_file, self.iteration, i, j, tau)
+
+        def states(self):
+            self.__generic_histo__(self.state_populations, self.state_labels)
+
+        def bins(self):
+            self.__generic_histo__(self.bin_populations, self.bin_labels)
+
 
     def trace(self, seg_id):
         '''
