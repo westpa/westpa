@@ -107,7 +107,8 @@ class Kinetics(WESTParallelTool):
 
         self._iter = 1
         self.config_required = True
-        self.version = ".2A"
+        self.version = ".3A"
+        self.interface = 'matplotlib'
         global iteration
 
 
@@ -122,6 +123,8 @@ class Kinetics(WESTParallelTool):
                              help='''Use this flag to run the analysis and return to the terminal.''')
         rgroup.add_argument('--reanalyze', '-ra', dest='reanalyze', action='store_true',
                              help='''Use this flag to delete the existing files and reanalyze.''')
+        rgroup.add_argument('--terminal', '-t', dest='plotting', action='store_true',
+                             help='''Plot output in terminal.''')
         
         parser.set_defaults(compression=True)
 
@@ -140,6 +143,8 @@ class Kinetics(WESTParallelTool):
         self.data_args = args
         self.analysis_mode = args.analysis_mode
         self.reanalyze = args.reanalyze
+        if args.plotting:
+            self.interface = 'text'
 
     def analysis_structure(self):
         #self.settings = self.config['west']['w_ipython']
@@ -653,7 +658,7 @@ class Kinetics(WESTParallelTool):
         #current['pop_bins'] = np.histogram(current['bins'].flatten(), bins=range(0, nbins), weights=np.repeat(current['weights'], current['bins'].shape[1]))[0] / current['bins'].shape[1]
         #current['pop_states'] = np.histogram(current['states'].flatten(), bins=range(0, nstates + 1), weights=np.repeat(current['weights'], current['states'].shape[1]))[0] / current['states'].shape[1]
         current['populations'] = self.PopulationsIterations(self.assign, current, self.scheme)
-        current['plot'] = self.Plotter(self.kinavg, self.kinrw, self.iteration, self.assign['bin_labels'], self.assign['state_labels'], current['populations'].states, current['populations'].bins)
+        current['plot'] = self.Plotter(self.kinavg, self.kinrw, self.iteration, self.assign['bin_labels'], self.assign['state_labels'], current['populations'].states, current['populations'].bins, self.interface)
         try:
             # We'll make this not a sparse matrix...
             matrix = self.matrix['iterations/iter_{:08d}'.format(value)]
@@ -704,7 +709,7 @@ class Kinetics(WESTParallelTool):
             print("The current iteration is 1; there is no past.")
 
     class Plotter():
-        def __init__(self, kinavg, kinrw, iteration, bin_labels, state_labels, state_pops, bin_pops):
+        def __init__(self, kinavg, kinrw, iteration, bin_labels, state_labels, state_pops, bin_pops, interface='matplotlib'):
             self.kinavg_file = kinavg
             self.kinrw_file = kinrw
             self.iteration = iteration
@@ -712,36 +717,45 @@ class Kinetics(WESTParallelTool):
             self.state_labels = list(state_labels[...]) + ['unknown']
             self.state_populations = state_pops
             self.bin_populations = bin_pops
+            self.interface = interface
 
         def __generic_ci__(self, h5file, iteration, i, j, tau):
-            try:
-                import matplotlib
-                matplotlib.use('TkAgg')
-                from matplotlib import pyplot as plt
-                plt.plot(h5file['rate_evolution']['expected'][:iteration, i, j] / tau, color='black')
-                plt.plot(h5file['rate_evolution']['ci_ubound'][:iteration, i, j] / tau, color='grey')
-                plt.plot(h5file['rate_evolution']['ci_lbound'][:iteration, i, j] / tau, color='grey')
-                plt.show()
-            except:
-                raise ImportError('Unable to import plotting interface.  An X server ($DISPLAY) is required.')
-                return 1
+            if self.interface == 'text':
+                self.__terminal_ci__(h5file, iteration, i, j, tau)
+            else:
+                try:
+                    import matplotlib
+                    matplotlib.use('TkAgg')
+                    from matplotlib import pyplot as plt
+                    plt.plot(h5file['rate_evolution']['expected'][:iteration, i, j] / tau, color='black')
+                    plt.plot(h5file['rate_evolution']['ci_ubound'][:iteration, i, j] / tau, color='grey')
+                    plt.plot(h5file['rate_evolution']['ci_lbound'][:iteration, i, j] / tau, color='grey')
+                    plt.show()
+                except:
+                    print('Unable to import plotting interface.  An X server ($DISPLAY) is required.')
+                    self.__terminal_ci__(h5file, iteration, i, j, tau)
+                    return 1
 
         def __generic_histo__(self, vector, labels):
-            try:
-                import matplotlib
-                matplotlib.use('TkAgg')
-                from matplotlib import pyplot as plt
-                plt.bar(range(0, np.array(vector).shape[0]), vector, linewidth=0, align='center', color='gold', tick_label=labels)
-                plt.show()
-            except:
-                raise ImportError('Unable to import plotting interface.  An X server ($DISPLAY) is required.')
-                return 1
+            if self.interface == 'text':
+                self.__terminal_histo__(vector, labels)
+            else:
+                try:
+                    import matplotlib
+                    matplotlib.use('TkAgg')
+                    from matplotlib import pyplot as plt
+                    plt.bar(range(0, np.array(vector).shape[0]), vector, linewidth=0, align='center', color='gold', tick_label=labels)
+                    plt.show()
+                except:
+                    print('Unable to import plotting interface.  An X server ($DISPLAY) is required.')
+                    self.__terminal_histo__(h5file, vector, labels)
+                    return 1
 
-        def __terminal_histo__(self, vector, labels):
+        def __terminal_histo__(self, vector, labels, fullscreen_mode=True):
             from blessings import Terminal
 
             self.t = Terminal()
-            h = self.t.height / 2
+            h = int(self.t.height / 4) * 3
             w = self.t.width
             cols = np.array(vector).shape[0]
             # Let's print this business!
@@ -752,31 +766,36 @@ class Kinetics(WESTParallelTool):
                     for x in range(0, cols):
                         if x == 0:
                             with self.t.location(0, y):
-                                print(self.t.red('{0:.4f}:'.format(float(h-y)/float(h))))
+                                print(self.t.red('{0:.4f}|'.format(float(h-y)/float(h))))
                         with self.t.location((x*colwidth)+8+len(labels[x])/2, y):
                             if vector[x] >= (float(h-y)/float(h)):
                                 #print(float(h-y)/float(h))
                                 print(self.t.on_blue(' '))
                 for x in range(0, cols):
+                    if x == 0:
+                        with self.t.location(x, h):
+                            print('States| ')
                     with self.t.location((x*colwidth)+8, h):
                         print(self.t.blue(labels[x]))
 
-                raw_input("Press enter to continue.")
+                if fullscreen_mode:
+                    raw_input("Press enter to continue.")
 
-        def __terminal_kinetics__(self, h5file, iteration, si, sj, tau):
+        def __terminal_ci__(self, h5file, iteration, si, sj, tau):
             from blessings import Terminal
 
             self.t = Terminal()
-            h = self.t.height / 2
+            h = int(self.t.height / 4) * 3
             # We'll figure out how to subsample the timepoints...
             w = self.t.width
             yupper = (h5file['rate_evolution']['ci_ubound'][iteration-1, si, sj]) * 2
             ylower = (h5file['rate_evolution']['ci_lbound'][iteration-1, si, sj]) / 2
-            print(yupper, ylower)
             # Here are points pertaining to height.
             scale = np.array([ylower+i*(yupper-ylower)/np.float(h) for i in range(0, h)])[::-1]
-            print(scale)
-            block_size = iteration / w
+            if iteration > w:
+                block_size = iteration / w
+            else:
+                block_size = 1
 
             with self.t.fullscreen():
                 for y in range(0, h):
@@ -784,16 +803,20 @@ class Kinetics(WESTParallelTool):
                         iter = x * block_size
                         if x == 0:
                             with self.t.location(0, y):
-                                print(self.t.red('{0:.6f}:'.format(scale[y])))
+                                print(self.t.red('{0:.7f}|'.format(scale[y])))
                         with self.t.location(x+12, y):
-                            if h5file['rate_evolution']['ci_ubound'][iter, si, sj] >= scale[y]:
-                                if h5file['rate_evolution']['ci_lbound'][iter, si, sj] <= scale[y]:
+                            if y != h-1:
+                                if (scale[y-1] > h5file['rate_evolution']['expected'][iter, si, sj] and scale[y+1] < h5file['rate_evolution']['expected'][iter, si, sj]) or (scale[y-1] > h5file['rate_evolution']['expected'][iter, si, sj] and scale[y] < h5file['rate_evolution']['expected'][iter, si, sj]) :
+                                    print(self.t.on_blue('-'))
+                                elif h5file['rate_evolution']['ci_ubound'][iter, si, sj] >= scale[y]:
+                                    if h5file['rate_evolution']['ci_lbound'][iter, si, sj] <= scale[y]:
+                                        print(self.t.on_blue(' '))
+
                                 #print(float(h-y)/float(h))
-                                    print(self.t.on_blue(' '))
                 for x in range(0, w-12, w/10):
                     if x == 0:
                         with self.t.location(x, h):
-                            print('Iteration: ')
+                            print('Iteration| ')
                     with self.t.location(x+12, h):
                         iter = x * block_size
                         print(self.t.blue(str(iter)))
@@ -814,12 +837,11 @@ class Kinetics(WESTParallelTool):
         def bins(self):
             self.__generic_histo__(self.bin_populations, self.bin_labels)
 
-        def test(self):
-            self.__terminal_histo__(self.bin_populations, self.bin_labels)
-
-        def testk(self, i=0, j=1, tau=1):
-            self.__terminal_kinetics__(self.kinrw_file, self.iteration, i, j, tau)
-
+    #def bin_evolution(self):
+    #    for i in range(1, self.niters+1):
+    #        self.iteration = i
+    #        plot = self.Plotter(self.kinavg, self.kinrw, 1, self.assign['bin_labels'], self.assign['state_labels'], self.current['populations'].states, self.current['populations'].bins, self.interface)
+    #        plot.__terminal_histo__(self.current['populations'].bins, self.assign['bin_labels'], fullscreen_mode = False)
 
     def trace(self, seg_id):
         '''
