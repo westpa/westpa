@@ -716,22 +716,22 @@ class Kinetics(WESTParallelTool):
         def __generic_ci__(self, h5file, iteration, i, j, tau=1):
             try:
                 from matplotlib import pyplot as plt
+                plt.plot(h5file['rate_evolution']['expected'][:iteration, i, j] / tau, color='black')
+                plt.plot(h5file['rate_evolution']['ci_ubound'][:iteration, i, j] / tau, color='grey')
+                plt.plot(h5file['rate_evolution']['ci_lbound'][:iteration, i, j] / tau, color='grey')
+                plt.show()
             except:
                 raise ImportError('Unable to import plotting interface.  An X server ($DISPLAY) is required.')
                 return 1
-            plt.plot(h5file['rate_evolution']['expected'][:iteration, i, j] / tau, color='black')
-            plt.plot(h5file['rate_evolution']['ci_ubound'][:iteration, i, j] / tau, color='grey')
-            plt.plot(h5file['rate_evolution']['ci_lbound'][:iteration, i, j] / tau, color='grey')
-            plt.show()
 
         def __generic_histo__(self, vector, labels):
             try:
                 from matplotlib import pyplot as plt
+                plt.bar(range(0, np.array(vector).shape[0]), vector, linewidth=0, align='center', color='green', tick_label=labels)
+                plt.show()
             except:
                 raise ImportError('Unable to import plotting interface.  An X server ($DISPLAY) is required.')
                 return 1
-            plt.bar(range(0, np.array(vector).shape[0]), vector, linewidth=0, align='center', color='green', tick_label=labels)
-            plt.show()
 
         def kinavg(self, i=0, j=1, tau=1):
             self.__generic_ci__(self.kinavg_file, self.iteration, i, j, tau)
