@@ -788,36 +788,36 @@ class Kinetics(WESTParallelTool):
             h = int(self.t.height / 4) * 3
             # We'll figure out how to subsample the timepoints...
             w = self.t.width
-            yupper = (h5file['rate_evolution']['ci_ubound'][iteration-1, si, sj]) * 2
-            ylower = (h5file['rate_evolution']['ci_lbound'][iteration-1, si, sj]) / 2
+            yupper = (h5file['rate_evolution']['ci_ubound'][iteration-1, si, sj] / tau) * 2
+            ylower = (h5file['rate_evolution']['ci_lbound'][iteration-1, si, sj] / tau) / 2
             # Here are points pertaining to height.
-            scale = np.array([ylower+i*(yupper-ylower)/np.float(h) for i in range(0, h)])[::-1]
+            scale = np.array([0.0] + [ylower+i*(yupper-ylower)/np.float(h) for i in range(0, h)])[::-1]
             if iteration > w:
                 block_size = iteration / w
             else:
                 block_size = 1
 
             with self.t.fullscreen():
-                for y in range(0, h):
-                    for x in range(0, w-12):
-                        iter = x * block_size
-                        if x == 0:
+                for x in range(0, w-12):
+                    iter = x * block_size
+                    yupper = (h5file['rate_evolution']['ci_ubound'][iter-1, si, sj] / tau)
+                    ylower = (h5file['rate_evolution']['ci_lbound'][iter-1, si, sj] / tau)
+                    ci = np.digitize([yupper, ylower], scale)
+                    if x == 0:
+                        for y in range(0, h):
                             with self.t.location(0, y):
                                 print(self.t.red('{0:.7f}|'.format(scale[y])))
+                    for y in range(ci[0], ci[1]):
                         with self.t.location(x+12, y):
-                            if y != h-1:
-                                if (scale[y-1] > h5file['rate_evolution']['expected'][iter, si, sj] and scale[y+1] < h5file['rate_evolution']['expected'][iter, si, sj]) or (scale[y-1] > h5file['rate_evolution']['expected'][iter, si, sj] and scale[y] < h5file['rate_evolution']['expected'][iter, si, sj]) :
-                                    print(self.t.on_blue('-'))
-                                elif h5file['rate_evolution']['ci_ubound'][iter, si, sj] >= scale[y]:
-                                    if h5file['rate_evolution']['ci_lbound'][iter, si, sj] <= scale[y]:
-                                        print(self.t.on_blue(' '))
+                            print(self.t.on_blue(' '))
+                    with self.t.location(x+12, np.digitize(h5file['rate_evolution']['expected'][iter-1, si, sj]/tau, scale)):
+                            print(self.t.on_blue('-'))
 
-                                #print(float(h-y)/float(h))
                 for x in range(0, w-12, w/10):
                     if x == 0:
-                        with self.t.location(x, h):
+                        with self.t.location(x, h+1):
                             print('Iteration| ')
-                    with self.t.location(x+12, h):
+                    with self.t.location(x+12, h+1):
                         iter = x * block_size
                         print(self.t.blue(str(iter)))
 
