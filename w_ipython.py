@@ -887,7 +887,7 @@ class Kinetics(WESTParallelTool):
         current['seg_id'] = list(reversed(current['seg_id']))
         current['pcoord'] = np.concatenate(np.array(list(reversed(current['pcoord']))))
         current['states'] = np.concatenate(np.array(list(reversed(current['states']))))
-        current['bins'] = np.array(list(reversed(current['states'])))
+        current['bins'] = np.array(list(reversed(current['bins'])))
         current['weights'] = list(reversed(current['weights']))
         current['iteration'] = list(reversed(current['iteration']))
         try:
