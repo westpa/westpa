@@ -798,30 +798,36 @@ class Kinetics(WESTParallelTool):
                 block_size = 1
 
             with self.t.fullscreen():
-                for x in range(0, w-12):
-                    iter = x * block_size
-                    yupper = (h5file['rate_evolution']['ci_ubound'][iter-1, si, sj] / tau)
-                    ylower = (h5file['rate_evolution']['ci_lbound'][iter-1, si, sj] / tau)
-                    ci = np.digitize([yupper, ylower], scale)
-                    if x == 0:
-                        for y in range(0, h):
-                            with self.t.location(0, y):
-                                print(self.t.red('{0:.7f}|'.format(scale[y])))
-                    for y in range(ci[0], ci[1]):
-                        with self.t.location(x+12, y):
-                            print(self.t.on_blue(' '))
-                    with self.t.location(x+12, np.digitize(h5file['rate_evolution']['expected'][iter-1, si, sj]/tau, scale)):
-                            print(self.t.on_blue('-'))
-
-                for x in range(0, w-12, w/10):
-                    if x == 0:
-                        with self.t.location(x, h+1):
-                            print('Iteration| ')
-                    with self.t.location(x+12, h+1):
+                try:
+                    for x in range(0, w-12):
                         iter = x * block_size
-                        print(self.t.blue(str(iter)))
+                        yupper = (h5file['rate_evolution']['ci_ubound'][iter-1, si, sj] / tau)
+                        ylower = (h5file['rate_evolution']['ci_lbound'][iter-1, si, sj] / tau)
+                        ci = np.digitize([yupper, ylower], scale)
+                        if x == 0:
+                            for y in range(0, h+1):
+                                with self.t.location(0, y):
+                                    print(self.t.bold(self.t.red('{0:.7f}|'.format(scale[y]))))
+                        for y in range(ci[0], ci[1]):
+                            #with self.t.location(x+12, y):
+                            print self.t.move(y, x+12) + self.t.on_blue(' ')
+                                #print(self.t.on_blue(' '))
+                        #with self.t.location(x+12, np.digitize(h5file['rate_evolution']['expected'][iter-1, si, sj]/tau, scale)):
+                        #        print(self.t.on_blue('-'))
+                        print self.t.move(np.digitize(h5file['rate_evolution']['expected'][iter-1, si, sj]/tau, scale), x+12) + self.t.on_blue('-')
 
-                raw_input("Press enter to continue.")
+                    for x in range(0, w-12, w/10):
+                        if x == 0:
+                            with self.t.location(x, h+1):
+                                print('Iteration| ')
+                        with self.t.location(x+12, h+1):
+                            iter = x * block_size
+                            print(self.t.blue(str(iter)))
+                except:
+                    pass
+
+                with self.t.location(0, h+2):
+                    raw_input("Press enter to continue.")
                 
 
 

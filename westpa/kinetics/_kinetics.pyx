@@ -389,37 +389,35 @@ cpdef sequence_macro_flux_to_rate_bs(weight_t[:] dataset, weight_t[:,:] pops, Py
     
     cdef:
         Py_ssize_t iiter, nstates, itersum
-        weight_t[:] _rates, _fluxsum, _pairsum, _psum, _tpsum
+        weight_t[:] _rates, _fluxsum, _pairsum, _psum
         
     rates = numpy.empty((dataset.shape[0]), dtype=weight_dtype)
     #rates = 0.0
     fluxsum = numpy.zeros((dataset.shape[0]), dtype=weight_dtype)
     psum = numpy.zeros((dataset.shape[0]), dtype=weight_dtype)
-    total_psum = numpy.ones((dataset.shape[0]), dtype=weight_dtype)
     pairsum = numpy.zeros((dataset.shape[0]), dtype=weight_dtype)
     _fluxsum = fluxsum
     _pairsum = pairsum
     _psum = psum
     _rates = rates
-    _tpsum = total_psum
     
     # We want to modify this to be the SUM of fluxes up till this point, divided by the SUM of the population till then.
     with nogil:
         for iiter in xrange(dataset.shape[0]):
             if iiter == 0:
                 if pairwise:
-                    _tpsum[0] = pops[0,istate] + pops[0,jstate]
-                _psum[0] = pops[0, istate]
+                    _psum[0] = pops[0, istate] / (pops[0,istate] + pops[0,jstate])
+                else:
+                    _psum[0] = pops[0, istate]
                 _fluxsum[0] = dataset[0]
             else:
                 if pairwise:
-                    _tpsum[iiter] = (pops[iiter,istate] + pops[iiter,jstate]) + _psum[iiter-1]
-                _psum[iiter] = pops[iiter,istate] + _psum[iiter-1]
+                    _psum[iiter] = (pops[iiter, istate] / (pops[iiter,istate] + pops[iiter,jstate])) + _psum[iiter-1]
+                else:
+                    _psum[iiter] = pops[iiter,istate] + _psum[iiter-1]
                 _fluxsum[iiter] = dataset[iiter] + _fluxsum[iiter-1]
-            if _psum[iiter] > 0 and _tpsum[iiter] > 0:
-                _rates[iiter] = _fluxsum[iiter] / (_psum[iiter] / _tpsum[iiter])
-            elif _fluxsum[iiter] > 0:
-                _rates[iiter] = NAN
+            if _psum[iiter] > 0 and _fluxsum[iiter] > 0:
+                _rates[iiter] = _fluxsum[iiter] / _psum[iiter]
             else:
                 _rates[iiter] = 0.0
         #rates /= iiter

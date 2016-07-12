@@ -57,7 +57,7 @@ def _eval_block(iblock, start, stop, nstates, nbins, mcbs_alpha, mcbs_nsets, mcb
             # Rates!
             if istate == jstate: continue
             dataset = { 'indices' : np.array(range(start-1, stop-1), dtype=np.uint16) }
-            kwargs.update({ 'istate' : istate, 'jstate': jstate, 'nstates' : nstates, 'nbins' : nbins , 'state_map': state_map})
+            kwargs.update({ 'istate' : istate, 'jstate': jstate, 'nstates' : nstates, 'nbins' : nbins , 'state_map': state_map, 'return_flux': False})
             ci_res = mcbs_ci_correl_rw(dataset, estimator=reweight_for_c,
                                     alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
                                     subsample=(lambda x: x[0]), pre_calculated=rates[:,istate,jstate], correl=correl, **kwargs)
