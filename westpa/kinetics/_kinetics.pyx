@@ -443,10 +443,11 @@ cpdef _fast_transition_state_copy(Py_ssize_t iiter,
     nsegs = parent_ids.shape[0]
     
     last_time = numpy.empty((nsegs,), numpy.double)
-    last_entries = numpy.empty((nsegs,nstates), numpy.double)
-    last_exits = numpy.empty((nsegs,nstates), numpy.double)
-    last_exits_td = numpy.empty((nsegs,nstates), numpy.double)
-    last_completions = numpy.empty((nsegs,nstates,nstates), numpy.double)
+    # Use nstates + 1 to account for possible unknown states
+    last_entries = numpy.empty((nsegs,nstates+1), numpy.double)
+    last_exits = numpy.empty((nsegs,nstates+1), numpy.double)
+    last_exits_td = numpy.empty((nsegs,nstates+1), numpy.double)
+    last_completions = numpy.empty((nsegs,nstates+1,nstates+1), numpy.double)
     
     _last_time = last_time
     _last_entries = last_entries
