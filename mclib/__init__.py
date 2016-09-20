@@ -127,7 +127,7 @@ def mcbs_ci_correl(dataset, estimator, alpha, n_sets=None, args=None, kwargs=Non
         return mcbs_ci(decim_set, estimator, alpha, n_sets, args, kwargs, numpy.msort) + (correl_len,)
 
 def mcbs_ci_correl_rw(dataset, estimator, alpha, n_sets=None, args=None,
-        autocorrel_alpha = None, autocorrel_n_sets=None, subsample=None, pre_calculated=None, correl=False, **kwargs):
+        autocorrel_alpha = None, autocorrel_n_sets=None, subsample=None, pre_calculated=None, correl=True, **kwargs):
     '''Perform a Monte Carlo bootstrap estimate for the (1-``alpha``) confidence interval
     on the given ``dataset`` with the given ``estimator``.  This routine is appropriate
     for time-correlated data, using the method described in Huber & Kim, "Weighted-ensemble
@@ -186,9 +186,14 @@ def mcbs_ci_correl_rw(dataset, estimator, alpha, n_sets=None, args=None,
     # If pre-calculated is not None, we'll use that instead of dataset.
     # We can also assume that it's a 1 dimensional set with nothing needed, so 'key' should work.
     if correl == True:
-        correl_len = 0
-    else:
         correl_len = mcbs_correltime(pre_calculated, autocorrel_alpha, autocorrel_n_sets)
+        if correl_len == 0 or correl_len == 1:
+            try:
+                print(correl_len, kwargs['istate'], kwargs['jstate'], pre_calculated.shape)
+            except:
+                pass
+    else:
+        correl_len = 0
     if correl_len == len(pre_calculated):
         # too correlated for meaningful calculations
         d_input = dataset.copy()

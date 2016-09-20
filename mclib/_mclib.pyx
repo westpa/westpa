@@ -131,8 +131,6 @@ cpdef mcbs_ci(dataset, estimator, alpha, dlen, n_sets=None, args=None, kwargs=No
         pass
 
     fhat = estimator(**d_input)
-    #else:
-    #    fhat = estimator(dataset=dataset, pops=pops, istate=istate, jstate=jstate)
     
     try:
         estimator_shape = fhat.shape

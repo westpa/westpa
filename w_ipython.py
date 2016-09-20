@@ -11,7 +11,7 @@ from westpa.h5io import WESTPAH5File
 from westpa.extloader import get_object
 import westpa
 import os, sys
-import w_assign, w_kinetics, w_kinavg, w_postanalysis_matrix, w_postanalysis_reweight
+import w_assign, w_kinetics, w_kinavg, w_postanalysis_matrix, w_postanalysis_reweight, w_stateprobs
 #warnings.filterwarnings('ignore')
 import scipy.sparse as sp
 
@@ -174,11 +174,11 @@ class Kinetics(WESTParallelTool):
                 self.__analysis_schemes__[scheme] = {}
                 try:
                     if self.__settings['analysis_schemes'][scheme]['postanalysis'] == True or self.__settings['postanalysis'] == True:
-                        analysis_files = ['assign', 'kintrace', 'kinavg', 'flux_matrices', 'kinrw']
+                        analysis_files = ['assign', 'kintrace', 'kinavg', 'stateprobs', 'flux_matrices', 'kinrw']
                     else:
-                        analysis_files = ['assign', 'kintrace', 'kinavg']
+                        analysis_files = ['assign', 'kintrace', 'kinavg', 'stateprobs']
                 except:
-                    analysis_files = ['assign', 'kintrace', 'kinavg']
+                    analysis_files = ['assign', 'kintrace', 'kinavg', 'stateprobs']
                     self.__settings['analysis_schemes'][scheme]['postanalysis'] = False
                 for name in analysis_files:
                     if self.reanalyze == True:
@@ -198,6 +198,8 @@ class Kinetics(WESTParallelTool):
                             test = self.__analysis_schemes__[scheme][name]['durations']
                         if name =='kinavg':
                             test = self.__analysis_schemes__[scheme][name]['rate_evolution']
+                        if name == 'stateprobs':
+                            test = self.__analysis_schemes__[scheme][name]['state_pop_evolution']
                         if name == 'flux_matrices':
                             test = self.__analysis_schemes__[scheme][name]['bin_populations']
                         if name == 'kinrw':
@@ -308,7 +310,7 @@ class Kinetics(WESTParallelTool):
                         if name == 'kinavg':
                             ktrace = w_kinavg.WKinAvg()
                             ktrace.work_manager = self.work_manager
-                            w_kinavg_config = { 'mcbs_alpha': 0.05, 'mcbs_nsets': 1000, 'evolution': 'cumulative', 'evol_window_frac': 1, 'step_iter': 1, 'bootstrap': True , 'correl': False, 'display_averages': False}
+                            w_kinavg_config = { 'mcbs_alpha': 0.05, 'mcbs_nsets': 1000, 'evolution': 'cumulative', 'evol_window_frac': 1, 'step_iter': 1, 'bootstrap': True , 'correl': True, 'display_averages': False}
                             try:
                                 w_kinavg_config.update(self.__settings['w_kinavg'])
                             except:
@@ -397,7 +399,7 @@ class Kinetics(WESTParallelTool):
                             reweight.iter_range = self.iter_range
                             reweight.output_filename = os.path.join(path, '{}.h5'.format(name))
 
-                            reweight_config = { 'mcbs_alpha': 0.05, 'mcbs_nsets': 1000, 'evolution': 'cumulative', 'evol_window_frac': 1, 'step_iter': 1, 'bootstrap': True , 'correl': False, 'obs_threshold': 1}
+                            reweight_config = { 'mcbs_alpha': 0.05, 'mcbs_nsets': 1000, 'evolution': 'cumulative', 'evol_window_frac': 1, 'step_iter': 1, 'bootstrap': True , 'correl': True, 'obs_threshold': 1}
                             try:
                                 reweight_config.update(self.__settings['analysis_schemes'][scheme]['w_kinavg'])
                             except:
@@ -431,6 +433,57 @@ class Kinetics(WESTParallelTool):
                             del(reweight)
 
                             self.__analysis_schemes__[scheme][name] = h5io.WESTPAH5File(os.path.join(path, '{}.h5'.format(name)), 'r')
+
+                        if name == 'stateprobs':
+                            stateprobs = w_stateprobs.StateProbTool()
+                            stateprobs.work_manager = self.work_manager
+                            stateprobs_config = { 'mcbs_alpha': 0.05, 'mcbs_nsets': 1000, 'evolution': 'cumulative', 'evol_window_frac': 1, 'step_iter': 1, 'bootstrap': True , 'correl': True, 'display_averages': False}
+                            # We want to pull 'the same' type, by default, from other analysis programs using evolution options.
+                            try:
+                                stateprobs_config.update(self.__settings['analysis_schemes'][scheme]['w_kinavg'])
+                            except:
+                                pass
+                            try:
+                                stateprobs_config.update(self.__settings['w_stateprobs'])
+                            except:
+                                pass
+                            try:
+                                stateprobs_config.update(self.__settings['analysis_schemes'][scheme]['w_stateprobs'])
+                            except:
+                                pass
+                            stateprobs.assignments_filename = os.path.join(path, '{}.h5'.format('assign'))
+                            stateprobs.data_reader = WESTDataReader()
+                            stateprobs.data_reader.process_args(self.data_args)
+                            stateprobs.iter_range = self.iter_range
+                            stateprobs.mcbs_alpha = stateprobs_config['mcbs_alpha']
+                            stateprobs.mcbs_acalpha = stateprobs.mcbs_alpha
+                            stateprobs.mcbs_nsets = stateprobs_config['mcbs_nsets']
+                            stateprobs.evolution_mode = stateprobs_config['evolution']
+                            stateprobs.evol_window_frac = stateprobs_config['evol_window_frac']
+                            stateprobs.iter_range.iter_step = stateprobs_config['step_iter']
+                            stateprobs.mcbs_enable = stateprobs_config['bootstrap']
+                            stateprobs.correl = stateprobs_config['correl']
+                            stateprobs.display_averages = stateprobs_config['display_averages']
+                            with stateprobs.data_reader:
+                                stateprobs.iter_range.process_args(self.args, default_iter_step=None)
+                            if stateprobs.iter_range.iter_step is None:
+                                #use about 10 blocks by default
+                                stateprobs.iter_range.iter_step = max(1, (kinavg.iter_range.iter_stop - kinavg.iter_range.iter_start) // 10)
+                            stateprobs.output_filename = os.path.join(path, '{}.h5'.format(name))
+                            stateprobs.progress.process_args(self.args)
+                            if stateprobs.evol_window_frac <= 0 or stateprobs.evol_window_frac > 1:
+                                raise ValueError('Parameter error -- fractional window defined by --window-frac must be in (0,1]')
+                            stateprobs.dssynth = WESTDSSynthesizer(default_dsname='pcoord')
+                            stateprobs.dssynth.h5filename = self.data_reader.we_h5filename
+                            stateprobs.dssynth.process_args(self.data_args)
+
+                            stateprobs.go()
+                            stateprobs.data_reader.close()
+                            del(stateprobs)
+
+
+
+                            self.__analysis_schemes__[scheme][name] = h5io.WESTPAH5File(os.path.join(path, '{}.h5'.format(name)), 'r')
                 self.work_manager.shutdown()
         print("")
         print("Complete!")
@@ -454,6 +507,10 @@ class Kinetics(WESTParallelTool):
     @property
     def kinetics(self):
         return self.__analysis_schemes__[self.scheme]['kintrace']
+
+    @property
+    def stateprobs(self):
+        return self.__analysis_schemes__[self.scheme]['stateprobs']
 
     @property
     def state_labels(self):
@@ -605,6 +662,28 @@ class Kinetics(WESTParallelTool):
         def names(self):
             return self.keys()
 
+    # Returns the raw values, but can also calculate things based on them.
+    class CalcPopIteration(dict):
+        def __init__(self, sp_h5file, value):
+            self.raw = sp_h5file['state_pop_evolution'][value - 1, :]
+            self.error = (self.raw['ci_ubound'] - self.raw['ci_lbound']) / (2*self.raw['expected'])
+            self.expected = self.raw['expected']
+            self.__dict__ = { 'raw': self.raw, 'error': self.error, 'expected': self.expected }
+        def __getattr__(self, attr):
+            return self.__dict__[attr]
+        def __repr__(self):
+            return repr(self.raw)
+        def __getitem__(self, value):
+            return self.raw[value]
+        def keys(self):
+            a = []
+            for i in self.raw.dtype.names:
+                a.append(i)
+            return a
+        @property
+        def names(self):
+            return self.keys()
+
     class PopulationsIterations():
         def __init__(self, assign, current, scheme):
             nbins = assign['state_map'].shape[0]
@@ -638,6 +717,7 @@ class Kinetics(WESTParallelTool):
         if seg_ids == None:
             seg_ids = xrange(0, iter_group['seg_index']['weight'].shape[0])
         current['kinavg'] = self.KineticsIteration(self.kinavg, value)
+        current['statepops'] = self.CalcPopIteration(self.stateprobs, value)
         # Just make these easier to access.
         current['weights'] = iter_group['seg_index']['weight'][seg_ids]
         current['pcoord'] = iter_group['pcoord'][...][seg_ids, :, :]
@@ -658,7 +738,7 @@ class Kinetics(WESTParallelTool):
         #current['pop_bins'] = np.histogram(current['bins'].flatten(), bins=range(0, nbins), weights=np.repeat(current['weights'], current['bins'].shape[1]))[0] / current['bins'].shape[1]
         #current['pop_states'] = np.histogram(current['states'].flatten(), bins=range(0, nstates + 1), weights=np.repeat(current['weights'], current['states'].shape[1]))[0] / current['states'].shape[1]
         current['populations'] = self.PopulationsIterations(self.assign, current, self.scheme)
-        current['plot'] = self.Plotter(self.kinavg, self.kinrw, self.iteration, self.assign['bin_labels'], self.assign['state_labels'], current['populations'].states, current['populations'].bins, self.interface)
+        current['plot'] = self.Plotter(self.kinavg, self.kinrw, self.stateprobs, self.iteration, self.assign['bin_labels'], self.assign['state_labels'], current['populations'].states, current['populations'].bins, self.interface)
         try:
             # We'll make this not a sparse matrix...
             matrix = self.matrix['iterations/iter_{:08d}'.format(value)]
@@ -666,10 +746,12 @@ class Kinetics(WESTParallelTool):
             current['instant_matrix'] = sp.coo_matrix((matrix['flux'][...], (matrix['rows'][...], matrix['cols'][...])), shape=((nbins-1)*2, (nbins-1)*2)).todense()
             current['kinrw'] = self.KineticsIteration(self.kinrw, value)
             current['matrix'] = self.aggregate_matrix[value-1, :, :]
+            current['rwstatepops'] = self.CalcPopIteration(self.kinrw, value)
         except:
           # This analysis hasn't been enabled, so we'll simply return the default error message.
             current['instant_matrix'] = self.matrix['bin_populations']
             current['kinrw'] = self.kinrw['rate_evolution']
+            current['rwstatepops'] = self.kinrw['rate_evolution']
             #current['rw_error'] = self.kinrw['rate_evolution']
             #current['rw_expected'] = self.kinrw['rate_evolution']
             current['matrix'] = self.matrix['bin_populations']
@@ -709,9 +791,10 @@ class Kinetics(WESTParallelTool):
             print("The current iteration is 1; there is no past.")
 
     class Plotter():
-        def __init__(self, kinavg, kinrw, iteration, bin_labels, state_labels, state_pops, bin_pops, interface='matplotlib'):
+        def __init__(self, kinavg, kinrw, stateprobs, iteration, bin_labels, state_labels, state_pops, bin_pops, interface='matplotlib'):
             self.kinavg_file = kinavg
             self.kinrw_file = kinrw
+            self.stateprobs_file = stateprobs
             self.iteration = iteration
             self.bin_labels = list(bin_labels[...])
             self.state_labels = list(state_labels[...]) + ['unknown']
@@ -719,17 +802,17 @@ class Kinetics(WESTParallelTool):
             self.bin_populations = bin_pops
             self.interface = interface
 
-        def __generic_ci__(self, h5file, iteration, i, j, tau):
+        def __generic_ci__(self, h5file, iteration, i, j, tau, h5key='rate_evolution'):
             if self.interface == 'text':
-                self.__terminal_ci__(h5file, iteration, i, j, tau)
+                self.__terminal_ci__(h5file, iteration, i, j, tau, h5key)
             else:
                 try:
                     import matplotlib
                     matplotlib.use('TkAgg')
                     from matplotlib import pyplot as plt
-                    plt.plot(h5file['rate_evolution']['expected'][:iteration, i, j] / tau, color='black')
-                    plt.plot(h5file['rate_evolution']['ci_ubound'][:iteration, i, j] / tau, color='grey')
-                    plt.plot(h5file['rate_evolution']['ci_lbound'][:iteration, i, j] / tau, color='grey')
+                    plt.plot(h5file[h5key]['expected'][:iteration, i, j] / tau, color='black')
+                    plt.plot(h5file[h5key]['ci_ubound'][:iteration, i, j] / tau, color='grey')
+                    plt.plot(h5file[h5key]['ci_lbound'][:iteration, i, j] / tau, color='grey')
                     plt.show()
                 except:
                     print('Unable to import plotting interface.  An X server ($DISPLAY) is required.')
@@ -781,15 +864,15 @@ class Kinetics(WESTParallelTool):
                 if fullscreen_mode:
                     raw_input("Press enter to continue.")
 
-        def __terminal_ci__(self, h5file, iteration, si, sj, tau):
+        def __terminal_ci__(self, h5file, iteration, si, sj, tau, h5key='rate_evolution'):
             from blessings import Terminal
 
             self.t = Terminal()
             h = int(self.t.height / 4) * 3
             # We'll figure out how to subsample the timepoints...
             w = self.t.width
-            yupper = (h5file['rate_evolution']['ci_ubound'][iteration-1, si, sj] / tau) * 2
-            ylower = (h5file['rate_evolution']['ci_lbound'][iteration-1, si, sj] / tau) / 2
+            yupper = (h5file[h5key]['ci_ubound'][iteration-1, si, sj] / tau) * 2
+            ylower = (h5file[h5key]['ci_lbound'][iteration-1, si, sj] / tau) / 2
             # Here are points pertaining to height.
             scale = np.array([0.0] + [ylower+i*(yupper-ylower)/np.float(h) for i in range(0, h)])[::-1]
             if iteration > w:
@@ -801,8 +884,8 @@ class Kinetics(WESTParallelTool):
                 try:
                     for x in range(0, w-12):
                         iter = x * block_size
-                        yupper = (h5file['rate_evolution']['ci_ubound'][iter-1, si, sj] / tau)
-                        ylower = (h5file['rate_evolution']['ci_lbound'][iter-1, si, sj] / tau)
+                        yupper = (h5file[h5key]['ci_ubound'][iter-1, si, sj] / tau)
+                        ylower = (h5file[h5key]['ci_lbound'][iter-1, si, sj] / tau)
                         ci = np.digitize([yupper, ylower], scale)
                         if x == 0:
                             for y in range(0, h+1):
@@ -814,7 +897,7 @@ class Kinetics(WESTParallelTool):
                                 #print(self.t.on_blue(' '))
                         #with self.t.location(x+12, np.digitize(h5file['rate_evolution']['expected'][iter-1, si, sj]/tau, scale)):
                         #        print(self.t.on_blue('-'))
-                        print self.t.move(np.digitize(h5file['rate_evolution']['expected'][iter-1, si, sj]/tau, scale), x+12) + self.t.on_blue('-')
+                        print self.t.move(np.digitize(h5file[h5key]['expected'][iter-1, si, sj]/tau, scale), x+12) + self.t.on_blue('-')
 
                     for x in range(0, w-12, w/10):
                         if x == 0:
@@ -827,6 +910,11 @@ class Kinetics(WESTParallelTool):
                     pass
 
                 with self.t.location(0, h+2):
+                    if h5key == 'rate_evolution':
+                        print("k_ij from {} to {} from iter 1 to {}".format(self.state_labels[si], self.state_labels[sj], self.iteration))
+                    else:
+                        print("{} state population from iter 1 to {}".format(self.state_labels[si], self.iteration))
+                with self.t.location(0, h+3):
                     raw_input("Press enter to continue.")
                 
 
@@ -836,6 +924,12 @@ class Kinetics(WESTParallelTool):
 
         def kinrw(self, i=0, j=1, tau=1):
             self.__generic_ci__(self.kinrw_file, self.iteration, i, j, tau)
+
+        def rwstateprobs(self, i=0, j=1, tau=1):
+            self.__generic_ci__(self.kinrw_file, self.iteration, i, None, 1, h5key='state_pop_evolution')
+
+        def stateprobs(self, i=0, j=1, tau=1):
+            self.__generic_ci__(self.stateprobs_file, self.iteration, i, None, 1, h5key='state_pop_evolution')
 
         def states(self):
             self.__generic_histo__(self.state_populations, self.state_labels)

@@ -146,6 +146,8 @@ Command-line options
 
         
         cgroup = parser.add_argument_group('confidence interval calculation options')
+        cgroup.add_argument('--disable-correl', '-dc', dest='correl', action='store_const', const=False,
+                             help='''Disable the correlation analysis.''')
         cgroup.add_argument('--alpha', type=float, default=0.05, 
                              help='''Calculate a (1-ALPHA) confidence interval'
                              (default: %(default)s)''')
@@ -155,6 +157,10 @@ Command-line options
                              in a noisy flux signal. (Default: same as ALPHA.)''')
         cgroup.add_argument('--nsets', type=int,
                              help='''Use NSETS samples for bootstrapping (default: chosen based on ALPHA)''')
+
+        mgroup = parser.add_argument_group('misc options')
+        mgroup.add_argument('--disable-averages', '-da', dest='display_averages', action='store_false',
+                             help='''Whether or not the averages should be printed to the console (set to FALSE if flag is used).''')
         
         cogroup = parser.add_argument_group('calculation options')
         cogroup.add_argument('-e', '--evolution-mode', choices=['cumulative', 'blocked', 'none'], default='none',
@@ -185,9 +191,12 @@ Command-line options
         self.output_filename = args.output
         self.assignments_filename = args.assignments
 
+        self.correl = args.correl
         self.mcbs_alpha = args.alpha
         self.mcbs_acalpha = args.acalpha if args.acalpha else self.mcbs_alpha
         self.mcbs_nsets = args.nsets if args.nsets else mclib.get_bssize(self.mcbs_alpha)
+
+        self.display_averages = args.display_averages
         
         self.evolution_mode = args.evolution_mode
         
@@ -236,7 +245,8 @@ Command-line options
                                              start=start_iter,stop=stop_iter,
                                              state_pops=all_state_pops[:,istate],
                                              mcbs_alpha=self.mcbs_alpha, mcbs_nsets=self.mcbs_nsets,
-                                             mcbs_acalpha = self.mcbs_acalpha))
+                                             mcbs_acalpha = self.mcbs_acalpha,
+                                             correl=self.correl))
         for future in self.work_manager.submit_as_completed(taskgen(), self.max_queue_len):
             (_iblock,istate,ci_res) = future.get_result(discard=True)
             avg_state_pops[istate] = ci_res
@@ -246,14 +256,15 @@ Command-line options
         pi.clear()
         
         maxlabellen = max(map(len,self.state_labels))
-        print('average state populations:')
-        for istate in xrange(nstates):
-            print('{:{maxlabellen}s}: mean={:21.15e} CI=({:21.15e}, {:21.15e})'
-                  .format(self.state_labels[istate],
-                          avg_state_pops['expected'][istate],
-                          avg_state_pops['ci_lbound'][istate],
-                          avg_state_pops['ci_ubound'][istate],
-                          maxlabellen=maxlabellen))
+        if self.display_averages:
+            print('average state populations:')
+            for istate in xrange(nstates):
+                print('{:{maxlabellen}s}: mean={:21.15e} CI=({:21.15e}, {:21.15e})'
+                      .format(self.state_labels[istate],
+                              avg_state_pops['expected'][istate],
+                              avg_state_pops['ci_lbound'][istate],
+                              avg_state_pops['ci_ubound'][istate],
+                              maxlabellen=maxlabellen))
         
     def calc_evolution(self):
         nstates = self.nstates
@@ -292,7 +303,8 @@ Command-line options
                                                start=block_start,stop=stop,
                                                state_pops=self.all_state_pops[block_start-start_iter:stop-start_iter,istate],
                                                mcbs_alpha=self.mcbs_alpha, mcbs_nsets=self.mcbs_nsets,
-                                               mcbs_acalpha = self.mcbs_acalpha))
+                                               mcbs_acalpha = self.mcbs_acalpha,
+                                               correl=self.correl))
         #for future in self.work_manager.as_completed(futures):
         for future in self.work_manager.submit_as_completed(taskgen(), self.max_queue_len):
             (iblock,istate,ci_res) = future.get_result(discard=True)
@@ -325,12 +337,12 @@ Command-line options
             if self.evolution_mode != 'none' and self.iter_range.iter_step:
                 self.calc_evolution()
 
-def _eval_block(iblock, istate, start, stop, state_pops, mcbs_alpha, mcbs_nsets, mcbs_acalpha):
+def _eval_block(iblock, istate, start, stop, state_pops, mcbs_alpha, mcbs_nsets, mcbs_acalpha, correl):
     #ci_res = mcbs_ci_correl(state_pops,estimator=numpy.mean,alpha=mcbs_alpha,n_sets=mcbs_nsets,
     #                        autocorrel_alpha=mcbs_acalpha,subsample=numpy.mean)
 
     ci_res = mcbs_ci_correl_rw({'dataset': state_pops},estimator=(lambda stride, dataset: numpy.mean(dataset)), alpha=mcbs_alpha,n_sets=mcbs_nsets,
-                            autocorrel_alpha=mcbs_acalpha,subsample=numpy.mean, pre_calculated=state_pops, correl=False)
+                            autocorrel_alpha=mcbs_acalpha,subsample=numpy.mean, pre_calculated=state_pops, correl=correl)
     return (iblock,istate,(start,stop)+ci_res)
 
 if __name__ == '__main__':

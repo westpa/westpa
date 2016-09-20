@@ -391,8 +391,8 @@ cpdef sequence_macro_flux_to_rate_bs(weight_t[:] dataset, weight_t[:,:] pops, Py
         Py_ssize_t iiter, nstates, itersum
         weight_t[:] _rates, _fluxsum, _pairsum, _psum
         
-    rates = numpy.empty((dataset.shape[0]), dtype=weight_dtype)
-    #rates = 0.0
+    rates = numpy.zeros((dataset.shape[0]), dtype=weight_dtype)
+    #rates = :W
     fluxsum = numpy.zeros((dataset.shape[0]), dtype=weight_dtype)
     psum = numpy.zeros((dataset.shape[0]), dtype=weight_dtype)
     pairsum = numpy.zeros((dataset.shape[0]), dtype=weight_dtype)
@@ -422,6 +422,8 @@ cpdef sequence_macro_flux_to_rate_bs(weight_t[:] dataset, weight_t[:,:] pops, Py
                 _rates[iiter] = 0.0
         #rates /= iiter
 
+    #print("Testing...")
+    #print(rates)
     return rates[iiter]
 
 @cython.boundscheck(False)
@@ -483,19 +485,20 @@ cpdef sequence_macro_flux_to_rate(weight_t[:,:,:] fluxes, weight_t[:,:] traj_ens
                         #_total_p[iiter,istate,jstate] = (_psum[iiter,istate,jstate] / _pairsum[iiter,istate, jstate]) + _total_p[iiter-1,istate,jstate]
                         _fluxsum[iiter,istate,jstate] = fluxes[iiter,istate,jstate] + _fluxsum[iiter-1,istate,jstate]
                     #if traj_ens_pops[iiter,istate] > 0:
-                    if _psum[iiter,istate, jstate] > 0:
+                    if _psum[iiter,istate, jstate] > 0 and _fluxsum[iiter,istate,jstate] > 0:
                         #_rates[iiter,istate,jstate] = _fluxsum[iiter,istate,jstate] / _psum[iiter,istate]
                         #if pairwise:
                         #    _rates[iiter,istate,jstate] = _fluxsum[iiter,istate,jstate] / _total_p[iiter,istate,jstate]
                         #else:
                         _rates[iiter,istate,jstate] = _fluxsum[iiter,istate,jstate] / _psum[iiter,istate,jstate]
-                    elif fluxes[iiter,istate,jstate] > 0:
+                    #elif fluxes[iiter,istate,jstate] > 0 or if _psum[iiter,istate,jstate] =< 0:
                         # This is an invalid rate, but can appear in some places in recycling simulations,
                         # so we allow things to proceed but store NaN, which will render any average
                         # rates based on this matrix element NaN as well.
-                        _rates[iiter,istate,jstate] = NAN 
-                    #else:
-                    #    _rates[iiter,istate,jstate] = 0
+                        # I suspect without changing this to a 0, we're getting totally improper rates.
+                        #_rates[iiter,istate,jstate] = 0
+                    else:
+                        _rates[iiter,istate,jstate] = 0
     return rates
 
 """

@@ -257,7 +257,7 @@ the true value of ``tau``.
             #avg, lb_ci, ub_ci, correl_len = mclib.mcbs_ci_correl(fluxes, numpy.mean, self.alpha, self.n_sets,
             #                                                     autocorrel_alpha=self.autocorrel_alpha, subsample=numpy.mean)
             avg, lb_ci, ub_ci, sterr, correl_len = mclib.mcbs_ci_correl_rw({'dataset': fluxes}, estimator=(lambda stride, dataset: numpy.mean(dataset)), alpha=self.alpha, n_sets=self.n_sets,
-                                                                 autocorrel_alpha=self.autocorrel_alpha, subsample=numpy.mean, pre_calculated=fluxes, correl=False)
+                                                                 autocorrel_alpha=self.autocorrel_alpha, subsample=numpy.mean, pre_calculated=fluxes, correl=True)
             avg_fluxdata[itarget] = (self.iter_range.iter_start, self.iter_range.iter_stop, avg, lb_ci, ub_ci, sterr, correl_len)
             westpa.rc.pstatus('target {!r}:'.format(target_label))
             westpa.rc.pstatus('  correlation length = {} tau'.format(correl_len))

@@ -181,7 +181,7 @@ class KinAvgSubcommands(WESTSubcommand):
         self.output_filename = os.path.join(path, 'kinavg.h5')
         self.kinetics_filename = os.path.join(path, 'kintrace.h5')
         self.assignments_filename = os.path.join(path, 'assign.h5')
-        w_kinavg_config = { 'mcbs_alpha': 0.05, 'mcbs_nsets': 1000, 'evolution': 'cumulative', 'evol_window_frac': 1, 'step_iter': 1, 'bootstrap': True , 'correl': False, 'display_averages': False}
+        w_kinavg_config = { 'mcbs_alpha': 0.05, 'mcbs_nsets': 1000, 'evolution': 'cumulative', 'evol_window_frac': 1, 'step_iter': 1, 'bootstrap': True , 'correl': True, 'display_averages': False}
         try:
             w_kinavg_config.update(config['w_kinavg'])
         except:
@@ -206,7 +206,7 @@ def _eval_block(iblock, start, stop, nstates, total_fluxes, cond_fluxes, pops, r
     results = [[],[],[]]
     # results are target fluxes, conditional fluxes, rates
     for istate in xrange(nstates):
-        kwargs = { 'istate' : istate }
+        kwargs = { 'istate' : istate , 'jstate': 'B'}
         dataset = {'dataset': total_fluxes[:, istate]}
         ci_res = mcbs_ci_correl_rw(dataset,estimator=(lambda stride, dataset: numpy.mean(dataset)),
                                     alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
@@ -228,7 +228,7 @@ def _eval_block(iblock, start, stop, nstates, total_fluxes, cond_fluxes, pops, r
             dataset = {'dataset': cond_fluxes[:, istate, jstate], 'pops': pops}
             ci_res = mcbs_ci_correl_rw(dataset,estimator=sequence_macro_flux_to_rate_bs,
                                     alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
-                                    subsample=numpy.mean, pre_calculated=rates[:,istate,jstate], correl=correl, **kwargs)
+                                    subsample=numpy.mean, pre_calculated=rates[:,istate,jstate][numpy.isfinite(rates[:,istate,jstate])], correl=correl, **kwargs)
             results[2].append((iblock, istate, jstate, (start,stop) + ci_res))
 
     return results

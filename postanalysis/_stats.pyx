@@ -113,7 +113,7 @@ cpdef int normalize(weight_t[:,:] m, Py_ssize_t nfbins) nogil:
 @cython.boundscheck(False)
 @cython.wraparound(False)
 @cython.cdivision(True)
-cpdef weight_t reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, nbins, state_labels, state_map, nfbins, istate, jstate, stride, bin_last_state_map, bin_state_map, obs_threshold=1, return_flux=False):
+cpdef weight_t reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, nbins, state_labels, state_map, nfbins, istate, jstate, stride, bin_last_state_map, bin_state_map, obs_threshold=1, return_flux=False, return_states=False):
 
 
 
@@ -132,7 +132,7 @@ cpdef weight_t reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, n
         weight_t[:,:] _total_fluxes, _transition_matrix, _rw_state_flux, _strong_transition_matrix
         double[:,:] _WORK, _eigvecs
         int[:,:] _total_obs, _graph
-        bint _return_flux
+        bint _return_flux, _return_states
         #double[:] eigvals, eigvalsi
         #double[:,:] eigvecs, WORK
 
@@ -198,6 +198,7 @@ cpdef weight_t reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, n
     _istate = istate
     _jstate = jstate
     _return_flux = return_flux
+    _return_states = return_states
 
 
     #NOGIL
@@ -221,13 +222,18 @@ cpdef weight_t reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, n
 
         calc_state_flux(_transition_matrix, _rw_bin_probs, _bin_last_state_map, _bin_state_map, _nstates, _rw_state_flux, _nfbins)
 
-        if _return_flux == False:
+        # This allows us to use the same function for all three types.
+        # To simplify this, and return all three at once, we'd need to make changes to the whole mclib bit.
+        # Probably, anyway.
+        if _return_flux == True:
+            return _rw_state_flux[_istate,_jstate] 
+        elif _return_states == True:
+            return _rw_state_probs[_istate]
+        else:
             if _rw_color_probs[_istate] != 0.0:
                 return (_rw_state_flux[_istate,_jstate] / (_rw_color_probs[_istate] / (_rw_color_probs[_istate] + _rw_color_probs[_jstate])))
             else:
                 return 0.0
-        else:
-            return _rw_state_flux[_istate,_jstate] 
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
