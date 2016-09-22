@@ -40,7 +40,7 @@ class WMEnvironment:
     env_prefix = 'WM'
     arg_prefix = 'wm'
     
-    default_work_manager = 'processes'
+    default_work_manager = 'serial'
     default_parallel_work_manager = 'processes'
     valid_work_managers = list(_available_work_managers.iterkeys())
     

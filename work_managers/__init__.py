@@ -42,7 +42,7 @@ _available_work_managers = {'serial': SerialWorkManager,
 # Import ZeroMQ work manager if available
 try:
     import zeromq
-    from zeromq import ZMQWorkManager, ZMQClient, ZMQRouter
+    from zeromq import ZMQWorkManager
 except ImportError:
     log.info('ZeroMQ work manager not available')
     log.debug('traceback follows', exc_info=True)

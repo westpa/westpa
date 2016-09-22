@@ -4,10 +4,10 @@ Contributors to the wwmgr code
 
 (In alphabetical order)
 
-Josh Adelman <jla65@pitt.edu>
+Josh Adelman
 Joe Kaus
 Nick Rego
-Kim Wong <kimwong@pitt.edu>
+Kim Wong
 Matt Zwier <mczwier@gmail.com>
 
 The work manager interface is derived from the ``concurrent.futures`` module

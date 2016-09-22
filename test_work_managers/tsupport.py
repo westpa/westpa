@@ -38,10 +38,15 @@ def will_busyhang():
         pass
     
 def will_busyhang_uninterruptible():
+    #import signal
+    #signal.signal(signal.SIGINT, signal.SIG_IGN)
+    #signal.signal(signal.SIGQUIT, signal.SIG_IGN)
+    #while True:
+    #    pass
     while True:
         try:
             pass
-        except KeyboardInterrupt:
+        except BaseException:
             pass
     
 def identity(x):
@@ -73,9 +78,12 @@ class CommonWorkManagerTests:
     
     def test_submit(self):
         future = self.work_manager.submit(will_succeed)
+        future.get_result()
             
     def test_submit_many(self):
         futures = self.work_manager.submit_many([(will_succeed,(),{}) for i in xrange(self.MED_TEST_SIZE)])
+        for future in futures:
+            future.get_result()
             
     def test_as_completed(self):
         input = set(xrange(self.MED_TEST_SIZE))
