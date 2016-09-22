@@ -265,8 +265,8 @@ class ZMQCore:
     internal_transport = 'ipc'
     
     default_comm_mode = 'ipc'
-    default_master_heartbeat = 2.0
-    default_worker_heartbeat = 2.0
+    default_master_heartbeat = 20.0
+    default_worker_heartbeat = 20.0
     default_timeout_factor = 5.0
     default_startup_timeout = 120.0
     default_shutdown_timeout = 5.0
