@@ -39,6 +39,11 @@ class WESTErrorReporting:
         log.debug('initializing error handling')
         self.config = westpa.rc.config
         self.system = westpa.rc.get_system_driver()
+        try:
+            self.report_all_errors = self.config['west']['report_all_errors']
+        except:
+            self.report_all_errors = False
+        self.reported_errors = {}
         # Calling program
         self.cp = cp
 
@@ -55,13 +60,16 @@ class WESTErrorReporting:
         linebreak = "-------------------------------------------"
         self.format_kwargs = { 'executable': executable, 'rcfile': rcfile, 'pcoord_ndim': pcoord_ndim, 'pcoord_len': pcoord_len, 'logfile': logfile,
                                'wiki': wiki, 'linebreak': linebreak, 'cp': cp, 'llinebreak': llinebreak }
-        self.reported_errors = {}
 
         self.SEG_ERROR            = """
         {llinebreak}{linebreak}
-        ERROR ON Iteration: {segment.n_iter}, Segment: {segment.seg_id}"""
+        ERROR # {id} ON Iteration: {segment.n_iter}, Segment: {segment.seg_id}"""
 
-        self.RUNSEG_GENERAL_ERROR = """
+        self.ITER_ERROR = """
+        {llinebreak}{linebreak}
+        ERROR # {id} ON Iteration: {iteration}"""
+
+        self.RUNSEG_GENERAL_ERROR = { 'msg': """
         A general error has been caught from the {executable} propagator.
         You should check the indicated log file for more specific errors,
         or see below.
@@ -76,9 +84,10 @@ class WESTErrorReporting:
         {linebreak}
         {err}
         {linebreak}
-        """
+        """,
+        'id': 0 }
 
-        self.RUNSEG_SHAPE_ERROR = """
+        self.RUNSEG_SHAPE_ERROR = { 'msg': """
         The shape of your progress coordinate return value is {shape},
         which is different from what is specified in your {rcfile}: ({pcoord_len}, {pcoord_ndim}).  
 
@@ -92,9 +101,10 @@ class WESTErrorReporting:
         that you are returning.
 
         See {logfile}
-        """
+        """,
+        'id': 1 }
 
-        self.RUNSEG_TMP_ERROR = """
+        self.RUNSEG_TMP_ERROR = { 'msg': """
         Could not read the auxdata {dataset} return value from {filename} for segment {segment.seg_id} in iteration {segment.n_iter}.
 
         POSSIBLE REASONS
@@ -117,9 +127,10 @@ class WESTErrorReporting:
         {linebreak}
         {e}
         {linebreak}
-        """
+        """,
+        'id': 2 }
 
-        self.RUNSEG_AUX_ERROR = """
+        self.RUNSEG_AUX_ERROR = { 'msg': """
         Your auxiliary data return is empty.  This typically
         means that your {executable} propagator has failed.  Please
         check the indicated log file for more specific
@@ -135,27 +146,39 @@ class WESTErrorReporting:
         {linebreak}
 
         Also, has anyone ever seen me?
-        """
+        """,
+        'id': 3 }
 
-        self.RUNSEG_PROP_ERROR = """
-        {llinebreak}{linebreak}
-        ERROR ON Iteration: {iteration}
-
+        self.RUNSEG_PROP_ERROR = { 'msg': """
         Propagation has failed for {failed_segments} segments:
         {linebreak}
         {failed_ids}
         {linebreak}
 
         Check the corresponding log files for each ID.
-        """
+        """,
+        'id': 4 }
 
-        self.WRUN_INTERRUPTED = """
+        self.WRUN_INTERRUPTED = { 'msg': """
         INTERRUPTION
 
         An interruption has been sent to {cp}.
         This has either been done manually (such as the break command or the killing of a queue script),
         or by the local sysadmin.
-        """
+        """,
+        'id': 5 }
+
+        self.RUNSEG_EMPTY_VARIABLES = { 'msg': """
+        NOTICE
+
+        Empty variables exist in your {executable}.  This could be a problem.
+
+        {linebreak}
+        {empties}
+        {linebreak}
+
+        """,
+        'id': 99 }
 
         self.REPORT_ONCE = """
         NOTICE
@@ -176,6 +199,8 @@ class WESTErrorReporting:
         # We'll want to pass in the segment object, actually.  But we can't call that from here...
         # ... but, this should still work, for the moment.
         self.format_kwargs.update(kwargs)
+        # Pull in the ID.
+        self.format_kwargs.update(error)
         self.format_kwargs.update({'segment': segment})
         # Testing for istate/bstates.
         try:
@@ -193,28 +218,64 @@ class WESTErrorReporting:
         # Often, we repeat many errors and it's a pain.  Sometimes, this is useful information,
         # but most of the time it's just indicative of a general problem.
         # In the typical python fashion, we ask forgiveness, not permission.
-        try:
-            if self.reported_errors[self.REPORT_ONCE] == False:
+        if self.report_all_errors == False:
+            try:
+                if self.reported_errors[self.REPORT_ONCE] == False:
+                    self.pstatus(self.REPORT_ONCE.format(**self.format_kwargs))
+                    self.reported_errors[self.REPORT_ONCE] = True
+            except:
                 self.pstatus(self.REPORT_ONCE.format(**self.format_kwargs))
                 self.reported_errors[self.REPORT_ONCE] = True
-        except:
-            self.pstatus(self.REPORT_ONCE.format(**self.format_kwargs))
-            self.reported_errors[self.REPORT_ONCE] = True
 
         try:
-            if self.reported_errors[error] == False:
+            if self.reported_errors[error['msg']] == False:
                 self.pstatus(self.SEG_ERROR.format(**self.format_kwargs))
-                self.pstatus(error.format(**self.format_kwargs))
+                self.pstatus(error['msg'].format(**self.format_kwargs))
                 self.pstatus(self.SEE_WIKI.format(**self.format_kwargs))
-                self.reported_errors[error] = True
+                if self.report_all_errors == False:
+                    self.reported_errors[error['msg']] = True
         except:
             self.pstatus(self.SEG_ERROR.format(**self.format_kwargs))
-            self.pstatus(error.format(**self.format_kwargs))
+            self.pstatus(error['msg'].format(**self.format_kwargs))
             self.pstatus(self.SEE_WIKI.format(**self.format_kwargs))
-            self.reported_errors[error] = True
+            if self.report_all_errors == False:
+                self.reported_errors[error['msg']] = True
     def report_error(self, error, **kwargs):
         self.format_kwargs.update(kwargs)
-        self.pstatus(error.format(**self.format_kwargs))
+        # Pull in the ID.
+        self.format_kwargs.update(error)
+        self.pstatus(self.ITER_ERROR.format(**self.format_kwargs))
+        self.pstatus(error['msg'].format(**self.format_kwargs))
         self.pstatus(self.SEE_WIKI.format(**self.format_kwargs))
+    def report_general_error_once(self, error, **kwargs):
+        # This is a function that respects the 'run only once' setting,
+        # but doesn't require extensive iteration.  It's useful for printing a
+        # warning a during simulation.
+
+        self.format_kwargs.update(kwargs)
+        # Pull in the ID.
+        self.format_kwargs.update(error)
+        # How can we enable it such that we report one 'type' of error only once?
+        # Often, we repeat many errors and it's a pain.  Sometimes, this is useful information,
+        # but most of the time it's just indicative of a general problem.
+        # In the typical python fashion, we ask forgiveness, not permission.
+        if self.report_all_errors == False:
+            try:
+                if self.reported_errors[self.REPORT_ONCE] == False:
+                    self.pstatus(self.REPORT_ONCE.format(**self.format_kwargs))
+                    self.reported_errors[self.REPORT_ONCE] = True
+            except:
+                self.pstatus(self.REPORT_ONCE.format(**self.format_kwargs))
+                self.reported_errors[self.REPORT_ONCE] = True
+
+        try:
+            if self.reported_errors[error['msg']] == False:
+                self.pstatus(error['msg'].format(**self.format_kwargs))
+                if self.report_all_errors == False:
+                    self.reported_errors[error['msg']] = True
+        except:
+            self.pstatus(error['msg'].format(**self.format_kwargs))
+            if self.report_all_errors == False:
+                self.reported_errors[error['msg']] = True
     def raise_exception(self):
         raise Exception('Error reported from {}'.format(self.cp))

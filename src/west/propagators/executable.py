@@ -272,6 +272,19 @@ class ExecutablePropagator(WESTPropagator):
         stdout.write(out)
         stdout.write('\n\n\n----------- STDERR ------------\n\n\n')
         stdout.write(err)
+        stdout.write('\n\n\n----------- EMPTY ------------\n\n\n')
+        # Why don't we check for empty variables?  This assumes they've done an env.
+        empty = False
+        empties = []
+        import re
+        for line in out.splitlines():
+            if re.search("=$", line):
+                empty = True
+                stdout.write(line)
+                empties.append(line)
+        if empty == True:
+            # Hey, wait.  What iteration is this?
+            error.report_general_error_once(error.RUNSEG_EMPTY_VARIABLES, empties="\n        ".join(empties))
         rc = proc.returncode
         return (rc, rusage, "\n        ".join(err.splitlines()[-10:]))
     
@@ -528,8 +541,10 @@ class ExecutablePropagator(WESTPropagator):
                 except Exception as e:
                     # This should happen when the tmp space fails to be readable, for whatever reason.
                     # We should probably handle this accordingly, in that case.
-                    # However, it also happens when an aux dataset is empty.
-                    error.report_segment_error(error.RUNSEG_TMP_ERROR, segment=segment, filename=filename, dataset=dataset, e=e)
+                    # However, it also happens when an aux dataset is empty, or when the pcoord itself is empty.
+                    # We should have already thrown an exception for the pcoord, though.
+                    if dataset != 'pcoord':
+                        error.report_segment_error(error.RUNSEG_TMP_ERROR, segment=segment, filename=filename, dataset=dataset, e=e)
                     #log.error('could not read {} from {!r}: {!r}'.format(dataset, filename, e))
                     segment.status = Segment.SEG_STATUS_FAILED 
                     break
