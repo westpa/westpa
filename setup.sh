@@ -50,7 +50,7 @@ for d in lib/west_tools; do
     cd -
 done
 
-cp __westpa__.sh westpa.sh
+cp .westpa.sh westpa.sh
 sed -i "s|__WESTROOT__|$PWD|g" westpa.sh
 sed -i "s|__WESTBIN__|$PWD/bin|g" westpa.sh
 sed -i "s|__WESTPYTHON__|$WEST_PYTHON|g" westpa.sh
