@@ -116,9 +116,6 @@ class ExecutablePropagator(WESTPropagator):
     def __init__(self, rc=None):
         super(ExecutablePropagator,self).__init__(rc)
 
-        # Adding in the error handling module to report errors.
-        self.errors = errors.WESTErrorReporting(sys.argv[0])
-            
         # A mapping of environment variables to template strings which will be
         # added to the environment of all children launched.
         self.addtl_child_environ = dict()
@@ -532,7 +529,7 @@ class ExecutablePropagator(WESTPropagator):
                     # This should happen when the tmp space fails to be readable, for whatever reason.
                     # We should probably handle this accordingly, in that case.
                     # However, it also happens when an aux dataset is empty.
-                    self.errors.report_segment_error(self.errors.RUNSEG_TMP_ERROR, segment=segment, filename=filename, dataset=dataset, e=e)
+                    error.report_segment_error(error.RUNSEG_TMP_ERROR, segment=segment, filename=filename, dataset=dataset, e=e)
                     #log.error('could not read {} from {!r}: {!r}'.format(dataset, filename, e))
                     segment.status = Segment.SEG_STATUS_FAILED 
                     break

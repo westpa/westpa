@@ -63,7 +63,8 @@ class WESTErrorReporting:
 
         self.RUNSEG_GENERAL_ERROR = """
         A general error has been caught from the {executable} propagator.
-        You should check the indicated log file for more specific errors, as it is failing.
+        You should check the indicated log file for more specific errors,
+        or see below.
 
         FILES TO CHECK
 
@@ -160,7 +161,7 @@ class WESTErrorReporting:
         NOTICE
 
         The configuration has been set such that each error type is caught only once; all other
-        segments which report the same error will have their output supressed.  This can be disabled.
+        segments which report the same error will have their output suppressed.  This can be disabled.
         """
 
         self.SEE_WIKI = """
@@ -193,16 +194,22 @@ class WESTErrorReporting:
         # but most of the time it's just indicative of a general problem.
         # In the typical python fashion, we ask forgiveness, not permission.
         try:
+            if self.reported_errors[self.REPORT_ONCE] == False:
+                self.pstatus(self.REPORT_ONCE.format(**self.format_kwargs))
+                self.reported_errors[self.REPORT_ONCE] = True
+        except:
+            self.pstatus(self.REPORT_ONCE.format(**self.format_kwargs))
+            self.reported_errors[self.REPORT_ONCE] = True
+
+        try:
             if self.reported_errors[error] == False:
                 self.pstatus(self.SEG_ERROR.format(**self.format_kwargs))
                 self.pstatus(error.format(**self.format_kwargs))
-                self.pstatus(self.REPORT_ONCE.format(**self.format_kwargs))
                 self.pstatus(self.SEE_WIKI.format(**self.format_kwargs))
                 self.reported_errors[error] = True
         except:
             self.pstatus(self.SEG_ERROR.format(**self.format_kwargs))
             self.pstatus(error.format(**self.format_kwargs))
-            self.pstatus(self.REPORT_ONCE.format(**self.format_kwargs))
             self.pstatus(self.SEE_WIKI.format(**self.format_kwargs))
             self.reported_errors[error] = True
     def report_error(self, error, **kwargs):
