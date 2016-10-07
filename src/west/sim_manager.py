@@ -553,9 +553,9 @@ class WESimManager:
                 else:
                     failed_ids = failed_ids + str(segment.seg_id).zfill(padding) + '\n        '
                     isegment = 0
-            failed_ids = failed_ids[:-1]
+            failed_ids = failed_ids[:-2]
 
-            self.errors.report_error(self.errors.RUNSEG_PROP_ERROR, failed_segments=len(failed_segments), failed_ids=failed_ids)
+            self.errors.report_error(self.errors.RUNSEG_PROP_ERROR, failed_segments=len(failed_segments), failed_ids=failed_ids, iteration=self.n_iter)
             self.errors.raise_exception()
         else:
             log.debug('propagation complete for iteration {:d}'.format(self.n_iter))

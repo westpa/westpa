@@ -55,6 +55,7 @@ class WESTErrorReporting:
         linebreak = "-------------------------------------------"
         self.format_kwargs = { 'executable': executable, 'rcfile': rcfile, 'pcoord_ndim': pcoord_ndim, 'pcoord_len': pcoord_len, 'logfile': logfile,
                                'wiki': wiki, 'linebreak': linebreak, 'cp': cp, 'llinebreak': llinebreak }
+        self.reported_errors = {}
 
         self.SEG_ERROR            = """
         {llinebreak}{linebreak}
@@ -93,7 +94,7 @@ class WESTErrorReporting:
         """
 
         self.RUNSEG_TMP_ERROR = """
-        Could not read the auxdata {dataset} return value from {filename} for {segment.seg_id} in iteration {segment.n_iter}.
+        Could not read the auxdata {dataset} return value from {filename} for segment {segment.seg_id} in iteration {segment.n_iter}.
 
         POSSIBLE REASONS
 
@@ -136,14 +137,30 @@ class WESTErrorReporting:
         """
 
         self.RUNSEG_PROP_ERROR = """
-        ERROR
+        {llinebreak}{linebreak}
+        ERROR ON Iteration: {iteration}
 
-        Propagation has failed for {failed_segments} trajectory walkers:
+        Propagation has failed for {failed_segments} segments:
         {linebreak}
         {failed_ids}
         {linebreak}
 
         Check the corresponding log files for each ID.
+        """
+
+        self.WRUN_INTERRUPTED = """
+        INTERRUPTION
+
+        An interruption has been sent to {cp}.
+        This has either been done manually (such as the break command or the killing of a queue script),
+        or by the local sysadmin.
+        """
+
+        self.REPORT_ONCE = """
+        NOTICE
+
+        The configuration has been set such that each error type is caught only once; all other
+        segments which report the same error will have their output supressed.  This can be disabled.
         """
 
         self.SEE_WIKI = """
@@ -152,6 +169,7 @@ class WESTErrorReporting:
 
         {llinebreak}{linebreak}
         """ 
+
 
     def report_segment_error(self, error, segment, **kwargs):
         # We'll want to pass in the segment object, actually.  But we can't call that from here...
@@ -169,10 +187,24 @@ class WESTErrorReporting:
             self.format_kwargs['logfile'] = os.path.expandvars(self.format_kwargs['logfile'].format(segment=segment))
         except:
             pass
-        self.pstatus(self.SEG_ERROR.format(**self.format_kwargs))
-        self.pstatus(error.format(**self.format_kwargs))
-        self.pstatus(self.SEE_WIKI.format(**self.format_kwargs))
-    #def report_error(self.errors.RUNSEG_PROP_ERROR, failed_segments=failed_segments, failed_ids=failed_ids):
+
+        # How can we enable it such that we report one 'type' of error only once?
+        # Often, we repeat many errors and it's a pain.  Sometimes, this is useful information,
+        # but most of the time it's just indicative of a general problem.
+        # In the typical python fashion, we ask forgiveness, not permission.
+        try:
+            if self.reported_errors[error] == False:
+                self.pstatus(self.SEG_ERROR.format(**self.format_kwargs))
+                self.pstatus(error.format(**self.format_kwargs))
+                self.pstatus(self.REPORT_ONCE.format(**self.format_kwargs))
+                self.pstatus(self.SEE_WIKI.format(**self.format_kwargs))
+                self.reported_errors[error] = True
+        except:
+            self.pstatus(self.SEG_ERROR.format(**self.format_kwargs))
+            self.pstatus(error.format(**self.format_kwargs))
+            self.pstatus(self.REPORT_ONCE.format(**self.format_kwargs))
+            self.pstatus(self.SEE_WIKI.format(**self.format_kwargs))
+            self.reported_errors[error] = True
     def report_error(self, error, **kwargs):
         self.format_kwargs.update(kwargs)
         self.pstatus(error.format(**self.format_kwargs))

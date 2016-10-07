@@ -23,6 +23,8 @@ log = logging.getLogger('w_run')
 import westpa
 import work_managers
 from work_managers import make_work_manager
+import sys
+from west import errors
 
 parser = argparse.ArgumentParser('w_run', 'start/continue a WEST simulation')
 westpa.rc.add_args(parser)
@@ -35,6 +37,9 @@ args = parser.parse_args()
 westpa.rc.process_args(args)
 work_managers.environment.process_wm_args(args)
 work_manager = westpa.rc.work_manager = make_work_manager()
+
+# Load up the error handling module
+werrors = errors.WESTErrorReporting(sys.argv[0])
 
 # Load the sim manager and other drivers
 sim_manager = westpa.rc.get_sim_manager()
@@ -67,7 +72,8 @@ with work_manager:
             log.debug('finalizing run')
             sim_manager.finalize_run()
         except KeyboardInterrupt:
-            westpa.rc.pstatus('interrupted; shutting down')
+            werrors.report_error(werrors.WRUN_INTERRUPTED)
+            # westpa.rc.pstatus('interrupted; shutting down')
         except:
             westpa.rc.pstatus('exception caught; shutting down')
             log.error(traceback.format_exc())

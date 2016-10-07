@@ -34,6 +34,9 @@ from west import Segment
 from west.propagators import WESTPropagator
 from west import errors
 
+# We're using functions that want this, so.
+error = errors.WESTErrorReporting(sys.argv[0])
+
 import warnings
 warnings.filterwarnings('ignore', category=DeprecationWarning)
 warnings.filterwarnings('ignore', category=RuntimeWarning)
@@ -48,7 +51,6 @@ def pcoord_loader(fieldname, pcoord_return_filename, destobj, single_point, exec
     """
     
     system = westpa.rc.get_system_driver()
-    error = errors.WESTErrorReporting(sys.argv[0])
     
     assert fieldname == 'pcoord'
     
