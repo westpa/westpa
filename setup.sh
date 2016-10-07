@@ -18,7 +18,7 @@ function checkout_remote() {
 }
 
 if [[ -z "$WEST_PYTHON" ]] ;  then
-    WEST_PYTHON=python2.7
+    WEST_PYTHON=`which python2.7`
 fi
 
 find . -name \*.so -print0 | xargs -0 rm &> /dev/null
@@ -50,3 +50,14 @@ for d in lib/west_tools; do
     cd -
 done
 
+cp __westpa__.sh westpa.sh
+sed -i "s|__WESTROOT__|$PWD|g" westpa.sh
+sed -i "s|__WESTBIN__|$PWD/bin|g" westpa.sh
+sed -i "s|__WESTPYTHON__|$WEST_PYTHON|g" westpa.sh
+chmod +x westpa.sh
+
+echo ""
+echo "Installation successful!"
+echo "Your WEST_ROOT is set as $PWD."
+echo "In order to use westpa, please source $PWD/westpa.sh before running!"
+echo ""
