@@ -32,8 +32,15 @@ from westpa.yamlcfg import check_bool, ConfigItemMissing
 import west
 from west import Segment
 from west.propagators import WESTPropagator
+from west import errors
 
-def pcoord_loader(fieldname, pcoord_return_filename, destobj, single_point):
+import warnings
+warnings.filterwarnings('ignore', category=DeprecationWarning)
+warnings.filterwarnings('ignore', category=RuntimeWarning)
+warnings.filterwarnings('ignore', category=FutureWarning)
+warnings.filterwarnings('ignore', category=UserWarning)
+
+def pcoord_loader(fieldname, pcoord_return_filename, destobj, single_point, executable=None, logfile=None):
     """Read progress coordinate data into the ``pcoord`` field on ``destobj``. 
     An exception will be raised if the data is malformed.  If ``single_point`` is true,
     then only one (N-dimensional) point will be read, otherwise system.pcoord_len points
@@ -41,6 +48,7 @@ def pcoord_loader(fieldname, pcoord_return_filename, destobj, single_point):
     """
     
     system = westpa.rc.get_system_driver()
+    error = errors.WESTErrorReporting(sys.argv[0])
     
     assert fieldname == 'pcoord'
     
@@ -55,8 +63,17 @@ def pcoord_loader(fieldname, pcoord_return_filename, destobj, single_point):
         if pcoord.ndim == 1:
             pcoord.shape = (len(pcoord),1)
     if pcoord.shape != expected_shape:
-        raise ValueError('progress coordinate data has incorrect shape {!r} [expected {!r}]'.format(pcoord.shape,
-                                                                                                    expected_shape))
+        if pcoord.shape == (0,1):
+            error.report_segment_error(error.RUNSEG_GENERAL_ERROR, segment=destobj, err=destobj.err)
+            error.raise_exception()
+        elif pcoord.shape == (0,):
+            # Failure on single points.  Typically for istate/bstates.
+            error.report_segment_error(error.RUNSEG_GENERAL_ERROR, segment=destobj, err=destobj.err, executable=os.path.expandvars(executable), logfile=os.path.expandvars(logfile))
+            error.raise_exception()
+        else:
+            error.report_segment_error(error.RUNSEG_SHAPE_ERROR, segment=destobj, shape=pcoord.shape)
+            error.raise_exception()
+
     destobj.pcoord = pcoord
 
 def aux_data_loader(fieldname, data_filename, segment, single_point):
@@ -96,6 +113,9 @@ class ExecutablePropagator(WESTPropagator):
         
     def __init__(self, rc=None):
         super(ExecutablePropagator,self).__init__(rc)
+
+        # Adding in the error handling module to report errors.
+        self.errors = errors.WESTErrorReporting(sys.argv[0])
             
         # A mapping of environment variables to template strings which will be
         # added to the environment of all children launched.
@@ -233,17 +253,28 @@ class ExecutablePropagator(WESTPropagator):
             stderr = file(stderr, 'wb') if stderr else sys.stderr
                 
         # close_fds is critical for preventing out-of-file errors
+        from subprocess import PIPE
         proc = subprocess.Popen([executable],
                                 cwd = cwd,
-                                stdin=stdin, stdout=stdout, stderr=stderr if stderr != stdout else subprocess.STDOUT,
+                                #stdin=stdin, stdout=stdout, stderr=stderr if stderr != stdout else subprocess.STDOUT,
+                                stdin=stdin, stdout=PIPE, stderr=PIPE,
                                 close_fds=True, env=all_environ)
 
         # Wait on child and get resource usage
         (_pid, _status, rusage) = os.wait4(proc.pid, 0)
         # Do a subprocess.Popen.wait() to let the Popen instance (and subprocess module) know that
         # we are done with the process, and to get a more friendly return code
-        rc = proc.wait()
-        return (rc, rusage)
+        #rc = proc.wait()
+        # While the return code is great, we may want to push more explicit error messages.
+        # let's communicate and duplicate some of the stderr output, and send it on its way.
+        # This may have to happen in the calling function, but whatever.
+        out, err = proc.communicate()
+        stdout.write('----------- STDOUT ------------\n\n\n')
+        stdout.write(out)
+        stdout.write('\n\n\n----------- STDERR ------------\n\n\n')
+        stdout.write(err)
+        rc = proc.returncode
+        return (rc, rusage, "\n        ".join(err.splitlines()[-10:]))
     
     def exec_child_from_child_info(self, child_info, template_args, environ):
         for (key, value) in child_info.get('environ', {}).iteritems():
@@ -387,12 +418,13 @@ class ExecutablePropagator(WESTPropagator):
                      self.ENV_STRUCT_DATA_REF: struct_ref}
 
         try:
-            rc, rusage = execfn(child_info, state, addtl_env)
+            rc, rusage, err = execfn(child_info, state, addtl_env)
+            state.err = err
             if rc != 0:
                 log.error('get_pcoord executable {!r} returned {}'.format(child_info['executable'], rc))
                 
             loader = self.data_info['pcoord']['loader']
-            loader('pcoord', rfname, state, single_point = True)
+            loader('pcoord', rfname, state, single_point = True, executable=child_info['executable'], logfile=child_info['stdout'])
         finally:
             try:
                 os.unlink(rfname)
@@ -402,7 +434,8 @@ class ExecutablePropagator(WESTPropagator):
     def gen_istate(self, basis_state, initial_state):
         '''Generate a new initial state from the given basis state.'''
         child_info = self.exe_info.get('gen_istate')
-        rc, rusage = self.exec_for_initial_state(child_info, initial_state)
+        rc, rusage, err = self.exec_for_initial_state(child_info, initial_state)
+        initial_state.err = err
         if rc != 0:
             log.error('gen_istate executable {!r} returned {}'.format(child_info['executable'], rc))
             initial_state.istate_status = InitialState.ISTATE_STATUS_FAILED
@@ -469,7 +502,8 @@ class ExecutablePropagator(WESTPropagator):
                 addtl_env['WEST_{}_RETURN'.format(dataset.upper())] = return_files[dataset]
                                         
             # Spawn propagator and wait for its completion
-            rc, rusage = self.exec_for_segment(child_info, segment, addtl_env) 
+            rc, rusage, err = self.exec_for_segment(child_info, segment, addtl_env) 
+            segment.err = err
             
             if rc == 0:
                 segment.status = Segment.SEG_STATUS_COMPLETE
@@ -493,7 +527,11 @@ class ExecutablePropagator(WESTPropagator):
                 try:
                     loader(dataset, filename, segment, single_point=False)
                 except Exception as e:
-                    log.error('could not read {} from {!r}: {!r}'.format(dataset, filename, e))
+                    # This should happen when the tmp space fails to be readable, for whatever reason.
+                    # We should probably handle this accordingly, in that case.
+                    # However, it also happens when an aux dataset is empty.
+                    self.errors.report_segment_error(self.errors.RUNSEG_TMP_ERROR, segment=segment, filename=filename, dataset=dataset, e=e)
+                    #log.error('could not read {} from {!r}: {!r}'.format(dataset, filename, e))
                     segment.status = Segment.SEG_STATUS_FAILED 
                     break
                 else:

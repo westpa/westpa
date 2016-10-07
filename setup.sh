@@ -23,9 +23,9 @@ fi
 
 find . -name \*.so -print0 | xargs -0 rm &> /dev/null
 
-checkout_remote blessings  git://github.com/erikrose/blessings.git d3ba51c5870d599b40b387ac6703805c3e23d292 || exit 1
-checkout_remote west_tools git://github.com/westpa/west_tools.git  0047ea1b859596aca04dadc88068d9f854d0e4d2 || exit 1
-checkout_remote wwmgr      git://github.com/westpa/wwmgr.git       eac79a7d90f481548f829ae7053efefa05092711 || exit 1
+#checkout_remote blessings  git://github.com/erikrose/blessings.git d3ba51c5870d599b40b387ac6703805c3e23d292 || exit 1
+#checkout_remote west_tools git://github.com/westpa/west_tools.git  0047ea1b859596aca04dadc88068d9f854d0e4d2 || exit 1
+#checkout_remote wwmgr      git://github.com/westpa/wwmgr.git       eac79a7d90f481548f829ae7053efefa05092711 || exit 1
 
 if [[ -d lib/h5py ]] ; then
     echo "using custom h5py located in $PWD/lib/h5py"

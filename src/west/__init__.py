@@ -7,6 +7,7 @@ from segment import Segment
 import propagators, work_managers, data_manager, sim_manager, we_driver, states, systems
 from systems import WESTSystem
 from states import BasisState, TargetState
+import errors
 
 from westpa import rc
 

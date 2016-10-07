@@ -17,7 +17,7 @@
 
 from __future__ import division; __metaclass__ = type
 
-import time, operator, math, numpy, random
+import time, operator, math, numpy, random, sys
 from itertools import izip, izip_longest, imap
 from datetime import timedelta
 import logging
@@ -28,6 +28,8 @@ import west
 from west.states import InitialState
 from westpa import extloader
 from west import Segment
+
+from west import errors
 
 from west import wm_ops
 from west.data_manager import weight_dtype
@@ -83,6 +85,8 @@ class WESimManager:
         self.max_run_walltime = None
         self.max_total_iterations = None
         self.process_config()
+
+        self.errors = errors.WESTErrorReporting(sys.argv[0])
                 
         # Per-iteration variables
         self.n_iter = None                  # current iteration
@@ -539,9 +543,20 @@ class WESimManager:
         failed_segments = [segment for segment in self.segments.itervalues() if segment.status != Segment.SEG_STATUS_COMPLETE]
         
         if failed_segments:
-            failed_ids = '  \n'.join(str(segment.seg_id) for segment in failed_segments)
-            log.error('propagation failed for {:d} segment(s):\n{}'.format(len(failed_segments), failed_ids))
-            raise PropagationError('propagation failed for {:d} segments'.format(len(failed_segments)))
+            isegment = 0
+            failed_ids = ''
+            padding = int(numpy.floor(numpy.log10(len(failed_segments)))) + 1
+            for segment in failed_segments:
+                if isegment < 10:
+                    failed_ids = failed_ids + str(segment.seg_id).zfill(padding) + ', '
+                    isegment += 1
+                else:
+                    failed_ids = failed_ids + str(segment.seg_id).zfill(padding) + '\n        '
+                    isegment = 0
+            failed_ids = failed_ids[:-1]
+
+            self.errors.report_error(self.errors.RUNSEG_PROP_ERROR, failed_segments=len(failed_segments), failed_ids=failed_ids)
+            self.errors.raise_exception()
         else:
             log.debug('propagation complete for iteration {:d}'.format(self.n_iter))
             
