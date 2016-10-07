@@ -478,7 +478,7 @@ class ExecutablePropagator(WESTPropagator):
         child_info = self.exe_info.get('post_iteration')
         if child_info and child_info['enabled']:
             try:
-                rc, rusage = self.exec_for_iteration(child_info, n_iter)
+                rc, rusage, err = self.exec_for_iteration(child_info, n_iter)
             except OSError as e:
                 log.warning('could not execute post-iteration program {!r}: {}'.format(child_info['executable'], e))
             else:
