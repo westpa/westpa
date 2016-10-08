@@ -268,26 +268,16 @@ class ExecutablePropagator(WESTPropagator):
         # let's communicate and duplicate some of the stderr output, and send it on its way.
         # This may have to happen in the calling function, but whatever.
         out, err = proc.communicate()
+        # Let's suppress writing this to the main log.  It clutters it up.
         if stdout != sys.stdout: 
             stdout.write(error.linebreak + ' STDOUT ' + error.linebreak + '\n\n\n')
             stdout.write(out)
             stdout.write('\n\n\n' + error.linebreak + ' STDERR ' + error.linebreak + '\n\n\n')
             stdout.write(err)
-        # Why don't we check for empty variables?  This assumes they've done an env.
-        # First, find all the variables called in the executable script.
-        error.scan_bash_variables(executable)
-        # Then, scan the output for all filled and empty variables.
-        empties, filled = error.scan_bash_empty_variables(out)
-        # Let's get the ones that are called, but not specifically in the env (that is, never even stated).
-        empties += error.does_not_exist_in_list(error.bash_variables, filled)
-        # Get rid of duplicates.
-        empties = list(set(empties))
-        # Okay, now we want to check to see if any of the called variables exist within 
-        if len(empties) > 0:
-            stdout.write('\n\n\n' + error.linebreak + ' EMPTY_VARIABLES ' + error.linebreak + '\n\n\n')
-            #for empty in empties:
-            stdout.write("\n".join(empties))
-            error.report_general_error_once(error.RUNSEG_EMPTY_VARIABLES, empties="\n        ".join(empties))
+        # We'll put in a check for whether or not this is a bash script, but for the moment, this will scan
+        # shell executables and see if any variables are empty within the environment.
+        # It currently relies on the user having run env within the executable.
+        error.scan_for_bash(executable, out, stdout)
         rc = proc.returncode
         return (rc, rusage, "\n        ".join(err.splitlines()[-10:]))
     

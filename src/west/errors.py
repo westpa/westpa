@@ -53,9 +53,14 @@ class WESTErrorReporting:
 
         wiki = "https://chong.chem.pitt.edu/wewiki/WESTPA_Error_Handling"
 
-        executable = os.path.expandvars(self.config['west']['executable']['propagator']['executable'])
+        # We're going to TRY and load up the propagator information.  However, this won't necessarily work.
+        try:
+            executable = os.path.expandvars(self.config['west']['executable']['propagator']['executable'])
+            logfile = self.config['west']['executable']['propagator']['stdout']
+        except:
+            executable = 'blank'
+            logfile = 'stdout'
         rcfile = self.config['args']['rcfile']
-        logfile = self.config['west']['executable']['propagator']['stdout']
         pcoord_len = self.system.pcoord_len
         pcoord_ndim = self.system.pcoord_ndim
         self.llinebreak = "----------------------------------------------------------------"
@@ -299,6 +304,21 @@ class WESTErrorReporting:
             if exists == False:
                 rl.append(s1)
         return rl
+
+    def scan_for_bash(self, executable, out, stdout):
+        self.scan_bash_variables(executable)
+        # Then, scan the output for all filled and empty variables.
+        empties, filled = self.scan_bash_empty_variables(out)
+        # Let's get the ones that are called, but not specifically in the env (that is, never even stated).
+        empties += self.does_not_exist_in_list(self.bash_variables, filled)
+        # Get rid of duplicates.
+        empties = list(set(empties))
+        # Okay, now we want to check to see if any of the called variables exist within
+        if len(empties) > 0:
+                stdout.write('\n\n\n' + self.linebreak + ' EMPTY_VARIABLES ' + self.linebreak + '\n\n\n')
+                #for empty in empties:
+                stdout.write("\n".join(empties))
+                self.report_general_error_once(self.RUNSEG_EMPTY_VARIABLES, empties="\n        ".join(empties))
 
     def report_general_error_once(self, error, **kwargs):
         # This is a function that respects the 'run only once' setting,
