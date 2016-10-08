@@ -300,6 +300,9 @@ class WESTRC:
         if drivername.lower() == 'executable':
             import west.propagators.executable
             propagator = west.propagators.executable.ExecutablePropagator()
+        elif drivername.lower() == 'executable.shell':
+            import west.propagators.executable
+            propagator = west.propagators.executable.ShellPropagator()
         else:
             propagator = extloader.get_object(drivername)(rc=self)
         log.debug('loaded propagator {!r}'.format(propagator))
