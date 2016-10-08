@@ -36,7 +36,7 @@ class WESTErrorReporting:
 
     def __init__(self, cp=''):
         self.pstatus = westpa.rc.pstatus
-        self.bash_variables = None
+        self.shell_variables = None
         self.script = None
         log.debug('initializing error handling')
         self.config = westpa.rc.config
@@ -256,20 +256,20 @@ class WESTErrorReporting:
         self.pstatus(error['msg'].format(**self.format_kwargs))
         self.pstatus(self.SEE_WIKI.format(**self.format_kwargs))
 
-    def scan_bash_variables(self, script):
-        if self.bash_variables == None or self.script != script:
+    def scan_shell_variables(self, script):
+        if self.shell_variables == None or self.script != script:
             # Let's not run this more than once, shall we?
-            self.bash_variables = []
+            self.shell_variables = []
             import re
             with open(script, 'r') as runseg:
                 for line in runseg:
                     # Find the variables!
                     var_group = re.findall('\$\w+', line)
                     if len(var_group) > 0:
-                        self.bash_variables += var_group
-            self.bash_variables = [self.remove_variable_symbol(s) for s in self.bash_variables]
+                        self.shell_variables += var_group
+            self.shell_variables = [self.remove_variable_symbol(s) for s in self.shell_variables]
 
-    def scan_bash_empty_variables(self, out):
+    def scan_shell_empty_variables(self, out):
         import re
         empties = []
         statedv = []
@@ -305,12 +305,12 @@ class WESTErrorReporting:
                 rl.append(s1)
         return rl
 
-    def scan_for_bash(self, executable, out, stdout):
-        self.scan_bash_variables(executable)
+    def scan_for_shell(self, executable, out, stdout):
+        self.scan_shell_variables(executable)
         # Then, scan the output for all filled and empty variables.
-        empties, filled = self.scan_bash_empty_variables(out)
+        empties, filled = self.scan_shell_empty_variables(out)
         # Let's get the ones that are called, but not specifically in the env (that is, never even stated).
-        empties += self.does_not_exist_in_list(self.bash_variables, filled)
+        empties += self.does_not_exist_in_list(self.shell_variables, filled)
         # Get rid of duplicates.
         empties = list(set(empties))
         # Okay, now we want to check to see if any of the called variables exist within

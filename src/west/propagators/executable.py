@@ -277,7 +277,6 @@ class ExecutablePropagator(WESTPropagator):
         # We'll put in a check for whether or not this is a bash script, but for the moment, this will scan
         # shell executables and see if any variables are empty within the environment.
         # It currently relies on the user having run env within the executable.
-        error.scan_for_bash(executable, out, stdout)
         rc = proc.returncode
         return (rc, rusage, "\n        ".join(err.splitlines()[-10:]))
     
@@ -556,3 +555,57 @@ class ExecutablePropagator(WESTPropagator):
             segment.walltime = time.time() - starttime
             segment.cputime = rusage.ru_utime
         return segments
+
+class ShellPropagator(ExecutablePropagator):
+    def __init__(self, rc=None):
+        super(ShellPropagator,self).__init__(rc)
+
+    def exec_child(self, executable, environ=None, stdin=None, stdout=None, stderr=None, cwd=None):
+        '''Execute a child process with the environment set from the current environment, the
+        values of self.addtl_child_environ, the random numbers returned by self.random_val_env_vars, and
+        the given ``environ`` (applied in that order). stdin/stdout/stderr are optionally redirected.
+        
+        This function waits on the child process to finish, then returns
+        (rc, rusage), where rc is the child's return code and rusage is the resource usage tuple from os.wait4()'''
+        
+        all_environ = dict(os.environ)
+        all_environ.update(self.addtl_child_environ)
+        all_environ.update(self.random_val_env_vars())
+        all_environ.update(environ or {})
+        
+        stdin  = file(stdin, 'rb') if stdin else sys.stdin        
+        stdout = file(stdout, 'wb') if stdout else sys.stdout
+        if stderr == 'stdout':
+            stderr = stdout
+        else:
+            stderr = file(stderr, 'wb') if stderr else sys.stderr
+                
+        # close_fds is critical for preventing out-of-file errors
+        from subprocess import PIPE
+        proc = subprocess.Popen([executable],
+                                cwd = cwd,
+                                #stdin=stdin, stdout=stdout, stderr=stderr if stderr != stdout else subprocess.STDOUT,
+                                stdin=stdin, stdout=PIPE, stderr=PIPE,
+                                close_fds=True, env=all_environ)
+
+        # Wait on child and get resource usage
+        (_pid, _status, rusage) = os.wait4(proc.pid, 0)
+        # Do a subprocess.Popen.wait() to let the Popen instance (and subprocess module) know that
+        # we are done with the process, and to get a more friendly return code
+        #rc = proc.wait()
+        # While the return code is great, we may want to push more explicit error messages.
+        # let's communicate and duplicate some of the stderr output, and send it on its way.
+        # This may have to happen in the calling function, but whatever.
+        out, err = proc.communicate()
+        # Let's suppress writing this to the main log.  It clutters it up.
+        if stdout != sys.stdout: 
+            stdout.write(error.linebreak + ' STDOUT ' + error.linebreak + '\n\n\n')
+            stdout.write(out)
+            stdout.write('\n\n\n' + error.linebreak + ' STDERR ' + error.linebreak + '\n\n\n')
+            stdout.write(err)
+        # We'll put in a check for whether or not this is a bash script, but for the moment, this will scan
+        # shell executables and see if any variables are empty within the environment.
+        # It currently relies on the user having run env within the executable.
+        error.scan_for_shell(executable, out, stdout)
+        rc = proc.returncode
+        return (rc, rusage, "\n        ".join(err.splitlines()[-10:]))
