@@ -21,7 +21,7 @@ import logging, argparse, traceback, os
 log = logging.getLogger('errors.py')
 import westpa
 import sys
-sys.tracebacklimit=0
+sys.tracebacklimit=5
 
 class WESTErrorReporting:
     """
@@ -36,6 +36,8 @@ class WESTErrorReporting:
 
     def __init__(self, cp=''):
         self.pstatus = westpa.rc.pstatus
+        self.bash_variables = None
+        self.script = None
         log.debug('initializing error handling')
         self.config = westpa.rc.config
         self.system = westpa.rc.get_system_driver()
@@ -56,10 +58,10 @@ class WESTErrorReporting:
         logfile = self.config['west']['executable']['propagator']['stdout']
         pcoord_len = self.system.pcoord_len
         pcoord_ndim = self.system.pcoord_ndim
-        llinebreak = "----------------------------------------------------------------"
-        linebreak = "-------------------------------------------"
+        self.llinebreak = "----------------------------------------------------------------"
+        self.linebreak = "-------------------------------------------"
         self.format_kwargs = { 'executable': executable, 'rcfile': rcfile, 'pcoord_ndim': pcoord_ndim, 'pcoord_len': pcoord_len, 'logfile': logfile,
-                               'wiki': wiki, 'linebreak': linebreak, 'cp': cp, 'llinebreak': llinebreak }
+                               'wiki': wiki, 'linebreak': self.linebreak, 'cp': cp, 'llinebreak': self.llinebreak }
 
         self.SEG_ERROR            = """
         {llinebreak}{linebreak}
@@ -240,6 +242,7 @@ class WESTErrorReporting:
             self.pstatus(self.SEE_WIKI.format(**self.format_kwargs))
             if self.report_all_errors == False:
                 self.reported_errors[error['msg']] = True
+
     def report_error(self, error, **kwargs):
         self.format_kwargs.update(kwargs)
         # Pull in the ID.
@@ -247,6 +250,56 @@ class WESTErrorReporting:
         self.pstatus(self.ITER_ERROR.format(**self.format_kwargs))
         self.pstatus(error['msg'].format(**self.format_kwargs))
         self.pstatus(self.SEE_WIKI.format(**self.format_kwargs))
+
+    def scan_bash_variables(self, script):
+        if self.bash_variables == None or self.script != script:
+            # Let's not run this more than once, shall we?
+            self.bash_variables = []
+            import re
+            with open(script, 'r') as runseg:
+                for line in runseg:
+                    # Find the variables!
+                    var_group = re.findall('\$\w+', line)
+                    if len(var_group) > 0:
+                        self.bash_variables += var_group
+            self.bash_variables = [self.remove_variable_symbol(s) for s in self.bash_variables]
+
+    def scan_bash_empty_variables(self, out):
+        import re
+        empties = []
+        statedv = []
+        # Let's place all these in the empty variables...
+        # ... but also sort the others into the 'good' variable
+        # section.
+        for line in out.splitlines():
+            empty = re.findall('\w+=$', line)
+            # This should match everything BUT a carriage return, newline, or space.
+            # Empties just sort of works, I think.
+            filled = re.findall('^\w+=(?!\&$| $|\n$).*', line)
+            empties += empty
+            statedv += filled
+        return [self.remove_equals_symbol(s) for s in empties], statedv
+
+    def remove_variable_symbol(self, s):
+        return s[1:]
+
+    def remove_equals_symbol(self, s):
+        return s[:-1]
+
+    def does_not_exist_in_list(self, l1, l2):
+        # We want to see if any string in l1 is a part of string
+        # in l2.
+        # We'll return all values that are in the second list.
+        rl = []
+        for s1 in l1:
+            exists = False
+            for s2 in l2:
+                if s1 in s2:
+                    exists = True
+            if exists == False:
+                rl.append(s1)
+        return rl
+
     def report_general_error_once(self, error, **kwargs):
         # This is a function that respects the 'run only once' setting,
         # but doesn't require extensive iteration.  It's useful for printing a

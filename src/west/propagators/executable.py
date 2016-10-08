@@ -268,22 +268,25 @@ class ExecutablePropagator(WESTPropagator):
         # let's communicate and duplicate some of the stderr output, and send it on its way.
         # This may have to happen in the calling function, but whatever.
         out, err = proc.communicate()
-        stdout.write('----------- STDOUT ------------\n\n\n')
-        stdout.write(out)
-        stdout.write('\n\n\n----------- STDERR ------------\n\n\n')
-        stdout.write(err)
-        stdout.write('\n\n\n----------- EMPTY ------------\n\n\n')
+        if stdout != sys.stdout: 
+            stdout.write(error.linebreak + ' STDOUT ' + error.linebreak + '\n\n\n')
+            stdout.write(out)
+            stdout.write('\n\n\n' + error.linebreak + ' STDERR ' + error.linebreak + '\n\n\n')
+            stdout.write(err)
         # Why don't we check for empty variables?  This assumes they've done an env.
-        empty = False
-        empties = []
-        import re
-        for line in out.splitlines():
-            if re.search("=$", line):
-                empty = True
-                stdout.write(line)
-                empties.append(line)
-        if empty == True:
-            # Hey, wait.  What iteration is this?
+        # First, find all the variables called in the executable script.
+        error.scan_bash_variables(executable)
+        # Then, scan the output for all filled and empty variables.
+        empties, filled = error.scan_bash_empty_variables(out)
+        # Let's get the ones that are called, but not specifically in the env (that is, never even stated).
+        empties += error.does_not_exist_in_list(error.bash_variables, filled)
+        # Get rid of duplicates.
+        empties = list(set(empties))
+        # Okay, now we want to check to see if any of the called variables exist within 
+        if len(empties) > 0:
+            stdout.write('\n\n\n' + error.linebreak + ' EMPTY_VARIABLES ' + error.linebreak + '\n\n\n')
+            #for empty in empties:
+            stdout.write("\n".join(empties))
             error.report_general_error_once(error.RUNSEG_EMPTY_VARIABLES, empties="\n        ".join(empties))
         rc = proc.returncode
         return (rc, rusage, "\n        ".join(err.splitlines()[-10:]))
