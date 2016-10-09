@@ -66,11 +66,11 @@ def pcoord_loader(fieldname, pcoord_return_filename, destobj, single_point, exec
             pcoord.shape = (len(pcoord),1)
     if pcoord.shape != expected_shape:
         if pcoord.shape == (0,1):
-            error.report_segment_error(error.RUNSEG_GENERAL_ERROR, segment=destobj, err=destobj.err)
+            error.report_segment_error(error.RUNSEG_GENERAL_ERROR, segment=destobj, err=error.format_stderr(destobj.err))
             error.raise_exception()
         elif pcoord.shape == (0,):
             # Failure on single points.  Typically for istate/bstates.
-            error.report_segment_error(error.RUNSEG_GENERAL_ERROR, segment=destobj, err=destobj.err, executable=os.path.expandvars(executable), logfile=os.path.expandvars(logfile))
+            error.report_segment_error(error.RUNSEG_GENERAL_ERROR, segment=destobj, err=error.format_stderr(destobj.err), executable=os.path.expandvars(executable), logfile=os.path.expandvars(logfile))
             error.raise_exception()
         else:
             error.report_segment_error(error.RUNSEG_SHAPE_ERROR, segment=destobj, shape=pcoord.shape)
@@ -272,12 +272,14 @@ class ExecutablePropagator(WESTPropagator):
         if stdout != sys.stdout: 
             stdout.write(error.linebreak + ' STDOUT ' + error.linebreak + '\n\n\n')
             stdout.write(out)
-            stdout.write('\n\n\n' + error.linebreak + ' STDERR ' + error.linebreak + '\n\n\n')
-            stdout.write(err)
-        # We'll put in a check for whether or not this is a bash script, but for the moment, this will scan
-        # shell executables and see if any variables are empty within the environment.
-        # It currently relies on the user having run env within the executable.
+            if stderr != stdout:
+                stderr.write('\n\n\n' + error.linebreak + ' STDERR ' + error.linebreak + '\n\n\n')
+                stderr.write(err)
+            else:
+                stdout.write('\n\n\n' + error.linebreak + ' STDERR ' + error.linebreak + '\n\n\n')
+                stdout.write(err)
         rc = proc.returncode
+        #return (rc, rusage, "\n        ".join(err.splitlines()[-10:]))
         return (rc, rusage, "\n        ".join(err.splitlines()[-10:]))
     
     def exec_child_from_child_info(self, child_info, template_args, environ):
@@ -590,9 +592,6 @@ class ShellPropagator(ExecutablePropagator):
 
         # Wait on child and get resource usage
         (_pid, _status, rusage) = os.wait4(proc.pid, 0)
-        # Do a subprocess.Popen.wait() to let the Popen instance (and subprocess module) know that
-        # we are done with the process, and to get a more friendly return code
-        #rc = proc.wait()
         # While the return code is great, we may want to push more explicit error messages.
         # let's communicate and duplicate some of the stderr output, and send it on its way.
         # This may have to happen in the calling function, but whatever.
@@ -601,11 +600,14 @@ class ShellPropagator(ExecutablePropagator):
         if stdout != sys.stdout: 
             stdout.write(error.linebreak + ' STDOUT ' + error.linebreak + '\n\n\n')
             stdout.write(out)
-            stdout.write('\n\n\n' + error.linebreak + ' STDERR ' + error.linebreak + '\n\n\n')
-            stdout.write(err)
-        # We'll put in a check for whether or not this is a bash script, but for the moment, this will scan
-        # shell executables and see if any variables are empty within the environment.
-        # It currently relies on the user having run env within the executable.
-        error.scan_for_shell(executable, out, stdout)
+            if stderr != stdout:
+                stderr.write('\n\n\n' + error.linebreak + ' STDERR ' + error.linebreak + '\n\n\n')
+                stderr.write(err)
+                error.scan_for_shell(executable, out, stderr)
+            else:
+                stdout.write('\n\n\n' + error.linebreak + ' STDERR ' + error.linebreak + '\n\n\n')
+                stdout.write(err)
+                error.scan_for_shell(executable, out, stdout)
         rc = proc.returncode
-        return (rc, rusage, "\n        ".join(err.splitlines()[-10:]))
+        #return (rc, rusage, "\n        ".join(err.splitlines()[-10:]))
+        return (rc, rusage, err)

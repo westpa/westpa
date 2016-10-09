@@ -21,7 +21,7 @@ import logging, argparse, traceback, os
 log = logging.getLogger('errors.py')
 import westpa
 import sys
-sys.tracebacklimit=5
+sys.tracebacklimit=0
 
 class WESTErrorReporting:
     """
@@ -42,35 +42,41 @@ class WESTErrorReporting:
         self.config = westpa.rc.config
         self.system = westpa.rc.get_system_driver()
         try:
-            self.report_all_errors = self.config['west']['report_all_errors']
+            self.report_all_errors = self.config['west']['error']['report_all_errors']
         except:
             self.report_all_errors = False
+        try:
+            self.error_lines = self.config['west']['error']['stderr_lines']
+        except:
+            self.error_lines = 10
         self.reported_errors = {}
-        # Calling program
+        # Calling program.  Useful for saying who threw the exception.
         self.cp = cp
 
         # westpa.rc.pstatus('interrupted; shutting down')
 
-        wiki = "https://chong.chem.pitt.edu/wewiki/WESTPA_Error_Handling"
+        wiki = "https://chong.chem.pitt.edu/wewiki/WESTPA_Error_Handling#{id}"
 
         # We're going to TRY and load up the propagator information.  However, this won't necessarily work.
         try:
+            # There's probably a more 'correct' way to do this via the _rc.  I should check into that,
+            # as this clearly relies on some hard coded values, which is bad.
             executable = os.path.expandvars(self.config['west']['executable']['propagator']['executable'])
             logfile = self.config['west']['executable']['propagator']['stdout']
         except:
-            executable = 'blank'
+            executable = '-NA-'
             logfile = 'stdout'
         rcfile = self.config['args']['rcfile']
         pcoord_len = self.system.pcoord_len
         pcoord_ndim = self.system.pcoord_ndim
-        self.llinebreak = "----------------------------------------------------------------"
-        self.linebreak = "-------------------------------------------"
+        self.llinebreak = "-"*64
+        self.linebreak = "-"*42
         self.format_kwargs = { 'executable': executable, 'rcfile': rcfile, 'pcoord_ndim': pcoord_ndim, 'pcoord_len': pcoord_len, 'logfile': logfile,
-                               'wiki': wiki, 'linebreak': self.linebreak, 'cp': cp, 'llinebreak': self.llinebreak }
+                'wiki': wiki, 'linebreak': self.linebreak, 'cp': cp, 'llinebreak': self.llinebreak , 'error_lines': self.error_lines }
 
         self.SEG_ERROR            = """
         {llinebreak}{linebreak}
-        ERROR # {id} ON Iteration: {segment.n_iter}, Segment: {segment.seg_id}"""
+        ERROR # {id} ON Iteration: {segment.n_iter}, {segment_type}: {segment.seg_id}"""
 
         self.ITER_ERROR = """
         {llinebreak}{linebreak}
@@ -87,12 +93,12 @@ class WESTErrorReporting:
         {executable}
 
 
-        LAST 10 LINES OF STDERR
+        LAST {error_lines} LINES OF STDERR
         {linebreak}
         {err}
         {linebreak}
         """,
-        'id': 0 }
+        'id': 'E0' }
 
         self.RUNSEG_SHAPE_ERROR = { 'msg': """
         The shape of your progress coordinate return value is {shape},
@@ -109,7 +115,7 @@ class WESTErrorReporting:
 
         See {logfile}
         """,
-        'id': 1 }
+        'id': 'E1' }
 
         self.RUNSEG_TMP_ERROR = { 'msg': """
         Could not read the auxdata {dataset} return value from {filename} for segment {segment.seg_id} in iteration {segment.n_iter}.
@@ -135,7 +141,7 @@ class WESTErrorReporting:
         {e}
         {linebreak}
         """,
-        'id': 2 }
+        'id': 'E2' }
 
         self.RUNSEG_AUX_ERROR = { 'msg': """
         Your auxiliary data return is empty.  This typically
@@ -154,7 +160,7 @@ class WESTErrorReporting:
 
         Also, has anyone ever seen me?
         """,
-        'id': 3 }
+        'id': 'E3' }
 
         self.RUNSEG_PROP_ERROR = { 'msg': """
         Propagation has failed for {failed_segments} segments:
@@ -164,7 +170,7 @@ class WESTErrorReporting:
 
         Check the corresponding log files for each ID.
         """,
-        'id': 4 }
+        'id': 'E4' }
 
         self.WRUN_INTERRUPTED = { 'msg': """
         INTERRUPTION
@@ -173,7 +179,7 @@ class WESTErrorReporting:
         This has either been done manually (such as the break command or the killing of a queue script),
         or by the local sysadmin.
         """,
-        'id': 5 }
+        'id': 'W5' }
 
         self.RUNSEG_EMPTY_VARIABLES = { 'msg': """
         NOTICE
@@ -185,7 +191,7 @@ class WESTErrorReporting:
         {linebreak}
 
         """,
-        'id': 99 }
+        'id': 'E99' }
 
         self.REPORT_ONCE = """
         NOTICE
@@ -196,7 +202,7 @@ class WESTErrorReporting:
 
         self.SEE_WIKI = """
         Check the wiki for more information
-        {wiki}
+        https://chong.chem.pitt.edu/wewiki/WESTPA_Error_Handling#ERROR_{id}
 
         {llinebreak}{linebreak}
         """ 
@@ -209,12 +215,14 @@ class WESTErrorReporting:
         # Pull in the ID.
         self.format_kwargs.update(error)
         self.format_kwargs.update({'segment': segment})
-        # Testing for istate/bstates.
+        # Testing for istate/bstates, as they'll get passed in the same way.
         try:
             test = segment.n_iter
+            self.format_kwargs.update({'segment_type': 'Segment' })
         except:
             segment.n_iter = 0
-            segment.seg_id = 0
+            segment.seg_id = segment.state_id
+            self.format_kwargs.update({'segment_type': 'istate/bstate' })
         try:
             # These ones need modifying, as the segment.niter doesn't work with format, directly.
             self.format_kwargs['logfile'] = os.path.expandvars(self.format_kwargs['logfile'].format(segment=segment))
@@ -259,6 +267,7 @@ class WESTErrorReporting:
     def scan_shell_variables(self, script):
         if self.shell_variables == None or self.script != script:
             # Let's not run this more than once, shall we?
+            self.script = script
             self.shell_variables = []
             import re
             with open(script, 'r') as runseg:
@@ -267,7 +276,7 @@ class WESTErrorReporting:
                     var_group = re.findall('\$\w+', line)
                     if len(var_group) > 0:
                         self.shell_variables += var_group
-            self.shell_variables = [self.remove_variable_symbol(s) for s in self.shell_variables]
+            self.shell_variables = [self.remove_from_string(s, '$') for s in self.shell_variables]
 
     def scan_shell_empty_variables(self, out):
         import re
@@ -283,13 +292,10 @@ class WESTErrorReporting:
             filled = re.findall('^\w+=(?!\&$| $|\n$).*', line)
             empties += empty
             statedv += filled
-        return [self.remove_equals_symbol(s) for s in empties], statedv
+        return [self.remove_from_string(s, '=') for s in empties], statedv
 
-    def remove_variable_symbol(self, s):
-        return s[1:]
-
-    def remove_equals_symbol(self, s):
-        return s[:-1]
+    def remove_from_string(self, s, r):
+        return s.replace(r, '')
 
     def does_not_exist_in_list(self, l1, l2):
         # We want to see if any string in l1 is a part of string
@@ -305,8 +311,9 @@ class WESTErrorReporting:
                 rl.append(s1)
         return rl
 
-    def scan_for_shell(self, executable, out, stdout):
+    def scan_for_shell(self, executable, out, stderr):
         self.scan_shell_variables(executable)
+        #print(self.shell_variables)
         # Then, scan the output for all filled and empty variables.
         empties, filled = self.scan_shell_empty_variables(out)
         # Let's get the ones that are called, but not specifically in the env (that is, never even stated).
@@ -315,9 +322,9 @@ class WESTErrorReporting:
         empties = list(set(empties))
         # Okay, now we want to check to see if any of the called variables exist within
         if len(empties) > 0:
-                stdout.write('\n\n\n' + self.linebreak + ' EMPTY_VARIABLES ' + self.linebreak + '\n\n\n')
+                stderr.write('\n\n\n' + self.linebreak + ' EMPTY_VARIABLES ' + self.linebreak + '\n\n\n')
                 #for empty in empties:
-                stdout.write("\n".join(empties))
+                stderr.write("\n".join(empties))
                 self.report_general_error_once(self.RUNSEG_EMPTY_VARIABLES, empties="\n        ".join(empties))
 
     def report_general_error_once(self, error, **kwargs):
@@ -344,11 +351,17 @@ class WESTErrorReporting:
         try:
             if self.reported_errors[error['msg']] == False:
                 self.pstatus(error['msg'].format(**self.format_kwargs))
+                self.pstatus(self.SEE_WIKI.format(**self.format_kwargs))
                 if self.report_all_errors == False:
                     self.reported_errors[error['msg']] = True
         except:
             self.pstatus(error['msg'].format(**self.format_kwargs))
+            self.pstatus(self.SEE_WIKI.format(**self.format_kwargs))
             if self.report_all_errors == False:
                 self.reported_errors[error['msg']] = True
+
     def raise_exception(self):
         raise Exception('Error reported from {}'.format(self.cp))
+
+    def format_stderr(self, err):
+        return  "\n        ".join(err.splitlines()[(-1*self.error_lines):]) 
