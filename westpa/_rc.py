@@ -272,8 +272,11 @@ class WESTRC:
         # There are two 'built-ins': the identity function, which is the normal behavior,
         # and the history function, which has a few more variables.
         if group_function.lower() == 'default':
-            group_function = 'west.we_driver._group_walkers_identity'
-            we_driver.group_function = west.we_driver._group_walkers_identity
+            try:
+                group_function = 'west.we_driver._group_walkers_identity'
+                we_driver.group_function = west.we_driver._group_walkers_identity
+            except:
+                pass
         elif group_function.lower() == 'history':
             group_function = 'west.we_driver._group_walkers_by_history'
             we_driver.group_function = west.we_driver._group_walkers_by_history

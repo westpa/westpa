@@ -722,11 +722,13 @@ class Kinetics(WESTParallelTool):
         current['weights'] = iter_group['seg_index']['weight'][seg_ids]
         current['pcoord'] = iter_group['pcoord'][...][seg_ids, :, :]
         try:
-            current['auxdata'] = iter_group['auxdata'][...][seg_ids, :, :]
+            current['auxdata'] = {}
+            for key in iter_group['auxdata'].keys():
+                current['auxdata'][key] = iter_group['auxdata'][key][...][seg_ids, :]
         except:
             pass
         current['parents'] = iter_group['seg_index']['parent_id'][seg_ids]
-        current['summary'] = self.data_reader.data_manager.get_iter_summary(value)
+        current['summary'] = self.data_reader.data_manager.get_iter_summary(int(value))
         current['seg_id'] = np.array(range(0, iter_group['seg_index'].shape[0]))[seg_ids]
         current['walkers'] = current['summary']['n_particles']
         current['states'] = self.assign['trajlabels'][value-1, :current['walkers'], :][seg_ids]
@@ -957,7 +959,9 @@ class Kinetics(WESTParallelTool):
             return 1
         current = { 'seg_id': [seg_id], 'pcoord': [self.current['pcoord'][seg_id]], 'states': [self.current['states'][seg_id]], 'weights': [self.current['weights'][seg_id]], 'iteration': [self.iteration], 'bins': [self.current['bins'][seg_id]] }
         try:
-            current['auxdata'] = [self.current['auxdata'][seg_id]]
+            current['auxdata'] = {}
+            for key in self.current['auxdata'].keys():
+                current['auxdata'][key] = [self.current['auxdata'][key][seg_id]]
         except:
             pass
         parents = self.current['parents']
@@ -969,7 +973,8 @@ class Kinetics(WESTParallelTool):
             current['seg_id'].append(iter_data['seg_id'][seg_id])
             current['weights'].append(iter_data['weights'][seg_id])
             try:
-                current['auxdata'].append(iter_data['auxdata'][seg_id])
+                for key in self.current['auxdata'].keys():
+                    current['auxdata'][key].append(iter_data['auxdata'][key][seg_id])
             except:
                 pass
             current['iteration'].append(iter)
@@ -985,13 +990,14 @@ class Kinetics(WESTParallelTool):
         current['weights'] = list(reversed(current['weights']))
         current['iteration'] = list(reversed(current['iteration']))
         try:
-            current['auxdata'] = list(reversed(current['auxdata']))
+            for key in self.current['auxdata'].keys():
+                current['auxdata'][key] = np.concatenate(np.array(list(reversed(current['auxdata'][key]))))
         except:
             pass
-        try:
-            current['auxdata'] = np.array(current['auxdata'])
-        except:
-            pass
+        #try:
+        #    current['auxdata'] = np.array(current['auxdata'])
+        #except:
+        #    pass
         return current
 
     @property
