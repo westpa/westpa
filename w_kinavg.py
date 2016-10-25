@@ -203,8 +203,10 @@ class KinAvgSubcommands(WESTSubcommand):
 
 
 def _eval_block(iblock, start, stop, nstates, total_fluxes, cond_fluxes, pops, rates, mcbs_alpha, mcbs_nsets, mcbs_acalpha, correl):
-    results = [[],[],[]]
+    results = [[],[],[],[],[]
     # results are target fluxes, conditional fluxes, rates
+    # We also want to do color, too; we can configure and change this such that we're also bootstrapping over the color populations.
+    # results are target fluxes, color populations, conditional fluxes, rates
     for istate in xrange(nstates):
         kwargs = { 'istate' : istate , 'jstate': 'B'}
         dataset = {'dataset': total_fluxes[:, istate]}
@@ -212,6 +214,14 @@ def _eval_block(iblock, start, stop, nstates, total_fluxes, cond_fluxes, pops, r
                                     alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
                                     subsample=numpy.mean, pre_calculated=dataset['dataset'], correl=correl)
         results[0].append((iblock,istate,(start,stop)+ci_res))
+
+        # Trivial enough to add this, as it isn't a particularly difficult calculation.
+        kwargs = { 'istate' : istate , 'jstate': 'B'}
+        dataset = {'dataset': pops[:,istate]}
+        ci_res = mcbs_ci_correl_rw(dataset,estimator=(lambda stride, dataset: numpy.mean(dataset)),
+                                    alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
+                                    subsample=numpy.mean, pre_calculated=dataset['dataset'], correl=correl)
+        results[1].append((iblock,istate,(start,stop)+ci_res))
         
         for jstate in xrange(nstates):
             if istate == jstate: continue
@@ -220,7 +230,7 @@ def _eval_block(iblock, start, stop, nstates, total_fluxes, cond_fluxes, pops, r
             ci_res = mcbs_ci_correl_rw(dataset,estimator=(lambda stride, dataset: numpy.mean(dataset)),
                                     alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
                                     subsample=numpy.mean, pre_calculated=dataset['dataset'], correl=correl)
-            results[1].append((iblock, istate, jstate, (start,stop) + ci_res))
+            results[2].append((iblock, istate, jstate, (start,stop) + ci_res))
             
             # macro_flux_to_rate_bs needs the following:
             # dataset, pops, istate, jstate
@@ -229,7 +239,7 @@ def _eval_block(iblock, start, stop, nstates, total_fluxes, cond_fluxes, pops, r
             ci_res = mcbs_ci_correl_rw(dataset,estimator=sequence_macro_flux_to_rate_bs,
                                     alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
                                     subsample=numpy.mean, pre_calculated=rates[:,istate,jstate][numpy.isfinite(rates[:,istate,jstate])], correl=correl, **kwargs)
-            results[2].append((iblock, istate, jstate, (start,stop) + ci_res))
+            results[3].append((iblock, istate, jstate, (start,stop) + ci_res))
 
     return results
 
@@ -264,6 +274,7 @@ class AvgTraceSubcommand(KinAvgSubcommands):
             rates.data = sequence_macro_flux_to_rate(cond_fluxes.data, pops.data[:nstates,:nbins])
             
             avg_total_fluxes = numpy.zeros((nstates,), dtype=ci_dtype)
+            avg_color_probs = numpy.zeros((nstates,), dtype=ci_dtype)
             avg_conditional_fluxes = numpy.zeros((nstates,nstates), dtype=ci_dtype)
             avg_rates = numpy.zeros((nstates,nstates), dtype=ci_dtype)
             
@@ -284,10 +295,14 @@ class AvgTraceSubcommand(KinAvgSubcommands):
             futures.append(future)
             
             for future in self.work_manager.as_completed(futures):
-                target_results, condflux_results, rate_results = future.get_result(discard=True)
+                target_results, color_results, condflux_results, rate_results = future.get_result(discard=True)
                 for result in target_results:
                     iblock,istate,ci_result = result
                     avg_total_fluxes[istate] = ci_result
+
+                for result in color_results:
+                    iblock,istate,ci_result = result
+                    avg_color_probs[istate] = ci_result
                     
                 for result in condflux_results:
                     iblock,istate,jstate,ci_result = result
@@ -301,6 +316,7 @@ class AvgTraceSubcommand(KinAvgSubcommands):
             self.output_file['avg_rates'] = avg_rates
             self.output_file['avg_conditional_fluxes'] = avg_conditional_fluxes
             self.output_file['avg_total_fluxes'] = avg_total_fluxes
+            self.output_file['avg_color_probs'] = avg_color_probs
             for ds in ('avg_rates', 'avg_conditional_fluxes', 'avg_total_fluxes'):
                 self.stamp_mcbs_info(self.output_file[ds])
 
@@ -345,6 +361,7 @@ class AvgTraceSubcommand(KinAvgSubcommands):
             
             start_pts = range(start_iter, stop_iter, step_iter)
             target_evol = numpy.zeros((len(start_pts), nstates), dtype=ci_dtype)
+            color_evol = numpy.zeros((len(start_pts), nstates), dtype=ci_dtype)
             flux_evol = numpy.zeros((len(start_pts), nstates, nstates), dtype=ci_dtype)
             rate_evol = numpy.zeros((len(start_pts), nstates, nstates), dtype=ci_dtype)
             all_items = numpy.arange(1,len(start_pts)+1)
@@ -373,10 +390,14 @@ class AvgTraceSubcommand(KinAvgSubcommands):
                 
                 for future in self.work_manager.as_completed(futures):
                     pi.progress += iblock / step_iter
-                    target_results, condflux_results, rate_results = future.get_result(discard=True)
+                    target_results, color_results, condflux_results, rate_results = future.get_result(discard=True)
                     for result in target_results:
                         iblock,istate,ci_result = result
                         target_evol[iblock,istate] = ci_result
+
+                    for result in color_results:
+                        iblock,istate,ci_result = result
+                        color_evol[iblock,istate] = ci_result
                         
                     for result in condflux_results:
                         iblock,istate,jstate,ci_result = result
@@ -405,7 +426,8 @@ class AvgTraceSubcommand(KinAvgSubcommands):
 
             df_ds = self.output_file.create_dataset('conditional_flux_evolution', data=flux_evol, shuffle=True, compression=9)
             tf_ds = self.output_file.create_dataset('target_flux_evolution', data=target_evol, shuffle=True, compression=9)
-            cp_ds = self.output_file.create_dataset('color_prob_evolution', data=pops.data, shuffle=True, compression=9)
+            #cp_ds = self.output_file.create_dataset('color_prob_evolution', data=pops.data, shuffle=True, compression=9)
+            cp_ds = self.output_file.create_dataset('color_prob_evolution', data=color_evol, shuffle=True, compression=9)
             rate_ds = self.output_file.create_dataset('rate_evolution', data=rate_evol, shuffle=True, compression=9)
             
             for ds in (df_ds, tf_ds, rate_ds):
