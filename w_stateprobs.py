@@ -329,7 +329,7 @@ def _eval_block(iblock, istate, start, stop, state_pops, mcbs_alpha, mcbs_nsets,
     #ci_res = mcbs_ci_correl(state_pops,estimator=numpy.mean,alpha=mcbs_alpha,n_sets=mcbs_nsets,
     #                        autocorrel_alpha=mcbs_acalpha,subsample=numpy.mean)
 
-    ci_res = mcbs_ci_correl_rw({'dataset': state_pops},estimator=(lambda stride, dataset: numpy.mean(dataset)), alpha=mcbs_alpha,n_sets=mcbs_nsets,
+    ci_res = mcbs_ci_correl({'dataset': state_pops},estimator=(lambda stride, dataset: numpy.mean(dataset)), ,alpha=mcbs_alpha,n_sets=mcbs_nsets,
                             autocorrel_alpha=mcbs_acalpha,subsample=numpy.mean, pre_calculated=state_pops, correl=False)
     return (iblock,istate,(start,stop)+ci_res)
 
