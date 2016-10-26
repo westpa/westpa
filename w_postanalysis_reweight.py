@@ -40,9 +40,8 @@ import mclib
 from mclib import mcbs_correltime, mcbs_ci_correl_rw
 
 def _eval_block(iblock, start, stop, nstates, nbins, mcbs_alpha, mcbs_nsets, mcbs_acalpha, rates, flux_c, pop_c, state_map, correl, **kwargs):
-    results = [[],[],[]]
+    results = [[],[],[],[]]
     # results are conditional fluxes, rates
-    # It's already too bloody slow.  Not gonna do the target fluxes, for now.
     for istate in xrange(nstates):
         dataset = { 'indices' : np.array(range(start-1, stop-1), dtype=np.uint16) }
         # We need a jstate for the function, but it isn't really important.
@@ -50,7 +49,16 @@ def _eval_block(iblock, start, stop, nstates, nbins, mcbs_alpha, mcbs_nsets, mcb
         ci_res = mcbs_ci_correl_rw(dataset, estimator=reweight_for_c,
                                 alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
                                 subsample=(lambda x: x[0]), pre_calculated=pop_c[:,istate], correl=correl, **kwargs)
-        results[2].append((iblock, istate, (start,stop) + ci_res))
+        results[0].append((iblock, istate, (start,stop) + ci_res))
+
+        dataset = { 'indices' : np.array(range(start-1, stop-1), dtype=np.uint16) }
+        # We need a jstate for the function, but it isn't really important.
+        kwargs.update({ 'istate' : istate, 'jstate': 1, 'nstates' : nstates, 'nbins' : nbins , 'state_map': state_map, 'return_flux': False, 'return_states': False, 'return_color': True})
+        ci_res = mcbs_ci_correl_rw(dataset, estimator=reweight_for_c,
+                                alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
+                                subsample=(lambda x: x[0]), pre_calculated=pop_c[:,istate], correl=correl, **kwargs)
+        results[1].append((iblock, istate, (start,stop) + ci_res))
+
         for jstate in xrange(nstates):
             # Fluxes!
             if istate == jstate: continue
@@ -59,7 +67,7 @@ def _eval_block(iblock, start, stop, nstates, nbins, mcbs_alpha, mcbs_nsets, mcb
             ci_res = mcbs_ci_correl_rw(dataset, estimator=reweight_for_c,
                                     alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
                                     subsample=(lambda x: x[0]), pre_calculated=flux_c[:,istate,jstate], correl=correl, **kwargs)
-            results[0].append((iblock, istate, jstate, (start,stop) + ci_res))
+            results[2].append((iblock, istate, jstate, (start,stop) + ci_res))
 
             # Rates!
             if istate == jstate: continue
@@ -68,7 +76,7 @@ def _eval_block(iblock, start, stop, nstates, nbins, mcbs_alpha, mcbs_nsets, mcb
             ci_res = mcbs_ci_correl_rw(dataset, estimator=reweight_for_c,
                                     alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
                                     subsample=(lambda x: x[0]), pre_calculated=rates[:,istate,jstate], correl=correl, **kwargs)
-            results[1].append((iblock, istate, jstate, (start,stop) + ci_res))
+            results[3].append((iblock, istate, jstate, (start,stop) + ci_res))
 
     return results
 
@@ -444,6 +452,7 @@ Command-line options
             flux_evol_bootstrap = np.zeros((len(start_pts), nstates, nstates), dtype=ci_dtype)
             rate_evol_bootstrap = np.zeros((len(start_pts), nstates, nstates), dtype=ci_dtype)
             state_prob_bootstrap = np.zeros((len(start_pts), nstates), dtype=ci_dtype)
+            color_prob_bootstrap = np.zeros((len(start_pts), nstates), dtype=ci_dtype)
             color_prob_evol = np.zeros((len(start_pts), nstates))
             state_prob_evol = np.zeros((len(start_pts), nstates))
             bin_prob_evol = np.zeros((len(start_pts), nfbins))
@@ -577,8 +586,15 @@ Command-line options
                     futures.append(future)
                 
                 for future in self.work_manager.as_completed(futures):
-                    condflux_results, rate_results, state_results = future.get_result(discard=True)
-                    #condflux_results = future._result
+                    state_results, color_results, condflux_results, rate_results = future.get_result(discard=True)
+
+                    for result in state_results:
+                        iblock,istate,ci_result = result
+                        state_prob_bootstrap[iblock, istate] = ci_result
+
+                    for result in color_results:
+                        iblock,istate,ci_result = result
+                        color_prob_bootstrap[iblock, istate] = ci_result
                         
                     for result in condflux_results:
                         iblock,istate,jstate,ci_result = result
@@ -595,22 +611,21 @@ Command-line options
                         rate_evol_bootstrap[iblock, istate, jstate]['expected'] = ci_result[2] * (npts - 1)
                         rate_evol_bootstrap[iblock, istate, jstate]['ci_lbound'] = ci_result[3] * (npts - 1)
                         rate_evol_bootstrap[iblock, istate, jstate]['ci_ubound'] = ci_result[4] * (npts - 1)
-                    for result in state_results:
-                        iblock,istate,ci_result = result
-                        state_prob_bootstrap[iblock, istate] = ci_result
+
 
                     pi.progress += iblock / step_iter
             else:
                 flux_evol_bootstrap = flux_evol
                 rate_evol_bootstrap = rate_evol
                 state_prob_bootstrap = state_prob_evol
+                color_prob_bootstrap = color_prob_evol
 
 
 
             ds_flux_evol = self.output_file.create_dataset('conditional_flux_evolution', data=flux_evol_bootstrap, shuffle=True, compression=9)
             ds_flux_evol = self.output_file.create_dataset('rate_evolution', data=rate_evol_bootstrap, shuffle=True, compression=9)
             ds_state_prob_evol = self.output_file.create_dataset('state_pop_evolution', data=state_prob_bootstrap, compression=9)
-            ds_color_prob_evol = self.output_file.create_dataset('color_prob_evolution', data=color_prob_evol, compression=9)
+            ds_color_prob_evol = self.output_file.create_dataset('color_prob_evolution', data=color_prob_bootstrap, compression=9)
             ds_bin_prob_evol = self.output_file.create_dataset('bin_prob_evolution', data=bin_prob_evol, compression=9)
             ds_state_labels = self.output_file.create_dataset('state_labels', data=state_labels)
 

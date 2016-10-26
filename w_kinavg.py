@@ -203,7 +203,7 @@ class KinAvgSubcommands(WESTSubcommand):
 
 
 def _eval_block(iblock, start, stop, nstates, total_fluxes, cond_fluxes, pops, rates, mcbs_alpha, mcbs_nsets, mcbs_acalpha, correl):
-    results = [[],[],[],[],[]
+    results = [[],[],[],[]]
     # results are target fluxes, conditional fluxes, rates
     # We also want to do color, too; we can configure and change this such that we're also bootstrapping over the color populations.
     # results are target fluxes, color populations, conditional fluxes, rates
@@ -408,6 +408,8 @@ class AvgTraceSubcommand(KinAvgSubcommands):
                         rate_evol[iblock, istate, jstate] = ci_result
 
             else:
+                # This is really here for compatibility with the evolution mode.  It's probably easier to just output *one* dataset, rather than
+                # two if evolution isn't requested, but still.  That's a matter of opinion, really.
                 for iblock, start in enumerate(start_pts):
                     stop = min(start+step_iter, stop_iter)
                     if self.evolution_mode == 'cumulative':
