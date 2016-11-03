@@ -125,6 +125,8 @@ class Kinetics(WESTParallelTool):
                              help='''Use this flag to delete the existing files and reanalyze.''')
         rgroup.add_argument('--terminal', '-t', dest='plotting', action='store_true',
                              help='''Plot output in terminal.''')
+        rgroup.add_argument('--f', '-f', dest='extra', default='blah',
+                             help='''Temporary holding place for when this is called in a Jupyter notebook.''')
         
         parser.set_defaults(compression=True)
 
@@ -1145,7 +1147,13 @@ if __name__ == '__main__':
     w.main()
     print('Your current scheme, system and iteration are : {}, {}, {}'.format(w.scheme, os.getcwd(), w.iteration))
     if w.analysis_mode == False:
-        from IPython import embed
+        from IPython import embed, embed_kernel
+        from IPython.lib.kernel import find_connection_file
+        import IPython
         embed(banner1='',
              exit_msg='Leaving w_ipython... goodbye.')
+        #cf=find_connection_file("*")
+        #kern = w.work_manager.submit(embed_kernel())
+        #print("We are running!")
+        #print(dir(kern))
     print("")
