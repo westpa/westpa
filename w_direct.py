@@ -23,7 +23,7 @@ import numpy, h5py
 from h5py import h5s
 
 import westpa
-from west.data_manager import weight_dtype, n_iter_dtype
+from west.data_manager import weight_dtype, n_iter_dtype, seg_id_dtype
 from westtools import (WESTMasterCommand, WESTParallelTool, WESTDataReader, IterRangeSelection, WESTSubcommand,
                        ProgressIndicatorComponent)
 from westpa import h5io
@@ -31,36 +31,52 @@ from westpa.kinetics import labeled_flux_to_rate, sequence_macro_flux_to_rate, s
 from westpa.kinetics.matrates import get_macrostate_rates
 
 import mclib
-from mclib import mcbs_correltime, mcbs_ci_correl, mcbs_ci_correl_rw
+from mclib import mcbs_correltime, mcbs_ci_correl, mcbs_ci_correl_rw, _1D_eval_block
 
 
 log = logging.getLogger('westtools.w_kinavg')
 
 from westtools.dtypes import iter_block_ci_dtype as ci_dtype
 
-class KinAvgSubcommands(WESTSubcommand):
+# From w_kinetics.
+ed_list_dtype = numpy.dtype([('istate', numpy.uint16), ('fstate', numpy.uint16), ('duration', numpy.float64),
+                             ('weight', numpy.float64), ('seg_id', seg_id_dtype)])
+from westpa.binning import index_dtype
+from westpa.kinetics._kinetics import _fast_transition_state_copy #@UnresolvedImport
+from westpa.kinetics import find_macrostate_transitions
+
+# From w_stateprobs
+from westpa.binning import accumulate_state_populations_from_labeled
+
+
+class DirectSubcommands(WESTSubcommand):
     '''Common argument processing for w_kinavg subcommands'''
     
     def __init__(self, parent):
-        super(KinAvgSubcommands,self).__init__(parent)
+        super(DirectSubcommands,self).__init__(parent)
         
         self.data_reader = WESTDataReader()
         self.iter_range = IterRangeSelection()
         self.progress = ProgressIndicatorComponent()
         
         self.output_filename = None
-        self.kinetics_filename = None
+        # This is specific to the old w_kinavg, and isn't used by Kinetics.
+        # This is actually applicable to both.
         self.assignment_filename = None
         
         self.output_file = None
         self.assignments_file = None
-        self.kinetics_file = None
         
         self.evolution_mode = None
         
         self.mcbs_alpha = None
         self.mcbs_acalpha = None
         self.mcbs_nsets = None
+
+        # Now we're adding in things that come from the old w_kinetics
+        self.do_compression = True
+
+        # We're going to try and re-use a lot of this code for the matrix commands, too, so.
         
     def stamp_mcbs_info(self, dataset):
         dataset.attrs['mcbs_alpha'] = self.mcbs_alpha
@@ -243,13 +259,255 @@ def _eval_block(iblock, start, stop, nstates, total_fluxes, cond_fluxes, pops, r
 
     return results
 
-class AvgTraceSubcommand(KinAvgSubcommands):
-    subcommand = 'trace'
-    help_text = 'averages and CIs for path-tracing kinetics analysis'
+def generate_future(work_manager, name, eval_block, kwargs):
+    submit_kwargs = {'name': name}
+    submit_kwargs.update(kwargs)
+    future = work_manager.submit(eval_block, kwargs=submit_kwargs)
+    return future
+
+# Each of these blocks is responsible for submitting a set of calculations to be bootstrapped over for a particular type of calculation.
+# A property which wishes to be calculated should adhere to this format.
+def _pop_eval_block(iblock, start, stop, nstates, total_fluxes, cond_fluxes, pops, state_pops, rates, mcbs_alpha, mcbs_nsets, mcbs_acalpha, correl, name, **extra):
+    for istate in xrange(nstates):
+        kwargs = { 'istate' : istate , 'jstate': 'B'}
+        dataset = {'dataset': state_pops[:,istate]}
+        ci_res = mcbs_ci_correl_rw(dataset,estimator=(lambda stride, dataset: numpy.mean(dataset)),
+                                    alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
+                                    subsample=numpy.mean, pre_calculated=dataset['dataset'], correl=correl)
+
+        results = (name, iblock,istate,istate,(start,stop)+ci_res)
+
+    return results
+
+def _rate_eval_block(iblock, start, stop, nstates, total_fluxes, cond_fluxes, pops, rates, mcbs_alpha, mcbs_nsets, mcbs_acalpha, correl, name, **extra):
+    for istate in xrange(nstates):
+        for jstate in xrange(nstates):
+            if istate == jstate: continue
+            # macro_flux_to_rate_bs needs the following:
+            # dataset, pops, istate, jstate
+            kwargs = { 'istate' : istate, 'jstate': jstate }
+            dataset = {'dataset': cond_fluxes[:, istate, jstate], 'pops': pops}
+            ci_res = mcbs_ci_correl_rw(dataset,estimator=sequence_macro_flux_to_rate_bs,
+                                    alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
+                                    subsample=numpy.mean, pre_calculated=rates[:,istate,jstate][numpy.isfinite(rates[:,istate,jstate])], correl=correl, **kwargs)
+            results = (name, iblock, istate, jstate, (start,stop) + ci_res)
+
+    return results
+
+def _condflux_eval_block(iblock, start, stop, nstates, total_fluxes, cond_fluxes, pops, rates, mcbs_alpha, mcbs_nsets, mcbs_acalpha, correl, name, **extra):
+    for istate in xrange(nstates):
+        for jstate in xrange(nstates):
+            if istate == jstate: continue
+            kwargs = { 'istate' : istate, 'jstate': jstate }
+            dataset = {'dataset': cond_fluxes[:, istate, jstate]}
+            ci_res = mcbs_ci_correl_rw(dataset,estimator=(lambda stride, dataset: numpy.mean(dataset)),
+                                    alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
+                                    subsample=numpy.mean, pre_calculated=dataset['dataset'], correl=correl)
+            results = (name, iblock, istate, jstate, (start,stop) + ci_res)
+
+    return results
+
+
+def _color_eval_block(iblock, start, stop, nstates, total_fluxes, cond_fluxes, pops, rates, mcbs_alpha, mcbs_nsets, mcbs_acalpha, correl, name, **extra):
+    for istate in xrange(nstates):
+        kwargs = { 'istate' : istate , 'jstate': 'B'}
+        dataset = {'dataset': pops[:,istate]}
+        ci_res = mcbs_ci_correl_rw(dataset,estimator=(lambda stride, dataset: numpy.mean(dataset)),
+                                    alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
+                                    subsample=numpy.mean, pre_calculated=dataset['dataset'], correl=correl)
+        results = (name, iblock,istate,istate,(start,stop)+ci_res)
+
+    return results
+
+def _flux_eval_block(iblock, start, stop, nstates, total_fluxes, cond_fluxes, pops, rates, mcbs_alpha, mcbs_nsets, mcbs_acalpha, correl, name, **extra):
+    for istate in xrange(nstates):
+        kwargs = { 'istate' : istate , 'jstate': 'B'}
+        dataset = {'dataset': total_fluxes[:, istate]}
+        ci_res = mcbs_ci_correl_rw(dataset,estimator=(lambda stride, dataset: numpy.mean(dataset)),
+                                    alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
+                                    subsample=numpy.mean, pre_calculated=dataset['dataset'], correl=correl)
+        results = (name, iblock,istate,istate,(start,stop)+ci_res)
+
+    return results
+
+class DKinetics(DirectSubcommands):
+    subcommand='kinetics'
     default_kinetics_file = 'kintrace.h5'
+    help_text = 'calculate state-to-state kinetics by tracing trajectories'
+    description = '''\
+Calculate state-to-state rates and transition event durations by tracing
+trajectories.
+
+A bin assignment file (usually "assign.h5") including trajectory labeling
+is required (see "w_assign --help" for information on generating this file).
+
+The output generated by this program is used as input for the ``w_kinavg``
+tool, which converts the flux data in the output file into average rates
+with confidence intervals. See ``w_kinavg trace --help`` for more 
+information.
+
+-----------------------------------------------------------------------------
+Output format
+-----------------------------------------------------------------------------
+
+The output file (-o/--output, by default "kintrace.h5") contains the
+following datasets:
+
+  ``/conditional_fluxes`` [iteration][state][state]
+    *(Floating-point)* Macrostate-to-macrostate fluxes. These are **not**
+    normalized by the population of the initial macrostate.
+
+  ``/conditional_arrivals`` [iteration][stateA][stateB]
+    *(Integer)* Number of trajectories arriving at state *stateB* in a given
+    iteration, given that they departed from *stateA*.
+    
+  ``/total_fluxes`` [iteration][state]
+    *(Floating-point)* Total flux into a given macrostate.
+    
+  ``/arrivals`` [iteration][state]
+    *(Integer)* Number of trajectories arriving at a given state in a given
+    iteration, regardless of where they originated.
+
+  ``/duration_count`` [iteration]
+    *(Integer)* The number of event durations recorded in each iteration.
+    
+  ``/durations`` [iteration][event duration]
+    *(Structured -- see below)*  Event durations for transition events ending
+    during a given iteration. These are stored as follows:
+      
+      istate
+        *(Integer)* Initial state of transition event.
+      fstate
+        *(Integer)* Final state of transition event.
+      duration
+        *(Floating-point)* Duration of transition, in units of tau.
+      weight
+        *(Floating-point)* Weight of trajectory at end of transition, **not**
+        normalized by initial state population.
+
+Because state-to-state fluxes stored in this file are not normalized by
+initial macrostate population, they cannot be used as rates without further
+processing. The ``w_kinavg`` command is used to perform this normalization
+while taking statistical fluctuation and correlation into account. See 
+``w_kinavg trace --help`` for more information.  Target fluxes (total flux
+into a given state) require no such normalization.
+
+-----------------------------------------------------------------------------
+Command-line options
+-----------------------------------------------------------------------------
+'''
     
     def __init__(self, parent):
-        super(AvgTraceSubcommand,self).__init__(parent)
+        super(DKinetics,self).__init__(parent)
+
+    def go(self):
+        pi = self.progress.indicator
+        pi.new_operation('Initializing')
+        with pi:
+            self.data_reader.open('r')
+            self.open_files()
+            nstates = self.assignments_file.attrs['nstates']
+            start_iter, stop_iter = self.iter_range.iter_start, self.iter_range.iter_stop # h5io.get_iter_range(self.assignments_file)
+            iter_count = stop_iter - start_iter
+            durations_ds = self.output_file.create_dataset('durations', 
+                                                           shape=(iter_count,0), maxshape=(iter_count,None),
+                                                           dtype=ed_list_dtype,
+                                                           chunks=(1,15360) if self.do_compression else None,
+                                                           shuffle=self.do_compression,
+                                                           compression=9 if self.do_compression else None)
+            durations_count_ds = self.output_file.create_dataset('duration_count',
+                                                                 shape=(iter_count,), dtype=numpy.int_, shuffle=True,compression=9)
+            cond_fluxes_ds = self.output_file.create_dataset('conditional_fluxes',
+                                                              shape=(iter_count,nstates,nstates), dtype=weight_dtype,
+                                                              chunks=(h5io.calc_chunksize((iter_count,nstates,nstates),weight_dtype)
+                                                                      if self.do_compression else None),
+                                                              shuffle=self.do_compression,
+                                                              compression=9 if self.do_compression else None)
+            total_fluxes_ds = self.output_file.create_dataset('total_fluxes',
+                                                              shape=(iter_count,nstates), dtype=weight_dtype,
+                                                              chunks=(h5io.calc_chunksize((iter_count,nstates),weight_dtype)
+                                                                      if self.do_compression else None),
+                                                              shuffle=self.do_compression,
+                                                              compression=9 if self.do_compression else None)
+
+            cond_arrival_counts_ds = self.output_file.create_dataset('conditional_arrivals',
+                                                                     shape=(iter_count,nstates,nstates), dtype=numpy.uint,
+                                                                     chunks=(h5io.calc_chunksize((iter_count,nstates,nstates),
+                                                                                                 numpy.uint)
+                                                                             if self.do_compression else None),
+                                                              shuffle=self.do_compression,
+                                                              compression=9 if self.do_compression else None) 
+            arrival_counts_ds = self.output_file.create_dataset('arrivals',
+                                                                shape=(iter_count,nstates), dtype=numpy.uint,
+                                                                chunks=(h5io.calc_chunksize((iter_count,nstates),
+                                                                                            numpy.uint)
+                                                                        if self.do_compression else None),
+                                                                shuffle=self.do_compression,
+                                                                compression=9 if self.do_compression else None)
+
+            # copy state labels for convenience
+            self.output_file['state_labels'] = self.assignments_file['state_labels'][...]
+
+            # Put nice labels on things
+            for ds in (self.output_file, durations_count_ds, cond_fluxes_ds, total_fluxes_ds):
+                h5io.stamp_iter_range(ds, start_iter, stop_iter)
+
+            # Calculate instantaneous rate matrices and trace trajectories
+            last_state = None
+            pi.new_operation('Tracing trajectories', iter_count)
+            for iiter, n_iter in enumerate(xrange(start_iter, stop_iter)):
+                # Get data from the main HDF5 file
+                iter_group = self.data_reader.get_iter_group(n_iter)
+                seg_index = iter_group['seg_index']
+                nsegs, npts = iter_group['pcoord'].shape[0:2] 
+                weights = seg_index['weight']
+                #parent_ids = seg_index['parent_id']
+                parent_ids = self.data_reader.parent_id_dsspec.get_iter_data(n_iter)
+                
+                # Get bin and traj. ensemble assignments from the previously-generated assignments file
+                assignment_iiter = h5io.get_iteration_entry(self.assignments_file, n_iter)
+                bin_assignments = numpy.require(self.assignments_file['assignments'][assignment_iiter + numpy.s_[:nsegs,:npts]],
+                                                dtype=index_dtype)
+                label_assignments = numpy.require(self.assignments_file['trajlabels'][assignment_iiter + numpy.s_[:nsegs,:npts]],
+                                                  dtype=index_dtype)
+                state_assignments = numpy.require(self.assignments_file['statelabels'][assignment_iiter + numpy.s_[:nsegs,:npts]],
+                                                  dtype=index_dtype)
+                
+                # Prepare to run analysis
+                cond_fluxes = numpy.zeros((nstates,nstates), weight_dtype)
+                total_fluxes = numpy.zeros((nstates,), weight_dtype)
+                cond_counts = numpy.zeros((nstates,nstates), numpy.uint)
+                total_counts = numpy.zeros((nstates,), numpy.uint)
+                durations = []
+    
+                # Estimate macrostate fluxes and calculate event durations using trajectory tracing
+                # state is opaque to the find_macrostate_transitions function            
+                state = _fast_transition_state_copy(iiter, nstates, parent_ids, last_state)
+                find_macrostate_transitions(nstates, weights, label_assignments, state_assignments, 1.0/(npts-1), state,
+                                            cond_fluxes, cond_counts, total_fluxes, total_counts, durations)
+                last_state = state
+                
+                # Store trace-based kinetics data
+                cond_fluxes_ds[iiter] = cond_fluxes
+                total_fluxes_ds[iiter] = total_fluxes
+                arrival_counts_ds[iiter] = total_counts
+                cond_arrival_counts_ds[iiter] = cond_counts
+                
+                durations_count_ds[iiter] = len(durations)
+                if len(durations) > 0:
+                    durations_ds.resize((iter_count, max(len(durations), durations_ds.shape[1])))
+                    durations_ds[iiter,:len(durations)] = durations
+                        
+                # Do a little manual clean-up to prevent memory explosion
+                del iter_group, weights, parent_ids, bin_assignments, label_assignments, state, cond_fluxes, total_fluxes
+                pi.progress += 1
+
+class AverageCommands(DirectSubcommands):
+    def __init__(self, parent):
+        # Ideally, this is stuff general to all the calculations we want to perform.
+        super(AverageCommands,self).__init__(parent)
+        self.kinetics_filename = None
+        self.kinetics_file = None
                         
     def go(self):
         pi = self.progress.indicator
@@ -266,97 +524,51 @@ class AvgTraceSubcommand(KinAvgSubcommands):
             cond_fluxes = h5io.IterBlockedDataset(self.kinetics_file['conditional_fluxes'])
             cond_fluxes.cache_data()
             total_fluxes = h5io.IterBlockedDataset(self.kinetics_file['total_fluxes'])
+            
+
             pops = h5io.IterBlockedDataset(self.assignments_file['labeled_populations'])
+            iter_count = stop_iter-start_iter
+            all_state_pops = numpy.empty((iter_count,nstates+1), weight_dtype)
+            iter_state_pops = numpy.empty((nstates+1,), weight_dtype)
+            all_state_pops = numpy.empty((iter_count,nstates+1), weight_dtype)
+            avg_state_pops = numpy.zeros((nstates+1,), weight_dtype)
+            pops.cache_data(max_size='available')
+            state_map = self.assignments_file['state_map'][...]
+            try:
+                for iiter,n_iter in enumerate(xrange(start_iter,stop_iter)):
+                    iter_state_pops.fill(0)
+                    labeled_pops = pops.iter_entry(n_iter)
+                    accumulate_state_populations_from_labeled(labeled_pops, state_map, iter_state_pops, check_state_map=False)
+                    all_state_pops[iiter] = iter_state_pops
+                    avg_state_pops += iter_state_pops
+                    del labeled_pops
+                    pi.progress += 1
+            finally:
+                pops.drop_cache()
+
+            # This should really go in the run calculation function...
+            # ... because we want to use this multiple ways.  This way gives us what we need for the color populations.
             pops.cache_data()
             pops.data = pops.data.sum(axis=2)
-            
             rates = h5io.IterBlockedDataset.empty_like(cond_fluxes)
             rates.data = sequence_macro_flux_to_rate(cond_fluxes.data, pops.data[:nstates,:nbins])
-            
-            avg_total_fluxes = numpy.zeros((nstates,), dtype=ci_dtype)
-            avg_color_probs = numpy.zeros((nstates,), dtype=ci_dtype)
-            avg_conditional_fluxes = numpy.zeros((nstates,nstates), dtype=ci_dtype)
-            avg_rates = numpy.zeros((nstates,nstates), dtype=ci_dtype)
-            
-            # Calculate overall average rates
-            # Replacing the older structure with the futures codepath, because
-            # a lot of the way the operations work has changed, and it seems cleaner to use one code path, anyway.
-            pi.new_operation('Averaging fluxes/rates', nstates)
-            futures = []
-            future = self.work_manager.submit(_eval_block, kwargs=dict(iblock=0, start=start_iter, stop=stop_iter,
-                                                                       nstates=nstates,
-                                                                       total_fluxes=total_fluxes.iter_slice(start_iter,stop_iter),
-                                                                       cond_fluxes = cond_fluxes.iter_slice(start_iter,stop_iter),
-                                                                       pops=pops.iter_slice(start_iter,stop_iter),
-                                                                       rates=rates.iter_slice(start_iter,stop_iter),
-                                                                       mcbs_alpha=self.mcbs_alpha, mcbs_nsets=self.mcbs_nsets,
-                                                                       mcbs_acalpha=self.mcbs_acalpha,
-                                                                       correl=self.correl))
-            futures.append(future)
-            
-            for future in self.work_manager.as_completed(futures):
-                target_results, color_results, condflux_results, rate_results = future.get_result(discard=True)
-                for result in target_results:
-                    iblock,istate,ci_result = result
-                    avg_total_fluxes[istate] = ci_result
 
-                for result in color_results:
-                    iblock,istate,ci_result = result
-                    avg_color_probs[istate] = ci_result
-                    
-                for result in condflux_results:
-                    iblock,istate,jstate,ci_result = result
-                    avg_conditional_fluxes[istate, jstate] = ci_result
-                
-                for result in rate_results:
-                    iblock, istate, jstate, ci_result = result 
-                    avg_rates[istate, jstate] = ci_result
-                    
-            pi.new_operation('Saving averages')
-            self.output_file['avg_rates'] = avg_rates
-            self.output_file['avg_conditional_fluxes'] = avg_conditional_fluxes
-            self.output_file['avg_total_fluxes'] = avg_total_fluxes
-            self.output_file['avg_color_probs'] = avg_color_probs
-            for ds in ('avg_rates', 'avg_conditional_fluxes', 'avg_total_fluxes'):
-                self.stamp_mcbs_info(self.output_file[ds])
+            # We've loaded up the datasets that we want; now we just run the actual calculation.
+            self.submit_calculation(pi, nstates, nbins, state_labels, start_iter, stop_iter, step_iter, cond_fluxes, total_fluxes, pops, all_state_pops, rates)
 
-            self.output_file['state_labels'] = state_labels
-            maxlabellen = max(map(len,state_labels))
-            pi.clear()
             
-            if self.display_averages:
-                print('fluxes into macrostates:')
-                for istate in xrange(nstates):
-                    print('{:{maxlabellen}s}: mean={:21.15e} CI=({:21.15e}, {:21.15e}) * tau^-1'
-                          .format(state_labels[istate],
-                                  avg_total_fluxes['expected'][istate],
-                                  avg_total_fluxes['ci_lbound'][istate],
-                                  avg_total_fluxes['ci_ubound'][istate],
-                                  maxlabellen=maxlabellen))
-
-                print('\nfluxes from state to state:')
-                for istate in xrange(nstates):
-                    for jstate in xrange(nstates):
-                        if istate == jstate: continue
-                        print('{:{maxlabellen}s} -> {:{maxlabellen}s}: mean={:21.15e} CI=({:21.15e}, {:21.15e}) * tau^-1'
-                              .format(state_labels[istate], state_labels[jstate],
-                                      avg_conditional_fluxes['expected'][istate,jstate],
-                                      avg_conditional_fluxes['ci_lbound'][istate,jstate],
-                                      avg_conditional_fluxes['ci_ubound'][istate,jstate],
-                                      maxlabellen=maxlabellen))
-                   
-                print('\nrates from state to state:')
-                for istate in xrange(nstates):
-                    for jstate in xrange(nstates):
-                        if istate == jstate: continue
-                        print('{:{maxlabellen}s} -> {:{maxlabellen}s}: mean={:21.15e} CI=({:21.15e}, {:21.15e}) * tau^-1'
-                              .format(state_labels[istate], state_labels[jstate],
-                                      avg_rates['expected'][istate,jstate],
-                                      avg_rates['ci_lbound'][istate,jstate],
-                                      avg_rates['ci_ubound'][istate,jstate],
-                                      maxlabellen=maxlabellen))
+class DKinAvg(AverageCommands):
+    subcommand = 'average'
+    help_text = 'averages and CIs for path-tracing kinetics analysis'
+    default_kinetics_file = 'kintrace.h5'
+    
+    def submit_calculation(self, pi, nstates, nbins, state_labels, start_iter, stop_iter, step_iter, cond_fluxes, total_fluxes, pops, all_state_pops, rates):
+            # We're going to use one code loop for this stuff, if possible...
             
+            # ... so we're going to try and extract the preceding stuff to a general thing.
             # skip evolution if not requested
+
+            # this comes from w_stateprobs
             if self.evolution_mode == 'none' or not step_iter: return
             
             start_pts = range(start_iter, stop_iter, step_iter)
@@ -364,10 +576,14 @@ class AvgTraceSubcommand(KinAvgSubcommands):
             color_evol = numpy.zeros((len(start_pts), nstates), dtype=ci_dtype)
             flux_evol = numpy.zeros((len(start_pts), nstates, nstates), dtype=ci_dtype)
             rate_evol = numpy.zeros((len(start_pts), nstates, nstates), dtype=ci_dtype)
+            pop_evol = numpy.zeros((len(start_pts), nstates), dtype=ci_dtype)
             all_items = numpy.arange(1,len(start_pts)+1)
             bootstrap_length = 0.5*(len(start_pts)*(len(start_pts)+1)) - numpy.delete(all_items, numpy.arange(1, len(start_pts)+1, step_iter))
             if self.mcbs_enable == True:
                 pi.new_operation('Calculating flux/rate evolution', bootstrap_length[0])
+                # We're calculating far more than that, but for now...
+                # Actually, you know what?  We'll just change the blocks to play nice.  They should self identify, to write cleaner code.
+                # These are the 'default' kwargs for this sort of analysis.
                 futures = []
                 for iblock, start in enumerate(start_pts):
                     stop = min(start+step_iter, stop_iter)
@@ -376,36 +592,47 @@ class AvgTraceSubcommand(KinAvgSubcommands):
                         block_start = max(start_iter, stop - windowsize)
                     else: # self.evolution_mode == 'blocked'
                         block_start = start
-                    
-                    future = self.work_manager.submit(_eval_block, kwargs=dict(iblock=iblock, start=block_start, stop=stop,
-                                                                               nstates=nstates,
-                                                                               total_fluxes=total_fluxes.iter_slice(block_start,stop),
-                                                                               cond_fluxes = cond_fluxes.iter_slice(block_start,stop),
-                                                                               pops=pops.iter_slice(block_start,stop),
-                                                                               rates=rates.iter_slice(block_start,stop),
-                                                                               mcbs_alpha=self.mcbs_alpha, mcbs_nsets=self.mcbs_nsets,
-                                                                               mcbs_acalpha=self.mcbs_acalpha,
-                                                                               correl=self.correl))
-                    futures.append(future)
-                
+                    # We just slice up the results we want...
+                    future_kwargs = dict(iblock=iblock, start=block_start, stop=stop,
+                                         nstates=nstates,
+                                         total_fluxes=total_fluxes.iter_slice(block_start,stop),
+                                         cond_fluxes = cond_fluxes.iter_slice(block_start,stop),
+                                         pops=pops.iter_slice(block_start,stop),
+                                         rates=rates.iter_slice(block_start,stop),
+                                         mcbs_alpha=self.mcbs_alpha, mcbs_nsets=self.mcbs_nsets,
+                                         mcbs_acalpha=self.mcbs_acalpha,
+                                         state_pops=all_state_pops,
+                                         correl=self.correl)
+
+                    # Do it for all the datasets we want!
+                    futures.append(generate_future(self.work_manager, 'target_results',         _flux_eval_block,     future_kwargs))
+                    futures.append(generate_future(self.work_manager, 'condflux_results',       _condflux_eval_block, future_kwargs))
+                    futures.append(generate_future(self.work_manager, 'color_results',          _color_eval_block,    future_kwargs))
+                    futures.append(generate_future(self.work_manager, 'rate_results',           _rate_eval_block,     future_kwargs))
+                    futures.append(generate_future(self.work_manager, 'population_results',     _pop_eval_block,      future_kwargs))
+
+                # Can we reuse this little block?  Probably not.
                 for future in self.work_manager.as_completed(futures):
-                    pi.progress += iblock / step_iter
-                    target_results, color_results, condflux_results, rate_results = future.get_result(discard=True)
-                    for result in target_results:
-                        iblock,istate,ci_result = result
+                    pi.progress += iblock / step_iter / 4
+                    future_result = future.get_result(discard=True)
+                    print(future_result)
+
+                    name,iblock,istate,jstate,ci_result = future_result
+
+                    if name == 'target_results':
                         target_evol[iblock,istate] = ci_result
 
-                    for result in color_results:
-                        iblock,istate,ci_result = result
+                    elif name == 'color_results':
                         color_evol[iblock,istate] = ci_result
                         
-                    for result in condflux_results:
-                        iblock,istate,jstate,ci_result = result
+                    elif name == 'condflux_results':
                         flux_evol[iblock,istate, jstate] = ci_result
                     
-                    for result in rate_results:
-                        iblock, istate, jstate, ci_result = result 
+                    elif name == 'rate_results':
                         rate_evol[iblock, istate, jstate] = ci_result
+
+                    elif name == 'population_results':
+                        pop_evol[iblock, istate] = ci_result
 
             else:
                 # This is really here for compatibility with the evolution mode.  It's probably easier to just output *one* dataset, rather than
@@ -428,18 +655,18 @@ class AvgTraceSubcommand(KinAvgSubcommands):
 
             df_ds = self.output_file.create_dataset('conditional_flux_evolution', data=flux_evol, shuffle=True, compression=9)
             tf_ds = self.output_file.create_dataset('target_flux_evolution', data=target_evol, shuffle=True, compression=9)
-            #cp_ds = self.output_file.create_dataset('color_prob_evolution', data=pops.data, shuffle=True, compression=9)
             cp_ds = self.output_file.create_dataset('color_prob_evolution', data=color_evol, shuffle=True, compression=9)
             rate_ds = self.output_file.create_dataset('rate_evolution', data=rate_evol, shuffle=True, compression=9)
+            self.output_file.create_dataset('state_pop_evolution', data=pop_evol, shuffle=True, compression=9)
             
             for ds in (df_ds, tf_ds, rate_ds):
                 self.stamp_mcbs_info(ds)
 
-class WKinAvg(WESTMasterCommand, WESTParallelTool):
-    prog='w_kinavg'
+class WDirect(WESTMasterCommand, WESTParallelTool):
+    prog='w_direct'
     #subcommands = [AvgTraceSubcommand,AvgMatrixSubcommand]
-    subcommands = [AvgTraceSubcommand]
-    subparsers_title = 'kinetics analysis schemes'
+    subcommands = [DKinetics, DKinAvg]
+    subparsers_title = 'direct kinetics analysis schemes'
     description = '''\
 Calculate average rates and associated errors from weighted ensemble data. Bin
 assignments (usually "assignments.h5") and kinetics data (usually
@@ -535,4 +762,4 @@ Command-line options
 '''
 
 if __name__ == '__main__':
-    WKinAvg().main()
+    WDirect().main()

@@ -23,6 +23,8 @@ import math, numpy
 
 from _mclib import autocorrel_elem, mcbs_correltime, get_bssize, mcbs_ci #@UnresolvedImport
 
+#from eval_block import _2D_eval_block, _1D_eval_block
+
 def mcbs_ci_correl(dataset, estimator, alpha, n_sets=None, args=None, kwargs=None,
                    autocorrel_alpha = None, autocorrel_n_sets=None, subsample=None, pops=None,
                    istate=None, jstate=None, correl=True):
@@ -237,3 +239,14 @@ def mcbs_ci_correl_rw(dataset, estimator, alpha, n_sets=None, args=None,
             kwargs['stride'] = stride
         
         return mcbs_ci(dataset=decim_list, estimator=estimator, alpha=alpha, dlen=dlen, n_sets=n_sets, args=args, kwargs=kwargs, sort=numpy.msort) + (correl_len,)
+
+def _1D_eval_block(iblock, start, stop, nstates, dataset, estimator, subsample, name, mcbs_alpha, mcbs_nsets, mcbs_acalpha, istate, jstate, **kwargs):
+    results = []
+    # Dataset is a dictionary containing all the information we need to submit to the mclib bit.
+    # Kwargs contains extra information that the estimator may need.
+    # Some estimators may require dummy values; we'll just leave those in, for now.
+    ci_res = mcbs_ci_correl_rw(dataset,estimator=estimator,
+                                alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
+                                subsample=subsample, **kwargs)
+    results = (iblock,istate,jstate,(start,stop)+ci_res)
+    return { 'name' : name, 'results' : results }
