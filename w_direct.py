@@ -100,6 +100,8 @@ class DirectSubcommands(WESTSubcommand):
         
         # self.default_kinetics_file will be picked up as a class attribute from the appropriate subclass        
         # We can do this with the output file, too...
+        # ... by default, however, we're going to use direct.h5 for everything.
+        # Modules which are called with different default values will, of course, still use those.
         iogroup.add_argument('-k', '--kinetics', default=self.default_kinetics_file,
                             help='''Populations and transition rates are stored in KINETICS
                             (default: %(default)s).''')
@@ -243,8 +245,8 @@ def _rate_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha,
 
 class DKinetics(DirectSubcommands):
     subcommand='kinetics'
-    default_kinetics_file = 'kintrace.h5'
-    default_output_file = 'kintrace.h5'
+    default_kinetics_file = 'direct.h5'
+    default_output_file = 'direct.h5'
     help_text = 'calculate state-to-state kinetics by tracing trajectories'
     description = '''\
 Calculate state-to-state rates and transition event durations by tracing
@@ -504,7 +506,7 @@ class AverageCommands(DirectSubcommands):
             futures = []
             for iblock, start in enumerate(start_pts):
                 stop = min(start+step_iter, stop_iter)
-                if self.evolution_mode == 'cumulative':
+                if self.evolution_mode == 'cumulative' or do_averages == True:
                     windowsize = int(self.evol_window_frac * (stop - start_iter))
                     block_start = max(start_iter, stop - windowsize)
                 else: # self.evolution_mode == 'blocked'
@@ -547,9 +549,9 @@ class AverageCommands(DirectSubcommands):
 
             
 class DKinAvg(AverageCommands):
-    subcommand = 'average'
+    subcommand = 'kinavg'
     help_text = 'averages and CIs for path-tracing kinetics analysis'
-    default_kinetics_file = 'kintrace.h5'
+    default_kinetics_file = 'direct.h5'
 
     def w_kinavg(self):
         pi = self.progress.indicator
@@ -626,7 +628,7 @@ class DKinAvg(AverageCommands):
 class DStateProbs(AverageCommands):
     subcommand = 'stateprobs'
     help_text = 'averages and CIs for path-tracing kinetics analysis'
-    default_kinetics_file = 'kintrace.h5'
+    default_kinetics_file = 'direct.h5'
 
     def calculate_state_populations(self, pops):
             # ... but then this is how the state populations are done.
@@ -699,14 +701,24 @@ class DStateProbs(AverageCommands):
     def go(self):
         self.w_stateprobs()
 
-# Just a convenience function to run everything.
+# Just a convenience class to run everything.
 class DAll(DStateProbs, DKinAvg, DKinetics):
     subcommand = 'all'
     help_text = 'averages and CIs for path-tracing kinetics analysis'
-    default_kinetics_file = 'kintrace.h5'
+    default_kinetics_file = 'direct.h5'
 
     def go(self):
-        #self.w_kinetics()
+        self.w_kinetics()
+        self.w_kinavg()
+        self.w_stateprobs()
+
+# Just a convenience class to average the observables.
+class DAverage(DStateProbs, DKinAvg):
+    subcommand = 'average'
+    help_text = 'averages and CIs for path-tracing kinetics analysis'
+    default_kinetics_file = 'direct.h5'
+
+    def go(self):
         self.w_kinavg()
         self.w_stateprobs()
 
@@ -714,7 +726,7 @@ class DAll(DStateProbs, DKinAvg, DKinetics):
 class WDirect(WESTMasterCommand, WESTParallelTool):
     prog='w_direct'
     #subcommands = [AvgTraceSubcommand,AvgMatrixSubcommand]
-    subcommands = [DKinetics, DKinAvg, DStateProbs, DAll]
+    subcommands = [DKinetics, DKinAvg, DStateProbs, DAll, DAverage]
     subparsers_title = 'direct kinetics analysis schemes'
     description = '''\
 Calculate average rates and associated errors from weighted ensemble data. Bin
