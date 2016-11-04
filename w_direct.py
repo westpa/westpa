@@ -38,7 +38,7 @@ from westpa.kinetics import labeled_flux_to_rate, sequence_macro_flux_to_rate, s
 from westpa.kinetics.matrates import get_macrostate_rates
 
 import mclib
-from mclib import mcbs_correltime, mcbs_ci_correl, mcbs_ci_correl_rw, _1D_simple_eval_block, _2D_simple_eval_block
+from mclib import mcbs_correltime, mcbs_ci_correl_rw, _1D_simple_eval_block, _2D_simple_eval_block
 
 
 log = logging.getLogger('westtools.w_kinavg')
@@ -57,7 +57,7 @@ from westpa.binning import accumulate_state_populations_from_labeled
 
 
 class DirectSubcommands(WESTSubcommand):
-    '''Common argument processing for w_kinavg subcommands'''
+    '''Common argument processing for w_direct subcommands'''
     
     def __init__(self, parent):
         super(DirectSubcommands,self).__init__(parent)
@@ -67,7 +67,6 @@ class DirectSubcommands(WESTSubcommand):
         self.progress = ProgressIndicatorComponent()
         
         self.output_filename = None
-        # This is specific to the old w_kinavg, and isn't used by Kinetics.
         # This is actually applicable to both.
         self.assignment_filename = None
         
@@ -82,8 +81,6 @@ class DirectSubcommands(WESTSubcommand):
 
         # Now we're adding in things that come from the old w_kinetics
         self.do_compression = True
-
-        # We're going to try and re-use a lot of this code for the matrix commands, too, so.
         
     def stamp_mcbs_info(self, dataset):
         dataset.attrs['mcbs_alpha'] = self.mcbs_alpha
@@ -174,7 +171,7 @@ class DirectSubcommands(WESTSubcommand):
         self.kinetics_filename = args.kinetics
                 
         self.mcbs_enable = args.bootstrap
-        self.correl = args.correl
+        self.do_correl = args.correl
         self.mcbs_alpha = args.alpha
         self.mcbs_acalpha = args.acalpha if args.acalpha else self.mcbs_alpha
         self.mcbs_nsets = args.nsets if args.nsets else mclib.get_bssize(self.mcbs_alpha)
@@ -206,7 +203,7 @@ class DirectSubcommands(WESTSubcommand):
         self.output_filename = os.path.join(path, 'kinavg.h5')
         self.kinetics_filename = os.path.join(path, 'kintrace.h5')
         self.assignments_filename = os.path.join(path, 'assign.h5')
-        w_kinavg_config = { 'mcbs_alpha': 0.05, 'mcbs_nsets': 1000, 'evolution': 'cumulative', 'evol_window_frac': 1, 'step_iter': 1, 'bootstrap': True , 'correl': True, 'display_averages': False}
+        w_kinavg_config = { 'mcbs_alpha': 0.05, 'mcbs_nsets': 1000, 'evolution': 'cumulative', 'evol_window_frac': 1, 'step_iter': 1, 'bootstrap': True , 'do_correl': True, 'display_averages': False}
         try:
             w_kinavg_config.update(config['w_kinavg'])
         except:
@@ -223,7 +220,7 @@ class DirectSubcommands(WESTSubcommand):
         self.evol_window_frac = w_kinavg_config['evol_window_frac']
         self.iter_range.iter_step = w_kinavg_config['step_iter']
         self.mcbs_enable = w_kinavg_config['bootstrap']
-        self.correl = w_kinavg_config['correl']
+        self.do_correl = w_kinavg_config['do_correl']
         self.display_averages = w_kinavg_config['display_averages']
 
 def generate_future(work_manager, name, eval_block, kwargs):
@@ -235,7 +232,7 @@ def generate_future(work_manager, name, eval_block, kwargs):
 # Each of these blocks is responsible for submitting a set of calculations to be bootstrapped over for a particular type of calculation.
 # A property which wishes to be calculated should adhere to this format.
 
-def _rate_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha, mcbs_nsets, mcbs_acalpha, correl, **extra):
+def _rate_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha, mcbs_nsets, mcbs_acalpha, do_correl, **extra):
     # Our rate estimator is a little more complex, so we've defined a custom evaluation block for it,
     # instead of just using the block evalutors that we've imported.
     results = []
@@ -243,10 +240,14 @@ def _rate_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha,
         for jstate in xrange(nstates):
             if istate == jstate: continue
             kwargs = { 'istate' : istate, 'jstate': jstate }
+            # Why are we sending in the total population dataset, instead of a sliced one?
+            # It's a requirement of our estimator; we need to pull from any given i to j state in order to properly normalize
+            # and avoid i to j rate constants which are affected by a third state k.
+            # That is, we need the populations for both i and j, and it's easier to just send in the entire dataset.
             dataset = {'dataset': data_input['dataset'][:, istate, jstate], 'pops': data_input['pops'] }
             ci_res = mcbs_ci_correl_rw(dataset,estimator=sequence_macro_flux_to_rate_bs,
                                     alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
-                                    subsample=numpy.mean, pre_calculated=data_input['rates'][:,istate,jstate][numpy.isfinite(data_input['rates'][:,istate,jstate])], correl=correl, **kwargs)
+                                    subsample=numpy.mean, pre_calculated=data_input['rates'][:,istate,jstate][numpy.isfinite(data_input['rates'][:,istate,jstate])], do_correl=do_correl, **kwargs)
             results.append((name, iblock, istate, jstate, (start,stop) + ci_res))
 
     return results
@@ -425,6 +426,7 @@ Command-line options
                 del iter_group, weights, parent_ids, bin_assignments, label_assignments, state, cond_fluxes, total_fluxes
                 pi.progress += 1
 
+
 class AverageCommands(DirectSubcommands):
     default_output_file = 'direct.h5'
 
@@ -442,10 +444,14 @@ class AverageCommands(DirectSubcommands):
         assert self.nstates == len(self.state_labels)
         self.start_iter, self.stop_iter, self.step_iter = self.iter_range.iter_start, self.iter_range.iter_stop, self.iter_range.iter_step
 
-    def run_calculation(self, pi, nstates, start_iter, stop_iter, step_iter, dataset, eval_block, name, dim):
+    def run_calculation(self, pi, nstates, start_iter, stop_iter, step_iter, dataset, eval_block, name, dim, do_averages=False):
         #pi = self.progress.indicator
         
-        start_pts = range(start_iter, stop_iter, step_iter)
+        # We want to use the same codepath to run a quick average as we do the longer evolution sets, so...
+        if do_averages:
+            start_pts = [start_iter, stop_iter]
+        else:
+            start_pts = range(start_iter, stop_iter, step_iter)
         # Our evolution dataset!
         if dim == 2:
             evolution_dataset = numpy.zeros((len(start_pts), nstates, nstates), dtype=ci_dtype)
@@ -476,7 +482,7 @@ class AverageCommands(DirectSubcommands):
                                      nstates=nstates,
                                      mcbs_alpha=self.mcbs_alpha, mcbs_nsets=self.mcbs_nsets,
                                      mcbs_acalpha=self.mcbs_acalpha,
-                                     correl=self.correl,name=name,
+                                     do_correl=self.do_correl,name=name,
                                      data_input={})
 
                 # Slice up the datasets for this iteration slice.
@@ -506,7 +512,6 @@ class AverageCommands(DirectSubcommands):
 
             return evolution_dataset
 
-
             
 class DKinAvg(AverageCommands):
     subcommand = 'average'
@@ -521,7 +526,6 @@ class DKinAvg(AverageCommands):
             self.open_files()
             self.open_assignments()
             # Obviously, this is for the conditional and total fluxes.  This is really all we need to sort for this.
-            #pi.new_operation('Reading data')
             cond_fluxes = h5io.IterBlockedDataset(self.kinetics_file['conditional_fluxes'])
             cond_fluxes.cache_data()
             total_fluxes = h5io.IterBlockedDataset(self.kinetics_file['total_fluxes'])
@@ -554,6 +558,7 @@ class DKinAvg(AverageCommands):
             submit_kwargs['dataset'] = {'dataset': total_fluxes }
             rate_evol = self.run_calculation(eval_block=_1D_simple_eval_block, name='Target Flux Evolution', dim=1, **submit_kwargs)
             self.output_file.replace_dataset('target_flux_evolution', data=rate_evol, shuffle=True, compression=9)
+
 
 class DStateProbs(AverageCommands):
     subcommand = 'stateprobs'
@@ -613,10 +618,32 @@ class DStateProbs(AverageCommands):
             pop_evol = self.run_calculation(name='State Probability Evolution', dim=1, **submit_kwargs)
             self.output_file.replace_dataset(name='state_pop_evolution', data=pop_evol, shuffle=True, compression=9)
 
+class DAll(AverageCommands):
+    subcommand = 'all'
+    help_text = 'averages and CIs for path-tracing kinetics analysis'
+    default_kinetics_file = 'kintrace.h5'
+
+    def init(self, parent):
+        self.parent = parent
+        super(DAll,self).__init__(parent)
+
+    def process_args(self, args):
+        #self.Master = WDirect()
+        self.parent._subcommand = DStateProbs(self.parent)
+        self.parent._subcommand.process_all_args(self.args)
+        super(DAll,self).process_args(self.args)
+
+    def go(self):
+        print(self.args)
+        print(dir(self))
+        self.Master._subcommand.go()
+
+
+
 class WDirect(WESTMasterCommand, WESTParallelTool):
     prog='w_direct'
     #subcommands = [AvgTraceSubcommand,AvgMatrixSubcommand]
-    subcommands = [DKinetics, DKinAvg, DStateProbs]
+    subcommands = [DKinetics, DKinAvg, DStateProbs, DAll]
     subparsers_title = 'direct kinetics analysis schemes'
     description = '''\
 Calculate average rates and associated errors from weighted ensemble data. Bin
