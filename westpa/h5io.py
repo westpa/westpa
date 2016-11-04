@@ -88,7 +88,7 @@ def calc_chunksize(shape, dtype, max_chunksize=262144):
     return chunk_shape
 
 #
-# Group and datset manipulation functions
+# Group and dataset manipulation functions
 #
 
 def create_hdf5_group(parent_group, groupname, replace=False, creating_program=None):
@@ -281,6 +281,19 @@ class WESTPAH5File(h5py.File):
             self.attrs['westpa_fileformat_version'] = self.fileformat_version
             if arg_creating_program:
                 stamp_creator_data(self, creating_program=arg_creating_program)
+
+    # Helper function to automatically replace a group, if it exists.
+    # Should really only be called when one is certain a dataset should be blown away.
+    def replace_dataset(self, *args, **kwargs):
+        try:
+            del self[args[0]]
+        except:
+            pass
+        try:
+            del self[kwargs['name']]
+        except:
+            pass
+        self.create_dataset(*args, **kwargs)
     
     # Iteration groups
     

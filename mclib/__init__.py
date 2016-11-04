@@ -23,8 +23,6 @@ import math, numpy
 
 from _mclib import autocorrel_elem, mcbs_correltime, get_bssize, mcbs_ci #@UnresolvedImport
 
-#from eval_block import _2D_eval_block, _1D_eval_block
-
 def mcbs_ci_correl(dataset, estimator, alpha, n_sets=None, args=None, kwargs=None,
                    autocorrel_alpha = None, autocorrel_n_sets=None, subsample=None, pops=None,
                    istate=None, jstate=None, correl=True):
@@ -240,13 +238,39 @@ def mcbs_ci_correl_rw(dataset, estimator, alpha, n_sets=None, args=None,
         
         return mcbs_ci(dataset=decim_list, estimator=estimator, alpha=alpha, dlen=dlen, n_sets=n_sets, args=args, kwargs=kwargs, sort=numpy.msort) + (correl_len,)
 
-def _1D_eval_block(iblock, start, stop, nstates, dataset, estimator, subsample, name, mcbs_alpha, mcbs_nsets, mcbs_acalpha, istate, jstate, **kwargs):
+
+# These are blocks designed to evaluate simple information sets.
+# Whether they should go here or in westtoools is somewhat up for debate.
+
+def _1D_simple_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha, mcbs_nsets, mcbs_acalpha, correl, **extra):
+    # This is actually appropriate for anything with a relatively simple dataset.
+    # Fluxes, color populations, and state populations.
     results = []
-    # Dataset is a dictionary containing all the information we need to submit to the mclib bit.
-    # Kwargs contains extra information that the estimator may need.
-    # Some estimators may require dummy values; we'll just leave those in, for now.
-    ci_res = mcbs_ci_correl_rw(dataset,estimator=estimator,
-                                alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
-                                subsample=subsample, **kwargs)
-    results = (iblock,istate,jstate,(start,stop)+ci_res)
-    return { 'name' : name, 'results' : results }
+    for istate in xrange(nstates):
+        # Not sure if we need a jstate for these estimators, but we'll see.
+        kwargs = { 'istate' : istate , 'jstate': 'B'}
+        dataset = {'dataset': data_input['dataset'][:,istate]}
+        ci_res = mcbs_ci_correl_rw(dataset,estimator=(lambda stride, dataset: numpy.mean(dataset)),
+                                    alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
+                                    subsample=numpy.mean, pre_calculated=dataset['dataset'], correl=correl)
+
+        results.append((name, iblock,istate,(start,stop)+ci_res))
+
+    return results
+
+def _2D_simple_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha, mcbs_nsets, mcbs_acalpha, correl, **extra):
+    # This is really just a simple 2D block for less complex datasets, but there it is.
+    results = []
+    for istate in xrange(nstates):
+        for jstate in xrange(nstates):
+            if istate == jstate: continue
+            kwargs = { 'istate' : istate, 'jstate': jstate }
+            #dataset = {'dataset': cond_fluxes[:, istate, jstate]}
+            dataset = {'dataset': data_input['dataset'][:, istate, jstate] }
+            ci_res = mcbs_ci_correl_rw(dataset,estimator=(lambda stride, dataset: numpy.mean(dataset)),
+                                    alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
+                                    subsample=numpy.mean, pre_calculated=dataset['dataset'], correl=correl)
+
+            results.append((name, iblock, istate, jstate, (start,stop) + ci_res))
+
+    return results

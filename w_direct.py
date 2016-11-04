@@ -18,6 +18,13 @@
 from __future__ import print_function, division; __metaclass__ = type
 import logging
 
+# Let's suppress those numpy warnings.
+import warnings
+warnings.filterwarnings('ignore', category=DeprecationWarning)
+warnings.filterwarnings('ignore', category=RuntimeWarning)
+warnings.filterwarnings('ignore', category=FutureWarning)
+
+
 import sys, random, math
 import numpy, h5py
 from h5py import h5s
@@ -31,7 +38,7 @@ from westpa.kinetics import labeled_flux_to_rate, sequence_macro_flux_to_rate, s
 from westpa.kinetics.matrates import get_macrostate_rates
 
 import mclib
-from mclib import mcbs_correltime, mcbs_ci_correl, mcbs_ci_correl_rw, _1D_eval_block
+from mclib import mcbs_correltime, mcbs_ci_correl, mcbs_ci_correl_rw, _1D_simple_eval_block, _2D_simple_eval_block
 
 
 log = logging.getLogger('westtools.w_kinavg')
@@ -96,10 +103,11 @@ class DirectSubcommands(WESTSubcommand):
                             (default: %(default)s).''')
         
         # self.default_kinetics_file will be picked up as a class attribute from the appropriate subclass        
+        # We can do this with the output file, too...
         iogroup.add_argument('-k', '--kinetics', default=self.default_kinetics_file,
                             help='''Populations and transition rates are stored in KINETICS
                             (default: %(default)s).''')
-        iogroup.add_argument('-o', '--output', dest='output', default='kinavg.h5',
+        iogroup.add_argument('-o', '--output', dest='output', default=self.default_output_file,
                             help='''Store results in OUTPUT (default: %(default)s).''')
 
         
@@ -140,7 +148,8 @@ class DirectSubcommands(WESTSubcommand):
                             help='''Name of scheme specified in west.cfg.''')
         
     def open_files(self):
-        self.output_file = h5io.WESTPAH5File(self.output_filename, 'w', creating_program=True)
+        #self.output_file = h5io.WESTPAH5File(self.output_filename, 'w', creating_program=True)
+        self.output_file = h5io.WESTPAH5File(self.output_filename, 'a', creating_program=True)
         h5io.stamp_creator_data(self.output_file)
         self.assignments_file = h5io.WESTPAH5File(self.assignments_filename, 'r')#, driver='core', backing_store=False)
         self.kinetics_file = h5io.WESTPAH5File(self.kinetics_filename, 'r')#, driver='core', backing_store=False)
@@ -217,48 +226,6 @@ class DirectSubcommands(WESTSubcommand):
         self.correl = w_kinavg_config['correl']
         self.display_averages = w_kinavg_config['display_averages']
 
-
-def _eval_block(iblock, start, stop, nstates, total_fluxes, cond_fluxes, pops, rates, mcbs_alpha, mcbs_nsets, mcbs_acalpha, correl):
-    results = [[],[],[],[]]
-    # results are target fluxes, conditional fluxes, rates
-    # We also want to do color, too; we can configure and change this such that we're also bootstrapping over the color populations.
-    # results are target fluxes, color populations, conditional fluxes, rates
-    for istate in xrange(nstates):
-        kwargs = { 'istate' : istate , 'jstate': 'B'}
-        dataset = {'dataset': total_fluxes[:, istate]}
-        ci_res = mcbs_ci_correl_rw(dataset,estimator=(lambda stride, dataset: numpy.mean(dataset)),
-                                    alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
-                                    subsample=numpy.mean, pre_calculated=dataset['dataset'], correl=correl)
-        results[0].append((iblock,istate,(start,stop)+ci_res))
-
-        # Trivial enough to add this, as it isn't a particularly difficult calculation.
-        kwargs = { 'istate' : istate , 'jstate': 'B'}
-        dataset = {'dataset': pops[:,istate]}
-        ci_res = mcbs_ci_correl_rw(dataset,estimator=(lambda stride, dataset: numpy.mean(dataset)),
-                                    alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
-                                    subsample=numpy.mean, pre_calculated=dataset['dataset'], correl=correl)
-        results[1].append((iblock,istate,(start,stop)+ci_res))
-        
-        for jstate in xrange(nstates):
-            if istate == jstate: continue
-            kwargs = { 'istate' : istate, 'jstate': jstate }
-            dataset = {'dataset': cond_fluxes[:, istate, jstate]}
-            ci_res = mcbs_ci_correl_rw(dataset,estimator=(lambda stride, dataset: numpy.mean(dataset)),
-                                    alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
-                                    subsample=numpy.mean, pre_calculated=dataset['dataset'], correl=correl)
-            results[2].append((iblock, istate, jstate, (start,stop) + ci_res))
-            
-            # macro_flux_to_rate_bs needs the following:
-            # dataset, pops, istate, jstate
-            kwargs = { 'istate' : istate, 'jstate': jstate }
-            dataset = {'dataset': cond_fluxes[:, istate, jstate], 'pops': pops}
-            ci_res = mcbs_ci_correl_rw(dataset,estimator=sequence_macro_flux_to_rate_bs,
-                                    alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
-                                    subsample=numpy.mean, pre_calculated=rates[:,istate,jstate][numpy.isfinite(rates[:,istate,jstate])], correl=correl, **kwargs)
-            results[3].append((iblock, istate, jstate, (start,stop) + ci_res))
-
-    return results
-
 def generate_future(work_manager, name, eval_block, kwargs):
     submit_kwargs = {'name': name}
     submit_kwargs.update(kwargs)
@@ -267,76 +234,28 @@ def generate_future(work_manager, name, eval_block, kwargs):
 
 # Each of these blocks is responsible for submitting a set of calculations to be bootstrapped over for a particular type of calculation.
 # A property which wishes to be calculated should adhere to this format.
-def _pop_eval_block(iblock, start, stop, nstates, total_fluxes, cond_fluxes, pops, state_pops, rates, mcbs_alpha, mcbs_nsets, mcbs_acalpha, correl, name, **extra):
-    for istate in xrange(nstates):
-        kwargs = { 'istate' : istate , 'jstate': 'B'}
-        dataset = {'dataset': state_pops[:,istate]}
-        ci_res = mcbs_ci_correl_rw(dataset,estimator=(lambda stride, dataset: numpy.mean(dataset)),
-                                    alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
-                                    subsample=numpy.mean, pre_calculated=dataset['dataset'], correl=correl)
 
-        results = (name, iblock,istate,istate,(start,stop)+ci_res)
-
-    return results
-
-#def _rate_eval_block(iblock, start, stop, nstates, total_fluxes, cond_fluxes, pops, rates, mcbs_alpha, mcbs_nsets, mcbs_acalpha, correl, name, **extra):
 def _rate_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha, mcbs_nsets, mcbs_acalpha, correl, **extra):
+    # Our rate estimator is a little more complex, so we've defined a custom evaluation block for it,
+    # instead of just using the block evalutors that we've imported.
     results = []
     for istate in xrange(nstates):
         for jstate in xrange(nstates):
             if istate == jstate: continue
-            # macro_flux_to_rate_bs needs the following:
-            # dataset, pops, istate, jstate
             kwargs = { 'istate' : istate, 'jstate': jstate }
-            #dataset = {'dataset': data_input['dataset'][:, istate, jstate], 'pops': data_input['pops'], 'rates': data_input['rates'][:,istate,jstate][numpy.isfinite(data_input['rates'][:,istate,jstate])] }
             dataset = {'dataset': data_input['dataset'][:, istate, jstate], 'pops': data_input['pops'] }
             ci_res = mcbs_ci_correl_rw(dataset,estimator=sequence_macro_flux_to_rate_bs,
                                     alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
                                     subsample=numpy.mean, pre_calculated=data_input['rates'][:,istate,jstate][numpy.isfinite(data_input['rates'][:,istate,jstate])], correl=correl, **kwargs)
-                                    #subsample=numpy.mean, pre_calculated=dataset['rates'], correl=correl, **kwargs)
             results.append((name, iblock, istate, jstate, (start,stop) + ci_res))
 
     return results
 
-def _condflux_eval_block(iblock, start, stop, nstates, total_fluxes, cond_fluxes, pops, rates, mcbs_alpha, mcbs_nsets, mcbs_acalpha, correl, name, **extra):
-    for istate in xrange(nstates):
-        for jstate in xrange(nstates):
-            if istate == jstate: continue
-            kwargs = { 'istate' : istate, 'jstate': jstate }
-            dataset = {'dataset': cond_fluxes[:, istate, jstate]}
-            ci_res = mcbs_ci_correl_rw(dataset,estimator=(lambda stride, dataset: numpy.mean(dataset)),
-                                    alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
-                                    subsample=numpy.mean, pre_calculated=dataset['dataset'], correl=correl)
-            results = (name, iblock, istate, jstate, (start,stop) + ci_res)
-
-    return results
-
-
-def _color_eval_block(iblock, start, stop, nstates, total_fluxes, cond_fluxes, pops, rates, mcbs_alpha, mcbs_nsets, mcbs_acalpha, correl, name, **extra):
-    for istate in xrange(nstates):
-        kwargs = { 'istate' : istate , 'jstate': 'B'}
-        dataset = {'dataset': pops[:,istate]}
-        ci_res = mcbs_ci_correl_rw(dataset,estimator=(lambda stride, dataset: numpy.mean(dataset)),
-                                    alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
-                                    subsample=numpy.mean, pre_calculated=dataset['dataset'], correl=correl)
-        results = (name, iblock,istate,istate,(start,stop)+ci_res)
-
-    return results
-
-def _flux_eval_block(iblock, start, stop, nstates, total_fluxes, cond_fluxes, pops, rates, mcbs_alpha, mcbs_nsets, mcbs_acalpha, correl, name, **extra):
-    for istate in xrange(nstates):
-        kwargs = { 'istate' : istate , 'jstate': 'B'}
-        dataset = {'dataset': total_fluxes[:, istate]}
-        ci_res = mcbs_ci_correl_rw(dataset,estimator=(lambda stride, dataset: numpy.mean(dataset)),
-                                    alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
-                                    subsample=numpy.mean, pre_calculated=dataset['dataset'], correl=correl)
-        results = (name, iblock,istate,istate,(start,stop)+ci_res)
-
-    return results
 
 class DKinetics(DirectSubcommands):
     subcommand='kinetics'
     default_kinetics_file = 'kintrace.h5'
+    default_output_file = 'kintrace.h5'
     help_text = 'calculate state-to-state kinetics by tracing trajectories'
     description = '''\
 Calculate state-to-state rates and transition event durations by tracing
@@ -507,80 +426,85 @@ Command-line options
                 pi.progress += 1
 
 class AverageCommands(DirectSubcommands):
+    default_output_file = 'direct.h5'
+
     def __init__(self, parent):
         # Ideally, this is stuff general to all the calculations we want to perform.
         super(AverageCommands,self).__init__(parent)
         self.kinetics_filename = None
         self.kinetics_file = None
-                        
+
+    def open_assignments(self):
+        # This seems to be stuff we're going to be using a lot, so.
+        self.nstates = self.assignments_file.attrs['nstates']
+        self.nbins = self.assignments_file.attrs['nbins']
+        self.state_labels = self.assignments_file['state_labels'][...]
+        assert self.nstates == len(self.state_labels)
+        self.start_iter, self.stop_iter, self.step_iter = self.iter_range.iter_start, self.iter_range.iter_stop, self.iter_range.iter_step
+
     def run_calculation(self, pi, nstates, start_iter, stop_iter, step_iter, dataset, eval_block, name, dim):
-            # We're going to use one code loop for this stuff, if possible...
-            
-            start_pts = range(start_iter, stop_iter, step_iter)
-            # Our evolution dataset!
-            if dim == 2:
-                evolution_dataset = numpy.zeros((len(start_pts), nstates, nstates), dtype=ci_dtype)
-            elif dim == 1:
-                evolution_dataset = numpy.zeros((len(start_pts), nstates), dtype=ci_dtype)
-            else:
-                # Temp.
-                print("What's wrong?")
+        #pi = self.progress.indicator
+        
+        start_pts = range(start_iter, stop_iter, step_iter)
+        # Our evolution dataset!
+        if dim == 2:
+            evolution_dataset = numpy.zeros((len(start_pts), nstates, nstates), dtype=ci_dtype)
+        elif dim == 1:
+            evolution_dataset = numpy.zeros((len(start_pts), nstates), dtype=ci_dtype)
+        else:
+            # Temp.
+            print("What's wrong?")
 
-            # What would we actually like to submit to the block functions?
-            # Since we want this to be generic, we'd just like to submit a dataset to the eval block
-            # and let it handle everything.  We assume we're being fed in the dataset dictionary from the calling function.
+        # This is appropriate for bootstrapped quantities, I think.
+        all_items = numpy.arange(1,len(start_pts)+1)
+        bootstrap_length = 0.5*(len(start_pts)*(len(start_pts)+1)) - numpy.delete(all_items, numpy.arange(1, len(start_pts)+1, step_iter))
+        #with pi:
+        if True:
+            pi.new_operation('Calculating {}'.format(name), bootstrap_length[0])
 
-            all_items = numpy.arange(1,len(start_pts)+1)
-            # This is appropriate for bootstrapped quantities, I think.
-            bootstrap_length = 0.5*(len(start_pts)*(len(start_pts)+1)) - numpy.delete(all_items, numpy.arange(1, len(start_pts)+1, step_iter))
-            with pi:
-                pi.new_operation('Calculating {}'.format(name), bootstrap_length[0])
-                # We're calculating far more than that, but for now...
-                # Actually, you know what?  We'll just change the blocks to play nice.  They should self identify, to write cleaner code.
-                # These are the 'default' kwargs for this sort of analysis.
-                futures = []
-                for iblock, start in enumerate(start_pts):
-                    stop = min(start+step_iter, stop_iter)
-                    if self.evolution_mode == 'cumulative':
-                        windowsize = int(self.evol_window_frac * (stop - start_iter))
-                        block_start = max(start_iter, stop - windowsize)
-                    else: # self.evolution_mode == 'blocked'
-                        block_start = start
+            futures = []
+            for iblock, start in enumerate(start_pts):
+                stop = min(start+step_iter, stop_iter)
+                if self.evolution_mode == 'cumulative':
+                    windowsize = int(self.evol_window_frac * (stop - start_iter))
+                    block_start = max(start_iter, stop - windowsize)
+                else: # self.evolution_mode == 'blocked'
+                    block_start = start
 
-                    # Create a basic set of kwargs for this iteration slice.
-                    future_kwargs = dict(iblock=iblock, start=block_start, stop=stop,
-                                         nstates=nstates,
-                                         mcbs_alpha=self.mcbs_alpha, mcbs_nsets=self.mcbs_nsets,
-                                         mcbs_acalpha=self.mcbs_acalpha,
-                                         correl=self.correl,name=name,
-                                         data_input={})
+                # Create a basic set of kwargs for this iteration slice.
+                future_kwargs = dict(iblock=iblock, start=block_start, stop=stop,
+                                     nstates=nstates,
+                                     mcbs_alpha=self.mcbs_alpha, mcbs_nsets=self.mcbs_nsets,
+                                     mcbs_acalpha=self.mcbs_acalpha,
+                                     correl=self.correl,name=name,
+                                     data_input={})
 
-                    # Slice up the datasets for this iteration slice.
-                    # We're assuming they're all h5io iter blocked datasets; it's up to the calling routine
-                    # to ensure this is true.
-                    for key, value in dataset.iteritems():
-                        future_kwargs['data_input'][key] = value.iter_slice(block_start,stop)
+                # Slice up the datasets for this iteration slice.
+                # We're assuming they're all h5io iter blocked datasets; it's up to the calling routine
+                # to ensure this is true.
+                for key, value in dataset.iteritems():
+                    future_kwargs['data_input'][key] = value.iter_slice(block_start,stop)
 
-                    # We create a future object with the appropriate name, and then append it to the work manager.
-                    futures.append(generate_future(self.work_manager, name, eval_block, future_kwargs))
+                # We create a future object with the appropriate name, and then append it to the work manager.
+                futures.append(generate_future(self.work_manager, name, eval_block, future_kwargs))
 
-                # Now, we wait to get the result back; we'll store it in the result, and return it.
-                for future in self.work_manager.as_completed(futures):
-                    pi.progress += iblock / step_iter
-                    future_result = future.get_result(discard=True)
-                    # print(future_result)
+            # Now, we wait to get the result back; we'll store it in the result, and return it.
+            for future in self.work_manager.as_completed(futures):
+                pi.progress += iblock / step_iter
+                future_result = future.get_result(discard=True)
+                # print(future_result)
 
-                    if dim == 2:
-                        for result in future_result:
-                            name,iblock,istate,jstate,ci_result = result
-                            evolution_dataset[iblock, istate, jstate] = ci_result
-                    elif dim == 1:
-                        for result in future_result:
-                            name,iblock,istate,ci_result = result
-                            evolution_dataset[iblock, istate] = ci_result
+                if dim == 2:
+                    for result in future_result:
+                        name,iblock,istate,jstate,ci_result = result
+                        evolution_dataset[iblock, istate, jstate] = ci_result
+                elif dim == 1:
+                    for result in future_result:
+                        name,iblock,istate,ci_result = result
+                        evolution_dataset[iblock, istate] = ci_result
 
 
-                return evolution_dataset
+            return evolution_dataset
 
 
             
@@ -591,60 +515,108 @@ class DKinAvg(AverageCommands):
 
     def go(self):
         pi = self.progress.indicator
-        with pi:
-            pi.new_operation('Initializing')
+
+        # We're initializing the various datasets...
+        if True:
             self.open_files()
-            nstates = self.assignments_file.attrs['nstates']
-            nbins = self.assignments_file.attrs['nbins']
-            state_labels = self.assignments_file['state_labels'][...]
-            assert nstates == len(state_labels)
-            start_iter, stop_iter, step_iter = self.iter_range.iter_start, self.iter_range.iter_stop, self.iter_range.iter_step
-            
+            self.open_assignments()
             # Obviously, this is for the conditional and total fluxes.  This is really all we need to sort for this.
-            pi.new_operation('Reading data')
+            #pi.new_operation('Reading data')
             cond_fluxes = h5io.IterBlockedDataset(self.kinetics_file['conditional_fluxes'])
             cond_fluxes.cache_data()
             total_fluxes = h5io.IterBlockedDataset(self.kinetics_file['total_fluxes'])
             
 
             # This is necessary for both color and state populations...
+            # ... but we also need this for the kinetics calculations.
             pops = h5io.IterBlockedDataset(self.assignments_file['labeled_populations'])
+            pops.cache_data()
+            pops.data = pops.data.sum(axis=2)
 
+            # Here, we're pre-generating the information needed...
+            rates = h5io.IterBlockedDataset.empty_like(cond_fluxes)
+            rates.data = sequence_macro_flux_to_rate(cond_fluxes.data, pops.data[:self.nstates,:self.nbins])
+
+            # As the dataset, just send in the rates and such for now.
+
+        submit_kwargs = dict(pi=pi, nstates=self.nstates, start_iter=self.start_iter, stop_iter=self.stop_iter, 
+                             step_iter=self.step_iter)
+
+        with pi:
+            submit_kwargs['dataset'] = {'dataset': cond_fluxes, 'pops': pops, 'rates': rates}
+            rate_evol = self.run_calculation(eval_block=_rate_eval_block, name='Rate Evolution', dim=2, **submit_kwargs)
+            self.output_file.replace_dataset('rate_evolution', data=rate_evol, shuffle=True, compression=9)
+
+            submit_kwargs['dataset'] = {'dataset': cond_fluxes }
+            rate_evol = self.run_calculation(eval_block=_2D_simple_eval_block, name='Conditional Flux Evolution', dim=2, **submit_kwargs)
+            self.output_file.replace_dataset('conditional_flux_evolution', data=rate_evol, shuffle=True, compression=9)
+
+            submit_kwargs['dataset'] = {'dataset': total_fluxes }
+            rate_evol = self.run_calculation(eval_block=_1D_simple_eval_block, name='Target Flux Evolution', dim=1, **submit_kwargs)
+            self.output_file.replace_dataset('target_flux_evolution', data=rate_evol, shuffle=True, compression=9)
+
+class DStateProbs(AverageCommands):
+    subcommand = 'stateprobs'
+    help_text = 'averages and CIs for path-tracing kinetics analysis'
+    default_kinetics_file = 'kintrace.h5'
+
+    def calculate_state_populations(self, pops):
             # ... but then this is how the state populations are done.
-            iter_count = stop_iter-start_iter
-            all_state_pops = numpy.empty((iter_count,nstates+1), weight_dtype)
-            iter_state_pops = numpy.empty((nstates+1,), weight_dtype)
-            all_state_pops = numpy.empty((iter_count,nstates+1), weight_dtype)
-            avg_state_pops = numpy.zeros((nstates+1,), weight_dtype)
+            # This was taken, more or less, from the old w_stateprobs
+            iter_count = self.stop_iter-self.start_iter
+            all_state_pops = numpy.empty((iter_count,self.nstates+1), weight_dtype)
+            iter_state_pops = numpy.empty((self.nstates+1,), weight_dtype)
+            avg_state_pops = numpy.zeros((self.nstates+1,), weight_dtype)
             pops.cache_data(max_size='available')
             state_map = self.assignments_file['state_map'][...]
             try:
-                for iiter,n_iter in enumerate(xrange(start_iter,stop_iter)):
+                for iiter,n_iter in enumerate(xrange(self.start_iter,self.stop_iter)):
                     iter_state_pops.fill(0)
                     labeled_pops = pops.iter_entry(n_iter)
                     accumulate_state_populations_from_labeled(labeled_pops, state_map, iter_state_pops, check_state_map=False)
                     all_state_pops[iiter] = iter_state_pops
                     avg_state_pops += iter_state_pops
                     del labeled_pops
-                    pi.progress += 1
             finally:
                 pops.drop_cache()
+
+            state_pops = h5io.IterBlockedDataset.empty_like(pops)
+            state_pops.data = all_state_pops
+            return state_pops
+
+    def go(self):
+        pi = self.progress.indicator
+        if True:
+            self.open_files()
+            self.open_assignments()
+            # So far, we definitely need this boilerplate...
+            #pi.new_operation('Reading data')
+
+            # This is necessary for both color and state populations...
+            pops = h5io.IterBlockedDataset(self.assignments_file['labeled_populations'])
+
+            state_pops = self.calculate_state_populations(pops)
 
             # This now sorts it for the color populations
             pops.cache_data()
             pops.data = pops.data.sum(axis=2)
-            rates = h5io.IterBlockedDataset.empty_like(cond_fluxes)
-            rates.data = sequence_macro_flux_to_rate(cond_fluxes.data, pops.data[:nstates,:nbins])
 
-            # As the dataset, just send in the rates and such for now.
-            dataset_input = {'dataset': cond_fluxes, 'pops': pops, 'rates': rates}
-            rate_evol = self.run_calculation(pi, nstates, start_iter, stop_iter, step_iter, dataset_input, _rate_eval_block, name='Rate Evolution', dim=2)
-            self.output_file.create_dataset('rate_evolution', data=rate_evol, shuffle=True, compression=9)
+        submit_kwargs = dict(pi=pi,nstates=self.nstates, start_iter=self.start_iter, stop_iter=self.stop_iter, 
+                             step_iter=self.step_iter, eval_block=_1D_simple_eval_block)
+
+        with pi:
+            submit_kwargs['dataset'] = {'dataset': pops}
+            pop_evol = self.run_calculation(name='Color Probability Evolution', dim=1, **submit_kwargs)
+            self.output_file.replace_dataset('color_prob_evolution', data=pop_evol, shuffle=True, compression=9)
+
+            submit_kwargs['dataset'] = {'dataset': state_pops}
+            pop_evol = self.run_calculation(name='State Probability Evolution', dim=1, **submit_kwargs)
+            self.output_file.replace_dataset(name='state_pop_evolution', data=pop_evol, shuffle=True, compression=9)
 
 class WDirect(WESTMasterCommand, WESTParallelTool):
     prog='w_direct'
     #subcommands = [AvgTraceSubcommand,AvgMatrixSubcommand]
-    subcommands = [DKinetics, DKinAvg]
+    subcommands = [DKinetics, DKinAvg, DStateProbs]
     subparsers_title = 'direct kinetics analysis schemes'
     description = '''\
 Calculate average rates and associated errors from weighted ensemble data. Bin
