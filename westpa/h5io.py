@@ -293,7 +293,8 @@ class WESTPAH5File(h5py.File):
             del self[kwargs['name']]
         except:
             pass
-        self.create_dataset(*args, **kwargs)
+
+        return self.create_dataset(*args, **kwargs)
     
     # Iteration groups
     

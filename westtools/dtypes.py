@@ -35,3 +35,12 @@ iter_block_ci_dtype = numpy.dtype([('iter_start', n_iter_dtype),
                                    ('ci_ubound', numpy.float64),
                                    ('sterr', numpy.float64),
                                    ('corr_len', n_iter_dtype)])
+
+# A quantity to store event duration distribution stuff.
+# Comes from the old w_kinetics.
+
+ed_list_dtype       = numpy.dtype([('istate', numpy.uint16), 
+                                   ('fstate', numpy.uint16), 
+                                   ('duration', numpy.float64),
+                                   ('weight', numpy.float64), 
+                                   ('seg_id', seg_id_dtype)])

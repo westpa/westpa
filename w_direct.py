@@ -40,14 +40,13 @@ from westpa.kinetics.matrates import get_macrostate_rates
 import mclib
 from mclib import mcbs_correltime, mcbs_ci_correl_rw, _1D_simple_eval_block, _2D_simple_eval_block
 
-
+# We'll need to integrate this properly.
 log = logging.getLogger('westtools.w_kinavg')
 
 from westtools.dtypes import iter_block_ci_dtype as ci_dtype
 
 # From w_kinetics.
-ed_list_dtype = numpy.dtype([('istate', numpy.uint16), ('fstate', numpy.uint16), ('duration', numpy.float64),
-                             ('weight', numpy.float64), ('seg_id', seg_id_dtype)])
+from westtools.dtypes import ed_list_dtype
 from westpa.binning import index_dtype
 from westpa.kinetics._kinetics import _fast_transition_state_copy #@UnresolvedImport
 from westpa.kinetics import find_macrostate_transitions
@@ -144,17 +143,6 @@ class DirectSubcommands(WESTSubcommand):
         agroup.add_argument('--scheme-name', dest='scheme',
                             help='''Name of scheme specified in west.cfg.''')
         
-    def open_files(self):
-        #self.output_file = h5io.WESTPAH5File(self.output_filename, 'w', creating_program=True)
-        self.output_file = h5io.WESTPAH5File(self.output_filename, 'a', creating_program=True)
-        h5io.stamp_creator_data(self.output_file)
-        self.assignments_file = h5io.WESTPAH5File(self.assignments_filename, 'r')#, driver='core', backing_store=False)
-        self.kinetics_file = h5io.WESTPAH5File(self.kinetics_filename, 'r')#, driver='core', backing_store=False)
-        if not self.iter_range.check_data_iter_range_least(self.assignments_file):
-            raise ValueError('assignments data do not span the requested iterations')
-
-        if not self.iter_range.check_data_iter_range_least(self.kinetics_file):
-            raise ValueError('kinetics data do not span the requested iterations')
 
     
     def process_args(self, args):
@@ -324,7 +312,15 @@ Command-line options
     def __init__(self, parent):
         super(DKinetics,self).__init__(parent)
 
-    def go(self):
+    def open_files(self):
+        #self.output_file = h5io.WESTPAH5File(self.output_filename, 'w', creating_program=True)
+        self.output_file = h5io.WESTPAH5File(self.output_filename, 'a', creating_program=True)
+        h5io.stamp_creator_data(self.output_file)
+        self.assignments_file = h5io.WESTPAH5File(self.assignments_filename, 'r')#, driver='core', backing_store=False)
+        if not self.iter_range.check_data_iter_range_least(self.assignments_file):
+            raise ValueError('assignments data do not span the requested iterations')
+
+    def w_kinetics(self):
         pi = self.progress.indicator
         pi.new_operation('Initializing')
         with pi:
@@ -333,35 +329,35 @@ Command-line options
             nstates = self.assignments_file.attrs['nstates']
             start_iter, stop_iter = self.iter_range.iter_start, self.iter_range.iter_stop # h5io.get_iter_range(self.assignments_file)
             iter_count = stop_iter - start_iter
-            durations_ds = self.output_file.create_dataset('durations', 
+            durations_ds = self.output_file.replace_dataset('durations', 
                                                            shape=(iter_count,0), maxshape=(iter_count,None),
                                                            dtype=ed_list_dtype,
                                                            chunks=(1,15360) if self.do_compression else None,
                                                            shuffle=self.do_compression,
                                                            compression=9 if self.do_compression else None)
-            durations_count_ds = self.output_file.create_dataset('duration_count',
+            durations_count_ds = self.output_file.replace_dataset('duration_count',
                                                                  shape=(iter_count,), dtype=numpy.int_, shuffle=True,compression=9)
-            cond_fluxes_ds = self.output_file.create_dataset('conditional_fluxes',
+            cond_fluxes_ds = self.output_file.replace_dataset('conditional_fluxes',
                                                               shape=(iter_count,nstates,nstates), dtype=weight_dtype,
                                                               chunks=(h5io.calc_chunksize((iter_count,nstates,nstates),weight_dtype)
                                                                       if self.do_compression else None),
                                                               shuffle=self.do_compression,
                                                               compression=9 if self.do_compression else None)
-            total_fluxes_ds = self.output_file.create_dataset('total_fluxes',
+            total_fluxes_ds = self.output_file.replace_dataset('total_fluxes',
                                                               shape=(iter_count,nstates), dtype=weight_dtype,
                                                               chunks=(h5io.calc_chunksize((iter_count,nstates),weight_dtype)
                                                                       if self.do_compression else None),
                                                               shuffle=self.do_compression,
                                                               compression=9 if self.do_compression else None)
 
-            cond_arrival_counts_ds = self.output_file.create_dataset('conditional_arrivals',
+            cond_arrival_counts_ds = self.output_file.replace_dataset('conditional_arrivals',
                                                                      shape=(iter_count,nstates,nstates), dtype=numpy.uint,
                                                                      chunks=(h5io.calc_chunksize((iter_count,nstates,nstates),
                                                                                                  numpy.uint)
                                                                              if self.do_compression else None),
                                                               shuffle=self.do_compression,
                                                               compression=9 if self.do_compression else None) 
-            arrival_counts_ds = self.output_file.create_dataset('arrivals',
+            arrival_counts_ds = self.output_file.replace_dataset('arrivals',
                                                                 shape=(iter_count,nstates), dtype=numpy.uint,
                                                                 chunks=(h5io.calc_chunksize((iter_count,nstates),
                                                                                             numpy.uint)
@@ -370,7 +366,7 @@ Command-line options
                                                                 compression=9 if self.do_compression else None)
 
             # copy state labels for convenience
-            self.output_file['state_labels'] = self.assignments_file['state_labels'][...]
+            self.output_file.replace_dataset('state_labels', data=self.assignments_file['state_labels'][...])
 
             # Put nice labels on things
             for ds in (self.output_file, durations_count_ds, cond_fluxes_ds, total_fluxes_ds):
@@ -425,6 +421,8 @@ Command-line options
                 # Do a little manual clean-up to prevent memory explosion
                 del iter_group, weights, parent_ids, bin_assignments, label_assignments, state, cond_fluxes, total_fluxes
                 pi.progress += 1
+    def go(self):
+        self.w_kinetics()
 
 
 class AverageCommands(DirectSubcommands):
@@ -436,13 +434,48 @@ class AverageCommands(DirectSubcommands):
         self.kinetics_filename = None
         self.kinetics_file = None
 
+    def open_files(self):
+        #self.output_file = h5io.WESTPAH5File(self.output_filename, 'w', creating_program=True)
+        self.output_file = h5io.WESTPAH5File(self.output_filename, 'a', creating_program=True)
+        h5io.stamp_creator_data(self.output_file)
+        self.assignments_file = h5io.WESTPAH5File(self.assignments_filename, 'r')#, driver='core', backing_store=False)
+        self.kinetics_file = h5io.WESTPAH5File(self.kinetics_filename, 'r')#, driver='core', backing_store=False)
+        if not self.iter_range.check_data_iter_range_least(self.assignments_file):
+            raise ValueError('assignments data do not span the requested iterations')
+
+        if not self.iter_range.check_data_iter_range_least(self.kinetics_file):
+            raise ValueError('kinetics data do not span the requested iterations')
+
     def open_assignments(self):
+        # Actually, I should rename this, as we're not OPENING assignments.
         # This seems to be stuff we're going to be using a lot, so.
         self.nstates = self.assignments_file.attrs['nstates']
         self.nbins = self.assignments_file.attrs['nbins']
         self.state_labels = self.assignments_file['state_labels'][...]
         assert self.nstates == len(self.state_labels)
         self.start_iter, self.stop_iter, self.step_iter = self.iter_range.iter_start, self.iter_range.iter_stop, self.iter_range.iter_step
+
+    def print_averages(self, dataset, header, dim=1):
+        print(header)
+        maxlabellen = max(map(len,self.state_labels))
+        for istate in xrange(self.nstates):
+            if dim == 1:
+                print('{:{maxlabellen}s}: mean={:21.15e} CI=({:21.15e}, {:21.15e}) * tau^-1'
+                        .format(self.state_labels[istate],
+                        dataset['expected'][istate],
+                        dataset['ci_lbound'][istate],
+                        dataset['ci_ubound'][istate],
+                        maxlabellen=maxlabellen))
+
+            else:
+                for jstate in xrange(self.nstates):
+                    if istate == jstate: continue
+                    print('{:{maxlabellen}s} -> {:{maxlabellen}s}: mean={:21.15e} CI=({:21.15e}, {:21.15e}) * tau^-1'
+                        .format(self.state_labels[istate], self.state_labels[jstate],
+                        dataset['expected'][istate,jstate],
+                        dataset['ci_lbound'][istate,jstate],
+                        dataset['ci_ubound'][istate,jstate],
+                        maxlabellen=maxlabellen))
 
     def run_calculation(self, pi, nstates, start_iter, stop_iter, step_iter, dataset, eval_block, name, dim, do_averages=False):
         #pi = self.progress.indicator
@@ -518,7 +551,7 @@ class DKinAvg(AverageCommands):
     help_text = 'averages and CIs for path-tracing kinetics analysis'
     default_kinetics_file = 'kintrace.h5'
 
-    def go(self):
+    def w_kinavg(self):
         pi = self.progress.indicator
 
         # We're initializing the various datasets...
@@ -546,18 +579,48 @@ class DKinAvg(AverageCommands):
         submit_kwargs = dict(pi=pi, nstates=self.nstates, start_iter=self.start_iter, stop_iter=self.stop_iter, 
                              step_iter=self.step_iter)
 
+        # Calculate averages for the simulation, then report, if necessary.
+        with pi:
+            submit_kwargs['dataset'] = {'dataset': cond_fluxes, 'pops': pops, 'rates': rates}
+            avg_rates = self.run_calculation(eval_block=_rate_eval_block, name='Rate Evolution', dim=2, do_averages=True, **submit_kwargs)
+            self.output_file.replace_dataset('avg_rates', data=avg_rates[1])
+
+            submit_kwargs['dataset'] = {'dataset': cond_fluxes }
+            avg_conditional_fluxes = self.run_calculation(eval_block=_2D_simple_eval_block, name='Conditional Flux Evolution', dim=2, do_averages=True, **submit_kwargs)
+            self.output_file.replace_dataset('avg_conditional_fluxes', data=avg_conditional_fluxes[1])
+
+            submit_kwargs['dataset'] = {'dataset': total_fluxes }
+            avg_total_fluxes = self.run_calculation(eval_block=_1D_simple_eval_block, name='Target Flux Evolution', dim=1, do_averages=True, **submit_kwargs)
+            self.output_file.replace_dataset('avg_total_fluxes', data=avg_total_fluxes[1])
+
+        # Now, print them!
+        pi.clear()
+
+        # We've returned an average, but it still exists in a timeslice format.  So we need to return the 'last' value.
+        self.print_averages(avg_total_fluxes[1], '\nfluxes into macrostates:', dim=1)
+        self.print_averages(avg_conditional_fluxes[1], '\nfluxes from state to state:', dim=2)
+        self.print_averages(avg_rates[1], '\nrates from state to state:', dim=2)
+
+        # Do a bootstrap evolution.
+        pi.clear()
         with pi:
             submit_kwargs['dataset'] = {'dataset': cond_fluxes, 'pops': pops, 'rates': rates}
             rate_evol = self.run_calculation(eval_block=_rate_eval_block, name='Rate Evolution', dim=2, **submit_kwargs)
             self.output_file.replace_dataset('rate_evolution', data=rate_evol, shuffle=True, compression=9)
+            pi.clear()
 
             submit_kwargs['dataset'] = {'dataset': cond_fluxes }
             rate_evol = self.run_calculation(eval_block=_2D_simple_eval_block, name='Conditional Flux Evolution', dim=2, **submit_kwargs)
             self.output_file.replace_dataset('conditional_flux_evolution', data=rate_evol, shuffle=True, compression=9)
+            pi.clear()
 
             submit_kwargs['dataset'] = {'dataset': total_fluxes }
             rate_evol = self.run_calculation(eval_block=_1D_simple_eval_block, name='Target Flux Evolution', dim=1, **submit_kwargs)
             self.output_file.replace_dataset('target_flux_evolution', data=rate_evol, shuffle=True, compression=9)
+            pi.clear()
+
+    def go(self):
+        self.w_kinavg()
 
 
 class DStateProbs(AverageCommands):
@@ -589,7 +652,7 @@ class DStateProbs(AverageCommands):
             state_pops.data = all_state_pops
             return state_pops
 
-    def go(self):
+    def w_stateprobs(self):
         pi = self.progress.indicator
         if True:
             self.open_files()
@@ -609,6 +672,21 @@ class DStateProbs(AverageCommands):
         submit_kwargs = dict(pi=pi,nstates=self.nstates, start_iter=self.start_iter, stop_iter=self.stop_iter, 
                              step_iter=self.step_iter, eval_block=_1D_simple_eval_block)
 
+        # Calculate and print averages
+        with pi:
+            submit_kwargs['dataset'] = {'dataset': pops}
+            color_evol_avg = self.run_calculation(name='Color Probability Evolution', dim=1, do_averages=True, **submit_kwargs)
+            self.output_file.replace_dataset('avg_color_probs', data=color_evol_avg[1], shuffle=True, compression=9)
+
+            submit_kwargs['dataset'] = {'dataset': state_pops}
+            state_evol_avg = self.run_calculation(name='State Probability Evolution', dim=1, do_averages=True, **submit_kwargs)
+            self.output_file.replace_dataset(name='avg_state_probs', data=state_evol_avg[1], shuffle=True, compression=9)
+
+        # Print!
+        self.print_averages(color_evol_avg[1], '\naverage color probabilities:', dim=1)
+        self.print_averages(state_evol_avg[1], '\naverage state probabilities:', dim=1)
+
+        # Now, do a bootstrap evolution
         with pi:
             submit_kwargs['dataset'] = {'dataset': pops}
             pop_evol = self.run_calculation(name='Color Probability Evolution', dim=1, **submit_kwargs)
@@ -618,26 +696,19 @@ class DStateProbs(AverageCommands):
             pop_evol = self.run_calculation(name='State Probability Evolution', dim=1, **submit_kwargs)
             self.output_file.replace_dataset(name='state_pop_evolution', data=pop_evol, shuffle=True, compression=9)
 
-class DAll(AverageCommands):
+    def go(self):
+        self.w_stateprobs()
+
+# Just a convenience function to run everything.
+class DAll(DStateProbs, DKinAvg, DKinetics):
     subcommand = 'all'
     help_text = 'averages and CIs for path-tracing kinetics analysis'
     default_kinetics_file = 'kintrace.h5'
 
-    def init(self, parent):
-        self.parent = parent
-        super(DAll,self).__init__(parent)
-
-    def process_args(self, args):
-        #self.Master = WDirect()
-        self.parent._subcommand = DStateProbs(self.parent)
-        self.parent._subcommand.process_all_args(self.args)
-        super(DAll,self).process_args(self.args)
-
     def go(self):
-        print(self.args)
-        print(dir(self))
-        self.Master._subcommand.go()
-
+        #self.w_kinetics()
+        self.w_kinavg()
+        self.w_stateprobs()
 
 
 class WDirect(WESTMasterCommand, WESTParallelTool):
