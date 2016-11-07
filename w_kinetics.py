@@ -97,4 +97,10 @@ Command-line options
 
 if __name__ == '__main__':
     print('WARNING: {} is being deprecated.  Please use w_direct instead.'.format(WDirect.prog))
+    import sys
+    try:
+        if sys.argv[1] != 'trace':
+            sys.argv.insert(1, 'trace')
+    except:
+        sys.argv.insert(1, 'trace')
     WDirect().main()

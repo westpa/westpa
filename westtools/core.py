@@ -331,6 +331,3 @@ class WESTMasterCommand(WESTTool):
     def go(self):
         self._subcommand.go()
     
-    
-        
-        
