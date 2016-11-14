@@ -205,6 +205,9 @@ class AverageCommands(WESTKinAvg, WESTSubcommand):
         assert self.nstates == len(self.state_labels)
         self.start_iter, self.stop_iter, self.step_iter = self.iter_range.iter_start, self.iter_range.iter_stop, self.iter_range.iter_step
 
+        # Import for the reweighting code.
+
+        state_map = self.assignments_file['state_map'][...]
         # We've moved this into a different step so that it's compatible with
         # loading up from the all command.
         # Otherwise, we try to load the kinetics (since we're just mixing subclasses)

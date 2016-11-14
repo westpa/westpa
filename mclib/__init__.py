@@ -147,7 +147,7 @@ def mcbs_ci_correl_rw(estimator_datasets, estimator, alpha, n_sets=None, args=No
 # These are blocks designed to evaluate simple information sets.
 # Whether they should go here or in westtoools is somewhat up for debate.
 
-def _1D_simple_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha, mcbs_nsets, mcbs_acalpha, do_correl, **extra):
+def _1D_simple_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha, mcbs_nsets, mcbs_acalpha, do_correl, subsample=numpy.mean, **extra):
     # This is actually appropriate for anything with a directly measured, 1D dataset, i.e.,
     # Fluxes, color populations, and state populations.
     results = []
@@ -157,13 +157,13 @@ def _1D_simple_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_a
         estimator_datasets = {'dataset': data_input['dataset'][:,istate]}
         ci_res = mcbs_ci_correl_rw(estimator_datasets,estimator=(lambda stride, dataset: numpy.mean(dataset)),
                                     alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
-                                    subsample=numpy.mean, pre_calculated=estimator_datasets['dataset'], do_correl=do_correl)
+                                    subsample=subsample, pre_calculated=estimator_datasets['dataset'], do_correl=do_correl)
 
         results.append((name, iblock,istate,(start,stop)+ci_res))
 
     return results
 
-def _2D_simple_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha, mcbs_nsets, mcbs_acalpha, do_correl, **extra):
+def _2D_simple_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha, mcbs_nsets, mcbs_acalpha, do_correl, subsample=numpy.mean, **extra):
     # This is really just a simple 2D block for less complex datasets, but there it is.
     # It's probably limited in this use case to conditional_fluxes, but anything that's an i to j process that is directly measured
     # is suitable for use with this.
@@ -176,7 +176,7 @@ def _2D_simple_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_a
             estimator_datasets = {'dataset': data_input['dataset'][:, istate, jstate] }
             ci_res = mcbs_ci_correl_rw(estimator_datasets,estimator=(lambda stride, dataset: numpy.mean(dataset)),
                                     alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
-                                    subsample=numpy.mean, pre_calculated=estimator_datasets['dataset'], do_correl=do_correl)
+                                    subsample=subsample, pre_calculated=estimator_datasets['dataset'], do_correl=do_correl)
 
             results.append((name, iblock, istate, jstate, (start,stop) + ci_res))
 
