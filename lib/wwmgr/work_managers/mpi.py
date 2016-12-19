@@ -1,253 +1,356 @@
-# Copyright (C) 2013 Kim Wong and Matthew C. Zwier and Lillian T. Chong
+# TODO: Add license 
 #
-# This file is part of WESTPA.
 #
-# WESTPA is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# WESTPA is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
-
-
-"""
-A work manager which uses MPI to distribute tasks and collect results.
-"""
-
 from __future__ import division, print_function; __metaclass__ = type
 
-import logging, re, threading
+import logging, sys, threading, time, traceback
+
 from collections import deque
 from mpi4py import MPI
+from core import WorkManager, WMFuture
 
-import work_managers
-from work_managers import WorkManager, WMFuture
+log = logging.getLogger( __name__ )
 
-log = logging.getLogger(__name__)
-
+# +------+
+# | Task |
+# +------+
 class Task:
-    # tasks are tuples of (task_id, function, args, keyword args)
+    """Tasks are tuples of (task_id, function, args, keyword args)
+    """
     def __init__(self, task_id, fn, args, kwargs):
         self.task_id = task_id
         self.fn = fn
-        self.args = args
-        self.kwargs = kwargs
+        self.args = args if args is not None else ()
+        self.kwargs = kwargs if kwargs is not None else {}
         
     def __repr__(self):
         return '<Task {self.task_id}: {self.fn!r}(*{self.args!r}, **{self.kwargs!r})>'\
                .format(self=self)
-    
-class MPIBase:
 
-    def __init__(self):
-        # Initialize communicator and obtain standard MPI variables
-        comm = MPI.COMM_WORLD
 
-        self.comm = comm
-        self.rank = comm.Get_rank()
-        self.num_procs = comm.Get_size()
-        self.name = MPI.Get_processor_name()
+# +----------------+
+# | MPIWorkManager |
+# +----------------+
+class MPIWorkManager( WorkManager ):
+    """MPIWorkManager factory.
+    """
 
-        # Define master rank
-        self.master_rank = 0
+    @classmethod
+    def from_environ( cls, wmenv=None ):
+        return cls()
+        
 
-        # Define message tags for task, result, and announce
-        self.task_tag = 10
-        self.result_tag = 20
-        self.announce_tag = 30
-
-        # create an empty message buffer
-        messages = []
-
-    def startup(self):
-        raise NotImplementedError
-    
-    def shutdown(self):
-        raise NotImplementedError
-
-    @property
-    def is_master(self):
-        '''True if this is the master process for task distribution. This is necessary, e.g., for
-        MPI, where all processes start identically and then must branch depending on rank.'''
-        if self.rank == self.master_rank:
-            return True
+    def __new__( cls ):
+        """Creates a Serial WorkManager if size is 1.  Otherwise creates a 
+        single Master and size-1 Slaves.
+        """
+        log.debug( 'MPIWorkManager.__new__()' )
+        assert( MPI.Is_initialized() )
+        assert( MPI.Is_thread_main() )
+        
+        rank = MPI.COMM_WORLD.Get_rank()
+        size = MPI.COMM_WORLD.Get_size()
+        
+        if size == 1:
+            return super( MPIWorkManager, cls ).__new__( Serial )
+        elif rank == 0:
+            return super( MPIWorkManager, cls ).__new__( Master )
         else:
-            return False
-    
-class MPIWMServer(MPIBase):
-    
-    def __init__(self):
-        super(MPIWMServer, self).__init__()
-        
-        # tasks awaiting dispatch
-        self.task_queue = deque()
-        
-        # MPI destination ranks for tasks; exclude master_rank
-        self.task_dest = deque()
-        for rank in range(self.num_procs):
-            if rank != self.master_rank:
-                self.task_dest.append(rank)
+            return super( MPIWorkManager, cls ).__new__( Slave )
 
-        # futures corresponding to tasks
+    
+    def __init__( self ):
+        """Initialize info shared by Master and Slave classes.
+        """
+        log.debug( 'MPIWorkManager.__init__()' )
+        
+        super( MPIWorkManager, self ).__init__()
+        comm = MPI.COMM_WORLD
+        self.comm = MPI.COMM_WORLD
+        self.rank = comm.Get_rank()
+        self.size = comm.Get_size()
+        self.name = MPI.Get_processor_name()
+        
+        # some tags
+        self.task_tag     = 110 # tag for server to client msgs
+        self.result_tag   = 120 # tag for client to server msgs
+        self.shutdown_tag = 130 # tag for server to client to stop
+        
+        self.masterID = 0
+        
+        
+    def submit( self, fn, args=None, kwargs=None ):
+        """Adhere to WorkManager interface.  This method should never be 
+        called.
+        """
+        assert( False )
+
+
+# +--------+
+# | Serial |
+# +--------+
+# TODO: no need for the code replication here, just use the original serial wm
+class Serial( MPIWorkManager ):
+    """Replication of the serial work manager.  This is a fallback for MPI runs 
+    that request only 1 (size=1) processor.
+    """
+    
+    def __init__( self ):
+        super( Serial, self ).__init__()
+        log.debug( 'Serial.__init__()' )
+        
+        
+    def submit( self, fn, args=None, kwargs=None ):
+        log.debug( 'Serial.__init__()' )
+        
+        ft = WMFuture()
+        try:
+            result = fn( *(args if args is not None else ()), 
+                        **(kwargs if kwargs is not None else {}) )
+        except Exception as e:
+            ft._set_exception( e, sys.exc_info()[2] )
+        else:
+            ft._set_result( result )
+        return ft
+
+
+# +--------+
+# | Master |
+# +--------+
+class Master( MPIWorkManager ):
+    """Master of the MPIWorkManage.  Distributes tasks to Slaves as they are 
+    received from the sim_manager.  In addition to the main thread, this class 
+    spawns two threads, a receiver and a dispatcher.
+    """
+
+    def __init__( self ):
+        """Initialize different state variables used by Master.
+        """
+        super( Master, self ).__init__()
+        log.debug( 'Master__init__()' )  
+
+        # number of slaves
+        self.nslaves = self.size - 1
+        
+        # list of slave ranks
+        self.slaveIDs = range( 1, self.size )
+        assert self.nslaves == len( self.slaveIDs )
+        
+        # deque of idle slaves
+        self.dests = deque( self.slaveIDs ) 
+        
+        # deque of tesks
+        self.tasks = deque()
+        
+        # number of unmatched send/receive pairs
+        self.nPending = 0
+        
+        # thread shutdown sentinel
+        self.shutItDown = False
+        
+        # task_id, future key value pair
         self.pending_futures = dict()
+        
+        # list of master threads
+        self.workers = []
+        
+        # thread lock
+        self.lock = threading.Lock()
 
-    def _dispatch_loop(self):
-        comm = self.comm        
-
-        while True:
-
-            # Dispatch as many tasks as possible before checking for shutdown
-            while self.task_dest:
-                try:
-                    task = self.task_queue.popleft()
-                    task_dest = self.task_dest.popleft()
-                except IndexError:
-                    break
-                else:
-                    comm.send(task, dest = task_dest, tag = self.task_tag )
-
-            status = MPI.Status()
-            comm.Iprobe(self.master_rank, self.announce_tag, status)
-            message_tag = status.Get_tag()
-
-            # Check for announcements
-            if message_tag == self.announce_tag:
-                messages = comm.recv(source = self.master_rank, tag = self.announce_tag)
-                if 'shutdown' in messages:
-                    log.debug('exiting _dispatch_loop()')
-                    return
-
-    def _receive_loop(self):
-        comm = self.comm 
-
-        while True:
-
-            status = MPI.Status()
-            comm.Iprobe(MPI.ANY_SOURCE, MPI.ANY_TAG, status)
-            message_src = status.Get_source()
-            message_tag = status.Get_tag()
-
-            # results are tuples of (task_id, {'result', 'exception'}, value)
-            if message_tag == self.result_tag:
-                (task_id, result_stat, result_value) = comm.recv(source = message_src, tag = message_tag)
-
-                ft = self.pending_futures.pop(task_id)
-
-                if result_stat == 'exception':
-                    ft._set_exception(*result_value)
-# Check with Matt on what else to do for an exception
-                else:
-                    ft._set_result(result_value)
-                    self.task_dest.append(message_src)
-
-            # Check for announcements
-            elif message_tag == self.announce_tag:
-                messages = comm.recv(source = message_src, tag = message_tag)
-                if 'shutdown' in messages:
-                    log.debug('exiting _receive_loop()')
-                    return
+        
+    def startup( self ):
+        """Spawns the dispatcher and receiver threads.
+        """
+        log.debug( 'Master.startup()' )
+        
+        if not self.running:
+            self.workers.append( threading.Thread( name='dispatcher', 
+                                                   target=self._dispatcher) )
+            self.workers.append( threading.Thread( name='receiver', 
+                                                   target=self._receiver ) )
+            
+            for t in self.workers:
+                t.start()
+                log.info( 'Started thread: %s' % t.getName() )
                 
-    def _make_append_task(self, fn, args, kwargs):
+            self.running = True
+        
+        
+    def _dispatcher( self ):
+        """Continuously dispatches tasks to idle destinations until the 
+        shutdown sentinel is set.
+        """
+        log.debug( 'Master._dispatcher()' )
+        assert( MPI.Is_thread_main() == False )
+        assert( threading.currentThread().getName() == "dispatcher" )
+        
+        while not self.shutItDown:
+            
+            req = []
+            # do we have work and somewhere to send it?
+            while self.tasks and self.dests:
+                
+                with self.lock:
+                    task = self.tasks.popleft()
+                    sendTo = self.dests.popleft()
+                    self.nPending += 1
+                
+                req.append( self.comm.isend( task, 
+                                             dest=sendTo, 
+                                             tag=self.task_tag ) )
+                
+            # make sure all sends completed
+            MPI.Request.Waitall( requests=req )
+            
+            # force context switching ( 1ms )
+            time.sleep( 0.001 )
+        
+    
+    def _receiver( self ):
+        """Continuously receives futures from slaves until the shutdown 
+        sentinel is set.
+        """
+        log.debug( 'Master._receiver()' )
+        assert( MPI.Is_thread_main() == False )
+        assert( threading.currentThread().getName() == "receiver" )
+        
+        while not self.shutItDown:
+            
+            # are we waiting on any results?
+            while self.nPending:
+            
+                stat = MPI.Status()
+                ( tid, msg, val ) = self.comm.recv( source=MPI.ANY_SOURCE, 
+                                                    tag=self.result_tag, 
+                                                    status=stat )
+                log.debug( 'Master._receiver received task: %s' % tid )
+            
+                # update future
+                ft = self.pending_futures.pop( tid )
+                if msg == 'exception':
+                    ft._set_exception( *val )
+                else:
+                    ft._set_result( val )
+            
+                with self.lock:
+                    self.dests.append( stat.Get_source() )
+                    self.nPending -= 1
+                    
+            # force context switching ( 1ms )
+            time.sleep( 0.001 )
+    
+
+    def submit( self, fn, args=None, kwargs=None ):
+        """Receive task from simulation manager and add it to pending_futures.
+        """
+        log.debug( 'Master.submit()' )
+        
         ft = WMFuture()
         task_id = ft.task_id
-        task = Task(task_id, fn, args, kwargs)
-        self.pending_futures[task_id] = ft
-        self.task_queue.append(task)
-        return ft
-    
-    def submit(self, fn, args=None, kwargs=None):
-        ft = self._make_append_task(fn, args if args is not None else [], kwargs if kwargs is not None else {})
+        with self.lock:
+            self.tasks.append( Task( task_id, fn, args, kwargs ) )
+            self.pending_futures[task_id] = ft
+        
         return ft
 
-    def startup(self):
-        # start up server threads
-        server_threads = []
 
-        self._dispatch_thread = threading.Thread(target=self._dispatch_loop)
-        self._dispatch_thread.start()
-        server_threads.append(self._dispatch_thread)
-
-        self._receive_thread = threading.Thread(target=self._receive_loop)
-        self._receive_thread.start()
-        server_threads.append(self._receive_thread)
-
-        self.server_threads = server_threads 
-
-class MPIClient(MPIBase):
-
-    def __init__(self):
-        super(MPIClient,self).__init__()
+    def shutdown( self ):
+        """Send shutdown tag to all slave processes, and set the shutdown 
+        sentinel to stop the receiver and dispatcher loops.
+        """
+        log.debug( 'Master.shutdown()' )
         
-    def _create_worker(self):
-        comm = self.comm
-
-        while True:
-
-            status = MPI.Status()
-            comm.Probe(self.master_rank, MPI.ANY_TAG, status)
-            message_src = self.master_rank
-            message_tag = status.Get_tag()
-
-            # Check for available task 
-            if message_tag == self.task_tag:
-
-                task = comm.recv(source = message_src, tag = message_tag)
-
-                try:
-                    result_value = task.fn(*task.args, **task.kwargs)
-                except Exception as e:
-                    result_object = (task.task_id, 'exception', result_value)
-                else:
-                    result_object = (task.task_id, 'result', result_value)
-
-                comm.send(result_object, dest = self.master_rank, tag = self.result_tag)
-
-            # Check for announcements
-            if message_tag == self.announce_tag:
-                messages = comm.recv(source = message_src, tag = message_tag)
-                if 'shutdown' in messages:
-                    return
-
-    def startup(self):
-        # start up client thread
-        self._worker_thread = threading.Thread(target=self._create_worker)
-        self._worker_thread.start()
-
-    def run(self):
-        self._worker_thread.join()
-
-class MPIWorkManager(MPIWMServer,MPIClient,WorkManager):
-    '''A work manager using MPI.'''
-    @classmethod
-    def from_environ(cls, wmenv=None):
-        return cls()
-
-    def __init__(self):
-        WorkManager.__init__(self)
-        MPIWMServer.__init__(self)
-        MPIClient.__init__(self)
+        # wait on any unfinished work
+        while self.pending_futures:
+            pass
         
-    def startup(self):
-        if self.rank == self.master_rank:
-            MPIWMServer.startup(self)
-        else:
-            MPIClient.startup(self)
+        # send shutdown msg to all slaves
+        req = [ MPI.REQUEST_NULL ]*self.nslaves        
+        for rank in self.slaveIDs:
+            req[rank-1] = self.comm.isend( MPI.BOTTOM, 
+                                           dest=rank, 
+                                           tag=self.shutdown_tag )
             
-    def shutdown(self):
+        MPI.Request.Waitall( requests=req )
+        
+        # stop threads
+        self.shutItDown = True
+        
+        for t in self.workers:
+            t.join()
+            log.info( 'Stopped thread: %s' % t.getName() )
+        
+        self.running = False
+    
+
+# +-------+
+# | Slave |
+# +-------+
+class Slave( MPIWorkManager ):
+    """Client class for executing tasks as distributed by the Master in the
+    MPI Work Manager
+    """
+
+    def __init__( self ):
+        super( Slave, self ).__init__()
+        log.debug( 'Slave.__init__() %s' % self.rank )
+        
+    
+    def startup( self ):
+        """Clock the slave in for work.
+        """
+        log.debug( 'Slave.startup() %s' % self.rank )
+        if not self.running:
+            
+            self.clockIn()
+            
+            self.running = True
+
+    
+    def clockIn( self ):
+        """Do each task as it comes in.  The completion of a task is
+        notice to the master that more work is welcome.
+        """
+        log.info( 'Slave %s clocking in.' % self.rank )
+        
         comm = self.comm
-        if self.rank == self.master_rank:
-            # send 'shutdown' to client threads
-            for x in self.task_dest:
-                comm.send('shutdown', dest = x, tag = self.announce_tag )
-            # send 'shutdown' to server threads
-            for thread in self.server_threads:
-                comm.send('shutdown', dest = 0, tag = self.announce_tag )
+        
+        while True:
+            
+            stat = MPI.Status()
+            task = comm.recv( source=self.masterID, 
+                             tag=MPI.ANY_TAG,
+                             status=stat )
+                             
+            tag = stat.Get_tag()
+            
+            if tag == self.task_tag:
+                
+                log.debug( 'Slave %s received task: %s' % 
+                           ( self.rank, task.task_id ) )
+                
+                # do the work
+                try:
+                    rv = task.fn( *task.args, **task.kwargs )
+                except BaseException as e:
+                    ro = ( task.task_id, 
+                           'exception', 
+                           ( e, traceback.format_exc() ) )
+                else:
+                    ro = ( task.task_id, 'result', rv )
+                
+                # send result back to master
+                comm.send( ro, dest=self.masterID, tag=self.result_tag )
+                
+            if tag == self.shutdown_tag:
+                log.info( 'Slave %s clocking out.' % self.rank )
+                return
 
-        log.info( "MPIWMServer.shutdown complete" )
 
+    @property
+    def is_master( self ):
+        """Slave processes need to be marked as not master.  This ensures that
+        the proper branching is followed in w_run.py.
+        """
+        return False
+        
