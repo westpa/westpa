@@ -1,8 +1,12 @@
 .DS_Store
 lib/blessings/
-lib/west_tools/
 *.pyc
 *.pyo
 *.swp
 .project
 .pydevproject
+*~
+*.swp
+*.swo
+*.so
+build/
