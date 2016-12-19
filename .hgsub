@@ -1,3 +1,0 @@
-lib/wwmgr = https://chong.chem.pitt.edu/hg/wwmgr
-lib/west_tools = https://chong.chem.pitt.edu/hg/westpa.tools
-lib/blessings = [git]git://github.com/erikrose/blessings.git
