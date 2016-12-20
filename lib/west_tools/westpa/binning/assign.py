@@ -91,15 +91,18 @@ class BinMapper:
         '''Construct and return an array of bins of type ``type``'''
         return numpy.array([type_() for _i in xrange(self.nbins)], dtype=numpy.object_)
 
-    def pickle_and_hash(self):
+    def pickle_and_hash(self, obj=None):
         '''Pickle this mapper and calculate a hash of the result (thus identifying the
         contents of the pickled data), returning a tuple ``(pickled_data, hash)``.
         This will raise PickleError if this mapper cannot be pickled, in which case
         code that would otherwise rely on detecting a topology change must assume
         a topology change happened, even if one did not.
+        Can be used with any object; defaults to self.
         '''
+        if obj == None:
+            obj = self
 
-        pkldat = pickle.dumps(self, pickle.HIGHEST_PROTOCOL)
+        pkldat = pickle.dumps(obj, pickle.HIGHEST_PROTOCOL)
         hash = self.hashfunc(pkldat)
         return (pkldat, hash.hexdigest())
 
@@ -161,7 +164,7 @@ class RectilinearBinMapper(BinMapper):
             bounds = [(_boundaries[idim][index[idim]], boundaries[idim][index[idim]+1]) for idim in xrange(len(_boundaries))]
             labels.append(repr(bounds))
 
-    def assign(self, coords, mask=None, output=None):
+    def assign(self, coords, mask=None, output=None, **kwargs):
         try:
             passed_coord_dtype = coords.dtype
         except AttributeError:
@@ -231,7 +234,7 @@ class FuncBinMapper(BinMapper):
         self.kwargs = kwargs or {}
         self.labels = ['{!r} bin {:d}'.format(func, ibin) for ibin in xrange(nbins)]
 
-    def assign(self, coords, mask=None, output=None):
+    def assign(self, coords, mask=None, output=None, **kwargs):
         try:
             passed_coord_dtype = coords.dtype
         except AttributeError:
@@ -342,7 +345,6 @@ class RecursiveBinMapper(BinMapper):
 
     def __init__(self, base_mapper, start_index=0):
         self.base_mapper = base_mapper
-        self.nbins = base_mapper.nbins
 
         # Targets for recursion
         self._recursion_targets = {}
@@ -351,6 +353,14 @@ class RecursiveBinMapper(BinMapper):
         self._recursion_map = numpy.zeros((self.base_mapper.nbins,), dtype=numpy.bool_)
 
         self.start_index = start_index
+        self.mapper_list = {}
+
+    @property
+    def nbins(self):
+        self._nbins = self.base_mapper.nbins
+        for mapper in self._recursion_targets.itervalues():
+            self._nbins += mapper.nbins - 1
+        return self._nbins
 
     @property
     def labels(self):
@@ -384,14 +394,32 @@ class RecursiveBinMapper(BinMapper):
 
         n_own_bins = self.base_mapper.nbins - self._recursion_map.sum()
         startindex = self.start_index + n_own_bins
+        # We can probably do this in a more intelligent manner than a dictionary, but it works for now.
         for mapper in self._recursion_targets.itervalues():
             mapper.start_index = startindex
             startindex += mapper.nbins
+            mapper._updated_hash = self.pickle_and_hash(mapper.base_mapper)[1]
+            self.mapper_list[mapper] = {'base_mapper': mapper.base_mapper, 'start_index': mapper.start_index, 'mapper': mapper}
+
+    def refresh_mappers(self):
+        '''Refreshes the mapper and re-assigns base mappers.  This is useful
+        for when mappers which update are set into other mappers.'''
+        self._recursion_targets = {}
+        self._recursion_map = numpy.zeros((self.base_mapper.nbins,), dtype=numpy.bool_)
+        self.start_index = 0
+        mapper_list = dict(self.mapper_list)
+        self.mapper_list = {}
+        self._output_map = numpy.arange(self._start_index, self._start_index + self.nbins, dtype=index_dtype)
+        for mapper,value in mapper_list.iteritems():
+            self.add_mapper(value['base_mapper'], mapper.replaces_bin_at)
+
 
     def add_mapper(self, mapper, replaces_bin_at):
         '''Replace the bin containing the coordinate tuple ``replaces_bin_at`` with the
         specified ``mapper``.'''
 
+        # In case of bin mappers which refresh, we store the original argument.
+        unmod_replace = tuple(replaces_bin_at)
         replaces_bin_at = numpy.require(replaces_bin_at, dtype=coord_dtype)
         if replaces_bin_at.ndim < 1:
             replaces_bin_at.shape = (1,1)
@@ -400,25 +428,32 @@ class RecursiveBinMapper(BinMapper):
         elif replaces_bin_at.ndim > 2 or replaces_bin_at.shape[1] > 1:
             raise TypeError('a single coordinate vector is required')
 
-        self.nbins += mapper.nbins - 1
-
         ibin = self.base_mapper.assign(replaces_bin_at)[0]
         log.debug('replacing bin {!r} containing {!r} with {!r}'.format(ibin, replaces_bin_at, mapper))
         if self._recursion_map[ibin]:
             # recursively add; this doesn't change anything for us except our
             # total bin count, which has been accounted for above
+            mapper.replaces_bin_at = unmod_replace
             self._recursion_targets[ibin].add_mapper(mapper, replaces_bin_at)
         else:
             # replace a bin on our mapper
             self._recursion_map[ibin] = True
             mapper = RecursiveBinMapper(mapper)
+            mapper.replaces_bin_at = unmod_replace
             self._recursion_targets[ibin] = mapper
 
         # we have updated our list of recursed bins, so set our own start index to trigger a recursive
         # reassignment of mappers' output values
         self.start_index = self.start_index        
 
-    def assign(self, coords, mask=None, output=None):
+    def assign(self, coords, mask=None, output=None, **kwargs):
+        # Compare hashes, and refresh bin mapper if necessary.
+        # Useful for bin mappers which update.
+        for mapper,value in self.mapper_list.iteritems():
+            new_hash = self.pickle_and_hash(mapper.base_mapper)[1]
+            if new_hash != mapper._updated_hash:
+                self.refresh_mappers()
+                break
         if mask is None:
             mask = numpy.ones((len(coords),), dtype=numpy.bool_)
 
@@ -430,7 +465,7 @@ class RecursiveBinMapper(BinMapper):
         mmask = numpy.zeros((len(coords),), dtype=numpy.bool_)
 
         # Assign based on this mapper
-        self.base_mapper.assign(coords, mask, output)
+        self.base_mapper.assign(coords, mask, output, **kwargs)
 
         # Which coordinates do we need to reassign, because they landed in
         # bins with embedded mappers?
@@ -448,6 +483,6 @@ class RecursiveBinMapper(BinMapper):
 
         # do any recursive assignments necessary
         for (rindex, mapper) in self._recursion_targets.iteritems():
-            mapper.assign(coords, mask&rmasks[rindex], output)
+            mapper.assign(coords, mask&rmasks[rindex], output, **kwargs)
 
         return output
