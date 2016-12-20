@@ -41,24 +41,58 @@ cpdef stats_process(numpy.ndarray[index_t, ndim=2] bin_assignments,
                     numpy.ndarray[weight_t, ndim=2] fluxes, 
                     numpy.ndarray[weight_t, ndim=1] populations, 
                     numpy.ndarray[trans_t, ndim=2] trans, 
-                    numpy.ndarray[index_t, ndim=2] mask):
+                    numpy.ndarray[index_t, ndim=2] mask,
+                    numpy.ndarray[index_t, ndim=1] recycle,
+                    numpy.ndarray[long, ndim=1] tstate,
+                    index_t istate):
     cdef:
         Py_ssize_t i,k
-        index_t ibin,fbin,nsegs,npts
+        index_t ibin,fbin,nsegs,npts,z,rbin
     nsegs = bin_assignments.shape[0]
     npts = bin_assignments.shape[1]
 
-    for i in xrange(0,npts - 1):
-        for k in xrange(nsegs):
-            ibin = bin_assignments[k,i]
-            fbin = bin_assignments[k, i + 1]
+    for k in xrange(nsegs):
+        w = weights[k]
+        #for i in xrange(0, npts - 1):
+        if mask[k, 0] == 1:
+            continue
+        #ibin = bin_assignments[k, 0]
+        #fbin = bin_assignments[k, npts - 1]
+        ibin = bin_assignments[k, 0]
+        fbin = bin_assignments[k, npts - 1]
 
-            if mask[k, 0] == 1:
-                continue
+        fluxes[ibin, fbin] += w
+        trans[ibin, fbin] += 1
+        populations[ibin] += w
+            # Eh, let's try and, you know, whatever.
+            #if recycle[k] == 3:
+            #    rbin = bin_assignments[k, npts - 1]
+            #    if fbin == rbin:
+            #        fluxes[fbin, istate] += w
+            #        trans[fbin, istate] += 1
+            #        populations[fbin] += w
+            #        break
+        #if fbin == 2:
+            # Recycled!
+            #if ibin == fbin:
+            #    for z in xrange(0, npts - 1):
+            #        if bin_assignments[k, z] != fbin:
+            #            ibin = bin_assignments[k, z]
+            #            break
 
-            w = weights[k]
+            #fluxes[ibin, istate] += w
+            #trans[ibin, istate] += 1
+        #fluxes[2,:] = 0
+        #trans[2,:] = 0
+        if recycle[k] == 3:
+            if fbin in tstate:
+            #trans[fbin,fbin+1:] = 0
+            #populations[fbin] = 0
+                #fluxes[fbin,:] = 0
+                #trans[fbin,:] = 0
+                fluxes[fbin, istate] += w
+                trans[fbin, istate] += 1
+                populations[fbin] += w
+         #   populations[istate] += w
 
-            fluxes[ibin, fbin] += w
-            trans[ibin, fbin] += 1
-            populations[ibin] += w
     return
