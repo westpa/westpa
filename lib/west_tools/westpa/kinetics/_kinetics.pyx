@@ -377,6 +377,56 @@ cpdef labeled_flux_to_rate(weight_t[:,:,:,:] labeled_fluxes, weight_t[:,:] label
 @cython.boundscheck(False)
 @cython.wraparound(False)
 @cython.cdivision(True)
+cpdef sequence_macro_flux_to_rate_bs(weight_t[:] dataset, weight_t[:,:] pops, Py_ssize_t istate, Py_ssize_t jstate, bint pairwise=True, stride=None):
+    '''Convert a sequence of macrostate fluxes and corresponding list of trajectory ensemble populations
+    to a sequence of rate matrices.
+    
+    If the optional ``pairwise`` is true (the default), then rates are normalized according to the
+    relative probability of the initial state among the pair of states (initial, final); this is
+    probably what you want, as these rates will then depend only on the definitions of the states
+    involved (and never the remaining states). Otherwise (``pairwise'' is false), the rates are
+    normalized according the probability of the initial state among *all* other states.'''
+    
+    cdef:
+        Py_ssize_t iiter, nstates, itersum
+        weight_t[:] _rates, _fluxsum, _pairsum, _psum
+        
+    rates = numpy.empty((dataset.shape[0]), dtype=weight_dtype)
+    #rates = 0.0
+    fluxsum = numpy.zeros((dataset.shape[0]), dtype=weight_dtype)
+    psum = numpy.zeros((dataset.shape[0]), dtype=weight_dtype)
+    pairsum = numpy.zeros((dataset.shape[0]), dtype=weight_dtype)
+    _fluxsum = fluxsum
+    _pairsum = pairsum
+    _psum = psum
+    _rates = rates
+    
+    # We want to modify this to be the SUM of fluxes up till this point, divided by the SUM of the population till then.
+    with nogil:
+        for iiter in xrange(dataset.shape[0]):
+            if iiter == 0:
+                if pairwise:
+                    _psum[0] = pops[0, istate] / (pops[0,istate] + pops[0,jstate])
+                else:
+                    _psum[0] = pops[0, istate]
+                _fluxsum[0] = dataset[0]
+            else:
+                if pairwise:
+                    _psum[iiter] = (pops[iiter, istate] / (pops[iiter,istate] + pops[iiter,jstate])) + _psum[iiter-1]
+                else:
+                    _psum[iiter] = pops[iiter,istate] + _psum[iiter-1]
+                _fluxsum[iiter] = dataset[iiter] + _fluxsum[iiter-1]
+            if _psum[iiter] > 0 and _fluxsum[iiter] > 0:
+                _rates[iiter] = _fluxsum[iiter] / _psum[iiter]
+            else:
+                _rates[iiter] = 0.0
+        #rates /= iiter
+
+    return rates[iiter]
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+@cython.cdivision(True)
 cpdef sequence_macro_flux_to_rate(weight_t[:,:,:] fluxes, weight_t[:,:] traj_ens_pops, bint pairwise=True):
     '''Convert a sequence of macrostate fluxes and corresponding list of trajectory ensemble populations
     to a sequence of rate matrices.
@@ -388,30 +438,64 @@ cpdef sequence_macro_flux_to_rate(weight_t[:,:,:] fluxes, weight_t[:,:] traj_ens
     normalized according the probability of the initial state among *all* other states.'''
     
     cdef:
-        Py_ssize_t iiter, istate, jstate, nstates
-        weight_t[:,:,:] _rates
-        weight_t p
+        Py_ssize_t iiter, istate, jstate, nstates, itersum
+        weight_t[:,:,:] _rates, _fluxsum, _pairsum, _psum, _total_p
+        #weight_t[:,:] _psum, _total_p
         
     rates = numpy.empty((fluxes.shape[0], fluxes.shape[1], fluxes.shape[2]), dtype=weight_dtype)
+    fluxsum = numpy.zeros((fluxes.shape[0], fluxes.shape[1], fluxes.shape[2]), dtype=weight_dtype)
+    psum = numpy.zeros((fluxes.shape[0], fluxes.shape[1], fluxes.shape[2]), dtype=weight_dtype)
+    pairsum = numpy.zeros((fluxes.shape[0], fluxes.shape[1], fluxes.shape[2]), dtype=weight_dtype)
+    total_p = numpy.zeros((fluxes.shape[0], fluxes.shape[1], fluxes.shape[2]), dtype=weight_dtype)
     _rates = rates
+    _fluxsum = fluxsum
+    _pairsum = pairsum
+    _psum = psum
+    _total_p = total_p
     
+    # We want to modify this to be the SUM of fluxes up till this point, divided by the SUM of the population till then.
     with nogil:
         for iiter in xrange(fluxes.shape[0]):
             for istate in xrange(fluxes.shape[1]):
                 for jstate in xrange(fluxes.shape[2]):
-                    if traj_ens_pops[iiter,istate] > 0:
+                    if iiter == 0:
+                        #if pairwise:
+                        #    _psum[0,istate] = traj_ens_pops[0,istate] / (traj_ens_pops[0,istate] + traj_ens_pops[0,jstate])
+                        #else:
+                        #_pairsum[0,istate,jstate] = traj_ens_pops[0,istate] + traj_ens_pops[0,jstate]
                         if pairwise:
-                            p = traj_ens_pops[iiter,istate] / (traj_ens_pops[iiter,istate]+traj_ens_pops[iiter,jstate])
+                            _psum[0,istate,jstate] = traj_ens_pops[0,istate] / (traj_ens_pops[0,istate] + traj_ens_pops[0,jstate])
                         else:
-                            p = traj_ens_pops[iiter,istate]
-                        _rates[iiter,istate,jstate] = fluxes[iiter,istate,jstate] / p
+                            _psum[0,istate,jstate] = traj_ens_pops[0,istate]
+                        #_total_p[0,istate,jstate] = (_psum[0,istate,jstate] / _pairsum[0,istate, jstate])
+                        _fluxsum[0,istate,jstate] = fluxes[0,istate,jstate]
+                    else:
+                        #if pairwise:
+                        #    _psum[iiter,istate] = (traj_ens_pops[iiter,istate] / (traj_ens_pops[iiter,istate] + traj_ens_pops[iiter,jstate])) + _psum[iiter-1,istate]
+                        #else:
+                        if pairwise:
+                            #_pairsum[iiter,istate,jstate] = (traj_ens_pops[iiter,istate] + traj_ens_pops[iiter,jstate]) + _pairsum[iiter-1,istate,jstate]
+                            _psum[iiter,istate,jstate] = (traj_ens_pops[iiter, istate] / (traj_ens_pops[iiter,istate] + traj_ens_pops[iiter,jstate])) + _psum[iiter-1,istate,jstate]
+                        else:
+                            _psum[iiter,istate,jstate] = traj_ens_pops[iiter,istate] + _psum[iiter-1,istate,jstate]
+                        #_pairsum[iiter,istate,jstate] = (traj_ens_pops[iiter,istate] + traj_ens_pops[iiter,jstate])
+                        #_psum[iiter,istate] = traj_ens_pops[iiter,istate]
+                        #_total_p[iiter,istate,jstate] = (_psum[iiter,istate,jstate] / _pairsum[iiter,istate, jstate]) + _total_p[iiter-1,istate,jstate]
+                        _fluxsum[iiter,istate,jstate] = fluxes[iiter,istate,jstate] + _fluxsum[iiter-1,istate,jstate]
+                    #if traj_ens_pops[iiter,istate] > 0:
+                    if _psum[iiter,istate, jstate] > 0:
+                        #_rates[iiter,istate,jstate] = _fluxsum[iiter,istate,jstate] / _psum[iiter,istate]
+                        #if pairwise:
+                        #    _rates[iiter,istate,jstate] = _fluxsum[iiter,istate,jstate] / _total_p[iiter,istate,jstate]
+                        #else:
+                        _rates[iiter,istate,jstate] = _fluxsum[iiter,istate,jstate] / _psum[iiter,istate,jstate]
                     elif fluxes[iiter,istate,jstate] > 0:
                         # This is an invalid rate, but can appear in some places in recycling simulations,
                         # so we allow things to proceed but store NaN, which will render any average
                         # rates based on this matrix element NaN as well.
                         _rates[iiter,istate,jstate] = NAN 
-                    else:
-                        _rates[iiter,istate,jstate] = 0
+                    #else:
+                    #    _rates[iiter,istate,jstate] = 0
     return rates
 
 """

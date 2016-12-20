@@ -46,7 +46,7 @@ def parse_pcoord_value(pc_str):
         raise ValueError('too many dimensions')
     return arr
 
-def _assign_label_pop(n_iter, lb, ub, mapper, nstates, state_map, last_labels, parent_id_dsspec, weight_dsspec, pcoord_dsspec):    
+def _assign_label_pop(n_iter, lb, ub, mapper, nstates, state_map, last_labels, parent_id_dsspec, weight_dsspec, pcoord_dsspec, subsample):    
 
     nbins = len(state_map)-1
     parent_ids = parent_id_dsspec.get_iter_data(n_iter,index_exp[lb:ub])
@@ -54,7 +54,7 @@ def _assign_label_pop(n_iter, lb, ub, mapper, nstates, state_map, last_labels, p
     pcoords = pcoord_dsspec.get_iter_data(n_iter,index_exp[lb:ub])
     
     assignments, trajlabels, statelabels = assign_and_label(lb, ub, parent_ids,
-                                               mapper.assign, nstates, state_map, last_labels, pcoords)
+                                               mapper.assign, nstates, state_map, last_labels, pcoords, subsample)
     pops = numpy.zeros((nstates+1,nbins+1), weight_dtype)
     accumulate_labeled_populations(weights, assignments, trajlabels, pops)
     return (assignments, trajlabels, pops, lb, ub, statelabels)
@@ -260,6 +260,9 @@ Command-line options
         agroup = parser.add_argument_group('other options')
         agroup.add_argument('-o', '--output', dest='output', default='assign.h5',
                             help='''Store results in OUTPUT (default: %(default)s).''')
+        agroup.add_argument('--subsample', dest='subsample', action='store_const', const=True,
+                             help='''Determines whether or not the data should be subsampled.
+                             This is rather useful for analysing steady state simulations.''')
 
 
     def process_args(self, args):
@@ -284,6 +287,8 @@ Command-line options
         #self.output_file = WESTPAH5File(args.output, 'w', creating_program=True)
         self.output_filename = args.output
         log.debug('state list: {!r}'.format(self.states))
+
+        self.subsample = args.subsample
 
     def parse_cmdline_states(self, state_strings):
         states = []
@@ -367,7 +372,8 @@ Command-line options
                               last_labels=last_labels, 
                               parent_id_dsspec=self.data_reader.parent_id_dsspec, 
                               weight_dsspec=self.data_reader.weight_dsspec,
-                              pcoord_dsspec=self.dssynth.dsspec)
+                              pcoord_dsspec=self.dssynth.dsspec,
+                              subsample=self.subsample)
                 yield (_assign_label_pop, args, kwargs)
 
                 #futures.append(self.work_manager.submit(_assign_label_pop, 

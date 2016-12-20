@@ -20,9 +20,10 @@
 
 from __future__ import print_function, division; __metaclass__ = type
 
-import sys, argparse
+import sys, argparse, os
 import westpa
 import work_managers
+from westpa import h5io
 
 import logging
 log = logging.getLogger(__name__)
@@ -176,6 +177,77 @@ class WESTParallelTool(WESTTool):
                 self.go()
             else:
                 self.work_manager.run()
+
+class WESTMultiTool(WESTParallelTool):
+    '''Base class for command-line tools which work with multiple simulations.  Automatically parses for
+    and gives commands to load multiple files.'''
+
+    def __init__(self, wm_env=None):
+        super(WESTTool,self).__init__()
+        self.ntrials = 0
+        self.master = None
+
+    def make_parser_and_process(self, prog=None, usage=None, description=None, epilog=None, args=None):
+        '''A convenience function to create a parser, call add_all_args(), and then call process_all_args().
+        The argument namespace is returned.'''
+        parser = self.make_parser(prog,usage,description,epilog,args)
+        args = parser.parse_args(args)
+        
+        # Process args
+        self.process_all_args(args)
+        return args
+
+    def parse_from_yaml(self, yamlfilepath):
+        '''Parse options from YAML input file. Command line arguments take 
+        precedence over options specified in the YAML hierarchy.
+        TODO: add description on how YAML files should be constructed.
+        '''
+        import yaml
+        with open(yamlfilepath, 'r') as yamlfile:
+            self.yamlargdict = yaml.load(yamlfile) 
+        # add in options here for intelligent processing of files
+
+
+    def add_args(self, parser):
+        mgroup = parser.add_argument_group('multiple simulation options')
+        mgroup.add_argument('-m','--master', default=os.getcwd(), 
+                            help='''Master path of simulations; this is where all the small sims
+                             are stored.''')
+        mgroup.add_argument('-n','--sims', default=0, 
+                            help='''The number of simulation directories.  Assumes leading zeros.''')
+
+    class NoSimulationsException(Exception):
+        pass
+
+    def generate_file_list(self, key_list):
+        '''A convenience function which takes in a list of keys that are filenames, and returns a dictionary
+        which contains all the individual files loaded inside of a dictionary keyed to the filename.'''
+        return_dict = {}
+        if self.ntrials == 0:
+            raise self.NoSimulationsException('You must specify the number of simulations.')
+
+        for key in key_list:
+            return_dict[key] = {}
+        for i in range(1, self.ntrials+1):
+            # Need to not make this hard coded, but who cares for now.
+            for key in key_list:
+                return_dict[key][i] = h5io.WESTPAH5File(os.path.join(self.master, str(i).zfill(2), key), 'r')
+        return return_dict
+    
+    def process_args(self, args):
+        self.master = args.master
+        self.ntrials = int(args.sims)
+        log.debug('Simulations loaded from: {!r}'.format(self.master))
+        log.debug('Number of simulations: {!r}'.format(self.ntrials))
+
+    def go(self):
+        '''Perform the analysis associated with this tool.'''
+        raise NotImplementedError
+    
+    def main(self):
+        '''A convenience function to make a parser, parse and process arguments, then run self.go() in the master process.'''
+        self.make_parser_and_process()
+        self.go()
 
 class WESTSubcommand(WESTToolComponent):
     '''Base class for command-line tool subcommands. A little sugar for making this 

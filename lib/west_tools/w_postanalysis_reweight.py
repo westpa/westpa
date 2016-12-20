@@ -19,21 +19,51 @@ from __future__ import print_function, division; __metaclass__ = type
 import logging
 
 import numpy as np
+import numpy
 import scipy.sparse as sp
 from scipy.sparse import csgraph
 import h5py
 
 from collections import Counter
+from postanalysis import reweight_for_c
 
 import westpa
 from west.data_manager import weight_dtype, n_iter_dtype
-from westtools import (WESTTool, WESTDataReader, IterRangeSelection,
+from westtools import (WESTTool, WESTParallelTool, WESTDataReader, IterRangeSelection,
                        ProgressIndicatorComponent)
 from westpa import h5io
 from westtools.dtypes import iter_block_ci_dtype as ci_dtype
 
 log = logging.getLogger('westtools.w_postanalysis_reweight')
 
+import mclib
+from mclib import mcbs_correltime, mcbs_ci_correl_rw
+
+def _eval_block(iblock, start, stop, nstates, nbins, mcbs_alpha, mcbs_nsets, mcbs_acalpha, rates, flux_c, state_map, correl, **kwargs):
+    results = [[],[]]
+    # results are conditional fluxes, rates
+    # It's already too bloody slow.  Not gonna do the target fluxes, for now.
+    for istate in xrange(nstates):
+        for jstate in xrange(nstates):
+            # Fluxes!
+            if istate == jstate: continue
+            dataset = { 'indices' : np.array(range(start-1, stop-1), dtype=np.uint16) }
+            kwargs.update({ 'istate' : istate, 'jstate': jstate, 'nstates' : nstates, 'nbins' : nbins , 'state_map': state_map, 'return_flux': True})
+            ci_res = mcbs_ci_correl_rw(dataset, estimator=reweight_for_c,
+                                    alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
+                                    subsample=(lambda x: x[0]), pre_calculated=flux_c[:,istate,jstate], correl=correl, **kwargs)
+            results[0].append((iblock, istate, jstate, (start,stop) + ci_res))
+
+            # Rates!
+            if istate == jstate: continue
+            dataset = { 'indices' : np.array(range(start-1, stop-1), dtype=np.uint16) }
+            kwargs.update({ 'istate' : istate, 'jstate': jstate, 'nstates' : nstates, 'nbins' : nbins , 'state_map': state_map})
+            ci_res = mcbs_ci_correl_rw(dataset, estimator=reweight_for_c,
+                                    alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
+                                    subsample=(lambda x: x[0]), pre_calculated=rates[:,istate,jstate], correl=correl, **kwargs)
+            results[1].append((iblock, istate, jstate, (start,stop) + ci_res))
+
+    return results
 
 def normalize(m):
     nm = m.copy()
@@ -102,9 +132,39 @@ def accumulate_statistics(h5file, start_iter, stop_iter, nbins, total_fluxes=Non
 
     return total_fluxes, total_obs, total_pop
 
+def accumulate_statistics_list(h5file, iterations, nbins, total_fluxes=None, total_obs=None):
+    if total_fluxes is None:
+        assert total_obs is None
+        total_fluxes = np.zeros((nbins, nbins), weight_dtype)
+        total_obs = np.zeros((nbins, nbins), np.int64)
+
+    rows = []
+    cols = []
+    obs = []
+    flux = []
+
+    for iiter in xrange(iterations):
+        iter_grp = h5file['iterations']['iter_{:08d}'.format(iiter)]
+
+        rows.append(iter_grp['rows'][...])
+        cols.append(iter_grp['cols'][...])
+        obs.append(iter_grp['obs'][...])
+        flux.append(iter_grp['flux'][...])
+
+    rows, cols, obs, flux = map(np.hstack, [rows, cols, obs, flux])
+
+    total_fluxes += sp.coo_matrix((flux, (rows, cols)), shape=(nbins, nbins)).todense()
+    total_obs += sp.coo_matrix((obs, (rows, cols)), shape=(nbins, nbins)).todense()
+
+    total_pop = np.sum(h5file['bin_populations'][start_iter:stop_iter, :], axis=0)
+
+    return total_fluxes, total_obs, total_pop
+
 
 def reweight(h5file, start, stop, nstates, nbins, state_labels, state_map, nfbins, obs_threshold=1, total_fluxes=None, total_obs=None):
 
+    # Instead of pulling in start and stop, we'll pull in a list of indices.
+    # This way, it should support the bootstrap.
     total_fluxes, total_obs, total_pop = accumulate_statistics(h5file, start, stop, nfbins, total_fluxes, total_obs)
 
     flux_matrix = total_fluxes.copy()
@@ -145,7 +205,7 @@ def calc_state_flux(trans_matrix, index1, index2, bin_probs, bin_last_state_map,
 
 
 
-class WPostAnalysisReweightTool(WESTTool):
+class WPostAnalysisReweightTool(WESTParallelTool):
     prog ='w_postanalysis_reweight'
     description = '''\
 Calculate average rates from weighted ensemble data using the postanalysis
@@ -211,6 +271,16 @@ Command-line options
         self.kinetics_file = None
         
         self.evolution_mode = None
+
+        self.mcbs_enable = None
+        self.mcbs_alpha = None
+        self.mcbs_acalpha = None
+        self.mcbs_nsets = None
+        
+    def stamp_mcbs_info(self, dataset):
+        dataset.attrs['mcbs_alpha'] = self.mcbs_alpha
+        dataset.attrs['mcbs_acalpha'] = self.mcbs_acalpha
+        dataset.attrs['mcbs_nsets'] = self.mcbs_nsets
         
     def add_args(self, parser):
         self.progress.add_args(parser)
@@ -229,6 +299,20 @@ Command-line options
         iogroup.add_argument('-o', '--output', dest='output', default='kinrw.h5',
                             help='''Store results in OUTPUT (default: %(default)s).''')
 
+        cgroup = parser.add_argument_group('confidence interval calculation options')
+        cgroup.add_argument('--bootstrap', dest='bootstrap', action='store_const', const=True,
+                             help='''Enable the use of Monte Carlo Block Bootstrapping.''')
+        cgroup.add_argument('--disable-correl', '-dc', dest='correl', action='store_const', const=False,
+                             help='''Disable the correlation analysis.''')
+        cgroup.add_argument('--alpha', type=float, default=0.05, 
+                             help='''Calculate a (1-ALPHA) confidence interval'
+                             (default: %(default)s)''')
+        cgroup.add_argument('--autocorrel-alpha', type=float, dest='acalpha', metavar='ACALPHA',
+                             help='''Evaluate autocorrelation to (1-ACALPHA) significance.
+                             Note that too small an ACALPHA will result in failure to detect autocorrelation
+                             in a noisy flux signal. (Default: same as ALPHA.)''')
+        cgroup.add_argument('--nsets', type=int, default=1000,
+                             help='''Use NSETS samples for bootstrapping (default: chosen based on ALPHA)''')
         cogroup = parser.add_argument_group('calculation options')
         cogroup.add_argument('-e', '--evolution-mode', choices=['cumulative', 'blocked'], default='cumulative',
                              help='''How to calculate time evolution of rate estimates.
@@ -267,6 +351,12 @@ Command-line options
         self.output_filename = args.output
         self.assignments_filename = args.assignments
         self.kinetics_filename = args.kinetics
+
+        self.mcbs_enable = args.bootstrap
+        self.mcbs_alpha = args.alpha
+        self.mcbs_acalpha = args.acalpha if args.acalpha else self.mcbs_alpha
+        self.mcbs_nsets = args.nsets if args.nsets else mclib.get_bssize(self.mcbs_alpha)
+        self.correl = args.correl
                 
         self.evolution_mode = args.evolution_mode
         self.evol_window_frac = args.window_frac
@@ -295,6 +385,9 @@ Command-line options
 
             start_pts = range(start_iter, stop_iter, step_iter)
             flux_evol = np.zeros((len(start_pts), nstates, nstates), dtype=ci_dtype)
+            rate_evol = np.zeros((len(start_pts), nstates, nstates), dtype=ci_dtype)
+            flux_evol_bootstrap = np.zeros((len(start_pts), nstates, nstates), dtype=ci_dtype)
+            rate_evol_bootstrap = np.zeros((len(start_pts), nstates, nstates), dtype=ci_dtype)
             color_prob_evol = np.zeros((len(start_pts), nstates))
             state_prob_evol = np.zeros((len(start_pts), nstates))
             bin_prob_evol = np.zeros((len(start_pts), nfbins))
@@ -320,13 +413,20 @@ Command-line options
                         for j in xrange(nstates):
                             # Normalize such that we report the flux per tau (tau being the weighted ensemble iteration)
                             # npts always includes a 0th time point
-                            flux_evol[iblock]['expected'][k,j] = rw_state_flux[k,j] * (npts - 1)
+                            flux_evol[iblock]['expected'][k,j] = rw_state_flux[k,j]
                             flux_evol[iblock]['iter_start'][k,j] = start
                             flux_evol[iblock]['iter_stop'][k,j] = stop
+                            rate_evol[iblock]['expected'][k,j] = (rw_state_flux[k,j] * (npts - 1)) / rw_color_probs[k]
+                            if rw_color_probs[k] == 0.0  or flux_evol[iblock]['expected'][k,j] == 0.0:
+                                rate_evol[iblock]['expected'][k,j] = 0
+                            # Do the normalisation now.
+                            rate_evol[iblock]['iter_start'][k,j] = start
+                            rate_evol[iblock]['iter_stop'][k,j] = stop
 
                     color_prob_evol[iblock] = rw_color_probs
                     state_prob_evol[iblock] = rw_state_probs[:-1]
                     bin_prob_evol[iblock] = rw_bin_probs
+                #flux_evol[:]['expected'][k,j] *= (npts - 1)
 
 
             else:
@@ -349,21 +449,112 @@ Command-line options
                     for k in xrange(nstates):
                         for j in xrange(nstates):
                             # Normalize such that we report the flux per tau (tau being the weighted ensemble iteration)
-                            # npts always includes a 0th time point
+                            # npts DOES NOT always includes a 0th time point; must be a way to gracefully handle this?
                             flux_evol[iblock]['expected'][k,j] = rw_state_flux[k,j] * (npts - 1)
                             flux_evol[iblock]['iter_start'][k,j] = start
                             flux_evol[iblock]['iter_stop'][k,j] = stop
+                            rate_evol[iblock]['expected'][k,j] = (rw_state_flux[k,j] * (npts - 1)) / rw_color_probs[k]
+                            if rw_color_probs[k] == 0.0  or flux_evol[iblock]['expected'][k,j] == 0.0:
+                                rate_evol[iblock]['expected'][k,j] = 0
+                            rate_evol[iblock]['iter_start'][k,j] = start
+                            rate_evol[iblock]['iter_stop'][k,j] = stop
 
                     color_prob_evol[iblock] = rw_color_probs
                     state_prob_evol[iblock] = rw_state_probs[:-1]
                     bin_prob_evol[iblock] = rw_bin_probs
 
+            if self.mcbs_enable == True:
+                futures = []
+                all_items = np.arange(1,len(start_pts)+1)
+                bootstrap_length = 0.5*(len(start_pts)*(len(start_pts)+1)) - np.delete(all_items, np.arange(1, len(start_pts)+1, step_iter))
+                pi.new_operation('Calculating Monte Carlo Bootstrap', bootstrap_length[0])
+                rows = []
+                cols = []
+                obs = []
+                flux = []
+                insert = []
 
-            ds_flux_evol = self.output_file.create_dataset('conditional_flux_evolution', data=flux_evol, shuffle=True, compression=9)
+                for iiter in xrange(start_iter, stop_iter):
+                    iter_grp = self.kinetics_file['iterations']['iter_{:08d}'.format(iiter)]
+
+                    rows.append(iter_grp['rows'][...])
+                    cols.append(iter_grp['cols'][...])
+                    obs.append(iter_grp['obs'][...])
+                    flux.append(iter_grp['flux'][...])
+                    if iiter != start_iter:
+                        insert.append(iter_grp['rows'][...].shape[0] + insert[-1])
+                    else:
+                        insert.append(iter_grp['rows'][...].shape[0])
+                rows = np.concatenate(rows)
+                cols = np.concatenate(cols)
+                obs = np.concatenate(obs)
+                assert insert[-1] == len(rows)
+                flux = np.concatenate(flux)
+                ins = []
+                ins.append(0)
+                ins += insert
+                insert = np.array(ins, dtype=np.intc)
+
+        
+                for iblock, start in enumerate(start_pts):
+                    stop = min(start+step_iter, stop_iter)
+                    if self.evolution_mode == 'cumulative':
+                        windowsize = max(1, int(self.evol_window_frac * (stop - start_iter)))
+                        block_start = max(start_iter, stop - windowsize)
+                    else:   # self.evolution_mode == 'blocked'
+                        block_start = start
+                    # Why flux_c?
+                    # This is one where we've already calculated the fluxes.  I can probably set it to be different, but.
+                    future = self.work_manager.submit(_eval_block, kwargs=dict(iblock=iblock, start=block_start, stop=stop,
+                                                                               nstates=nstates, nbins=nbins, nfbins=nfbins,
+                                                                               rows=rows, cols=cols, obs=obs, flux=flux, insert=insert,
+                                                                               state_labels=state_labels, 
+                                                                               bin_last_state_map=np.tile(np.arange(nstates, dtype=np.int), nbins), 
+                                                                               bin_state_map=np.repeat(state_map[:-1], nstates),
+                                                                               state_map=state_map,
+                                                                               rates=rate_evol[block_start-1:stop,:,:]['expected'],
+                                                                               flux_c=flux_evol[block_start-1:stop,:,:]['expected'],
+                                                                               mcbs_alpha=self.mcbs_alpha, mcbs_nsets=self.mcbs_nsets,
+                                                                               mcbs_acalpha=self.mcbs_acalpha,
+                                                                               correl=self.correl))
+                    futures.append(future)
+                
+                for future in self.work_manager.as_completed(futures):
+                    condflux_results, rate_results = future.get_result(discard=True)
+                    #condflux_results = future._result
+                        
+                    for result in condflux_results:
+                        iblock,istate,jstate,ci_result = result
+                        flux_evol_bootstrap[iblock, istate, jstate] = ci_result
+                        # Normalisation for the pcoord length, to ensure the results are per tau, not per subtau.
+                        # There should be a way to gracefully handle simulations without a 0th timepoint.
+                        flux_evol_bootstrap[iblock, istate, jstate]['expected'] = ci_result[2] * (npts - 1)
+                        flux_evol_bootstrap[iblock, istate, jstate]['ci_lbound'] = ci_result[3] * (npts - 1)
+                        flux_evol_bootstrap[iblock, istate, jstate]['ci_ubound'] = ci_result[4] * (npts - 1)
+                    
+                    for result in rate_results:
+                        iblock, istate, jstate, ci_result = result 
+                        rate_evol_bootstrap[iblock, istate, jstate] = ci_result
+                        rate_evol_bootstrap[iblock, istate, jstate]['expected'] = ci_result[2] * (npts - 1)
+                        rate_evol_bootstrap[iblock, istate, jstate]['ci_lbound'] = ci_result[3] * (npts - 1)
+                        rate_evol_bootstrap[iblock, istate, jstate]['ci_ubound'] = ci_result[4] * (npts - 1)
+                    pi.progress += iblock / step_iter
+            else:
+                flux_evol_bootstrap = flux_evol
+                rate_evol_bootstrap = rate_evol
+
+
+
+            ds_flux_evol = self.output_file.create_dataset('conditional_flux_evolution', data=flux_evol_bootstrap, shuffle=True, compression=9)
+            ds_flux_evol = self.output_file.create_dataset('rate_evolution', data=rate_evol_bootstrap, shuffle=True, compression=9)
             ds_state_prob_evol = self.output_file.create_dataset('state_prob_evolution', data=state_prob_evol, compression=9)
             ds_color_prob_evol = self.output_file.create_dataset('color_prob_evolution', data=color_prob_evol, compression=9)
             ds_bin_prob_evol = self.output_file.create_dataset('bin_prob_evolution', data=bin_prob_evol, compression=9)
             ds_state_labels = self.output_file.create_dataset('state_labels', data=state_labels)
+
+            if self.mcbs_enable == True:
+                for ds in (ds_flux_evol, ds_state_prob_evol, ds_color_prob_evol, ds_bin_prob_evol):
+                    self.stamp_mcbs_info(ds)
 
 
 if __name__ == '__main__':

@@ -51,7 +51,21 @@ either equilibrium or steady-state conditions without recycling target states.
 
         iogroup.add_argument('-o', '--output', dest='output', default=self.default_output_file,
                              help='''Store results in OUTPUT (default: %(default)s).''')
-
+        cogroup = parser.add_argument_group('calculation options')
+        cogroup.add_argument('-s', '--sampling-frequency', 
+                             dest='sampling_frequency', 
+                             choices=['timepoint','iteration'],
+                             default='timepoint',
+                             help='''Observe for transition events with a lag
+                             time corresponding to either each weighted ensemble
+                             iteration (``iteration``) or each sub-iteration 
+                             timepoint (``timepoint``) (default: %(default)s).
+                             For each pair of bins, store the sum of fluxes
+                             in a given iteration (['flux']). Similarly, 
+                             for each bin, store the sum of weights in the bin 
+                             over all observation points for a given iteration 
+                             (['bin_populations']).''' )
+                                       
         self.progress.add_args(parser)
         
     def process_args(self, args):
@@ -64,6 +78,7 @@ either equilibrium or steady-state conditions without recycling target states.
         h5io.stamp_creator_data(self.output_file)
         if not self.iter_range.check_data_iter_range_least(self.assignments_file):
             raise ValueError('assignments do not span the requested iterations')
+        self.sampling_frequency = args.sampling_frequency
 
 
     def go(self):
@@ -101,9 +116,9 @@ either equilibrium or steady-state conditions without recycling target states.
             trans = np.empty(flux_shape[1:], np.int64)
 
             # Check to make sure this isn't a data set with target states
-            tstates = self.data_reader.data_manager.get_target_states(0)
-            if len(tstates) > 0:
-                raise ValueError('Postanalysis reweighting analysis does not support WE simulation run under recycling conditions')
+            #tstates = self.data_reader.data_manager.get_target_states(0)
+            #if len(tstates) > 0:
+            #    raise ValueError('Postanalysis reweighting analysis does not support WE simulation run under recycling conditions')
 
             pi.new_operation('Calculating flux matrices', iter_count)
             # Calculate instantaneous statistics
@@ -133,7 +148,7 @@ either equilibrium or steady-state conditions without recycling target states.
                 mask_unknown[mask_indx] = 1
 
                 # Calculate bin-to-bin fluxes, bin populations and number of obs transitions
-                calc_stats(bin_assignments, weights, fluxes, populations, trans, mask_unknown)
+                calc_stats(bin_assignments, weights, fluxes, populations, trans, mask_unknown, self.sampling_frequency)
 
                 # Store bin-based kinetics data
                 bin_populations_ds[iiter] = populations
@@ -162,12 +177,12 @@ either equilibrium or steady-state conditions without recycling target states.
             # flux and kinetics to tau in w_postanalysis_reweight.
             self.output_file.attrs['npts'] = npts
 
-def calc_stats(bin_assignments, weights, fluxes, populations, trans, mask):
+def calc_stats(bin_assignments, weights, fluxes, populations, trans, mask, sampling_frequency):
     fluxes.fill(0.0)
     populations.fill(0.0)
     trans.fill(0)
 
-    stats_process(bin_assignments, weights, fluxes, populations, trans, mask)
+    stats_process(bin_assignments, weights, fluxes, populations, trans, mask, interval=sampling_frequency)
 
 
 if __name__ == '__main__':
