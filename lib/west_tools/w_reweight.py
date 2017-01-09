@@ -32,7 +32,6 @@ from west.data_manager import weight_dtype, n_iter_dtype
 #from westtools import (WESTTool, WESTParallelTool, WESTDataReader, IterRangeSelection,
 from westtools import (WESTMasterCommand, WESTParallelTool, WESTDataReader, IterRangeSelection, WESTSubcommand,
                        ProgressIndicatorComponent)
-                       ProgressIndicatorComponent)
 
 from westpa.kintool import WESTKinAvg, AverageCommands
 from westpa import h5io
@@ -461,7 +460,7 @@ Command-line options
                 #flux_evol[:]['expected'][k,j] *= (npts - 1)
 
 
-            else:
+            if True:
                 for iblock, start in enumerate(start_pts):
                     pi.progress += 1
                     
@@ -604,7 +603,7 @@ class RWReweight(AverageCommands):
     subcommand = 'reweight'
     help_text = 'averages and CIs for path-tracing kinetics analysis'
     default_kinetics_file = 'direct.h5'
-    description = '''\'''
+    description = '''\ Blah!'''
 
     def generate_reweight_data(self):
 
@@ -683,7 +682,7 @@ class RWReweight(AverageCommands):
         start_pts = range(start_iter, stop_iter, step_iter)
 
 
-        indices = h5io.IterBlockedDataset.empty_like(np.zeros((len(start_pts), dtype=ci_dtype)))
+        indices = h5io.IterBlockedDataset.empty_like(np.zeros((len(start_pts)), dtype=ci_dtype))
         indices.data = np.array(range(start_iter-1, stop_iter-1), dtype=np.uint16)
 
         submit_kwargs = dict(pi=pi, nstates=self.nstates, start_iter=self.start_iter, stop_iter=self.stop_iter, 
@@ -728,6 +727,22 @@ class RWReweight(AverageCommands):
         self.w_postanalysis_reweight()
 
 
+class RWStateProbs(AverageCommands):
+    subcommand = 'reweight'
+    help_text = 'averages and CIs for path-tracing kinetics analysis'
+    default_kinetics_file = 'direct.h5'
+    description = '''\ Blah!'''
+    def w_postanalysis_stateprobs():
+        pass
+
+class RWFlux(AverageCommands):
+    subcommand = 'flux'
+    help_text = 'averages and CIs for path-tracing kinetics analysis'
+    default_kinetics_file = 'direct.h5'
+    description = '''\ Blah!'''
+    def w_postanalysis_stateprobs():
+        pass
+
 class RWAll(RWStateProbs, RWReweight, RWFlux):
     subcommand = 'all'
     help_text = 'averages and CIs for path-tracing kinetics analysis'
@@ -741,7 +756,7 @@ class RWAll(RWStateProbs, RWReweight, RWFlux):
         self.w_postanalysis_stateprobs()
 
 # Just a convenience class to average the observables.
-class DAverage(RWStateProbs, RWReweight):
+class RWAverage(RWStateProbs, RWReweight):
     subcommand = 'average'
     help_text = 'averages and CIs for path-tracing kinetics analysis'
     default_kinetics_file = 'direct.h5'
@@ -751,7 +766,7 @@ class DAverage(RWStateProbs, RWReweight):
         self.w_postanalysis_stateprobs()
 
 class WReweight(WESTMasterCommand, WESTParallelTool):
-    prog='w_direct'
+    prog='w_reweight'
     #subcommands = [AvgTraceSubcommand,AvgMatrixSubcommand]
     subcommands = [RWFlux, RWReweight, RWStateProbs, RWAll, RWAverage]
     subparsers_title = 'direct kinetics analysis schemes'
