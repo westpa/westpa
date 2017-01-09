@@ -47,6 +47,7 @@ log = logging.getLogger('westtools.w_kinavg')
 from westtools.dtypes import iter_block_ci_dtype as ci_dtype
 
 # From w_kinetics.
+# Do we still need this?
 from westtools.dtypes import ed_list_dtype
 from westpa.binning import index_dtype
 from westpa.kinetics._kinetics import _fast_transition_state_copy #@UnresolvedImport
