@@ -18,7 +18,7 @@ function checkout_remote() {
 }
 
 if [[ -z "$WEST_PYTHON" ]] ;  then
-    WEST_PYTHON=python2.7
+    WEST_PYTHON=$(which python2.7)
 fi
 
 find . -name \*.so -print0 | xargs -0 rm &> /dev/null
