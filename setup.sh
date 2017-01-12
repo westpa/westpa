@@ -48,3 +48,14 @@ for d in lib/west_tools; do
     cd -
 done
 
+cp .westpa.sh westpa.sh
+sed -i "s|__WESTROOT__|$PWD|g" westpa.sh
+sed -i "s|__WESTBIN__|$PWD/bin|g" westpa.sh
+sed -i "s|__WESTPYTHON__|$WEST_PYTHON|g" westpa.sh
+chmod +x westpa.sh
+
+echo ""
+echo "Installation successful!"
+echo "Your WEST_ROOT is set as $PWD."
+echo "In order to use westpa, please source $PWD/westpa.sh before running!"
+echo ""
