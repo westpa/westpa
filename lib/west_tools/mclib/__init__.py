@@ -106,8 +106,9 @@ def mcbs_ci_correl_rw(estimator_datasets, estimator, alpha, n_sets=None, args=No
         for key, dset in estimator_datasets.iteritems():
             precalc_kwargs[key] = dset[0:block]
         pre_calculated.append(estimator(**precalc_kwargs))
+    # We need to get rid of any NaNs.
     pre_calculated = numpy.asanyarray(pre_calculated)
-    print(pre_calculated)
+    pre_calculated = pre_calculated[numpy.isfinite(pre_calculated)]
     # We probably need to get this from the rates, so we'll still end up passing those in.
     # If pre-calculated is not None, we'll use that instead of dataset.
     # We can also assume that it's a 1 dimensional set with nothing needed, so 'key' should work.
@@ -124,8 +125,6 @@ def mcbs_ci_correl_rw(estimator_datasets, estimator, alpha, n_sets=None, args=No
         except:
             pass
 
-        # Sometimes, nans sneak in there.
-        pre_calculated = numpy.isfinite(pre_calculated)
         return estimator(**d_input), pre_calculated.min(), pre_calculated.max(), (numpy.std(pre_calculated)), correl_len
         
     # else, do a blocked bootstrap
