@@ -43,7 +43,7 @@ import mclib
 
 from mclib import mcbs_correltime, mcbs_ci_correl_rw, _1D_simple_eval_block, _2D_simple_eval_block
 
-def _2D_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha, mcbs_nsets, mcbs_acalpha, do_correl, **extra):
+def _2D_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha, mcbs_nsets, mcbs_acalpha, do_correl, estimator_kwargs):
     # Our rate estimator is a little more complex, so we've defined a custom evaluation block for it,
     # instead of just using the block evalutors that we've imported.
     results = []
@@ -52,12 +52,17 @@ def _2D_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha, m
             if istate == jstate: continue
             kwargs = { 'istate' : istate, 'jstate': jstate }
             # Ergo, we need to send in... nbins, state_map, return_flux, return_states, return_color.  By default, we always return rates
-            kwargs = dict(istate=istate, jstate=jstate, nstates=nstates, nbins=extra['nbins'], state_map=extra['state_map'], return_flux=extra['return_flux'], return_states=extra['return_states'], return_color=extra['return_color'])
+            kwargs = dict(istate=istate, jstate=jstate, nstates=nstates, nbins=estimator_kwargs['nbins'], state_map=estimator_kwargs['state_map'], return_flux=estimator_kwargs['return_flux'], return_states=estimator_kwargs['return_states'], return_color=estimator_kwargs['return_color'])
+            kwargs.update(estimator_kwargs)
 
-            dataset = {'dataset': data_input['dataset'] }
+            #dataset = {'indices': data_input['indices'] }
+            dataset = { 'indices' : np.array(range(start-1, stop-1), dtype=np.uint16) }
+            pre_calculated = data_input['pre_calculated'][:,istate,jstate]
+            #pre_calculated = pre_calculated[np.isfinite(pre_calculated)]
+            
             ci_res = mcbs_ci_correl_rw(dataset,estimator=reweight_for_c,
                                     alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
-                                    subsample=(lambda x: x[0]), pre_calculated=data_input['pre_calculated'][:,istate,jstate][numpy.isfinite(data_input['pre_calculated'][:,istate,jstate])], do_correl=do_correl, **kwargs)
+                                    subsample=(lambda x: x[0]), pre_calculated=pre_calculated, do_correl=do_correl, estimator_kwargs=kwargs)
             results.append((name, iblock, istate, jstate, (start,stop) + ci_res))
 
     return results
@@ -320,57 +325,6 @@ Command-line options
         dataset.attrs['mcbs_acalpha'] = self.mcbs_acalpha
         dataset.attrs['mcbs_nsets'] = self.mcbs_nsets
         
-    def add_args(self, parser):
-        self.progress.add_args(parser)
-        self.data_reader.add_args(parser)
-        self.iter_range.include_args['iter_step'] = True
-        self.iter_range.add_args(parser)
-
-        iogroup = parser.add_argument_group('input/output options')
-        iogroup.add_argument('-a', '--assignments', default='assign.h5',
-                            help='''Bin assignments and macrostate definitions are in ASSIGNMENTS
-                            (default: %(default)s).''')
-
-        iogroup.add_argument('-k', '--kinetics', default='flux_matrices.h5',
-                            help='''Per-iteration flux matrices calculated by w_postanalysis_matrix 
-                            (default: %(default)s).''')
-        iogroup.add_argument('-o', '--output', dest='output', default='kinrw.h5',
-                            help='''Store results in OUTPUT (default: %(default)s).''')
-
-        cgroup = parser.add_argument_group('confidence interval calculation options')
-        cgroup.add_argument('--bootstrap', dest='bootstrap', action='store_const', const=True,
-                             help='''Enable the use of Monte Carlo Block Bootstrapping.''')
-        cgroup.add_argument('--disable-correl', '-dc', dest='correl', action='store_const', const=False,
-                             help='''Disable the correlation analysis.''')
-        cgroup.add_argument('--alpha', type=float, default=0.05, 
-                             help='''Calculate a (1-ALPHA) confidence interval'
-                             (default: %(default)s)''')
-        cgroup.add_argument('--autocorrel-alpha', type=float, dest='acalpha', metavar='ACALPHA',
-                             help='''Evaluate autocorrelation to (1-ACALPHA) significance.
-                             Note that too small an ACALPHA will result in failure to detect autocorrelation
-                             in a noisy flux signal. (Default: same as ALPHA.)''')
-        cgroup.add_argument('--nsets', type=int, default=1000,
-                             help='''Use NSETS samples for bootstrapping (default: chosen based on ALPHA)''')
-        cogroup = parser.add_argument_group('calculation options')
-        cogroup.add_argument('-e', '--evolution-mode', choices=['cumulative', 'blocked'], default='cumulative',
-                             help='''How to calculate time evolution of rate estimates.
-                             ``cumulative`` evaluates rates over windows starting with --start-iter and getting progressively
-                             wider to --stop-iter by steps of --step-iter.
-                             ``blocked`` evaluates rates over windows of width --step-iter, the first of which begins at
-                             --start-iter.''')
-        cogroup.add_argument('--window-frac', type=float, default=1.0,
-                             help='''Fraction of iterations to use in each window when running in ``cumulative`` mode.
-                             The (1 - frac) fraction of iterations will be discarded from the start of each window.''')
-
-        cogroup.add_argument('--obs-threshold', type=int, default=1,
-                             help='''The minimum number of observed transitions between two states i and j necessary to include
-                             fluxes in the reweighting estimate''')
-
-        agroup = parser.add_argument_group('other options')
-        agroup.add_argument('--config-from-file', dest='config_from_file', action='store_true', 
-                            help='''Load bins/macrostates from a scheme specified in west.cfg.''')
-        agroup.add_argument('--scheme-name', dest='scheme',
-                            help='''Name of scheme specified in west.cfg.''')
         
     def open_files(self):
         self.output_file = h5io.WESTPAH5File(self.output_filename, 'w', creating_program=True)
@@ -383,36 +337,6 @@ Command-line options
         if not self.iter_range.check_data_iter_range_least(self.kinetics_file):
             raise ValueError('kinetics data do not span the requested iterations')
 
-    def process_args(self, args):
-        self.progress.process_args(args)
-        self.data_reader.process_args(args)
-        with self.data_reader:
-            self.iter_range.process_args(args, default_iter_step=None)
-        if self.iter_range.iter_step is None:
-            #use about 10 blocks by default
-            self.iter_range.iter_step = max(1, (self.iter_range.iter_stop - self.iter_range.iter_start) // 10)
-        
-        self.output_filename = args.output
-        self.assignments_filename = args.assignments
-        self.kinetics_filename = args.kinetics
-
-        self.mcbs_enable = args.bootstrap
-        self.mcbs_alpha = args.alpha
-        self.mcbs_acalpha = args.acalpha if args.acalpha else self.mcbs_alpha
-        self.mcbs_nsets = args.nsets if args.nsets else mclib.get_bssize(self.mcbs_alpha)
-        self.correl = args.correl
-                
-        self.evolution_mode = args.evolution_mode
-        self.evol_window_frac = args.window_frac
-        if self.evol_window_frac <= 0 or self.evol_window_frac > 1:
-            raise ValueError('Parameter error -- fractional window defined by --window-frac must be in (0,1]')
-        self.obs_threshold = args.obs_threshold
-
-        if args.config_from_file:
-            if not args.scheme:
-                raise ValueError('A scheme must be specified.')
-            else:
-                self.load_config_from_west(args.scheme)
 
     def load_config_from_west(self, scheme):
         try:
@@ -602,8 +526,56 @@ Command-line options
 class RWReweight(AverageCommands):
     subcommand = 'reweight'
     help_text = 'averages and CIs for path-tracing kinetics analysis'
-    default_kinetics_file = 'direct.h5'
+    default_kinetics_file = 'reweight.h5'
     description = '''\ Blah!'''
+
+    def open_files(self):
+        self.output_file = h5io.WESTPAH5File(self.output_filename, 'w', creating_program=True)
+        h5io.stamp_creator_data(self.output_file)
+        self.assignments_file = h5io.WESTPAH5File(self.assignments_filename, 'r')#, driver='core', backing_store=False)
+        self.kinetics_file = h5io.WESTPAH5File(self.kinetics_filename, 'r')#, driver='core', backing_store=False)
+        if not self.iter_range.check_data_iter_range_least(self.assignments_file):
+            raise ValueError('assignments data do not span the requested iterations')
+
+        if not self.iter_range.check_data_iter_range_least(self.kinetics_file):
+            raise ValueError('kinetics data do not span the requested iterations')
+
+    def more_args(self, parser):
+        cogroup = parser.add_argument_group('calculation options')
+        cogroup.add_argument('--obs-threshold', type=int, default=1,
+                             help='''The minimum number of observed transitions between two states i and j necessary to include
+                             fluxes in the reweighting estimate''')
+
+    def process_more_args(self, args):
+        self.progress.process_args(args)
+        self.data_reader.process_args(args)
+        with self.data_reader:
+            self.iter_range.process_args(args, default_iter_step=None)
+        if self.iter_range.iter_step is None:
+            #use about 10 blocks by default
+            self.iter_range.iter_step = max(1, (self.iter_range.iter_stop - self.iter_range.iter_start) // 10)
+        
+        self.output_filename = args.output
+        self.assignments_filename = args.assignments
+        self.kinetics_filename = args.kinetics
+
+        self.mcbs_enable = args.bootstrap
+        self.mcbs_alpha = args.alpha
+        self.mcbs_acalpha = args.acalpha if args.acalpha else self.mcbs_alpha
+        self.mcbs_nsets = args.nsets if args.nsets else mclib.get_bssize(self.mcbs_alpha)
+        self.correl = args.correl
+                
+        self.evolution_mode = args.evolution_mode
+        self.evol_window_frac = args.window_frac
+        if self.evol_window_frac <= 0 or self.evol_window_frac > 1:
+            raise ValueError('Parameter error -- fractional window defined by --window-frac must be in (0,1]')
+        self.obs_threshold = args.obs_threshold
+
+        if args.config_from_file:
+            if not args.scheme:
+                raise ValueError('A scheme must be specified.')
+            else:
+                self.load_config_from_west(args.scheme)
 
     def generate_reweight_data(self):
 
@@ -617,19 +589,26 @@ class RWReweight(AverageCommands):
 
             self.nfbins = self.kinetics_file.attrs['nrows']
             self.npts = self.kinetics_file.attrs['npts']
+            self.state_map = self.assignments_file['state_map'][...]
+            self.state_labels = self.assignments_file['state_labels'][...]
 
             assert self.nstates == len(self.state_labels)
             assert self.nfbins == self.nbins * self.nstates
 
             start_iter, stop_iter, step_iter = self.iter_range.iter_start, self.iter_range.iter_stop, self.iter_range.iter_step
 
-            start_pts = range(start_iter, stop_iter, step_iter)
+            start_pts = np.array(range(start_iter, stop_iter, step_iter))
 
-            rates = h5io.IterBlockedDataset.empty_like(np.zeros((len(start_pts), self.nstates, self.nstates), dtype=ci_dtype))
-            flux = h5io.IterBlockedDataset.empty_like(np.zeros((len(start_pts), self.nstates, self.nstates), dtype=ci_dtype))
-            color_prob = h5io.IterBlockedDataset.empty_like(np.zeros((len(start_pts), self.nstates), dtype=ci_dtype))
-            state_prob = h5io.IterBlockedDataset.empty_like(np.zeros((len(start_pts), self.nstates), dtype=ci_dtype))
-            bin_prob = h5io.IterBlockedDataset.empty_like(np.zeros((len(start_pts), self.nfbins), dtype=ci_dtype))
+            #rates = h5io.IterBlockedDataset.empty_like(np.zeros((len(start_pts), self.nstates, self.nstates), dtype=ci_dtype))
+            #flux = h5io.IterBlockedDataset.empty_like(np.zeros((len(start_pts), self.nstates, self.nstates), dtype=ci_dtype))
+            #color_prob = h5io.IterBlockedDataset.empty_like(np.zeros((len(start_pts), self.nstates), dtype=ci_dtype))
+            #state_prob = h5io.IterBlockedDataset.empty_like(np.zeros((len(start_pts), self.nstates), dtype=ci_dtype))
+            #bin_prob = h5io.IterBlockedDataset.empty_like(np.zeros((len(start_pts), self.nfbins), dtype=ci_dtype))
+            rates = np.zeros((len(start_pts), self.nstates, self.nstates), dtype=ci_dtype)
+            flux = np.zeros((len(start_pts), self.nstates, self.nstates), dtype=ci_dtype)
+            color_prob = np.zeros((len(start_pts), self.nstates), dtype=ci_dtype)
+            state_prob = np.zeros((len(start_pts), self.nstates), dtype=ci_dtype)
+            bin_prob = np.zeros((len(start_pts), self.nfbins), dtype=ci_dtype)
 
             # We're pre-generating the datasets for use with the estimators.
             # This means running the reweighting code through all the iterations selected, as our mclib portion requires
@@ -641,7 +620,7 @@ class RWReweight(AverageCommands):
                 total_obs = np.zeros((self.nfbins, self.nfbins), np.int64)
 
                 for iblock, start in enumerate(start_pts):
-                    pi.progress += 1
+                    #pi.progress += 1
                     stop = min(start + step_iter, stop_iter)
 
                     params = dict(start=start, stop=stop, nstates=self.nstates, nbins=self.nbins,
@@ -652,29 +631,66 @@ class RWReweight(AverageCommands):
                     rw_state_flux, rw_color_probs, rw_state_probs, rw_bin_probs, rw_bin_flux = reweight(**params)
 
                     # Now, set the data.
-                    for k in xrange(nstates):
-                        for j in xrange(nstates):
+                    for k in xrange(self.nstates):
+                        for j in xrange(self.nstates):
                             # We need to take the iteration into account, as well...
                             # Normalize such that we report the flux per tau (tau being the weighted ensemble iteration)
                             # npts MAY include a 0th time point
 
-                            rates.data[iblock,k,j] = (rw_state_flux[k,j] * (npts - 1)) / rw_color_probs[k]
-                            if rw_color_probs[k] == 0.0  or rw_state_flux[k,j] == 0.0:
-                                rates.data = 0
-                            flux.data[iblock,k,j] = rw_state_flux[k,j] * (npts - 1)
-                            color_prob.data[iblock] = rw_color_probs
-                            state_prob.data[iblock] = rw_state_probs[:-1]
-                            bin_prob.data[iblock] = rw_bin_probs
+                            rates[start:stop,k,j] = (rw_state_flux[k,j] * (self.npts - 1)) / rw_color_probs[k]
+                            # We need to handle what the issue is, here!
+                            #if rw_color_probs[k] == 0.0  or rw_state_flux[k,j] == 0.0:
+                            #    rates.data = 0
+                            flux[start:stop,k,j] = rw_state_flux[k,j] * (self.npts - 1)
+                            color_prob[start:stop] = rw_color_probs
+                            state_prob[start:stop] = rw_state_probs[:-1]
+                            bin_prob[start:stop] = rw_bin_probs
 
                 # Now we're setting the data, here...
 
-                self.rates = rates
-                self.flux = flux
-                self.color_prob = color_prob
-                self.state_prob = state_prob
-                self.bin_prob = bin_prob
+                self.rates = rates['expected']
+                self.flux = flux['expected']
+                self.color_prob = color_prob['expected']
+                self.state_prob = state_prob['expected']
+                self.bin_prob = bin_prob['expected']
 
-    def postanalysis_reweight(self):
+
+                # This is designed to pull in the flux data...
+                rows = []
+                cols = []
+                obs = []
+                flux = []
+                insert = []
+
+                for iiter in xrange(start_iter, stop_iter):
+                    iter_grp = self.kinetics_file['iterations']['iter_{:08d}'.format(iiter)]
+
+                    rows.append(iter_grp['rows'][...])
+                    cols.append(iter_grp['cols'][...])
+                    obs.append(iter_grp['obs'][...])
+                    flux.append(iter_grp['flux'][...])
+                    if iiter != start_iter:
+                        insert.append(iter_grp['rows'][...].shape[0] + insert[-1])
+                    else:
+                        insert.append(iter_grp['rows'][...].shape[0])
+                rows = np.concatenate(rows)
+                cols = np.concatenate(cols)
+                obs = np.concatenate(obs)
+                assert insert[-1] == len(rows)
+                flux = np.concatenate(flux)
+                ins = []
+                ins.append(0)
+                ins += insert
+                insert = np.array(ins, dtype=np.intc)
+
+                self.rows = rows
+                self.cols = cols
+                self.obs = obs
+                self.fluxm = flux
+                self.insert = insert
+
+    def w_postanalysis_reweight(self):
+        self.generate_reweight_data()
         pi = self.progress.indicator
 
         start_iter, stop_iter, step_iter = self.iter_range.iter_start, self.iter_range.iter_stop, self.iter_range.iter_step
@@ -682,46 +698,70 @@ class RWReweight(AverageCommands):
         start_pts = range(start_iter, stop_iter, step_iter)
 
 
-        indices = h5io.IterBlockedDataset.empty_like(np.zeros((len(start_pts)), dtype=ci_dtype))
-        indices.data = np.array(range(start_iter-1, stop_iter-1), dtype=np.uint16)
+        #indices = h5io.IterBlockedDataset.empty_like(np.zeros((len(start_pts)), dtype=ci_dtype))
+        #indices = np.zeros((len(start_pts)), dtype=ci_dtype)
+        indices = np.array(range(start_iter-1, stop_iter-1), dtype=np.uint16)
 
         submit_kwargs = dict(pi=pi, nstates=self.nstates, start_iter=self.start_iter, stop_iter=self.stop_iter, 
-                             step_iter=self.step_iter, nbins=self.nbins, state_map=self.state_map)
+                             step_iter=self.step_iter)
 
         # Due to the way our estimator is written, we're using the same dataset every time.  We're just returning different values.
-        submit_kwargs['dataset'] = {'dataset': indices}
+        #submit_kwargs['dataset'] = {'dataset': indices}
+        submit_kwargs['dataset'] = {'indices': indices}
+        #submit_kwargs['dataset'] = {}
+        submit_kwargs['estimator_kwargs'] = {}
+        submit_kwargs['estimator_kwargs'].update(  dict(rows=self.rows,
+                                                        cols=self.cols,
+                                                        obs=self.obs,
+                                                        flux=self.fluxm,
+                                                        insert=self.insert,
+                                                        bin_last_state_map=np.tile(np.arange(self.nstates, dtype=np.int), self.nbins), 
+                                                        bin_state_map=np.repeat(self.state_map[:-1], self.nstates),
+                                                        nfbins=self.nfbins,
+                                                        state_labels=self.state_labels,
+                                                        return_flux=False,
+                                                        return_states=False,
+                                                        return_color=False,
+                                                        state_map=self.state_map,
+                                                        nbins=self.nbins))
 
 
         # Calculate averages for the simulation, then report, if necessary.
         with pi:
 
-            submit_kwargs.update(dict(return_flux=False, return_states=False, return_color=False, pre_calculated=self.rates))
+            # The dataset options are what we pass on to the estimator...
+            submit_kwargs['dataset'].update(dict(pre_calculated=self.rates))
+            #submit_kwargs['estimator_kwargs'].update(dict(return_flux=False, return_states=False, return_color=False, state_map=self.state_map, nbins=self.nbins))
+            #submit_kwargs['dataset'].update({'pre_calculated': self.rates[:]})
+            #submit_kwargs.update({'pre_calculated': self.rates[:]})
             avg_rates = self.run_calculation(eval_block=_2D_eval_block, name='Rate Evolution', dim=2, do_averages=True, **submit_kwargs)
             self.output_file.replace_dataset('avg_rates', data=avg_rates[1])
 
-            submit_kwargs.update(dict(return_flux=True, return_states=False, return_color=False, pre_calculated=self.flux))
-            avg_conditional_fluxes = self.run_calculation(eval_block=_2D_eval_block, name='Conditional Flux Evolution', dim=2, do_averages=True, **submit_kwargs)
-            self.output_file.replace_dataset('avg_conditional_fluxes', data=avg_conditional_fluxes[1])
+            #submit_kwargs.update(dict(return_flux=True, return_states=False, return_color=False, pre_calculated=self.flux))
+            #submit_kwargs['dataset'].update({'pre_calculated': self.flux[:]})
+            #avg_conditional_fluxes = self.run_calculation(eval_block=_2D_eval_block, name='Conditional Flux Evolution', dim=2, do_averages=True, **submit_kwargs)
+            #self.output_file.replace_dataset('avg_conditional_fluxes', data=avg_conditional_fluxes[1])
 
         # Now, print them!
         pi.clear()
 
         # We've returned an average, but it still exists in a timeslice format.  So we need to return the 'last' value.
-        self.print_averages(avg_conditional_fluxes[1], '\nfluxes from state to state:', dim=2)
+        #self.print_averages(avg_conditional_fluxes[1], '\nfluxes from state to state:', dim=2)
         self.print_averages(avg_rates[1], '\nrates from state to state:', dim=2)
 
         # Do a bootstrap evolution.
         pi.clear()
         with pi:
-            submit_kwargs.update(dict(return_flux=False, return_states=False, return_color=False, pre_calculated=self.rates))
+            #submit_kwargs.update(dict(return_flux=False, return_states=False, return_color=False, pre_calculated=self.rates))
             rate_evol = self.run_calculation(eval_block=_2D_eval_block, name='Rate Evolution', dim=2, **submit_kwargs)
+            rate_evol['expected'] *= (self.npts - 1)
             self.output_file.replace_dataset('rate_evolution', data=rate_evol, shuffle=True, compression=9)
             pi.clear()
 
-            submit_kwargs.update(dict(return_flux=True, return_states=False, return_color=False, pre_calculated=self.flux))
-            rate_evol = self.run_calculation(eval_block=_2D_eval_block, name='Conditional Flux Evolution', dim=2, **submit_kwargs)
-            self.output_file.replace_dataset('conditional_flux_evolution', data=rate_evol, shuffle=True, compression=9)
-            pi.clear()
+            #submit_kwargs.update(dict(return_flux=True, return_states=False, return_color=False, pre_calculated=self.flux))
+            #rate_evol = self.run_calculation(eval_block=_2D_eval_block, name='Conditional Flux Evolution', dim=2, **submit_kwargs)
+            #self.output_file.replace_dataset('conditional_flux_evolution', data=rate_evol, shuffle=True, compression=9)
+            #pi.clear()
 
     def go(self):
         self.w_postanalysis_reweight()
@@ -730,7 +770,7 @@ class RWReweight(AverageCommands):
 class RWStateProbs(AverageCommands):
     subcommand = 'reweight'
     help_text = 'averages and CIs for path-tracing kinetics analysis'
-    default_kinetics_file = 'direct.h5'
+    default_kinetics_file = 'reweight.h5'
     description = '''\ Blah!'''
     def w_postanalysis_stateprobs():
         pass
@@ -738,7 +778,7 @@ class RWStateProbs(AverageCommands):
 class RWFlux(AverageCommands):
     subcommand = 'flux'
     help_text = 'averages and CIs for path-tracing kinetics analysis'
-    default_kinetics_file = 'direct.h5'
+    default_kinetics_file = 'reweight.h5'
     description = '''\ Blah!'''
     def w_postanalysis_stateprobs():
         pass
@@ -746,7 +786,7 @@ class RWFlux(AverageCommands):
 class RWAll(RWStateProbs, RWReweight, RWFlux):
     subcommand = 'all'
     help_text = 'averages and CIs for path-tracing kinetics analysis'
-    default_kinetics_file = 'direct.h5'
+    default_kinetics_file = 'reweight.h5'
 
     def go(self):
         # One minor issue; as this stands now, since it's inheriting from all the other classes, it needs
@@ -759,11 +799,11 @@ class RWAll(RWStateProbs, RWReweight, RWFlux):
 class RWAverage(RWStateProbs, RWReweight):
     subcommand = 'average'
     help_text = 'averages and CIs for path-tracing kinetics analysis'
-    default_kinetics_file = 'direct.h5'
+    default_kinetics_file = 'reweight.h5'
 
     def go(self):
         self.w_postanalysis_reweight()
-        self.w_postanalysis_stateprobs()
+        #self.w_postanalysis_stateprobs()
 
 class WReweight(WESTMasterCommand, WESTParallelTool):
     prog='w_reweight'

@@ -74,7 +74,7 @@ def _rate_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha,
             dataset = {'dataset': data_input['dataset'][:, istate, jstate], 'pops': data_input['pops'] }
             ci_res = mcbs_ci_correl_rw(dataset,estimator=sequence_macro_flux_to_rate_bs,
                                     alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
-                                    subsample=numpy.mean, pre_calculated=data_input['rates'][:,istate,jstate][numpy.isfinite(data_input['rates'][:,istate,jstate])], do_correl=do_correl, **kwargs)
+                                    subsample=numpy.mean, pre_calculated=data_input['rates'][:,istate,jstate][numpy.isfinite(data_input['rates'][:,istate,jstate])], do_correl=do_correl, estimator_kwargs=kwargs)
             results.append((name, iblock, istate, jstate, (start,stop) + ci_res))
 
     return results
