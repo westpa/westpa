@@ -78,6 +78,7 @@ def mcbs_ci_correl_rw(estimator_datasets, estimator, alpha, n_sets=None, args=No
     for key, dset in estimator_datasets.iteritems():
         estimator_datasets[key] = numpy.asanyarray(dset)
         dlen = dset.shape[0]
+        #print(dlen)
 
     # Why do we have 'estimator_datasets'?
     # Estimators may require many different sets of data to properly function; while we can send this in via the kwargs,
@@ -91,8 +92,22 @@ def mcbs_ci_correl_rw(estimator_datasets, estimator, alpha, n_sets=None, args=No
     autocorrel_n_sets = autocorrel_n_sets or get_bssize(autocorrel_alpha)
 
     # We need to pre-generate the data; why not do it here?  We're already set up for it...
-    estimator_kwargs['stride'] = 1
-    pre_calculated = mcbs_ci(dataset=estimator_datasets, estimator=estimator, alpha=alpha, dlen=dlen, n_sets=n_sets, args=args, kwargs=estimator_kwargs, sort=numpy.msort)
+    #estimator_kwargs['stride'] = 1
+
+    # The thing to do?  Do this for as many 'samples' as we have in our dataset.
+    #What IS our dataset?  Who knows!
+
+        
+    # Now, we take the info we have, and go over our things...
+    precalc_kwargs = estimator_kwargs.copy()
+    precalc_kwargs['stride'] = 1
+    pre_calculated = []
+    for block in range(1, dlen+1):
+        for key, dset in estimator_datasets.iteritems():
+            precalc_kwargs[key] = dset[0:block]
+        pre_calculated.append(estimator(**precalc_kwargs))
+    pre_calculated = numpy.asanyarray(pre_calculated)
+    print(pre_calculated)
     # We probably need to get this from the rates, so we'll still end up passing those in.
     # If pre-calculated is not None, we'll use that instead of dataset.
     # We can also assume that it's a 1 dimensional set with nothing needed, so 'key' should work.
@@ -109,6 +124,8 @@ def mcbs_ci_correl_rw(estimator_datasets, estimator, alpha, n_sets=None, args=No
         except:
             pass
 
+        # Sometimes, nans sneak in there.
+        pre_calculated = numpy.isfinite(pre_calculated)
         return estimator(**d_input), pre_calculated.min(), pre_calculated.max(), (numpy.std(pre_calculated)), correl_len
         
     # else, do a blocked bootstrap

@@ -230,9 +230,13 @@ either equilibrium or steady-state conditions without recycling target states.
             h5io.stamp_iter_range(bin_populations_ds, start_iter, stop_iter)
             h5io.label_axes(bin_populations_ds, ['iteration', 'bin'])
 
+
             flux_grp = self.output_file.create_group('iterations')
             self.output_file.attrs['nrows'] = nfbins
             self.output_file.attrs['ncols'] = nfbins
+
+            # Copying this over to make it more convenient...
+            self.output_file.replace_dataset('state_labels', data=self.assignments_file['state_labels'][...])
 
             fluxes = np.empty(flux_shape[1:], weight_dtype)
             populations = np.empty(pop_shape[1:], weight_dtype)
