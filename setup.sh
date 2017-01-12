@@ -18,7 +18,7 @@ function checkout_remote() {
 }
 
 if [[ -z "$WEST_PYTHON" ]] ;  then
-    WEST_PYTHON=python2.7
+    WEST_PYTHON=$(which python2.7)
 fi
 
 find . -name \*.so -print0 | xargs -0 rm &> /dev/null
@@ -48,10 +48,7 @@ for d in lib/west_tools; do
     cd -
 done
 
-cp .westpa.sh westpa.sh
-sed -i "s|__WESTROOT__|$PWD|g" westpa.sh
-sed -i "s|__WESTBIN__|$PWD/bin|g" westpa.sh
-sed -i "s|__WESTPYTHON__|$WEST_PYTHON|g" westpa.sh
+WEST_PYTHON=$WEST_PYTHON $WEST_PYTHON .westpa_gen.py
 chmod +x westpa.sh
 
 echo ""
