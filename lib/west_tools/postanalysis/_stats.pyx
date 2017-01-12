@@ -113,7 +113,8 @@ cpdef int normalize(weight_t[:,:] m, Py_ssize_t nfbins) nogil:
 @cython.boundscheck(False)
 @cython.wraparound(False)
 @cython.cdivision(True)
-cpdef weight_t reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, nbins, state_labels, state_map, nfbins, istate, jstate, stride, bin_last_state_map, bin_state_map, obs_threshold=1, return_flux=False, return_states=False, return_color=False):
+cpdef weight_t reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, nbins, state_labels, state_map, nfbins, istate, jstate, stride, bin_last_state_map, bin_state_map, return_obs, obs_threshold=1):
+#cpdef weight_t reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, nbins, state_labels, state_map, nfbins, istate, jstate, stride, bin_last_state_map, bin_state_map, obs_threshold=1, return_flux=False, return_states=False, return_color=False):
 
 
 
@@ -132,7 +133,8 @@ cpdef weight_t reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, n
         weight_t[:,:] _total_fluxes, _transition_matrix, _rw_state_flux, _strong_transition_matrix
         double[:,:] _WORK, _eigvecs
         int[:,:] _total_obs, _graph
-        bint _return_flux, _return_states, _return_color
+        #bint _return_flux, _return_states, _return_color
+        str _return_obs
         #double[:] eigvals, eigvalsi
         #double[:,:] eigvecs, WORK
 
@@ -197,9 +199,10 @@ cpdef weight_t reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, n
     _bin_state_map = bin_state_map
     _istate = istate
     _jstate = jstate
-    _return_flux = return_flux
-    _return_states = return_states
-    _return_color = return_color
+    #_return_flux = return_flux
+    #_return_states = return_states
+    #_return_color = return_color
+    _return_obs = return_obs
 
 
     #NOGIL
@@ -224,13 +227,14 @@ cpdef weight_t reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, n
         calc_state_flux(_transition_matrix, _rw_bin_probs, _bin_last_state_map, _bin_state_map, _nstates, _rw_state_flux, _nfbins)
 
         # This allows us to use the same function for all three types.
-        # To simplify this, and return all three at once, we'd need to make changes to the whole mclib bit.
-        # Probably, anyway.
-        if _return_flux == True:
+        #if _return_flux == True:
+        if _return_obs == b'F':
             return _rw_state_flux[_istate,_jstate] 
-        elif _return_states == True:
+        #elif _return_states == True:
+        elif _return_obs == b'S':
             return _rw_state_probs[_istate]
-        elif _return_color == True:
+        #elif _return_color == True:
+        elif _return_obs == b'C':
             return _rw_color_probs[_istate]
         else:
             if _rw_color_probs[_istate] != 0.0:
