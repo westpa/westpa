@@ -74,7 +74,7 @@ def _rate_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha,
             dataset = {'dataset': data_input['dataset'][:, istate, jstate], 'pops': data_input['pops'] }
             ci_res = mcbs_ci_correl_rw(dataset,estimator=sequence_macro_flux_to_rate_bs,
                                     alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
-                                    subsample=numpy.mean, pre_calculated=data_input['rates'][:,istate,jstate][numpy.isfinite(data_input['rates'][:,istate,jstate])], do_correl=do_correl, estimator_kwargs=kwargs)
+                                    subsample=numpy.mean, pre_calculated=None, do_correl=do_correl, estimator_kwargs=kwargs)
             results.append((name, iblock, istate, jstate, (start,stop) + ci_res))
 
     return results
@@ -383,8 +383,8 @@ Command-line options
             pops.data = pops.data.sum(axis=2)
 
             # Here, we're pre-generating the information needed...
-            rates = h5io.IterBlockedDataset.empty_like(cond_fluxes)
-            rates.data = sequence_macro_flux_to_rate(cond_fluxes.data, pops.data[:self.nstates,:self.nbins])
+            #rates = h5io.IterBlockedDataset.empty_like(cond_fluxes)
+            #rates.data = sequence_macro_flux_to_rate(cond_fluxes.data, pops.data[:self.nstates,:self.nbins])
 
             # As the dataset, just send in the rates and such for now.
 
@@ -393,7 +393,7 @@ Command-line options
 
         # Calculate averages for the simulation, then report, if necessary.
         with pi:
-            submit_kwargs['dataset'] = {'dataset': cond_fluxes, 'pops': pops, 'rates': rates}
+            submit_kwargs['dataset'] = {'dataset': cond_fluxes, 'pops': pops}
             avg_rates = self.run_calculation(eval_block=_rate_eval_block, name='Rate Evolution', dim=2, do_averages=True, **submit_kwargs)
             self.output_file.replace_dataset('avg_rates', data=avg_rates[1])
 
@@ -416,7 +416,7 @@ Command-line options
         # Do a bootstrap evolution.
         pi.clear()
         with pi:
-            submit_kwargs['dataset'] = {'dataset': cond_fluxes, 'pops': pops, 'rates': rates}
+            submit_kwargs['dataset'] = {'dataset': cond_fluxes, 'pops': pops}
             rate_evol = self.run_calculation(eval_block=_rate_eval_block, name='Rate Evolution', dim=2, **submit_kwargs)
             self.output_file.replace_dataset('rate_evolution', data=rate_evol, shuffle=True, compression=9)
             pi.clear()

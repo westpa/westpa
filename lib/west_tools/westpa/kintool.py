@@ -126,7 +126,7 @@ class WESTKinAvg(WESTToolComponent):
         self.kinetics_filename = args.kinetics
                 
         self.mcbs_enable = args.bootstrap
-        self.do_correl = args.correl
+        self.do_correl = args.correl if args.correl is not None else True
         self.mcbs_alpha = args.alpha
         self.mcbs_acalpha = args.acalpha if args.acalpha else self.mcbs_alpha
         self.mcbs_nsets = args.nsets if args.nsets else mclib.get_bssize(self.mcbs_alpha)
