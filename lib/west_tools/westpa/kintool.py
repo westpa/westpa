@@ -107,6 +107,8 @@ class WESTKinAvg(WESTToolComponent):
                             help='''Load bins/macrostates from a scheme specified in west.cfg.''')
         agroup.add_argument('--scheme-name', dest='scheme',
                             help='''Name of scheme specified in west.cfg.''')
+
+        self.more_args(parser)
         
 
     
@@ -140,6 +142,14 @@ class WESTKinAvg(WESTToolComponent):
                 raise ValueError('A scheme must be specified.')
             else:
                 self.load_config_from_west(args.scheme)
+        self.process_more_args(args)
+
+    # Shim functions to be overridden, if necessary.
+    def more_args(self, parser):
+        pass
+    
+    def process_more_args(self, args):
+        pass
 
     def load_config_from_west(self, scheme):
         try:
@@ -237,7 +247,7 @@ class AverageCommands(WESTKinAvg, WESTSubcommand):
                         dataset['ci_ubound'][istate,jstate],
                         maxlabellen=maxlabellen))
 
-    def run_calculation(self, pi, nstates, start_iter, stop_iter, step_iter, dataset, eval_block, name, dim, do_averages=False):
+    def run_calculation(self, pi, nstates, start_iter, stop_iter, step_iter, dataset, eval_block, name, dim, do_averages=False, **extra):
         #pi = self.progress.indicator
         
         # We want to use the same codepath to run a quick average as we do the longer evolution sets, so...
@@ -276,13 +286,18 @@ class AverageCommands(WESTKinAvg, WESTSubcommand):
                                      mcbs_alpha=self.mcbs_alpha, mcbs_nsets=self.mcbs_nsets,
                                      mcbs_acalpha=self.mcbs_acalpha,
                                      do_correl=self.do_correl,name=name,
-                                     data_input={})
+                                     data_input={},
+                                     **extra)
 
                 # Slice up the datasets for this iteration slice.
                 # We're assuming they're all h5io iter blocked datasets; it's up to the calling routine
                 # to ensure this is true.
                 for key, value in dataset.iteritems():
-                    future_kwargs['data_input'][key] = value.iter_slice(block_start,stop)
+                    try:
+                        future_kwargs['data_input'][key] = value.iter_slice(block_start,stop) if hasattr(value, 'iter_slice') else value[block_start:stop]
+                    except:
+                        future_kwargs['data_input'][key] = value.iter_slice(block_start,stop) if hasattr(value, 'iter_slice') else value[block_start:stop,:]
+                    #print(future_kwargs['data_input'][key])
 
                 # We create a future object with the appropriate name, and then append it to the work manager.
                 futures.append(generate_future(self.work_manager, name, eval_block, future_kwargs))

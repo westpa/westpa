@@ -25,7 +25,7 @@ from _mclib import autocorrel_elem, mcbs_correltime, get_bssize, mcbs_ci #@Unres
 
 def mcbs_ci_correl_rw(estimator_datasets, estimator, alpha, n_sets=None, args=None,
                       autocorrel_alpha = None, autocorrel_n_sets=None, subsample=None, 
-                      pre_calculated=None, do_correl=True, **kwargs):
+                      pre_calculated=None, do_correl=True, estimator_kwargs={}):
     '''Perform a Monte Carlo bootstrap estimate for the (1-``alpha``) confidence interval
     on the given ``dataset`` with the given ``estimator``.  This routine is appropriate
     for time-correlated data, using the method described in Huber & Kim, "Weighted-ensemble
@@ -95,19 +95,14 @@ def mcbs_ci_correl_rw(estimator_datasets, estimator, alpha, n_sets=None, args=No
     # We can also assume that it's a 1 dimensional set with nothing needed, so 'key' should work.
     if do_correl == True:
         correl_len = mcbs_correltime(pre_calculated, autocorrel_alpha, autocorrel_n_sets)
-        if correl_len == 0 or correl_len == 1:
-            try:
-                print(correl_len, kwargs['istate'], kwargs['jstate'], pre_calculated.shape)
-            except:
-                pass
     else:
         correl_len = 0
     if correl_len == len(pre_calculated):
         # too correlated for meaningful calculations
         d_input = estimator_datasets.copy()
-        kwargs['stride'] = 1
+        estimator_kwargs['stride'] = 1
         try:
-            d_input.update(kwargs)
+            d_input.update(estimator_kwargs)
         except:
             pass
 
@@ -118,8 +113,8 @@ def mcbs_ci_correl_rw(estimator_datasets, estimator, alpha, n_sets=None, args=No
     
     if stride == 1:
         # Some estimators may require the stride, so we pass it in.
-        kwargs['stride'] = stride
-        return mcbs_ci(dataset=estimator_datasets, estimator=estimator, alpha=alpha, dlen=dlen, n_sets=n_sets, args=args, kwargs=kwargs, sort=numpy.msort) + (correl_len,)
+        estimator_kwargs['stride'] = stride
+        return mcbs_ci(dataset=estimator_datasets, estimator=estimator, alpha=alpha, dlen=dlen, n_sets=n_sets, args=args, kwargs=estimator_kwargs, sort=numpy.msort) + (correl_len,)
     else:
         subsample = subsample or (lambda x: x[numpy.random.randint(len(x))])
         # Let's make sure we decimate every array properly...
@@ -139,9 +134,9 @@ def mcbs_ci_correl_rw(estimator_datasets, estimator, alpha, n_sets=None, args=No
                     decim_set[iout] = subsample(sl)
             decim_list[key] = decim_set
             dlen = dset_shape[0]
-            kwargs['stride'] = stride
+            estimator_kwargs['stride'] = stride
         
-        return mcbs_ci(dataset=decim_list, estimator=estimator, alpha=alpha, dlen=dlen, n_sets=n_sets, args=args, kwargs=kwargs, sort=numpy.msort) + (correl_len,)
+        return mcbs_ci(dataset=decim_list, estimator=estimator, alpha=alpha, dlen=dlen, n_sets=n_sets, args=args, kwargs=estimator_kwargs, sort=numpy.msort) + (correl_len,)
 
 
 # These are blocks designed to evaluate simple information sets.
