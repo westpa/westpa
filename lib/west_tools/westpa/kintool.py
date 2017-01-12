@@ -292,6 +292,8 @@ class AverageCommands(WESTKinAvg, WESTSubcommand):
                 # Slice up the datasets for this iteration slice.
                 # We're assuming they're all h5io iter blocked datasets; it's up to the calling routine
                 # to ensure this is true.
+
+                # Actually, I'm less sure how to handle this for pre-calculated datasets.  Need to consider this.  But for now...
                 for key, value in dataset.iteritems():
                     try:
                         future_kwargs['data_input'][key] = value.iter_slice(block_start,stop) if hasattr(value, 'iter_slice') else value[block_start:stop]

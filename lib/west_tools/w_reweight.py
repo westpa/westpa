@@ -18,6 +18,12 @@
 from __future__ import print_function, division; __metaclass__ = type
 import logging
 
+# Let's suppress those numpy warnings.
+import warnings
+warnings.filterwarnings('ignore', category=DeprecationWarning)
+warnings.filterwarnings('ignore', category=RuntimeWarning)
+warnings.filterwarnings('ignore', category=FutureWarning)
+
 import numpy as np
 import numpy
 import scipy.sparse as sp
@@ -62,7 +68,7 @@ def _2D_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha, m
             #dataset = {'indices': data_input['indices'] }
             dataset = { 'indices' : np.array(range(start-1, stop-1), dtype=np.uint16) }
             pre_calculated = data_input['pre_calculated'][:,istate,jstate]
-            #pre_calculated = pre_calculated[np.isfinite(pre_calculated)]
+            pre_calculated = pre_calculated[np.isfinite(pre_calculated)]
             
             ci_res = mcbs_ci_correl_rw(dataset,estimator=reweight_for_c,
                                     alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
@@ -92,145 +98,6 @@ def _1D_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha, m
             results.append((name, iblock, istate, (start,stop) + ci_res))
 
     return results
-
-# From the original postanalysis reweight...
-
-def normalize(m):
-    nm = m.copy()
-
-    row_sum = m.sum(1)
-    ii = np.nonzero(row_sum)[0]
-    nm[ii,:] = m[ii,:] / row_sum[ii][:, np.newaxis]
-
-    return nm
-
-
-def steadystate_solve(K):
-    # Reformulate K to remove sink/source states
-    n_components, component_assignments = csgraph.connected_components(K, connection="strong")
-    largest_component = Counter(component_assignments).most_common(1)[0][0]
-    components = np.where(component_assignments == largest_component)[0]
-
-    ii = np.ix_(components, components)
-    K_mod = K[ii]
-    K_mod = normalize(K_mod)
-
-    eigvals, eigvecs = np.linalg.eig(K_mod.T)
-    eigvals = np.real(eigvals)
-    eigvecs = np.real(eigvecs)
-
-    maxi = np.argmax(eigvals)
-    if not np.allclose(np.abs(eigvals[maxi]), 1.0):
-        print('WARNING: Steady-state undetermined for current iteration')
-        bin_prob = K.diagonal().copy()
-        bin_prob = bin_prob / np.sum(bin_prob)
-        return bin_prob
-
-    sub_bin_prob = eigvecs[:, maxi] / np.sum(eigvecs[:, maxi])
-
-    bin_prob = np.zeros(K.shape[0])
-    bin_prob[components] = sub_bin_prob
-
-    return bin_prob
-
-
-def accumulate_statistics(h5file, start_iter, stop_iter, nbins, total_fluxes=None, total_obs=None):
-    if total_fluxes is None:
-        assert total_obs is None
-        total_fluxes = np.zeros((nbins, nbins), weight_dtype)
-        total_obs = np.zeros((nbins, nbins), np.int64)
-
-    rows = []
-    cols = []
-    obs = []
-    flux = []
-
-    for iiter in xrange(start_iter, stop_iter):
-        iter_grp = h5file['iterations']['iter_{:08d}'.format(iiter)]
-
-        rows.append(iter_grp['rows'][...])
-        cols.append(iter_grp['cols'][...])
-        obs.append(iter_grp['obs'][...])
-        flux.append(iter_grp['flux'][...])
-
-    rows, cols, obs, flux = map(np.hstack, [rows, cols, obs, flux])
-
-    total_fluxes += sp.coo_matrix((flux, (rows, cols)), shape=(nbins, nbins)).todense()
-    total_obs += sp.coo_matrix((obs, (rows, cols)), shape=(nbins, nbins)).todense()
-
-    total_pop = np.sum(h5file['bin_populations'][start_iter:stop_iter, :], axis=0)
-
-    return total_fluxes, total_obs, total_pop
-
-def accumulate_statistics_list(h5file, iterations, nbins, total_fluxes=None, total_obs=None):
-    if total_fluxes is None:
-        assert total_obs is None
-        total_fluxes = np.zeros((nbins, nbins), weight_dtype)
-        total_obs = np.zeros((nbins, nbins), np.int64)
-
-    rows = []
-    cols = []
-    obs = []
-    flux = []
-
-    for iiter in xrange(iterations):
-        iter_grp = h5file['iterations']['iter_{:08d}'.format(iiter)]
-
-        rows.append(iter_grp['rows'][...])
-        cols.append(iter_grp['cols'][...])
-        obs.append(iter_grp['obs'][...])
-        flux.append(iter_grp['flux'][...])
-
-    rows, cols, obs, flux = map(np.hstack, [rows, cols, obs, flux])
-
-    total_fluxes += sp.coo_matrix((flux, (rows, cols)), shape=(nbins, nbins)).todense()
-    total_obs += sp.coo_matrix((obs, (rows, cols)), shape=(nbins, nbins)).todense()
-
-    total_pop = np.sum(h5file['bin_populations'][start_iter:stop_iter, :], axis=0)
-
-    return total_fluxes, total_obs, total_pop
-
-
-def reweight(h5file, start, stop, nstates, nbins, state_labels, state_map, nfbins, obs_threshold=1, total_fluxes=None, total_obs=None):
-
-    # Instead of pulling in start and stop, we'll pull in a list of indices.
-    # This way, it should support the bootstrap.
-    total_fluxes, total_obs, total_pop = accumulate_statistics(h5file, start, stop, nfbins, total_fluxes, total_obs)
-
-    flux_matrix = total_fluxes.copy()
-    flux_matrix[total_obs < obs_threshold] = 0.0
-    transition_matrix = normalize(flux_matrix)
-
-    rw_bin_probs = steadystate_solve(transition_matrix)
-
-    bin_last_state_map = np.tile(np.arange(nstates, dtype=np.int), nbins)
-    bin_state_map = np.repeat(state_map[:-1], nstates)
-
-    rw_color_probs = np.bincount(bin_last_state_map, weights=rw_bin_probs) 
-    rw_state_probs = np.bincount(bin_state_map, weights=rw_bin_probs)
-
-    rw_bin_transition_matrix = transition_matrix
-
-    ii = np.nonzero(transition_matrix)
-
-    rw_state_flux = calc_state_flux(rw_bin_transition_matrix[ii], ii[0], ii[1], rw_bin_probs, 
-            bin_last_state_map, bin_state_map, nstates)
-
-    return rw_state_flux, rw_color_probs, rw_state_probs, rw_bin_probs, rw_bin_transition_matrix
-
-
-def calc_state_flux(trans_matrix, index1, index2, bin_probs, bin_last_state_map, bin_state_map, nstates):
-    state_flux = np.zeros((nstates, nstates), np.float64)
-    
-    n_trans = index1.shape[0]
-    for k in xrange(n_trans):
-        ii = bin_last_state_map[index1[k]]
-        jj = bin_state_map[index2[k]]
-
-        if jj != nstates:
-            state_flux[ii, jj] += trans_matrix[k] * bin_probs[index1[k]]
-
-    return state_flux
 
 # From the original postanalysis matrix
 
@@ -374,6 +241,7 @@ either equilibrium or steady-state conditions without recycling target states.
             populations = np.empty(pop_shape[1:], weight_dtype)
             trans = np.empty(flux_shape[1:], np.int64)
 
+            # This is disabled, for the moment.  We'll re-enable it before pushing.
             # Check to make sure this isn't a data set with target states
             #tstates = self.data_reader.data_manager.get_target_states(0)
             #if len(tstates) > 0:
@@ -440,8 +308,8 @@ either equilibrium or steady-state conditions without recycling target states.
         self.w_postanalysis_matrix()
 
 class RWReweight(AverageCommands):
-    subcommand = 'reweight'
-    help_text = 'averages and CIs for path-tracing kinetics analysis'
+    subcommand = 'UNUSED'
+    help_text = 'Parent class for all reweighting routines, as they all use the same estimator code.'
     default_kinetics_file = 'reweight.h5'
     description = '''\ Blah!'''
 
@@ -482,126 +350,124 @@ class RWReweight(AverageCommands):
             else:
                 self.load_config_from_west(args.scheme)
 
+    def accumulate_statistics(self,start_iter,stop_iter):
+        # This is designed to pull in the flux data...
+        rows = []
+        cols = []
+        obs = []
+        flux = []
+        insert = []
+
+        for iiter in xrange(start_iter, stop_iter):
+            iter_grp = self.kinetics_file['iterations']['iter_{:08d}'.format(iiter)]
+
+            rows.append(iter_grp['rows'][...])
+            cols.append(iter_grp['cols'][...])
+            obs.append(iter_grp['obs'][...])
+            flux.append(iter_grp['flux'][...])
+            if iiter != start_iter:
+                insert.append(iter_grp['rows'][...].shape[0] + insert[-1])
+            else:
+                insert.append(iter_grp['rows'][...].shape[0])
+        rows = np.concatenate(rows)
+        cols = np.concatenate(cols)
+        obs = np.concatenate(obs)
+        assert insert[-1] == len(rows)
+        flux = np.concatenate(flux)
+        ins = []
+        ins.append(0)
+        ins += insert
+        insert = np.array(ins, dtype=np.intc)
+
+        self.rows = rows
+        self.cols = cols
+        self.obs = obs
+        self.fluxm = flux
+        self.insert = insert
+
     def generate_reweight_data(self):
 
-        # We're initializing the various datasets...
-        if True:
-            self.open_files()
-            self.open_assignments()
+        self.open_files()
+        self.open_assignments()
 
-            # This is the reweighting specific code.  We want to generate the rates like we normally would...
-            # Eventually, we want all our datasets to be like this.
+        self.nfbins = self.kinetics_file.attrs['nrows']
+        self.npts = self.kinetics_file.attrs['npts']
+        self.state_map = self.assignments_file['state_map'][...]
+        self.state_labels = self.assignments_file['state_labels'][...]
 
-            self.nfbins = self.kinetics_file.attrs['nrows']
-            self.npts = self.kinetics_file.attrs['npts']
-            self.state_map = self.assignments_file['state_map'][...]
-            self.state_labels = self.assignments_file['state_labels'][...]
+        assert self.nstates == len(self.state_labels)
+        assert self.nfbins == self.nbins * self.nstates
 
-            assert self.nstates == len(self.state_labels)
-            assert self.nfbins == self.nbins * self.nstates
+        start_iter, stop_iter, step_iter = self.iter_range.iter_start, self.iter_range.iter_stop, self.iter_range.iter_step
 
-            start_iter, stop_iter, step_iter = self.iter_range.iter_start, self.iter_range.iter_stop, self.iter_range.iter_step
+        #start_pts = range(start_iter, stop_iter, step_iter)
+        start_pts = range(start_iter, stop_iter, 1)
 
-            start_pts = np.array(range(start_iter, stop_iter, step_iter))
+        # This function call loads up all the flux matrix data and stores it in memory.
+        # We just give our cython estimator all the information it needs beforehand, as
+        # the nature of the bootstrap means we can't know what iterations we'll actually need before
+        # the routine is called.
 
-            #rates = h5io.IterBlockedDataset.empty_like(np.zeros((len(start_pts), self.nstates, self.nstates), dtype=ci_dtype))
-            #flux = h5io.IterBlockedDataset.empty_like(np.zeros((len(start_pts), self.nstates, self.nstates), dtype=ci_dtype))
-            #color_prob = h5io.IterBlockedDataset.empty_like(np.zeros((len(start_pts), self.nstates), dtype=ci_dtype))
-            #state_prob = h5io.IterBlockedDataset.empty_like(np.zeros((len(start_pts), self.nstates), dtype=ci_dtype))
-            #bin_prob = h5io.IterBlockedDataset.empty_like(np.zeros((len(start_pts), self.nfbins), dtype=ci_dtype))
-            rates = np.zeros((len(start_pts), self.nstates, self.nstates), dtype=ci_dtype)
-            flux = np.zeros((len(start_pts), self.nstates, self.nstates), dtype=ci_dtype)
-            color_prob = np.zeros((len(start_pts), self.nstates), dtype=ci_dtype)
-            state_prob = np.zeros((len(start_pts), self.nstates), dtype=ci_dtype)
-            bin_prob = np.zeros((len(start_pts), self.nfbins), dtype=ci_dtype)
+        self.accumulate_statistics(start_iter,stop_iter)
 
-            # We're pre-generating the datasets for use with the estimators.
-            # This means running the reweighting code through all the iterations selected, as our mclib portion requires
-            # that we have this dataset pre-generated.
+        # Now we're generating the actual reweighted data...
+        indices = np.array(range(start_iter-1, stop_iter-1), dtype=np.uint16)
 
-            if True:
+        estimator_kwargs = {}
+        estimator_kwargs.update(                   dict(rows=self.rows,
+                                                        cols=self.cols,
+                                                        obs=self.obs,
+                                                        flux=self.fluxm,
+                                                        insert=self.insert,
+                                                        nstates=self.nstates,
+                                                        stride=1,
+                                                        bin_last_state_map=np.tile(np.arange(self.nstates, dtype=np.int), self.nbins), 
+                                                        bin_state_map=np.repeat(self.state_map[:-1], self.nstates),
+                                                        nfbins=self.nfbins,
+                                                        state_labels=self.state_labels,
+                                                        return_flux=False,
+                                                        return_states=False,
+                                                        return_color=False,
+                                                        state_map=self.state_map,
+                                                        nbins=self.nbins))
 
-                total_fluxes = np.zeros((self.nfbins, self.nfbins), weight_dtype)
-                total_obs = np.zeros((self.nfbins, self.nfbins), np.int64)
+        self.rates = np.zeros((len(start_pts), self.nstates, self.nstates))
+        self.flux = np.zeros((len(start_pts), self.nstates, self.nstates))
+        self.color_prob = np.zeros((len(start_pts), self.nstates))
+        self.state_prob = np.zeros((len(start_pts), self.nstates))
+        self.bin_prob = np.zeros((len(start_pts), self.nfbins))
+        # Should we be doing the full dataset, or just our chunks?  Probably just our chunks, but...
+        for iiter,iter in enumerate(start_pts):
+        #for iiter,iter in enumerate(range(start_iter,stop_iter,1)):
+            indices = np.array(range(start_iter-1, iter-1), dtype=np.uint16)
+            estimator_kwargs['indices'] = indices
+            for istate in range(0,self.nstates):
+                estimator_kwargs['istate'] = istate
+                estimator_kwargs['jstate'] = istate
+                estimator_kwargs['return_color'] = True
+                self.color_prob[iiter,istate] = reweight_for_c(**estimator_kwargs)
+                estimator_kwargs['return_color'] = False
 
-                for iblock, start in enumerate(start_pts):
-                    #pi.progress += 1
-                    stop = min(start + step_iter, stop_iter)
+                estimator_kwargs['return_states'] = True
+                self.state_prob[iiter,istate] = reweight_for_c(**estimator_kwargs)
+                estimator_kwargs['return_states'] = False
 
-                    params = dict(start=start, stop=stop, nstates=self.nstates, nbins=self.nbins,
-                                  state_labels=self.state_labels, state_map=self.state_map, nfbins=self.nfbins,
-                                  total_fluxes=total_fluxes, total_obs=total_obs,
-                                  h5file=self.kinetics_file, obs_threshold=self.obs_threshold)
+                for jstate in range(0,self.nstates):
+                    estimator_kwargs['jstate'] = jstate
+                    self.rates[iiter,istate,jstate] = reweight_for_c(**estimator_kwargs)
 
-                    rw_state_flux, rw_color_probs, rw_state_probs, rw_bin_probs, rw_bin_flux = reweight(**params)
+                    estimator_kwargs['return_flux'] = True
+                    self.flux[iiter,istate,jstate] = reweight_for_c(**estimator_kwargs)
+                    estimator_kwargs['return_flux'] = False
 
-                    # Now, set the data.
-                    for k in xrange(self.nstates):
-                        for j in xrange(self.nstates):
-                            # We need to take the iteration into account, as well...
-                            # Normalize such that we report the flux per tau (tau being the weighted ensemble iteration)
-                            # npts MAY include a 0th time point
-
-                            rates[start:stop,k,j] = (rw_state_flux[k,j] * (self.npts - 1)) / rw_color_probs[k]
-                            # We need to handle what the issue is, here!
-                            #if rw_color_probs[k] == 0.0  or rw_state_flux[k,j] == 0.0:
-                            #    rates.data = 0
-                            flux[start:stop,k,j] = rw_state_flux[k,j] * (self.npts - 1)
-                            color_prob[start:stop] = rw_color_probs
-                            state_prob[start:stop] = rw_state_probs[:-1]
-                            bin_prob[start:stop] = rw_bin_probs
-
-                # Now we're setting the data, here...
-
-                self.rates = rates['expected']
-                self.flux = flux['expected']
-                self.color_prob = color_prob['expected']
-                self.state_prob = state_prob['expected']
-                self.bin_prob = bin_prob['expected']
-
-
-                # This is designed to pull in the flux data...
-                rows = []
-                cols = []
-                obs = []
-                flux = []
-                insert = []
-
-                for iiter in xrange(start_iter, stop_iter):
-                    iter_grp = self.kinetics_file['iterations']['iter_{:08d}'.format(iiter)]
-
-                    rows.append(iter_grp['rows'][...])
-                    cols.append(iter_grp['cols'][...])
-                    obs.append(iter_grp['obs'][...])
-                    flux.append(iter_grp['flux'][...])
-                    if iiter != start_iter:
-                        insert.append(iter_grp['rows'][...].shape[0] + insert[-1])
-                    else:
-                        insert.append(iter_grp['rows'][...].shape[0])
-                rows = np.concatenate(rows)
-                cols = np.concatenate(cols)
-                obs = np.concatenate(obs)
-                assert insert[-1] == len(rows)
-                flux = np.concatenate(flux)
-                ins = []
-                ins.append(0)
-                ins += insert
-                insert = np.array(ins, dtype=np.intc)
-
-                self.rows = rows
-                self.cols = cols
-                self.obs = obs
-                self.fluxm = flux
-                self.insert = insert
 
 class RWRate(RWReweight):
     subcommand = 'rate'
-    help_text = 'averages and CIs for path-tracing kinetics analysis'
+    help_text = 'Generates rate and flux values from a WESTPA simulation via reweighting.'
     default_kinetics_file = 'reweight.h5'
     default_output_file = 'reweight.h5'
     description = '''\ Blah!'''
-    def w_postanalysis_stateprobs():
-        pass
+
 
     def w_postanalysis_reweight(self):
         self.generate_reweight_data()
@@ -680,7 +546,7 @@ class RWRate(RWReweight):
 
 class RWStateProbs(RWReweight):
     subcommand = 'stateprobs'
-    help_text = 'averages and CIs for path-tracing kinetics analysis'
+    help_text = 'Calculates color and state probabilities via reweighting.'
     default_kinetics_file = 'reweight.h5'
     description = '''\ Blah!'''
     def w_postanalysis_stateprobs(self):
@@ -762,7 +628,7 @@ class RWStateProbs(RWReweight):
 
 class RWAll(RWMatrix, RWStateProbs, RWRate):
     subcommand = 'all'
-    help_text = 'averages and CIs for path-tracing kinetics analysis'
+    help_text = 'Runs the full suite, including the generation of the flux matrices.'
     default_kinetics_file = 'reweight.h5'
 
     def go(self):
@@ -775,7 +641,7 @@ class RWAll(RWMatrix, RWStateProbs, RWRate):
 # Just a convenience class to average the observables.
 class RWAverage(RWStateProbs, RWRate):
     subcommand = 'average'
-    help_text = 'averages and CIs for path-tracing kinetics analysis'
+    help_text = 'Averages and returns fluxes, rates, and color/state populations.'
     default_kinetics_file = 'reweight.h5'
     default_output_file = 'reweight.h5'
 
@@ -787,7 +653,7 @@ class WReweight(WESTMasterCommand, WESTParallelTool):
     prog='w_reweight'
     #subcommands = [AvgTraceSubcommand,AvgMatrixSubcommand]
     subcommands = [RWRate, RWStateProbs, RWAll, RWAverage, RWMatrix]
-    subparsers_title = 'direct kinetics analysis schemes'
+    subparsers_title = 'reweighting kinetics analysis scheme'
 
 if __name__ == '__main__':
     WReweight().main()
