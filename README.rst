@@ -48,10 +48,13 @@ variable WEST_PYTHON to the Python interpreter you want to use. For example::
     export WEST_PYTHON=/opt/anaconda/bin/python2.7
     ./setup.sh
 
-
 ---------------
 Getting started
 ---------------
+
+To define environment variables post-installation, simply source the 
+``westpa.sh`` script in the ``westpa`` directory from the command line
+or your setup scripts.
 
 High-level tutorials of how to use the WESTPA software are available from
 https://chong.chem.pitt.edu/wewiki/WESTPA_tutorials. Further, all WESTPA
