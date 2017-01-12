@@ -1,4 +1,4 @@
-#! /bin/bash
+#! /bin/bash 
 
 export WEST_ROOT=__WESTROOT__
 export WEST_BIN=__WESTBIN__
