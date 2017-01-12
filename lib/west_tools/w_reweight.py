@@ -62,17 +62,15 @@ def _2D_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha, m
             if istate == jstate: continue
             kwargs = { 'istate' : istate, 'jstate': jstate }
             # Ergo, we need to send in... nbins, state_map, return_flux, return_states, return_color.  By default, we always return rates
-            kwargs = dict(istate=istate, jstate=jstate, nstates=nstates, nbins=estimator_kwargs['nbins'], state_map=estimator_kwargs['state_map'], return_flux=estimator_kwargs['return_flux'], return_states=estimator_kwargs['return_states'], return_color=estimator_kwargs['return_color'])
+            #kwargs = dict(istate=istate, jstate=jstate, nstates=nstates, nbins=estimator_kwargs['nbins'], state_map=estimator_kwargs['state_map'], return_flux=estimator_kwargs['return_flux'], return_states=estimator_kwargs['return_states'], return_color=estimator_kwargs['return_color'])
+            kwargs = dict(istate=istate, jstate=jstate, nstates=nstates)
             kwargs.update(estimator_kwargs)
 
-            #dataset = {'indices': data_input['indices'] }
             dataset = { 'indices' : np.array(range(start-1, stop-1), dtype=np.uint16) }
-            pre_calculated = data_input['pre_calculated'][:,istate,jstate]
-            pre_calculated = pre_calculated[np.isfinite(pre_calculated)]
             
             ci_res = mcbs_ci_correl_rw(dataset,estimator=reweight_for_c,
                                     alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
-                                    subsample=(lambda x: x[0]), pre_calculated=pre_calculated, do_correl=do_correl, estimator_kwargs=kwargs)
+                                    subsample=(lambda x: x[0]), do_correl=do_correl, estimator_kwargs=kwargs)
             results.append((name, iblock, istate, jstate, (start,stop) + ci_res))
 
     return results
@@ -82,20 +80,19 @@ def _1D_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha, m
     # instead of just using the block evalutors that we've imported.
     results = []
     for istate in xrange(nstates):
-            kwargs = { 'istate' : istate, 'jstate': istate }
-            # Ergo, we need to send in... nbins, state_map, return_flux, return_states, return_color.  By default, we always return rates
-            kwargs = dict(istate=istate, jstate=istate, nstates=nstates, nbins=estimator_kwargs['nbins'], state_map=estimator_kwargs['state_map'], return_flux=estimator_kwargs['return_flux'], return_states=estimator_kwargs['return_states'], return_color=estimator_kwargs['return_color'])
-            kwargs.update(estimator_kwargs)
+        # A little hack to make our estimator play nice, as jstate must be there.
+        kwargs = { 'istate' : istate, 'jstate': istate }
+        # Ergo, we need to send in... nbins, state_map, return_flux, return_states, return_color.  By default, we always return rates
+        #kwargs = dict(istate=istate, jstate=istate, nstates=nstates, nbins=estimator_kwargs['nbins'], state_map=estimator_kwargs['state_map'], return_flux=estimator_kwargs['return_flux'], return_states=estimator_kwargs['return_states'], return_color=estimator_kwargs['return_color'])
+        kwargs = dict(istate=istate, jstate=istate, nstates=nstates)
+        kwargs.update(estimator_kwargs)
 
-            #dataset = {'indices': data_input['indices'] }
-            dataset = { 'indices' : np.array(range(start-1, stop-1), dtype=np.uint16) }
-            pre_calculated = data_input['pre_calculated'][:,istate]
-            #pre_calculated = pre_calculated[np.isfinite(pre_calculated)]
-            
-            ci_res = mcbs_ci_correl_rw(dataset,estimator=reweight_for_c,
-                                    alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
-                                    subsample=(lambda x: x[0]), pre_calculated=pre_calculated, do_correl=do_correl, estimator_kwargs=kwargs)
-            results.append((name, iblock, istate, (start,stop) + ci_res))
+        dataset = { 'indices' : np.array(range(start-1, stop-1), dtype=np.uint16) }
+        
+        ci_res = mcbs_ci_correl_rw(dataset,estimator=reweight_for_c,
+                                alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
+                                subsample=(lambda x: x[0]), do_correl=do_correl, estimator_kwargs=kwargs)
+        results.append((name, iblock, istate, (start,stop) + ci_res))
 
     return results
 
@@ -320,35 +317,7 @@ class RWReweight(AverageCommands):
                              fluxes in the reweighting estimate''')
 
     def process_more_args(self, args):
-        self.progress.process_args(args)
-        self.data_reader.process_args(args)
-        with self.data_reader:
-            self.iter_range.process_args(args, default_iter_step=None)
-        if self.iter_range.iter_step is None:
-            #use about 10 blocks by default
-            self.iter_range.iter_step = max(1, (self.iter_range.iter_stop - self.iter_range.iter_start) // 10)
-        
-        self.output_filename = args.output
-        self.assignments_filename = args.assignments
-        self.kinetics_filename = args.kinetics
-
-        self.mcbs_enable = args.bootstrap
-        self.mcbs_alpha = args.alpha
-        self.mcbs_acalpha = args.acalpha if args.acalpha else self.mcbs_alpha
-        self.mcbs_nsets = args.nsets if args.nsets else mclib.get_bssize(self.mcbs_alpha)
-        self.correl = args.correl
-                
-        self.evolution_mode = args.evolution_mode
-        self.evol_window_frac = args.window_frac
-        if self.evol_window_frac <= 0 or self.evol_window_frac > 1:
-            raise ValueError('Parameter error -- fractional window defined by --window-frac must be in (0,1]')
         self.obs_threshold = args.obs_threshold
-
-        if args.config_from_file:
-            if not args.scheme:
-                raise ValueError('A scheme must be specified.')
-            else:
-                self.load_config_from_west(args.scheme)
 
     def accumulate_statistics(self,start_iter,stop_iter):
         # This is designed to pull in the flux data...
@@ -410,57 +379,6 @@ class RWReweight(AverageCommands):
 
         self.accumulate_statistics(start_iter,stop_iter)
 
-        # Now we're generating the actual reweighted data...
-        indices = np.array(range(start_iter-1, stop_iter-1), dtype=np.uint16)
-
-        estimator_kwargs = {}
-        estimator_kwargs.update(                   dict(rows=self.rows,
-                                                        cols=self.cols,
-                                                        obs=self.obs,
-                                                        flux=self.fluxm,
-                                                        insert=self.insert,
-                                                        nstates=self.nstates,
-                                                        stride=1,
-                                                        bin_last_state_map=np.tile(np.arange(self.nstates, dtype=np.int), self.nbins), 
-                                                        bin_state_map=np.repeat(self.state_map[:-1], self.nstates),
-                                                        nfbins=self.nfbins,
-                                                        state_labels=self.state_labels,
-                                                        return_flux=False,
-                                                        return_states=False,
-                                                        return_color=False,
-                                                        state_map=self.state_map,
-                                                        nbins=self.nbins))
-
-        self.rates = np.zeros((len(start_pts), self.nstates, self.nstates))
-        self.flux = np.zeros((len(start_pts), self.nstates, self.nstates))
-        self.color_prob = np.zeros((len(start_pts), self.nstates))
-        self.state_prob = np.zeros((len(start_pts), self.nstates))
-        self.bin_prob = np.zeros((len(start_pts), self.nfbins))
-        # Should we be doing the full dataset, or just our chunks?  Probably just our chunks, but...
-        for iiter,iter in enumerate(start_pts):
-        #for iiter,iter in enumerate(range(start_iter,stop_iter,1)):
-            indices = np.array(range(start_iter-1, iter-1), dtype=np.uint16)
-            estimator_kwargs['indices'] = indices
-            for istate in range(0,self.nstates):
-                estimator_kwargs['istate'] = istate
-                estimator_kwargs['jstate'] = istate
-                estimator_kwargs['return_color'] = True
-                self.color_prob[iiter,istate] = reweight_for_c(**estimator_kwargs)
-                estimator_kwargs['return_color'] = False
-
-                estimator_kwargs['return_states'] = True
-                self.state_prob[iiter,istate] = reweight_for_c(**estimator_kwargs)
-                estimator_kwargs['return_states'] = False
-
-                for jstate in range(0,self.nstates):
-                    estimator_kwargs['jstate'] = jstate
-                    self.rates[iiter,istate,jstate] = reweight_for_c(**estimator_kwargs)
-
-                    estimator_kwargs['return_flux'] = True
-                    self.flux[iiter,istate,jstate] = reweight_for_c(**estimator_kwargs)
-                    estimator_kwargs['return_flux'] = False
-
-
 class RWRate(RWReweight):
     subcommand = 'rate'
     help_text = 'Generates rate and flux values from a WESTPA simulation via reweighting.'
@@ -495,9 +413,10 @@ class RWRate(RWReweight):
                                                         bin_state_map=np.repeat(self.state_map[:-1], self.nstates),
                                                         nfbins=self.nfbins,
                                                         state_labels=self.state_labels,
-                                                        return_flux=False,
-                                                        return_states=False,
-                                                        return_color=False,
+                                                        #return_flux=False,
+                                                        #return_states=False,
+                                                        #return_color=False,
+                                                        return_obs='R',
                                                         state_map=self.state_map,
                                                         nbins=self.nbins))
 
@@ -506,13 +425,13 @@ class RWRate(RWReweight):
         with pi:
 
             # The dataset options are what we pass on to the estimator...
-            submit_kwargs['dataset'].update(dict(pre_calculated=self.rates))
-            avg_rates = self.run_calculation(eval_block=_2D_eval_block, name='Rate Evolution', dim=2, do_averages=True, **submit_kwargs)
+            #submit_kwargs['dataset'].update(dict(pre_calculated=self.rates))
+            avg_rates = self.run_calculation(eval_block=_2D_eval_block, name='Average Rates', dim=2, do_averages=True, **submit_kwargs)
             self.output_file.replace_dataset('avg_rates', data=avg_rates[1])
 
-            submit_kwargs['dataset'].update(dict(pre_calculated=self.flux))
-            submit_kwargs['estimator_kwargs']['return_flux'] = True
-            avg_conditional_fluxes = self.run_calculation(eval_block=_2D_eval_block, name='Flux Evolution', dim=2, do_averages=True, **submit_kwargs)
+            #submit_kwargs['dataset'].update(dict(pre_calculated=self.flux))
+            submit_kwargs['estimator_kwargs']['return_obs'] = 'F'
+            avg_conditional_fluxes = self.run_calculation(eval_block=_2D_eval_block, name='Average Flux', dim=2, do_averages=True, **submit_kwargs)
             self.output_file.replace_dataset('avg_conditional_fluxes', data=avg_conditional_fluxes[1])
 
         # Now, print them!
@@ -526,19 +445,20 @@ class RWRate(RWReweight):
         pi.clear()
         with pi:
 
-            submit_kwargs['dataset'].update(dict(pre_calculated=self.rates))
-            submit_kwargs['estimator_kwargs']['return_flux'] = False
+            #submit_kwargs['dataset'].update(dict(pre_calculated=self.rates))
+            submit_kwargs['estimator_kwargs']['return_obs'] = 'R'
             rate_evol = self.run_calculation(eval_block=_2D_eval_block, name='Rate Evolution', dim=2, **submit_kwargs)
             rate_evol['expected'] *= (self.npts - 1)
             self.output_file.replace_dataset('rate_evolution', data=rate_evol, shuffle=True, compression=9)
-            pi.clear()
 
-            submit_kwargs['dataset'].update(dict(pre_calculated=self.flux))
-            submit_kwargs['estimator_kwargs']['return_flux'] = True
+            #submit_kwargs['dataset'].update(dict(pre_calculated=self.flux))
+            pi.clear()
+            submit_kwargs['estimator_kwargs']['return_obs'] = 'F'
             flux_evol = self.run_calculation(eval_block=_2D_eval_block, name='Conditional Flux Evolution', dim=2, **submit_kwargs)
             flux_evol['expected'] *= (self.npts - 1)
             self.output_file.replace_dataset('conditional_flux_evolution', data=rate_evol, shuffle=True, compression=9)
-            pi.clear()
+
+        pi.clear()
 
     def go(self):
         self.w_postanalysis_reweight()
@@ -575,9 +495,10 @@ class RWStateProbs(RWReweight):
                                                         bin_state_map=np.repeat(self.state_map[:-1], self.nstates),
                                                         nfbins=self.nfbins,
                                                         state_labels=self.state_labels,
-                                                        return_flux=False,
-                                                        return_states=False,
-                                                        return_color=True,
+                                                        #return_flux=False,
+                                                        #return_states=False,
+                                                        #return_color=True,
+                                                        return_obs='C',
                                                         state_map=self.state_map,
                                                         nbins=self.nbins))
 
@@ -586,14 +507,13 @@ class RWStateProbs(RWReweight):
         with pi:
 
             # The dataset options are what we pass on to the estimator...
-            submit_kwargs['dataset'].update(dict(pre_calculated=self.color_prob))
-            avg_color_probs = self.run_calculation(eval_block=_1D_eval_block, name='Color (Ensemble) Probability Evolution', dim=1, do_averages=True, **submit_kwargs)
+            avg_color_probs = self.run_calculation(eval_block=_1D_eval_block, name='Average Color (Ensemble) Probability', dim=1, do_averages=True, **submit_kwargs)
             self.output_file.replace_dataset('avg_color_probs', data=avg_color_probs[1])
 
-            submit_kwargs['dataset'].update(dict(pre_calculated=self.state_prob))
-            submit_kwargs['estimator_kwargs']['return_color'] = False
-            submit_kwargs['estimator_kwargs']['return_states'] = True
-            avg_state_probs = self.run_calculation(eval_block=_1D_eval_block, name='State Probability Evolution', dim=1, do_averages=True, **submit_kwargs)
+            #submit_kwargs['estimator_kwargs']['return_color'] = False
+            #submit_kwargs['estimator_kwargs']['return_states'] = True
+            submit_kwargs['estimator_kwargs']['return_obs'] = 'S'
+            avg_state_probs = self.run_calculation(eval_block=_1D_eval_block, name='Average State Probability', dim=1, do_averages=True, **submit_kwargs)
             self.output_file.replace_dataset('avg_state_probs', data=avg_state_probs[1])
 
         # Now, print them!
@@ -607,21 +527,19 @@ class RWStateProbs(RWReweight):
         pi.clear()
         with pi:
 
-            submit_kwargs['dataset'].update(dict(pre_calculated=self.color_prob))
-            submit_kwargs['estimator_kwargs']['return_color'] = True
-            submit_kwargs['estimator_kwargs']['return_states'] = False
+            #submit_kwargs['estimator_kwargs']['return_color'] = True
+            #submit_kwargs['estimator_kwargs']['return_states'] = False
+            submit_kwargs['estimator_kwargs']['return_obs'] = 'C'
             color_evol = self.run_calculation(eval_block=_1D_eval_block, name='Color (Ensemble) Probability Evolution', dim=1, **submit_kwargs)
-            #color_evol['expected'] *= (self.npts - 1)
             self.output_file.replace_dataset('color_prob_evolution', data=color_evol, shuffle=True, compression=9)
-            pi.clear()
 
-            submit_kwargs['dataset'].update(dict(pre_calculated=self.state_prob))
-            submit_kwargs['estimator_kwargs']['return_color'] = False
-            submit_kwargs['estimator_kwargs']['return_states'] = True
+            #submit_kwargs['estimator_kwargs']['return_color'] = False
+            #submit_kwargs['estimator_kwargs']['return_states'] = True
+            submit_kwargs['estimator_kwargs']['return_obs'] = 'S'
             state_evol = self.run_calculation(eval_block=_1D_eval_block, name='State Probability Evolution', dim=1, **submit_kwargs)
-            #state_evol['expected'] *= (self.npts - 1)
             self.output_file.replace_dataset('state_pop_evolution', data=state_evol, shuffle=True, compression=9)
-            pi.clear()
+
+        pi.clear()
 
     def go(self):
         self.w_postanalysis_stateprobs()
@@ -651,7 +569,6 @@ class RWAverage(RWStateProbs, RWRate):
 
 class WReweight(WESTMasterCommand, WESTParallelTool):
     prog='w_reweight'
-    #subcommands = [AvgTraceSubcommand,AvgMatrixSubcommand]
     subcommands = [RWRate, RWStateProbs, RWAll, RWAverage, RWMatrix]
     subparsers_title = 'reweighting kinetics analysis scheme'
 

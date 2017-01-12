@@ -90,6 +90,9 @@ def mcbs_ci_correl_rw(estimator_datasets, estimator, alpha, n_sets=None, args=No
     n_sets = n_sets or get_bssize(alpha)
     autocorrel_n_sets = autocorrel_n_sets or get_bssize(autocorrel_alpha)
 
+    # We need to pre-generate the data; why not do it here?  We're already set up for it...
+    estimator_kwargs['stride'] = 1
+    pre_calculated = mcbs_ci(dataset=estimator_datasets, estimator=estimator, alpha=alpha, dlen=dlen, n_sets=n_sets, args=args, kwargs=estimator_kwargs, sort=numpy.msort)
     # We probably need to get this from the rates, so we'll still end up passing those in.
     # If pre-calculated is not None, we'll use that instead of dataset.
     # We can also assume that it's a 1 dimensional set with nothing needed, so 'key' should work.
