@@ -108,13 +108,11 @@ def mcbs_ci_correl_rw(estimator_datasets, estimator, alpha, n_sets=None, args=No
         pre_calculated.append(estimator(**precalc_kwargs))
     # We need to get rid of any NaNs.
     pre_calculated = numpy.asanyarray(pre_calculated)
-    pre_calc_test = pre_calculated.copy()
     pre_calculated = pre_calculated[numpy.isfinite(pre_calculated)]
     # If this happens, we have a huge NaN problem.  That is, our estimator is failing to return meaningful
     # numbers.  We should catch this when it happens, and so raise an exception, here.
     if pre_calculated.shape == (0,):
-        print(pre_calc_test)
-    # We probably need to get this from the rates, so we'll still end up passing those in.
+        raise NameError("Looks like the estimator failed.  This is likely a programming issue, and should be reported.")
     # If pre-calculated is not None, we'll use that instead of dataset.
     # We can also assume that it's a 1 dimensional set with nothing needed, so 'key' should work.
     if do_correl == True:

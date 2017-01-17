@@ -268,16 +268,16 @@ class RWReweight(AverageCommands):
         cols = []
         obs = []
         flux = []
-        #insert = [0]*(start_iter)
-        insert = []
+        insert = [0]*(start_iter)
+        #insert = [0]
 
         # Actually, I'm not sure we need to start this at start_iter...
         # ... as it's keyed to the iteration, we need to make sure that the index
         # matches with the iteration (particularly for 'insert').
         # It's just easier to load all the data, although we could just start insert as a list of length
         # start_iter.
-        for iiter in xrange(1, stop_iter):
-        #for iiter in xrange(start_iter, stop_iter):
+        #for iiter in xrange(1, stop_iter):
+        for iiter in xrange(start_iter, stop_iter):
             iter_grp = self.kinetics_file['iterations']['iter_{:08d}'.format(iiter)]
 
             rows.append(iter_grp['rows'][...])
@@ -285,19 +285,19 @@ class RWReweight(AverageCommands):
             obs.append(iter_grp['obs'][...])
             flux.append(iter_grp['flux'][...])
             #if iiter != start_iter:
-            if iiter != 1:
-                insert.append(iter_grp['rows'][...].shape[0] + insert[-1])
-            else:
-                insert.append(iter_grp['rows'][...].shape[0])
+            #if iiter != 1:
+            insert.append(iter_grp['rows'][...].shape[0] + insert[-1])
+            #else:
+            #    insert.append(iter_grp['rows'][...].shape[0])
         rows = np.concatenate(rows)
         cols = np.concatenate(cols)
         obs = np.concatenate(obs)
-        assert insert[-1] == len(rows)
         flux = np.concatenate(flux)
-        ins = []
-        ins.append(0)
-        ins += insert
-        insert = np.array(ins, dtype=np.intc)
+        assert insert[-1] == len(rows)
+        #ins = []
+        #ins.append(0)
+        #ins += insert
+        insert = np.array(insert, dtype=np.intc)
 
         self.rows = rows
         self.cols = cols
@@ -378,10 +378,16 @@ class RWRate(RWReweight):
 
             # The dataset options are what we pass on to the estimator...
             avg_rates = self.run_calculation(eval_block=_2D_eval_block, name='Average Rates', dim=2, do_averages=True, **submit_kwargs)
+            avg_rates['expected'] *= (self.npts - 1)
+            avg_rates['ci_ubound'] *= (self.npts - 1)
+            avg_rates['ci_lbound'] *= (self.npts - 1)
             self.output_file.replace_dataset('avg_rates', data=avg_rates[1])
 
             submit_kwargs['estimator_kwargs']['return_obs'] = 'F'
             avg_conditional_fluxes = self.run_calculation(eval_block=_2D_eval_block, name='Average Flux', dim=2, do_averages=True, **submit_kwargs)
+            avg_conditional_fluxes['expected'] *= (self.npts - 1)
+            avg_conditional_fluxes['ci_ubound'] *= (self.npts - 1)
+            avg_conditional_fluxes['ci_lbound'] *= (self.npts - 1)
             self.output_file.replace_dataset('avg_conditional_fluxes', data=avg_conditional_fluxes[1])
 
         # Now, print them!
@@ -398,12 +404,16 @@ class RWRate(RWReweight):
             submit_kwargs['estimator_kwargs']['return_obs'] = 'R'
             rate_evol = self.run_calculation(eval_block=_2D_eval_block, name='Rate Evolution', dim=2, **submit_kwargs)
             rate_evol['expected'] *= (self.npts - 1)
+            rate_evol['ci_ubound'] *= (self.npts - 1)
+            rate_evol['ci_lbound'] *= (self.npts - 1)
             self.output_file.replace_dataset('rate_evolution', data=rate_evol, shuffle=True, compression=9)
 
             pi.clear()
             submit_kwargs['estimator_kwargs']['return_obs'] = 'F'
             flux_evol = self.run_calculation(eval_block=_2D_eval_block, name='Conditional Flux Evolution', dim=2, **submit_kwargs)
             flux_evol['expected'] *= (self.npts - 1)
+            flux_evol['ci_ubound'] *= (self.npts - 1)
+            flux_evol['ci_lbound'] *= (self.npts - 1)
             self.output_file.replace_dataset('conditional_flux_evolution', data=rate_evol, shuffle=True, compression=9)
 
         pi.clear()
