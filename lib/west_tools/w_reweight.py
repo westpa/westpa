@@ -62,11 +62,11 @@ def _2D_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha, m
             if istate == jstate: continue
             kwargs = { 'istate' : istate, 'jstate': jstate }
             # Ergo, we need to send in... nbins, state_map, return_flux, return_states, return_color.  By default, we always return rates
-            #kwargs = dict(istate=istate, jstate=jstate, nstates=nstates, nbins=estimator_kwargs['nbins'], state_map=estimator_kwargs['state_map'], return_flux=estimator_kwargs['return_flux'], return_states=estimator_kwargs['return_states'], return_color=estimator_kwargs['return_color'])
             kwargs = dict(istate=istate, jstate=jstate, nstates=nstates)
             kwargs.update(estimator_kwargs)
 
             dataset = { 'indices' : np.array(range(start-1, stop-1), dtype=np.uint16) }
+            #dataset = data_input
             
             ci_res = mcbs_ci_correl_rw(dataset,estimator=reweight_for_c,
                                     alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
@@ -83,11 +83,11 @@ def _1D_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha, m
         # A little hack to make our estimator play nice, as jstate must be there.
         kwargs = { 'istate' : istate, 'jstate': istate }
         # Ergo, we need to send in... nbins, state_map, return_flux, return_states, return_color.  By default, we always return rates
-        #kwargs = dict(istate=istate, jstate=istate, nstates=nstates, nbins=estimator_kwargs['nbins'], state_map=estimator_kwargs['state_map'], return_flux=estimator_kwargs['return_flux'], return_states=estimator_kwargs['return_states'], return_color=estimator_kwargs['return_color'])
         kwargs = dict(istate=istate, jstate=istate, nstates=nstates)
         kwargs.update(estimator_kwargs)
 
         dataset = { 'indices' : np.array(range(start-1, stop-1), dtype=np.uint16) }
+        #dataset = data_input
         
         ci_res = mcbs_ci_correl_rw(dataset,estimator=reweight_for_c,
                                 alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
@@ -329,16 +329,25 @@ class RWReweight(AverageCommands):
         cols = []
         obs = []
         flux = []
+        #insert = [0]*(start_iter)
         insert = []
 
-        for iiter in xrange(start_iter, stop_iter):
+        # Actually, I'm not sure we need to start this at start_iter...
+        #for iiter in xrange(start_iter, stop_iter):
+        # ... as it's keyed to the iteration, we need to make sure that the index
+        # matches with the iteration (particularly for 'insert'.
+        # It's just easier to load all the data, although we could just start insert as a list of length
+        # start_iter.
+        for iiter in xrange(1, stop_iter):
+        #for iiter in xrange(start_iter, stop_iter):
             iter_grp = self.kinetics_file['iterations']['iter_{:08d}'.format(iiter)]
 
             rows.append(iter_grp['rows'][...])
             cols.append(iter_grp['cols'][...])
             obs.append(iter_grp['obs'][...])
             flux.append(iter_grp['flux'][...])
-            if iiter != start_iter:
+            #if iiter != start_iter:
+            if iiter != 1:
                 insert.append(iter_grp['rows'][...].shape[0] + insert[-1])
             else:
                 insert.append(iter_grp['rows'][...].shape[0])
@@ -417,9 +426,6 @@ class RWRate(RWReweight):
                                                         bin_state_map=np.repeat(self.state_map[:-1], self.nstates),
                                                         nfbins=self.nfbins,
                                                         state_labels=self.state_labels,
-                                                        #return_flux=False,
-                                                        #return_states=False,
-                                                        #return_color=False,
                                                         return_obs='R',
                                                         state_map=self.state_map,
                                                         nbins=self.nbins))
@@ -482,7 +488,7 @@ class RWStateProbs(RWReweight):
         start_pts = range(start_iter, stop_iter, step_iter)
 
 
-        indices = np.array(range(start_iter-1, stop_iter-1), dtype=np.uint16)
+        indices = np.array(range(start_iter-1, stop_iter-1, step_iter), dtype=np.uint16)
 
         submit_kwargs = dict(pi=pi, nstates=self.nstates, start_iter=self.start_iter, stop_iter=self.stop_iter, 
                              step_iter=self.step_iter)
