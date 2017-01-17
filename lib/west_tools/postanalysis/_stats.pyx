@@ -31,6 +31,7 @@ cimport numpy as np
 cimport scipy.linalg.cython_lapack as cl
 cimport scipy.linalg
 import scipy.linalg
+from libc.math cimport isnan
 
 ctypedef numpy.uint16_t index_t
 ctypedef numpy.float64_t weight_t
@@ -114,7 +115,6 @@ cpdef int normalize(weight_t[:,:] m, Py_ssize_t nfbins) nogil:
 @cython.wraparound(False)
 @cython.cdivision(True)
 cpdef weight_t reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, nbins, state_labels, state_map, nfbins, istate, jstate, stride, bin_last_state_map, bin_state_map, return_obs, obs_threshold=1):
-#cpdef weight_t reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, nbins, state_labels, state_map, nfbins, istate, jstate, stride, bin_last_state_map, bin_state_map, obs_threshold=1, return_flux=False, return_states=False, return_color=False):
 
 
 
@@ -127,6 +127,7 @@ cpdef weight_t reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, n
         double[:] _eigvals, _eigvalsi
         int n_trans, _nstates, lind, _nfbins, _stride, _obs_threshold, nnz, nlind, i, j, _istate, _jstate
         Ushort[:] _indices, _bin_state_map
+        weight_t _return_value
 
         Ushort[:] _new_indices
 
@@ -227,19 +228,37 @@ cpdef weight_t reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, n
         calc_state_flux(_transition_matrix, _rw_bin_probs, _bin_last_state_map, _bin_state_map, _nstates, _rw_state_flux, _nfbins)
 
         # This allows us to use the same function for all three types.
-        #if _return_flux == True:
+        # Return conditional fluxes.
         if _return_obs == b'F':
-            return _rw_state_flux[_istate,_jstate] 
-        #elif _return_states == True:
-        elif _return_obs == b'S':
-            return _rw_state_probs[_istate]
-        #elif _return_color == True:
-        elif _return_obs == b'C':
-            return _rw_color_probs[_istate]
-        else:
-            if _rw_color_probs[_istate] != 0.0:
-                return (_rw_state_flux[_istate,_jstate] / (_rw_color_probs[_istate] / (_rw_color_probs[_istate] + _rw_color_probs[_jstate])))
+            _return_value = _rw_state_flux[_istate,_jstate]
+            if isnan(_return_value) == True:
+                return 0.0
             else:
+                return _return_value
+        # Return state probabilities.
+        elif _return_obs == b'S':
+            _return_value = _rw_state_probs[_istate]
+            if isnan(_return_value) == True:
+                return 0.0
+            else:
+                return _return_value
+        # Return color (ensemble) probabilities
+        elif _return_obs == b'C':
+            _return_value = _rw_color_probs[_istate]
+            if isnan(_return_value) == True:
+                return 0.0
+            else:
+                return _return_value
+        # Return the rates.
+        elif _return_obs == b'R':
+            if _rw_color_probs[_istate] != 0.0:
+                _return_value = (_rw_state_flux[_istate,_jstate] / (_rw_color_probs[_istate] / (_rw_color_probs[_istate] + _rw_color_probs[_jstate])))
+                if isnan(_return_value) == True:
+                    return 0.0
+                else:
+                    return _return_value
+            else:
+                # We have no ensemble probability, and as such, cannot have a flux.
                 return 0.0
 
 @cython.boundscheck(False)
