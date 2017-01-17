@@ -200,9 +200,6 @@ cpdef weight_t reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, n
     _bin_state_map = bin_state_map
     _istate = istate
     _jstate = jstate
-    #_return_flux = return_flux
-    #_return_states = return_states
-    #_return_color = return_color
     _return_obs = return_obs
 
 
@@ -269,7 +266,9 @@ cpdef int regenerate_subsampled_indices(Ushort[:] iin, Ushort[:] iout, int ilen,
     cdef:
         int i, si
 
+    # go over the range of all indices within iin
     for i in range(ilen):
+        # Run over the length of the stride.
         for si in range(stride):
             iout[(i*stride)+si] = iin[i] + si
 
@@ -289,7 +288,9 @@ cpdef int accumulate_fluxes(int[:] hrows, int[:] hcols, int[:] hobs, weight_t[:]
     for iter in range(itermax):
         iiter = iterations[iter]
         for ilem in range(hins[iiter], hins[iiter+1]):
-            total_fluxes[hrows[ilem], hcols[ilem]] += hflux[ilem]
+            # Not sure if this is necessary, here...
+            if ilem < nnz and iiter+1 < itermax:
+                total_fluxes[hrows[ilem], hcols[ilem]] += hflux[ilem]
 
     return 0
 
