@@ -31,9 +31,36 @@
         </header>
     </div>
 
+
     <!-- MAIN CONTENT -->
     <div id="main_content_wrap" class="outer">
       <section id="main_content" class="inner">
+        <!-- Search bar --> 
+        <div id="search_bar_div">
+          <!--
+          <p style="bottom: -10px"> <b>Search the group archives</b> </p>
+          -->
+          <input id="search_bar" name="search_bar" type="text"
+                 placeholder="Search WESTPA user mailing list"></input>
+          <button id="search_but" onclick="search_arch()">Search</button>
+          <script type="text/javascript">
+            document.getElementById("search_bar")
+              .addEventListener("keyup", function(event) {
+              event.preventDefault();
+              if (event.keyCode == 13) {
+                document.getElementById("search_but").click();
+              }
+            });
+            function search_arch() {
+              var se = document.getElementById('search_bar').value;
+              var search_str = "https://groups.google.com/forum/#!searchin/westpa-users/";
+              var app_src_str = "%7Csort:relevance";
+              var link_to_src = search_str + se + app_src_str;
+              window.location=link_to_src;
+            };
+          </script>
+        </div>
+        <!-- End of Search bar --> 
         <h3>
 <a id="what-is-westpa" class="anchor" href="#what-is-westpa" aria-hidden="true"><span class="octicon octicon-link"></span></a>What is WESTPA?</h3>
 
