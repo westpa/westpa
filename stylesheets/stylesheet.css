@@ -424,16 +424,15 @@ Full-Width Styles
 
 #search_bar_div {
   display: inline-block;
-  height: 33px;
+  height: 35px;
   width: 600px;
   float: left;
-  top: -150px;
+  top: -125px;
 }
 
 #search_bar {
-  top: -25px;
-  height: 28px;
-  font-size: 24px;
+  height: 30px;
+  font-size: 25px;
   display: inline-block;
   font-family: "Lato";
   font-weight: 100;
@@ -445,7 +444,7 @@ Full-Width Styles
 }
 
 #search_but {
-  height: 32px;
+  height: 34px;
   width: 75px;
   display: inline-block;
   float: right;
@@ -453,7 +452,7 @@ Full-Width Styles
   font-family: 'Myriad Pro', Calibri, Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   border: 1;
-  top: -60px;
+  top: -35px;
   left: 4px;
   position: relative;
   z-index: 2;
