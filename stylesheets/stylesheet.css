@@ -423,10 +423,7 @@ Full-Width Styles
   display: inline-block;
   height: 28px;
   width: 500px;
-  float: none;
-  position: relative;
-  top: -32px;
-  left: 40px;
+  float: left;
 }
 
 #search_bar {
@@ -458,6 +455,11 @@ Full-Width Styles
   z-index: 2;
   cursor: pointer;
   opacity: 0.9;
+}
+
+#main_text_div {
+  top: -40px;
+  position: relative;
 }
 
 /*******************************************************************************
