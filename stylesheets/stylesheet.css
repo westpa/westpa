@@ -419,22 +419,21 @@ Full-Width Styles
 }
 
 /** Some custom styles for the search bar **/
-@import url(http://fonts.googleapis.com/css?family=Lato:100,300,400,700);
-@import url(https://raw.github.com/FortAwesome/Font-Awesome/master/docs/assets/css/font-awesome.min.css);
-
 #search_bar_div {
   display: inline-block;
-  height: 35px;
+  height: 30px;
   width: 600px;
   float: left;
-  top: -125px;
+  position: relative;
+  top: -32px;
 }
 
 #search_bar {
-  height: 30px;
-  font-size: 25px;
+  height: 23px;
   display: inline-block;
-  font-family: "Lato";
+  font-size: 20px;
+  font-family: 'Myriad Pro', Calibri, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
   font-weight: 100;
   cursor: text;
   color: #555;
@@ -444,7 +443,7 @@ Full-Width Styles
 }
 
 #search_but {
-  height: 34px;
+  height: 27px;
   width: 75px;
   display: inline-block;
   float: right;
@@ -452,7 +451,7 @@ Full-Width Styles
   font-family: 'Myriad Pro', Calibri, Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   border: 1;
-  top: -35px;
+  top: -28px;
   left: 4px;
   position: relative;
   z-index: 2;
