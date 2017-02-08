@@ -418,8 +418,54 @@ Full-Width Styles
   background: #212121;
 }
 
+/** Some custom styles for the search bar **/
+#search_bar_div {
+  display: inline-block;
+  height: 28px;
+  width: 500px;
+  float: left;
+}
 
+#search_bar {
+  height: 21px;
+  display: inline-block;
+  font-size: 18px;
+  font-family: 'Myriad Pro', Calibri, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  font-weight: 100;
+  cursor: text;
+  color: #555;
+  background: none;
+  width: 425px;
+  z-index: 3;
+}
 
+#search_but {
+  height: 25px;
+  width: 75px;
+  display: inline-block;
+  float: right;
+  font-size: 16px;
+  font-family: 'Myriad Pro', Calibri, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  border: 1;
+  top: -26px;
+  left: 4px;
+  position: relative;
+  z-index: 2;
+  cursor: pointer;
+  opacity: 0.9;
+}
+
+#main_text_div {
+  top: -40px;
+  position: relative;
+}
+
+#pub_text_div {
+  top: -40px;
+  position: relative;
+}
 /*******************************************************************************
 Small Device Styles
 *******************************************************************************/
