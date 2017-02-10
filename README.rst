@@ -58,6 +58,11 @@ https://chong.chem.pitt.edu/wewiki/WESTPA_tutorials. Further, all WESTPA
 command-line tools (located in ``westpa/bin``) provide detailed help when
 given the -h/--help option.
 
+If you have feedback you can answer this form_ and tell us what you would
+would like to see changed!
+
+.. _form: https://docs.google.com/forms/d/e/1FAIpQLSfWaB2aryInU06cXrCyAFmhD_gPibgOfFk-dspLEsXuS9-RGQ/viewform
+
 
 ------------
 Getting help
