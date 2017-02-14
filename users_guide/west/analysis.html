@@ -8,8 +8,8 @@
     
     <title>Analysis &mdash; WESTPA 1.0b1 documentation</title>
     
-    <link rel="stylesheet" href="../../static/alabaster.css" type="text/css" />
-    <link rel="stylesheet" href="../../static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
     
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
@@ -20,35 +20,19 @@
         HAS_SOURCE:  true
       };
     </script>
-    <script type="text/javascript" src="../../static/jquery.js"></script>
-    <script type="text/javascript" src="../../static/underscore.js"></script>
-    <script type="text/javascript" src="../../static/doctools.js"></script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
     <link rel="top" title="WESTPA 1.0b1 documentation" href="../../sphinx_index.html" />
     <link rel="up" title="WEST" href="../west.html" />
     <link rel="next" title="WEST Tools" href="../west_tools.html" />
     <link rel="prev" title="Running" href="running.html" />
    
   
-  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9">
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
 
   </head>
-  <body role="document">
-    <div class="related" role="navigation" aria-label="related navigation">
-      <h3>Navigation</h3>
-      <ul>
-        <li class="right" style="margin-right: 10px">
-          <a href="../../genindex.html" title="General Index"
-             accesskey="I">index</a></li>
-        <li class="right" >
-          <a href="../west_tools.html" title="WEST Tools"
-             accesskey="N">next</a> |</li>
-        <li class="right" >
-          <a href="running.html" title="Running"
-             accesskey="P">previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="../../sphinx_index.html">WESTPA 1.0b1 documentation</a> &raquo;</li>
-          <li class="nav-item nav-item-1"><a href="../west.html" accesskey="U">WEST</a> &raquo;</li> 
-      </ul>
-    </div>  
+  <body role="document">  
 
     <div class="document">
       <div class="documentwrapper">
@@ -71,7 +55,7 @@
 <h3>Kinetics for arbitrary state definitions<a class="headerlink" href="#kinetics-for-arbitrary-state-definitions" title="Permalink to this headline">¶</a></h3>
 <p>In order to calculate rate constants, it is necessary to run three different
 tools:</p>
-<div class="highlight-python"><div class="highlight"><pre>- :ref:`w_assign`
+<div class="highlight-python"><div class="highlight"><pre><span></span>- :ref:`w_assign`
 - :ref:`w_kinetics`
 - :ref:`w_kinavg`
 </pre></div>
@@ -84,7 +68,7 @@ frequently more convenient to specify custom bin boundaries and states; this
 eliminates the need to know what constitutes a state prior to starting the
 simulation. Both files must be in the YAML format, of which there are numerous
 examples of online. A quick example for each file follows:</p>
-<div class="highlight-python"><div class="highlight"><pre>States:
+<div class="highlight-python"><div class="highlight"><pre><span></span>States:
 ---
 states:
   - label: unbound
@@ -109,14 +93,14 @@ Note that these custom bins do not change the simulation in any fashion; you
 can adjust state definitions and bin boundaries at will without altering the
 way the simulation runs.</p>
 <p>The help definition, included by running:</p>
-<div class="highlight-python"><div class="highlight"><pre>w_assign --help
+<div class="highlight-python"><div class="highlight"><pre><span></span>w_assign --help
 </pre></div>
 </div>
 <p>usually contains the most up-to-date help information, and so more
 information about command line options can be obtained from there. To
 run with the above YAML files, assuming they are named STATES and BINS,
 you would run the following command:</p>
-<div class="highlight-python"><div class="highlight"><pre>w_assign --states-from-file STATES --bins-from-file BINS
+<div class="highlight-python"><div class="highlight"><pre><span></span>w_assign --states-from-file STATES --bins-from-file BINS
 </pre></div>
 </div>
 <p>By default, this produces a .h5 file (named assign.h5); this can be changed via
@@ -124,7 +108,7 @@ the command line.</p>
 <p>The w_kinetics tool uses the information generated from w_assign to trace
 through trajectories and calculate flux with included color information. There
 are two main methods to run w_kinetics:</p>
-<div class="highlight-python"><div class="highlight"><pre>w_kinetics trace
+<div class="highlight-python"><div class="highlight"><pre><span></span>w_kinetics trace
 w_kinetics matrix
 </pre></div>
 </div>
@@ -135,25 +119,25 @@ rate constants. WESTPA includes two tools to help you do this: w_kinavg and
 ploterr. First, begin by running the following command (keep in mind that
 w_kinavg has the same type of analysis as w_kinetics does; whatever method you
 chose (trace or matrix) in the w_kinetics step should be used here, as well):</p>
-<div class="highlight-python"><div class="highlight"><pre>w_kinavg trace -e cumulative
+<div class="highlight-python"><div class="highlight"><pre><span></span>w_kinavg trace -e cumulative
 </pre></div>
 </div>
 <p>This instructs w_kinavg to produce a .h5 file with the cumulative rate
 information; by then using ploterr, you can determine whether the rates
 have stopped changing:</p>
-<div class="highlight-python"><div class="highlight"><pre>ploterr kinavg
+<div class="highlight-python"><div class="highlight"><pre><span></span>ploterr kinavg
 </pre></div>
 </div>
 <p>By default, this produces a set of .pdf files, containing cumulative rate and
 flux information for each state-to-state transition as a function of the WESTPA
 iteration. Determine at which iteration the rate stops changing; then, rerun
 w_kinavg with the following systems:</p>
-<div class="highlight-python"><div class="highlight"><pre>w_kinavg trace --first-iter ITER
+<div class="highlight-python"><div class="highlight"><pre><span></span>w_kinavg trace --first-iter ITER
 </pre></div>
 </div>
 <p>where ITER is the beginning of the unchanging region. This will then
 output information much like the following:</p>
-<div class="highlight-python"><div class="highlight"><pre>fluxes into macrostates:
+<div class="highlight-python"><div class="highlight"><pre><span></span>fluxes into macrostates:
 unbound: mean=1.712580005863456e-02 CI=(1.596595628304422e-02, 1.808249529394858e-02) * tau^-1
 bound  : mean=5.944989301935855e-04 CI=(4.153556214886056e-04, 7.789568983584020e-04) * tau^-1
 
@@ -189,17 +173,21 @@ bound   -&gt; unbound: mean=1.819520888349874e-02 CI=(1.704608273094848e-0
 </ul>
 </li>
 </ul>
-
-  <h4>Previous topic</h4>
-  <p class="topless"><a href="running.html"
-                        title="previous chapter">Running</a></p>
-  <h4>Next topic</h4>
-  <p class="topless"><a href="../west_tools.html"
-                        title="next chapter">WEST Tools</a></p>
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../sphinx_index.html">Documentation overview</a><ul>
+  <li><a href="../west.html">WEST</a><ul>
+      <li>Previous: <a href="running.html" title="previous chapter">Running</a></li>
+      <li>Next: <a href="../west_tools.html" title="next chapter">WEST Tools</a></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
   <div role="note" aria-label="source link">
     <h3>This Page</h3>
     <ul class="this-page-menu">
-      <li><a href="../../sources/users_guide/west/analysis.txt"
+      <li><a href="../../_sources/users_guide/west/analysis.txt"
             rel="nofollow">Show Source</a></li>
     </ul>
    </div>
@@ -224,12 +212,12 @@ bound   -&gt; unbound: mean=1.819520888349874e-02 CI=(1.704608273094848e-0
       &copy;2015, Matthew C. Zwier and Lillian T. Chong.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.3.1</a>
-      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.3</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.3.5</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.7</a>
       
       |
-      <a href="../../sources/users_guide/west/analysis.txt"
-          rel="nofollow">Page source</a></li>
+      <a href="../../_sources/users_guide/west/analysis.txt"
+          rel="nofollow">Page source</a>
     </div>
 
     

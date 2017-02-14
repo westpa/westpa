@@ -8,8 +8,8 @@
     
     <title>OpenMM Tutorial: Molecular Dynamics of Na+/Cl- Association &mdash; WESTPA 1.0b1 documentation</title>
     
-    <link rel="stylesheet" href="../static/alabaster.css" type="text/css" />
-    <link rel="stylesheet" href="../static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
@@ -20,33 +20,18 @@
         HAS_SOURCE:  true
       };
     </script>
-    <script type="text/javascript" src="../static/jquery.js"></script>
-    <script type="text/javascript" src="../static/underscore.js"></script>
-    <script type="text/javascript" src="../static/doctools.js"></script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
     <link rel="top" title="WESTPA 1.0b1 documentation" href="../sphinx_index.html" />
     <link rel="next" title="Overview" href="../development/overview.html" />
     <link rel="prev" title="NAMD Tutorial: Molecular Dynamics of Na+/Cl- Association" href="namd.html" />
    
   
-  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9">
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
 
   </head>
-  <body role="document">
-    <div class="related" role="navigation" aria-label="related navigation">
-      <h3>Navigation</h3>
-      <ul>
-        <li class="right" style="margin-right: 10px">
-          <a href="../genindex.html" title="General Index"
-             accesskey="I">index</a></li>
-        <li class="right" >
-          <a href="../development/overview.html" title="Overview"
-             accesskey="N">next</a> |</li>
-        <li class="right" >
-          <a href="namd.html" title="NAMD Tutorial: Molecular Dynamics of Na+/Cl- Association"
-             accesskey="P">previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="../sphinx_index.html">WESTPA 1.0b1 documentation</a> &raquo;</li> 
-      </ul>
-    </div>  
+  <body role="document">  
 
     <div class="document">
       <div class="documentwrapper">
@@ -113,7 +98,7 @@ WESTPA files. A working example directory can be found at
 <code class="docutils literal"><span class="pre">nacl.prmtop</span></code> respectively) produced by AmberTools. We will construct an
 OpenMM system and integrator and then serialize the resulting python objects
 using a short script:</p>
-<div class="highlight-python"><div class="highlight"><pre>python build_system.py
+<div class="highlight-python"><div class="highlight"><pre><span></span>python build_system.py
 </pre></div>
 </div>
 </div>
@@ -159,12 +144,12 @@ per bin and more. This file is nearly identical to one defined in the
 <cite>Introductory Amber Tutorial &lt;amber_tutorial&gt;</cite>. In this example
 we will be using the distance between the two ions as the progress coordinate,
 giving us a one dimensional coordinate:</p>
-<div class="highlight-python"><div class="highlight"><pre>self.pcoord_ndim = 1
+<div class="highlight-python"><div class="highlight"><pre><span></span>self.pcoord_ndim = 1
 </pre></div>
 </div>
 <p>The positions of the bins along this progress coordinate are the same as those
 used by <a class="reference external" href="http://pubs.acs.org/doi/abs/10.1021/ct100626x">Zwier, Kaus, and Chong</a>:</p>
-<div class="highlight-python"><div class="highlight"><pre>binbounds = [0.0] + [2.8, 2.88, 3.0, 3.10, 3.29, 3.79, 3.94, 4.12, 4.39,
+<div class="highlight-python"><div class="highlight"><pre><span></span>binbounds = [0.0] + [2.8, 2.88, 3.0, 3.10, 3.29, 3.79, 3.94, 4.12, 4.39,
   5.43] + [5.90+1.0*i for i in xrange(0,11)] + [30,float(&#39;inf&#39;)]
 </pre></div>
 </div>
@@ -174,7 +159,7 @@ e.g. a walker with a value of 2.8 would end up in the second bin. The positions
 of your bins must be either monotonically increasing or decreasing - otherwise,
 you will get an error message indicating this requirement.</p>
 <p>The number of walkers per bin is specified by the following:</p>
-<div class="highlight-python"><div class="highlight"><pre>bin.target_count = 48
+<div class="highlight-python"><div class="highlight"><pre><span></span>bin.target_count = 48
 </pre></div>
 </div>
 <p>Using a tau value of 0.5 ps, we will monitor the progress coordinate every 0.05
@@ -271,7 +256,7 @@ use the executable propagator.</p>
 <p>The actual WESTPA simulation is configured using the yaml-formatted
 <code class="docutils literal"><span class="pre">west.cfg</span></code> file. The custom propagator will extract a number of parameters
 from the <code class="docutils literal"><span class="pre">openmm</span></code> section shown below.:</p>
-<div class="highlight-python"><div class="highlight"><pre>---
+<div class="highlight-python"><div class="highlight"><pre><span></span>---
 west:
   ...
   openmm:
@@ -307,7 +292,7 @@ the calculation on. When running using the OpenCL platform, the <a class="refere
 information about the available devices and platforms (in the OpenCL meaning of
 platform, rather than the OpenMM one).</p>
 <p>There are also some important settings under the <code class="docutils literal"><span class="pre">propagation</span></code> section:</p>
-<div class="highlight-python"><div class="highlight"><pre>---
+<div class="highlight-python"><div class="highlight"><pre><span></span>---
 west:
   ...
   propagation:
@@ -341,7 +326,7 @@ be 552 / 4 = 138.</p>
 <code class="docutils literal"><span class="pre">init.sh</span></code> and <code class="docutils literal"><span class="pre">run.sh</span></code>.</p>
 <p>From the simulation root directory (<code class="docutils literal"><span class="pre">$WEST_SIM_ROOT</span></code>) directory, enter into
 the command line:</p>
-<div class="highlight-python"><div class="highlight"><pre>./init.sh
+<div class="highlight-python"><div class="highlight"><pre><span></span>./init.sh
 </pre></div>
 </div>
 <p>The script should create a directory called <code class="docutils literal"><span class="pre">istates</span></code>, as well as an HDF5
@@ -353,7 +338,7 @@ prepared.&#8221; with a short list (8 lines) of probabilities and statistics abo
 the initial state of the methane-methane simulation.</p>
 <p>Now that your simulation has been initialized, it is ready to be run by the
 weighted ensemble code. Use the command:</p>
-<div class="highlight-python"><div class="highlight"><pre>./run.sh --work-manager=zmq --n-workers=4 &amp;
+<div class="highlight-python"><div class="highlight"><pre><span></span>./run.sh --work-manager=zmq --n-workers=4 &amp;
 </pre></div>
 </div>
 <p>to use the <code class="docutils literal"><span class="pre">zmq</span></code> work manager and run using 4 workers.</p>
@@ -412,13 +397,13 @@ hardware and is likely to be slower than using an optimized CPU-based code.</p>
 distance of 1.8 Å as the bound state, and that containing a distance of 16.9 Å
 as the unbound state. Using <code class="docutils literal"><span class="pre">w_fluxanl</span></code>, we can calculate the flux into these
 target states, and from that calculate the association rate of Na<sup>+</sup>/Cl<sup>-</sup>. <code class="docutils literal"><span class="pre">w_fluxanl</span></code> may be run with the following commands:</p>
-<div class="highlight-python"><div class="highlight"><pre>source env.sh
+<div class="highlight-python"><div class="highlight"><pre><span></span>source env.sh
 $WEST_ROOT/bin/w_fluxanl
 </pre></div>
 </div>
 <p>The script will output the flux into the target states including confidence
 intervals calculated using the block bootstrap method:</p>
-<div class="highlight-python"><div class="highlight"><pre>Calculating mean flux and confidence intervals for iterations [1,101)
+<div class="highlight-python"><div class="highlight"><pre><span></span>Calculating mean flux and confidence intervals for iterations [1,101)
 target &#39;bound&#39;:
   correlation length = w tau
   mean flux and CI   = x (y, z) tau^(-1)
@@ -439,20 +424,20 @@ tau. We can further analyze the output of <code class="docutils literal"><span c
 using programs such as h5ls or hdfview, but I am instead going to use h5py in
 python to analyze the data. Open up <code class="docutils literal"><span class="pre">ipython</span></code> in the interactive plotting
 mode:</p>
-<div class="highlight-python"><div class="highlight"><pre>ipython --pylab
+<div class="highlight-python"><div class="highlight"><pre><span></span>ipython --pylab
 </pre></div>
 </div>
 <p>and then enter the following commands:</p>
-<div class="highlight-python"><div class="highlight"><pre><span class="kn">import</span> <span class="nn">h5py</span>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">h5py</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
 
-<span class="n">fluxanl</span> <span class="o">=</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="s">&#39;fluxanl.h5&#39;</span><span class="p">)</span>
-<span class="n">fluxanl</span><span class="p">[</span><span class="s">&#39;target_flux&#39;</span><span class="p">][</span><span class="s">&#39;index&#39;</span><span class="p">][:]</span>
+<span class="n">fluxanl</span> <span class="o">=</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="s1">&#39;fluxanl.h5&#39;</span><span class="p">)</span>
+<span class="n">fluxanl</span><span class="p">[</span><span class="s1">&#39;target_flux&#39;</span><span class="p">][</span><span class="s1">&#39;index&#39;</span><span class="p">][:]</span>
 </pre></div>
 </div>
 <p>We can see that the dataset named [&#8216;index&#8217;] contains the output printed
 above by <code class="docutils literal"><span class="pre">w_fluxanl</span></code>. We can plot the flux using:</p>
-<div class="highlight-python"><div class="highlight"><pre><span class="n">flux</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">fluxanl</span><span class="p">[</span><span class="s">&#39;target_flux&#39;</span><span class="p">][</span><span class="s">&#39;target_0&#39;</span><span class="p">][</span><span class="s">&#39;flux&#39;</span><span class="p">])</span>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="n">flux</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">fluxanl</span><span class="p">[</span><span class="s1">&#39;target_flux&#39;</span><span class="p">][</span><span class="s1">&#39;target_0&#39;</span><span class="p">][</span><span class="s1">&#39;flux&#39;</span><span class="p">])</span>
 <span class="n">plot</span><span class="p">(</span><span class="n">flux</span><span class="p">)</span>
 </pre></div>
 </div>
@@ -465,10 +450,10 @@ again, this time with the &#8216;&#8211;evol&#8217; flag at the end of the comma
 command will add an HDF5 dataset named [&#8216;flux_evolution&#8217;] to the [&#8216;target_0&#8217;]
 group. To plot the time evolution flux, you can use the following python code,
 continuing from the above ipython session:</p>
-<div class="highlight-python"><div class="highlight"><pre><span class="n">mean_flux</span> <span class="o">=</span> <span class="n">fluxanl</span><span class="p">[</span><span class="s">&#39;target_flux&#39;</span><span class="p">][</span><span class="s">&#39;target_0&#39;</span><span class="p">][</span><span class="s">&#39;flux_evolution&#39;</span><span class="p">][</span><span class="s">&#39;expected&#39;</span><span class="p">]</span>
-<span class="n">ci_lb</span> <span class="o">=</span> <span class="n">fluxanl</span><span class="p">[</span><span class="s">&#39;target_flux&#39;</span><span class="p">][</span><span class="s">&#39;target_0&#39;</span><span class="p">][</span><span class="s">&#39;flux_evolution&#39;</span><span class="p">][</span><span class="s">&#39;ci_lbound&#39;</span><span class="p">]</span>
-<span class="n">ci_ub</span> <span class="o">=</span> <span class="n">fluxanl</span><span class="p">[</span><span class="s">&#39;target_flux&#39;</span><span class="p">][</span><span class="s">&#39;target_0&#39;</span><span class="p">][</span><span class="s">&#39;flux_evolution&#39;</span><span class="p">][</span><span class="s">&#39;ci_ubound&#39;</span><span class="p">]</span>
-<span class="n">plot</span><span class="p">(</span><span class="n">mean_flux</span><span class="p">,</span> <span class="s">&#39;b&#39;</span><span class="p">,</span> <span class="n">ci_lb</span><span class="p">,</span> <span class="s">&#39;g&#39;</span><span class="p">,</span> <span class="n">ci_ub</span><span class="p">,</span> <span class="s">&#39;r&#39;</span><span class="p">)</span>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="n">mean_flux</span> <span class="o">=</span> <span class="n">fluxanl</span><span class="p">[</span><span class="s1">&#39;target_flux&#39;</span><span class="p">][</span><span class="s1">&#39;target_0&#39;</span><span class="p">][</span><span class="s1">&#39;flux_evolution&#39;</span><span class="p">][</span><span class="s1">&#39;expected&#39;</span><span class="p">]</span>
+<span class="n">ci_lb</span> <span class="o">=</span> <span class="n">fluxanl</span><span class="p">[</span><span class="s1">&#39;target_flux&#39;</span><span class="p">][</span><span class="s1">&#39;target_0&#39;</span><span class="p">][</span><span class="s1">&#39;flux_evolution&#39;</span><span class="p">][</span><span class="s1">&#39;ci_lbound&#39;</span><span class="p">]</span>
+<span class="n">ci_ub</span> <span class="o">=</span> <span class="n">fluxanl</span><span class="p">[</span><span class="s1">&#39;target_flux&#39;</span><span class="p">][</span><span class="s1">&#39;target_0&#39;</span><span class="p">][</span><span class="s1">&#39;flux_evolution&#39;</span><span class="p">][</span><span class="s1">&#39;ci_ubound&#39;</span><span class="p">]</span>
+<span class="n">plot</span><span class="p">(</span><span class="n">mean_flux</span><span class="p">,</span> <span class="s1">&#39;b&#39;</span><span class="p">,</span> <span class="n">ci_lb</span><span class="p">,</span> <span class="s1">&#39;g&#39;</span><span class="p">,</span> <span class="n">ci_ub</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>Compared to the first plot of the instantaneous flux, the time evolution
@@ -489,7 +474,7 @@ necessary script as an exercise. To create a netcdf-formatted Amber trajectory
 file, you might want to take a look at <a class="reference external" href="https://bitbucket.org/joshua.adelman/stringmethodexamples/raw/tip/shared/elasticnetwork-langevin/netcdf4storage.py">netcdf4storage.py</a>
 or you might consider using the dcd writer built into OpenMM which can imported
 into python using:</p>
-<div class="highlight-python"><div class="highlight"><pre>import simtk.openmm.app.dcdfile
+<div class="highlight-python"><div class="highlight"><pre><span></span>import simtk.openmm.app.dcdfile
 </pre></div>
 </div>
 </div>
@@ -561,17 +546,19 @@ Na+/Cl−, Methane/Benzene, and K+/18-Crown-6 Ether. J Chem Theory Comput.
 </ul>
 </li>
 </ul>
-
-  <h4>Previous topic</h4>
-  <p class="topless"><a href="namd.html"
-                        title="previous chapter">NAMD Tutorial: Molecular Dynamics of Na<sup>+</sup>/Cl<sup>-</sup> Association</a></p>
-  <h4>Next topic</h4>
-  <p class="topless"><a href="../development/overview.html"
-                        title="next chapter">Overview</a></p>
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../sphinx_index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="namd.html" title="previous chapter">NAMD Tutorial: Molecular Dynamics of Na<sup>+</sup>/Cl<sup>-</sup> Association</a></li>
+      <li>Next: <a href="../development/overview.html" title="next chapter">Overview</a></li>
+  </ul></li>
+</ul>
+</div>
   <div role="note" aria-label="source link">
     <h3>This Page</h3>
     <ul class="this-page-menu">
-      <li><a href="../sources/tutorials/openmm.txt"
+      <li><a href="../_sources/tutorials/openmm.txt"
             rel="nofollow">Show Source</a></li>
     </ul>
    </div>
@@ -596,12 +583,12 @@ Na+/Cl−, Methane/Benzene, and K+/18-Crown-6 Ether. J Chem Theory Comput.
       &copy;2015, Matthew C. Zwier and Lillian T. Chong.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.3.1</a>
-      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.3</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.3.5</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.7</a>
       
       |
-      <a href="../sources/tutorials/openmm.txt"
-          rel="nofollow">Page source</a></li>
+      <a href="../_sources/tutorials/openmm.txt"
+          rel="nofollow">Page source</a>
     </div>
 
     
