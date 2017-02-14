@@ -60,7 +60,7 @@ If you have feedback you can answer this form_ and tell us what you would
 would like to see changed!
 
 .. _form: https://docs.google.com/forms/d/e/1FAIpQLSfWaB2aryInU06cXrCyAFmhD_gPibgOfFk-dspLEsXuS9-RGQ/viewform
-   _here: https://westpa.github.io/westpa/sphinx_index.html#tutorials
+.. _here: https://westpa.github.io/westpa/sphinx_index.html#tutorials
 
 
 ------------
