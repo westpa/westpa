@@ -223,7 +223,7 @@ like the following with corresponding code:::
   rmapper.add_mapper(inner_mapper, [0.5])
 
 Examples of more complicated nesting schemes can be found in the `tests
-<https://chong.chem.pitt.edu/redmine/projects/westpa/repository/tools/entry/tests/testbinning.py>`_
+<https://github.com/westpa/westpa/blob/master/lib/west_tools/tests/testbinning.py>`_
 for the WESTPA binning apparatus.
 
 Initial/Basis States
@@ -357,7 +357,7 @@ modifying the simulation before or after the iteration:
 Several examples of custom propagators are available:
 
 - `1D Over-damped Langevin dynamics
-  <https://chong.chem.pitt.edu/redmine/projects/westpa/repository/entry/lib/examples/odld/odld_system.py>`_
+  <https://github.com/westpa/westpa/blob/master/lib/examples/odld/odld_system.py>`_
 - `2D Langevin dynamics
   <https://bitbucket.org/joshua.adelman/stringmethodexamples/src/tip/examples/DicksonRingPotential/we_base/system.py>`_
 - `Langevin dynamics - CA atom Elastic Network Model
@@ -384,8 +384,8 @@ The top most heading in *west.cfg* should be specified as:::
       ...
 
 with all sub-section specified below it. A complete example can be found for
-the methane example:
-https://chong.chem.pitt.edu/redmine/projects/westpa/repository/entry/lib/examples/methane_gmx/west.cfg
+the NaCl example:
+https://github.com/westpa/westpa/blob/master/lib/examples/nacl_gmx/west.cfg
 
 In the following section, the specifications for each section of the file can
 be found, along with default parameters and descriptions. Required parameters
