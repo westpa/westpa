@@ -38,8 +38,7 @@ Mac OS X. It is developed and tested on x86_64 machines running Linux.
 Installation
 ------------
 
-After obtaining a copy of the code (see
-https://chong.chem.pitt.edu/wewiki/Obtaining_the_WESTPA_code for details), run
+After obtaining a copy of the code (see https://westpa.github.io/westpa for details), run
 ``setup.sh`` in the ``westpa`` directory. If the version of Python you will
 be using to run the code is not first on your $PATH, then set the environment
 variable WEST_PYTHON to the Python interpreter you want to use. For example::
@@ -53,23 +52,20 @@ variable WEST_PYTHON to the Python interpreter you want to use. For example::
 Getting started
 ---------------
 
-High-level tutorials of how to use the WESTPA software are available from
-https://chong.chem.pitt.edu/wewiki/WESTPA_tutorials. Further, all WESTPA
-command-line tools (located in ``westpa/bin``) provide detailed help when
+High-level tutorials of how to use the WESTPA software can be found here_
+Further, all WESTPA command-line tools (located in ``westpa/bin``) provide detailed help when
 given the -h/--help option.
 
 If you have feedback you can answer this form_ and tell us what you would
 would like to see changed!
 
 .. _form: https://docs.google.com/forms/d/e/1FAIpQLSfWaB2aryInU06cXrCyAFmhD_gPibgOfFk-dspLEsXuS9-RGQ/viewform
+   _here: https://westpa.github.io/westpa/sphinx_index.html#tutorials
 
 
 ------------
 Getting help
 ------------
-
-Documentation is available from the WESTPA wiki, located at
-https://chong.chem.pitt.edu/wewiki.
 
 A mailing list for WESTPA is available, at which one can ask questions (or see
 if a question one has was previously addressed). This is the preferred means
