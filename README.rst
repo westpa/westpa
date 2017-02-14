@@ -52,7 +52,7 @@ variable WEST_PYTHON to the Python interpreter you want to use. For example::
 Getting started
 ---------------
 
-High-level tutorials of how to use the WESTPA software can be found here_
+High-level tutorials of how to use the WESTPA software can be found here_.
 Further, all WESTPA command-line tools (located in ``westpa/bin``) provide detailed help when
 given the -h/--help option.
 
