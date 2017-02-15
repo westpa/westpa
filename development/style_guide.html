@@ -28,25 +28,10 @@
     <link rel="prev" title="Overview" href="overview.html" />
    
   
-  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9">
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
 
   </head>
-  <body role="document">
-    <div class="related" role="navigation" aria-label="related navigation">
-      <h3>Navigation</h3>
-      <ul>
-        <li class="right" style="margin-right: 10px">
-          <a href="../genindex.html" title="General Index"
-             accesskey="I">index</a></li>
-        <li class="right" >
-          <a href="source_code.html" title="Source Code Management"
-             accesskey="N">next</a> |</li>
-        <li class="right" >
-          <a href="overview.html" title="Overview"
-             accesskey="P">previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="../sphinx_index.html">WESTPA 1.0b1 documentation</a> &raquo;</li> 
-      </ul>
-    </div>  
+  <body role="document">  
 
     <div class="document">
       <div class="documentwrapper">
@@ -324,21 +309,21 @@ use the <code class="docutils literal"><span class="pre">``</span></code> tag.</
 available for some languages, such as <code class="docutils literal"><span class="pre">..</span> <span class="pre">code-block::</span> <span class="pre">bash</span></code> and
 <code class="docutils literal"><span class="pre">..</span> <span class="pre">code-block::</span> <span class="pre">python</span></code>.</li>
 </ul>
-<div class="highlight-bash"><div class="highlight"><pre><span class="c">#!/bin/bash</span>
-<span class="c"># This is a generic Bash script.</span>
+<div class="highlight-bash"><div class="highlight"><pre><span></span><span class="ch">#!/bin/bash</span>
+<span class="c1"># This is a generic Bash script.</span>
 
 <span class="nv">BASHVAR</span><span class="o">=</span><span class="s2">&quot;Hello, world!&quot;</span>
-<span class="nb">echo</span> <span class="nv">$BASHVAR</span>
+<span class="nb">echo</span> <span class="nv">$BA</span>SHVAR
 </pre></div>
 </div>
-<div class="highlight-python"><div class="highlight"><pre><span class="c">#!/usr/bin/env python</span>
-<span class="c"># This is a generic Python script.</span>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="ch">#!/usr/bin/env python</span>
+<span class="c1"># This is a generic Python script.</span>
 
 <span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
-    <span class="n">pythonstr</span> <span class="o">=</span> <span class="s">&quot;Hello, world!&quot;</span>
+    <span class="n">pythonstr</span> <span class="o">=</span> <span class="s2">&quot;Hello, world!&quot;</span>
     <span class="k">print</span><span class="p">(</span><span class="n">pythonstr</span><span class="p">)</span>
     <span class="k">return</span>
-<span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s">&quot;__main__&quot;</span><span class="p">:</span>
+<span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
     <span class="n">main</span><span class="p">()</span>
 </pre></div>
 </div>
@@ -350,7 +335,7 @@ an ellipsis, followed by lines of code. Use <code class="docutils literal"><span
 Python scripts. For Python code snippets that are not a stand-alone script,
 place any import commands between the shebang line and ellipsis.</li>
 </ul>
-<div class="highlight-python"><div class="highlight"><pre><span class="c">#!/usr/bin/env python</span>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="ch">#!/usr/bin/env python</span>
 <span class="kn">import</span> <span class="nn">numpy</span>
 <span class="o">...</span>
 <span class="k">def</span> <span class="nf">some_function</span><span class="p">(</span><span class="n">generic_vals</span><span class="p">):</span>
@@ -436,13 +421,15 @@ trajectories.</p>
 </ul>
 </li>
 </ul>
-
-  <h4>Previous topic</h4>
-  <p class="topless"><a href="overview.html"
-                        title="previous chapter">Overview</a></p>
-  <h4>Next topic</h4>
-  <p class="topless"><a href="source_code.html"
-                        title="next chapter">Source Code Management</a></p>
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../sphinx_index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="overview.html" title="previous chapter">Overview</a></li>
+      <li>Next: <a href="source_code.html" title="next chapter">Source Code Management</a></li>
+  </ul></li>
+</ul>
+</div>
   <div role="note" aria-label="source link">
     <h3>This Page</h3>
     <ul class="this-page-menu">
@@ -471,12 +458,12 @@ trajectories.</p>
       &copy;2015, Matthew C. Zwier and Lillian T. Chong.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.3.1</a>
-      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.3</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.3.5</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.7</a>
       
       |
       <a href="../sources/development/style_guide.txt"
-          rel="nofollow">Page source</a></li>
+          rel="nofollow">Page source</a>
     </div>
 
     

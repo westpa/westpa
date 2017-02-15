@@ -28,25 +28,10 @@
     <link rel="prev" title="GROMACS Tutorial: Molecular Dynamics of Na+/Cl- Association" href="gromacs.html" />
    
   
-  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9">
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
 
   </head>
-  <body role="document">
-    <div class="related" role="navigation" aria-label="related navigation">
-      <h3>Navigation</h3>
-      <ul>
-        <li class="right" style="margin-right: 10px">
-          <a href="../genindex.html" title="General Index"
-             accesskey="I">index</a></li>
-        <li class="right" >
-          <a href="openmm.html" title="OpenMM Tutorial: Molecular Dynamics of Na+/Cl- Association"
-             accesskey="N">next</a> |</li>
-        <li class="right" >
-          <a href="gromacs.html" title="GROMACS Tutorial: Molecular Dynamics of Na+/Cl- Association"
-             accesskey="P">previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="../sphinx_index.html">WESTPA 1.0b1 documentation</a> &raquo;</li> 
-      </ul>
-    </div>  
+  <body role="document">  
 
     <div class="document">
       <div class="documentwrapper">
@@ -112,7 +97,7 @@ generate initial velocities, and <code class="docutils literal"><span class="pre
 continuations, in which velocities are inherited from the parent segment.</p>
 <div class="section" id="md-continue-conf">
 <h3>md-continue.conf<a class="headerlink" href="#md-continue-conf" title="Permalink to this headline">¶</a></h3>
-<div class="highlight-python"><div class="highlight"><pre>#   0.5 ps NVT production with Langevin thermostat and GB implicit solvent
+<div class="highlight-python"><div class="highlight"><pre><span></span>#   0.5 ps NVT production with Langevin thermostat and GB implicit solvent
 #################################### INPUT ####################################
 paraTypeCharmm  on                      ;# Parameter infile  in &#39;CHARMM&#39; format
 coordinates     parent.coor             ;# Structure infile
@@ -160,7 +145,7 @@ frame of the trajectory after dynamics have been run.</p>
 </div>
 <div class="section" id="md-continue-conf-continued">
 <h3>md-continue.conf (continued)<a class="headerlink" href="#md-continue-conf-continued" title="Permalink to this headline">¶</a></h3>
-<div class="highlight-python"><div class="highlight"><pre>################################### OUTPUT ####################################
+<div class="highlight-python"><div class="highlight"><pre><span></span>################################### OUTPUT ####################################
 coorfile open dcd seg.dcd
 set i 0
 while { ![coorfile read] } {
@@ -325,11 +310,11 @@ WESTPA process is tarring, other cores are idle, potentially wasting CPU time.</
 <h2>Running the simulation<a class="headerlink" href="#running-the-simulation" title="Permalink to this headline">¶</a></h2>
 <p>From the simulation root directory (<code class="docutils literal"><span class="pre">$WEST_SIM_ROOT</span></code>), the simulation may be
 initialized using the command:</p>
-<div class="highlight-python"><div class="highlight"><pre>./init.sh
+<div class="highlight-python"><div class="highlight"><pre><span></span>./init.sh
 </pre></div>
 </div>
 <p>and run using the command:</p>
-<div class="highlight-python"><div class="highlight"><pre>./run.sh
+<div class="highlight-python"><div class="highlight"><pre><span></span>./run.sh
 </pre></div>
 </div>
 <p><code class="docutils literal"><span class="pre">init.sh</span></code> and <code class="docutils literal"><span class="pre">run.sh</span></code> call <code class="docutils literal"><span class="pre">w_init</span></code> and <code class="docutils literal"><span class="pre">w_run</span></code> from WESTPA. By
@@ -397,7 +382,7 @@ also where errors are output.</p>
 <p>Since only 10 iterations have been run, we do not yet have enough data to
 analyze. Edit <code class="docutils literal"><span class="pre">west.cfg</span></code> and change <code class="docutils literal"><span class="pre">max_total_iterations</span></code> to 100. Extend
 using the command:</p>
-<div class="highlight-python"><div class="highlight"><pre>./run.sh
+<div class="highlight-python"><div class="highlight"><pre><span></span>./run.sh
 </pre></div>
 </div>
 </div>
@@ -409,13 +394,13 @@ using the command:</p>
 distance of 1.8 Å as the bound state, and that containing a distance of 16.9 Å
 as the unbound state. Using <code class="docutils literal"><span class="pre">w_fluxanl</span></code>, we can calculate the flux into these
 target states, and from that calculate the association rate of Na<sup>+</sup>/Cl<sup>-</sup>. <code class="docutils literal"><span class="pre">w_fluxanl</span></code> may be run with the following commands:</p>
-<div class="highlight-python"><div class="highlight"><pre>source env.sh
+<div class="highlight-python"><div class="highlight"><pre><span></span>source env.sh
 $WEST_ROOT/bin/w_fluxanl
 </pre></div>
 </div>
 <p>The script will output the flux into the target states including confidence
 intervals calculated using the block bootstrap method:</p>
-<div class="highlight-python"><div class="highlight"><pre>Calculating mean flux and confidence intervals for iterations [1,101)
+<div class="highlight-python"><div class="highlight"><pre><span></span>Calculating mean flux and confidence intervals for iterations [1,101)
 target &#39;unbound&#39;:
   correlation length = a tau
   mean flux and CI   = b (c, d) tau^(-1)
@@ -428,14 +413,14 @@ target &#39;bound&#39;:
 flag. <code class="docutils literal"><span class="pre">w_fluxanl</span></code> also stores this information in an hdf5 file,
 <code class="docutils literal"><span class="pre">fluxanl.h5</span></code>. Using the python libraries h5py and pylab, we can visualize
 this data. Open a python interpreter and run the following commands:</p>
-<div class="highlight-python"><div class="highlight"><pre><span class="kn">import</span> <span class="nn">h5py</span><span class="o">,</span> <span class="nn">numpy</span><span class="o">,</span> <span class="nn">pylab</span>
-<span class="n">fluxanl</span>              <span class="o">=</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="s">&#39;fluxanl.h5&#39;</span><span class="p">)</span>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">h5py</span><span class="o">,</span> <span class="nn">numpy</span><span class="o">,</span> <span class="nn">pylab</span>
+<span class="n">fluxanl</span>              <span class="o">=</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="s1">&#39;fluxanl.h5&#39;</span><span class="p">)</span>
 <span class="n">flux</span>                 <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">100</span><span class="p">)</span>
-<span class="n">first_binding</span>        <span class="o">=</span> <span class="mi">100</span> <span class="o">-</span> <span class="n">fluxanl</span><span class="p">[</span><span class="s">&#39;target_flux&#39;</span><span class="p">][</span><span class="s">&#39;target_1&#39;</span><span class="p">][</span><span class="s">&#39;flux&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-<span class="n">flux</span><span class="p">[</span><span class="n">first_binding</span><span class="p">:]</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">fluxanl</span><span class="p">[</span><span class="s">&#39;target_flux&#39;</span><span class="p">][</span><span class="s">&#39;target_1&#39;</span><span class="p">][</span><span class="s">&#39;flux&#39;</span><span class="p">])</span>
+<span class="n">first_binding</span>        <span class="o">=</span> <span class="mi">100</span> <span class="o">-</span> <span class="n">fluxanl</span><span class="p">[</span><span class="s1">&#39;target_flux&#39;</span><span class="p">][</span><span class="s1">&#39;target_1&#39;</span><span class="p">][</span><span class="s1">&#39;flux&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+<span class="n">flux</span><span class="p">[</span><span class="n">first_binding</span><span class="p">:]</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">fluxanl</span><span class="p">[</span><span class="s1">&#39;target_flux&#39;</span><span class="p">][</span><span class="s1">&#39;target_1&#39;</span><span class="p">][</span><span class="s1">&#39;flux&#39;</span><span class="p">])</span>
 <span class="n">pylab</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">flux</span><span class="p">)</span>
-<span class="n">pylab</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s">&quot;Iteration&quot;</span><span class="p">)</span>
-<span class="n">pylab</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s">&quot;Instantaneous Flux $(</span><span class="se">\\</span><span class="s">frac{1}{</span><span class="se">\\</span><span class="s">tau})$&quot;</span><span class="p">)</span>
+<span class="n">pylab</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">&quot;Iteration&quot;</span><span class="p">)</span>
+<span class="n">pylab</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">&quot;Instantaneous Flux $(</span><span class="se">\\</span><span class="s2">frac{1}{</span><span class="se">\\</span><span class="s2">tau})$&quot;</span><span class="p">)</span>
 <span class="n">pylab</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
 </pre></div>
 </div>
@@ -449,23 +434,23 @@ and the first transition to the bound state occurred in iteration 3. The
 instantaneous flux is noisy and difficult to interpret, and it is clearer to
 view the time evolution of the flux. Run <code class="docutils literal"><span class="pre">w_fluxanl</span></code> again, this time with
 the <code class="docutils literal"><span class="pre">--evol</span></code> flag:</p>
-<div class="highlight-python"><div class="highlight"><pre>$WEST_ROOT/bin/w_fluxanl --evol
+<div class="highlight-python"><div class="highlight"><pre><span></span>$WEST_ROOT/bin/w_fluxanl --evol
 </pre></div>
 </div>
 <p>We may plot the time evolution of flux using the following commands at a python
 interpreter:</p>
-<div class="highlight-python"><div class="highlight"><pre><span class="kn">import</span> <span class="nn">h5py</span><span class="o">,</span> <span class="nn">numpy</span><span class="o">,</span> <span class="nn">pylab</span>
-<span class="n">fluxanl</span>   <span class="o">=</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="s">&#39;fluxanl.h5&#39;</span><span class="p">)</span>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">h5py</span><span class="o">,</span> <span class="nn">numpy</span><span class="o">,</span> <span class="nn">pylab</span>
+<span class="n">fluxanl</span>   <span class="o">=</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="s1">&#39;fluxanl.h5&#39;</span><span class="p">)</span>
 <span class="n">mean_flux</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">100</span><span class="p">)</span>
 <span class="n">ci_ub</span>     <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">100</span><span class="p">)</span>
 <span class="n">ci_lb</span>     <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">100</span><span class="p">)</span>
-<span class="n">first_binding</span>             <span class="o">=</span> <span class="mi">100</span> <span class="o">-</span> <span class="n">fluxanl</span><span class="p">[</span><span class="s">&#39;target_flux&#39;</span><span class="p">][</span><span class="s">&#39;target_1&#39;</span><span class="p">][</span><span class="s">&#39;flux_evolution&#39;</span><span class="p">][</span><span class="s">&#39;expected&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-<span class="n">mean_flux</span><span class="p">[</span><span class="n">first_binding</span><span class="p">:]</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">fluxanl</span><span class="p">[</span><span class="s">&#39;target_flux&#39;</span><span class="p">][</span><span class="s">&#39;target_1&#39;</span><span class="p">][</span><span class="s">&#39;flux_evolution&#39;</span><span class="p">][</span><span class="s">&#39;expected&#39;</span><span class="p">])</span>
-<span class="n">ci_lb</span><span class="p">[</span><span class="n">first_binding</span><span class="p">:]</span>     <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">fluxanl</span><span class="p">[</span><span class="s">&#39;target_flux&#39;</span><span class="p">][</span><span class="s">&#39;target_1&#39;</span><span class="p">][</span><span class="s">&#39;flux_evolution&#39;</span><span class="p">][</span><span class="s">&#39;ci_lbound&#39;</span><span class="p">])</span>
-<span class="n">ci_ub</span><span class="p">[</span><span class="n">first_binding</span><span class="p">:]</span>     <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">fluxanl</span><span class="p">[</span><span class="s">&#39;target_flux&#39;</span><span class="p">][</span><span class="s">&#39;target_1&#39;</span><span class="p">][</span><span class="s">&#39;flux_evolution&#39;</span><span class="p">][</span><span class="s">&#39;ci_ubound&#39;</span><span class="p">])</span>
-<span class="n">pylab</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">mean_flux</span><span class="p">,</span> <span class="s">&#39;b&#39;</span><span class="p">,</span> <span class="n">ci_lb</span><span class="p">,</span> <span class="s">&#39;g&#39;</span><span class="p">,</span> <span class="n">ci_ub</span><span class="p">,</span> <span class="s">&#39;r&#39;</span><span class="p">)</span>
-<span class="n">pylab</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s">&quot;Iteration&quot;</span><span class="p">)</span>
-<span class="n">pylab</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s">&quot;Mean Flux $(</span><span class="se">\\</span><span class="s">frac{1}{</span><span class="se">\\</span><span class="s">tau})$&quot;</span><span class="p">)</span>
+<span class="n">first_binding</span>             <span class="o">=</span> <span class="mi">100</span> <span class="o">-</span> <span class="n">fluxanl</span><span class="p">[</span><span class="s1">&#39;target_flux&#39;</span><span class="p">][</span><span class="s1">&#39;target_1&#39;</span><span class="p">][</span><span class="s1">&#39;flux_evolution&#39;</span><span class="p">][</span><span class="s1">&#39;expected&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+<span class="n">mean_flux</span><span class="p">[</span><span class="n">first_binding</span><span class="p">:]</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">fluxanl</span><span class="p">[</span><span class="s1">&#39;target_flux&#39;</span><span class="p">][</span><span class="s1">&#39;target_1&#39;</span><span class="p">][</span><span class="s1">&#39;flux_evolution&#39;</span><span class="p">][</span><span class="s1">&#39;expected&#39;</span><span class="p">])</span>
+<span class="n">ci_lb</span><span class="p">[</span><span class="n">first_binding</span><span class="p">:]</span>     <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">fluxanl</span><span class="p">[</span><span class="s1">&#39;target_flux&#39;</span><span class="p">][</span><span class="s1">&#39;target_1&#39;</span><span class="p">][</span><span class="s1">&#39;flux_evolution&#39;</span><span class="p">][</span><span class="s1">&#39;ci_lbound&#39;</span><span class="p">])</span>
+<span class="n">ci_ub</span><span class="p">[</span><span class="n">first_binding</span><span class="p">:]</span>     <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">fluxanl</span><span class="p">[</span><span class="s1">&#39;target_flux&#39;</span><span class="p">][</span><span class="s1">&#39;target_1&#39;</span><span class="p">][</span><span class="s1">&#39;flux_evolution&#39;</span><span class="p">][</span><span class="s1">&#39;ci_ubound&#39;</span><span class="p">])</span>
+<span class="n">pylab</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">mean_flux</span><span class="p">,</span> <span class="s1">&#39;b&#39;</span><span class="p">,</span> <span class="n">ci_lb</span><span class="p">,</span> <span class="s1">&#39;g&#39;</span><span class="p">,</span> <span class="n">ci_ub</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span>
+<span class="n">pylab</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">&quot;Iteration&quot;</span><span class="p">)</span>
+<span class="n">pylab</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">&quot;Mean Flux $(</span><span class="se">\\</span><span class="s2">frac{1}{</span><span class="se">\\</span><span class="s2">tau})$&quot;</span><span class="p">)</span>
 <span class="n">pylab</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
 </pre></div>
 </div>
@@ -477,7 +462,7 @@ reached steady-state conditions. When calculating the rate, we discard the
 portion of data during which the system is equilibrating, using only portion
 over which the rates are steady and converging. We may calculate the rate using
 only the last 50 iterations:</p>
-<div class="highlight-python"><div class="highlight"><pre>$WEST_ROOT/bin/w_fluxanl --first-iter 50
+<div class="highlight-python"><div class="highlight"><pre><span></span>$WEST_ROOT/bin/w_fluxanl --first-iter 50
 
 Calculating mean flux and confidence intervals for iterations [50,101)
 target &#39;unbound&#39;:
@@ -502,7 +487,7 @@ the segments for one of your completed pathways straightforward. Both
 <code class="docutils literal"><span class="pre">w_succ</span></code> and <code class="docutils literal"><span class="pre">w_trace</span></code> are located in <code class="docutils literal"><span class="pre">$WEST_ROOT/bin</span></code>.</p>
 <p>First use <code class="docutils literal"><span class="pre">w_succ</span></code> by entering into the command line from your simulation
 root directory:</p>
-<div class="highlight-python"><div class="highlight"><pre>source env.sh
+<div class="highlight-python"><div class="highlight"><pre><span></span>source env.sh
 $WEST_ROOT/bin/w_succ
 </pre></div>
 </div>
@@ -511,7 +496,7 @@ iteration and segment ids. The target state each pathway has reached may be
 determined from the final value of the progress coordinate. Pick any set of
 completed iteration and segment ids and use them with the <code class="docutils literal"><span class="pre">w_trace</span></code> tool.
 For example, if iteration 17 segment 2 is a completed pathway, run:</p>
-<div class="highlight-python"><div class="highlight"><pre>$WEST_ROOT/bin/w_trace 17:2
+<div class="highlight-python"><div class="highlight"><pre><span></span>$WEST_ROOT/bin/w_trace 17:2
 </pre></div>
 </div>
 <p><code class="docutils literal"><span class="pre">w_trace</span></code> will output a text file named <code class="docutils literal"><span class="pre">traj_17_2_trace.txt</span></code> listing the
@@ -525,23 +510,23 @@ in the outfile <code class="docutils literal"><span class="pre">trajs.h5</span><
 <code class="docutils literal"><span class="pre">west.h5</span></code>, we can generate a complete trajectory viewable using <a class="reference external" href="http://www.ks.uiuc.edu/Research/vmd">Visual
 Molecular Dynamics</a> using the script
 <code class="docutils literal"><span class="pre">cat_trajectory.py</span></code>, included in the <code class="docutils literal"><span class="pre">westpa_scripts</span></code> subfolder:</p>
-<div class="highlight-python"><div class="highlight"><pre><span class="kn">import</span> <span class="nn">h5py</span><span class="o">,</span> <span class="nn">numpy</span><span class="o">,</span> <span class="nn">sys</span>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">h5py</span><span class="o">,</span> <span class="nn">numpy</span><span class="o">,</span> <span class="nn">sys</span>
 
 <span class="n">infile</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">usecols</span> <span class="o">=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
-<span class="n">west</span>   <span class="o">=</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="s">&#39;west.h5&#39;</span><span class="p">)</span>
+<span class="n">west</span>   <span class="o">=</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="s1">&#39;west.h5&#39;</span><span class="p">)</span>
 <span class="n">coords</span> <span class="o">=</span> <span class="p">[]</span>
 <span class="k">for</span> <span class="n">iteration</span><span class="p">,</span> <span class="n">seg_id</span> <span class="ow">in</span> <span class="n">infile</span><span class="p">[</span><span class="mi">1</span><span class="p">:]:</span>
-    <span class="n">iter_key</span> <span class="o">=</span> <span class="s">&quot;iter_{0:08d}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">iteration</span><span class="p">))</span>
-    <span class="n">SOD</span>      <span class="o">=</span> <span class="n">west</span><span class="p">[</span><span class="s">&#39;iterations&#39;</span><span class="p">][</span><span class="n">iter_key</span><span class="p">][</span><span class="s">&#39;auxdata&#39;</span><span class="p">][</span><span class="s">&#39;coord&#39;</span><span class="p">][</span><span class="n">seg_id</span><span class="p">,</span><span class="mi">1</span><span class="p">:,</span><span class="mi">0</span><span class="p">,:]</span>
-    <span class="n">CLA</span>      <span class="o">=</span> <span class="n">west</span><span class="p">[</span><span class="s">&#39;iterations&#39;</span><span class="p">][</span><span class="n">iter_key</span><span class="p">][</span><span class="s">&#39;auxdata&#39;</span><span class="p">][</span><span class="s">&#39;coord&#39;</span><span class="p">][</span><span class="n">seg_id</span><span class="p">,</span><span class="mi">1</span><span class="p">:,</span><span class="mi">1</span><span class="p">,:]</span>
+    <span class="n">iter_key</span> <span class="o">=</span> <span class="s2">&quot;iter_{0:08d}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">iteration</span><span class="p">))</span>
+    <span class="n">SOD</span>      <span class="o">=</span> <span class="n">west</span><span class="p">[</span><span class="s1">&#39;iterations&#39;</span><span class="p">][</span><span class="n">iter_key</span><span class="p">][</span><span class="s1">&#39;auxdata&#39;</span><span class="p">][</span><span class="s1">&#39;coord&#39;</span><span class="p">][</span><span class="n">seg_id</span><span class="p">,</span><span class="mi">1</span><span class="p">:,</span><span class="mi">0</span><span class="p">,:]</span>
+    <span class="n">CLA</span>      <span class="o">=</span> <span class="n">west</span><span class="p">[</span><span class="s1">&#39;iterations&#39;</span><span class="p">][</span><span class="n">iter_key</span><span class="p">][</span><span class="s1">&#39;auxdata&#39;</span><span class="p">][</span><span class="s1">&#39;coord&#39;</span><span class="p">][</span><span class="n">seg_id</span><span class="p">,</span><span class="mi">1</span><span class="p">:,</span><span class="mi">1</span><span class="p">,:]</span>
     <span class="n">coords</span>  <span class="o">+=</span> <span class="p">[</span><span class="n">numpy</span><span class="o">.</span><span class="n">column_stack</span><span class="p">((</span><span class="n">SOD</span><span class="p">,</span> <span class="n">CLA</span><span class="p">))]</span>
-<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">][:</span><span class="o">-</span><span class="mi">4</span><span class="p">]</span> <span class="o">+</span> <span class="s">&quot;.xyz&quot;</span><span class="p">,</span> <span class="s">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">outfile</span><span class="p">:</span>
+<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">][:</span><span class="o">-</span><span class="mi">4</span><span class="p">]</span> <span class="o">+</span> <span class="s2">&quot;.xyz&quot;</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">outfile</span><span class="p">:</span>
     <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">frame</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">numpy</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span><span class="n">coords</span><span class="p">)):</span>
-        <span class="n">outfile</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&quot;2</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">)</span>
-        <span class="n">outfile</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&quot;{0}</span><span class="se">\n</span><span class="s">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">))</span>
-        <span class="n">outfile</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&quot;SOD {0:9.5f} {1:9.5f} {2:9.5f}</span><span class="se">\n</span><span class="s">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+        <span class="n">outfile</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;2</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">outfile</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;{0}</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">))</span>
+        <span class="n">outfile</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;SOD {0:9.5f} {1:9.5f} {2:9.5f}</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
           <span class="nb">float</span><span class="p">(</span><span class="n">frame</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> <span class="nb">float</span><span class="p">(</span><span class="n">frame</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span> <span class="nb">float</span><span class="p">(</span><span class="n">frame</span><span class="p">[</span><span class="mi">2</span><span class="p">])))</span>
-        <span class="n">outfile</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&quot;CLA {0:9.5f} {1:9.5f} {2:9.5f}</span><span class="se">\n</span><span class="s">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+        <span class="n">outfile</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;CLA {0:9.5f} {1:9.5f} {2:9.5f}</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
           <span class="nb">float</span><span class="p">(</span><span class="n">frame</span><span class="p">[</span><span class="mi">3</span><span class="p">]),</span> <span class="nb">float</span><span class="p">(</span><span class="n">frame</span><span class="p">[</span><span class="mi">4</span><span class="p">]),</span> <span class="nb">float</span><span class="p">(</span><span class="n">frame</span><span class="p">[</span><span class="mi">5</span><span class="p">])))</span>
 </pre></div>
 </div>
@@ -627,13 +612,15 @@ Na+/Cl−, Methane/Benzene, and K+/18-Crown-6 Ether. J Chem Theory Comput.
 </ul>
 </li>
 </ul>
-
-  <h4>Previous topic</h4>
-  <p class="topless"><a href="gromacs.html"
-                        title="previous chapter">GROMACS Tutorial: Molecular Dynamics of Na<sup>+</sup>/Cl<sup>-</sup> Association</a></p>
-  <h4>Next topic</h4>
-  <p class="topless"><a href="openmm.html"
-                        title="next chapter">OpenMM Tutorial: Molecular Dynamics of Na<sup>+</sup>/Cl<sup>-</sup> Association</a></p>
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../sphinx_index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="gromacs.html" title="previous chapter">GROMACS Tutorial: Molecular Dynamics of Na<sup>+</sup>/Cl<sup>-</sup> Association</a></li>
+      <li>Next: <a href="openmm.html" title="next chapter">OpenMM Tutorial: Molecular Dynamics of Na<sup>+</sup>/Cl<sup>-</sup> Association</a></li>
+  </ul></li>
+</ul>
+</div>
   <div role="note" aria-label="source link">
     <h3>This Page</h3>
     <ul class="this-page-menu">
@@ -662,12 +649,12 @@ Na+/Cl−, Methane/Benzene, and K+/18-Crown-6 Ether. J Chem Theory Comput.
       &copy;2015, Matthew C. Zwier and Lillian T. Chong.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.3.1</a>
-      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.3</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.3.5</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.7</a>
       
       |
       <a href="../sources/tutorials/namd.txt"
-          rel="nofollow">Page source</a></li>
+          rel="nofollow">Page source</a>
     </div>
 
     

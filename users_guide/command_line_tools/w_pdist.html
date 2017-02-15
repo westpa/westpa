@@ -29,26 +29,10 @@
     <link rel="prev" title="w_ntop" href="w_ntop.html" />
    
   
-  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9">
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
 
   </head>
-  <body role="document">
-    <div class="related" role="navigation" aria-label="related navigation">
-      <h3>Navigation</h3>
-      <ul>
-        <li class="right" style="margin-right: 10px">
-          <a href="../../genindex.html" title="General Index"
-             accesskey="I">index</a></li>
-        <li class="right" >
-          <a href="w_run.html" title="w_run"
-             accesskey="N">next</a> |</li>
-        <li class="right" >
-          <a href="w_ntop.html" title="w_ntop"
-             accesskey="P">previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="../../sphinx_index.html">WESTPA 1.0b1 documentation</a> &raquo;</li>
-          <li class="nav-item nav-item-1"><a href="../command_line_tools.html" accesskey="U">Command Line Tool Index</a> &raquo;</li> 
-      </ul>
-    </div>  
+  <body role="document">  
 
     <div class="document">
       <div class="documentwrapper">
@@ -64,7 +48,7 @@ distribution&#8217;s evolution over a user-specified number of simulation iterat
 <div class="section" id="overview">
 <h2>Overview<a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h2>
 <p>Usage:</p>
-<div class="highlight-python"><div class="highlight"><pre>$WEST_ROOT/bin/w_pdist [-h] [-r RCFILE] [--quiet | --verbose | --debug] [--version]
+<div class="highlight-python"><div class="highlight"><pre><span></span>$WEST_ROOT/bin/w_pdist [-h] [-r RCFILE] [--quiet | --verbose | --debug] [--version]
                        [-W WEST_H5FILE] [--first-iter N_ITER] [--last-iter N_ITER]
                        [-b BINEXPR] [-o OUTPUT]
                        [--construct-dataset CONSTRUCT_DATASET | --dsspecs DSSPEC [DSSPEC ...]]
@@ -91,7 +75,7 @@ information on the general options.</p>
 data and where to output calculated progress coordinate probability
 distribution data.</p>
 <p>Both input and output files are <em>hdf5</em> format:</p>
-<div class="highlight-python"><div class="highlight"><pre>-W, --WEST_H5FILE file
+<div class="highlight-python"><div class="highlight"><pre><span></span>-W, --WEST_H5FILE file
   Read simulation result data from file *file*. (**Default:** The
   *hdf5* file specified in the configuration file (default config file
   is *west.h5*))
@@ -106,7 +90,7 @@ distribution data.</p>
 <h3>Iteration range options<a class="headerlink" href="#iteration-range-options" title="Permalink to this headline">¶</a></h3>
 <p>Specify the range of iterations over which to construct the progress
 coordinate probability distribution.:</p>
-<div class="highlight-python"><div class="highlight"><pre>--first-iter n_iter
+<div class="highlight-python"><div class="highlight"><pre><span></span>--first-iter n_iter
   Construct probability distribution starting with iteration *n_iter*
   (**Default:** 1)
 
@@ -123,7 +107,7 @@ coordinate probability distribution.:</p>
 coordinate probability distribution. If using a multidimensional
 progress coordinate, different binning schemes can be used for the
 probability distribution for each progress coordinate.:</p>
-<div class="highlight-python"><div class="highlight"><pre>-b binexpr
+<div class="highlight-python"><div class="highlight"><pre><span></span>-b binexpr
   *binexpr* specifies the number and formatting of the bins. Its
   format can be as follows:
 
@@ -153,12 +137,12 @@ progress coordinate:</p>
 distribution over the lowest reached progress coordinate to the largest; work
 is parallelized over all available local cores using the &#8216;processes&#8217; work
 manager):</p>
-<div class="highlight-python"><div class="highlight"><pre>$WEST_ROOT/bin/w_pdist
+<div class="highlight-python"><div class="highlight"><pre><span></span>$WEST_ROOT/bin/w_pdist
 </pre></div>
 </div>
 <p>Same as above, except using the serial work manager (which may be more
 efficient for smaller datasets):</p>
-<div class="highlight-python"><div class="highlight"><pre>$WEST_ROOT/bin/w_pdist --serial
+<div class="highlight-python"><div class="highlight"><pre><span></span>$WEST_ROOT/bin/w_pdist --serial
 </pre></div>
 </div>
 </div>
@@ -184,13 +168,17 @@ efficient for smaller datasets):</p>
 </ul>
 </li>
 </ul>
-
-  <h4>Previous topic</h4>
-  <p class="topless"><a href="w_ntop.html"
-                        title="previous chapter">w_ntop</a></p>
-  <h4>Next topic</h4>
-  <p class="topless"><a href="w_run.html"
-                        title="next chapter">w_run</a></p>
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../sphinx_index.html">Documentation overview</a><ul>
+  <li><a href="../command_line_tools.html">Command Line Tool Index</a><ul>
+      <li>Previous: <a href="w_ntop.html" title="previous chapter">w_ntop</a></li>
+      <li>Next: <a href="w_run.html" title="next chapter">w_run</a></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
   <div role="note" aria-label="source link">
     <h3>This Page</h3>
     <ul class="this-page-menu">
@@ -219,12 +207,12 @@ efficient for smaller datasets):</p>
       &copy;2015, Matthew C. Zwier and Lillian T. Chong.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.3.1</a>
-      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.3</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.3.5</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.7</a>
       
       |
       <a href="../../sources/users_guide/command_line_tools/w_pdist.txt"
-          rel="nofollow">Page source</a></li>
+          rel="nofollow">Page source</a>
     </div>
 
     
