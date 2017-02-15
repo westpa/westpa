@@ -14,12 +14,13 @@ Zwier, M.C., Adelman, J.L., Kaus, J.W., Pratt, A.J., Wong, K.F., Rego, N.B., Sua
 Wang, D. W., Grabe, M., Zuckerman, D. M., and Chong, L. T. "WESTPA: An Interoperable, Highly 
 Scalable Software Package For Weighted Ensemble Simulation and Analysis," J. Chem. Theory Comput., 11: 800−809 (2015). 
 
-To help us fund development, please cite the article listed above and
-consider contributing documentation or code to the WESTPA community.
+To help us fund development, please cite the article listed above. To help us improve WESTPA please fill out a 
+one-minute survey_ and consider contributing documentation or code to the WESTPA community.
 
 WESTPA is free software, licensed under the terms of the GNU General Public
 License, Version 3. See the file ``COPYING`` for more information.
 
+.. _survey: https://docs.google.com/forms/d/e/1FAIpQLSfWaB2aryInU06cXrCyAFmhD_gPibgOfFk-dspLEsXuS9-RGQ/viewform
 
 ------------
 Requirements
@@ -56,9 +57,6 @@ High-level tutorials of how to use the WESTPA software can be found here_.
 Further, all WESTPA command-line tools (located in ``westpa/bin``) provide detailed help when
 given the -h/--help option.
 
-If you have feedback you can answer this form_ and tell us what you would
-would like to see changed!
-
 Finally, while WESTPA is a powerful tool that enables expert simulators to access much longer 
 timescales than is practical with standard simulations, there can be a steep learning curve to 
 figuring out how to effectively run the simulations on your computing resource of choice. 
@@ -67,7 +65,6 @@ of their system, we invite you to contact Lillian Chong (ltchong AT pitt DOT edu
 a few days with her lab and/or setting up video conferencing sessions to help you get your 
 simulations off the ground.
 
-.. _form: https://docs.google.com/forms/d/e/1FAIpQLSfWaB2aryInU06cXrCyAFmhD_gPibgOfFk-dspLEsXuS9-RGQ/viewform
 .. _here: https://westpa.github.io/westpa/sphinx_index.html#tutorials
 
 
