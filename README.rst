@@ -56,6 +56,9 @@ High-level tutorials of how to use the WESTPA software can be found here_.
 Further, all WESTPA command-line tools (located in ``westpa/bin``) provide detailed help when
 given the -h/--help option.
 
+If you have feedback you can answer this form_ and tell us what you would
+would like to see changed!
+
 Finally, while WESTPA is a powerful tool that enables expert simulators to access much longer 
 timescales than is practical with standard simulations, there can be a steep learning curve to 
 figuring out how to effectively run the simulations on your computing resource of choice. 
@@ -63,9 +66,6 @@ For serious users who have completed the online tutorials and are ready for prod
 of their system, we invite you to contact Lillian Chong (ltchong AT pitt DOT edu) about spending 
 a few days with her lab and/or setting up video conferencing sessions to help you get your 
 simulations off the ground.
-
-If you have feedback you can answer this form_ and tell us what you would
-would like to see changed!
 
 .. _form: https://docs.google.com/forms/d/e/1FAIpQLSfWaB2aryInU06cXrCyAFmhD_gPibgOfFk-dspLEsXuS9-RGQ/viewform
 .. _here: https://westpa.github.io/westpa/sphinx_index.html#tutorials
