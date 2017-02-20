@@ -25,7 +25,7 @@ Introductory
 
    An introduction to WESTPA <https://www.youtube.com/watch?v=YpltPzpcmLY>
    Analysis Tools <https://www.youtube.com/watch?v=rMFvcHOOxZc>
-   Molecular Scale Systems <https://www.youtube.com/watch?v=l1SmGx77hKo>
+   Molecular Scale Systems <tutorials/p53>
    Non-spatial Systems <https://www.youtube.com/watch?v=rY-IJcLFiaM>
    AMBER   <tutorials/amber>
    GROMACS <tutorials/gromacs>

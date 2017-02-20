@@ -1,0 +1,649 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>&lt;no title&gt; &mdash; WESTPA 1.0b1 documentation</title>
+    
+    <link rel="stylesheet" href="../static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '1.0b1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../static/jquery.js"></script>
+    <script type="text/javascript" src="../static/underscore.js"></script>
+    <script type="text/javascript" src="../static/doctools.js"></script>
+    <link rel="top" title="WESTPA 1.0b1 documentation" href="../sphinx_index.html" />
+    <link rel="next" title="AMBER Tutorial: Molecular Dynamics of Na+/Cl- Association" href="amber.html" />
+    <link rel="prev" title="HDF5 File Schema" href="../users_guide/hdf5.html" />
+   
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body role="document">  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div id="mw-page-base" class="noprint"></div><div id="mw-head-base" class="noprint"></div><div id="content" class="mw-body"><div id="mw-js-message" style="display:none;"></div><p class="firstheading rubric" id="firstheading">Molecular-scale systems</p>
+<div id="bodyContent"><div id="siteSub"><p>From Weighted Ensemble Wiki</p>
+</div><div id="contentSub"></div><div id="jump-to-nav" class="mw-jump"><p>Jump to: <a class="reference external" href="#mw-head">navigation</a>, <a class="reference external" href="#p-search">search</a></p>
+</div><div id="mw-content-text" class="mw-content-ltr" lang="en" dir="ltr"><p>This tutorial is designed to help users convert the sample WESTPA
+tutorials into larger-scale simulations, both in terms of the system
+(degrees of freedom) and the number of walkers, number of dimensions,
+auxiliary coordinates, etc, by gaining an intimate understanding of the
+setup files. While some familiarity with WESTPA and proficiency with
+GROMACS is assumed, the tutorial nevertheless aims to be as explicit as
+possible.</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="100%" />
+</colgroup>
+<tbody valign="top">
+<tr class="row-odd"><td><div class="first"><div id="toctitle"></div><p class="rubric" id="contents">Contents</p>
+</div><ul class="simple">
+<li><a class="reference external" href="#Molecular_Scale_Systems:_P53_peptide_in_Explicit_Solvent">1 Molecular Scale Systems: P53 peptide in Explicit
+Solvent</a></li>
+</ul>
+<p>_</p>
+<blockquote>
+<div><ul class="simple">
+<li><a class="reference external" href="#Overview">1.1 Overview</a></li>
+<li><a class="reference external" href="#Required_Files_.26_Initial_Setup">1.2 Required Files &amp; Initial
+Setup</a></li>
+<li><a class="reference external" href="#Preparing_the_GROMACS_files">1.3 Preparing the GROMACS files</a><ul>
+<li><a class="reference external" href="#md.mdp">1.3.1 md.mdp</a><ul>
+<li><a class="reference external" href="#Picking_an_appropriate_.CF.84_value">1.3.1.1 Picking an appropriate τ
+value</a></li>
+<li><a class="reference external" href="#Things_to_edit">1.3.1.2 Things to edit</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference external" href="#Preparing_the_WESTPA_files">1.4 Preparing the WESTPA files</a><ul>
+<li><a class="reference external" href="#init.sh">1.4.1 init.sh</a></li>
+<li><a class="reference external" href="#What_is_BASIS_STATES.3F">1.4.2 What is BASIS_STATES?</a></li>
+<li><a class="reference external" href="#runseg.sh">1.4.3 runseg.sh</a><ul>
+<li><a class="reference external" href="#Changes_to_use_the_local_scratch">1.4.3.1 Changes to use the local
+scratch</a></li>
+<li><a class="reference external" href="#Trajectory_Initialization_.26_mdrun">1.4.3.2 Trajectory Initialization &amp;
+mdrun</a></li>
+<li><a class="reference external" href="#Imaging_.26_Progress_Coordinate_Return">1.4.3.3 Imaging &amp; Progress Coordinate
+Return</a></li>
+</ul>
+</li>
+<li><a class="reference external" href="#west.cfg">1.4.4 west.cfg</a></li>
+<li><a class="reference external" href="#system.py">1.4.5 system.py</a><ul>
+<li><a class="reference external" href="#system.System.initialize">1.4.5.1
+system.System.initialize</a></li>
+<li><a href="#id1"><span class="problematic" id="id2">`</span></a>1.4.5.2
+system.pcoord_loader_color_tracker &lt;#system.pcoord_loader</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</div></blockquote>
+<p>_color_tracker&gt;`__</p>
+<blockquote class="last">
+<div><ul class="simple">
+<li><a class="reference external" href="#Run_it.21">1.5 Run it!</a></li>
+</ul>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+<p class="rubric" id="id3">Molecular Scale Systems: P53 peptide in Explicit Solvent</p>
+<p>by Adam Pratt</p>
+<p>Contact:
+<a class="reference external" href="mailto:Adam&#46;J&#46;Pratt&#37;&#52;&#48;pitt&#46;edu?Subject=MolecularScaleTutorial">Adam<span>&#46;</span>J<span>&#46;</span>Pratt<span>&#64;</span>pitt<span>&#46;</span>edu</a></p>
+<p>The video of the presentation on this subject can be found on
+<a class="reference external" href="https://www.youtube.com/watch?v=l1SmGx77hKo">youtube</a>.</p>
+<p>Requirements: WESTPA 1.0 beta and GROMACS 4.6.5</p>
+<p>Results from this tutorial can be compared to those of extensive brute
+force simulations reported in Xiong et al., JPC A (2011)
+<a class="reference external" href="http://pubs.acs.org/doi/abs/10.1021/jp112235d">here</a>.</p>
+<p class="rubric" id="overview">Overview</p>
+<p>This tutorial serves as an example of how to do a more advanced WESTPA
+simulation of a molecular-scale system; specifically, the conformational
+sampling of a peptide in explicit solvent using the GROMACS dynamics
+engine. As such, much of the tutorial is focused on what is different
+from the Na+/Cl- tutorial, and what complications are involved in a more
+complex system. To follow along successfully, the user should have
+already run the <a class="reference external" href="https://chong.chem.pitt.edu/wewiki/Introductory_Tutorial:_GROMACS">introductory
+tutorial</a>
+in order to be familiar with the basics of WESTPA and weighted ensemble.</p>
+<p class="rubric" id="required-files-initial-setup">Required Files &amp; Initial Setup</p>
+<p>To run a WESTPA simulation of the p53 peptide, you will need a number of
+files for both WESTPA and the dynamics engine (GROMACS). To obtain all
+of these files, clone the following repository:</p>
+<p><a class="reference external" href="https://github.com/ajoshpratt/p53-tutorial">p53-tutorial</a></p>
+<p>by using the following set of commands:</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span>cd ~/
+git clone https://github.com/ajoshpratt/p53-tutorial
+</pre></div>
+</div>
+<p>As the tutorial has been designed for the WESTPA user&#8217;s workshop, the
+env.sh has been set up to run on the Frank cluster at the <a class="reference external" href="http://www.sam.pitt.edu/">Center for
+Simulation and Modeling</a> (SAM) at the
+University of Pittsburgh. Users wishing to get a headstart can then
+initialize the simulation as follows:</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span>cd p53-tutorial
+./init.sh
+</pre></div>
+</div>
+<p>and then submit to the cluster:</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span>qsub runwe-frank.sh
+</pre></div>
+</div>
+<p class="rubric" id="preparing-the-gromacs-files">Preparing the GROMACS files</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="19%" />
+<col width="81%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Input File</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>p53.top</td>
+<td>topology</td>
+</tr>
+<tr class="row-odd"><td>conf.itp</td>
+<td>topology include file</td>
+</tr>
+<tr class="row-even"><td>ions.itp</td>
+<td>ion topology. Necessary due to differences in GROMACS.</td>
+</tr>
+<tr class="row-odd"><td>p53.tpr</td>
+<td>binary topology</td>
+</tr>
+<tr class="row-even"><td>p53.ndx</td>
+<td>GROMACS index file</td>
+</tr>
+<tr class="row-odd"><td>md.mdp</td>
+<td>configuration for initial segments</td>
+</tr>
+</tbody>
+</table>
+<p>Unlike the original Na+/Cl- tutorial, this simulation will be using
+explicit solvent, and as such velocities are not generated for new
+trajectories; therefore, there is only one .mdp file necessary. There is
+a new file, however, called the index file; GROMACS is intelligent
+enough to auto-generate groups for many simple systems (Na+/Cl- being
+one of them) when using programs such as g_dist, but for proteins or
+other complex systems (particularly those with a binding partner) where
+the user wishes to do complicated calculations, it is generally
+desirable to create an index file.</p>
+<p>Some extra files for the topology have been included to avoid some minor
+changes in how the force field parameters are being handled.</p>
+<p class="rubric" id="md-mdp">md.mdp</p>
+<p>While in the original paper, the Nosé–Hoover thermostat was used with a
+Parrinello-Rahman barostat, these options are not suitable for a
+weighted ensemble run as a stochastic element is required for the splits
+to diverge. Therefore, in this tutorial, the stochastic velocity
+rescaling thermostat (time constant of 0.1 ps) with a weak Berendsen
+barostat will be used, as these options have been tested internally and
+have been deemed to be suitable.</p>
+<p>The progress coordinate length will be determined by the options chosen
+here.</p>
+<p class="rubric" id="picking-an-appropriate-value">Picking an appropriate τ value</p>
+<p>The rule of thumb behind picking an appropriate τ value is to choose a
+timescale that will capture the system&#8217;s slowest motion that is relevant
+to your observable of interest, whether that is the diffusion of
+individual ligands, vibration of side chains, etc. Choosing an
+inappropriate τ value will not make your simulation wrong, however; it
+will simply hurt efficiency.</p>
+<p class="rubric" id="things-to-edit">Things to edit</p>
+<p>You must ensure that everything is compatible with your chosen τ value
+(15 ps, here), such as your output frequency options for the xtc file,
+forces, energy, etc. They should be, at most, the same value as nsteps,
+or nsteps should divide into it cleanly. The following options are the
+ones to adjust:</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="n">nsteps</span>
+<span class="n">nstcomm</span>
+<span class="n">nstlog</span>
+<span class="n">nstenergy</span>
+<span class="n">nstcalcenergy</span>
+<span class="n">nstxout</span>
+<span class="n">nstvout</span>
+<span class="n">nstfout</span>
+<span class="n">nstxtcout</span>
+</pre></div>
+</div>
+<p class="rubric" id="preparing-the-westpa-files">Preparing the WESTPA files</p>
+<p>For this section, it may be helpful to compare the files to that in the
+original GROMACS Na+/Cl- tutorial, as there are significant changes to
+many of them. If you are familiar with vim, running</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span>vimdiff file1 file2
+</pre></div>
+</div>
+<p>will allow you a line by line comparison with a splitscreen view,
+allowing you to see what lines have been added, removed, and changed.</p>
+<p class="rubric" id="init-sh">init.sh</p>
+<p>As this is an equilibrium simulation, no target state/bin is specified.
+In addition, as there is no recycling and the simulation is started from
+a delta distribution, there is no reason to create more than one initial
+state per basis state. The rest of the script simply cleans up prior
+runs in a sane manner, and kills any running simulations owned by the
+current user.</p>
+<p class="rubric" id="what-is-basis-states">What is BASIS_STATES?</p>
+<p>One of the files in the bstates directory is BASIS_STATES; this
+contains information about the basis states (in this case, there is only
+one), and it will be fed in to w_init with the &#8211;bstates-from-file flag
+during the initialization step of WESTPA to generate initial states. It
+is formatted as follows:</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span>internal_name relative_probability reference
+</pre></div>
+</div>
+<p>Where reference can be used in a manner determined entirely by the
+<a class="reference external" href="https://chong.chem.pitt.edu/wewiki/Molecular-scale_systems#west.cfg">west.cfg</a>
+file. In the Na+/Cl- tutorial, the bstates.txt file served the same
+purpose, and pointed simply to nacl.gro within the same directory. Here,
+the reference points to a directory within bstates, and west.cfg and
+get_pcoord.sh have been modified appropriately to use the file name
+within the directory. Our BASIS_STATES looks like the following:</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span>p53_bound_conf 1 p53
+</pre></div>
+</div>
+<p>Indicating that within bstates, there is a reference called p53 that
+will be internally referred to as p53_bound_conf, and it will be
+pulled with a probability of 1. A basis states file is useful for when
+there are multiple conformations you may wish to start from, or there is
+a known probability distribution inside of a particular state. You need
+only assign an appropriate probability to each reference, one on each
+line. If the probabilities do not sum to 1, WESTPA will renormalize
+them. For another example, see <a class="reference external" href="https://gist.github.com/ajoshpratt/4ff084fa6d754013d4a3">the
+following</a>
+(obviously not an appropriate file for this tutorial).</p>
+<p class="rubric" id="runseg-sh">runseg.sh</p>
+<p>There are significant changes to this file; not only are we returning
+auxiliary progress coordinates and dealing with imaging issues, we are
+also working with a more expensive system that may be more stressful on
+the communications infrastructure of your supercomputing cluster. While
+these changes aren&#8217;t strictly necessary to get the system up and
+running, the changes are noted, nonetheless.</p>
+<p>We&#8217;ll run through the file in chunks.</p>
+<p class="rubric" id="changes-to-use-the-local-scratch">Changes to use the local scratch</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span>1. Enter the simulation directory.
+2. Create the directory that will hold the trajectory segment data.
+3. Change into that directory.
+</pre></div>
+</div>
+<p>In env.sh, we have defined whether or not to use the local scratch space
+on the individual compute node, and have created a variable which holds
+the appropriate location, if such a thing exists on this supercomputer.</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span>If this is set to True,
+4. Create the trajectory segment directory on the scratch space on the local node.
+5. Change into that directory.
+</pre></div>
+</div>
+<p>We then define a variable called $STAGEIN (set to cp if we&#8217;re using
+local scratch space on the node, or ln if we&#8217;re not), which will be used
+to stage what files we need in to our working directory. If using the
+local scratch space, copying in the parent trajectory data and topology
+information generally results in significantly less network
+communication than writing dynamics information, as it is calculated,
+over the network to the shared file system.</p>
+<p>In addition, the cleanup code is modified; if the simulation is not run
+on the node, we remove the files we don&#8217;t want, whereas if we are
+working on the node, we only copy back what we want to the
+$WEST_SIM_ROOT location, and delete everything once we&#8217;re finished.
+From this point on, runseg.sh works the same, regardless of whether we
+are using the local scratch or not.</p>
+<p class="rubric" id="trajectory-initialization-mdrun">Trajectory Initialization &amp; mdrun</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span>case $WEST_CURRENT_SEG_INITPOINT_TYPE in
+    SEG_INITPOINT_CONTINUES)
+        # A continuation from a prior segment
+        # $WEST_PARENT_DATA_REF contains the reference to the
+        # We&#39;ll use the checkpoint files, rather than energy files,
+        # in this case.
+        #   parent segment
+        $STAGEIN $WEST_PARENT_DATA_REF/seg.gro ./parent.gro
+        $STAGEIN $WEST_PARENT_DATA_REF/seg.cpt ./parent.cpt
+        $STAGEIN $WEST_PARENT_DATA_REF/imaged_ref.gro ./parent_imaged.gro
+        $STAGEIN $GMX_CFG/* . || exit 1
+        $GROMPP -f $MDP -c parent.gro -t parent.cpt -p $TOP \
+          -o seg.tpr -po md_out.mdp
+    ;;
+
+    SEG_INITPOINT_NEWTRAJ)
+        # Initiation of a new trajectory
+        # In truth, there&#39;s very little difference between a new trajectory
+        # and an old one, except we handle our istates a little differently
+        # than a previous segment, and use the .edr file.
+        # For an explicit solvent simulation,
+        # all trajectories are considered continuations.
+        # We are also copying in the basis state as the imaged ref.
+        # $WEST_PARENT_DATA_REF contains the reference to the
+        #   appropriate basis or initial state
+        $STAGEIN $WEST_PARENT_DATA_REF.edr ./parent.edr
+        $STAGEIN $WEST_PARENT_DATA_REF.gro ./parent.gro
+        $STAGEIN $WEST_PARENT_DATA_REF.trr ./parent.trr
+        $STAGEIN $WEST_PARENT_DATA_REF.gro ./parent_imaged.gro
+        $STAGEIN $GMX_CFG/* .
+        $GROMPP -f $MDP -c parent.gro -e parent.edr -p $TOP \
+          -t parent.trr -o seg.tpr -po md_out.mdp
+    ;;
+
+    *)
+        # This should never fire.
+        echo &quot;unknown init point type $WEST_CURRENT_SEG_INITPOINT_TYPE&quot;
+        exit 2
+    ;;
+esac
+
+# Propagate segment
+# It&#39;s easiest to set our OpenMP thread count manually here.
+export OMP_NUM_THREADS=1
+$MDRUN -s   seg.tpr -o seg.trr -c  seg.gro -e seg.edr \
+       -cpo seg.cpt -g seg.log -x  seg.xtc -nt 1
+</pre></div>
+</div>
+<p>Like the implicit solvent simulations, new trajectories and
+continuations must be handled differently; this is despite the fact that
+there is little difference between the two, from a technical perspective
+(a new trajectory can simply be thought of as a continuation after the
+equilibration step in a new ensemble). There are a few significant
+differences here, however:</p>
+<p>1. No new velocities are generated for a new trajectory. Velocities
+already exist due to the previous solvent equilibration step and have
+been stored.</p>
+<p>2. New trajectories use the energy file from the basis state, whereas
+continuations use the checkpoint file. The checkpoint file is the
+preferred method of continuing simulations in newer versions of GROMACS,
+and saves full resolution state information from both the thermostat and
+the barostat, in addition to coordinates, velocities, etc.</p>
+<p>3. A file named &#8216;parent_imaged.gro&#8217; is called later on in runseg.sh,
+and so regardless of what type of trajectory this is, it must exist;
+continuations merely $STAGEIN that file, whereas new trajectories don&#8217;t
+have parents and must decide on how to handle that scenario. As the
+basis state they are being pulled from is, in this case, guaranteed to
+be within the box (more on this below), it is okay to use it as the
+reference state.</p>
+<p>Once that&#8217;s finished, mdrun is called (after setting a variable to force
+it run with 1 thread; this is easier on Frank than fiddling with the
+thread options on mdrun).</p>
+<p class="rubric" id="imaging-progress-coordinate-return">Imaging &amp; Progress Coordinate Return</p>
+<p>There are 4 distinct things that happen within this block of code:</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span>1. Image the system.
+2. Save the final, correctly imaged frame.
+3. Calculate the end to end center of mass distance of the caps, and return it (in Angstroms) as an auxiliary coordinate.
+4. Calculate the heavy atom RMSD of the P53 peptide after aligning on itself (heavy atom), and return it (in Angstroms) as the progress coordinate
+   (which is loaded by a custom data loader; see the section on system.py).
+</pre></div>
+</div>
+<p>Coordinates and log file parsing have been disabled for this system, but
+the functionality exists and should work, in general, for a large system
+(with adjustment of atom groups, nfields, etc).</p>
+<p>While exact imaging requirements tend to vary between systems, the above
+is a good baseline and should work for many systems. The most important
+aspect of this imaging procedure is that, when imaging, trjconv is
+referencing the final correctly imaged frame of the parent trajectory
+(which is a correctly imaged version of frame 0 of the current
+trajectory) so it knows where the protein/waters/solutes <em>should</em> be at
+time 0, and whether the protein should be placed back within the box.</p>
+<p>Without this correctly imaged parent reference structure, GROMACS images
+everything relative to frame 0 of the input trajectory file. If the
+imaging commands are correct, and the protein left the box during the
+previous segment, the parent pcoord will be correct; however, this
+iteration will start and stay outside of the box, and then RMSD
+calculations will be artificially high, resulting in large, frustrating
+discontinuities both in the free energy profile and in any visualized
+trajectory. Passing in the final, correctly imaged frame as a reference
+ensures that if the protein did leave the box, GROMACS will put the
+protein back in the box at the start of the current segment and no
+visualization artifacts will result.</p>
+<p>g_dist handles periodic boundary conditions correctly, regardless of
+imaging; it does not matter whether nojump.xtc or seg.xtc is passed in.</p>
+<p>The imaging steps are as follows:</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span>1. Remove periodic boundary conditions.  This effectively removes the box, allowing molecules to diffuse out of the box.
+2. Make whole any molecules that are split across a boundary.  Instead of existing across barriers, they will now &#39;jump&#39;.
+3. Remove jumps, referencing the parent image.  With the parent image in hand, GROMACS knows to simply allow a protein
+  or solvent molecule to diffuse across a boundary, rather than having it jump to the other side of the box.
+</pre></div>
+</div>
+<p>Once that is all complete, the appropriate metric is calculated (using
+g_dist and g_rms), converted into Angstroms, piped into its respective
+variable, $WEST_VAR_RETURN (which points to a temp file on the server
+node, generated by WESTPA), and is loaded by whatever loader is
+specified in west.cfg.</p>
+<p class="rubric" id="west-cfg">west.cfg</p>
+<p>Very little has changed here; however, it&#8217;s worth pointing out that the
+pcoord is being treated like any other dataset, and a custom loader is
+being used for it (system.pcoord_loader_color_tracker). This is so
+that the progress coordinate can be analyzed, and on-the-fly state
+information generated and saved as a second dimension. When data is
+returned to $WEST_PCOORD_RETURN in runseg.sh, it now bypasses the
+normal, built-in pcoord loader and uses this instead. In addition, every
+possible basis state is in a directory, defined in the initialization
+step, and is named &#8216;eq3&#8217;.</p>
+<p>gen_istates is set to False. In this instance, we have already prepared
+a suitable file and run through energy minimisation and solvent
+equilibration, and so the bstates are simply copied in as istates. While
+you can probably set up your WESTPA scripts to automatically do this for
+you, it is ill advised for explicit solvent, as it can be a complicated
+procedure which requires human input and a lot of time.</p>
+<p class="rubric" id="system-py">system.py</p>
+<p>For the sake of readability, the unused log and coordinate loader are
+not shown here.</p>
+<p>There are two major functions, here: initialize, contained within the
+class System, and pcoord_loader_color_tracker.</p>
+<p class="rubric" id="system-system-initialize">system.System.initialize</p>
+<p>As in the other examples/tutorials, the number of dimensions, progress
+coordinate points, bin boundaries, etc, are set here. What is notably
+different is that here, there are two dimensions: RMSD, and &#8216;color&#8217;,
+which is a simple on the fly state tracking method that &#8216;paints&#8217; walkers
+with a tag depending on what state they were last in. The idea is to
+ensure that trajectories which have visited the final state which are
+coming back (that is, &#8216;reverse&#8217; trajectories) are not merged with the
+trajectories that are still approaching the final state (the &#8216;forward&#8217;
+trajectories, which are typically heavier). While there are various
+possible ways to implement such a scheme, it is done here as a custom
+progress coordinate loader (pcoord_loader_color_tracker).</p>
+<p>The state tags, in pcoord_loader_color_tracker, are integers, but the
+bins themselves, self.color_binbounds, are halfway between the
+integers. This is because numpy does not cleanly store the tags as
+integers, as the progress coordinate has been defined as type float32
+with a scale offset of 4, not a type int, in west.cfg; a tag of 1 is
+sometimes stored as 1.0003, and sometimes as 0.99993, etc, which can
+make tracking confusing (this does not necessarily result in incorrect
+state tracking, however, as each value in the array is offset by the
+same small amount).</p>
+<p class="rubric" id="system-pcoord-loader-color-tracker">system.pcoord_loader_color_tracker</p>
+<p>This is the function that is called to load $WEST_PCOORD_RETURN in
+both runseg.sh and get_pcoord.sh. There are four input variables:
+fieldname, coord_file, segment, and single_point. These are standard
+for any data loader inside of WESTPA. In fact, there&#8217;s very little to
+differentiate the progress coordinate dataset from any other dataset
+inside of WESTPA, internally. &#8216;coord_file&#8217; is the file pointed to by
+$WEST_PCOORD_RETURN, segment is an object, and single_point evaluates
+to True if this function is being called from get_pcoord.sh (or from
+gen_istates.sh, if that script is being run, which it is not). While
+&#8216;fieldname&#8217; isn&#8217;t used here, as it is known that this function is being
+called only for the progress coordiate, the function could be modified
+to write to any dataset with ease.</p>
+<p>The function works as follows, and is mostly the same regardless of
+whether single_point is True or False (the differences mostly lie in
+the fact that the data is shaped differently, and so must be handled
+differently. So, too, must the output):</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span>1.  Load the data from runseg.sh with numpy.loadtxt.
+2.  Define the folded and unfolded bin values (that is, their pcoord value ranges).
+3A. If single_point is True, check to see whether the first time point is within one of
+    the states.  If not, bin it as the &#39;unknown state&#39;, which is merely state N+1, where
+    N is the number of states.  Copy this through for every time point.
+3B. If single_point is False, and this is a continuation, take whatever state the segment
+    was in at time 0, and copy it through for every time point.
+4.  Evaluate whether the state has changed at the final time point.  If so, update.
+5.  Stack the data in the appropriate manner, and write to the progress coordinate.
+</pre></div>
+</div>
+<p>The system will continue to propagate segments with an &#8216;unknown state&#8217;
+tag; this tutorial avoids that problem by starting from a delta
+distribution within the folded state, and so no segment will ever not be
+tagged. For systems in which this isn&#8217;t possible, it is possible to
+adjust the target count on the &#8216;unknown&#8217; bins, as the system evolves, to
+encourage them to depopulate.</p>
+<p class="rubric" id="run-it">Run it!</p>
+<p>At this point, you should be ready to run. As indicated in the
+instructions above,</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span>cd p53-tutorial
+./init.sh
+qsub runwe-frank.sh
+</pre></div>
+</div>
+<p>And wait for everything to happen. Good luck!</p>
+</div><div class="printfooter"><p>Retrieved from
+&#8220;<a class="reference external" href="https://chong.chem.pitt.edu/_wewiki/index.php?title=Molecular-scale_systems&amp;oldid=2229">https://chong.chem.pitt.edu/_wewiki/index.php?title=Molecular-scale_systems&amp;oldid=2229</a>&#8220;</p>
+</div><div id="catlinks" class="catlinks catlinks-allhidden"></div><div class="visualClear"></div></div></div><div id="mw-head" class="noprint"><div id="p-personal"><p class="rubric" id="personal-tools">Personal tools</p>
+<ul>
+<li><div class="first"><div id="pt-login"></div></div><p><a class="reference external" href="/_wewiki/index.php?title=Special:UserLogin&amp;returnto=Molecular-scale+systems">Log
+in</a></p>
+</li>
+</ul>
+</div><div id="left-navigation"><div id="p-namespaces" class="vectorTabs"><p class="rubric" id="namespaces">Namespaces</p>
+<ul>
+<li><div class="first"><div id="ca-nstab-main"></div></div><p><a class="reference external" href="/wewiki/Molecular-scale_systems">Page</a></p>
+</li>
+<li><div class="first"><div id="ca-talk"></div></div><p><a class="reference external" href="/_wewiki/index.php?title=Talk:Molecular-scale_systems&amp;action=edit&amp;redlink=1">Discussion</a></p>
+</li>
+</ul>
+</div><div id="p-variants" class="vectorMenu emptyPortlet"><p class="rubric" id="variants">Variants` &lt;#&gt;`__</p>
+<div class="menu"></div></div></div><div id="right-navigation"><div id="p-views" class="vectorTabs"><p class="rubric" id="views">Views</p>
+<ul>
+<li><div class="first"><div id="ca-view"></div></div><p><a class="reference external" href="/wewiki/Molecular-scale_systems">Read</a></p>
+</li>
+<li><div class="first"><div id="ca-viewsource"></div></div><p><a class="reference external" href="/_wewiki/index.php?title=Molecular-scale_systems&amp;action=edit">View
+source</a></p>
+</li>
+<li><div class="first"><div id="ca-history"></div></div><p><a class="reference external" href="/_wewiki/index.php?title=Molecular-scale_systems&amp;action=history">View
+history</a></p>
+</li>
+</ul>
+</div><div id="p-cactions" class="vectorMenu emptyPortlet"><p class="rubric" id="actions">Actions` &lt;#&gt;`__</p>
+<div class="menu"></div></div><div id="p-search"><p class="rubric" id="search">Search</p>
+<div></div></div></div></div><div id="mw-panel" class="noprint"><div id="p-logo"><p>` &lt;/wewiki/Main_Page&gt;`__</p>
+</div><div id="p-navigation" class="portal"><p class="rubric" id="navigation">Navigation</p>
+<div class="body"><ul>
+<li><div class="first"><div id="n-Main-Page"></div></div><p><a class="reference external" href="/wewiki/Main_Page">Main Page</a></p>
+</li>
+<li><div class="first"><div id="n-Obtaining-the-WESTPA-code"></div></div><p><a class="reference external" href="/wewiki/Main_Page#Obtaining_the_WESTPA_Code">Obtaining the WESTPA
+code</a></p>
+</li>
+<li><div class="first"><div id="n-WESTPA-Documentation"></div></div><p><a class="reference external" href="/wewiki/WESTPA_documentation">WESTPA Documentation</a></p>
+</li>
+<li><div class="first"><div id="n-WESTPA-Tutorials"></div></div><p><a class="reference external" href="/wewiki/WESTPA_tutorials">WESTPA Tutorials</a></p>
+</li>
+<li><div class="first"><div id="n-FAQ"></div></div><p><a class="reference external" href="/wewiki/Frequently_asked_questions_(FAQ)">FAQ</a></p>
+</li>
+<li><div class="first"><div id="n-How-to-Contribute"></div></div><p><a class="reference external" href="/wewiki/WESTPA_Wiki_Style_Guide">How to Contribute</a></p>
+</li>
+<li><div class="first"><div id="n-Recent-Changes"></div></div><p><a class="reference external" href="/wewiki/Special:RecentChanges">Recent Changes</a></p>
+</li>
+<li><div class="first"><div id="n-Wiki-Help"></div></div><p><a class="reference external" href="/wewiki/Help:Contents">Wiki Help</a></p>
+</li>
+</ul>
+</div></div><div id="p-tb" class="portal"><p class="rubric" id="toolbox">Toolbox</p>
+<div class="body"><ul>
+<li><div class="first"><div id="t-whatlinkshere"></div></div><p><a class="reference external" href="/wewiki/Special:WhatLinksHere/Molecular-scale_systems">What links
+here</a></p>
+</li>
+<li><div class="first"><div id="t-recentchangeslinked"></div></div><p><a class="reference external" href="/wewiki/Special:RecentChangesLinked/Molecular-scale_systems">Related
+changes</a></p>
+</li>
+<li><div class="first"><div id="t-specialpages"></div></div><p><a class="reference external" href="/wewiki/Special:SpecialPages">Special pages</a></p>
+</li>
+<li><p class="first"><a class="reference external" href="/_wewiki/index.php?title=Molecular-scale_systems&amp;printable=yes">Printable
+version</a></p>
+</li>
+<li><div class="first"><div id="t-permalink"></div></div><p><a class="reference external" href="/_wewiki/index.php?title=Molecular-scale_systems&amp;oldid=2229">Permanent
+link</a></p>
+</li>
+</ul>
+</div></div></div><div id="footer"><ul>
+<li><div class="first"><div id="footer-info-lastmod"></div></div><p>This page was last modified on 10 September 2015, at 10:41.</p>
+</li>
+<li><div class="first"><div id="footer-info-viewcount"></div></div><p>This page has been accessed 547 times.</p>
+</li>
+<li><div class="first"><div id="footer-places-privacy"></div></div><p><a class="reference external" href="/wewiki/Weighted_Ensemble_Wiki:Privacy_policy">Privacy policy</a></p>
+</li>
+<li><div class="first"><div id="footer-places-about"></div></div><p><a class="reference external" href="/wewiki/Weighted_Ensemble_Wiki:About">About Weighted Ensemble
+Wiki</a></p>
+</li>
+<li><div class="first"><div id="footer-places-disclaimer"></div></div><p><a class="reference external" href="/wewiki/Weighted_Ensemble_Wiki:General_disclaimer">Disclaimers</a></p>
+</li>
+<li><div class="first"><div id="footer-poweredbyico"></div></div><p><a class="reference external" href="//www.mediawiki.org/"><img alt="Powered by MediaWiki" src="_wewiki/skins/common/images/poweredby_mediawiki_88x31.png" style="width: 88px; height: 31px;" /></a></p>
+</li>
+</ul>
+<div style="clear:both"></div></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../sphinx_index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="../users_guide/hdf5.html" title="previous chapter">HDF5 File Schema</a></li>
+      <li>Next: <a href="amber.html" title="next chapter">AMBER Tutorial: Molecular Dynamics of Na<sup>+</sup>/Cl<sup>-</sup> Association</a></li>
+  </ul></li>
+</ul>
+</div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../sources/tutorials/p53.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2015, Matthew C. Zwier and Lillian T. Chong.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.3.5</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.7</a>
+      
+      |
+      <a href="../sources/tutorials/p53.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>
