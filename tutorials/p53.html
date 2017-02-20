@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>&lt;no title&gt; &mdash; WESTPA 1.0b1 documentation</title>
+    <title>Molecular Scale Systems: P53 peptide in Explicit Solvent &mdash; WESTPA 1.0b1 documentation</title>
     
     <link rel="stylesheet" href="../static/alabaster.css" type="text/css" />
     <link rel="stylesheet" href="../static/pygments.css" type="text/css" />
@@ -38,76 +38,8 @@
         <div class="bodywrapper">
           <div class="body" role="main">
             
-  <div id="mw-page-base" class="noprint"></div><div id="mw-head-base" class="noprint"></div><div id="content" class="mw-body"><div id="mw-js-message" style="display:none;"></div><p class="firstheading rubric" id="firstheading">Molecular-scale systems</p>
-<div id="bodyContent"><div id="siteSub"><p>From Weighted Ensemble Wiki</p>
-</div><div id="contentSub"></div><div id="jump-to-nav" class="mw-jump"><p>Jump to: <a class="reference external" href="#mw-head">navigation</a>, <a class="reference external" href="#p-search">search</a></p>
-</div><div id="mw-content-text" class="mw-content-ltr" lang="en" dir="ltr"><p>This tutorial is designed to help users convert the sample WESTPA
-tutorials into larger-scale simulations, both in terms of the system
-(degrees of freedom) and the number of walkers, number of dimensions,
-auxiliary coordinates, etc, by gaining an intimate understanding of the
-setup files. While some familiarity with WESTPA and proficiency with
-GROMACS is assumed, the tutorial nevertheless aims to be as explicit as
-possible.</p>
-<table border="1" class="docutils">
-<colgroup>
-<col width="100%" />
-</colgroup>
-<tbody valign="top">
-<tr class="row-odd"><td><div class="first"><div id="toctitle"></div><p class="rubric" id="contents">Contents</p>
-</div><ul class="simple">
-<li><a class="reference external" href="#Molecular_Scale_Systems:_P53_peptide_in_Explicit_Solvent">1 Molecular Scale Systems: P53 peptide in Explicit
-Solvent</a></li>
-</ul>
-<p>_</p>
-<blockquote>
-<div><ul class="simple">
-<li><a class="reference external" href="#Overview">1.1 Overview</a></li>
-<li><a class="reference external" href="#Required_Files_.26_Initial_Setup">1.2 Required Files &amp; Initial
-Setup</a></li>
-<li><a class="reference external" href="#Preparing_the_GROMACS_files">1.3 Preparing the GROMACS files</a><ul>
-<li><a class="reference external" href="#md.mdp">1.3.1 md.mdp</a><ul>
-<li><a class="reference external" href="#Picking_an_appropriate_.CF.84_value">1.3.1.1 Picking an appropriate τ
-value</a></li>
-<li><a class="reference external" href="#Things_to_edit">1.3.1.2 Things to edit</a></li>
-</ul>
-</li>
-</ul>
-</li>
-<li><a class="reference external" href="#Preparing_the_WESTPA_files">1.4 Preparing the WESTPA files</a><ul>
-<li><a class="reference external" href="#init.sh">1.4.1 init.sh</a></li>
-<li><a class="reference external" href="#What_is_BASIS_STATES.3F">1.4.2 What is BASIS_STATES?</a></li>
-<li><a class="reference external" href="#runseg.sh">1.4.3 runseg.sh</a><ul>
-<li><a class="reference external" href="#Changes_to_use_the_local_scratch">1.4.3.1 Changes to use the local
-scratch</a></li>
-<li><a class="reference external" href="#Trajectory_Initialization_.26_mdrun">1.4.3.2 Trajectory Initialization &amp;
-mdrun</a></li>
-<li><a class="reference external" href="#Imaging_.26_Progress_Coordinate_Return">1.4.3.3 Imaging &amp; Progress Coordinate
-Return</a></li>
-</ul>
-</li>
-<li><a class="reference external" href="#west.cfg">1.4.4 west.cfg</a></li>
-<li><a class="reference external" href="#system.py">1.4.5 system.py</a><ul>
-<li><a class="reference external" href="#system.System.initialize">1.4.5.1
-system.System.initialize</a></li>
-<li><a href="#id1"><span class="problematic" id="id2">`</span></a>1.4.5.2
-system.pcoord_loader_color_tracker &lt;#system.pcoord_loader</li>
-</ul>
-</li>
-</ul>
-</li>
-</ul>
-</div></blockquote>
-<p>_color_tracker&gt;`__</p>
-<blockquote class="last">
-<div><ul class="simple">
-<li><a class="reference external" href="#Run_it.21">1.5 Run it!</a></li>
-</ul>
-</div></blockquote>
-</td>
-</tr>
-</tbody>
-</table>
-<p class="rubric" id="id3">Molecular Scale Systems: P53 peptide in Explicit Solvent</p>
+  <div class="section" id="molecular-scale-systems-p53-peptide-in-explicit-solvent">
+<span id="p53-tutorial"></span><h1>Molecular Scale Systems: P53 peptide in Explicit Solvent<a class="headerlink" href="#molecular-scale-systems-p53-peptide-in-explicit-solvent" title="Permalink to this headline">¶</a></h1>
 <p>by Adam Pratt</p>
 <p>Contact:
 <a class="reference external" href="mailto:Adam&#46;J&#46;Pratt&#37;&#52;&#48;pitt&#46;edu?Subject=MolecularScaleTutorial">Adam<span>&#46;</span>J<span>&#46;</span>Pratt<span>&#64;</span>pitt<span>&#46;</span>edu</a></p>
@@ -117,7 +49,8 @@ system.pcoord_loader_color_tracker &lt;#system.pcoord_loader</li>
 <p>Results from this tutorial can be compared to those of extensive brute
 force simulations reported in Xiong et al., JPC A (2011)
 <a class="reference external" href="http://pubs.acs.org/doi/abs/10.1021/jp112235d">here</a>.</p>
-<p class="rubric" id="overview">Overview</p>
+<div class="section" id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h2>
 <p>This tutorial serves as an example of how to do a more advanced WESTPA
 simulation of a molecular-scale system; specifically, the conformational
 sampling of a peptide in explicit solvent using the GROMACS dynamics
@@ -509,95 +442,23 @@ qsub runwe-frank.sh
 </pre></div>
 </div>
 <p>And wait for everything to happen. Good luck!</p>
-</div><div class="printfooter"><p>Retrieved from
-&#8220;<a class="reference external" href="https://chong.chem.pitt.edu/_wewiki/index.php?title=Molecular-scale_systems&amp;oldid=2229">https://chong.chem.pitt.edu/_wewiki/index.php?title=Molecular-scale_systems&amp;oldid=2229</a>&#8220;</p>
-</div><div id="catlinks" class="catlinks catlinks-allhidden"></div><div class="visualClear"></div></div></div><div id="mw-head" class="noprint"><div id="p-personal"><p class="rubric" id="personal-tools">Personal tools</p>
-<ul>
-<li><div class="first"><div id="pt-login"></div></div><p><a class="reference external" href="/_wewiki/index.php?title=Special:UserLogin&amp;returnto=Molecular-scale+systems">Log
-in</a></p>
-</li>
-</ul>
-</div><div id="left-navigation"><div id="p-namespaces" class="vectorTabs"><p class="rubric" id="namespaces">Namespaces</p>
-<ul>
-<li><div class="first"><div id="ca-nstab-main"></div></div><p><a class="reference external" href="/wewiki/Molecular-scale_systems">Page</a></p>
-</li>
-<li><div class="first"><div id="ca-talk"></div></div><p><a class="reference external" href="/_wewiki/index.php?title=Talk:Molecular-scale_systems&amp;action=edit&amp;redlink=1">Discussion</a></p>
-</li>
-</ul>
-</div><div id="p-variants" class="vectorMenu emptyPortlet"><p class="rubric" id="variants">Variants` &lt;#&gt;`__</p>
-<div class="menu"></div></div></div><div id="right-navigation"><div id="p-views" class="vectorTabs"><p class="rubric" id="views">Views</p>
-<ul>
-<li><div class="first"><div id="ca-view"></div></div><p><a class="reference external" href="/wewiki/Molecular-scale_systems">Read</a></p>
-</li>
-<li><div class="first"><div id="ca-viewsource"></div></div><p><a class="reference external" href="/_wewiki/index.php?title=Molecular-scale_systems&amp;action=edit">View
-source</a></p>
-</li>
-<li><div class="first"><div id="ca-history"></div></div><p><a class="reference external" href="/_wewiki/index.php?title=Molecular-scale_systems&amp;action=history">View
-history</a></p>
-</li>
-</ul>
-</div><div id="p-cactions" class="vectorMenu emptyPortlet"><p class="rubric" id="actions">Actions` &lt;#&gt;`__</p>
-<div class="menu"></div></div><div id="p-search"><p class="rubric" id="search">Search</p>
-<div></div></div></div></div><div id="mw-panel" class="noprint"><div id="p-logo"><p>` &lt;/wewiki/Main_Page&gt;`__</p>
-</div><div id="p-navigation" class="portal"><p class="rubric" id="navigation">Navigation</p>
-<div class="body"><ul>
-<li><div class="first"><div id="n-Main-Page"></div></div><p><a class="reference external" href="/wewiki/Main_Page">Main Page</a></p>
-</li>
-<li><div class="first"><div id="n-Obtaining-the-WESTPA-code"></div></div><p><a class="reference external" href="/wewiki/Main_Page#Obtaining_the_WESTPA_Code">Obtaining the WESTPA
-code</a></p>
-</li>
-<li><div class="first"><div id="n-WESTPA-Documentation"></div></div><p><a class="reference external" href="/wewiki/WESTPA_documentation">WESTPA Documentation</a></p>
-</li>
-<li><div class="first"><div id="n-WESTPA-Tutorials"></div></div><p><a class="reference external" href="/wewiki/WESTPA_tutorials">WESTPA Tutorials</a></p>
-</li>
-<li><div class="first"><div id="n-FAQ"></div></div><p><a class="reference external" href="/wewiki/Frequently_asked_questions_(FAQ)">FAQ</a></p>
-</li>
-<li><div class="first"><div id="n-How-to-Contribute"></div></div><p><a class="reference external" href="/wewiki/WESTPA_Wiki_Style_Guide">How to Contribute</a></p>
-</li>
-<li><div class="first"><div id="n-Recent-Changes"></div></div><p><a class="reference external" href="/wewiki/Special:RecentChanges">Recent Changes</a></p>
-</li>
-<li><div class="first"><div id="n-Wiki-Help"></div></div><p><a class="reference external" href="/wewiki/Help:Contents">Wiki Help</a></p>
-</li>
-</ul>
-</div></div><div id="p-tb" class="portal"><p class="rubric" id="toolbox">Toolbox</p>
-<div class="body"><ul>
-<li><div class="first"><div id="t-whatlinkshere"></div></div><p><a class="reference external" href="/wewiki/Special:WhatLinksHere/Molecular-scale_systems">What links
-here</a></p>
-</li>
-<li><div class="first"><div id="t-recentchangeslinked"></div></div><p><a class="reference external" href="/wewiki/Special:RecentChangesLinked/Molecular-scale_systems">Related
-changes</a></p>
-</li>
-<li><div class="first"><div id="t-specialpages"></div></div><p><a class="reference external" href="/wewiki/Special:SpecialPages">Special pages</a></p>
-</li>
-<li><p class="first"><a class="reference external" href="/_wewiki/index.php?title=Molecular-scale_systems&amp;printable=yes">Printable
-version</a></p>
-</li>
-<li><div class="first"><div id="t-permalink"></div></div><p><a class="reference external" href="/_wewiki/index.php?title=Molecular-scale_systems&amp;oldid=2229">Permanent
-link</a></p>
-</li>
-</ul>
-</div></div></div><div id="footer"><ul>
-<li><div class="first"><div id="footer-info-lastmod"></div></div><p>This page was last modified on 10 September 2015, at 10:41.</p>
-</li>
-<li><div class="first"><div id="footer-info-viewcount"></div></div><p>This page has been accessed 547 times.</p>
-</li>
-<li><div class="first"><div id="footer-places-privacy"></div></div><p><a class="reference external" href="/wewiki/Weighted_Ensemble_Wiki:Privacy_policy">Privacy policy</a></p>
-</li>
-<li><div class="first"><div id="footer-places-about"></div></div><p><a class="reference external" href="/wewiki/Weighted_Ensemble_Wiki:About">About Weighted Ensemble
-Wiki</a></p>
-</li>
-<li><div class="first"><div id="footer-places-disclaimer"></div></div><p><a class="reference external" href="/wewiki/Weighted_Ensemble_Wiki:General_disclaimer">Disclaimers</a></p>
-</li>
-<li><div class="first"><div id="footer-poweredbyico"></div></div><p><a class="reference external" href="//www.mediawiki.org/"><img alt="Powered by MediaWiki" src="_wewiki/skins/common/images/poweredby_mediawiki_88x31.png" style="width: 88px; height: 31px;" /></a></p>
-</li>
-</ul>
-<div style="clear:both"></div></div>
+</div>
+</div>
+
 
           </div>
         </div>
       </div>
       <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
-        <div class="sphinxsidebarwrapper"><div class="relations">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../sphinx_index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Molecular Scale Systems: P53 peptide in Explicit Solvent</a><ul>
+<li><a class="reference internal" href="#overview">Overview</a></li>
+</ul>
+</li>
+</ul>
+<div class="relations">
 <h3>Related Topics</h3>
 <ul>
   <li><a href="../sphinx_index.html">Documentation overview</a><ul>
