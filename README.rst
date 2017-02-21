@@ -78,8 +78,11 @@ for obtaining help and support. See http://groups.google.com/group/westpa-users
 to sign up or search archived messages.
 
 -------------------------------------------------------
-Copyright, license, and warranty information for WESTPA
+Copyright, license, and warranty information
 -------------------------------------------------------
+
+For WESTPA
+###########
 
 The WESTPA package is copyright (c) 2013, Matthew C. Zwier and
 Lillian T. Chong. (Individual contributions noted in each source file.)
@@ -103,9 +106,8 @@ lacking a more specific attribution are subject to the above copyright,
 terms, and conditions.
 
 
--------------------------------------------------------
-Copyright and license information for included software
--------------------------------------------------------
+For included software
+######################
 
 Distributions of WESTPA include a number of components without modification,
 each of which is subject to its own individual terms and conditions. Please
