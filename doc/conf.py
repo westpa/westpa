@@ -114,7 +114,7 @@ html_theme_options = {
         'logo':'WESTPA2.jpg',
         'page_width': '1000px',
         'sidebar_width': '240px',
-        'sidebar_headers': '#cecece'
+        'sidebar_header': '#cecece'
         }
 
 # Add any paths that contain custom themes here, relative to this directory.
