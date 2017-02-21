@@ -111,11 +111,8 @@ html_theme = 'alabaster'
 # further.  For a list of options available for each theme, see the
 # documentation.
 html_theme_options = {
-        'logo':'WESTPA2.jpg',
-        'page_width': '1000px',
-        'sidebar_width': '240px',
-        'sidebar_header': '#cecece'
-        }
+        'logo':'WESTPA2.jpg'
+}
 
 # Add any paths that contain custom themes here, relative to this directory.
 #html_theme_path = []
