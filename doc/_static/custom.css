@@ -4,14 +4,14 @@ body {
 }
 
 div.sphinxsidebar {
-  width: 300px;
+  width: 20%;
   background-color: lightgrey;
 }
 
 div.bodywrapper {
-  margin: 0 0 0 300px;
+  margin: 0 0 0 20%;
 }
 
 div.document {
-  width: 1980px;
+  width: 100%;
 }
