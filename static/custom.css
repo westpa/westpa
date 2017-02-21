@@ -1,19 +1,19 @@
-sphinxsidebar {
+body {
+  font-family: 'Lucida Grande', Arial, sans-serif;
+  font-size: 15px;
+}
+
+div.sphinxsidebar {
   margin-left: -100%;
   width: 280px;
   background-color: lightgrey;
 }
 
-bodywrapper {
+div.bodywrapper {
   margin: 0 0 0 280px;
 }
 
-documentwrapper {
+div.documentwrapper {
   float: left;
   width: 100%;
-}
-
-body {
-  font-family: 'Lucida Grande', Arial, sans-serif;
-  font-size: 15px;
 }
