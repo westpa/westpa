@@ -13,6 +13,10 @@ div.bodywrapper {
   margin: 0 0 0 280px;
 }
 
+div.document {
+  width: 100%;
+}
+
 div.documentwrapper {
   float: left;
   width: 100%;
