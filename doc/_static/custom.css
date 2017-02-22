@@ -8,10 +8,20 @@ div.sphinxsidebar {
   background-color: lightgrey;
 }
 
+div.sphinxsidebarwrapper {
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
 div.bodywrapper {
   margin: 0 0 0 20%;
 }
 
 div.document {
   width: 100%;
+  margin: 0px auto 0 auto;
+}
+
+div.documentwrapper {
+  margin-top: 15px;
 }
