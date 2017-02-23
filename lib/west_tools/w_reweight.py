@@ -25,13 +25,8 @@ warnings.filterwarnings('ignore', category=RuntimeWarning)
 warnings.filterwarnings('ignore', category=FutureWarning)
 
 import numpy as np
-import numpy
 import scipy.sparse as sp
-from scipy.sparse import csgraph
 import h5py
-
-from collections import Counter
-from postanalysis import reweight_for_c
 
 import westpa
 from west.data_manager import weight_dtype, n_iter_dtype
@@ -51,7 +46,7 @@ from mclib import mcbs_correltime, mcbs_ci_correl_rw, _1D_simple_eval_block, _2D
 
 # From postanalysis matrix
 from westpa.binning import index_dtype
-from postanalysis import stats_process
+from westpa.reweight import stats_process, reweight_for_c
 
 def _2D_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha, mcbs_nsets, mcbs_acalpha, do_correl, estimator_kwargs):
     # Our rate estimator is a little more complex, so we've defined a custom evaluation block for it,
