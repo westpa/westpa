@@ -8,14 +8,14 @@ Overview
 --------
 
 WESTPA is a package for constructing and running stochastic simulations using the "weighted ensemble" approach 
-of Huber and Kim (1996). For further information, please see the following:
+of Huber and Kim (1996). For use of WESTPA please cite the following:
 
 Zwier, M.C., Adelman, J.L., Kaus, J.W., Pratt, A.J., Wong, K.F., Rego, N.B., Suarez, E., Lettieri, S.,
 Wang, D. W., Grabe, M., Zuckerman, D. M., and Chong, L. T. "WESTPA: An Interoperable, Highly 
 Scalable Software Package For Weighted Ensemble Simulation and Analysis," J. Chem. Theory Comput., 11: 800−809 (2015). 
 
-To help us fund development, please cite the article listed above. To help us improve WESTPA please fill out a 
-one-minute survey_ and consider contributing documentation or code to the WESTPA community.
+To help us fund development and improve WESTPA please fill out a one-minute survey_ and consider 
+contributing documentation or code to the WESTPA community.
 
 WESTPA is free software, licensed under the terms of the GNU General Public
 License, Version 3. See the file ``COPYING`` for more information.
@@ -78,8 +78,11 @@ for obtaining help and support. See http://groups.google.com/group/westpa-users
 to sign up or search archived messages.
 
 -------------------------------------------------------
-Copyright, license, and warranty information for WESTPA
+Copyright, license, and warranty information
 -------------------------------------------------------
+
+For WESTPA
+###########
 
 The WESTPA package is copyright (c) 2013, Matthew C. Zwier and
 Lillian T. Chong. (Individual contributions noted in each source file.)
@@ -103,9 +106,8 @@ lacking a more specific attribution are subject to the above copyright,
 terms, and conditions.
 
 
--------------------------------------------------------
-Copyright and license information for included software
--------------------------------------------------------
+For included software
+######################
 
 Distributions of WESTPA include a number of components without modification,
 each of which is subject to its own individual terms and conditions. Please
