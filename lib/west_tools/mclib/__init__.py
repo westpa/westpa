@@ -78,7 +78,6 @@ def mcbs_ci_correl_rw(estimator_datasets, estimator, alpha, n_sets=None, args=No
     for key, dset in estimator_datasets.iteritems():
         estimator_datasets[key] = numpy.asanyarray(dset)
         dlen = dset.shape[0]
-        #print(dlen)
 
     # Why do we have 'estimator_datasets'?
     # Estimators may require many different sets of data to properly function; while we can send this in via the kwargs,
@@ -92,13 +91,6 @@ def mcbs_ci_correl_rw(estimator_datasets, estimator, alpha, n_sets=None, args=No
     autocorrel_n_sets = autocorrel_n_sets or get_bssize(autocorrel_alpha)
 
     # We need to pre-generate the data; why not do it here?  We're already set up for it...
-    #estimator_kwargs['stride'] = 1
-
-    # The thing to do?  Do this for as many 'samples' as we have in our dataset.
-    #What IS our dataset?  Who knows!
-
-        
-    # Now, we take the info we have, and go over our things...
     precalc_kwargs = estimator_kwargs.copy()
     precalc_kwargs['stride'] = 1
     pre_calculated = []
@@ -163,6 +155,7 @@ def mcbs_ci_correl_rw(estimator_datasets, estimator, alpha, n_sets=None, args=No
 
 # These are blocks designed to evaluate simple information sets.
 # Whether they should go here or in westtoools is somewhat up for debate.
+# Currently, nothing actually uses them, so there's that.
 
 def _1D_simple_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha, mcbs_nsets, mcbs_acalpha, do_correl, subsample=numpy.mean, **extra):
     # This is actually appropriate for anything with a directly measured, 1D dataset, i.e.,
