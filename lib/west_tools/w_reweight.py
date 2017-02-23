@@ -42,15 +42,14 @@ log = logging.getLogger('westtools.w_postanalysis_reweight')
 
 import mclib
 
-from mclib import mcbs_correltime, mcbs_ci_correl_rw, _1D_simple_eval_block, _2D_simple_eval_block
+from mclib import mcbs_correltime, mcbs_ci_correl_rw
 
 # From postanalysis matrix
 from westpa.binning import index_dtype
-from westpa.reweight import stats_process, reweight_for_c
+from westpa.reweight import stats_process, reweight_for_c, FluxMatrix
 
 def _2D_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha, mcbs_nsets, mcbs_acalpha, do_correl, estimator_kwargs):
-    # Our rate estimator is a little more complex, so we've defined a custom evaluation block for it,
-    # instead of just using the block evalutors that we've imported.
+    # Our rate estimator is a little more complex, so we've defined a custom evaluation block for it.
     results = []
     for istate in xrange(nstates):
         for jstate in xrange(nstates):
@@ -67,11 +66,11 @@ def _2D_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha, m
     return results
 
 def _1D_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha, mcbs_nsets, mcbs_acalpha, do_correl, estimator_kwargs):
-    # Our rate estimator is a little more complex, so we've defined a custom evaluation block for it,
-    # instead of just using the block evalutors that we've imported.
+    # Our rate estimator is a little more complex, so we've defined a custom evaluation block for it.
     results = []
     for istate in xrange(nstates):
         # A little hack to make our estimator play nice, as jstate must be there.
+        # I despise this hack and would like it to go away forever, but our estimator relies on it.
         estimator_kwargs.update(dict(istate=istate, jstate=istate, nstates=nstates))
 
         dataset = { 'indices' : np.array(range(start-1, stop-1), dtype=np.uint16) }
@@ -83,16 +82,7 @@ def _1D_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha, m
 
     return results
 
-# From the original postanalysis matrix
-
-def calc_stats(bin_assignments, weights, fluxes, populations, trans, mask, sampling_frequency):
-    fluxes.fill(0.0)
-    populations.fill(0.0)
-    trans.fill(0)
-
-    stats_process(bin_assignments, weights, fluxes, populations, trans, mask, interval=sampling_frequency)
-
-class RWMatrix(AverageCommands):
+class RWMatrix(AverageCommands, FluxMatrix):
     subcommand = 'matrix'
     default_kinetics_file = 'reweight.h5'
     default_output_file = 'reweight.h5'
@@ -129,7 +119,6 @@ either equilibrium or steady-state conditions without recycling target states.
                              (['bin_populations']).''' )
 
                                        
-        
     def process_more_args(self, args):
         if args.config_from_file == False:
             self.output_file = h5io.WESTPAH5File(args.output, 'w', creating_program=True)
@@ -141,112 +130,14 @@ either equilibrium or steady-state conditions without recycling target states.
                 self.load_config_from_west(args.scheme)
         self.sampling_frequency = args.sampling_frequency
 
-    def w_postanalysis_matrix(self):
-        pi = self.progress.indicator
-        pi.new_operation('Initializing')
-        with pi:
-
-            self.data_reader.open('r')
-            nbins = self.assignments_file.attrs['nbins']
-
-            state_labels = self.assignments_file['state_labels'][...]
-            state_map = self.assignments_file['state_map'][...]
-            nstates = len(state_labels)
-
-            start_iter, stop_iter = self.iter_range.iter_start, self.iter_range.iter_stop # h5io.get_iter_range(self.assignments_file)
-            iter_count = stop_iter - start_iter
-
-            nfbins = nbins * nstates
-
-            flux_shape = (iter_count, nfbins, nfbins)
-            pop_shape = (iter_count, nfbins)
-
-            h5io.stamp_iter_range(self.output_file, start_iter, stop_iter)
-
-            bin_populations_ds = self.output_file.create_dataset('bin_populations', shape=pop_shape, dtype=weight_dtype)
-            h5io.stamp_iter_range(bin_populations_ds, start_iter, stop_iter)
-            h5io.label_axes(bin_populations_ds, ['iteration', 'bin'])
-
-
-            flux_grp = self.output_file.create_group('iterations')
-            self.output_file.attrs['nrows'] = nfbins
-            self.output_file.attrs['ncols'] = nfbins
-
-
-            fluxes = np.empty(flux_shape[1:], weight_dtype)
-            populations = np.empty(pop_shape[1:], weight_dtype)
-            trans = np.empty(flux_shape[1:], np.int64)
-
-            # Check to make sure this isn't a data set with target states
-            tstates = self.data_reader.data_manager.get_target_states(0)
-            if len(tstates) > 0:
-                raise ValueError('Postanalysis reweighting analysis does not support WE simulation run under recycling conditions')
-
-            pi.new_operation('Calculating flux matrices', iter_count)
-            # Calculate instantaneous statistics
-            for iiter, n_iter in enumerate(xrange(start_iter, stop_iter)):
-                # Get data from the main HDF5 file
-                iter_group = self.data_reader.get_iter_group(n_iter)
-                seg_index = iter_group['seg_index']
-                nsegs, npts = iter_group['pcoord'].shape[0:2] 
-                weights = seg_index['weight']
-
-
-                # Get bin and traj. ensemble assignments from the previously-generated assignments file
-                assignment_iiter = h5io.get_iteration_entry(self.assignments_file, n_iter)
-                bin_assignments = np.require(self.assignments_file['assignments'][assignment_iiter + np.s_[:nsegs,:npts]],
-                                                dtype=index_dtype)
-
-                mask_unknown = np.zeros_like(bin_assignments, dtype=np.uint16)
-
-                macrostate_iiter = h5io.get_iteration_entry(self.assignments_file, n_iter)
-                macrostate_assignments = np.require(self.assignments_file['trajlabels'][macrostate_iiter + np.s_[:nsegs,:npts]],
-                                            dtype=index_dtype)
-
-                # Transform bin_assignments to take macrostate membership into account
-                bin_assignments  = nstates * bin_assignments + macrostate_assignments
-
-                mask_indx = np.where(macrostate_assignments == nstates)
-                mask_unknown[mask_indx] = 1
-
-                # Calculate bin-to-bin fluxes, bin populations and number of obs transitions
-                calc_stats(bin_assignments, weights, fluxes, populations, trans, mask_unknown, self.sampling_frequency)
-
-                # Store bin-based kinetics data
-                bin_populations_ds[iiter] = populations
-
-                # Setup sparse data structures for flux and obs
-                fluxes_sp = sp.coo_matrix(fluxes)
-                trans_sp = sp.coo_matrix(trans)
-
-                assert fluxes_sp.nnz == trans_sp.nnz
-
-                flux_iter_grp = flux_grp.create_group('iter_{:08d}'.format(n_iter))
-                flux_iter_grp.create_dataset('flux', data=fluxes_sp.data, dtype=weight_dtype)
-                flux_iter_grp.create_dataset('obs', data=trans_sp.data, dtype=np.int32)
-                flux_iter_grp.create_dataset('rows', data=fluxes_sp.row, dtype=np.int32)
-                flux_iter_grp.create_dataset('cols', data=fluxes_sp.col, dtype=np.int32)
-                flux_iter_grp.attrs['nrows'] = nfbins
-                flux_iter_grp.attrs['ncols'] = nfbins
-
-                # Do a little manual clean-up to prevent memory explosion
-                del iter_group, weights, bin_assignments
-                del macrostate_assignments
-
-                pi.progress += 1
-
-            # Check and save the number of intermediate time points; this will be used to normalize the
-            # flux and kinetics to tau in w_postanalysis_reweight.
-            self.output_file.attrs['npts'] = npts
-
     def go(self):
+        # This function exists in FluxMatrix, and is not currently portable.
+        # That is, it assumes all properties are properly initialized (self.assignments_file, etc)
+        # TO DO : make it portable.
         self.w_postanalysis_matrix()
 
-class RWReweight(AverageCommands):
-    subcommand = 'UNUSED'
+class RWReweight():
     help_text = 'Parent class for all reweighting routines, as they all use the same estimator code.'
-    default_kinetics_file = 'reweight.h5'
-    description = '''\ Blah!'''
 
     def more_args(self, parser):
         cogroup = parser.add_argument_group('calculation options')
@@ -258,20 +149,25 @@ class RWReweight(AverageCommands):
         self.obs_threshold = args.obs_threshold
 
     def accumulate_statistics(self,start_iter,stop_iter):
+        ''' 
+        This function pulls previously generated flux matrix data into memory.
+        The data is assumed to exist within an HDF5 file that is available
+        as a property.
+        The data is kept as a single dimensional numpy array to use with the
+        cython estimator.
+        '''
         # This is designed to pull in the flux data...
         rows = []
         cols = []
         obs = []
         flux = []
         insert = [0]*(start_iter)
-        #insert = [0]
 
         # Actually, I'm not sure we need to start this at start_iter...
         # ... as it's keyed to the iteration, we need to make sure that the index
         # matches with the iteration (particularly for 'insert').
         # It's just easier to load all the data, although we could just start insert as a list of length
         # start_iter.
-        #for iiter in xrange(1, stop_iter):
         for iiter in xrange(start_iter, stop_iter):
             iter_grp = self.kinetics_file['iterations']['iter_{:08d}'.format(iiter)]
 
@@ -279,28 +175,22 @@ class RWReweight(AverageCommands):
             cols.append(iter_grp['cols'][...])
             obs.append(iter_grp['obs'][...])
             flux.append(iter_grp['flux'][...])
-            #if iiter != start_iter:
-            #if iiter != 1:
+            # 'insert' is the insertion point for each iteration; that is,
+            # at what point do we look into the list for iteration X?
             insert.append(iter_grp['rows'][...].shape[0] + insert[-1])
-            #else:
-            #    insert.append(iter_grp['rows'][...].shape[0])
-        rows = np.concatenate(rows)
-        cols = np.concatenate(cols)
-        obs = np.concatenate(obs)
-        flux = np.concatenate(flux)
-        assert insert[-1] == len(rows)
-        #ins = []
-        #ins.append(0)
-        #ins += insert
-        insert = np.array(insert, dtype=np.intc)
-
-        self.rows = rows
-        self.cols = cols
-        self.obs = obs
-        self.fluxm = flux
-        self.insert = insert
+        self.rows = np.concatenate(rows)
+        self.cols = np.concatenate(cols)
+        self.obs = np.concatenate(obs)
+        self.flux = np.concatenate(flux)
+        assert insert[-1] == len(self.rows)
+        self.insert = np.array(insert, dtype=np.intc)
 
     def generate_reweight_data(self):
+        ''' 
+        This function ensures all the appropriate files are loaded, sets
+        appropriate attributes necessary for all calling functions/children,
+        and then calls the function to load in the flux matrix data.
+        '''
 
         self.open_files()
         self.open_assignments()
@@ -319,9 +209,6 @@ class RWReweight(AverageCommands):
 
         start_iter, stop_iter, step_iter = self.iter_range.iter_start, self.iter_range.iter_stop, self.iter_range.iter_step
 
-        #start_pts = range(start_iter, stop_iter, step_iter)
-        start_pts = range(start_iter, stop_iter, 1)
-
         # This function call loads up all the flux matrix data and stores it in memory.
         # We just give our cython estimator all the information it needs beforehand, as
         # the nature of the bootstrap means we can't know what iterations we'll actually need before
@@ -329,25 +216,31 @@ class RWReweight(AverageCommands):
 
         self.accumulate_statistics(start_iter,stop_iter)
 
-class RWRate(RWReweight):
+class RWRate(AverageCommands, RWReweight):
     subcommand = 'rate'
     help_text = 'Generates rate and flux values from a WESTPA simulation via reweighting.'
     default_kinetics_file = 'reweight.h5'
     default_output_file = 'reweight.h5'
-    description = '''\ Blah!'''
+    description = '''\ Calculates rate and flux values from a WESTPA simulation via reweighting'''
 
 
     def w_postanalysis_reweight(self):
+        ''' 
+        This function ensures the data is ready to send in to the estimator and
+        the bootstrapping routine, then does so. Much of this is simply setting 
+        up appropriate args and kwargs, then passing them in to the 
+        'run_calculation' function, which sets up future objects to send to the
+        work manager. The results are returned, and then written to the 
+        appropriate HDF5 dataset.
+        This function is specific for the rates and fluxes from the reweighting 
+        method.
+        '''
         self.generate_reweight_data()
         pi = self.progress.indicator
 
         start_iter, stop_iter, step_iter = self.iter_range.iter_start, self.iter_range.iter_stop, self.iter_range.iter_step
-
         start_pts = range(start_iter, stop_iter, step_iter)
-
-
         indices = np.array(range(start_iter-1, stop_iter-1), dtype=np.uint16)
-
         submit_kwargs = dict(pi=pi, nstates=self.nstates, start_iter=self.start_iter, stop_iter=self.stop_iter, 
                              step_iter=self.step_iter)
 
@@ -357,13 +250,13 @@ class RWRate(RWReweight):
         submit_kwargs['estimator_kwargs'].update(  dict(rows=self.rows,
                                                         cols=self.cols,
                                                         obs=self.obs,
-                                                        flux=self.fluxm,
+                                                        flux=self.flux,
                                                         insert=self.insert,
                                                         bin_last_state_map=np.tile(np.arange(self.nstates, dtype=np.int), self.nbins), 
                                                         bin_state_map=np.repeat(self.state_map[:-1], self.nstates),
                                                         nfbins=self.nfbins,
                                                         state_labels=self.state_labels,
-                                                        return_obs='R',
+                                                        return_obs='R', # Set to a default, here, but we explicitly set it later.
                                                         state_map=self.state_map,
                                                         nbins=self.nbins))
 
@@ -372,6 +265,7 @@ class RWRate(RWReweight):
         with pi:
 
             # The dataset options are what we pass on to the estimator...
+            submit_kwargs['estimator_kwargs']['return_obs'] = 'R'
             avg_rates = self.run_calculation(eval_block=_2D_eval_block, name='Average Rates', dim=2, do_averages=True, **submit_kwargs)
             avg_rates['expected'] *= (self.npts - 1)
             avg_rates['ci_ubound'] *= (self.npts - 1)
@@ -417,22 +311,28 @@ class RWRate(RWReweight):
         self.w_postanalysis_reweight()
 
 
-class RWStateProbs(RWReweight):
+class RWStateProbs(AverageCommands, RWReweight):
     subcommand = 'stateprobs'
     help_text = 'Calculates color and state probabilities via reweighting.'
     default_kinetics_file = 'reweight.h5'
-    description = '''\ Blah!'''
+    description = '''\ Calculates color and state probabilities via reweighting.'''
     def w_postanalysis_stateprobs(self):
+        ''' 
+        This function ensures the data is ready to send in to the estimator and
+        the bootstrapping routine, then does so. Much of this is simply setting 
+        up appropriate args and kwargs, then passing them in to the 
+        'run_calculation' function, which sets up future objects to send to the
+        work manager. The results are returned, and then written to the 
+        appropriate HDF5 dataset.
+        This function is specific for the color (steady-state) and macrostate 
+        probabilities from the reweighting method.
+        '''
         self.generate_reweight_data()
         pi = self.progress.indicator
 
         start_iter, stop_iter, step_iter = self.iter_range.iter_start, self.iter_range.iter_stop, self.iter_range.iter_step
-
         start_pts = range(start_iter, stop_iter, step_iter)
-
-
         indices = np.array(range(start_iter-1, stop_iter-1, step_iter), dtype=np.uint16)
-
         submit_kwargs = dict(pi=pi, nstates=self.nstates, start_iter=self.start_iter, stop_iter=self.stop_iter, 
                              step_iter=self.step_iter)
 
@@ -442,13 +342,13 @@ class RWStateProbs(RWReweight):
         submit_kwargs['estimator_kwargs'].update(  dict(rows=self.rows,
                                                         cols=self.cols,
                                                         obs=self.obs,
-                                                        flux=self.fluxm,
+                                                        flux=self.flux,
                                                         insert=self.insert,
                                                         bin_last_state_map=np.tile(np.arange(self.nstates, dtype=np.int), self.nbins), 
                                                         bin_state_map=np.repeat(self.state_map[:-1], self.nstates),
                                                         nfbins=self.nfbins,
                                                         state_labels=self.state_labels,
-                                                        return_obs='C',
+                                                        return_obs='C', # Set to a default, but we explicitly set it later.
                                                         state_map=self.state_map,
                                                         nbins=self.nbins))
 
@@ -457,6 +357,7 @@ class RWStateProbs(RWReweight):
         with pi:
 
             # The dataset options are what we pass on to the estimator...
+            submit_kwargs['estimator_kwargs']['return_obs'] = 'C'
             avg_color_probs = self.run_calculation(eval_block=_1D_eval_block, name='Average Color (Ensemble) Probability', dim=1, do_averages=True, **submit_kwargs)
             self.output_file.replace_dataset('avg_color_probs', data=avg_color_probs[1])
 
