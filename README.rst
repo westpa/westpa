@@ -48,10 +48,23 @@ variable WEST_PYTHON to the Python interpreter you want to use. For example::
     export WEST_PYTHON=/opt/anaconda/bin/python2.7
     ./setup.sh
 
+A ``westpa.sh`` script is created during installation, and will set the following
+environment variables::
+
+    WEST_ROOT
+    WEST_BIN
+    WEST_PYTHON
+
+For installation on a cluster with modules, system administrators must set these
+variables to the appropriate values within the module file.
 
 ---------------
 Getting started
 ---------------
+
+To define environment variables post-installation, simply source the 
+``westpa.sh`` script in the ``westpa`` directory from the command line
+or your setup scripts.
 
 High-level tutorials of how to use the WESTPA software can be found here_.
 Further, all WESTPA command-line tools (located in ``westpa/bin``) provide detailed help when
