@@ -31,6 +31,7 @@ cimport numpy as np
 cimport scipy.linalg.cython_lapack as cl
 cimport scipy.linalg
 import scipy.linalg
+from libc.math cimport isnan
 
 ctypedef numpy.uint16_t index_t
 ctypedef numpy.float64_t weight_t
@@ -113,7 +114,7 @@ cpdef int normalize(weight_t[:,:] m, Py_ssize_t nfbins) nogil:
 @cython.boundscheck(False)
 @cython.wraparound(False)
 @cython.cdivision(True)
-cpdef weight_t reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, nbins, state_labels, state_map, nfbins, istate, jstate, stride, bin_last_state_map, bin_state_map, obs_threshold=1, return_flux=False, return_states=False, return_color=False):
+cpdef weight_t reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, nbins, state_labels, state_map, nfbins, istate, jstate, stride, bin_last_state_map, bin_state_map, return_obs, obs_threshold=1):
 
 
 
@@ -126,13 +127,15 @@ cpdef weight_t reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, n
         double[:] _eigvals, _eigvalsi
         int n_trans, _nstates, lind, _nfbins, _stride, _obs_threshold, nnz, nlind, i, j, _istate, _jstate
         Ushort[:] _indices, _bin_state_map
+        weight_t _return_value
 
         Ushort[:] _new_indices
 
         weight_t[:,:] _total_fluxes, _transition_matrix, _rw_state_flux, _strong_transition_matrix
         double[:,:] _WORK, _eigvecs
         int[:,:] _total_obs, _graph
-        bint _return_flux, _return_states, _return_color
+        #bint _return_flux, _return_states, _return_color
+        str _return_obs
         #double[:] eigvals, eigvalsi
         #double[:,:] eigvecs, WORK
 
@@ -197,9 +200,7 @@ cpdef weight_t reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, n
     _bin_state_map = bin_state_map
     _istate = istate
     _jstate = jstate
-    _return_flux = return_flux
-    _return_states = return_states
-    _return_color = return_color
+    _return_obs = return_obs
 
 
     #NOGIL
@@ -224,18 +225,37 @@ cpdef weight_t reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, n
         calc_state_flux(_transition_matrix, _rw_bin_probs, _bin_last_state_map, _bin_state_map, _nstates, _rw_state_flux, _nfbins)
 
         # This allows us to use the same function for all three types.
-        # To simplify this, and return all three at once, we'd need to make changes to the whole mclib bit.
-        # Probably, anyway.
-        if _return_flux == True:
-            return _rw_state_flux[_istate,_jstate] 
-        elif _return_states == True:
-            return _rw_state_probs[_istate]
-        elif _return_color == True:
-            return _rw_color_probs[_istate]
-        else:
-            if _rw_color_probs[_istate] != 0.0:
-                return (_rw_state_flux[_istate,_jstate] / (_rw_color_probs[_istate] / (_rw_color_probs[_istate] + _rw_color_probs[_jstate])))
+        # Return conditional fluxes.
+        if _return_obs == b'F':
+            _return_value = _rw_state_flux[_istate,_jstate]
+            if isnan(_return_value) == True:
+                return 0.0
             else:
+                return _return_value
+        # Return state probabilities.
+        elif _return_obs == b'S':
+            _return_value = _rw_state_probs[_istate]
+            if isnan(_return_value) == True:
+                return 0.0
+            else:
+                return _return_value
+        # Return color (ensemble) probabilities
+        elif _return_obs == b'C':
+            _return_value = _rw_color_probs[_istate]
+            if isnan(_return_value) == True:
+                return 0.0
+            else:
+                return _return_value
+        # Return the rates.
+        elif _return_obs == b'R':
+            if _rw_color_probs[_istate] != 0.0:
+                _return_value = (_rw_state_flux[_istate,_jstate] / (_rw_color_probs[_istate] / (_rw_color_probs[_istate] + _rw_color_probs[_jstate])))
+                if isnan(_return_value) == True:
+                    return 0.0
+                else:
+                    return _return_value
+            else:
+                # We have no ensemble probability, and as such, cannot have a flux.
                 return 0.0
 
 @cython.boundscheck(False)
@@ -246,7 +266,9 @@ cpdef int regenerate_subsampled_indices(Ushort[:] iin, Ushort[:] iout, int ilen,
     cdef:
         int i, si
 
+    # go over the range of all indices within iin
     for i in range(ilen):
+        # Run over the length of the stride.
         for si in range(stride):
             iout[(i*stride)+si] = iin[i] + si
 
@@ -266,7 +288,9 @@ cpdef int accumulate_fluxes(int[:] hrows, int[:] hcols, int[:] hobs, weight_t[:]
     for iter in range(itermax):
         iiter = iterations[iter]
         for ilem in range(hins[iiter], hins[iiter+1]):
-            total_fluxes[hrows[ilem], hcols[ilem]] += hflux[ilem]
+            # Not sure if this is necessary, here...
+            if ilem < nnz and iiter+1 < itermax:
+                total_fluxes[hrows[ilem], hcols[ilem]] += hflux[ilem]
 
     return 0
 
