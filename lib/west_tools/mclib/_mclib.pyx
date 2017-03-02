@@ -125,6 +125,7 @@ cpdef mcbs_ci(dataset, estimator, alpha, dlen, n_sets=None, args=None, kwargs=No
     
     # dataset SHOULD be a dictionary.
     d_input = dataset.copy()
+    # Here, we're dumping in any extra kwarg arguments to pass in to the estimator.
     try:
         d_input.update(kwargs)
     except:
