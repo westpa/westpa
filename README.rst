@@ -49,7 +49,7 @@ variable WEST_PYTHON to the Python interpreter you want to use. For example::
     ./setup.sh
 
 A ``westpa.sh`` script is created during installation, and will set the following
-environment variables:
+environment variables::
 
     WEST_ROOT
     WEST_BIN
