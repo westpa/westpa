@@ -14,7 +14,7 @@ explore WEST data files.
 
 The canonical file format reference for a given version of the WEST code is
 described in `src/west/data_manager.py
-<https://chong.chem.pitt.edu/redmine/projects/westpa/repository/entry/src/west/data_manager.py>`_.
+<https://github.com/westpa/westpa/blob/master/src/west/data_manager.py>`_.
 
 Overall structure
 -----------------

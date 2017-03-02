@@ -185,7 +185,6 @@ class TestWEDriver:
 
     def test_split_with_adjust_istates(self):
         # this is a split followed by merge, for segments which are initial states
-        # addresses WESTPA issue #8 (https://chong.chem.pitt.edu/redmine/issues/8)
         self.system.bin_target_counts = numpy.array([5,5])
         segments = [self.segment(1.5, 0.5, weight=0.125), self.segment(1.5, 0.5, weight=0.125),
                     self.segment(0.0, 1.5, weight=0.375), self.segment(0.0, 1.5, weight=0.375)]
