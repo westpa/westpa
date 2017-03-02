@@ -51,11 +51,9 @@ variable WEST_PYTHON to the Python interpreter you want to use. For example::
 A ``westpa.sh`` script is created during installation, and will set the following
 environment variables:
 
-WEST_ROOT
-
-WEST_BIN
-
-WEST_PYTHON
+    WEST_ROOT
+    WEST_BIN
+    WEST_PYTHON
 
 For installation on a cluster with modules, system administrators must set these
 variables to the appropriate values within the module file.
