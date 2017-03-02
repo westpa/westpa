@@ -52,7 +52,9 @@ A ``westpa.sh`` script is created during installation, and will set the followin
 environment variables:
 
 WEST_ROOT
+
 WEST_BIN
+
 WEST_PYTHON
 
 For installation on a cluster with modules, system administrators must set these
