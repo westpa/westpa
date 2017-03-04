@@ -13,7 +13,7 @@ Overview
 Requirements: ~1 hr wallclock time on an 8-core Intel Westmere node (one walker
 per core); ~1.2 GB disk space
 
-In this tutorial we will use the standard weighted ensemble approach to
+In this introductory tutorial we will use the weighted ensemble strategy to
 simulate Na\ :sup:`+`/Cl\ :sup:`-` association in Generalized Born implicit
 solvent. The system consists of single Na\ :sup:`+` and Cl\ :sup:`-` ions
 modeled with the
@@ -107,10 +107,10 @@ Input File              Description
 env.sh                  set environment variables
 gen_istate.sh           generate initial states from basis states
 get_pcoord.sh           calculate progress coordinate for initial states
-system.py               system implementation
+west.cfg                WESTPA configuration
+aux_functions.py        functions for loading auxilliary data
 runseg.sh               segment implementation
 post_iter.sh            post-segment cleanup
-west.cfg                WESTPA configuration
 init.sh                 initialize WESTPA
 run.sh                  run WESTPA
 tar_segs.sh             tar segments
@@ -130,33 +130,43 @@ also sets the executables for Amber; using an environment variable for this
 purpose makes it easier to transition code to different hardware or test
 different builds or flags of an MD code without editing multiple files.
 
+**You should edit this file to specify the path to your Amber installation.**
+
 gen_istates.sh
 ~~~~~~~~~~~~~~
 
-This script generates initial states (structures) for the simulation from the
-basis states (structures) stored in the ``bstates`` subfolder. Our system
-contains a single basis state containing the two ions with a separation of 9.90
-Å; this script generates slight variations of this distance in order to obtain
-a greater variety of starting configurations.
+This script generates initial states (configurations) for the simulation from
+the basis state stored in the ``bstates`` subfolder. Our system uses a single
+basis state containing the two ions with a separation of 9.90 Å; this script
+generates slight variations of this distance in order to obtain a greater
+variety of starting configurations.
 
 get_pcoord.sh
 ~~~~~~~~~~~~~
 
-This script calculates the progress coordinate from the initial states. Our
-progress coordinate is the distance between the Na\ :sup:`+` and Cl\ :sup:`-`
-ions, which we calculate using AmberTools' ``cpptraj``.
-Note that this script is used only during initial state generation; during
-production ``runseg.sh`` calculates the progress coordinate.
+This script calculates the progress coordinate for each of the initial states. 
+Our progress coordinate is the distance between the Na\ :sup:`+` and Cl\ 
+:sup:`-` ions, which we calculate using AmberTools' ``cpptraj``. Note that this
+script is used only during initial state generation; throughout the remainder of
+the weighted ensemble simulation, ``runseg.sh`` calculates the progress 
+coordinate.
 
-system.py
+west.cfg
+~~~~~~~~
+
+This file defines the WESTPA configuration, including: 
+  - the number of dimensions of the progress coordinate
+  - the number of data points per trajectory segment
+  - the binning scheme and number of walkers per bin
+  - the number of weighted ensemble iterations to run 
+  - the locations of various scripts
+
+For this system we use 22 bins as defined by `Zwier, Kaus, and Chong
+<http://pubs.acs.org/doi/abs/10.1021/ct100626x>`_, and 24 walkers per bin.
+
+aux_functions.py
 ~~~~~~~~~
 
-This file contains the python implementation of this WESTPA system. Here are
-specified the number of dimensions in the progress coordinate, the number of
-frames to be output per segment, the bin boundaries, and the number of walkers
-per bin. For this system we use 22 bins as defined by `Zwier, Kaus, and Chong
-<http://pubs.acs.org/doi/abs/10.1021/ct100626x>`_, and 24 walkers per bin.
-``system.py`` also includes the functions ``coord_loader`` and ``log_loader``.
 In addition to the progress coordinate, WESTPA includes the ability to
 calculate and store auxiliary data as the simulation is run. This is often
 easier than looping over iterations and segments afterwards. Since our system
@@ -178,27 +188,18 @@ in ``get_pcoord.sh``, the progress coordinate is calculated using AmberTools'
 The auxiliary coordinate dataset is also prepared using ``cpptraj``, which is
 used to convert to trajectory to pdb format, which is processed using shell
 commands and output to a temporary file, from which it is read by the
-``coord_loader`` function in ``system.py``.
+``coord_loader`` function in ``aux_functions.py``.
 The auxiliary log data is similarly processed using shell commands and output
 to a temporary file, from which it is further processed and stored by the
-``log_loader`` function in ``system.py``.
+``log_loader`` function in ``aux_functions.py``.
 
 post_iter.sh
 ~~~~~~~~~~~~
 
 This script cleans up after each iteration. WESTPA simulations can generate
 large numbers of files, potentially conflicting with filesystem restrictions.
-After each iteration, ``post_iter.sh`` moves the segment logs the associated
-segment logs to a tar file.
-
-west.cfg
-~~~~~~~~
-
-This file contains the WESTPA configuration, including the locations of various
-scripts and the nature of the anticipated output. Additionally, this is where
-the number of iterations and maximum production time are set. Some optional
-functions, such as the ability to run a designated script before each
-iteration, are listed but unused in this tutorial.
+After each iteration, ``post_iter.sh`` packages the segment logs as a ``tar`` 
+file.
 
 init.sh
 ~~~~~~~
@@ -273,8 +274,9 @@ iteration to a single tar file.
 seg_logs
 _________
 
-This folder stores logs from each iteration and segment. ``post_iter.sh`` has
-been used to combine each segment into a single tar file.
+This folder stores logs from each iteration and segment. After each weighted
+ensemble iteration, ``post_iter.sh`` combines the log files from all of that
+iteration's segments into a single tar file.
 
 west.h5
 _______
@@ -296,6 +298,7 @@ analyze. Edit ``west.cfg`` and change ``max_total_iterations`` to 100. Extend
 using the command::
 
   ./run.sh
+The simulation will automatically continue from where it left off.
 
 Computing the association rate
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -323,8 +326,8 @@ intervals calculated using the block bootstrap method::
 
 More information on how to use ``w_fluxanl`` can be viewed using the ``--help``
 flag. ``w_fluxanl`` also stores this information in an hdf5 file,
-``fluxanl.h5``. Using the python libraries h5py and pylab, we can visualize
-this data. Open a python interpreter and run the following commands::
+``fluxanl.h5``. Using the python libraries ``h5py`` and ``pylab``, we can 
+visualize this data. Open a python interpreter and run the following commands::
 
   import h5py, numpy, pylab
   fluxanl              = h5py.File('fluxanl.h5')
@@ -460,7 +463,7 @@ Useful links
 Useful hints
 ------------
 
-- Make sure your paths are set correctly in ``env.sh``
+- Make sure your paths are set correctly in ``env.sh``.
 - If the simulation doesn't stop properly with CTRL+C , use CTRL+Z.
 - Another method to stop the simulation relatively cleanly is to rename
   ``runseg.sh``; WESTPA will shut the simulation down and prevent the hdf5 file
