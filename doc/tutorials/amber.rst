@@ -165,7 +165,7 @@ For this system we use 22 bins as defined by `Zwier, Kaus, and Chong
 <http://pubs.acs.org/doi/abs/10.1021/ct100626x>`_, and 24 walkers per bin.
 
 aux_functions.py
-~~~~~~~~~
+~~~~~~~~~~~~~~~~
 
 In addition to the progress coordinate, WESTPA includes the ability to
 calculate and store auxiliary data as the simulation is run. This is often
