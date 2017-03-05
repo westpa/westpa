@@ -165,7 +165,7 @@ For this system we use 22 bins as defined by `Zwier, Kaus, and Chong
 <http://pubs.acs.org/doi/abs/10.1021/ct100626x>`_, and 24 walkers per bin.
 
 aux_functions.py
-~~~~~~~~~
+~~~~~~~~~~~~~~~~
 
 In addition to the progress coordinate, WESTPA includes the ability to
 calculate and store auxiliary data as the simulation is run. This is often
@@ -173,6 +173,10 @@ easier than looping over iterations and segments afterwards. Since our system
 contains only two atoms, it is reasonable for us to store all coordinate
 information in the same hdf5 file as the progress coordinate. We will also
 store the log information including time, energy, and temperature.
+
+This file contains Python functions for loading the coordinates and other
+auxilliary information. The location (module and function name) of these
+functions is specified to WESTPA in ``west.cfg``.
 
 runseg.sh
 ~~~~~~~~~
@@ -229,6 +233,12 @@ WESTPA process is tarring, other cores are idle, potentially wasting CPU time.
 
 Running the simulation
 ----------------------
+
+Make sure that the environment variable ``$WEST_ROOT`` is set and points your 
+WESTPA installation.  To set this variable, enter 
+``export WEST_ROOT=/path/to/your/westpa/installation`` at the terminal, 
+modifying the command with the appropriate path.  You can check if 
+``$WEST_ROOT`` is set by typing ``echo $WEST_ROOT`` at the terminal.
 
 From the simulation root directory (``$WEST_SIM_ROOT``), the simulation may be
 initialized using the command::
