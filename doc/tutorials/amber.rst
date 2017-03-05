@@ -234,6 +234,12 @@ WESTPA process is tarring, other cores are idle, potentially wasting CPU time.
 Running the simulation
 ----------------------
 
+Make sure that the environment variable ``$WEST_ROOT`` is set and points your 
+WESTPA installation.  To set this variable, enter 
+``export WEST_ROOT=/path/to/your/westpa/installation`` at the terminal, 
+modifying the command with the appropriate path.  You can check if 
+``$WEST_ROOT`` is set by typing ``echo $WEST_ROOT`` at the terminal.
+
 From the simulation root directory (``$WEST_SIM_ROOT``), the simulation may be
 initialized using the command::
 
