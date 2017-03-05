@@ -174,6 +174,10 @@ contains only two atoms, it is reasonable for us to store all coordinate
 information in the same hdf5 file as the progress coordinate. We will also
 store the log information including time, energy, and temperature.
 
+This file contains Python functions for loading the coordinates and other
+auxilliary information. The location (module and function name) of these
+functions is specified to WESTPA in ``west.cfg``.
+
 runseg.sh
 ~~~~~~~~~
 
