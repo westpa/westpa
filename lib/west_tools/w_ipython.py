@@ -11,7 +11,8 @@ from westpa.h5io import WESTPAH5File
 from westpa.extloader import get_object
 import westpa
 import os, sys
-import w_assign, w_kinetics, w_kinavg, w_postanalysis_matrix, w_postanalysis_reweight, w_stateprobs
+#import w_assign, w_kinetics, w_kinavg, w_postanalysis_matrix, w_postanalysis_reweight, w_stateprobs
+import w_assign, w_direct, w_reweight
 #warnings.filterwarnings('ignore')
 import scipy.sparse as sp
 
@@ -19,7 +20,7 @@ from westtools import (WESTSubcommand, WESTParallelTool, WESTDataReader, WESTDSS
                        ProgressIndicatorComponent, IterRangeSelection)
 
 
-class Kinetics(WESTParallelTool):
+class WIPI(WESTParallelTool):
     '''
         Welcome to w_ipython!
         From here, you can run traces, look at weights, progress coordinates, etc.
@@ -96,7 +97,7 @@ class Kinetics(WESTParallelTool):
     '''
 
     def __init__(self):
-        super(Kinetics,self).__init__()
+        super(WIPI,self).__init__()
         self.data_reader = WESTDataReader()
         self.wm_env.default_work_manager = self.wm_env.default_parallel_work_manager
         # From assign
@@ -107,7 +108,7 @@ class Kinetics(WESTParallelTool):
 
         self._iter = 1
         self.config_required = True
-        self.version = ".3A"
+        self.version = ".99A"
         self.interface = 'matplotlib'
         global iteration
 
@@ -176,11 +177,11 @@ class Kinetics(WESTParallelTool):
                 self.__analysis_schemes__[scheme] = {}
                 try:
                     if self.__settings['analysis_schemes'][scheme]['postanalysis'] == True or self.__settings['postanalysis'] == True:
-                        analysis_files = ['assign', 'kintrace', 'kinavg', 'stateprobs', 'flux_matrices', 'kinrw']
+                        analysis_files = ['assign', 'direct', 'reweight']
                     else:
-                        analysis_files = ['assign', 'kintrace', 'kinavg', 'stateprobs']
+                        analysis_files = ['assign', 'direct']
                 except:
-                    analysis_files = ['assign', 'kintrace', 'kinavg', 'stateprobs']
+                    analysis_files = ['assign', 'direct']
                     self.__settings['analysis_schemes'][scheme]['postanalysis'] = False
                 for name in analysis_files:
                     if self.reanalyze == True:
@@ -196,16 +197,10 @@ class Kinetics(WESTParallelTool):
                         # Try to actually load some data.
                         if name == 'assign':
                             test = self.__analysis_schemes__[scheme][name]['state_labels']
-                        if name == 'kintrace':
+                        if name == 'direct':
                             test = self.__analysis_schemes__[scheme][name]['durations']
-                        if name =='kinavg':
-                            test = self.__analysis_schemes__[scheme][name]['rate_evolution']
-                        if name == 'stateprobs':
-                            test = self.__analysis_schemes__[scheme][name]['state_pop_evolution']
-                        if name == 'flux_matrices':
+                        if name == 'reweight':
                             test = self.__analysis_schemes__[scheme][name]['bin_populations']
-                        if name == 'kinrw':
-                            test = self.__analysis_schemes__[scheme][name]['rate_evolution']
                     except:
                         self.data_reader.close()
                         print('Unable to load output from {}, or a re-run requested.'.format(name))
@@ -273,10 +268,13 @@ class Kinetics(WESTParallelTool):
                             self.__analysis_schemes__[scheme][name] = h5io.WESTPAH5File(os.path.join(path, '{}.h5'.format(name)), 'r')
                             #self.data_reader.open()
 
-                        if name == 'kintrace':
+                        # Since these are all contained within one tool, now, we want it to just... load everything.
+                        # But surely there's a better way of setting things?
+                        if name == 'direct':
                             assignment_file = self.__analysis_schemes__[scheme]['assign']
-                            kintrace = w_kinetics.WKinetics()
-                            trace = w_kinetics.KinTraceSubcommand(kintrace)
+                            wdm = w_direct.WDirect()
+                            wdm.work_manager = self.work_manager
+                            direct = w_direct.DAll(wdm)
                             w_kinetics_config = { 'correl': False }
                             try:
                                 w_kinetics_config.update(self.__settings['w_kinetics'])
@@ -286,28 +284,62 @@ class Kinetics(WESTParallelTool):
                                 w_kinetics_config.update(self.__settings['analysis_schemes'][scheme]['w_kinetics'])
                             except:
                                 pass
-                            trace.progress.process_args(self.args)
+                            w_kinavg_config = { 'mcbs_alpha': 0.05, 'mcbs_nsets': 1000, 'evolution': 'cumulative', 'evol_window_frac': 1, 'step_iter': 1, 'bootstrap': True , 'correl': True, 'display_averages': False}
+                            try:
+                                w_kinavg_config.update(self.__settings['w_kinavg'])
+                            except:
+                                pass
+                            try:
+                                w_kinavg_config.update(self.__settings['analysis_schemes'][scheme]['w_kinavg'])
+                            except:
+                                pass
+                            direct.progress.process_args(self.args)
                             # Reimplement process_args...
                             # ? This shouldn't be here.
-                            trace.correl = w_kinetics_config['correl']
-                            trace.assignments_file = assignment_file
-                            trace.data_reader = WESTDataReader()
-                            trace.data_reader.process_args(self.data_args)
-                            trace.iter_range = self.iter_range
-                            trace.output_file = h5io.WESTPAH5File(os.path.join(path, '{}.h5'.format(name)), 'w', creating_program=True)
-                            h5io.stamp_creator_data(trace.output_file)
-                            if not trace.iter_range.check_data_iter_range_least(trace.assignments_file):
-                                raise ValueError('assignments do not span the requested iterations')
-                            self.do_compression = True
-                            trace.go()
-                            trace.data_reader.close()
+                            direct.correl = w_kinetics_config['correl']
+                            #direct.assignments_file = assignment_file
+                            direct.data_reader = WESTDataReader()
+                            direct.data_reader.process_args(self.data_args)
+                            direct.iter_range = self.iter_range
+                            direct.output_filename = os.path.join(path, '{}.h5'.format(name))
+                            direct.kinetics_filename = os.path.join(path, '{}.h5'.format(name))
+                            direct.assignments_filename = os.path.join(path, '{}.h5'.format('assign'))
 
-                            del(trace)
+                            #direct.output_file = h5io.WESTPAH5File(os.path.join(path, '{}.h5'.format(name)), 'w', creating_program=True)
+                            #h5io.stamp_creator_data(direct.output_file)
+                            #if not direct.iter_range.check_data_iter_range_least(direct.assignments_file):
+                            #    raise ValueError('assignments do not span the requested iterations')
+                            self.do_compression = True
+
+                            kinavg = direct
+                            kinavg.mcbs_alpha = w_kinavg_config['mcbs_alpha']
+                            kinavg.mcbs_acalpha = kinavg.mcbs_alpha
+                            kinavg.mcbs_nsets = w_kinavg_config['mcbs_nsets']
+                            kinavg.evolution_mode = w_kinavg_config['evolution']
+                            kinavg.evol_window_frac = w_kinavg_config['evol_window_frac']
+                            kinavg.iter_range.iter_step = w_kinavg_config['step_iter']
+                            kinavg.mcbs_enable = w_kinavg_config['bootstrap']
+                            kinavg.do_correl = w_kinavg_config['correl']
+                            kinavg.display_averages = w_kinavg_config['display_averages']
+                            with kinavg.data_reader:
+                                kinavg.iter_range.process_args(self.args, default_iter_step=None)
+                            if kinavg.iter_range.iter_step is None:
+                                #use about 10 blocks by default
+                                kinavg.iter_range.iter_step = max(1, (kinavg.iter_range.iter_stop - kinavg.iter_range.iter_start) // 10)
+                            kinavg.output_filename = os.path.join(path, '{}.h5'.format(name))
+                            kinavg.progress.process_args(self.args)
+                            if kinavg.evol_window_frac <= 0 or kinavg.evol_window_frac > 1:
+                                raise ValueError('Parameter error -- fractional window defined by --window-frac must be in (0,1]')
+                            kinavg.dssynth = WESTDSSynthesizer(default_dsname='pcoord')
+                            kinavg.dssynth.h5filename = self.data_reader.we_h5filename
+                            kinavg.dssynth.process_args(self.data_args)
+
+                            direct.go()
+                            direct.data_reader.close()
+
 
                             # Open!
                             self.__analysis_schemes__[scheme][name] = h5io.WESTPAH5File(os.path.join(path, '{}.h5'.format(name)), 'r')
-                            # It closes the h5 file.
-                            #self.data_reader.open()
 
                         if name == 'kinavg':
                             ktrace = w_kinavg.WKinAvg()
@@ -328,27 +360,6 @@ class Kinetics(WESTParallelTool):
                             kinavg.data_reader = WESTDataReader()
                             kinavg.data_reader.process_args(self.data_args)
                             kinavg.iter_range = self.iter_range
-                            kinavg.mcbs_alpha = w_kinavg_config['mcbs_alpha']
-                            kinavg.mcbs_acalpha = kinavg.mcbs_alpha
-                            kinavg.mcbs_nsets = w_kinavg_config['mcbs_nsets']
-                            kinavg.evolution_mode = w_kinavg_config['evolution']
-                            kinavg.evol_window_frac = w_kinavg_config['evol_window_frac']
-                            kinavg.iter_range.iter_step = w_kinavg_config['step_iter']
-                            kinavg.mcbs_enable = w_kinavg_config['bootstrap']
-                            kinavg.correl = w_kinavg_config['correl']
-                            kinavg.display_averages = w_kinavg_config['display_averages']
-                            with kinavg.data_reader:
-                                kinavg.iter_range.process_args(self.args, default_iter_step=None)
-                            if kinavg.iter_range.iter_step is None:
-                                #use about 10 blocks by default
-                                kinavg.iter_range.iter_step = max(1, (kinavg.iter_range.iter_stop - kinavg.iter_range.iter_start) // 10)
-                            kinavg.output_filename = os.path.join(path, '{}.h5'.format(name))
-                            kinavg.progress.process_args(self.args)
-                            if kinavg.evol_window_frac <= 0 or kinavg.evol_window_frac > 1:
-                                raise ValueError('Parameter error -- fractional window defined by --window-frac must be in (0,1]')
-                            kinavg.dssynth = WESTDSSynthesizer(default_dsname='pcoord')
-                            kinavg.dssynth.h5filename = self.data_reader.we_h5filename
-                            kinavg.dssynth.process_args(self.data_args)
 
                             kinavg.go()
                             kinavg.data_reader.close()
@@ -489,11 +500,6 @@ class Kinetics(WESTParallelTool):
                 self.work_manager.shutdown()
         print("")
         print("Complete!")
-
-
-
-
-
 
     @property
     def assign(self):
@@ -1136,7 +1142,7 @@ class Kinetics(WESTParallelTool):
         print(help_string)
 
 
-west = Kinetics()
+west = WIPI()
 w = west
 if __name__ == '__main__':
     # We're gonna print some defaults.
