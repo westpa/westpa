@@ -2,7 +2,6 @@
 # Modify to taste
 
 # Inform WEST where to find Amber
-export AMBERHOME=/path/to/amberhome
 export PATH=$AMBERHOME/bin:$PATH
 
 # Set environment variables for Amber for convenience
