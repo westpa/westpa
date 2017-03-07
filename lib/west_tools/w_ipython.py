@@ -309,17 +309,28 @@ class WIPI(WESTParallelTool):
                             # The tool has no real idea it's being called outside of its actual function, and we're good to go.
                             args = ['all']
                             for key,value in analysis_config.iteritems():
-                                args.append(str('--') + str(key).replace('_', '-'))
-                                args.append(str(value))
+                                if key != 'extra':
+                                    args.append(str('--') + str(key).replace('_', '-'))
+                                    args.append(str(value))
+                            # This is for stuff like disabling correlation analysis, etc.
+                            if 'extra' in analysis_config.keys():
+                                for value in analysis_config['extra']:
+                                    args.append(str('--') + str(value).replace('_', '-'))
+                            # We want to not display the averages, so...
+                            args.append('--disable-averages')
                             analysis.make_parser_and_process(args=args)
                             # We don't really want to make new ones, so.
                             analysis.work_manager = self.work_manager
                             analysis.data_reader = WESTDataReader()
-
                             analysis.go()
-                            analysis.data_reader.close()
-                            del(analysis)
 
+                            analysis.data_reader.close()
+                            #if 'step-iter' in analysis_config.keys():
+                            #    self.__analysis_schemes__[scheme]['step_iter'][name] = analysis_config['step-iter']
+                            #else:
+                            #    self.__analysis_schemes__[scheme]['step_iter'][name] = max(1, (self.iter_range.iter_stop - self.iter_range.iter_start) // 10)
+
+                            #del(analysis)
 
                             # Open!
                             self.__analysis_schemes__[scheme][name] = h5io.WESTPAH5File(os.path.join(path, '{}.h5'.format(name)), 'r')
@@ -430,6 +441,20 @@ class WIPI(WESTParallelTool):
         #print("The current iteration is {}".format(self._iter))
         return self._iter
 
+    @iteration.setter
+    def iteration(self, value):
+        print("Setting iteration to iter {}.".format(value))
+        if value <= 0:
+            print("Iteration must begin at 1.")
+            value = 1
+        if value > self.niters:
+            print("Cannot go beyond {} iterations!".format(self.niters))
+            print("Setting to {}".format(self.niters))
+            value = self.niters
+        self._iter = value
+        self._future = None
+        return self._iter
+
     @property
     def walkers(self):
         '''
@@ -442,29 +467,22 @@ class WIPI(WESTParallelTool):
     def aggregate_walkers(self):
         return self.west['summary']['n_particles'][:self.iteration].sum()
 
-    @iteration.setter
-    def iteration(self, value):
-        print("Setting iteration to iter {}.".format(value))
-        if value < 0:
-            print("Iteration must begin at 1.")
-            value = 1
-        if value > self.niters:
-            print("Cannot go beyond {} iterations!".format(self.niters))
-            print("Setting to {}".format(self.niters))
-            value = self.niters
-        self._iter = value
-        self._future = None
-        return self._iter
-
     # Returns the raw values, but can also calculate things based on them.
     class KineticsIteration(dict):
-        def __init__(self, kin_h5file, value):
-            self.raw = kin_h5file['rate_evolution'][value - 1, :, :]
+        def __init__(self, kin_h5file, index):
+            # Check the start and stop, calculate the block size, and index appropriately.
+            # While we could try and automatically generate this above, it's a little more consistent to try it here.
+            # This should show the first block for which the current iteration has contributed data.
+            self.step_iter = (kin_h5file['rate_evolution']['iter_stop'][0] - kin_h5file['rate_evolution']['iter_start'][0])[1,0]
+            value = ((index-2) // self.step_iter)
+            if value < 0:
+                value = 0
+            self.raw = kin_h5file['rate_evolution'][value, :, :]
             self.error = (self.raw['ci_ubound'] - self.raw['ci_lbound']) / (2*self.raw['expected'])
             self.expected = self.raw['expected']
-            self.flux = kin_h5file['conditional_flux_evolution'][value - 1, :, :]
+            self.flux = kin_h5file['conditional_flux_evolution'][value, :, :]
             self.ferror = (self.flux['ci_ubound'] - self.flux['ci_lbound']) / (2*self.flux['expected'])
-            self.flux = kin_h5file['conditional_flux_evolution'][value - 1, :, :]['expected']
+            self.flux = kin_h5file['conditional_flux_evolution'][value, :, :]['expected']
             self.__dict__ = { 'raw': self.raw, 'error': self.error, 'expected': self.expected, 'flux': self.flux, 'ferror': self.ferror }
         def __getattr__(self, attr):
             return self.__dict__[attr]
@@ -483,8 +501,12 @@ class WIPI(WESTParallelTool):
 
     # Returns the raw values, but can also calculate things based on them.
     class CalcPopIteration(dict):
-        def __init__(self, sp_h5file, value):
-            self.raw = sp_h5file['state_pop_evolution'][value - 1, :]
+        def __init__(self, sp_h5file, index):
+            self.step_iter = (sp_h5file['state_pop_evolution']['iter_stop'][0] - sp_h5file['state_pop_evolution']['iter_start'][0])[1]
+            value = ((index-1) // self.step_iter)
+            if value < 0:
+                value = 0
+            self.raw = sp_h5file['state_pop_evolution'][value, :]
             self.error = (self.raw['ci_ubound'] - self.raw['ci_lbound']) / (2*self.raw['expected'])
             self.expected = self.raw['expected']
             self.__dict__ = { 'raw': self.raw, 'error': self.error, 'expected': self.expected }
@@ -524,59 +546,84 @@ class WIPI(WESTParallelTool):
             #return repr((self.states, self.bins))
             return (" ")
 
-    def __get_data_for_iteration__(self, value, seg_ids = None):
-        '''
-        This returns all important data for the current iteration.  It is optionally
-        sorted by the seg_ids, which allows us to match parent-walker child pairs by
-        only matching the current iteration.
-        This is used internally.
-        '''
-        iter_group = self.data_reader.get_iter_group(value)
-        current = {}
-        if seg_ids == None:
-            seg_ids = xrange(0, iter_group['seg_index']['weight'].shape[0])
-        current['kinavg'] = self.KineticsIteration(self.direct, value)
-        current['statepops'] = self.CalcPopIteration(self.direct, value)
-        # Just make these easier to access.
-        current['weights'] = iter_group['seg_index']['weight'][seg_ids]
-        current['pcoord'] = iter_group['pcoord'][...][seg_ids, :, :]
-        try:
-            current['auxdata'] = {}
-            for key in iter_group['auxdata'].keys():
-                current['auxdata'][key] = iter_group['auxdata'][key][...][seg_ids, :]
-        except:
-            pass
-        current['parents'] = iter_group['seg_index']['parent_id'][seg_ids]
-        current['summary'] = self.data_reader.data_manager.get_iter_summary(int(value))
-        current['seg_id'] = np.array(range(0, iter_group['seg_index'].shape[0]))[seg_ids]
-        current['walkers'] = current['summary']['n_particles']
-        current['states'] = self.assign['trajlabels'][value-1, :current['walkers'], :][seg_ids]
-        current['bins'] = self.assign['assignments'][value-1, :current['walkers'], :][seg_ids]
-        # Calculates the bin population for this iteration.
-        nbins = self.assign['state_map'].shape[0]
-        # We have to take the 'unknown' state into account
-        nstates = self.assign['state_labels'].shape[0] + 1
-        #current['pop_bins'] = np.histogram(current['bins'].flatten(), bins=range(0, nbins), weights=np.repeat(current['weights'], current['bins'].shape[1]))[0] / current['bins'].shape[1]
-        #current['pop_states'] = np.histogram(current['states'].flatten(), bins=range(0, nstates + 1), weights=np.repeat(current['weights'], current['states'].shape[1]))[0] / current['states'].shape[1]
-        current['populations'] = self.PopulationsIterations(self.assign, current, self.scheme)
-        current['plot'] = self.Plotter(self.direct, self.kinrw, self.iteration, self.assign['bin_labels'], self.assign['state_labels'], current['populations'].states, current['populations'].bins, self.interface)
-        try:
-            # We'll make this not a sparse matrix...
-            matrix = self.matrix['iterations/iter_{:08d}'.format(value)]
-            # Assume color.
-            current['instant_matrix'] = sp.coo_matrix((matrix['flux'][...], (matrix['rows'][...], matrix['cols'][...])), shape=((nbins-1)*2, (nbins-1)*2)).todense()
-            current['kinrw'] = self.KineticsIteration(self.kinrw, value)
-            current['matrix'] = self.aggregate_matrix[value-1, :, :]
-            current['rwstatepops'] = self.CalcPopIteration(self.kinrw, value)
-        except:
-          # This analysis hasn't been enabled, so we'll simply return the default error message.
-            current['instant_matrix'] = self.matrix['bin_populations']
-            current['kinrw'] = self.kinrw['rate_evolution']
-            current['rwstatepops'] = self.kinrw['rate_evolution']
-            #current['rw_error'] = self.kinrw['rate_evolution']
-            #current['rw_expected'] = self.kinrw['rate_evolution']
-            current['matrix'] = self.matrix['bin_populations']
-        return current
+    class __get_data_for_iteration__():
+    #def __get_data_for_iteration__(self, value, seg_ids = None):
+        def __init__(self, parent, value, seg_ids = None):
+            '''
+            This returns all important data for the current iteration.  It is optionally
+            sorted by the seg_ids, which allows us to match parent-walker child pairs by
+            only matching the current iteration.
+            This is used internally.
+            '''
+            iter_group = parent.data_reader.get_iter_group(value)
+            current = {}
+            if seg_ids == None:
+                seg_ids = xrange(0, iter_group['seg_index']['weight'].shape[0])
+            current['kinavg'] = parent.KineticsIteration(parent.direct, value)
+            current['statepops'] = parent.CalcPopIteration(parent.direct, value)
+            # Just make these easier to access.
+            current['weights'] = iter_group['seg_index']['weight'][seg_ids]
+            current['pcoord'] = iter_group['pcoord'][...][seg_ids, :, :]
+            try:
+                current['auxdata'] = {}
+                for key in iter_group['auxdata'].keys():
+                    current['auxdata'][key] = iter_group['auxdata'][key][...][seg_ids, :]
+            except:
+                pass
+            current['parents'] = iter_group['seg_index']['parent_id'][seg_ids]
+            current['summary'] = parent.data_reader.data_manager.get_iter_summary(int(value))
+            current['seg_id'] = np.array(range(0, iter_group['seg_index'].shape[0]))[seg_ids]
+            current['walkers'] = current['summary']['n_particles']
+            current['states'] = parent.assign['trajlabels'][value-1, :current['walkers'], :][seg_ids]
+            current['bins'] = parent.assign['assignments'][value-1, :current['walkers'], :][seg_ids]
+            # Calculates the bin population for this iteration.
+            nbins = parent.assign['state_map'].shape[0]
+            # We have to take the 'unknown' state into account
+            nstates = parent.assign['state_labels'].shape[0] + 1
+            #current['pop_bins'] = np.histogram(current['bins'].flatten(), bins=range(0, nbins), weights=np.repeat(current['weights'], current['bins'].shape[1]))[0] / current['bins'].shape[1]
+            #current['pop_states'] = np.histogram(current['states'].flatten(), bins=range(0, nstates + 1), weights=np.repeat(current['weights'], current['states'].shape[1]))[0] / current['states'].shape[1]
+            current['populations'] = parent.PopulationsIterations(parent.assign, current, parent.scheme)
+            current['plot'] = parent.Plotter(parent.direct, parent.reweight, parent.iteration, parent.assign['bin_labels'], parent.assign['state_labels'], current['populations'].states, current['populations'].bins, parent.interface)
+            try:
+                # We'll make this not a sparse matrix...
+                matrix = parent.reweight['iterations/iter_{:08d}'.format(value)]
+                # Assume color.
+                current['instant_matrix'] = sp.coo_matrix((matrix['flux'][...], (matrix['rows'][...], matrix['cols'][...])), shape=((nbins-1)*2, (nbins-1)*2)).todense()
+                current['kinrw'] = parent.KineticsIteration(parent.reweight, value)
+                # This feature is borked, as we've removed the code.  Ergo...
+                #current['matrix'] = self.aggregate_matrix[value-1, :, :]
+                current['rwstatepops'] = parent.CalcPopIteration(parent.reweight, value)
+            except:
+              # This analysis hasn't been enabled, so we'll simply return the default error message.
+                current['instant_matrix'] = parent.reweight['bin_populations']
+                current['kinrw'] = parent.reweight['rate_evolution']
+                current['rwstatepops'] = parent.reweight['rate_evolution']
+                current['matrix'] = parent.reweight['bin_populations']
+            self.raw = current
+        def __repr__(self):
+            return repr(self.raw)
+        def keys(self):
+            return self.raw.keys()
+        def __getitem__(self, value):
+            active_items = ['kinavg', 'statepops', 'weights', 'pcoord', 'auxdata', 'parents', 'summary', 'seg_id', 'walkers', 'states', 'bins', 'populations', 'plot', 'instant_matrix', 'kinrw', 'matrix', 'rwstatepops']
+            if value in active_items:
+                return self.raw[value]
+            else:
+                current = {}
+                seg_items = ['weights', 'pcoord', 'auxdata', 'parents', 'seg_id', 'states']
+                #for i in seg_items:
+                #    current[i] = self.raw[i]
+                current['pcoord'] = self.raw['pcoord'][value, :, :]
+                current['states'] = self.raw['states'][value, :]
+                current['bins'] = self.raw['bins'][value, :]
+                current['seg_id'] = self.raw['seg_id'][value]
+                current['weights'] = self.raw['weights'][value]
+                try:
+                    for key in self.raw['auxdata'].keys():
+                        current['auxdata'][key] = self.raw['auxdata'][key][value]
+                except:
+                    pass
+                return current
 
     @property
     def current(self):
@@ -591,7 +638,7 @@ class WIPI(WESTParallelTool):
         and analysis scheme.  They are NOT dynamics bins, necessarily, but the bins defined in
         west.cfg.  If you change the analysis scheme, so, too, will the important values.
         '''
-        return self.__get_data_for_iteration__(self.iteration)
+        return self.__get_data_for_iteration__(value=self.iteration, parent=self)
 
     @property
     def past(self):
@@ -607,15 +654,16 @@ class WIPI(WESTParallelTool):
         by construction.
         '''
         if self.iteration > 1:
-            return self.__get_data_for_iteration__(self.iteration - 1, self.current['parents'])
+            return self.__get_data_for_iteration__(value=self.iteration - 1, seg_ids=self.current['parents'], parent=self)
         else:
             print("The current iteration is 1; there is no past.")
 
     class Plotter():
-        def __init__(self, kinavg, kinrw, stateprobs, iteration, bin_labels, state_labels, state_pops, bin_pops, interface='matplotlib'):
+        def __init__(self, kinavg, kinrw, iteration, bin_labels, state_labels, state_pops, bin_pops, interface='matplotlib'):
+            # Need to sort through and fix all this, but hey.
             self.kinavg_file = kinavg
             self.kinrw_file = kinrw
-            self.stateprobs_file = stateprobs
+            self.stateprobs_file = kinavg
             self.iteration = iteration
             self.bin_labels = list(bin_labels[...])
             self.state_labels = list(state_labels[...]) + ['unknown']
@@ -785,7 +833,7 @@ class WIPI(WESTParallelTool):
             pass
         parents = self.current['parents']
         for iter in reversed(range(1, self.iteration)):
-            iter_data = self.__get_data_for_iteration__(iter, parents)
+            iter_data = self.__get_data_for_iteration__(iter, seg_ids=parents, parent=self)
             current['pcoord'].append(iter_data['pcoord'][seg_id, :, :])
             current['states'].append(iter_data['states'][seg_id, :])
             current['bins'].append(iter_data['bins'][seg_id, :])
@@ -801,7 +849,7 @@ class WIPI(WESTParallelTool):
             if seg_id < 0:
                 # Necessary for steady state simulations.  This means they started in that iteration.
                 break
-            parents = self.__get_data_for_iteration__(iter)['parents']
+            parents = self.__get_data_for_iteration__(iter, parent=self)['parents']
         current['seg_id'] = list(reversed(current['seg_id']))
         current['pcoord'] = np.concatenate(np.array(list(reversed(current['pcoord']))))
         current['states'] = np.concatenate(np.array(list(reversed(current['states']))))
@@ -826,6 +874,33 @@ class WIPI(WESTParallelTool):
             self.__get_children__()
         return self._future
 
+    class Future():
+        def __init__(self, rep={}):
+            self.raw = rep
+        def __repr__(self):
+            return repr(self.raw)
+        def keys(self):
+            return self.raw.keys()
+        def __getitem__(self, value):
+            active_items = ['kinavg', 'statepops', 'weights', 'pcoord', 'auxdata', 'parents', 'summary', 'seg_id', 'walkers', 'states', 'bins']
+            if value in active_items:
+                return self.raw[value]
+            else:
+                current = {}
+                seg_items = ['weights', 'pcoord', 'auxdata', 'parents', 'seg_id', 'states']
+                current['pcoord'] = self.raw['pcoord'][value]
+                current['states'] = self.raw['states'][value]
+                current['bins'] = self.raw['bins'][value]
+                current['seg_id'] = self.raw['seg_id'][value]
+                current['weights'] = self.raw['weights'][value]
+                current['parents'] = self.raw['parents'][value]
+                try:
+                    for key in self.raw['auxdata'].keys():
+                        current['auxdata'][key] = self.raw['auxdata'][key][value]
+                except:
+                    pass
+                return current
+
     def __get_children__(self):
         '''
         Returns all information about the children of a given walker in the current iteration.
@@ -834,8 +909,9 @@ class WIPI(WESTParallelTool):
         if self.iteration == self.niters:
             print("Currently at iteration {}, which is the max.  There are no children!".format(self.iteration))
             return 0
-        iter_data = self.__get_data_for_iteration__(self.iteration+1)
-        self._future = { 'kinavg': iter_data['kinavg'], 'weights': [], 'pcoord': [], 'parents': [], 'summary': iter_data['summary'], 'seg_id': [], 'walkers': iter_data['walkers'], 'states': [], 'bins': [] }
+        iter_data = self.__get_data_for_iteration__(value=self.iteration+1, parent=self)
+        self._future = self.Future(rep={ 'kinavg': iter_data['kinavg'], 'weights': [], 'pcoord': [], 'parents': [], 'summary': iter_data['summary'], 'seg_id': [], 'walkers': iter_data['walkers'], 'states': [], 'bins': [] })
+        #self._future = { 'kinavg': iter_data['kinavg'], 'weights': [], 'pcoord': [], 'parents': [], 'summary': iter_data['summary'], 'seg_id': [], 'walkers': iter_data['walkers'], 'states': [], 'bins': [] }
         for seg_id in range(0, self.walkers):
             children = np.where(iter_data['parents'] == seg_id)[0]
             if len(children) == 0:
@@ -880,23 +956,25 @@ class WIPI(WESTParallelTool):
 
     def __add_matrix__(self):
         # Hooks into the existing tools in w_postanalysis_reweight
-        matrices = self.__analysis_schemes__[self.scheme]['flux_matrices']
+        matrices = self.__analysis_schemes__[self.scheme]['reweight']
         nbins = matrices['bin_populations'].shape[1]
         self.__analysis_schemes__[self.scheme]['aggregate_matrix'] = np.zeros((self.niters, nbins, nbins))
         self.__analysis_schemes__[self.scheme]['total_pop'] = np.zeros((self.niters, nbins))
-        matrix_accumulator = w_postanalysis_reweight.accumulate_statistics
-        normalize = w_postanalysis_reweight.normalize
-        total_fluxes = np.zeros((nbins, nbins))
-        total_obs = np.zeros((nbins, nbins))
-        for iter in range(2, self.niters+1):
-            total_fluxes, total_obs, total_pop = matrix_accumulator(self.matrix, iter-1, iter, nbins, total_fluxes, total_obs)
-            self.__analysis_schemes__[self.scheme]['aggregate_matrix'][iter-1][:] = normalize(total_fluxes)
+        print("Hey, this analysis is borked.")
+        #matrix_accumulator = w_postanalysis_reweight.accumulate_statistics
+        #normalize = w_postanalysis_reweight.normalize
+        #total_fluxes = np.zeros((nbins, nbins))
+        #total_obs = np.zeros((nbins, nbins))
+        #for iter in range(2, self.niters+1):
+        #    total_fluxes, total_obs, total_pop = matrix_accumulator(self.reweight, iter-1, iter, nbins, total_fluxes, total_obs)
+        #    self.__analysis_schemes__[self.scheme]['aggregate_matrix'][iter-1][:] = normalize(total_fluxes)
 
     def go(self):
         self.data_reader.open()
         self.analysis_structure()
         self.data_reader.open()
-        self.niters = self.direct['rate_evolution']['expected'].shape[0]
+        #self.niters = self.direct['rate_evolution']['expected'].shape[0]
+        self.niters = self.west.attrs['west_current_iteration'] - 1
         self.iteration = 1
         if self.__settings['analysis_schemes'][self.scheme]['postanalysis'] == True:
             self.__analysis_schemes__[self.scheme]['aggregate_matrix'] = None

@@ -283,8 +283,9 @@ class RWRate(AverageCommands, RWReweight):
         pi.clear()
 
         # We've returned an average, but it still exists in a timeslice format.  So we need to return the 'last' value.
-        self.print_averages(avg_conditional_fluxes[1], '\nfluxes from state to state:', dim=2)
-        self.print_averages(avg_rates[1], '\nrates from state to state:', dim=2)
+        if self.display_averages:
+            self.print_averages(avg_conditional_fluxes[1], '\nfluxes from state to state:', dim=2)
+            self.print_averages(avg_rates[1], '\nrates from state to state:', dim=2)
 
         # Do a bootstrap evolution.
         pi.clear()
@@ -369,8 +370,9 @@ class RWStateProbs(AverageCommands, RWReweight):
         pi.clear()
 
         # We've returned an average, but it still exists in a timeslice format.  So we need to return the 'last' value.
-        self.print_averages(avg_color_probs[1], '\naverage color probabilities:', dim=1)
-        self.print_averages(avg_state_probs[1], '\naverage state probabilities:', dim=1)
+        if self.display_averages:
+            self.print_averages(avg_color_probs[1], '\naverage color probabilities:', dim=1)
+            self.print_averages(avg_state_probs[1], '\naverage state probabilities:', dim=1)
 
         # Do a bootstrap evolution.
         pi.clear()
