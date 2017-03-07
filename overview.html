@@ -23,8 +23,8 @@
               <a href="index.html">
                 <img class="logo_link" src="images/WESTPA2.jpg" alt="WESTPA logo" style="width:125px;height:59.6px;" border=0>
               </a>
-              <a class="pub_link" href="publications.html">Publications</a>
               <a class="ovw_link" href="overview.html">Overview</a>
+              <a class="pub_link" href="publications.html">Publications</a>
               <a class="doc_link" href="sphinx_index.html">Documentation</a>
               <a class="gh_link" href="https://github.com/westpa/westpa">Download from GitHub</a>
             </section>
@@ -40,7 +40,7 @@
 Daniel M. Zuckerman, Oregon Health & Science University
 
 <p><strong>Introduction to Weighted Ensemble Simulation: The very basics</strong></p>
-"Weighted ensemble" (WE) simulation is an enhanced sampling method for non-equilibrium and equilibrium processes which would be impractical to observe using standard dynamics simulation. Key examples at the molecular scale include (i) rare conformational processes, such as conformational transitions, (un)folding, and ion or substrate permeation through a complex (ii) activated processes generally - i.e., overcoming energy barriers and (ii) binding processes - i.e., rare complexation events. However, WE is a generic algorithm and can be applied to problems at the multi-protein scale [Spirit-2015] or network/cell scales [Donovan-2013, Donovan-2016]. The basic goal of such studies is to get from a known initial state (A in <b>Fig. 1</b>) to a target state B, learning pathways and rate constants for the process. WE uses a multiple-trajectory strategy in which individual trajectories can spawn multiple child trajectories upon reaching new regions of configuration space called bins. The children are suitably weighted to ensure statistical rigor. WE simulation can yield unbiased estimates for timescales/processes that are much longer than the simulations themselves. 
+"Weighted ensemble" (WE) simulation is an enhanced sampling method for non-equilibrium and equilibrium processes which would be impractical to observe using standard dynamics simulation. Key examples at the molecular scale include (i) rare conformational processes, such as conformational transitions, (un)folding, and ion or substrate permeation through a complex (ii) activated processes generally - i.e., overcoming energy barriers and (ii) binding processes - i.e., rare complexation events. However, WE is a generic algorithm and can be applied to problems at the multi-protein scale [Spirit-2015] or network/cell scales [Donovan-2013, Donovan-2016]. The basic goal of such studies is to get from a known initial state (A in <strong>Fig. 1</strong>) to a target state B, learning pathways and rate constants for the process. WE uses a multiple-trajectory strategy in which individual trajectories can spawn multiple child trajectories upon reaching new regions of configuration space called bins. The children are suitably weighted to ensure statistical rigor. WE simulation can yield unbiased estimates for timescales/processes that are much longer than the simulations themselves. 
 
 The WE approach has numerous strengths: 
 <ul>
@@ -63,7 +63,15 @@ Interoperability: Sampling at fixed time points enables WE software to be inter-
 
 <img src="images/we_overview_fig1.png" alt="fig1" style="width:100%;" border=0>
 </img>
-<b>Figure 1.</b> Weighted ensemble (WE) simulation using bins defined in advance or on the fly. Multiple trajectories are initiated from any known configuration (filled square) and run using standard dynamics simulation, without bias.  Each of the four initial trajectories is assigned a weight of 1/4.  (a) When a trajectory reaches a new bin, it is replicated with each “child” receiving an equal share of the parent trajectory's weight.  Trajectories are checked for their location/bin at fixed time intervals: in the first interval, red trajectories were run, followed by green trajectories in the second interval.  The dashed trajectories have each inherited 1/4 of the parent trajectory's weight, resulting in weights of 1/16 for each daughter.  (b) New bins can be defined ‘on the fly’ based on user-defined criteria.
+<strong>Figure 1.</strong> Weighted ensemble (WE) simulation using bins defined in advance or on the fly. Multiple trajectories are initiated from any known configuration (filled square) and run using standard dynamics simulation, without bias.  Each of the four initial trajectories is assigned a weight of 1/4.  (a) When a trajectory reaches a new bin, it is replicated with each “child” receiving an equal share of the parent trajectory's weight.  Trajectories are checked for their location/bin at fixed time intervals: in the first interval, red trajectories were run, followed by green trajectories in the second interval.  The dashed trajectories have each inherited 1/4 of the parent trajectory's weight, resulting in weights of 1/16 for each daughter.  (b) New bins can be defined ‘on the fly’ based on user-defined criteria.
+
+<img src="images/we_overview_fig2.png" alt="fig2" style="width:100%;" border=0>
+</img>
+<strong>Figure 2.</strong> Schematic depiction of equilibrium in WE simulation.  Thicker arrows represent higher-weight trajectories.  The total probability/weight flowing from one bin to another is exactly balanced, on average, by the reverse flow.  Thus, the flow of a given number of low-weight trajectories is matched by a smaller number of higher-weight trajectories moving in the opposite direction.  Equilibrium flows of weighted trajectories can be established by estimating and adjusting weights.
+
+<img src="images/we_overview_fig3.png" alt="fig3" style="width:100%;" border=0>
+</img>
+<strong>Figure 3.</strong> Weighted ensemble (WE) simulation is well suited for finding multiple pathways.  A number of different pathways are shown for the alanine dipeptide molecule (center).  Transition trajectories start from the c7eq state at the center of each panel and terminate in the c7ax state, which occurs in the four outside corners of each panel due to the cyclic nature of torsion angles [Bhatt-2011].  WE has also identified distinct pathways in proteins – see text.
 
 
         </div>
