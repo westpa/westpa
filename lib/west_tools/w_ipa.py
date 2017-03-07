@@ -21,7 +21,7 @@ from westtools import (WESTSubcommand, WESTParallelTool, WESTDataReader, WESTDSS
 
 class WIPI(WESTParallelTool):
     '''
-        Welcome to w_ipython!
+        Welcome to w_ipa (WESTPA Interactive Python Analysis)!
         From here, you can run traces, look at weights, progress coordinates, etc.
         This is considered a 'stateful' tool; that is, the data you are pulling is always pulled
         from the current analysis scheme and iteration.
@@ -124,7 +124,7 @@ class WIPI(WESTParallelTool):
     def process_args(self, args):
         self.data_reader.process_args(args)
         self.__config = westpa.rc.config
-        self.__settings = self.__config['west']['w_ipython']
+        self.__settings = self.__config['west']['w_ipa']
         for ischeme, scheme in enumerate(self.__settings['analysis_schemes']):
             if (self.__settings['analysis_schemes'][scheme]['enabled'] == True or self.__settings['analysis_schemes'][scheme]['enabled'] == None):
                 self.scheme = scheme
@@ -353,8 +353,8 @@ class WIPI(WESTParallelTool):
 
         west:
           system:
-            w_ipython:
-              directory: w_ipython.analysis
+            w_ipya:
+              directory: w_ipa.analysis
               analysis_schemes:
                 scheme.1:
                   enabled: True
@@ -839,7 +839,7 @@ w = west
 if __name__ == '__main__':
     # We're gonna print some defaults.
     print("")
-    print("Welcome to w_ipython v. {}!".format(w.version))
+    print("Welcome to w_ipa (WESTPA Interactive Python Analysis) v. {}!".format(w.version))
     print("Run w.introduction for a more thorough introduction, or w.help to see a list of options.")
     print("Running analysis & loading files.")
     w.main()
@@ -849,7 +849,7 @@ if __name__ == '__main__':
         from IPython.lib.kernel import find_connection_file
         import IPython
         embed(banner1='',
-             exit_msg='Leaving w_ipython... goodbye.')
+             exit_msg='Leaving w_ipa... goodbye.')
         #cf=find_connection_file("*")
         #kern = w.work_manager.submit(embed_kernel())
         #print("We are running!")
