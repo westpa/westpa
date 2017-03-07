@@ -88,6 +88,10 @@ elif [ "$1" == "--strace" ]; then
     shift
     echo >&2 "Running $SCRIPT under strace"
     strace $WEST_PYTHON $FULLSCRIPT "$@"
+elif [ "$1" == "--notebook" ]; then
+    shift
+    echo >&2 "Running Jupyter Notebook Session"
+    jupyter notebook
 else
     exec $WEST_PYTHON $FULLSCRIPT "$@"
 fi
