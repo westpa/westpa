@@ -4,6 +4,8 @@ warnings.filterwarnings('ignore', category=RuntimeWarning)
 warnings.filterwarnings('ignore', category=FutureWarning)
 import numpy as np
 import h5py
+# We don't care if we're reimporting blessings, under this context.
+warnings.filterwarnings('ignore')
 
 class Plotter():
     '''
