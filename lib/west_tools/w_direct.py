@@ -20,9 +20,9 @@ import logging
 
 # Let's suppress those numpy warnings.
 import warnings
-warnings.filterwarnings('ignore', category=DeprecationWarning)
-warnings.filterwarnings('ignore', category=RuntimeWarning)
-warnings.filterwarnings('ignore', category=FutureWarning)
+#warnings.filterwarnings('ignore', category=DeprecationWarning)
+#warnings.filterwarnings('ignore', category=RuntimeWarning)
+#warnings.filterwarnings('ignore', category=FutureWarning)
 
 import sys, random, math
 import numpy, h5py
