@@ -336,6 +336,20 @@ Full-Width Styles
  color: red;
 }
 
+.ovw_link {
+  float: left;
+  width: 60px;
+  height: 40px;
+  display: block;
+  padding-right: 30px;
+  color: black;
+  font-size: 18px;
+}
+
+.ovw_link:hover {
+ color: red;
+}
+
 .doc_link {
   float: left;
   width: 100px;
