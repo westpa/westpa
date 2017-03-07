@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>w_pdist &mdash; WESTPA 1.0b1 documentation</title>
+    <title>w_pdist &#8212; WESTPA 1.0b1 documentation</title>
     
     <link rel="stylesheet" href="../../static/alabaster.css" type="text/css" />
     <link rel="stylesheet" href="../../static/pygments.css" type="text/css" />
@@ -24,16 +24,21 @@
     <script type="text/javascript" src="../../static/jquery.js"></script>
     <script type="text/javascript" src="../../static/underscore.js"></script>
     <script type="text/javascript" src="../../static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
     <link rel="top" title="WESTPA 1.0b1 documentation" href="../../sphinx_index.html" />
     <link rel="up" title="Command Line Tool Index" href="../command_line_tools.html" />
     <link rel="next" title="w_run" href="w_run.html" />
     <link rel="prev" title="w_ntop" href="w_ntop.html" />
    
+  <link rel="stylesheet" href="../../static/custom.css" type="text/css" />
+  
   
   <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
 
   </head>
-  <body role="document">  
+  <body role="document">
+  
 
     <div class="document">
       <div class="documentwrapper">
@@ -45,11 +50,11 @@
 <p><code class="docutils literal"><span class="pre">w_pcpdist</span></code> constructs and calculates the progress coordinate probability
 distribution&#8217;s evolution over a user-specified number of simulation iterations.
 <code class="docutils literal"><span class="pre">w_pcpdist</span></code> supports progress coordinates with dimensionality ≥ 1.</p>
-<p>The resulting distribution can be viewed with the <a class="reference internal" href="plothist.html#plothist"><span>plothist</span></a> tool.</p>
+<p>The resulting distribution can be viewed with the <a class="reference internal" href="plothist.html#plothist"><span class="std std-ref">plothist</span></a> tool.</p>
 <div class="section" id="overview">
 <h2>Overview<a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h2>
 <p>Usage:</p>
-<div class="highlight-python"><div class="highlight"><pre><span></span>$WEST_ROOT/bin/w_pdist [-h] [-r RCFILE] [--quiet | --verbose | --debug] [--version]
+<div class="highlight-default"><div class="highlight"><pre><span></span>$WEST_ROOT/bin/w_pdist [-h] [-r RCFILE] [--quiet | --verbose | --debug] [--version]
                        [-W WEST_H5FILE] [--first-iter N_ITER] [--last-iter N_ITER]
                        [-b BINEXPR] [-o OUTPUT]
                        [--construct-dataset CONSTRUCT_DATASET | --dsspecs DSSPEC [DSSPEC ...]]
@@ -76,14 +81,14 @@ information on the general options.</p>
 data and where to output calculated progress coordinate probability
 distribution data.</p>
 <p>Both input and output files are <em>hdf5</em> format:</p>
-<div class="highlight-python"><div class="highlight"><pre><span></span>-W, --WEST_H5FILE file
-  Read simulation result data from file *file*. (**Default:** The
-  *hdf5* file specified in the configuration file (default config file
-  is *west.h5*))
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="o">-</span><span class="n">W</span><span class="p">,</span> <span class="o">--</span><span class="n">WEST_H5FILE</span> <span class="n">file</span>
+  <span class="n">Read</span> <span class="n">simulation</span> <span class="n">result</span> <span class="n">data</span> <span class="kn">from</span> <span class="nn">file</span> <span class="o">*</span><span class="n">file</span><span class="o">*.</span> <span class="p">(</span><span class="o">**</span><span class="n">Default</span><span class="p">:</span><span class="o">**</span> <span class="n">The</span>
+  <span class="o">*</span><span class="n">hdf5</span><span class="o">*</span> <span class="n">file</span> <span class="n">specified</span> <span class="ow">in</span> <span class="n">the</span> <span class="n">configuration</span> <span class="n">file</span> <span class="p">(</span><span class="n">default</span> <span class="n">config</span> <span class="n">file</span>
+  <span class="ow">is</span> <span class="o">*</span><span class="n">west</span><span class="o">.</span><span class="n">h5</span><span class="o">*</span><span class="p">))</span>
 
--o, --output file
-  Store this tool&#39;s output in *file*. (**Default:** The *hdf5* file
-  **pcpdist.h5**)
+<span class="o">-</span><span class="n">o</span><span class="p">,</span> <span class="o">--</span><span class="n">output</span> <span class="n">file</span>
+  <span class="n">Store</span> <span class="n">this</span> <span class="n">tool</span><span class="s1">&#39;s output in *file*. (**Default:** The *hdf5* file</span>
+  <span class="o">**</span><span class="n">pcpdist</span><span class="o">.</span><span class="n">h5</span><span class="o">**</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -91,14 +96,14 @@ distribution data.</p>
 <h3>Iteration range options<a class="headerlink" href="#iteration-range-options" title="Permalink to this headline">¶</a></h3>
 <p>Specify the range of iterations over which to construct the progress
 coordinate probability distribution.:</p>
-<div class="highlight-python"><div class="highlight"><pre><span></span>--first-iter n_iter
-  Construct probability distribution starting with iteration *n_iter*
-  (**Default:** 1)
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="o">--</span><span class="n">first</span><span class="o">-</span><span class="nb">iter</span> <span class="n">n_iter</span>
+  <span class="n">Construct</span> <span class="n">probability</span> <span class="n">distribution</span> <span class="n">starting</span> <span class="k">with</span> <span class="n">iteration</span> <span class="o">*</span><span class="n">n_iter</span><span class="o">*</span>
+  <span class="p">(</span><span class="o">**</span><span class="n">Default</span><span class="p">:</span><span class="o">**</span> <span class="mi">1</span><span class="p">)</span>
 
---last-iter n_iter
-  Construct probability distribution&#39;s time evolution up to (and
-  including) iteration *n_iter* (**Default:** Last completed
-  iteration)
+<span class="o">--</span><span class="n">last</span><span class="o">-</span><span class="nb">iter</span> <span class="n">n_iter</span>
+  <span class="n">Construct</span> <span class="n">probability</span> <span class="n">distribution</span><span class="s1">&#39;s time evolution up to (and</span>
+  <span class="n">including</span><span class="p">)</span> <span class="n">iteration</span> <span class="o">*</span><span class="n">n_iter</span><span class="o">*</span> <span class="p">(</span><span class="o">**</span><span class="n">Default</span><span class="p">:</span><span class="o">**</span> <span class="n">Last</span> <span class="n">completed</span>
+  <span class="n">iteration</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -108,22 +113,22 @@ coordinate probability distribution.:</p>
 coordinate probability distribution. If using a multidimensional
 progress coordinate, different binning schemes can be used for the
 probability distribution for each progress coordinate.:</p>
-<div class="highlight-python"><div class="highlight"><pre><span></span>-b binexpr
-  *binexpr* specifies the number and formatting of the bins. Its
-  format can be as follows:
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="o">-</span><span class="n">b</span> <span class="n">binexpr</span>
+  <span class="o">*</span><span class="n">binexpr</span><span class="o">*</span> <span class="n">specifies</span> <span class="n">the</span> <span class="n">number</span> <span class="ow">and</span> <span class="n">formatting</span> <span class="n">of</span> <span class="n">the</span> <span class="n">bins</span><span class="o">.</span> <span class="n">Its</span>
+  <span class="nb">format</span> <span class="n">can</span> <span class="n">be</span> <span class="k">as</span> <span class="n">follows</span><span class="p">:</span>
 
-      1. an integer, in which case all distributions have that many
-      equal sized bins
-      2. a python-style list of integers, of length corresponding to
-      the number of dimensions of the progress coordinate, in which
-      case each progress coordinate&#39;s probability distribution has the
-      corresponding number of bins
-      3. a python-style list of lists of scalars, where the list at
-      each index corresponds to each dimension of the progress
-      coordinate and specifies specific bin boundaries for that
-      progress coordinate&#39;s probability distribution.
+      <span class="mf">1.</span> <span class="n">an</span> <span class="n">integer</span><span class="p">,</span> <span class="ow">in</span> <span class="n">which</span> <span class="n">case</span> <span class="nb">all</span> <span class="n">distributions</span> <span class="n">have</span> <span class="n">that</span> <span class="n">many</span>
+      <span class="n">equal</span> <span class="n">sized</span> <span class="n">bins</span>
+      <span class="mf">2.</span> <span class="n">a</span> <span class="n">python</span><span class="o">-</span><span class="n">style</span> <span class="nb">list</span> <span class="n">of</span> <span class="n">integers</span><span class="p">,</span> <span class="n">of</span> <span class="n">length</span> <span class="n">corresponding</span> <span class="n">to</span>
+      <span class="n">the</span> <span class="n">number</span> <span class="n">of</span> <span class="n">dimensions</span> <span class="n">of</span> <span class="n">the</span> <span class="n">progress</span> <span class="n">coordinate</span><span class="p">,</span> <span class="ow">in</span> <span class="n">which</span>
+      <span class="n">case</span> <span class="n">each</span> <span class="n">progress</span> <span class="n">coordinate</span><span class="s1">&#39;s probability distribution has the</span>
+      <span class="n">corresponding</span> <span class="n">number</span> <span class="n">of</span> <span class="n">bins</span>
+      <span class="mf">3.</span> <span class="n">a</span> <span class="n">python</span><span class="o">-</span><span class="n">style</span> <span class="nb">list</span> <span class="n">of</span> <span class="n">lists</span> <span class="n">of</span> <span class="n">scalars</span><span class="p">,</span> <span class="n">where</span> <span class="n">the</span> <span class="nb">list</span> <span class="n">at</span>
+      <span class="n">each</span> <span class="n">index</span> <span class="n">corresponds</span> <span class="n">to</span> <span class="n">each</span> <span class="n">dimension</span> <span class="n">of</span> <span class="n">the</span> <span class="n">progress</span>
+      <span class="n">coordinate</span> <span class="ow">and</span> <span class="n">specifies</span> <span class="n">specific</span> <span class="nb">bin</span> <span class="n">boundaries</span> <span class="k">for</span> <span class="n">that</span>
+      <span class="n">progress</span> <span class="n">coordinate</span><span class="s1">&#39;s probability distribution.</span>
 
-  (**Default:** 100 bins for all progress coordinates)
+  <span class="p">(</span><span class="o">**</span><span class="n">Default</span><span class="p">:</span><span class="o">**</span> <span class="mi">100</span> <span class="n">bins</span> <span class="k">for</span> <span class="nb">all</span> <span class="n">progress</span> <span class="n">coordinates</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -138,12 +143,12 @@ progress coordinate:</p>
 distribution over the lowest reached progress coordinate to the largest; work
 is parallelized over all available local cores using the &#8216;processes&#8217; work
 manager):</p>
-<div class="highlight-python"><div class="highlight"><pre><span></span>$WEST_ROOT/bin/w_pdist
+<div class="highlight-default"><div class="highlight"><pre><span></span>$WEST_ROOT/bin/w_pdist
 </pre></div>
 </div>
 <p>Same as above, except using the serial work manager (which may be more
 efficient for smaller datasets):</p>
-<div class="highlight-python"><div class="highlight"><pre><span></span>$WEST_ROOT/bin/w_pdist --serial
+<div class="highlight-default"><div class="highlight"><pre><span></span>$WEST_ROOT/bin/w_pdist --serial
 </pre></div>
 </div>
 </div>
@@ -193,14 +198,11 @@ efficient for smaller datasets):</p>
 <div id="searchbox" style="display: none" role="search">
   <h3>Quick search</h3>
     <form class="search" action="../../search.html" method="get">
-      <input type="text" name="q" />
-      <input type="submit" value="Go" />
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
       <input type="hidden" name="check_keywords" value="yes" />
       <input type="hidden" name="area" value="default" />
     </form>
-    <p class="searchtip" style="font-size: 90%">
-    Enter search terms or a module, class or function name.
-    </p>
 </div>
 <script type="text/javascript">$('#searchbox').show(0);</script>
         </div>
@@ -211,8 +213,8 @@ efficient for smaller datasets):</p>
       &copy;2015, Matthew C. Zwier and Lillian T. Chong.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.3.5</a>
-      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.7</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.4.9</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
       
       |
       <a href="../../sources/users_guide/command_line_tools/w_pdist.txt"

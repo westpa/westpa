@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>GROMACS Tutorial: Molecular Dynamics of Na+/Cl- Association &mdash; WESTPA 1.0b1 documentation</title>
+    <title>GROMACS Tutorial: Molecular Dynamics of Na+/Cl- Association &#8212; WESTPA 1.0b1 documentation</title>
     
     <link rel="stylesheet" href="../static/alabaster.css" type="text/css" />
     <link rel="stylesheet" href="../static/pygments.css" type="text/css" />
@@ -24,15 +24,20 @@
     <script type="text/javascript" src="../static/jquery.js"></script>
     <script type="text/javascript" src="../static/underscore.js"></script>
     <script type="text/javascript" src="../static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
     <link rel="top" title="WESTPA 1.0b1 documentation" href="../sphinx_index.html" />
     <link rel="next" title="NAMD Tutorial: Molecular Dynamics of Na+/Cl- Association" href="namd.html" />
     <link rel="prev" title="AMBER Tutorial: Molecular Dynamics of Na+/Cl- Association" href="amber.html" />
    
+  <link rel="stylesheet" href="../static/custom.css" type="text/css" />
+  
   
   <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
 
   </head>
-  <body role="document">  
+  <body role="document">
+  
 
     <div class="document">
       <div class="documentwrapper">
@@ -95,39 +100,39 @@ generate initial velocities, and <code class="docutils literal"><span class="pre
 continuations, in which velocities are inherited from the parent segment.</p>
 <div class="section" id="md-continue-mdp">
 <h3>md-continue.mdp<a class="headerlink" href="#md-continue-mdp" title="Permalink to this headline">¶</a></h3>
-<div class="highlight-python"><div class="highlight"><pre><span></span>;   0.5 ps NVT production with Langevin thermostat and GB implicit solvent
-#################################### INPUT ####################################
-ld_seed     = RAND      ; Use random seed from WESTPA
-################################# INTEGRATOR ##################################
-integrator  = sd        ; Langevin thermostat
-dt          = 0.002     ; Timestep (ps)
-nsteps      = 250       ; Simulation duration (timesteps)
-nstcomm     = 250       ; Center of mass motion removal interval
-comm_mode   = linear    ; Center of mass motion removal mode
-################################## ENSEMBLE ###################################
-ref_t       = 300       ; System temperature (K)
-tau_t       = 2.0       ; Thermostat time constant (ps)
-tc_grps     = system    ; Apply thermostat to complete system
-############################## IMPLICIT SOLVENT ###############################
-implicit_solvent = GBSA ; Generalized Born implicit solvent
-gb_algorithm     = HCT  ; Hawkins-Cramer-Truhlar radii calculation
-rgbradii         = 0.0  ; Cutoff for Born radii calculation (A)
-########################### NONBONDED INTERACTIONS ############################
-cutoff_scheme = group   ; Method of managing neighbor lists
-pbc           = no      ; Periodic boundary conditions disabled
-coulombtype   = cut-off ; Calculate coulomb interactions using cutoff
-rcoulomb      = 0.0     ; Coulomb cutoff of infinity
-vdw_type      = cut-off ; Calculate van der Waals interactions using cutoff
-rvdw          = 0.0     ; Van der Waals cutoff of infinity
-rlist         = 0.0     ; Neighbor list cutoff
-nstlist       = 0       ; Do not update neighbor list
-################################### OUTPUT ####################################
-nstlog        = 50      ; Log output interval (timesteps)
-nstenergy     = 50      ; Energy output interval (timesteps)
-nstcalcenergy = 50      ; Energy calculation interval (timesteps)
-nstxout       = 50      ; Trajectory output interval (timesteps)
-nstvout       = 50      ; Velocity outout interval (timesteps)
-nstfout       = 50      ; Force output interval (timesteps)
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="p">;</span>   <span class="mf">0.5</span> <span class="n">ps</span> <span class="n">NVT</span> <span class="n">production</span> <span class="k">with</span> <span class="n">Langevin</span> <span class="n">thermostat</span> <span class="ow">and</span> <span class="n">GB</span> <span class="n">implicit</span> <span class="n">solvent</span>
+<span class="c1">#################################### INPUT ####################################</span>
+<span class="n">ld_seed</span>     <span class="o">=</span> <span class="n">RAND</span>      <span class="p">;</span> <span class="n">Use</span> <span class="n">random</span> <span class="n">seed</span> <span class="kn">from</span> <span class="nn">WESTPA</span>
+<span class="c1">################################# INTEGRATOR ##################################</span>
+<span class="n">integrator</span>  <span class="o">=</span> <span class="n">sd</span>        <span class="p">;</span> <span class="n">Langevin</span> <span class="n">thermostat</span>
+<span class="n">dt</span>          <span class="o">=</span> <span class="mf">0.002</span>     <span class="p">;</span> <span class="n">Timestep</span> <span class="p">(</span><span class="n">ps</span><span class="p">)</span>
+<span class="n">nsteps</span>      <span class="o">=</span> <span class="mi">250</span>       <span class="p">;</span> <span class="n">Simulation</span> <span class="n">duration</span> <span class="p">(</span><span class="n">timesteps</span><span class="p">)</span>
+<span class="n">nstcomm</span>     <span class="o">=</span> <span class="mi">250</span>       <span class="p">;</span> <span class="n">Center</span> <span class="n">of</span> <span class="n">mass</span> <span class="n">motion</span> <span class="n">removal</span> <span class="n">interval</span>
+<span class="n">comm_mode</span>   <span class="o">=</span> <span class="n">linear</span>    <span class="p">;</span> <span class="n">Center</span> <span class="n">of</span> <span class="n">mass</span> <span class="n">motion</span> <span class="n">removal</span> <span class="n">mode</span>
+<span class="c1">################################## ENSEMBLE ###################################</span>
+<span class="n">ref_t</span>       <span class="o">=</span> <span class="mi">300</span>       <span class="p">;</span> <span class="n">System</span> <span class="n">temperature</span> <span class="p">(</span><span class="n">K</span><span class="p">)</span>
+<span class="n">tau_t</span>       <span class="o">=</span> <span class="mf">2.0</span>       <span class="p">;</span> <span class="n">Thermostat</span> <span class="n">time</span> <span class="n">constant</span> <span class="p">(</span><span class="n">ps</span><span class="p">)</span>
+<span class="n">tc_grps</span>     <span class="o">=</span> <span class="n">system</span>    <span class="p">;</span> <span class="n">Apply</span> <span class="n">thermostat</span> <span class="n">to</span> <span class="n">complete</span> <span class="n">system</span>
+<span class="c1">############################## IMPLICIT SOLVENT ###############################</span>
+<span class="n">implicit_solvent</span> <span class="o">=</span> <span class="n">GBSA</span> <span class="p">;</span> <span class="n">Generalized</span> <span class="n">Born</span> <span class="n">implicit</span> <span class="n">solvent</span>
+<span class="n">gb_algorithm</span>     <span class="o">=</span> <span class="n">HCT</span>  <span class="p">;</span> <span class="n">Hawkins</span><span class="o">-</span><span class="n">Cramer</span><span class="o">-</span><span class="n">Truhlar</span> <span class="n">radii</span> <span class="n">calculation</span>
+<span class="n">rgbradii</span>         <span class="o">=</span> <span class="mf">0.0</span>  <span class="p">;</span> <span class="n">Cutoff</span> <span class="k">for</span> <span class="n">Born</span> <span class="n">radii</span> <span class="n">calculation</span> <span class="p">(</span><span class="n">A</span><span class="p">)</span>
+<span class="c1">########################### NONBONDED INTERACTIONS ############################</span>
+<span class="n">cutoff_scheme</span> <span class="o">=</span> <span class="n">group</span>   <span class="p">;</span> <span class="n">Method</span> <span class="n">of</span> <span class="n">managing</span> <span class="n">neighbor</span> <span class="n">lists</span>
+<span class="n">pbc</span>           <span class="o">=</span> <span class="n">no</span>      <span class="p">;</span> <span class="n">Periodic</span> <span class="n">boundary</span> <span class="n">conditions</span> <span class="n">disabled</span>
+<span class="n">coulombtype</span>   <span class="o">=</span> <span class="n">cut</span><span class="o">-</span><span class="n">off</span> <span class="p">;</span> <span class="n">Calculate</span> <span class="n">coulomb</span> <span class="n">interactions</span> <span class="n">using</span> <span class="n">cutoff</span>
+<span class="n">rcoulomb</span>      <span class="o">=</span> <span class="mf">0.0</span>     <span class="p">;</span> <span class="n">Coulomb</span> <span class="n">cutoff</span> <span class="n">of</span> <span class="n">infinity</span>
+<span class="n">vdw_type</span>      <span class="o">=</span> <span class="n">cut</span><span class="o">-</span><span class="n">off</span> <span class="p">;</span> <span class="n">Calculate</span> <span class="n">van</span> <span class="n">der</span> <span class="n">Waals</span> <span class="n">interactions</span> <span class="n">using</span> <span class="n">cutoff</span>
+<span class="n">rvdw</span>          <span class="o">=</span> <span class="mf">0.0</span>     <span class="p">;</span> <span class="n">Van</span> <span class="n">der</span> <span class="n">Waals</span> <span class="n">cutoff</span> <span class="n">of</span> <span class="n">infinity</span>
+<span class="n">rlist</span>         <span class="o">=</span> <span class="mf">0.0</span>     <span class="p">;</span> <span class="n">Neighbor</span> <span class="nb">list</span> <span class="n">cutoff</span>
+<span class="n">nstlist</span>       <span class="o">=</span> <span class="mi">0</span>       <span class="p">;</span> <span class="n">Do</span> <span class="ow">not</span> <span class="n">update</span> <span class="n">neighbor</span> <span class="nb">list</span>
+<span class="c1">################################### OUTPUT ####################################</span>
+<span class="n">nstlog</span>        <span class="o">=</span> <span class="mi">50</span>      <span class="p">;</span> <span class="n">Log</span> <span class="n">output</span> <span class="n">interval</span> <span class="p">(</span><span class="n">timesteps</span><span class="p">)</span>
+<span class="n">nstenergy</span>     <span class="o">=</span> <span class="mi">50</span>      <span class="p">;</span> <span class="n">Energy</span> <span class="n">output</span> <span class="n">interval</span> <span class="p">(</span><span class="n">timesteps</span><span class="p">)</span>
+<span class="n">nstcalcenergy</span> <span class="o">=</span> <span class="mi">50</span>      <span class="p">;</span> <span class="n">Energy</span> <span class="n">calculation</span> <span class="n">interval</span> <span class="p">(</span><span class="n">timesteps</span><span class="p">)</span>
+<span class="n">nstxout</span>       <span class="o">=</span> <span class="mi">50</span>      <span class="p">;</span> <span class="n">Trajectory</span> <span class="n">output</span> <span class="n">interval</span> <span class="p">(</span><span class="n">timesteps</span><span class="p">)</span>
+<span class="n">nstvout</span>       <span class="o">=</span> <span class="mi">50</span>      <span class="p">;</span> <span class="n">Velocity</span> <span class="n">outout</span> <span class="n">interval</span> <span class="p">(</span><span class="n">timesteps</span><span class="p">)</span>
+<span class="n">nstfout</span>       <span class="o">=</span> <span class="mi">50</span>      <span class="p">;</span> <span class="n">Force</span> <span class="n">output</span> <span class="n">interval</span> <span class="p">(</span><span class="n">timesteps</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>Several settings in this configuration file are important to WESTPA. First is
@@ -296,17 +301,17 @@ WESTPA process is tarring, other cores are idle, potentially wasting CPU time.</
 <h2>Running the simulation<a class="headerlink" href="#running-the-simulation" title="Permalink to this headline">¶</a></h2>
 <p>From the simulation root directory (<code class="docutils literal"><span class="pre">$WEST_SIM_ROOT</span></code>), the simulation may be
 initialized using the command:</p>
-<div class="highlight-python"><div class="highlight"><pre><span></span>./init.sh
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="o">./</span><span class="n">init</span><span class="o">.</span><span class="n">sh</span>
 </pre></div>
 </div>
 <p>and run using the command:</p>
-<div class="highlight-python"><div class="highlight"><pre><span></span>./run.sh
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="o">./</span><span class="n">run</span><span class="o">.</span><span class="n">sh</span>
 </pre></div>
 </div>
 <p><code class="docutils literal"><span class="pre">init.sh</span></code> and <code class="docutils literal"><span class="pre">run.sh</span></code> call <code class="docutils literal"><span class="pre">w_init</span></code> and <code class="docutils literal"><span class="pre">w_run</span></code> from WESTPA. By
 default WESTPA will use as many cores as are available on the host machine. If
 the simulation is run on a computing cluster, <code class="docutils literal"><span class="pre">w_run</span></code> may be executed from
-a batch script. See the <a class="reference internal" href="../users_guide/west/running.html#running"><span>Running</span></a> page for more information on how to
+a batch script. See the <a class="reference internal" href="../users_guide/west/running.html#running"><span class="std std-ref">Running</span></a> page for more information on how to
 submit jobs to specific clusters.</p>
 </div>
 <div class="section" id="analyzing-the-data">
@@ -368,7 +373,7 @@ also where errors are output.</p>
 <p>Since only 10 iterations have been run, we do not yet have enough data to
 analyze. Edit <code class="docutils literal"><span class="pre">west.cfg</span></code> and change <code class="docutils literal"><span class="pre">max_total_iterations</span></code> to 100. Extend
 using the command:</p>
-<div class="highlight-python"><div class="highlight"><pre><span></span>./run.sh
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="o">./</span><span class="n">run</span><span class="o">.</span><span class="n">sh</span>
 </pre></div>
 </div>
 </div>
@@ -380,33 +385,33 @@ using the command:</p>
 distance of 1.8 Å as the bound state, and that containing a distance of 16.9 Å
 as the unbound state. Using <code class="docutils literal"><span class="pre">w_fluxanl</span></code>, we can calculate the flux into these
 target states, and from that calculate the association rate of Na<sup>+</sup>/Cl<sup>-</sup>. <code class="docutils literal"><span class="pre">w_fluxanl</span></code> may be run with the following commands:</p>
-<div class="highlight-python"><div class="highlight"><pre><span></span>source env.sh
+<div class="highlight-default"><div class="highlight"><pre><span></span>source env.sh
 $WEST_ROOT/bin/w_fluxanl
 </pre></div>
 </div>
 <p>The script will output the flux into the target states including confidence
 intervals calculated using the block bootstrap method:</p>
-<div class="highlight-python"><div class="highlight"><pre><span></span>Calculating mean flux and confidence intervals for iterations [1,101)
-target &#39;unbound&#39;:
-  correlation length = a tau
-  mean flux and CI   = b (c, d) tau^(-1)
-target &#39;bound&#39;:
-  correlation length = w tau
-  mean flux and CI   = x (y, z) tau^(-1)
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">Calculating</span> <span class="n">mean</span> <span class="n">flux</span> <span class="ow">and</span> <span class="n">confidence</span> <span class="n">intervals</span> <span class="k">for</span> <span class="n">iterations</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">101</span><span class="p">)</span>
+<span class="n">target</span> <span class="s1">&#39;unbound&#39;</span><span class="p">:</span>
+  <span class="n">correlation</span> <span class="n">length</span> <span class="o">=</span> <span class="n">a</span> <span class="n">tau</span>
+  <span class="n">mean</span> <span class="n">flux</span> <span class="ow">and</span> <span class="n">CI</span>   <span class="o">=</span> <span class="n">b</span> <span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="n">d</span><span class="p">)</span> <span class="n">tau</span><span class="o">^</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+<span class="n">target</span> <span class="s1">&#39;bound&#39;</span><span class="p">:</span>
+  <span class="n">correlation</span> <span class="n">length</span> <span class="o">=</span> <span class="n">w</span> <span class="n">tau</span>
+  <span class="n">mean</span> <span class="n">flux</span> <span class="ow">and</span> <span class="n">CI</span>   <span class="o">=</span> <span class="n">x</span> <span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">z</span><span class="p">)</span> <span class="n">tau</span><span class="o">^</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>More information on how to use <code class="docutils literal"><span class="pre">w_fluxanl</span></code> can be viewed using the <code class="docutils literal"><span class="pre">--help</span></code>
 flag. <code class="docutils literal"><span class="pre">w_fluxanl</span></code> also stores this information in an hdf5 file,
 <code class="docutils literal"><span class="pre">fluxanl.h5</span></code>. Using the python libraries h5py and pylab, we can visualize
 this data. Open a python interpreter and run the following commands:</p>
-<div class="highlight-python"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">h5py</span><span class="o">,</span> <span class="nn">numpy</span><span class="o">,</span> <span class="nn">pylab</span>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">h5py</span><span class="o">,</span> <span class="nn">numpy</span><span class="o">,</span> <span class="nn">pylab</span>
 <span class="n">fluxanl</span>              <span class="o">=</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="s1">&#39;fluxanl.h5&#39;</span><span class="p">)</span>
 <span class="n">flux</span>                 <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">100</span><span class="p">)</span>
 <span class="n">first_binding</span>        <span class="o">=</span> <span class="mi">100</span> <span class="o">-</span> <span class="n">fluxanl</span><span class="p">[</span><span class="s1">&#39;target_flux&#39;</span><span class="p">][</span><span class="s1">&#39;target_1&#39;</span><span class="p">][</span><span class="s1">&#39;flux&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
 <span class="n">flux</span><span class="p">[</span><span class="n">first_binding</span><span class="p">:]</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">fluxanl</span><span class="p">[</span><span class="s1">&#39;target_flux&#39;</span><span class="p">][</span><span class="s1">&#39;target_1&#39;</span><span class="p">][</span><span class="s1">&#39;flux&#39;</span><span class="p">])</span>
 <span class="n">pylab</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">flux</span><span class="p">)</span>
 <span class="n">pylab</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">&quot;Iteration&quot;</span><span class="p">)</span>
-<span class="n">pylab</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">&quot;Instantaneous Flux $(</span><span class="se">\\</span><span class="s2">frac{1}{</span><span class="se">\\</span><span class="s2">tau})$&quot;</span><span class="p">)</span>
+<span class="n">pylab</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">&quot;Instantaneous Flux $(</span><span class="se">\\</span><span class="s2">frac</span><span class="si">{1}</span><span class="s2">{</span><span class="se">\\</span><span class="s2">tau})$&quot;</span><span class="p">)</span>
 <span class="n">pylab</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
 </pre></div>
 </div>
@@ -420,12 +425,12 @@ and the first transition to the bound state occurred in iteration 3. The
 instantaneous flux is noisy and difficult to interpret, and it is clearer to
 view the time evolution of the flux. Run <code class="docutils literal"><span class="pre">w_fluxanl</span></code> again, this time with
 the <code class="docutils literal"><span class="pre">--evol</span></code> flag:</p>
-<div class="highlight-python"><div class="highlight"><pre><span></span>$WEST_ROOT/bin/w_fluxanl --evol
+<div class="highlight-default"><div class="highlight"><pre><span></span>$WEST_ROOT/bin/w_fluxanl --evol
 </pre></div>
 </div>
 <p>We may plot the time evolution of flux using the following commands at a python
 interpreter:</p>
-<div class="highlight-python"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">h5py</span><span class="o">,</span> <span class="nn">numpy</span><span class="o">,</span> <span class="nn">pylab</span>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">h5py</span><span class="o">,</span> <span class="nn">numpy</span><span class="o">,</span> <span class="nn">pylab</span>
 <span class="n">fluxanl</span>   <span class="o">=</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="s1">&#39;fluxanl.h5&#39;</span><span class="p">)</span>
 <span class="n">mean_flux</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">100</span><span class="p">)</span>
 <span class="n">ci_ub</span>     <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">100</span><span class="p">)</span>
@@ -436,7 +441,7 @@ interpreter:</p>
 <span class="n">ci_ub</span><span class="p">[</span><span class="n">first_binding</span><span class="p">:]</span>     <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">fluxanl</span><span class="p">[</span><span class="s1">&#39;target_flux&#39;</span><span class="p">][</span><span class="s1">&#39;target_1&#39;</span><span class="p">][</span><span class="s1">&#39;flux_evolution&#39;</span><span class="p">][</span><span class="s1">&#39;ci_ubound&#39;</span><span class="p">])</span>
 <span class="n">pylab</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">mean_flux</span><span class="p">,</span> <span class="s1">&#39;b&#39;</span><span class="p">,</span> <span class="n">ci_lb</span><span class="p">,</span> <span class="s1">&#39;g&#39;</span><span class="p">,</span> <span class="n">ci_ub</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span>
 <span class="n">pylab</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">&quot;Iteration&quot;</span><span class="p">)</span>
-<span class="n">pylab</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">&quot;Mean Flux $(</span><span class="se">\\</span><span class="s2">frac{1}{</span><span class="se">\\</span><span class="s2">tau})$&quot;</span><span class="p">)</span>
+<span class="n">pylab</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">&quot;Mean Flux $(</span><span class="se">\\</span><span class="s2">frac</span><span class="si">{1}</span><span class="s2">{</span><span class="se">\\</span><span class="s2">tau})$&quot;</span><span class="p">)</span>
 <span class="n">pylab</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
 </pre></div>
 </div>
@@ -448,7 +453,7 @@ reached steady-state conditions. When calculating the rate, we discard the
 portion of data during which the system is equilibrating, using only portion
 over which the rates are steady and converging. We may calculate the rate using
 only the last 50 iterations:</p>
-<div class="highlight-python"><div class="highlight"><pre><span></span>$WEST_ROOT/bin/w_fluxanl --first-iter 50
+<div class="highlight-default"><div class="highlight"><pre><span></span>$WEST_ROOT/bin/w_fluxanl --first-iter 50
 
 Calculating mean flux and confidence intervals for iterations [50,101)
 target &#39;unbound&#39;:
@@ -473,7 +478,7 @@ the segments for one of your completed pathways straightforward. Both
 <code class="docutils literal"><span class="pre">w_succ</span></code> and <code class="docutils literal"><span class="pre">w_trace</span></code> are located in <code class="docutils literal"><span class="pre">$WEST_ROOT/bin</span></code>.</p>
 <p>First use <code class="docutils literal"><span class="pre">w_succ</span></code> by entering into the command line from your simulation
 root directory:</p>
-<div class="highlight-python"><div class="highlight"><pre><span></span>source env.sh
+<div class="highlight-default"><div class="highlight"><pre><span></span>source env.sh
 $WEST_ROOT/bin/w_succ
 </pre></div>
 </div>
@@ -482,7 +487,7 @@ iteration and segment ids. The target state each pathway has reached may be
 determined from the final value of the progress coordinate. Pick any set of
 completed iteration and segment ids and use them with the <code class="docutils literal"><span class="pre">w_trace</span></code> tool.
 For example, if iteration 17 segment 2 is a completed pathway, run:</p>
-<div class="highlight-python"><div class="highlight"><pre><span></span>$WEST_ROOT/bin/w_trace 17:2
+<div class="highlight-default"><div class="highlight"><pre><span></span>$WEST_ROOT/bin/w_trace 17:2
 </pre></div>
 </div>
 <p><code class="docutils literal"><span class="pre">w_trace</span></code> will output a text file named <code class="docutils literal"><span class="pre">traj_17_2_trace.txt</span></code> listing the
@@ -496,23 +501,23 @@ in the outfile <code class="docutils literal"><span class="pre">trajs.h5</span><
 <code class="docutils literal"><span class="pre">west.h5</span></code>, we can generate a complete trajectory viewable using <a class="reference external" href="http://www.ks.uiuc.edu/Research/vmd">Visual
 Molecular Dynamics</a> using the script
 <code class="docutils literal"><span class="pre">cat_trajectory.py</span></code>, included in the <code class="docutils literal"><span class="pre">westpa_scripts</span></code> subfolder:</p>
-<div class="highlight-python"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">h5py</span><span class="o">,</span> <span class="nn">numpy</span><span class="o">,</span> <span class="nn">sys</span>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">h5py</span><span class="o">,</span> <span class="nn">numpy</span><span class="o">,</span> <span class="nn">sys</span>
 
 <span class="n">infile</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">usecols</span> <span class="o">=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
 <span class="n">west</span>   <span class="o">=</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="s1">&#39;west.h5&#39;</span><span class="p">)</span>
 <span class="n">coords</span> <span class="o">=</span> <span class="p">[]</span>
 <span class="k">for</span> <span class="n">iteration</span><span class="p">,</span> <span class="n">seg_id</span> <span class="ow">in</span> <span class="n">infile</span><span class="p">[</span><span class="mi">1</span><span class="p">:]:</span>
-    <span class="n">iter_key</span> <span class="o">=</span> <span class="s2">&quot;iter_{0:08d}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">iteration</span><span class="p">))</span>
+    <span class="n">iter_key</span> <span class="o">=</span> <span class="s2">&quot;iter_</span><span class="si">{0:08d}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">iteration</span><span class="p">))</span>
     <span class="n">SOD</span>      <span class="o">=</span> <span class="n">west</span><span class="p">[</span><span class="s1">&#39;iterations&#39;</span><span class="p">][</span><span class="n">iter_key</span><span class="p">][</span><span class="s1">&#39;auxdata&#39;</span><span class="p">][</span><span class="s1">&#39;coord&#39;</span><span class="p">][</span><span class="n">seg_id</span><span class="p">,</span><span class="mi">1</span><span class="p">:,</span><span class="mi">0</span><span class="p">,:]</span>
     <span class="n">CLA</span>      <span class="o">=</span> <span class="n">west</span><span class="p">[</span><span class="s1">&#39;iterations&#39;</span><span class="p">][</span><span class="n">iter_key</span><span class="p">][</span><span class="s1">&#39;auxdata&#39;</span><span class="p">][</span><span class="s1">&#39;coord&#39;</span><span class="p">][</span><span class="n">seg_id</span><span class="p">,</span><span class="mi">1</span><span class="p">:,</span><span class="mi">1</span><span class="p">,:]</span>
     <span class="n">coords</span>  <span class="o">+=</span> <span class="p">[</span><span class="n">numpy</span><span class="o">.</span><span class="n">column_stack</span><span class="p">((</span><span class="n">SOD</span><span class="p">,</span> <span class="n">CLA</span><span class="p">))]</span>
 <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">][:</span><span class="o">-</span><span class="mi">4</span><span class="p">]</span> <span class="o">+</span> <span class="s2">&quot;.xyz&quot;</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">outfile</span><span class="p">:</span>
     <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">frame</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">numpy</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span><span class="n">coords</span><span class="p">)):</span>
         <span class="n">outfile</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;2</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
-        <span class="n">outfile</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;{0}</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">))</span>
-        <span class="n">outfile</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;SOD {0:9.5f} {1:9.5f} {2:9.5f}</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+        <span class="n">outfile</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{0}</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">))</span>
+        <span class="n">outfile</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;SOD </span><span class="si">{0:9.5f}</span><span class="s2"> </span><span class="si">{1:9.5f}</span><span class="s2"> </span><span class="si">{2:9.5f}</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
           <span class="nb">float</span><span class="p">(</span><span class="n">frame</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> <span class="nb">float</span><span class="p">(</span><span class="n">frame</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span> <span class="nb">float</span><span class="p">(</span><span class="n">frame</span><span class="p">[</span><span class="mi">2</span><span class="p">])))</span>
-        <span class="n">outfile</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;CLA {0:9.5f} {1:9.5f} {2:9.5f}</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+        <span class="n">outfile</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;CLA </span><span class="si">{0:9.5f}</span><span class="s2"> </span><span class="si">{1:9.5f}</span><span class="s2"> </span><span class="si">{2:9.5f}</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
           <span class="nb">float</span><span class="p">(</span><span class="n">frame</span><span class="p">[</span><span class="mi">3</span><span class="p">]),</span> <span class="nb">float</span><span class="p">(</span><span class="n">frame</span><span class="p">[</span><span class="mi">4</span><span class="p">]),</span> <span class="nb">float</span><span class="p">(</span><span class="n">frame</span><span class="p">[</span><span class="mi">5</span><span class="p">])))</span>
 </pre></div>
 </div>
@@ -619,14 +624,11 @@ Na+/Cl−, Methane/Benzene, and K+/18-Crown-6 Ether. J Chem Theory Comput.
 <div id="searchbox" style="display: none" role="search">
   <h3>Quick search</h3>
     <form class="search" action="../search.html" method="get">
-      <input type="text" name="q" />
-      <input type="submit" value="Go" />
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
       <input type="hidden" name="check_keywords" value="yes" />
       <input type="hidden" name="area" value="default" />
     </form>
-    <p class="searchtip" style="font-size: 90%">
-    Enter search terms or a module, class or function name.
-    </p>
 </div>
 <script type="text/javascript">$('#searchbox').show(0);</script>
         </div>
@@ -637,8 +639,8 @@ Na+/Cl−, Methane/Benzene, and K+/18-Crown-6 Ether. J Chem Theory Comput.
       &copy;2015, Matthew C. Zwier and Lillian T. Chong.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.3.5</a>
-      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.7</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.4.9</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
       
       |
       <a href="../sources/tutorials/gromacs.txt"

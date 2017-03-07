@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>Molecular Scale Systems: P53 peptide in Explicit Solvent &mdash; WESTPA 1.0b1 documentation</title>
+    <title>Molecular Scale Systems: P53 peptide in Explicit Solvent &#8212; WESTPA 1.0b1 documentation</title>
     
     <link rel="stylesheet" href="../static/alabaster.css" type="text/css" />
     <link rel="stylesheet" href="../static/pygments.css" type="text/css" />
@@ -24,15 +24,20 @@
     <script type="text/javascript" src="../static/jquery.js"></script>
     <script type="text/javascript" src="../static/underscore.js"></script>
     <script type="text/javascript" src="../static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
     <link rel="top" title="WESTPA 1.0b1 documentation" href="../sphinx_index.html" />
     <link rel="next" title="AMBER Tutorial: Molecular Dynamics of Na+/Cl- Association" href="amber.html" />
     <link rel="prev" title="HDF5 File Schema" href="../users_guide/hdf5.html" />
    
+  <link rel="stylesheet" href="../static/custom.css" type="text/css" />
+  
   
   <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
 
   </head>
-  <body role="document">  
+  <body role="document">
+  
 
     <div class="document">
       <div class="documentwrapper">
@@ -69,8 +74,8 @@ files for both WESTPA and the dynamics engine (GROMACS). To obtain all
 of these files, clone the following repository:</p>
 <p><a class="reference external" href="https://github.com/ajoshpratt/p53-tutorial">p53-tutorial</a></p>
 <p>by using the following set of commands:</p>
-<div class="highlight-python"><div class="highlight"><pre><span></span>cd ~/
-git clone https://github.com/ajoshpratt/p53-tutorial
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">cd</span> <span class="o">~/</span>
+<span class="n">git</span> <span class="n">clone</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">github</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">ajoshpratt</span><span class="o">/</span><span class="n">p53</span><span class="o">-</span><span class="n">tutorial</span>
 </pre></div>
 </div>
 <p>As the tutorial has been designed for the WESTPA user&#8217;s workshop, the
@@ -78,12 +83,12 @@ env.sh has been set up to run on the Frank cluster at the <a class="reference ex
 Simulation and Modeling</a> (SAM) at the
 University of Pittsburgh. Users wishing to get a headstart can then
 initialize the simulation as follows:</p>
-<div class="highlight-python"><div class="highlight"><pre><span></span>cd p53-tutorial
-./init.sh
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">cd</span> <span class="n">p53</span><span class="o">-</span><span class="n">tutorial</span>
+<span class="o">./</span><span class="n">init</span><span class="o">.</span><span class="n">sh</span>
 </pre></div>
 </div>
 <p>and then submit to the cluster:</p>
-<div class="highlight-python"><div class="highlight"><pre><span></span>qsub runwe-frank.sh
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">qsub</span> <span class="n">runwe</span><span class="o">-</span><span class="n">frank</span><span class="o">.</span><span class="n">sh</span>
 </pre></div>
 </div>
 </div>
@@ -133,55 +138,55 @@ desirable to create an index file.</p>
 changes in how the force field parameters are being handled.</p>
 <div class="section" id="md-mdp">
 <h3>md.mdp<a class="headerlink" href="#md-mdp" title="Permalink to this headline">¶</a></h3>
-<div class="highlight-python"><div class="highlight"><pre><span></span>;   15 ps NPT production with Velocity Rescaling thermostat and Berendsen barostat
-;   Template Written by Karl Debiec on 13-03-14, modified by Adam Pratt on 01-17-15
-;##################################################### INTEGRATOR ######################################################
-integrator              = md
-ld_seed                 = -1                                ; Random seed
-dt                      = 0.002                             ; Timestep (ps)
-nsteps                  = 7500                              ; Simulation duration (timesteps)
-nstcomm                 = 375                               ; Center of mass motion removal interval (timesteps)
-comm-grps               = system                            ; Remove center of mass motion of system
-;###################################################### ENSEMBLE #######################################################
-Pcoupl                  = berendsen                         ; Berendsen barostat
-tcoupl                  = v-rescale
-ref_p                   = 1                                 ; System Pressure (Bar)
-tau_p                   = 0.5                               ; Barostat time constant (ps)
-compressibility         = 4.5e-5                            ; Compressibility (Bar -1)
-refcoord_scaling        = com                               ; Scale center of mass of reference coordinates with box
-ref_t                   = 303 303                           ; System temperature (K)
-tau_t                   = 0.1 0.1                           ; Thermostat time constant (ps)
-tc_grps                 = Protein Non-Protein               ; Apply thermostat to system
-;gen_vel                 = no
-continuation            = yes
-;################################################ BONDED INTERACTIONS ##################################################
-constraints             = hbonds                            ; Disable constraints
-constraint_algorithm    = LINCS                             ; Constrain bonds using LINCS
-lincs_iter              = 1                                 ; Number of LINCS iterations
-;############################################### NONBONDED INTERACTIONS ################################################
-coulombtype             = PME                               ; Switch/PME long-range electrostatics
-fourierspacing          = 0.1
-pme_order               = 6
-ewald_rtol              = 0.000001
-pbc                     = xyz                               ; Periodic boundary condition
-rcoulomb                = 1.0                               ; Short-range electrostatic cutoff (nm)
-;rcoulomb_switch         = 0.9                               ; Short-range electrostatic switch cutoff (nm)
-vdwtype                 = Switch                            ; Switch van der Waals interactions
-rvdw                    = 0.9                               ; Van der Waals cutoff (nm)
-rvdw_switch             = 0.8                               ; Van der Waals switch cutoff (nm)
-DispCorr                = EnerPres                          ; Long-range dispersion correction to energy and pressure
-ns_type                 = grid                              ; Update neighbor list using grid
-nstlist                 = 10                                ; Neighbor list update interval (timesteps)
-rlist                   = 1.00                              ; Neighbor list cut-off (nm)
-;####################################################### OUTPUT ########################################################
-nstlog                  = 750                               ; Energy log output interval (timesteps)
-nstenergy               = 750                               ; Energy output interval (timesteps)
-nstcalcenergy           = 75
-nstxout                 = 7500                              ; Full-resolution trajectory output interval (timesteps)
-nstvout                 = 7500                              ; Full-resolution velocity output interval (timesteps)
-nstfout                 = 7500                              ; Full-resolution force output interval (timesteps)
-nstxtcout               = 750                               ; Reduced-resolution trajectory output interval (timesteps)
-xtc-precision           = 10000                             ; Reduced-resolution trajectory output precision
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="p">;</span>   <span class="mi">15</span> <span class="n">ps</span> <span class="n">NPT</span> <span class="n">production</span> <span class="k">with</span> <span class="n">Velocity</span> <span class="n">Rescaling</span> <span class="n">thermostat</span> <span class="ow">and</span> <span class="n">Berendsen</span> <span class="n">barostat</span>
+<span class="p">;</span>   <span class="n">Template</span> <span class="n">Written</span> <span class="n">by</span> <span class="n">Karl</span> <span class="n">Debiec</span> <span class="n">on</span> <span class="mi">13</span><span class="o">-</span><span class="mi">03</span><span class="o">-</span><span class="mi">14</span><span class="p">,</span> <span class="n">modified</span> <span class="n">by</span> <span class="n">Adam</span> <span class="n">Pratt</span> <span class="n">on</span> <span class="mi">01</span><span class="o">-</span><span class="mi">17</span><span class="o">-</span><span class="mi">15</span>
+<span class="p">;</span><span class="c1">##################################################### INTEGRATOR ######################################################</span>
+<span class="n">integrator</span>              <span class="o">=</span> <span class="n">md</span>
+<span class="n">ld_seed</span>                 <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>                                <span class="p">;</span> <span class="n">Random</span> <span class="n">seed</span>
+<span class="n">dt</span>                      <span class="o">=</span> <span class="mf">0.002</span>                             <span class="p">;</span> <span class="n">Timestep</span> <span class="p">(</span><span class="n">ps</span><span class="p">)</span>
+<span class="n">nsteps</span>                  <span class="o">=</span> <span class="mi">7500</span>                              <span class="p">;</span> <span class="n">Simulation</span> <span class="n">duration</span> <span class="p">(</span><span class="n">timesteps</span><span class="p">)</span>
+<span class="n">nstcomm</span>                 <span class="o">=</span> <span class="mi">375</span>                               <span class="p">;</span> <span class="n">Center</span> <span class="n">of</span> <span class="n">mass</span> <span class="n">motion</span> <span class="n">removal</span> <span class="n">interval</span> <span class="p">(</span><span class="n">timesteps</span><span class="p">)</span>
+<span class="n">comm</span><span class="o">-</span><span class="n">grps</span>               <span class="o">=</span> <span class="n">system</span>                            <span class="p">;</span> <span class="n">Remove</span> <span class="n">center</span> <span class="n">of</span> <span class="n">mass</span> <span class="n">motion</span> <span class="n">of</span> <span class="n">system</span>
+<span class="p">;</span><span class="c1">###################################################### ENSEMBLE #######################################################</span>
+<span class="n">Pcoupl</span>                  <span class="o">=</span> <span class="n">berendsen</span>                         <span class="p">;</span> <span class="n">Berendsen</span> <span class="n">barostat</span>
+<span class="n">tcoupl</span>                  <span class="o">=</span> <span class="n">v</span><span class="o">-</span><span class="n">rescale</span>
+<span class="n">ref_p</span>                   <span class="o">=</span> <span class="mi">1</span>                                 <span class="p">;</span> <span class="n">System</span> <span class="n">Pressure</span> <span class="p">(</span><span class="n">Bar</span><span class="p">)</span>
+<span class="n">tau_p</span>                   <span class="o">=</span> <span class="mf">0.5</span>                               <span class="p">;</span> <span class="n">Barostat</span> <span class="n">time</span> <span class="n">constant</span> <span class="p">(</span><span class="n">ps</span><span class="p">)</span>
+<span class="n">compressibility</span>         <span class="o">=</span> <span class="mf">4.5e-5</span>                            <span class="p">;</span> <span class="n">Compressibility</span> <span class="p">(</span><span class="n">Bar</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+<span class="n">refcoord_scaling</span>        <span class="o">=</span> <span class="n">com</span>                               <span class="p">;</span> <span class="n">Scale</span> <span class="n">center</span> <span class="n">of</span> <span class="n">mass</span> <span class="n">of</span> <span class="n">reference</span> <span class="n">coordinates</span> <span class="k">with</span> <span class="n">box</span>
+<span class="n">ref_t</span>                   <span class="o">=</span> <span class="mi">303</span> <span class="mi">303</span>                           <span class="p">;</span> <span class="n">System</span> <span class="n">temperature</span> <span class="p">(</span><span class="n">K</span><span class="p">)</span>
+<span class="n">tau_t</span>                   <span class="o">=</span> <span class="mf">0.1</span> <span class="mf">0.1</span>                           <span class="p">;</span> <span class="n">Thermostat</span> <span class="n">time</span> <span class="n">constant</span> <span class="p">(</span><span class="n">ps</span><span class="p">)</span>
+<span class="n">tc_grps</span>                 <span class="o">=</span> <span class="n">Protein</span> <span class="n">Non</span><span class="o">-</span><span class="n">Protein</span>               <span class="p">;</span> <span class="n">Apply</span> <span class="n">thermostat</span> <span class="n">to</span> <span class="n">system</span>
+<span class="p">;</span><span class="n">gen_vel</span>                 <span class="o">=</span> <span class="n">no</span>
+<span class="n">continuation</span>            <span class="o">=</span> <span class="n">yes</span>
+<span class="p">;</span><span class="c1">################################################ BONDED INTERACTIONS ##################################################</span>
+<span class="n">constraints</span>             <span class="o">=</span> <span class="n">hbonds</span>                            <span class="p">;</span> <span class="n">Disable</span> <span class="n">constraints</span>
+<span class="n">constraint_algorithm</span>    <span class="o">=</span> <span class="n">LINCS</span>                             <span class="p">;</span> <span class="n">Constrain</span> <span class="n">bonds</span> <span class="n">using</span> <span class="n">LINCS</span>
+<span class="n">lincs_iter</span>              <span class="o">=</span> <span class="mi">1</span>                                 <span class="p">;</span> <span class="n">Number</span> <span class="n">of</span> <span class="n">LINCS</span> <span class="n">iterations</span>
+<span class="p">;</span><span class="c1">############################################### NONBONDED INTERACTIONS ################################################</span>
+<span class="n">coulombtype</span>             <span class="o">=</span> <span class="n">PME</span>                               <span class="p">;</span> <span class="n">Switch</span><span class="o">/</span><span class="n">PME</span> <span class="n">long</span><span class="o">-</span><span class="nb">range</span> <span class="n">electrostatics</span>
+<span class="n">fourierspacing</span>          <span class="o">=</span> <span class="mf">0.1</span>
+<span class="n">pme_order</span>               <span class="o">=</span> <span class="mi">6</span>
+<span class="n">ewald_rtol</span>              <span class="o">=</span> <span class="mf">0.000001</span>
+<span class="n">pbc</span>                     <span class="o">=</span> <span class="n">xyz</span>                               <span class="p">;</span> <span class="n">Periodic</span> <span class="n">boundary</span> <span class="n">condition</span>
+<span class="n">rcoulomb</span>                <span class="o">=</span> <span class="mf">1.0</span>                               <span class="p">;</span> <span class="n">Short</span><span class="o">-</span><span class="nb">range</span> <span class="n">electrostatic</span> <span class="n">cutoff</span> <span class="p">(</span><span class="n">nm</span><span class="p">)</span>
+<span class="p">;</span><span class="n">rcoulomb_switch</span>         <span class="o">=</span> <span class="mf">0.9</span>                               <span class="p">;</span> <span class="n">Short</span><span class="o">-</span><span class="nb">range</span> <span class="n">electrostatic</span> <span class="n">switch</span> <span class="n">cutoff</span> <span class="p">(</span><span class="n">nm</span><span class="p">)</span>
+<span class="n">vdwtype</span>                 <span class="o">=</span> <span class="n">Switch</span>                            <span class="p">;</span> <span class="n">Switch</span> <span class="n">van</span> <span class="n">der</span> <span class="n">Waals</span> <span class="n">interactions</span>
+<span class="n">rvdw</span>                    <span class="o">=</span> <span class="mf">0.9</span>                               <span class="p">;</span> <span class="n">Van</span> <span class="n">der</span> <span class="n">Waals</span> <span class="n">cutoff</span> <span class="p">(</span><span class="n">nm</span><span class="p">)</span>
+<span class="n">rvdw_switch</span>             <span class="o">=</span> <span class="mf">0.8</span>                               <span class="p">;</span> <span class="n">Van</span> <span class="n">der</span> <span class="n">Waals</span> <span class="n">switch</span> <span class="n">cutoff</span> <span class="p">(</span><span class="n">nm</span><span class="p">)</span>
+<span class="n">DispCorr</span>                <span class="o">=</span> <span class="n">EnerPres</span>                          <span class="p">;</span> <span class="n">Long</span><span class="o">-</span><span class="nb">range</span> <span class="n">dispersion</span> <span class="n">correction</span> <span class="n">to</span> <span class="n">energy</span> <span class="ow">and</span> <span class="n">pressure</span>
+<span class="n">ns_type</span>                 <span class="o">=</span> <span class="n">grid</span>                              <span class="p">;</span> <span class="n">Update</span> <span class="n">neighbor</span> <span class="nb">list</span> <span class="n">using</span> <span class="n">grid</span>
+<span class="n">nstlist</span>                 <span class="o">=</span> <span class="mi">10</span>                                <span class="p">;</span> <span class="n">Neighbor</span> <span class="nb">list</span> <span class="n">update</span> <span class="n">interval</span> <span class="p">(</span><span class="n">timesteps</span><span class="p">)</span>
+<span class="n">rlist</span>                   <span class="o">=</span> <span class="mf">1.00</span>                              <span class="p">;</span> <span class="n">Neighbor</span> <span class="nb">list</span> <span class="n">cut</span><span class="o">-</span><span class="n">off</span> <span class="p">(</span><span class="n">nm</span><span class="p">)</span>
+<span class="p">;</span><span class="c1">####################################################### OUTPUT ########################################################</span>
+<span class="n">nstlog</span>                  <span class="o">=</span> <span class="mi">750</span>                               <span class="p">;</span> <span class="n">Energy</span> <span class="n">log</span> <span class="n">output</span> <span class="n">interval</span> <span class="p">(</span><span class="n">timesteps</span><span class="p">)</span>
+<span class="n">nstenergy</span>               <span class="o">=</span> <span class="mi">750</span>                               <span class="p">;</span> <span class="n">Energy</span> <span class="n">output</span> <span class="n">interval</span> <span class="p">(</span><span class="n">timesteps</span><span class="p">)</span>
+<span class="n">nstcalcenergy</span>           <span class="o">=</span> <span class="mi">75</span>
+<span class="n">nstxout</span>                 <span class="o">=</span> <span class="mi">7500</span>                              <span class="p">;</span> <span class="n">Full</span><span class="o">-</span><span class="n">resolution</span> <span class="n">trajectory</span> <span class="n">output</span> <span class="n">interval</span> <span class="p">(</span><span class="n">timesteps</span><span class="p">)</span>
+<span class="n">nstvout</span>                 <span class="o">=</span> <span class="mi">7500</span>                              <span class="p">;</span> <span class="n">Full</span><span class="o">-</span><span class="n">resolution</span> <span class="n">velocity</span> <span class="n">output</span> <span class="n">interval</span> <span class="p">(</span><span class="n">timesteps</span><span class="p">)</span>
+<span class="n">nstfout</span>                 <span class="o">=</span> <span class="mi">7500</span>                              <span class="p">;</span> <span class="n">Full</span><span class="o">-</span><span class="n">resolution</span> <span class="n">force</span> <span class="n">output</span> <span class="n">interval</span> <span class="p">(</span><span class="n">timesteps</span><span class="p">)</span>
+<span class="n">nstxtcout</span>               <span class="o">=</span> <span class="mi">750</span>                               <span class="p">;</span> <span class="n">Reduced</span><span class="o">-</span><span class="n">resolution</span> <span class="n">trajectory</span> <span class="n">output</span> <span class="n">interval</span> <span class="p">(</span><span class="n">timesteps</span><span class="p">)</span>
+<span class="n">xtc</span><span class="o">-</span><span class="n">precision</span>           <span class="o">=</span> <span class="mi">10000</span>                             <span class="p">;</span> <span class="n">Reduced</span><span class="o">-</span><span class="n">resolution</span> <span class="n">trajectory</span> <span class="n">output</span> <span class="n">precision</span>
 </pre></div>
 </div>
 <p>While in the original paper, the Nosé–Hoover thermostat was used with a
@@ -211,7 +216,7 @@ will simply hurt efficiency.</p>
 forces, energy, etc. They should be, at most, the same value as nsteps,
 or nsteps should divide into it cleanly. The following options are the
 ones to adjust:</p>
-<div class="highlight-python"><div class="highlight"><pre><span></span><span class="n">nsteps</span>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">nsteps</span>
 <span class="n">nstcomm</span>
 <span class="n">nstlog</span>
 <span class="n">nstenergy</span>
@@ -228,14 +233,14 @@ ones to adjust:</p>
 <p>For this section, it may be helpful to compare the files to that in the
 original GROMACS Na+/Cl- tutorial, as there are significant changes to
 many of them. If you are familiar with vim, running</p>
-<div class="highlight-python"><div class="highlight"><pre><span></span>vimdiff file1 file2
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">vimdiff</span> <span class="n">file1</span> <span class="n">file2</span>
 </pre></div>
 </div>
 <p>will allow you a line by line comparison with a splitscreen view,
 allowing you to see what lines have been added, removed, and changed.</p>
 <div class="section" id="init-sh">
 <h3>init.sh<a class="headerlink" href="#init-sh" title="Permalink to this headline">¶</a></h3>
-<div class="highlight-python"><div class="highlight"><pre><span></span> 1 #!/bin/bash
+<div class="highlight-default"><div class="highlight"><pre><span></span> 1 #!/bin/bash
  2 source env.sh
  3 ps aux | grep w_run | grep -v grep
  4 pkill -9 -f w_run
@@ -269,7 +274,7 @@ contains information about the basis states (in this case, there is only
 one), and it will be fed in to w_init with the &#8211;bstates-from-file flag
 during the initialization step of WESTPA to generate initial states. It
 is formatted as follows:</p>
-<div class="highlight-python"><div class="highlight"><pre><span></span>internal_name relative_probability reference
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">internal_name</span> <span class="n">relative_probability</span> <span class="n">reference</span>
 </pre></div>
 </div>
 <p>Where reference can be used in a manner determined entirely by the
@@ -279,7 +284,7 @@ purpose, and pointed simply to nacl.gro within the same directory. Here,
 the reference points to a directory within bstates, and west.cfg and
 get_pcoord.sh have been modified appropriately to use the file name
 within the directory. Our BASIS_STATES looks like the following:</p>
-<div class="highlight-python"><div class="highlight"><pre><span></span>p53_bound_conf 1 p53
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">p53_bound_conf</span> <span class="mi">1</span> <span class="n">p53</span>
 </pre></div>
 </div>
 <p>Indicating that within bstates, there is a reference called p53 that
@@ -305,7 +310,7 @@ running, the changes are noted, nonetheless.</p>
 </div>
 <div class="section" id="changes-to-use-the-local-scratch">
 <h2>Changes to use the local scratch<a class="headerlink" href="#changes-to-use-the-local-scratch" title="Permalink to this headline">¶</a></h2>
-<div class="highlight-python"><div class="highlight"><pre><span></span>#!/bin/bash
+<div class="highlight-default"><div class="highlight"><pre><span></span>#!/bin/bash
 
 if [ -n &quot;$SEG_DEBUG&quot; ] ; then
     set -x
@@ -347,17 +352,17 @@ function cleanup() {
 trap cleanup EXIT
 </pre></div>
 </div>
-<div class="highlight-python"><div class="highlight"><pre><span></span>1. Enter the simulation directory.
-2. Create the directory that will hold the trajectory segment data.
-3. Change into that directory.
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="mf">1.</span> <span class="n">Enter</span> <span class="n">the</span> <span class="n">simulation</span> <span class="n">directory</span><span class="o">.</span>
+<span class="mf">2.</span> <span class="n">Create</span> <span class="n">the</span> <span class="n">directory</span> <span class="n">that</span> <span class="n">will</span> <span class="n">hold</span> <span class="n">the</span> <span class="n">trajectory</span> <span class="n">segment</span> <span class="n">data</span><span class="o">.</span>
+<span class="mf">3.</span> <span class="n">Change</span> <span class="n">into</span> <span class="n">that</span> <span class="n">directory</span><span class="o">.</span>
 </pre></div>
 </div>
 <p>In env.sh, we have defined whether or not to use the local scratch space
 on the individual compute node, and have created a variable which holds
 the appropriate location, if such a thing exists on this supercomputer.</p>
-<div class="highlight-python"><div class="highlight"><pre><span></span>If this is set to True,
-4. Create the trajectory segment directory on the scratch space on the local node.
-5. Change into that directory.
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">If</span> <span class="n">this</span> <span class="ow">is</span> <span class="nb">set</span> <span class="n">to</span> <span class="kc">True</span><span class="p">,</span>
+<span class="mf">4.</span> <span class="n">Create</span> <span class="n">the</span> <span class="n">trajectory</span> <span class="n">segment</span> <span class="n">directory</span> <span class="n">on</span> <span class="n">the</span> <span class="n">scratch</span> <span class="n">space</span> <span class="n">on</span> <span class="n">the</span> <span class="n">local</span> <span class="n">node</span><span class="o">.</span>
+<span class="mf">5.</span> <span class="n">Change</span> <span class="n">into</span> <span class="n">that</span> <span class="n">directory</span><span class="o">.</span>
 </pre></div>
 </div>
 <p>We then define a variable called $STAGEIN (set to cp if we&#8217;re using
@@ -376,7 +381,7 @@ are using the local scratch or not.</p>
 </div>
 <div class="section" id="trajectory-initialization-mdrun">
 <h2>Trajectory Initialization &amp; mdrun<a class="headerlink" href="#trajectory-initialization-mdrun" title="Permalink to this headline">¶</a></h2>
-<div class="highlight-python"><div class="highlight"><pre><span></span>case $WEST_CURRENT_SEG_INITPOINT_TYPE in
+<div class="highlight-default"><div class="highlight"><pre><span></span>case $WEST_CURRENT_SEG_INITPOINT_TYPE in
     SEG_INITPOINT_CONTINUES)
         # A continuation from a prior segment
         # $WEST_PARENT_DATA_REF contains the reference to the
@@ -451,7 +456,7 @@ thread options on mdrun).</p>
 </div>
 <div class="section" id="imaging-progress-coordinate-return">
 <h2>Imaging &amp; Progress Coordinate Return<a class="headerlink" href="#imaging-progress-coordinate-return" title="Permalink to this headline">¶</a></h2>
-<div class="highlight-python"><div class="highlight"><pre><span></span># Calculate progress coordinate
+<div class="highlight-default"><div class="highlight"><pre><span></span># Calculate progress coordinate
 # First, we must ensure the protein is correctly imaged.  Essentially, this requires
 # referencing a continous trajectory; by passing down an imaged trajectory frame
 # from parent to child, we ensure imaging is always correct.
@@ -509,11 +514,11 @@ fi
 </pre></div>
 </div>
 <p>There are 4 distinct things that happen within this block of code:</p>
-<div class="highlight-python"><div class="highlight"><pre><span></span>1. Image the system.
-2. Save the final, correctly imaged frame.
-3. Calculate the end to end center of mass distance of the caps, and return it (in Angstroms) as an auxiliary coordinate.
-4. Calculate the heavy atom RMSD of the P53 peptide after aligning on itself (heavy atom), and return it (in Angstroms) as the progress coordinate
-   (which is loaded by a custom data loader; see the section on system.py).
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="mf">1.</span> <span class="n">Image</span> <span class="n">the</span> <span class="n">system</span><span class="o">.</span>
+<span class="mf">2.</span> <span class="n">Save</span> <span class="n">the</span> <span class="n">final</span><span class="p">,</span> <span class="n">correctly</span> <span class="n">imaged</span> <span class="n">frame</span><span class="o">.</span>
+<span class="mf">3.</span> <span class="n">Calculate</span> <span class="n">the</span> <span class="n">end</span> <span class="n">to</span> <span class="n">end</span> <span class="n">center</span> <span class="n">of</span> <span class="n">mass</span> <span class="n">distance</span> <span class="n">of</span> <span class="n">the</span> <span class="n">caps</span><span class="p">,</span> <span class="ow">and</span> <span class="k">return</span> <span class="n">it</span> <span class="p">(</span><span class="ow">in</span> <span class="n">Angstroms</span><span class="p">)</span> <span class="k">as</span> <span class="n">an</span> <span class="n">auxiliary</span> <span class="n">coordinate</span><span class="o">.</span>
+<span class="mf">4.</span> <span class="n">Calculate</span> <span class="n">the</span> <span class="n">heavy</span> <span class="n">atom</span> <span class="n">RMSD</span> <span class="n">of</span> <span class="n">the</span> <span class="n">P53</span> <span class="n">peptide</span> <span class="n">after</span> <span class="n">aligning</span> <span class="n">on</span> <span class="n">itself</span> <span class="p">(</span><span class="n">heavy</span> <span class="n">atom</span><span class="p">),</span> <span class="ow">and</span> <span class="k">return</span> <span class="n">it</span> <span class="p">(</span><span class="ow">in</span> <span class="n">Angstroms</span><span class="p">)</span> <span class="k">as</span> <span class="n">the</span> <span class="n">progress</span> <span class="n">coordinate</span>
+   <span class="p">(</span><span class="n">which</span> <span class="ow">is</span> <span class="n">loaded</span> <span class="n">by</span> <span class="n">a</span> <span class="n">custom</span> <span class="n">data</span> <span class="n">loader</span><span class="p">;</span> <span class="n">see</span> <span class="n">the</span> <span class="n">section</span> <span class="n">on</span> <span class="n">system</span><span class="o">.</span><span class="n">py</span><span class="p">)</span><span class="o">.</span>
 </pre></div>
 </div>
 <p>Coordinates and log file parsing have been disabled for this system, but
@@ -540,10 +545,10 @@ visualization artifacts will result.</p>
 <p>g_dist handles periodic boundary conditions correctly, regardless of
 imaging; it does not matter whether nojump.xtc or seg.xtc is passed in.</p>
 <p>The imaging steps are as follows:</p>
-<div class="highlight-python"><div class="highlight"><pre><span></span>1. Remove periodic boundary conditions.  This effectively removes the box, allowing molecules to diffuse out of the box.
-2. Make whole any molecules that are split across a boundary.  Instead of existing across barriers, they will now &#39;jump&#39;.
-3. Remove jumps, referencing the parent image.  With the parent image in hand, GROMACS knows to simply allow a protein
-  or solvent molecule to diffuse across a boundary, rather than having it jump to the other side of the box.
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="mf">1.</span> <span class="n">Remove</span> <span class="n">periodic</span> <span class="n">boundary</span> <span class="n">conditions</span><span class="o">.</span>  <span class="n">This</span> <span class="n">effectively</span> <span class="n">removes</span> <span class="n">the</span> <span class="n">box</span><span class="p">,</span> <span class="n">allowing</span> <span class="n">molecules</span> <span class="n">to</span> <span class="n">diffuse</span> <span class="n">out</span> <span class="n">of</span> <span class="n">the</span> <span class="n">box</span><span class="o">.</span>
+<span class="mf">2.</span> <span class="n">Make</span> <span class="n">whole</span> <span class="nb">any</span> <span class="n">molecules</span> <span class="n">that</span> <span class="n">are</span> <span class="n">split</span> <span class="n">across</span> <span class="n">a</span> <span class="n">boundary</span><span class="o">.</span>  <span class="n">Instead</span> <span class="n">of</span> <span class="n">existing</span> <span class="n">across</span> <span class="n">barriers</span><span class="p">,</span> <span class="n">they</span> <span class="n">will</span> <span class="n">now</span> <span class="s1">&#39;jump&#39;</span><span class="o">.</span>
+<span class="mf">3.</span> <span class="n">Remove</span> <span class="n">jumps</span><span class="p">,</span> <span class="n">referencing</span> <span class="n">the</span> <span class="n">parent</span> <span class="n">image</span><span class="o">.</span>  <span class="n">With</span> <span class="n">the</span> <span class="n">parent</span> <span class="n">image</span> <span class="ow">in</span> <span class="n">hand</span><span class="p">,</span> <span class="n">GROMACS</span> <span class="n">knows</span> <span class="n">to</span> <span class="n">simply</span> <span class="n">allow</span> <span class="n">a</span> <span class="n">protein</span>
+  <span class="ow">or</span> <span class="n">solvent</span> <span class="n">molecule</span> <span class="n">to</span> <span class="n">diffuse</span> <span class="n">across</span> <span class="n">a</span> <span class="n">boundary</span><span class="p">,</span> <span class="n">rather</span> <span class="n">than</span> <span class="n">having</span> <span class="n">it</span> <span class="n">jump</span> <span class="n">to</span> <span class="n">the</span> <span class="n">other</span> <span class="n">side</span> <span class="n">of</span> <span class="n">the</span> <span class="n">box</span><span class="o">.</span>
 </pre></div>
 </div>
 <p>Once that is all complete, the appropriate metric is calculated (using
@@ -553,7 +558,7 @@ node, generated by WESTPA), and is loaded by whatever loader is
 specified in west.cfg.</p>
 <div class="section" id="west-cfg">
 <h3>west.cfg<a class="headerlink" href="#west-cfg" title="Permalink to this headline">¶</a></h3>
-<div class="highlight-python"><div class="highlight"><pre><span></span># The master WEST configuration file for a simulation.
+<div class="highlight-default"><div class="highlight"><pre><span></span># The master WEST configuration file for a simulation.
 # vi: set filetype=yaml :
 ---
 west:
@@ -640,128 +645,128 @@ procedure which requires human input and a lot of time.</p>
 </div>
 <div class="section" id="system-py">
 <h3>system.py<a class="headerlink" href="#system-py" title="Permalink to this headline">¶</a></h3>
-<div class="highlight-python"><div class="highlight"><pre><span></span>from __future__ import division, print_function; __metaclass__ = type
-import os, sys, math, itertools
-import numpy
-import west
-from west import WESTSystem
-import westpa
-from westpa.binning import RectilinearBinMapper
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">division</span><span class="p">,</span> <span class="n">print_function</span><span class="p">;</span> <span class="n">__metaclass__</span> <span class="o">=</span> <span class="nb">type</span>
+<span class="kn">import</span> <span class="nn">os</span><span class="o">,</span> <span class="nn">sys</span><span class="o">,</span> <span class="nn">math</span><span class="o">,</span> <span class="nn">itertools</span>
+<span class="kn">import</span> <span class="nn">numpy</span>
+<span class="kn">import</span> <span class="nn">west</span>
+<span class="kn">from</span> <span class="nn">west</span> <span class="k">import</span> <span class="n">WESTSystem</span>
+<span class="kn">import</span> <span class="nn">westpa</span>
+<span class="kn">from</span> <span class="nn">westpa.binning</span> <span class="k">import</span> <span class="n">RectilinearBinMapper</span>
 
-import logging
-log = logging.getLogger(__name__)
-log.debug(&#39;loading module %r&#39; % __name__)
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="n">log</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+<span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;loading module </span><span class="si">%r</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="vm">__name__</span><span class="p">)</span>
 
-class System(WESTSystem):
-    &quot;&quot;&quot;
-    System for P53 folding and unfolding.
-    &quot;&quot;&quot;
+<span class="k">class</span> <span class="nc">System</span><span class="p">(</span><span class="n">WESTSystem</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    System for P53 folding and unfolding.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
 
-    def initialize(self):
-        &quot;&quot;&quot;
-        Initializes system
-        &quot;&quot;&quot;
-        self.pcoord_ndim  = 2
-        self.pcoord_len   = 11
-        self.pcoord_dtype = numpy.float32
-        # As the RMSD coordinate is taken relative to the coil, aligned on the coil,
-        # it will remain sensitive to coil changes.  It&#39;s best to assume the maximum is
-        # not dissimilar to the maximum for the distance; something around 57 A, as
-        # that would take into account the peptide flipping completely around.
-        # However, we must bin much finer.
-        self.rmsd_binbounds         = [0.0+0.4*i for i in xrange(0,19)] + \
-                                      [8.0+0.8*i for i in xrange(0,19)] + \
-                                      [24.0+11.0*i for i in xrange(0,3)] + [float(&#39;inf&#39;)]
+    <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Initializes system</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pcoord_ndim</span>  <span class="o">=</span> <span class="mi">2</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pcoord_len</span>   <span class="o">=</span> <span class="mi">11</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pcoord_dtype</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">float32</span>
+        <span class="c1"># As the RMSD coordinate is taken relative to the coil, aligned on the coil,</span>
+        <span class="c1"># it will remain sensitive to coil changes.  It&#39;s best to assume the maximum is</span>
+        <span class="c1"># not dissimilar to the maximum for the distance; something around 57 A, as</span>
+        <span class="c1"># that would take into account the peptide flipping completely around.</span>
+        <span class="c1"># However, we must bin much finer.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rmsd_binbounds</span>         <span class="o">=</span> <span class="p">[</span><span class="mf">0.0</span><span class="o">+</span><span class="mf">0.4</span><span class="o">*</span><span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">xrange</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">19</span><span class="p">)]</span> <span class="o">+</span> \
+                                      <span class="p">[</span><span class="mf">8.0</span><span class="o">+</span><span class="mf">0.8</span><span class="o">*</span><span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">xrange</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">19</span><span class="p">)]</span> <span class="o">+</span> \
+                                      <span class="p">[</span><span class="mf">24.0</span><span class="o">+</span><span class="mf">11.0</span><span class="o">*</span><span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">xrange</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">3</span><span class="p">)]</span> <span class="o">+</span> <span class="p">[</span><span class="nb">float</span><span class="p">(</span><span class="s1">&#39;inf&#39;</span><span class="p">)]</span>
 
-        # It&#39;s best not to place these at the integer boundaries, due to
-        # oddities with the way numpy/h5py stores the values inside the west.h5 file.
-        # Given that we are starting in the coil conformation, the &#39;unknown state&#39;
-        # (that is, 1.5 to float, or 2) will never be used; our bins will never be more
-        # than 66% filled.
+        <span class="c1"># It&#39;s best not to place these at the integer boundaries, due to</span>
+        <span class="c1"># oddities with the way numpy/h5py stores the values inside the west.h5 file.</span>
+        <span class="c1"># Given that we are starting in the coil conformation, the &#39;unknown state&#39;</span>
+        <span class="c1"># (that is, 1.5 to float, or 2) will never be used; our bins will never be more</span>
+        <span class="c1"># than 66% filled.</span>
 
-        self.color_binbounds = [-0.5,0.5,1.5,float(&#39;inf&#39;)]
+        <span class="bp">self</span><span class="o">.</span><span class="n">color_binbounds</span> <span class="o">=</span> <span class="p">[</span><span class="o">-</span><span class="mf">0.5</span><span class="p">,</span><span class="mf">0.5</span><span class="p">,</span><span class="mf">1.5</span><span class="p">,</span><span class="nb">float</span><span class="p">(</span><span class="s1">&#39;inf&#39;</span><span class="p">)]</span>
 
-        # A simple rectilinear binmapper, with the third dimension as color, to ensure good sampling.
-        self.bin_mapper   = RectilinearBinMapper([self.rmsd_binbounds, self.color_binbounds])
+        <span class="c1"># A simple rectilinear binmapper, with the third dimension as color, to ensure good sampling.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bin_mapper</span>   <span class="o">=</span> <span class="n">RectilinearBinMapper</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">rmsd_binbounds</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">color_binbounds</span><span class="p">])</span>
 
-        self.bin_target_counts      = numpy.empty((self.bin_mapper.nbins,),
-                                        numpy.int)
-        self.bin_target_counts[...] = 4
+        <span class="bp">self</span><span class="o">.</span><span class="n">bin_target_counts</span>      <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">bin_mapper</span><span class="o">.</span><span class="n">nbins</span><span class="p">,),</span>
+                                        <span class="n">numpy</span><span class="o">.</span><span class="n">int</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bin_target_counts</span><span class="p">[</span><span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="mi">4</span>
 
-def pcoord_loader_color_tracker(fieldname, coord_file, segment, single_point=False):
-    &quot;&quot;&quot;
-    This function loads a 1-dimensional progress coordinate, performs some logic to track color,
-    then returns the 2 dimensional progress coordinate to the system to be processed.
-    In this tutorial, there are 2 dimensions specified in this file; runseg.sh returns one of them.
-    The third is calculated here.
-    Note that we are defining our states only based on one progress coordinate dimension, in this example.
+<span class="k">def</span> <span class="nf">pcoord_loader_color_tracker</span><span class="p">(</span><span class="n">fieldname</span><span class="p">,</span> <span class="n">coord_file</span><span class="p">,</span> <span class="n">segment</span><span class="p">,</span> <span class="n">single_point</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This function loads a 1-dimensional progress coordinate, performs some logic to track color,</span>
+<span class="sd">    then returns the 2 dimensional progress coordinate to the system to be processed.</span>
+<span class="sd">    In this tutorial, there are 2 dimensions specified in this file; runseg.sh returns one of them.</span>
+<span class="sd">    The third is calculated here.</span>
+<span class="sd">    Note that we are defining our states only based on one progress coordinate dimension, in this example.</span>
 
-    **Arguments:**
-        :*fieldname*:      Key at which to store dataset
-        :*coord_filename*: Temporary file from which to load coordinates
-        :*segment*:        WEST segment
-        :*single_point*:   Data to be stored for a single frame
-                           (only false half the time)
-    &quot;&quot;&quot;
+<span class="sd">    **Arguments:**</span>
+<span class="sd">        :*fieldname*:      Key at which to store dataset</span>
+<span class="sd">        :*coord_filename*: Temporary file from which to load coordinates</span>
+<span class="sd">        :*segment*:        WEST segment</span>
+<span class="sd">        :*single_point*:   Data to be stored for a single frame</span>
+<span class="sd">                           (only false half the time)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
 
-    # These are the raw coordinates.
-    coord_raw = numpy.loadtxt(coord_file, dtype=numpy.float32)
-    # These are the states; they are left inclusive, and right exclusive, which is consistent with the normal
-    # binning procedure.
-    # It&#39;s difficult to ascertain what is truly &#39;folded&#39; and &#39;unfolded&#39; for these without a prior
-    # free energy profile; thankfully, we just need some rough estimates.  In the worst case scenario,
-    # we devolve to the original Huber and Kim sampling scheme.
-    color_bins = [(0.0,2.0),(15.0,float(&#39;inf&#39;))]
-    unknown_state = 2
-    system = westpa.rc.get_system_driver()
+    <span class="c1"># These are the raw coordinates.</span>
+    <span class="n">coord_raw</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="n">coord_file</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">numpy</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+    <span class="c1"># These are the states; they are left inclusive, and right exclusive, which is consistent with the normal</span>
+    <span class="c1"># binning procedure.</span>
+    <span class="c1"># It&#39;s difficult to ascertain what is truly &#39;folded&#39; and &#39;unfolded&#39; for these without a prior</span>
+    <span class="c1"># free energy profile; thankfully, we just need some rough estimates.  In the worst case scenario,</span>
+    <span class="c1"># we devolve to the original Huber and Kim sampling scheme.</span>
+    <span class="n">color_bins</span> <span class="o">=</span> <span class="p">[(</span><span class="mf">0.0</span><span class="p">,</span><span class="mf">2.0</span><span class="p">),(</span><span class="mf">15.0</span><span class="p">,</span><span class="nb">float</span><span class="p">(</span><span class="s1">&#39;inf&#39;</span><span class="p">))]</span>
+    <span class="n">unknown_state</span> <span class="o">=</span> <span class="mi">2</span>
+    <span class="n">system</span> <span class="o">=</span> <span class="n">westpa</span><span class="o">.</span><span class="n">rc</span><span class="o">.</span><span class="n">get_system_driver</span><span class="p">()</span>
 
-    if single_point == True:
-        npts = 1
-    else:
-        npts = system.pcoord_len
+    <span class="k">if</span> <span class="n">single_point</span> <span class="o">==</span> <span class="kc">True</span><span class="p">:</span>
+        <span class="n">npts</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">npts</span> <span class="o">=</span> <span class="n">system</span><span class="o">.</span><span class="n">pcoord_len</span>
 
-    coords = numpy.empty((npts), numpy.float32)
-    colors = numpy.empty((npts), numpy.float32)
-    #coords = numpy.empty((npts,system.pcoord_ndim), numpy.float32)
-    #colors = numpy.empty((npts), numpy.float32)
-    if single_point == True:
-        colors[:] = unknown_state
-        for istate,state_tuple in enumerate(color_bins):
-            # Note that here, we are using the first dimension and first dimension alone.
-            # The shape of the returned coord_raw is slightly different if single_point evalues
-            # to true.
-            # We evalulate whether or not we&#39;re in a state; if not, we leave it as in the
-            # unknown state.
-            # Swap this line to enable an N-dimensional pcoord, using the 1st dimension
-            # as the state definition.
-            #if coord_raw[0] &gt;= state_tuple[0] and coord_raw[0] &lt; state_tuple[1]:
-            if coord_raw &gt;= state_tuple[0] and coord_raw &lt; state_tuple[1]:
-                colors[:] = istate
-        coords[:] = coord_raw[...]
-    else:
-        # If we&#39;re not the first point, we set the state to be what it was in the beginning
-        # of the iteration.  We only want to update the state when we update a bin for purposes
-        # of state tracking.
-        # Swap lines to enable multiple pcoord dimensions, then change dimensions.
-        #colors[:] = segment.pcoord[0][2]
-        colors[:] = segment.pcoord[0][1]
-        coords[:] = coord_raw[...]
+    <span class="n">coords</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="n">npts</span><span class="p">),</span> <span class="n">numpy</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+    <span class="n">colors</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="n">npts</span><span class="p">),</span> <span class="n">numpy</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+    <span class="c1">#coords = numpy.empty((npts,system.pcoord_ndim), numpy.float32)</span>
+    <span class="c1">#colors = numpy.empty((npts), numpy.float32)</span>
+    <span class="k">if</span> <span class="n">single_point</span> <span class="o">==</span> <span class="kc">True</span><span class="p">:</span>
+        <span class="n">colors</span><span class="p">[:]</span> <span class="o">=</span> <span class="n">unknown_state</span>
+        <span class="k">for</span> <span class="n">istate</span><span class="p">,</span><span class="n">state_tuple</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">color_bins</span><span class="p">):</span>
+            <span class="c1"># Note that here, we are using the first dimension and first dimension alone.</span>
+            <span class="c1"># The shape of the returned coord_raw is slightly different if single_point evalues</span>
+            <span class="c1"># to true.</span>
+            <span class="c1"># We evalulate whether or not we&#39;re in a state; if not, we leave it as in the</span>
+            <span class="c1"># unknown state.</span>
+            <span class="c1"># Swap this line to enable an N-dimensional pcoord, using the 1st dimension</span>
+            <span class="c1"># as the state definition.</span>
+            <span class="c1">#if coord_raw[0] &gt;= state_tuple[0] and coord_raw[0] &lt; state_tuple[1]:</span>
+            <span class="k">if</span> <span class="n">coord_raw</span> <span class="o">&gt;=</span> <span class="n">state_tuple</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">and</span> <span class="n">coord_raw</span> <span class="o">&lt;</span> <span class="n">state_tuple</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
+                <span class="n">colors</span><span class="p">[:]</span> <span class="o">=</span> <span class="n">istate</span>
+        <span class="n">coords</span><span class="p">[:]</span> <span class="o">=</span> <span class="n">coord_raw</span><span class="p">[</span><span class="o">...</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># If we&#39;re not the first point, we set the state to be what it was in the beginning</span>
+        <span class="c1"># of the iteration.  We only want to update the state when we update a bin for purposes</span>
+        <span class="c1"># of state tracking.</span>
+        <span class="c1"># Swap lines to enable multiple pcoord dimensions, then change dimensions.</span>
+        <span class="c1">#colors[:] = segment.pcoord[0][2]</span>
+        <span class="n">colors</span><span class="p">[:]</span> <span class="o">=</span> <span class="n">segment</span><span class="o">.</span><span class="n">pcoord</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">coords</span><span class="p">[:]</span> <span class="o">=</span> <span class="n">coord_raw</span><span class="p">[</span><span class="o">...</span><span class="p">]</span>
 
-    for istate,state_tuple in enumerate(color_bins):
-        #if coords[-1,0] &gt;= state_tuple[0] and coords[-1,0] &lt; state_tuple[1]:
-        if coords[-1] &gt;= state_tuple[0] and coords[-1] &lt; state_tuple[1]:
-            colors[-1] = istate
+    <span class="k">for</span> <span class="n">istate</span><span class="p">,</span><span class="n">state_tuple</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">color_bins</span><span class="p">):</span>
+        <span class="c1">#if coords[-1,0] &gt;= state_tuple[0] and coords[-1,0] &lt; state_tuple[1]:</span>
+        <span class="k">if</span> <span class="n">coords</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">state_tuple</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">and</span> <span class="n">coords</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">state_tuple</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
+            <span class="n">colors</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">istate</span>
 
-    # We require different stacking behavior to return things in the proper order
-    # depending on how many points we have.  I could probably clean this up.
-    if single_point == True:
-        # Again, swap lines.
-        #segment.pcoord = numpy.hstack((coords[0,0],coords[0,1],colors[:]))
-        segment.pcoord = numpy.hstack((coords[:],colors[:]))
-    else:
-        # This could easily be modified to return N dimensions.
-        #segment.pcoord = numpy.swapaxes(numpy.vstack((coords[:,0],coords[:,1],colors[:])), 0, 1)
-        segment.pcoord = numpy.swapaxes(numpy.vstack((coords[:],colors[:])), 0, 1)
+    <span class="c1"># We require different stacking behavior to return things in the proper order</span>
+    <span class="c1"># depending on how many points we have.  I could probably clean this up.</span>
+    <span class="k">if</span> <span class="n">single_point</span> <span class="o">==</span> <span class="kc">True</span><span class="p">:</span>
+        <span class="c1"># Again, swap lines.</span>
+        <span class="c1">#segment.pcoord = numpy.hstack((coords[0,0],coords[0,1],colors[:]))</span>
+        <span class="n">segment</span><span class="o">.</span><span class="n">pcoord</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">hstack</span><span class="p">((</span><span class="n">coords</span><span class="p">[:],</span><span class="n">colors</span><span class="p">[:]))</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># This could easily be modified to return N dimensions.</span>
+        <span class="c1">#segment.pcoord = numpy.swapaxes(numpy.vstack((coords[:,0],coords[:,1],colors[:])), 0, 1)</span>
+        <span class="n">segment</span><span class="o">.</span><span class="n">pcoord</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">swapaxes</span><span class="p">(</span><span class="n">numpy</span><span class="o">.</span><span class="n">vstack</span><span class="p">((</span><span class="n">coords</span><span class="p">[:],</span><span class="n">colors</span><span class="p">[:])),</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>For the sake of readability, the unused log and coordinate loader are
@@ -810,15 +815,15 @@ to write to any dataset with ease.</p>
 whether single_point is True or False (the differences mostly lie in
 the fact that the data is shaped differently, and so must be handled
 differently. So, too, must the output):</p>
-<div class="highlight-python"><div class="highlight"><pre><span></span>1.  Load the data from runseg.sh with numpy.loadtxt.
-2.  Define the folded and unfolded bin values (that is, their pcoord value ranges).
-3A. If single_point is True, check to see whether the first time point is within one of
-    the states.  If not, bin it as the &#39;unknown state&#39;, which is merely state N+1, where
-    N is the number of states.  Copy this through for every time point.
-3B. If single_point is False, and this is a continuation, take whatever state the segment
-    was in at time 0, and copy it through for every time point.
-4.  Evaluate whether the state has changed at the final time point.  If so, update.
-5.  Stack the data in the appropriate manner, and write to the progress coordinate.
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="mf">1.</span>  <span class="n">Load</span> <span class="n">the</span> <span class="n">data</span> <span class="kn">from</span> <span class="nn">runseg.sh</span> <span class="k">with</span> <span class="n">numpy</span><span class="o">.</span><span class="n">loadtxt</span><span class="o">.</span>
+<span class="mf">2.</span>  <span class="n">Define</span> <span class="n">the</span> <span class="n">folded</span> <span class="ow">and</span> <span class="n">unfolded</span> <span class="nb">bin</span> <span class="n">values</span> <span class="p">(</span><span class="n">that</span> <span class="ow">is</span><span class="p">,</span> <span class="n">their</span> <span class="n">pcoord</span> <span class="n">value</span> <span class="n">ranges</span><span class="p">)</span><span class="o">.</span>
+<span class="mi">3</span><span class="n">A</span><span class="o">.</span> <span class="n">If</span> <span class="n">single_point</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">,</span> <span class="n">check</span> <span class="n">to</span> <span class="n">see</span> <span class="n">whether</span> <span class="n">the</span> <span class="n">first</span> <span class="n">time</span> <span class="n">point</span> <span class="ow">is</span> <span class="n">within</span> <span class="n">one</span> <span class="n">of</span>
+    <span class="n">the</span> <span class="n">states</span><span class="o">.</span>  <span class="n">If</span> <span class="ow">not</span><span class="p">,</span> <span class="nb">bin</span> <span class="n">it</span> <span class="k">as</span> <span class="n">the</span> <span class="s1">&#39;unknown state&#39;</span><span class="p">,</span> <span class="n">which</span> <span class="ow">is</span> <span class="n">merely</span> <span class="n">state</span> <span class="n">N</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="n">where</span>
+    <span class="n">N</span> <span class="ow">is</span> <span class="n">the</span> <span class="n">number</span> <span class="n">of</span> <span class="n">states</span><span class="o">.</span>  <span class="n">Copy</span> <span class="n">this</span> <span class="n">through</span> <span class="k">for</span> <span class="n">every</span> <span class="n">time</span> <span class="n">point</span><span class="o">.</span>
+<span class="mi">3</span><span class="n">B</span><span class="o">.</span> <span class="n">If</span> <span class="n">single_point</span> <span class="ow">is</span> <span class="kc">False</span><span class="p">,</span> <span class="ow">and</span> <span class="n">this</span> <span class="ow">is</span> <span class="n">a</span> <span class="n">continuation</span><span class="p">,</span> <span class="n">take</span> <span class="n">whatever</span> <span class="n">state</span> <span class="n">the</span> <span class="n">segment</span>
+    <span class="n">was</span> <span class="ow">in</span> <span class="n">at</span> <span class="n">time</span> <span class="mi">0</span><span class="p">,</span> <span class="ow">and</span> <span class="n">copy</span> <span class="n">it</span> <span class="n">through</span> <span class="k">for</span> <span class="n">every</span> <span class="n">time</span> <span class="n">point</span><span class="o">.</span>
+<span class="mf">4.</span>  <span class="n">Evaluate</span> <span class="n">whether</span> <span class="n">the</span> <span class="n">state</span> <span class="n">has</span> <span class="n">changed</span> <span class="n">at</span> <span class="n">the</span> <span class="n">final</span> <span class="n">time</span> <span class="n">point</span><span class="o">.</span>  <span class="n">If</span> <span class="n">so</span><span class="p">,</span> <span class="n">update</span><span class="o">.</span>
+<span class="mf">5.</span>  <span class="n">Stack</span> <span class="n">the</span> <span class="n">data</span> <span class="ow">in</span> <span class="n">the</span> <span class="n">appropriate</span> <span class="n">manner</span><span class="p">,</span> <span class="ow">and</span> <span class="n">write</span> <span class="n">to</span> <span class="n">the</span> <span class="n">progress</span> <span class="n">coordinate</span><span class="o">.</span>
 </pre></div>
 </div>
 <p>The system will continue to propagate segments with an &#8216;unknown state&#8217;
@@ -833,9 +838,9 @@ encourage them to depopulate.</p>
 <h2>Run it!<a class="headerlink" href="#run-it" title="Permalink to this headline">¶</a></h2>
 <p>At this point, you should be ready to run. As indicated in the
 instructions above,</p>
-<div class="highlight-python"><div class="highlight"><pre><span></span>cd p53-tutorial
-./init.sh
-qsub runwe-frank.sh
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">cd</span> <span class="n">p53</span><span class="o">-</span><span class="n">tutorial</span>
+<span class="o">./</span><span class="n">init</span><span class="o">.</span><span class="n">sh</span>
+<span class="n">qsub</span> <span class="n">runwe</span><span class="o">-</span><span class="n">frank</span><span class="o">.</span><span class="n">sh</span>
 </pre></div>
 </div>
 <p>And wait for everything to happen. Good luck!</p>
@@ -902,14 +907,11 @@ qsub runwe-frank.sh
 <div id="searchbox" style="display: none" role="search">
   <h3>Quick search</h3>
     <form class="search" action="../search.html" method="get">
-      <input type="text" name="q" />
-      <input type="submit" value="Go" />
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
       <input type="hidden" name="check_keywords" value="yes" />
       <input type="hidden" name="area" value="default" />
     </form>
-    <p class="searchtip" style="font-size: 90%">
-    Enter search terms or a module, class or function name.
-    </p>
 </div>
 <script type="text/javascript">$('#searchbox').show(0);</script>
         </div>
@@ -920,8 +922,8 @@ qsub runwe-frank.sh
       &copy;2015, Matthew C. Zwier and Lillian T. Chong.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.3.5</a>
-      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.7</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.4.9</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
       
       |
       <a href="../sources/tutorials/p53.txt"
