@@ -17,7 +17,7 @@ import w_assign, w_direct, w_reweight
 import scipy.sparse as sp
 
 from westtools import (WESTSubcommand, WESTParallelTool, WESTDataReader, WESTDSSynthesizer, BinMappingComponent, 
-                       ProgressIndicatorComponent, IterRangeSelection)
+                       ProgressIndicatorComponent, IterRangeSelection, Plotter)
 
 
 class WIPI(WESTParallelTool):
@@ -151,7 +151,6 @@ class WIPI(WESTParallelTool):
             self.interface = 'text'
 
     def analysis_structure(self):
-        #self.settings = self.config['west']['w_ipython']
         # Make sure everything exists.
         try:
             os.mkdir(self.__settings['directory'])
@@ -281,7 +280,6 @@ class WIPI(WESTParallelTool):
                             if name == 'reweight':
                                 analysis = w_reweight.WReweight()
 
-                            #analysis_config = { 'nsets': 1000, 'evolution': 'cumulative', 'step-iter': 1, 'assignments': os.path.join(path, '{}.h5'.format('assign')), 'output': os.path.join(path, '{}.h5'.format(name)), 'kinetics': os.path.join(path, '{}.h5'.format(name))}
                             analysis_config = { 'assignments': os.path.join(path, '{}.h5'.format('assign')), 'output': os.path.join(path, '{}.h5'.format(name)), 'kinetics': os.path.join(path, '{}.h5'.format(name))}
 
                             # Pull from general analysis options, then general SPECIFIC options for each analysis,
@@ -325,12 +323,6 @@ class WIPI(WESTParallelTool):
                             analysis.go()
 
                             analysis.data_reader.close()
-                            #if 'step-iter' in analysis_config.keys():
-                            #    self.__analysis_schemes__[scheme]['step_iter'][name] = analysis_config['step-iter']
-                            #else:
-                            #    self.__analysis_schemes__[scheme]['step_iter'][name] = max(1, (self.iter_range.iter_stop - self.iter_range.iter_start) // 10)
-
-                            #del(analysis)
 
                             # Open!
                             self.__analysis_schemes__[scheme][name] = h5io.WESTPAH5File(os.path.join(path, '{}.h5'.format(name)), 'r')
@@ -547,7 +539,6 @@ class WIPI(WESTParallelTool):
             return (" ")
 
     class __get_data_for_iteration__():
-    #def __get_data_for_iteration__(self, value, seg_ids = None):
         def __init__(self, parent, value, seg_ids = None):
             '''
             This returns all important data for the current iteration.  It is optionally
@@ -555,6 +546,7 @@ class WIPI(WESTParallelTool):
             only matching the current iteration.
             This is used internally.
             '''
+            # We've classed this so that we can override some of the normal functions and allow indexing via seg_id
             iter_group = parent.data_reader.get_iter_group(value)
             current = {}
             if seg_ids == None:
@@ -583,7 +575,7 @@ class WIPI(WESTParallelTool):
             #current['pop_bins'] = np.histogram(current['bins'].flatten(), bins=range(0, nbins), weights=np.repeat(current['weights'], current['bins'].shape[1]))[0] / current['bins'].shape[1]
             #current['pop_states'] = np.histogram(current['states'].flatten(), bins=range(0, nstates + 1), weights=np.repeat(current['weights'], current['states'].shape[1]))[0] / current['states'].shape[1]
             current['populations'] = parent.PopulationsIterations(parent.assign, current, parent.scheme)
-            current['plot'] = parent.Plotter(parent.direct, parent.reweight, parent.iteration, parent.assign['bin_labels'], parent.assign['state_labels'], current['populations'].states, current['populations'].bins, parent.interface)
+            current['plot'] = Plotter(parent.direct, parent.reweight, parent.iteration, parent.assign['bin_labels'], parent.assign['state_labels'], current['populations'].states, current['populations'].bins, parent.interface)
             try:
                 # We'll make this not a sparse matrix...
                 matrix = parent.reweight['iterations/iter_{:08d}'.format(value)]
@@ -659,159 +651,6 @@ class WIPI(WESTParallelTool):
         else:
             print("The current iteration is 1; there is no past.")
 
-    class Plotter():
-        def __init__(self, kinavg, kinrw, iteration, bin_labels, state_labels, state_pops, bin_pops, interface='matplotlib'):
-            # Need to sort through and fix all this, but hey.
-            self.kinavg_file = kinavg
-            self.kinrw_file = kinrw
-            self.stateprobs_file = kinavg
-            self.iteration = iteration
-            self.bin_labels = list(bin_labels[...])
-            self.state_labels = list(state_labels[...]) + ['unknown']
-            self.state_populations = state_pops
-            self.bin_populations = bin_pops
-            self.interface = interface
-
-        def __generic_ci__(self, h5file, iteration, i, j, tau, h5key='rate_evolution'):
-            if self.interface == 'text':
-                self.__terminal_ci__(h5file, iteration, i, j, tau, h5key)
-            else:
-                try:
-                    import matplotlib
-                    matplotlib.use('TkAgg')
-                    from matplotlib import pyplot as plt
-                    plt.plot(h5file[h5key]['expected'][:iteration, i, j] / tau, color='black')
-                    plt.plot(h5file[h5key]['ci_ubound'][:iteration, i, j] / tau, color='grey')
-                    plt.plot(h5file[h5key]['ci_lbound'][:iteration, i, j] / tau, color='grey')
-                    plt.show()
-                except:
-                    print('Unable to import plotting interface.  An X server ($DISPLAY) is required.')
-                    self.__terminal_ci__(h5file, iteration, i, j, tau)
-                    return 1
-
-        def __generic_histo__(self, vector, labels):
-            if self.interface == 'text':
-                self.__terminal_histo__(vector, labels)
-            else:
-                try:
-                    import matplotlib
-                    matplotlib.use('TkAgg')
-                    from matplotlib import pyplot as plt
-                    plt.bar(range(0, np.array(vector).shape[0]), vector, linewidth=0, align='center', color='gold', tick_label=labels)
-                    plt.show()
-                except:
-                    print('Unable to import plotting interface.  An X server ($DISPLAY) is required.')
-                    self.__terminal_histo__(h5file, vector, labels)
-                    return 1
-
-        def __terminal_histo__(self, vector, labels, fullscreen_mode=True):
-            from blessings import Terminal
-
-            self.t = Terminal()
-            h = int(self.t.height / 4) * 3
-            w = self.t.width
-            cols = np.array(vector).shape[0]
-            # Let's print this business!
-
-            colwidth = w / cols
-            with self.t.fullscreen():
-                for y in range(0, h):
-                    for x in range(0, cols):
-                        if x == 0:
-                            with self.t.location(0, y):
-                                print(self.t.red('{0:.4f}|'.format(float(h-y)/float(h))))
-                        with self.t.location((x*colwidth)+8+len(labels[x])/2, y):
-                            if vector[x] >= (float(h-y)/float(h)):
-                                #print(float(h-y)/float(h))
-                                print(self.t.on_blue(' '))
-                for x in range(0, cols):
-                    if x == 0:
-                        with self.t.location(x, h):
-                            print('States| ')
-                    with self.t.location((x*colwidth)+8, h):
-                        print(self.t.blue(labels[x]))
-
-                if fullscreen_mode:
-                    raw_input("Press enter to continue.")
-
-        def __terminal_ci__(self, h5file, iteration, si, sj, tau, h5key='rate_evolution'):
-            from blessings import Terminal
-
-            self.t = Terminal()
-            h = int(self.t.height / 4) * 3
-            # We'll figure out how to subsample the timepoints...
-            w = self.t.width
-            yupper = (h5file[h5key]['ci_ubound'][iteration-1, si, sj] / tau) * 2
-            ylower = (h5file[h5key]['ci_lbound'][iteration-1, si, sj] / tau) / 2
-            # Here are points pertaining to height.
-            scale = np.array([0.0] + [ylower+i*(yupper-ylower)/np.float(h) for i in range(0, h)])[::-1]
-            if iteration > w:
-                block_size = iteration / w
-            else:
-                block_size = 1
-
-            with self.t.fullscreen():
-                try:
-                    for x in range(0, w-12):
-                        iter = x * block_size
-                        yupper = (h5file[h5key]['ci_ubound'][iter-1, si, sj] / tau)
-                        ylower = (h5file[h5key]['ci_lbound'][iter-1, si, sj] / tau)
-                        ci = np.digitize([yupper, ylower], scale)
-                        if x == 0:
-                            for y in range(0, h+1):
-                                with self.t.location(0, y):
-                                    print(self.t.bold(self.t.red('{0:.7f}|'.format(scale[y]))))
-                        for y in range(ci[0], ci[1]):
-                            #with self.t.location(x+12, y):
-                            print self.t.move(y, x+12) + self.t.on_blue(' ')
-                                #print(self.t.on_blue(' '))
-                        #with self.t.location(x+12, np.digitize(h5file['rate_evolution']['expected'][iter-1, si, sj]/tau, scale)):
-                        #        print(self.t.on_blue('-'))
-                        print self.t.move(np.digitize(h5file[h5key]['expected'][iter-1, si, sj]/tau, scale), x+12) + self.t.on_blue('-')
-
-                    for x in range(0, w-12, w/10):
-                        if x == 0:
-                            with self.t.location(x, h+1):
-                                print('Iteration| ')
-                        with self.t.location(x+12, h+1):
-                            iter = x * block_size
-                            print(self.t.blue(str(iter)))
-                except:
-                    pass
-
-                with self.t.location(0, h+2):
-                    if h5key == 'rate_evolution':
-                        print("k_ij from {} to {} from iter 1 to {}".format(self.state_labels[si], self.state_labels[sj], self.iteration))
-                    else:
-                        print("{} state population from iter 1 to {}".format(self.state_labels[si], self.iteration))
-                with self.t.location(0, h+3):
-                    raw_input("Press enter to continue.")
-                
-
-
-        def kinavg(self, i=0, j=1, tau=1):
-            self.__generic_ci__(self.kinavg_file, self.iteration, i, j, tau)
-
-        def kinrw(self, i=0, j=1, tau=1):
-            self.__generic_ci__(self.kinrw_file, self.iteration, i, j, tau)
-
-        def rwstateprobs(self, i=0, j=1, tau=1):
-            self.__generic_ci__(self.kinrw_file, self.iteration, i, None, 1, h5key='state_pop_evolution')
-
-        def stateprobs(self, i=0, j=1, tau=1):
-            self.__generic_ci__(self.stateprobs_file, self.iteration, i, None, 1, h5key='state_pop_evolution')
-
-        def states(self):
-            self.__generic_histo__(self.state_populations, self.state_labels)
-
-        def bins(self):
-            self.__generic_histo__(self.bin_populations, self.bin_labels)
-
-    #def bin_evolution(self):
-    #    for i in range(1, self.niters+1):
-    #        self.iteration = i
-    #        plot = self.Plotter(self.kinavg, self.kinrw, 1, self.assign['bin_labels'], self.assign['state_labels'], self.current['populations'].states, self.current['populations'].bins, self.interface)
-    #        plot.__terminal_histo__(self.current['populations'].bins, self.assign['bin_labels'], fullscreen_mode = False)
 
     def trace(self, seg_id):
         '''
