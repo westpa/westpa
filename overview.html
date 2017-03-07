@@ -36,8 +36,8 @@
     <div id="main_content_wrap" class="outer">
       <section id="main_content" class="inner">
         <div id="pub_text_div">
-<p><strong style="font-size: 110%;">Overview of Weighted Ensemble Simulation: Path-sampling, Steady States, Equilibrium</strong>
-<br> by Daniel M. Zuckerman, Oregon Health & Science University, <a href="static/we_overview.pdf">download here.</a></p>
+          <p><strong><u>Overview of Weighted Ensemble Simulation: Path-sampling, Steady States, Equilibrium</u></strong>
+<br> by Daniel M. Zuckerman, Oregon Health & Science University, <a href="static/we_overview.pdf">download PDF here.</a></p>
 
 <p><strong>Introduction to Weighted Ensemble Simulation: The very basics</strong></p>
 <p>"Weighted ensemble" (WE) simulation is an enhanced sampling method for non-equilibrium and equilibrium processes which would be impractical to observe using standard dynamics simulation. Key examples at the molecular scale include (i) rare conformational processes, such as conformational transitions, (un)folding, and ion or substrate permeation through a complex (ii) activated processes generally - i.e., overcoming energy barriers and (ii) binding processes - i.e., rare complexation events. However, WE is a generic algorithm and can be applied to problems at the multi-protein scale [Spirit-2015] or network/cell scales [Donovan-2013, Donovan-2016]. The basic goal of such studies is to get from a known initial state (A in <strong>Fig. 1</strong>) to a target state B, learning pathways and rate constants for the process. WE uses a multiple-trajectory strategy in which individual trajectories can spawn multiple child trajectories upon reaching new regions of configuration space called bins. The children are suitably weighted to ensure statistical rigor. WE simulation can yield unbiased estimates for timescales/processes that are much longer than the simulations themselves. <p>
@@ -118,7 +118,7 @@ A remarkable feature of WESS simulation is that information on very long timesca
 
 
 <p>
-<img src="images/we_overview_fig2.png" alt="fig2" style="width:100%;" border=0>
+<img src="images/we_overview_fig2.png" alt="fig2" style="width:75%;" border=0>
 </img>
 <strong>Figure 2.</strong> Schematic depiction of equilibrium in WE simulation.  Thicker arrows represent higher-weight trajectories.  The total probability/weight flowing from one bin to another is exactly balanced, on average, by the reverse flow.  Thus, the flow of a given number of low-weight trajectories is matched by a smaller number of higher-weight trajectories moving in the opposite direction.  Equilibrium flows of weighted trajectories can be established by estimating and adjusting weights.
 </p>
