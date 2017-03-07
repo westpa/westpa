@@ -833,7 +833,7 @@ class WIPI(WESTParallelTool):
             pass
         parents = self.current['parents']
         for iter in reversed(range(1, self.iteration)):
-            iter_data = self.__get_data_for_iteration__(iter, seg_ids=parents, parent=self)
+            iter_data = self.__get_data_for_iteration__(value=iter, seg_ids=parents, parent=self)
             current['pcoord'].append(iter_data['pcoord'][seg_id, :, :])
             current['states'].append(iter_data['states'][seg_id, :])
             current['bins'].append(iter_data['bins'][seg_id, :])
@@ -849,7 +849,7 @@ class WIPI(WESTParallelTool):
             if seg_id < 0:
                 # Necessary for steady state simulations.  This means they started in that iteration.
                 break
-            parents = self.__get_data_for_iteration__(iter, parent=self)['parents']
+            parents = self.__get_data_for_iteration__(value=iter, parent=self)['parents']
         current['seg_id'] = list(reversed(current['seg_id']))
         current['pcoord'] = np.concatenate(np.array(list(reversed(current['pcoord']))))
         current['states'] = np.concatenate(np.array(list(reversed(current['states']))))
