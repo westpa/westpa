@@ -146,12 +146,12 @@ As shown in <strong>Fig. 3</strong>, WE is ideal for identifying different pathw
 <p>
 <img src="images/we_overview_fig3.png" alt="fig3" style="width:100%;" border=0>
 </img>
-<strong>Figure 3.</strong> Weighted ensemble (WE) simulation is well suited for finding multiple pathways.  A number of different pathways are shown for the alanine dipeptide molecule (center).  Transition trajectories start from the <sub style="bottom:-0.25em;font-size:75%;line-height:0;position:relative;vertical-align: baseline;">c7eq</sub> state at the center of each panel and terminate in the <sub style="bottom:-0.25em;font-size:75%;line-height:0;position:relative;vertical-align: baseline;">c7ax</sub> state, which occurs in the four outside corners of each panel due to the cyclic nature of torsion angles [Bhatt-2011].  WE has also identified distinct pathways in proteins – see text.
+<strong>Figure 3.</strong> Weighted ensemble (WE) simulation is well suited for finding multiple pathways.  A number of different pathways are shown for the alanine dipeptide molecule (center).  Transition trajectories start from the c<sub style="bottom:-0.25em;font-size:75%;line-height:0;position:relative;vertical-align: baseline;">7eq</sub> state at the center of each panel and terminate in the c<sub style="bottom:-0.25em;font-size:75%;line-height:0;position:relative;vertical-align: baseline;">7ax</sub> state, which occurs in the four outside corners of each panel due to the cyclic nature of torsion angles [Bhatt-2011].  WE has also identified distinct pathways in proteins – see text.
 </p>
 
 <p><strong>Parallelization</strong></p>
 <p>
-Because WE examines multiple trajectories (typically hundreds or even thousands) in each  interval, it lends itself parallelization as in WESTPA.  The communication overhead tends to be negligible, fortunately, because running dynamics for complex systems is fairly expensive.  WESTPA simulations have been run with thousands of CPU cores [Zwier-2015].
+Because WE examines multiple trajectories (typically hundreds or even thousands) in each &Tau; interval, it lends itself parallelization as in WESTPA.  The communication overhead tends to be negligible, fortunately, because running dynamics for complex systems is fairly expensive.  WESTPA simulations have been run with thousands of CPU cores [Zwier-2015].
 </p>
  
 
