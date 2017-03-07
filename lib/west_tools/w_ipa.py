@@ -505,6 +505,7 @@ class WIPI(WESTParallelTool):
             '''
             # We've classed this so that we can override some of the normal functions and allow indexing via seg_id
             iter_group = parent.data_reader.get_iter_group(value)
+            self.parent = parent
             current = {}
             if seg_ids == None:
                 seg_ids = xrange(0, iter_group['seg_index']['weight'].shape[0])
@@ -529,6 +530,7 @@ class WIPI(WESTParallelTool):
             nbins = parent.assign['state_map'].shape[0]
             # We have to take the 'unknown' state into account
             nstates = parent.assign['state_labels'].shape[0] + 1
+            # Legitimately unsure of why this is commented out, but what data sets we're returning should be reviewed.
             #current['pop_bins'] = np.histogram(current['bins'].flatten(), bins=range(0, nbins), weights=np.repeat(current['weights'], current['bins'].shape[1]))[0] / current['bins'].shape[1]
             #current['pop_states'] = np.histogram(current['states'].flatten(), bins=range(0, nstates + 1), weights=np.repeat(current['weights'], current['states'].shape[1]))[0] / current['states'].shape[1]
             current['populations'] = parent.PopulationsIterations(parent.assign, current, parent.scheme)
@@ -553,28 +555,49 @@ class WIPI(WESTParallelTool):
             return repr(self.raw)
         def keys(self):
             return self.raw.keys()
+
+        @property
+        def maxweight(self):
+            walker = np.where(self.raw['weights'] == np.max(self.raw['weights']))[0][0]
+            return self.__getitem__(walker)
+
+        @property
+        def minweight(self):
+            walker = np.where(self.raw['weights'] == np.min(self.raw['weights']))[0][0]
+            return self.__getitem__(walker)
+
         def __getitem__(self, value):
+            # Check to see if we're indexing via any of the active string types.  We should probably break it down via string or int, instead of 'what exists and what doesn't', but it works for now.
             active_items = ['kinavg', 'statepops', 'weights', 'pcoord', 'auxdata', 'parents', 'summary', 'seg_id', 'walkers', 'states', 'bins', 'populations', 'plot', 'instant_matrix', 'kinrw', 'matrix', 'rwstatepops']
-            if value in active_items:
-                return self.raw[value]
-            else:
-                current = {}
-                seg_items = ['weights', 'pcoord', 'auxdata', 'parents', 'seg_id', 'states']
-                #for i in seg_items:
-                #    current[i] = self.raw[i]
-                current['pcoord'] = self.raw['pcoord'][value, :, :]
-                current['states'] = self.raw['states'][value, :]
-                current['bins'] = self.raw['bins'][value, :]
-                current['parents'] = self.raw['parents'][value]
-                current['seg_id'] = self.raw['seg_id'][value]
-                current['weights'] = self.raw['weights'][value]
+            #if value in active_items:
+            if type(value) is str:
+                # This should handle everything.  Otherwise...
                 try:
-                    current['auxdata'] = {}
-                    for key in self.raw['auxdata'].keys():
-                        current['auxdata'][key] = self.raw['auxdata'][key][value]
+                    return self.raw[value]
                 except:
-                    pass
-                return current
+                    print('{} is not a valid data structure.'.format(value))
+            elif type(value) is int or type(value) is np.int64:
+                # Otherwise, we assume they're trying to index for a seg_id.
+                if value < self.parent.walkers:
+                    current = {}
+                    seg_items = ['weights', 'pcoord', 'auxdata', 'parents', 'seg_id', 'states']
+                    #for i in seg_items:
+                    #    current[i] = self.raw[i]
+                    current['pcoord'] = self.raw['pcoord'][value, :, :]
+                    current['states'] = self.raw['states'][value, :]
+                    current['bins'] = self.raw['bins'][value, :]
+                    current['parents'] = self.raw['parents'][value]
+                    current['seg_id'] = self.raw['seg_id'][value]
+                    current['weights'] = self.raw['weights'][value]
+                    try:
+                        current['auxdata'] = {}
+                        for key in self.raw['auxdata'].keys():
+                            current['auxdata'][key] = self.raw['auxdata'][key][value]
+                    except:
+                        pass
+                    return current
+                else:
+                    print('INVALID SEG_ID {}.  SEG_ID should be less than {}.'.format(value, self.parent.walkers))
 
     @property
     def current(self):
@@ -641,6 +664,7 @@ class WIPI(WESTParallelTool):
             pass
         parents = self.current['parents']
         for iter in reversed(range(1, self.iteration)):
+            #print(iter)
             iter_data = self.__get_data_for_iteration__(value=iter, seg_ids=parents, parent=self)
             current['pcoord'].append(iter_data['pcoord'][seg_id, :, :])
             current['states'].append(iter_data['states'][seg_id, :])
