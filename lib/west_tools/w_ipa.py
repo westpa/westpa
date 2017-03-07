@@ -102,7 +102,7 @@ class WIPI(WESTParallelTool):
 
         self._iter = 1
         self.config_required = True
-        self.version = ".99A"
+        self.version = ".99B"
         # Set to matplotlib if you want that.  But why would you?
         # Well, whatever, we'll just set it to that for now.
         self.interface = 'matplotlib'
@@ -338,6 +338,8 @@ class WIPI(WESTParallelTool):
     @scheme.setter
     def scheme(self, scheme):
         self._future = None
+        self._current = None
+        self._past = None
         if scheme in self.__settings['analysis_schemes']:
             pass
         else:
@@ -558,6 +560,7 @@ class WIPI(WESTParallelTool):
 
         @property
         def maxweight(self):
+            # Is there a faster or cleaner way to do this?  Ah, maybe.
             walker = np.where(self.raw['weights'] == np.max(self.raw['weights']))[0][0]
             return self.__getitem__(walker)
 
@@ -793,6 +796,8 @@ class WIPI(WESTParallelTool):
         self.__analysis_schemes__[self.scheme]['aggregate_matrix'] = np.zeros((self.niters, nbins, nbins))
         self.__analysis_schemes__[self.scheme]['total_pop'] = np.zeros((self.niters, nbins))
         print("Hey, this analysis is borked.")
+        # So, those functions don't exist anymore, unfortunately.  We could run through the cython estimator routine, which would admittedly be fast...
+        # ... but I haven't done that yet, so.
         #matrix_accumulator = w_postanalysis_reweight.accumulate_statistics
         #normalize = w_postanalysis_reweight.normalize
         #total_fluxes = np.zeros((nbins, nbins))
