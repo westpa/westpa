@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset='utf-8'>
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <meta name="description" content="WESTPA : The Weighted Ensemble Simulation Toolkit with Parallelization and Analysis">
+
+    <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
+
+    <title>WESTPA</title>
+  </head>
+
+  <body>
+
+    <!-- HEADER -->
+    <div id="header_wrap" class="outer">
+        <header class="inner">
+
+          <!--<h1 id="project_title">WESTPA</h1>-->
+
+            <section id="page_links">
+              <a href="index.html">
+                <img class="logo_link" src="images/WESTPA2.jpg" alt="WESTPA logo" style="width:125px;height:59.6px;" border=0>
+              </a>
+              <a class="pub_link" href="publications.html">Publications</a>
+              <a class="ovw_link" href="overview.html">Overview</a>
+              <a class="doc_link" href="sphinx_index.html">Documentation</a>
+              <a class="gh_link" href="https://github.com/westpa/westpa">Download from GitHub</a>
+            </section>
+
+        </header>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div id="main_content_wrap" class="outer">
+      <section id="main_content" class="inner">
+        <div id="pub_text_div">
+        <h3><a id="what-is-westpa" class="anchor" href="#what-is-westpa" aria-hidden="true"><span class="octicon octicon-link"></span></a>Overview of Weighted Ensemble Simulation: Path-sampling, Steady States, Equilibrium</h3>
+Daniel M. Zuckerman, Oregon Health & Science University
+
+<p><strong>Introduction to Weighted Ensemble Simulation: The very basics</strong></p>
+"Weighted ensemble" (WE) simulation is an enhanced sampling method for non-equilibrium and equilibrium processes which would be impractical to observe using standard dynamics simulation. Key examples at the molecular scale include (i) rare conformational processes, such as conformational transitions, (un)folding, and ion or substrate permeation through a complex (ii) activated processes generally - i.e., overcoming energy barriers and (ii) binding processes - i.e., rare complexation events. However, WE is a generic algorithm and can be applied to problems at the multi-protein scale [Spirit-2015] or network/cell scales [Donovan-2013, Donovan-2016]. The basic goal of such studies is to get from a known initial state (A in <b>Fig. 1</b>) to a target state B, learning pathways and rate constants for the process. WE uses a multiple-trajectory strategy in which individual trajectories can spawn multiple child trajectories upon reaching new regions of configuration space called bins. The children are suitably weighted to ensure statistical rigor. WE simulation can yield unbiased estimates for timescales/processes that are much longer than the simulations themselves. 
+
+The WE approach has numerous strengths: 
+<ul>
+<li>
+Statistically rigorous: WE can directly yield multiple, continuous pathways and rate constants for individual steps as well as the overall process in a single non-equilibrium simulation.
+</li>
+<li>
+Equilibrium: WE can be run in equilibrium mode -- states do not need to be defined in advance
+</li>
+<li>
+Highly scalable software: The freely available WESTPA software enables simulations of complex processes such as conformational changes, folding, and binding of molecular systems.
+</li>
+<li>
+Scale-agnostic: WE is applicable beyond the molecular scale  to networks, cells, viruses, etc.
+</li>
+<li>
+Interoperability: Sampling at fixed time points enables WE software to be inter-operable with any dynamics engine.
+</li>
+</ul>
+
+<img src="images/we_overview_fig1.png" alt="fig1" style="width:100px;height:100px;" border=0>
+</img>
+<b>Figure 1.</b> Weighted ensemble (WE) simulation using bins defined in advance or on the fly. Multiple trajectories are initiated from any known configuration (filled square) and run using standard dynamics simulation, without bias.  Each of the four initial trajectories is assigned a weight of 1/4.  (a) When a trajectory reaches a new bin, it is replicated with each “child” receiving an equal share of the parent trajectory's weight.  Trajectories are checked for their location/bin at fixed time intervals: in the first interval, red trajectories were run, followed by green trajectories in the second interval.  The dashed trajectories have each inherited 1/4 of the parent trajectory's weight, resulting in weights of 1/16 for each daughter.  (b) New bins can be defined ‘on the fly’ based on user-defined criteria.
+
+
+        </div>
+      </section>
+    </div>
+
+    <!-- FOOTER  -->
+    <div id="footer_wrap" class="outer">
+      <footer class="inner">
+        <p class="copyright">WESTPA maintained by <a href="https://github.com/westpa">westpa</a></p>
+        <p>Published with <a href="http://pages.github.com">GitHub Pages</a></p>
+      </footer>
+    </div>
+
+    
+
+  </body>
+  <script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-38311702-3', 'auto');
+  ga('send', 'pageview');
+
+</script>
+  
+</html>
+
