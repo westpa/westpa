@@ -100,11 +100,6 @@ class WIPI(WESTParallelTool):
         super(WIPI,self).__init__()
         self.data_reader = WESTDataReader()
         self.wm_env.default_work_manager = self.wm_env.default_parallel_work_manager
-        # From assign
-        self.dssynth = WESTDSSynthesizer(default_dsname='pcoord')
-
-        # From kinetics...
-        self.iter_range = IterRangeSelection() 
 
         self._iter = 1
         self.config_required = True
@@ -113,13 +108,8 @@ class WIPI(WESTParallelTool):
         self.interface = 'text'
         global iteration
 
-
-        #self.assignments_file = h5io.WESTPAH5File(args.assignments, 'r')
-
     def add_args(self, parser):
         self.data_reader.add_args(parser)
-        self.dssynth.add_args(parser)
-        self.iter_range.add_args(parser)
         rgroup = parser.add_argument_group('runtime options')
         rgroup.add_argument('--analysis-only', '-ao', dest='analysis_mode', action='store_true',
                              help='''Use this flag to run the analysis and return to the terminal.''')
@@ -139,11 +129,6 @@ class WIPI(WESTParallelTool):
         for ischeme, scheme in enumerate(self.__settings['analysis_schemes']):
             if (self.__settings['analysis_schemes'][scheme]['enabled'] == True or self.__settings['analysis_schemes'][scheme]['enabled'] == None):
                 self.scheme = scheme
-        with self.data_reader:
-            self.dssynth.h5filename = self.data_reader.we_h5filename
-            self.dssynth.process_args(args)
-        with self.data_reader:
-            self.iter_range.process_args(args)
         self.data_args = args
         self.analysis_mode = args.analysis_mode
         self.reanalyze = args.reanalyze
@@ -197,10 +182,10 @@ class WIPI(WESTParallelTool):
                         if name == 'assign':
                             test = self.__analysis_schemes__[scheme][name]['state_labels']
                         if name == 'direct':
-                            # Comes from the kinetics analysis (old w_kinetics)
+                            # Comes from the kinetics analysis (old w_kinetics).  If we don't have this, we need to rerun it.
                             test = self.__analysis_schemes__[scheme][name]['durations']
                         if name == 'reweight':
-                            # Comes from the flux matrix analysis
+                            # Comes from the flux matrix analysis.  Same as above.
                             test = self.__analysis_schemes__[scheme][name]['iterations']
                     except:
                         self.data_reader.close()
@@ -221,49 +206,16 @@ class WIPI(WESTParallelTool):
                             for key,value in w_assign_config.iteritems():
                                 args.append(str('--') + str(key))
                                 args.append(str(value))
+                            # We're just calling the built in function.
+                            # This is a lot cleaner than what we had in before, and far more workable.
+                            args.append('--config-from-file')
+                            args.append('--scheme-name')
+                            args.append('{}'.format(scheme))
                             assign.make_parser_and_process(args=args)
                             assign.work_manager = self.work_manager
 
-                            # We need to do this, as w_assign does not, by default, support pulling in bin or state assignments from
-                            # the config file.  We'll be changing this soon, however.  For the moment, though, we need to make sure
-                            # that w_ipython can do this automatically.  Later, we'll put in supporting functions, and then just adjust
-                            # the instances we create here to pull from those functions.
-                            # Taken from w_assign
-                            ystates = self.__settings['analysis_schemes'][scheme]['states']
-                            states = []
-                            for istate, ystate in enumerate(ystates):
-                                state = {}
-                                state['label'] = ystate.get('label', 'state{}'.format(istate))
-                                # coords can be:
-                                #  - a scalar, in which case it is one bin, 1-D
-                                #  - a single list, which is rejected as ambiguous
-                                #  - a list of lists, which is a list of coordinate tuples
-                                coords = np.array(ystate['coords'])
-                                if coords.ndim == 0:
-                                    coords.shape = (1,1)
-                                elif coords.ndim == 1:
-                                    raise ValueError('list {!r} is ambiguous (list of 1-d coordinates, or single multi-d coordinate?)'
-                                                     .format(ystate['coords']))
-                                elif coords.ndim > 2:
-                                    raise ValueError('coordinates must be 2-D')
-                                state['coords'] = coords
-                                states.append(state)
-                            assign.states = states
-
                             assign.data_reader = WESTDataReader()
                             assign.data_reader.process_args(self.data_args)
-                            assign.output_filename = os.path.join(path, '{}.h5'.format(name))
-
-                            # Taken from bin mapper (core)
-                            mapper = getattr(sys.modules['westpa.binning'], self.__settings['analysis_schemes'][scheme]['bins'][0]['type'])
-                            if self.__settings['analysis_schemes'][scheme]['bins'][0]['type'] == 'RectilinearBinMapper':
-                                boundary_lists = self.__settings['analysis_schemes'][scheme]['bins'][0]['boundaries']
-                                for ilist, boundaries in enumerate(boundary_lists):
-                                    boundary_lists[ilist] = map((lambda x: 
-                                                                   float('inf') 
-                                                                   if (x if isinstance(x, basestring) else '').lower() == 'inf' 
-                                                                   else x), boundaries)
-                            assign.binning.mapper = mapper(boundary_lists)
 
                             assign.go()
                             assign.data_reader.close()
@@ -826,7 +778,8 @@ class WIPI(WESTParallelTool):
         self.analysis_structure()
         self.data_reader.open()
         #self.niters = self.direct['rate_evolution']['expected'].shape[0]
-        self.niters = self.west.attrs['west_current_iteration'] - 1
+        #self.niters = self.west.attrs['west_current_iteration'] - 1
+        self.niters = self.data_reader.current_iteration
         self.iteration = 1
         if self.__settings['analysis_schemes'][self.scheme]['postanalysis'] == True:
             self.__analysis_schemes__[self.scheme]['aggregate_matrix'] = None
