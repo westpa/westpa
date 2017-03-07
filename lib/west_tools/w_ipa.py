@@ -104,7 +104,8 @@ class WIPI(WESTParallelTool):
         self.config_required = True
         self.version = ".99A"
         # Set to matplotlib if you want that.  But why would you?
-        self.interface = 'text'
+        # Well, whatever, we'll just set it to that for now.
+        self.interface = 'matplotlib'
         global iteration
 
     def add_args(self, parser):
@@ -116,6 +117,7 @@ class WIPI(WESTParallelTool):
                              help='''Use this flag to delete the existing files and reanalyze.''')
         rgroup.add_argument('--terminal', '-t', dest='plotting', action='store_true',
                              help='''Plot output in terminal.''')
+        # There is almost certainly a better way to handle this, but we'll sort that later.
         rgroup.add_argument('--f', '-f', dest='extra', default='blah',
                              help='''Temporary holding place for when this is called in a Jupyter notebook.''')
         
@@ -187,8 +189,12 @@ class WIPI(WESTParallelTool):
                             # Comes from the flux matrix analysis.  Same as above.
                             test = self.__analysis_schemes__[scheme][name]['iterations']
                     except:
-                        self.data_reader.close()
-                        print('Unable to load output from {}, or a re-run requested.'.format(name))
+                        #self.data_reader.close()
+                        print('Reanalyzing file {}.h5 for scheme {}.'.format(name, scheme))
+                        try:
+                            os.remove(os.path.join(path, '{}.h5'.format(name)))
+                        except:
+                            pass
                         if name == 'assign':
                             assign = w_assign.WAssign()
 
@@ -211,10 +217,8 @@ class WIPI(WESTParallelTool):
                             args.append('--scheme-name')
                             args.append('{}'.format(scheme))
                             assign.make_parser_and_process(args=args)
+                            # We want to use the work manager we have here.  Otherwise, just let the tool sort out what it needs, honestly.
                             assign.work_manager = self.work_manager
-
-                            assign.data_reader = WESTDataReader()
-                            assign.data_reader.process_args(self.data_args)
 
                             assign.go()
                             assign.data_reader.close()
@@ -268,17 +272,17 @@ class WIPI(WESTParallelTool):
                             # We want to not display the averages, so...
                             args.append('--disable-averages')
                             analysis.make_parser_and_process(args=args)
-                            # We don't really want to make new ones, so.
+                            # We want to hook into the existing work manager.
                             analysis.work_manager = self.work_manager
-                            analysis.data_reader = WESTDataReader()
-                            analysis.go()
 
-                            analysis.data_reader.close()
+                            analysis.go()
+                            del(analysis)
 
                             # Open!
                             self.__analysis_schemes__[scheme][name] = h5io.WESTPAH5File(os.path.join(path, '{}.h5'.format(name)), 'r')
 
-                self.work_manager.shutdown()
+        # Make sure this doesn't get too far out, here.  We need to keep it alive as long as we're actually analyzing things.
+        self.work_manager.shutdown()
         print("")
         print("Complete!")
 
@@ -561,6 +565,7 @@ class WIPI(WESTParallelTool):
                 current['pcoord'] = self.raw['pcoord'][value, :, :]
                 current['states'] = self.raw['states'][value, :]
                 current['bins'] = self.raw['bins'][value, :]
+                current['parents'] = self.raw['parents'][value]
                 current['seg_id'] = self.raw['seg_id'][value]
                 current['weights'] = self.raw['weights'][value]
                 try:
@@ -775,8 +780,7 @@ class WIPI(WESTParallelTool):
     def go(self):
         self.data_reader.open()
         self.analysis_structure()
-        self.data_reader.open()
-        # Seems to be consistent with other tools, such as w_assign
+        # Seems to be consistent with other tools, such as w_assign.  For setting the iterations.
         self.niters = self.data_reader.current_iteration - 1
         self.iteration = 1
         if self.__settings['analysis_schemes'][self.scheme]['postanalysis'] == True:
