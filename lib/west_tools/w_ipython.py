@@ -822,6 +822,8 @@ class WIPI(WESTParallelTool):
 
         sorted in chronological order.
         '''
+        # It should be noted that this is not a fast function, but was designed more as a 'proof of principle' of the generality of this approach.
+        # It could, and most certainly should, have its speed increased.
         if seg_id >= self.walkers:
             print("Walker seg_id # {} is beyond the max count of {} walkers.".format(seg_id, self.walkers))
             return 1
@@ -854,7 +856,7 @@ class WIPI(WESTParallelTool):
         current['seg_id'] = list(reversed(current['seg_id']))
         current['pcoord'] = np.concatenate(np.array(list(reversed(current['pcoord']))))
         current['states'] = np.concatenate(np.array(list(reversed(current['states']))))
-        current['bins'] = np.array(list(reversed(current['bins'])))
+        current['bins'] = np.concatenate(np.array(list(reversed(current['bins']))))
         current['weights'] = list(reversed(current['weights']))
         current['iteration'] = list(reversed(current['iteration']))
         try:
