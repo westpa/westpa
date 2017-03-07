@@ -261,6 +261,14 @@ Command-line options
         agroup = parser.add_argument_group('other options')
         agroup.add_argument('-o', '--output', dest='output', default='assign.h5',
                             help='''Store results in OUTPUT (default: %(default)s).''')
+        agroup.add_argument('--subsample', dest='subsample', action='store_const', const=True,
+                             help='''Determines whether or not the data should be subsampled.
+                             This is rather useful for analysing steady state simulations.''')
+        agroup.add_argument('--config-from-file', dest='config_from_file', action='store_true', 
+                            help='''Load bins/macrostates from a scheme specified in west.cfg.''')
+        agroup.add_argument('--scheme-name', dest='scheme',
+                            help='''Name of scheme specified in west.cfg.''')
+
 
     def process_args(self, args):
         self.progress.process_args(args)
@@ -269,9 +277,17 @@ Command-line options
         with self.data_reader:
             self.dssynth.h5filename = self.data_reader.we_h5filename
             self.dssynth.process_args(args)
-            self.binning.process_args(args)
+            if args.config_from_file == False:
+                self.binning.process_args(args)
 
-        if args.states:
+        self.output_filename = args.output
+
+        if args.config_from_file:
+            if not args.scheme:
+                raise ValueError('A scheme must be specified.')
+            else:
+                self.load_config_from_west(args.scheme)
+        elif args.states:
             self.parse_cmdline_states(args.states)
         elif args.states_from_file:
             self.load_state_file(args.states_from_file)
@@ -282,8 +298,9 @@ Command-line options
             raise ValueError('zero, two, or more macrostates are required')
 
         #self.output_file = WESTPAH5File(args.output, 'w', creating_program=True)
-        self.output_filename = args.output
         log.debug('state list: {!r}'.format(self.states))
+
+        self.subsample = args.subsample
 
     def parse_cmdline_states(self, state_strings):
         states = []
@@ -297,11 +314,35 @@ Command-line options
             states.append({'label': label, 'coords': coord})
         self.states = states
 
+    def load_config_from_west(self, scheme):
+        try:
+            config = westpa.rc.config['west']['analysis']
+        except:
+            raise ValueError('There is no configuration file specified.')
+        ystates = config['analysis_schemes'][scheme]['states']
+        self.states_from_dict(ystates)
+        try:
+            self.subsample = config['subsample']
+        except:
+            pass
+        self.binning.mapper = mapper_from_dict(config['analysis_schemes'][scheme]['bins'][0])
+        import os
+        path = os.path.join(os.getcwd(), config['directory'], scheme)
+        try:
+            os.mkdir(config['directory'])
+            os.mkdir(path)
+        except:
+            pass
+
+        self.output_filename = os.path.join(path, 'assign.h5')
+
     def load_state_file(self, state_filename):
         import yaml
         ydict = yaml.load(open(state_filename, 'rt'))
         ystates = ydict['states']
-        
+        self.states_from_dict(ystates)
+    
+    def states_from_dict(self, ystates):
         states = []
         for istate, ystate in enumerate(ystates):
             state = {}
@@ -367,7 +408,8 @@ Command-line options
                               last_labels=last_labels, 
                               parent_id_dsspec=self.data_reader.parent_id_dsspec, 
                               weight_dsspec=self.data_reader.weight_dsspec,
-                              pcoord_dsspec=self.dssynth.dsspec)
+                              pcoord_dsspec=self.dssynth.dsspec,
+                              subsample=self.subsample)
                 yield (_assign_label_pop, args, kwargs)
 
                 #futures.append(self.work_manager.submit(_assign_label_pop, 

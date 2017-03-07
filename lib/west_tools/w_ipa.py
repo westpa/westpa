@@ -1,7 +1,7 @@
 import warnings
-warnings.filterwarnings('ignore', category=DeprecationWarning)
-warnings.filterwarnings('ignore', category=RuntimeWarning)
-warnings.filterwarnings('ignore', category=FutureWarning)
+#warnings.filterwarnings('ignore', category=DeprecationWarning)
+#warnings.filterwarnings('ignore', category=RuntimeWarning)
+#warnings.filterwarnings('ignore', category=FutureWarning)
 import numpy as np
 import h5py
 
@@ -124,7 +124,7 @@ class WIPI(WESTParallelTool):
     def process_args(self, args):
         self.data_reader.process_args(args)
         self.__config = westpa.rc.config
-        self.__settings = self.__config['west']['w_ipa']
+        self.__settings = self.__config['west']['analysis']
         for ischeme, scheme in enumerate(self.__settings['analysis_schemes']):
             if (self.__settings['analysis_schemes'][scheme]['enabled'] == True or self.__settings['analysis_schemes'][scheme]['enabled'] == None):
                 self.scheme = scheme
@@ -353,8 +353,8 @@ class WIPI(WESTParallelTool):
 
         west:
           system:
-            w_ipya:
-              directory: w_ipa.analysis
+            analysis:
+              directory: analysis
               analysis_schemes:
                 scheme.1:
                   enabled: True
