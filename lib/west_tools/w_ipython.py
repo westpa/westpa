@@ -11,7 +11,6 @@ from westpa.h5io import WESTPAH5File
 from westpa.extloader import get_object
 import westpa
 import os, sys
-#import w_assign, w_kinetics, w_kinavg, w_postanalysis_matrix, w_postanalysis_reweight, w_stateprobs
 import w_assign, w_direct, w_reweight
 #warnings.filterwarnings('ignore')
 import scipy.sparse as sp
@@ -777,9 +776,8 @@ class WIPI(WESTParallelTool):
         self.data_reader.open()
         self.analysis_structure()
         self.data_reader.open()
-        #self.niters = self.direct['rate_evolution']['expected'].shape[0]
-        #self.niters = self.west.attrs['west_current_iteration'] - 1
-        self.niters = self.data_reader.current_iteration
+        # Seems to be consistent with other tools, such as w_assign
+        self.niters = self.data_reader.current_iteration - 1
         self.iteration = 1
         if self.__settings['analysis_schemes'][self.scheme]['postanalysis'] == True:
             self.__analysis_schemes__[self.scheme]['aggregate_matrix'] = None
