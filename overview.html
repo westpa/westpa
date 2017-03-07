@@ -40,8 +40,9 @@
 <br> by Daniel M. Zuckerman, Oregon Health & Science University, <a href="static/we_overview.pdf">download here.</a></p>
 
 <p><strong>Introduction to Weighted Ensemble Simulation: The very basics</strong></p>
-"Weighted ensemble" (WE) simulation is an enhanced sampling method for non-equilibrium and equilibrium processes which would be impractical to observe using standard dynamics simulation. Key examples at the molecular scale include (i) rare conformational processes, such as conformational transitions, (un)folding, and ion or substrate permeation through a complex (ii) activated processes generally - i.e., overcoming energy barriers and (ii) binding processes - i.e., rare complexation events. However, WE is a generic algorithm and can be applied to problems at the multi-protein scale [Spirit-2015] or network/cell scales [Donovan-2013, Donovan-2016]. The basic goal of such studies is to get from a known initial state (A in <strong>Fig. 1</strong>) to a target state B, learning pathways and rate constants for the process. WE uses a multiple-trajectory strategy in which individual trajectories can spawn multiple child trajectories upon reaching new regions of configuration space called bins. The children are suitably weighted to ensure statistical rigor. WE simulation can yield unbiased estimates for timescales/processes that are much longer than the simulations themselves. <br>
+<p>"Weighted ensemble" (WE) simulation is an enhanced sampling method for non-equilibrium and equilibrium processes which would be impractical to observe using standard dynamics simulation. Key examples at the molecular scale include (i) rare conformational processes, such as conformational transitions, (un)folding, and ion or substrate permeation through a complex (ii) activated processes generally - i.e., overcoming energy barriers and (ii) binding processes - i.e., rare complexation events. However, WE is a generic algorithm and can be applied to problems at the multi-protein scale [Spirit-2015] or network/cell scales [Donovan-2013, Donovan-2016]. The basic goal of such studies is to get from a known initial state (A in <strong>Fig. 1</strong>) to a target state B, learning pathways and rate constants for the process. WE uses a multiple-trajectory strategy in which individual trajectories can spawn multiple child trajectories upon reaching new regions of configuration space called bins. The children are suitably weighted to ensure statistical rigor. WE simulation can yield unbiased estimates for timescales/processes that are much longer than the simulations themselves. <p>
 
+<p>
 The WE approach has numerous strengths: <br>
 <ul>
 <li>
@@ -60,80 +61,124 @@ Scale-agnostic: WE is applicable beyond the molecular scale - to networks, cells
 Interoperability: Sampling at fixed time points enables WE software to be inter-operable with any dynamics engine.
 </li>
 </ul>
+</p>
 
+<p>
 <img src="images/we_overview_fig1.png" alt="fig1" style="width:100%;" border=0>
 </img>
 <strong>Figure 1.</strong> Weighted ensemble (WE) simulation using bins defined in advance or on the fly. Multiple trajectories are initiated from any known configuration (filled square) and run using standard dynamics simulation, without bias. Each of the four initial trajectories is assigned a weight of 1/4. (a) When a trajectory reaches a new bin, it is replicated with each “child” receiving an equal share of the parent trajectory's weight. Trajectories are checked for their location/bin at fixed time intervals: in the first interval, red trajectories were run, followed by green trajectories in the second interval. The dashed trajectories have each inherited 1/4 of the parent trajectory's weight, resulting in weights of 1/16 for each daughter. (b) New bins can be defined ‘on the fly’ based on user-defined criteria.
+</p>
 
 <p><strong>Brief history of WE simulation</strong></p>
+<p>
 WE simulation was originally introduced as “weighted ensemble Brownian dynamics” by Huber and Kim to study binding processes [Huber-1996]. However, the essence of the idea to split and propagate re-weighted trajectories had been introduced early in the Monte Carlo era [Kahn-1950].<br>
-Our group showed that WE was applicable to a broad class of stochastic processes, including non-Markovian dynamics [Zhang-2010], and not simply Markovian dynamics as suggested by the initial “Brownian” appellation. We also showed that <em>steady-state</em> WE simulations were straightforward to implement for simple systems and could efficiently yield rate constants [Bhatt-2010]. Because equilibrium is itself a steady state, WE can also be used for equilibrium sampling [Suarez-2014]. Since its introduction, WE has been applied to numerous problems at the molecular scale and beyond, as detailed on the WESTPA website.  Recent applications include calculating rate constants for cell-scale processes [Donovan-2016] and for peptide-protein association [Zwier-2016].
+Our group showed that WE was applicable to a broad class of stochastic processes, including non-Markovian dynamics [Zhang-2010], and not simply Markovian dynamics as suggested by the initial “Brownian” appellation. We also showed that <em>steady-state</em> WE simulations were straightforward to implement for simple systems and could efficiently yield rate constants [Bhatt-2010]. Because equilibrium is itself a steady state, WE can also be used for equilibrium sampling [Suarez-2014]. Since its introduction, WE has been applied to numerous problems at the molecular scale and beyond, as detailed on the WESTPA website.  Recent applications include calculating rate constants for cell-scale processes [Donovan-2016] and for peptide-protein association [Zwier-2016].</p>
 
+<p>
 Further details of the history, applications, and theory behind WE simulation can be found in a 2017 review article [Zuckerman-2017].
+</p>
 
 
 <p><strong>Standard WE protocol for pre-defined bins</strong></p>
+<p>
 The WE procedure is particularly simple to describe when pre-defined bins are used. As with any WE protocol, dynamics can be run using any simulation package. All WE procedures naturally lend themselves to scripting and/or parallel implementations, such as in the WESTPA package [Zwier-2015].
+</p>
 
+<p>
 Generalizing <strong>Fig. 1(a)</strong>, let us assume there are <em>N</em> bins, and that <em>M</em> trajectories are initiated from some starting configuration - each with weight 1/<em>M</em>.  Typically, one sets a maximum of <em>M</em> trajectories per bin.
 Trajectories are examined after each time interval &Tau, which is also arbitrary. The interval &Tau will usually consist of many simulation steps, but it is better to have a shorter &Tau, so long as overhead costs for examining trajectories remain small compared to the cost of running dynamics.
+</p>
 
+<p>
 After each &Tau interval, trajectories are examined to determine (i) if there are any occupied bins with fewer than <em>M</em> trajectories, such as newly entered bins and (ii) if there are any occupied bins with more than <em>M</em> trajectories. If a bin has fewer than <em>M</em> trajectories, then one or more of the trajectories in the bin are replicated, according to a statistical procedure where daughters share equally in the parent's weight. Thus, if a bin is occupied by single trajectory, that can be split into <em>M</em> children receiving a fraction 1/<em>M</em> of the parent's weight. The overall weights continue to sum to 1, maintaining normalization. If a bin is found to contain more than <em>M</em> trajectories, some are pruned (“resampled”) down to the target <em>M</em>. The statistical basis of these procedures has been detailed [Zhang-2010].
+</p>
 
+<p>
 WE thus yields the time-evolving probability distribution, as well as the ensemble of trajectories, without bias. In simple cases, the rate constant can be calculated directly from the evolving distribution, but more generally, steady-state simulations are needed: see below and [Suarez-2014].
+</p>
 
+<p>
 Different initial conditions can be studied, including from multiple configurations, depending on the problem of interest.
+</p>
 
 <p><strong>The importance of steady-state WE simulations</strong></p>
 If metastable intermediate states are present between the initial and target states, standard WE simulation still yields the trajectory ensemble, but the rate constant cannot easily be calculated. Most systems interesting enough to warrant WE simulation will possess such intermediates. In standard WE simulation, probability/weight will build up very slowly in intermediates, leading to a long transient period before typical transition dynamics are exhibited – thus preventing characterization of long-timescale behavior.
+</p>
 
+<p>
 The steady-state WE (WESS) protocol is a straightforward way to sidestep the problems just described [Bhatt-2010, Suarez-2014]. In brief, one uses standard WE simulation until the target state is reached, with successfully transitioning trajectories fed back into the initial state. The unbiased trajectories that are always employed in WE simulation are then used to determine the conditional probabilities to hop among bins - i.e., the inter-bin rates <em>k<sub>ij</sub></em>. In turn, these rates can be used to estimate the steady-state probabilities of each bin that would result only after a very long WE simulation. However, some care is required in performing such an analysis: see [Suarez-2014].
+</p>
 
 
 <p><strong>Calculating the rate</strong></p>
 
-A remarkable feature of WESS simulation is that information on very long timescales (e.g., the first passage time) can be obtained rigorously from a short simulation, even for complex landscapes, based on the Hill Relation.  Once a steady state has been established (or characterized) using WESS, the transition rate - i.e., the inverse mean-first-passage time - is obtained simply as the total probability/weight entering the target state per unit time also known as the flux [Bhatt-2010, Suarez-2014].  (The related steady-state rate also is obtained directly from WESS [Bhatt-2010, Suarez-2014].)
+<p>
+A remarkable feature of WESS simulation is that information on very long timescales (e.g., the first passage time) can be obtained rigorously from a short simulation, even for complex landscapes, based on the Hill Relation.  Once a steady state has been established (or characterized) using WESS, the transition rate - i.e., the inverse mean-first-passage time - is obtained simply as the total probability/weight entering the target state per unit time also known as the flux [Bhatt-2010, Suarez-2014]. (The related steady-state rate also is obtained directly from WESS [Bhatt-2010, Suarez-2014].)
+</p>
 
 
+<p>
 <img src="images/we_overview_fig2.png" alt="fig2" style="width:100%;" border=0>
 </img>
 <strong>Figure 2.</strong> Schematic depiction of equilibrium in WE simulation.  Thicker arrows represent higher-weight trajectories.  The total probability/weight flowing from one bin to another is exactly balanced, on average, by the reverse flow.  Thus, the flow of a given number of low-weight trajectories is matched by a smaller number of higher-weight trajectories moving in the opposite direction.  Equilibrium flows of weighted trajectories can be established by estimating and adjusting weights.
+</p>
 
 <p><strong>Equilibrium WE simulations</strong></p>
 
+<p>
 Because equilibrium is a steady state (a special one without any net flows), it can be simulated using the WESS protocol [Bhatt-2010, Suarez-2014].  The only difference is that no feedback from target to initial state should be performed.  Operationally, a standard WE simulation is run first until its trajectories reach the target state or a desired set of states.  Rate constants are then calculated, and probability can be re-assigned according to the estimated equilibrium bin probabilities.  As in WESS, the bin populations must be monitored to ensure they are unchanging.  As suggested by <strong>Fig. 2</strong>, in equilibrium, the amount of probability traveling from one bin to another is exactly balanced by the reverse flow.  As an alternative to re-assigning probabilities, equilibrium properties can be inferred from a post-simulation analysis [Suarez-2014].
+</p>
 
-Note that the equilibrium probability distribution differs from that of a steady state with feedback.
-The lack of feedback in equilibrium is sufficient to change the rates and bin probabilities so that they correspond to correspond to equilibrium.
+<p>
+Note that the equilibrium probability distribution differs from that of a steady state with feedback. The lack of feedback in equilibrium is sufficient to change the rates and bin probabilities so that they correspond to correspond to equilibrium.
+</p>
 
-Rate constants can be calculated between arbitrary states <em>which do not need to be defined in advance</em> based on a WE equilibrium simulation.  In brief, the equilibrium ensemble can be precisely decomposed into two steady states reflecting forward and reverse events between two states of interest [Bhatt-2011].  These two steady states can be used to estimate rates, as we have shown [Suarez-2014].
+<p>
+Rate constants can be calculated between arbitrary states <em>which do not need to be defined in advance</em> based on a WE equilibrium simulation.  In brief, the equilibrium ensemble can be precisely decomposed into two steady states reflecting forward and reverse events between two states of interest [Bhatt-2011]. These two steady states can be used to estimate rates, as we have shown [Suarez-2014].
+</p>
 
 
 <p><strong>Multiple pathways</strong></p>
+<p>
 As shown in <strong>Fig. 3</strong>, WE is ideal for identifying different pathways because it employs multiple trajectories.  WE has been used to sample multiple paths in model systems, small molecules, proteins [Zhang-2009, Bhatt-2010a, Bhatt-2011, Adelman-2011].  WE handles multiple pathways naturally and requires no auxiliary calculations.
+</p>
 
+<p>
 <img src="images/we_overview_fig3.png" alt="fig3" style="width:100%;" border=0>
 </img>
 <strong>Figure 3.</strong> Weighted ensemble (WE) simulation is well suited for finding multiple pathways.  A number of different pathways are shown for the alanine dipeptide molecule (center).  Transition trajectories start from the c7eq state at the center of each panel and terminate in the c7ax state, which occurs in the four outside corners of each panel due to the cyclic nature of torsion angles [Bhatt-2011].  WE has also identified distinct pathways in proteins – see text.
+</p>
 
 <p><strong>Parallelization</strong></p>
+<p>
 Because WE examines multiple trajectories (typically hundreds or even thousands) in each  interval, it lends itself parallelization as in WESTPA.  The communication overhead tends to be negligible, fortunately, because running dynamics for complex systems is fairly expensive.  WESTPA simulations have been run with thousands of CPU cores [Zwier-2015].
+</p>
  
 
 <p><strong>Adaptive binning</strong></p>
+<p>
 The possibility to perform adaptive binning - i.e., to change bins during a simulation - was noted by Huber and Kim [Huber-1996] and reinforced in our group's work where an adaptive Voronoi strategy was used [Zhang-2010]; string-based Voronoi binning has also been used in WE [Adelman-2013].  There is no unique strategy for changing bins.  Indeed, this flexibilty is a strength of WE simulation.
+</p>
 
+<p>
 As an example, consider a strategy proposed several years ago [Zhang-2007] that we have found useful in unpublished protein folding studies.  A natural coordinate for setting up initial bins is the RMSD distance from the experimental folded structure.  However, there can be barriers orthogonal to this coordinate.  To encourage dispersal of trajectories within the initial bins, one can <em>adaptively</em> define sub-bins: the first configuration recorded in a newly initial radial bin can be used as a reference structure to define sub-bins.  That is, each inital bin based on RMSD to the target can be further sub-divided based on local information - i.e., based on RMSD to a configuration in the initial bin.  Other adaptive strategies are possible.
+</p>
 
 <p><strong>Limitations of WE</strong></p>
+<p>
 The limitations of WE simulation depend on how well the ‘orthogonal space’ (i.e., the coordinates not binned) can be sampled, as is the case for “umbrella sampling” approaches.  There are two cases which can guide our thinking: (i) the case where an ideal set of coordinates for binning can be found – so that the system can be sampled with the proper set of bins and (ii) the case where the system is simply too complex – so that no method is likely to sample it properly given typical computing resources.  Of course, there is nothing to be done about case (ii), but don’t forget that it is a possibility!  In practical terms, for case (i), significant care must go into bin construction.  Automated methods for finding slow coordinates based on initial simulations may be of value in this context.  Post-analyzing WE trajectory data based on different bin choices may also be useful.
+</p>
 
 <p><strong>Summing Up</strong></p>
 
+<p>
 Weighted ensemble (WE) simulation is a powerful and flexible tool which can handle complex systems in and out of equilibrium, and at scales from molecular to cellular (and beyond).  Its straightforward statistical basis enables WE to be a highly scalable algorithm for tackling ambitious applications.  The <em>flexibility</em> in its implementation means that the capacities of WE have yet to be fully realized.  The use of adaptive binning in WE and of WE as an equilibrium sampling tool, as examples, have not been well explored.  Also, the WE approach has its limitations, as do all sampling methods.
+</p>
 
 <p><strong>Acknolwedgements</strong></p>
+<p>
 The author appreciates helpful comments on this introduction from Lillian Chong, and gratefully acknowledges support from the NSF and NIH for research into WE methodology.
+</p>
 
 <p><strong>References</strong></p>
 
