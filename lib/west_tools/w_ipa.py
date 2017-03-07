@@ -81,10 +81,10 @@ class WIPI(WESTParallelTool):
         
             w.past['parents'][0]
 
-        The kinavg, assign, and kinetics file from the current state are available for raw access.  The postanalysis output
+        The assign and direct files from the current state are available for raw access.  The postanalysis output
         is also available, should it exist:
 
-            w.kinavg, w.assign, w.kinetics, w.matrix, and w.kinrw
+            w.assign, w.direct, w_reweight
 
         In addition, the function w.trace(seg_id) will run a trace over a seg_id in the current iteration and return a dictionary
         containing all pertinent information about that seg_id's history.  It's best to store this, as the trace can be expensive.
@@ -137,6 +137,30 @@ class WIPI(WESTParallelTool):
             self.interface = 'text'
 
     def analysis_structure(self):
+        '''
+        Run automatically on startup.  Parses through the configuration file, and loads up all the data files from the different 
+        analysis schematics.  If they don't exist, it creates them automatically by hooking in to existing analysis routines 
+        and going from there.  
+
+        It does this by calling in the make_parser_and_process function for w_{assign,reweight,direct} using a custom built list
+        of args.  The user can specify everything in the configuration file that would have been specified on the command line.
+
+        For instance, were one to call w_direct as follows:
+
+            w_direct --evolution cumulative --step-iter 1 --disable-correl
+
+        the west.cfg would look as follows:
+
+        west:
+          analysis:
+            w_direct:
+              evolution: cumulative
+              step_iter: 1
+              extra: ['disable-correl']
+
+        Alternatively, if one wishes to use the same options for both w_direct and w_reweight, the key 'w_direct' can be replaced
+        with 'kinetics'.
+        '''
         # Make sure everything exists.
         try:
             os.mkdir(self.__settings['directory'])
@@ -498,12 +522,34 @@ class WIPI(WESTParallelTool):
             return (" ")
 
     class __get_data_for_iteration__():
+        '''
+        All interesting data from an iteration (current/past).  Whenever you change the scheme or iteration,
+        this dictionary is automatically updated.  For the current iteration, it's keyed to the current seg_id.
+        For the past iteration, it's keyed to the seg_id in the CURRENT iteration such that:
+
+            w.current[X] & w.past[X]
+
+        returns information about seg_id X in the current iteration and information on seg_ID X's PARENT in the
+        preceding iteration.
+
+        Can be indexed via a seg_id, or like a dictionary with the following keys:
+
+            kinavg, weights, pcoord, auxdata (optional), parents, summary, seg_id, walkers, states, bins
+
+        kinavg, states, and bins refer to the output from w_kinavg and w_assign for this iteration
+        and analysis scheme.  They are NOT dynamics bins, but the bins defined in west.cfg.  
+        
+        Has the following properties:
+
+            .minweight, .maxweight
+
+        which return all properties of the segment that matches those criteria in the selected iteration.
+
+        If you change the analysis scheme, so, too, will the important values.
+        '''
         def __init__(self, parent, value, seg_ids = None):
             '''
-            This returns all important data for the current iteration.  It is optionally
-            sorted by the seg_ids, which allows us to match parent-walker child pairs by
-            only matching the current iteration.
-            This is used internally.
+            Initializes and sets the correct data.
             '''
             # We've classed this so that we can override some of the normal functions and allow indexing via seg_id
             iter_group = parent.data_reader.get_iter_group(value)
@@ -554,22 +600,38 @@ class WIPI(WESTParallelTool):
                 current['matrix'] = parent.reweight['bin_populations']
             self.raw = current
         def __repr__(self):
+            '''
+            Returns the dictionary containing the iteration's values.
+            '''
             return repr(self.raw)
+
         def keys(self):
+            '''
+            Returns the keys function of the internal dictionary.
+            '''
             return self.raw.keys()
 
         @property
         def maxweight(self):
+            '''
+            Returns information about the segment which has the largest weight for this iteration.
+            '''
             # Is there a faster or cleaner way to do this?  Ah, maybe.
             walker = np.where(self.raw['weights'] == np.max(self.raw['weights']))[0][0]
             return self.__getitem__(walker)
 
         @property
         def minweight(self):
+            '''
+            Returns information about the segment which has the smallest weight for this iteration.
+            '''
             walker = np.where(self.raw['weights'] == np.min(self.raw['weights']))[0][0]
             return self.__getitem__(walker)
 
         def __getitem__(self, value):
+            '''
+            Responsible for handling whether this is treated like a dictionary of data sets, or an array of walker data.
+            '''
             # Check to see if we're indexing via any of the active string types.  We should probably break it down via string or int, instead of 'what exists and what doesn't', but it works for now.
             active_items = ['kinavg', 'statepops', 'weights', 'pcoord', 'auxdata', 'parents', 'summary', 'seg_id', 'walkers', 'states', 'bins', 'populations', 'plot', 'instant_matrix', 'kinrw', 'matrix', 'rwstatepops']
             #if value in active_items:
@@ -605,15 +667,7 @@ class WIPI(WESTParallelTool):
     @property
     def current(self):
         '''
-        All interesting data from the current iteration/scheme.  Whenever you change the scheme or iteration,
-        this dictionary is automatically updated.
-        Contains the following keys:
-
-            kinavg, weights, pcoord, auxdata (optional), parents, summary, seg_id, walkers, states, bins
-
-        kinavg, states, and bins refer to the output from w_kinavg and w_assign for this iteration
-        and analysis scheme.  They are NOT dynamics bins, necessarily, but the bins defined in
-        west.cfg.  If you change the analysis scheme, so, too, will the important values.
+        The current iteration.  See help for __get_data_for_iteration__
         '''
         if self._current == None:
             self._current = self.__get_data_for_iteration__(value=self.iteration, parent=self)
@@ -624,15 +678,7 @@ class WIPI(WESTParallelTool):
     @property
     def past(self):
         '''
-        Returns the same information as current, but indexed according to the current iteration's seg_ids.
-        That is, if w.iteration = 2, and you're interested in walker 0 in iteration 2, indexing any of the
-        dictionary values here will return information about the PARENT of walker 0 in iteration 2.
-
-        You can find the real seg_id by looking at the seg_id index.
-        In addition,
-            w.past['seg_id'][0] = w.current['parents'][0]
-
-        by construction.
+        The previous iteration.  See help for __get_data_for_iteration__
         '''
         if self.iteration > 1:
             if self._past == None:
@@ -652,6 +698,9 @@ class WIPI(WESTParallelTool):
             seg_id, pcoord, states, bins, weights, iteration, auxdata (optional)
 
         sorted in chronological order.
+
+
+        Call with a seg_id.
         '''
         # It should be noted that this is not a fast function, but was designed more as a 'proof of principle' of the generality of this approach.
         # It could, and most certainly should, have its speed increased.
@@ -704,19 +753,40 @@ class WIPI(WESTParallelTool):
 
     @property
     def future(self):
+        '''
+        Similar to current/past, but keyed differently and returns different datasets.
+        See help for Future.
+        '''
         if self._future == None:
             print("Running child analysis...")
             self.__get_children__()
         return self._future
 
     class Future():
+        '''
+        Very similar to current/past, except that it does a child analysis and returns information on any children for walker X.
+        Also keyed to the current seg_id.  See help for __get_data_for_iteration__
+        '''
         def __init__(self, rep={}):
+            '''
+            Initializes the raw dictionary.
+            '''
+            # Mostly a holdover from when this wasn't a class.
             self.raw = rep
         def __repr__(self):
+            '''
+            Returns it as a dictionary, if it's just called.
+            '''
             return repr(self.raw)
         def keys(self):
+            '''
+            Acts as if it's just a dictionary and returns keys.
+            '''
             return self.raw.keys()
         def __getitem__(self, value):
+            '''
+            Responsible for handling it like a dictionary or an array of seg_ids.
+            '''
             active_items = ['kinavg', 'statepops', 'weights', 'pcoord', 'auxdata', 'parents', 'summary', 'seg_id', 'walkers', 'states', 'bins']
             if value in active_items:
                 return self.raw[value]
@@ -739,6 +809,7 @@ class WIPI(WESTParallelTool):
     def __get_children__(self):
         '''
         Returns all information about the children of a given walker in the current iteration.
+        Used to generate and create the future object, if necessary.
         '''
         
         if self.iteration == self.niters:
@@ -778,6 +849,12 @@ class WIPI(WESTParallelTool):
 
     @property
     def aggregate_matrix(self):
+        '''
+        POTENTIALLY DEPRECATED.
+
+        Would try and generate a transition matrix from the data, but relied on routines from the deprecated w_postanalysis_reweight.
+        Unsure if it's worth fixing, so for the moment, it's unused.
+        '''
         if self.__settings['analysis_schemes'][self.scheme]['postanalysis'] == True:
             try:
                 if self.__analysis_schemes__[self.scheme]['aggregate_matrix'] == None:
@@ -790,6 +867,10 @@ class WIPI(WESTParallelTool):
                 return self.__analysis_schemes__[self.scheme]['aggregate_matrix']
 
     def __add_matrix__(self):
+        '''
+        Also used to generate the aggregate transition matrix.  If it can be rebuilt with the cython functions (which should be possible),
+        then it's probably worth keeping in.
+        '''
         # Hooks into the existing tools in w_postanalysis_reweight
         matrices = self.__analysis_schemes__[self.scheme]['reweight']
         nbins = matrices['bin_populations'].shape[1]
@@ -807,6 +888,10 @@ class WIPI(WESTParallelTool):
         #    self.__analysis_schemes__[self.scheme]['aggregate_matrix'][iter-1][:] = normalize(total_fluxes)
 
     def go(self):
+        '''
+        Function automatically called by main() when launched via the command line interface.
+        Generally, call main, not this function.
+        '''
         self.data_reader.open()
         self.analysis_structure()
         # Seems to be consistent with other tools, such as w_assign.  For setting the iterations.
@@ -815,18 +900,17 @@ class WIPI(WESTParallelTool):
         if self.__settings['analysis_schemes'][self.scheme]['postanalysis'] == True:
             self.__analysis_schemes__[self.scheme]['aggregate_matrix'] = None
 
-    def _help(self, item=None):
-        if item == None:
-            print(self.__doc__)
-        else:
-            print(item.__doc__)
+    #def _help(self, item=None):
+    #    if item == None:
+    #        print(self.__doc__)
+    #    else:
+    #        print(item.__doc__)
 
     @property
     def introduction(self):
-        self._help()
-
-    @property
-    def help(self):
+        '''
+        Just spits out an introduction, in case someone doesn't call help.
+        '''
         help_string = '''
         Call as a dictionary item, unless item is a .property; then simply call on the item itself
 
@@ -855,16 +939,19 @@ class WIPI(WESTParallelTool):
 
         The following give raw access to the h5 files associated with the current scheme
 
-        w.kinavg
-        w.kintrace
-        w.assign
         w.west
-        w.kinrw
-        w.matrix
+        w.assign
+        w.direct
+        w.reweight
 
         w.trace()
         '''
         print(help_string)
+
+    @property
+    def help(self):
+        ''' Just a minor function to call help on itself.  Only in here to really help someone get help.'''
+        help(self)
 
 
 west = WIPI()
