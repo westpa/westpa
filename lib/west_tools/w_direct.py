@@ -308,9 +308,10 @@ Command-line options
         pi.clear()
 
         # We've returned an average, but it still exists in a timeslice format.  So we need to return the 'last' value.
-        self.print_averages(avg_total_fluxes[1], '\nfluxes into macrostates:', dim=1)
-        self.print_averages(avg_conditional_fluxes[1], '\nfluxes from state to state:', dim=2)
-        self.print_averages(avg_rates[1], '\nrates from state to state:', dim=2)
+        if self.display_averages:
+            self.print_averages(avg_total_fluxes[1], '\nfluxes into macrostates:', dim=1)
+            self.print_averages(avg_conditional_fluxes[1], '\nfluxes from state to state:', dim=2)
+            self.print_averages(avg_rates[1], '\nrates from state to state:', dim=2)
 
         # Do a bootstrap evolution.
         pi.clear()
@@ -465,8 +466,9 @@ Command-line options
             self.output_file.replace_dataset(name='avg_state_probs', data=state_evol_avg[1], shuffle=True, compression=9)
 
         # Print!
-        self.print_averages(color_evol_avg[1], '\naverage color probabilities:', dim=1)
-        self.print_averages(state_evol_avg[1], '\naverage state probabilities:', dim=1)
+        if self.display_averages:
+            self.print_averages(color_evol_avg[1], '\naverage color probabilities:', dim=1)
+            self.print_averages(state_evol_avg[1], '\naverage state probabilities:', dim=1)
 
         # Now, do a bootstrap evolution
         with pi:
