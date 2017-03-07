@@ -5,4 +5,4 @@ from iter_range import IterRangeSelection
 from selected_segs import SegSelector
 from binning import BinMappingComponent
 from progress import ProgressIndicatorComponent
-
+from plot import Plotter
