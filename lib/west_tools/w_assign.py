@@ -317,7 +317,7 @@ Command-line options
 
     def load_config_from_west(self, scheme):
         try:
-            config = westpa.rc.config['west']['w_ipython']
+            config = westpa.rc.config['west']['analysis']
         except:
             raise ValueError('There is no configuration file specified.')
         ystates = config['analysis_schemes'][scheme]['states']
