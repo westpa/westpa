@@ -86,11 +86,11 @@ The WE procedure is particularly simple to describe when pre-defined bins are us
 
 <p>
 Generalizing <strong>Fig. 1(a)</strong>, let us assume there are <em>N</em> bins, and that <em>M</em> trajectories are initiated from some starting configuration - each with weight 1/<em>M</em>.  Typically, one sets a maximum of <em>M</em> trajectories per bin.
-Trajectories are examined after each time interval &Tau, which is also arbitrary. The interval &Tau will usually consist of many simulation steps, but it is better to have a shorter &Tau, so long as overhead costs for examining trajectories remain small compared to the cost of running dynamics.
+Trajectories are examined after each time interval &Tau;, which is also arbitrary. The interval &Tau; will usually consist of many simulation steps, but it is better to have a shorter &Tau;, so long as overhead costs for examining trajectories remain small compared to the cost of running dynamics.
 </p>
 
 <p>
-After each &Tau interval, trajectories are examined to determine (i) if there are any occupied bins with fewer than <em>M</em> trajectories, such as newly entered bins and (ii) if there are any occupied bins with more than <em>M</em> trajectories. If a bin has fewer than <em>M</em> trajectories, then one or more of the trajectories in the bin are replicated, according to a statistical procedure where daughters share equally in the parent's weight. Thus, if a bin is occupied by single trajectory, that can be split into <em>M</em> children receiving a fraction 1/<em>M</em> of the parent's weight. The overall weights continue to sum to 1, maintaining normalization. If a bin is found to contain more than <em>M</em> trajectories, some are pruned (“resampled”) down to the target <em>M</em>. The statistical basis of these procedures has been detailed [Zhang-2010].
+After each &Tau; interval, trajectories are examined to determine (i) if there are any occupied bins with fewer than <em>M</em> trajectories, such as newly entered bins and (ii) if there are any occupied bins with more than <em>M</em> trajectories. If a bin has fewer than <em>M</em> trajectories, then one or more of the trajectories in the bin are replicated, according to a statistical procedure where daughters share equally in the parent's weight. Thus, if a bin is occupied by single trajectory, that can be split into <em>M</em> children receiving a fraction 1/<em>M</em> of the parent's weight. The overall weights continue to sum to 1, maintaining normalization. If a bin is found to contain more than <em>M</em> trajectories, some are pruned (“resampled”) down to the target <em>M</em>. The statistical basis of these procedures has been detailed [Zhang-2010].
 </p>
 
 <p>
@@ -106,7 +106,7 @@ If metastable intermediate states are present between the initial and target sta
 </p>
 
 <p>
-The steady-state WE (WESS) protocol is a straightforward way to sidestep the problems just described [Bhatt-2010, Suarez-2014]. In brief, one uses standard WE simulation until the target state is reached, with successfully transitioning trajectories fed back into the initial state. The unbiased trajectories that are always employed in WE simulation are then used to determine the conditional probabilities to hop among bins - i.e., the inter-bin rates <em>k<sub>ij</sub></em>. In turn, these rates can be used to estimate the steady-state probabilities of each bin that would result only after a very long WE simulation. However, some care is required in performing such an analysis: see [Suarez-2014].
+The steady-state WE (WESS) protocol is a straightforward way to sidestep the problems just described [Bhatt-2010, Suarez-2014]. In brief, one uses standard WE simulation until the target state is reached, with successfully transitioning trajectories fed back into the initial state. The unbiased trajectories that are always employed in WE simulation are then used to determine the conditional probabilities to hop among bins - i.e., the inter-bin rates <em>k<sub style="bottom:-0.25em;font-size:75%;line-height:0;position:relative;vertical-align: baseline;">ij</sub></em>. In turn, these rates can be used to estimate the steady-state probabilities of each bin that would result only after a very long WE simulation. However, some care is required in performing such an analysis: see [Suarez-2014].
 </p>
 
 
@@ -146,7 +146,7 @@ As shown in <strong>Fig. 3</strong>, WE is ideal for identifying different pathw
 <p>
 <img src="images/we_overview_fig3.png" alt="fig3" style="width:100%;" border=0>
 </img>
-<strong>Figure 3.</strong> Weighted ensemble (WE) simulation is well suited for finding multiple pathways.  A number of different pathways are shown for the alanine dipeptide molecule (center).  Transition trajectories start from the c7eq state at the center of each panel and terminate in the c7ax state, which occurs in the four outside corners of each panel due to the cyclic nature of torsion angles [Bhatt-2011].  WE has also identified distinct pathways in proteins – see text.
+<strong>Figure 3.</strong> Weighted ensemble (WE) simulation is well suited for finding multiple pathways.  A number of different pathways are shown for the alanine dipeptide molecule (center).  Transition trajectories start from the <sub style="bottom:-0.25em;font-size:75%;line-height:0;position:relative;vertical-align: baseline;">c7eq</sub> state at the center of each panel and terminate in the <sub style="bottom:-0.25em;font-size:75%;line-height:0;position:relative;vertical-align: baseline;">c7ax</sub> state, which occurs in the four outside corners of each panel due to the cyclic nature of torsion angles [Bhatt-2011].  WE has also identified distinct pathways in proteins – see text.
 </p>
 
 <p><strong>Parallelization</strong></p>
