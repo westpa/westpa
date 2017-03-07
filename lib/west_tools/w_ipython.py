@@ -445,6 +445,8 @@ class WIPI(WESTParallelTool):
             value = self.niters
         self._iter = value
         self._future = None
+        self._current = None
+        self._past = None
         return self._iter
 
     @property
@@ -631,7 +633,11 @@ class WIPI(WESTParallelTool):
         and analysis scheme.  They are NOT dynamics bins, necessarily, but the bins defined in
         west.cfg.  If you change the analysis scheme, so, too, will the important values.
         '''
-        return self.__get_data_for_iteration__(value=self.iteration, parent=self)
+        if self._current == None:
+            self._current = self.__get_data_for_iteration__(value=self.iteration, parent=self)
+            return self._current
+        else:
+            return self._current
 
     @property
     def past(self):
@@ -647,7 +653,11 @@ class WIPI(WESTParallelTool):
         by construction.
         '''
         if self.iteration > 1:
-            return self.__get_data_for_iteration__(value=self.iteration - 1, seg_ids=self.current['parents'], parent=self)
+            if self._past == None:
+                self._past = self.__get_data_for_iteration__(value=self.iteration - 1, seg_ids=self.current['parents'], parent=self)
+                return self._past
+            else:
+                return self._past
         else:
             print("The current iteration is 1; there is no past.")
 
