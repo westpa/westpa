@@ -619,6 +619,7 @@ class WIPI(WESTParallelTool):
                 current['seg_id'] = self.raw['seg_id'][value]
                 current['weights'] = self.raw['weights'][value]
                 try:
+                    current['auxdata'] = {}
                     for key in self.raw['auxdata'].keys():
                         current['auxdata'][key] = self.raw['auxdata'][key][value]
                 except:
