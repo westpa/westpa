@@ -221,7 +221,6 @@ cpdef assign_and_label(Py_ssize_t nsegs_lb,
     
     nsegs = nsegs_ub - nsegs_lb
     npts = pcoords.shape[1]
-    # We want to enable some subsampling, for steadystate simulations...
     assignments = numpy.empty((nsegs,npts), index_dtype)
     trajlabels = numpy.empty((nsegs,npts), index_dtype)
     statelabels = numpy.empty((nsegs,npts), index_dtype)
