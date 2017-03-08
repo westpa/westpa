@@ -23,7 +23,7 @@ if [ -z "$WEST_ROOT" ]; then
 fi
 
 # We've moved the actual environment variable setting into another script.
-source $WEST_ROOT/w_env
+source $WEST_ROOT/bin/w_env
 
 # Take the name of the script to execute from the name by which this process
 # is called (i.e. appropriately-named symlinks to this script work).
