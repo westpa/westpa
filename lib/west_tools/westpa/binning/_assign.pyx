@@ -208,8 +208,7 @@ cpdef assign_and_label(Py_ssize_t nsegs_lb,
                        Py_ssize_t nstates,
                        index_t[:] state_map,
                        index_t[:] last_labels, # must be for all segments
-                       object pcoords, # only for given segments
-                       bint subsample
+                       object pcoords # only for given segments
                        ):
     '''Assign trajectories to bins and last-visted macrostates for each timepoint.'''
     
@@ -236,59 +235,29 @@ cpdef assign_and_label(Py_ssize_t nsegs_lb,
         assign(pcoords[iseg,:], mask, assignments[iseg,:])
     
     if state_map is not None:
-        if subsample == False:
-            with nogil:
-                for iseg in range(nsegs):
-                    seg_id = iseg+nsegs_lb
-                    parent_id = parent_ids[iseg]
-                    for ipt in range(npts):
-                        ptlabel = state_map[_assignments[iseg,ipt]]
-                        _statelabels[iseg,ipt] = ptlabel
-                        if ptlabel == nstates: # unknown state/transition region 
-                            if ipt == 0:
-                                if parent_id < 0:
-                                    # We have started a trajectory in a transition region
-                                    _trajlabels[iseg,ipt] = nstates
-                                    _statelabels[iseg,ipt] = nstates
-                                else:
-                                    # We can inherit the ending point from the previous iteration
-                                    # This should be nstates (unknown_state) for the first iteration
-                                    _trajlabels[iseg,ipt] = last_labels[parent_id]
-                            else:
-                                # We are currently in a transition region, but we care about the last state we visited,
-                                # so inherit that state from the previous point
-                                _trajlabels[iseg,ipt] = _trajlabels[iseg,ipt-1]
-                        else:
-                            _trajlabels[iseg,ipt] = ptlabel
-        else:
-            with nogil:
-                for iseg in range(nsegs):
-                    seg_id = iseg+nsegs_lb
-                    parent_id = parent_ids[iseg]
-                    for ipt in range(npts):
+        with nogil:
+            for iseg in range(nsegs):
+                seg_id = iseg+nsegs_lb
+                parent_id = parent_ids[iseg]
+                for ipt in range(npts):
+                    ptlabel = state_map[_assignments[iseg,ipt]]
+                    _statelabels[iseg,ipt] = ptlabel
+                    if ptlabel == nstates: # unknown state/transition region 
                         if ipt == 0:
-                            ptlabel = state_map[_assignments[iseg,ipt]]
-                            _statelabels[iseg,ipt] = ptlabel
-                            if ptlabel == nstates: # unknown state/transition region 
-                                if parent_id < 0:
-                                    # We have started a trajectory in a transition region
-                                    _trajlabels[iseg,ipt] = nstates
-                                    _statelabels[iseg,ipt] = nstates
-                                else:
-                                    # We can inherit the ending point from the previous iteration
-                                    # This should be nstates (unknown_state) for the first iteration
-                                    _trajlabels[iseg,ipt] = last_labels[parent_id]
+                            if parent_id < 0:
+                                # We have started a trajectory in a transition region
+                                _trajlabels[iseg,ipt] = nstates
+                                _statelabels[iseg,ipt] = nstates
                             else:
-                                _trajlabels[iseg,ipt] = ptlabel
-                        if ipt != 0:
-                            # We're no longer at the first point, so just nab the previous assignment.
+                                # We can inherit the ending point from the previous iteration
+                                # This should be nstates (unknown_state) for the first iteration
+                                _trajlabels[iseg,ipt] = last_labels[parent_id]
+                        else:
+                            # We are currently in a transition region, but we care about the last state we visited,
+                            # so inherit that state from the previous point
                             _trajlabels[iseg,ipt] = _trajlabels[iseg,ipt-1]
-                            _statelabels[iseg,ipt] = _statelabels[iseg,ipt-1]
-                            if ipt == npts - 1:
-                                ptlabel = state_map[_assignments[iseg,npts-1]]
-                                if ptlabel != nstates:
-                                    _statelabels[iseg,npts-1] = ptlabel
-                                    _trajlabels[iseg,npts-1] = ptlabel
+                    else:
+                        _trajlabels[iseg,ipt] = ptlabel
     else:
         trajlabels.fill(nstates)
         statelabels.fill(nstates)
