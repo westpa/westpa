@@ -3,7 +3,7 @@ from westtools import (WESTToolComponent, WESTDataReader, IterRangeSelection, WE
                        ProgressIndicatorComponent)
 
 import mclib
-from mclib import mcbs_correltime, mcbs_ci_correl_rw, _1D_simple_eval_block, _2D_simple_eval_block
+from mclib import mcbs_correltime, mcbs_ci_correl, _1D_simple_eval_block, _2D_simple_eval_block
 from westpa import h5io
 
 import numpy

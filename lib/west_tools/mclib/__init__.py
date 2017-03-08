@@ -23,9 +23,9 @@ import math, numpy
 
 from _mclib import autocorrel_elem, mcbs_correltime, get_bssize, mcbs_ci #@UnresolvedImport
 
-def mcbs_ci_correl_rw(estimator_datasets, estimator, alpha, n_sets=None, args=None,
-                      autocorrel_alpha = None, autocorrel_n_sets=None, subsample=None, 
-                      pre_calculated=None, do_correl=True, estimator_kwargs={}):
+def mcbs_ci_correl(estimator_datasets, estimator, alpha, n_sets=None, args=None,
+                   autocorrel_alpha = None, autocorrel_n_sets=None, subsample=None, 
+                   do_correl=True, estimator_kwargs={}):
     '''Perform a Monte Carlo bootstrap estimate for the (1-``alpha``) confidence interval
     on the given ``dataset`` with the given ``estimator``.  This routine is appropriate
     for time-correlated data, using the method described in Huber & Kim, "Weighted-ensemble
@@ -165,9 +165,9 @@ def _1D_simple_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_a
         # Not sure if we need a jstate for these estimators, but we'll see.
         kwargs = { 'istate' : istate , 'jstate': 'B'}
         estimator_datasets = {'dataset': data_input['dataset'][:,istate]}
-        ci_res = mcbs_ci_correl_rw(estimator_datasets,estimator=(lambda stride, dataset: numpy.mean(dataset)),
-                                    alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
-                                    subsample=subsample, pre_calculated=estimator_datasets['dataset'], do_correl=do_correl)
+        ci_res = mcbs_ci_correl(estimator_datasets,estimator=(lambda stride, dataset: numpy.mean(dataset)),
+                                alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
+                                subsample=subsample, do_correl=do_correl)
 
         results.append((name, iblock,istate,(start,stop)+ci_res))
 
@@ -184,9 +184,9 @@ def _2D_simple_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_a
             kwargs = { 'istate' : istate, 'jstate': jstate }
             #dataset = {'dataset': cond_fluxes[:, istate, jstate]}
             estimator_datasets = {'dataset': data_input['dataset'][:, istate, jstate] }
-            ci_res = mcbs_ci_correl_rw(estimator_datasets,estimator=(lambda stride, dataset: numpy.mean(dataset)),
+            ci_res = mcbs_ci_correl(estimator_datasets,estimator=(lambda stride, dataset: numpy.mean(dataset)),
                                     alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
-                                    subsample=subsample, pre_calculated=estimator_datasets['dataset'], do_correl=do_correl)
+                                    subsample=subsample, do_correl=do_correl)
 
             results.append((name, iblock, istate, jstate, (start,stop) + ci_res))
 

@@ -39,7 +39,7 @@ from westpa.kinetics.matrates import get_macrostate_rates
 from westpa.kintool import WESTKinAvg, AverageCommands
 
 import mclib
-from mclib import mcbs_correltime, mcbs_ci_correl_rw, _1D_simple_eval_block, _2D_simple_eval_block
+from mclib import mcbs_correltime, mcbs_ci_correl, _1D_simple_eval_block, _2D_simple_eval_block
 
 # We'll need to integrate this properly.
 log = logging.getLogger('westtools.w_kinavg')
@@ -72,9 +72,9 @@ def _rate_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha,
             # and avoid i to j rate constants which are affected by a third state k.
             # That is, we need the populations for both i and j, and it's easier to just send in the entire dataset.
             dataset = {'dataset': data_input['dataset'][:, istate, jstate], 'pops': data_input['pops'] }
-            ci_res = mcbs_ci_correl_rw(dataset,estimator=sequence_macro_flux_to_rate_bs,
+            ci_res = mcbs_ci_correl(dataset,estimator=sequence_macro_flux_to_rate_bs,
                                     alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
-                                    subsample=numpy.mean, pre_calculated=None, do_correl=do_correl, estimator_kwargs=kwargs)
+                                    subsample=numpy.mean, do_correl=do_correl, estimator_kwargs=kwargs)
             results.append((name, iblock, istate, jstate, (start,stop) + ci_res))
 
     return results
@@ -308,9 +308,10 @@ Command-line options
         pi.clear()
 
         # We've returned an average, but it still exists in a timeslice format.  So we need to return the 'last' value.
-        self.print_averages(avg_total_fluxes[1], '\nfluxes into macrostates:', dim=1)
-        self.print_averages(avg_conditional_fluxes[1], '\nfluxes from state to state:', dim=2)
-        self.print_averages(avg_rates[1], '\nrates from state to state:', dim=2)
+        if self.display_averages:
+            self.print_averages(avg_total_fluxes[1], '\nfluxes into macrostates:', dim=1)
+            self.print_averages(avg_conditional_fluxes[1], '\nfluxes from state to state:', dim=2)
+            self.print_averages(avg_rates[1], '\nrates from state to state:', dim=2)
 
         # Do a bootstrap evolution.
         pi.clear()
@@ -465,8 +466,9 @@ Command-line options
             self.output_file.replace_dataset(name='avg_state_probs', data=state_evol_avg[1], shuffle=True, compression=9)
 
         # Print!
-        self.print_averages(color_evol_avg[1], '\naverage color probabilities:', dim=1)
-        self.print_averages(state_evol_avg[1], '\naverage state probabilities:', dim=1)
+        if self.display_averages:
+            self.print_averages(color_evol_avg[1], '\naverage color probabilities:', dim=1)
+            self.print_averages(state_evol_avg[1], '\naverage state probabilities:', dim=1)
 
         # Now, do a bootstrap evolution
         with pi:

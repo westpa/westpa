@@ -82,9 +82,9 @@ class FluxMatrix():
             trans = np.empty(flux_shape[1:], np.int64)
 
             # Check to make sure this isn't a data set with target states
-            tstates = self.data_reader.data_manager.get_target_states(0)
-            if len(tstates) > 0:
-                raise ValueError('Postanalysis reweighting analysis does not support WE simulation run under recycling conditions')
+            #tstates = self.data_reader.data_manager.get_target_states(0)
+            #if len(tstates) > 0:
+            #    raise ValueError('Postanalysis reweighting analysis does not support WE simulation run under recycling conditions')
 
             pi.new_operation('Calculating flux matrices', iter_count)
             # Calculate instantaneous statistics
