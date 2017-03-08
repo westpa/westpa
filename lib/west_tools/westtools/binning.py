@@ -99,6 +99,9 @@ def mapper_from_yaml(yamlfilename):
     import yaml
     ydict = yaml.load(open(yamlfilename, 'rt'))
     ybins = ydict['bins']
+    return mapper_from_dict(ybins)
+
+def mapper_from_dict(ybins):
     typename = ybins.pop('type')
     kwargs = ybins
     
