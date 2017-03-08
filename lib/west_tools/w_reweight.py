@@ -120,14 +120,8 @@ either equilibrium or steady-state conditions without recycling target states.
 
                                        
     def process_more_args(self, args):
-        if args.config_from_file == False:
-            self.output_file = h5io.WESTPAH5File(args.output, 'w', creating_program=True)
-            self.assignments_file = h5io.WESTPAH5File(args.assignments, 'r')
-        if args.config_from_file:
-            if not args.scheme:
-                raise ValueError('A scheme must be specified.')
-            else:
-                self.load_config_from_west(args.scheme)
+        self.output_file = h5io.WESTPAH5File(args.output, 'w', creating_program=True)
+        self.assignments_file = h5io.WESTPAH5File(args.assignments, 'r')
         self.sampling_frequency = args.sampling_frequency
 
     def go(self):
