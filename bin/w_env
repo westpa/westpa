@@ -23,11 +23,6 @@ if [ -z "$WEST_PYTHON" ]; then
     export WEST_PYTHON=python2.7
 fi
 
-# If $WEST_ROOT is not set, then set it based on the path to this script
-if [ -z "$WEST_ROOT" ]; then
-    export WEST_ROOT=$($WEST_PYTHON -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' $0/../..)
-fi
-
 PATH_AFFIX="$WEST_ROOT/lib/blessings:$WEST_ROOT/lib/h5py:$WEST_ROOT/lib/wwmgr:$WEST_ROOT/src:$WEST_ROOT/lib/west_tools"
 if [ -z "$WEST_PYTHONPATH" ]; then
     export WEST_PYTHONPATH="$PATH_AFFIX"
