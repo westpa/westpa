@@ -101,6 +101,7 @@ def mapper_from_yaml(yamlfilename):
     ybins = ydict['bins']
     return mapper_from_dict(ybins)
 
+# We want this function to live on...
 def mapper_from_dict(ybins):
     typename = ybins.pop('type')
     kwargs = ybins
