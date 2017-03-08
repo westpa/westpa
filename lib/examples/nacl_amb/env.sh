@@ -1,9 +1,13 @@
 # This file defines where WEST and Amber can be found.
 # Modify to taste
 
-# Inform WEST where to find Amber. 
-##### You should modify the following line! #####
-export AMBERHOME=/path/to/amberhome
+# Inform WEST where to find Amber.
+# If AMBERHOME isn't set, it's unlikely that the libraries can be found, regardless of whether cpptraj/pmemd exist in the path.
+if [[ -z "$AMBERHOME" ]]; then
+    echo "AMBERHOME environ variable not set.  Source amber.sh, or modify env.sh such that WESTPA knows where AMBER is."
+    exit
+fi
+
 export PATH=$AMBERHOME/bin:$PATH
 
 # Set environment variables for Amber for convenience
