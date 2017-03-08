@@ -268,11 +268,34 @@ class WESTRC:
     def new_we_driver(self):
         import west
         drivername = self.config.get(['west', 'drivers', 'we_driver'], 'default')
+        group_function = self.config.get(['west', 'drivers', 'group_function'], 'default')
         if drivername.lower() == 'default':
             we_driver = west.we_driver.WEDriver()
         else:
             we_driver = extloader.get_object(drivername)(rc=self)
         log.debug('loaded WE algorithm driver: {!r}'.format(we_driver))
+        # There are two 'built-ins': the identity function, which is the normal behavior,
+        # and the history function, which has a few more variables.
+        if group_function.lower() == 'default':
+            try:
+                group_function = 'west.we_driver._group_walkers_identity'
+                we_driver.group_function = west.we_driver._group_walkers_identity
+            except:
+                pass
+        elif group_function.lower() == 'history':
+            group_function = 'west.we_driver._group_walkers_by_history'
+            we_driver.group_function = west.we_driver._group_walkers_by_history
+        elif group_function.lower() == 'color':
+            group_function = 'west.we_driver._group_walkers_by_color'
+            we_driver.group_function = west.we_driver._group_walkers_by_color
+        else:
+            we_driver.group_function = extloader.get_object(group_function)
+        we_driver.group_function_kwargs = self.config.get(['west', 'drivers', 'group_arguments'])
+        # Necessary if the user hasn't specified any options.
+        if we_driver.group_function_kwargs == None:
+            we_driver.group_function_kwargs = {}
+        log.debug('loaded WE algorithm driver grouping function {!r}'.format(group_function))
+        log.debug('WE algorithm driver grouping function kwargs: {!r}'.format(we_driver.group_function_kwargs))
         return we_driver
         
     def get_we_driver(self):
@@ -285,6 +308,9 @@ class WESTRC:
         if drivername.lower() == 'executable':
             import west.propagators.executable
             propagator = west.propagators.executable.ExecutablePropagator()
+        elif drivername.lower() == 'executable.shell':
+            import west.propagators.executable
+            propagator = west.propagators.executable.ShellPropagator()
         else:
             propagator = extloader.get_object(drivername)(rc=self)
         log.debug('loaded propagator {!r}'.format(propagator))
