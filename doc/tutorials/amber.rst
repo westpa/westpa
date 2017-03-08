@@ -134,9 +134,9 @@ also sets the executables for Amber; using an environment variable for this
 purpose makes it easier to transition code to different hardware or test
 different builds or flags of an MD code without editing multiple files.
 
-**Make sure that your ``$AMBERHOME`` environment variable is correctly set and
+Make sure that your ``$AMBERHOME`` environment variable is correctly set and
 that ``$AMBERHOME/lib`` is in ``$LD_LIBRARY_PATH``. This should be the case if 
-you have sourced ``amber.sh`` from your Amber installation directory.**
+you have sourced ``amber.sh`` from your Amber installation directory.
 
 gen_istates.sh
 ~~~~~~~~~~~~~~
