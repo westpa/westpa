@@ -17,8 +17,13 @@
 # You should have received a copy of the GNU General Public License
 # along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
+# If $WEST_ROOT is not set, then set it based on the path to this script
+if [ -z "$WEST_ROOT" ]; then
+    export WEST_ROOT=$($WEST_PYTHON -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' $0/../..)
+fi
+
 # We've moved the actual environment variable setting into another script.
-source w_env
+source $WEST_ROOT/w_env
 
 # Take the name of the script to execute from the name by which this process
 # is called (i.e. appropriately-named symlinks to this script work).
