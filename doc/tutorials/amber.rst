@@ -120,6 +120,10 @@ The above files are listed roughly in the order in which it is appropriate to
 configure them. ``gen_istate.sh``, ``get_pcoord.sh``, ``runseg.sh``, and
 ``post_iter.sh`` are located in the ``westpa_scripts`` subfolder.
 
+Typically when setting up a WESTPA simulation, you will need to write these
+files yourself or modify the files provided in an example, such as this 
+tutorial. 
+
 env.sh
 ~~~~~~
 
@@ -130,7 +134,9 @@ also sets the executables for Amber; using an environment variable for this
 purpose makes it easier to transition code to different hardware or test
 different builds or flags of an MD code without editing multiple files.
 
-**You should edit this file to specify the path to your Amber installation.**
+**Make sure that your ``$AMBERHOME`` environment variable is correctly set and
+that ``$AMBERHOME/lib`` is in ``$LD_LIBRARY_PATH``. This should be the case if 
+you have sourced ``amber.sh`` from your Amber installation directory.**
 
 gen_istates.sh
 ~~~~~~~~~~~~~~
