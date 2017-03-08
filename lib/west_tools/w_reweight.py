@@ -42,7 +42,7 @@ log = logging.getLogger('westtools.w_postanalysis_reweight')
 
 import mclib
 
-from mclib import mcbs_correltime, mcbs_ci_correl_rw
+from mclib import mcbs_correltime, mcbs_ci_correl
 
 # From postanalysis matrix
 from westpa.binning import index_dtype
@@ -58,7 +58,7 @@ def _2D_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha, m
 
             dataset = { 'indices' : np.array(range(start-1, stop-1), dtype=np.uint16) }
             
-            ci_res = mcbs_ci_correl_rw(dataset,estimator=reweight_for_c,
+            ci_res = mcbs_ci_correl(dataset,estimator=reweight_for_c,
                                     alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
                                     subsample=(lambda x: x[0]), do_correl=do_correl, estimator_kwargs=estimator_kwargs)
             results.append((name, iblock, istate, jstate, (start,stop) + ci_res))
@@ -75,7 +75,7 @@ def _1D_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha, m
 
         dataset = { 'indices' : np.array(range(start-1, stop-1), dtype=np.uint16) }
         
-        ci_res = mcbs_ci_correl_rw(dataset,estimator=reweight_for_c,
+        ci_res = mcbs_ci_correl(dataset,estimator=reweight_for_c,
                                 alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
                                 subsample=(lambda x: x[0]), do_correl=do_correl, estimator_kwargs=estimator_kwargs)
         results.append((name, iblock, istate, (start,stop) + ci_res))
@@ -283,8 +283,9 @@ class RWRate(AverageCommands, RWReweight):
         pi.clear()
 
         # We've returned an average, but it still exists in a timeslice format.  So we need to return the 'last' value.
-        self.print_averages(avg_conditional_fluxes[1], '\nfluxes from state to state:', dim=2)
-        self.print_averages(avg_rates[1], '\nrates from state to state:', dim=2)
+        if self.display_averages:
+            self.print_averages(avg_conditional_fluxes[1], '\nfluxes from state to state:', dim=2)
+            self.print_averages(avg_rates[1], '\nrates from state to state:', dim=2)
 
         # Do a bootstrap evolution.
         pi.clear()
@@ -369,8 +370,9 @@ class RWStateProbs(AverageCommands, RWReweight):
         pi.clear()
 
         # We've returned an average, but it still exists in a timeslice format.  So we need to return the 'last' value.
-        self.print_averages(avg_color_probs[1], '\naverage color probabilities:', dim=1)
-        self.print_averages(avg_state_probs[1], '\naverage state probabilities:', dim=1)
+        if self.display_averages:
+            self.print_averages(avg_color_probs[1], '\naverage color probabilities:', dim=1)
+            self.print_averages(avg_state_probs[1], '\naverage state probabilities:', dim=1)
 
         # Do a bootstrap evolution.
         pi.clear()

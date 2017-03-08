@@ -38,9 +38,6 @@ from westpa.kinetics.matrates import get_macrostate_rates
 # This is the base tool class.  We're going to use it for the post analysis stuff, as well.
 from westpa.kintool import WESTKinAvg, AverageCommands
 
-import mclib
-from mclib import mcbs_correltime, mcbs_ci_correl_rw, _1D_simple_eval_block, _2D_simple_eval_block
-
 # We'll need to integrate this properly.
 log = logging.getLogger('westtools.w_kinavg')
 
