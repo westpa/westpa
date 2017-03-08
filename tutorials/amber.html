@@ -190,6 +190,9 @@ distribution.</p>
 <p>The above files are listed roughly in the order in which it is appropriate to
 configure them. <code class="docutils literal"><span class="pre">gen_istate.sh</span></code>, <code class="docutils literal"><span class="pre">get_pcoord.sh</span></code>, <code class="docutils literal"><span class="pre">runseg.sh</span></code>, and
 <code class="docutils literal"><span class="pre">post_iter.sh</span></code> are located in the <code class="docutils literal"><span class="pre">westpa_scripts</span></code> subfolder.</p>
+<p>Typically when setting up a WESTPA simulation, you will need to write these
+files yourself or modify the files provided in an example, such as this
+tutorial.</p>
 <div class="section" id="env-sh">
 <h3>env.sh<a class="headerlink" href="#env-sh" title="Permalink to this headline">¶</a></h3>
 <p>This script sets environment variables that may be used across the simulation.
@@ -198,7 +201,9 @@ simulation, the name for the simulation, and the python executable to use. It
 also sets the executables for Amber; using an environment variable for this
 purpose makes it easier to transition code to different hardware or test
 different builds or flags of an MD code without editing multiple files.</p>
-<p><strong>You should edit this file to specify the path to your Amber installation.</strong></p>
+<p><strong>Make sure that your ``$AMBERHOME`` environment variable is correctly set and
+that ``$AMBERHOME/lib`` is in ``$LD_LIBRARY_PATH``. This should be the case if
+you have sourced ``amber.sh`` from your Amber installation directory.</strong></p>
 </div>
 <div class="section" id="gen-istates-sh">
 <h3>gen_istates.sh<a class="headerlink" href="#gen-istates-sh" title="Permalink to this headline">¶</a></h3>
