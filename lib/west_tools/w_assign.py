@@ -22,8 +22,8 @@ import math
 from numpy import index_exp
 
 from west.data_manager import seg_id_dtype, weight_dtype
-from westpa.binning import index_dtype, assign_and_label, accumulate_labeled_populations 
-from westtools import (WESTParallelTool, WESTDataReader, WESTDSSynthesizer, BinMappingComponent, 
+from westpa.binning import index_dtype, assign_and_label, accumulate_labeled_populations
+from westtools import (WESTParallelTool, WESTDataReader, WESTDSSynthesizer, BinMappingComponent, mapper_from_dict,
                        ProgressIndicatorComponent)
 import numpy
 import westpa
@@ -48,7 +48,7 @@ def parse_pcoord_value(pc_str):
         raise ValueError('too many dimensions')
     return arr
 
-def _assign_label_pop(n_iter, lb, ub, mapper, nstates, state_map, last_labels, parent_id_dsspec, weight_dsspec, pcoord_dsspec):
+def _assign_label_pop(n_iter, lb, ub, mapper, nstates, state_map, last_labels, parent_id_dsspec, weight_dsspec, pcoord_dsspec, subsample):
 
     nbins = len(state_map)-1
     parent_ids = parent_id_dsspec.get_iter_data(n_iter,index_exp[lb:ub])
@@ -56,7 +56,7 @@ def _assign_label_pop(n_iter, lb, ub, mapper, nstates, state_map, last_labels, p
     pcoords = pcoord_dsspec.get_iter_data(n_iter,index_exp[lb:ub])
     
     assignments, trajlabels, statelabels = assign_and_label(lb, ub, parent_ids,
-                                               mapper.assign, nstates, state_map, last_labels, pcoords)
+                                               mapper.assign, nstates, state_map, last_labels, pcoords, subsample)
     pops = numpy.zeros((nstates+1,nbins+1), weight_dtype)
     accumulate_labeled_populations(weights, assignments, trajlabels, pops)
     return (assignments, trajlabels, pops, lb, ub, statelabels)
