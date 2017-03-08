@@ -33,6 +33,7 @@ from westpa.extloader import get_object
 
 log = logging.getLogger('westtools.w_assign')
 
+# Changes to keep it alive...
 def parse_pcoord_value(pc_str):
     namespace = {'math': math,
                  'numpy': numpy,
