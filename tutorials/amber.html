@@ -47,7 +47,7 @@
 <h2>Overview<a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h2>
 <p>Requirements: ~1 hr wallclock time on an 8-core Intel Westmere node (one walker
 per core); ~1.2 GB disk space</p>
-<p>In this tutorial we will use the standard weighted ensemble approach to
+<p>In this introductory tutorial we will use the weighted ensemble strategy to
 simulate Na<sup>+</sup>/Cl<sup>-</sup> association in Generalized Born implicit
 solvent. The system consists of single Na<sup>+</sup> and Cl<sup>-</sup> ions
 modeled with the
@@ -164,17 +164,17 @@ distribution.</p>
 <tr class="row-even"><td>get_pcoord.sh</td>
 <td>calculate progress coordinate for initial states</td>
 </tr>
-<tr class="row-odd"><td>system.py</td>
-<td>system implementation</td>
+<tr class="row-odd"><td>west.cfg</td>
+<td>WESTPA configuration</td>
 </tr>
-<tr class="row-even"><td>runseg.sh</td>
+<tr class="row-even"><td>aux_functions.py</td>
+<td>functions for loading auxilliary data</td>
+</tr>
+<tr class="row-odd"><td>runseg.sh</td>
 <td>segment implementation</td>
 </tr>
-<tr class="row-odd"><td>post_iter.sh</td>
+<tr class="row-even"><td>post_iter.sh</td>
 <td>post-segment cleanup</td>
-</tr>
-<tr class="row-even"><td>west.cfg</td>
-<td>WESTPA configuration</td>
 </tr>
 <tr class="row-odd"><td>init.sh</td>
 <td>initialize WESTPA</td>
@@ -190,6 +190,9 @@ distribution.</p>
 <p>The above files are listed roughly in the order in which it is appropriate to
 configure them. <code class="docutils literal"><span class="pre">gen_istate.sh</span></code>, <code class="docutils literal"><span class="pre">get_pcoord.sh</span></code>, <code class="docutils literal"><span class="pre">runseg.sh</span></code>, and
 <code class="docutils literal"><span class="pre">post_iter.sh</span></code> are located in the <code class="docutils literal"><span class="pre">westpa_scripts</span></code> subfolder.</p>
+<p>Typically when setting up a WESTPA simulation, you will need to write these
+files yourself or modify the files provided in an example, such as this
+tutorial.</p>
 <div class="section" id="env-sh">
 <h3>env.sh<a class="headerlink" href="#env-sh" title="Permalink to this headline">¶</a></h3>
 <p>This script sets environment variables that may be used across the simulation.
@@ -198,36 +201,52 @@ simulation, the name for the simulation, and the python executable to use. It
 also sets the executables for Amber; using an environment variable for this
 purpose makes it easier to transition code to different hardware or test
 different builds or flags of an MD code without editing multiple files.</p>
+<p>Make sure that your <code class="docutils literal"><span class="pre">$AMBERHOME</span></code> environment variable is correctly set and
+that <code class="docutils literal"><span class="pre">$AMBERHOME/lib</span></code> is in <code class="docutils literal"><span class="pre">$LD_LIBRARY_PATH</span></code>. This should be the case if
+you have sourced <code class="docutils literal"><span class="pre">amber.sh</span></code> from your Amber installation directory.</p>
 </div>
 <div class="section" id="gen-istates-sh">
 <h3>gen_istates.sh<a class="headerlink" href="#gen-istates-sh" title="Permalink to this headline">¶</a></h3>
-<p>This script generates initial states (structures) for the simulation from the
-basis states (structures) stored in the <code class="docutils literal"><span class="pre">bstates</span></code> subfolder. Our system
-contains a single basis state containing the two ions with a separation of 9.90
-Å; this script generates slight variations of this distance in order to obtain
-a greater variety of starting configurations.</p>
+<p>This script generates initial states (configurations) for the simulation from
+the basis state stored in the <code class="docutils literal"><span class="pre">bstates</span></code> subfolder. Our system uses a single
+basis state containing the two ions with a separation of 9.90 Å; this script
+generates slight variations of this distance in order to obtain a greater
+variety of starting configurations.</p>
 </div>
 <div class="section" id="get-pcoord-sh">
 <h3>get_pcoord.sh<a class="headerlink" href="#get-pcoord-sh" title="Permalink to this headline">¶</a></h3>
-<p>This script calculates the progress coordinate from the initial states. Our
-progress coordinate is the distance between the Na<sup>+</sup> and Cl<sup>-</sup>
-ions, which we calculate using AmberTools&#8217; <code class="docutils literal"><span class="pre">cpptraj</span></code>.
-Note that this script is used only during initial state generation; during
-production <code class="docutils literal"><span class="pre">runseg.sh</span></code> calculates the progress coordinate.</p>
+<p>This script calculates the progress coordinate for each of the initial states.
+Our progress coordinate is the distance between the Na<sup>+</sup> and Cl<sup>-</sup> ions, which we calculate using AmberTools&#8217; <code class="docutils literal"><span class="pre">cpptraj</span></code>. Note that this
+script is used only during initial state generation; throughout the remainder of
+the weighted ensemble simulation, <code class="docutils literal"><span class="pre">runseg.sh</span></code> calculates the progress
+coordinate.</p>
 </div>
-<div class="section" id="system-py">
-<h3>system.py<a class="headerlink" href="#system-py" title="Permalink to this headline">¶</a></h3>
-<p>This file contains the python implementation of this WESTPA system. Here are
-specified the number of dimensions in the progress coordinate, the number of
-frames to be output per segment, the bin boundaries, and the number of walkers
-per bin. For this system we use 22 bins as defined by <a class="reference external" href="http://pubs.acs.org/doi/abs/10.1021/ct100626x">Zwier, Kaus, and Chong</a>, and 24 walkers per bin.
-<code class="docutils literal"><span class="pre">system.py</span></code> also includes the functions <code class="docutils literal"><span class="pre">coord_loader</span></code> and <code class="docutils literal"><span class="pre">log_loader</span></code>.
-In addition to the progress coordinate, WESTPA includes the ability to
+<div class="section" id="west-cfg">
+<h3>west.cfg<a class="headerlink" href="#west-cfg" title="Permalink to this headline">¶</a></h3>
+<dl class="docutils">
+<dt>This file defines the WESTPA configuration, including:</dt>
+<dd><ul class="first last simple">
+<li>the number of dimensions of the progress coordinate</li>
+<li>the number of data points per trajectory segment</li>
+<li>the binning scheme and number of walkers per bin</li>
+<li>the number of weighted ensemble iterations to run</li>
+<li>the locations of various scripts</li>
+</ul>
+</dd>
+</dl>
+<p>For this system we use 22 bins as defined by <a class="reference external" href="http://pubs.acs.org/doi/abs/10.1021/ct100626x">Zwier, Kaus, and Chong</a>, and 24 walkers per bin.</p>
+</div>
+<div class="section" id="aux-functions-py">
+<h3>aux_functions.py<a class="headerlink" href="#aux-functions-py" title="Permalink to this headline">¶</a></h3>
+<p>In addition to the progress coordinate, WESTPA includes the ability to
 calculate and store auxiliary data as the simulation is run. This is often
 easier than looping over iterations and segments afterwards. Since our system
 contains only two atoms, it is reasonable for us to store all coordinate
 information in the same hdf5 file as the progress coordinate. We will also
 store the log information including time, energy, and temperature.</p>
+<p>This file contains Python functions for loading the coordinates and other
+auxilliary information. The location (module and function name) of these
+functions is specified to WESTPA in <code class="docutils literal"><span class="pre">west.cfg</span></code>.</p>
 </div>
 <div class="section" id="runseg-sh">
 <h3>runseg.sh<a class="headerlink" href="#runseg-sh" title="Permalink to this headline">¶</a></h3>
@@ -242,25 +261,17 @@ in <code class="docutils literal"><span class="pre">get_pcoord.sh</span></code>,
 The auxiliary coordinate dataset is also prepared using <code class="docutils literal"><span class="pre">cpptraj</span></code>, which is
 used to convert to trajectory to pdb format, which is processed using shell
 commands and output to a temporary file, from which it is read by the
-<code class="docutils literal"><span class="pre">coord_loader</span></code> function in <code class="docutils literal"><span class="pre">system.py</span></code>.
+<code class="docutils literal"><span class="pre">coord_loader</span></code> function in <code class="docutils literal"><span class="pre">aux_functions.py</span></code>.
 The auxiliary log data is similarly processed using shell commands and output
 to a temporary file, from which it is further processed and stored by the
-<code class="docutils literal"><span class="pre">log_loader</span></code> function in <code class="docutils literal"><span class="pre">system.py</span></code>.</p>
+<code class="docutils literal"><span class="pre">log_loader</span></code> function in <code class="docutils literal"><span class="pre">aux_functions.py</span></code>.</p>
 </div>
 <div class="section" id="post-iter-sh">
 <h3>post_iter.sh<a class="headerlink" href="#post-iter-sh" title="Permalink to this headline">¶</a></h3>
 <p>This script cleans up after each iteration. WESTPA simulations can generate
 large numbers of files, potentially conflicting with filesystem restrictions.
-After each iteration, <code class="docutils literal"><span class="pre">post_iter.sh</span></code> moves the segment logs the associated
-segment logs to a tar file.</p>
-</div>
-<div class="section" id="west-cfg">
-<h3>west.cfg<a class="headerlink" href="#west-cfg" title="Permalink to this headline">¶</a></h3>
-<p>This file contains the WESTPA configuration, including the locations of various
-scripts and the nature of the anticipated output. Additionally, this is where
-the number of iterations and maximum production time are set. Some optional
-functions, such as the ability to run a designated script before each
-iteration, are listed but unused in this tutorial.</p>
+After each iteration, <code class="docutils literal"><span class="pre">post_iter.sh</span></code> packages the segment logs as a <code class="docutils literal"><span class="pre">tar</span></code>
+file.</p>
 </div>
 <div class="section" id="init-sh">
 <h3>init.sh<a class="headerlink" href="#init-sh" title="Permalink to this headline">¶</a></h3>
@@ -288,6 +299,11 @@ WESTPA process is tarring, other cores are idle, potentially wasting CPU time.</
 </div>
 <div class="section" id="running-the-simulation">
 <h2>Running the simulation<a class="headerlink" href="#running-the-simulation" title="Permalink to this headline">¶</a></h2>
+<p>Make sure that the environment variable <code class="docutils literal"><span class="pre">$WEST_ROOT</span></code> is set and points your
+WESTPA installation.  To set this variable, enter
+<code class="docutils literal"><span class="pre">export</span> <span class="pre">WEST_ROOT=/path/to/your/westpa/installation</span></code> at the terminal,
+modifying the command with the appropriate path.  You can check if
+<code class="docutils literal"><span class="pre">$WEST_ROOT</span></code> is set by typing <code class="docutils literal"><span class="pre">echo</span> <span class="pre">$WEST_ROOT</span></code> at the terminal.</p>
 <p>From the simulation root directory (<code class="docutils literal"><span class="pre">$WEST_SIM_ROOT</span></code>), the simulation may be
 initialized using the command:</p>
 <div class="highlight-python"><div class="highlight"><pre><span></span>./init.sh
@@ -344,8 +360,9 @@ iteration to a single tar file.</p>
 </div>
 <div class="section" id="seg-logs">
 <h4>seg_logs<a class="headerlink" href="#seg-logs" title="Permalink to this headline">¶</a></h4>
-<p>This folder stores logs from each iteration and segment. <code class="docutils literal"><span class="pre">post_iter.sh</span></code> has
-been used to combine each segment into a single tar file.</p>
+<p>This folder stores logs from each iteration and segment. After each weighted
+ensemble iteration, <code class="docutils literal"><span class="pre">post_iter.sh</span></code> combines the log files from all of that
+iteration&#8217;s segments into a single tar file.</p>
 </div>
 <div class="section" id="west-h5">
 <h4>west.h5<a class="headerlink" href="#west-h5" title="Permalink to this headline">¶</a></h4>
@@ -365,6 +382,7 @@ using the command:</p>
 <div class="highlight-python"><div class="highlight"><pre><span></span>./run.sh
 </pre></div>
 </div>
+<p>The simulation will automatically continue from where it left off.</p>
 </div>
 </div>
 <div class="section" id="computing-the-association-rate">
@@ -391,8 +409,8 @@ target &#39;bound&#39;:
 </div>
 <p>More information on how to use <code class="docutils literal"><span class="pre">w_fluxanl</span></code> can be viewed using the <code class="docutils literal"><span class="pre">--help</span></code>
 flag. <code class="docutils literal"><span class="pre">w_fluxanl</span></code> also stores this information in an hdf5 file,
-<code class="docutils literal"><span class="pre">fluxanl.h5</span></code>. Using the python libraries h5py and pylab, we can visualize
-this data. Open a python interpreter and run the following commands:</p>
+<code class="docutils literal"><span class="pre">fluxanl.h5</span></code>. Using the python libraries <code class="docutils literal"><span class="pre">h5py</span></code> and <code class="docutils literal"><span class="pre">pylab</span></code>, we can
+visualize this data. Open a python interpreter and run the following commands:</p>
 <div class="highlight-python"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">h5py</span><span class="o">,</span> <span class="nn">numpy</span><span class="o">,</span> <span class="nn">pylab</span>
 <span class="n">fluxanl</span>              <span class="o">=</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="s1">&#39;fluxanl.h5&#39;</span><span class="p">)</span>
 <span class="n">flux</span>                 <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">100</span><span class="p">)</span>
@@ -526,7 +544,7 @@ iteration and segment IDs, loads the coordinates for each segment from
 <div class="section" id="useful-hints">
 <h2>Useful hints<a class="headerlink" href="#useful-hints" title="Permalink to this headline">¶</a></h2>
 <ul class="simple">
-<li>Make sure your paths are set correctly in <code class="docutils literal"><span class="pre">env.sh</span></code></li>
+<li>Make sure your paths are set correctly in <code class="docutils literal"><span class="pre">env.sh</span></code>.</li>
 <li>If the simulation doesn&#8217;t stop properly with CTRL+C , use CTRL+Z.</li>
 <li>Another method to stop the simulation relatively cleanly is to rename
 <code class="docutils literal"><span class="pre">runseg.sh</span></code>; WESTPA will shut the simulation down and prevent the hdf5 file
@@ -566,10 +584,10 @@ Na+/Cl−, Methane/Benzene, and K+/18-Crown-6 Ether. J Chem Theory Comput.
 <li><a class="reference internal" href="#env-sh">env.sh</a></li>
 <li><a class="reference internal" href="#gen-istates-sh">gen_istates.sh</a></li>
 <li><a class="reference internal" href="#get-pcoord-sh">get_pcoord.sh</a></li>
-<li><a class="reference internal" href="#system-py">system.py</a></li>
+<li><a class="reference internal" href="#west-cfg">west.cfg</a></li>
+<li><a class="reference internal" href="#aux-functions-py">aux_functions.py</a></li>
 <li><a class="reference internal" href="#runseg-sh">runseg.sh</a></li>
 <li><a class="reference internal" href="#post-iter-sh">post_iter.sh</a></li>
-<li><a class="reference internal" href="#west-cfg">west.cfg</a></li>
 <li><a class="reference internal" href="#init-sh">init.sh</a></li>
 <li><a class="reference internal" href="#run-sh">run.sh</a></li>
 <li><a class="reference internal" href="#tar-segs-sh">tar_segs.sh</a></li>
