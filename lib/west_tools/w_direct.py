@@ -33,7 +33,7 @@ from west.data_manager import weight_dtype, n_iter_dtype, seg_id_dtype
 from westtools import (WESTMasterCommand, WESTParallelTool, WESTDataReader, IterRangeSelection, WESTSubcommand,
                        ProgressIndicatorComponent)
 from westpa import h5io
-from westpa.kinetics import labeled_flux_to_rate, sequence_macro_flux_to_rate, sequence_macro_flux_to_rate_bs, WKinetics
+from westpa.kinetics import labeled_flux_to_rate, sequence_macro_flux_to_rate, WKinetics
 #from westpa.kinetics.matrates import get_macrostate_rates
 # This is the base tool class.  We're going to use it for the post analysis stuff, as well.
 from westtools.kinetics_tool import WESTKineticsBase, AverageCommands
@@ -65,7 +65,7 @@ def _rate_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha,
             # and avoid i to j rate constants which are affected by a third state k.
             # That is, we need the populations for both i and j, and it's easier to just send in the entire dataset.
             dataset = {'dataset': data_input['dataset'][:, istate, jstate], 'pops': data_input['pops'] }
-            ci_res = mcbs_ci_correl(dataset,estimator=sequence_macro_flux_to_rate_bs,
+            ci_res = mcbs_ci_correl(dataset,estimator=sequence_macro_flux_to_rate,
                                     alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
                                     subsample=numpy.mean, do_correl=do_correl, mcbs_enable=mcbs_enable, estimator_kwargs=kwargs)
             results.append((name, iblock, istate, jstate, (start,stop) + ci_res))
@@ -275,12 +275,6 @@ Command-line options
         pops = h5io.IterBlockedDataset(self.assignments_file['labeled_populations'])
         pops.cache_data()
         pops.data = pops.data.sum(axis=2)
-
-        # Here, we're pre-generating the information needed...
-        #rates = h5io.IterBlockedDataset.empty_like(cond_fluxes)
-        #rates.data = sequence_macro_flux_to_rate(cond_fluxes.data, pops.data[:self.nstates,:self.nbins])
-
-        # As the dataset, just send in the rates and such for now.
 
         submit_kwargs = dict(pi=pi, nstates=self.nstates, start_iter=self.start_iter, stop_iter=self.stop_iter, 
                              step_iter=self.step_iter)
