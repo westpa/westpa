@@ -75,7 +75,7 @@ def _rate_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha,
 
 # The old w_kinetics
 class DKinetics(WESTKineticsBase, WKinetics):
-    subcommand='kinetics'
+    subcommand='init'
     default_kinetics_file = 'direct.h5'
     default_output_file = 'direct.h5'
     help_text = 'calculate state-to-state kinetics by tracing trajectories'
@@ -88,8 +88,7 @@ is required (see "w_assign --help" for information on generating this file).
 
 This subcommand for w_direct is used as input for all other w_direct
 subcommands, which will convert the flux data in the output file into
-average rates/fluxes/populations with confidence intervals.  See
-w_direct kinetics --help for more information.
+average rates/fluxes/populations with confidence intervals.
 
 -----------------------------------------------------------------------------
 Output format
@@ -132,9 +131,9 @@ following datasets:
 
 Because state-to-state fluxes stored in this file are not normalized by
 initial macrostate population, they cannot be used as rates without further
-processing. The ``w_kinavg`` command is used to perform this normalization
+processing. The ``w_direct kinetics`` command is used to perform this normalization
 while taking statistical fluctuation and correlation into account. See 
-``w_kinavg trace --help`` for more information.  Target fluxes (total flux
+``w_direct kinetics --help`` for more information.  Target fluxes (total flux
 into a given state) require no such normalization.
 
 -----------------------------------------------------------------------------
@@ -158,14 +157,14 @@ Command-line options
 
 # The old w_kinavg
 class DKinAvg(AverageCommands):
-    subcommand = 'kinavg'
+    subcommand = 'kinetics'
     help_text = 'averages and CIs for path-tracing kinetics analysis'
     default_kinetics_file = 'direct.h5'
     description = '''\
 Calculate average rates/fluxes and associated errors from weighted ensemble 
 data. Bin assignments (usually "assign.h5") and kinetics data (usually 
 "direct.h5") data files must have been previously generated (see 
-"w_assign --help" and "w_direct kinetics --help" for information on 
+"w_assign --help" and "w_direct init --help" for information on 
 generating these files).
 
 The evolution of all datasets may be calculated, with or without confidence
@@ -190,7 +189,7 @@ dataset:
     (Structured -- see below) State-to-state fluxes based on entire window of
     iterations selected.
 
-If --evolution-mode is specified, then the following additional dataset is
+If --evolution-mode is specified, then the following additional datasets are
 available:
 
   /rate_evolution [window][state][state]
@@ -327,7 +326,7 @@ Command-line options
 
 # The old w_stateprobs
 class DStateProbs(AverageCommands):
-    subcommand = 'stateprobs'
+    subcommand = 'probs'
     help_text = 'averages and CIs for path-tracing kinetics analysis'
     default_kinetics_file = 'direct.h5'
     description = '''\
@@ -350,7 +349,7 @@ dataset:
     (Structured -- see below) Population of each ensemble across entire
     range specified.
 
-If --evolution-mode is specified, then the following additional dataset is
+If --evolution-mode is specified, then the following additional datasets are
 available:
 
   /state_pop_evolution [window][state]
@@ -495,12 +494,12 @@ class DAll(DStateProbs, DKinAvg, DKinetics):
     help_text = 'averages and CIs for path-tracing kinetics analysis'
     default_kinetics_file = 'direct.h5'
     description = '''\
-A convenience function to run kinetics/kinavg/stateprobs. Bin assignments, 
+A convenience function to run init/kinetics/probs. Bin assignments, 
 including macrostate definitions, are required. (See 
 "w_assign --help" for more information).
 
 For more information on the individual subcommands this subs in for, run
-w_direct {kinetics/kinavg/stateprobs} --help.
+w_direct {init/kinetics/probs} --help.
 
 -----------------------------------------------------------------------------
 Command-line options
@@ -522,12 +521,12 @@ class DAverage(DStateProbs, DKinAvg):
     help_text = 'averages and CIs for path-tracing kinetics analysis'
     default_kinetics_file = 'direct.h5'
     description = '''\
-A convenience function to run kinavg/stateprobs. Bin assignments, 
+A convenience function to run kinetics/probs. Bin assignments, 
 including macrostate definitions, are required. (See 
 "w_assign --help" for more information).
 
 For more information on the individual subcommands this subs in for, run
-w_direct {kinetics/kinavg/stateprobs} --help.
+w_direct {kinetics/probs} --help.
 
 -----------------------------------------------------------------------------
 Command-line options
