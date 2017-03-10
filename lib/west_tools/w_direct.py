@@ -152,6 +152,7 @@ Command-line options
             raise ValueError('assignments data do not span the requested iterations')
 
     def go(self):
+        pi = self.progress.indicator
         with pi:
             self.w_kinetics()
 
@@ -320,6 +321,7 @@ Command-line options
         self.output_file.replace_dataset('target_flux_evolution', data=rate_evol, shuffle=True, compression=9)
 
     def go(self):
+        pi = self.progress.indicator
         with pi:
             self.w_kinavg()
 
@@ -485,6 +487,7 @@ Command-line options
         self.output_file.replace_dataset(name='state_pop_evolution', data=pop_evol, shuffle=True, compression=9)
 
     def go(self):
+        pi = self.progress.indicator
         with pi:
             self.w_stateprobs()
 

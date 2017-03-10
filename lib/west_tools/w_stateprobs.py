@@ -18,7 +18,7 @@
 from westtools import (WESTMasterCommand, WESTParallelTool, WESTDataReader, IterRangeSelection, WESTSubcommand, WESTToolComponent, WESTTool,
                        ProgressIndicatorComponent)
 
-from w_direct import DStateProbs, WESTKinAvg
+from w_direct import DStateProbs
 import sys, argparse, os
 import work_managers
 
