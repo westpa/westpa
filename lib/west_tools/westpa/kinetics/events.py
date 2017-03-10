@@ -16,7 +16,6 @@
 # along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
 from __future__ import print_function, division; __metaclass__ = type
-import logging
 
 # Let's suppress those numpy warnings.
 import warnings
@@ -28,9 +27,6 @@ import numpy
 
 from west.data_manager import weight_dtype, n_iter_dtype, seg_id_dtype
 from westpa import h5io
-
-# We'll need to integrate this properly.
-log = logging.getLogger('westtools.w_kinavg')
 
 # From w_kinetics.
 from westtools.dtypes import ed_list_dtype

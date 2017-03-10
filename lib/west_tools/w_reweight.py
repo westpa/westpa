@@ -38,7 +38,7 @@ from westpa.kintool import WESTKineticsBase, AverageCommands
 from westpa import h5io
 from westtools.dtypes import iter_block_ci_dtype as ci_dtype
 
-log = logging.getLogger('westtools.w_postanalysis_reweight')
+log = logging.getLogger('westtools.w_reweight')
 
 import mclib
 
@@ -49,7 +49,7 @@ from westpa.binning import index_dtype
 from westpa.reweight import stats_process, reweight_for_c, FluxMatrix
 
 def _2D_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha, mcbs_nsets, mcbs_acalpha, do_correl, mcbs_enable, estimator_kwargs):
-    # Our rate estimator is a little more complex, so we've defined a custom evaluation block for it.
+    # As our reweighting estimator is a weird function, we can't use the general mclib block.
     results = []
     for istate in xrange(nstates):
         for jstate in xrange(nstates):
@@ -66,11 +66,12 @@ def _2D_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha, m
     return results
 
 def _1D_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha, mcbs_nsets, mcbs_acalpha, do_correl, mcbs_enable, estimator_kwargs):
-    # Our rate estimator is a little more complex, so we've defined a custom evaluation block for it.
+    # As our reweighting estimator is a weird function, we can't use the general mclib block.
     results = []
     for istate in xrange(nstates):
         # A little hack to make our estimator play nice, as jstate must be there.
-        # I despise this hack and would like it to go away forever, but our estimator relies on it.
+        # For 1D datasets (state probabilities, etc), the argument isn't used in our estimator,
+        # and so any variable which has the proper type is fine.
         estimator_kwargs.update(dict(istate=istate, jstate=istate, nstates=nstates))
 
         dataset = { 'indices' : np.array(range(start-1, stop-1), dtype=np.uint16) }

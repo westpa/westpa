@@ -42,7 +42,7 @@ import mclib
 from mclib import mcbs_correltime, mcbs_ci_correl, _1D_simple_eval_block, _2D_simple_eval_block
 
 # We'll need to integrate this properly.
-log = logging.getLogger('westtools.w_kinavg')
+log = logging.getLogger('westtools.w_reweight')
 
 from westtools.dtypes import iter_block_ci_dtype as ci_dtype
 
