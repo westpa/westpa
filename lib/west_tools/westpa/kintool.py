@@ -18,7 +18,7 @@ def generate_future(work_manager, name, eval_block, kwargs):
     return future
 
     
-class WESTKinAvg(WESTToolComponent):
+class WESTKinAvg(WESTSubcommand):
     '''Common argument processing for w_direct/w_reweight subcommands'''
     
     def __init__(self, parent):
@@ -44,11 +44,6 @@ class WESTKinAvg(WESTToolComponent):
         # Now we're adding in things that come from the old w_kinetics
         self.do_compression = True
         
-    def stamp_mcbs_info(self, dataset):
-        dataset.attrs['mcbs_alpha'] = self.mcbs_alpha
-        dataset.attrs['mcbs_acalpha'] = self.mcbs_acalpha
-        dataset.attrs['mcbs_nsets'] = self.mcbs_nsets
-        
             
     def add_args(self, parser):
         self.progress.add_args(parser)
@@ -61,6 +56,35 @@ class WESTKinAvg(WESTToolComponent):
                             help='''Bin assignments and macrostate definitions are in ASSIGNMENTS
                             (default: %(default)s).''')
         
+        iogroup.add_argument('-o', '--output', dest='output', default=self.default_output_file,
+                            help='''Store results in OUTPUT (default: %(default)s).''')
+
+    def process_args(self, args):
+        self.progress.process_args(args)
+        self.data_reader.process_args(args)
+        with self.data_reader:
+            self.iter_range.process_args(args, default_iter_step=None)
+        if self.iter_range.iter_step is None:
+            #use about 10 blocks by default
+            self.iter_range.iter_step = max(1, (self.iter_range.iter_stop - self.iter_range.iter_start) // 10)
+        
+        self.output_filename = args.output
+        self.assignments_filename = args.assignments
+
+# This provides some convenience functions, modified from w_kinavg, to help with calculating evolution and averages for observables with the mclib library in a consistent manner.
+# It's used in both w_direct and w_reweight.
+class AverageCommands(WESTKinAvg):
+    default_output_file = 'direct.h5'
+
+    def __init__(self, parent):
+        # Ideally, this is stuff general to all the calculations we want to perform.
+        super(AverageCommands,self).__init__(parent)
+        self.kinetics_filename = None
+        self.kinetics_file = None
+
+    def add_args(self, parser):
+        
+        iogroup = parser.add_argument_group('input/output options')
         # self.default_kinetics_file will be picked up as a class attribute from the appropriate subclass        
         # We can do this with the output file, too...
         # ... by default, however, we're going to use {direct/reweight}.h5 for everything.
@@ -68,10 +92,7 @@ class WESTKinAvg(WESTToolComponent):
         iogroup.add_argument('-k', '--kinetics', default=self.default_kinetics_file,
                             help='''Populations and transition rates are stored in KINETICS
                             (default: %(default)s).''')
-        iogroup.add_argument('-o', '--output', dest='output', default=self.default_output_file,
-                            help='''Store results in OUTPUT (default: %(default)s).''')
 
-        
         cgroup = parser.add_argument_group('confidence interval calculation options')
         cgroup.add_argument('--disable-bootstrap', '-db', dest='bootstrap', action='store_const', const=False,
                              help='''Enable the use of Monte Carlo Block Bootstrapping.''')
@@ -102,21 +123,8 @@ class WESTKinAvg(WESTToolComponent):
         mgroup = parser.add_argument_group('misc options')
         mgroup.add_argument('--disable-averages', '-da', dest='display_averages', action='store_false',
                              help='''Whether or not the averages should be printed to the console (set to FALSE if flag is used).''')
-    #    self.more_args(parser)
-        
-
     
     def process_args(self, args):
-        self.progress.process_args(args)
-        self.data_reader.process_args(args)
-        with self.data_reader:
-            self.iter_range.process_args(args, default_iter_step=None)
-        if self.iter_range.iter_step is None:
-            #use about 10 blocks by default
-            self.iter_range.iter_step = max(1, (self.iter_range.iter_stop - self.iter_range.iter_start) // 10)
-        
-        self.output_filename = args.output
-        self.assignments_filename = args.assignments
         self.kinetics_filename = args.kinetics
                 
         # Disable the bootstrap or the correlation analysis.
@@ -132,26 +140,12 @@ class WESTKinAvg(WESTToolComponent):
         self.evol_window_frac = args.window_frac
         if self.evol_window_frac <= 0 or self.evol_window_frac > 1:
             raise ValueError('Parameter error -- fractional window defined by --window-frac must be in (0,1]')
-    #    self.process_more_args(args)
 
-    # Shim functions to be overridden, if necessary.
-    #def more_args(self, parser):
-    #    pass
-    
-    #def process_more_args(self, args):
-    #    pass
-
-# This provides some convenience functions, modified from w_kinavg, to help with calculating evolution and averages for observables with the mclib library in a consistent manner.
-# It's used in both w_direct and w_reweight.
-class AverageCommands(WESTKinAvg, WESTSubcommand):
-    default_output_file = 'direct.h5'
-
-    def __init__(self, parent):
-        # Ideally, this is stuff general to all the calculations we want to perform.
-        super(AverageCommands,self).__init__(parent)
-        self.kinetics_filename = None
-        self.kinetics_file = None
-
+    def stamp_mcbs_info(self, dataset):
+        dataset.attrs['mcbs_alpha'] = self.mcbs_alpha
+        dataset.attrs['mcbs_acalpha'] = self.mcbs_acalpha
+        dataset.attrs['mcbs_nsets'] = self.mcbs_nsets
+        
     def open_files(self):
         self.output_file = h5io.WESTPAH5File(self.output_filename, 'a', creating_program=True)
         h5io.stamp_creator_data(self.output_file)
