@@ -655,7 +655,7 @@ Command-line options
 
 class WReweight(WESTMasterCommand, WESTParallelTool):
     prog='w_reweight'
-    subcommands = [RWRate, RWStateProbs, RWAll, RWAverage, RWMatrix]
+    subcommands = [RWMatrix, RWAverage, RWRate, RWStateProbs, RWAll]
     subparsers_title = 'reweighting kinetics analysis scheme'
 
 if __name__ == '__main__':

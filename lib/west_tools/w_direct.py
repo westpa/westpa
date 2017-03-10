@@ -543,7 +543,7 @@ Command-line options
 class WDirect(WESTMasterCommand, WESTParallelTool):
     prog='w_direct'
     #subcommands = [AvgTraceSubcommand,AvgMatrixSubcommand]
-    subcommands = [DKinetics, DKinAvg, DStateProbs, DAll, DAverage]
+    subcommands = [DKinetics, DAverage, DKinAvg, DStateProbs, DAll]
     subparsers_title = 'direct kinetics analysis schemes'
 
 if __name__ == '__main__':
