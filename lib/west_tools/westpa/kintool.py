@@ -73,7 +73,7 @@ class WESTKinAvg(WESTToolComponent):
 
         
         cgroup = parser.add_argument_group('confidence interval calculation options')
-        cgroup.add_argument('--bootstrap', dest='bootstrap', action='store_const', const=True,
+        cgroup.add_argument('--disable-bootstrap', '-db', dest='bootstrap', action='store_const', const=False,
                              help='''Enable the use of Monte Carlo Block Bootstrapping.''')
         cgroup.add_argument('--disable-correl', '-dc', dest='correl', action='store_const', const=False,
                              help='''Disable the correlation analysis.''')
@@ -119,7 +119,8 @@ class WESTKinAvg(WESTToolComponent):
         self.assignments_filename = args.assignments
         self.kinetics_filename = args.kinetics
                 
-        self.mcbs_enable = args.bootstrap
+        # Disable the bootstrap or the correlation analysis.
+        self.mcbs_enable = args.bootstrap if args.bootstrap is not None else True
         self.do_correl = args.correl if args.correl is not None else True
         self.mcbs_alpha = args.alpha
         self.mcbs_acalpha = args.acalpha if args.acalpha else self.mcbs_alpha
@@ -239,6 +240,7 @@ class AverageCommands(WESTKinAvg, WESTSubcommand):
                                      mcbs_alpha=self.mcbs_alpha, mcbs_nsets=self.mcbs_nsets,
                                      mcbs_acalpha=self.mcbs_acalpha,
                                      do_correl=self.do_correl,name=name,
+                                     mcbs_enable=self.mcbs_enable,
                                      data_input={},
                                      **extra)
 
