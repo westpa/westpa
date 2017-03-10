@@ -36,7 +36,7 @@ from westpa import h5io
 from westpa.kinetics import labeled_flux_to_rate, sequence_macro_flux_to_rate, sequence_macro_flux_to_rate_bs, WKinetics
 from westpa.kinetics.matrates import get_macrostate_rates
 # This is the base tool class.  We're going to use it for the post analysis stuff, as well.
-from westpa.kintool import WESTKinAvg, AverageCommands
+from westpa.kintool import WESTKineticsBase, AverageCommands
 
 import mclib
 from mclib import mcbs_correltime, mcbs_ci_correl, _1D_simple_eval_block, _2D_simple_eval_block
@@ -81,7 +81,7 @@ def _rate_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha,
 
 
 # The old w_kinetics
-class DKinetics(WESTKinAvg, WKinetics):
+class DKinetics(WESTKineticsBase, WKinetics):
     subcommand='kinetics'
     default_kinetics_file = 'direct.h5'
     default_output_file = 'direct.h5'

@@ -18,11 +18,14 @@ def generate_future(work_manager, name, eval_block, kwargs):
     return future
 
     
-class WESTKinAvg(WESTSubcommand):
-    '''Common argument processing for w_direct/w_reweight subcommands'''
+class WESTKineticsBase(WESTSubcommand):
+    '''
+    Common argument processing for w_direct/w_reweight subcommands.
+    Mostly limited to handling input and output from w_assign.
+    '''
     
     def __init__(self, parent):
-        super(WESTKinAvg,self).__init__(parent)
+        super(WESTKineticsBase,self).__init__(parent)
         
         self.data_reader = WESTDataReader()
         self.iter_range = IterRangeSelection()
@@ -73,7 +76,7 @@ class WESTKinAvg(WESTSubcommand):
 
 # This provides some convenience functions, modified from w_kinavg, to help with calculating evolution and averages for observables with the mclib library in a consistent manner.
 # It's used in both w_direct and w_reweight.
-class AverageCommands(WESTKinAvg):
+class AverageCommands(WESTKineticsBase):
     default_output_file = 'direct.h5'
 
     def __init__(self, parent):
