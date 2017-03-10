@@ -81,7 +81,7 @@ def _rate_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha,
 
 
 # The old w_kinetics
-class DKinetics(WESTKinAvg,WESTSubcommand, WKinetics):
+class DKinetics(WESTKinAvg, WKinetics):
     subcommand='kinetics'
     default_kinetics_file = 'direct.h5'
     default_output_file = 'direct.h5'

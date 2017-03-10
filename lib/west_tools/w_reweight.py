@@ -82,7 +82,7 @@ def _1D_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha, m
 
     return results
 
-class RWMatrix(AverageCommands, FluxMatrix):
+class RWMatrix(WESTKinAvg, FluxMatrix):
     subcommand = 'matrix'
     default_kinetics_file = 'reweight.h5'
     default_output_file = 'reweight.h5'
