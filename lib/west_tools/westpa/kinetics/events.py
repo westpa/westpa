@@ -24,34 +24,19 @@ warnings.filterwarnings('ignore', category=DeprecationWarning)
 warnings.filterwarnings('ignore', category=RuntimeWarning)
 warnings.filterwarnings('ignore', category=FutureWarning)
 
-import sys, random, math
-import numpy, h5py
-from h5py import h5s
+import numpy
 
-import westpa
 from west.data_manager import weight_dtype, n_iter_dtype, seg_id_dtype
-from westtools import (WESTMasterCommand, WESTParallelTool, WESTDataReader, IterRangeSelection, WESTSubcommand,
-                       ProgressIndicatorComponent)
 from westpa import h5io
-from westpa.kinetics import labeled_flux_to_rate, sequence_macro_flux_to_rate, sequence_macro_flux_to_rate_bs
-from westpa.kinetics.matrates import get_macrostate_rates
-# This is the base tool class.  We're going to use it for the post analysis stuff, as well.
-from westpa.kintool import WESTKinAvg, AverageCommands
 
 # We'll need to integrate this properly.
 log = logging.getLogger('westtools.w_kinavg')
 
-from westtools.dtypes import iter_block_ci_dtype as ci_dtype
-
 # From w_kinetics.
-# Do we still need this?
 from westtools.dtypes import ed_list_dtype
 from westpa.binning import index_dtype
 from westpa.kinetics._kinetics import _fast_transition_state_copy #@UnresolvedImport
 from westpa.kinetics import find_macrostate_transitions
-
-# From w_stateprobs
-from westpa.binning import accumulate_state_populations_from_labeled
 
 # The old w_kinetics
 class WKinetics():

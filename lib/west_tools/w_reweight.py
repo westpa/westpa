@@ -34,7 +34,7 @@ from west.data_manager import weight_dtype, n_iter_dtype
 from westtools import (WESTMasterCommand, WESTParallelTool, WESTDataReader, IterRangeSelection, WESTSubcommand,
                        ProgressIndicatorComponent)
 
-from westpa.kintool import WESTKinAvg, AverageCommands
+from westpa.kintool import WESTKineticsBase, AverageCommands
 from westpa import h5io
 from westtools.dtypes import iter_block_ci_dtype as ci_dtype
 
@@ -82,7 +82,7 @@ def _1D_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha, m
 
     return results
 
-class RWMatrix(WESTKinAvg, FluxMatrix):
+class RWMatrix(WESTKineticsBase, FluxMatrix):
     subcommand = 'matrix'
     default_kinetics_file = 'reweight.h5'
     default_output_file = 'reweight.h5'
