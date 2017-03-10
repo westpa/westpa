@@ -36,7 +36,7 @@ from westpa import h5io
 from westpa.kinetics import labeled_flux_to_rate, sequence_macro_flux_to_rate, sequence_macro_flux_to_rate_bs, WKinetics
 from westpa.kinetics.matrates import get_macrostate_rates
 # This is the base tool class.  We're going to use it for the post analysis stuff, as well.
-from westpa.kintool import WESTKineticsBase, AverageCommands
+from westtools.kinetics_tool import WESTKineticsBase, AverageCommands
 
 import mclib
 from mclib import mcbs_correltime, mcbs_ci_correl, _1D_simple_eval_block, _2D_simple_eval_block
