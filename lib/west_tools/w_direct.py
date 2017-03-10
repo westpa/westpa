@@ -34,7 +34,7 @@ from westtools import (WESTMasterCommand, WESTParallelTool, WESTDataReader, Iter
                        ProgressIndicatorComponent)
 from westpa import h5io
 from westpa.kinetics import labeled_flux_to_rate, sequence_macro_flux_to_rate, sequence_macro_flux_to_rate_bs, WKinetics
-from westpa.kinetics.matrates import get_macrostate_rates
+#from westpa.kinetics.matrates import get_macrostate_rates
 # This is the base tool class.  We're going to use it for the post analysis stuff, as well.
 from westtools.kinetics_tool import WESTKineticsBase, AverageCommands
 
@@ -45,13 +45,6 @@ from mclib import mcbs_correltime, mcbs_ci_correl, _1D_simple_eval_block, _2D_si
 log = logging.getLogger('westtools.w_reweight')
 
 from westtools.dtypes import iter_block_ci_dtype as ci_dtype
-
-# From w_kinetics.
-# Do we still need this?
-from westtools.dtypes import ed_list_dtype
-from westpa.binning import index_dtype
-from westpa.kinetics._kinetics import _fast_transition_state_copy #@UnresolvedImport
-from westpa.kinetics import find_macrostate_transitions
 
 # From w_stateprobs
 from westpa.binning import accumulate_state_populations_from_labeled
@@ -189,8 +182,6 @@ dataset:
     (Structured -- see below) State-to-state rates based on entire window of
     iterations selected.
 
-For trace mode, the following additional datasets are generated:
-
   /avg_total_fluxes [state]
     (Structured -- see below) Total fluxes into each state based on entire
     window of iterations selected.
@@ -211,9 +202,6 @@ available:
     width --step-iter (excluding the last, which may be shorter), the first
     of which begins at iteration --start-iter.
     
-If --evolution-mode is specified in trace mode, the following additional
-datasets are available:
-
   /target_flux_evolution [window,state]
     (Structured -- see below). Total flux into a given macro state based on
     windows of iterations of varying width, as in /rate_evolution.
@@ -231,19 +219,23 @@ The structure of these datasets is as follows:
     (Integer) Iteration at which the averaging window ends (exclusive).
     
   expected
-    (Floating-point) Expected (mean) value of the rate as evaluated within
+    (Floating-point) Expected (mean) value of the observable as evaluated within
     this window, in units of inverse tau.
     
   ci_lbound
-    (Floating-point) Lower bound of the confidence interval on the rate
+    (Floating-point) Lower bound of the confidence interval of the observable
     within this window, in units of inverse tau.
     
   ci_ubound
-    (Floating-point) Upper bound of the confidence interval on the rate 
+    (Floating-point) Upper bound of the confidence interval of the observable
+    within this window, in units of inverse tau.
+
+  stderr
+    (Floating-point) The standard error of the mean of the observable
     within this window, in units of inverse tau.
     
   corr_len
-    (Integer) Correlation length of the rate within this window, in units
+    (Integer) Correlation length of the observable within this window, in units
     of tau.
 
 Each of these datasets is also stamped with a number of attributes:
@@ -350,8 +342,12 @@ Output format
 The output file (-o/--output, usually "direct.h5") contains the following
 dataset:
 
-  /avg_state_pops [state]
+  /avg_state_probs [state]
     (Structured -- see below) Population of each state across entire
+    range specified.
+
+  /avg_color_probs [state]
+    (Structured -- see below) Population of each ensemble across entire
     range specified.
 
 If --evolution-mode is specified, then the following additional dataset is
@@ -359,6 +355,15 @@ available:
 
   /state_pop_evolution [window][state]
     (Structured -- see below). State populations based on windows of
+    iterations of varying width.  If --evolution-mode=cumulative, then
+    these windows all begin at the iteration specified with
+    --start-iter and grow in length by --step-iter for each successive 
+    element. If --evolution-mode=blocked, then these windows are all of
+    width --step-iter (excluding the last, which may be shorter), the first
+    of which begins at iteration --start-iter.
+
+  /color_prob_evolution [window][state]
+    (Structured -- see below). Ensemble populations based on windows of
     iterations of varying width.  If --evolution-mode=cumulative, then
     these windows all begin at the iteration specified with
     --start-iter and grow in length by --step-iter for each successive 
@@ -375,19 +380,23 @@ The structure of these datasets is as follows:
     (Integer) Iteration at which the averaging window ends (exclusive).
     
   expected
-    (Floating-point) Expected (mean) value of the rate as evaluated within
+    (Floating-point) Expected (mean) value of the observable as evaluated within
     this window, in units of inverse tau.
     
   ci_lbound
-    (Floating-point) Lower bound of the confidence interval on the rate
+    (Floating-point) Lower bound of the confidence interval of the observable
     within this window, in units of inverse tau.
     
   ci_ubound
-    (Floating-point) Upper bound of the confidence interval on the rate 
+    (Floating-point) Upper bound of the confidence interval of the observable
+    within this window, in units of inverse tau.
+
+  stderr
+    (Floating-point) The standard error of the mean of the observable
     within this window, in units of inverse tau.
     
   corr_len
-    (Integer) Correlation length of the rate within this window, in units
+    (Integer) Correlation length of the observable within this window, in units
     of tau.
 
 Each of these datasets is also stamped with a number of attributes:
