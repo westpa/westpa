@@ -19,7 +19,7 @@ def generate_future(work_manager, name, eval_block, kwargs):
 
     
 class WESTKinAvg(WESTToolComponent):
-    '''Common argument processing for w_direct subcommands'''
+    '''Common argument processing for w_direct/w_reweight subcommands'''
     
     def __init__(self, parent):
         super(WESTKinAvg,self).__init__(parent)
@@ -63,7 +63,7 @@ class WESTKinAvg(WESTToolComponent):
         
         # self.default_kinetics_file will be picked up as a class attribute from the appropriate subclass        
         # We can do this with the output file, too...
-        # ... by default, however, we're going to use direct.h5 for everything.
+        # ... by default, however, we're going to use {direct/reweight}.h5 for everything.
         # Modules which are called with different default values will, of course, still use those.
         iogroup.add_argument('-k', '--kinetics', default=self.default_kinetics_file,
                             help='''Populations and transition rates are stored in KINETICS
@@ -102,7 +102,7 @@ class WESTKinAvg(WESTToolComponent):
         mgroup = parser.add_argument_group('misc options')
         mgroup.add_argument('--disable-averages', '-da', dest='display_averages', action='store_false',
                              help='''Whether or not the averages should be printed to the console (set to FALSE if flag is used).''')
-        self.more_args(parser)
+    #    self.more_args(parser)
         
 
     
@@ -132,16 +132,17 @@ class WESTKinAvg(WESTToolComponent):
         self.evol_window_frac = args.window_frac
         if self.evol_window_frac <= 0 or self.evol_window_frac > 1:
             raise ValueError('Parameter error -- fractional window defined by --window-frac must be in (0,1]')
-        self.process_more_args(args)
+    #    self.process_more_args(args)
 
     # Shim functions to be overridden, if necessary.
-    def more_args(self, parser):
-        pass
+    #def more_args(self, parser):
+    #    pass
     
-    def process_more_args(self, args):
-        pass
+    #def process_more_args(self, args):
+    #    pass
 
 # This provides some convenience functions, modified from w_kinavg, to help with calculating evolution and averages for observables with the mclib library in a consistent manner.
+# It's used in both w_direct and w_reweight.
 class AverageCommands(WESTKinAvg, WESTSubcommand):
     default_output_file = 'direct.h5'
 
