@@ -128,14 +128,13 @@ def mcbs_ci_correl(estimator_datasets, estimator, alpha, n_sets=None, args=None,
     else:
         correl_len = 0
     if correl_len == len(pre_calculated):
-        # too correlated for meaningful calculations, or...
+        # too correlated for meaningful calculations
         estimator_datasets.update(estimator_kwargs)
         try:
             estimator_datasets.update( { 'stride': 1 } )
         except:
             pass
 
-        # We've already run the calculation, so why not speed it up?
         return estimator(**estimator_datasets), pre_calculated.min(), pre_calculated.max(), (numpy.std(pre_calculated)), correl_len
 
     # else, do a blocked bootstrap

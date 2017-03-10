@@ -224,7 +224,96 @@ class RWRate(RWReweight):
     help_text = 'Generates rate and flux values from a WESTPA simulation via reweighting.'
     default_kinetics_file = 'reweight.h5'
     default_output_file = 'reweight.h5'
-    description = '''\ Calculates rate and flux values from a WESTPA simulation via reweighting'''
+    description = '''\
+Calculate average rates from weighted ensemble data using the postanalysis
+reweighting scheme. Bin assignments (usually "assignments.h5") and pre-calculated 
+iteration flux matrices (usually "flux_matrices.h5") data files must have been 
+previously generated using w_postanalysis_matrix.py (see "w_assign --help" and 
+"w_kinetics --help" for information on generating these files).
+-----------------------------------------------------------------------------
+Output format
+-----------------------------------------------------------------------------
+The output file (-o/--output, usually "kinrw.h5") contains the following
+dataset:
+
+  /avg_rates [state,state]
+    (Structured -- see below) State-to-state rates based on entire window of
+    iterations selected.
+
+  /avg_total_fluxes [state]
+    (Structured -- see below) Total fluxes into each state based on entire
+    window of iterations selected.
+    
+  /avg_conditional_fluxes [state,state]
+    (Structured -- see below) State-to-state fluxes based on entire window of
+    iterations selected.
+
+If --evolution-mode is specified, then the following additional dataset is
+available:
+
+  /rate_evolution [window][state][state]
+    (Structured -- see below). State-to-state rates based on windows of
+    iterations of varying width.  If --evolution-mode=cumulative, then
+    these windows all begin at the iteration specified with
+    --start-iter and grow in length by --step-iter for each successive 
+    element. If --evolution-mode=blocked, then these windows are all of
+    width --step-iter (excluding the last, which may be shorter), the first
+    of which begins at iteration --start-iter.
+    
+  /target_flux_evolution [window,state]
+    (Structured -- see below). Total flux into a given macro state based on
+    windows of iterations of varying width, as in /rate_evolution.
+    
+  /conditional_flux_evolution [window,state,state]
+    (Structured -- see below). State-to-state fluxes based on windows of
+    varying width, as in /rate_evolution.
+    
+The structure of these datasets is as follows:
+
+  iter_start
+    (Integer) Iteration at which the averaging window begins (inclusive).
+    
+  iter_stop
+    (Integer) Iteration at which the averaging window ends (exclusive).
+    
+  expected
+    (Floating-point) Expected (mean) value of the observable as evaluated within
+    this window, in units of inverse tau.
+    
+  ci_lbound
+    (Floating-point) Lower bound of the confidence interval of the observable
+    within this window, in units of inverse tau.
+    
+  ci_ubound
+    (Floating-point) Upper bound of the confidence interval of the observable
+    within this window, in units of inverse tau.
+
+  stderr
+    (Floating-point) The standard error of the mean of the observable
+    within this window, in units of inverse tau.
+    
+  corr_len
+    (Integer) Correlation length of the observable within this window, in units
+    of tau.
+
+Each of these datasets is also stamped with a number of attributes:
+
+  mcbs_alpha
+    (Floating-point) Alpha value of confidence intervals. (For example, 
+    *alpha=0.05* corresponds to a 95% confidence interval.)
+
+  mcbs_nsets
+    (Integer) Number of bootstrap data sets used in generating confidence
+    intervals.
+    
+  mcbs_acalpha
+    (Floating-point) Alpha value for determining correlation lengths.
+   
+
+-----------------------------------------------------------------------------
+Command-line options
+-----------------------------------------------------------------------------
+    '''
 
     def __init__(self, parent):
         super(RWRate, self).__init__(parent)
@@ -319,7 +408,101 @@ class RWStateProbs(RWReweight):
     subcommand = 'stateprobs'
     help_text = 'Calculates color and state probabilities via reweighting.'
     default_kinetics_file = 'reweight.h5'
-    description = '''\ Calculates color and state probabilities via reweighting.'''
+    description = '''\
+Calculate average populations from weighted ensemble data using the postanalysis
+reweighting scheme. Bin assignments (usually "assign.h5") and pre-calculated 
+iteration flux matrices (usually "reweight.h5") data files must have been 
+previously generated using w_postanalysis_matrix.py (see "w_assign --help" and 
+"w_reweight matrix --help" for information on generating these files).
+
+-----------------------------------------------------------------------------
+Output format
+-----------------------------------------------------------------------------
+
+The output file (-o/--output, usually "direct.h5") contains the following
+dataset:
+
+  /avg_state_probs [state]
+    (Structured -- see below) Population of each state across entire
+    range specified.
+
+  /avg_color_probs [state]
+    (Structured -- see below) Population of each ensemble across entire
+    range specified.
+
+  /bin_populations [window, bin]
+     The reweighted populations of each bin based on windows. Bins contain
+     one color each, so to recover the original un-colored spatial bins,
+     one must sum over all states.
+
+If --evolution-mode is specified, then the following additional dataset is
+available:
+
+  /state_pop_evolution [window][state]
+    (Structured -- see below). State populations based on windows of
+    iterations of varying width.  If --evolution-mode=cumulative, then
+    these windows all begin at the iteration specified with
+    --start-iter and grow in length by --step-iter for each successive 
+    element. If --evolution-mode=blocked, then these windows are all of
+    width --step-iter (excluding the last, which may be shorter), the first
+    of which begins at iteration --start-iter.
+
+  /color_prob_evolution [window][state]
+    (Structured -- see below). Ensemble populations based on windows of
+    iterations of varying width.  If --evolution-mode=cumulative, then
+    these windows all begin at the iteration specified with
+    --start-iter and grow in length by --step-iter for each successive 
+    element. If --evolution-mode=blocked, then these windows are all of
+    width --step-iter (excluding the last, which may be shorter), the first
+    of which begins at iteration --start-iter.
+    
+The structure of these datasets is as follows:
+
+  iter_start
+    (Integer) Iteration at which the averaging window begins (inclusive).
+    
+  iter_stop
+    (Integer) Iteration at which the averaging window ends (exclusive).
+    
+  expected
+    (Floating-point) Expected (mean) value of the observable as evaluated within
+    this window, in units of inverse tau.
+    
+  ci_lbound
+    (Floating-point) Lower bound of the confidence interval of the observable
+    within this window, in units of inverse tau.
+    
+  ci_ubound
+    (Floating-point) Upper bound of the confidence interval of the observable
+    within this window, in units of inverse tau.
+
+  stderr
+    (Floating-point) The standard error of the mean of the observable
+    within this window, in units of inverse tau.
+    
+  corr_len
+    (Integer) Correlation length of the observable within this window, in units
+    of tau.
+
+
+Each of these datasets is also stamped with a number of attributes:
+
+  mcbs_alpha
+    (Floating-point) Alpha value of confidence intervals. (For example, 
+    *alpha=0.05* corresponds to a 95% confidence interval.)
+
+  mcbs_nsets
+    (Integer) Number of bootstrap data sets used in generating confidence
+    intervals.
+    
+  mcbs_acalpha
+    (Floating-point) Alpha value for determining correlation lengths.
+   
+
+-----------------------------------------------------------------------------
+Command-line options
+-----------------------------------------------------------------------------
+'''    
     def w_postanalysis_stateprobs(self):
         ''' 
         This function ensures the data is ready to send in to the estimator and
