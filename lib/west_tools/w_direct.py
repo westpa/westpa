@@ -59,7 +59,7 @@ from westpa.binning import accumulate_state_populations_from_labeled
 # This block is responsible for submitting a set of calculations to be bootstrapped over for a particular type of calculation.
 # A property which wishes to be calculated should adhere to this format.
 
-def _rate_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha, mcbs_nsets, mcbs_acalpha, do_correl, **extra):
+def _rate_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha, mcbs_nsets, mcbs_acalpha, do_correl, mcbs_enable):
     # Our rate estimator is a little more complex, so we've defined a custom evaluation block for it,
     # instead of just using the block evalutors that we've imported.
     results = []
@@ -74,7 +74,7 @@ def _rate_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha,
             dataset = {'dataset': data_input['dataset'][:, istate, jstate], 'pops': data_input['pops'] }
             ci_res = mcbs_ci_correl(dataset,estimator=sequence_macro_flux_to_rate_bs,
                                     alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
-                                    subsample=numpy.mean, do_correl=do_correl, estimator_kwargs=kwargs)
+                                    subsample=numpy.mean, do_correl=do_correl, mcbs_enable=mcbs_enable, estimator_kwargs=kwargs)
             results.append((name, iblock, istate, jstate, (start,stop) + ci_res))
 
     return results

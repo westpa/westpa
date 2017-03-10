@@ -48,7 +48,7 @@ from mclib import mcbs_correltime, mcbs_ci_correl
 from westpa.binning import index_dtype
 from westpa.reweight import stats_process, reweight_for_c, FluxMatrix
 
-def _2D_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha, mcbs_nsets, mcbs_acalpha, do_correl, estimator_kwargs):
+def _2D_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha, mcbs_nsets, mcbs_acalpha, do_correl, mcbs_enable, estimator_kwargs):
     # Our rate estimator is a little more complex, so we've defined a custom evaluation block for it.
     results = []
     for istate in xrange(nstates):
@@ -60,12 +60,12 @@ def _2D_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha, m
             
             ci_res = mcbs_ci_correl(dataset,estimator=reweight_for_c,
                                     alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
-                                    subsample=(lambda x: x[0]), do_correl=do_correl, estimator_kwargs=estimator_kwargs)
+                                    subsample=(lambda x: x[0]), do_correl=do_correl, mcbs_enable=mcbs_enable, estimator_kwargs=estimator_kwargs)
             results.append((name, iblock, istate, jstate, (start,stop) + ci_res))
 
     return results
 
-def _1D_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha, mcbs_nsets, mcbs_acalpha, do_correl, estimator_kwargs):
+def _1D_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha, mcbs_nsets, mcbs_acalpha, do_correl, mcbs_enable, estimator_kwargs):
     # Our rate estimator is a little more complex, so we've defined a custom evaluation block for it.
     results = []
     for istate in xrange(nstates):
@@ -77,7 +77,7 @@ def _1D_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha, m
         
         ci_res = mcbs_ci_correl(dataset,estimator=reweight_for_c,
                                 alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
-                                subsample=(lambda x: x[0]), do_correl=do_correl, estimator_kwargs=estimator_kwargs)
+                                subsample=(lambda x: x[0]), do_correl=do_correl, mcbs_enable=mcbs_enable, estimator_kwargs=estimator_kwargs)
         results.append((name, iblock, istate, (start,stop) + ci_res))
 
     return results

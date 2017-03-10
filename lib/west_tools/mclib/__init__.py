@@ -25,7 +25,7 @@ from _mclib import autocorrel_elem, mcbs_correltime, get_bssize, mcbs_ci #@Unres
 
 def mcbs_ci_correl(estimator_datasets, estimator, alpha, n_sets=None, args=None,
                    autocorrel_alpha = None, autocorrel_n_sets=None, subsample=None, 
-                   do_correl=True, estimator_kwargs={}):
+                   do_correl=True, mcbs_enable=None, estimator_kwargs={}):
     '''Perform a Monte Carlo bootstrap estimate for the (1-``alpha``) confidence interval
     on the given ``dataset`` with the given ``estimator``.  This routine is appropriate
     for time-correlated data, using the method described in Huber & Kim, "Weighted-ensemble
@@ -90,6 +90,21 @@ def mcbs_ci_correl(estimator_datasets, estimator, alpha, n_sets=None, args=None,
     n_sets = n_sets or get_bssize(alpha)
     autocorrel_n_sets = autocorrel_n_sets or get_bssize(autocorrel_alpha)
 
+    if mcbs_enable == False:
+        # While it's odd to support NOT doing the bootstrap in a library specifically designed for bootstrapping, 
+        # supporting this functionality here makes writing the code a lot easier, as we can just pass in a flag.
+        # Specifically, this is for situations in which error is not desired (that is, only a reasonable mean is desired).
+        # It's often useful when doing a quick analysis.
+        estimator_datasets.update(estimator_kwargs)
+        try:
+            estimator_datasets.update( { 'stride': 1 } )
+        except:
+            pass
+        
+        return_set = estimator(**estimator_datasets)
+        # We don't try and pretend we're doing any error analysis.
+        return return_set, return_set, return_set, 0, 1
+
     # We need to pre-generate the data; why not do it here?  We're already set up for it...
     precalc_kwargs = estimator_kwargs.copy()
     precalc_kwargs['stride'] = 1
@@ -103,6 +118,7 @@ def mcbs_ci_correl(estimator_datasets, estimator, alpha, n_sets=None, args=None,
     pre_calculated = pre_calculated[numpy.isfinite(pre_calculated)]
     # If this happens, we have a huge NaN problem.  That is, our estimator is failing to return meaningful
     # numbers.  We should catch this when it happens, and so raise an exception, here.
+    # This is almost certainly due to estimator failure.  Double check that calculation.
     if pre_calculated.shape == (0,):
         raise NameError("Looks like the estimator failed.  This is likely a programming issue, and should be reported.")
     # If pre-calculated is not None, we'll use that instead of dataset.
@@ -112,16 +128,16 @@ def mcbs_ci_correl(estimator_datasets, estimator, alpha, n_sets=None, args=None,
     else:
         correl_len = 0
     if correl_len == len(pre_calculated):
-        # too correlated for meaningful calculations
-        d_input = estimator_datasets.copy()
-        estimator_kwargs['stride'] = 1
+        # too correlated for meaningful calculations, or...
+        estimator_datasets.update(estimator_kwargs)
         try:
-            d_input.update(estimator_kwargs)
+            estimator_datasets.update( { 'stride': 1 } )
         except:
             pass
 
-        return estimator(**d_input), pre_calculated.min(), pre_calculated.max(), (numpy.std(pre_calculated)), correl_len
-        
+        # We've already run the calculation, so why not speed it up?
+        return estimator(**estimator_datasets), pre_calculated.min(), pre_calculated.max(), (numpy.std(pre_calculated)), correl_len
+
     # else, do a blocked bootstrap
     stride = correl_len + 1
     
@@ -157,7 +173,7 @@ def mcbs_ci_correl(estimator_datasets, estimator, alpha, n_sets=None, args=None,
 # Whether they should go here or in westtoools is somewhat up for debate.
 # Currently, nothing actually uses them, so there's that.
 
-def _1D_simple_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha, mcbs_nsets, mcbs_acalpha, do_correl, subsample=numpy.mean, **extra):
+def _1D_simple_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha, mcbs_nsets, mcbs_acalpha, do_correl, mcbs_enable, subsample=numpy.mean, **extra):
     # This is actually appropriate for anything with a directly measured, 1D dataset, i.e.,
     # Fluxes, color populations, and state populations.
     results = []
@@ -167,13 +183,13 @@ def _1D_simple_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_a
         estimator_datasets = {'dataset': data_input['dataset'][:,istate]}
         ci_res = mcbs_ci_correl(estimator_datasets,estimator=(lambda stride, dataset: numpy.mean(dataset)),
                                 alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
-                                subsample=subsample, do_correl=do_correl)
+                                subsample=subsample, do_correl=do_correl, mcbs_enable=mcbs_enable)
 
         results.append((name, iblock,istate,(start,stop)+ci_res))
 
     return results
 
-def _2D_simple_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha, mcbs_nsets, mcbs_acalpha, do_correl, subsample=numpy.mean, **extra):
+def _2D_simple_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha, mcbs_nsets, mcbs_acalpha, do_correl, mcbs_enable, subsample=numpy.mean, **extra):
     # This is really just a simple 2D block for less complex datasets, but there it is.
     # It's probably limited in this use case to conditional_fluxes, but anything that's an i to j process that is directly measured
     # is suitable for use with this.
@@ -186,7 +202,7 @@ def _2D_simple_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_a
             estimator_datasets = {'dataset': data_input['dataset'][:, istate, jstate] }
             ci_res = mcbs_ci_correl(estimator_datasets,estimator=(lambda stride, dataset: numpy.mean(dataset)),
                                     alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
-                                    subsample=subsample, do_correl=do_correl)
+                                    subsample=subsample, do_correl=do_correl, mcbs_enable=mcbs_enable)
 
             results.append((name, iblock, istate, jstate, (start,stop) + ci_res))
 
