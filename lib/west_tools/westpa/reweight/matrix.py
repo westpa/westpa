@@ -48,7 +48,7 @@ class FluxMatrix():
     def w_postanalysis_matrix(self):
         pi = self.progress.indicator
         pi.new_operation('Initializing')
-        with pi:
+        if True:
 
             self.data_reader.open('r')
             nbins = self.assignments_file.attrs['nbins']

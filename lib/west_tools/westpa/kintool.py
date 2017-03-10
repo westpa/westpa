@@ -200,7 +200,6 @@ class AverageCommands(WESTKineticsBase):
                         maxlabellen=maxlabellen))
 
     def run_calculation(self, pi, nstates, start_iter, stop_iter, step_iter, dataset, eval_block, name, dim, do_averages=False, **extra):
-        #pi = self.progress.indicator
         
         # We want to use the same codepath to run a quick average as we do the longer evolution sets, so...
         if do_averages:
@@ -219,7 +218,6 @@ class AverageCommands(WESTKineticsBase):
         # This is appropriate for bootstrapped quantities, I think.
         all_items = numpy.arange(1,len(start_pts)+1)
         bootstrap_length = 0.5*(len(start_pts)*(len(start_pts)+1)) - numpy.delete(all_items, numpy.arange(1, len(start_pts)+1, step_iter))
-        #with pi:
         if True:
             pi.new_operation('Calculating {}'.format(name), bootstrap_length[0])
 
@@ -261,7 +259,6 @@ class AverageCommands(WESTKineticsBase):
             for future in self.work_manager.as_completed(futures):
                 pi.progress += iblock / step_iter
                 future_result = future.get_result(discard=True)
-                # print(future_result)
 
                 if dim == 2:
                     for result in future_result:
@@ -272,5 +269,4 @@ class AverageCommands(WESTKineticsBase):
                         name,iblock,istate,ci_result = result
                         evolution_dataset[iblock, istate] = ci_result
 
-
-            return evolution_dataset
+        return evolution_dataset

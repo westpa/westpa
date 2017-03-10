@@ -129,7 +129,9 @@ either equilibrium or steady-state conditions without recycling target states.
         # This function exists in FluxMatrix, and is not currently portable.
         # That is, it assumes all properties are properly initialized (self.assignments_file, etc)
         # TO DO : make it portable.
-        self.w_postanalysis_matrix()
+        pi = self.progress.indicator
+        with pi:
+            self.w_postanalysis_matrix()
 
 class RWReweight(AverageCommands):
     help_text = 'Parent class for all reweighting routines, as they all use the same estimator code.'
@@ -266,25 +268,23 @@ class RWRate(RWReweight):
 
 
         # Calculate averages for the simulation, then report, if necessary.
-        with pi:
 
-            # The dataset options are what we pass on to the estimator...
-            submit_kwargs['estimator_kwargs']['return_obs'] = 'R'
-            avg_rates = self.run_calculation(eval_block=_2D_eval_block, name='Average Rates', dim=2, do_averages=True, **submit_kwargs)
-            avg_rates['expected'] *= (self.npts - 1)
-            avg_rates['ci_ubound'] *= (self.npts - 1)
-            avg_rates['ci_lbound'] *= (self.npts - 1)
-            self.output_file.replace_dataset('avg_rates', data=avg_rates[1])
+        # The dataset options are what we pass on to the estimator...
+        submit_kwargs['estimator_kwargs']['return_obs'] = 'R'
+        avg_rates = self.run_calculation(eval_block=_2D_eval_block, name='Average Rates', dim=2, do_averages=True, **submit_kwargs)
+        avg_rates['expected'] *= (self.npts - 1)
+        avg_rates['ci_ubound'] *= (self.npts - 1)
+        avg_rates['ci_lbound'] *= (self.npts - 1)
+        self.output_file.replace_dataset('avg_rates', data=avg_rates[1])
 
-            submit_kwargs['estimator_kwargs']['return_obs'] = 'F'
-            avg_conditional_fluxes = self.run_calculation(eval_block=_2D_eval_block, name='Average Flux', dim=2, do_averages=True, **submit_kwargs)
-            avg_conditional_fluxes['expected'] *= (self.npts - 1)
-            avg_conditional_fluxes['ci_ubound'] *= (self.npts - 1)
-            avg_conditional_fluxes['ci_lbound'] *= (self.npts - 1)
-            self.output_file.replace_dataset('avg_conditional_fluxes', data=avg_conditional_fluxes[1])
+        submit_kwargs['estimator_kwargs']['return_obs'] = 'F'
+        avg_conditional_fluxes = self.run_calculation(eval_block=_2D_eval_block, name='Average Flux', dim=2, do_averages=True, **submit_kwargs)
+        avg_conditional_fluxes['expected'] *= (self.npts - 1)
+        avg_conditional_fluxes['ci_ubound'] *= (self.npts - 1)
+        avg_conditional_fluxes['ci_lbound'] *= (self.npts - 1)
+        self.output_file.replace_dataset('avg_conditional_fluxes', data=avg_conditional_fluxes[1])
 
         # Now, print them!
-        pi.clear()
 
         # We've returned an average, but it still exists in a timeslice format.  So we need to return the 'last' value.
         if self.display_averages:
@@ -292,28 +292,26 @@ class RWRate(RWReweight):
             self.print_averages(avg_rates[1], '\nrates from state to state:', dim=2)
 
         # Do a bootstrap evolution.
-        pi.clear()
-        with pi:
 
-            submit_kwargs['estimator_kwargs']['return_obs'] = 'R'
-            rate_evol = self.run_calculation(eval_block=_2D_eval_block, name='Rate Evolution', dim=2, **submit_kwargs)
-            rate_evol['expected'] *= (self.npts - 1)
-            rate_evol['ci_ubound'] *= (self.npts - 1)
-            rate_evol['ci_lbound'] *= (self.npts - 1)
-            self.output_file.replace_dataset('rate_evolution', data=rate_evol, shuffle=True, compression=9)
+        submit_kwargs['estimator_kwargs']['return_obs'] = 'R'
+        rate_evol = self.run_calculation(eval_block=_2D_eval_block, name='Rate Evolution', dim=2, **submit_kwargs)
+        rate_evol['expected'] *= (self.npts - 1)
+        rate_evol['ci_ubound'] *= (self.npts - 1)
+        rate_evol['ci_lbound'] *= (self.npts - 1)
+        self.output_file.replace_dataset('rate_evolution', data=rate_evol, shuffle=True, compression=9)
 
-            pi.clear()
-            submit_kwargs['estimator_kwargs']['return_obs'] = 'F'
-            flux_evol = self.run_calculation(eval_block=_2D_eval_block, name='Conditional Flux Evolution', dim=2, **submit_kwargs)
-            flux_evol['expected'] *= (self.npts - 1)
-            flux_evol['ci_ubound'] *= (self.npts - 1)
-            flux_evol['ci_lbound'] *= (self.npts - 1)
-            self.output_file.replace_dataset('conditional_flux_evolution', data=rate_evol, shuffle=True, compression=9)
+        submit_kwargs['estimator_kwargs']['return_obs'] = 'F'
+        flux_evol = self.run_calculation(eval_block=_2D_eval_block, name='Conditional Flux Evolution', dim=2, **submit_kwargs)
+        flux_evol['expected'] *= (self.npts - 1)
+        flux_evol['ci_ubound'] *= (self.npts - 1)
+        flux_evol['ci_lbound'] *= (self.npts - 1)
+        self.output_file.replace_dataset('conditional_flux_evolution', data=rate_evol, shuffle=True, compression=9)
 
-        pi.clear()
 
     def go(self):
-        self.w_postanalysis_reweight()
+        pi = self.progress.indicator
+        with pi:
+            self.w_postanalysis_reweight()
 
 
 class RWStateProbs(RWReweight):
@@ -359,19 +357,17 @@ class RWStateProbs(RWReweight):
 
 
         # Calculate averages for the simulation, then report, if necessary.
-        with pi:
 
-            # The dataset options are what we pass on to the estimator...
-            submit_kwargs['estimator_kwargs']['return_obs'] = 'C'
-            avg_color_probs = self.run_calculation(eval_block=_1D_eval_block, name='Average Color (Ensemble) Probability', dim=1, do_averages=True, **submit_kwargs)
-            self.output_file.replace_dataset('avg_color_probs', data=avg_color_probs[1])
+        # The dataset options are what we pass on to the estimator...
+        submit_kwargs['estimator_kwargs']['return_obs'] = 'C'
+        avg_color_probs = self.run_calculation(eval_block=_1D_eval_block, name='Average Color (Ensemble) Probability', dim=1, do_averages=True, **submit_kwargs)
+        self.output_file.replace_dataset('avg_color_probs', data=avg_color_probs[1])
 
-            submit_kwargs['estimator_kwargs']['return_obs'] = 'S'
-            avg_state_probs = self.run_calculation(eval_block=_1D_eval_block, name='Average State Probability', dim=1, do_averages=True, **submit_kwargs)
-            self.output_file.replace_dataset('avg_state_probs', data=avg_state_probs[1])
+        submit_kwargs['estimator_kwargs']['return_obs'] = 'S'
+        avg_state_probs = self.run_calculation(eval_block=_1D_eval_block, name='Average State Probability', dim=1, do_averages=True, **submit_kwargs)
+        self.output_file.replace_dataset('avg_state_probs', data=avg_state_probs[1])
 
         # Now, print them!
-        pi.clear()
 
         # We've returned an average, but it still exists in a timeslice format.  So we need to return the 'last' value.
         if self.display_averages:
@@ -379,21 +375,19 @@ class RWStateProbs(RWReweight):
             self.print_averages(avg_state_probs[1], '\naverage state probabilities:', dim=1)
 
         # Do a bootstrap evolution.
-        pi.clear()
-        with pi:
 
-            submit_kwargs['estimator_kwargs']['return_obs'] = 'C'
-            color_evol = self.run_calculation(eval_block=_1D_eval_block, name='Color (Ensemble) Probability Evolution', dim=1, **submit_kwargs)
-            self.output_file.replace_dataset('color_prob_evolution', data=color_evol, shuffle=True, compression=9)
+        submit_kwargs['estimator_kwargs']['return_obs'] = 'C'
+        color_evol = self.run_calculation(eval_block=_1D_eval_block, name='Color (Ensemble) Probability Evolution', dim=1, **submit_kwargs)
+        self.output_file.replace_dataset('color_prob_evolution', data=color_evol, shuffle=True, compression=9)
 
-            submit_kwargs['estimator_kwargs']['return_obs'] = 'S'
-            state_evol = self.run_calculation(eval_block=_1D_eval_block, name='State Probability Evolution', dim=1, **submit_kwargs)
-            self.output_file.replace_dataset('state_pop_evolution', data=state_evol, shuffle=True, compression=9)
-
-        pi.clear()
+        submit_kwargs['estimator_kwargs']['return_obs'] = 'S'
+        state_evol = self.run_calculation(eval_block=_1D_eval_block, name='State Probability Evolution', dim=1, **submit_kwargs)
+        self.output_file.replace_dataset('state_pop_evolution', data=state_evol, shuffle=True, compression=9)
 
     def go(self):
-        self.w_postanalysis_stateprobs()
+        pi = self.progress.indicator
+        with pi:
+            self.w_postanalysis_stateprobs()
 
 class RWAll(RWMatrix, RWStateProbs, RWRate):
     subcommand = 'all'
@@ -404,9 +398,11 @@ class RWAll(RWMatrix, RWStateProbs, RWRate):
     def go(self):
         # One minor issue; as this stands now, since it's inheriting from all the other classes, it needs
         # a kinetics file to instantiate the other attributes.  We'll need to modify how the loading works, there.
-        self.w_postanalysis_matrix()
-        self.w_postanalysis_reweight()
-        self.w_postanalysis_stateprobs()
+        pi = self.progress.indicator
+        with pi:
+            self.w_postanalysis_matrix()
+            self.w_postanalysis_reweight()
+            self.w_postanalysis_stateprobs()
 
 # Just a convenience class to average the observables.
 class RWAverage(RWStateProbs, RWRate):
@@ -416,8 +412,10 @@ class RWAverage(RWStateProbs, RWRate):
     default_output_file = 'reweight.h5'
 
     def go(self):
-        self.w_postanalysis_reweight()
-        self.w_postanalysis_stateprobs()
+        pi = self.progress.indicator
+        with pi:
+            self.w_postanalysis_reweight()
+            self.w_postanalysis_stateprobs()
 
 class WReweight(WESTMasterCommand, WESTParallelTool):
     prog='w_reweight'
