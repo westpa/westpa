@@ -42,8 +42,9 @@ from westpa.kinetics import find_macrostate_transitions
 class WKinetics():
     def w_kinetics(self):
         pi = self.progress.indicator
-        pi.new_operation('Initializing')
-        with pi:
+        #pi.new_operation('Initializing')
+        #with pi:
+        if True:
             self.data_reader.open('r')
             self.open_files()
             nstates = self.assignments_file.attrs['nstates']
