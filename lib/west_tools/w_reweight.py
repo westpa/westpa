@@ -34,7 +34,7 @@ from west.data_manager import weight_dtype, n_iter_dtype
 from westtools import (WESTMasterCommand, WESTParallelTool, WESTDataReader, IterRangeSelection, WESTSubcommand,
                        ProgressIndicatorComponent)
 
-from westpa.kintool import WESTKineticsBase, AverageCommands
+from westtools.kinetics_tool import WESTKineticsBase, AverageCommands
 from westpa import h5io
 from westtools.dtypes import iter_block_ci_dtype as ci_dtype
 
