@@ -99,10 +99,11 @@ either equilibrium or steady-state conditions without recycling target states.
     
     def __init__(self, parent):
         super(RWMatrix, self).__init__(parent)
+        self.parent = parent
         self.assignments_file = None
         
 
-    def more_args(self, parser):
+    def add_args(self, parser):
         cogroup = parser.add_argument_group('calculation options')
         cogroup.add_argument('-s', '--sampling-frequency', 
                              dest='sampling_frequency', 
@@ -119,7 +120,7 @@ either equilibrium or steady-state conditions without recycling target states.
                              (['bin_populations']).''' )
 
                                        
-    def process_more_args(self, args):
+    def process_args(self, args):
         self.output_file = h5io.WESTPAH5File(args.output, 'w', creating_program=True)
         self.assignments_file = h5io.WESTPAH5File(args.assignments, 'r')
         self.sampling_frequency = args.sampling_frequency
@@ -130,16 +131,21 @@ either equilibrium or steady-state conditions without recycling target states.
         # TO DO : make it portable.
         self.w_postanalysis_matrix()
 
-class RWReweight():
+class RWReweight(AverageCommands):
     help_text = 'Parent class for all reweighting routines, as they all use the same estimator code.'
 
-    def more_args(self, parser):
+    def __init__(self, parent):
+        super(RWReweight, self).__init__(parent)
+        self.parent = parent
+        self.assignments_file = None
+
+    def add_args(self, parser):
         cogroup = parser.add_argument_group('calculation options')
         cogroup.add_argument('--obs-threshold', type=int, default=1,
                              help='''The minimum number of observed transitions between two states i and j necessary to include
                              fluxes in the reweighting estimate''')
 
-    def process_more_args(self, args):
+    def process_args(self, args):
         self.obs_threshold = args.obs_threshold
 
     def accumulate_statistics(self,start_iter,stop_iter):
@@ -210,13 +216,17 @@ class RWReweight():
 
         self.accumulate_statistics(start_iter,stop_iter)
 
-class RWRate(AverageCommands, RWReweight):
+class RWRate(RWReweight):
     subcommand = 'rate'
     help_text = 'Generates rate and flux values from a WESTPA simulation via reweighting.'
     default_kinetics_file = 'reweight.h5'
     default_output_file = 'reweight.h5'
     description = '''\ Calculates rate and flux values from a WESTPA simulation via reweighting'''
 
+    def __init__(self, parent):
+        super(RWRate, self).__init__(parent)
+        self.parent = parent
+        self.assignments_file = None
 
     def w_postanalysis_reweight(self):
         ''' 
@@ -306,7 +316,7 @@ class RWRate(AverageCommands, RWReweight):
         self.w_postanalysis_reweight()
 
 
-class RWStateProbs(AverageCommands, RWReweight):
+class RWStateProbs(RWReweight):
     subcommand = 'stateprobs'
     help_text = 'Calculates color and state probabilities via reweighting.'
     default_kinetics_file = 'reweight.h5'
