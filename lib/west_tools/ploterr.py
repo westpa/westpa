@@ -251,7 +251,6 @@ flux/rate is being plotted:
         
         self.rate_output_pattern = args.rate_output
         self.flux_output_pattern = args.flux_output
-        print(args.rate_output)
                 
     def plot_flux(self, istate):
         label = self.state_labels[istate]
