@@ -66,6 +66,11 @@ ghpages:
 	find $(BUILDDIR)/html/* -name '*.html' -exec sed -i 's/_static/static/g' {} \;
 	git checkout gh-pages
 	cp -r $(BUILDDIR)/html/* ../.
+	cd $(BUILDDIR)
+	cd ../
+	rm -rf doc
+	git commit -a 
+	git push
 
 dirhtml:
 	$(SPHINXBUILD) -b dirhtml $(ALLSPHINXOPTS) $(BUILDDIR)/dirhtml
