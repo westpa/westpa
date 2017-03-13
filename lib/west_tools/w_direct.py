@@ -159,7 +159,7 @@ Command-line options
 # The old w_kinavg
 class DKinAvg(AverageCommands):
     subcommand = 'kinetics'
-    help_text = 'averages and CIs for path-tracing kinetics analysis'
+    help_text = 'Generates rate and flux values from a WESTPA simulation via tracing.'
     default_kinetics_file = 'direct.h5'
     description = '''\
 Calculate average rates/fluxes and associated errors from weighted ensemble 
@@ -323,7 +323,7 @@ Command-line options
 # The old w_stateprobs
 class DStateProbs(AverageCommands):
     subcommand = 'probs'
-    help_text = 'averages and CIs for path-tracing kinetics analysis'
+    help_text = 'Calculates color and state probabilities via tracing.'
     default_kinetics_file = 'direct.h5'
     description = '''\
 Calculate average populations and associated errors in state populations from
@@ -488,7 +488,7 @@ Command-line options
 # Just a convenience class to run everything.
 class DAll(DStateProbs, DKinAvg, DKinetics):
     subcommand = 'all'
-    help_text = 'averages and CIs for path-tracing kinetics analysis'
+    help_text = 'Runs the full suite, including the tracing of events.'
     default_kinetics_file = 'direct.h5'
     description = '''\
 A convenience function to run init/kinetics/probs. Bin assignments, 
@@ -515,7 +515,7 @@ Command-line options
 # Just a convenience class to average the observables.
 class DAverage(DStateProbs, DKinAvg):
     subcommand = 'average'
-    help_text = 'averages and CIs for path-tracing kinetics analysis'
+    help_text = 'Averages and returns fluxes, rates, and color/state populations.'
     default_kinetics_file = 'direct.h5'
     description = '''\
 A convenience function to run kinetics/probs. Bin assignments, 
