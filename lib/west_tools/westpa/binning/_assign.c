@@ -912,7 +912,7 @@ typedef npy_clongdouble __pyx_t_5numpy_clongdouble_t;
 typedef npy_cdouble __pyx_t_5numpy_complex_t;
 struct __pyx_opt_args_6westpa_7binning_7_assign_accumulate_state_populations_from_labeled;
 
-/* "westpa/binning/_assign.pyx":335
+/* "westpa/binning/_assign.pyx":303
  * @cython.boundscheck(False)
  * @cython.wraparound(False)
  * cpdef accumulate_state_populations_from_labeled(weight_t[:,:] labeled_bin_pops,             # <<<<<<<<<<<<<<
@@ -1757,7 +1757,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_testfunc(__Pyx_memviewslice, 
 static PyObject *__pyx_f_6westpa_7binning_7_assign_apply_down(PyObject *, PyObject *, PyObject *, PyArrayObject *, PyArrayObject *, __Pyx_memviewslice, int __pyx_skip_dispatch); /*proto*/
 static PyObject *__pyx_f_6westpa_7binning_7_assign_apply_down_argmin_across(PyObject *, PyObject *, PyObject *, PyObject *, PyArrayObject *, PyArrayObject *, __Pyx_memviewslice, int __pyx_skip_dispatch); /*proto*/
 static PyObject *__pyx_f_6westpa_7binning_7_assign_output_map(__Pyx_memviewslice, __Pyx_memviewslice, PyArrayObject *, int __pyx_skip_dispatch); /*proto*/
-static PyObject *__pyx_f_6westpa_7binning_7_assign_assign_and_label(Py_ssize_t, Py_ssize_t, __Pyx_memviewslice, PyObject *, Py_ssize_t, __Pyx_memviewslice, __Pyx_memviewslice, PyObject *, int, int __pyx_skip_dispatch); /*proto*/
+static PyObject *__pyx_f_6westpa_7binning_7_assign_assign_and_label(Py_ssize_t, Py_ssize_t, __Pyx_memviewslice, PyObject *, Py_ssize_t, __Pyx_memviewslice, __Pyx_memviewslice, PyObject *, int __pyx_skip_dispatch); /*proto*/
 static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_labeled_populations(__Pyx_memviewslice, __Pyx_memviewslice, __Pyx_memviewslice, __Pyx_memviewslice, int __pyx_skip_dispatch); /*proto*/
 static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_state_populations_from_labeled(__Pyx_memviewslice, __Pyx_memviewslice, __Pyx_memviewslice, int __pyx_skip_dispatch, struct __pyx_opt_args_6westpa_7binning_7_assign_accumulate_state_populations_from_labeled *__pyx_optional_args); /*proto*/
 static PyObject *__pyx_f_6westpa_7binning_7_assign_assignments_list_to_table(Py_ssize_t, Py_ssize_t, __Pyx_memviewslice, int __pyx_skip_dispatch); /*proto*/
@@ -1877,7 +1877,6 @@ static const char __pyx_k_TypeError[] = "TypeError";
 static const char __pyx_k_boundlens[] = "boundlens";
 static const char __pyx_k_enumerate[] = "enumerate";
 static const char __pyx_k_state_map[] = "state_map";
-static const char __pyx_k_subsample[] = "subsample";
 static const char __pyx_k_IndexError[] = "IndexError";
 static const char __pyx_k_ValueError[] = "ValueError";
 static const char __pyx_k_bool_dtype[] = "bool_dtype";
@@ -2044,7 +2043,6 @@ static PyObject *__pyx_kp_s_strided_and_direct;
 static PyObject *__pyx_kp_s_strided_and_direct_or_indirect;
 static PyObject *__pyx_kp_s_strided_and_indirect;
 static PyObject *__pyx_n_s_struct;
-static PyObject *__pyx_n_s_subsample;
 static PyObject *__pyx_n_s_test;
 static PyObject *__pyx_n_s_uint16;
 static PyObject *__pyx_n_s_uint8;
@@ -2062,7 +2060,7 @@ static PyObject *__pyx_pf_6westpa_7binning_7_assign_2testfunc(CYTHON_UNUSED PyOb
 static PyObject *__pyx_pf_6westpa_7binning_7_assign_4apply_down(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_func, PyObject *__pyx_v_args, PyObject *__pyx_v_kwargs, PyArrayObject *__pyx_v_coords, PyArrayObject *__pyx_v_mask, __Pyx_memviewslice __pyx_v_output); /* proto */
 static PyObject *__pyx_pf_6westpa_7binning_7_assign_6apply_down_argmin_across(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_func, PyObject *__pyx_v_args, PyObject *__pyx_v_kwargs, PyObject *__pyx_v_func_output_len, PyArrayObject *__pyx_v_coords, PyArrayObject *__pyx_v_mask, __Pyx_memviewslice __pyx_v_output); /* proto */
 static PyObject *__pyx_pf_6westpa_7binning_7_assign_8output_map(CYTHON_UNUSED PyObject *__pyx_self, __Pyx_memviewslice __pyx_v_output, __Pyx_memviewslice __pyx_v_omap, PyArrayObject *__pyx_v_mask); /* proto */
-static PyObject *__pyx_pf_6westpa_7binning_7_assign_10assign_and_label(CYTHON_UNUSED PyObject *__pyx_self, Py_ssize_t __pyx_v_nsegs_lb, Py_ssize_t __pyx_v_nsegs_ub, __Pyx_memviewslice __pyx_v_parent_ids, PyObject *__pyx_v_assign, Py_ssize_t __pyx_v_nstates, __Pyx_memviewslice __pyx_v_state_map, __Pyx_memviewslice __pyx_v_last_labels, PyObject *__pyx_v_pcoords, int __pyx_v_subsample); /* proto */
+static PyObject *__pyx_pf_6westpa_7binning_7_assign_10assign_and_label(CYTHON_UNUSED PyObject *__pyx_self, Py_ssize_t __pyx_v_nsegs_lb, Py_ssize_t __pyx_v_nsegs_ub, __Pyx_memviewslice __pyx_v_parent_ids, PyObject *__pyx_v_assign, Py_ssize_t __pyx_v_nstates, __Pyx_memviewslice __pyx_v_state_map, __Pyx_memviewslice __pyx_v_last_labels, PyObject *__pyx_v_pcoords); /* proto */
 static PyObject *__pyx_pf_6westpa_7binning_7_assign_12accumulate_labeled_populations(CYTHON_UNUSED PyObject *__pyx_self, __Pyx_memviewslice __pyx_v_weights, __Pyx_memviewslice __pyx_v_bin_assignments, __Pyx_memviewslice __pyx_v_label_assignments, __Pyx_memviewslice __pyx_v_labeled_bin_pops); /* proto */
 static PyObject *__pyx_pf_6westpa_7binning_7_assign_14accumulate_state_populations_from_labeled(CYTHON_UNUSED PyObject *__pyx_self, __Pyx_memviewslice __pyx_v_labeled_bin_pops, __Pyx_memviewslice __pyx_v_state_map, __Pyx_memviewslice __pyx_v_state_pops, PyObject *__pyx_v_check_state_map); /* proto */
 static PyObject *__pyx_pf_6westpa_7binning_7_assign_16assignments_list_to_table(CYTHON_UNUSED PyObject *__pyx_self, Py_ssize_t __pyx_v_nsegs, Py_ssize_t __pyx_v_nbins, __Pyx_memviewslice __pyx_v_assignments); /* proto */
@@ -4463,7 +4461,7 @@ static PyObject *__pyx_pf_6westpa_7binning_7_assign_8output_map(CYTHON_UNUSED Py
  */
 
 static PyObject *__pyx_pw_6westpa_7binning_7_assign_11assign_and_label(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
-static PyObject *__pyx_f_6westpa_7binning_7_assign_assign_and_label(Py_ssize_t __pyx_v_nsegs_lb, Py_ssize_t __pyx_v_nsegs_ub, __Pyx_memviewslice __pyx_v_parent_ids, PyObject *__pyx_v_assign, Py_ssize_t __pyx_v_nstates, __Pyx_memviewslice __pyx_v_state_map, __Pyx_memviewslice __pyx_v_last_labels, PyObject *__pyx_v_pcoords, int __pyx_v_subsample, CYTHON_UNUSED int __pyx_skip_dispatch) {
+static PyObject *__pyx_f_6westpa_7binning_7_assign_assign_and_label(Py_ssize_t __pyx_v_nsegs_lb, Py_ssize_t __pyx_v_nsegs_ub, __Pyx_memviewslice __pyx_v_parent_ids, PyObject *__pyx_v_assign, Py_ssize_t __pyx_v_nstates, __Pyx_memviewslice __pyx_v_state_map, __Pyx_memviewslice __pyx_v_last_labels, PyObject *__pyx_v_pcoords, CYTHON_UNUSED int __pyx_skip_dispatch) {
   Py_ssize_t __pyx_v_ipt;
   Py_ssize_t __pyx_v_nsegs;
   Py_ssize_t __pyx_v_npts;
@@ -4511,80 +4509,50 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_assign_and_label(Py_ssize_t _
   Py_ssize_t __pyx_t_29;
   Py_ssize_t __pyx_t_30;
   Py_ssize_t __pyx_t_31;
-  Py_ssize_t __pyx_t_32;
-  Py_ssize_t __pyx_t_33;
-  Py_ssize_t __pyx_t_34;
-  size_t __pyx_t_35;
-  Py_ssize_t __pyx_t_36;
-  Py_ssize_t __pyx_t_37;
-  Py_ssize_t __pyx_t_38;
-  Py_ssize_t __pyx_t_39;
-  Py_ssize_t __pyx_t_40;
-  Py_ssize_t __pyx_t_41;
-  Py_ssize_t __pyx_t_42;
-  Py_ssize_t __pyx_t_43;
-  Py_ssize_t __pyx_t_44;
-  Py_ssize_t __pyx_t_45;
-  Py_ssize_t __pyx_t_46;
-  Py_ssize_t __pyx_t_47;
-  Py_ssize_t __pyx_t_48;
-  Py_ssize_t __pyx_t_49;
-  Py_ssize_t __pyx_t_50;
-  Py_ssize_t __pyx_t_51;
-  Py_ssize_t __pyx_t_52;
-  Py_ssize_t __pyx_t_53;
-  Py_ssize_t __pyx_t_54;
-  Py_ssize_t __pyx_t_55;
-  Py_ssize_t __pyx_t_56;
-  size_t __pyx_t_57;
-  Py_ssize_t __pyx_t_58;
-  Py_ssize_t __pyx_t_59;
-  Py_ssize_t __pyx_t_60;
-  Py_ssize_t __pyx_t_61;
   __Pyx_RefNannySetupContext("assign_and_label", 0);
 
-  /* "westpa/binning/_assign.pyx":223
+  /* "westpa/binning/_assign.pyx":222
  *         index_t ptlabel
  * 
  *     nsegs = nsegs_ub - nsegs_lb             # <<<<<<<<<<<<<<
  *     npts = pcoords.shape[1]
- *     # We want to enable some subsampling, for steadystate simulations...
+ *     assignments = numpy.empty((nsegs,npts), index_dtype)
  */
   __pyx_v_nsegs = (__pyx_v_nsegs_ub - __pyx_v_nsegs_lb);
 
-  /* "westpa/binning/_assign.pyx":224
+  /* "westpa/binning/_assign.pyx":223
  * 
  *     nsegs = nsegs_ub - nsegs_lb
  *     npts = pcoords.shape[1]             # <<<<<<<<<<<<<<
- *     # We want to enable some subsampling, for steadystate simulations...
  *     assignments = numpy.empty((nsegs,npts), index_dtype)
+ *     trajlabels = numpy.empty((nsegs,npts), index_dtype)
  */
-  __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_v_pcoords, __pyx_n_s_shape); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 224, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_v_pcoords, __pyx_n_s_shape); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 223, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  __pyx_t_2 = __Pyx_GetItemInt(__pyx_t_1, 1, long, 1, __Pyx_PyInt_From_long, 0, 0, 0); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 224, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_GetItemInt(__pyx_t_1, 1, long, 1, __Pyx_PyInt_From_long, 0, 0, 0); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 223, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
-  __pyx_t_3 = __Pyx_PyIndex_AsSsize_t(__pyx_t_2); if (unlikely((__pyx_t_3 == (Py_ssize_t)-1) && PyErr_Occurred())) __PYX_ERR(0, 224, __pyx_L1_error)
+  __pyx_t_3 = __Pyx_PyIndex_AsSsize_t(__pyx_t_2); if (unlikely((__pyx_t_3 == (Py_ssize_t)-1) && PyErr_Occurred())) __PYX_ERR(0, 223, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
   __pyx_v_npts = __pyx_t_3;
 
-  /* "westpa/binning/_assign.pyx":226
+  /* "westpa/binning/_assign.pyx":224
+ *     nsegs = nsegs_ub - nsegs_lb
  *     npts = pcoords.shape[1]
- *     # We want to enable some subsampling, for steadystate simulations...
  *     assignments = numpy.empty((nsegs,npts), index_dtype)             # <<<<<<<<<<<<<<
  *     trajlabels = numpy.empty((nsegs,npts), index_dtype)
  *     statelabels = numpy.empty((nsegs,npts), index_dtype)
  */
-  __pyx_t_1 = __Pyx_GetModuleGlobalName(__pyx_n_s_numpy); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 226, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_GetModuleGlobalName(__pyx_n_s_numpy); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 224, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_empty); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 226, __pyx_L1_error)
+  __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_empty); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 224, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_4);
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
-  __pyx_t_1 = PyInt_FromSsize_t(__pyx_v_nsegs); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 226, __pyx_L1_error)
+  __pyx_t_1 = PyInt_FromSsize_t(__pyx_v_nsegs); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 224, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  __pyx_t_5 = PyInt_FromSsize_t(__pyx_v_npts); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 226, __pyx_L1_error)
+  __pyx_t_5 = PyInt_FromSsize_t(__pyx_v_npts); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 224, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_5);
-  __pyx_t_6 = PyTuple_New(2); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 226, __pyx_L1_error)
+  __pyx_t_6 = PyTuple_New(2); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 224, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_6);
   __Pyx_GIVEREF(__pyx_t_1);
   PyTuple_SET_ITEM(__pyx_t_6, 0, __pyx_t_1);
@@ -4592,7 +4560,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_assign_and_label(Py_ssize_t _
   PyTuple_SET_ITEM(__pyx_t_6, 1, __pyx_t_5);
   __pyx_t_1 = 0;
   __pyx_t_5 = 0;
-  __pyx_t_5 = __Pyx_GetModuleGlobalName(__pyx_n_s_index_dtype); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 226, __pyx_L1_error)
+  __pyx_t_5 = __Pyx_GetModuleGlobalName(__pyx_n_s_index_dtype); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 224, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_5);
   __pyx_t_1 = NULL;
   __pyx_t_3 = 0;
@@ -4606,7 +4574,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_assign_and_label(Py_ssize_t _
       __pyx_t_3 = 1;
     }
   }
-  __pyx_t_7 = PyTuple_New(2+__pyx_t_3); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 226, __pyx_L1_error)
+  __pyx_t_7 = PyTuple_New(2+__pyx_t_3); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 224, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_7);
   if (__pyx_t_1) {
     __Pyx_GIVEREF(__pyx_t_1); PyTuple_SET_ITEM(__pyx_t_7, 0, __pyx_t_1); __pyx_t_1 = NULL;
@@ -4617,30 +4585,30 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_assign_and_label(Py_ssize_t _
   PyTuple_SET_ITEM(__pyx_t_7, 1+__pyx_t_3, __pyx_t_5);
   __pyx_t_6 = 0;
   __pyx_t_5 = 0;
-  __pyx_t_2 = __Pyx_PyObject_Call(__pyx_t_4, __pyx_t_7, NULL); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 226, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_PyObject_Call(__pyx_t_4, __pyx_t_7, NULL); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 224, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
   __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
   __pyx_v_assignments = __pyx_t_2;
   __pyx_t_2 = 0;
 
-  /* "westpa/binning/_assign.pyx":227
- *     # We want to enable some subsampling, for steadystate simulations...
+  /* "westpa/binning/_assign.pyx":225
+ *     npts = pcoords.shape[1]
  *     assignments = numpy.empty((nsegs,npts), index_dtype)
  *     trajlabels = numpy.empty((nsegs,npts), index_dtype)             # <<<<<<<<<<<<<<
  *     statelabels = numpy.empty((nsegs,npts), index_dtype)
  * 
  */
-  __pyx_t_4 = __Pyx_GetModuleGlobalName(__pyx_n_s_numpy); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 227, __pyx_L1_error)
+  __pyx_t_4 = __Pyx_GetModuleGlobalName(__pyx_n_s_numpy); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 225, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_4);
-  __pyx_t_7 = __Pyx_PyObject_GetAttrStr(__pyx_t_4, __pyx_n_s_empty); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 227, __pyx_L1_error)
+  __pyx_t_7 = __Pyx_PyObject_GetAttrStr(__pyx_t_4, __pyx_n_s_empty); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 225, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_7);
   __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-  __pyx_t_4 = PyInt_FromSsize_t(__pyx_v_nsegs); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 227, __pyx_L1_error)
+  __pyx_t_4 = PyInt_FromSsize_t(__pyx_v_nsegs); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 225, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_4);
-  __pyx_t_5 = PyInt_FromSsize_t(__pyx_v_npts); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 227, __pyx_L1_error)
+  __pyx_t_5 = PyInt_FromSsize_t(__pyx_v_npts); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 225, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_5);
-  __pyx_t_6 = PyTuple_New(2); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 227, __pyx_L1_error)
+  __pyx_t_6 = PyTuple_New(2); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 225, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_6);
   __Pyx_GIVEREF(__pyx_t_4);
   PyTuple_SET_ITEM(__pyx_t_6, 0, __pyx_t_4);
@@ -4648,7 +4616,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_assign_and_label(Py_ssize_t _
   PyTuple_SET_ITEM(__pyx_t_6, 1, __pyx_t_5);
   __pyx_t_4 = 0;
   __pyx_t_5 = 0;
-  __pyx_t_5 = __Pyx_GetModuleGlobalName(__pyx_n_s_index_dtype); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 227, __pyx_L1_error)
+  __pyx_t_5 = __Pyx_GetModuleGlobalName(__pyx_n_s_index_dtype); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 225, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_5);
   __pyx_t_4 = NULL;
   __pyx_t_3 = 0;
@@ -4662,7 +4630,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_assign_and_label(Py_ssize_t _
       __pyx_t_3 = 1;
     }
   }
-  __pyx_t_1 = PyTuple_New(2+__pyx_t_3); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 227, __pyx_L1_error)
+  __pyx_t_1 = PyTuple_New(2+__pyx_t_3); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 225, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   if (__pyx_t_4) {
     __Pyx_GIVEREF(__pyx_t_4); PyTuple_SET_ITEM(__pyx_t_1, 0, __pyx_t_4); __pyx_t_4 = NULL;
@@ -4673,30 +4641,30 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_assign_and_label(Py_ssize_t _
   PyTuple_SET_ITEM(__pyx_t_1, 1+__pyx_t_3, __pyx_t_5);
   __pyx_t_6 = 0;
   __pyx_t_5 = 0;
-  __pyx_t_2 = __Pyx_PyObject_Call(__pyx_t_7, __pyx_t_1, NULL); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 227, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_PyObject_Call(__pyx_t_7, __pyx_t_1, NULL); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 225, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
   __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
   __pyx_v_trajlabels = __pyx_t_2;
   __pyx_t_2 = 0;
 
-  /* "westpa/binning/_assign.pyx":228
+  /* "westpa/binning/_assign.pyx":226
  *     assignments = numpy.empty((nsegs,npts), index_dtype)
  *     trajlabels = numpy.empty((nsegs,npts), index_dtype)
  *     statelabels = numpy.empty((nsegs,npts), index_dtype)             # <<<<<<<<<<<<<<
  * 
  *     _assignments = assignments
  */
-  __pyx_t_7 = __Pyx_GetModuleGlobalName(__pyx_n_s_numpy); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 228, __pyx_L1_error)
+  __pyx_t_7 = __Pyx_GetModuleGlobalName(__pyx_n_s_numpy); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 226, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_7);
-  __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_t_7, __pyx_n_s_empty); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 228, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_t_7, __pyx_n_s_empty); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 226, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
-  __pyx_t_7 = PyInt_FromSsize_t(__pyx_v_nsegs); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 228, __pyx_L1_error)
+  __pyx_t_7 = PyInt_FromSsize_t(__pyx_v_nsegs); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 226, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_7);
-  __pyx_t_5 = PyInt_FromSsize_t(__pyx_v_npts); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 228, __pyx_L1_error)
+  __pyx_t_5 = PyInt_FromSsize_t(__pyx_v_npts); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 226, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_5);
-  __pyx_t_6 = PyTuple_New(2); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 228, __pyx_L1_error)
+  __pyx_t_6 = PyTuple_New(2); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 226, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_6);
   __Pyx_GIVEREF(__pyx_t_7);
   PyTuple_SET_ITEM(__pyx_t_6, 0, __pyx_t_7);
@@ -4704,7 +4672,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_assign_and_label(Py_ssize_t _
   PyTuple_SET_ITEM(__pyx_t_6, 1, __pyx_t_5);
   __pyx_t_7 = 0;
   __pyx_t_5 = 0;
-  __pyx_t_5 = __Pyx_GetModuleGlobalName(__pyx_n_s_index_dtype); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 228, __pyx_L1_error)
+  __pyx_t_5 = __Pyx_GetModuleGlobalName(__pyx_n_s_index_dtype); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 226, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_5);
   __pyx_t_7 = NULL;
   __pyx_t_3 = 0;
@@ -4718,7 +4686,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_assign_and_label(Py_ssize_t _
       __pyx_t_3 = 1;
     }
   }
-  __pyx_t_4 = PyTuple_New(2+__pyx_t_3); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 228, __pyx_L1_error)
+  __pyx_t_4 = PyTuple_New(2+__pyx_t_3); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 226, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_4);
   if (__pyx_t_7) {
     __Pyx_GIVEREF(__pyx_t_7); PyTuple_SET_ITEM(__pyx_t_4, 0, __pyx_t_7); __pyx_t_7 = NULL;
@@ -4729,14 +4697,14 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_assign_and_label(Py_ssize_t _
   PyTuple_SET_ITEM(__pyx_t_4, 1+__pyx_t_3, __pyx_t_5);
   __pyx_t_6 = 0;
   __pyx_t_5 = 0;
-  __pyx_t_2 = __Pyx_PyObject_Call(__pyx_t_1, __pyx_t_4, NULL); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 228, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_PyObject_Call(__pyx_t_1, __pyx_t_4, NULL); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 226, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
   __pyx_v_statelabels = __pyx_t_2;
   __pyx_t_2 = 0;
 
-  /* "westpa/binning/_assign.pyx":230
+  /* "westpa/binning/_assign.pyx":228
  *     statelabels = numpy.empty((nsegs,npts), index_dtype)
  * 
  *     _assignments = assignments             # <<<<<<<<<<<<<<
@@ -4744,12 +4712,12 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_assign_and_label(Py_ssize_t _
  *     _statelabels = statelabels
  */
   __pyx_t_8 = __Pyx_PyObject_to_MemoryviewSlice_dsds_nn___pyx_t_6westpa_7binning_7_assign_index_t(__pyx_v_assignments);
-  if (unlikely(!__pyx_t_8.memview)) __PYX_ERR(0, 230, __pyx_L1_error)
+  if (unlikely(!__pyx_t_8.memview)) __PYX_ERR(0, 228, __pyx_L1_error)
   __pyx_v__assignments = __pyx_t_8;
   __pyx_t_8.memview = NULL;
   __pyx_t_8.data = NULL;
 
-  /* "westpa/binning/_assign.pyx":231
+  /* "westpa/binning/_assign.pyx":229
  * 
  *     _assignments = assignments
  *     _trajlabels = trajlabels             # <<<<<<<<<<<<<<
@@ -4757,12 +4725,12 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_assign_and_label(Py_ssize_t _
  *     mask = numpy.ones((npts,), numpy.bool_)
  */
   __pyx_t_8 = __Pyx_PyObject_to_MemoryviewSlice_dsds_nn___pyx_t_6westpa_7binning_7_assign_index_t(__pyx_v_trajlabels);
-  if (unlikely(!__pyx_t_8.memview)) __PYX_ERR(0, 231, __pyx_L1_error)
+  if (unlikely(!__pyx_t_8.memview)) __PYX_ERR(0, 229, __pyx_L1_error)
   __pyx_v__trajlabels = __pyx_t_8;
   __pyx_t_8.memview = NULL;
   __pyx_t_8.data = NULL;
 
-  /* "westpa/binning/_assign.pyx":232
+  /* "westpa/binning/_assign.pyx":230
  *     _assignments = assignments
  *     _trajlabels = trajlabels
  *     _statelabels = statelabels             # <<<<<<<<<<<<<<
@@ -4770,33 +4738,33 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_assign_and_label(Py_ssize_t _
  * 
  */
   __pyx_t_8 = __Pyx_PyObject_to_MemoryviewSlice_dsds_nn___pyx_t_6westpa_7binning_7_assign_index_t(__pyx_v_statelabels);
-  if (unlikely(!__pyx_t_8.memview)) __PYX_ERR(0, 232, __pyx_L1_error)
+  if (unlikely(!__pyx_t_8.memview)) __PYX_ERR(0, 230, __pyx_L1_error)
   __pyx_v__statelabels = __pyx_t_8;
   __pyx_t_8.memview = NULL;
   __pyx_t_8.data = NULL;
 
-  /* "westpa/binning/_assign.pyx":233
+  /* "westpa/binning/_assign.pyx":231
  *     _trajlabels = trajlabels
  *     _statelabels = statelabels
  *     mask = numpy.ones((npts,), numpy.bool_)             # <<<<<<<<<<<<<<
  * 
  *     for iseg in range(nsegs):
  */
-  __pyx_t_1 = __Pyx_GetModuleGlobalName(__pyx_n_s_numpy); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 233, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_GetModuleGlobalName(__pyx_n_s_numpy); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 231, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_ones); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 233, __pyx_L1_error)
+  __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_ones); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 231, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_4);
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
-  __pyx_t_1 = PyInt_FromSsize_t(__pyx_v_npts); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 233, __pyx_L1_error)
+  __pyx_t_1 = PyInt_FromSsize_t(__pyx_v_npts); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 231, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  __pyx_t_5 = PyTuple_New(1); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 233, __pyx_L1_error)
+  __pyx_t_5 = PyTuple_New(1); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 231, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_5);
   __Pyx_GIVEREF(__pyx_t_1);
   PyTuple_SET_ITEM(__pyx_t_5, 0, __pyx_t_1);
   __pyx_t_1 = 0;
-  __pyx_t_1 = __Pyx_GetModuleGlobalName(__pyx_n_s_numpy); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 233, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_GetModuleGlobalName(__pyx_n_s_numpy); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 231, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  __pyx_t_6 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_bool); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 233, __pyx_L1_error)
+  __pyx_t_6 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_bool); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 231, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_6);
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
   __pyx_t_1 = NULL;
@@ -4811,7 +4779,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_assign_and_label(Py_ssize_t _
       __pyx_t_3 = 1;
     }
   }
-  __pyx_t_7 = PyTuple_New(2+__pyx_t_3); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 233, __pyx_L1_error)
+  __pyx_t_7 = PyTuple_New(2+__pyx_t_3); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 231, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_7);
   if (__pyx_t_1) {
     __Pyx_GIVEREF(__pyx_t_1); PyTuple_SET_ITEM(__pyx_t_7, 0, __pyx_t_1); __pyx_t_1 = NULL;
@@ -4822,14 +4790,14 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_assign_and_label(Py_ssize_t _
   PyTuple_SET_ITEM(__pyx_t_7, 1+__pyx_t_3, __pyx_t_6);
   __pyx_t_5 = 0;
   __pyx_t_6 = 0;
-  __pyx_t_2 = __Pyx_PyObject_Call(__pyx_t_4, __pyx_t_7, NULL); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 233, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_PyObject_Call(__pyx_t_4, __pyx_t_7, NULL); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 231, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
   __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
   __pyx_v_mask = __pyx_t_2;
   __pyx_t_2 = 0;
 
-  /* "westpa/binning/_assign.pyx":235
+  /* "westpa/binning/_assign.pyx":233
  *     mask = numpy.ones((npts,), numpy.bool_)
  * 
  *     for iseg in range(nsegs):             # <<<<<<<<<<<<<<
@@ -4840,16 +4808,16 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_assign_and_label(Py_ssize_t _
   for (__pyx_t_9 = 0; __pyx_t_9 < __pyx_t_3; __pyx_t_9+=1) {
     __pyx_v_iseg = __pyx_t_9;
 
-    /* "westpa/binning/_assign.pyx":236
+    /* "westpa/binning/_assign.pyx":234
  * 
  *     for iseg in range(nsegs):
  *         assign(pcoords[iseg,:], mask, assignments[iseg,:])             # <<<<<<<<<<<<<<
  * 
  *     if state_map is not None:
  */
-    __pyx_t_4 = PyInt_FromSsize_t(__pyx_v_iseg); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 236, __pyx_L1_error)
+    __pyx_t_4 = PyInt_FromSsize_t(__pyx_v_iseg); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 234, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_4);
-    __pyx_t_7 = PyTuple_New(2); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 236, __pyx_L1_error)
+    __pyx_t_7 = PyTuple_New(2); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 234, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_7);
     __Pyx_GIVEREF(__pyx_t_4);
     PyTuple_SET_ITEM(__pyx_t_7, 0, __pyx_t_4);
@@ -4857,12 +4825,12 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_assign_and_label(Py_ssize_t _
     __Pyx_GIVEREF(__pyx_slice_);
     PyTuple_SET_ITEM(__pyx_t_7, 1, __pyx_slice_);
     __pyx_t_4 = 0;
-    __pyx_t_4 = PyObject_GetItem(__pyx_v_pcoords, __pyx_t_7); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 236, __pyx_L1_error)
+    __pyx_t_4 = PyObject_GetItem(__pyx_v_pcoords, __pyx_t_7); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 234, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_4);
     __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
-    __pyx_t_7 = PyInt_FromSsize_t(__pyx_v_iseg); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 236, __pyx_L1_error)
+    __pyx_t_7 = PyInt_FromSsize_t(__pyx_v_iseg); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 234, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_7);
-    __pyx_t_6 = PyTuple_New(2); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 236, __pyx_L1_error)
+    __pyx_t_6 = PyTuple_New(2); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 234, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_6);
     __Pyx_GIVEREF(__pyx_t_7);
     PyTuple_SET_ITEM(__pyx_t_6, 0, __pyx_t_7);
@@ -4870,7 +4838,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_assign_and_label(Py_ssize_t _
     __Pyx_GIVEREF(__pyx_slice__2);
     PyTuple_SET_ITEM(__pyx_t_6, 1, __pyx_slice__2);
     __pyx_t_7 = 0;
-    __pyx_t_7 = PyObject_GetItem(__pyx_v_assignments, __pyx_t_6); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 236, __pyx_L1_error)
+    __pyx_t_7 = PyObject_GetItem(__pyx_v_assignments, __pyx_t_6); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 234, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_7);
     __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
     __Pyx_INCREF(__pyx_v_assign);
@@ -4886,7 +4854,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_assign_and_label(Py_ssize_t _
         __pyx_t_10 = 1;
       }
     }
-    __pyx_t_1 = PyTuple_New(3+__pyx_t_10); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 236, __pyx_L1_error)
+    __pyx_t_1 = PyTuple_New(3+__pyx_t_10); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 234, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_1);
     if (__pyx_t_5) {
       __Pyx_GIVEREF(__pyx_t_5); PyTuple_SET_ITEM(__pyx_t_1, 0, __pyx_t_5); __pyx_t_5 = NULL;
@@ -4900,619 +4868,270 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_assign_and_label(Py_ssize_t _
     PyTuple_SET_ITEM(__pyx_t_1, 2+__pyx_t_10, __pyx_t_7);
     __pyx_t_4 = 0;
     __pyx_t_7 = 0;
-    __pyx_t_2 = __Pyx_PyObject_Call(__pyx_t_6, __pyx_t_1, NULL); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 236, __pyx_L1_error)
+    __pyx_t_2 = __Pyx_PyObject_Call(__pyx_t_6, __pyx_t_1, NULL); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 234, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_2);
     __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
     __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
   }
 
-  /* "westpa/binning/_assign.pyx":238
+  /* "westpa/binning/_assign.pyx":236
  *         assign(pcoords[iseg,:], mask, assignments[iseg,:])
  * 
  *     if state_map is not None:             # <<<<<<<<<<<<<<
- *         if subsample == False:
- *             with nogil:
+ *         with nogil:
+ *             for iseg in range(nsegs):
  */
   __pyx_t_11 = ((((PyObject *) __pyx_v_state_map.memview) != Py_None) != 0);
   if (__pyx_t_11) {
 
-    /* "westpa/binning/_assign.pyx":239
+    /* "westpa/binning/_assign.pyx":237
  * 
  *     if state_map is not None:
- *         if subsample == False:             # <<<<<<<<<<<<<<
- *             with nogil:
- *                 for iseg in range(nsegs):
+ *         with nogil:             # <<<<<<<<<<<<<<
+ *             for iseg in range(nsegs):
+ *                 seg_id = iseg+nsegs_lb
  */
-    __pyx_t_11 = ((__pyx_v_subsample == 0) != 0);
-    if (__pyx_t_11) {
+    {
+        #ifdef WITH_THREAD
+        PyThreadState *_save;
+        Py_UNBLOCK_THREADS
+        #endif
+        /*try:*/ {
 
-      /* "westpa/binning/_assign.pyx":240
+          /* "westpa/binning/_assign.pyx":238
  *     if state_map is not None:
- *         if subsample == False:
- *             with nogil:             # <<<<<<<<<<<<<<
- *                 for iseg in range(nsegs):
- *                     seg_id = iseg+nsegs_lb
+ *         with nogil:
+ *             for iseg in range(nsegs):             # <<<<<<<<<<<<<<
+ *                 seg_id = iseg+nsegs_lb
+ *                 parent_id = parent_ids[iseg]
  */
-      {
-          #ifdef WITH_THREAD
-          PyThreadState *_save;
-          Py_UNBLOCK_THREADS
-          #endif
-          /*try:*/ {
+          __pyx_t_3 = __pyx_v_nsegs;
+          for (__pyx_t_9 = 0; __pyx_t_9 < __pyx_t_3; __pyx_t_9+=1) {
+            __pyx_v_iseg = __pyx_t_9;
+
+            /* "westpa/binning/_assign.pyx":239
+ *         with nogil:
+ *             for iseg in range(nsegs):
+ *                 seg_id = iseg+nsegs_lb             # <<<<<<<<<<<<<<
+ *                 parent_id = parent_ids[iseg]
+ *                 for ipt in range(npts):
+ */
+            __pyx_v_seg_id = (__pyx_v_iseg + __pyx_v_nsegs_lb);
+
+            /* "westpa/binning/_assign.pyx":240
+ *             for iseg in range(nsegs):
+ *                 seg_id = iseg+nsegs_lb
+ *                 parent_id = parent_ids[iseg]             # <<<<<<<<<<<<<<
+ *                 for ipt in range(npts):
+ *                     ptlabel = state_map[_assignments[iseg,ipt]]
+ */
+            __pyx_t_12 = __pyx_v_iseg;
+            __pyx_v_parent_id = (*((long *) ( /* dim=0 */ (__pyx_v_parent_ids.data + __pyx_t_12 * __pyx_v_parent_ids.strides[0]) )));
 
             /* "westpa/binning/_assign.pyx":241
- *         if subsample == False:
- *             with nogil:
- *                 for iseg in range(nsegs):             # <<<<<<<<<<<<<<
- *                     seg_id = iseg+nsegs_lb
- *                     parent_id = parent_ids[iseg]
+ *                 seg_id = iseg+nsegs_lb
+ *                 parent_id = parent_ids[iseg]
+ *                 for ipt in range(npts):             # <<<<<<<<<<<<<<
+ *                     ptlabel = state_map[_assignments[iseg,ipt]]
+ *                     _statelabels[iseg,ipt] = ptlabel
  */
-            __pyx_t_3 = __pyx_v_nsegs;
-            for (__pyx_t_9 = 0; __pyx_t_9 < __pyx_t_3; __pyx_t_9+=1) {
-              __pyx_v_iseg = __pyx_t_9;
+            __pyx_t_10 = __pyx_v_npts;
+            for (__pyx_t_13 = 0; __pyx_t_13 < __pyx_t_10; __pyx_t_13+=1) {
+              __pyx_v_ipt = __pyx_t_13;
 
               /* "westpa/binning/_assign.pyx":242
- *             with nogil:
- *                 for iseg in range(nsegs):
- *                     seg_id = iseg+nsegs_lb             # <<<<<<<<<<<<<<
- *                     parent_id = parent_ids[iseg]
- *                     for ipt in range(npts):
+ *                 parent_id = parent_ids[iseg]
+ *                 for ipt in range(npts):
+ *                     ptlabel = state_map[_assignments[iseg,ipt]]             # <<<<<<<<<<<<<<
+ *                     _statelabels[iseg,ipt] = ptlabel
+ *                     if ptlabel == nstates: # unknown state/transition region
  */
-              __pyx_v_seg_id = (__pyx_v_iseg + __pyx_v_nsegs_lb);
+              __pyx_t_14 = __pyx_v_iseg;
+              __pyx_t_15 = __pyx_v_ipt;
+              __pyx_t_16 = (*((__pyx_t_6westpa_7binning_7_assign_index_t *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v__assignments.data + __pyx_t_14 * __pyx_v__assignments.strides[0]) ) + __pyx_t_15 * __pyx_v__assignments.strides[1]) )));
+              __pyx_v_ptlabel = (*((__pyx_t_6westpa_7binning_7_assign_index_t *) ( /* dim=0 */ (__pyx_v_state_map.data + __pyx_t_16 * __pyx_v_state_map.strides[0]) )));
 
               /* "westpa/binning/_assign.pyx":243
- *                 for iseg in range(nsegs):
- *                     seg_id = iseg+nsegs_lb
- *                     parent_id = parent_ids[iseg]             # <<<<<<<<<<<<<<
- *                     for ipt in range(npts):
- *                         ptlabel = state_map[_assignments[iseg,ipt]]
+ *                 for ipt in range(npts):
+ *                     ptlabel = state_map[_assignments[iseg,ipt]]
+ *                     _statelabels[iseg,ipt] = ptlabel             # <<<<<<<<<<<<<<
+ *                     if ptlabel == nstates: # unknown state/transition region
+ *                         if ipt == 0:
  */
-              __pyx_t_12 = __pyx_v_iseg;
-              __pyx_v_parent_id = (*((long *) ( /* dim=0 */ (__pyx_v_parent_ids.data + __pyx_t_12 * __pyx_v_parent_ids.strides[0]) )));
+              __pyx_t_17 = __pyx_v_iseg;
+              __pyx_t_18 = __pyx_v_ipt;
+              *((__pyx_t_6westpa_7binning_7_assign_index_t *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v__statelabels.data + __pyx_t_17 * __pyx_v__statelabels.strides[0]) ) + __pyx_t_18 * __pyx_v__statelabels.strides[1]) )) = __pyx_v_ptlabel;
 
               /* "westpa/binning/_assign.pyx":244
- *                     seg_id = iseg+nsegs_lb
- *                     parent_id = parent_ids[iseg]
- *                     for ipt in range(npts):             # <<<<<<<<<<<<<<
- *                         ptlabel = state_map[_assignments[iseg,ipt]]
- *                         _statelabels[iseg,ipt] = ptlabel
+ *                     ptlabel = state_map[_assignments[iseg,ipt]]
+ *                     _statelabels[iseg,ipt] = ptlabel
+ *                     if ptlabel == nstates: # unknown state/transition region             # <<<<<<<<<<<<<<
+ *                         if ipt == 0:
+ *                             if parent_id < 0:
  */
-              __pyx_t_10 = __pyx_v_npts;
-              for (__pyx_t_13 = 0; __pyx_t_13 < __pyx_t_10; __pyx_t_13+=1) {
-                __pyx_v_ipt = __pyx_t_13;
+              __pyx_t_11 = ((__pyx_v_ptlabel == __pyx_v_nstates) != 0);
+              if (__pyx_t_11) {
 
                 /* "westpa/binning/_assign.pyx":245
- *                     parent_id = parent_ids[iseg]
- *                     for ipt in range(npts):
- *                         ptlabel = state_map[_assignments[iseg,ipt]]             # <<<<<<<<<<<<<<
- *                         _statelabels[iseg,ipt] = ptlabel
- *                         if ptlabel == nstates: # unknown state/transition region
- */
-                __pyx_t_14 = __pyx_v_iseg;
-                __pyx_t_15 = __pyx_v_ipt;
-                __pyx_t_16 = (*((__pyx_t_6westpa_7binning_7_assign_index_t *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v__assignments.data + __pyx_t_14 * __pyx_v__assignments.strides[0]) ) + __pyx_t_15 * __pyx_v__assignments.strides[1]) )));
-                __pyx_v_ptlabel = (*((__pyx_t_6westpa_7binning_7_assign_index_t *) ( /* dim=0 */ (__pyx_v_state_map.data + __pyx_t_16 * __pyx_v_state_map.strides[0]) )));
-
-                /* "westpa/binning/_assign.pyx":246
- *                     for ipt in range(npts):
- *                         ptlabel = state_map[_assignments[iseg,ipt]]
- *                         _statelabels[iseg,ipt] = ptlabel             # <<<<<<<<<<<<<<
- *                         if ptlabel == nstates: # unknown state/transition region
- *                             if ipt == 0:
- */
-                __pyx_t_17 = __pyx_v_iseg;
-                __pyx_t_18 = __pyx_v_ipt;
-                *((__pyx_t_6westpa_7binning_7_assign_index_t *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v__statelabels.data + __pyx_t_17 * __pyx_v__statelabels.strides[0]) ) + __pyx_t_18 * __pyx_v__statelabels.strides[1]) )) = __pyx_v_ptlabel;
-
-                /* "westpa/binning/_assign.pyx":247
- *                         ptlabel = state_map[_assignments[iseg,ipt]]
- *                         _statelabels[iseg,ipt] = ptlabel
- *                         if ptlabel == nstates: # unknown state/transition region             # <<<<<<<<<<<<<<
- *                             if ipt == 0:
- *                                 if parent_id < 0:
- */
-                __pyx_t_11 = ((__pyx_v_ptlabel == __pyx_v_nstates) != 0);
-                if (__pyx_t_11) {
-
-                  /* "westpa/binning/_assign.pyx":248
- *                         _statelabels[iseg,ipt] = ptlabel
- *                         if ptlabel == nstates: # unknown state/transition region
- *                             if ipt == 0:             # <<<<<<<<<<<<<<
- *                                 if parent_id < 0:
- *                                     # We have started a trajectory in a transition region
- */
-                  __pyx_t_11 = ((__pyx_v_ipt == 0) != 0);
-                  if (__pyx_t_11) {
-
-                    /* "westpa/binning/_assign.pyx":249
- *                         if ptlabel == nstates: # unknown state/transition region
- *                             if ipt == 0:
- *                                 if parent_id < 0:             # <<<<<<<<<<<<<<
- *                                     # We have started a trajectory in a transition region
- *                                     _trajlabels[iseg,ipt] = nstates
- */
-                    __pyx_t_11 = ((__pyx_v_parent_id < 0) != 0);
-                    if (__pyx_t_11) {
-
-                      /* "westpa/binning/_assign.pyx":251
- *                                 if parent_id < 0:
- *                                     # We have started a trajectory in a transition region
- *                                     _trajlabels[iseg,ipt] = nstates             # <<<<<<<<<<<<<<
- *                                     _statelabels[iseg,ipt] = nstates
- *                                 else:
- */
-                      __pyx_t_19 = __pyx_v_iseg;
-                      __pyx_t_20 = __pyx_v_ipt;
-                      *((__pyx_t_6westpa_7binning_7_assign_index_t *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v__trajlabels.data + __pyx_t_19 * __pyx_v__trajlabels.strides[0]) ) + __pyx_t_20 * __pyx_v__trajlabels.strides[1]) )) = __pyx_v_nstates;
-
-                      /* "westpa/binning/_assign.pyx":252
- *                                     # We have started a trajectory in a transition region
- *                                     _trajlabels[iseg,ipt] = nstates
- *                                     _statelabels[iseg,ipt] = nstates             # <<<<<<<<<<<<<<
- *                                 else:
- *                                     # We can inherit the ending point from the previous iteration
- */
-                      __pyx_t_21 = __pyx_v_iseg;
-                      __pyx_t_22 = __pyx_v_ipt;
-                      *((__pyx_t_6westpa_7binning_7_assign_index_t *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v__statelabels.data + __pyx_t_21 * __pyx_v__statelabels.strides[0]) ) + __pyx_t_22 * __pyx_v__statelabels.strides[1]) )) = __pyx_v_nstates;
-
-                      /* "westpa/binning/_assign.pyx":249
- *                         if ptlabel == nstates: # unknown state/transition region
- *                             if ipt == 0:
- *                                 if parent_id < 0:             # <<<<<<<<<<<<<<
- *                                     # We have started a trajectory in a transition region
- *                                     _trajlabels[iseg,ipt] = nstates
- */
-                      goto __pyx_L16;
-                    }
-
-                    /* "westpa/binning/_assign.pyx":256
- *                                     # We can inherit the ending point from the previous iteration
- *                                     # This should be nstates (unknown_state) for the first iteration
- *                                     _trajlabels[iseg,ipt] = last_labels[parent_id]             # <<<<<<<<<<<<<<
- *                             else:
- *                                 # We are currently in a transition region, but we care about the last state we visited,
- */
-                    /*else*/ {
-                      __pyx_t_23 = __pyx_v_parent_id;
-                      __pyx_t_24 = __pyx_v_iseg;
-                      __pyx_t_25 = __pyx_v_ipt;
-                      *((__pyx_t_6westpa_7binning_7_assign_index_t *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v__trajlabels.data + __pyx_t_24 * __pyx_v__trajlabels.strides[0]) ) + __pyx_t_25 * __pyx_v__trajlabels.strides[1]) )) = (*((__pyx_t_6westpa_7binning_7_assign_index_t *) ( /* dim=0 */ (__pyx_v_last_labels.data + __pyx_t_23 * __pyx_v_last_labels.strides[0]) )));
-                    }
-                    __pyx_L16:;
-
-                    /* "westpa/binning/_assign.pyx":248
- *                         _statelabels[iseg,ipt] = ptlabel
- *                         if ptlabel == nstates: # unknown state/transition region
- *                             if ipt == 0:             # <<<<<<<<<<<<<<
- *                                 if parent_id < 0:
- *                                     # We have started a trajectory in a transition region
- */
-                    goto __pyx_L15;
-                  }
-
-                  /* "westpa/binning/_assign.pyx":260
- *                                 # We are currently in a transition region, but we care about the last state we visited,
- *                                 # so inherit that state from the previous point
- *                                 _trajlabels[iseg,ipt] = _trajlabels[iseg,ipt-1]             # <<<<<<<<<<<<<<
- *                         else:
- *                             _trajlabels[iseg,ipt] = ptlabel
- */
-                  /*else*/ {
-                    __pyx_t_26 = __pyx_v_iseg;
-                    __pyx_t_27 = (__pyx_v_ipt - 1);
-                    __pyx_t_28 = __pyx_v_iseg;
-                    __pyx_t_29 = __pyx_v_ipt;
-                    *((__pyx_t_6westpa_7binning_7_assign_index_t *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v__trajlabels.data + __pyx_t_28 * __pyx_v__trajlabels.strides[0]) ) + __pyx_t_29 * __pyx_v__trajlabels.strides[1]) )) = (*((__pyx_t_6westpa_7binning_7_assign_index_t *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v__trajlabels.data + __pyx_t_26 * __pyx_v__trajlabels.strides[0]) ) + __pyx_t_27 * __pyx_v__trajlabels.strides[1]) )));
-                  }
-                  __pyx_L15:;
-
-                  /* "westpa/binning/_assign.pyx":247
- *                         ptlabel = state_map[_assignments[iseg,ipt]]
- *                         _statelabels[iseg,ipt] = ptlabel
- *                         if ptlabel == nstates: # unknown state/transition region             # <<<<<<<<<<<<<<
- *                             if ipt == 0:
- *                                 if parent_id < 0:
- */
-                  goto __pyx_L14;
-                }
-
-                /* "westpa/binning/_assign.pyx":262
- *                                 _trajlabels[iseg,ipt] = _trajlabels[iseg,ipt-1]
- *                         else:
- *                             _trajlabels[iseg,ipt] = ptlabel             # <<<<<<<<<<<<<<
- *         else:
- *             with nogil:
- */
-                /*else*/ {
-                  __pyx_t_30 = __pyx_v_iseg;
-                  __pyx_t_31 = __pyx_v_ipt;
-                  *((__pyx_t_6westpa_7binning_7_assign_index_t *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v__trajlabels.data + __pyx_t_30 * __pyx_v__trajlabels.strides[0]) ) + __pyx_t_31 * __pyx_v__trajlabels.strides[1]) )) = __pyx_v_ptlabel;
-                }
-                __pyx_L14:;
-              }
-            }
-          }
-
-          /* "westpa/binning/_assign.pyx":240
- *     if state_map is not None:
- *         if subsample == False:
- *             with nogil:             # <<<<<<<<<<<<<<
- *                 for iseg in range(nsegs):
- *                     seg_id = iseg+nsegs_lb
- */
-          /*finally:*/ {
-            /*normal exit:*/{
-              #ifdef WITH_THREAD
-              Py_BLOCK_THREADS
-              #endif
-              goto __pyx_L9;
-            }
-            __pyx_L9:;
-          }
-      }
-
-      /* "westpa/binning/_assign.pyx":239
- * 
- *     if state_map is not None:
- *         if subsample == False:             # <<<<<<<<<<<<<<
- *             with nogil:
- *                 for iseg in range(nsegs):
- */
-      goto __pyx_L6;
-    }
-
-    /* "westpa/binning/_assign.pyx":264
- *                             _trajlabels[iseg,ipt] = ptlabel
- *         else:
- *             with nogil:             # <<<<<<<<<<<<<<
- *                 for iseg in range(nsegs):
- *                     seg_id = iseg+nsegs_lb
- */
-    /*else*/ {
-      {
-          #ifdef WITH_THREAD
-          PyThreadState *_save;
-          Py_UNBLOCK_THREADS
-          #endif
-          /*try:*/ {
-
-            /* "westpa/binning/_assign.pyx":265
- *         else:
- *             with nogil:
- *                 for iseg in range(nsegs):             # <<<<<<<<<<<<<<
- *                     seg_id = iseg+nsegs_lb
- *                     parent_id = parent_ids[iseg]
- */
-            __pyx_t_3 = __pyx_v_nsegs;
-            for (__pyx_t_9 = 0; __pyx_t_9 < __pyx_t_3; __pyx_t_9+=1) {
-              __pyx_v_iseg = __pyx_t_9;
-
-              /* "westpa/binning/_assign.pyx":266
- *             with nogil:
- *                 for iseg in range(nsegs):
- *                     seg_id = iseg+nsegs_lb             # <<<<<<<<<<<<<<
- *                     parent_id = parent_ids[iseg]
- *                     for ipt in range(npts):
- */
-              __pyx_v_seg_id = (__pyx_v_iseg + __pyx_v_nsegs_lb);
-
-              /* "westpa/binning/_assign.pyx":267
- *                 for iseg in range(nsegs):
- *                     seg_id = iseg+nsegs_lb
- *                     parent_id = parent_ids[iseg]             # <<<<<<<<<<<<<<
- *                     for ipt in range(npts):
- *                         if ipt == 0:
- */
-              __pyx_t_32 = __pyx_v_iseg;
-              __pyx_v_parent_id = (*((long *) ( /* dim=0 */ (__pyx_v_parent_ids.data + __pyx_t_32 * __pyx_v_parent_ids.strides[0]) )));
-
-              /* "westpa/binning/_assign.pyx":268
- *                     seg_id = iseg+nsegs_lb
- *                     parent_id = parent_ids[iseg]
- *                     for ipt in range(npts):             # <<<<<<<<<<<<<<
- *                         if ipt == 0:
- *                             ptlabel = state_map[_assignments[iseg,ipt]]
- */
-              __pyx_t_10 = __pyx_v_npts;
-              for (__pyx_t_13 = 0; __pyx_t_13 < __pyx_t_10; __pyx_t_13+=1) {
-                __pyx_v_ipt = __pyx_t_13;
-
-                /* "westpa/binning/_assign.pyx":269
- *                     parent_id = parent_ids[iseg]
- *                     for ipt in range(npts):
+ *                     _statelabels[iseg,ipt] = ptlabel
+ *                     if ptlabel == nstates: # unknown state/transition region
  *                         if ipt == 0:             # <<<<<<<<<<<<<<
- *                             ptlabel = state_map[_assignments[iseg,ipt]]
- *                             _statelabels[iseg,ipt] = ptlabel
+ *                             if parent_id < 0:
+ *                                 # We have started a trajectory in a transition region
  */
                 __pyx_t_11 = ((__pyx_v_ipt == 0) != 0);
                 if (__pyx_t_11) {
 
-                  /* "westpa/binning/_assign.pyx":270
- *                     for ipt in range(npts):
+                  /* "westpa/binning/_assign.pyx":246
+ *                     if ptlabel == nstates: # unknown state/transition region
  *                         if ipt == 0:
- *                             ptlabel = state_map[_assignments[iseg,ipt]]             # <<<<<<<<<<<<<<
- *                             _statelabels[iseg,ipt] = ptlabel
- *                             if ptlabel == nstates: # unknown state/transition region
+ *                             if parent_id < 0:             # <<<<<<<<<<<<<<
+ *                                 # We have started a trajectory in a transition region
+ *                                 _trajlabels[iseg,ipt] = nstates
  */
-                  __pyx_t_33 = __pyx_v_iseg;
-                  __pyx_t_34 = __pyx_v_ipt;
-                  __pyx_t_35 = (*((__pyx_t_6westpa_7binning_7_assign_index_t *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v__assignments.data + __pyx_t_33 * __pyx_v__assignments.strides[0]) ) + __pyx_t_34 * __pyx_v__assignments.strides[1]) )));
-                  __pyx_v_ptlabel = (*((__pyx_t_6westpa_7binning_7_assign_index_t *) ( /* dim=0 */ (__pyx_v_state_map.data + __pyx_t_35 * __pyx_v_state_map.strides[0]) )));
-
-                  /* "westpa/binning/_assign.pyx":271
- *                         if ipt == 0:
- *                             ptlabel = state_map[_assignments[iseg,ipt]]
- *                             _statelabels[iseg,ipt] = ptlabel             # <<<<<<<<<<<<<<
- *                             if ptlabel == nstates: # unknown state/transition region
- *                                 if parent_id < 0:
- */
-                  __pyx_t_36 = __pyx_v_iseg;
-                  __pyx_t_37 = __pyx_v_ipt;
-                  *((__pyx_t_6westpa_7binning_7_assign_index_t *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v__statelabels.data + __pyx_t_36 * __pyx_v__statelabels.strides[0]) ) + __pyx_t_37 * __pyx_v__statelabels.strides[1]) )) = __pyx_v_ptlabel;
-
-                  /* "westpa/binning/_assign.pyx":272
- *                             ptlabel = state_map[_assignments[iseg,ipt]]
- *                             _statelabels[iseg,ipt] = ptlabel
- *                             if ptlabel == nstates: # unknown state/transition region             # <<<<<<<<<<<<<<
- *                                 if parent_id < 0:
- *                                     # We have started a trajectory in a transition region
- */
-                  __pyx_t_11 = ((__pyx_v_ptlabel == __pyx_v_nstates) != 0);
+                  __pyx_t_11 = ((__pyx_v_parent_id < 0) != 0);
                   if (__pyx_t_11) {
 
-                    /* "westpa/binning/_assign.pyx":273
- *                             _statelabels[iseg,ipt] = ptlabel
- *                             if ptlabel == nstates: # unknown state/transition region
- *                                 if parent_id < 0:             # <<<<<<<<<<<<<<
- *                                     # We have started a trajectory in a transition region
- *                                     _trajlabels[iseg,ipt] = nstates
- */
-                    __pyx_t_11 = ((__pyx_v_parent_id < 0) != 0);
-                    if (__pyx_t_11) {
-
-                      /* "westpa/binning/_assign.pyx":275
- *                                 if parent_id < 0:
- *                                     # We have started a trajectory in a transition region
- *                                     _trajlabels[iseg,ipt] = nstates             # <<<<<<<<<<<<<<
- *                                     _statelabels[iseg,ipt] = nstates
- *                                 else:
- */
-                      __pyx_t_38 = __pyx_v_iseg;
-                      __pyx_t_39 = __pyx_v_ipt;
-                      *((__pyx_t_6westpa_7binning_7_assign_index_t *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v__trajlabels.data + __pyx_t_38 * __pyx_v__trajlabels.strides[0]) ) + __pyx_t_39 * __pyx_v__trajlabels.strides[1]) )) = __pyx_v_nstates;
-
-                      /* "westpa/binning/_assign.pyx":276
- *                                     # We have started a trajectory in a transition region
- *                                     _trajlabels[iseg,ipt] = nstates
- *                                     _statelabels[iseg,ipt] = nstates             # <<<<<<<<<<<<<<
- *                                 else:
- *                                     # We can inherit the ending point from the previous iteration
- */
-                      __pyx_t_40 = __pyx_v_iseg;
-                      __pyx_t_41 = __pyx_v_ipt;
-                      *((__pyx_t_6westpa_7binning_7_assign_index_t *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v__statelabels.data + __pyx_t_40 * __pyx_v__statelabels.strides[0]) ) + __pyx_t_41 * __pyx_v__statelabels.strides[1]) )) = __pyx_v_nstates;
-
-                      /* "westpa/binning/_assign.pyx":273
- *                             _statelabels[iseg,ipt] = ptlabel
- *                             if ptlabel == nstates: # unknown state/transition region
- *                                 if parent_id < 0:             # <<<<<<<<<<<<<<
- *                                     # We have started a trajectory in a transition region
- *                                     _trajlabels[iseg,ipt] = nstates
- */
-                      goto __pyx_L26;
-                    }
-
-                    /* "westpa/binning/_assign.pyx":280
- *                                     # We can inherit the ending point from the previous iteration
- *                                     # This should be nstates (unknown_state) for the first iteration
- *                                     _trajlabels[iseg,ipt] = last_labels[parent_id]             # <<<<<<<<<<<<<<
+                    /* "westpa/binning/_assign.pyx":248
+ *                             if parent_id < 0:
+ *                                 # We have started a trajectory in a transition region
+ *                                 _trajlabels[iseg,ipt] = nstates             # <<<<<<<<<<<<<<
+ *                                 _statelabels[iseg,ipt] = nstates
  *                             else:
- *                                 _trajlabels[iseg,ipt] = ptlabel
  */
-                    /*else*/ {
-                      __pyx_t_42 = __pyx_v_parent_id;
-                      __pyx_t_43 = __pyx_v_iseg;
-                      __pyx_t_44 = __pyx_v_ipt;
-                      *((__pyx_t_6westpa_7binning_7_assign_index_t *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v__trajlabels.data + __pyx_t_43 * __pyx_v__trajlabels.strides[0]) ) + __pyx_t_44 * __pyx_v__trajlabels.strides[1]) )) = (*((__pyx_t_6westpa_7binning_7_assign_index_t *) ( /* dim=0 */ (__pyx_v_last_labels.data + __pyx_t_42 * __pyx_v_last_labels.strides[0]) )));
-                    }
-                    __pyx_L26:;
+                    __pyx_t_19 = __pyx_v_iseg;
+                    __pyx_t_20 = __pyx_v_ipt;
+                    *((__pyx_t_6westpa_7binning_7_assign_index_t *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v__trajlabels.data + __pyx_t_19 * __pyx_v__trajlabels.strides[0]) ) + __pyx_t_20 * __pyx_v__trajlabels.strides[1]) )) = __pyx_v_nstates;
 
-                    /* "westpa/binning/_assign.pyx":272
- *                             ptlabel = state_map[_assignments[iseg,ipt]]
- *                             _statelabels[iseg,ipt] = ptlabel
- *                             if ptlabel == nstates: # unknown state/transition region             # <<<<<<<<<<<<<<
- *                                 if parent_id < 0:
- *                                     # We have started a trajectory in a transition region
+                    /* "westpa/binning/_assign.pyx":249
+ *                                 # We have started a trajectory in a transition region
+ *                                 _trajlabels[iseg,ipt] = nstates
+ *                                 _statelabels[iseg,ipt] = nstates             # <<<<<<<<<<<<<<
+ *                             else:
+ *                                 # We can inherit the ending point from the previous iteration
  */
-                    goto __pyx_L25;
+                    __pyx_t_21 = __pyx_v_iseg;
+                    __pyx_t_22 = __pyx_v_ipt;
+                    *((__pyx_t_6westpa_7binning_7_assign_index_t *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v__statelabels.data + __pyx_t_21 * __pyx_v__statelabels.strides[0]) ) + __pyx_t_22 * __pyx_v__statelabels.strides[1]) )) = __pyx_v_nstates;
+
+                    /* "westpa/binning/_assign.pyx":246
+ *                     if ptlabel == nstates: # unknown state/transition region
+ *                         if ipt == 0:
+ *                             if parent_id < 0:             # <<<<<<<<<<<<<<
+ *                                 # We have started a trajectory in a transition region
+ *                                 _trajlabels[iseg,ipt] = nstates
+ */
+                    goto __pyx_L15;
                   }
 
-                  /* "westpa/binning/_assign.pyx":282
- *                                     _trajlabels[iseg,ipt] = last_labels[parent_id]
- *                             else:
- *                                 _trajlabels[iseg,ipt] = ptlabel             # <<<<<<<<<<<<<<
- *                         if ipt != 0:
- *                             # We're no longer at the first point, so just nab the previous assignment.
+                  /* "westpa/binning/_assign.pyx":253
+ *                                 # We can inherit the ending point from the previous iteration
+ *                                 # This should be nstates (unknown_state) for the first iteration
+ *                                 _trajlabels[iseg,ipt] = last_labels[parent_id]             # <<<<<<<<<<<<<<
+ *                         else:
+ *                             # We are currently in a transition region, but we care about the last state we visited,
  */
                   /*else*/ {
-                    __pyx_t_45 = __pyx_v_iseg;
-                    __pyx_t_46 = __pyx_v_ipt;
-                    *((__pyx_t_6westpa_7binning_7_assign_index_t *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v__trajlabels.data + __pyx_t_45 * __pyx_v__trajlabels.strides[0]) ) + __pyx_t_46 * __pyx_v__trajlabels.strides[1]) )) = __pyx_v_ptlabel;
+                    __pyx_t_23 = __pyx_v_parent_id;
+                    __pyx_t_24 = __pyx_v_iseg;
+                    __pyx_t_25 = __pyx_v_ipt;
+                    *((__pyx_t_6westpa_7binning_7_assign_index_t *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v__trajlabels.data + __pyx_t_24 * __pyx_v__trajlabels.strides[0]) ) + __pyx_t_25 * __pyx_v__trajlabels.strides[1]) )) = (*((__pyx_t_6westpa_7binning_7_assign_index_t *) ( /* dim=0 */ (__pyx_v_last_labels.data + __pyx_t_23 * __pyx_v_last_labels.strides[0]) )));
                   }
-                  __pyx_L25:;
+                  __pyx_L15:;
 
-                  /* "westpa/binning/_assign.pyx":269
- *                     parent_id = parent_ids[iseg]
- *                     for ipt in range(npts):
+                  /* "westpa/binning/_assign.pyx":245
+ *                     _statelabels[iseg,ipt] = ptlabel
+ *                     if ptlabel == nstates: # unknown state/transition region
  *                         if ipt == 0:             # <<<<<<<<<<<<<<
- *                             ptlabel = state_map[_assignments[iseg,ipt]]
- *                             _statelabels[iseg,ipt] = ptlabel
+ *                             if parent_id < 0:
+ *                                 # We have started a trajectory in a transition region
  */
+                  goto __pyx_L14;
                 }
 
-                /* "westpa/binning/_assign.pyx":283
- *                             else:
- *                                 _trajlabels[iseg,ipt] = ptlabel
- *                         if ipt != 0:             # <<<<<<<<<<<<<<
- *                             # We're no longer at the first point, so just nab the previous assignment.
- *                             _trajlabels[iseg,ipt] = _trajlabels[iseg,ipt-1]
- */
-                __pyx_t_11 = ((__pyx_v_ipt != 0) != 0);
-                if (__pyx_t_11) {
-
-                  /* "westpa/binning/_assign.pyx":285
- *                         if ipt != 0:
- *                             # We're no longer at the first point, so just nab the previous assignment.
+                /* "westpa/binning/_assign.pyx":257
+ *                             # We are currently in a transition region, but we care about the last state we visited,
+ *                             # so inherit that state from the previous point
  *                             _trajlabels[iseg,ipt] = _trajlabels[iseg,ipt-1]             # <<<<<<<<<<<<<<
- *                             _statelabels[iseg,ipt] = _statelabels[iseg,ipt-1]
- *                             if ipt == npts - 1:
+ *                     else:
+ *                         _trajlabels[iseg,ipt] = ptlabel
  */
-                  __pyx_t_47 = __pyx_v_iseg;
-                  __pyx_t_48 = (__pyx_v_ipt - 1);
-                  __pyx_t_49 = __pyx_v_iseg;
-                  __pyx_t_50 = __pyx_v_ipt;
-                  *((__pyx_t_6westpa_7binning_7_assign_index_t *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v__trajlabels.data + __pyx_t_49 * __pyx_v__trajlabels.strides[0]) ) + __pyx_t_50 * __pyx_v__trajlabels.strides[1]) )) = (*((__pyx_t_6westpa_7binning_7_assign_index_t *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v__trajlabels.data + __pyx_t_47 * __pyx_v__trajlabels.strides[0]) ) + __pyx_t_48 * __pyx_v__trajlabels.strides[1]) )));
+                /*else*/ {
+                  __pyx_t_26 = __pyx_v_iseg;
+                  __pyx_t_27 = (__pyx_v_ipt - 1);
+                  __pyx_t_28 = __pyx_v_iseg;
+                  __pyx_t_29 = __pyx_v_ipt;
+                  *((__pyx_t_6westpa_7binning_7_assign_index_t *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v__trajlabels.data + __pyx_t_28 * __pyx_v__trajlabels.strides[0]) ) + __pyx_t_29 * __pyx_v__trajlabels.strides[1]) )) = (*((__pyx_t_6westpa_7binning_7_assign_index_t *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v__trajlabels.data + __pyx_t_26 * __pyx_v__trajlabels.strides[0]) ) + __pyx_t_27 * __pyx_v__trajlabels.strides[1]) )));
+                }
+                __pyx_L14:;
 
-                  /* "westpa/binning/_assign.pyx":286
- *                             # We're no longer at the first point, so just nab the previous assignment.
+                /* "westpa/binning/_assign.pyx":244
+ *                     ptlabel = state_map[_assignments[iseg,ipt]]
+ *                     _statelabels[iseg,ipt] = ptlabel
+ *                     if ptlabel == nstates: # unknown state/transition region             # <<<<<<<<<<<<<<
+ *                         if ipt == 0:
+ *                             if parent_id < 0:
+ */
+                goto __pyx_L13;
+              }
+
+              /* "westpa/binning/_assign.pyx":259
  *                             _trajlabels[iseg,ipt] = _trajlabels[iseg,ipt-1]
- *                             _statelabels[iseg,ipt] = _statelabels[iseg,ipt-1]             # <<<<<<<<<<<<<<
- *                             if ipt == npts - 1:
- *                                 ptlabel = state_map[_assignments[iseg,npts-1]]
- */
-                  __pyx_t_51 = __pyx_v_iseg;
-                  __pyx_t_52 = (__pyx_v_ipt - 1);
-                  __pyx_t_53 = __pyx_v_iseg;
-                  __pyx_t_54 = __pyx_v_ipt;
-                  *((__pyx_t_6westpa_7binning_7_assign_index_t *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v__statelabels.data + __pyx_t_53 * __pyx_v__statelabels.strides[0]) ) + __pyx_t_54 * __pyx_v__statelabels.strides[1]) )) = (*((__pyx_t_6westpa_7binning_7_assign_index_t *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v__statelabels.data + __pyx_t_51 * __pyx_v__statelabels.strides[0]) ) + __pyx_t_52 * __pyx_v__statelabels.strides[1]) )));
-
-                  /* "westpa/binning/_assign.pyx":287
- *                             _trajlabels[iseg,ipt] = _trajlabels[iseg,ipt-1]
- *                             _statelabels[iseg,ipt] = _statelabels[iseg,ipt-1]
- *                             if ipt == npts - 1:             # <<<<<<<<<<<<<<
- *                                 ptlabel = state_map[_assignments[iseg,npts-1]]
- *                                 if ptlabel != nstates:
- */
-                  __pyx_t_11 = ((__pyx_v_ipt == (__pyx_v_npts - 1)) != 0);
-                  if (__pyx_t_11) {
-
-                    /* "westpa/binning/_assign.pyx":288
- *                             _statelabels[iseg,ipt] = _statelabels[iseg,ipt-1]
- *                             if ipt == npts - 1:
- *                                 ptlabel = state_map[_assignments[iseg,npts-1]]             # <<<<<<<<<<<<<<
- *                                 if ptlabel != nstates:
- *                                     _statelabels[iseg,npts-1] = ptlabel
- */
-                    __pyx_t_55 = __pyx_v_iseg;
-                    __pyx_t_56 = (__pyx_v_npts - 1);
-                    __pyx_t_57 = (*((__pyx_t_6westpa_7binning_7_assign_index_t *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v__assignments.data + __pyx_t_55 * __pyx_v__assignments.strides[0]) ) + __pyx_t_56 * __pyx_v__assignments.strides[1]) )));
-                    __pyx_v_ptlabel = (*((__pyx_t_6westpa_7binning_7_assign_index_t *) ( /* dim=0 */ (__pyx_v_state_map.data + __pyx_t_57 * __pyx_v_state_map.strides[0]) )));
-
-                    /* "westpa/binning/_assign.pyx":289
- *                             if ipt == npts - 1:
- *                                 ptlabel = state_map[_assignments[iseg,npts-1]]
- *                                 if ptlabel != nstates:             # <<<<<<<<<<<<<<
- *                                     _statelabels[iseg,npts-1] = ptlabel
- *                                     _trajlabels[iseg,npts-1] = ptlabel
- */
-                    __pyx_t_11 = ((__pyx_v_ptlabel != __pyx_v_nstates) != 0);
-                    if (__pyx_t_11) {
-
-                      /* "westpa/binning/_assign.pyx":290
- *                                 ptlabel = state_map[_assignments[iseg,npts-1]]
- *                                 if ptlabel != nstates:
- *                                     _statelabels[iseg,npts-1] = ptlabel             # <<<<<<<<<<<<<<
- *                                     _trajlabels[iseg,npts-1] = ptlabel
- *     else:
- */
-                      __pyx_t_58 = __pyx_v_iseg;
-                      __pyx_t_59 = (__pyx_v_npts - 1);
-                      *((__pyx_t_6westpa_7binning_7_assign_index_t *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v__statelabels.data + __pyx_t_58 * __pyx_v__statelabels.strides[0]) ) + __pyx_t_59 * __pyx_v__statelabels.strides[1]) )) = __pyx_v_ptlabel;
-
-                      /* "westpa/binning/_assign.pyx":291
- *                                 if ptlabel != nstates:
- *                                     _statelabels[iseg,npts-1] = ptlabel
- *                                     _trajlabels[iseg,npts-1] = ptlabel             # <<<<<<<<<<<<<<
+ *                     else:
+ *                         _trajlabels[iseg,ipt] = ptlabel             # <<<<<<<<<<<<<<
  *     else:
  *         trajlabels.fill(nstates)
  */
-                      __pyx_t_60 = __pyx_v_iseg;
-                      __pyx_t_61 = (__pyx_v_npts - 1);
-                      *((__pyx_t_6westpa_7binning_7_assign_index_t *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v__trajlabels.data + __pyx_t_60 * __pyx_v__trajlabels.strides[0]) ) + __pyx_t_61 * __pyx_v__trajlabels.strides[1]) )) = __pyx_v_ptlabel;
-
-                      /* "westpa/binning/_assign.pyx":289
- *                             if ipt == npts - 1:
- *                                 ptlabel = state_map[_assignments[iseg,npts-1]]
- *                                 if ptlabel != nstates:             # <<<<<<<<<<<<<<
- *                                     _statelabels[iseg,npts-1] = ptlabel
- *                                     _trajlabels[iseg,npts-1] = ptlabel
- */
-                    }
-
-                    /* "westpa/binning/_assign.pyx":287
- *                             _trajlabels[iseg,ipt] = _trajlabels[iseg,ipt-1]
- *                             _statelabels[iseg,ipt] = _statelabels[iseg,ipt-1]
- *                             if ipt == npts - 1:             # <<<<<<<<<<<<<<
- *                                 ptlabel = state_map[_assignments[iseg,npts-1]]
- *                                 if ptlabel != nstates:
- */
-                  }
-
-                  /* "westpa/binning/_assign.pyx":283
- *                             else:
- *                                 _trajlabels[iseg,ipt] = ptlabel
- *                         if ipt != 0:             # <<<<<<<<<<<<<<
- *                             # We're no longer at the first point, so just nab the previous assignment.
- *                             _trajlabels[iseg,ipt] = _trajlabels[iseg,ipt-1]
- */
-                }
+              /*else*/ {
+                __pyx_t_30 = __pyx_v_iseg;
+                __pyx_t_31 = __pyx_v_ipt;
+                *((__pyx_t_6westpa_7binning_7_assign_index_t *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v__trajlabels.data + __pyx_t_30 * __pyx_v__trajlabels.strides[0]) ) + __pyx_t_31 * __pyx_v__trajlabels.strides[1]) )) = __pyx_v_ptlabel;
               }
+              __pyx_L13:;
             }
           }
+        }
 
-          /* "westpa/binning/_assign.pyx":264
- *                             _trajlabels[iseg,ipt] = ptlabel
- *         else:
- *             with nogil:             # <<<<<<<<<<<<<<
- *                 for iseg in range(nsegs):
- *                     seg_id = iseg+nsegs_lb
+        /* "westpa/binning/_assign.pyx":237
+ * 
+ *     if state_map is not None:
+ *         with nogil:             # <<<<<<<<<<<<<<
+ *             for iseg in range(nsegs):
+ *                 seg_id = iseg+nsegs_lb
  */
-          /*finally:*/ {
-            /*normal exit:*/{
-              #ifdef WITH_THREAD
-              Py_BLOCK_THREADS
-              #endif
-              goto __pyx_L19;
-            }
-            __pyx_L19:;
+        /*finally:*/ {
+          /*normal exit:*/{
+            #ifdef WITH_THREAD
+            Py_BLOCK_THREADS
+            #endif
+            goto __pyx_L8;
           }
-      }
+          __pyx_L8:;
+        }
     }
-    __pyx_L6:;
 
-    /* "westpa/binning/_assign.pyx":238
+    /* "westpa/binning/_assign.pyx":236
  *         assign(pcoords[iseg,:], mask, assignments[iseg,:])
  * 
  *     if state_map is not None:             # <<<<<<<<<<<<<<
- *         if subsample == False:
- *             with nogil:
+ *         with nogil:
+ *             for iseg in range(nsegs):
  */
     goto __pyx_L5;
   }
 
-  /* "westpa/binning/_assign.pyx":293
- *                                     _trajlabels[iseg,npts-1] = ptlabel
+  /* "westpa/binning/_assign.pyx":261
+ *                         _trajlabels[iseg,ipt] = ptlabel
  *     else:
  *         trajlabels.fill(nstates)             # <<<<<<<<<<<<<<
  *         statelabels.fill(nstates)
  * 
  */
   /*else*/ {
-    __pyx_t_6 = __Pyx_PyObject_GetAttrStr(__pyx_v_trajlabels, __pyx_n_s_fill); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 293, __pyx_L1_error)
+    __pyx_t_6 = __Pyx_PyObject_GetAttrStr(__pyx_v_trajlabels, __pyx_n_s_fill); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 261, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_6);
-    __pyx_t_1 = PyInt_FromSsize_t(__pyx_v_nstates); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 293, __pyx_L1_error)
+    __pyx_t_1 = PyInt_FromSsize_t(__pyx_v_nstates); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 261, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_1);
     __pyx_t_7 = NULL;
     if (CYTHON_COMPILING_IN_CPYTHON && likely(PyMethod_Check(__pyx_t_6))) {
@@ -5525,33 +5144,33 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_assign_and_label(Py_ssize_t _
       }
     }
     if (!__pyx_t_7) {
-      __pyx_t_2 = __Pyx_PyObject_CallOneArg(__pyx_t_6, __pyx_t_1); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 293, __pyx_L1_error)
+      __pyx_t_2 = __Pyx_PyObject_CallOneArg(__pyx_t_6, __pyx_t_1); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 261, __pyx_L1_error)
       __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
       __Pyx_GOTREF(__pyx_t_2);
     } else {
-      __pyx_t_4 = PyTuple_New(1+1); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 293, __pyx_L1_error)
+      __pyx_t_4 = PyTuple_New(1+1); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 261, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_4);
       __Pyx_GIVEREF(__pyx_t_7); PyTuple_SET_ITEM(__pyx_t_4, 0, __pyx_t_7); __pyx_t_7 = NULL;
       __Pyx_GIVEREF(__pyx_t_1);
       PyTuple_SET_ITEM(__pyx_t_4, 0+1, __pyx_t_1);
       __pyx_t_1 = 0;
-      __pyx_t_2 = __Pyx_PyObject_Call(__pyx_t_6, __pyx_t_4, NULL); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 293, __pyx_L1_error)
+      __pyx_t_2 = __Pyx_PyObject_Call(__pyx_t_6, __pyx_t_4, NULL); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 261, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_2);
       __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
     }
     __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-    /* "westpa/binning/_assign.pyx":294
+    /* "westpa/binning/_assign.pyx":262
  *     else:
  *         trajlabels.fill(nstates)
  *         statelabels.fill(nstates)             # <<<<<<<<<<<<<<
  * 
  *     return assignments, trajlabels, statelabels
  */
-    __pyx_t_6 = __Pyx_PyObject_GetAttrStr(__pyx_v_statelabels, __pyx_n_s_fill); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 294, __pyx_L1_error)
+    __pyx_t_6 = __Pyx_PyObject_GetAttrStr(__pyx_v_statelabels, __pyx_n_s_fill); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 262, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_6);
-    __pyx_t_4 = PyInt_FromSsize_t(__pyx_v_nstates); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 294, __pyx_L1_error)
+    __pyx_t_4 = PyInt_FromSsize_t(__pyx_v_nstates); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 262, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_4);
     __pyx_t_1 = NULL;
     if (CYTHON_COMPILING_IN_CPYTHON && likely(PyMethod_Check(__pyx_t_6))) {
@@ -5564,17 +5183,17 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_assign_and_label(Py_ssize_t _
       }
     }
     if (!__pyx_t_1) {
-      __pyx_t_2 = __Pyx_PyObject_CallOneArg(__pyx_t_6, __pyx_t_4); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 294, __pyx_L1_error)
+      __pyx_t_2 = __Pyx_PyObject_CallOneArg(__pyx_t_6, __pyx_t_4); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 262, __pyx_L1_error)
       __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
       __Pyx_GOTREF(__pyx_t_2);
     } else {
-      __pyx_t_7 = PyTuple_New(1+1); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 294, __pyx_L1_error)
+      __pyx_t_7 = PyTuple_New(1+1); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 262, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_7);
       __Pyx_GIVEREF(__pyx_t_1); PyTuple_SET_ITEM(__pyx_t_7, 0, __pyx_t_1); __pyx_t_1 = NULL;
       __Pyx_GIVEREF(__pyx_t_4);
       PyTuple_SET_ITEM(__pyx_t_7, 0+1, __pyx_t_4);
       __pyx_t_4 = 0;
-      __pyx_t_2 = __Pyx_PyObject_Call(__pyx_t_6, __pyx_t_7, NULL); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 294, __pyx_L1_error)
+      __pyx_t_2 = __Pyx_PyObject_Call(__pyx_t_6, __pyx_t_7, NULL); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 262, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_2);
       __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
     }
@@ -5583,7 +5202,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_assign_and_label(Py_ssize_t _
   }
   __pyx_L5:;
 
-  /* "westpa/binning/_assign.pyx":296
+  /* "westpa/binning/_assign.pyx":264
  *         statelabels.fill(nstates)
  * 
  *     return assignments, trajlabels, statelabels             # <<<<<<<<<<<<<<
@@ -5591,7 +5210,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_assign_and_label(Py_ssize_t _
  * @cython.cdivision(True)
  */
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_2 = PyTuple_New(3); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 296, __pyx_L1_error)
+  __pyx_t_2 = PyTuple_New(3); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 264, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __Pyx_INCREF(__pyx_v_assignments);
   __Pyx_GIVEREF(__pyx_v_assignments);
@@ -5650,18 +5269,16 @@ static PyObject *__pyx_pw_6westpa_7binning_7_assign_11assign_and_label(PyObject 
   __Pyx_memviewslice __pyx_v_state_map = { 0, 0, { 0 }, { 0 }, { 0 } };
   __Pyx_memviewslice __pyx_v_last_labels = { 0, 0, { 0 }, { 0 }, { 0 } };
   PyObject *__pyx_v_pcoords = 0;
-  int __pyx_v_subsample;
   PyObject *__pyx_r = 0;
   __Pyx_RefNannyDeclarations
   __Pyx_RefNannySetupContext("assign_and_label (wrapper)", 0);
   {
-    static PyObject **__pyx_pyargnames[] = {&__pyx_n_s_nsegs_lb,&__pyx_n_s_nsegs_ub,&__pyx_n_s_parent_ids,&__pyx_n_s_assign,&__pyx_n_s_nstates,&__pyx_n_s_state_map,&__pyx_n_s_last_labels,&__pyx_n_s_pcoords,&__pyx_n_s_subsample,0};
-    PyObject* values[9] = {0,0,0,0,0,0,0,0,0};
+    static PyObject **__pyx_pyargnames[] = {&__pyx_n_s_nsegs_lb,&__pyx_n_s_nsegs_ub,&__pyx_n_s_parent_ids,&__pyx_n_s_assign,&__pyx_n_s_nstates,&__pyx_n_s_state_map,&__pyx_n_s_last_labels,&__pyx_n_s_pcoords,0};
+    PyObject* values[8] = {0,0,0,0,0,0,0,0};
     if (unlikely(__pyx_kwds)) {
       Py_ssize_t kw_args;
       const Py_ssize_t pos_args = PyTuple_GET_SIZE(__pyx_args);
       switch (pos_args) {
-        case  9: values[8] = PyTuple_GET_ITEM(__pyx_args, 8);
         case  8: values[7] = PyTuple_GET_ITEM(__pyx_args, 7);
         case  7: values[6] = PyTuple_GET_ITEM(__pyx_args, 6);
         case  6: values[5] = PyTuple_GET_ITEM(__pyx_args, 5);
@@ -5681,48 +5298,43 @@ static PyObject *__pyx_pw_6westpa_7binning_7_assign_11assign_and_label(PyObject 
         case  1:
         if (likely((values[1] = PyDict_GetItem(__pyx_kwds, __pyx_n_s_nsegs_ub)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("assign_and_label", 1, 9, 9, 1); __PYX_ERR(0, 204, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("assign_and_label", 1, 8, 8, 1); __PYX_ERR(0, 204, __pyx_L3_error)
         }
         case  2:
         if (likely((values[2] = PyDict_GetItem(__pyx_kwds, __pyx_n_s_parent_ids)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("assign_and_label", 1, 9, 9, 2); __PYX_ERR(0, 204, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("assign_and_label", 1, 8, 8, 2); __PYX_ERR(0, 204, __pyx_L3_error)
         }
         case  3:
         if (likely((values[3] = PyDict_GetItem(__pyx_kwds, __pyx_n_s_assign)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("assign_and_label", 1, 9, 9, 3); __PYX_ERR(0, 204, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("assign_and_label", 1, 8, 8, 3); __PYX_ERR(0, 204, __pyx_L3_error)
         }
         case  4:
         if (likely((values[4] = PyDict_GetItem(__pyx_kwds, __pyx_n_s_nstates)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("assign_and_label", 1, 9, 9, 4); __PYX_ERR(0, 204, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("assign_and_label", 1, 8, 8, 4); __PYX_ERR(0, 204, __pyx_L3_error)
         }
         case  5:
         if (likely((values[5] = PyDict_GetItem(__pyx_kwds, __pyx_n_s_state_map)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("assign_and_label", 1, 9, 9, 5); __PYX_ERR(0, 204, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("assign_and_label", 1, 8, 8, 5); __PYX_ERR(0, 204, __pyx_L3_error)
         }
         case  6:
         if (likely((values[6] = PyDict_GetItem(__pyx_kwds, __pyx_n_s_last_labels)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("assign_and_label", 1, 9, 9, 6); __PYX_ERR(0, 204, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("assign_and_label", 1, 8, 8, 6); __PYX_ERR(0, 204, __pyx_L3_error)
         }
         case  7:
         if (likely((values[7] = PyDict_GetItem(__pyx_kwds, __pyx_n_s_pcoords)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("assign_and_label", 1, 9, 9, 7); __PYX_ERR(0, 204, __pyx_L3_error)
-        }
-        case  8:
-        if (likely((values[8] = PyDict_GetItem(__pyx_kwds, __pyx_n_s_subsample)) != 0)) kw_args--;
-        else {
-          __Pyx_RaiseArgtupleInvalid("assign_and_label", 1, 9, 9, 8); __PYX_ERR(0, 204, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("assign_and_label", 1, 8, 8, 7); __PYX_ERR(0, 204, __pyx_L3_error)
         }
       }
       if (unlikely(kw_args > 0)) {
         if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_pyargnames, 0, values, pos_args, "assign_and_label") < 0)) __PYX_ERR(0, 204, __pyx_L3_error)
       }
-    } else if (PyTuple_GET_SIZE(__pyx_args) != 9) {
+    } else if (PyTuple_GET_SIZE(__pyx_args) != 8) {
       goto __pyx_L5_argtuple_error;
     } else {
       values[0] = PyTuple_GET_ITEM(__pyx_args, 0);
@@ -5733,7 +5345,6 @@ static PyObject *__pyx_pw_6westpa_7binning_7_assign_11assign_and_label(PyObject 
       values[5] = PyTuple_GET_ITEM(__pyx_args, 5);
       values[6] = PyTuple_GET_ITEM(__pyx_args, 6);
       values[7] = PyTuple_GET_ITEM(__pyx_args, 7);
-      values[8] = PyTuple_GET_ITEM(__pyx_args, 8);
     }
     __pyx_v_nsegs_lb = __Pyx_PyIndex_AsSsize_t(values[0]); if (unlikely((__pyx_v_nsegs_lb == (Py_ssize_t)-1) && PyErr_Occurred())) __PYX_ERR(0, 204, __pyx_L3_error)
     __pyx_v_nsegs_ub = __Pyx_PyIndex_AsSsize_t(values[1]); if (unlikely((__pyx_v_nsegs_ub == (Py_ssize_t)-1) && PyErr_Occurred())) __PYX_ERR(0, 205, __pyx_L3_error)
@@ -5743,24 +5354,23 @@ static PyObject *__pyx_pw_6westpa_7binning_7_assign_11assign_and_label(PyObject 
     __pyx_v_state_map = __Pyx_PyObject_to_MemoryviewSlice_ds_nn___pyx_t_6westpa_7binning_7_assign_index_t(values[5]); if (unlikely(!__pyx_v_state_map.memview)) __PYX_ERR(0, 209, __pyx_L3_error)
     __pyx_v_last_labels = __Pyx_PyObject_to_MemoryviewSlice_ds_nn___pyx_t_6westpa_7binning_7_assign_index_t(values[6]); if (unlikely(!__pyx_v_last_labels.memview)) __PYX_ERR(0, 210, __pyx_L3_error)
     __pyx_v_pcoords = values[7];
-    __pyx_v_subsample = __Pyx_PyObject_IsTrue(values[8]); if (unlikely((__pyx_v_subsample == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 212, __pyx_L3_error)
   }
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("assign_and_label", 1, 9, 9, PyTuple_GET_SIZE(__pyx_args)); __PYX_ERR(0, 204, __pyx_L3_error)
+  __Pyx_RaiseArgtupleInvalid("assign_and_label", 1, 8, 8, PyTuple_GET_SIZE(__pyx_args)); __PYX_ERR(0, 204, __pyx_L3_error)
   __pyx_L3_error:;
   __Pyx_AddTraceback("westpa.binning._assign.assign_and_label", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
   return NULL;
   __pyx_L4_argument_unpacking_done:;
-  __pyx_r = __pyx_pf_6westpa_7binning_7_assign_10assign_and_label(__pyx_self, __pyx_v_nsegs_lb, __pyx_v_nsegs_ub, __pyx_v_parent_ids, __pyx_v_assign, __pyx_v_nstates, __pyx_v_state_map, __pyx_v_last_labels, __pyx_v_pcoords, __pyx_v_subsample);
+  __pyx_r = __pyx_pf_6westpa_7binning_7_assign_10assign_and_label(__pyx_self, __pyx_v_nsegs_lb, __pyx_v_nsegs_ub, __pyx_v_parent_ids, __pyx_v_assign, __pyx_v_nstates, __pyx_v_state_map, __pyx_v_last_labels, __pyx_v_pcoords);
 
   /* function exit code */
   __Pyx_RefNannyFinishContext();
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_6westpa_7binning_7_assign_10assign_and_label(CYTHON_UNUSED PyObject *__pyx_self, Py_ssize_t __pyx_v_nsegs_lb, Py_ssize_t __pyx_v_nsegs_ub, __Pyx_memviewslice __pyx_v_parent_ids, PyObject *__pyx_v_assign, Py_ssize_t __pyx_v_nstates, __Pyx_memviewslice __pyx_v_state_map, __Pyx_memviewslice __pyx_v_last_labels, PyObject *__pyx_v_pcoords, int __pyx_v_subsample) {
+static PyObject *__pyx_pf_6westpa_7binning_7_assign_10assign_and_label(CYTHON_UNUSED PyObject *__pyx_self, Py_ssize_t __pyx_v_nsegs_lb, Py_ssize_t __pyx_v_nsegs_ub, __Pyx_memviewslice __pyx_v_parent_ids, PyObject *__pyx_v_assign, Py_ssize_t __pyx_v_nstates, __Pyx_memviewslice __pyx_v_state_map, __Pyx_memviewslice __pyx_v_last_labels, PyObject *__pyx_v_pcoords) {
   PyObject *__pyx_r = NULL;
   __Pyx_RefNannyDeclarations
   PyObject *__pyx_t_1 = NULL;
@@ -5769,7 +5379,7 @@ static PyObject *__pyx_pf_6westpa_7binning_7_assign_10assign_and_label(CYTHON_UN
   if (unlikely(!__pyx_v_parent_ids.memview)) { __Pyx_RaiseUnboundLocalError("parent_ids"); __PYX_ERR(0, 204, __pyx_L1_error) }
   if (unlikely(!__pyx_v_state_map.memview)) { __Pyx_RaiseUnboundLocalError("state_map"); __PYX_ERR(0, 204, __pyx_L1_error) }
   if (unlikely(!__pyx_v_last_labels.memview)) { __Pyx_RaiseUnboundLocalError("last_labels"); __PYX_ERR(0, 204, __pyx_L1_error) }
-  __pyx_t_1 = __pyx_f_6westpa_7binning_7_assign_assign_and_label(__pyx_v_nsegs_lb, __pyx_v_nsegs_ub, __pyx_v_parent_ids, __pyx_v_assign, __pyx_v_nstates, __pyx_v_state_map, __pyx_v_last_labels, __pyx_v_pcoords, __pyx_v_subsample, 0); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 204, __pyx_L1_error)
+  __pyx_t_1 = __pyx_f_6westpa_7binning_7_assign_assign_and_label(__pyx_v_nsegs_lb, __pyx_v_nsegs_ub, __pyx_v_parent_ids, __pyx_v_assign, __pyx_v_nstates, __pyx_v_state_map, __pyx_v_last_labels, __pyx_v_pcoords, 0); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 204, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
@@ -5789,7 +5399,7 @@ static PyObject *__pyx_pf_6westpa_7binning_7_assign_10assign_and_label(CYTHON_UN
   return __pyx_r;
 }
 
-/* "westpa/binning/_assign.pyx":301
+/* "westpa/binning/_assign.pyx":269
  * @cython.boundscheck(False)
  * @cython.wraparound(False)
  * cpdef accumulate_labeled_populations(weight_t[:]  weights,             # <<<<<<<<<<<<<<
@@ -5831,7 +5441,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_labeled_population
   size_t __pyx_t_19;
   __Pyx_RefNannySetupContext("accumulate_labeled_populations", 0);
 
-  /* "westpa/binning/_assign.pyx":312
+  /* "westpa/binning/_assign.pyx":280
  *         weight_t ptwt
  * 
  *     nstates = labeled_bin_pops.shape[0] # this will generally be n_valid_states + 1 (for unknown state)             # <<<<<<<<<<<<<<
@@ -5840,7 +5450,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_labeled_population
  */
   __pyx_v_nstates = (__pyx_v_labeled_bin_pops.shape[0]);
 
-  /* "westpa/binning/_assign.pyx":313
+  /* "westpa/binning/_assign.pyx":281
  * 
  *     nstates = labeled_bin_pops.shape[0] # this will generally be n_valid_states + 1 (for unknown state)
  *     nbins = labeled_bin_pops.shape[1]   # this may be n_valid_bins + 1 (for unknown bin)             # <<<<<<<<<<<<<<
@@ -5849,7 +5459,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_labeled_population
  */
   __pyx_v_nbins = (__pyx_v_labeled_bin_pops.shape[1]);
 
-  /* "westpa/binning/_assign.pyx":314
+  /* "westpa/binning/_assign.pyx":282
  *     nstates = labeled_bin_pops.shape[0] # this will generally be n_valid_states + 1 (for unknown state)
  *     nbins = labeled_bin_pops.shape[1]   # this may be n_valid_bins + 1 (for unknown bin)
  *     nsegs = bin_assignments.shape[0]             # <<<<<<<<<<<<<<
@@ -5858,7 +5468,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_labeled_population
  */
   __pyx_v_nsegs = (__pyx_v_bin_assignments.shape[0]);
 
-  /* "westpa/binning/_assign.pyx":315
+  /* "westpa/binning/_assign.pyx":283
  *     nbins = labeled_bin_pops.shape[1]   # this may be n_valid_bins + 1 (for unknown bin)
  *     nsegs = bin_assignments.shape[0]
  *     npts = bin_assignments.shape[1]             # <<<<<<<<<<<<<<
@@ -5867,7 +5477,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_labeled_population
  */
   __pyx_v_npts = (__pyx_v_bin_assignments.shape[1]);
 
-  /* "westpa/binning/_assign.pyx":317
+  /* "westpa/binning/_assign.pyx":285
  *     npts = bin_assignments.shape[1]
  * 
  *     with nogil:             # <<<<<<<<<<<<<<
@@ -5881,7 +5491,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_labeled_population
       #endif
       /*try:*/ {
 
-        /* "westpa/binning/_assign.pyx":318
+        /* "westpa/binning/_assign.pyx":286
  * 
  *     with nogil:
  *         for seg_id in range(nsegs):             # <<<<<<<<<<<<<<
@@ -5892,7 +5502,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_labeled_population
         for (__pyx_t_2 = 0; __pyx_t_2 < __pyx_t_1; __pyx_t_2+=1) {
           __pyx_v_seg_id = __pyx_t_2;
 
-          /* "westpa/binning/_assign.pyx":319
+          /* "westpa/binning/_assign.pyx":287
  *     with nogil:
  *         for seg_id in range(nsegs):
  *             ptwt = weights[seg_id] / npts             # <<<<<<<<<<<<<<
@@ -5902,7 +5512,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_labeled_population
           __pyx_t_3 = __pyx_v_seg_id;
           __pyx_v_ptwt = ((*((__pyx_t_6westpa_7binning_7_assign_weight_t *) ( /* dim=0 */ (__pyx_v_weights.data + __pyx_t_3 * __pyx_v_weights.strides[0]) ))) / ((__pyx_t_6westpa_7binning_7_assign_weight_t)__pyx_v_npts));
 
-          /* "westpa/binning/_assign.pyx":320
+          /* "westpa/binning/_assign.pyx":288
  *         for seg_id in range(nsegs):
  *             ptwt = weights[seg_id] / npts
  *             for ipt in range(npts):             # <<<<<<<<<<<<<<
@@ -5913,7 +5523,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_labeled_population
           for (__pyx_t_5 = 0; __pyx_t_5 < __pyx_t_4; __pyx_t_5+=1) {
             __pyx_v_ipt = __pyx_t_5;
 
-            /* "westpa/binning/_assign.pyx":321
+            /* "westpa/binning/_assign.pyx":289
  *             ptwt = weights[seg_id] / npts
  *             for ipt in range(npts):
  *                 assignment = bin_assignments[seg_id,ipt]             # <<<<<<<<<<<<<<
@@ -5924,7 +5534,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_labeled_population
             __pyx_t_7 = __pyx_v_ipt;
             __pyx_v_assignment = (*((__pyx_t_6westpa_7binning_7_assign_index_t *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v_bin_assignments.data + __pyx_t_6 * __pyx_v_bin_assignments.strides[0]) ) + __pyx_t_7 * __pyx_v_bin_assignments.strides[1]) )));
 
-            /* "westpa/binning/_assign.pyx":322
+            /* "westpa/binning/_assign.pyx":290
  *             for ipt in range(npts):
  *                 assignment = bin_assignments[seg_id,ipt]
  *                 if assignment >= nbins:             # <<<<<<<<<<<<<<
@@ -5934,7 +5544,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_labeled_population
             __pyx_t_8 = ((__pyx_v_assignment >= __pyx_v_nbins) != 0);
             if (__pyx_t_8) {
 
-              /* "westpa/binning/_assign.pyx":323
+              /* "westpa/binning/_assign.pyx":291
  *                 assignment = bin_assignments[seg_id,ipt]
  *                 if assignment >= nbins:
  *                     with gil:             # <<<<<<<<<<<<<<
@@ -5947,18 +5557,18 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_labeled_population
                   #endif
                   /*try:*/ {
 
-                    /* "westpa/binning/_assign.pyx":324
+                    /* "westpa/binning/_assign.pyx":292
  *                 if assignment >= nbins:
  *                     with gil:
  *                         raise ValueError('invalid bin assignment for segment {} point {}'.format(seg_id, ipt))             # <<<<<<<<<<<<<<
  * 
  *                 traj_assignment = label_assignments[seg_id,ipt]
  */
-                    __pyx_t_10 = __Pyx_PyObject_GetAttrStr(__pyx_kp_s_invalid_bin_assignment_for_segme, __pyx_n_s_format); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 324, __pyx_L14_error)
+                    __pyx_t_10 = __Pyx_PyObject_GetAttrStr(__pyx_kp_s_invalid_bin_assignment_for_segme, __pyx_n_s_format); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 292, __pyx_L14_error)
                     __Pyx_GOTREF(__pyx_t_10);
-                    __pyx_t_11 = PyInt_FromSsize_t(__pyx_v_seg_id); if (unlikely(!__pyx_t_11)) __PYX_ERR(0, 324, __pyx_L14_error)
+                    __pyx_t_11 = PyInt_FromSsize_t(__pyx_v_seg_id); if (unlikely(!__pyx_t_11)) __PYX_ERR(0, 292, __pyx_L14_error)
                     __Pyx_GOTREF(__pyx_t_11);
-                    __pyx_t_12 = PyInt_FromSsize_t(__pyx_v_ipt); if (unlikely(!__pyx_t_12)) __PYX_ERR(0, 324, __pyx_L14_error)
+                    __pyx_t_12 = PyInt_FromSsize_t(__pyx_v_ipt); if (unlikely(!__pyx_t_12)) __PYX_ERR(0, 292, __pyx_L14_error)
                     __Pyx_GOTREF(__pyx_t_12);
                     __pyx_t_13 = NULL;
                     __pyx_t_14 = 0;
@@ -5972,7 +5582,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_labeled_population
                         __pyx_t_14 = 1;
                       }
                     }
-                    __pyx_t_15 = PyTuple_New(2+__pyx_t_14); if (unlikely(!__pyx_t_15)) __PYX_ERR(0, 324, __pyx_L14_error)
+                    __pyx_t_15 = PyTuple_New(2+__pyx_t_14); if (unlikely(!__pyx_t_15)) __PYX_ERR(0, 292, __pyx_L14_error)
                     __Pyx_GOTREF(__pyx_t_15);
                     if (__pyx_t_13) {
                       __Pyx_GIVEREF(__pyx_t_13); PyTuple_SET_ITEM(__pyx_t_15, 0, __pyx_t_13); __pyx_t_13 = NULL;
@@ -5983,24 +5593,24 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_labeled_population
                     PyTuple_SET_ITEM(__pyx_t_15, 1+__pyx_t_14, __pyx_t_12);
                     __pyx_t_11 = 0;
                     __pyx_t_12 = 0;
-                    __pyx_t_9 = __Pyx_PyObject_Call(__pyx_t_10, __pyx_t_15, NULL); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 324, __pyx_L14_error)
+                    __pyx_t_9 = __Pyx_PyObject_Call(__pyx_t_10, __pyx_t_15, NULL); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 292, __pyx_L14_error)
                     __Pyx_GOTREF(__pyx_t_9);
                     __Pyx_DECREF(__pyx_t_15); __pyx_t_15 = 0;
                     __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
-                    __pyx_t_10 = PyTuple_New(1); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 324, __pyx_L14_error)
+                    __pyx_t_10 = PyTuple_New(1); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 292, __pyx_L14_error)
                     __Pyx_GOTREF(__pyx_t_10);
                     __Pyx_GIVEREF(__pyx_t_9);
                     PyTuple_SET_ITEM(__pyx_t_10, 0, __pyx_t_9);
                     __pyx_t_9 = 0;
-                    __pyx_t_9 = __Pyx_PyObject_Call(__pyx_builtin_ValueError, __pyx_t_10, NULL); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 324, __pyx_L14_error)
+                    __pyx_t_9 = __Pyx_PyObject_Call(__pyx_builtin_ValueError, __pyx_t_10, NULL); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 292, __pyx_L14_error)
                     __Pyx_GOTREF(__pyx_t_9);
                     __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
                     __Pyx_Raise(__pyx_t_9, 0, 0, 0);
                     __Pyx_DECREF(__pyx_t_9); __pyx_t_9 = 0;
-                    __PYX_ERR(0, 324, __pyx_L14_error)
+                    __PYX_ERR(0, 292, __pyx_L14_error)
                   }
 
-                  /* "westpa/binning/_assign.pyx":323
+                  /* "westpa/binning/_assign.pyx":291
  *                 assignment = bin_assignments[seg_id,ipt]
  *                 if assignment >= nbins:
  *                     with gil:             # <<<<<<<<<<<<<<
@@ -6017,7 +5627,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_labeled_population
                   }
               }
 
-              /* "westpa/binning/_assign.pyx":322
+              /* "westpa/binning/_assign.pyx":290
  *             for ipt in range(npts):
  *                 assignment = bin_assignments[seg_id,ipt]
  *                 if assignment >= nbins:             # <<<<<<<<<<<<<<
@@ -6026,7 +5636,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_labeled_population
  */
             }
 
-            /* "westpa/binning/_assign.pyx":326
+            /* "westpa/binning/_assign.pyx":294
  *                         raise ValueError('invalid bin assignment for segment {} point {}'.format(seg_id, ipt))
  * 
  *                 traj_assignment = label_assignments[seg_id,ipt]             # <<<<<<<<<<<<<<
@@ -6037,7 +5647,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_labeled_population
             __pyx_t_17 = __pyx_v_ipt;
             __pyx_v_traj_assignment = (*((__pyx_t_6westpa_7binning_7_assign_index_t *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v_label_assignments.data + __pyx_t_16 * __pyx_v_label_assignments.strides[0]) ) + __pyx_t_17 * __pyx_v_label_assignments.strides[1]) )));
 
-            /* "westpa/binning/_assign.pyx":327
+            /* "westpa/binning/_assign.pyx":295
  * 
  *                 traj_assignment = label_assignments[seg_id,ipt]
  *                 if traj_assignment >= nstates:             # <<<<<<<<<<<<<<
@@ -6047,7 +5657,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_labeled_population
             __pyx_t_8 = ((__pyx_v_traj_assignment >= __pyx_v_nstates) != 0);
             if (__pyx_t_8) {
 
-              /* "westpa/binning/_assign.pyx":328
+              /* "westpa/binning/_assign.pyx":296
  *                 traj_assignment = label_assignments[seg_id,ipt]
  *                 if traj_assignment >= nstates:
  *                     with gil:             # <<<<<<<<<<<<<<
@@ -6060,18 +5670,18 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_labeled_population
                   #endif
                   /*try:*/ {
 
-                    /* "westpa/binning/_assign.pyx":329
+                    /* "westpa/binning/_assign.pyx":297
  *                 if traj_assignment >= nstates:
  *                     with gil:
  *                         raise ValueError('invalid trajectory label for segment {} point {}'.format(seg_id, ipt))             # <<<<<<<<<<<<<<
  * 
  *                 labeled_bin_pops[traj_assignment,assignment] += ptwt
  */
-                    __pyx_t_10 = __Pyx_PyObject_GetAttrStr(__pyx_kp_s_invalid_trajectory_label_for_seg, __pyx_n_s_format); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 329, __pyx_L20_error)
+                    __pyx_t_10 = __Pyx_PyObject_GetAttrStr(__pyx_kp_s_invalid_trajectory_label_for_seg, __pyx_n_s_format); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 297, __pyx_L20_error)
                     __Pyx_GOTREF(__pyx_t_10);
-                    __pyx_t_15 = PyInt_FromSsize_t(__pyx_v_seg_id); if (unlikely(!__pyx_t_15)) __PYX_ERR(0, 329, __pyx_L20_error)
+                    __pyx_t_15 = PyInt_FromSsize_t(__pyx_v_seg_id); if (unlikely(!__pyx_t_15)) __PYX_ERR(0, 297, __pyx_L20_error)
                     __Pyx_GOTREF(__pyx_t_15);
-                    __pyx_t_12 = PyInt_FromSsize_t(__pyx_v_ipt); if (unlikely(!__pyx_t_12)) __PYX_ERR(0, 329, __pyx_L20_error)
+                    __pyx_t_12 = PyInt_FromSsize_t(__pyx_v_ipt); if (unlikely(!__pyx_t_12)) __PYX_ERR(0, 297, __pyx_L20_error)
                     __Pyx_GOTREF(__pyx_t_12);
                     __pyx_t_11 = NULL;
                     __pyx_t_14 = 0;
@@ -6085,7 +5695,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_labeled_population
                         __pyx_t_14 = 1;
                       }
                     }
-                    __pyx_t_13 = PyTuple_New(2+__pyx_t_14); if (unlikely(!__pyx_t_13)) __PYX_ERR(0, 329, __pyx_L20_error)
+                    __pyx_t_13 = PyTuple_New(2+__pyx_t_14); if (unlikely(!__pyx_t_13)) __PYX_ERR(0, 297, __pyx_L20_error)
                     __Pyx_GOTREF(__pyx_t_13);
                     if (__pyx_t_11) {
                       __Pyx_GIVEREF(__pyx_t_11); PyTuple_SET_ITEM(__pyx_t_13, 0, __pyx_t_11); __pyx_t_11 = NULL;
@@ -6096,24 +5706,24 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_labeled_population
                     PyTuple_SET_ITEM(__pyx_t_13, 1+__pyx_t_14, __pyx_t_12);
                     __pyx_t_15 = 0;
                     __pyx_t_12 = 0;
-                    __pyx_t_9 = __Pyx_PyObject_Call(__pyx_t_10, __pyx_t_13, NULL); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 329, __pyx_L20_error)
+                    __pyx_t_9 = __Pyx_PyObject_Call(__pyx_t_10, __pyx_t_13, NULL); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 297, __pyx_L20_error)
                     __Pyx_GOTREF(__pyx_t_9);
                     __Pyx_DECREF(__pyx_t_13); __pyx_t_13 = 0;
                     __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
-                    __pyx_t_10 = PyTuple_New(1); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 329, __pyx_L20_error)
+                    __pyx_t_10 = PyTuple_New(1); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 297, __pyx_L20_error)
                     __Pyx_GOTREF(__pyx_t_10);
                     __Pyx_GIVEREF(__pyx_t_9);
                     PyTuple_SET_ITEM(__pyx_t_10, 0, __pyx_t_9);
                     __pyx_t_9 = 0;
-                    __pyx_t_9 = __Pyx_PyObject_Call(__pyx_builtin_ValueError, __pyx_t_10, NULL); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 329, __pyx_L20_error)
+                    __pyx_t_9 = __Pyx_PyObject_Call(__pyx_builtin_ValueError, __pyx_t_10, NULL); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 297, __pyx_L20_error)
                     __Pyx_GOTREF(__pyx_t_9);
                     __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
                     __Pyx_Raise(__pyx_t_9, 0, 0, 0);
                     __Pyx_DECREF(__pyx_t_9); __pyx_t_9 = 0;
-                    __PYX_ERR(0, 329, __pyx_L20_error)
+                    __PYX_ERR(0, 297, __pyx_L20_error)
                   }
 
-                  /* "westpa/binning/_assign.pyx":328
+                  /* "westpa/binning/_assign.pyx":296
  *                 traj_assignment = label_assignments[seg_id,ipt]
  *                 if traj_assignment >= nstates:
  *                     with gil:             # <<<<<<<<<<<<<<
@@ -6130,7 +5740,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_labeled_population
                   }
               }
 
-              /* "westpa/binning/_assign.pyx":327
+              /* "westpa/binning/_assign.pyx":295
  * 
  *                 traj_assignment = label_assignments[seg_id,ipt]
  *                 if traj_assignment >= nstates:             # <<<<<<<<<<<<<<
@@ -6139,7 +5749,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_labeled_population
  */
             }
 
-            /* "westpa/binning/_assign.pyx":331
+            /* "westpa/binning/_assign.pyx":299
  *                         raise ValueError('invalid trajectory label for segment {} point {}'.format(seg_id, ipt))
  * 
  *                 labeled_bin_pops[traj_assignment,assignment] += ptwt             # <<<<<<<<<<<<<<
@@ -6153,7 +5763,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_labeled_population
         }
       }
 
-      /* "westpa/binning/_assign.pyx":317
+      /* "westpa/binning/_assign.pyx":285
  *     npts = bin_assignments.shape[1]
  * 
  *     with nogil:             # <<<<<<<<<<<<<<
@@ -6177,7 +5787,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_labeled_population
       }
   }
 
-  /* "westpa/binning/_assign.pyx":301
+  /* "westpa/binning/_assign.pyx":269
  * @cython.boundscheck(False)
  * @cython.wraparound(False)
  * cpdef accumulate_labeled_populations(weight_t[:]  weights,             # <<<<<<<<<<<<<<
@@ -6236,21 +5846,21 @@ static PyObject *__pyx_pw_6westpa_7binning_7_assign_13accumulate_labeled_populat
         case  1:
         if (likely((values[1] = PyDict_GetItem(__pyx_kwds, __pyx_n_s_bin_assignments)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("accumulate_labeled_populations", 1, 4, 4, 1); __PYX_ERR(0, 301, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("accumulate_labeled_populations", 1, 4, 4, 1); __PYX_ERR(0, 269, __pyx_L3_error)
         }
         case  2:
         if (likely((values[2] = PyDict_GetItem(__pyx_kwds, __pyx_n_s_label_assignments)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("accumulate_labeled_populations", 1, 4, 4, 2); __PYX_ERR(0, 301, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("accumulate_labeled_populations", 1, 4, 4, 2); __PYX_ERR(0, 269, __pyx_L3_error)
         }
         case  3:
         if (likely((values[3] = PyDict_GetItem(__pyx_kwds, __pyx_n_s_labeled_bin_pops)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("accumulate_labeled_populations", 1, 4, 4, 3); __PYX_ERR(0, 301, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("accumulate_labeled_populations", 1, 4, 4, 3); __PYX_ERR(0, 269, __pyx_L3_error)
         }
       }
       if (unlikely(kw_args > 0)) {
-        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_pyargnames, 0, values, pos_args, "accumulate_labeled_populations") < 0)) __PYX_ERR(0, 301, __pyx_L3_error)
+        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_pyargnames, 0, values, pos_args, "accumulate_labeled_populations") < 0)) __PYX_ERR(0, 269, __pyx_L3_error)
       }
     } else if (PyTuple_GET_SIZE(__pyx_args) != 4) {
       goto __pyx_L5_argtuple_error;
@@ -6260,14 +5870,14 @@ static PyObject *__pyx_pw_6westpa_7binning_7_assign_13accumulate_labeled_populat
       values[2] = PyTuple_GET_ITEM(__pyx_args, 2);
       values[3] = PyTuple_GET_ITEM(__pyx_args, 3);
     }
-    __pyx_v_weights = __Pyx_PyObject_to_MemoryviewSlice_ds_nn___pyx_t_6westpa_7binning_7_assign_weight_t(values[0]); if (unlikely(!__pyx_v_weights.memview)) __PYX_ERR(0, 301, __pyx_L3_error)
-    __pyx_v_bin_assignments = __Pyx_PyObject_to_MemoryviewSlice_dsds_nn___pyx_t_6westpa_7binning_7_assign_index_t(values[1]); if (unlikely(!__pyx_v_bin_assignments.memview)) __PYX_ERR(0, 302, __pyx_L3_error)
-    __pyx_v_label_assignments = __Pyx_PyObject_to_MemoryviewSlice_dsds_nn___pyx_t_6westpa_7binning_7_assign_index_t(values[2]); if (unlikely(!__pyx_v_label_assignments.memview)) __PYX_ERR(0, 303, __pyx_L3_error)
-    __pyx_v_labeled_bin_pops = __Pyx_PyObject_to_MemoryviewSlice_dsds_nn___pyx_t_6westpa_7binning_7_assign_weight_t(values[3]); if (unlikely(!__pyx_v_labeled_bin_pops.memview)) __PYX_ERR(0, 304, __pyx_L3_error)
+    __pyx_v_weights = __Pyx_PyObject_to_MemoryviewSlice_ds_nn___pyx_t_6westpa_7binning_7_assign_weight_t(values[0]); if (unlikely(!__pyx_v_weights.memview)) __PYX_ERR(0, 269, __pyx_L3_error)
+    __pyx_v_bin_assignments = __Pyx_PyObject_to_MemoryviewSlice_dsds_nn___pyx_t_6westpa_7binning_7_assign_index_t(values[1]); if (unlikely(!__pyx_v_bin_assignments.memview)) __PYX_ERR(0, 270, __pyx_L3_error)
+    __pyx_v_label_assignments = __Pyx_PyObject_to_MemoryviewSlice_dsds_nn___pyx_t_6westpa_7binning_7_assign_index_t(values[2]); if (unlikely(!__pyx_v_label_assignments.memview)) __PYX_ERR(0, 271, __pyx_L3_error)
+    __pyx_v_labeled_bin_pops = __Pyx_PyObject_to_MemoryviewSlice_dsds_nn___pyx_t_6westpa_7binning_7_assign_weight_t(values[3]); if (unlikely(!__pyx_v_labeled_bin_pops.memview)) __PYX_ERR(0, 272, __pyx_L3_error)
   }
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("accumulate_labeled_populations", 1, 4, 4, PyTuple_GET_SIZE(__pyx_args)); __PYX_ERR(0, 301, __pyx_L3_error)
+  __Pyx_RaiseArgtupleInvalid("accumulate_labeled_populations", 1, 4, 4, PyTuple_GET_SIZE(__pyx_args)); __PYX_ERR(0, 269, __pyx_L3_error)
   __pyx_L3_error:;
   __Pyx_AddTraceback("westpa.binning._assign.accumulate_labeled_populations", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
@@ -6286,11 +5896,11 @@ static PyObject *__pyx_pf_6westpa_7binning_7_assign_12accumulate_labeled_populat
   PyObject *__pyx_t_1 = NULL;
   __Pyx_RefNannySetupContext("accumulate_labeled_populations", 0);
   __Pyx_XDECREF(__pyx_r);
-  if (unlikely(!__pyx_v_weights.memview)) { __Pyx_RaiseUnboundLocalError("weights"); __PYX_ERR(0, 301, __pyx_L1_error) }
-  if (unlikely(!__pyx_v_bin_assignments.memview)) { __Pyx_RaiseUnboundLocalError("bin_assignments"); __PYX_ERR(0, 301, __pyx_L1_error) }
-  if (unlikely(!__pyx_v_label_assignments.memview)) { __Pyx_RaiseUnboundLocalError("label_assignments"); __PYX_ERR(0, 301, __pyx_L1_error) }
-  if (unlikely(!__pyx_v_labeled_bin_pops.memview)) { __Pyx_RaiseUnboundLocalError("labeled_bin_pops"); __PYX_ERR(0, 301, __pyx_L1_error) }
-  __pyx_t_1 = __pyx_f_6westpa_7binning_7_assign_accumulate_labeled_populations(__pyx_v_weights, __pyx_v_bin_assignments, __pyx_v_label_assignments, __pyx_v_labeled_bin_pops, 0); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 301, __pyx_L1_error)
+  if (unlikely(!__pyx_v_weights.memview)) { __Pyx_RaiseUnboundLocalError("weights"); __PYX_ERR(0, 269, __pyx_L1_error) }
+  if (unlikely(!__pyx_v_bin_assignments.memview)) { __Pyx_RaiseUnboundLocalError("bin_assignments"); __PYX_ERR(0, 269, __pyx_L1_error) }
+  if (unlikely(!__pyx_v_label_assignments.memview)) { __Pyx_RaiseUnboundLocalError("label_assignments"); __PYX_ERR(0, 269, __pyx_L1_error) }
+  if (unlikely(!__pyx_v_labeled_bin_pops.memview)) { __Pyx_RaiseUnboundLocalError("labeled_bin_pops"); __PYX_ERR(0, 269, __pyx_L1_error) }
+  __pyx_t_1 = __pyx_f_6westpa_7binning_7_assign_accumulate_labeled_populations(__pyx_v_weights, __pyx_v_bin_assignments, __pyx_v_label_assignments, __pyx_v_labeled_bin_pops, 0); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 269, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
@@ -6311,7 +5921,7 @@ static PyObject *__pyx_pf_6westpa_7binning_7_assign_12accumulate_labeled_populat
   return __pyx_r;
 }
 
-/* "westpa/binning/_assign.pyx":335
+/* "westpa/binning/_assign.pyx":303
  * @cython.boundscheck(False)
  * @cython.wraparound(False)
  * cpdef accumulate_state_populations_from_labeled(weight_t[:,:] labeled_bin_pops,             # <<<<<<<<<<<<<<
@@ -6322,7 +5932,7 @@ static PyObject *__pyx_pf_6westpa_7binning_7_assign_12accumulate_labeled_populat
 static PyObject *__pyx_pw_6westpa_7binning_7_assign_15accumulate_state_populations_from_labeled(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
 static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_state_populations_from_labeled(__Pyx_memviewslice __pyx_v_labeled_bin_pops, __Pyx_memviewslice __pyx_v_state_map, __Pyx_memviewslice __pyx_v_state_pops, CYTHON_UNUSED int __pyx_skip_dispatch, struct __pyx_opt_args_6westpa_7binning_7_assign_accumulate_state_populations_from_labeled *__pyx_optional_args) {
 
-  /* "westpa/binning/_assign.pyx":338
+  /* "westpa/binning/_assign.pyx":306
  *                                                 index_t[:] state_map,
  *                                                 weight_t[:] state_pops,
  *                                                 check_state_map = True):             # <<<<<<<<<<<<<<
@@ -6360,7 +5970,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_state_populations_
     }
   }
 
-  /* "westpa/binning/_assign.pyx":342
+  /* "westpa/binning/_assign.pyx":310
  *         Py_ssize_t nbins, nstates, ibin, ilabel, istate
  * 
  *     if state_pops.shape[0] != labeled_bin_pops.shape[0]:             # <<<<<<<<<<<<<<
@@ -6370,20 +5980,20 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_state_populations_
   __pyx_t_1 = (((__pyx_v_state_pops.shape[0]) != (__pyx_v_labeled_bin_pops.shape[0])) != 0);
   if (__pyx_t_1) {
 
-    /* "westpa/binning/_assign.pyx":343
+    /* "westpa/binning/_assign.pyx":311
  * 
  *     if state_pops.shape[0] != labeled_bin_pops.shape[0]:
  *         raise TypeError('shape mismatch')             # <<<<<<<<<<<<<<
  * 
  *     nstates = labeled_bin_pops.shape[0]
  */
-    __pyx_t_2 = __Pyx_PyObject_Call(__pyx_builtin_TypeError, __pyx_tuple__3, NULL); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 343, __pyx_L1_error)
+    __pyx_t_2 = __Pyx_PyObject_Call(__pyx_builtin_TypeError, __pyx_tuple__3, NULL); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 311, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_2);
     __Pyx_Raise(__pyx_t_2, 0, 0, 0);
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-    __PYX_ERR(0, 343, __pyx_L1_error)
+    __PYX_ERR(0, 311, __pyx_L1_error)
 
-    /* "westpa/binning/_assign.pyx":342
+    /* "westpa/binning/_assign.pyx":310
  *         Py_ssize_t nbins, nstates, ibin, ilabel, istate
  * 
  *     if state_pops.shape[0] != labeled_bin_pops.shape[0]:             # <<<<<<<<<<<<<<
@@ -6392,7 +6002,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_state_populations_
  */
   }
 
-  /* "westpa/binning/_assign.pyx":345
+  /* "westpa/binning/_assign.pyx":313
  *         raise TypeError('shape mismatch')
  * 
  *     nstates = labeled_bin_pops.shape[0]             # <<<<<<<<<<<<<<
@@ -6401,7 +6011,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_state_populations_
  */
   __pyx_v_nstates = (__pyx_v_labeled_bin_pops.shape[0]);
 
-  /* "westpa/binning/_assign.pyx":346
+  /* "westpa/binning/_assign.pyx":314
  * 
  *     nstates = labeled_bin_pops.shape[0]
  *     nbins = labeled_bin_pops.shape[1]             # <<<<<<<<<<<<<<
@@ -6410,17 +6020,17 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_state_populations_
  */
   __pyx_v_nbins = (__pyx_v_labeled_bin_pops.shape[1]);
 
-  /* "westpa/binning/_assign.pyx":348
+  /* "westpa/binning/_assign.pyx":316
  *     nbins = labeled_bin_pops.shape[1]
  * 
  *     if check_state_map:             # <<<<<<<<<<<<<<
  *         for ibin in xrange(nbins):
  *             if state_map[ibin] > nstates:
  */
-  __pyx_t_1 = __Pyx_PyObject_IsTrue(__pyx_v_check_state_map); if (unlikely(__pyx_t_1 < 0)) __PYX_ERR(0, 348, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyObject_IsTrue(__pyx_v_check_state_map); if (unlikely(__pyx_t_1 < 0)) __PYX_ERR(0, 316, __pyx_L1_error)
   if (__pyx_t_1) {
 
-    /* "westpa/binning/_assign.pyx":349
+    /* "westpa/binning/_assign.pyx":317
  * 
  *     if check_state_map:
  *         for ibin in xrange(nbins):             # <<<<<<<<<<<<<<
@@ -6431,7 +6041,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_state_populations_
     for (__pyx_t_4 = 0; __pyx_t_4 < __pyx_t_3; __pyx_t_4+=1) {
       __pyx_v_ibin = __pyx_t_4;
 
-      /* "westpa/binning/_assign.pyx":350
+      /* "westpa/binning/_assign.pyx":318
  *     if check_state_map:
  *         for ibin in xrange(nbins):
  *             if state_map[ibin] > nstates:             # <<<<<<<<<<<<<<
@@ -6442,20 +6052,20 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_state_populations_
       __pyx_t_1 = (((*((__pyx_t_6westpa_7binning_7_assign_index_t *) ( /* dim=0 */ (__pyx_v_state_map.data + __pyx_t_5 * __pyx_v_state_map.strides[0]) ))) > __pyx_v_nstates) != 0);
       if (__pyx_t_1) {
 
-        /* "westpa/binning/_assign.pyx":351
+        /* "westpa/binning/_assign.pyx":319
  *         for ibin in xrange(nbins):
  *             if state_map[ibin] > nstates:
  *                 raise ValueError('invalid value in state map')             # <<<<<<<<<<<<<<
  * 
  *     with nogil:
  */
-        __pyx_t_2 = __Pyx_PyObject_Call(__pyx_builtin_ValueError, __pyx_tuple__4, NULL); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 351, __pyx_L1_error)
+        __pyx_t_2 = __Pyx_PyObject_Call(__pyx_builtin_ValueError, __pyx_tuple__4, NULL); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 319, __pyx_L1_error)
         __Pyx_GOTREF(__pyx_t_2);
         __Pyx_Raise(__pyx_t_2, 0, 0, 0);
         __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-        __PYX_ERR(0, 351, __pyx_L1_error)
+        __PYX_ERR(0, 319, __pyx_L1_error)
 
-        /* "westpa/binning/_assign.pyx":350
+        /* "westpa/binning/_assign.pyx":318
  *     if check_state_map:
  *         for ibin in xrange(nbins):
  *             if state_map[ibin] > nstates:             # <<<<<<<<<<<<<<
@@ -6465,7 +6075,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_state_populations_
       }
     }
 
-    /* "westpa/binning/_assign.pyx":348
+    /* "westpa/binning/_assign.pyx":316
  *     nbins = labeled_bin_pops.shape[1]
  * 
  *     if check_state_map:             # <<<<<<<<<<<<<<
@@ -6474,7 +6084,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_state_populations_
  */
   }
 
-  /* "westpa/binning/_assign.pyx":353
+  /* "westpa/binning/_assign.pyx":321
  *                 raise ValueError('invalid value in state map')
  * 
  *     with nogil:             # <<<<<<<<<<<<<<
@@ -6488,7 +6098,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_state_populations_
       #endif
       /*try:*/ {
 
-        /* "westpa/binning/_assign.pyx":354
+        /* "westpa/binning/_assign.pyx":322
  * 
  *     with nogil:
  *         for ilabel in xrange(nstates):             # <<<<<<<<<<<<<<
@@ -6499,7 +6109,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_state_populations_
         for (__pyx_t_4 = 0; __pyx_t_4 < __pyx_t_3; __pyx_t_4+=1) {
           __pyx_v_ilabel = __pyx_t_4;
 
-          /* "westpa/binning/_assign.pyx":355
+          /* "westpa/binning/_assign.pyx":323
  *     with nogil:
  *         for ilabel in xrange(nstates):
  *             for ibin in xrange(nbins):             # <<<<<<<<<<<<<<
@@ -6510,7 +6120,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_state_populations_
           for (__pyx_t_7 = 0; __pyx_t_7 < __pyx_t_6; __pyx_t_7+=1) {
             __pyx_v_ibin = __pyx_t_7;
 
-            /* "westpa/binning/_assign.pyx":356
+            /* "westpa/binning/_assign.pyx":324
  *         for ilabel in xrange(nstates):
  *             for ibin in xrange(nbins):
  *                 istate = state_map[ibin]             # <<<<<<<<<<<<<<
@@ -6520,7 +6130,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_state_populations_
             __pyx_t_8 = __pyx_v_ibin;
             __pyx_v_istate = (*((__pyx_t_6westpa_7binning_7_assign_index_t *) ( /* dim=0 */ (__pyx_v_state_map.data + __pyx_t_8 * __pyx_v_state_map.strides[0]) )));
 
-            /* "westpa/binning/_assign.pyx":357
+            /* "westpa/binning/_assign.pyx":325
  *             for ibin in xrange(nbins):
  *                 istate = state_map[ibin]
  *                 if istate >= nstates:             # <<<<<<<<<<<<<<
@@ -6530,7 +6140,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_state_populations_
             __pyx_t_1 = ((__pyx_v_istate >= __pyx_v_nstates) != 0);
             if (__pyx_t_1) {
 
-              /* "westpa/binning/_assign.pyx":358
+              /* "westpa/binning/_assign.pyx":326
  *                 istate = state_map[ibin]
  *                 if istate >= nstates:
  *                     with gil:             # <<<<<<<<<<<<<<
@@ -6543,16 +6153,16 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_state_populations_
                   #endif
                   /*try:*/ {
 
-                    /* "westpa/binning/_assign.pyx":359
+                    /* "westpa/binning/_assign.pyx":327
  *                 if istate >= nstates:
  *                     with gil:
  *                         raise ValueError('invalid state label {}'.format(istate))             # <<<<<<<<<<<<<<
  *                 state_pops[state_map[ibin]] += labeled_bin_pops[ilabel,ibin]
  * 
  */
-                    __pyx_t_9 = __Pyx_PyObject_GetAttrStr(__pyx_kp_s_invalid_state_label, __pyx_n_s_format); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 359, __pyx_L19_error)
+                    __pyx_t_9 = __Pyx_PyObject_GetAttrStr(__pyx_kp_s_invalid_state_label, __pyx_n_s_format); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 327, __pyx_L19_error)
                     __Pyx_GOTREF(__pyx_t_9);
-                    __pyx_t_10 = PyInt_FromSsize_t(__pyx_v_istate); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 359, __pyx_L19_error)
+                    __pyx_t_10 = PyInt_FromSsize_t(__pyx_v_istate); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 327, __pyx_L19_error)
                     __Pyx_GOTREF(__pyx_t_10);
                     __pyx_t_11 = NULL;
                     if (CYTHON_COMPILING_IN_CPYTHON && likely(PyMethod_Check(__pyx_t_9))) {
@@ -6565,35 +6175,35 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_state_populations_
                       }
                     }
                     if (!__pyx_t_11) {
-                      __pyx_t_2 = __Pyx_PyObject_CallOneArg(__pyx_t_9, __pyx_t_10); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 359, __pyx_L19_error)
+                      __pyx_t_2 = __Pyx_PyObject_CallOneArg(__pyx_t_9, __pyx_t_10); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 327, __pyx_L19_error)
                       __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
                       __Pyx_GOTREF(__pyx_t_2);
                     } else {
-                      __pyx_t_12 = PyTuple_New(1+1); if (unlikely(!__pyx_t_12)) __PYX_ERR(0, 359, __pyx_L19_error)
+                      __pyx_t_12 = PyTuple_New(1+1); if (unlikely(!__pyx_t_12)) __PYX_ERR(0, 327, __pyx_L19_error)
                       __Pyx_GOTREF(__pyx_t_12);
                       __Pyx_GIVEREF(__pyx_t_11); PyTuple_SET_ITEM(__pyx_t_12, 0, __pyx_t_11); __pyx_t_11 = NULL;
                       __Pyx_GIVEREF(__pyx_t_10);
                       PyTuple_SET_ITEM(__pyx_t_12, 0+1, __pyx_t_10);
                       __pyx_t_10 = 0;
-                      __pyx_t_2 = __Pyx_PyObject_Call(__pyx_t_9, __pyx_t_12, NULL); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 359, __pyx_L19_error)
+                      __pyx_t_2 = __Pyx_PyObject_Call(__pyx_t_9, __pyx_t_12, NULL); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 327, __pyx_L19_error)
                       __Pyx_GOTREF(__pyx_t_2);
                       __Pyx_DECREF(__pyx_t_12); __pyx_t_12 = 0;
                     }
                     __Pyx_DECREF(__pyx_t_9); __pyx_t_9 = 0;
-                    __pyx_t_9 = PyTuple_New(1); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 359, __pyx_L19_error)
+                    __pyx_t_9 = PyTuple_New(1); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 327, __pyx_L19_error)
                     __Pyx_GOTREF(__pyx_t_9);
                     __Pyx_GIVEREF(__pyx_t_2);
                     PyTuple_SET_ITEM(__pyx_t_9, 0, __pyx_t_2);
                     __pyx_t_2 = 0;
-                    __pyx_t_2 = __Pyx_PyObject_Call(__pyx_builtin_ValueError, __pyx_t_9, NULL); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 359, __pyx_L19_error)
+                    __pyx_t_2 = __Pyx_PyObject_Call(__pyx_builtin_ValueError, __pyx_t_9, NULL); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 327, __pyx_L19_error)
                     __Pyx_GOTREF(__pyx_t_2);
                     __Pyx_DECREF(__pyx_t_9); __pyx_t_9 = 0;
                     __Pyx_Raise(__pyx_t_2, 0, 0, 0);
                     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-                    __PYX_ERR(0, 359, __pyx_L19_error)
+                    __PYX_ERR(0, 327, __pyx_L19_error)
                   }
 
-                  /* "westpa/binning/_assign.pyx":358
+                  /* "westpa/binning/_assign.pyx":326
  *                 istate = state_map[ibin]
  *                 if istate >= nstates:
  *                     with gil:             # <<<<<<<<<<<<<<
@@ -6610,7 +6220,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_state_populations_
                   }
               }
 
-              /* "westpa/binning/_assign.pyx":357
+              /* "westpa/binning/_assign.pyx":325
  *             for ibin in xrange(nbins):
  *                 istate = state_map[ibin]
  *                 if istate >= nstates:             # <<<<<<<<<<<<<<
@@ -6619,7 +6229,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_state_populations_
  */
             }
 
-            /* "westpa/binning/_assign.pyx":360
+            /* "westpa/binning/_assign.pyx":328
  *                     with gil:
  *                         raise ValueError('invalid state label {}'.format(istate))
  *                 state_pops[state_map[ibin]] += labeled_bin_pops[ilabel,ibin]             # <<<<<<<<<<<<<<
@@ -6635,7 +6245,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_state_populations_
         }
       }
 
-      /* "westpa/binning/_assign.pyx":353
+      /* "westpa/binning/_assign.pyx":321
  *                 raise ValueError('invalid value in state map')
  * 
  *     with nogil:             # <<<<<<<<<<<<<<
@@ -6659,7 +6269,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_state_populations_
       }
   }
 
-  /* "westpa/binning/_assign.pyx":335
+  /* "westpa/binning/_assign.pyx":303
  * @cython.boundscheck(False)
  * @cython.wraparound(False)
  * cpdef accumulate_state_populations_from_labeled(weight_t[:,:] labeled_bin_pops,             # <<<<<<<<<<<<<<
@@ -6698,7 +6308,7 @@ static PyObject *__pyx_pw_6westpa_7binning_7_assign_15accumulate_state_populatio
     static PyObject **__pyx_pyargnames[] = {&__pyx_n_s_labeled_bin_pops,&__pyx_n_s_state_map,&__pyx_n_s_state_pops,&__pyx_n_s_check_state_map,0};
     PyObject* values[4] = {0,0,0,0};
 
-    /* "westpa/binning/_assign.pyx":338
+    /* "westpa/binning/_assign.pyx":306
  *                                                 index_t[:] state_map,
  *                                                 weight_t[:] state_pops,
  *                                                 check_state_map = True):             # <<<<<<<<<<<<<<
@@ -6725,12 +6335,12 @@ static PyObject *__pyx_pw_6westpa_7binning_7_assign_15accumulate_state_populatio
         case  1:
         if (likely((values[1] = PyDict_GetItem(__pyx_kwds, __pyx_n_s_state_map)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("accumulate_state_populations_from_labeled", 0, 3, 4, 1); __PYX_ERR(0, 335, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("accumulate_state_populations_from_labeled", 0, 3, 4, 1); __PYX_ERR(0, 303, __pyx_L3_error)
         }
         case  2:
         if (likely((values[2] = PyDict_GetItem(__pyx_kwds, __pyx_n_s_state_pops)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("accumulate_state_populations_from_labeled", 0, 3, 4, 2); __PYX_ERR(0, 335, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("accumulate_state_populations_from_labeled", 0, 3, 4, 2); __PYX_ERR(0, 303, __pyx_L3_error)
         }
         case  3:
         if (kw_args > 0) {
@@ -6739,7 +6349,7 @@ static PyObject *__pyx_pw_6westpa_7binning_7_assign_15accumulate_state_populatio
         }
       }
       if (unlikely(kw_args > 0)) {
-        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_pyargnames, 0, values, pos_args, "accumulate_state_populations_from_labeled") < 0)) __PYX_ERR(0, 335, __pyx_L3_error)
+        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_pyargnames, 0, values, pos_args, "accumulate_state_populations_from_labeled") < 0)) __PYX_ERR(0, 303, __pyx_L3_error)
       }
     } else {
       switch (PyTuple_GET_SIZE(__pyx_args)) {
@@ -6751,14 +6361,14 @@ static PyObject *__pyx_pw_6westpa_7binning_7_assign_15accumulate_state_populatio
         default: goto __pyx_L5_argtuple_error;
       }
     }
-    __pyx_v_labeled_bin_pops = __Pyx_PyObject_to_MemoryviewSlice_dsds_nn___pyx_t_6westpa_7binning_7_assign_weight_t(values[0]); if (unlikely(!__pyx_v_labeled_bin_pops.memview)) __PYX_ERR(0, 335, __pyx_L3_error)
-    __pyx_v_state_map = __Pyx_PyObject_to_MemoryviewSlice_ds_nn___pyx_t_6westpa_7binning_7_assign_index_t(values[1]); if (unlikely(!__pyx_v_state_map.memview)) __PYX_ERR(0, 336, __pyx_L3_error)
-    __pyx_v_state_pops = __Pyx_PyObject_to_MemoryviewSlice_ds_nn___pyx_t_6westpa_7binning_7_assign_weight_t(values[2]); if (unlikely(!__pyx_v_state_pops.memview)) __PYX_ERR(0, 337, __pyx_L3_error)
+    __pyx_v_labeled_bin_pops = __Pyx_PyObject_to_MemoryviewSlice_dsds_nn___pyx_t_6westpa_7binning_7_assign_weight_t(values[0]); if (unlikely(!__pyx_v_labeled_bin_pops.memview)) __PYX_ERR(0, 303, __pyx_L3_error)
+    __pyx_v_state_map = __Pyx_PyObject_to_MemoryviewSlice_ds_nn___pyx_t_6westpa_7binning_7_assign_index_t(values[1]); if (unlikely(!__pyx_v_state_map.memview)) __PYX_ERR(0, 304, __pyx_L3_error)
+    __pyx_v_state_pops = __Pyx_PyObject_to_MemoryviewSlice_ds_nn___pyx_t_6westpa_7binning_7_assign_weight_t(values[2]); if (unlikely(!__pyx_v_state_pops.memview)) __PYX_ERR(0, 305, __pyx_L3_error)
     __pyx_v_check_state_map = values[3];
   }
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("accumulate_state_populations_from_labeled", 0, 3, 4, PyTuple_GET_SIZE(__pyx_args)); __PYX_ERR(0, 335, __pyx_L3_error)
+  __Pyx_RaiseArgtupleInvalid("accumulate_state_populations_from_labeled", 0, 3, 4, PyTuple_GET_SIZE(__pyx_args)); __PYX_ERR(0, 303, __pyx_L3_error)
   __pyx_L3_error:;
   __Pyx_AddTraceback("westpa.binning._assign.accumulate_state_populations_from_labeled", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
@@ -6766,7 +6376,7 @@ static PyObject *__pyx_pw_6westpa_7binning_7_assign_15accumulate_state_populatio
   __pyx_L4_argument_unpacking_done:;
   __pyx_r = __pyx_pf_6westpa_7binning_7_assign_14accumulate_state_populations_from_labeled(__pyx_self, __pyx_v_labeled_bin_pops, __pyx_v_state_map, __pyx_v_state_pops, __pyx_v_check_state_map);
 
-  /* "westpa/binning/_assign.pyx":335
+  /* "westpa/binning/_assign.pyx":303
  * @cython.boundscheck(False)
  * @cython.wraparound(False)
  * cpdef accumulate_state_populations_from_labeled(weight_t[:,:] labeled_bin_pops,             # <<<<<<<<<<<<<<
@@ -6786,12 +6396,12 @@ static PyObject *__pyx_pf_6westpa_7binning_7_assign_14accumulate_state_populatio
   struct __pyx_opt_args_6westpa_7binning_7_assign_accumulate_state_populations_from_labeled __pyx_t_2;
   __Pyx_RefNannySetupContext("accumulate_state_populations_from_labeled", 0);
   __Pyx_XDECREF(__pyx_r);
-  if (unlikely(!__pyx_v_labeled_bin_pops.memview)) { __Pyx_RaiseUnboundLocalError("labeled_bin_pops"); __PYX_ERR(0, 335, __pyx_L1_error) }
-  if (unlikely(!__pyx_v_state_map.memview)) { __Pyx_RaiseUnboundLocalError("state_map"); __PYX_ERR(0, 335, __pyx_L1_error) }
-  if (unlikely(!__pyx_v_state_pops.memview)) { __Pyx_RaiseUnboundLocalError("state_pops"); __PYX_ERR(0, 335, __pyx_L1_error) }
+  if (unlikely(!__pyx_v_labeled_bin_pops.memview)) { __Pyx_RaiseUnboundLocalError("labeled_bin_pops"); __PYX_ERR(0, 303, __pyx_L1_error) }
+  if (unlikely(!__pyx_v_state_map.memview)) { __Pyx_RaiseUnboundLocalError("state_map"); __PYX_ERR(0, 303, __pyx_L1_error) }
+  if (unlikely(!__pyx_v_state_pops.memview)) { __Pyx_RaiseUnboundLocalError("state_pops"); __PYX_ERR(0, 303, __pyx_L1_error) }
   __pyx_t_2.__pyx_n = 1;
   __pyx_t_2.check_state_map = __pyx_v_check_state_map;
-  __pyx_t_1 = __pyx_f_6westpa_7binning_7_assign_accumulate_state_populations_from_labeled(__pyx_v_labeled_bin_pops, __pyx_v_state_map, __pyx_v_state_pops, 0, &__pyx_t_2); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 335, __pyx_L1_error)
+  __pyx_t_1 = __pyx_f_6westpa_7binning_7_assign_accumulate_state_populations_from_labeled(__pyx_v_labeled_bin_pops, __pyx_v_state_map, __pyx_v_state_pops, 0, &__pyx_t_2); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 303, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
@@ -6811,7 +6421,7 @@ static PyObject *__pyx_pf_6westpa_7binning_7_assign_14accumulate_state_populatio
   return __pyx_r;
 }
 
-/* "westpa/binning/_assign.pyx":363
+/* "westpa/binning/_assign.pyx":331
  * 
  * @cython.wraparound(False)
  * cpdef assignments_list_to_table(Py_ssize_t nsegs, Py_ssize_t nbins, index_t[:] assignments):             # <<<<<<<<<<<<<<
@@ -6841,23 +6451,23 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_assignments_list_to_table(Py_
   size_t __pyx_t_13;
   __Pyx_RefNannySetupContext("assignments_list_to_table", 0);
 
-  /* "westpa/binning/_assign.pyx":371
+  /* "westpa/binning/_assign.pyx":339
  *         bool_t[:,:] _output
  * 
  *     output = numpy.zeros((nsegs,nbins), internal_bool_dtype)             # <<<<<<<<<<<<<<
  *     _output = output
  * 
  */
-  __pyx_t_2 = __Pyx_GetModuleGlobalName(__pyx_n_s_numpy); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 371, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_GetModuleGlobalName(__pyx_n_s_numpy); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 339, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_zeros); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 371, __pyx_L1_error)
+  __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_zeros); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 339, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-  __pyx_t_2 = PyInt_FromSsize_t(__pyx_v_nsegs); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 371, __pyx_L1_error)
+  __pyx_t_2 = PyInt_FromSsize_t(__pyx_v_nsegs); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 339, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  __pyx_t_4 = PyInt_FromSsize_t(__pyx_v_nbins); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 371, __pyx_L1_error)
+  __pyx_t_4 = PyInt_FromSsize_t(__pyx_v_nbins); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 339, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_4);
-  __pyx_t_5 = PyTuple_New(2); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 371, __pyx_L1_error)
+  __pyx_t_5 = PyTuple_New(2); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 339, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_5);
   __Pyx_GIVEREF(__pyx_t_2);
   PyTuple_SET_ITEM(__pyx_t_5, 0, __pyx_t_2);
@@ -6865,7 +6475,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_assignments_list_to_table(Py_
   PyTuple_SET_ITEM(__pyx_t_5, 1, __pyx_t_4);
   __pyx_t_2 = 0;
   __pyx_t_4 = 0;
-  __pyx_t_4 = __Pyx_GetModuleGlobalName(__pyx_n_s_internal_bool_dtype); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 371, __pyx_L1_error)
+  __pyx_t_4 = __Pyx_GetModuleGlobalName(__pyx_n_s_internal_bool_dtype); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 339, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_4);
   __pyx_t_2 = NULL;
   __pyx_t_6 = 0;
@@ -6879,7 +6489,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_assignments_list_to_table(Py_
       __pyx_t_6 = 1;
     }
   }
-  __pyx_t_7 = PyTuple_New(2+__pyx_t_6); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 371, __pyx_L1_error)
+  __pyx_t_7 = PyTuple_New(2+__pyx_t_6); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 339, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_7);
   if (__pyx_t_2) {
     __Pyx_GIVEREF(__pyx_t_2); PyTuple_SET_ITEM(__pyx_t_7, 0, __pyx_t_2); __pyx_t_2 = NULL;
@@ -6890,14 +6500,14 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_assignments_list_to_table(Py_
   PyTuple_SET_ITEM(__pyx_t_7, 1+__pyx_t_6, __pyx_t_4);
   __pyx_t_5 = 0;
   __pyx_t_4 = 0;
-  __pyx_t_1 = __Pyx_PyObject_Call(__pyx_t_3, __pyx_t_7, NULL); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 371, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyObject_Call(__pyx_t_3, __pyx_t_7, NULL); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 339, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
   __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
   __pyx_v_output = __pyx_t_1;
   __pyx_t_1 = 0;
 
-  /* "westpa/binning/_assign.pyx":372
+  /* "westpa/binning/_assign.pyx":340
  * 
  *     output = numpy.zeros((nsegs,nbins), internal_bool_dtype)
  *     _output = output             # <<<<<<<<<<<<<<
@@ -6905,12 +6515,12 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_assignments_list_to_table(Py_
  *     for iseg in xrange(nsegs):
  */
   __pyx_t_8 = __Pyx_PyObject_to_MemoryviewSlice_dsds_nn___pyx_t_6westpa_7binning_7_assign_bool_t(__pyx_v_output);
-  if (unlikely(!__pyx_t_8.memview)) __PYX_ERR(0, 372, __pyx_L1_error)
+  if (unlikely(!__pyx_t_8.memview)) __PYX_ERR(0, 340, __pyx_L1_error)
   __pyx_v__output = __pyx_t_8;
   __pyx_t_8.memview = NULL;
   __pyx_t_8.data = NULL;
 
-  /* "westpa/binning/_assign.pyx":374
+  /* "westpa/binning/_assign.pyx":342
  *     _output = output
  * 
  *     for iseg in xrange(nsegs):             # <<<<<<<<<<<<<<
@@ -6921,7 +6531,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_assignments_list_to_table(Py_
   for (__pyx_t_9 = 0; __pyx_t_9 < __pyx_t_6; __pyx_t_9+=1) {
     __pyx_v_iseg = __pyx_t_9;
 
-    /* "westpa/binning/_assign.pyx":375
+    /* "westpa/binning/_assign.pyx":343
  * 
  *     for iseg in xrange(nsegs):
  *         _output[iseg,assignments[iseg]] = 1             # <<<<<<<<<<<<<<
@@ -6935,7 +6545,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_assignments_list_to_table(Py_
     } else if (unlikely(__pyx_t_10 >= __pyx_v_assignments.shape[0])) __pyx_t_11 = 0;
     if (unlikely(__pyx_t_11 != -1)) {
       __Pyx_RaiseBufferIndexError(__pyx_t_11);
-      __PYX_ERR(0, 375, __pyx_L1_error)
+      __PYX_ERR(0, 343, __pyx_L1_error)
     }
     __pyx_t_12 = __pyx_v_iseg;
     __pyx_t_13 = (*((__pyx_t_6westpa_7binning_7_assign_index_t *) ( /* dim=0 */ (__pyx_v_assignments.data + __pyx_t_10 * __pyx_v_assignments.strides[0]) )));
@@ -6946,33 +6556,33 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_assignments_list_to_table(Py_
     if (unlikely(__pyx_t_13 >= (size_t)__pyx_v__output.shape[1])) __pyx_t_11 = 1;
     if (unlikely(__pyx_t_11 != -1)) {
       __Pyx_RaiseBufferIndexError(__pyx_t_11);
-      __PYX_ERR(0, 375, __pyx_L1_error)
+      __PYX_ERR(0, 343, __pyx_L1_error)
     }
     *((__pyx_t_6westpa_7binning_7_assign_bool_t *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v__output.data + __pyx_t_12 * __pyx_v__output.strides[0]) ) + __pyx_t_13 * __pyx_v__output.strides[1]) )) = 1;
   }
 
-  /* "westpa/binning/_assign.pyx":377
+  /* "westpa/binning/_assign.pyx":345
  *         _output[iseg,assignments[iseg]] = 1
  * 
  *     return output.astype(numpy.bool_, copy=False)             # <<<<<<<<<<<<<<
  */
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_v_output, __pyx_n_s_astype); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 377, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_v_output, __pyx_n_s_astype); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 345, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  __pyx_t_3 = __Pyx_GetModuleGlobalName(__pyx_n_s_numpy); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 377, __pyx_L1_error)
+  __pyx_t_3 = __Pyx_GetModuleGlobalName(__pyx_n_s_numpy); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 345, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
-  __pyx_t_7 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_bool); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 377, __pyx_L1_error)
+  __pyx_t_7 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_bool); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 345, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_7);
   __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-  __pyx_t_3 = PyTuple_New(1); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 377, __pyx_L1_error)
+  __pyx_t_3 = PyTuple_New(1); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 345, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
   __Pyx_GIVEREF(__pyx_t_7);
   PyTuple_SET_ITEM(__pyx_t_3, 0, __pyx_t_7);
   __pyx_t_7 = 0;
-  __pyx_t_7 = PyDict_New(); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 377, __pyx_L1_error)
+  __pyx_t_7 = PyDict_New(); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 345, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_7);
-  if (PyDict_SetItem(__pyx_t_7, __pyx_n_s_copy, Py_False) < 0) __PYX_ERR(0, 377, __pyx_L1_error)
-  __pyx_t_4 = __Pyx_PyObject_Call(__pyx_t_1, __pyx_t_3, __pyx_t_7); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 377, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_t_7, __pyx_n_s_copy, Py_False) < 0) __PYX_ERR(0, 345, __pyx_L1_error)
+  __pyx_t_4 = __Pyx_PyObject_Call(__pyx_t_1, __pyx_t_3, __pyx_t_7); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 345, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_4);
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
   __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
@@ -6981,7 +6591,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_assignments_list_to_table(Py_
   __pyx_t_4 = 0;
   goto __pyx_L0;
 
-  /* "westpa/binning/_assign.pyx":363
+  /* "westpa/binning/_assign.pyx":331
  * 
  * @cython.wraparound(False)
  * cpdef assignments_list_to_table(Py_ssize_t nsegs, Py_ssize_t nbins, index_t[:] assignments):             # <<<<<<<<<<<<<<
@@ -7039,16 +6649,16 @@ static PyObject *__pyx_pw_6westpa_7binning_7_assign_17assignments_list_to_table(
         case  1:
         if (likely((values[1] = PyDict_GetItem(__pyx_kwds, __pyx_n_s_nbins)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("assignments_list_to_table", 1, 3, 3, 1); __PYX_ERR(0, 363, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("assignments_list_to_table", 1, 3, 3, 1); __PYX_ERR(0, 331, __pyx_L3_error)
         }
         case  2:
         if (likely((values[2] = PyDict_GetItem(__pyx_kwds, __pyx_n_s_assignments)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("assignments_list_to_table", 1, 3, 3, 2); __PYX_ERR(0, 363, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("assignments_list_to_table", 1, 3, 3, 2); __PYX_ERR(0, 331, __pyx_L3_error)
         }
       }
       if (unlikely(kw_args > 0)) {
-        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_pyargnames, 0, values, pos_args, "assignments_list_to_table") < 0)) __PYX_ERR(0, 363, __pyx_L3_error)
+        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_pyargnames, 0, values, pos_args, "assignments_list_to_table") < 0)) __PYX_ERR(0, 331, __pyx_L3_error)
       }
     } else if (PyTuple_GET_SIZE(__pyx_args) != 3) {
       goto __pyx_L5_argtuple_error;
@@ -7057,13 +6667,13 @@ static PyObject *__pyx_pw_6westpa_7binning_7_assign_17assignments_list_to_table(
       values[1] = PyTuple_GET_ITEM(__pyx_args, 1);
       values[2] = PyTuple_GET_ITEM(__pyx_args, 2);
     }
-    __pyx_v_nsegs = __Pyx_PyIndex_AsSsize_t(values[0]); if (unlikely((__pyx_v_nsegs == (Py_ssize_t)-1) && PyErr_Occurred())) __PYX_ERR(0, 363, __pyx_L3_error)
-    __pyx_v_nbins = __Pyx_PyIndex_AsSsize_t(values[1]); if (unlikely((__pyx_v_nbins == (Py_ssize_t)-1) && PyErr_Occurred())) __PYX_ERR(0, 363, __pyx_L3_error)
-    __pyx_v_assignments = __Pyx_PyObject_to_MemoryviewSlice_ds_nn___pyx_t_6westpa_7binning_7_assign_index_t(values[2]); if (unlikely(!__pyx_v_assignments.memview)) __PYX_ERR(0, 363, __pyx_L3_error)
+    __pyx_v_nsegs = __Pyx_PyIndex_AsSsize_t(values[0]); if (unlikely((__pyx_v_nsegs == (Py_ssize_t)-1) && PyErr_Occurred())) __PYX_ERR(0, 331, __pyx_L3_error)
+    __pyx_v_nbins = __Pyx_PyIndex_AsSsize_t(values[1]); if (unlikely((__pyx_v_nbins == (Py_ssize_t)-1) && PyErr_Occurred())) __PYX_ERR(0, 331, __pyx_L3_error)
+    __pyx_v_assignments = __Pyx_PyObject_to_MemoryviewSlice_ds_nn___pyx_t_6westpa_7binning_7_assign_index_t(values[2]); if (unlikely(!__pyx_v_assignments.memview)) __PYX_ERR(0, 331, __pyx_L3_error)
   }
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("assignments_list_to_table", 1, 3, 3, PyTuple_GET_SIZE(__pyx_args)); __PYX_ERR(0, 363, __pyx_L3_error)
+  __Pyx_RaiseArgtupleInvalid("assignments_list_to_table", 1, 3, 3, PyTuple_GET_SIZE(__pyx_args)); __PYX_ERR(0, 331, __pyx_L3_error)
   __pyx_L3_error:;
   __Pyx_AddTraceback("westpa.binning._assign.assignments_list_to_table", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
@@ -7082,8 +6692,8 @@ static PyObject *__pyx_pf_6westpa_7binning_7_assign_16assignments_list_to_table(
   PyObject *__pyx_t_1 = NULL;
   __Pyx_RefNannySetupContext("assignments_list_to_table", 0);
   __Pyx_XDECREF(__pyx_r);
-  if (unlikely(!__pyx_v_assignments.memview)) { __Pyx_RaiseUnboundLocalError("assignments"); __PYX_ERR(0, 363, __pyx_L1_error) }
-  __pyx_t_1 = __pyx_f_6westpa_7binning_7_assign_assignments_list_to_table(__pyx_v_nsegs, __pyx_v_nbins, __pyx_v_assignments, 0); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 363, __pyx_L1_error)
+  if (unlikely(!__pyx_v_assignments.memview)) { __Pyx_RaiseUnboundLocalError("assignments"); __PYX_ERR(0, 331, __pyx_L1_error) }
+  __pyx_t_1 = __pyx_f_6westpa_7binning_7_assign_assignments_list_to_table(__pyx_v_nsegs, __pyx_v_nbins, __pyx_v_assignments, 0); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 331, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
@@ -21602,7 +21212,6 @@ static __Pyx_StringTabEntry __pyx_string_tab[] = {
   {&__pyx_kp_s_strided_and_direct_or_indirect, __pyx_k_strided_and_direct_or_indirect, sizeof(__pyx_k_strided_and_direct_or_indirect), 0, 0, 1, 0},
   {&__pyx_kp_s_strided_and_indirect, __pyx_k_strided_and_indirect, sizeof(__pyx_k_strided_and_indirect), 0, 0, 1, 0},
   {&__pyx_n_s_struct, __pyx_k_struct, sizeof(__pyx_k_struct), 0, 0, 1, 1},
-  {&__pyx_n_s_subsample, __pyx_k_subsample, sizeof(__pyx_k_subsample), 0, 0, 1, 1},
   {&__pyx_n_s_test, __pyx_k_test, sizeof(__pyx_k_test), 0, 0, 1, 1},
   {&__pyx_n_s_uint16, __pyx_k_uint16, sizeof(__pyx_k_uint16), 0, 0, 1, 1},
   {&__pyx_n_s_uint8, __pyx_k_uint8, sizeof(__pyx_k_uint8), 0, 0, 1, 1},
@@ -21623,9 +21232,9 @@ static int __Pyx_InitCachedBuiltins(void) {
   __pyx_builtin_TypeError = __Pyx_GetBuiltinName(__pyx_n_s_TypeError); if (!__pyx_builtin_TypeError) __PYX_ERR(0, 166, __pyx_L1_error)
   __pyx_builtin_IndexError = __Pyx_GetBuiltinName(__pyx_n_s_IndexError); if (!__pyx_builtin_IndexError) __PYX_ERR(0, 199, __pyx_L1_error)
   #if PY_MAJOR_VERSION >= 3
-  __pyx_builtin_xrange = __Pyx_GetBuiltinName(__pyx_n_s_range); if (!__pyx_builtin_xrange) __PYX_ERR(0, 349, __pyx_L1_error)
+  __pyx_builtin_xrange = __Pyx_GetBuiltinName(__pyx_n_s_range); if (!__pyx_builtin_xrange) __PYX_ERR(0, 317, __pyx_L1_error)
   #else
-  __pyx_builtin_xrange = __Pyx_GetBuiltinName(__pyx_n_s_xrange); if (!__pyx_builtin_xrange) __PYX_ERR(0, 349, __pyx_L1_error)
+  __pyx_builtin_xrange = __Pyx_GetBuiltinName(__pyx_n_s_xrange); if (!__pyx_builtin_xrange) __PYX_ERR(0, 317, __pyx_L1_error)
   #endif
   __pyx_builtin_RuntimeError = __Pyx_GetBuiltinName(__pyx_n_s_RuntimeError); if (!__pyx_builtin_RuntimeError) __PYX_ERR(1, 799, __pyx_L1_error)
   __pyx_builtin_MemoryError = __Pyx_GetBuiltinName(__pyx_n_s_MemoryError); if (!__pyx_builtin_MemoryError) __PYX_ERR(2, 146, __pyx_L1_error)
@@ -21641,39 +21250,39 @@ static int __Pyx_InitCachedConstants(void) {
   __Pyx_RefNannyDeclarations
   __Pyx_RefNannySetupContext("__Pyx_InitCachedConstants", 0);
 
-  /* "westpa/binning/_assign.pyx":236
+  /* "westpa/binning/_assign.pyx":234
  * 
  *     for iseg in range(nsegs):
  *         assign(pcoords[iseg,:], mask, assignments[iseg,:])             # <<<<<<<<<<<<<<
  * 
  *     if state_map is not None:
  */
-  __pyx_slice_ = PySlice_New(Py_None, Py_None, Py_None); if (unlikely(!__pyx_slice_)) __PYX_ERR(0, 236, __pyx_L1_error)
+  __pyx_slice_ = PySlice_New(Py_None, Py_None, Py_None); if (unlikely(!__pyx_slice_)) __PYX_ERR(0, 234, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_slice_);
   __Pyx_GIVEREF(__pyx_slice_);
-  __pyx_slice__2 = PySlice_New(Py_None, Py_None, Py_None); if (unlikely(!__pyx_slice__2)) __PYX_ERR(0, 236, __pyx_L1_error)
+  __pyx_slice__2 = PySlice_New(Py_None, Py_None, Py_None); if (unlikely(!__pyx_slice__2)) __PYX_ERR(0, 234, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_slice__2);
   __Pyx_GIVEREF(__pyx_slice__2);
 
-  /* "westpa/binning/_assign.pyx":343
+  /* "westpa/binning/_assign.pyx":311
  * 
  *     if state_pops.shape[0] != labeled_bin_pops.shape[0]:
  *         raise TypeError('shape mismatch')             # <<<<<<<<<<<<<<
  * 
  *     nstates = labeled_bin_pops.shape[0]
  */
-  __pyx_tuple__3 = PyTuple_Pack(1, __pyx_kp_s_shape_mismatch); if (unlikely(!__pyx_tuple__3)) __PYX_ERR(0, 343, __pyx_L1_error)
+  __pyx_tuple__3 = PyTuple_Pack(1, __pyx_kp_s_shape_mismatch); if (unlikely(!__pyx_tuple__3)) __PYX_ERR(0, 311, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__3);
   __Pyx_GIVEREF(__pyx_tuple__3);
 
-  /* "westpa/binning/_assign.pyx":351
+  /* "westpa/binning/_assign.pyx":319
  *         for ibin in xrange(nbins):
  *             if state_map[ibin] > nstates:
  *                 raise ValueError('invalid value in state map')             # <<<<<<<<<<<<<<
  * 
  *     with nogil:
  */
-  __pyx_tuple__4 = PyTuple_Pack(1, __pyx_kp_s_invalid_value_in_state_map); if (unlikely(!__pyx_tuple__4)) __PYX_ERR(0, 351, __pyx_L1_error)
+  __pyx_tuple__4 = PyTuple_Pack(1, __pyx_kp_s_invalid_value_in_state_map); if (unlikely(!__pyx_tuple__4)) __PYX_ERR(0, 319, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__4);
   __Pyx_GIVEREF(__pyx_tuple__4);
 

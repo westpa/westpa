@@ -48,96 +48,95 @@ class FluxMatrix():
     def w_postanalysis_matrix(self):
         pi = self.progress.indicator
         pi.new_operation('Initializing')
-        with pi:
 
-            self.data_reader.open('r')
-            nbins = self.assignments_file.attrs['nbins']
+        self.data_reader.open('r')
+        nbins = self.assignments_file.attrs['nbins']
 
-            state_labels = self.assignments_file['state_labels'][...]
-            state_map = self.assignments_file['state_map'][...]
-            nstates = len(state_labels)
+        state_labels = self.assignments_file['state_labels'][...]
+        state_map = self.assignments_file['state_map'][...]
+        nstates = len(state_labels)
 
-            start_iter, stop_iter = self.iter_range.iter_start, self.iter_range.iter_stop # h5io.get_iter_range(self.assignments_file)
-            iter_count = stop_iter - start_iter
+        start_iter, stop_iter = self.iter_range.iter_start, self.iter_range.iter_stop # h5io.get_iter_range(self.assignments_file)
+        iter_count = stop_iter - start_iter
 
-            nfbins = nbins * nstates
+        nfbins = nbins * nstates
 
-            flux_shape = (iter_count, nfbins, nfbins)
-            pop_shape = (iter_count, nfbins)
+        flux_shape = (iter_count, nfbins, nfbins)
+        pop_shape = (iter_count, nfbins)
 
-            h5io.stamp_iter_range(self.output_file, start_iter, stop_iter)
+        h5io.stamp_iter_range(self.output_file, start_iter, stop_iter)
 
-            bin_populations_ds = self.output_file.create_dataset('bin_populations', shape=pop_shape, dtype=weight_dtype)
-            h5io.stamp_iter_range(bin_populations_ds, start_iter, stop_iter)
-            h5io.label_axes(bin_populations_ds, ['iteration', 'bin'])
-
-
-            flux_grp = self.output_file.create_group('iterations')
-            self.output_file.attrs['nrows'] = nfbins
-            self.output_file.attrs['ncols'] = nfbins
+        bin_populations_ds = self.output_file.create_dataset('bin_populations', shape=pop_shape, dtype=weight_dtype)
+        h5io.stamp_iter_range(bin_populations_ds, start_iter, stop_iter)
+        h5io.label_axes(bin_populations_ds, ['iteration', 'bin'])
 
 
-            fluxes = np.empty(flux_shape[1:], weight_dtype)
-            populations = np.empty(pop_shape[1:], weight_dtype)
-            trans = np.empty(flux_shape[1:], np.int64)
-
-            # Check to make sure this isn't a data set with target states
-            #tstates = self.data_reader.data_manager.get_target_states(0)
-            #if len(tstates) > 0:
-            #    raise ValueError('Postanalysis reweighting analysis does not support WE simulation run under recycling conditions')
-
-            pi.new_operation('Calculating flux matrices', iter_count)
-            # Calculate instantaneous statistics
-            for iiter, n_iter in enumerate(xrange(start_iter, stop_iter)):
-                # Get data from the main HDF5 file
-                iter_group = self.data_reader.get_iter_group(n_iter)
-                seg_index = iter_group['seg_index']
-                nsegs, npts = iter_group['pcoord'].shape[0:2] 
-                weights = seg_index['weight']
+        flux_grp = self.output_file.create_group('iterations')
+        self.output_file.attrs['nrows'] = nfbins
+        self.output_file.attrs['ncols'] = nfbins
 
 
-                # Get bin and traj. ensemble assignments from the previously-generated assignments file
-                assignment_iiter = h5io.get_iteration_entry(self.assignments_file, n_iter)
-                bin_assignments = np.require(self.assignments_file['assignments'][assignment_iiter + np.s_[:nsegs,:npts]],
-                                                dtype=index_dtype)
+        fluxes = np.empty(flux_shape[1:], weight_dtype)
+        populations = np.empty(pop_shape[1:], weight_dtype)
+        trans = np.empty(flux_shape[1:], np.int64)
 
-                mask_unknown = np.zeros_like(bin_assignments, dtype=np.uint16)
+        # Check to make sure this isn't a data set with target states
+        #tstates = self.data_reader.data_manager.get_target_states(0)
+        #if len(tstates) > 0:
+        #    raise ValueError('Postanalysis reweighting analysis does not support WE simulation run under recycling conditions')
 
-                macrostate_iiter = h5io.get_iteration_entry(self.assignments_file, n_iter)
-                macrostate_assignments = np.require(self.assignments_file['trajlabels'][macrostate_iiter + np.s_[:nsegs,:npts]],
+        pi.new_operation('Calculating flux matrices', iter_count)
+        # Calculate instantaneous statistics
+        for iiter, n_iter in enumerate(xrange(start_iter, stop_iter)):
+            # Get data from the main HDF5 file
+            iter_group = self.data_reader.get_iter_group(n_iter)
+            seg_index = iter_group['seg_index']
+            nsegs, npts = iter_group['pcoord'].shape[0:2] 
+            weights = seg_index['weight']
+
+
+            # Get bin and traj. ensemble assignments from the previously-generated assignments file
+            assignment_iiter = h5io.get_iteration_entry(self.assignments_file, n_iter)
+            bin_assignments = np.require(self.assignments_file['assignments'][assignment_iiter + np.s_[:nsegs,:npts]],
                                             dtype=index_dtype)
 
-                # Transform bin_assignments to take macrostate membership into account
-                bin_assignments  = nstates * bin_assignments + macrostate_assignments
+            mask_unknown = np.zeros_like(bin_assignments, dtype=np.uint16)
 
-                mask_indx = np.where(macrostate_assignments == nstates)
-                mask_unknown[mask_indx] = 1
+            macrostate_iiter = h5io.get_iteration_entry(self.assignments_file, n_iter)
+            macrostate_assignments = np.require(self.assignments_file['trajlabels'][macrostate_iiter + np.s_[:nsegs,:npts]],
+                                        dtype=index_dtype)
 
-                # Calculate bin-to-bin fluxes, bin populations and number of obs transitions
-                calc_stats(bin_assignments, weights, fluxes, populations, trans, mask_unknown, self.sampling_frequency)
+            # Transform bin_assignments to take macrostate membership into account
+            bin_assignments  = nstates * bin_assignments + macrostate_assignments
 
-                # Store bin-based kinetics data
-                bin_populations_ds[iiter] = populations
+            mask_indx = np.where(macrostate_assignments == nstates)
+            mask_unknown[mask_indx] = 1
 
-                # Setup sparse data structures for flux and obs
-                fluxes_sp = sp.coo_matrix(fluxes)
-                trans_sp = sp.coo_matrix(trans)
+            # Calculate bin-to-bin fluxes, bin populations and number of obs transitions
+            calc_stats(bin_assignments, weights, fluxes, populations, trans, mask_unknown, self.sampling_frequency)
 
-                assert fluxes_sp.nnz == trans_sp.nnz
+            # Store bin-based kinetics data
+            bin_populations_ds[iiter] = populations
 
-                flux_iter_grp = flux_grp.create_group('iter_{:08d}'.format(n_iter))
-                flux_iter_grp.create_dataset('flux', data=fluxes_sp.data, dtype=weight_dtype)
-                flux_iter_grp.create_dataset('obs', data=trans_sp.data, dtype=np.int32)
-                flux_iter_grp.create_dataset('rows', data=fluxes_sp.row, dtype=np.int32)
-                flux_iter_grp.create_dataset('cols', data=fluxes_sp.col, dtype=np.int32)
-                flux_iter_grp.attrs['nrows'] = nfbins
-                flux_iter_grp.attrs['ncols'] = nfbins
+            # Setup sparse data structures for flux and obs
+            fluxes_sp = sp.coo_matrix(fluxes)
+            trans_sp = sp.coo_matrix(trans)
 
-                # Do a little manual clean-up to prevent memory explosion
-                del iter_group, weights, bin_assignments
-                del macrostate_assignments
+            assert fluxes_sp.nnz == trans_sp.nnz
 
-                pi.progress += 1
+            flux_iter_grp = flux_grp.create_group('iter_{:08d}'.format(n_iter))
+            flux_iter_grp.create_dataset('flux', data=fluxes_sp.data, dtype=weight_dtype)
+            flux_iter_grp.create_dataset('obs', data=trans_sp.data, dtype=np.int32)
+            flux_iter_grp.create_dataset('rows', data=fluxes_sp.row, dtype=np.int32)
+            flux_iter_grp.create_dataset('cols', data=fluxes_sp.col, dtype=np.int32)
+            flux_iter_grp.attrs['nrows'] = nfbins
+            flux_iter_grp.attrs['ncols'] = nfbins
+
+            # Do a little manual clean-up to prevent memory explosion
+            del iter_group, weights, bin_assignments
+            del macrostate_assignments
+
+            pi.progress += 1
 
             # Check and save the number of intermediate time points; this will be used to normalize the
             # flux and kinetics to tau in w_postanalysis_reweight.
