@@ -18,11 +18,14 @@ def generate_future(work_manager, name, eval_block, kwargs):
     return future
 
     
-class WESTKinAvg(WESTToolComponent):
-    '''Common argument processing for w_direct subcommands'''
+class WESTKineticsBase(WESTSubcommand):
+    '''
+    Common argument processing for w_direct/w_reweight subcommands.
+    Mostly limited to handling input and output from w_assign.
+    '''
     
     def __init__(self, parent):
-        super(WESTKinAvg,self).__init__(parent)
+        super(WESTKineticsBase,self).__init__(parent)
         
         self.data_reader = WESTDataReader()
         self.iter_range = IterRangeSelection()
@@ -44,11 +47,6 @@ class WESTKinAvg(WESTToolComponent):
         # Now we're adding in things that come from the old w_kinetics
         self.do_compression = True
         
-    def stamp_mcbs_info(self, dataset):
-        dataset.attrs['mcbs_alpha'] = self.mcbs_alpha
-        dataset.attrs['mcbs_acalpha'] = self.mcbs_acalpha
-        dataset.attrs['mcbs_nsets'] = self.mcbs_nsets
-        
             
     def add_args(self, parser):
         self.progress.add_args(parser)
@@ -61,19 +59,45 @@ class WESTKinAvg(WESTToolComponent):
                             help='''Bin assignments and macrostate definitions are in ASSIGNMENTS
                             (default: %(default)s).''')
         
+        iogroup.add_argument('-o', '--output', dest='output', default=self.default_output_file,
+                            help='''Store results in OUTPUT (default: %(default)s).''')
+
+    def process_args(self, args):
+        self.progress.process_args(args)
+        self.data_reader.process_args(args)
+        with self.data_reader:
+            self.iter_range.process_args(args, default_iter_step=None)
+        if self.iter_range.iter_step is None:
+            #use about 10 blocks by default
+            self.iter_range.iter_step = max(1, (self.iter_range.iter_stop - self.iter_range.iter_start) // 10)
+        
+        self.output_filename = args.output
+        self.assignments_filename = args.assignments
+
+# This provides some convenience functions, modified from w_kinavg, to help with calculating evolution and averages for observables with the mclib library in a consistent manner.
+# It's used in both w_direct and w_reweight.
+class AverageCommands(WESTKineticsBase):
+    default_output_file = 'direct.h5'
+
+    def __init__(self, parent):
+        # Ideally, this is stuff general to all the calculations we want to perform.
+        super(AverageCommands,self).__init__(parent)
+        self.kinetics_filename = None
+        self.kinetics_file = None
+
+    def add_args(self, parser):
+        
+        iogroup = parser.add_argument_group('input/output options')
         # self.default_kinetics_file will be picked up as a class attribute from the appropriate subclass        
         # We can do this with the output file, too...
-        # ... by default, however, we're going to use direct.h5 for everything.
+        # ... by default, however, we're going to use {direct/reweight}.h5 for everything.
         # Modules which are called with different default values will, of course, still use those.
         iogroup.add_argument('-k', '--kinetics', default=self.default_kinetics_file,
                             help='''Populations and transition rates are stored in KINETICS
                             (default: %(default)s).''')
-        iogroup.add_argument('-o', '--output', dest='output', default=self.default_output_file,
-                            help='''Store results in OUTPUT (default: %(default)s).''')
 
-        
         cgroup = parser.add_argument_group('confidence interval calculation options')
-        cgroup.add_argument('--bootstrap', dest='bootstrap', action='store_const', const=True,
+        cgroup.add_argument('--disable-bootstrap', '-db', dest='bootstrap', action='store_const', const=False,
                              help='''Enable the use of Monte Carlo Block Bootstrapping.''')
         cgroup.add_argument('--disable-correl', '-dc', dest='correl', action='store_const', const=False,
                              help='''Disable the correlation analysis.''')
@@ -102,24 +126,12 @@ class WESTKinAvg(WESTToolComponent):
         mgroup = parser.add_argument_group('misc options')
         mgroup.add_argument('--disable-averages', '-da', dest='display_averages', action='store_false',
                              help='''Whether or not the averages should be printed to the console (set to FALSE if flag is used).''')
-        self.more_args(parser)
-        
-
     
     def process_args(self, args):
-        self.progress.process_args(args)
-        self.data_reader.process_args(args)
-        with self.data_reader:
-            self.iter_range.process_args(args, default_iter_step=None)
-        if self.iter_range.iter_step is None:
-            #use about 10 blocks by default
-            self.iter_range.iter_step = max(1, (self.iter_range.iter_stop - self.iter_range.iter_start) // 10)
-        
-        self.output_filename = args.output
-        self.assignments_filename = args.assignments
         self.kinetics_filename = args.kinetics
                 
-        self.mcbs_enable = args.bootstrap
+        # Disable the bootstrap or the correlation analysis.
+        self.mcbs_enable = args.bootstrap if args.bootstrap is not None else True
         self.do_correl = args.correl if args.correl is not None else True
         self.mcbs_alpha = args.alpha
         self.mcbs_acalpha = args.acalpha if args.acalpha else self.mcbs_alpha
@@ -131,25 +143,12 @@ class WESTKinAvg(WESTToolComponent):
         self.evol_window_frac = args.window_frac
         if self.evol_window_frac <= 0 or self.evol_window_frac > 1:
             raise ValueError('Parameter error -- fractional window defined by --window-frac must be in (0,1]')
-        self.process_more_args(args)
 
-    # Shim functions to be overridden, if necessary.
-    def more_args(self, parser):
-        pass
-    
-    def process_more_args(self, args):
-        pass
-
-# This provides some convenience functions, modified from w_kinavg, to help with calculating evolution and averages for observables with the mclib library in a consistent manner.
-class AverageCommands(WESTKinAvg, WESTSubcommand):
-    default_output_file = 'direct.h5'
-
-    def __init__(self, parent):
-        # Ideally, this is stuff general to all the calculations we want to perform.
-        super(AverageCommands,self).__init__(parent)
-        self.kinetics_filename = None
-        self.kinetics_file = None
-
+    def stamp_mcbs_info(self, dataset):
+        dataset.attrs['mcbs_alpha'] = self.mcbs_alpha
+        dataset.attrs['mcbs_acalpha'] = self.mcbs_acalpha
+        dataset.attrs['mcbs_nsets'] = self.mcbs_nsets
+        
     def open_files(self):
         self.output_file = h5io.WESTPAH5File(self.output_filename, 'a', creating_program=True)
         h5io.stamp_creator_data(self.output_file)
@@ -201,7 +200,6 @@ class AverageCommands(WESTKinAvg, WESTSubcommand):
                         maxlabellen=maxlabellen))
 
     def run_calculation(self, pi, nstates, start_iter, stop_iter, step_iter, dataset, eval_block, name, dim, do_averages=False, **extra):
-        #pi = self.progress.indicator
         
         # We want to use the same codepath to run a quick average as we do the longer evolution sets, so...
         if do_averages:
@@ -220,7 +218,6 @@ class AverageCommands(WESTKinAvg, WESTSubcommand):
         # This is appropriate for bootstrapped quantities, I think.
         all_items = numpy.arange(1,len(start_pts)+1)
         bootstrap_length = 0.5*(len(start_pts)*(len(start_pts)+1)) - numpy.delete(all_items, numpy.arange(1, len(start_pts)+1, step_iter))
-        #with pi:
         if True:
             pi.new_operation('Calculating {}'.format(name), bootstrap_length[0])
 
@@ -239,6 +236,7 @@ class AverageCommands(WESTKinAvg, WESTSubcommand):
                                      mcbs_alpha=self.mcbs_alpha, mcbs_nsets=self.mcbs_nsets,
                                      mcbs_acalpha=self.mcbs_acalpha,
                                      do_correl=self.do_correl,name=name,
+                                     mcbs_enable=self.mcbs_enable,
                                      data_input={},
                                      **extra)
 
@@ -261,7 +259,6 @@ class AverageCommands(WESTKinAvg, WESTSubcommand):
             for future in self.work_manager.as_completed(futures):
                 pi.progress += iblock / step_iter
                 future_result = future.get_result(discard=True)
-                # print(future_result)
 
                 if dim == 2:
                     for result in future_result:
@@ -272,5 +269,4 @@ class AverageCommands(WESTKinAvg, WESTSubcommand):
                         name,iblock,istate,ci_result = result
                         evolution_dataset[iblock, istate] = ci_result
 
-
-            return evolution_dataset
+        return evolution_dataset
