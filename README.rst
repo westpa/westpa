@@ -14,7 +14,7 @@ Zwier, M.C., Adelman, J.L., Kaus, J.W., Pratt, A.J., Wong, K.F., Rego, N.B., Sua
 Wang, D. W., Grabe, M., Zuckerman, D. M., and Chong, L. T. "WESTPA: An Interoperable, Highly 
 Scalable Software Package For Weighted Ensemble Simulation and Analysis," J. Chem. Theory Comput., 11: 800−809 (2015). 
 
-See this document_ for an overview of the weighted ensemble algorithm.
+See this page_ for an overview of weighted ensemble simulation.
 
 To help us fund development and improve WESTPA please fill out a one-minute survey_ and consider 
 contributing documentation or code to the WESTPA community.
@@ -23,7 +23,7 @@ WESTPA is free software, licensed under the terms of the GNU General Public
 License, Version 3. See the file ``COPYING`` for more information.
 
 .. _survey: https://docs.google.com/forms/d/e/1FAIpQLSfWaB2aryInU06cXrCyAFmhD_gPibgOfFk-dspLEsXuS9-RGQ/viewform
-.. _document: _static/we_overview.pdf
+.. _page: https://westpa.github.io/westpa/overview.html
 
 ------------
 Requirements
