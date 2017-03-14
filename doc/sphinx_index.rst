@@ -1,7 +1,8 @@
 .. include:: ../README.rst
 
+------------
 User's Guide
-============
+------------
 
 .. toctree::
    :maxdepth: 1
@@ -14,25 +15,26 @@ User's Guide
     Command line tool index   <users_guide/command_line_tools>
     HDF5 file schema          <users_guide/hdf5>
 
+------------
 Tutorials
-=========
+------------
 
 Introductory
-------------
+#############
 
 .. toctree::
    :maxdepth: 1
 
    An introduction to WESTPA <https://www.youtube.com/watch?v=YpltPzpcmLY>
    Analysis Tools <https://www.youtube.com/watch?v=rMFvcHOOxZc>
-   Molecular Scale Systems <https://www.youtube.com/watch?v=l1SmGx77hKo>
+   Molecular Scale Systems <tutorials/p53>
    Non-spatial Systems <https://www.youtube.com/watch?v=rY-IJcLFiaM>
    AMBER   <tutorials/amber>
    GROMACS <tutorials/gromacs>
    NAMD    <tutorials/namd>
 
 Advanced
---------
+#############
 
 .. toctree::
    :maxdepth: 1
@@ -40,8 +42,9 @@ Advanced
    OpenMM <tutorials/openmm>
    Weighted ensemble-based string method <http://stringmethodexamples.readthedocs.org/>
 
+------------
 Development
-===========
+------------
 
 .. toctree::
    :maxdepth: 1
