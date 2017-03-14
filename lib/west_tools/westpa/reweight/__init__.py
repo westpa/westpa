@@ -16,20 +16,12 @@
 # along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
 '''
-Kinetics analysis library
+Function(s) for the postanalysis toolkit
 '''
 
 import logging
 log = logging.getLogger(__name__)
 
-
-from rate_averaging import RateAverager
-
-import _kinetics
-from _kinetics import (calculate_labeled_fluxes, labeled_flux_to_rate, #@UnresolvedImport
-                       calculate_labeled_fluxes_alllags, #@UnresolvedImport
-                       nested_to_flat_matrix, nested_to_flat_vector, #@UnresolvedImport
-                       flat_to_nested_matrix, flat_to_nested_vector, find_macrostate_transitions, #@UnresolvedImport
-                       sequence_macro_flux_to_rate) #@UnresolvedImport
-from events import WKinetics
-
+import _reweight
+from _reweight import (stats_process, reweight_for_c) #@UnresolvedImport
+from matrix import FluxMatrix
