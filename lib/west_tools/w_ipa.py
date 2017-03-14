@@ -232,9 +232,17 @@ class WIPI(WESTParallelTool):
                             except:
                                 pass
                             args = []
+                            #for key,value in w_assign_config.iteritems():
+                            #    args.append(str('--') + str(key))
+                            #    args.append(str(value))
                             for key,value in w_assign_config.iteritems():
-                                args.append(str('--') + str(key))
-                                args.append(str(value))
+                                if key != 'extra':
+                                    args.append(str('--') + str(key).replace('_', '-'))
+                                    args.append(str(value))
+                            # This is for stuff like disabling correlation analysis, etc.
+                            if 'extra' in w_assign_config.keys():
+                                for value in w_assign_config['extra']:
+                                    args.append(str('--') + str(value).replace('_', '-'))
                             # We're just calling the built in function.
                             # This is a lot cleaner than what we had in before, and far more workable.
                             args.append('--config-from-file')
