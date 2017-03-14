@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>WEST Tools &mdash; WESTPA 1.0b1 documentation</title>
+    <title>WEST Tools &#8212; WESTPA 1.0b1 documentation</title>
     
     <link rel="stylesheet" href="../static/alabaster.css" type="text/css" />
     <link rel="stylesheet" href="../static/pygments.css" type="text/css" />
@@ -24,15 +24,20 @@
     <script type="text/javascript" src="../static/jquery.js"></script>
     <script type="text/javascript" src="../static/underscore.js"></script>
     <script type="text/javascript" src="../static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
     <link rel="top" title="WESTPA 1.0b1 documentation" href="../sphinx_index.html" />
     <link rel="next" title="WEST Work Manager" href="wwmgr.html" />
     <link rel="prev" title="Analysis" href="west/analysis.html" />
    
+  <link rel="stylesheet" href="../static/custom.css" type="text/css" />
+  
   
   <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
 
   </head>
-  <body role="document">  
+  <body role="document">
+  
 
     <div class="document">
       <div class="documentwrapper">
@@ -53,7 +58,7 @@ different command line tools are specified, in order of precedence, by:</p>
 </ul>
 <p>This page focuses on outlining the general functionality of the command line
 tools and providing an overview of command line arguments that are shared by
-multiple tools. See the <a class="reference internal" href="command_line_tools.html#command-line-tool-index"><span>index of command-line tools</span></a> for a more comprehensive overview of each tool.</p>
+multiple tools. See the <a class="reference internal" href="command_line_tools.html#command-line-tool-index"><span class="std std-ref">index of command-line tools</span></a> for a more comprehensive overview of each tool.</p>
 <div class="section" id="overview">
 <h2>Overview<a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h2>
 <p>All tools are located in the <code class="docutils literal"><span class="pre">$WEST_ROOT/bin</span></code> directory, where the shell
@@ -61,7 +66,7 @@ variable <code class="docutils literal"><span class="pre">WEST_ROOT</span></code
 on your machine.</p>
 <p>You may wish to set this variable automatically by adding the following to your
 <code class="docutils literal"><span class="pre">~/.bashrc</span></code> or <code class="docutils literal"><span class="pre">~/.profile</span></code> file:</p>
-<div class="highlight-python"><div class="highlight"><pre><span></span>export WEST_ROOT=&quot;$HOME/westpa&quot;
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">export</span> <span class="n">WEST_ROOT</span><span class="o">=</span><span class="s2">&quot;$HOME/westpa&quot;</span>
 </pre></div>
 </div>
 <p>where the path to the westpa suite is modified accordingly.</p>
@@ -83,19 +88,19 @@ stored.</p>
 </tr>
 </thead>
 <tbody valign="top">
-<tr class="row-even"><td><a class="reference internal" href="command_line_tools/w_init.html#w-init"><span>w_init</span></a></td>
+<tr class="row-even"><td><a class="reference internal" href="command_line_tools/w_init.html#w-init"><span class="std std-ref">w_init</span></a></td>
 <td>Initializes simulation configuration files and environment.
 Always run this command before starting a new simulation.</td>
 </tr>
-<tr class="row-odd"><td><a class="reference internal" href="command_line_tools/w_bins.html#w-bins"><span>w_bins</span></a></td>
+<tr class="row-odd"><td><a class="reference internal" href="command_line_tools/w_bins.html#w-bins"><span class="std std-ref">w_bins</span></a></td>
 <td>Set up binning, progress coordinate</td>
 </tr>
-<tr class="row-even"><td><a class="reference internal" href="command_line_tools/w_run.html#w-run"><span>w_run</span></a></td>
+<tr class="row-even"><td><a class="reference internal" href="command_line_tools/w_run.html#w-run"><span class="std std-ref">w_run</span></a></td>
 <td>Launches a simulation. Command arguments/environmental
 variables can be included to specify the work managers and
 simulation parameters</td>
 </tr>
-<tr class="row-odd"><td><a class="reference internal" href="command_line_tools/w_truncate.html#w-truncate"><span>w_truncate</span></a></td>
+<tr class="row-odd"><td><a class="reference internal" href="command_line_tools/w_truncate.html#w-truncate"><span class="std std-ref">w_truncate</span></a></td>
 <td>Truncates the weighted ensemble simulation from a given
 iteration.</td>
 </tr>
@@ -119,27 +124,27 @@ from and write to <em>HDF5</em> type files.</p>
 </tr>
 </thead>
 <tbody valign="top">
-<tr class="row-even"><td><a class="reference internal" href="command_line_tools/w_assign.html#w-assign"><span>w_assign</span></a></td>
+<tr class="row-even"><td><a class="reference internal" href="command_line_tools/w_assign.html#w-assign"><span class="std std-ref">w_assign</span></a></td>
 <td>Assign walkers to bins and macrostates (using simulation
 output as input). Must be done before some other analysis
-tools (e.g. <a class="reference internal" href="command_line_tools/w_kinetics.html#w-kinetics"><span>w_kinetics</span></a>, <a class="reference internal" href="command_line_tools/w_kinavg.html#w-kinavg"><span>w_kinavg</span></a>)</td>
+tools (e.g. <a class="reference internal" href="command_line_tools/w_kinetics.html#w-kinetics"><span class="std std-ref">w_kinetics</span></a>, <a class="reference internal" href="command_line_tools/w_kinavg.html#w-kinavg"><span class="std std-ref">w_kinavg</span></a>)</td>
 </tr>
-<tr class="row-odd"><td><a class="reference internal" href="command_line_tools/w_trace.html#w-trace"><span>w_trace</span></a></td>
+<tr class="row-odd"><td><a class="reference internal" href="command_line_tools/w_trace.html#w-trace"><span class="std std-ref">w_trace</span></a></td>
 <td>Trace the path of a given walker segment over a
 user-specified number of simulation iterations.</td>
 </tr>
-<tr class="row-even"><td><a class="reference internal" href="command_line_tools/w_fluxanl.html#w-fluxanl"><span>w_fluxanl</span></a></td>
+<tr class="row-even"><td><a class="reference internal" href="command_line_tools/w_fluxanl.html#w-fluxanl"><span class="std std-ref">w_fluxanl</span></a></td>
 <td>Calculate average probability flux into user-defined
 &#8216;target&#8217; state with relevant statistics.</td>
 </tr>
-<tr class="row-odd"><td><a class="reference internal" href="command_line_tools/w_pdist.html#w-pdist"><span>w_pdist</span></a></td>
+<tr class="row-odd"><td><a class="reference internal" href="command_line_tools/w_pdist.html#w-pdist"><span class="std std-ref">w_pdist</span></a></td>
 <td>Construct a probability distribution of results (e.g.
 progress coordinate membership) for subsequent plotting
-with <a class="reference internal" href="command_line_tools/plothist.html#plothist"><span>plothist</span></a>.</td>
+with <a class="reference internal" href="command_line_tools/plothist.html#plothist"><span class="std std-ref">plothist</span></a>.</td>
 </tr>
-<tr class="row-even"><td><a class="reference internal" href="command_line_tools/plothist.html#plothist"><span>plothist</span></a></td>
+<tr class="row-even"><td><a class="reference internal" href="command_line_tools/plothist.html#plothist"><span class="std std-ref">plothist</span></a></td>
 <td>Tool to plot output from other analysis tools (e.g.
-<a class="reference internal" href="command_line_tools/w_pdist.html#w-pdist"><span>w_pdist</span></a>).</td>
+<a class="reference internal" href="command_line_tools/w_pdist.html#w-pdist"><span class="std std-ref">w_pdist</span></a>).</td>
 </tr>
 </tbody>
 </table>
@@ -148,14 +153,14 @@ with <a class="reference internal" href="command_line_tools/plothist.html#plothi
 <div class="section" id="general-command-line-options">
 <h2>General Command Line Options<a class="headerlink" href="#general-command-line-options" title="Permalink to this headline">¶</a></h2>
 <p>The following arguments are shared by all command line tools:</p>
-<div class="highlight-python"><div class="highlight"><pre><span></span>-r config file, --rcfile config file
-  Use config file as the configuration file (Default: File named west.cfg)
---quiet, --verbose, --debug
-  Specify command tool output verbosity (Default: &#39;quiet&#39; mode)
---version
-  Print WESTPA version number and exit
--h, --help
-  Output the help information for this command line tool and exit
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="o">-</span><span class="n">r</span> <span class="n">config</span> <span class="n">file</span><span class="p">,</span> <span class="o">--</span><span class="n">rcfile</span> <span class="n">config</span> <span class="n">file</span>
+  <span class="n">Use</span> <span class="n">config</span> <span class="n">file</span> <span class="k">as</span> <span class="n">the</span> <span class="n">configuration</span> <span class="n">file</span> <span class="p">(</span><span class="n">Default</span><span class="p">:</span> <span class="n">File</span> <span class="n">named</span> <span class="n">west</span><span class="o">.</span><span class="n">cfg</span><span class="p">)</span>
+<span class="o">--</span><span class="n">quiet</span><span class="p">,</span> <span class="o">--</span><span class="n">verbose</span><span class="p">,</span> <span class="o">--</span><span class="n">debug</span>
+  <span class="n">Specify</span> <span class="n">command</span> <span class="n">tool</span> <span class="n">output</span> <span class="n">verbosity</span> <span class="p">(</span><span class="n">Default</span><span class="p">:</span> <span class="s1">&#39;quiet&#39;</span> <span class="n">mode</span><span class="p">)</span>
+<span class="o">--</span><span class="n">version</span>
+  <span class="n">Print</span> <span class="n">WESTPA</span> <span class="n">version</span> <span class="n">number</span> <span class="ow">and</span> <span class="n">exit</span>
+<span class="o">-</span><span class="n">h</span><span class="p">,</span> <span class="o">--</span><span class="n">help</span>
+  <span class="n">Output</span> <span class="n">the</span> <span class="n">help</span> <span class="n">information</span> <span class="k">for</span> <span class="n">this</span> <span class="n">command</span> <span class="n">line</span> <span class="n">tool</span> <span class="ow">and</span> <span class="n">exit</span>
 </pre></div>
 </div>
 <div class="section" id="a-note-on-specifying-a-configuration-file">
@@ -169,7 +174,7 @@ name where simulation data is stored and read by analysis tools.</p>
 <p>You can override this to use configuration file <em>file</em> by either:</p>
 <ul>
 <li><p class="first">Setting the environmental variable <code class="docutils literal"><span class="pre">WESTRC</span></code> equal to <em>file</em>:</p>
-<div class="highlight-python"><div class="highlight"><pre><span></span>export WESTRC=/path/to/westrcfile
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">export</span> <span class="n">WESTRC</span><span class="o">=/</span><span class="n">path</span><span class="o">/</span><span class="n">to</span><span class="o">/</span><span class="n">westrcfile</span>
 </pre></div>
 </div>
 </li>
@@ -180,34 +185,34 @@ name where simulation data is stored and read by analysis tools.</p>
 </div>
 <div class="section" id="work-manager-options">
 <h2>Work Manager Options<a class="headerlink" href="#work-manager-options" title="Permalink to this headline">¶</a></h2>
-<p>Note: See <a class="reference internal" href="wwmgr.html#wwmgr"><span>wwmgr overview</span></a> for a more detailed explanation of the
+<p>Note: See <a class="reference internal" href="wwmgr.html#wwmgr"><span class="std std-ref">wwmgr overview</span></a> for a more detailed explanation of the
 work manager framework.</p>
 <p>Work managers a used by a number of command-line tools to process more complex
-tasks, especially in setting up and running simulations (i.e. <a class="reference internal" href="command_line_tools/w_init.html#w-init"><span>w_init</span></a> and
-<a class="reference internal" href="command_line_tools/w_run.html#w-run"><span>w_run</span></a>) - in general, work managers are involved in tasks that require
+tasks, especially in setting up and running simulations (i.e. <a class="reference internal" href="command_line_tools/w_init.html#w-init"><span class="std std-ref">w_init</span></a> and
+<a class="reference internal" href="command_line_tools/w_run.html#w-run"><span class="std std-ref">w_run</span></a>) - in general, work managers are involved in tasks that require
 multiprocessing and/or tasks distributed over multiple nodes in a cluster.</p>
 <div class="section" id="id1">
 <h3>Overview<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h3>
 <p>The following command-line tools make use of work managers:</p>
 <ul class="simple">
-<li><a class="reference internal" href="command_line_tools/w_init.html#w-init"><span>w_init</span></a></li>
-<li><a class="reference internal" href="command_line_tools/w_run.html#w-run"><span>w_run</span></a></li>
+<li><a class="reference internal" href="command_line_tools/w_init.html#w-init"><span class="std std-ref">w_init</span></a></li>
+<li><a class="reference internal" href="command_line_tools/w_run.html#w-run"><span class="std std-ref">w_run</span></a></li>
 </ul>
 </div>
 <div class="section" id="general-work-manager-options">
 <h3>General work manager options<a class="headerlink" href="#general-work-manager-options" title="Permalink to this headline">¶</a></h3>
 <p>The following are general options used for specifying the type of work
 manager and number of cores:</p>
-<div class="highlight-python"><div class="highlight"><pre><span></span>--wm-work-manager work_manager
-  Specify which type of work manager to use, where the possible choices for
-  work_manager are: {processes, gcserial, threads, mpi, or zmq}. See the
-  wwmgr overview page &lt;wwmgr&gt;_ for more information on the different types of
-  work managers (Default: gcprocesses)
---wm-n-workers n_workers
-  Specify the number of cores to use as gcn_workers, if the work manager you
-  selected supports this option (work managers that do not will ignore this
-  option). If using an gcmpi or zmq work manager, specify gc--wm-n-workers=0
-  for a dedicated server (Default: Number of cores available on machine)
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="o">--</span><span class="n">wm</span><span class="o">-</span><span class="n">work</span><span class="o">-</span><span class="n">manager</span> <span class="n">work_manager</span>
+  <span class="n">Specify</span> <span class="n">which</span> <span class="nb">type</span> <span class="n">of</span> <span class="n">work</span> <span class="n">manager</span> <span class="n">to</span> <span class="n">use</span><span class="p">,</span> <span class="n">where</span> <span class="n">the</span> <span class="n">possible</span> <span class="n">choices</span> <span class="k">for</span>
+  <span class="n">work_manager</span> <span class="n">are</span><span class="p">:</span> <span class="p">{</span><span class="n">processes</span><span class="p">,</span> <span class="n">gcserial</span><span class="p">,</span> <span class="n">threads</span><span class="p">,</span> <span class="n">mpi</span><span class="p">,</span> <span class="ow">or</span> <span class="n">zmq</span><span class="p">}</span><span class="o">.</span> <span class="n">See</span> <span class="n">the</span>
+  <span class="n">wwmgr</span> <span class="n">overview</span> <span class="n">page</span> <span class="o">&lt;</span><span class="n">wwmgr</span><span class="o">&gt;</span><span class="n">_</span> <span class="k">for</span> <span class="n">more</span> <span class="n">information</span> <span class="n">on</span> <span class="n">the</span> <span class="n">different</span> <span class="n">types</span> <span class="n">of</span>
+  <span class="n">work</span> <span class="n">managers</span> <span class="p">(</span><span class="n">Default</span><span class="p">:</span> <span class="n">gcprocesses</span><span class="p">)</span>
+<span class="o">--</span><span class="n">wm</span><span class="o">-</span><span class="n">n</span><span class="o">-</span><span class="n">workers</span> <span class="n">n_workers</span>
+  <span class="n">Specify</span> <span class="n">the</span> <span class="n">number</span> <span class="n">of</span> <span class="n">cores</span> <span class="n">to</span> <span class="n">use</span> <span class="k">as</span> <span class="n">gcn_workers</span><span class="p">,</span> <span class="k">if</span> <span class="n">the</span> <span class="n">work</span> <span class="n">manager</span> <span class="n">you</span>
+  <span class="n">selected</span> <span class="n">supports</span> <span class="n">this</span> <span class="n">option</span> <span class="p">(</span><span class="n">work</span> <span class="n">managers</span> <span class="n">that</span> <span class="n">do</span> <span class="ow">not</span> <span class="n">will</span> <span class="n">ignore</span> <span class="n">this</span>
+  <span class="n">option</span><span class="p">)</span><span class="o">.</span> <span class="n">If</span> <span class="n">using</span> <span class="n">an</span> <span class="n">gcmpi</span> <span class="ow">or</span> <span class="n">zmq</span> <span class="n">work</span> <span class="n">manager</span><span class="p">,</span> <span class="n">specify</span> <span class="n">gc</span><span class="o">--</span><span class="n">wm</span><span class="o">-</span><span class="n">n</span><span class="o">-</span><span class="n">workers</span><span class="o">=</span><span class="mi">0</span>
+  <span class="k">for</span> <span class="n">a</span> <span class="n">dedicated</span> <span class="n">server</span> <span class="p">(</span><span class="n">Default</span><span class="p">:</span> <span class="n">Number</span> <span class="n">of</span> <span class="n">cores</span> <span class="n">available</span> <span class="n">on</span> <span class="n">machine</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>The <code class="docutils literal"><span class="pre">mpi</span></code> work manager is generally sufficient for most tasks that make use
@@ -222,44 +227,44 @@ cluster.</p>
 which are optional and have default values). All of these options focus
 on whether the zmq work manager is set up as a server (i.e. task
 distributor/ventilator) or client (task processor):</p>
-<div class="highlight-python"><div class="highlight"><pre><span></span>--wm-zmq-mode mode
-  Options: {server or client}. Specify whether the ZMQ work manager on this
-  node will operate as a server or a client (Default: server)
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="o">--</span><span class="n">wm</span><span class="o">-</span><span class="n">zmq</span><span class="o">-</span><span class="n">mode</span> <span class="n">mode</span>
+  <span class="n">Options</span><span class="p">:</span> <span class="p">{</span><span class="n">server</span> <span class="ow">or</span> <span class="n">client</span><span class="p">}</span><span class="o">.</span> <span class="n">Specify</span> <span class="n">whether</span> <span class="n">the</span> <span class="n">ZMQ</span> <span class="n">work</span> <span class="n">manager</span> <span class="n">on</span> <span class="n">this</span>
+  <span class="n">node</span> <span class="n">will</span> <span class="n">operate</span> <span class="k">as</span> <span class="n">a</span> <span class="n">server</span> <span class="ow">or</span> <span class="n">a</span> <span class="n">client</span> <span class="p">(</span><span class="n">Default</span><span class="p">:</span> <span class="n">server</span><span class="p">)</span>
 
---wm-zmq-info-file info_file
-  Specify the name of a temporary file to write (as a server) or read (as a
-  client) socket connection endpoints (Default: server_x.json, where x is a
-  unique identifier string)
+<span class="o">--</span><span class="n">wm</span><span class="o">-</span><span class="n">zmq</span><span class="o">-</span><span class="n">info</span><span class="o">-</span><span class="n">file</span> <span class="n">info_file</span>
+  <span class="n">Specify</span> <span class="n">the</span> <span class="n">name</span> <span class="n">of</span> <span class="n">a</span> <span class="n">temporary</span> <span class="n">file</span> <span class="n">to</span> <span class="n">write</span> <span class="p">(</span><span class="k">as</span> <span class="n">a</span> <span class="n">server</span><span class="p">)</span> <span class="ow">or</span> <span class="n">read</span> <span class="p">(</span><span class="k">as</span> <span class="n">a</span>
+  <span class="n">client</span><span class="p">)</span> <span class="n">socket</span> <span class="n">connection</span> <span class="n">endpoints</span> <span class="p">(</span><span class="n">Default</span><span class="p">:</span> <span class="n">server_x</span><span class="o">.</span><span class="n">json</span><span class="p">,</span> <span class="n">where</span> <span class="n">x</span> <span class="ow">is</span> <span class="n">a</span>
+  <span class="n">unique</span> <span class="n">identifier</span> <span class="n">string</span><span class="p">)</span>
 
---wm-zmq-task-endpoint task_endpoint
-  Explicitly use task_endpoint to bind to (as server) or connect to (as
-  client) for task distribution (Default: A randomly determined endpoint that
-  is written or read from the specified info_file)
+<span class="o">--</span><span class="n">wm</span><span class="o">-</span><span class="n">zmq</span><span class="o">-</span><span class="n">task</span><span class="o">-</span><span class="n">endpoint</span> <span class="n">task_endpoint</span>
+  <span class="n">Explicitly</span> <span class="n">use</span> <span class="n">task_endpoint</span> <span class="n">to</span> <span class="n">bind</span> <span class="n">to</span> <span class="p">(</span><span class="k">as</span> <span class="n">server</span><span class="p">)</span> <span class="ow">or</span> <span class="n">connect</span> <span class="n">to</span> <span class="p">(</span><span class="k">as</span>
+  <span class="n">client</span><span class="p">)</span> <span class="k">for</span> <span class="n">task</span> <span class="n">distribution</span> <span class="p">(</span><span class="n">Default</span><span class="p">:</span> <span class="n">A</span> <span class="n">randomly</span> <span class="n">determined</span> <span class="n">endpoint</span> <span class="n">that</span>
+  <span class="ow">is</span> <span class="n">written</span> <span class="ow">or</span> <span class="n">read</span> <span class="kn">from</span> <span class="nn">the</span> <span class="n">specified</span> <span class="n">info_file</span><span class="p">)</span>
 
---wm-zmq-result-endpoint result_endpoint
-  Explicitly use result_endpoint to bind to (as server) or connect to (as
-  client) to distribute and collect task results (Default: A randomly
-  determined endpoint that is written to or read from the specified
-  info_file)
+<span class="o">--</span><span class="n">wm</span><span class="o">-</span><span class="n">zmq</span><span class="o">-</span><span class="n">result</span><span class="o">-</span><span class="n">endpoint</span> <span class="n">result_endpoint</span>
+  <span class="n">Explicitly</span> <span class="n">use</span> <span class="n">result_endpoint</span> <span class="n">to</span> <span class="n">bind</span> <span class="n">to</span> <span class="p">(</span><span class="k">as</span> <span class="n">server</span><span class="p">)</span> <span class="ow">or</span> <span class="n">connect</span> <span class="n">to</span> <span class="p">(</span><span class="k">as</span>
+  <span class="n">client</span><span class="p">)</span> <span class="n">to</span> <span class="n">distribute</span> <span class="ow">and</span> <span class="n">collect</span> <span class="n">task</span> <span class="n">results</span> <span class="p">(</span><span class="n">Default</span><span class="p">:</span> <span class="n">A</span> <span class="n">randomly</span>
+  <span class="n">determined</span> <span class="n">endpoint</span> <span class="n">that</span> <span class="ow">is</span> <span class="n">written</span> <span class="n">to</span> <span class="ow">or</span> <span class="n">read</span> <span class="kn">from</span> <span class="nn">the</span> <span class="n">specified</span>
+  <span class="n">info_file</span><span class="p">)</span>
 
---wm-zmq-announce-endpoint announce_endpoint
-  Explicitly use announce_endpoint to bind to (as server) or connect to (as
-  client) to distribute central announcements (Default: A randomly determined
-  endpoint that is written to or read from the specified info_file)
+<span class="o">--</span><span class="n">wm</span><span class="o">-</span><span class="n">zmq</span><span class="o">-</span><span class="n">announce</span><span class="o">-</span><span class="n">endpoint</span> <span class="n">announce_endpoint</span>
+  <span class="n">Explicitly</span> <span class="n">use</span> <span class="n">announce_endpoint</span> <span class="n">to</span> <span class="n">bind</span> <span class="n">to</span> <span class="p">(</span><span class="k">as</span> <span class="n">server</span><span class="p">)</span> <span class="ow">or</span> <span class="n">connect</span> <span class="n">to</span> <span class="p">(</span><span class="k">as</span>
+  <span class="n">client</span><span class="p">)</span> <span class="n">to</span> <span class="n">distribute</span> <span class="n">central</span> <span class="n">announcements</span> <span class="p">(</span><span class="n">Default</span><span class="p">:</span> <span class="n">A</span> <span class="n">randomly</span> <span class="n">determined</span>
+  <span class="n">endpoint</span> <span class="n">that</span> <span class="ow">is</span> <span class="n">written</span> <span class="n">to</span> <span class="ow">or</span> <span class="n">read</span> <span class="kn">from</span> <span class="nn">the</span> <span class="n">specified</span> <span class="n">info_file</span><span class="p">)</span>
 
---wm-zmq-heartbeat-interval interval
-  If a server, send an Im alive ping to connected clients every interval
-  seconds; If a client, expect to hear a server ping every approximately
-  interval seconds, or else assume the server has crashed and shutdown
-  (Default: 600 seconds)
+<span class="o">--</span><span class="n">wm</span><span class="o">-</span><span class="n">zmq</span><span class="o">-</span><span class="n">heartbeat</span><span class="o">-</span><span class="n">interval</span> <span class="n">interval</span>
+  <span class="n">If</span> <span class="n">a</span> <span class="n">server</span><span class="p">,</span> <span class="n">send</span> <span class="n">an</span> <span class="n">Im</span> <span class="n">alive</span> <span class="n">ping</span> <span class="n">to</span> <span class="n">connected</span> <span class="n">clients</span> <span class="n">every</span> <span class="n">interval</span>
+  <span class="n">seconds</span><span class="p">;</span> <span class="n">If</span> <span class="n">a</span> <span class="n">client</span><span class="p">,</span> <span class="n">expect</span> <span class="n">to</span> <span class="n">hear</span> <span class="n">a</span> <span class="n">server</span> <span class="n">ping</span> <span class="n">every</span> <span class="n">approximately</span>
+  <span class="n">interval</span> <span class="n">seconds</span><span class="p">,</span> <span class="ow">or</span> <span class="k">else</span> <span class="n">assume</span> <span class="n">the</span> <span class="n">server</span> <span class="n">has</span> <span class="n">crashed</span> <span class="ow">and</span> <span class="n">shutdown</span>
+  <span class="p">(</span><span class="n">Default</span><span class="p">:</span> <span class="mi">600</span> <span class="n">seconds</span><span class="p">)</span>
 
---wm-zmq-task-timeout timeout
-  Kill worker processes/jobs after that take longer than timeout seconds to
-  complete (Default: no time limit)
+<span class="o">--</span><span class="n">wm</span><span class="o">-</span><span class="n">zmq</span><span class="o">-</span><span class="n">task</span><span class="o">-</span><span class="n">timeout</span> <span class="n">timeout</span>
+  <span class="n">Kill</span> <span class="n">worker</span> <span class="n">processes</span><span class="o">/</span><span class="n">jobs</span> <span class="n">after</span> <span class="n">that</span> <span class="n">take</span> <span class="n">longer</span> <span class="n">than</span> <span class="n">timeout</span> <span class="n">seconds</span> <span class="n">to</span>
+  <span class="n">complete</span> <span class="p">(</span><span class="n">Default</span><span class="p">:</span> <span class="n">no</span> <span class="n">time</span> <span class="n">limit</span><span class="p">)</span>
 
---wm-zmq-client-comm-mode mode
-  Use the communication mode, mode, (options: {ipc for Unix sockets, or tcp
-  for TCP/IP sockets}) to communicate with worker processes (Default: ipc)
+<span class="o">--</span><span class="n">wm</span><span class="o">-</span><span class="n">zmq</span><span class="o">-</span><span class="n">client</span><span class="o">-</span><span class="n">comm</span><span class="o">-</span><span class="n">mode</span> <span class="n">mode</span>
+  <span class="n">Use</span> <span class="n">the</span> <span class="n">communication</span> <span class="n">mode</span><span class="p">,</span> <span class="n">mode</span><span class="p">,</span> <span class="p">(</span><span class="n">options</span><span class="p">:</span> <span class="p">{</span><span class="n">ipc</span> <span class="k">for</span> <span class="n">Unix</span> <span class="n">sockets</span><span class="p">,</span> <span class="ow">or</span> <span class="n">tcp</span>
+  <span class="k">for</span> <span class="n">TCP</span><span class="o">/</span><span class="n">IP</span> <span class="n">sockets</span><span class="p">})</span> <span class="n">to</span> <span class="n">communicate</span> <span class="k">with</span> <span class="n">worker</span> <span class="n">processes</span> <span class="p">(</span><span class="n">Default</span><span class="p">:</span> <span class="n">ipc</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -267,7 +272,7 @@ distributor/ventilator) or client (task processor):</p>
 <div class="section" id="initializing-running-simulations">
 <h2>Initializing/Running Simulations<a class="headerlink" href="#initializing-running-simulations" title="Permalink to this headline">¶</a></h2>
 <p>For a more complete overview of all the files necessary for setting up a
-simulation, see the <a class="reference internal" href="west/setup.html#setup"><span>user guide for setting up a simulation</span></a></p>
+simulation, see the <a class="reference internal" href="west/setup.html#setup"><span class="std std-ref">user guide for setting up a simulation</span></a></p>
 </div>
 </div>
 
@@ -321,14 +326,11 @@ simulation, see the <a class="reference internal" href="west/setup.html#setup"><
 <div id="searchbox" style="display: none" role="search">
   <h3>Quick search</h3>
     <form class="search" action="../search.html" method="get">
-      <input type="text" name="q" />
-      <input type="submit" value="Go" />
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
       <input type="hidden" name="check_keywords" value="yes" />
       <input type="hidden" name="area" value="default" />
     </form>
-    <p class="searchtip" style="font-size: 90%">
-    Enter search terms or a module, class or function name.
-    </p>
 </div>
 <script type="text/javascript">$('#searchbox').show(0);</script>
         </div>
@@ -339,8 +341,8 @@ simulation, see the <a class="reference internal" href="west/setup.html#setup"><
       &copy;2015, Matthew C. Zwier and Lillian T. Chong.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.3.5</a>
-      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.7</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.4.9</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
       
       |
       <a href="../sources/users_guide/west_tools.txt"

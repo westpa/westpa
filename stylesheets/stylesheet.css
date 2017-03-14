@@ -49,6 +49,7 @@ Theme Styles
 *******************************************************************************/
 
 body {
+  text-align: justify;
   box-sizing: border-box;
   color:#373737;
   background: #212121;
@@ -333,6 +334,20 @@ Full-Width Styles
 }
 
 .pub_link:hover {
+ color: red;
+}
+
+.ovw_link {
+  float: left;
+  width: 60px;
+  height: 40px;
+  display: block;
+  padding-right: 30px;
+  color: black;
+  font-size: 18px;
+}
+
+.ovw_link:hover {
  color: red;
 }
 
