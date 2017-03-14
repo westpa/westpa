@@ -26,6 +26,7 @@ from westpa.binning import index_dtype, assign_and_label, accumulate_labeled_pop
 from westtools import (WESTParallelTool, WESTDataReader, WESTDSSynthesizer, BinMappingComponent, 
                        ProgressIndicatorComponent)
 import numpy
+import westpa
 from westpa import h5io
 from westpa.h5io import WESTPAH5File
 from westpa.extloader import get_object
@@ -46,7 +47,7 @@ def parse_pcoord_value(pc_str):
         raise ValueError('too many dimensions')
     return arr
 
-def _assign_label_pop(n_iter, lb, ub, mapper, nstates, state_map, last_labels, parent_id_dsspec, weight_dsspec, pcoord_dsspec):    
+def _assign_label_pop(n_iter, lb, ub, mapper, nstates, state_map, last_labels, parent_id_dsspec, weight_dsspec, pcoord_dsspec):
 
     nbins = len(state_map)-1
     parent_ids = parent_id_dsspec.get_iter_data(n_iter,index_exp[lb:ub])
@@ -260,7 +261,6 @@ Command-line options
         agroup = parser.add_argument_group('other options')
         agroup.add_argument('-o', '--output', dest='output', default='assign.h5',
                             help='''Store results in OUTPUT (default: %(default)s).''')
-
 
     def process_args(self, args):
         self.progress.process_args(args)

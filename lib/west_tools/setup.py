@@ -1,4 +1,4 @@
-# Copyright (C) 2013 Matthew C. Zwier, Joshua L. Adelman, and Lillian T. Chong.
+# Copyright (C) 2017 Matthew C. Zwier, Joshua L. Adelman, and Lillian T. Chong.
 #
 # This file is part of WESTPA.
 #
@@ -57,8 +57,8 @@ setup(cmdclass = cmdclass,
                                 ["westpa/kinetics/_kinetics.{}".format(suffix)],
                                 include_dirs=['.', numpy_include],
                                 extra_compile_args=['-O3']),
-                     Extension("postanalysis._stats",
-                                ["postanalysis/_stats.{}".format(suffix)],
+                     Extension("westpa.reweight._reweight",
+                                ["westpa/reweight/_reweight.{}".format(suffix)],
                                 include_dirs=['.', numpy_include],
                                 extra_compile_args=['-O3']),])
 
