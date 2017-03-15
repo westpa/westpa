@@ -620,8 +620,6 @@ Command-line options
 '''    
 
     def go(self):
-        # One minor issue; as this stands now, since it's inheriting from all the other classes, it needs
-        # a kinetics file to instantiate the other attributes.  We'll need to modify how the loading works, there.
         pi = self.progress.indicator
         with pi:
             self.w_postanalysis_matrix()
