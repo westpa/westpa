@@ -285,11 +285,13 @@ cpdef assign_and_label(Py_ssize_t nsegs_lb,
                             # We're no longer at the first point, so just nab the previous assignment.
                             _trajlabels[iseg,ipt] = _trajlabels[iseg,ipt-1]
                             _statelabels[iseg,ipt] = _statelabels[iseg,ipt-1]
+                            # If we're at the last time point and we've had a transition, reflect it.
                             if ipt == npts - 1:
-                                ptlabel = state_map[_assignments[iseg,npts-1]]
+                                ptlabel = state_map[_assignments[iseg,ipt]]
                                 if ptlabel != nstates:
                                     _statelabels[iseg,npts-1] = ptlabel
                                     _trajlabels[iseg,npts-1] = ptlabel
+
     else:
         trajlabels.fill(nstates)
         statelabels.fill(nstates)

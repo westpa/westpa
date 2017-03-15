@@ -20516,7 +20516,7 @@ PyMODINIT_FUNC PyInit__mclib(void)
   __pyx_t_1 = 0;
 
   /* "mclib/_mclib.pyx":1
- * # Copyright (C) 2013 Matthew C. Zwier and Lillian T. Chong             # <<<<<<<<<<<<<<
+ * # Copyright (C) 2017 Matthew C. Zwier and Lillian T. Chong             # <<<<<<<<<<<<<<
  * #
  * # This file is part of WESTPA.
  */

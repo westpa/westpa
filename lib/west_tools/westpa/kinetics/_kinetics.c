@@ -28288,7 +28288,7 @@ PyMODINIT_FUNC PyInit__kinetics(void)
   __pyx_v_6westpa_8kinetics_9_kinetics_UNKNOWN_INDEX = __pyx_t_4;
 
   /* "westpa/kinetics/_kinetics.pyx":1
- * # Copyright (C) 2013 Matthew C. Zwier and Lillian T. Chong             # <<<<<<<<<<<<<<
+ * # Copyright (C) 2017 Matthew C. Zwier and Lillian T. Chong             # <<<<<<<<<<<<<<
  * #
  * # This file is part of WESTPA.
  */
