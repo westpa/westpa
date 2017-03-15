@@ -125,6 +125,8 @@ class WIPI(WESTParallelTool):
 
     def process_args(self, args):
         self.data_reader.process_args(args)
+        with self.data_reader:
+            self.niters = self.data_reader.current_iteration - 1
         self.__config = westpa.rc.config
         self.__settings = self.__config['west']['analysis']
         for ischeme, scheme in enumerate(self.__settings['analysis_schemes']):
@@ -135,6 +137,26 @@ class WIPI(WESTParallelTool):
         self.reanalyze = args.reanalyze
         if args.plotting:
             self.interface = 'text'
+
+    def hash_args(self, args, extra=None):
+        '''Create unique hash stamp to determine if arguments/file is different from before.'''
+        '''Combine with iteration to know whether or not file needs updating.'''
+        # Why are we not loading this functionality into the individual tools?
+        # While it may certainly be useful to store arguments (and we may well do that),
+        # it's rather complex and nasty to deal with pickling and hashing arguments through
+        # the various namespaces.
+        # In addition, it's unlikely that the functionality is desired at the individual tool level,
+        # since we'll always just rewrite a file when we call the function.
+        import hashlib
+        import cPickle as pickle
+        return hashlib.md5(pickle.dumps([args, extra])).hexdigest()
+
+    def stamp_hash(self, h5file_name, new_hash):
+        '''Loads a file, stamps it, and returns the opened file in read only'''
+        h5file = h5io.WESTPAH5File(h5file_name, 'r+')
+        h5file.attrs['arg_hash'] = new_hash
+        h5file.close()
+        h5file = h5io.WESTPAH5File(h5file_name, 'r')
 
     def analysis_structure(self):
         '''
@@ -193,32 +215,27 @@ class WIPI(WESTParallelTool):
                 except:
                     analysis_files = ['assign', 'direct']
                     self.__settings['analysis_schemes'][scheme]['postanalysis'] = False
+                reanalyze_kinetics = False
                 for name in analysis_files:
+                    arg_hash = None
                     if self.reanalyze == True:
+                        reanalyze_kinetics = True
                         try:
                             os.remove(os.path.join(path, '{}.h5'.format(name)))
                         except:
                             pass
-                    try:
-                        if self.reanalyze == True:
-                            raise ValueError('Reanalyze set to true.')
-                        self.__analysis_schemes__[scheme][name] = h5io.WESTPAH5File(os.path.join(path, '{}.h5'.format(name)), 'r')
-                        # Try to actually load some data.
-                        if name == 'assign':
-                            test = self.__analysis_schemes__[scheme][name]['state_labels']
-                        if name == 'direct':
-                            # Comes from the kinetics analysis (old w_kinetics).  If we don't have this, we need to rerun it.
-                            test = self.__analysis_schemes__[scheme][name]['durations']
-                        if name == 'reweight':
-                            # Comes from the flux matrix analysis.  Same as above.
-                            test = self.__analysis_schemes__[scheme][name]['iterations']
-                    except:
-                        #self.data_reader.close()
-                        print('Reanalyzing file {}.h5 for scheme {}.'.format(name, scheme))
+                    else:
                         try:
-                            os.remove(os.path.join(path, '{}.h5'.format(name)))
+                            # Try to load the hash.  If we fail to load the hash or the file, we need to reload.
+                            #if self.reanalyze == True:
+                            #    raise ValueError('Reanalyze set to true.')
+                            self.__analysis_schemes__[scheme][name] = h5io.WESTPAH5File(os.path.join(path, '{}.h5'.format(name)), 'r')
+                            arg_hash = self.__analysis_schemes__[scheme][name].attrs['arg_hash']
                         except:
                             pass
+                            # We shouldn't rely on this.
+                            # self.reanalyze = True
+                    if True:
                         if name == 'assign':
                             assign = w_assign.WAssign()
 
@@ -232,9 +249,6 @@ class WIPI(WESTParallelTool):
                             except:
                                 pass
                             args = []
-                            #for key,value in w_assign_config.iteritems():
-                            #    args.append(str('--') + str(key))
-                            #    args.append(str(value))
                             for key,value in w_assign_config.iteritems():
                                 if key != 'extra':
                                     args.append(str('--') + str(key).replace('_', '-'))
@@ -248,16 +262,31 @@ class WIPI(WESTParallelTool):
                             args.append('--config-from-file')
                             args.append('--scheme-name')
                             args.append('{}'.format(scheme))
+                            # Why are we calling this if we're not sure we're remaking the file?
+                            # We need to load up the bin mapper and states and see if they're the same.
                             assign.make_parser_and_process(args=args)
-                            # We want to use the work manager we have here.  Otherwise, just let the tool sort out what it needs, honestly.
-                            assign.work_manager = self.work_manager
+                            new_hash = self.hash_args(args=args, extra=[self.niters, assign.binning.mapper, assign.states])
+                            # Let's check the hash.  If the hash is the same, we don't need to reload.
+                            if arg_hash != new_hash or self.reanalyze == True:
+                                # If the hashes are different, or we need to reanalyze, delete the file.
+                                try:
+                                    os.remove(os.path.join(path, '{}.h5'.format(name)))
+                                except:
+                                    pass
+                                print('Reanalyzing file {}.h5 for scheme {}.'.format(name, scheme))
+                                reanalyze_kinetics = True
+                                # We want to use the work manager we have here.  Otherwise, just let the tool sort out what it needs, honestly.
+                                assign.work_manager = self.work_manager
 
-                            assign.go()
-                            assign.data_reader.close()
+                                assign.go()
+                                assign.data_reader.close()
+
+                                # Stamp w/ hash, then reload as read only.
+                                self.__analysis_schemes__[scheme][name] = h5io.WESTPAH5File(os.path.join(path, '{}.h5'.format(name)), 'r+')
+                                self.__analysis_schemes__[scheme][name].attrs['arg_hash'] = new_hash
+                                self.__analysis_schemes__[scheme][name].close()
+                                self.__analysis_schemes__[scheme][name] = h5io.WESTPAH5File(os.path.join(path, '{}.h5'.format(name)), 'r')
                             del(assign)
-
-                            # It closes the h5 file.
-                            self.__analysis_schemes__[scheme][name] = h5io.WESTPAH5File(os.path.join(path, '{}.h5'.format(name)), 'r')
 
                         # Since these are all contained within one tool, now, we want it to just... load everything.
                         if name == 'direct' or name == 'reweight':
@@ -266,7 +295,7 @@ class WIPI(WESTParallelTool):
                                 analysis = w_direct.WDirect()
                             if name == 'reweight':
                                 analysis = w_reweight.WReweight()
-
+                            
                             analysis_config = { 'assignments': os.path.join(path, '{}.h5'.format('assign')), 'output': os.path.join(path, '{}.h5'.format(name)), 'kinetics': os.path.join(path, '{}.h5'.format(name))}
 
                             # Pull from general analysis options, then general SPECIFIC options for each analysis,
@@ -303,15 +332,25 @@ class WIPI(WESTParallelTool):
                                     args.append(str('--') + str(value).replace('_', '-'))
                             # We want to not display the averages, so...
                             args.append('--disable-averages')
-                            analysis.make_parser_and_process(args=args)
-                            # We want to hook into the existing work manager.
-                            analysis.work_manager = self.work_manager
+                            new_hash = self.hash_args(args=args, extra=[self.niters])
+                            if arg_hash != new_hash or self.reanalyze == True or reanalyze_kinetics == True:
+                                try:
+                                    os.remove(os.path.join(path, '{}.h5'.format(name)))
+                                except:
+                                    pass
+                                print('Reanalyzing file {}.h5 for scheme {}.'.format(name, scheme))
+                                analysis.make_parser_and_process(args=args)
+                                # We want to hook into the existing work manager.
+                                analysis.work_manager = self.work_manager
 
-                            analysis.go()
+                                analysis.go()
+
+                                # Open!
+                                self.__analysis_schemes__[scheme][name] = h5io.WESTPAH5File(os.path.join(path, '{}.h5'.format(name)), 'r+')
+                                self.__analysis_schemes__[scheme][name].attrs['arg_hash'] = new_hash
+                                self.__analysis_schemes__[scheme][name].close()
+                                self.__analysis_schemes__[scheme][name] = h5io.WESTPAH5File(os.path.join(path, '{}.h5'.format(name)), 'r')
                             del(analysis)
-
-                            # Open!
-                            self.__analysis_schemes__[scheme][name] = h5io.WESTPAH5File(os.path.join(path, '{}.h5'.format(name)), 'r')
 
         # Make sure this doesn't get too far out, here.  We need to keep it alive as long as we're actually analyzing things.
         self.work_manager.shutdown()
@@ -903,6 +942,7 @@ class WIPI(WESTParallelTool):
         self.data_reader.open()
         self.analysis_structure()
         # Seems to be consistent with other tools, such as w_assign.  For setting the iterations.
+        self.data_reader.open()
         self.niters = self.data_reader.current_iteration - 1
         self.iteration = 1
         if self.__settings['analysis_schemes'][self.scheme]['postanalysis'] == True:
