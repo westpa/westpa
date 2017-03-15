@@ -282,10 +282,7 @@ class WIPI(WESTParallelTool):
                                 assign.data_reader.close()
 
                                 # Stamp w/ hash, then reload as read only.
-                                self.__analysis_schemes__[scheme][name] = h5io.WESTPAH5File(os.path.join(path, '{}.h5'.format(name)), 'r+')
-                                self.__analysis_schemes__[scheme][name].attrs['arg_hash'] = new_hash
-                                self.__analysis_schemes__[scheme][name].close()
-                                self.__analysis_schemes__[scheme][name] = h5io.WESTPAH5File(os.path.join(path, '{}.h5'.format(name)), 'r')
+                                self.__analysis_schemes__[scheme][name] = self.stamp_hash(os.path.join(path, '{}.h5'.format(name)), new_hash)
                             del(assign)
 
                         # Since these are all contained within one tool, now, we want it to just... load everything.
@@ -346,10 +343,7 @@ class WIPI(WESTParallelTool):
                                 analysis.go()
 
                                 # Open!
-                                self.__analysis_schemes__[scheme][name] = h5io.WESTPAH5File(os.path.join(path, '{}.h5'.format(name)), 'r+')
-                                self.__analysis_schemes__[scheme][name].attrs['arg_hash'] = new_hash
-                                self.__analysis_schemes__[scheme][name].close()
-                                self.__analysis_schemes__[scheme][name] = h5io.WESTPAH5File(os.path.join(path, '{}.h5'.format(name)), 'r')
+                                self.__analysis_schemes__[scheme][name] = self.stamp_hash(os.path.join(path, '{}.h5'.format(name)), new_hash)
                             del(analysis)
 
         # Make sure this doesn't get too far out, here.  We need to keep it alive as long as we're actually analyzing things.
@@ -492,57 +486,46 @@ class WIPI(WESTParallelTool):
     # Returns the raw values, but can also calculate things based on them.
     class KineticsIteration(dict):
         def __init__(self, kin_h5file, index):
+            self.h5file = kin_h5file
+            # Keys:
+            _2D_h5keys = [ 'rate_evolution', 'conditional_flux_evolution' ]
+            _1D_h5keys = [ 'state_pop_evolution', 'color_prob_evolution' ]
+            self.raw = {}
+            for key in _2D_h5keys:
+                self.raw[key] = self.__2D_with_error__(key, index)
+            for key in _1D_h5keys:
+                self.raw[key] = self.__1D_with_error__(key, index)
+        def __2D_with_error__(self, h5key, index):
             # Check the start and stop, calculate the block size, and index appropriately.
             # While we could try and automatically generate this above, it's a little more consistent to try it here.
             # This should show the first block for which the current iteration has contributed data.
-            self.step_iter = (kin_h5file['rate_evolution']['iter_stop'][0] - kin_h5file['rate_evolution']['iter_start'][0])[1,0]
+            self.step_iter = (self.h5file[h5key]['iter_stop'][0] - self.h5file[h5key]['iter_start'][0])[1,0]
             value = ((index-2) // self.step_iter)
             if value < 0:
                 value = 0
-            self.raw = kin_h5file['rate_evolution'][value, :, :]
-            self.error = (self.raw['ci_ubound'] - self.raw['ci_lbound']) / (2*self.raw['expected'])
-            self.expected = self.raw['expected']
-            self.flux = kin_h5file['conditional_flux_evolution'][value, :, :]
-            self.ferror = (self.flux['ci_ubound'] - self.flux['ci_lbound']) / (2*self.flux['expected'])
-            self.flux = kin_h5file['conditional_flux_evolution'][value, :, :]['expected']
-            self.__dict__ = { 'raw': self.raw, 'error': self.error, 'expected': self.expected, 'flux': self.flux, 'ferror': self.ferror }
-        def __getattr__(self, attr):
-            return self.__dict__[attr]
-        def __repr__(self):
-            return repr(self.raw)
-        def __getitem__(self, value):
-            return self.raw[value]
-        def keys(self):
-            a = []
-            for i in self.raw.dtype.names:
-                a.append(i)
-            return a
-        @property
-        def names(self):
-            return self.keys()
-
-    # Returns the raw values, but can also calculate things based on them.
-    class CalcPopIteration(dict):
-        def __init__(self, sp_h5file, index):
-            self.step_iter = (sp_h5file['state_pop_evolution']['iter_stop'][0] - sp_h5file['state_pop_evolution']['iter_start'][0])[1]
+            raw = self.h5file[h5key][value, :, :]
+            error = (raw['ci_ubound'] - raw['ci_lbound']) / (2*raw['expected'])
+            expected = raw['expected']
+            return (raw, error, expected)
+        def __1D_with_error__(self, h5key, index):
+            self.step_iter = (self.h5file[h5key]['iter_stop'][0] - self.h5file[h5key]['iter_start'][0])[1]
             value = ((index-1) // self.step_iter)
             if value < 0:
                 value = 0
-            self.raw = sp_h5file['state_pop_evolution'][value, :]
-            self.error = (self.raw['ci_ubound'] - self.raw['ci_lbound']) / (2*self.raw['expected'])
-            self.expected = self.raw['expected']
-            self.__dict__ = { 'raw': self.raw, 'error': self.error, 'expected': self.expected }
+            raw = self.h5file[h5key][value, :]
+            error = (raw['ci_ubound'] - raw['ci_lbound']) / (2*raw['expected'])
+            expected = raw['expected']
+            return (raw, error, expected)
+            #return raw
         def __getattr__(self, attr):
             return self.__dict__[attr]
         def __repr__(self):
+            # Actually, let's change this.
             return repr(self.raw)
         def __getitem__(self, value):
             return self.raw[value]
         def keys(self):
-            a = []
-            for i in self.raw.dtype.names:
-                a.append(i)
-            return a
+            return self.raw.keys()
         @property
         def names(self):
             return self.keys()
@@ -604,8 +587,7 @@ class WIPI(WESTParallelTool):
             current = {}
             if seg_ids == None:
                 seg_ids = xrange(0, iter_group['seg_index']['weight'].shape[0])
-            current['kinavg'] = parent.KineticsIteration(parent.direct, value)
-            current['statepops'] = parent.CalcPopIteration(parent.direct, value)
+            current['direct'] = parent.KineticsIteration(parent.direct, value)
             # Just make these easier to access.
             current['weights'] = iter_group['seg_index']['weight'][seg_ids]
             current['pcoord'] = iter_group['pcoord'][...][seg_ids, :, :]
@@ -625,9 +607,6 @@ class WIPI(WESTParallelTool):
             nbins = parent.assign['state_map'].shape[0]
             # We have to take the 'unknown' state into account
             nstates = parent.assign['state_labels'].shape[0] + 1
-            # Legitimately unsure of why this is commented out, but what data sets we're returning should be reviewed.
-            #current['pop_bins'] = np.histogram(current['bins'].flatten(), bins=range(0, nbins), weights=np.repeat(current['weights'], current['bins'].shape[1]))[0] / current['bins'].shape[1]
-            #current['pop_states'] = np.histogram(current['states'].flatten(), bins=range(0, nstates + 1), weights=np.repeat(current['weights'], current['states'].shape[1]))[0] / current['states'].shape[1]
             current['populations'] = parent.PopulationsIterations(parent.assign, current, parent.scheme)
             current['plot'] = Plotter(parent.direct, parent.reweight, parent.iteration, parent.assign['bin_labels'], parent.assign['state_labels'], current['populations'].states, current['populations'].bins, parent.interface)
             try:
@@ -635,15 +614,11 @@ class WIPI(WESTParallelTool):
                 matrix = parent.reweight['iterations/iter_{:08d}'.format(value)]
                 # Assume color.
                 current['instant_matrix'] = sp.coo_matrix((matrix['flux'][...], (matrix['rows'][...], matrix['cols'][...])), shape=((nbins-1)*2, (nbins-1)*2)).todense()
-                current['kinrw'] = parent.KineticsIteration(parent.reweight, value)
-                # This feature is borked, as we've removed the code.  Ergo...
-                #current['matrix'] = self.aggregate_matrix[value-1, :, :]
-                current['rwstatepops'] = parent.CalcPopIteration(parent.reweight, value)
+                current['reweight'] = parent.KineticsIteration(parent.reweight, value)
             except:
               # This analysis hasn't been enabled, so we'll simply return the default error message.
                 current['instant_matrix'] = parent.reweight['bin_populations']
-                current['kinrw'] = parent.reweight['rate_evolution']
-                current['rwstatepops'] = parent.reweight['rate_evolution']
+                current['reweight'] = parent.reweight['rate_evolution']
                 current['matrix'] = parent.reweight['bin_populations']
             self.raw = current
         def __repr__(self):
