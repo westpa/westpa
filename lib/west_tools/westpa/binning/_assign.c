@@ -867,7 +867,7 @@ typedef npy_clongdouble __pyx_t_5numpy_clongdouble_t;
 typedef npy_cdouble __pyx_t_5numpy_complex_t;
 struct __pyx_opt_args_6westpa_7binning_7_assign_accumulate_state_populations_from_labeled;
 
-/* "westpa/binning/_assign.pyx":336
+/* "westpa/binning/_assign.pyx":338
  * @cython.boundscheck(False)
  * @cython.wraparound(False)
  * cpdef accumulate_state_populations_from_labeled(weight_t[:,:] labeled_bin_pops,             # <<<<<<<<<<<<<<
@@ -5233,7 +5233,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_assign_and_label(Py_ssize_t _
  *                             # We're no longer at the first point, so just nab the previous assignment.
  *                             _trajlabels[iseg,ipt] = _trajlabels[iseg,ipt-1]             # <<<<<<<<<<<<<<
  *                             _statelabels[iseg,ipt] = _statelabels[iseg,ipt-1]
- *                             if ipt == npts - 1:
+ *                             # If we're at the last time point and we've had a transition, reflect it.
  */
                   __pyx_t_47 = __pyx_v_iseg;
                   __pyx_t_48 = (__pyx_v_ipt - 1);
@@ -5245,8 +5245,8 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_assign_and_label(Py_ssize_t _
  *                             # We're no longer at the first point, so just nab the previous assignment.
  *                             _trajlabels[iseg,ipt] = _trajlabels[iseg,ipt-1]
  *                             _statelabels[iseg,ipt] = _statelabels[iseg,ipt-1]             # <<<<<<<<<<<<<<
+ *                             # If we're at the last time point and we've had a transition, reflect it.
  *                             if ipt == npts - 1:
- *                                 ptlabel = state_map[_assignments[iseg,npts-1]]
  */
                   __pyx_t_51 = __pyx_v_iseg;
                   __pyx_t_52 = (__pyx_v_ipt - 1);
@@ -5254,31 +5254,31 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_assign_and_label(Py_ssize_t _
                   __pyx_t_54 = __pyx_v_ipt;
                   *((__pyx_t_6westpa_7binning_7_assign_index_t *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v__statelabels.data + __pyx_t_53 * __pyx_v__statelabels.strides[0]) ) + __pyx_t_54 * __pyx_v__statelabels.strides[1]) )) = (*((__pyx_t_6westpa_7binning_7_assign_index_t *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v__statelabels.data + __pyx_t_51 * __pyx_v__statelabels.strides[0]) ) + __pyx_t_52 * __pyx_v__statelabels.strides[1]) )));
 
-                  /* "westpa/binning/_assign.pyx":288
- *                             _trajlabels[iseg,ipt] = _trajlabels[iseg,ipt-1]
+                  /* "westpa/binning/_assign.pyx":289
  *                             _statelabels[iseg,ipt] = _statelabels[iseg,ipt-1]
+ *                             # If we're at the last time point and we've had a transition, reflect it.
  *                             if ipt == npts - 1:             # <<<<<<<<<<<<<<
- *                                 ptlabel = state_map[_assignments[iseg,npts-1]]
+ *                                 ptlabel = state_map[_assignments[iseg,ipt]]
  *                                 if ptlabel != nstates:
  */
                   __pyx_t_11 = ((__pyx_v_ipt == (__pyx_v_npts - 1)) != 0);
                   if (__pyx_t_11) {
 
-                    /* "westpa/binning/_assign.pyx":289
- *                             _statelabels[iseg,ipt] = _statelabels[iseg,ipt-1]
+                    /* "westpa/binning/_assign.pyx":290
+ *                             # If we're at the last time point and we've had a transition, reflect it.
  *                             if ipt == npts - 1:
- *                                 ptlabel = state_map[_assignments[iseg,npts-1]]             # <<<<<<<<<<<<<<
+ *                                 ptlabel = state_map[_assignments[iseg,ipt]]             # <<<<<<<<<<<<<<
  *                                 if ptlabel != nstates:
  *                                     _statelabels[iseg,npts-1] = ptlabel
  */
                     __pyx_t_55 = __pyx_v_iseg;
-                    __pyx_t_56 = (__pyx_v_npts - 1);
+                    __pyx_t_56 = __pyx_v_ipt;
                     __pyx_t_57 = (*((__pyx_t_6westpa_7binning_7_assign_index_t *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v__assignments.data + __pyx_t_55 * __pyx_v__assignments.strides[0]) ) + __pyx_t_56 * __pyx_v__assignments.strides[1]) )));
                     __pyx_v_ptlabel = (*((__pyx_t_6westpa_7binning_7_assign_index_t *) ( /* dim=0 */ (__pyx_v_state_map.data + __pyx_t_57 * __pyx_v_state_map.strides[0]) )));
 
-                    /* "westpa/binning/_assign.pyx":290
+                    /* "westpa/binning/_assign.pyx":291
  *                             if ipt == npts - 1:
- *                                 ptlabel = state_map[_assignments[iseg,npts-1]]
+ *                                 ptlabel = state_map[_assignments[iseg,ipt]]
  *                                 if ptlabel != nstates:             # <<<<<<<<<<<<<<
  *                                     _statelabels[iseg,npts-1] = ptlabel
  *                                     _trajlabels[iseg,npts-1] = ptlabel
@@ -5286,42 +5286,42 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_assign_and_label(Py_ssize_t _
                     __pyx_t_11 = ((__pyx_v_ptlabel != __pyx_v_nstates) != 0);
                     if (__pyx_t_11) {
 
-                      /* "westpa/binning/_assign.pyx":291
- *                                 ptlabel = state_map[_assignments[iseg,npts-1]]
+                      /* "westpa/binning/_assign.pyx":292
+ *                                 ptlabel = state_map[_assignments[iseg,ipt]]
  *                                 if ptlabel != nstates:
  *                                     _statelabels[iseg,npts-1] = ptlabel             # <<<<<<<<<<<<<<
  *                                     _trajlabels[iseg,npts-1] = ptlabel
- *     else:
+ * 
  */
                       __pyx_t_58 = __pyx_v_iseg;
                       __pyx_t_59 = (__pyx_v_npts - 1);
                       *((__pyx_t_6westpa_7binning_7_assign_index_t *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v__statelabels.data + __pyx_t_58 * __pyx_v__statelabels.strides[0]) ) + __pyx_t_59 * __pyx_v__statelabels.strides[1]) )) = __pyx_v_ptlabel;
 
-                      /* "westpa/binning/_assign.pyx":292
+                      /* "westpa/binning/_assign.pyx":293
  *                                 if ptlabel != nstates:
  *                                     _statelabels[iseg,npts-1] = ptlabel
  *                                     _trajlabels[iseg,npts-1] = ptlabel             # <<<<<<<<<<<<<<
+ * 
  *     else:
- *         trajlabels.fill(nstates)
  */
                       __pyx_t_60 = __pyx_v_iseg;
                       __pyx_t_61 = (__pyx_v_npts - 1);
                       *((__pyx_t_6westpa_7binning_7_assign_index_t *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v__trajlabels.data + __pyx_t_60 * __pyx_v__trajlabels.strides[0]) ) + __pyx_t_61 * __pyx_v__trajlabels.strides[1]) )) = __pyx_v_ptlabel;
 
-                      /* "westpa/binning/_assign.pyx":290
+                      /* "westpa/binning/_assign.pyx":291
  *                             if ipt == npts - 1:
- *                                 ptlabel = state_map[_assignments[iseg,npts-1]]
+ *                                 ptlabel = state_map[_assignments[iseg,ipt]]
  *                                 if ptlabel != nstates:             # <<<<<<<<<<<<<<
  *                                     _statelabels[iseg,npts-1] = ptlabel
  *                                     _trajlabels[iseg,npts-1] = ptlabel
  */
                     }
 
-                    /* "westpa/binning/_assign.pyx":288
- *                             _trajlabels[iseg,ipt] = _trajlabels[iseg,ipt-1]
+                    /* "westpa/binning/_assign.pyx":289
  *                             _statelabels[iseg,ipt] = _statelabels[iseg,ipt-1]
+ *                             # If we're at the last time point and we've had a transition, reflect it.
  *                             if ipt == npts - 1:             # <<<<<<<<<<<<<<
- *                                 ptlabel = state_map[_assignments[iseg,npts-1]]
+ *                                 ptlabel = state_map[_assignments[iseg,ipt]]
  *                                 if ptlabel != nstates:
  */
                   }
@@ -5368,17 +5368,17 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_assign_and_label(Py_ssize_t _
     goto __pyx_L5;
   }
 
-  /* "westpa/binning/_assign.pyx":294
- *                                     _trajlabels[iseg,npts-1] = ptlabel
+  /* "westpa/binning/_assign.pyx":296
+ * 
  *     else:
  *         trajlabels.fill(nstates)             # <<<<<<<<<<<<<<
  *         statelabels.fill(nstates)
  * 
  */
   /*else*/ {
-    __pyx_t_6 = __Pyx_PyObject_GetAttrStr(__pyx_v_trajlabels, __pyx_n_s_fill); if (unlikely(!__pyx_t_6)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 294; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+    __pyx_t_6 = __Pyx_PyObject_GetAttrStr(__pyx_v_trajlabels, __pyx_n_s_fill); if (unlikely(!__pyx_t_6)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 296; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
     __Pyx_GOTREF(__pyx_t_6);
-    __pyx_t_1 = PyInt_FromSsize_t(__pyx_v_nstates); if (unlikely(!__pyx_t_1)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 294; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+    __pyx_t_1 = PyInt_FromSsize_t(__pyx_v_nstates); if (unlikely(!__pyx_t_1)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 296; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
     __Pyx_GOTREF(__pyx_t_1);
     __pyx_t_7 = NULL;
     if (CYTHON_COMPILING_IN_CPYTHON && likely(PyMethod_Check(__pyx_t_6))) {
@@ -5391,33 +5391,33 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_assign_and_label(Py_ssize_t _
       }
     }
     if (!__pyx_t_7) {
-      __pyx_t_2 = __Pyx_PyObject_CallOneArg(__pyx_t_6, __pyx_t_1); if (unlikely(!__pyx_t_2)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 294; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+      __pyx_t_2 = __Pyx_PyObject_CallOneArg(__pyx_t_6, __pyx_t_1); if (unlikely(!__pyx_t_2)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 296; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
       __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
       __Pyx_GOTREF(__pyx_t_2);
     } else {
-      __pyx_t_4 = PyTuple_New(1+1); if (unlikely(!__pyx_t_4)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 294; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+      __pyx_t_4 = PyTuple_New(1+1); if (unlikely(!__pyx_t_4)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 296; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
       __Pyx_GOTREF(__pyx_t_4);
       __Pyx_GIVEREF(__pyx_t_7); PyTuple_SET_ITEM(__pyx_t_4, 0, __pyx_t_7); __pyx_t_7 = NULL;
       __Pyx_GIVEREF(__pyx_t_1);
       PyTuple_SET_ITEM(__pyx_t_4, 0+1, __pyx_t_1);
       __pyx_t_1 = 0;
-      __pyx_t_2 = __Pyx_PyObject_Call(__pyx_t_6, __pyx_t_4, NULL); if (unlikely(!__pyx_t_2)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 294; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+      __pyx_t_2 = __Pyx_PyObject_Call(__pyx_t_6, __pyx_t_4, NULL); if (unlikely(!__pyx_t_2)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 296; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
       __Pyx_GOTREF(__pyx_t_2);
       __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
     }
     __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-    /* "westpa/binning/_assign.pyx":295
+    /* "westpa/binning/_assign.pyx":297
  *     else:
  *         trajlabels.fill(nstates)
  *         statelabels.fill(nstates)             # <<<<<<<<<<<<<<
  * 
  *     return assignments, trajlabels, statelabels
  */
-    __pyx_t_6 = __Pyx_PyObject_GetAttrStr(__pyx_v_statelabels, __pyx_n_s_fill); if (unlikely(!__pyx_t_6)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 295; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+    __pyx_t_6 = __Pyx_PyObject_GetAttrStr(__pyx_v_statelabels, __pyx_n_s_fill); if (unlikely(!__pyx_t_6)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 297; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
     __Pyx_GOTREF(__pyx_t_6);
-    __pyx_t_4 = PyInt_FromSsize_t(__pyx_v_nstates); if (unlikely(!__pyx_t_4)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 295; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+    __pyx_t_4 = PyInt_FromSsize_t(__pyx_v_nstates); if (unlikely(!__pyx_t_4)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 297; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
     __Pyx_GOTREF(__pyx_t_4);
     __pyx_t_1 = NULL;
     if (CYTHON_COMPILING_IN_CPYTHON && likely(PyMethod_Check(__pyx_t_6))) {
@@ -5430,17 +5430,17 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_assign_and_label(Py_ssize_t _
       }
     }
     if (!__pyx_t_1) {
-      __pyx_t_2 = __Pyx_PyObject_CallOneArg(__pyx_t_6, __pyx_t_4); if (unlikely(!__pyx_t_2)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 295; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+      __pyx_t_2 = __Pyx_PyObject_CallOneArg(__pyx_t_6, __pyx_t_4); if (unlikely(!__pyx_t_2)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 297; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
       __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
       __Pyx_GOTREF(__pyx_t_2);
     } else {
-      __pyx_t_7 = PyTuple_New(1+1); if (unlikely(!__pyx_t_7)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 295; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+      __pyx_t_7 = PyTuple_New(1+1); if (unlikely(!__pyx_t_7)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 297; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
       __Pyx_GOTREF(__pyx_t_7);
       __Pyx_GIVEREF(__pyx_t_1); PyTuple_SET_ITEM(__pyx_t_7, 0, __pyx_t_1); __pyx_t_1 = NULL;
       __Pyx_GIVEREF(__pyx_t_4);
       PyTuple_SET_ITEM(__pyx_t_7, 0+1, __pyx_t_4);
       __pyx_t_4 = 0;
-      __pyx_t_2 = __Pyx_PyObject_Call(__pyx_t_6, __pyx_t_7, NULL); if (unlikely(!__pyx_t_2)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 295; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+      __pyx_t_2 = __Pyx_PyObject_Call(__pyx_t_6, __pyx_t_7, NULL); if (unlikely(!__pyx_t_2)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 297; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
       __Pyx_GOTREF(__pyx_t_2);
       __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
     }
@@ -5449,7 +5449,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_assign_and_label(Py_ssize_t _
   }
   __pyx_L5:;
 
-  /* "westpa/binning/_assign.pyx":297
+  /* "westpa/binning/_assign.pyx":299
  *         statelabels.fill(nstates)
  * 
  *     return assignments, trajlabels, statelabels             # <<<<<<<<<<<<<<
@@ -5457,7 +5457,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_assign_and_label(Py_ssize_t _
  * @cython.cdivision(True)
  */
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_2 = PyTuple_New(3); if (unlikely(!__pyx_t_2)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 297; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+  __pyx_t_2 = PyTuple_New(3); if (unlikely(!__pyx_t_2)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 299; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
   __Pyx_GOTREF(__pyx_t_2);
   __Pyx_INCREF(__pyx_v_assignments);
   __Pyx_GIVEREF(__pyx_v_assignments);
@@ -5661,7 +5661,7 @@ static PyObject *__pyx_pf_6westpa_7binning_7_assign_10assign_and_label(CYTHON_UN
   return __pyx_r;
 }
 
-/* "westpa/binning/_assign.pyx":302
+/* "westpa/binning/_assign.pyx":304
  * @cython.boundscheck(False)
  * @cython.wraparound(False)
  * cpdef accumulate_labeled_populations(weight_t[:]  weights,             # <<<<<<<<<<<<<<
@@ -5706,7 +5706,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_labeled_population
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("accumulate_labeled_populations", 0);
 
-  /* "westpa/binning/_assign.pyx":313
+  /* "westpa/binning/_assign.pyx":315
  *         weight_t ptwt
  * 
  *     nstates = labeled_bin_pops.shape[0] # this will generally be n_valid_states + 1 (for unknown state)             # <<<<<<<<<<<<<<
@@ -5715,7 +5715,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_labeled_population
  */
   __pyx_v_nstates = (__pyx_v_labeled_bin_pops.shape[0]);
 
-  /* "westpa/binning/_assign.pyx":314
+  /* "westpa/binning/_assign.pyx":316
  * 
  *     nstates = labeled_bin_pops.shape[0] # this will generally be n_valid_states + 1 (for unknown state)
  *     nbins = labeled_bin_pops.shape[1]   # this may be n_valid_bins + 1 (for unknown bin)             # <<<<<<<<<<<<<<
@@ -5724,7 +5724,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_labeled_population
  */
   __pyx_v_nbins = (__pyx_v_labeled_bin_pops.shape[1]);
 
-  /* "westpa/binning/_assign.pyx":315
+  /* "westpa/binning/_assign.pyx":317
  *     nstates = labeled_bin_pops.shape[0] # this will generally be n_valid_states + 1 (for unknown state)
  *     nbins = labeled_bin_pops.shape[1]   # this may be n_valid_bins + 1 (for unknown bin)
  *     nsegs = bin_assignments.shape[0]             # <<<<<<<<<<<<<<
@@ -5733,7 +5733,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_labeled_population
  */
   __pyx_v_nsegs = (__pyx_v_bin_assignments.shape[0]);
 
-  /* "westpa/binning/_assign.pyx":316
+  /* "westpa/binning/_assign.pyx":318
  *     nbins = labeled_bin_pops.shape[1]   # this may be n_valid_bins + 1 (for unknown bin)
  *     nsegs = bin_assignments.shape[0]
  *     npts = bin_assignments.shape[1]             # <<<<<<<<<<<<<<
@@ -5742,7 +5742,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_labeled_population
  */
   __pyx_v_npts = (__pyx_v_bin_assignments.shape[1]);
 
-  /* "westpa/binning/_assign.pyx":318
+  /* "westpa/binning/_assign.pyx":320
  *     npts = bin_assignments.shape[1]
  * 
  *     with nogil:             # <<<<<<<<<<<<<<
@@ -5756,7 +5756,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_labeled_population
       #endif
       /*try:*/ {
 
-        /* "westpa/binning/_assign.pyx":319
+        /* "westpa/binning/_assign.pyx":321
  * 
  *     with nogil:
  *         for seg_id in range(nsegs):             # <<<<<<<<<<<<<<
@@ -5767,7 +5767,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_labeled_population
         for (__pyx_t_2 = 0; __pyx_t_2 < __pyx_t_1; __pyx_t_2+=1) {
           __pyx_v_seg_id = __pyx_t_2;
 
-          /* "westpa/binning/_assign.pyx":320
+          /* "westpa/binning/_assign.pyx":322
  *     with nogil:
  *         for seg_id in range(nsegs):
  *             ptwt = weights[seg_id] / npts             # <<<<<<<<<<<<<<
@@ -5777,7 +5777,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_labeled_population
           __pyx_t_3 = __pyx_v_seg_id;
           __pyx_v_ptwt = ((*((__pyx_t_6westpa_7binning_7_assign_weight_t *) ( /* dim=0 */ (__pyx_v_weights.data + __pyx_t_3 * __pyx_v_weights.strides[0]) ))) / ((__pyx_t_6westpa_7binning_7_assign_weight_t)__pyx_v_npts));
 
-          /* "westpa/binning/_assign.pyx":321
+          /* "westpa/binning/_assign.pyx":323
  *         for seg_id in range(nsegs):
  *             ptwt = weights[seg_id] / npts
  *             for ipt in range(npts):             # <<<<<<<<<<<<<<
@@ -5788,7 +5788,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_labeled_population
           for (__pyx_t_5 = 0; __pyx_t_5 < __pyx_t_4; __pyx_t_5+=1) {
             __pyx_v_ipt = __pyx_t_5;
 
-            /* "westpa/binning/_assign.pyx":322
+            /* "westpa/binning/_assign.pyx":324
  *             ptwt = weights[seg_id] / npts
  *             for ipt in range(npts):
  *                 assignment = bin_assignments[seg_id,ipt]             # <<<<<<<<<<<<<<
@@ -5799,7 +5799,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_labeled_population
             __pyx_t_7 = __pyx_v_ipt;
             __pyx_v_assignment = (*((__pyx_t_6westpa_7binning_7_assign_index_t *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v_bin_assignments.data + __pyx_t_6 * __pyx_v_bin_assignments.strides[0]) ) + __pyx_t_7 * __pyx_v_bin_assignments.strides[1]) )));
 
-            /* "westpa/binning/_assign.pyx":323
+            /* "westpa/binning/_assign.pyx":325
  *             for ipt in range(npts):
  *                 assignment = bin_assignments[seg_id,ipt]
  *                 if assignment >= nbins:             # <<<<<<<<<<<<<<
@@ -5809,7 +5809,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_labeled_population
             __pyx_t_8 = ((__pyx_v_assignment >= __pyx_v_nbins) != 0);
             if (__pyx_t_8) {
 
-              /* "westpa/binning/_assign.pyx":324
+              /* "westpa/binning/_assign.pyx":326
  *                 assignment = bin_assignments[seg_id,ipt]
  *                 if assignment >= nbins:
  *                     with gil:             # <<<<<<<<<<<<<<
@@ -5822,18 +5822,18 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_labeled_population
                   #endif
                   /*try:*/ {
 
-                    /* "westpa/binning/_assign.pyx":325
+                    /* "westpa/binning/_assign.pyx":327
  *                 if assignment >= nbins:
  *                     with gil:
  *                         raise ValueError('invalid bin assignment for segment {} point {}'.format(seg_id, ipt))             # <<<<<<<<<<<<<<
  * 
  *                 traj_assignment = label_assignments[seg_id,ipt]
  */
-                    __pyx_t_10 = __Pyx_PyObject_GetAttrStr(__pyx_kp_s_invalid_bin_assignment_for_segme, __pyx_n_s_format); if (unlikely(!__pyx_t_10)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 325; __pyx_clineno = __LINE__; goto __pyx_L14_error;}
+                    __pyx_t_10 = __Pyx_PyObject_GetAttrStr(__pyx_kp_s_invalid_bin_assignment_for_segme, __pyx_n_s_format); if (unlikely(!__pyx_t_10)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 327; __pyx_clineno = __LINE__; goto __pyx_L14_error;}
                     __Pyx_GOTREF(__pyx_t_10);
-                    __pyx_t_11 = PyInt_FromSsize_t(__pyx_v_seg_id); if (unlikely(!__pyx_t_11)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 325; __pyx_clineno = __LINE__; goto __pyx_L14_error;}
+                    __pyx_t_11 = PyInt_FromSsize_t(__pyx_v_seg_id); if (unlikely(!__pyx_t_11)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 327; __pyx_clineno = __LINE__; goto __pyx_L14_error;}
                     __Pyx_GOTREF(__pyx_t_11);
-                    __pyx_t_12 = PyInt_FromSsize_t(__pyx_v_ipt); if (unlikely(!__pyx_t_12)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 325; __pyx_clineno = __LINE__; goto __pyx_L14_error;}
+                    __pyx_t_12 = PyInt_FromSsize_t(__pyx_v_ipt); if (unlikely(!__pyx_t_12)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 327; __pyx_clineno = __LINE__; goto __pyx_L14_error;}
                     __Pyx_GOTREF(__pyx_t_12);
                     __pyx_t_13 = NULL;
                     __pyx_t_14 = 0;
@@ -5847,7 +5847,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_labeled_population
                         __pyx_t_14 = 1;
                       }
                     }
-                    __pyx_t_15 = PyTuple_New(2+__pyx_t_14); if (unlikely(!__pyx_t_15)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 325; __pyx_clineno = __LINE__; goto __pyx_L14_error;}
+                    __pyx_t_15 = PyTuple_New(2+__pyx_t_14); if (unlikely(!__pyx_t_15)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 327; __pyx_clineno = __LINE__; goto __pyx_L14_error;}
                     __Pyx_GOTREF(__pyx_t_15);
                     if (__pyx_t_13) {
                       __Pyx_GIVEREF(__pyx_t_13); PyTuple_SET_ITEM(__pyx_t_15, 0, __pyx_t_13); __pyx_t_13 = NULL;
@@ -5858,24 +5858,24 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_labeled_population
                     PyTuple_SET_ITEM(__pyx_t_15, 1+__pyx_t_14, __pyx_t_12);
                     __pyx_t_11 = 0;
                     __pyx_t_12 = 0;
-                    __pyx_t_9 = __Pyx_PyObject_Call(__pyx_t_10, __pyx_t_15, NULL); if (unlikely(!__pyx_t_9)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 325; __pyx_clineno = __LINE__; goto __pyx_L14_error;}
+                    __pyx_t_9 = __Pyx_PyObject_Call(__pyx_t_10, __pyx_t_15, NULL); if (unlikely(!__pyx_t_9)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 327; __pyx_clineno = __LINE__; goto __pyx_L14_error;}
                     __Pyx_GOTREF(__pyx_t_9);
                     __Pyx_DECREF(__pyx_t_15); __pyx_t_15 = 0;
                     __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
-                    __pyx_t_10 = PyTuple_New(1); if (unlikely(!__pyx_t_10)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 325; __pyx_clineno = __LINE__; goto __pyx_L14_error;}
+                    __pyx_t_10 = PyTuple_New(1); if (unlikely(!__pyx_t_10)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 327; __pyx_clineno = __LINE__; goto __pyx_L14_error;}
                     __Pyx_GOTREF(__pyx_t_10);
                     __Pyx_GIVEREF(__pyx_t_9);
                     PyTuple_SET_ITEM(__pyx_t_10, 0, __pyx_t_9);
                     __pyx_t_9 = 0;
-                    __pyx_t_9 = __Pyx_PyObject_Call(__pyx_builtin_ValueError, __pyx_t_10, NULL); if (unlikely(!__pyx_t_9)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 325; __pyx_clineno = __LINE__; goto __pyx_L14_error;}
+                    __pyx_t_9 = __Pyx_PyObject_Call(__pyx_builtin_ValueError, __pyx_t_10, NULL); if (unlikely(!__pyx_t_9)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 327; __pyx_clineno = __LINE__; goto __pyx_L14_error;}
                     __Pyx_GOTREF(__pyx_t_9);
                     __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
                     __Pyx_Raise(__pyx_t_9, 0, 0, 0);
                     __Pyx_DECREF(__pyx_t_9); __pyx_t_9 = 0;
-                    {__pyx_filename = __pyx_f[0]; __pyx_lineno = 325; __pyx_clineno = __LINE__; goto __pyx_L14_error;}
+                    {__pyx_filename = __pyx_f[0]; __pyx_lineno = 327; __pyx_clineno = __LINE__; goto __pyx_L14_error;}
                   }
 
-                  /* "westpa/binning/_assign.pyx":324
+                  /* "westpa/binning/_assign.pyx":326
  *                 assignment = bin_assignments[seg_id,ipt]
  *                 if assignment >= nbins:
  *                     with gil:             # <<<<<<<<<<<<<<
@@ -5892,7 +5892,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_labeled_population
                   }
               }
 
-              /* "westpa/binning/_assign.pyx":323
+              /* "westpa/binning/_assign.pyx":325
  *             for ipt in range(npts):
  *                 assignment = bin_assignments[seg_id,ipt]
  *                 if assignment >= nbins:             # <<<<<<<<<<<<<<
@@ -5901,7 +5901,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_labeled_population
  */
             }
 
-            /* "westpa/binning/_assign.pyx":327
+            /* "westpa/binning/_assign.pyx":329
  *                         raise ValueError('invalid bin assignment for segment {} point {}'.format(seg_id, ipt))
  * 
  *                 traj_assignment = label_assignments[seg_id,ipt]             # <<<<<<<<<<<<<<
@@ -5912,7 +5912,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_labeled_population
             __pyx_t_17 = __pyx_v_ipt;
             __pyx_v_traj_assignment = (*((__pyx_t_6westpa_7binning_7_assign_index_t *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v_label_assignments.data + __pyx_t_16 * __pyx_v_label_assignments.strides[0]) ) + __pyx_t_17 * __pyx_v_label_assignments.strides[1]) )));
 
-            /* "westpa/binning/_assign.pyx":328
+            /* "westpa/binning/_assign.pyx":330
  * 
  *                 traj_assignment = label_assignments[seg_id,ipt]
  *                 if traj_assignment >= nstates:             # <<<<<<<<<<<<<<
@@ -5922,7 +5922,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_labeled_population
             __pyx_t_8 = ((__pyx_v_traj_assignment >= __pyx_v_nstates) != 0);
             if (__pyx_t_8) {
 
-              /* "westpa/binning/_assign.pyx":329
+              /* "westpa/binning/_assign.pyx":331
  *                 traj_assignment = label_assignments[seg_id,ipt]
  *                 if traj_assignment >= nstates:
  *                     with gil:             # <<<<<<<<<<<<<<
@@ -5935,18 +5935,18 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_labeled_population
                   #endif
                   /*try:*/ {
 
-                    /* "westpa/binning/_assign.pyx":330
+                    /* "westpa/binning/_assign.pyx":332
  *                 if traj_assignment >= nstates:
  *                     with gil:
  *                         raise ValueError('invalid trajectory label for segment {} point {}'.format(seg_id, ipt))             # <<<<<<<<<<<<<<
  * 
  *                 labeled_bin_pops[traj_assignment,assignment] += ptwt
  */
-                    __pyx_t_10 = __Pyx_PyObject_GetAttrStr(__pyx_kp_s_invalid_trajectory_label_for_seg, __pyx_n_s_format); if (unlikely(!__pyx_t_10)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 330; __pyx_clineno = __LINE__; goto __pyx_L20_error;}
+                    __pyx_t_10 = __Pyx_PyObject_GetAttrStr(__pyx_kp_s_invalid_trajectory_label_for_seg, __pyx_n_s_format); if (unlikely(!__pyx_t_10)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 332; __pyx_clineno = __LINE__; goto __pyx_L20_error;}
                     __Pyx_GOTREF(__pyx_t_10);
-                    __pyx_t_15 = PyInt_FromSsize_t(__pyx_v_seg_id); if (unlikely(!__pyx_t_15)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 330; __pyx_clineno = __LINE__; goto __pyx_L20_error;}
+                    __pyx_t_15 = PyInt_FromSsize_t(__pyx_v_seg_id); if (unlikely(!__pyx_t_15)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 332; __pyx_clineno = __LINE__; goto __pyx_L20_error;}
                     __Pyx_GOTREF(__pyx_t_15);
-                    __pyx_t_12 = PyInt_FromSsize_t(__pyx_v_ipt); if (unlikely(!__pyx_t_12)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 330; __pyx_clineno = __LINE__; goto __pyx_L20_error;}
+                    __pyx_t_12 = PyInt_FromSsize_t(__pyx_v_ipt); if (unlikely(!__pyx_t_12)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 332; __pyx_clineno = __LINE__; goto __pyx_L20_error;}
                     __Pyx_GOTREF(__pyx_t_12);
                     __pyx_t_11 = NULL;
                     __pyx_t_14 = 0;
@@ -5960,7 +5960,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_labeled_population
                         __pyx_t_14 = 1;
                       }
                     }
-                    __pyx_t_13 = PyTuple_New(2+__pyx_t_14); if (unlikely(!__pyx_t_13)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 330; __pyx_clineno = __LINE__; goto __pyx_L20_error;}
+                    __pyx_t_13 = PyTuple_New(2+__pyx_t_14); if (unlikely(!__pyx_t_13)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 332; __pyx_clineno = __LINE__; goto __pyx_L20_error;}
                     __Pyx_GOTREF(__pyx_t_13);
                     if (__pyx_t_11) {
                       __Pyx_GIVEREF(__pyx_t_11); PyTuple_SET_ITEM(__pyx_t_13, 0, __pyx_t_11); __pyx_t_11 = NULL;
@@ -5971,24 +5971,24 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_labeled_population
                     PyTuple_SET_ITEM(__pyx_t_13, 1+__pyx_t_14, __pyx_t_12);
                     __pyx_t_15 = 0;
                     __pyx_t_12 = 0;
-                    __pyx_t_9 = __Pyx_PyObject_Call(__pyx_t_10, __pyx_t_13, NULL); if (unlikely(!__pyx_t_9)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 330; __pyx_clineno = __LINE__; goto __pyx_L20_error;}
+                    __pyx_t_9 = __Pyx_PyObject_Call(__pyx_t_10, __pyx_t_13, NULL); if (unlikely(!__pyx_t_9)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 332; __pyx_clineno = __LINE__; goto __pyx_L20_error;}
                     __Pyx_GOTREF(__pyx_t_9);
                     __Pyx_DECREF(__pyx_t_13); __pyx_t_13 = 0;
                     __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
-                    __pyx_t_10 = PyTuple_New(1); if (unlikely(!__pyx_t_10)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 330; __pyx_clineno = __LINE__; goto __pyx_L20_error;}
+                    __pyx_t_10 = PyTuple_New(1); if (unlikely(!__pyx_t_10)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 332; __pyx_clineno = __LINE__; goto __pyx_L20_error;}
                     __Pyx_GOTREF(__pyx_t_10);
                     __Pyx_GIVEREF(__pyx_t_9);
                     PyTuple_SET_ITEM(__pyx_t_10, 0, __pyx_t_9);
                     __pyx_t_9 = 0;
-                    __pyx_t_9 = __Pyx_PyObject_Call(__pyx_builtin_ValueError, __pyx_t_10, NULL); if (unlikely(!__pyx_t_9)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 330; __pyx_clineno = __LINE__; goto __pyx_L20_error;}
+                    __pyx_t_9 = __Pyx_PyObject_Call(__pyx_builtin_ValueError, __pyx_t_10, NULL); if (unlikely(!__pyx_t_9)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 332; __pyx_clineno = __LINE__; goto __pyx_L20_error;}
                     __Pyx_GOTREF(__pyx_t_9);
                     __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
                     __Pyx_Raise(__pyx_t_9, 0, 0, 0);
                     __Pyx_DECREF(__pyx_t_9); __pyx_t_9 = 0;
-                    {__pyx_filename = __pyx_f[0]; __pyx_lineno = 330; __pyx_clineno = __LINE__; goto __pyx_L20_error;}
+                    {__pyx_filename = __pyx_f[0]; __pyx_lineno = 332; __pyx_clineno = __LINE__; goto __pyx_L20_error;}
                   }
 
-                  /* "westpa/binning/_assign.pyx":329
+                  /* "westpa/binning/_assign.pyx":331
  *                 traj_assignment = label_assignments[seg_id,ipt]
  *                 if traj_assignment >= nstates:
  *                     with gil:             # <<<<<<<<<<<<<<
@@ -6005,7 +6005,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_labeled_population
                   }
               }
 
-              /* "westpa/binning/_assign.pyx":328
+              /* "westpa/binning/_assign.pyx":330
  * 
  *                 traj_assignment = label_assignments[seg_id,ipt]
  *                 if traj_assignment >= nstates:             # <<<<<<<<<<<<<<
@@ -6014,7 +6014,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_labeled_population
  */
             }
 
-            /* "westpa/binning/_assign.pyx":332
+            /* "westpa/binning/_assign.pyx":334
  *                         raise ValueError('invalid trajectory label for segment {} point {}'.format(seg_id, ipt))
  * 
  *                 labeled_bin_pops[traj_assignment,assignment] += ptwt             # <<<<<<<<<<<<<<
@@ -6028,7 +6028,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_labeled_population
         }
       }
 
-      /* "westpa/binning/_assign.pyx":318
+      /* "westpa/binning/_assign.pyx":320
  *     npts = bin_assignments.shape[1]
  * 
  *     with nogil:             # <<<<<<<<<<<<<<
@@ -6052,7 +6052,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_labeled_population
       }
   }
 
-  /* "westpa/binning/_assign.pyx":302
+  /* "westpa/binning/_assign.pyx":304
  * @cython.boundscheck(False)
  * @cython.wraparound(False)
  * cpdef accumulate_labeled_populations(weight_t[:]  weights,             # <<<<<<<<<<<<<<
@@ -6114,21 +6114,21 @@ static PyObject *__pyx_pw_6westpa_7binning_7_assign_13accumulate_labeled_populat
         case  1:
         if (likely((values[1] = PyDict_GetItem(__pyx_kwds, __pyx_n_s_bin_assignments)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("accumulate_labeled_populations", 1, 4, 4, 1); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 302; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
+          __Pyx_RaiseArgtupleInvalid("accumulate_labeled_populations", 1, 4, 4, 1); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 304; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
         }
         case  2:
         if (likely((values[2] = PyDict_GetItem(__pyx_kwds, __pyx_n_s_label_assignments)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("accumulate_labeled_populations", 1, 4, 4, 2); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 302; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
+          __Pyx_RaiseArgtupleInvalid("accumulate_labeled_populations", 1, 4, 4, 2); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 304; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
         }
         case  3:
         if (likely((values[3] = PyDict_GetItem(__pyx_kwds, __pyx_n_s_labeled_bin_pops)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("accumulate_labeled_populations", 1, 4, 4, 3); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 302; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
+          __Pyx_RaiseArgtupleInvalid("accumulate_labeled_populations", 1, 4, 4, 3); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 304; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
         }
       }
       if (unlikely(kw_args > 0)) {
-        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_pyargnames, 0, values, pos_args, "accumulate_labeled_populations") < 0)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 302; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
+        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_pyargnames, 0, values, pos_args, "accumulate_labeled_populations") < 0)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 304; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
       }
     } else if (PyTuple_GET_SIZE(__pyx_args) != 4) {
       goto __pyx_L5_argtuple_error;
@@ -6138,14 +6138,14 @@ static PyObject *__pyx_pw_6westpa_7binning_7_assign_13accumulate_labeled_populat
       values[2] = PyTuple_GET_ITEM(__pyx_args, 2);
       values[3] = PyTuple_GET_ITEM(__pyx_args, 3);
     }
-    __pyx_v_weights = __Pyx_PyObject_to_MemoryviewSlice_ds_nn___pyx_t_6westpa_7binning_7_assign_weight_t(values[0]); if (unlikely(!__pyx_v_weights.memview)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 302; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
-    __pyx_v_bin_assignments = __Pyx_PyObject_to_MemoryviewSlice_dsds_nn___pyx_t_6westpa_7binning_7_assign_index_t(values[1]); if (unlikely(!__pyx_v_bin_assignments.memview)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 303; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
-    __pyx_v_label_assignments = __Pyx_PyObject_to_MemoryviewSlice_dsds_nn___pyx_t_6westpa_7binning_7_assign_index_t(values[2]); if (unlikely(!__pyx_v_label_assignments.memview)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 304; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
-    __pyx_v_labeled_bin_pops = __Pyx_PyObject_to_MemoryviewSlice_dsds_nn___pyx_t_6westpa_7binning_7_assign_weight_t(values[3]); if (unlikely(!__pyx_v_labeled_bin_pops.memview)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 305; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
+    __pyx_v_weights = __Pyx_PyObject_to_MemoryviewSlice_ds_nn___pyx_t_6westpa_7binning_7_assign_weight_t(values[0]); if (unlikely(!__pyx_v_weights.memview)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 304; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
+    __pyx_v_bin_assignments = __Pyx_PyObject_to_MemoryviewSlice_dsds_nn___pyx_t_6westpa_7binning_7_assign_index_t(values[1]); if (unlikely(!__pyx_v_bin_assignments.memview)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 305; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
+    __pyx_v_label_assignments = __Pyx_PyObject_to_MemoryviewSlice_dsds_nn___pyx_t_6westpa_7binning_7_assign_index_t(values[2]); if (unlikely(!__pyx_v_label_assignments.memview)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 306; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
+    __pyx_v_labeled_bin_pops = __Pyx_PyObject_to_MemoryviewSlice_dsds_nn___pyx_t_6westpa_7binning_7_assign_weight_t(values[3]); if (unlikely(!__pyx_v_labeled_bin_pops.memview)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 307; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
   }
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("accumulate_labeled_populations", 1, 4, 4, PyTuple_GET_SIZE(__pyx_args)); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 302; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
+  __Pyx_RaiseArgtupleInvalid("accumulate_labeled_populations", 1, 4, 4, PyTuple_GET_SIZE(__pyx_args)); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 304; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
   __pyx_L3_error:;
   __Pyx_AddTraceback("westpa.binning._assign.accumulate_labeled_populations", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
@@ -6167,11 +6167,11 @@ static PyObject *__pyx_pf_6westpa_7binning_7_assign_12accumulate_labeled_populat
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("accumulate_labeled_populations", 0);
   __Pyx_XDECREF(__pyx_r);
-  if (unlikely(!__pyx_v_weights.memview)) { __Pyx_RaiseUnboundLocalError("weights"); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 302; __pyx_clineno = __LINE__; goto __pyx_L1_error;} }
-  if (unlikely(!__pyx_v_bin_assignments.memview)) { __Pyx_RaiseUnboundLocalError("bin_assignments"); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 302; __pyx_clineno = __LINE__; goto __pyx_L1_error;} }
-  if (unlikely(!__pyx_v_label_assignments.memview)) { __Pyx_RaiseUnboundLocalError("label_assignments"); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 302; __pyx_clineno = __LINE__; goto __pyx_L1_error;} }
-  if (unlikely(!__pyx_v_labeled_bin_pops.memview)) { __Pyx_RaiseUnboundLocalError("labeled_bin_pops"); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 302; __pyx_clineno = __LINE__; goto __pyx_L1_error;} }
-  __pyx_t_1 = __pyx_f_6westpa_7binning_7_assign_accumulate_labeled_populations(__pyx_v_weights, __pyx_v_bin_assignments, __pyx_v_label_assignments, __pyx_v_labeled_bin_pops, 0); if (unlikely(!__pyx_t_1)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 302; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+  if (unlikely(!__pyx_v_weights.memview)) { __Pyx_RaiseUnboundLocalError("weights"); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 304; __pyx_clineno = __LINE__; goto __pyx_L1_error;} }
+  if (unlikely(!__pyx_v_bin_assignments.memview)) { __Pyx_RaiseUnboundLocalError("bin_assignments"); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 304; __pyx_clineno = __LINE__; goto __pyx_L1_error;} }
+  if (unlikely(!__pyx_v_label_assignments.memview)) { __Pyx_RaiseUnboundLocalError("label_assignments"); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 304; __pyx_clineno = __LINE__; goto __pyx_L1_error;} }
+  if (unlikely(!__pyx_v_labeled_bin_pops.memview)) { __Pyx_RaiseUnboundLocalError("labeled_bin_pops"); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 304; __pyx_clineno = __LINE__; goto __pyx_L1_error;} }
+  __pyx_t_1 = __pyx_f_6westpa_7binning_7_assign_accumulate_labeled_populations(__pyx_v_weights, __pyx_v_bin_assignments, __pyx_v_label_assignments, __pyx_v_labeled_bin_pops, 0); if (unlikely(!__pyx_t_1)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 304; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
@@ -6192,7 +6192,7 @@ static PyObject *__pyx_pf_6westpa_7binning_7_assign_12accumulate_labeled_populat
   return __pyx_r;
 }
 
-/* "westpa/binning/_assign.pyx":336
+/* "westpa/binning/_assign.pyx":338
  * @cython.boundscheck(False)
  * @cython.wraparound(False)
  * cpdef accumulate_state_populations_from_labeled(weight_t[:,:] labeled_bin_pops,             # <<<<<<<<<<<<<<
@@ -6203,7 +6203,7 @@ static PyObject *__pyx_pf_6westpa_7binning_7_assign_12accumulate_labeled_populat
 static PyObject *__pyx_pw_6westpa_7binning_7_assign_15accumulate_state_populations_from_labeled(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
 static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_state_populations_from_labeled(__Pyx_memviewslice __pyx_v_labeled_bin_pops, __Pyx_memviewslice __pyx_v_state_map, __Pyx_memviewslice __pyx_v_state_pops, CYTHON_UNUSED int __pyx_skip_dispatch, struct __pyx_opt_args_6westpa_7binning_7_assign_accumulate_state_populations_from_labeled *__pyx_optional_args) {
 
-  /* "westpa/binning/_assign.pyx":339
+  /* "westpa/binning/_assign.pyx":341
  *                                                 index_t[:] state_map,
  *                                                 weight_t[:] state_pops,
  *                                                 check_state_map = True):             # <<<<<<<<<<<<<<
@@ -6244,7 +6244,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_state_populations_
     }
   }
 
-  /* "westpa/binning/_assign.pyx":343
+  /* "westpa/binning/_assign.pyx":345
  *         Py_ssize_t nbins, nstates, ibin, ilabel, istate
  * 
  *     if state_pops.shape[0] != labeled_bin_pops.shape[0]:             # <<<<<<<<<<<<<<
@@ -6254,20 +6254,20 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_state_populations_
   __pyx_t_1 = (((__pyx_v_state_pops.shape[0]) != (__pyx_v_labeled_bin_pops.shape[0])) != 0);
   if (__pyx_t_1) {
 
-    /* "westpa/binning/_assign.pyx":344
+    /* "westpa/binning/_assign.pyx":346
  * 
  *     if state_pops.shape[0] != labeled_bin_pops.shape[0]:
  *         raise TypeError('shape mismatch')             # <<<<<<<<<<<<<<
  * 
  *     nstates = labeled_bin_pops.shape[0]
  */
-    __pyx_t_2 = __Pyx_PyObject_Call(__pyx_builtin_TypeError, __pyx_tuple__3, NULL); if (unlikely(!__pyx_t_2)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 344; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+    __pyx_t_2 = __Pyx_PyObject_Call(__pyx_builtin_TypeError, __pyx_tuple__3, NULL); if (unlikely(!__pyx_t_2)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 346; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
     __Pyx_GOTREF(__pyx_t_2);
     __Pyx_Raise(__pyx_t_2, 0, 0, 0);
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-    {__pyx_filename = __pyx_f[0]; __pyx_lineno = 344; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+    {__pyx_filename = __pyx_f[0]; __pyx_lineno = 346; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
 
-    /* "westpa/binning/_assign.pyx":343
+    /* "westpa/binning/_assign.pyx":345
  *         Py_ssize_t nbins, nstates, ibin, ilabel, istate
  * 
  *     if state_pops.shape[0] != labeled_bin_pops.shape[0]:             # <<<<<<<<<<<<<<
@@ -6276,7 +6276,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_state_populations_
  */
   }
 
-  /* "westpa/binning/_assign.pyx":346
+  /* "westpa/binning/_assign.pyx":348
  *         raise TypeError('shape mismatch')
  * 
  *     nstates = labeled_bin_pops.shape[0]             # <<<<<<<<<<<<<<
@@ -6285,7 +6285,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_state_populations_
  */
   __pyx_v_nstates = (__pyx_v_labeled_bin_pops.shape[0]);
 
-  /* "westpa/binning/_assign.pyx":347
+  /* "westpa/binning/_assign.pyx":349
  * 
  *     nstates = labeled_bin_pops.shape[0]
  *     nbins = labeled_bin_pops.shape[1]             # <<<<<<<<<<<<<<
@@ -6294,17 +6294,17 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_state_populations_
  */
   __pyx_v_nbins = (__pyx_v_labeled_bin_pops.shape[1]);
 
-  /* "westpa/binning/_assign.pyx":349
+  /* "westpa/binning/_assign.pyx":351
  *     nbins = labeled_bin_pops.shape[1]
  * 
  *     if check_state_map:             # <<<<<<<<<<<<<<
  *         for ibin in xrange(nbins):
  *             if state_map[ibin] > nstates:
  */
-  __pyx_t_1 = __Pyx_PyObject_IsTrue(__pyx_v_check_state_map); if (unlikely(__pyx_t_1 < 0)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 349; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+  __pyx_t_1 = __Pyx_PyObject_IsTrue(__pyx_v_check_state_map); if (unlikely(__pyx_t_1 < 0)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 351; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
   if (__pyx_t_1) {
 
-    /* "westpa/binning/_assign.pyx":350
+    /* "westpa/binning/_assign.pyx":352
  * 
  *     if check_state_map:
  *         for ibin in xrange(nbins):             # <<<<<<<<<<<<<<
@@ -6315,7 +6315,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_state_populations_
     for (__pyx_t_4 = 0; __pyx_t_4 < __pyx_t_3; __pyx_t_4+=1) {
       __pyx_v_ibin = __pyx_t_4;
 
-      /* "westpa/binning/_assign.pyx":351
+      /* "westpa/binning/_assign.pyx":353
  *     if check_state_map:
  *         for ibin in xrange(nbins):
  *             if state_map[ibin] > nstates:             # <<<<<<<<<<<<<<
@@ -6326,20 +6326,20 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_state_populations_
       __pyx_t_1 = (((*((__pyx_t_6westpa_7binning_7_assign_index_t *) ( /* dim=0 */ (__pyx_v_state_map.data + __pyx_t_5 * __pyx_v_state_map.strides[0]) ))) > __pyx_v_nstates) != 0);
       if (__pyx_t_1) {
 
-        /* "westpa/binning/_assign.pyx":352
+        /* "westpa/binning/_assign.pyx":354
  *         for ibin in xrange(nbins):
  *             if state_map[ibin] > nstates:
  *                 raise ValueError('invalid value in state map')             # <<<<<<<<<<<<<<
  * 
  *     with nogil:
  */
-        __pyx_t_2 = __Pyx_PyObject_Call(__pyx_builtin_ValueError, __pyx_tuple__4, NULL); if (unlikely(!__pyx_t_2)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 352; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+        __pyx_t_2 = __Pyx_PyObject_Call(__pyx_builtin_ValueError, __pyx_tuple__4, NULL); if (unlikely(!__pyx_t_2)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 354; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
         __Pyx_GOTREF(__pyx_t_2);
         __Pyx_Raise(__pyx_t_2, 0, 0, 0);
         __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-        {__pyx_filename = __pyx_f[0]; __pyx_lineno = 352; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+        {__pyx_filename = __pyx_f[0]; __pyx_lineno = 354; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
 
-        /* "westpa/binning/_assign.pyx":351
+        /* "westpa/binning/_assign.pyx":353
  *     if check_state_map:
  *         for ibin in xrange(nbins):
  *             if state_map[ibin] > nstates:             # <<<<<<<<<<<<<<
@@ -6349,7 +6349,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_state_populations_
       }
     }
 
-    /* "westpa/binning/_assign.pyx":349
+    /* "westpa/binning/_assign.pyx":351
  *     nbins = labeled_bin_pops.shape[1]
  * 
  *     if check_state_map:             # <<<<<<<<<<<<<<
@@ -6358,7 +6358,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_state_populations_
  */
   }
 
-  /* "westpa/binning/_assign.pyx":354
+  /* "westpa/binning/_assign.pyx":356
  *                 raise ValueError('invalid value in state map')
  * 
  *     with nogil:             # <<<<<<<<<<<<<<
@@ -6372,7 +6372,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_state_populations_
       #endif
       /*try:*/ {
 
-        /* "westpa/binning/_assign.pyx":355
+        /* "westpa/binning/_assign.pyx":357
  * 
  *     with nogil:
  *         for ilabel in xrange(nstates):             # <<<<<<<<<<<<<<
@@ -6383,7 +6383,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_state_populations_
         for (__pyx_t_4 = 0; __pyx_t_4 < __pyx_t_3; __pyx_t_4+=1) {
           __pyx_v_ilabel = __pyx_t_4;
 
-          /* "westpa/binning/_assign.pyx":356
+          /* "westpa/binning/_assign.pyx":358
  *     with nogil:
  *         for ilabel in xrange(nstates):
  *             for ibin in xrange(nbins):             # <<<<<<<<<<<<<<
@@ -6394,7 +6394,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_state_populations_
           for (__pyx_t_7 = 0; __pyx_t_7 < __pyx_t_6; __pyx_t_7+=1) {
             __pyx_v_ibin = __pyx_t_7;
 
-            /* "westpa/binning/_assign.pyx":357
+            /* "westpa/binning/_assign.pyx":359
  *         for ilabel in xrange(nstates):
  *             for ibin in xrange(nbins):
  *                 istate = state_map[ibin]             # <<<<<<<<<<<<<<
@@ -6404,7 +6404,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_state_populations_
             __pyx_t_8 = __pyx_v_ibin;
             __pyx_v_istate = (*((__pyx_t_6westpa_7binning_7_assign_index_t *) ( /* dim=0 */ (__pyx_v_state_map.data + __pyx_t_8 * __pyx_v_state_map.strides[0]) )));
 
-            /* "westpa/binning/_assign.pyx":358
+            /* "westpa/binning/_assign.pyx":360
  *             for ibin in xrange(nbins):
  *                 istate = state_map[ibin]
  *                 if istate >= nstates:             # <<<<<<<<<<<<<<
@@ -6414,7 +6414,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_state_populations_
             __pyx_t_1 = ((__pyx_v_istate >= __pyx_v_nstates) != 0);
             if (__pyx_t_1) {
 
-              /* "westpa/binning/_assign.pyx":359
+              /* "westpa/binning/_assign.pyx":361
  *                 istate = state_map[ibin]
  *                 if istate >= nstates:
  *                     with gil:             # <<<<<<<<<<<<<<
@@ -6427,16 +6427,16 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_state_populations_
                   #endif
                   /*try:*/ {
 
-                    /* "westpa/binning/_assign.pyx":360
+                    /* "westpa/binning/_assign.pyx":362
  *                 if istate >= nstates:
  *                     with gil:
  *                         raise ValueError('invalid state label {}'.format(istate))             # <<<<<<<<<<<<<<
  *                 state_pops[state_map[ibin]] += labeled_bin_pops[ilabel,ibin]
  * 
  */
-                    __pyx_t_9 = __Pyx_PyObject_GetAttrStr(__pyx_kp_s_invalid_state_label, __pyx_n_s_format); if (unlikely(!__pyx_t_9)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 360; __pyx_clineno = __LINE__; goto __pyx_L19_error;}
+                    __pyx_t_9 = __Pyx_PyObject_GetAttrStr(__pyx_kp_s_invalid_state_label, __pyx_n_s_format); if (unlikely(!__pyx_t_9)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 362; __pyx_clineno = __LINE__; goto __pyx_L19_error;}
                     __Pyx_GOTREF(__pyx_t_9);
-                    __pyx_t_10 = PyInt_FromSsize_t(__pyx_v_istate); if (unlikely(!__pyx_t_10)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 360; __pyx_clineno = __LINE__; goto __pyx_L19_error;}
+                    __pyx_t_10 = PyInt_FromSsize_t(__pyx_v_istate); if (unlikely(!__pyx_t_10)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 362; __pyx_clineno = __LINE__; goto __pyx_L19_error;}
                     __Pyx_GOTREF(__pyx_t_10);
                     __pyx_t_11 = NULL;
                     if (CYTHON_COMPILING_IN_CPYTHON && likely(PyMethod_Check(__pyx_t_9))) {
@@ -6449,35 +6449,35 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_state_populations_
                       }
                     }
                     if (!__pyx_t_11) {
-                      __pyx_t_2 = __Pyx_PyObject_CallOneArg(__pyx_t_9, __pyx_t_10); if (unlikely(!__pyx_t_2)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 360; __pyx_clineno = __LINE__; goto __pyx_L19_error;}
+                      __pyx_t_2 = __Pyx_PyObject_CallOneArg(__pyx_t_9, __pyx_t_10); if (unlikely(!__pyx_t_2)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 362; __pyx_clineno = __LINE__; goto __pyx_L19_error;}
                       __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
                       __Pyx_GOTREF(__pyx_t_2);
                     } else {
-                      __pyx_t_12 = PyTuple_New(1+1); if (unlikely(!__pyx_t_12)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 360; __pyx_clineno = __LINE__; goto __pyx_L19_error;}
+                      __pyx_t_12 = PyTuple_New(1+1); if (unlikely(!__pyx_t_12)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 362; __pyx_clineno = __LINE__; goto __pyx_L19_error;}
                       __Pyx_GOTREF(__pyx_t_12);
                       __Pyx_GIVEREF(__pyx_t_11); PyTuple_SET_ITEM(__pyx_t_12, 0, __pyx_t_11); __pyx_t_11 = NULL;
                       __Pyx_GIVEREF(__pyx_t_10);
                       PyTuple_SET_ITEM(__pyx_t_12, 0+1, __pyx_t_10);
                       __pyx_t_10 = 0;
-                      __pyx_t_2 = __Pyx_PyObject_Call(__pyx_t_9, __pyx_t_12, NULL); if (unlikely(!__pyx_t_2)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 360; __pyx_clineno = __LINE__; goto __pyx_L19_error;}
+                      __pyx_t_2 = __Pyx_PyObject_Call(__pyx_t_9, __pyx_t_12, NULL); if (unlikely(!__pyx_t_2)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 362; __pyx_clineno = __LINE__; goto __pyx_L19_error;}
                       __Pyx_GOTREF(__pyx_t_2);
                       __Pyx_DECREF(__pyx_t_12); __pyx_t_12 = 0;
                     }
                     __Pyx_DECREF(__pyx_t_9); __pyx_t_9 = 0;
-                    __pyx_t_9 = PyTuple_New(1); if (unlikely(!__pyx_t_9)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 360; __pyx_clineno = __LINE__; goto __pyx_L19_error;}
+                    __pyx_t_9 = PyTuple_New(1); if (unlikely(!__pyx_t_9)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 362; __pyx_clineno = __LINE__; goto __pyx_L19_error;}
                     __Pyx_GOTREF(__pyx_t_9);
                     __Pyx_GIVEREF(__pyx_t_2);
                     PyTuple_SET_ITEM(__pyx_t_9, 0, __pyx_t_2);
                     __pyx_t_2 = 0;
-                    __pyx_t_2 = __Pyx_PyObject_Call(__pyx_builtin_ValueError, __pyx_t_9, NULL); if (unlikely(!__pyx_t_2)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 360; __pyx_clineno = __LINE__; goto __pyx_L19_error;}
+                    __pyx_t_2 = __Pyx_PyObject_Call(__pyx_builtin_ValueError, __pyx_t_9, NULL); if (unlikely(!__pyx_t_2)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 362; __pyx_clineno = __LINE__; goto __pyx_L19_error;}
                     __Pyx_GOTREF(__pyx_t_2);
                     __Pyx_DECREF(__pyx_t_9); __pyx_t_9 = 0;
                     __Pyx_Raise(__pyx_t_2, 0, 0, 0);
                     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-                    {__pyx_filename = __pyx_f[0]; __pyx_lineno = 360; __pyx_clineno = __LINE__; goto __pyx_L19_error;}
+                    {__pyx_filename = __pyx_f[0]; __pyx_lineno = 362; __pyx_clineno = __LINE__; goto __pyx_L19_error;}
                   }
 
-                  /* "westpa/binning/_assign.pyx":359
+                  /* "westpa/binning/_assign.pyx":361
  *                 istate = state_map[ibin]
  *                 if istate >= nstates:
  *                     with gil:             # <<<<<<<<<<<<<<
@@ -6494,7 +6494,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_state_populations_
                   }
               }
 
-              /* "westpa/binning/_assign.pyx":358
+              /* "westpa/binning/_assign.pyx":360
  *             for ibin in xrange(nbins):
  *                 istate = state_map[ibin]
  *                 if istate >= nstates:             # <<<<<<<<<<<<<<
@@ -6503,7 +6503,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_state_populations_
  */
             }
 
-            /* "westpa/binning/_assign.pyx":361
+            /* "westpa/binning/_assign.pyx":363
  *                     with gil:
  *                         raise ValueError('invalid state label {}'.format(istate))
  *                 state_pops[state_map[ibin]] += labeled_bin_pops[ilabel,ibin]             # <<<<<<<<<<<<<<
@@ -6519,7 +6519,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_state_populations_
         }
       }
 
-      /* "westpa/binning/_assign.pyx":354
+      /* "westpa/binning/_assign.pyx":356
  *                 raise ValueError('invalid value in state map')
  * 
  *     with nogil:             # <<<<<<<<<<<<<<
@@ -6543,7 +6543,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_accumulate_state_populations_
       }
   }
 
-  /* "westpa/binning/_assign.pyx":336
+  /* "westpa/binning/_assign.pyx":338
  * @cython.boundscheck(False)
  * @cython.wraparound(False)
  * cpdef accumulate_state_populations_from_labeled(weight_t[:,:] labeled_bin_pops,             # <<<<<<<<<<<<<<
@@ -6585,7 +6585,7 @@ static PyObject *__pyx_pw_6westpa_7binning_7_assign_15accumulate_state_populatio
     static PyObject **__pyx_pyargnames[] = {&__pyx_n_s_labeled_bin_pops,&__pyx_n_s_state_map,&__pyx_n_s_state_pops,&__pyx_n_s_check_state_map,0};
     PyObject* values[4] = {0,0,0,0};
 
-    /* "westpa/binning/_assign.pyx":339
+    /* "westpa/binning/_assign.pyx":341
  *                                                 index_t[:] state_map,
  *                                                 weight_t[:] state_pops,
  *                                                 check_state_map = True):             # <<<<<<<<<<<<<<
@@ -6612,12 +6612,12 @@ static PyObject *__pyx_pw_6westpa_7binning_7_assign_15accumulate_state_populatio
         case  1:
         if (likely((values[1] = PyDict_GetItem(__pyx_kwds, __pyx_n_s_state_map)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("accumulate_state_populations_from_labeled", 0, 3, 4, 1); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 336; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
+          __Pyx_RaiseArgtupleInvalid("accumulate_state_populations_from_labeled", 0, 3, 4, 1); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 338; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
         }
         case  2:
         if (likely((values[2] = PyDict_GetItem(__pyx_kwds, __pyx_n_s_state_pops)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("accumulate_state_populations_from_labeled", 0, 3, 4, 2); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 336; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
+          __Pyx_RaiseArgtupleInvalid("accumulate_state_populations_from_labeled", 0, 3, 4, 2); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 338; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
         }
         case  3:
         if (kw_args > 0) {
@@ -6626,7 +6626,7 @@ static PyObject *__pyx_pw_6westpa_7binning_7_assign_15accumulate_state_populatio
         }
       }
       if (unlikely(kw_args > 0)) {
-        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_pyargnames, 0, values, pos_args, "accumulate_state_populations_from_labeled") < 0)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 336; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
+        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_pyargnames, 0, values, pos_args, "accumulate_state_populations_from_labeled") < 0)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 338; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
       }
     } else {
       switch (PyTuple_GET_SIZE(__pyx_args)) {
@@ -6638,14 +6638,14 @@ static PyObject *__pyx_pw_6westpa_7binning_7_assign_15accumulate_state_populatio
         default: goto __pyx_L5_argtuple_error;
       }
     }
-    __pyx_v_labeled_bin_pops = __Pyx_PyObject_to_MemoryviewSlice_dsds_nn___pyx_t_6westpa_7binning_7_assign_weight_t(values[0]); if (unlikely(!__pyx_v_labeled_bin_pops.memview)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 336; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
-    __pyx_v_state_map = __Pyx_PyObject_to_MemoryviewSlice_ds_nn___pyx_t_6westpa_7binning_7_assign_index_t(values[1]); if (unlikely(!__pyx_v_state_map.memview)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 337; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
-    __pyx_v_state_pops = __Pyx_PyObject_to_MemoryviewSlice_ds_nn___pyx_t_6westpa_7binning_7_assign_weight_t(values[2]); if (unlikely(!__pyx_v_state_pops.memview)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 338; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
+    __pyx_v_labeled_bin_pops = __Pyx_PyObject_to_MemoryviewSlice_dsds_nn___pyx_t_6westpa_7binning_7_assign_weight_t(values[0]); if (unlikely(!__pyx_v_labeled_bin_pops.memview)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 338; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
+    __pyx_v_state_map = __Pyx_PyObject_to_MemoryviewSlice_ds_nn___pyx_t_6westpa_7binning_7_assign_index_t(values[1]); if (unlikely(!__pyx_v_state_map.memview)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 339; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
+    __pyx_v_state_pops = __Pyx_PyObject_to_MemoryviewSlice_ds_nn___pyx_t_6westpa_7binning_7_assign_weight_t(values[2]); if (unlikely(!__pyx_v_state_pops.memview)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 340; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
     __pyx_v_check_state_map = values[3];
   }
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("accumulate_state_populations_from_labeled", 0, 3, 4, PyTuple_GET_SIZE(__pyx_args)); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 336; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
+  __Pyx_RaiseArgtupleInvalid("accumulate_state_populations_from_labeled", 0, 3, 4, PyTuple_GET_SIZE(__pyx_args)); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 338; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
   __pyx_L3_error:;
   __Pyx_AddTraceback("westpa.binning._assign.accumulate_state_populations_from_labeled", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
@@ -6653,7 +6653,7 @@ static PyObject *__pyx_pw_6westpa_7binning_7_assign_15accumulate_state_populatio
   __pyx_L4_argument_unpacking_done:;
   __pyx_r = __pyx_pf_6westpa_7binning_7_assign_14accumulate_state_populations_from_labeled(__pyx_self, __pyx_v_labeled_bin_pops, __pyx_v_state_map, __pyx_v_state_pops, __pyx_v_check_state_map);
 
-  /* "westpa/binning/_assign.pyx":336
+  /* "westpa/binning/_assign.pyx":338
  * @cython.boundscheck(False)
  * @cython.wraparound(False)
  * cpdef accumulate_state_populations_from_labeled(weight_t[:,:] labeled_bin_pops,             # <<<<<<<<<<<<<<
@@ -6676,12 +6676,12 @@ static PyObject *__pyx_pf_6westpa_7binning_7_assign_14accumulate_state_populatio
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("accumulate_state_populations_from_labeled", 0);
   __Pyx_XDECREF(__pyx_r);
-  if (unlikely(!__pyx_v_labeled_bin_pops.memview)) { __Pyx_RaiseUnboundLocalError("labeled_bin_pops"); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 336; __pyx_clineno = __LINE__; goto __pyx_L1_error;} }
-  if (unlikely(!__pyx_v_state_map.memview)) { __Pyx_RaiseUnboundLocalError("state_map"); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 336; __pyx_clineno = __LINE__; goto __pyx_L1_error;} }
-  if (unlikely(!__pyx_v_state_pops.memview)) { __Pyx_RaiseUnboundLocalError("state_pops"); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 336; __pyx_clineno = __LINE__; goto __pyx_L1_error;} }
+  if (unlikely(!__pyx_v_labeled_bin_pops.memview)) { __Pyx_RaiseUnboundLocalError("labeled_bin_pops"); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 338; __pyx_clineno = __LINE__; goto __pyx_L1_error;} }
+  if (unlikely(!__pyx_v_state_map.memview)) { __Pyx_RaiseUnboundLocalError("state_map"); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 338; __pyx_clineno = __LINE__; goto __pyx_L1_error;} }
+  if (unlikely(!__pyx_v_state_pops.memview)) { __Pyx_RaiseUnboundLocalError("state_pops"); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 338; __pyx_clineno = __LINE__; goto __pyx_L1_error;} }
   __pyx_t_2.__pyx_n = 1;
   __pyx_t_2.check_state_map = __pyx_v_check_state_map;
-  __pyx_t_1 = __pyx_f_6westpa_7binning_7_assign_accumulate_state_populations_from_labeled(__pyx_v_labeled_bin_pops, __pyx_v_state_map, __pyx_v_state_pops, 0, &__pyx_t_2); if (unlikely(!__pyx_t_1)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 336; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+  __pyx_t_1 = __pyx_f_6westpa_7binning_7_assign_accumulate_state_populations_from_labeled(__pyx_v_labeled_bin_pops, __pyx_v_state_map, __pyx_v_state_pops, 0, &__pyx_t_2); if (unlikely(!__pyx_t_1)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 338; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
@@ -6701,7 +6701,7 @@ static PyObject *__pyx_pf_6westpa_7binning_7_assign_14accumulate_state_populatio
   return __pyx_r;
 }
 
-/* "westpa/binning/_assign.pyx":364
+/* "westpa/binning/_assign.pyx":366
  * 
  * @cython.wraparound(False)
  * cpdef assignments_list_to_table(Py_ssize_t nsegs, Py_ssize_t nbins, index_t[:] assignments):             # <<<<<<<<<<<<<<
@@ -6734,23 +6734,23 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_assignments_list_to_table(Py_
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("assignments_list_to_table", 0);
 
-  /* "westpa/binning/_assign.pyx":372
+  /* "westpa/binning/_assign.pyx":374
  *         bool_t[:,:] _output
  * 
  *     output = numpy.zeros((nsegs,nbins), internal_bool_dtype)             # <<<<<<<<<<<<<<
  *     _output = output
  * 
  */
-  __pyx_t_2 = __Pyx_GetModuleGlobalName(__pyx_n_s_numpy); if (unlikely(!__pyx_t_2)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 372; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+  __pyx_t_2 = __Pyx_GetModuleGlobalName(__pyx_n_s_numpy); if (unlikely(!__pyx_t_2)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 374; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
   __Pyx_GOTREF(__pyx_t_2);
-  __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_zeros); if (unlikely(!__pyx_t_3)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 372; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+  __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_zeros); if (unlikely(!__pyx_t_3)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 374; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
   __Pyx_GOTREF(__pyx_t_3);
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-  __pyx_t_2 = PyInt_FromSsize_t(__pyx_v_nsegs); if (unlikely(!__pyx_t_2)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 372; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+  __pyx_t_2 = PyInt_FromSsize_t(__pyx_v_nsegs); if (unlikely(!__pyx_t_2)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 374; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
   __Pyx_GOTREF(__pyx_t_2);
-  __pyx_t_4 = PyInt_FromSsize_t(__pyx_v_nbins); if (unlikely(!__pyx_t_4)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 372; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+  __pyx_t_4 = PyInt_FromSsize_t(__pyx_v_nbins); if (unlikely(!__pyx_t_4)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 374; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
   __Pyx_GOTREF(__pyx_t_4);
-  __pyx_t_5 = PyTuple_New(2); if (unlikely(!__pyx_t_5)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 372; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+  __pyx_t_5 = PyTuple_New(2); if (unlikely(!__pyx_t_5)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 374; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
   __Pyx_GOTREF(__pyx_t_5);
   __Pyx_GIVEREF(__pyx_t_2);
   PyTuple_SET_ITEM(__pyx_t_5, 0, __pyx_t_2);
@@ -6758,7 +6758,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_assignments_list_to_table(Py_
   PyTuple_SET_ITEM(__pyx_t_5, 1, __pyx_t_4);
   __pyx_t_2 = 0;
   __pyx_t_4 = 0;
-  __pyx_t_4 = __Pyx_GetModuleGlobalName(__pyx_n_s_internal_bool_dtype); if (unlikely(!__pyx_t_4)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 372; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+  __pyx_t_4 = __Pyx_GetModuleGlobalName(__pyx_n_s_internal_bool_dtype); if (unlikely(!__pyx_t_4)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 374; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
   __Pyx_GOTREF(__pyx_t_4);
   __pyx_t_2 = NULL;
   __pyx_t_6 = 0;
@@ -6772,7 +6772,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_assignments_list_to_table(Py_
       __pyx_t_6 = 1;
     }
   }
-  __pyx_t_7 = PyTuple_New(2+__pyx_t_6); if (unlikely(!__pyx_t_7)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 372; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+  __pyx_t_7 = PyTuple_New(2+__pyx_t_6); if (unlikely(!__pyx_t_7)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 374; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
   __Pyx_GOTREF(__pyx_t_7);
   if (__pyx_t_2) {
     __Pyx_GIVEREF(__pyx_t_2); PyTuple_SET_ITEM(__pyx_t_7, 0, __pyx_t_2); __pyx_t_2 = NULL;
@@ -6783,14 +6783,14 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_assignments_list_to_table(Py_
   PyTuple_SET_ITEM(__pyx_t_7, 1+__pyx_t_6, __pyx_t_4);
   __pyx_t_5 = 0;
   __pyx_t_4 = 0;
-  __pyx_t_1 = __Pyx_PyObject_Call(__pyx_t_3, __pyx_t_7, NULL); if (unlikely(!__pyx_t_1)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 372; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+  __pyx_t_1 = __Pyx_PyObject_Call(__pyx_t_3, __pyx_t_7, NULL); if (unlikely(!__pyx_t_1)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 374; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
   __Pyx_GOTREF(__pyx_t_1);
   __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
   __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
   __pyx_v_output = __pyx_t_1;
   __pyx_t_1 = 0;
 
-  /* "westpa/binning/_assign.pyx":373
+  /* "westpa/binning/_assign.pyx":375
  * 
  *     output = numpy.zeros((nsegs,nbins), internal_bool_dtype)
  *     _output = output             # <<<<<<<<<<<<<<
@@ -6798,12 +6798,12 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_assignments_list_to_table(Py_
  *     for iseg in xrange(nsegs):
  */
   __pyx_t_8 = __Pyx_PyObject_to_MemoryviewSlice_dsds_nn___pyx_t_6westpa_7binning_7_assign_bool_t(__pyx_v_output);
-  if (unlikely(!__pyx_t_8.memview)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 373; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+  if (unlikely(!__pyx_t_8.memview)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 375; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
   __pyx_v__output = __pyx_t_8;
   __pyx_t_8.memview = NULL;
   __pyx_t_8.data = NULL;
 
-  /* "westpa/binning/_assign.pyx":375
+  /* "westpa/binning/_assign.pyx":377
  *     _output = output
  * 
  *     for iseg in xrange(nsegs):             # <<<<<<<<<<<<<<
@@ -6814,7 +6814,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_assignments_list_to_table(Py_
   for (__pyx_t_9 = 0; __pyx_t_9 < __pyx_t_6; __pyx_t_9+=1) {
     __pyx_v_iseg = __pyx_t_9;
 
-    /* "westpa/binning/_assign.pyx":376
+    /* "westpa/binning/_assign.pyx":378
  * 
  *     for iseg in xrange(nsegs):
  *         _output[iseg,assignments[iseg]] = 1             # <<<<<<<<<<<<<<
@@ -6828,7 +6828,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_assignments_list_to_table(Py_
     } else if (unlikely(__pyx_t_10 >= __pyx_v_assignments.shape[0])) __pyx_t_11 = 0;
     if (unlikely(__pyx_t_11 != -1)) {
       __Pyx_RaiseBufferIndexError(__pyx_t_11);
-      {__pyx_filename = __pyx_f[0]; __pyx_lineno = 376; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+      {__pyx_filename = __pyx_f[0]; __pyx_lineno = 378; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
     }
     __pyx_t_12 = __pyx_v_iseg;
     __pyx_t_13 = (*((__pyx_t_6westpa_7binning_7_assign_index_t *) ( /* dim=0 */ (__pyx_v_assignments.data + __pyx_t_10 * __pyx_v_assignments.strides[0]) )));
@@ -6839,33 +6839,33 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_assignments_list_to_table(Py_
     if (unlikely(__pyx_t_13 >= (size_t)__pyx_v__output.shape[1])) __pyx_t_11 = 1;
     if (unlikely(__pyx_t_11 != -1)) {
       __Pyx_RaiseBufferIndexError(__pyx_t_11);
-      {__pyx_filename = __pyx_f[0]; __pyx_lineno = 376; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+      {__pyx_filename = __pyx_f[0]; __pyx_lineno = 378; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
     }
     *((__pyx_t_6westpa_7binning_7_assign_bool_t *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v__output.data + __pyx_t_12 * __pyx_v__output.strides[0]) ) + __pyx_t_13 * __pyx_v__output.strides[1]) )) = 1;
   }
 
-  /* "westpa/binning/_assign.pyx":378
+  /* "westpa/binning/_assign.pyx":380
  *         _output[iseg,assignments[iseg]] = 1
  * 
  *     return output.astype(numpy.bool_, copy=False)             # <<<<<<<<<<<<<<
  */
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_v_output, __pyx_n_s_astype); if (unlikely(!__pyx_t_1)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 378; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+  __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_v_output, __pyx_n_s_astype); if (unlikely(!__pyx_t_1)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 380; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
   __Pyx_GOTREF(__pyx_t_1);
-  __pyx_t_3 = __Pyx_GetModuleGlobalName(__pyx_n_s_numpy); if (unlikely(!__pyx_t_3)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 378; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+  __pyx_t_3 = __Pyx_GetModuleGlobalName(__pyx_n_s_numpy); if (unlikely(!__pyx_t_3)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 380; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
   __Pyx_GOTREF(__pyx_t_3);
-  __pyx_t_7 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_bool); if (unlikely(!__pyx_t_7)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 378; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+  __pyx_t_7 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_bool); if (unlikely(!__pyx_t_7)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 380; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
   __Pyx_GOTREF(__pyx_t_7);
   __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-  __pyx_t_3 = PyTuple_New(1); if (unlikely(!__pyx_t_3)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 378; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+  __pyx_t_3 = PyTuple_New(1); if (unlikely(!__pyx_t_3)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 380; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
   __Pyx_GOTREF(__pyx_t_3);
   __Pyx_GIVEREF(__pyx_t_7);
   PyTuple_SET_ITEM(__pyx_t_3, 0, __pyx_t_7);
   __pyx_t_7 = 0;
-  __pyx_t_7 = PyDict_New(); if (unlikely(!__pyx_t_7)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 378; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+  __pyx_t_7 = PyDict_New(); if (unlikely(!__pyx_t_7)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 380; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
   __Pyx_GOTREF(__pyx_t_7);
-  if (PyDict_SetItem(__pyx_t_7, __pyx_n_s_copy, Py_False) < 0) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 378; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
-  __pyx_t_4 = __Pyx_PyObject_Call(__pyx_t_1, __pyx_t_3, __pyx_t_7); if (unlikely(!__pyx_t_4)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 378; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+  if (PyDict_SetItem(__pyx_t_7, __pyx_n_s_copy, Py_False) < 0) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 380; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+  __pyx_t_4 = __Pyx_PyObject_Call(__pyx_t_1, __pyx_t_3, __pyx_t_7); if (unlikely(!__pyx_t_4)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 380; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
   __Pyx_GOTREF(__pyx_t_4);
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
   __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
@@ -6874,7 +6874,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_assignments_list_to_table(Py_
   __pyx_t_4 = 0;
   goto __pyx_L0;
 
-  /* "westpa/binning/_assign.pyx":364
+  /* "westpa/binning/_assign.pyx":366
  * 
  * @cython.wraparound(False)
  * cpdef assignments_list_to_table(Py_ssize_t nsegs, Py_ssize_t nbins, index_t[:] assignments):             # <<<<<<<<<<<<<<
@@ -6935,16 +6935,16 @@ static PyObject *__pyx_pw_6westpa_7binning_7_assign_17assignments_list_to_table(
         case  1:
         if (likely((values[1] = PyDict_GetItem(__pyx_kwds, __pyx_n_s_nbins)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("assignments_list_to_table", 1, 3, 3, 1); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 364; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
+          __Pyx_RaiseArgtupleInvalid("assignments_list_to_table", 1, 3, 3, 1); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 366; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
         }
         case  2:
         if (likely((values[2] = PyDict_GetItem(__pyx_kwds, __pyx_n_s_assignments)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("assignments_list_to_table", 1, 3, 3, 2); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 364; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
+          __Pyx_RaiseArgtupleInvalid("assignments_list_to_table", 1, 3, 3, 2); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 366; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
         }
       }
       if (unlikely(kw_args > 0)) {
-        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_pyargnames, 0, values, pos_args, "assignments_list_to_table") < 0)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 364; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
+        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_pyargnames, 0, values, pos_args, "assignments_list_to_table") < 0)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 366; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
       }
     } else if (PyTuple_GET_SIZE(__pyx_args) != 3) {
       goto __pyx_L5_argtuple_error;
@@ -6953,13 +6953,13 @@ static PyObject *__pyx_pw_6westpa_7binning_7_assign_17assignments_list_to_table(
       values[1] = PyTuple_GET_ITEM(__pyx_args, 1);
       values[2] = PyTuple_GET_ITEM(__pyx_args, 2);
     }
-    __pyx_v_nsegs = __Pyx_PyIndex_AsSsize_t(values[0]); if (unlikely((__pyx_v_nsegs == (Py_ssize_t)-1) && PyErr_Occurred())) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 364; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
-    __pyx_v_nbins = __Pyx_PyIndex_AsSsize_t(values[1]); if (unlikely((__pyx_v_nbins == (Py_ssize_t)-1) && PyErr_Occurred())) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 364; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
-    __pyx_v_assignments = __Pyx_PyObject_to_MemoryviewSlice_ds_nn___pyx_t_6westpa_7binning_7_assign_index_t(values[2]); if (unlikely(!__pyx_v_assignments.memview)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 364; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
+    __pyx_v_nsegs = __Pyx_PyIndex_AsSsize_t(values[0]); if (unlikely((__pyx_v_nsegs == (Py_ssize_t)-1) && PyErr_Occurred())) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 366; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
+    __pyx_v_nbins = __Pyx_PyIndex_AsSsize_t(values[1]); if (unlikely((__pyx_v_nbins == (Py_ssize_t)-1) && PyErr_Occurred())) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 366; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
+    __pyx_v_assignments = __Pyx_PyObject_to_MemoryviewSlice_ds_nn___pyx_t_6westpa_7binning_7_assign_index_t(values[2]); if (unlikely(!__pyx_v_assignments.memview)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 366; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
   }
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("assignments_list_to_table", 1, 3, 3, PyTuple_GET_SIZE(__pyx_args)); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 364; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
+  __Pyx_RaiseArgtupleInvalid("assignments_list_to_table", 1, 3, 3, PyTuple_GET_SIZE(__pyx_args)); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 366; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
   __pyx_L3_error:;
   __Pyx_AddTraceback("westpa.binning._assign.assignments_list_to_table", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
@@ -6981,8 +6981,8 @@ static PyObject *__pyx_pf_6westpa_7binning_7_assign_16assignments_list_to_table(
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("assignments_list_to_table", 0);
   __Pyx_XDECREF(__pyx_r);
-  if (unlikely(!__pyx_v_assignments.memview)) { __Pyx_RaiseUnboundLocalError("assignments"); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 364; __pyx_clineno = __LINE__; goto __pyx_L1_error;} }
-  __pyx_t_1 = __pyx_f_6westpa_7binning_7_assign_assignments_list_to_table(__pyx_v_nsegs, __pyx_v_nbins, __pyx_v_assignments, 0); if (unlikely(!__pyx_t_1)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 364; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+  if (unlikely(!__pyx_v_assignments.memview)) { __Pyx_RaiseUnboundLocalError("assignments"); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 366; __pyx_clineno = __LINE__; goto __pyx_L1_error;} }
+  __pyx_t_1 = __pyx_f_6westpa_7binning_7_assign_assignments_list_to_table(__pyx_v_nsegs, __pyx_v_nbins, __pyx_v_assignments, 0); if (unlikely(!__pyx_t_1)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 366; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
@@ -21486,9 +21486,9 @@ static int __Pyx_InitCachedBuiltins(void) {
   __pyx_builtin_TypeError = __Pyx_GetBuiltinName(__pyx_n_s_TypeError); if (!__pyx_builtin_TypeError) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 166; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
   __pyx_builtin_IndexError = __Pyx_GetBuiltinName(__pyx_n_s_IndexError); if (!__pyx_builtin_IndexError) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 199; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
   #if PY_MAJOR_VERSION >= 3
-  __pyx_builtin_xrange = __Pyx_GetBuiltinName(__pyx_n_s_range); if (!__pyx_builtin_xrange) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 350; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+  __pyx_builtin_xrange = __Pyx_GetBuiltinName(__pyx_n_s_range); if (!__pyx_builtin_xrange) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 352; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
   #else
-  __pyx_builtin_xrange = __Pyx_GetBuiltinName(__pyx_n_s_xrange); if (!__pyx_builtin_xrange) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 350; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+  __pyx_builtin_xrange = __Pyx_GetBuiltinName(__pyx_n_s_xrange); if (!__pyx_builtin_xrange) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 352; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
   #endif
   __pyx_builtin_RuntimeError = __Pyx_GetBuiltinName(__pyx_n_s_RuntimeError); if (!__pyx_builtin_RuntimeError) {__pyx_filename = __pyx_f[1]; __pyx_lineno = 799; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
   __pyx_builtin_MemoryError = __Pyx_GetBuiltinName(__pyx_n_s_MemoryError); if (!__pyx_builtin_MemoryError) {__pyx_filename = __pyx_f[2]; __pyx_lineno = 144; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
@@ -21518,25 +21518,25 @@ static int __Pyx_InitCachedConstants(void) {
   __Pyx_GOTREF(__pyx_slice__2);
   __Pyx_GIVEREF(__pyx_slice__2);
 
-  /* "westpa/binning/_assign.pyx":344
+  /* "westpa/binning/_assign.pyx":346
  * 
  *     if state_pops.shape[0] != labeled_bin_pops.shape[0]:
  *         raise TypeError('shape mismatch')             # <<<<<<<<<<<<<<
  * 
  *     nstates = labeled_bin_pops.shape[0]
  */
-  __pyx_tuple__3 = PyTuple_Pack(1, __pyx_kp_s_shape_mismatch); if (unlikely(!__pyx_tuple__3)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 344; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+  __pyx_tuple__3 = PyTuple_Pack(1, __pyx_kp_s_shape_mismatch); if (unlikely(!__pyx_tuple__3)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 346; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
   __Pyx_GOTREF(__pyx_tuple__3);
   __Pyx_GIVEREF(__pyx_tuple__3);
 
-  /* "westpa/binning/_assign.pyx":352
+  /* "westpa/binning/_assign.pyx":354
  *         for ibin in xrange(nbins):
  *             if state_map[ibin] > nstates:
  *                 raise ValueError('invalid value in state map')             # <<<<<<<<<<<<<<
  * 
  *     with nogil:
  */
-  __pyx_tuple__4 = PyTuple_Pack(1, __pyx_kp_s_invalid_value_in_state_map); if (unlikely(!__pyx_tuple__4)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 352; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+  __pyx_tuple__4 = PyTuple_Pack(1, __pyx_kp_s_invalid_value_in_state_map); if (unlikely(!__pyx_tuple__4)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 354; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
   __Pyx_GOTREF(__pyx_tuple__4);
   __Pyx_GIVEREF(__pyx_tuple__4);
 

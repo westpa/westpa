@@ -22801,7 +22801,7 @@ PyMODINIT_FUNC PyInit__reweight(void)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
   /* "westpa/reweight/_reweight.pyx":1
- * # Copyright (C) 2013 Matthew C. Zwier and Lillian T. Chong             # <<<<<<<<<<<<<<
+ * # Copyright (C) 2017 Matthew C. Zwier and Lillian T. Chong             # <<<<<<<<<<<<<<
  * #
  * # This file is part of WESTPA.
  */

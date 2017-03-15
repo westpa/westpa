@@ -140,4 +140,4 @@ class FluxMatrix():
 
             # Check and save the number of intermediate time points; this will be used to normalize the
             # flux and kinetics to tau in w_postanalysis_reweight.
-            self.output_file.attrs['npts'] = npts
+            self.output_file.attrs['npts'] = npts if self.sampling_frequency == 'timepoint' else 2
