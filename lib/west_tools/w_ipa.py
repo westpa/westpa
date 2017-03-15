@@ -485,17 +485,96 @@ class WIPI(WESTParallelTool):
 
     # Returns the raw values, but can also calculate things based on them.
     class KineticsIteration(dict):
-        def __init__(self, kin_h5file, index):
+        def __init__(self, kin_h5file, index, assign):
             self.h5file = kin_h5file
             # Keys:
             _2D_h5keys = [ 'rate_evolution', 'conditional_flux_evolution' ]
             _1D_h5keys = [ 'state_pop_evolution', 'color_prob_evolution' ]
             self.raw = {}
             for key in _2D_h5keys:
-                self.raw[key] = self.__2D_with_error__(key, index)
+                self.raw[key] = self.__2D_with_error__(key, index, assign)
             for key in _1D_h5keys:
-                self.raw[key] = self.__1D_with_error__(key, index)
-        def __2D_with_error__(self, h5key, index):
+                self.raw[key] = self.__1D_with_error__(key, index, assign)
+
+        class __1D_custom_dataset__():
+            # This is just allow it to be indexed via properties.
+            # Not a huge thing, but whatever.
+            def __init__(self, raw, assign, key):
+                self.raw = raw
+                self.name = key
+                self.assign = assign
+                self.nstates = assign.attrs['nstates']
+            def _repr_pretty_(self, p, cycle):
+                # We're just using this as a way to print things in a pretty way.  They can still be indexed appropriately.
+                # Stolen shamelessly from westtools/kinetics_tool.py
+                maxlabellen = max(map(len,self.assign['state_labels']))
+                p.text('')
+                p.text('{name} data:\n'.format(name=self.name))
+                for istate in xrange(self.nstates):
+                    p.text('{:{maxlabellen}s}: mean={:21.15e} CI=({:21.15e}, {:21.15e}) * tau^-1\n'
+                        .format(self.assign['state_labels'][istate],
+                        self.raw['expected'][istate],
+                        self.raw['ci_lbound'][istate],
+                        self.raw['ci_ubound'][istate],
+                        maxlabellen=maxlabellen))
+                p.text('To access data, index via the following names:\n')
+                p.text(str(self.raw.dtype.names))
+                return " "
+            def __repr__(self):
+                return " "
+            def __getitem__(self, value):
+                # These functions can't look like this, or else they explode.
+                return self.raw[value]
+            def __getattr__(self, attr):
+                # Allow them to access dtype names as keys or attributes.
+                if attr in self.raw.dtype.names:
+                    return self.raw[attr]
+                else:
+                    return self.attr[attr]
+
+        class __2D_custom_dataset__():
+            # This is just allow it to be indexed via properties.
+            # Not a huge thing, but whatever.
+            def __init__(self, raw, assign, key):
+                self.raw = raw
+                self.name = key
+                self.assign = assign
+                self.nstates = assign.attrs['nstates']
+            def _repr_pretty_(self, p, cycle):
+                # We're just using this as a way to print things in a pretty way.  They can still be indexed appropriately.
+                # Stolen shamelessly from westtools/kinetics_tool.py
+                maxlabellen = max(map(len,self.assign['state_labels']))
+                if not cycle:
+                    p.text('')
+                    p.text('{name} data:\n'.format(name=self.name))
+                    for istate in xrange(self.nstates):
+                        for jstate in xrange(self.nstates):
+                            if istate == jstate: continue
+                            p.text('{:{maxlabellen}s} -> {:{maxlabellen}s}: mean={:21.15e} CI=({:21.15e}, {:21.15e}) * tau^-1\n'
+                                .format(self.assign['state_labels'][istate], self.assign['state_labels'][jstate],
+                                self.raw['expected'][istate, jstate],
+                                self.raw['ci_lbound'][istate, jstate],
+                                self.raw['ci_ubound'][istate, jstate],
+                                maxlabellen=maxlabellen))
+                    p.text('To access data, index via the following names:\n')
+                    p.text(str(self.raw.dtype.names))
+                else:
+                    p.text('')
+                return " "
+            def __repr__(self):
+                return " "
+            def __getitem__(self, value):
+                # These functions can't look like this, or else they explode.
+                return self.raw[value]
+            def __getattr__(self, attr):
+                # Allow them to access dtype names as keys or attributes.
+                # Actually, this explodes, too.
+                if attr in self.raw.dtype.names:
+                    return self.raw[attr]
+                else:
+                    return self.attr[value]
+
+        def __2D_with_error__(self, h5key, index, assign):
             # Check the start and stop, calculate the block size, and index appropriately.
             # While we could try and automatically generate this above, it's a little more consistent to try it here.
             # This should show the first block for which the current iteration has contributed data.
@@ -506,8 +585,11 @@ class WIPI(WESTParallelTool):
             raw = self.h5file[h5key][value, :, :]
             error = (raw['ci_ubound'] - raw['ci_lbound']) / (2*raw['expected'])
             expected = raw['expected']
-            return (raw, error, expected)
-        def __1D_with_error__(self, h5key, index):
+            raw = self.__2D_custom_dataset__(raw, assign, h5key)
+            raw.error = error
+            raw.expected = expected
+            return raw
+        def __1D_with_error__(self, h5key, index, assign):
             self.step_iter = (self.h5file[h5key]['iter_stop'][0] - self.h5file[h5key]['iter_start'][0])[1]
             value = ((index-1) // self.step_iter)
             if value < 0:
@@ -515,13 +597,15 @@ class WIPI(WESTParallelTool):
             raw = self.h5file[h5key][value, :]
             error = (raw['ci_ubound'] - raw['ci_lbound']) / (2*raw['expected'])
             expected = raw['expected']
-            return (raw, error, expected)
-            #return raw
+            raw = self.__1D_custom_dataset__(raw, assign, h5key)
+            raw.error = error
+            raw.expected = expected
+            return raw
         def __getattr__(self, attr):
             return self.__dict__[attr]
         def __repr__(self):
-            # Actually, let's change this.
-            return repr(self.raw)
+            # Instead of returning raw datasets, let's return... other stuff.
+            return repr(self.raw.keys())
         def __getitem__(self, value):
             return self.raw[value]
         def keys(self):
@@ -529,27 +613,6 @@ class WIPI(WESTParallelTool):
         @property
         def names(self):
             return self.keys()
-
-    class PopulationsIterations():
-        def __init__(self, assign, current, scheme):
-            nbins = assign['state_map'].shape[0]
-            # We have to take the 'unknown' state into account
-            nstates = assign['state_labels'].shape[0] + 1
-            self.bins = np.histogram(current['bins'].flatten(), bins=range(0, nbins), weights=np.repeat(current['weights'], current['bins'].shape[1]))[0] / current['bins'].shape[1]
-            self.states = np.histogram(current['states'].flatten(), bins=range(0, nstates + 1), weights=np.repeat(current['weights'], current['states'].shape[1]))[0] / current['states'].shape[1]
-            self.scheme = scheme
-        def __repr__(self):
-            print("The following are populations from the assign.h5 file from scheme: ".format(self.scheme))
-            print("")
-            print("Bin Populations:")
-            print(self.bins)
-            print("")
-            print("State Populations:")
-            print(self.states)
-            print("")
-            print("Use the properties .states and .bins to access these.")
-            #return repr((self.states, self.bins))
-            return (" ")
 
     class __get_data_for_iteration__():
         '''
@@ -587,7 +650,6 @@ class WIPI(WESTParallelTool):
             current = {}
             if seg_ids == None:
                 seg_ids = xrange(0, iter_group['seg_index']['weight'].shape[0])
-            current['direct'] = parent.KineticsIteration(parent.direct, value)
             # Just make these easier to access.
             current['weights'] = iter_group['seg_index']['weight'][seg_ids]
             current['pcoord'] = iter_group['pcoord'][...][seg_ids, :, :]
@@ -607,19 +669,36 @@ class WIPI(WESTParallelTool):
             nbins = parent.assign['state_map'].shape[0]
             # We have to take the 'unknown' state into account
             nstates = parent.assign['state_labels'].shape[0] + 1
-            current['populations'] = parent.PopulationsIterations(parent.assign, current, parent.scheme)
-            current['plot'] = Plotter(parent.direct, parent.reweight, parent.iteration, parent.assign['bin_labels'], parent.assign['state_labels'], current['populations'].states, current['populations'].bins, parent.interface)
+            # Temporarily disabled while I sort out the fact that we shouldn't be using data from w_assign for state populations.
+            #current['plot'] = Plotter(parent.direct, parent.reweight, parent.iteration, parent.assign['bin_labels'], parent.assign['state_labels'], current['populations'].states, current['populations'].bins, parent.interface)
+            # Now we'll load up the results of the kinetics analysis.
+            current['direct'] = parent.KineticsIteration(parent.direct, value, parent.assign)
+            evolution_datasets = [ 'rate_evolution', 'conditional_flux_evolution', 'state_pop_evolution', 'color_prob_evolution' ]
+            # We want to load these up as... oh, who knows, I suppose?
             try:
+                current['reweight'] = parent.KineticsIteration(parent.reweight, value, parent.assign)
                 # We'll make this not a sparse matrix...
                 matrix = parent.reweight['iterations/iter_{:08d}'.format(value)]
                 # Assume color.
                 current['instant_matrix'] = sp.coo_matrix((matrix['flux'][...], (matrix['rows'][...], matrix['cols'][...])), shape=((nbins-1)*2, (nbins-1)*2)).todense()
-                current['reweight'] = parent.KineticsIteration(parent.reweight, value)
+                reweighting = True
             except:
               # This analysis hasn't been enabled, so we'll simply return the default error message.
-                current['instant_matrix'] = parent.reweight['bin_populations']
                 current['reweight'] = parent.reweight['rate_evolution']
+                current['instant_matrix'] = parent.reweight['bin_populations']
                 current['matrix'] = parent.reweight['bin_populations']
+                reweighting = False
+            # Check if the analysis has been enabled.  If yes, make them specify dataset dictionaries.  If not, return the thing.
+            if reweighting:
+                for key in evolution_datasets:
+                    #print('Direct trace:')
+                    current[key] = { 'direct': current['direct'][key] }
+                    #print('NM Reweighting:')
+                    current[key].update({ 'reweight': current['reweight'][key] })
+            else:
+                for key in evolution_datasets:
+                    current[key] = current['direct'][key]
+
             self.raw = current
         def __repr__(self):
             '''
@@ -767,10 +846,6 @@ class WIPI(WESTParallelTool):
                 current['auxdata'][key] = np.concatenate(np.array(list(reversed(current['auxdata'][key]))))
         except:
             pass
-        #try:
-        #    current['auxdata'] = np.array(current['auxdata'])
-        #except:
-        #    pass
         return current
 
     @property
@@ -839,7 +914,6 @@ class WIPI(WESTParallelTool):
             return 0
         iter_data = self.__get_data_for_iteration__(value=self.iteration+1, parent=self)
         self._future = self.Future(rep={ 'kinavg': iter_data['kinavg'], 'weights': [], 'pcoord': [], 'parents': [], 'summary': iter_data['summary'], 'seg_id': [], 'walkers': iter_data['walkers'], 'states': [], 'bins': [] })
-        #self._future = { 'kinavg': iter_data['kinavg'], 'weights': [], 'pcoord': [], 'parents': [], 'summary': iter_data['summary'], 'seg_id': [], 'walkers': iter_data['walkers'], 'states': [], 'bins': [] }
         for seg_id in range(0, self.walkers):
             children = np.where(iter_data['parents'] == seg_id)[0]
             if len(children) == 0:
@@ -868,47 +942,6 @@ class WIPI(WESTParallelTool):
                 self._future['states'].append(self.assign['trajlabels'][value-1, children, :])
                 self._future['bins'].append(self.assign['assignments'][value-1, children, :])
 
-
-    @property
-    def aggregate_matrix(self):
-        '''
-        POTENTIALLY DEPRECATED.
-
-        Would try and generate a transition matrix from the data, but relied on routines from the deprecated w_postanalysis_reweight.
-        Unsure if it's worth fixing, so for the moment, it's unused.
-        '''
-        if self.__settings['analysis_schemes'][self.scheme]['postanalysis'] == True:
-            try:
-                if self.__analysis_schemes__[self.scheme]['aggregate_matrix'] == None:
-                    print("Calculating aggregate matrix...")
-                    self.__add_matrix__()
-                return self.__analysis_schemes__[self.scheme]['aggregate_matrix']
-            except:
-                print("Calculating aggregate matrix...")
-                self.__add_matrix__()
-                return self.__analysis_schemes__[self.scheme]['aggregate_matrix']
-
-    def __add_matrix__(self):
-        '''
-        Also used to generate the aggregate transition matrix.  If it can be rebuilt with the cython functions (which should be possible),
-        then it's probably worth keeping in.
-        '''
-        # Hooks into the existing tools in w_postanalysis_reweight
-        matrices = self.__analysis_schemes__[self.scheme]['reweight']
-        nbins = matrices['bin_populations'].shape[1]
-        self.__analysis_schemes__[self.scheme]['aggregate_matrix'] = np.zeros((self.niters, nbins, nbins))
-        self.__analysis_schemes__[self.scheme]['total_pop'] = np.zeros((self.niters, nbins))
-        print("Hey, this analysis is borked.")
-        # So, those functions don't exist anymore, unfortunately.  We could run through the cython estimator routine, which would admittedly be fast...
-        # ... but I haven't done that yet, so.
-        #matrix_accumulator = w_postanalysis_reweight.accumulate_statistics
-        #normalize = w_postanalysis_reweight.normalize
-        #total_fluxes = np.zeros((nbins, nbins))
-        #total_obs = np.zeros((nbins, nbins))
-        #for iter in range(2, self.niters+1):
-        #    total_fluxes, total_obs, total_pop = matrix_accumulator(self.reweight, iter-1, iter, nbins, total_fluxes, total_obs)
-        #    self.__analysis_schemes__[self.scheme]['aggregate_matrix'][iter-1][:] = normalize(total_fluxes)
-
     def go(self):
         '''
         Function automatically called by main() when launched via the command line interface.
@@ -920,14 +953,6 @@ class WIPI(WESTParallelTool):
         self.data_reader.open()
         self.niters = self.data_reader.current_iteration - 1
         self.iteration = 1
-        if self.__settings['analysis_schemes'][self.scheme]['postanalysis'] == True:
-            self.__analysis_schemes__[self.scheme]['aggregate_matrix'] = None
-
-    #def _help(self, item=None):
-    #    if item == None:
-    #        print(self.__doc__)
-    #    else:
-    #        print(item.__doc__)
 
     @property
     def introduction(self):
@@ -993,8 +1018,4 @@ if __name__ == '__main__':
         import IPython
         embed(banner1='',
              exit_msg='Leaving w_ipa... goodbye.')
-        #cf=find_connection_file("*")
-        #kern = w.work_manager.submit(embed_kernel())
-        #print("We are running!")
-        #print(dir(kern))
     print("")
