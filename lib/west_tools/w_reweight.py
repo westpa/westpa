@@ -156,7 +156,8 @@ Command-line options
     def process_args(self, args):
         self.output_file = h5io.WESTPAH5File(args.output, 'w', creating_program=True)
         self.assignments_file = h5io.WESTPAH5File(args.assignments, 'r')
-        self.sampling_frequency = args.sampling_frequency
+        # Force a build of the transition matrix at the iteration level.
+        self.sampling_frequency = 'iteration' if self.assignments_file.attrs['subsampled'] == True else args.sampling_frequency
 
     def go(self):
         # This function exists in FluxMatrix, and is not currently portable.

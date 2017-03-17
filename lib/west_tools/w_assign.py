@@ -238,6 +238,7 @@ Command-line options
         self.output_file = None
         self.output_filename = None
         self.states = []
+        self.subsample = False
     
     def add_args(self, parser):
         self.data_reader.add_args(parser)
@@ -301,7 +302,7 @@ Command-line options
         #self.output_file = WESTPAH5File(args.output, 'w', creating_program=True)
         log.debug('state list: {!r}'.format(self.states))
 
-        self.subsample = args.subsample
+        self.subsample = args.subsample if args.subsample is not None else False
 
     def parse_cmdline_states(self, state_strings):
         states = []
@@ -474,6 +475,8 @@ Command-line options
             else:
                 nstates = 0
             self.output_file.attrs['nstates'] = nstates
+            # Stamp if this has been subsampled.
+            self.output_file.attrs['subsampled'] = self.subsample
 
             iter_count = iter_stop - iter_start
             nsegs = numpy.empty((iter_count,), seg_id_dtype)
