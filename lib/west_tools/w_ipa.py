@@ -18,7 +18,6 @@ import scipy.sparse as sp
 from westtools import (WESTSubcommand, WESTParallelTool, WESTDataReader, WESTDSSynthesizer, BinMappingComponent, 
                        ProgressIndicatorComponent, IterRangeSelection, Plotter)
 
-
 class WIPI(WESTParallelTool):
     '''
         Welcome to w_ipa (WESTPA Interactive Python Analysis)!
@@ -487,7 +486,6 @@ class WIPI(WESTParallelTool):
     # Returns the raw values, but can also calculate things based on them.
     class KineticsIteration(object):
         __dict__ = {}
-        __blah__ = {}
         def __init__(self, kin_h5file, index, assign):
             self.h5file = kin_h5file
             # Keys:
@@ -500,7 +498,7 @@ class WIPI(WESTParallelTool):
                 self.__dict__[key] = self.__1D_with_error__(key, index, assign)
 
         def __repr__(self):
-            return repr(self.__dict__)
+            return repr(self.__dir__())
         def __getitem__(self, value):
             if value in self.__dict__.keys():
                 return self.__dict__[value]
@@ -527,7 +525,7 @@ class WIPI(WESTParallelTool):
                 self.nstates = assign.attrs['nstates']
                 self.dim = len(raw.shape)
             def __repr__(self):
-                return repr(self.__dict__)
+                return repr(self.__dir__())
             def __getitem__(self, value):
                 if value in self.__dict__['raw'].dtype.names:
                     return self.__dict__['raw'][value]
@@ -648,6 +646,41 @@ class WIPI(WESTParallelTool):
 
         If you change the analysis scheme, so, too, will the important values.
         '''
+        __dict__ = {}
+
+        # This is nothing more than a fancy dictionary which has attributes AND keys.
+        class __custom_dataset__(object):
+            # This is just allow it to be indexed via properties.
+            # Not a huge thing, but whatever.
+            __dict__ = {}
+            def __init__(self, raw, key):
+                self.raw = raw
+                self.name = key
+            def __repr__(self):
+                return repr(self.__dir__())
+            def __getitem__(self, value):
+                if value in self.__dict__['raw'].keys():
+                    return self.__dict__['raw'][value]
+                elif value in self.__dict__.keys():
+                    return self.__dict__[value]
+            def __setitem__(self, key, value):
+                self.__dict__[key] = value
+            def __getattr__(self, value):
+                if value in self.__dict__['raw'].keys():
+                    return self.__dict__['raw'][value]
+                elif value in self.__dict__.keys():
+                    return self.__dict__[value]
+            def __setattr__(self, key, value):
+                self.__dict__[key] = value
+            def __dir__(self):
+                dict_keys = self.__dict__.keys()
+                remove = ['assign', 'dim', 'nstates']
+                #for i in remove:
+                #    dict_keys.remove(str(i))
+                return sorted(set(list(self.raw.keys()) + dict_keys))
+            def keys(self):
+                print(self.__dir__())
+                
         def __init__(self, parent, value, seg_ids = None):
             '''
             Initializes and sets the correct data.
@@ -656,6 +689,7 @@ class WIPI(WESTParallelTool):
             iter_group = parent.data_reader.get_iter_group(value)
             self.parent = parent
             current = {}
+            current['iteration'] = value
             if seg_ids == None:
                 seg_ids = xrange(0, iter_group['seg_index']['weight'].shape[0])
             # Just make these easier to access.
@@ -700,25 +734,42 @@ class WIPI(WESTParallelTool):
             if reweighting:
                 for key in evolution_datasets:
                     #print('Direct trace:')
-                    current[key] = { 'direct': current['direct'][key] }
+                    #current[key] = self.__custom_dataset__(raw={ 'direct': current['direct'][key] }, key='direct')
                     #print('NM Reweighting:')
-                    current[key].update({ 'reweight': current['reweight'][key] })
+                    current[key] = self.__custom_dataset__(raw={ 'direct': current['direct'][key], 'reweight': current['reweight'][key] }, key='a')
             else:
                 for key in evolution_datasets:
-                    current[key] = current['direct'][key]
+                    current[key] = self.__custom_dataset__(raw={ 'direct': current['direct'][key] }, name='direct')
+                    #current[key] = current['direct'][key]
 
             self.raw = current
         def __repr__(self):
             '''
             Returns the dictionary containing the iteration's values.
             '''
-            return repr(self.raw)
+            return repr(self.__dict__)
 
         def keys(self):
             '''
             Returns the keys function of the internal dictionary.
             '''
             return self.raw.keys()
+
+        def __setitem__(self, key, value):
+            self.__dict__[key] = value
+        def __getattr__(self, value):
+            if value in self.__dict__['raw'].keys():
+                return self.__dict__['raw'][value]
+            elif value in self.__dict__.keys():
+                return self.__dict__[value]
+        def __setattr__(self, key, value):
+            self.__dict__[key] = value
+        def __dir__(self):
+            dict_keys = self.__dict__.keys()
+            #remove = ['assign', 'dim', 'nstates']
+            #for i in remove:
+            #    dict_keys.remove(str(i))
+            return sorted(set(list(self.__dict__['raw'].keys()) + dict_keys))
 
         @property
         def maxweight(self):
@@ -736,6 +787,7 @@ class WIPI(WESTParallelTool):
             '''
             walker = np.where(self.raw['weights'] == np.min(self.raw['weights']))[0][0]
             return self.__getitem__(walker)
+
 
         def __getitem__(self, value):
             '''
@@ -769,6 +821,7 @@ class WIPI(WESTParallelTool):
                             current['auxdata'][key] = self.raw['auxdata'][key][value]
                     except:
                         pass
+                    current = self.__custom_dataset__(current, 'Segment {} in Iter {}'.format(value, self.iteration))
                     return current
                 else:
                     print('INVALID SEG_ID {}.  SEG_ID should be less than {}.'.format(value, self.parent.walkers))
@@ -1008,6 +1061,16 @@ class WIPI(WESTParallelTool):
     def help(self):
         ''' Just a minor function to call help on itself.  Only in here to really help someone get help.'''
         help(self)
+
+    def _repr_pretty_(self, p, cycle):
+        self.introduction
+        return " "
+
+    def __dir__(self):
+        return_list = ['past', 'current', 'future']
+        return_list += ['iteration', 'niters', 'scheme', 'list_scheme', 'bin_labels', 'state_labels', 'west', 'assign', 'direct', 'reweight', 'trace']
+        return sorted(set(return_list))
+
 
 
 west = WIPI()
