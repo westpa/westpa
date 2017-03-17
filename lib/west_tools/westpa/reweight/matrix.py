@@ -48,7 +48,7 @@ class FluxMatrix():
     def w_postanalysis_matrix(self):
         pi = self.progress.indicator
         pi.new_operation('Initializing')
-
+        
         self.data_reader.open('r')
         nbins = self.assignments_file.attrs['nbins']
 
@@ -140,4 +140,8 @@ class FluxMatrix():
 
             # Check and save the number of intermediate time points; this will be used to normalize the
             # flux and kinetics to tau in w_postanalysis_reweight.
-            self.output_file.attrs['npts'] = npts if self.sampling_frequency == 'timepoint' else 2
+            if self.assignments_file.attrs['subsampled'] == True or self.sampling_frequency == 'iteration':
+                self.output_file.attrs['npts'] = 2
+            else:
+                #self.output_file.attrs['npts'] = npts if self.sampling_frequency == 'timepoint' else 2
+                self.output_file.attrs['npts'] = npts

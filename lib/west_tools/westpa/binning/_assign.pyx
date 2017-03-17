@@ -235,6 +235,13 @@ cpdef assign_and_label(Py_ssize_t nsegs_lb,
     
     for iseg in range(nsegs):
         assign(pcoords[iseg,:], mask, assignments[iseg,:])
+
+    if subsample == True:
+        with nogil:
+            for iseg in range(nsegs):
+                for ipt in range(npts-2):
+                    # We want to 'destroy' all assignment information that isn't the first or last point.
+                    _assignments[iseg,ipt+1] = _assignments[iseg,0]
     
     if state_map is not None:
         if subsample == False:

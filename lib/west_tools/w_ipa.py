@@ -157,6 +157,7 @@ class WIPI(WESTParallelTool):
         h5file.attrs['arg_hash'] = new_hash
         h5file.close()
         h5file = h5io.WESTPAH5File(h5file_name, 'r')
+        return h5file
 
     def analysis_structure(self):
         '''
@@ -484,29 +485,79 @@ class WIPI(WESTParallelTool):
         return self.west['summary']['n_particles'][:self.iteration].sum()
 
     # Returns the raw values, but can also calculate things based on them.
-    class KineticsIteration(dict):
+    class KineticsIteration(object):
+        __dict__ = {}
+        __blah__ = {}
         def __init__(self, kin_h5file, index, assign):
             self.h5file = kin_h5file
             # Keys:
             _2D_h5keys = [ 'rate_evolution', 'conditional_flux_evolution' ]
             _1D_h5keys = [ 'state_pop_evolution', 'color_prob_evolution' ]
-            self.raw = {}
+            #self.raw = {}
             for key in _2D_h5keys:
-                self.raw[key] = self.__2D_with_error__(key, index, assign)
+                self.__dict__[key] = self.__2D_with_error__(key, index, assign)
             for key in _1D_h5keys:
-                self.raw[key] = self.__1D_with_error__(key, index, assign)
+                self.__dict__[key] = self.__1D_with_error__(key, index, assign)
 
-        class __1D_custom_dataset__():
+        def __repr__(self):
+            return repr(self.__dict__)
+        def __getitem__(self, value):
+            if value in self.__dict__.keys():
+                return self.__dict__[value]
+        def __setitem__(self, key, value):
+            self.__dict__[key] = value
+        def __getattr__(self, value):
+            if value in self.__dict__.keys():
+                return self.__dict__[value]
+        def __setattr__(self, key, value):
+            self.__dict__[key] = value
+        def __dir__(self):
+            return sorted(set(self.__dict__.keys()))
+        def keys(self):
+            print(self.__dir__())
+
+        class __custom_dataset__(object):
             # This is just allow it to be indexed via properties.
             # Not a huge thing, but whatever.
+            __dict__ = {}
             def __init__(self, raw, assign, key):
                 self.raw = raw
                 self.name = key
                 self.assign = assign
                 self.nstates = assign.attrs['nstates']
+                self.dim = len(raw.shape)
+            def __repr__(self):
+                return repr(self.__dict__)
+            def __getitem__(self, value):
+                if value in self.__dict__['raw'].dtype.names:
+                    return self.__dict__['raw'][value]
+                elif value in self.__dict__.keys():
+                    return self.__dict__[value]
+            def __setitem__(self, key, value):
+                self.__dict__[key] = value
+            def __getattr__(self, value):
+                if value in self.__dict__['raw'].dtype.names:
+                    return self.__dict__['raw'][value]
+                elif value in self.__dict__.keys():
+                    return self.__dict__[value]
+            def __setattr__(self, key, value):
+                self.__dict__[key] = value
+            def __dir__(self):
+                dict_keys = self.__dict__.keys()
+                remove = ['assign', 'dim', 'nstates']
+                for i in remove:
+                    dict_keys.remove(str(i))
+                return sorted(set(list(self.raw.dtype.names) + dict_keys))
+            def keys(self):
+                print(self.__dir__())
             def _repr_pretty_(self, p, cycle):
-                # We're just using this as a way to print things in a pretty way.  They can still be indexed appropriately.
-                # Stolen shamelessly from westtools/kinetics_tool.py
+                if self.dim == 1:
+                    return self._1D_repr_pretty_(p, cycle)
+                if self.dim == 2:
+                    return self._2D_repr_pretty_(p, cycle)
+            def _1D_repr_pretty_(self, p, cycle):
+               # We're just using this as a way to print things in a pretty way.  They can still be indexed appropriately.
+               # Stolen shamelessly from westtools/kinetics_tool.py
                 maxlabellen = max(map(len,self.assign['state_labels']))
                 p.text('')
                 p.text('{name} data:\n'.format(name=self.name))
@@ -518,61 +569,32 @@ class WIPI(WESTParallelTool):
                         self.raw['ci_ubound'][istate],
                         maxlabellen=maxlabellen))
                 p.text('To access data, index via the following names:\n')
-                p.text(str(self.raw.dtype.names))
+                p.text(str(self.__dir__()))
                 return " "
-            def __repr__(self):
-                return " "
-            def __getitem__(self, value):
-                # These functions can't look like this, or else they explode.
-                return self.raw[value]
-            def __getattr__(self, attr):
-                # Allow them to access dtype names as keys or attributes.
-                if attr in self.raw.dtype.names:
-                    return self.raw[attr]
-                else:
-                    return self.attr[attr]
-
-        class __2D_custom_dataset__():
-            # This is just allow it to be indexed via properties.
-            # Not a huge thing, but whatever.
-            def __init__(self, raw, assign, key):
-                self.raw = raw
-                self.name = key
-                self.assign = assign
-                self.nstates = assign.attrs['nstates']
-            def _repr_pretty_(self, p, cycle):
+            def _2D_repr_pretty_(self, p, cycle):
                 # We're just using this as a way to print things in a pretty way.  They can still be indexed appropriately.
                 # Stolen shamelessly from westtools/kinetics_tool.py
                 maxlabellen = max(map(len,self.assign['state_labels']))
-                if not cycle:
-                    p.text('')
-                    p.text('{name} data:\n'.format(name=self.name))
-                    for istate in xrange(self.nstates):
-                        for jstate in xrange(self.nstates):
-                            if istate == jstate: continue
-                            p.text('{:{maxlabellen}s} -> {:{maxlabellen}s}: mean={:21.15e} CI=({:21.15e}, {:21.15e}) * tau^-1\n'
-                                .format(self.assign['state_labels'][istate], self.assign['state_labels'][jstate],
-                                self.raw['expected'][istate, jstate],
-                                self.raw['ci_lbound'][istate, jstate],
-                                self.raw['ci_ubound'][istate, jstate],
-                                maxlabellen=maxlabellen))
-                    p.text('To access data, index via the following names:\n')
-                    p.text(str(self.raw.dtype.names))
-                else:
-                    p.text('')
+                p.text('')
+                p.text('{name} data:\n'.format(name=self.name))
+                for istate in xrange(self.nstates):
+                    for jstate in xrange(self.nstates):
+                        if istate == jstate: continue
+                        p.text('{:{maxlabellen}s} -> {:{maxlabellen}s}: mean={:21.15e} CI=({:21.15e}, {:21.15e}) * tau^-1\n'
+                            .format(self.assign['state_labels'][istate], self.assign['state_labels'][jstate],
+                            self.raw['expected'][istate, jstate],
+                            self.raw['ci_lbound'][istate, jstate],
+                            self.raw['ci_ubound'][istate, jstate],
+                            maxlabellen=maxlabellen))
+                p.text('To access data, index via the following names:\n')
+                l = []
+                for key in self.raw.dtype.names:
+                    l.append(key)
+                for key in self.__dict__.keys():
+                    l.append(key)
+                p.text(str(l))
                 return " "
-            def __repr__(self):
-                return " "
-            def __getitem__(self, value):
-                # These functions can't look like this, or else they explode.
-                return self.raw[value]
-            def __getattr__(self, attr):
-                # Allow them to access dtype names as keys or attributes.
-                # Actually, this explodes, too.
-                if attr in self.raw.dtype.names:
-                    return self.raw[attr]
-                else:
-                    return self.attr[value]
+
 
         def __2D_with_error__(self, h5key, index, assign):
             # Check the start and stop, calculate the block size, and index appropriately.
@@ -585,9 +607,8 @@ class WIPI(WESTParallelTool):
             raw = self.h5file[h5key][value, :, :]
             error = (raw['ci_ubound'] - raw['ci_lbound']) / (2*raw['expected'])
             expected = raw['expected']
-            raw = self.__2D_custom_dataset__(raw, assign, h5key)
+            raw = self.__custom_dataset__(raw, assign, h5key)
             raw.error = error
-            raw.expected = expected
             return raw
         def __1D_with_error__(self, h5key, index, assign):
             self.step_iter = (self.h5file[h5key]['iter_stop'][0] - self.h5file[h5key]['iter_start'][0])[1]
@@ -597,24 +618,11 @@ class WIPI(WESTParallelTool):
             raw = self.h5file[h5key][value, :]
             error = (raw['ci_ubound'] - raw['ci_lbound']) / (2*raw['expected'])
             expected = raw['expected']
-            raw = self.__1D_custom_dataset__(raw, assign, h5key)
+            raw = self.__custom_dataset__(raw, assign, h5key)
             raw.error = error
-            raw.expected = expected
             return raw
-        def __getattr__(self, attr):
-            return self.__dict__[attr]
-        def __repr__(self):
-            # Instead of returning raw datasets, let's return... other stuff.
-            return repr(self.raw.keys())
-        def __getitem__(self, value):
-            return self.raw[value]
-        def keys(self):
-            return self.raw.keys()
-        @property
-        def names(self):
-            return self.keys()
 
-    class __get_data_for_iteration__():
+    class __get_data_for_iteration__(object):
         '''
         All interesting data from an iteration (current/past).  Whenever you change the scheme or iteration,
         this dictionary is automatically updated.  For the current iteration, it's keyed to the current seg_id.
@@ -1016,6 +1024,11 @@ if __name__ == '__main__':
         from IPython import embed, embed_kernel
         from IPython.lib.kernel import find_connection_file
         import IPython
+        # We're using this to set magic commands.
+        # Mostly, we're using it to allow tab completion of objects stored in dictionaries.
+        c = IPython.Config()
+        c.IPCompleter.greedy = True
         embed(banner1='',
-             exit_msg='Leaving w_ipa... goodbye.')
+             exit_msg='Leaving w_ipa... goodbye.',
+             config=c)
     print("")

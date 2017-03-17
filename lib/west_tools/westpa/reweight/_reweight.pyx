@@ -80,7 +80,8 @@ cpdef stats_process(numpy.ndarray[index_t, ndim=2] bin_assignments,
     if interval == 'iteration':
         for k in xrange(nsegs):
             # Should this be 0?
-            ibin = bin_assignments[k,i]
+            # .... this should super be 0.  What?
+            ibin = bin_assignments[k,0]
             fbin = bin_assignments[k, npts - 1]
 
             if mask[k, 0] == 1:
