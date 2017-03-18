@@ -581,7 +581,7 @@ class WIPI(WESTParallelTool):
             def __dir__(self):
                 dict_keys = self.__dict__.keys()
                 # We don't want to show the plotter class; just the plot function
-                remove = ['assign', 'dim', 'nstates', 'plotter']
+                remove = ['assign', 'dim', 'nstates', 'plotter', '__dict__']
                 for i in remove:
                     try:
                         dict_keys.remove(str(i))
