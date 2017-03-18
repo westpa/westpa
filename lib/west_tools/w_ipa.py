@@ -747,13 +747,13 @@ class WIPI(WESTParallelTool):
             '''
             Returns the dictionary containing the iteration's values.
             '''
-            return repr(self.__dict__)
+            return repr(self.__dict__['raw'].keys())
 
         def keys(self):
             '''
             Returns the keys function of the internal dictionary.
             '''
-            return self.raw.keys()
+            return self.__dict__['raw'].keys()
 
         def __setitem__(self, key, value):
             self.__dict__[key] = value
