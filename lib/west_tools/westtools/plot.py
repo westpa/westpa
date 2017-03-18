@@ -171,6 +171,6 @@ class Plotter(object):
                 if self.dim == 3:
                     print("{} from {} to {} from iter 1 to {}".format(h5key, self.state_labels[si], self.state_labels[sj], self.iteration))
                 else:
-                    print("{} evolution of state {} from iter 1 to {}".format(h5key, self.state_labels[si], self.iteration))
+                    print("{} of state {} from iter 1 to {}".format(h5key, self.state_labels[si], self.iteration))
             with self.t.location(0, h+3):
                 raw_input("Press enter to continue.")
