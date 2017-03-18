@@ -18,6 +18,40 @@ import scipy.sparse as sp
 from westtools import (WESTSubcommand, WESTParallelTool, WESTDataReader, WESTDSSynthesizer, BinMappingComponent, 
                        ProgressIndicatorComponent, IterRangeSelection, Plotter)
 
+# This is nothing more than a fancy dictionary which has attributes AND keys.
+# It's useful for the 'end user experience', and through inheritance, we can ensure a whole
+# cascade of dictionaries utilizes this.
+class __custom_dataset__(object):
+    def __init__(self, raw, key):
+        self.__dict__ = {}
+        self.raw = raw
+        self.name = key
+    def __repr__(self):
+        return repr(self.__dir__())
+    def __getitem__(self, value):
+        if value in self.__dict__['raw'].keys():
+            return self.__dict__['raw'][value]
+        elif value in self.__dict__.keys():
+            return self.__dict__[value]
+    def __setitem__(self, key, value):
+        self.__dict__[key] = value
+    def __getattr__(self, value):
+        if value in self.__dict__['raw'].keys():
+            return self.__dict__['raw'][value]
+        elif value in self.__dict__.keys():
+            return self.__dict__[value]
+    def __setattr__(self, key, value):
+        self.__dict__[key] = value
+    def __dir__(self):
+        dict_keys = self.__dict__.keys()
+        remove = ['raw', 'name']
+        for i in remove:
+            dict_keys.remove(str(i))
+        return sorted(set(list(self.raw.keys()) + dict_keys))
+    def keys(self):
+        print(self.__dir__())
+                
+
 class WIPI(WESTParallelTool):
     '''
         Welcome to w_ipa (WESTPA Interactive Python Analysis)!
@@ -485,17 +519,19 @@ class WIPI(WESTParallelTool):
 
     # Returns the raw values, but can also calculate things based on them.
     class KineticsIteration(object):
-        __dict__ = {}
-        def __init__(self, kin_h5file, index, assign):
+        def __init__(self, kin_h5file, index, assign, iteration=-1):
+            self.__dict__ = {}
             self.h5file = kin_h5file
             # Keys:
-            _2D_h5keys = [ 'rate_evolution', 'conditional_flux_evolution' ]
+            #_2D_h5keys = [ 'rate_evolution', 'conditional_flux_evolution' ]
+            _2D_h5keys = [ 'conditional_flux_evolution', 'rate_evolution' ]
             _1D_h5keys = [ 'state_pop_evolution', 'color_prob_evolution' ]
-            #self.raw = {}
             for key in _2D_h5keys:
                 self.__dict__[key] = self.__2D_with_error__(key, index, assign)
-            for key in _1D_h5keys:
-                self.__dict__[key] = self.__1D_with_error__(key, index, assign)
+                #self.__dict__[key].plotter.iteration = iteration
+                #self.__dict__[key].plot = self.__dict__[key].plotter.plot
+            #for key in _1D_h5keys:
+            #    self.__dict__[key] = self.__1D_with_error__(key, index, assign)
 
         def __repr__(self):
             return repr(self.__dir__())
@@ -514,11 +550,12 @@ class WIPI(WESTParallelTool):
         def keys(self):
             print(self.__dir__())
 
+        # We seriously need to rename this.
         class __custom_dataset__(object):
             # This is just allow it to be indexed via properties.
             # Not a huge thing, but whatever.
-            __dict__ = {}
             def __init__(self, raw, assign, key):
+                self.__dict__ = {}
                 self.raw = raw
                 self.name = key
                 self.assign = assign
@@ -542,7 +579,8 @@ class WIPI(WESTParallelTool):
                 self.__dict__[key] = value
             def __dir__(self):
                 dict_keys = self.__dict__.keys()
-                remove = ['assign', 'dim', 'nstates']
+                # We don't want to show the plotter class; just the plot function
+                remove = ['assign', 'dim', 'nstates', 'assign']
                 for i in remove:
                     dict_keys.remove(str(i))
                 return sorted(set(list(self.raw.dtype.names) + dict_keys))
@@ -607,6 +645,8 @@ class WIPI(WESTParallelTool):
             expected = raw['expected']
             raw = self.__custom_dataset__(raw, assign, h5key)
             raw.error = error
+            raw.plotter = Plotter(self.h5file, h5key, iteration=value, interface='text')
+            raw.plot = raw.plotter.plot
             return raw
         def __1D_with_error__(self, h5key, index, assign):
             self.step_iter = (self.h5file[h5key]['iter_stop'][0] - self.h5file[h5key]['iter_start'][0])[1]
@@ -618,6 +658,7 @@ class WIPI(WESTParallelTool):
             expected = raw['expected']
             raw = self.__custom_dataset__(raw, assign, h5key)
             raw.error = error
+            #raw.plot = Plotter(kin_h5file, key, iteration=iteration, interface='text').plot
             return raw
 
     class __get_data_for_iteration__(object):
@@ -648,39 +689,6 @@ class WIPI(WESTParallelTool):
         '''
         __dict__ = {}
 
-        # This is nothing more than a fancy dictionary which has attributes AND keys.
-        class __custom_dataset__(object):
-            # This is just allow it to be indexed via properties.
-            # Not a huge thing, but whatever.
-            __dict__ = {}
-            def __init__(self, raw, key):
-                self.raw = raw
-                self.name = key
-            def __repr__(self):
-                return repr(self.__dir__())
-            def __getitem__(self, value):
-                if value in self.__dict__['raw'].keys():
-                    return self.__dict__['raw'][value]
-                elif value in self.__dict__.keys():
-                    return self.__dict__[value]
-            def __setitem__(self, key, value):
-                self.__dict__[key] = value
-            def __getattr__(self, value):
-                if value in self.__dict__['raw'].keys():
-                    return self.__dict__['raw'][value]
-                elif value in self.__dict__.keys():
-                    return self.__dict__[value]
-            def __setattr__(self, key, value):
-                self.__dict__[key] = value
-            def __dir__(self):
-                dict_keys = self.__dict__.keys()
-                remove = ['assign', 'dim', 'nstates']
-                #for i in remove:
-                #    dict_keys.remove(str(i))
-                return sorted(set(list(self.raw.keys()) + dict_keys))
-            def keys(self):
-                print(self.__dir__())
-                
         def __init__(self, parent, value, seg_ids = None):
             '''
             Initializes and sets the correct data.
@@ -714,11 +722,11 @@ class WIPI(WESTParallelTool):
             # Temporarily disabled while I sort out the fact that we shouldn't be using data from w_assign for state populations.
             #current['plot'] = Plotter(parent.direct, parent.reweight, parent.iteration, parent.assign['bin_labels'], parent.assign['state_labels'], current['populations'].states, current['populations'].bins, parent.interface)
             # Now we'll load up the results of the kinetics analysis.
-            current['direct'] = parent.KineticsIteration(parent.direct, value, parent.assign)
+            current['direct'] = parent.KineticsIteration(parent.direct, value, parent.assign, value)
             evolution_datasets = [ 'rate_evolution', 'conditional_flux_evolution', 'state_pop_evolution', 'color_prob_evolution' ]
             # We want to load these up as... oh, who knows, I suppose?
             try:
-                current['reweight'] = parent.KineticsIteration(parent.reweight, value, parent.assign)
+                current['reweight'] = parent.KineticsIteration(parent.reweight, value, parent.assign, value)
                 # We'll make this not a sparse matrix...
                 matrix = parent.reweight['iterations/iter_{:08d}'.format(value)]
                 # Assume color.
@@ -733,14 +741,10 @@ class WIPI(WESTParallelTool):
             # Check if the analysis has been enabled.  If yes, make them specify dataset dictionaries.  If not, return the thing.
             if reweighting:
                 for key in evolution_datasets:
-                    #print('Direct trace:')
-                    #current[key] = self.__custom_dataset__(raw={ 'direct': current['direct'][key] }, key='direct')
-                    #print('NM Reweighting:')
-                    current[key] = self.__custom_dataset__(raw={ 'direct': current['direct'][key], 'reweight': current['reweight'][key] }, key='a')
+                    current[key] = __custom_dataset__(raw={ 'direct': current['direct'][key], 'reweight': current['reweight'][key] }, key='a')
             else:
                 for key in evolution_datasets:
-                    current[key] = self.__custom_dataset__(raw={ 'direct': current['direct'][key] }, name='direct')
-                    #current[key] = current['direct'][key]
+                    current[key] = __custom_dataset__(raw={ 'direct': current['direct'][key] }, name='direct')
 
             self.raw = current
         def __repr__(self):
@@ -821,7 +825,7 @@ class WIPI(WESTParallelTool):
                             current['auxdata'][key] = self.raw['auxdata'][key][value]
                     except:
                         pass
-                    current = self.__custom_dataset__(current, 'Segment {} in Iter {}'.format(value, self.iteration))
+                    current = __custom_dataset__(current, 'Segment {} in Iter {}'.format(value, self.iteration))
                     return current
                 else:
                     print('INVALID SEG_ID {}.  SEG_ID should be less than {}.'.format(value, self.parent.walkers))
@@ -1089,7 +1093,12 @@ if __name__ == '__main__':
         import IPython
         # We're using this to set magic commands.
         # Mostly, we're using it to allow tab completion of objects stored in dictionaries.
-        c = IPython.Config()
+        try:
+            # Worked on MacOS.  Probably just an older version.
+            c = IPython.Config()
+        except:
+            # Seems to be necessary on Linux, and likely on newer installs.
+            c = IPython.terminal.ipapp.load_default_config()
         c.IPCompleter.greedy = True
         embed(banner1='',
              exit_msg='Leaving w_ipa... goodbye.',

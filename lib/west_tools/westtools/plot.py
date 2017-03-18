@@ -7,26 +7,37 @@ import h5py
 # We don't care if we're reimporting blessings, under this context.
 warnings.filterwarnings('ignore')
 
-class Plotter():
+class Plotter(object):
     '''
     This is a semi-generic plotting interface that has a built in curses based terminal plotter.
     It's fairly specific to what we're using it for here, but we could (and maybe should) build it out into
     a little library that we can use via the command line to plot things.  Might be useful for looking at data later.
     That would also cut the size of this tool down by a good bit.
     '''
-    def __init__(self, kinavg, kinrw, iteration, bin_labels, state_labels, state_pops, bin_pops, interface='matplotlib'):
+    #def __init__(self, kinavg, kinrw, iteration, bin_labels, state_labels, state_pops, bin_pops, interface='matplotlib'):
+    def __init__(self, h5file, h5key, iteration=-1, interface='matplotlib'):
         # Need to sort through and fix all this, but hey.
-        self.kinavg_file = kinavg
-        self.kinrw_file = kinrw
-        self.stateprobs_file = kinavg
         self.iteration = iteration
-        self.bin_labels = list(bin_labels[...])
-        self.state_labels = list(state_labels[...]) + ['unknown']
-        self.state_populations = state_pops
-        self.bin_populations = bin_pops
+        # These two are important for... reasons.
+        try:
+            self.bin_labels = list(bin_labels[...])
+            self.state_labels = list(state_labels[...]) + ['unknown']
+        except:
+            self.state_labels = list(h5file['state_labels'][...]) + ['unknown']
         self.interface = interface
+        # What we should ACTUALLY do is just... yeah, just have it sub in what we need.
+        # We'll need to throw in the state labels or whatever, but.
+        self.h5file = h5file
+        self.h5key = h5key
+
+    def plot(self, i=0, j=1, tau=1, iteration=None):
+        if iteration == None:
+            iteration = self.iteration
+        self.__generic_ci__(self.h5file, iteration, i, j, tau=tau, h5key=self.h5key)
 
     def __generic_ci__(self, h5file, iteration, i, j, tau, h5key='rate_evolution'):
+        # This function just calls the appropriate plot function for our available
+        # interface.
         if self.interface == 'text':
             self.__terminal_ci__(h5file, iteration, i, j, tau, h5key)
         else:
@@ -44,6 +55,8 @@ class Plotter():
                 return 1
 
     def __generic_histo__(self, vector, labels):
+        # This function just calls the appropriate plot function for our available
+        # interface.  Same thing as generic_ci, but for a histogram.
         if self.interface == 'text':
             self.__terminal_histo__(vector, labels)
         else:
@@ -88,7 +101,7 @@ class Plotter():
             if fullscreen_mode:
                 raw_input("Press enter to continue.")
 
-    def __terminal_ci__(self, h5file, iteration, si, sj, tau, h5key='rate_evolution'):
+    def __terminal_ci__(self, h5file, iteration, si, sj, tau, h5key):
         from blessings import Terminal
 
         self.t = Terminal()
@@ -134,29 +147,12 @@ class Plotter():
                 pass
 
             with self.t.location(0, h+2):
+                # We need to improve this.
                 if h5key == 'rate_evolution':
                     print("k_ij from {} to {} from iter 1 to {}".format(self.state_labels[si], self.state_labels[sj], self.iteration))
+                elif h5key == 'conditional_flux_evolution':
+                    print("i->j flux from {} to {} from iter 1 to {}".format(self.state_labels[si], self.state_labels[sj], self.iteration))
                 else:
                     print("{} state population from iter 1 to {}".format(self.state_labels[si], self.iteration))
             with self.t.location(0, h+3):
                 raw_input("Press enter to continue.")
-            
-
-
-    def kinavg(self, i=0, j=1, tau=1):
-        self.__generic_ci__(self.kinavg_file, self.iteration, i, j, tau)
-
-    def kinrw(self, i=0, j=1, tau=1):
-        self.__generic_ci__(self.kinrw_file, self.iteration, i, j, tau)
-
-    def rwstateprobs(self, i=0, j=1, tau=1):
-        self.__generic_ci__(self.kinrw_file, self.iteration, i, None, 1, h5key='state_pop_evolution')
-
-    def stateprobs(self, i=0, j=1, tau=1):
-        self.__generic_ci__(self.stateprobs_file, self.iteration, i, None, 1, h5key='state_pop_evolution')
-
-    def states(self):
-        self.__generic_histo__(self.state_populations, self.state_labels)
-
-    def bins(self):
-        self.__generic_histo__(self.bin_populations, self.bin_labels)
