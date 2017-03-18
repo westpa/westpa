@@ -29,6 +29,9 @@ class Plotter(object):
         # We'll need to throw in the state labels or whatever, but.
         self.h5file = h5file
         self.h5key = h5key
+        # We should determine the number of dimensions of our dataset...
+        # This has time data, so an i to j is a 3 dim, and an i is 2.
+        self.dim = len(h5file[h5key].shape)
 
     def plot(self, i=0, j=1, tau=1, iteration=None):
         if iteration == None:
@@ -45,9 +48,14 @@ class Plotter(object):
                 import matplotlib
                 matplotlib.use('TkAgg')
                 from matplotlib import pyplot as plt
-                plt.plot(h5file[h5key]['expected'][:iteration, i, j] / tau, color='black')
-                plt.plot(h5file[h5key]['ci_ubound'][:iteration, i, j] / tau, color='grey')
-                plt.plot(h5file[h5key]['ci_lbound'][:iteration, i, j] / tau, color='grey')
+                if self.dim == 3:
+                    plt.plot(h5file[h5key]['expected'][:iteration, i, j] / tau, color='black')
+                    plt.plot(h5file[h5key]['ci_ubound'][:iteration, i, j] / tau, color='grey')
+                    plt.plot(h5file[h5key]['ci_lbound'][:iteration, i, j] / tau, color='grey')
+                else:
+                    plt.plot(h5file[h5key]['expected'][:iteration, i] / tau, color='black')
+                    plt.plot(h5file[h5key]['ci_ubound'][:iteration, i] / tau, color='grey')
+                    plt.plot(h5file[h5key]['ci_lbound'][:iteration, i] / tau, color='grey')
                 plt.show()
             except:
                 print('Unable to import plotting interface.  An X server ($DISPLAY) is required.')
@@ -108,8 +116,12 @@ class Plotter(object):
         h = int(self.t.height / 4) * 3
         # We'll figure out how to subsample the timepoints...
         w = self.t.width
-        yupper = (h5file[h5key]['ci_ubound'][iteration-1, si, sj] / tau) * 2
-        ylower = (h5file[h5key]['ci_lbound'][iteration-1, si, sj] / tau) / 2
+        if self.dim == 3:
+            in_tup = (iteration-1, si, sj)
+        else:
+            in_tup = (iteration-1, si)
+        yupper = (h5file[h5key]['ci_ubound'][in_tup] / tau) * 2
+        ylower = (h5file[h5key]['ci_lbound'][in_tup] / tau) / 2
         # Here are points pertaining to height.
         scale = np.array([0.0] + [ylower+i*(yupper-ylower)/np.float(h) for i in range(0, h)])[::-1]
         if iteration > w:
@@ -121,8 +133,12 @@ class Plotter(object):
             try:
                 for x in range(0, w-12):
                     iter = x * block_size
-                    yupper = (h5file[h5key]['ci_ubound'][iter-1, si, sj] / tau)
-                    ylower = (h5file[h5key]['ci_lbound'][iter-1, si, sj] / tau)
+                    if self.dim == 3:
+                        in_tup = (iter-1, si, sj)
+                    else:
+                        in_tup = (iter-1, si)
+                    yupper = (h5file[h5key]['ci_ubound'][in_tup] / tau)
+                    ylower = (h5file[h5key]['ci_lbound'][in_tup] / tau)
                     ci = np.digitize([yupper, ylower], scale)
                     if x == 0:
                         for y in range(0, h+1):
@@ -134,7 +150,7 @@ class Plotter(object):
                             #print(self.t.on_blue(' '))
                     #with self.t.location(x+12, np.digitize(h5file['rate_evolution']['expected'][iter-1, si, sj]/tau, scale)):
                     #        print(self.t.on_blue('-'))
-                    print self.t.move(np.digitize(h5file[h5key]['expected'][iter-1, si, sj]/tau, scale), x+12) + self.t.on_blue('-')
+                    print self.t.move(np.digitize(h5file[h5key]['expected'][in_tup]/tau, scale), x+12) + self.t.on_blue('-')
 
                 for x in range(0, w-12, w/10):
                     if x == 0:
@@ -148,11 +164,13 @@ class Plotter(object):
 
             with self.t.location(0, h+2):
                 # We need to improve this.
-                if h5key == 'rate_evolution':
-                    print("k_ij from {} to {} from iter 1 to {}".format(self.state_labels[si], self.state_labels[sj], self.iteration))
-                elif h5key == 'conditional_flux_evolution':
-                    print("i->j flux from {} to {} from iter 1 to {}".format(self.state_labels[si], self.state_labels[sj], self.iteration))
+                #if h5key == 'rate_evolution':
+                #    print("k_ij from {} to {} from iter 1 to {}".format(self.state_labels[si], self.state_labels[sj], self.iteration))
+                #elif h5key == 'conditional_flux_evolution':
+                #    print("i->j flux from {} to {} from iter 1 to {}".format(self.state_labels[si], self.state_labels[sj], self.iteration))
+                if self.dim == 3:
+                    print("{} from {} to {} from iter 1 to {}".format(h5key, self.state_labels[si], self.state_labels[sj], self.iteration))
                 else:
-                    print("{} state population from iter 1 to {}".format(self.state_labels[si], self.iteration))
+                    print("{} evolution of state {} from iter 1 to {}".format(h5key, self.state_labels[si], self.iteration))
             with self.t.location(0, h+3):
                 raw_input("Press enter to continue.")

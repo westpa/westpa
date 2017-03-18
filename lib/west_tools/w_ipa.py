@@ -44,9 +44,12 @@ class __custom_dataset__(object):
         self.__dict__[key] = value
     def __dir__(self):
         dict_keys = self.__dict__.keys()
-        remove = ['raw', 'name']
+        remove = ['raw', 'name', '__dict__']
         for i in remove:
-            dict_keys.remove(str(i))
+            try:
+                dict_keys.remove(str(i))
+            except:
+                pass
         return sorted(set(list(self.raw.keys()) + dict_keys))
     def keys(self):
         print(self.__dir__())
@@ -528,10 +531,8 @@ class WIPI(WESTParallelTool):
             _1D_h5keys = [ 'state_pop_evolution', 'color_prob_evolution' ]
             for key in _2D_h5keys:
                 self.__dict__[key] = self.__2D_with_error__(key, index, assign)
-                #self.__dict__[key].plotter.iteration = iteration
-                #self.__dict__[key].plot = self.__dict__[key].plotter.plot
-            #for key in _1D_h5keys:
-            #    self.__dict__[key] = self.__1D_with_error__(key, index, assign)
+            for key in _1D_h5keys:
+                self.__dict__[key] = self.__1D_with_error__(key, index, assign)
 
         def __repr__(self):
             return repr(self.__dir__())
@@ -580,9 +581,12 @@ class WIPI(WESTParallelTool):
             def __dir__(self):
                 dict_keys = self.__dict__.keys()
                 # We don't want to show the plotter class; just the plot function
-                remove = ['assign', 'dim', 'nstates', 'assign']
+                remove = ['assign', 'dim', 'nstates', 'plotter']
                 for i in remove:
-                    dict_keys.remove(str(i))
+                    try:
+                        dict_keys.remove(str(i))
+                    except:
+                        pass
                 return sorted(set(list(self.raw.dtype.names) + dict_keys))
             def keys(self):
                 print(self.__dir__())
@@ -658,7 +662,8 @@ class WIPI(WESTParallelTool):
             expected = raw['expected']
             raw = self.__custom_dataset__(raw, assign, h5key)
             raw.error = error
-            #raw.plot = Plotter(kin_h5file, key, iteration=iteration, interface='text').plot
+            raw.plotter = Plotter(self.h5file, h5key, iteration=value, interface='text')
+            raw.plot = raw.plotter.plot
             return raw
 
     class __get_data_for_iteration__(object):
@@ -687,13 +692,13 @@ class WIPI(WESTParallelTool):
 
         If you change the analysis scheme, so, too, will the important values.
         '''
-        __dict__ = {}
 
         def __init__(self, parent, value, seg_ids = None):
             '''
             Initializes and sets the correct data.
             '''
             # We've classed this so that we can override some of the normal functions and allow indexing via seg_id
+            self.__dict__ = {}
             iter_group = parent.data_reader.get_iter_group(value)
             self.parent = parent
             current = {}
@@ -911,61 +916,47 @@ class WIPI(WESTParallelTool):
                 current['auxdata'][key] = np.concatenate(np.array(list(reversed(current['auxdata'][key]))))
         except:
             pass
-        return current
+        return __custom_dataset__(raw=current, key=seg_id)
 
     @property
-    def future(self):
+    def future(self, value=None):
         '''
         Similar to current/past, but keyed differently and returns different datasets.
         See help for Future.
         '''
         if self._future == None:
-            print("Running child analysis...")
-            self.__get_children__()
+            self._future = self.Future(raw=self.__get_children__(), key=None)
+            self._future.iteration = self.iteration+1
         return self._future
 
-    class Future():
-        '''
-        Very similar to current/past, except that it does a child analysis and returns information on any children for walker X.
-        Also keyed to the current seg_id.  See help for __get_data_for_iteration__
-        '''
-        def __init__(self, rep={}):
-            '''
-            Initializes the raw dictionary.
-            '''
-            # Mostly a holdover from when this wasn't a class.
-            self.raw = rep
-        def __repr__(self):
-            '''
-            Returns it as a dictionary, if it's just called.
-            '''
-            return repr(self.raw)
-        def keys(self):
-            '''
-            Acts as if it's just a dictionary and returns keys.
-            '''
-            return self.raw.keys()
+    class Future(__custom_dataset__):
+
+        # This isn't a real fancy one.
         def __getitem__(self, value):
-            '''
-            Responsible for handling it like a dictionary or an array of seg_ids.
-            '''
-            active_items = ['kinavg', 'statepops', 'weights', 'pcoord', 'auxdata', 'parents', 'summary', 'seg_id', 'walkers', 'states', 'bins']
-            if value in active_items:
-                return self.raw[value]
-            else:
+            if type(value) is str:
+                print(self.__dict__.keys())
+                try:
+                    return self.__dict__['raw'][value]
+                except:
+                    print('{} is not a valid data structure.'.format(value))
+            elif type(value) is int or type(value) is np.int64:
+                # Otherwise, we assume they're trying to index for a seg_id.
+                #if value < self.parent.walkers:
                 current = {}
                 seg_items = ['weights', 'pcoord', 'auxdata', 'parents', 'seg_id', 'states']
-                current['pcoord'] = self.raw['pcoord'][value]
-                current['states'] = self.raw['states'][value]
-                current['bins'] = self.raw['bins'][value]
-                current['seg_id'] = self.raw['seg_id'][value]
-                current['weights'] = self.raw['weights'][value]
-                current['parents'] = self.raw['parents'][value]
+                current['pcoord'] = self.__dict__['raw']['pcoord'][value]
+                current['states'] = self.__dict__['raw']['states'][value]
+                current['bins'] = self.__dict__['raw']['bins'][value]
+                current['parents'] = self.__dict__['raw']['parents'][value]
+                current['seg_id'] = self.__dict__['raw']['seg_id'][value]
+                current['weights'] = self.__dict__['raw']['weights'][value]
                 try:
-                    for key in self.raw['auxdata'].keys():
-                        current['auxdata'][key] = self.raw['auxdata'][key][value]
+                    current['auxdata'] = {}
+                    for key in self.__dict__['raw']['auxdata'].keys():
+                        current['auxdata'][key] = self.__dict__['raw']['auxdata'][key][value]
                 except:
                     pass
+                current = __custom_dataset__(current, 'Segment {} in Iter {}'.format(value, self.iteration))
                 return current
 
     def __get_children__(self):
@@ -978,22 +969,22 @@ class WIPI(WESTParallelTool):
             print("Currently at iteration {}, which is the max.  There are no children!".format(self.iteration))
             return 0
         iter_data = self.__get_data_for_iteration__(value=self.iteration+1, parent=self)
-        self._future = self.Future(rep={ 'kinavg': iter_data['kinavg'], 'weights': [], 'pcoord': [], 'parents': [], 'summary': iter_data['summary'], 'seg_id': [], 'walkers': iter_data['walkers'], 'states': [], 'bins': [] })
+        _future = { 'weights': [], 'pcoord': [], 'parents': [], 'summary': iter_data['summary'], 'seg_id': [], 'walkers': iter_data['walkers'], 'states': [], 'bins': [] }
         for seg_id in range(0, self.walkers):
             children = np.where(iter_data['parents'] == seg_id)[0]
             if len(children) == 0:
                 error = "No children for seg_id {}.".format(seg_id)
-                self._future['weights'].append(error)
-                self._future['pcoord'].append(error)
-                self._future['parents'].append(error)
-                self._future['seg_id'].append(error)
-                self._future['states'].append(error)
-                self._future['bins'].append(error)
+                _future['weights'].append(error)
+                _future['pcoord'].append(error)
+                _future['parents'].append(error)
+                _future['seg_id'].append(error)
+                _future['states'].append(error)
+                _future['bins'].append(error)
             else:
                 # Now, we're gonna put them in the thing.
                 value = self.iteration+1 
-                self._future['weights'].append(iter_data['weights'][children])
-                self._future['pcoord'].append(iter_data['pcoord'][...][children, :, :])
+                _future['weights'].append(iter_data['weights'][children])
+                _future['pcoord'].append(iter_data['pcoord'][...][children, :, :])
                 try:
                     aux_data = iter_data['auxdata'][...][children, :, :]
                     try:
@@ -1002,10 +993,11 @@ class WIPI(WESTParallelTool):
                         current['aux_data'] = aux_data
                 except:
                     pass
-                self._future['parents'].append(iter_data['parents'][children])
-                self._future['seg_id'].append(iter_data['seg_id'][children])
-                self._future['states'].append(self.assign['trajlabels'][value-1, children, :])
-                self._future['bins'].append(self.assign['assignments'][value-1, children, :])
+                _future['parents'].append(iter_data['parents'][children])
+                _future['seg_id'].append(iter_data['seg_id'][children])
+                _future['states'].append(self.assign['trajlabels'][value-1, children, :])
+                _future['bins'].append(self.assign['assignments'][value-1, children, :])
+        return _future
 
     def go(self):
         '''
@@ -1072,7 +1064,7 @@ class WIPI(WESTParallelTool):
 
     def __dir__(self):
         return_list = ['past', 'current', 'future']
-        return_list += ['iteration', 'niters', 'scheme', 'list_scheme', 'bin_labels', 'state_labels', 'west', 'assign', 'direct', 'reweight', 'trace']
+        return_list += ['iteration', 'niters', 'scheme', 'list_schemes', 'bin_labels', 'state_labels', 'west', 'assign', 'direct', 'reweight', 'trace']
         return sorted(set(return_list))
 
 
