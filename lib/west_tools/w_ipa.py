@@ -547,7 +547,16 @@ class WIPI(WESTParallelTool):
         def __setattr__(self, key, value):
             self.__dict__[key] = value
         def __dir__(self):
-            return sorted(set(self.__dict__.keys()))
+            dict_keys = self.__dict__.keys()
+            # We don't want to show the plotter class; just the plot function
+            remove = [ 'h5file', '__dict__']
+            for i in remove:
+                try:
+                    dict_keys.remove(str(i))
+                except:
+                    pass
+            return sorted(set(dict_keys))
+            #return sorted(set(self.__dict__.keys()))
         def keys(self):
             print(self.__dir__())
 
@@ -627,12 +636,7 @@ class WIPI(WESTParallelTool):
                             self.raw['ci_ubound'][istate, jstate],
                             maxlabellen=maxlabellen))
                 p.text('To access data, index via the following names:\n')
-                l = []
-                for key in self.raw.dtype.names:
-                    l.append(key)
-                for key in self.__dict__.keys():
-                    l.append(key)
-                p.text(str(l))
+                p.text(str(self.__dir__()))
                 return " "
 
 
