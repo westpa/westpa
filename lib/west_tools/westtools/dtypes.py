@@ -44,3 +44,40 @@ ed_list_dtype       = numpy.dtype([('istate', numpy.uint16),
                                    ('duration', numpy.float64),
                                    ('weight', numpy.float64), 
                                    ('seg_id', seg_id_dtype)])
+
+# A useful dataclass used as a wrapper for w_ipa to facilitate
+# ease-of-use in ipython/jupyter notebooks/sessions.
+# It basically just wraps up numpy arrays and dicts.
+
+class WIPIDataset(object):
+    def __init__(self, raw, key):
+        self.__dict__ = {}
+        self.raw = raw
+        self.name = key
+    def __repr__(self):
+        return repr(self.__dir__())
+    def __getitem__(self, value):
+        if value in self.__dict__['raw'].keys():
+            return self.__dict__['raw'][value]
+        elif value in self.__dict__.keys():
+            return self.__dict__[value]
+    def __setitem__(self, key, value):
+        self.__dict__[key] = value
+    def __getattr__(self, value):
+        if value in self.__dict__['raw'].keys():
+            return self.__dict__['raw'][value]
+        elif value in self.__dict__.keys():
+            return self.__dict__[value]
+    def __setattr__(self, key, value):
+        self.__dict__[key] = value
+    def __dir__(self):
+        dict_keys = self.__dict__.keys()
+        remove = ['raw', 'name', '__dict__']
+        for i in remove:
+            try:
+                dict_keys.remove(str(i))
+            except:
+                pass
+        return sorted(set(list(self.raw.keys()) + dict_keys))
+    def keys(self):
+        print(self.__dir__())

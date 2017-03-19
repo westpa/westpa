@@ -1,3 +1,20 @@
+# Copyright (C) 2017 Matthew C. Zwier and Lillian T. Chong
+#
+# This file is part of WESTPA.
+#
+# WESTPA is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# WESTPA is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
+
 import warnings
 #warnings.filterwarnings('ignore', category=DeprecationWarning)
 #warnings.filterwarnings('ignore', category=RuntimeWarning)
@@ -18,41 +35,8 @@ import scipy.sparse as sp
 from westtools import (WESTSubcommand, WESTParallelTool, WESTDataReader, WESTDSSynthesizer, BinMappingComponent, 
                        ProgressIndicatorComponent, IterRangeSelection, Plotter)
 
-# This is nothing more than a fancy dictionary which has attributes AND keys.
-# It's useful for the 'end user experience', and through inheritance, we can ensure a whole
-# cascade of dictionaries utilizes this.
-class __custom_dataset__(object):
-    def __init__(self, raw, key):
-        self.__dict__ = {}
-        self.raw = raw
-        self.name = key
-    def __repr__(self):
-        return repr(self.__dir__())
-    def __getitem__(self, value):
-        if value in self.__dict__['raw'].keys():
-            return self.__dict__['raw'][value]
-        elif value in self.__dict__.keys():
-            return self.__dict__[value]
-    def __setitem__(self, key, value):
-        self.__dict__[key] = value
-    def __getattr__(self, value):
-        if value in self.__dict__['raw'].keys():
-            return self.__dict__['raw'][value]
-        elif value in self.__dict__.keys():
-            return self.__dict__[value]
-    def __setattr__(self, key, value):
-        self.__dict__[key] = value
-    def __dir__(self):
-        dict_keys = self.__dict__.keys()
-        remove = ['raw', 'name', '__dict__']
-        for i in remove:
-            try:
-                dict_keys.remove(str(i))
-            except:
-                pass
-        return sorted(set(list(self.raw.keys()) + dict_keys))
-    def keys(self):
-        print(self.__dir__())
+from westtools import WIPIDataset as __custom_dataset__
+
                 
 
 class WIPI(WESTParallelTool):
@@ -779,6 +763,7 @@ class WIPI(WESTParallelTool):
             self.__dict__[key] = value
         def __dir__(self):
             dict_keys = self.__dict__.keys()
+            dict_keys += ['maxweight', 'minweight']
             #remove = ['assign', 'dim', 'nstates']
             #for i in remove:
             #    dict_keys.remove(str(i))
@@ -973,35 +958,35 @@ class WIPI(WESTParallelTool):
             print("Currently at iteration {}, which is the max.  There are no children!".format(self.iteration))
             return 0
         iter_data = self.__get_data_for_iteration__(value=self.iteration+1, parent=self)
-        _future = { 'weights': [], 'pcoord': [], 'parents': [], 'summary': iter_data['summary'], 'seg_id': [], 'walkers': iter_data['walkers'], 'states': [], 'bins': [] }
+        future = { 'weights': [], 'pcoord': [], 'parents': [], 'summary': iter_data['summary'], 'seg_id': [], 'walkers': iter_data['walkers'], 'states': [], 'bins': [] }
         for seg_id in range(0, self.walkers):
             children = np.where(iter_data['parents'] == seg_id)[0]
             if len(children) == 0:
                 error = "No children for seg_id {}.".format(seg_id)
-                _future['weights'].append(error)
-                _future['pcoord'].append(error)
-                _future['parents'].append(error)
-                _future['seg_id'].append(error)
-                _future['states'].append(error)
-                _future['bins'].append(error)
+                future['weights'].append(error)
+                future['pcoord'].append(error)
+                future['parents'].append(error)
+                future['seg_id'].append(error)
+                future['states'].append(error)
+                future['bins'].append(error)
             else:
                 # Now, we're gonna put them in the thing.
                 value = self.iteration+1 
-                _future['weights'].append(iter_data['weights'][children])
-                _future['pcoord'].append(iter_data['pcoord'][...][children, :, :])
+                future['weights'].append(iter_data['weights'][children])
+                future['pcoord'].append(iter_data['pcoord'][...][children, :, :])
                 try:
                     aux_data = iter_data['auxdata'][...][children, :, :]
                     try:
-                        current['aux_data'].append(aux_data)
+                        future['aux_data'].append(aux_data)
                     except:
-                        current['aux_data'] = aux_data
+                        future['aux_data'] = aux_data
                 except:
                     pass
-                _future['parents'].append(iter_data['parents'][children])
-                _future['seg_id'].append(iter_data['seg_id'][children])
-                _future['states'].append(self.assign['trajlabels'][value-1, children, :])
-                _future['bins'].append(self.assign['assignments'][value-1, children, :])
-        return _future
+                future['parents'].append(iter_data['parents'][children])
+                future['seg_id'].append(iter_data['seg_id'][children])
+                future['states'].append(self.assign['trajlabels'][value-1, children, :])
+                future['bins'].append(self.assign['assignments'][value-1, children, :])
+        return future
 
     def go(self):
         '''

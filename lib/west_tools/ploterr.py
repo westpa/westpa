@@ -18,11 +18,12 @@
 from __future__ import print_function, division; __metaclass__ = type
 import logging
 import re, os
-from westtools import WESTMasterCommand, WESTSubcommand, ProgressIndicatorComponent
+from westtools import WESTMasterCommand, WESTSubcommand, ProgressIndicatorComponent, Plotter
 import numpy, h5py
 from westpa import h5io
-import matplotlib
-from matplotlib import pyplot
+if os.environ.get('DISPLAY') is not None:
+    import matplotlib
+    from matplotlib import pyplot
 
 log = logging.getLogger('westtools.ploterrs')
 
@@ -64,6 +65,8 @@ class CommonPloterrs(WESTSubcommand):
                              help='''Use YLABEL for the y-axis label. (Default: varies.)''')
         pogroup.add_argument('--title',
                              help='''Use TITLE for the plot title. (Default: varies.)''')
+        pogroup.add_argument('--terminal', '-t', dest='plotting', action='store_true',
+                             help='''Plot output in terminal.''')
 
     def process_args(self, args):
         self.progress.process_args(args)
@@ -79,6 +82,12 @@ class CommonPloterrs(WESTSubcommand):
         self.xlabel = args.xlabel or 'Iteration'
         self.ylabel = args.ylabel
         self.title = args.title
+        if args.plotting or os.environ.get('DISPLAY') is None:
+            self.interface = 'text'
+        else:
+            import matplotlib
+            from matplotlib import pyplot
+            self.interface = 'matplotlib'
 
     def parse_range(self, rangespec):
         try:
@@ -301,23 +310,37 @@ flux/rate is being plotted:
     def go(self):
         pi = self.progress.indicator
         nstates = len(self.state_labels)
-        with pi:
-            # if --evolution-mode wasn't specified, neither of these exist:
-            if 'target_flux_evolution' in self.kinavg_file:
-                pi.new_operation('plotting fluxes', nstates)
-                for istate in xrange(nstates):
-                    self.plot_flux(istate)
-                    pi.progress += 1
-            
-            # if --evolution-mode wasn't specified, we won't get this either
-            if 'rate_evolution' in self.kinavg_file:
-                pi.new_operation('plotting rates', nstates*nstates)
-                for istate in xrange(nstates):
-                    for jstate in xrange(nstates):
-                        self.plot_rate(istate, jstate)
+        if self.interface == 'matplotlib':
+            with pi:
+                # if --evolution-mode wasn't specified, neither of these exist:
+                if 'target_flux_evolution' in self.kinavg_file:
+                    pi.new_operation('plotting fluxes', nstates)
+                    for istate in xrange(nstates):
+                        self.plot_flux(istate)
                         pi.progress += 1
-            else:
-                print('rate evolution not available')
+                
+                # if --evolution-mode wasn't specified, we won't get this either
+                if 'rate_evolution' in self.kinavg_file:
+                    pi.new_operation('plotting rates', nstates*nstates)
+                    for istate in xrange(nstates):
+                        for jstate in xrange(nstates):
+                            self.plot_rate(istate, jstate)
+                            pi.progress += 1
+                else:
+                    print('rate evolution not available')
+        else:
+            plotter = Plotter(self.kinavg_file, 'rate_evolution', iteration=-1, interface='text')
+            for istate in xrange(nstates):
+                for jstate in xrange(nstates):
+                    if istate != jstate:
+                        plotter.plot(istate, jstate)
+            plotter = Plotter(self.kinavg_file, 'conditional_flux_evolution', iteration=-1, interface='text')
+            for istate in xrange(nstates):
+                for jstate in xrange(nstates):
+                    if istate != jstate:
+                        plotter.plot(istate, jstate)
+
+
 
 class DirectStateprobs(CommonPloterrs):
     subcommand = 'd.probs'
@@ -412,20 +435,28 @@ plotted:
     def go(self):
         pi = self.progress.indicator
         nstates = len(self.state_labels)
-        with pi:
-            if 'state_pop_evolution' in self.stateprobs_file:
-                pi.new_operation('plotting populations', nstates)
-                for istate in xrange(nstates):
-                    self.plot_pop(istate)
-                    pi.progress += 1
+        if self.interface == 'matplotlib':
+            with pi:
+                if 'state_pop_evolution' in self.stateprobs_file:
+                    pi.new_operation('plotting populations', nstates)
+                    for istate in xrange(nstates):
+                        self.plot_pop(istate)
+                        pi.progress += 1
 
-            if 'color_prob_evolution' in self.stateprobs_file:
-                pi.new_operation('plotting ensemble populations', nstates)
-                for istate in xrange(nstates):
-                    self.plot_color(istate)
-                    pi.progress += 1
-            else:
-                print('population evolution not available')
+                if 'color_prob_evolution' in self.stateprobs_file:
+                    pi.new_operation('plotting ensemble populations', nstates)
+                    for istate in xrange(nstates):
+                        self.plot_color(istate)
+                        pi.progress += 1
+                else:
+                    print('population evolution not available')
+        else:
+            plotter = Plotter(self.stateprobs_file, 'state_pop_evolution', iteration=-1, interface='text')
+            for istate in xrange(nstates):
+                    plotter.plot(istate)
+            plotter = Plotter(self.stateprobs_file, 'color_prob_evolution', iteration=-1, interface='text')
+            for istate in xrange(nstates):
+                    plotter.plot(istate)
 
 class ReweightStateprobs(DirectStateprobs):
     subcommand = 'rw.probs'
