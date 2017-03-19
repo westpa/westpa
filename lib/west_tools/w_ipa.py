@@ -35,7 +35,7 @@ import scipy.sparse as sp
 from westtools import (WESTSubcommand, WESTParallelTool, WESTDataReader, WESTDSSynthesizer, BinMappingComponent, 
                        ProgressIndicatorComponent, IterRangeSelection, Plotter)
 
-from westtools import WIPIDataset, __get_data_for_iteration__, WIPIScheme
+from westtools import WIPIDataset, __get_data_for_iteration__, WIPIScheme, WIPINPDataset
 
 class WIPI(WESTParallelTool):
     '''
@@ -59,50 +59,17 @@ class WIPI(WESTParallelTool):
         To change/list the current analysis schemes:
 
             w.list_schemes
-            w.current_scheme = OUTPUT FROM w.list_schemes
+            w.scheme = OUTPUT FROM w.list_schemes
 
         To see the states and bins defined in the current analysis scheme:
 
             w.states
             w.bin_labels
 
-        All information about the current iteration is available in a dictionary called 'current'.
+        All information about the current iteration is available in an object called 'current':
 
-            w.current.keys():
+            w.current
             walkers, summary, states, seg_id, weights, parents, kinavg, pcoord, bins, populations, and auxdata, if it exists.
-
-        Populations prints the bin and state populations calculated by w_assign; it contains the following attributes:
-
-            states, bins
-
-            which can be called as w.current['populations'].states to return a numpy object.
-
-        If postanalysis has been run, the following information is also available:
-
-            instant_matrix, matrix (the aggregate matrix), kinrw
-
-        Both the kinrw and kinavg key in 'current' have the following attributes:
-
-            expected, error, flux, ferror, raw
-
-            where raw is returned on a basic call.
-
-        kinavg, states, and bins are pulled from the output from w_kinavg and w_assign; they always correspond to
-        what is used in the current analysis scheme.  If you change the scheme, those, too, will change.
-
-        You can look at the information for any walker by simply indexing according to that seg_id.
-
-        Information about the previous iteration is available in the past dictionary, which contains the same information.
-        It is keyed to use the current iteration's seg_id, such that if you're looking at walker 0 in the current iteration,
-        w.past['pcoord'][0] will give you the progress coordinate for the parent of walker 0.  You can look at the actual
-        walker seg_id in the previous iteration by
-        
-            w.past['parents'][0]
-
-        The assign and direct files from the current state are available for raw access.  The postanalysis output
-        is also available, should it exist:
-
-            w.assign, w.direct, w_reweight
 
         In addition, the function w.trace(seg_id) will run a trace over a seg_id in the current iteration and return a dictionary
         containing all pertinent information about that seg_id's history.  It's best to store this, as the trace can be expensive.
@@ -495,10 +462,10 @@ class WIPI(WESTParallelTool):
             print("Setting to {}".format(self.niters))
             value = self.niters
         # We want to trigger a rebuild on our current/past/future bits.
+        # The scheme should automatically reset to the proper iteration, but
+        # future needs to be manually triggered.
         self._iter = value
         self._future = None
-        #self._current = None
-        #self._past = None
         return self._iter
 
 
@@ -531,8 +498,8 @@ class WIPI(WESTParallelTool):
         '''
         # It should be noted that this is not a fast function, but was designed more as a 'proof of principle' of the generality of this approach.
         # It could, and most certainly should, have its speed increased.
-        if seg_id >= self.walkers:
-            print("Walker seg_id # {} is beyond the max count of {} walkers.".format(seg_id, self.walkers))
+        if seg_id >= self.current.walkers:
+            print("Walker seg_id # {} is beyond the max count of {} walkers.".format(seg_id, self.current.walkers))
             return 1
         current = { 'seg_id': [seg_id], 'pcoord': [self.current['pcoord'][seg_id]], 'states': [self.current['states'][seg_id]], 'weights': [self.current['weights'][seg_id]], 'iteration': [self.iteration], 'bins': [self.current['bins'][seg_id]] }
         try:
@@ -562,16 +529,24 @@ class WIPI(WESTParallelTool):
                 break
             parents = __get_data_for_iteration__(value=iter, parent=self)['parents']
         current['seg_id'] = list(reversed(current['seg_id']))
-        current['pcoord'] = np.concatenate(np.array(list(reversed(current['pcoord']))))
+        current['iteration'] = list(reversed(current['iteration']))
         current['states'] = np.concatenate(np.array(list(reversed(current['states']))))
         current['bins'] = np.concatenate(np.array(list(reversed(current['bins']))))
-        current['weights'] = list(reversed(current['weights']))
-        current['iteration'] = list(reversed(current['iteration']))
+        current['weights'] = np.array(list(reversed(current['weights'])))
+        current['pcoord'] = np.concatenate(np.array(list(reversed(current['pcoord']))))
         try:
             for key in self.current['auxdata'].keys():
                 current['auxdata'][key] = np.concatenate(np.array(list(reversed(current['auxdata'][key]))))
         except:
             pass
+        # Can this work?
+        # We'll just see if we can get it up and running...
+        current['state_labels'] = self.assign['state_labels']
+        current['plotter'] = {}
+        current['plot'] = {}
+        for i in ['pcoord', 'states', 'bins', 'weights']:
+            # This is just a shim for a plottable numpy dataset.
+            current[i] = WIPINPDataset(raw=current[i], key=i, iteration=self.iteration)
         return WIPIDataset(raw=current, key=seg_id)
 
     @property
@@ -626,7 +601,7 @@ class WIPI(WESTParallelTool):
             return 0
         iter_data = __get_data_for_iteration__(value=self.iteration+1, parent=self)
         future = { 'weights': [], 'pcoord': [], 'parents': [], 'summary': iter_data['summary'], 'seg_id': [], 'walkers': iter_data['walkers'], 'states': [], 'bins': [] }
-        for seg_id in range(0, self.walkers):
+        for seg_id in range(0, self.current.walkers):
             children = np.where(iter_data['parents'] == seg_id)[0]
             if len(children) == 0:
                 error = "No children for seg_id {}.".format(seg_id)
@@ -673,30 +648,17 @@ class WIPI(WESTParallelTool):
         Just spits out an introduction, in case someone doesn't call help.
         '''
         help_string = '''
-        Call as a dictionary item, unless item is a .property; then simply call on the item itself
+        Call as a dictionary item or a .attribute:
 
         w.past, w.current, w.future:
             
-            weights, pcoord, seg_id, parents, auxdata, summary, walkers, states, bins, matrix, instant_matrix
+            {current}
 
-                matrix          - aggregate transition matrix.
-                instant_matrix  - instant transition matrix (uses current iteration only)
-                bins            - bin assignments for walkers from current assignment file
-                states          - state assignments for walkers from current assignment file
+        Raw schemes can be accessed as follows:
 
-            kinavg, kinrw - call as is for native dataset, or:
+            w.scheme.{scheme_keys}
 
-                .expected, .error, .raw, .flux, .ferror
-                expected, ci_ubound, ci_lbound, sterr, corrlen
-
-            population.states, population.bin
-
-        w.iteration     - Get/set current iteration
-        w.niters        - Maximum number of iterations
-        w.scheme        - Get/set current analysis scheme
-        w.list_schemes  - Lists all analysis schemes, and current
-        w.bin_labels    - pcoord values for bin assignments from current assignment file
-        w.state_labels  - state labels for states from current assignment file
+            and contain mostly the same datasets associated with w.
 
         The following give raw access to the h5 files associated with the current scheme
 
@@ -705,9 +667,28 @@ class WIPI(WESTParallelTool):
         w.direct
         w.reweight
 
-        w.trace()
-        '''
+        OTHER:
+
+        {w}
+
+        '''.format(current=self.__format_keys__(self.current.__dir__(), split=' ', offset=12), scheme_keys=self.__format_keys__(self._scheme.raw.keys()),
+                   w=self.__format_keys__(self.__dir__(), offset=8, max_length=0, split='', prepend='w.'))
         print(help_string)
+
+    # Just a little function to be used with the introduction.
+    def __format_keys__(self, keys, split='/', offset=0, max_length=80, prepend=''):
+        rtn = ''
+        run_length = 0
+        for key in keys:
+            rtn += prepend + str(key) + split
+            run_length += len(str(key))
+            if run_length >= max_length:
+                run_length = offset
+                rtn += '\n' + ' '*offset
+        if rtn[-1] == split:
+            return rtn[:-1]
+        else:
+            return rtn
 
     @property
     def help(self):
@@ -720,7 +701,6 @@ class WIPI(WESTParallelTool):
 
     def __dir__(self):
         return_list = ['past', 'current', 'future']
-        #return_list += ['iteration', 'niters', 'scheme', 'list_schemes', 'bin_labels', 'state_labels', 'west', 'assign', 'direct', 'reweight', 'trace']
         # For the moment, don't expose direct, reweight, or assign, as these are scheme dependent files.
         # They do exist, and always link to the current scheme, however.
         return_list += ['iteration', 'niters', 'scheme', 'list_schemes', 'bin_labels', 'state_labels', 'west', 'trace']
