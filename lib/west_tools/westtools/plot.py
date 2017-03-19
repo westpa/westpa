@@ -40,7 +40,11 @@ class Plotter(object):
             self.bin_labels = list(bin_labels[...])
             self.state_labels = list(state_labels[...]) + ['unknown']
         except:
-            self.state_labels = list(h5file['state_labels'][...]) + ['unknown']
+            try:
+                self.state_labels = list(h5file['state_labels'][...]) + ['unknown']
+            except:
+                self.state_labels = None
+        # unless we totally fail out.
         self.interface = interface
         # What we should ACTUALLY do is just... yeah, just have it sub in what we need.
         # We'll need to throw in the state labels or whatever, but.
@@ -48,18 +52,29 @@ class Plotter(object):
         self.h5key = h5key
         # We should determine the number of dimensions of our dataset...
         # This has time data, so an i to j is a 3 dim, and an i is 2.
-        self.dim = len(h5file[h5key].shape)
+        try:
+            self.dim = len(h5file[h5key].shape)
+        except:
+            self.dim = 1
+        try:
+            # does the ci exist?
+            a = h5file[h5key]['expected']
+        except:
+            self.dim = 1
 
     def plot(self, i=0, j=1, tau=1, iteration=None):
         if iteration == None:
             iteration = self.iteration
-        self.__generic_ci__(self.h5file, iteration, i, j, tau=tau, h5key=self.h5key)
+            self.__generic_ci__(self.h5file, iteration, i, j, tau=tau, h5key=self.h5key)
 
     def __generic_ci__(self, h5file, iteration, i, j, tau, h5key='rate_evolution'):
         # This function just calls the appropriate plot function for our available
         # interface.
         if self.interface == 'text':
-            self.__terminal_ci__(h5file, iteration, i, j, tau, h5key)
+            if self.dim > 1:
+                self.__terminal_ci__(h5file, iteration, i, j, tau, h5key)
+            else:
+                self.__terminal_expected__(h5file, iteration, i, j, tau, h5key)
         else:
             try:
                 import matplotlib
@@ -76,7 +91,10 @@ class Plotter(object):
                 plt.show()
             except:
                 print('Unable to import plotting interface.  An X server ($DISPLAY) is required.')
-                self.__terminal_ci__(h5file, iteration, i, j, tau)
+                if self.dim > 1:
+                    self.__terminal_ci__(h5file, iteration, i, j, tau)
+                else:
+                    self.__terminal_expected__(h5file, iteration, i, j, tau, h5key)
                 return 1
 
     def __generic_histo__(self, vector, labels):
@@ -189,5 +207,63 @@ class Plotter(object):
                     print("{} from {} to {} from iter 1 to {}".format(h5key, self.state_labels[si], self.state_labels[sj], self.iteration))
                 else:
                     print("{} of state {} from iter 1 to {}".format(h5key, self.state_labels[si], self.iteration))
+            with self.t.location(0, h+3):
+                raw_input("Press enter to continue.")
+
+    def __terminal_expected__(self, h5file, iteration, si, sj, tau, h5key):
+        from blessings import Terminal
+
+        self.t = Terminal()
+        h = int(self.t.height / 4) * 3
+        # We'll figure out how to subsample the timepoints...
+        w = self.t.width
+        if self.dim == 3:
+            in_tup = (iteration-1, si, sj)
+        else:
+            in_tup = (iteration-1, si)
+        in_tup = (iteration-1)
+        yupper = (h5file[in_tup] / tau) * 2
+        ylower = (h5file[in_tup] / tau) / 2
+        # Here are points pertaining to height.
+        scale = np.array([0.0] + [ylower+i*(yupper-ylower)/np.float(h) for i in range(0, h)])[::-1]
+        if iteration > w:
+            block_size = iteration / w
+        else:
+            block_size = 1
+
+        with self.t.fullscreen():
+            try:
+                for x in range(0, w-12):
+                    iter = x * block_size
+                    if self.dim == 3:
+                        in_tup = (iter-1, si, sj)
+                    else:
+                        in_tup = (iter-1, si)
+                    in_tup = (iter-1)
+                    yupper = (h5file[in_tup] / tau)
+                    ylower = (h5file[in_tup] / tau)
+                    ci = np.digitize([yupper, ylower], scale)
+                    if x == 0:
+                        for y in range(0, h+1):
+                            with self.t.location(0, y):
+                                print(self.t.bold(self.t.red('{0:.7f}|'.format(scale[y]))))
+                    for y in range(ci[0], ci[1]):
+                        print self.t.move(y, x+12) + self.t.on_blue(' ')
+                            #print(self.t.on_blue(' '))
+                    print self.t.move(np.digitize(h5file[in_tup]/tau, scale), x+12) + self.t.on_blue('-')
+
+                for x in range(0, w-12, w/10):
+                    if x == 0:
+                        with self.t.location(x, h+1):
+                            print('Iteration| ')
+                    with self.t.location(x+12, h+1):
+                        iter = x * block_size
+                        print(self.t.blue(str(iter)))
+            except:
+                pass
+
+            with self.t.location(0, h+2):
+                # We need to improve this.
+                print("{} from iter 1 to {}".format(h5key, self.iteration))
             with self.t.location(0, h+3):
                 raw_input("Press enter to continue.")

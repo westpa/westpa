@@ -15,25 +15,11 @@
 # You should have received a copy of the GNU General Public License
 # along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
-import warnings
-#warnings.filterwarnings('ignore', category=DeprecationWarning)
-#warnings.filterwarnings('ignore', category=RuntimeWarning)
-#warnings.filterwarnings('ignore', category=FutureWarning)
 import numpy as np
-import h5py
-
-# Must be run with the WEST wrapper.
-from westpa import h5io
-from westpa.h5io import WESTPAH5File
-from westpa.extloader import get_object
-import westpa
 import os, sys
-import w_assign, w_direct, w_reweight
-#warnings.filterwarnings('ignore')
 import scipy.sparse as sp
 
-from westtools import (WESTSubcommand, WESTParallelTool, WESTDataReader, WESTDSSynthesizer, BinMappingComponent, 
-                       ProgressIndicatorComponent, IterRangeSelection, Plotter)
+from westtools import Plotter
 
 # A useful dataclass used as a wrapper for w_ipa to facilitate
 # ease-of-use in ipython/jupyter notebooks/sessions.
@@ -72,13 +58,46 @@ class WIPIDataset(object):
     def keys(self):
         print(self.__dir__())
 
-# Returns the raw values, but can also calculate things based on them.
+# Sort of a messy numpy plotter.
+class WIPINPDataset(object):
+    def __init__(self, raw, key, iteration):
+        self.__dict__ = {}
+        self.raw = raw
+        self.name = key
+        self.plotter = Plotter(self.raw, key, iteration=iteration, interface='text')
+        self.plot = self.plotter.plot
+    def __repr__(self):
+        return repr(self.raw)
+    def __setattr__(self, key, value):
+        self.__dict__[key] = value
+    def __getitem__(self, value):
+        if type(value) != str:
+            return self.__dict__['raw'][value]
+        elif value in self.__dict__.keys():
+            return self.__dict__[value]
+    def __setitem__(self, key, value):
+        self.__dict__[key] = value
+    def __getattr__(self, value):
+        if value in self.__dict__['raw'].dtype.names:
+            return self.__dict__['raw'][value]
+        elif value in self.__dict__.keys():
+            return self.__dict__[value]
+    def __dir__(self):
+        dict_keys = self.__dict__.keys()
+        remove = ['raw', 'name', '__dict__', 'plotter']
+        for i in remove:
+            try:
+                dict_keys.remove(str(i))
+            except:
+                pass
+        return sorted(set(dict_keys))
+
+# Similar to the above, but slightly expanded to contain information from analysis files.
 class KineticsIteration(object):
     def __init__(self, kin_h5file, index, assign, iteration=-1):
         self.__dict__ = {}
         self.h5file = kin_h5file
         # Keys:
-        #_2D_h5keys = [ 'rate_evolution', 'conditional_flux_evolution' ]
         _2D_h5keys = [ 'conditional_flux_evolution', 'rate_evolution' ]
         _1D_h5keys = [ 'state_pop_evolution', 'color_prob_evolution' ]
         for key in _2D_h5keys:
@@ -108,11 +127,11 @@ class KineticsIteration(object):
             except:
                 pass
         return sorted(set(dict_keys))
-        #return sorted(set(self.__dict__.keys()))
     def keys(self):
         print(self.__dir__())
 
     # We seriously need to rename this.
+    # It's similar to the global WIPDataset, but has some nice pretty print functions.
     class __custom_dataset__(object):
         # This is just allow it to be indexed via properties.
         # Not a huge thing, but whatever.
@@ -333,9 +352,12 @@ class __get_data_for_iteration__(object):
     def __dir__(self):
         dict_keys = self.__dict__.keys()
         dict_keys += ['maxweight', 'minweight', 'walkers', 'aggregate_walkers']
-        #remove = ['assign', 'dim', 'nstates']
-        #for i in remove:
-        #    dict_keys.remove(str(i))
+        remove = ['__dict__']
+        for i in remove:
+            try:
+                dict_keys.remove(str(i))
+            except:
+                pass
         return sorted(set(list(self.__dict__['raw'].keys()) + dict_keys))
 
     @property
@@ -366,7 +388,7 @@ class __get_data_for_iteration__(object):
 
     @property
     def aggregate_walkers(self):
-        return self.parent.west['summary']['n_particles'][:self.iteration-1].sum()
+        return self.parent.west['summary']['n_particles'][:self.iteration].sum()
 
 
     def __getitem__(self, value):
