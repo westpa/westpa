@@ -62,19 +62,19 @@ class Plotter(object):
         except:
             self.dim = 1
 
-    def plot(self, i=0, j=1, tau=1, iteration=None):
+    def plot(self, i=0, j=1, tau=1, iteration=None, dim=0):
         if iteration == None:
             iteration = self.iteration
-            self.__generic_ci__(self.h5file, iteration, i, j, tau=tau, h5key=self.h5key)
+            self.__generic_ci__(self.h5file, iteration, i, j, tau=tau, h5key=self.h5key, dim=dim)
 
-    def __generic_ci__(self, h5file, iteration, i, j, tau, h5key='rate_evolution'):
+    def __generic_ci__(self, h5file, iteration, i, j, tau, h5key='rate_evolution', dim=0):
         # This function just calls the appropriate plot function for our available
         # interface.
         if self.interface == 'text':
             if self.dim > 1:
                 self.__terminal_ci__(h5file, iteration, i, j, tau, h5key)
             else:
-                self.__terminal_expected__(h5file, iteration, i, j, tau, h5key)
+                self.__terminal_expected__(h5file, iteration, i, j, tau, h5key, dim)
         else:
             try:
                 import matplotlib
@@ -94,7 +94,7 @@ class Plotter(object):
                 if self.dim > 1:
                     self.__terminal_ci__(h5file, iteration, i, j, tau)
                 else:
-                    self.__terminal_expected__(h5file, iteration, i, j, tau, h5key)
+                    self.__terminal_expected__(h5file, iteration, i, j, tau, h5key, dim)
                 return 1
 
     def __generic_histo__(self, vector, labels):
@@ -210,7 +210,7 @@ class Plotter(object):
             with self.t.location(0, h+3):
                 raw_input("Press enter to continue.")
 
-    def __terminal_expected__(self, h5file, iteration, si, sj, tau, h5key):
+    def __terminal_expected__(self, h5file, iteration, si, sj, tau, h5key, dim):
         from blessings import Terminal
 
         self.t = Terminal()
@@ -221,8 +221,12 @@ class Plotter(object):
             in_tup = (iteration-1, si, sj)
         else:
             in_tup = (iteration-1, si)
-        in_tup = (iteration-1)
-        yupper = (h5file[in_tup] / tau) * 2
+        in_tup = (iteration-1, dim)
+        try:
+            yupper = (h5file[in_tup] / tau) * 2
+        except:
+            in_tup = (iteration-1)
+            yupper = (h5file[in_tup] / tau) * 2
         ylower = (h5file[in_tup] / tau) / 2
         # Here are points pertaining to height.
         scale = np.array([0.0] + [ylower+i*(yupper-ylower)/np.float(h) for i in range(0, h)])[::-1]
@@ -239,8 +243,12 @@ class Plotter(object):
                         in_tup = (iter-1, si, sj)
                     else:
                         in_tup = (iter-1, si)
-                    in_tup = (iter-1)
-                    yupper = (h5file[in_tup] / tau)
+                    in_tup = (iter-1, dim)
+                    try:
+                        yupper = (h5file[in_tup] / tau)
+                    except:
+                        in_tup = (iter-1)
+                        yupper = (h5file[in_tup] / tau)
                     ylower = (h5file[in_tup] / tau)
                     ci = np.digitize([yupper, ylower], scale)
                     if x == 0:
