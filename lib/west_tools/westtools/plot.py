@@ -223,13 +223,20 @@ class Plotter(object):
             in_tup = (iteration-1, si)
         in_tup = (iteration-1, dim)
         try:
-            yupper = (h5file[in_tup] / tau) * 2
+            yupper = (np.max(h5file) / tau) * 2
         except:
             in_tup = (iteration-1)
-            yupper = (h5file[in_tup] / tau) * 2
-        ylower = (h5file[in_tup] / tau) / 2
+            yupper = (np.max(h5file) / tau) * 2
+        ylower = (np.min(h5file) / tau) * 2
         # Here are points pertaining to height.
-        scale = np.array([0.0] + [ylower+i*(yupper-ylower)/np.float(h) for i in range(0, h)])[::-1]
+        if yupper > 0:
+            yupper = (np.max(h5file) / tau) * 1.2
+            ylower = (np.min(h5file) / tau) / 2
+            scale = np.array([0.0] + [ylower+i*(yupper-ylower)/np.float(h) for i in range(0, h)])[::-1]
+        else:
+            yupper = (np.max(h5file) / tau) / 2
+            ylower = (np.min(h5file) / tau) * 1.2
+            scale = np.array([ylower+i*(yupper-ylower)/np.float(h) for i in range(0, h)] + [0.0])[::-1]
         if iteration > w:
             block_size = iteration / w
         else:
