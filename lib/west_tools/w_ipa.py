@@ -547,6 +547,10 @@ class WIPI(WESTParallelTool):
         for i in ['pcoord', 'states', 'bins', 'weights']:
             # This is just a shim for a plottable numpy dataset.
             current[i] = WIPINPDataset(raw=current[i], key=i, iteration=self.iteration)
+            # Can we just set a plot function?
+            #current[i] = WIPIDataset(raw=current[i], key=i)
+            #current[i].plotter = Plotter(current[i].raw, i, iteration=self.iteration, interface='text')
+            #current[i].plot = current[i].plotter.plot
         return WIPIDataset(raw=current, key=seg_id)
 
     @property

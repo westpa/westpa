@@ -78,10 +78,16 @@ class WIPINPDataset(object):
     def __setitem__(self, key, value):
         self.__dict__[key] = value
     def __getattr__(self, value):
-        if value in self.__dict__['raw'].dtype.names:
+        #if value in self.__dict__['raw'].dtype.names:
+        #    return self.__dict__['raw'][value]
+        #elif value in self.__dict__.keys():
+        #    return self.__dict__[value]
+        if type(value) != str:
             return self.__dict__['raw'][value]
         elif value in self.__dict__.keys():
             return self.__dict__[value]
+        elif value in dir(self.__dict__['raw']):
+            return getattr(self.__dict__['raw'], value)
     def __dir__(self):
         dict_keys = self.__dict__.keys()
         remove = ['raw', 'name', '__dict__', 'plotter']
