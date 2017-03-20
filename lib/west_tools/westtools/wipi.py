@@ -31,8 +31,13 @@ class WIPIDataset(object):
         self.raw = raw
         self.name = key
     def __repr__(self):
-        return repr(self.__dir__())
+        if type(self.__dict__['raw']) == dict:
+            return repr(self.__dir__())
+        else:
+            return repr(self.raw)
     def __getitem__(self, value):
+        if type(value) != str:
+            return self.__dict__['raw'][value]
         if value in self.__dict__['raw'].keys():
             return self.__dict__['raw'][value]
         elif value in self.__dict__.keys():
@@ -40,54 +45,14 @@ class WIPIDataset(object):
     def __setitem__(self, key, value):
         self.__dict__[key] = value
     def __getattr__(self, value):
-        if value in self.__dict__['raw'].keys():
-            return self.__dict__['raw'][value]
-        elif value in self.__dict__.keys():
-            return self.__dict__[value]
-    def __setattr__(self, key, value):
-        self.__dict__[key] = value
-    def __dir__(self):
-        dict_keys = self.__dict__.keys()
-        remove = ['raw', 'name', '__dict__']
-        for i in remove:
-            try:
-                dict_keys.remove(str(i))
-            except:
-                pass
-        return sorted(set(list(self.raw.keys()) + dict_keys))
-    def keys(self):
-        print(self.__dir__())
-
-# Sort of a messy numpy plotter.
-class WIPINPDataset(object):
-    def __init__(self, raw, key, iteration):
-        self.__dict__ = {}
-        self.raw = raw
-        self.name = key
-        self.plotter = Plotter(self.raw, key, iteration=iteration, interface='text')
-        self.plot = self.plotter.plot
-    def __repr__(self):
-        return repr(self.raw)
-    def __setattr__(self, key, value):
-        self.__dict__[key] = value
-    def __getitem__(self, value):
-        if type(value) != str:
-            return self.__dict__['raw'][value]
-        elif value in self.__dict__.keys():
-            return self.__dict__[value]
-    def __setitem__(self, key, value):
-        self.__dict__[key] = value
-    def __getattr__(self, value):
-        #if value in self.__dict__['raw'].dtype.names:
-        #    return self.__dict__['raw'][value]
-        #elif value in self.__dict__.keys():
-        #    return self.__dict__[value]
-        if type(value) != str:
-            return self.__dict__['raw'][value]
-        elif value in self.__dict__.keys():
-            return self.__dict__[value]
-        elif value in dir(self.__dict__['raw']):
+        # Check if it's an attribute of the underlying datatype.
+        # If not, just use the getitem function.
+        if value in dir(self.__dict__['raw']):
             return getattr(self.__dict__['raw'], value)
+        else:
+            return self.__getitem__(value)
+    def __setattr__(self, key, value):
+        self.__dict__[key] = value
     def __dir__(self):
         dict_keys = self.__dict__.keys()
         remove = ['raw', 'name', '__dict__', 'plotter']
@@ -96,7 +61,13 @@ class WIPINPDataset(object):
                 dict_keys.remove(str(i))
             except:
                 pass
-        return sorted(set(dict_keys))
+        # We don't enforce that this is a dictionary.
+        if type(self.__dict__['raw']) == dict:
+            return sorted(set(list(self.raw.keys()) + dict_keys))
+        else:
+            return sorted(set(dict_keys))
+    def keys(self):
+        print(self.__dir__())
 
 # Similar to the above, but slightly expanded to contain information from analysis files.
 class KineticsIteration(object):
@@ -414,10 +385,12 @@ class __get_data_for_iteration__(object):
             # Otherwise, we assume they're trying to index for a seg_id.
             if value < self.walkers:
                 current = {}
-                seg_items = ['weights', 'pcoord', 'auxdata', 'parents', 'seg_id', 'states']
-                #for i in seg_items:
-                #    current[i] = self.raw[i]
-                current['pcoord'] = self.raw['pcoord'][value, :, :]
+                current['plotter'] = {}
+                for i in ['pcoord']:
+                    current[i] = WIPIDataset(raw=self.raw[i][value,:,:], key=i)
+                    current[i].plotter = Plotter(self.raw[i][value,:,:], i, iteration=self.iteration, interface='text')
+                    current[i].plot = current[i].plotter.plot
+
                 current['states'] = self.raw['states'][value, :]
                 current['bins'] = self.raw['bins'][value, :]
                 current['parents'] = self.raw['parents'][value]
@@ -482,27 +455,7 @@ class WIPIScheme(object):
             return self
 
     def __getattr__(self, value):
-        if type(value) != str:
-            for ischeme, schemename in enumerate(self.__dict__['raw'].keys()):
-                if ischeme == value:
-                    value = schemename
-        # Check for some weird Ipython stuff.
-        if '_ipython' in value:
-            # Okay, so we're just calling it without anything?
-            # I guess.
-            #self.name = None
-            return self
-        self.name = None
-        if value in self.__dict__['raw'].keys():
-            # If we have it in there...
-            self.name = value
-            return self
-        elif value in self.__dict__.keys():
-            self.name = value
-            return self
-        elif value in self.__dir__():
-            self.name = value
-            return self
+        return self.__getitem__(value)
 
     def __dir__(self):
         dict_keys = ['assign', 'direct', 'state_labels', 'bin_labels', 'west', 'reweight', 'current', 'past', 'iteration']
@@ -557,9 +510,9 @@ class WIPIScheme(object):
 
     @property
     def direct(self):
-        """
-        The output from w_kinavg.py from the current scheme.
-        """
+        '''
+        The output from w_direct.py from the current scheme.
+        '''
         return self.__analysis_schemes__[str(self.name)]['direct']
 
     @property
@@ -595,7 +548,6 @@ class WIPIScheme(object):
         '''
         The current iteration.  See help for __get_data_for_iteration__
         '''
-        #self.iteration = self.parent.iteration
         return __get_data_for_iteration__(value=self.iteration, parent=self)
 
     @property
@@ -603,7 +555,6 @@ class WIPIScheme(object):
         '''
         The previous iteration.  See help for __get_data_for_iteration__
         '''
-        #self.iteration = self.parent.iteration
         if self.iteration > 1:
             return __get_data_for_iteration__(value=self.iteration - 1, seg_ids=self.current['parents'], parent=self)
         else:

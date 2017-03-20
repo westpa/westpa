@@ -16,9 +16,9 @@
 # along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
 import warnings
-#warnings.filterwarnings('ignore', category=DeprecationWarning)
-#warnings.filterwarnings('ignore', category=RuntimeWarning)
-#warnings.filterwarnings('ignore', category=FutureWarning)
+warnings.filterwarnings('ignore', category=DeprecationWarning)
+warnings.filterwarnings('ignore', category=RuntimeWarning)
+warnings.filterwarnings('ignore', category=FutureWarning)
 import numpy as np
 import h5py
 
@@ -29,13 +29,13 @@ from westpa.extloader import get_object
 import westpa
 import os, sys
 import w_assign, w_direct, w_reweight
-#warnings.filterwarnings('ignore')
+warnings.filterwarnings('ignore')
 import scipy.sparse as sp
 
 from westtools import (WESTSubcommand, WESTParallelTool, WESTDataReader, WESTDSSynthesizer, BinMappingComponent, 
                        ProgressIndicatorComponent, IterRangeSelection, Plotter)
 
-from westtools import WIPIDataset, __get_data_for_iteration__, WIPIScheme, WIPINPDataset
+from westtools import WIPIDataset, __get_data_for_iteration__, WIPIScheme
 
 class WIPI(WESTParallelTool):
     '''
@@ -539,18 +539,14 @@ class WIPI(WESTParallelTool):
                 current['auxdata'][key] = np.concatenate(np.array(list(reversed(current['auxdata'][key]))))
         except:
             pass
-        # Can this work?
-        # We'll just see if we can get it up and running...
         current['state_labels'] = self.assign['state_labels']
-        current['plotter'] = {}
-        current['plot'] = {}
         for i in ['pcoord', 'states', 'bins', 'weights']:
-            # This is just a shim for a plottable numpy dataset.
-            current[i] = WIPINPDataset(raw=current[i], key=i, iteration=self.iteration)
-            # Can we just set a plot function?
-            #current[i] = WIPIDataset(raw=current[i], key=i)
-            #current[i].plotter = Plotter(current[i].raw, i, iteration=self.iteration, interface='text')
-            #current[i].plot = current[i].plotter.plot
+            current[i] = WIPIDataset(raw=current[i], key=i)
+            if i == 'weights':
+                current[i].plotter = Plotter(np.log10(current[i].raw), str('log10 of ' + str(i)), iteration=current[i].raw.shape[0], interface='text')
+            else:
+                current[i].plotter = Plotter(current[i].raw, i, iteration=current[i].raw.shape[0], interface='text')
+            current[i].plot = current[i].plotter.plot
         return WIPIDataset(raw=current, key=seg_id)
 
     @property
