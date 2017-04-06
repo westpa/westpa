@@ -30,8 +30,6 @@ class WIPIDataset(object):
         self.__dict__ = {}
         self.raw = raw
         self.name = key
-        # We're setting what the 'current' thing is.
-        #self.__dict__['__current__'] = None
     def __repr__(self):
         if type(self.__dict__['raw']) == dict:
             return repr(self.__dir__())
@@ -39,13 +37,10 @@ class WIPIDataset(object):
             return repr(self.raw)
     def __getitem__(self, value):
         if type(value) != str:
-            self.__dict__['__current__'] = value
             return self.__dict__['raw'][value]
         if value in self.__dict__['raw'].keys():
-            self.__dict__['__current__'] = value
             return self.__dict__['raw'][value]
         elif value in self.__dict__.keys():
-            self.__dict__['__current__'] = value
             return self.__dict__[value]
     def __setitem__(self, key, value):
         self.__dict__[key] = value
