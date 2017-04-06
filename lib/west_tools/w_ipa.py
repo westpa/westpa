@@ -107,14 +107,15 @@ class WIPI(WESTParallelTool):
         rgroup.add_argument('--reanalyze', '-ra', dest='reanalyze', action='store_true',
                              help='''Use this flag to delete the existing files and reanalyze.''')
         rgroup.add_argument('--ignore-hash', '-ih', dest='ignore_hash', action='store_true',
-                             help='''Ignore hash and don't regenerate files..''')
+                             help='''Ignore hash and don't regenerate files.''')
         rgroup.add_argument('--debug', '-d', dest='debug_mode', action='store_true',
-                             help='''Ignore hash and don't regenerate files..''')
+                             help='''Debug output largely intended for development.''')
         rgroup.add_argument('--terminal', '-t', dest='plotting', action='store_true',
                              help='''Plot output in terminal.''')
         # There is almost certainly a better way to handle this, but we'll sort that later.
+        import argparse
         rgroup.add_argument('--f', '-f', dest='extra', default='blah',
-                             help='''Temporary holding place for when this is called in a Jupyter notebook.''')
+                             help=argparse.SUPPRESS)
         
         parser.set_defaults(compression=True)
 
@@ -529,7 +530,7 @@ class WIPI(WESTParallelTool):
             return 1
         pi = self.progress.indicator
         with pi:
-            pi.new_operation('Tracing seg_id {}'.format(seg_id), self.iteration)
+            pi.new_operation('Tracing scheme:iter:seg_id {}:{}:{}'.format(self.scheme, self.iteration, seg_id), self.iteration)
             current = { 'seg_id': [], 'pcoord': [], 'states': [], 'weights': [], 'iteration': [], 'bins': [] }
             keys = []
             try:
@@ -665,12 +666,17 @@ class WIPI(WESTParallelTool):
         Function automatically called by main() when launched via the command line interface.
         Generally, call main, not this function.
         '''
+        print("")
+        print("Welcome to w_ipa (WESTPA Interactive Python Analysis) v. {}!".format(w.version))
+        print("Run w.introduction for a more thorough introduction, or w.help to see a list of options.")
+        print("Running analysis & loading files.")
         self.data_reader.open()
         self.analysis_structure()
         # Seems to be consistent with other tools, such as w_assign.  For setting the iterations.
         self.data_reader.open()
         self.niters = self.data_reader.current_iteration - 1
-        self.iteration = 1
+        self.iteration = self.niters
+        print('Your current scheme, system and iteration are : {}, {}, {}'.format(w.scheme, os.getcwd(), w.iteration))
 
     @property
     def introduction(self):
@@ -742,12 +748,7 @@ west = WIPI()
 w = west
 if __name__ == '__main__':
     # We're gonna print some defaults.
-    print("")
-    print("Welcome to w_ipa (WESTPA Interactive Python Analysis) v. {}!".format(w.version))
-    print("Run w.introduction for a more thorough introduction, or w.help to see a list of options.")
-    print("Running analysis & loading files.")
     w.main()
-    print('Your current scheme, system and iteration are : {}, {}, {}'.format(w.scheme, os.getcwd(), w.iteration))
     if w.analysis_mode == False:
         from IPython import embed, embed_kernel
         from IPython.lib.kernel import find_connection_file
