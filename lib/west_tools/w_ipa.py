@@ -16,9 +16,9 @@
 # along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
 import warnings
-warnings.filterwarnings('ignore', category=DeprecationWarning)
-warnings.filterwarnings('ignore', category=RuntimeWarning)
-warnings.filterwarnings('ignore', category=FutureWarning)
+#warnings.filterwarnings('ignore', category=DeprecationWarning)
+#warnings.filterwarnings('ignore', category=RuntimeWarning)
+#warnings.filterwarnings('ignore', category=FutureWarning)
 import numpy as np
 import h5py
 
@@ -31,6 +31,7 @@ import os, sys
 import w_assign, w_direct, w_reweight
 warnings.filterwarnings('ignore')
 import scipy.sparse as sp
+#sys.tracebacklimit = 5
 
 from westtools import (WESTSubcommand, WESTParallelTool, WESTDataReader, WESTDSSynthesizer, BinMappingComponent, 
                        ProgressIndicatorComponent, IterRangeSelection, Plotter)
@@ -84,6 +85,7 @@ class WIPI(WESTParallelTool):
         super(WIPI,self).__init__()
         self.data_reader = WESTDataReader()
         self.wm_env.default_work_manager = self.wm_env.default_parallel_work_manager
+        self.progress = ProgressIndicatorComponent()
 
         self._iter = 1
         self.config_required = True
@@ -95,6 +97,7 @@ class WIPI(WESTParallelTool):
         global iteration
 
     def add_args(self, parser):
+        self.progress.add_args(parser)
         self.data_reader.add_args(parser)
         rgroup = parser.add_argument_group('runtime options')
         rgroup.add_argument('--analysis-only', '-ao', dest='analysis_mode', action='store_true',
@@ -110,6 +113,7 @@ class WIPI(WESTParallelTool):
         parser.set_defaults(compression=True)
 
     def process_args(self, args):
+        self.progress.process_args(args)
         self.data_reader.process_args(args)
         with self.data_reader:
             self.niters = self.data_reader.current_iteration - 1
@@ -134,8 +138,12 @@ class WIPI(WESTParallelTool):
         # In addition, it's unlikely that the functionality is desired at the individual tool level,
         # since we'll always just rewrite a file when we call the function.
         import hashlib
-        import cPickle as pickle
-        return hashlib.md5(pickle.dumps([args, extra])).hexdigest()
+        import json
+        #return hashlib.md5(pickle.dumps([args, extra])).hexdigest()
+        to_hash = args + [extra]
+        print(to_hash)
+        print(str(to_hash).encode('base64'))
+        return hashlib.md5(str(to_hash).encode('base64')).hexdigest()
 
     def stamp_hash(self, h5file_name, new_hash):
         '''Loads a file, stamps it, and returns the opened file in read only'''
@@ -252,7 +260,8 @@ class WIPI(WESTParallelTool):
                             # Why are we calling this if we're not sure we're remaking the file?
                             # We need to load up the bin mapper and states and see if they're the same.
                             assign.make_parser_and_process(args=args)
-                            new_hash = self.hash_args(args=args, extra=[self.niters, assign.binning.mapper, assign.states])
+                            import pickle
+                            new_hash = self.hash_args(args=args, extra=[self.niters, pickle.dumps(assign.binning.mapper), assign.states])
                             # Let's check the hash.  If the hash is the same, we don't need to reload.
                             if arg_hash != new_hash or self.reanalyze == True:
                                 # If the hashes are different, or we need to reanalyze, delete the file.
@@ -323,6 +332,7 @@ class WIPI(WESTParallelTool):
                                 except:
                                     pass
                                 print('Reanalyzing file {}.h5 for scheme {}.'.format(name, scheme))
+                                print(args)
                                 analysis.make_parser_and_process(args=args)
                                 # We want to hook into the existing work manager.
                                 analysis.work_manager = self.work_manager
@@ -334,7 +344,7 @@ class WIPI(WESTParallelTool):
                             del(analysis)
 
         # Make sure this doesn't get too far out, here.  We need to keep it alive as long as we're actually analyzing things.
-        self.work_manager.shutdown()
+        # self.work_manager.shutdown()
         print("")
         print("Complete!")
 
@@ -496,38 +506,40 @@ class WIPI(WESTParallelTool):
 
         Call with a seg_id.
         '''
-        # It should be noted that this is not a fast function, but was designed more as a 'proof of principle' of the generality of this approach.
-        # It could, and most certainly should, have its speed increased.
         if seg_id >= self.current.walkers:
             print("Walker seg_id # {} is beyond the max count of {} walkers.".format(seg_id, self.current.walkers))
             return 1
-        current = { 'seg_id': [seg_id], 'pcoord': [self.current['pcoord'][seg_id]], 'states': [self.current['states'][seg_id]], 'weights': [self.current['weights'][seg_id]], 'iteration': [self.iteration], 'bins': [self.current['bins'][seg_id]] }
-        try:
-            current['auxdata'] = {}
-            for key in self.current['auxdata'].keys():
-                current['auxdata'][key] = [self.current['auxdata'][key][seg_id]]
-        except:
-            pass
-        parents = self.current['parents']
-        for iter in reversed(range(1, self.iteration)):
-            #print(iter)
-            iter_data = __get_data_for_iteration__(value=iter, seg_ids=parents, parent=self)
-            current['pcoord'].append(iter_data['pcoord'][seg_id, :, :])
-            current['states'].append(iter_data['states'][seg_id, :])
-            current['bins'].append(iter_data['bins'][seg_id, :])
-            current['seg_id'].append(iter_data['seg_id'][seg_id])
-            current['weights'].append(iter_data['weights'][seg_id])
+        pi = self.progress.indicator
+        with pi:
+            pi.new_operation('Tracing seg_id {}'.format(seg_id), self.iteration)
+            current = { 'seg_id': [], 'pcoord': [], 'states': [], 'weights': [], 'iteration': [], 'bins': [] }
+            keys = []
             try:
+                current['auxdata'] = {}
                 for key in self.current['auxdata'].keys():
-                    current['auxdata'][key].append(iter_data['auxdata'][key][seg_id])
+                    current['auxdata'][key] = []
+                    key = []
             except:
                 pass
-            current['iteration'].append(iter)
-            seg_id = iter_data['seg_id'][seg_id]
-            if seg_id < 0:
-                # Necessary for steady state simulations.  This means they started in that iteration.
-                break
-            parents = __get_data_for_iteration__(value=iter, parent=self)['parents']
+            for iter in reversed(range(1, self.iteration)):
+                iter_group = self.data_reader.get_iter_group(iter)
+                particles = self.data_reader.data_manager.get_iter_summary(int(iter))['n_particles']
+                current['pcoord'].append(iter_group['pcoord'][seg_id, :, :])
+                current['states'].append(self.assign['trajlabels'][iter-1, seg_id,:])
+                current['bins'].append(self.assign['assignments'][iter-1, seg_id,:])
+                current['seg_id'].append(seg_id)
+                current['weights'].append(iter_group['seg_index']['weight'][seg_id])
+                current['iteration'].append(iter)
+                try:
+                    for key in keys:
+                        current['auxdata'][key].append(iter_group['auxdata'][key][seg_id])
+                except:
+                    pass
+                seg_id = iter_group['seg_index']['parent_id'][seg_id]
+                if seg_id < 0:
+                    # Necessary for steady state simulations.  This means they started in that iteration.
+                    break
+                pi.progress += 1
         current['seg_id'] = list(reversed(current['seg_id']))
         current['iteration'] = list(reversed(current['iteration']))
         current['states'] = np.concatenate(np.array(list(reversed(current['states']))))
@@ -535,7 +547,7 @@ class WIPI(WESTParallelTool):
         current['weights'] = np.array(list(reversed(current['weights'])))
         current['pcoord'] = np.concatenate(np.array(list(reversed(current['pcoord']))))
         try:
-            for key in self.current['auxdata'].keys():
+            for key in keys():
                 current['auxdata'][key] = np.concatenate(np.array(list(reversed(current['auxdata'][key]))))
         except:
             pass
