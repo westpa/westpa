@@ -31,6 +31,8 @@ import os, sys
 import w_assign, w_direct, w_reweight
 warnings.filterwarnings('ignore')
 import scipy.sparse as sp
+import hashlib
+import json
 #sys.tracebacklimit = 5
 
 from westtools import (WESTSubcommand, WESTParallelTool, WESTDataReader, WESTDSSynthesizer, BinMappingComponent, 
@@ -104,6 +106,10 @@ class WIPI(WESTParallelTool):
                              help='''Use this flag to run the analysis and return to the terminal.''')
         rgroup.add_argument('--reanalyze', '-ra', dest='reanalyze', action='store_true',
                              help='''Use this flag to delete the existing files and reanalyze.''')
+        rgroup.add_argument('--ignore-hash', '-ih', dest='ignore_hash', action='store_true',
+                             help='''Ignore hash and don't regenerate files..''')
+        rgroup.add_argument('--debug', '-d', dest='debug_mode', action='store_true',
+                             help='''Ignore hash and don't regenerate files..''')
         rgroup.add_argument('--terminal', '-t', dest='plotting', action='store_true',
                              help='''Plot output in terminal.''')
         # There is almost certainly a better way to handle this, but we'll sort that later.
@@ -125,10 +131,12 @@ class WIPI(WESTParallelTool):
         self.data_args = args
         self.analysis_mode = args.analysis_mode
         self.reanalyze = args.reanalyze
+        self.ignore_hash = args.ignore_hash
+        self.debug_mode = args.debug_mode
         if args.plotting:
             self.interface = 'text'
 
-    def hash_args(self, args, extra=None):
+    def hash_args(self, args, extra=None, pwd=None):
         '''Create unique hash stamp to determine if arguments/file is different from before.'''
         '''Combine with iteration to know whether or not file needs updating.'''
         # Why are we not loading this functionality into the individual tools?
@@ -137,12 +145,17 @@ class WIPI(WESTParallelTool):
         # the various namespaces.
         # In addition, it's unlikely that the functionality is desired at the individual tool level,
         # since we'll always just rewrite a file when we call the function.
-        import hashlib
-        import json
         #return hashlib.md5(pickle.dumps([args, extra])).hexdigest()
+        # We don't care about the path, so we'll remove it.
+        for iarg, arg in enumerate(args):
+            if pwd in arg:
+                args[iarg] = arg.replace(pwd,'').replace('/', '')
         to_hash = args + [extra]
-        print(to_hash)
-        print(str(to_hash).encode('base64'))
+        #print(args)
+        #print(to_hash)
+        #print(str(to_hash).encode('base64'))
+        # This SHOULD produce the same output, maybe?  That would be nice, anyway.
+        # But we'll need to test it more.
         return hashlib.md5(str(to_hash).encode('base64')).hexdigest()
 
     def stamp_hash(self, h5file_name, new_hash):
@@ -261,9 +274,11 @@ class WIPI(WESTParallelTool):
                             # We need to load up the bin mapper and states and see if they're the same.
                             assign.make_parser_and_process(args=args)
                             import pickle
-                            new_hash = self.hash_args(args=args, extra=[self.niters, pickle.dumps(assign.binning.mapper), assign.states])
+                            new_hash = self.hash_args(args=args, pwd=path, extra=[self.niters, pickle.dumps(assign.binning.mapper), assign.states])
                             # Let's check the hash.  If the hash is the same, we don't need to reload.
-                            if arg_hash != new_hash or self.reanalyze == True:
+                            if arg_hash != new_hash and self.debug_mode == True:
+                                print('{:<10}: old hash, new hash -- {}, {}'.format(name, arg_hash, new_hash))
+                            if self.ignore_hash == False and (arg_hash != new_hash or self.reanalyze == True):
                                 # If the hashes are different, or we need to reanalyze, delete the file.
                                 try:
                                     os.remove(os.path.join(path, '{}.h5'.format(name)))
@@ -325,8 +340,11 @@ class WIPI(WESTParallelTool):
                                     args.append(str('--') + str(value).replace('_', '-'))
                             # We want to not display the averages, so...
                             args.append('--disable-averages')
-                            new_hash = self.hash_args(args=args, extra=[self.niters])
-                            if arg_hash != new_hash or self.reanalyze == True or reanalyze_kinetics == True:
+                            new_hash = self.hash_args(args=args, pwd=path, extra=[self.niters])
+                            #if arg_hash != new_hash or self.reanalyze == True or reanalyze_kinetics == True:
+                            if arg_hash != new_hash and self.debug_mode == True:
+                                print('{:<10}: old hash, new hash -- {}, {}'.format(name, arg_hash, new_hash))
+                            if self.ignore_hash == False and (arg_hash != new_hash or self.reanalyze == True or reanalyze_kinetics == True):
                                 try:
                                     os.remove(os.path.join(path, '{}.h5'.format(name)))
                                 except:
