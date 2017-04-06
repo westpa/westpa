@@ -148,13 +148,24 @@ class WIPI(WESTParallelTool):
         # since we'll always just rewrite a file when we call the function.
         #return hashlib.md5(pickle.dumps([args, extra])).hexdigest()
         # We don't care about the path, so we'll remove it.
+        # Probably a better way to do this, but who cares.
         for iarg, arg in enumerate(args):
             if path in arg:
                 args[iarg] = arg.replace(path,'').replace('/', '')
+            if arg == '--disable-averages':
+                args.remove('--disable-averages')
         to_hash = args + [extra]
         #print(args)
         #print(to_hash)
         #print(str(to_hash).encode('base64'))
+        if self.debug_mode:
+            for iarg, arg in enumerate(to_hash):
+                if type(arg) != list:
+                    print('arg {num:02d} -- {arg:<20}'.format(num=iarg, arg=arg))
+                else:
+                    for il, l in enumerate(arg):
+                        print('arg {num:02d} -- {arg:<20}'.format(num=il+iarg, arg=l))
+            #print('args: {}'.format(to_hash))
         # This SHOULD produce the same output, maybe?  That would be nice, anyway.
         # But we'll need to test it more.
         return hashlib.md5(str(to_hash).encode('base64')).hexdigest()
@@ -275,7 +286,10 @@ class WIPI(WESTParallelTool):
                             # We need to load up the bin mapper and states and see if they're the same.
                             assign.make_parser_and_process(args=args)
                             import pickle
-                            new_hash = self.hash_args(args=args, path=path, extra=[self.niters, pickle.dumps(assign.binning.mapper), assign.states])
+                            #new_hash = self.hash_args(args=args, path=path, extra=[self.niters, pickle.dumps(assign.binning.mapper), assign.states])
+                            # We need to encode it properly to ensure that some OS specific thing doesn't kill us.  Same goes for the args, ultimately.
+                            # Mostly, we just need to ensure that we're consistent.
+                            new_hash = self.hash_args(args=args, path=path, extra=[int(self.niters), pickle.dumps(assign.binning.mapper).encode('base64'), str(assign.states).encode('base64')])
                             # Let's check the hash.  If the hash is the same, we don't need to reload.
                             if arg_hash != new_hash and self.debug_mode == True:
                                 print('{:<10}: old hash, new hash -- {}, {}'.format(name, arg_hash, new_hash))
@@ -341,7 +355,7 @@ class WIPI(WESTParallelTool):
                                     args.append(str('--') + str(value).replace('_', '-'))
                             # We want to not display the averages, so...
                             args.append('--disable-averages')
-                            new_hash = self.hash_args(args=args, path=path, extra=[self.niters])
+                            new_hash = self.hash_args(args=args, path=path, extra=[int(self.niters)])
                             #if arg_hash != new_hash or self.reanalyze == True or reanalyze_kinetics == True:
                             if arg_hash != new_hash and self.debug_mode == True:
                                 print('{:<10}: old hash, new hash -- {}, {}'.format(name, arg_hash, new_hash))
