@@ -72,19 +72,31 @@ class WIPIDataset(object):
     def __add__(self, other):
         return self.__dict__['raw'] + other
     def __radd__(self, other):
-        return self.__dict__['raw'] + other
+        return other + self.__dict__['raw']
     def __sub__(self, other):
         return self.__dict__['raw'] - other
     def __rsub__(self, other):
-        return self.__dict__['raw'] - other
+        return other - self.__dict__['raw']
     def __mul__(self, other):
         return self.__dict__['raw'] * other
     def __rmul__(self, other):
-        return self.__dict__['raw'] * other
+        return other * self.__dict__['raw']
     def __div__(self, other):
         return self.__dict__['raw'] / other
+    def __floordiv__(self, other):
+        return self.__dict__['raw'] // other
     def __rdiv__(self, other):
         return other / self.__dict__['raw']
+    def __mod__(self, other):
+        return self.__dict__['raw'] % other
+    def __pow__(self, other):
+        return self.__dict__['raw'] ** other
+    def __lshift__(self, other):
+        return self.__dict__['raw'] << other
+    def __rshift__(self, other):
+        return self.__dict__['raw'] >> other
+    def __and__(self, other):
+        return self.__dict__['raw'] & other
     def __eq__(self, other):
         return self.__dict__['raw'] == other
     def __ne__(self, other):
@@ -97,6 +109,34 @@ class WIPIDataset(object):
         return self.__dict__['raw'] <= other
     def __ge__(self, other):
         return self.__dict__['raw'] >= other
+    def __xor__(self, other):
+        return self.__dict__['raw'] ^ other
+    def __or__(self, other):
+        return self.__dict__['raw'] | other
+    #def __iadd__(self, other):
+    #    return self.__dict__['raw'] += other
+    #def __isub__(self, other):
+    #    return self.__dict__['raw'] -= other
+    #def __imul__(self, other):
+    #    return self.__dict__['raw'] *= other
+    #def __idiv__(self, other):
+    #    return self.__dict__['raw'] /= other
+    #def __ifloordiv__(self, other):
+    #    return self.__dict__['raw'] //= other
+    #def __imod__(self, other):
+    #    return self.__dict__['raw'] %= other
+    #def __ipow__(self, other):
+    #    return self.__dict__['raw'] **= other
+    #def __ilshift__(self, other):
+    #    return self.__dict__['raw'] <<= other
+    #def __irshift__(self, other):
+    #    return self.__dict__['raw'] >>= other
+    #def __iand__(self, other):
+    #    return self.__dict__['raw'] &= other
+    #def __ixor__(self, other):
+    #    return self.__dict__['raw'] ^= other
+    #def __ior__(self, other):
+    #    return self.__dict__['raw'] |= other
 
 # Similar to the above, but slightly expanded to contain information from analysis files.
 class KineticsIteration(object):
