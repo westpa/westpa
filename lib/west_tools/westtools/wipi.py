@@ -252,7 +252,9 @@ class __get_data_for_iteration__(object):
         '''
         # We've classed this so that we can override some of the normal functions and allow indexing via seg_id
         self.__dict__ = {}
+        # Is this function thread safe?
         iter_group = parent.data_reader.get_iter_group(value)
+        #iter_group = parent.west['iterations/iter_{num:08d}'.format(num=value)]
         self.parent = parent
         current = {}
         current['iteration'] = value
