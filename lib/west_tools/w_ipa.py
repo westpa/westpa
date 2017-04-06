@@ -137,7 +137,7 @@ class WIPI(WESTParallelTool):
         if args.plotting:
             self.interface = 'text'
 
-    def hash_args(self, args, extra=None, pwd=None):
+    def hash_args(self, args, extra=None, path=None):
         '''Create unique hash stamp to determine if arguments/file is different from before.'''
         '''Combine with iteration to know whether or not file needs updating.'''
         # Why are we not loading this functionality into the individual tools?
@@ -149,8 +149,8 @@ class WIPI(WESTParallelTool):
         #return hashlib.md5(pickle.dumps([args, extra])).hexdigest()
         # We don't care about the path, so we'll remove it.
         for iarg, arg in enumerate(args):
-            if pwd in arg:
-                args[iarg] = arg.replace(pwd,'').replace('/', '')
+            if path in arg:
+                args[iarg] = arg.replace(path,'').replace('/', '')
         to_hash = args + [extra]
         #print(args)
         #print(to_hash)
@@ -275,7 +275,7 @@ class WIPI(WESTParallelTool):
                             # We need to load up the bin mapper and states and see if they're the same.
                             assign.make_parser_and_process(args=args)
                             import pickle
-                            new_hash = self.hash_args(args=args, pwd=path, extra=[self.niters, pickle.dumps(assign.binning.mapper), assign.states])
+                            new_hash = self.hash_args(args=args, path=path, extra=[self.niters, pickle.dumps(assign.binning.mapper), assign.states])
                             # Let's check the hash.  If the hash is the same, we don't need to reload.
                             if arg_hash != new_hash and self.debug_mode == True:
                                 print('{:<10}: old hash, new hash -- {}, {}'.format(name, arg_hash, new_hash))
@@ -341,7 +341,7 @@ class WIPI(WESTParallelTool):
                                     args.append(str('--') + str(value).replace('_', '-'))
                             # We want to not display the averages, so...
                             args.append('--disable-averages')
-                            new_hash = self.hash_args(args=args, pwd=path, extra=[self.niters])
+                            new_hash = self.hash_args(args=args, path=path, extra=[self.niters])
                             #if arg_hash != new_hash or self.reanalyze == True or reanalyze_kinetics == True:
                             if arg_hash != new_hash and self.debug_mode == True:
                                 print('{:<10}: old hash, new hash -- {}, {}'.format(name, arg_hash, new_hash))
