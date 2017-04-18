@@ -65,6 +65,11 @@ variables to the appropriate values within the module file.
 Getting started
 ---------------
 
+.. toctree::
+   :maxdepth: 1
+
+    WESTPA simulation checklist <users_guide/checklist>
+
 To define environment variables post-installation, simply source the 
 ``westpa.sh`` script in the ``westpa`` directory from the command line
 or your setup scripts.
@@ -87,6 +92,11 @@ simulations off the ground.
 ------------
 Getting help
 ------------
+
+.. toctree::
+   :maxdepth: 1
+
+    WESTPA FAQ <users_guide/faq>
 
 A mailing list for WESTPA is available, at which one can ask questions (or see
 if a question one has was previously addressed). This is the preferred means
