@@ -11,7 +11,6 @@ User's Guide
     WEST tools                <users_guide/west_tools>
     WEST work manager         <users_guide/wwmgr>
     WEST extensions           <users_guide/westext>
-    WEST simulation checklist <users_guide/checklist>
     Command line tool index   <users_guide/command_line_tools>
     HDF5 file schema          <users_guide/hdf5>
 
