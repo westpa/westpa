@@ -1,5 +1,8 @@
-Checklist for Configuring a WESTPA Simulation
-=============================================
+Checklist 
+==========
+
+Configuring a WESTPA Simulation
+--------------------------------
 
 - Files for dynamics propagation
 
