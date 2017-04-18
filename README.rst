@@ -84,7 +84,7 @@ a few days with her lab and/or setting up video conferencing sessions to help yo
 simulations off the ground.
 
 .. _here: https://westpa.github.io/westpa/sphinx_index.html#tutorials
-.. _checklist: https://westpa.github.io/westpa/checklist.html
+.. _checklist: https://westpa.github.io/westpa/users_guide/checklist.html
 
 ------------
 Getting help
@@ -97,7 +97,7 @@ if a question one has was previously addressed). This is the preferred means
 for obtaining help and support. See http://groups.google.com/group/westpa-users
 to sign up or search archived messages.
 
-.. _FAQ: https://westpa.github.io/westpa/faq.html
+.. _FAQ: https://westpa.github.io/westpa/users_guide/faq.html
 
 -------------------------------------------------------
 Copyright, license, and warranty information
