@@ -65,7 +65,15 @@ variables to the appropriate values within the module file.
 Getting started
 ---------------
 
-WESTPA simulation checklist_ 
+Checklist
+"""""""""
+
+A one-page checklist for new users can be found in the following page: 
+
+.. toctree::
+   :maxdepth: 1
+
+    Checklist for setting up, running and analyzing a WESTPA simulation <users_guide/checklist>
 
 To define environment variables post-installation, simply source the 
 ``westpa.sh`` script in the ``westpa`` directory from the command line
@@ -84,20 +92,25 @@ a few days with her lab and/or setting up video conferencing sessions to help yo
 simulations off the ground.
 
 .. _here: https://westpa.github.io/westpa/sphinx_index.html#tutorials
-.. _checklist: https://westpa.github.io/westpa/users_guide/checklist.html
 
 ------------
 Getting help
 ------------
 
-WESTPA FAQ_
+FAQ
+"""
+
+Responses to frequently asked questions (FAQ) can be found in the following page: 
+
+.. toctree::
+   :maxdepth: 1
+
+    Frequently Asked Questions (FAQ) <users_guide/faq>
 
 A mailing list for WESTPA is available, at which one can ask questions (or see
 if a question one has was previously addressed). This is the preferred means
 for obtaining help and support. See http://groups.google.com/group/westpa-users
 to sign up or search archived messages.
-
-.. _FAQ: https://westpa.github.io/westpa/users_guide/faq.html
 
 -------------------------------------------------------
 Copyright, license, and warranty information
