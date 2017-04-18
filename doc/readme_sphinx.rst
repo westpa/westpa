@@ -65,8 +65,10 @@ variables to the appropriate values within the module file.
 Getting started
 ---------------
 
+.. _checklist:
+
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
 
     WESTPA checklist         <users_guide/checklist>
 
@@ -91,9 +93,10 @@ simulations off the ground.
 ------------
 Getting help
 ------------
+.. _faq:
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
 
     WESTPA FAQ <users_guide/faq>
 
