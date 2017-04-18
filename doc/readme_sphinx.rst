@@ -67,10 +67,13 @@ Getting started
 
 Checklist
 """""""""
+
+A one-page checklist for new users can be found in the following page: 
+
 .. toctree::
    :maxdepth: 1
 
-    WESTPA checklist    <users_guide/checklist>
+    Checklist for setting up, running and analyzing a WESTPA simulation <users_guide/checklist>
 
 To define environment variables post-installation, simply source the 
 ``westpa.sh`` script in the ``westpa`` directory from the command line
@@ -96,10 +99,13 @@ Getting help
 
 FAQ
 """
+
+Responses to frequently asked questions (FAQ) can be found in the following page: 
+
 .. toctree::
    :maxdepth: 1
 
-    WESTPA FAQ   <users_guide/faq>
+    Frequently Asked Questions (FAQ) <users_guide/faq>
 
 A mailing list for WESTPA is available, at which one can ask questions (or see
 if a question one has was previously addressed). This is the preferred means
