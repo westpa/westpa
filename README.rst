@@ -65,7 +65,7 @@ variables to the appropriate values within the module file.
 Getting started
 ---------------
 
-WESTPA simulation checklist <users_guide/checklist>
+WESTPA simulation checklist_ 
 
 To define environment variables post-installation, simply source the 
 ``westpa.sh`` script in the ``westpa`` directory from the command line
@@ -84,18 +84,20 @@ a few days with her lab and/or setting up video conferencing sessions to help yo
 simulations off the ground.
 
 .. _here: https://westpa.github.io/westpa/sphinx_index.html#tutorials
-
+.. _checklist: https://westpa.github.io/westpa/checklist.html
 
 ------------
 Getting help
 ------------
 
-WESTPA FAQ <users_guide/faq>
+WESTPA FAQ_
 
 A mailing list for WESTPA is available, at which one can ask questions (or see
 if a question one has was previously addressed). This is the preferred means
 for obtaining help and support. See http://groups.google.com/group/westpa-users
 to sign up or search archived messages.
+
+.. _FAQ: https://westpa.github.io/westpa/faq.html
 
 -------------------------------------------------------
 Copyright, license, and warranty information
