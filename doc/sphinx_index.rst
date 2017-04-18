@@ -1,4 +1,4 @@
-.. include:: ../README.rst
+.. include:: readme_sphinx.rst
 
 ------------
 User's Guide
