@@ -49,7 +49,8 @@
 <div class="section" id="simulation">
 <h2>Simulation<a class="headerlink" href="#simulation" title="Permalink to this headline">¶</a></h2>
 <ul class="simple">
-<li>How can I cleanly shutdown a simulation (without corrupting</li>
+<li>How can I cleanly shutdown a simulation (without corrupting the h5
+file)?</li>
 </ul>
 <p>It is generally safe to shutdown a WESTPA simulation by simply canceling
 the job through your queue management. However, to ensure data integrity
@@ -106,6 +107,20 @@ available on the web or the user manual for these packages make the
 (reasonable) assumption that you will be running a set of brute force
 trajectories. As such, some of their guidelines for handling periodic
 boundary conditions may not be applicable.</p>
+<ul class="simple">
+<li>My WESTPA simulation crashed and nth iteration wasn&#8217;t complete, how
+can I continue from the nth iteration?</li>
+</ul>
+<p>In general restarting a westpa simulation will restart an incomplete
+iteration, retaining data from segments that have completed and
+re-running segments that were incomplete (or never started).</p>
+<p>In case that the iteration data got corrupted or you want to go
+back to an specific iteration and change something, you need to
+delete all the trajectory secgments and other files related to that
+iteration and run w_truncate on that iteration. This will delete westpa&#8217;s
+information about the nth iteration, which includes which segments have
+run and which have not. Then restarting your westpa simulation will
+restart that iteration afresh.</p>
 </div>
 <div class="section" id="gromacs">
 <h2>GROMACS<a class="headerlink" href="#gromacs" title="Permalink to this headline">¶</a></h2>
