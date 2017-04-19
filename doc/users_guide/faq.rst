@@ -66,8 +66,7 @@ available on the web or the user manual for these packages make the
 trajectories. As such, some of their guidelines for handling periodic
 boundary conditions may not be applicable.
 
-- My WESTPA simulation crashed and nth iteration wasn't complete, how
-  can I continue from the nth iteration?
+- How can I restart a WESTPA simulation?
 
 In general restarting a westpa simulation will restart an incomplete 
 iteration, retaining data from segments that have completed and 
