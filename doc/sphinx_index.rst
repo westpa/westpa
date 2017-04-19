@@ -24,10 +24,10 @@ Introductory
 .. toctree::
    :maxdepth: 1
 
-   An introduction to WESTPA <https://www.youtube.com/watch?v=YpltPzpcmLY>
-   Analysis Tools <https://www.youtube.com/watch?v=rMFvcHOOxZc>
+   An introduction to WESTPA (video tutorial) <https://www.youtube.com/watch?v=YpltPzpcmLY>
+   Analysis Tools (video tutorial) <https://www.youtube.com/watch?v=rMFvcHOOxZc>
    Molecular Scale Systems <tutorials/p53>
-   Non-spatial Systems <https://www.youtube.com/watch?v=rY-IJcLFiaM>
+   Spatially-resolved Systems Biology (MCell) Models (video tutorial) <https://www.youtube.com/watch?v=rY-IJcLFiaM>
    AMBER   <tutorials/amber>
    GROMACS <tutorials/gromacs>
    NAMD    <tutorials/namd>
