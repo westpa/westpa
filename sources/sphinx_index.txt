@@ -52,3 +52,4 @@ Development
     Code and documentation style guide <development/style_guide>
     Source code management             <development/source_code>
     Building the documentation         <development/documentation>
+    API                                <development/api>
