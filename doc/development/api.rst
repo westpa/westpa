@@ -1,20 +1,18 @@
-API
-===
+WESTPA MODULES API
+==================
+
+WESTPA
+######
+.. automodule:: westpa
 
 Binning
 #######
-.. autoclass:: westpa.binning.NoMapper
-
-.. autoclass:: westpa.binning.RectilinearBinMapper
-
-.. autoclass:: westpa.binning.RecursiveBinMapper
-
-WESTPA Modules
-###############
-.. automodule:: westpa
-
 .. automodule:: westpa.binning
 
+RC
+##
 .. automodule:: westpa.rc
 
+YAMLCFG
+########
 .. automodule:: westpa.yamlcfg
