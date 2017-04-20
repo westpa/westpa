@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>API &#8212; WESTPA 1.0b1 documentation</title>
+    <title>WESTPA MODULES API &#8212; WESTPA 1.0b1 documentation</title>
     
     <link rel="stylesheet" href="../static/alabaster.css" type="text/css" />
     <link rel="stylesheet" href="../static/pygments.css" type="text/css" />
@@ -43,38 +43,115 @@
         <div class="bodywrapper">
           <div class="body" role="main">
             
-  <div class="section" id="api">
-<h1>API<a class="headerlink" href="#api" title="Permalink to this headline">¶</a></h1>
-<div class="section" id="binning">
-<h2>Binning<a class="headerlink" href="#binning" title="Permalink to this headline">¶</a></h2>
-<dl class="class">
-<dt id="westpa.binning.RectilinearBinMapper">
-<em class="property">class </em><code class="descclassname">westpa.binning.</code><code class="descname">RectilinearBinMapper</code><span class="sig-paren">(</span><em>boundaries</em><span class="sig-paren">)</span><a class="headerlink" href="#westpa.binning.RectilinearBinMapper" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bin into a rectangular grid based on tuples of float values</p>
-</dd></dl>
-
-<dl class="class">
-<dt id="westpa.binning.RecursiveBinMapper">
-<em class="property">class </em><code class="descclassname">westpa.binning.</code><code class="descname">RecursiveBinMapper</code><span class="sig-paren">(</span><em>base_mapper</em>, <em>start_index=0</em><span class="sig-paren">)</span><a class="headerlink" href="#westpa.binning.RecursiveBinMapper" title="Permalink to this definition">¶</a></dt>
-<dd><p>Nest mappers one within another.</p>
-<dl class="method">
-<dt id="westpa.binning.RecursiveBinMapper.add_mapper">
-<code class="descname">add_mapper</code><span class="sig-paren">(</span><em>mapper</em>, <em>replaces_bin_at</em><span class="sig-paren">)</span><a class="headerlink" href="#westpa.binning.RecursiveBinMapper.add_mapper" title="Permalink to this definition">¶</a></dt>
-<dd><p>Replace the bin containing the coordinate tuple <code class="docutils literal"><span class="pre">replaces_bin_at</span></code> with the
-specified <code class="docutils literal"><span class="pre">mapper</span></code>.</p>
-</dd></dl>
-
-</dd></dl>
-
-</div>
+  <div class="section" id="westpa-modules-api">
+<h1>WESTPA MODULES API<a class="headerlink" href="#westpa-modules-api" title="Permalink to this headline">¶</a></h1>
 <div class="section" id="module-westpa">
-<span id="westpa-modules"></span><h2>WESTPA Modules<a class="headerlink" href="#module-westpa" title="Permalink to this headline">¶</a></h2>
-<span class="target" id="module-westpa.binning"></span><span class="target" id="module-westpa.yamlcfg"></span><p>YAML-based configuration files for WESTPA</p>
+<span id="westpa"></span><h2>WESTPA<a class="headerlink" href="#module-westpa" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="module-westpa.binning">
+<span id="binning"></span><h2>Binning<a class="headerlink" href="#module-westpa.binning" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="rc">
+<h2>RC<a class="headerlink" href="#rc" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="module-westpa.yamlcfg">
+<span id="yamlcfg"></span><h2>YAMLCFG<a class="headerlink" href="#module-westpa.yamlcfg" title="Permalink to this headline">¶</a></h2>
+<p>YAML-based configuration files for WESTPA</p>
+<dl class="exception">
+<dt id="westpa.yamlcfg.ConfigValueWarning">
+<em class="property">exception </em><code class="descclassname">westpa.yamlcfg.</code><code class="descname">ConfigValueWarning</code><a class="headerlink" href="#westpa.yamlcfg.ConfigValueWarning" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="westpa.yamlcfg.warn_dubious_config_entry">
+<code class="descclassname">westpa.yamlcfg.</code><code class="descname">warn_dubious_config_entry</code><span class="sig-paren">(</span><em>entry</em>, <em>value</em>, <em>expected_type=None</em>, <em>category=&lt;class 'westpa.yamlcfg.ConfigValueWarning'&gt;</em>, <em>stacklevel=1</em><span class="sig-paren">)</span><a class="headerlink" href="#westpa.yamlcfg.warn_dubious_config_entry" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
 <dl class="function">
 <dt id="westpa.yamlcfg.check_bool">
 <code class="descclassname">westpa.yamlcfg.</code><code class="descname">check_bool</code><span class="sig-paren">(</span><em>value</em>, <em>action='warn'</em><span class="sig-paren">)</span><a class="headerlink" href="#westpa.yamlcfg.check_bool" title="Permalink to this definition">¶</a></dt>
 <dd><p>Check that the given <code class="docutils literal"><span class="pre">value</span></code> is boolean in type. If not, either
 raise a warning (if <code class="docutils literal"><span class="pre">action=='warn'</span></code>) or an exception (<code class="docutils literal"><span class="pre">action=='raise'</span></code>).</p>
+</dd></dl>
+
+<dl class="exception">
+<dt id="westpa.yamlcfg.ConfigItemMissing">
+<em class="property">exception </em><code class="descclassname">westpa.yamlcfg.</code><code class="descname">ConfigItemMissing</code><span class="sig-paren">(</span><em>key</em>, <em>message=None</em><span class="sig-paren">)</span><a class="headerlink" href="#westpa.yamlcfg.ConfigItemMissing" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="exception">
+<dt id="westpa.yamlcfg.ConfigItemTypeError">
+<em class="property">exception </em><code class="descclassname">westpa.yamlcfg.</code><code class="descname">ConfigItemTypeError</code><span class="sig-paren">(</span><em>key</em>, <em>expected_type</em>, <em>message=None</em><span class="sig-paren">)</span><a class="headerlink" href="#westpa.yamlcfg.ConfigItemTypeError" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="exception">
+<dt id="westpa.yamlcfg.ConfigValueError">
+<em class="property">exception </em><code class="descclassname">westpa.yamlcfg.</code><code class="descname">ConfigValueError</code><span class="sig-paren">(</span><em>key</em>, <em>value</em>, <em>message=None</em><span class="sig-paren">)</span><a class="headerlink" href="#westpa.yamlcfg.ConfigValueError" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="class">
+<dt id="westpa.yamlcfg.YAMLConfig">
+<em class="property">class </em><code class="descclassname">westpa.yamlcfg.</code><code class="descname">YAMLConfig</code><a class="headerlink" href="#westpa.yamlcfg.YAMLConfig" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="attribute">
+<dt id="westpa.yamlcfg.YAMLConfig.preload_config_files">
+<code class="descname">preload_config_files</code><em class="property"> = ['/etc/westpa/westrc', '/home/boltzmann/.westrc']</em><a class="headerlink" href="#westpa.yamlcfg.YAMLConfig.preload_config_files" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="westpa.yamlcfg.YAMLConfig.update_from_file">
+<code class="descname">update_from_file</code><span class="sig-paren">(</span><em>file</em>, <em>required=True</em><span class="sig-paren">)</span><a class="headerlink" href="#westpa.yamlcfg.YAMLConfig.update_from_file" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="westpa.yamlcfg.YAMLConfig.require">
+<code class="descname">require</code><span class="sig-paren">(</span><em>key</em>, <em>type_=None</em><span class="sig-paren">)</span><a class="headerlink" href="#westpa.yamlcfg.YAMLConfig.require" title="Permalink to this definition">¶</a></dt>
+<dd><p>Ensure that a configuration item with the given <code class="docutils literal"><span class="pre">key</span></code> is present. If
+the optional <code class="docutils literal"><span class="pre">type_</span></code> is given, additionally require that the item has that
+type.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="westpa.yamlcfg.YAMLConfig.require_type_if_present">
+<code class="descname">require_type_if_present</code><span class="sig-paren">(</span><em>key</em>, <em>type_</em><span class="sig-paren">)</span><a class="headerlink" href="#westpa.yamlcfg.YAMLConfig.require_type_if_present" title="Permalink to this definition">¶</a></dt>
+<dd><p>Ensure that the configuration item with the given <code class="docutils literal"><span class="pre">key</span></code> has the
+given type.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="westpa.yamlcfg.YAMLConfig.coerce_type_if_present">
+<code class="descname">coerce_type_if_present</code><span class="sig-paren">(</span><em>key</em>, <em>type_</em><span class="sig-paren">)</span><a class="headerlink" href="#westpa.yamlcfg.YAMLConfig.coerce_type_if_present" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="westpa.yamlcfg.YAMLConfig.get">
+<code class="descname">get</code><span class="sig-paren">(</span><em>key</em>, <em>default=None</em><span class="sig-paren">)</span><a class="headerlink" href="#westpa.yamlcfg.YAMLConfig.get" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="westpa.yamlcfg.YAMLConfig.get_typed">
+<code class="descname">get_typed</code><span class="sig-paren">(</span><em>key</em>, <em>type_</em>, <em>default=&lt;object object&gt;</em><span class="sig-paren">)</span><a class="headerlink" href="#westpa.yamlcfg.YAMLConfig.get_typed" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="westpa.yamlcfg.YAMLConfig.get_path">
+<code class="descname">get_path</code><span class="sig-paren">(</span><em>key</em>, <em>default=&lt;object object&gt;</em>, <em>expandvars=True</em>, <em>expanduser=True</em>, <em>realpath=True</em>, <em>abspath=True</em><span class="sig-paren">)</span><a class="headerlink" href="#westpa.yamlcfg.YAMLConfig.get_path" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="westpa.yamlcfg.YAMLConfig.get_pathlist">
+<code class="descname">get_pathlist</code><span class="sig-paren">(</span><em>key</em>, <em>default=&lt;object object&gt;</em>, <em>sep=':'</em>, <em>expandvars=True</em>, <em>expanduser=True</em>, <em>realpath=True</em>, <em>abspath=True</em><span class="sig-paren">)</span><a class="headerlink" href="#westpa.yamlcfg.YAMLConfig.get_pathlist" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="westpa.yamlcfg.YAMLConfig.get_python_object">
+<code class="descname">get_python_object</code><span class="sig-paren">(</span><em>key</em>, <em>default=&lt;object object&gt;</em>, <em>path=None</em><span class="sig-paren">)</span><a class="headerlink" href="#westpa.yamlcfg.YAMLConfig.get_python_object" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="westpa.yamlcfg.YAMLConfig.get_choice">
+<code class="descname">get_choice</code><span class="sig-paren">(</span><em>key</em>, <em>choices</em>, <em>default=&lt;object object&gt;</em>, <em>value_transform=None</em><span class="sig-paren">)</span><a class="headerlink" href="#westpa.yamlcfg.YAMLConfig.get_choice" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
 </dd></dl>
 
 <dl class="class">
@@ -105,12 +182,17 @@ and final values.  Defaults to 2 (i.e. only the initial
 and final progress coordinate values for a segment are
 returned from propagation).</li>
 <li><strong>bin_mapper</strong> &#8211; A bin mapper describing the progress coordinate space.</li>
-<li><strong>bin_target_counts</strong> &#8211; A vector of target counts, one per bin.</li>
+<li><a class="reference internal" href="#westpa.yamlcfg.YAMLSystem.bin_target_counts" title="westpa.yamlcfg.YAMLSystem.bin_target_counts"><strong>bin_target_counts</strong></a> &#8211; A vector of target counts, one per bin.</li>
 </ul>
 </td>
 </tr>
 </tbody>
 </table>
+<dl class="attribute">
+<dt id="westpa.yamlcfg.YAMLSystem.bin_target_counts">
+<code class="descname">bin_target_counts</code><a class="headerlink" href="#westpa.yamlcfg.YAMLSystem.bin_target_counts" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
 <dl class="method">
 <dt id="westpa.yamlcfg.YAMLSystem.initialize">
 <code class="descname">initialize</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#westpa.yamlcfg.YAMLSystem.initialize" title="Permalink to this definition">¶</a></dt>
@@ -143,6 +225,11 @@ or number of segments. If <code class="docutils literal"><span class="pre">pcoor
 a length appropriate for a segment is returned.</p>
 </dd></dl>
 
+<dl class="method">
+<dt id="westpa.yamlcfg.YAMLSystem.new_region_set">
+<code class="descname">new_region_set</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#westpa.yamlcfg.YAMLSystem.new_region_set" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
 </dd></dl>
 
 </div>
@@ -159,9 +246,11 @@ a length appropriate for a segment is returned.</p>
             </a></p>
   <h3><a href="../sphinx_index.html">Table Of Contents</a></h3>
   <ul>
-<li><a class="reference internal" href="#">API</a><ul>
-<li><a class="reference internal" href="#binning">Binning</a></li>
-<li><a class="reference internal" href="#module-westpa">WESTPA Modules</a></li>
+<li><a class="reference internal" href="#">WESTPA MODULES API</a><ul>
+<li><a class="reference internal" href="#module-westpa">WESTPA</a></li>
+<li><a class="reference internal" href="#module-westpa.binning">Binning</a></li>
+<li><a class="reference internal" href="#rc">RC</a></li>
+<li><a class="reference internal" href="#module-westpa.yamlcfg">YAMLCFG</a></li>
 </ul>
 </li>
 </ul>
