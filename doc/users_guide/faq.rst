@@ -4,7 +4,8 @@ Frequently asked questions (FAQ)
 Simulation
 -----------
 
-- How can I cleanly shutdown a simulation (without corrupting
+- How can I cleanly shutdown a simulation (without corrupting the h5 
+  file)? 
 
 It is generally safe to shutdown a WESTPA simulation by simply canceling
 the job through your queue management. However, to ensure data integrity
@@ -64,6 +65,21 @@ available on the web or the user manual for these packages make the
 (reasonable) assumption that you will be running a set of brute force
 trajectories. As such, some of their guidelines for handling periodic
 boundary conditions may not be applicable.
+
+- How can I restart a WESTPA simulation?
+
+In general restarting a westpa simulation will restart an incomplete 
+iteration, retaining data from segments that have completed and 
+re-running segments that were incomplete (or never started).
+
+In case that the iteration data got corrupted or you want to go
+back to an specific iteration and change something, you need to 
+delete all the trajectory secgments and other files related to that 
+iteration and run w_truncate on that iteration. This will delete westpa's 
+information about the nth iteration, which includes which segments have 
+run and which have not. Then restarting your westpa simulation will 
+restart that iteration afresh.
+
 
 GROMACS
 --------
