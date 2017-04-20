@@ -66,7 +66,7 @@ Getting started
 ---------------
 
 Checklist
-"""""""""
+#########
 
 A one-page checklist for new users can be found in the following page: 
 
@@ -98,7 +98,7 @@ Getting help
 ------------
 
 FAQ
-"""
+###
 
 Responses to frequently asked questions (FAQ) can be found in the following page: 
 
