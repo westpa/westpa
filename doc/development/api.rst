@@ -4,15 +4,16 @@ WESTPA MODULES API
 WESTPA
 ######
 .. automodule:: westpa
-
-Binning
-#######
-.. automodule:: westpa.binning
+   :members: rc, binning, yamlcfg
 
 RC
 ##
-.. automodule:: westpa.rc
+  .. autoclass:: westpa.rc
+
+Binning
+#######
+  .. automodule:: westpa.binning
 
 YAMLCFG
 ########
-.. automodule:: westpa.yamlcfg
+  .. automodule:: westpa.yamlcfg
