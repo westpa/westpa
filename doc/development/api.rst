@@ -1,8 +1,11 @@
 API
 ===
 
-.. autoclass:: westpa.binning 
 .. automodule:: westpa.binning 
+   :members:
+
+
+.. autoclass:: westpa.binning 
 
 .. autoclass:: westpa.binning.RectilinearBinMapper
    
