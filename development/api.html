@@ -43,13 +43,109 @@
         <div class="bodywrapper">
           <div class="body" role="main">
             
-  <div class="section" id="module-westpa">
-<span id="api"></span><h1>API<a class="headerlink" href="#module-westpa" title="Permalink to this headline">¶</a></h1>
-<span class="target" id="module-westpa.binning"></span><dl class="attribute">
-<dt id="westpa.rc">
-<code class="descclassname">westpa.</code><code class="descname">rc</code><a class="headerlink" href="#westpa.rc" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+  <div class="section" id="api">
+<h1>API<a class="headerlink" href="#api" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="binning">
+<h2>Binning<a class="headerlink" href="#binning" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="westpa.binning.RectilinearBinMapper">
+<em class="property">class </em><code class="descclassname">westpa.binning.</code><code class="descname">RectilinearBinMapper</code><span class="sig-paren">(</span><em>boundaries</em><span class="sig-paren">)</span><a class="headerlink" href="#westpa.binning.RectilinearBinMapper" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bin into a rectangular grid based on tuples of float values</p>
+</dd></dl>
 
+<dl class="class">
+<dt id="westpa.binning.RecursiveBinMapper">
+<em class="property">class </em><code class="descclassname">westpa.binning.</code><code class="descname">RecursiveBinMapper</code><span class="sig-paren">(</span><em>base_mapper</em>, <em>start_index=0</em><span class="sig-paren">)</span><a class="headerlink" href="#westpa.binning.RecursiveBinMapper" title="Permalink to this definition">¶</a></dt>
+<dd><p>Nest mappers one within another.</p>
+<dl class="method">
+<dt id="westpa.binning.RecursiveBinMapper.add_mapper">
+<code class="descname">add_mapper</code><span class="sig-paren">(</span><em>mapper</em>, <em>replaces_bin_at</em><span class="sig-paren">)</span><a class="headerlink" href="#westpa.binning.RecursiveBinMapper.add_mapper" title="Permalink to this definition">¶</a></dt>
+<dd><p>Replace the bin containing the coordinate tuple <code class="docutils literal"><span class="pre">replaces_bin_at</span></code> with the
+specified <code class="docutils literal"><span class="pre">mapper</span></code>.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-westpa">
+<span id="westpa-modules"></span><h2>WESTPA Modules<a class="headerlink" href="#module-westpa" title="Permalink to this headline">¶</a></h2>
+<span class="target" id="module-westpa.binning"></span><span class="target" id="module-westpa.yamlcfg"></span><p>YAML-based configuration files for WESTPA</p>
+<dl class="function">
+<dt id="westpa.yamlcfg.check_bool">
+<code class="descclassname">westpa.yamlcfg.</code><code class="descname">check_bool</code><span class="sig-paren">(</span><em>value</em>, <em>action='warn'</em><span class="sig-paren">)</span><a class="headerlink" href="#westpa.yamlcfg.check_bool" title="Permalink to this definition">¶</a></dt>
+<dd><p>Check that the given <code class="docutils literal"><span class="pre">value</span></code> is boolean in type. If not, either
+raise a warning (if <code class="docutils literal"><span class="pre">action=='warn'</span></code>) or an exception (<code class="docutils literal"><span class="pre">action=='raise'</span></code>).</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="westpa.yamlcfg.YAMLSystem">
+<em class="property">class </em><code class="descclassname">westpa.yamlcfg.</code><code class="descname">YAMLSystem</code><span class="sig-paren">(</span><em>rc=None</em><span class="sig-paren">)</span><a class="headerlink" href="#westpa.yamlcfg.YAMLSystem" title="Permalink to this definition">¶</a></dt>
+<dd><p>A description of the system being simulated, including the dimensionality and
+data type of the progress coordinate, the number of progress coordinate entries
+expected from each segment, and binning. To construct a simulation, the user must
+subclass WESTSystem and set several instance variables.</p>
+<p>At a minimum, the user must subclass <code class="docutils literal"><span class="pre">WESTSystem</span></code> and override
+<a href="#id1"><span class="problematic" id="id2">:method:`initialize`</span></a> to set the data type and dimensionality of progress
+coordinate data and define a bin mapper.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Variables:</th><td class="field-body"><ul class="first last simple">
+<li><strong>pcoord_ndim</strong> &#8211; The number of dimensions in the progress coordinate.
+Defaults to 1 (i.e. a one-dimensional progress
+coordinate).</li>
+<li><strong>pcoord_dtype</strong> &#8211; The data type of the progress coordinate, which must be
+callable (e.g. <code class="docutils literal"><span class="pre">numpy.float32</span></code> and <code class="docutils literal"><span class="pre">long</span></code> will work,
+but <code class="docutils literal"><span class="pre">'&lt;f4'</span></code> and <code class="docutils literal"><span class="pre">'&lt;i8'</span></code> will not).  Defaults to
+<code class="docutils literal"><span class="pre">numpy.float64</span></code>.</li>
+<li><strong>pcoord_len</strong> &#8211; The length of the progress coordinate time series
+generated by each segment, including <em>both</em> the initial
+and final values.  Defaults to 2 (i.e. only the initial
+and final progress coordinate values for a segment are
+returned from propagation).</li>
+<li><strong>bin_mapper</strong> &#8211; A bin mapper describing the progress coordinate space.</li>
+<li><strong>bin_target_counts</strong> &#8211; A vector of target counts, one per bin.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="westpa.yamlcfg.YAMLSystem.initialize">
+<code class="descname">initialize</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#westpa.yamlcfg.YAMLSystem.initialize" title="Permalink to this definition">¶</a></dt>
+<dd><p>Prepare this system object for use in simulation or analysis,
+creating a bin space, setting replicas per bin, and so on. This
+function is called whenever a WEST tool creates an instance of the
+system driver.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="westpa.yamlcfg.YAMLSystem.prepare_run">
+<code class="descname">prepare_run</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#westpa.yamlcfg.YAMLSystem.prepare_run" title="Permalink to this definition">¶</a></dt>
+<dd><p>Prepare this system for use in a simulation run. Called by w_run in
+all worker processes.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="westpa.yamlcfg.YAMLSystem.finalize_run">
+<code class="descname">finalize_run</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#westpa.yamlcfg.YAMLSystem.finalize_run" title="Permalink to this definition">¶</a></dt>
+<dd><p>A hook for system-specific processing for the end of a simulation run
+(as defined by such things as maximum wallclock time, rather than perhaps
+more scientifically-significant definitions of &#8220;the end of a simulation run&#8221;)</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="westpa.yamlcfg.YAMLSystem.new_pcoord_array">
+<code class="descname">new_pcoord_array</code><span class="sig-paren">(</span><em>pcoord_len=None</em><span class="sig-paren">)</span><a class="headerlink" href="#westpa.yamlcfg.YAMLSystem.new_pcoord_array" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return an appropriately-sized and -typed pcoord array for a timepoint, segment,
+or number of segments. If <code class="docutils literal"><span class="pre">pcoord_len</span></code> is not specified (or None), then
+a length appropriate for a segment is returned.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
 </div>
 
 
@@ -60,7 +156,16 @@
         <div class="sphinxsidebarwrapper">
             <p class="logo"><a href="../sphinx_index.html">
               <img class="logo" src="../static/WESTPA2b.svg" alt="Logo"/>
-            </a></p><div class="relations">
+            </a></p>
+  <h3><a href="../sphinx_index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">API</a><ul>
+<li><a class="reference internal" href="#binning">Binning</a></li>
+<li><a class="reference internal" href="#module-westpa">WESTPA Modules</a></li>
+</ul>
+</li>
+</ul>
+<div class="relations">
 <h3>Related Topics</h3>
 <ul>
   <li><a href="../sphinx_index.html">Documentation overview</a><ul>
