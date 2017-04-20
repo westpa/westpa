@@ -1,18 +1,16 @@
 WESTPA MODULES API
 ==================
 
-WESTPA
-######
-.. automodule:: westpa
-
 Binning
 #######
-  .. automodule:: westpa.binning
+.. automodule:: westpa.binning.assign
+
+.. automodule:: westpa.binning.bins
 
 YAMLCFG
 ########
-  .. automodule:: westpa.yamlcfg
+.. automodule:: westpa.yamlcfg
 
 RC
 ##
-  .. autoclass:: westpa.rc
+.. autoclass:: westpa._rc.WESTRC
