@@ -31,7 +31,7 @@ import os
 extensions = ['sphinx.ext.autodoc', 'sphinx.ext.napoleon']
 autoclass_content = "both"
 autodoc_member_order = "bysource"
-autodoc_default_flags = ["members", "show-inheritence"]
+autodoc_default_flags = ["members", "undoc-members", "show-inheritence"]
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
