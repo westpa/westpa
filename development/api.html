@@ -45,18 +45,172 @@
             
   <div class="section" id="westpa-modules-api">
 <h1>WESTPA MODULES API<a class="headerlink" href="#westpa-modules-api" title="Permalink to this headline">¶</a></h1>
-<div class="section" id="module-westpa">
-<span id="westpa"></span><h2>WESTPA<a class="headerlink" href="#module-westpa" title="Permalink to this headline">¶</a></h2>
-</div>
-<div class="section" id="binning">
-<h2>Binning<a class="headerlink" href="#binning" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="module-westpa.binning.assign">
+<span id="binning"></span><h2>Binning<a class="headerlink" href="#module-westpa.binning.assign" title="Permalink to this headline">¶</a></h2>
+<p>Bin assignment for WEST simulations. This module defines &#8220;bin mappers&#8221; which take
+vectors of coordinates (or rather, coordinate tuples), and assign each a definite
+integer value identifying a bin. Critical portions are implemented in a Cython
+extension module.</p>
+<p>A number of pre-defined bin mappers are available here:</p>
 <blockquote>
-<div><span class="target" id="module-westpa.binning"></span></div></blockquote>
-</div>
-<div class="section" id="yamlcfg">
-<h2>YAMLCFG<a class="headerlink" href="#yamlcfg" title="Permalink to this headline">¶</a></h2>
+<div><ul class="simple">
+<li><a class="reference internal" href="#westpa.binning.assign.RectilinearBinMapper" title="westpa.binning.assign.RectilinearBinMapper"><code class="xref py py-class docutils literal"><span class="pre">RectilinearBinMapper</span></code></a>, for bins divided by N-dimensional grids</li>
+<li><a class="reference internal" href="#westpa.binning.assign.FuncBinMapper" title="westpa.binning.assign.FuncBinMapper"><code class="xref py py-class docutils literal"><span class="pre">FuncBinMapper</span></code></a>, for functions which directly calculate bin assignments
+for a number of coordinate values. This is best used with C/Cython/Numba
+functions, or intellegently-tuned numpy-based Python functions.</li>
+<li><a class="reference internal" href="#westpa.binning.assign.VectorizingFuncBinMapper" title="westpa.binning.assign.VectorizingFuncBinMapper"><code class="xref py py-class docutils literal"><span class="pre">VectorizingFuncBinMapper</span></code></a>, for functions which calculate a bin
+assignment for a single coordinate value. This is best used for arbitrary
+Python functions.</li>
+<li><a class="reference internal" href="#westpa.binning.assign.PiecewiseBinMapper" title="westpa.binning.assign.PiecewiseBinMapper"><code class="xref py py-class docutils literal"><span class="pre">PiecewiseBinMapper</span></code></a>, for using a set of boolean-valued functions, one
+per bin, to determine assignments. This is likely to be much slower than a
+<cite>FuncBinMapper</cite> or <cite>VectorizingFuncBinMapper</cite> equipped with an appropriate
+function, and its use is discouraged.</li>
+</ul>
+</div></blockquote>
+<p>One &#8220;super-mapper&#8221; is available, for assembling more complex bin spaces from
+simpler components:</p>
 <blockquote>
-<div><span class="target" id="module-westpa.yamlcfg"></span><p>YAML-based configuration files for WESTPA</p>
+<div><ul class="simple">
+<li><code class="xref py py-class docutils literal"><span class="pre">RecursiveBinMapper</span></code>, for nesting one set of bins within another.</li>
+</ul>
+</div></blockquote>
+<p>Users are also free to implement their own mappers. A bin mapper must implement, at
+least, an <code class="docutils literal"><span class="pre">assign(coords,</span> <span class="pre">mask=None,</span> <span class="pre">output=None)</span></code> method, which is responsible
+for mapping each of the vector of coordinate tuples <code class="docutils literal"><span class="pre">coords</span></code> to an integer
+(numpy.uint16) indicating a what bin that coordinate tuple falls into. The optional
+<code class="docutils literal"><span class="pre">mask</span></code> (a numpy bool array) specifies that some coordinates are to be skipped; this is used,
+for instance, by the recursive (nested) bin mapper to minimize the number of calculations
+required to definitively assign a coordinate tuple to a bin. Similarly, the optional
+<code class="docutils literal"><span class="pre">output</span></code> must be an integer (uint16) array of the same length as <code class="docutils literal"><span class="pre">coords</span></code>, into which
+assignments are written. The <code class="docutils literal"><span class="pre">assign()</span></code> function must return a reference to <code class="docutils literal"><span class="pre">output</span></code>.
+(This is used to avoid allocating many temporary output arrays in complex binning
+scenarios.)</p>
+<p>A user-defined bin mapper must also make an <code class="docutils literal"><span class="pre">nbins</span></code> property available, containing
+the total number of bins within the mapper.</p>
+<dl class="class">
+<dt id="westpa.binning.assign.BinMapper">
+<em class="property">class </em><code class="descclassname">westpa.binning.assign.</code><code class="descname">BinMapper</code><a class="headerlink" href="#westpa.binning.assign.BinMapper" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="method">
+<dt id="westpa.binning.assign.BinMapper.hashfunc">
+<code class="descname">hashfunc</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#westpa.binning.assign.BinMapper.hashfunc" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a sha256 hash object; optionally initialized with a string</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="westpa.binning.assign.BinMapper.construct_bins">
+<code class="descname">construct_bins</code><span class="sig-paren">(</span><em>type_=&lt;class 'westpa.binning.bins.Bin'&gt;</em><span class="sig-paren">)</span><a class="headerlink" href="#westpa.binning.assign.BinMapper.construct_bins" title="Permalink to this definition">¶</a></dt>
+<dd><p>Construct and return an array of bins of type <code class="docutils literal"><span class="pre">type</span></code></p>
+</dd></dl>
+
+<dl class="method">
+<dt id="westpa.binning.assign.BinMapper.pickle_and_hash">
+<code class="descname">pickle_and_hash</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#westpa.binning.assign.BinMapper.pickle_and_hash" title="Permalink to this definition">¶</a></dt>
+<dd><p>Pickle this mapper and calculate a hash of the result (thus identifying the
+contents of the pickled data), returning a tuple <code class="docutils literal"><span class="pre">(pickled_data,</span> <span class="pre">hash)</span></code>.
+This will raise PickleError if this mapper cannot be pickled, in which case
+code that would otherwise rely on detecting a topology change must assume
+a topology change happened, even if one did not.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="westpa.binning.assign.NopMapper">
+<em class="property">class </em><code class="descclassname">westpa.binning.assign.</code><code class="descname">NopMapper</code><a class="headerlink" href="#westpa.binning.assign.NopMapper" title="Permalink to this definition">¶</a></dt>
+<dd><p>Put everything into one bin.</p>
+<dl class="method">
+<dt id="westpa.binning.assign.NopMapper.assign">
+<code class="descname">assign</code><span class="sig-paren">(</span><em>coords</em>, <em>mask=None</em>, <em>output=None</em><span class="sig-paren">)</span><a class="headerlink" href="#westpa.binning.assign.NopMapper.assign" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="westpa.binning.assign.RectilinearBinMapper">
+<em class="property">class </em><code class="descclassname">westpa.binning.assign.</code><code class="descname">RectilinearBinMapper</code><span class="sig-paren">(</span><em>boundaries</em><span class="sig-paren">)</span><a class="headerlink" href="#westpa.binning.assign.RectilinearBinMapper" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bin into a rectangular grid based on tuples of float values</p>
+<dl class="attribute">
+<dt id="westpa.binning.assign.RectilinearBinMapper.boundaries">
+<code class="descname">boundaries</code><a class="headerlink" href="#westpa.binning.assign.RectilinearBinMapper.boundaries" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="westpa.binning.assign.RectilinearBinMapper.assign">
+<code class="descname">assign</code><span class="sig-paren">(</span><em>coords</em>, <em>mask=None</em>, <em>output=None</em><span class="sig-paren">)</span><a class="headerlink" href="#westpa.binning.assign.RectilinearBinMapper.assign" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="westpa.binning.assign.PiecewiseBinMapper">
+<em class="property">class </em><code class="descclassname">westpa.binning.assign.</code><code class="descname">PiecewiseBinMapper</code><span class="sig-paren">(</span><em>functions</em><span class="sig-paren">)</span><a class="headerlink" href="#westpa.binning.assign.PiecewiseBinMapper" title="Permalink to this definition">¶</a></dt>
+<dd><p>Binning using a set of functions returing boolean values; if the Nth function
+returns True for a coordinate tuple, then that coordinate is in the Nth bin.</p>
+<dl class="method">
+<dt id="westpa.binning.assign.PiecewiseBinMapper.assign">
+<code class="descname">assign</code><span class="sig-paren">(</span><em>coords</em>, <em>mask=None</em>, <em>output=None</em><span class="sig-paren">)</span><a class="headerlink" href="#westpa.binning.assign.PiecewiseBinMapper.assign" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="westpa.binning.assign.FuncBinMapper">
+<em class="property">class </em><code class="descclassname">westpa.binning.assign.</code><code class="descname">FuncBinMapper</code><span class="sig-paren">(</span><em>func</em>, <em>nbins</em>, <em>args=None</em>, <em>kwargs=None</em><span class="sig-paren">)</span><a class="headerlink" href="#westpa.binning.assign.FuncBinMapper" title="Permalink to this definition">¶</a></dt>
+<dd><p>Binning using a custom function which must iterate over input coordinate
+sets itself.</p>
+<dl class="method">
+<dt id="westpa.binning.assign.FuncBinMapper.assign">
+<code class="descname">assign</code><span class="sig-paren">(</span><em>coords</em>, <em>mask=None</em>, <em>output=None</em><span class="sig-paren">)</span><a class="headerlink" href="#westpa.binning.assign.FuncBinMapper.assign" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="westpa.binning.assign.VectorizingFuncBinMapper">
+<em class="property">class </em><code class="descclassname">westpa.binning.assign.</code><code class="descname">VectorizingFuncBinMapper</code><span class="sig-paren">(</span><em>func</em>, <em>nbins</em>, <em>args=None</em>, <em>kwargs=None</em><span class="sig-paren">)</span><a class="headerlink" href="#westpa.binning.assign.VectorizingFuncBinMapper" title="Permalink to this definition">¶</a></dt>
+<dd><p>Binning using a custom function which is evaluated once for each (unmasked)
+coordinate tuple provided.</p>
+<dl class="method">
+<dt id="westpa.binning.assign.VectorizingFuncBinMapper.assign">
+<code class="descname">assign</code><span class="sig-paren">(</span><em>coords</em>, <em>mask=None</em>, <em>output=None</em><span class="sig-paren">)</span><a class="headerlink" href="#westpa.binning.assign.VectorizingFuncBinMapper.assign" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="westpa.binning.assign.VoronoiBinMapper">
+<em class="property">class </em><code class="descclassname">westpa.binning.assign.</code><code class="descname">VoronoiBinMapper</code><span class="sig-paren">(</span><em>dfunc</em>, <em>centers</em>, <em>dfargs=None</em>, <em>dfkwargs=None</em><span class="sig-paren">)</span><a class="headerlink" href="#westpa.binning.assign.VoronoiBinMapper" title="Permalink to this definition">¶</a></dt>
+<dd><p>A one-dimensional mapper which assigns a multidimensional pcoord to the
+closest center based on a distance metric. Both the list of centers and the
+distance function must be supplied.</p>
+<dl class="method">
+<dt id="westpa.binning.assign.VoronoiBinMapper.assign">
+<code class="descname">assign</code><span class="sig-paren">(</span><em>coords</em>, <em>mask=None</em>, <em>output=None</em><span class="sig-paren">)</span><a class="headerlink" href="#westpa.binning.assign.VoronoiBinMapper.assign" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<span class="target" id="module-westpa.binning.bins"></span><dl class="class">
+<dt id="westpa.binning.bins.Bin">
+<em class="property">class </em><code class="descclassname">westpa.binning.bins.</code><code class="descname">Bin</code><span class="sig-paren">(</span><em>iterable=None</em>, <em>label=None</em><span class="sig-paren">)</span><a class="headerlink" href="#westpa.binning.bins.Bin" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="attribute">
+<dt id="westpa.binning.bins.Bin.weight">
+<code class="descname">weight</code><a class="headerlink" href="#westpa.binning.bins.Bin.weight" title="Permalink to this definition">¶</a></dt>
+<dd><p>Total weight of all walkers in this bin</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="westpa.binning.bins.Bin.reweight">
+<code class="descname">reweight</code><span class="sig-paren">(</span><em>new_weight</em><span class="sig-paren">)</span><a class="headerlink" href="#westpa.binning.bins.Bin.reweight" title="Permalink to this definition">¶</a></dt>
+<dd><p>Reweight all walkers in this bin so that the total weight is new_weight</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-westpa.yamlcfg">
+<span id="yamlcfg"></span><h2>YAMLCFG<a class="headerlink" href="#module-westpa.yamlcfg" title="Permalink to this headline">¶</a></h2>
+<p>YAML-based configuration files for WESTPA</p>
 <dl class="exception">
 <dt id="westpa.yamlcfg.ConfigValueWarning">
 <em class="property">exception </em><code class="descclassname">westpa.yamlcfg.</code><code class="descname">ConfigValueWarning</code><a class="headerlink" href="#westpa.yamlcfg.ConfigValueWarning" title="Permalink to this definition">¶</a></dt>
@@ -232,17 +386,232 @@ a length appropriate for a segment is returned.</p>
 
 </dd></dl>
 
-</div></blockquote>
 </div>
 <div class="section" id="rc">
 <h2>RC<a class="headerlink" href="#rc" title="Permalink to this headline">¶</a></h2>
-<blockquote>
-<div><dl class="attribute">
-<dt id="westpa.rc">
-<code class="descclassname">westpa.</code><code class="descname">rc</code><a class="headerlink" href="#westpa.rc" title="Permalink to this definition">¶</a></dt>
+<dl class="class">
+<dt id="westpa._rc.WESTRC">
+<em class="property">class </em><code class="descclassname">westpa._rc.</code><code class="descname">WESTRC</code><a class="headerlink" href="#westpa._rc.WESTRC" title="Permalink to this definition">¶</a></dt>
+<dd><p>A class, an instance of which is accessible as <code class="docutils literal"><span class="pre">westpa.rc</span></code>, to handle global issues for WEST-PA code,
+such as loading modules and plugins, writing output based on verbosity level, adding default command line options,
+and so on.</p>
+<dl class="attribute">
+<dt id="westpa._rc.WESTRC.ENV_RUNTIME_CONFIG">
+<code class="descname">ENV_RUNTIME_CONFIG</code><em class="property"> = 'WESTRC'</em><a class="headerlink" href="#westpa._rc.WESTRC.ENV_RUNTIME_CONFIG" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
-</div></blockquote>
+<dl class="attribute">
+<dt id="westpa._rc.WESTRC.RC_DEFAULT_FILENAME">
+<code class="descname">RC_DEFAULT_FILENAME</code><em class="property"> = 'west.cfg'</em><a class="headerlink" href="#westpa._rc.WESTRC.RC_DEFAULT_FILENAME" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="westpa._rc.WESTRC.add_args">
+<code class="descname">add_args</code><span class="sig-paren">(</span><em>parser</em><span class="sig-paren">)</span><a class="headerlink" href="#westpa._rc.WESTRC.add_args" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="westpa._rc.WESTRC.config_logging">
+<code class="descname">config_logging</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#westpa._rc.WESTRC.config_logging" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="westpa._rc.WESTRC.data_manager">
+<code class="descname">data_manager</code><a class="headerlink" href="#westpa._rc.WESTRC.data_manager" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="westpa._rc.WESTRC.debug_mode">
+<code class="descname">debug_mode</code><a class="headerlink" href="#westpa._rc.WESTRC.debug_mode" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="westpa._rc.WESTRC.get_data_manager">
+<code class="descname">get_data_manager</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#westpa._rc.WESTRC.get_data_manager" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="westpa._rc.WESTRC.get_propagator">
+<code class="descname">get_propagator</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#westpa._rc.WESTRC.get_propagator" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="westpa._rc.WESTRC.get_sim_manager">
+<code class="descname">get_sim_manager</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#westpa._rc.WESTRC.get_sim_manager" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="westpa._rc.WESTRC.get_system_driver">
+<code class="descname">get_system_driver</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#westpa._rc.WESTRC.get_system_driver" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="westpa._rc.WESTRC.get_we_driver">
+<code class="descname">get_we_driver</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#westpa._rc.WESTRC.get_we_driver" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="westpa._rc.WESTRC.get_work_manager">
+<code class="descname">get_work_manager</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#westpa._rc.WESTRC.get_work_manager" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="westpa._rc.WESTRC.new_data_manager">
+<code class="descname">new_data_manager</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#westpa._rc.WESTRC.new_data_manager" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="westpa._rc.WESTRC.new_propagator">
+<code class="descname">new_propagator</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#westpa._rc.WESTRC.new_propagator" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="westpa._rc.WESTRC.new_sim_manager">
+<code class="descname">new_sim_manager</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#westpa._rc.WESTRC.new_sim_manager" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="westpa._rc.WESTRC.new_system_driver">
+<code class="descname">new_system_driver</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#westpa._rc.WESTRC.new_system_driver" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a new system object either from the driver OR from the YAML
+file. Currently builds off of system then updates with YAML
+overwriting the previous settings if both are specified.</p>
+<p>There are no default settings, all settings MUST be specified
+in the config YAML file OR the system driver.</p>
+<dl class="docutils">
+<dt>Settings that are specified here are:</dt>
+<dd><dl class="first last docutils">
+<dt>Progress coordinate settings:</dt>
+<dd>Progress coordinate dimensionality
+Progress coordinate length/number of data points in each tau
+Progress coordinate data type</dd>
+<dt>Bin settings:</dt>
+<dd>Bin mapper type
+Bins
+Target simulation counts for each bin</dd>
+<dt>Generic setting for flexibility:</dt>
+<dd>Both paths allow for generic attribute setting for
+future flexibility.</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="westpa._rc.WESTRC.new_we_driver">
+<code class="descname">new_we_driver</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#westpa._rc.WESTRC.new_we_driver" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="westpa._rc.WESTRC.overwrite_option">
+<code class="descname">overwrite_option</code><span class="sig-paren">(</span><em>system</em>, <em>key</em>, <em>value</em><span class="sig-paren">)</span><a class="headerlink" href="#westpa._rc.WESTRC.overwrite_option" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="westpa._rc.WESTRC.pflush">
+<code class="descname">pflush</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#westpa._rc.WESTRC.pflush" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="westpa._rc.WESTRC.process_args">
+<code class="descname">process_args</code><span class="sig-paren">(</span><em>args</em>, <em>config_required=True</em><span class="sig-paren">)</span><a class="headerlink" href="#westpa._rc.WESTRC.process_args" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="westpa._rc.WESTRC.process_config">
+<code class="descname">process_config</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#westpa._rc.WESTRC.process_config" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="westpa._rc.WESTRC.propagator">
+<code class="descname">propagator</code><a class="headerlink" href="#westpa._rc.WESTRC.propagator" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="westpa._rc.WESTRC.pstatus">
+<code class="descname">pstatus</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#westpa._rc.WESTRC.pstatus" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="westpa._rc.WESTRC.pstatus_term">
+<code class="descname">pstatus_term</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#westpa._rc.WESTRC.pstatus_term" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="westpa._rc.WESTRC.quiet_mode">
+<code class="descname">quiet_mode</code><a class="headerlink" href="#westpa._rc.WESTRC.quiet_mode" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="westpa._rc.WESTRC.read_config">
+<code class="descname">read_config</code><span class="sig-paren">(</span><em>filename=None</em><span class="sig-paren">)</span><a class="headerlink" href="#westpa._rc.WESTRC.read_config" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="westpa._rc.WESTRC.sim_manager">
+<code class="descname">sim_manager</code><a class="headerlink" href="#westpa._rc.WESTRC.sim_manager" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="westpa._rc.WESTRC.system">
+<code class="descname">system</code><a class="headerlink" href="#westpa._rc.WESTRC.system" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="westpa._rc.WESTRC.system_from_yaml">
+<code class="descname">system_from_yaml</code><span class="sig-paren">(</span><em>system_dict</em><span class="sig-paren">)</span><a class="headerlink" href="#westpa._rc.WESTRC.system_from_yaml" title="Permalink to this definition">¶</a></dt>
+<dd><p>System builder directly from the config YAML file.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>system_dict</strong> (<em>dict</em>) &#8211; Parsed YAML file as a dictionary, parsed by
+PyYAML by default.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">A modified WESTSystem object as defined in yamlcfg.py with
+the parsed settings from the config file.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="westpa._rc.WESTRC.update_from_yaml">
+<code class="descname">update_from_yaml</code><span class="sig-paren">(</span><em>init_system</em>, <em>system_dict</em><span class="sig-paren">)</span><a class="headerlink" href="#westpa._rc.WESTRC.update_from_yaml" title="Permalink to this definition">¶</a></dt>
+<dd><p>Updates the system built from the driver with the options
+from the YAML file. For now it overwrites everything specified
+in the system driver.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>system_dict</strong> (<em>dict</em>) &#8211; Parsed YAML file as a dictionary, parsed by
+PyYAML by default.</li>
+<li><strong>init_system</strong> (<em>WESTSystem</em>) &#8211; System returned by the driver.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">A modified WESTSystem object with settings from the system
+driver and the config YAML file.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="westpa._rc.WESTRC.verbose_mode">
+<code class="descname">verbose_mode</code><a class="headerlink" href="#westpa._rc.WESTRC.verbose_mode" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="westpa._rc.WESTRC.we_driver">
+<code class="descname">we_driver</code><a class="headerlink" href="#westpa._rc.WESTRC.we_driver" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
 </div>
 </div>
 
@@ -258,9 +627,8 @@ a length appropriate for a segment is returned.</p>
   <h3><a href="../sphinx_index.html">Table Of Contents</a></h3>
   <ul>
 <li><a class="reference internal" href="#">WESTPA MODULES API</a><ul>
-<li><a class="reference internal" href="#module-westpa">WESTPA</a></li>
-<li><a class="reference internal" href="#binning">Binning</a></li>
-<li><a class="reference internal" href="#yamlcfg">YAMLCFG</a></li>
+<li><a class="reference internal" href="#module-westpa.binning.assign">Binning</a></li>
+<li><a class="reference internal" href="#module-westpa.yamlcfg">YAMLCFG</a></li>
 <li><a class="reference internal" href="#rc">RC</a></li>
 </ul>
 </li>
