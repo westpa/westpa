@@ -1,8 +1,11 @@
 API
 ===
 
+.. automodule:: westpa
+   :members:
+
 .. automodule:: westpa.binning 
    :members:
 
-.. automodule:: westpa.rc
+.. autoclass:: westpa.rc
    :members:
