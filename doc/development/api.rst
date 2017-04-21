@@ -1,4 +1,4 @@
-WESTPA MODULES API
+WESTPA Modules API
 ==================
 
 Binning
@@ -14,3 +14,8 @@ YAMLCFG
 RC
 ##
 .. autoclass:: westpa._rc.WESTRC
+
+WESTPA Tools 
+============
+
+.. automodule:: westtools
