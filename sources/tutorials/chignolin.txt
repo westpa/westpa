@@ -295,7 +295,7 @@ the analysis.
 Observing folding events
 
 Through the following python script, we can monitor the progress of the
-simulation by plotting the C-alpha RMSD (in |\\AA|) of the
+simulation by plotting the C-alpha RMSD (in A) of the
 closest/farest segment to the folded structure vs. the total simulation
 time.
 
@@ -333,7 +333,7 @@ time.
           print counter, firstcoord[0],firstcoord[-1]
 
 In this example, we define the folded state as any structure with a
-C-alpha RMSD less than 2.5 |\\AA|. As shown in the plot, folding events
+C-alpha RMSD less than 2.5A. As shown in the plot, folding events
 occur after the first 20ns of simulation.
 
 .. figure:: ../_static/chig_minmax.png
@@ -342,7 +342,7 @@ Computing the folding rate constant
 
 WESTPA includes several scripts for analysis located in
 **$WEST\_ROOT/bin**. In *init.sh* we have specified the folded structure
-as those structures with RMSD less than 2.5\ |\\AA|. Using
+as those structures with RMSD less than 2.5A. Using
 **w\_fluxanl**, we can calculate the flux into this target (folded)
 state, and from that calculate the folding rate. **w\_fluxanl** may be
 run with the following commands:
