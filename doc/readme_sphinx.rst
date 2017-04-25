@@ -26,7 +26,7 @@ License, Version 3. See the file ``COPYING`` for more information.
 .. _page: https://westpa.github.io/westpa/overview.html
 
 ------------
-Requirements
+Installation
 ------------
 
 WESTPA is written in Python and requires version 2.7. WESTPA further requires
@@ -36,11 +36,6 @@ Anaconda Python distribution from www.continuum.io (free for all users).
 
 WESTPA currently runs on Unix-like operating systems, including Linux and
 Mac OS X. It is developed and tested on x86_64 machines running Linux.
-
-
-------------
-Installation
-------------
 
 After obtaining a copy of the code (see https://westpa.github.io/westpa for details), run
 ``setup.sh`` in the ``westpa`` directory. If the version of Python you will
