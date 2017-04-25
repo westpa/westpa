@@ -33,9 +33,9 @@ Advanced
    OpenMM <tutorials/openmm>
    Weighted ensemble-based string method <http://stringmethodexamples.readthedocs.org/>
 
-------------
+-------------------
 Advanced Reference
-------------
+-------------------
 
 .. toctree::
    :maxdepth: 1
