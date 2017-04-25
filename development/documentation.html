@@ -27,7 +27,7 @@
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="top" title="WESTPA 1.0b1 documentation" href="../sphinx_index.html" />
-    <link rel="next" title="WESTPA MODULES API" href="api.html" />
+    <link rel="next" title="WESTPA Modules API" href="api.html" />
     <link rel="prev" title="Source Code Management" href="source_code.html" />
    
   <link rel="stylesheet" href="../static/custom.css" type="text/css" />
@@ -60,6 +60,28 @@ running:</p>
 </pre></div>
 </div>
 <p>To prepare a pdf. The latter requires <code class="docutils literal"><span class="pre">latex</span></code> to be available.</p>
+<p>A quick command to update the documentation in gh-pages repo is also available:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">make</span> <span class="n">ghpages</span>
+</pre></div>
+</div>
+<p>This command will run Sphinx html command and change the htmls to fit with the gh-pages
+format, it also runs:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">git</span> <span class="n">checkout</span> <span class="n">gh</span><span class="o">-</span><span class="n">pages</span>
+<span class="n">git</span> <span class="n">commit</span> <span class="o">-</span><span class="n">a</span>
+<span class="n">git</span> <span class="n">push</span>
+</pre></div>
+</div>
+<p>for you. Also note that this will change the current branch you are at to gh-pages
+branch. It also leaves behind a doc/_build folder that is no longer useful. Once you run
+ghpages command I suggest going up a folder and removing the unnecessary doc folder
+that is there by:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">cd</span> <span class="o">../</span>
+<span class="n">rm</span> <span class="o">-</span><span class="n">r</span> <span class="n">doc</span>
+</pre></div>
+</div>
+<p>Remeber to make sure you are indeed in gh-pages branch, this branch is not supposed to have
+a folder named doc. Sometimes if you are not careful git checkout fails and you might end up
+removing the folder you were working with if you are not careful.</p>
 </div>
 
 
@@ -75,7 +97,7 @@ running:</p>
 <ul>
   <li><a href="../sphinx_index.html">Documentation overview</a><ul>
       <li>Previous: <a href="source_code.html" title="previous chapter">Source Code Management</a></li>
-      <li>Next: <a href="api.html" title="next chapter">WESTPA MODULES API</a></li>
+      <li>Next: <a href="api.html" title="next chapter">WESTPA Modules API</a></li>
   </ul></li>
 </ul>
 </div>

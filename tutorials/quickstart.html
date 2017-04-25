@@ -1,0 +1,206 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Quickstart Guide &#8212; WESTPA 1.0b1 documentation</title>
+    
+    <link rel="stylesheet" href="../static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../static/custom.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '1.0b1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../static/jquery.js"></script>
+    <script type="text/javascript" src="../static/underscore.js"></script>
+    <script type="text/javascript" src="../static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="top" title="WESTPA 1.0b1 documentation" href="../sphinx_index.html" />
+    <link rel="next" title="NAMD example: Molecular dynamics simulation of Chignolin" href="chignolin.html" />
+    <link rel="prev" title="Frequently asked questions (FAQ)" href="../users_guide/faq.html" />
+   
+  <link rel="stylesheet" href="../static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body role="document">
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="quickstart-guide">
+<span id="id1"></span><h1>Quickstart Guide<a class="headerlink" href="#quickstart-guide" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h2>
+<p>This tutorial is intended to get you started quickly in running a WESTPA
+simulation. For more advanced options, please check out the tutorials
+that are available on our Sphinx website.</p>
+</div>
+<div class="section" id="installing-westpa">
+<h2>Installing WESTPA<a class="headerlink" href="#installing-westpa" title="Permalink to this headline">¶</a></h2>
+<p>To install WESTPA, just follow the three steps below.</p>
+<ol class="arabic simple">
+<li>Clone the WESTPA repo.</li>
+</ol>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="c1"># git clone https://github.com/westpa/westpa.git</span>
+<span class="n">Cloning</span> <span class="n">into</span> <span class="s1">&#39;westpa&#39;</span><span class="o">...</span>
+<span class="n">remote</span><span class="p">:</span> <span class="n">Counting</span> <span class="n">objects</span><span class="p">:</span> <span class="mi">6377</span><span class="p">,</span> <span class="n">done</span><span class="o">.</span>
+<span class="n">remote</span><span class="p">:</span> <span class="n">Total</span> <span class="mi">6377</span> <span class="p">(</span><span class="n">delta</span> <span class="mi">0</span><span class="p">),</span> <span class="n">reused</span> <span class="mi">0</span> <span class="p">(</span><span class="n">delta</span> <span class="mi">0</span><span class="p">),</span> <span class="n">pack</span><span class="o">-</span><span class="n">reused</span> <span class="mi">6377</span>
+<span class="n">Receiving</span> <span class="n">objects</span><span class="p">:</span> <span class="mi">100</span><span class="o">%</span> <span class="p">(</span><span class="mi">6377</span><span class="o">/</span><span class="mi">6377</span><span class="p">),</span> <span class="mf">8.85</span> <span class="n">MiB</span> <span class="o">|</span> <span class="mi">0</span> <span class="nb">bytes</span><span class="o">/</span><span class="n">s</span><span class="p">,</span> <span class="n">done</span><span class="o">.</span>
+<span class="n">Resolving</span> <span class="n">deltas</span><span class="p">:</span> <span class="mi">100</span><span class="o">%</span> <span class="p">(</span><span class="mi">4015</span><span class="o">/</span><span class="mi">4015</span><span class="p">),</span> <span class="n">done</span><span class="o">.</span>
+<span class="n">Checking</span> <span class="n">connectivity</span><span class="o">...</span> <span class="n">done</span><span class="o">.</span>
+</pre></div>
+</div>
+<p>2) Make sure that you have the latest Anaconda python binary (<a class="reference external" href="https://www.continuum.io/downloads">Anaconda
+distribution</a>)</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>#which python
+$HOME/apps/anaconda/bin/python
+</pre></div>
+</div>
+<ol class="arabic simple" start="3">
+<li>Go to the westpa folder and run setup.sh.</li>
+</ol>
+<div class="highlight-default"><div class="highlight"><pre><span></span>#cd westpa
+#./setup.sh
+$HOME/westpa/lib $HOME/test_qsg/westpa
+$HOME/westpa/lib/blessings $HOME/westpa/lib $HOME/westpa
+From git://github.com/erikrose/blessings
+ * branch            master     -&gt; FETCH_HEAD
+Updating d3ba51c..979988c
+...
+</pre></div>
+</div>
+</div>
+<div class="section" id="running-a-westpa-simulation">
+<h2>Running a WESTPA simulation<a class="headerlink" href="#running-a-westpa-simulation" title="Permalink to this headline">¶</a></h2>
+<p>Now let&#8217;s run a quick WESTPA simulation of Na+/Cl- association using the
+NAMD dynamics engine. To run this simulation, follow the steps below.</p>
+<p>1) Check that you have the binary for the NAMD dynamics engine in your
+PATH variable</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="c1">#which namd2</span>
+</pre></div>
+</div>
+<ol class="arabic simple" start="2">
+<li>Export the WEST_ROOT environment variable</li>
+</ol>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="c1">#export WEST_ROOT=$(pwd)</span>
+</pre></div>
+</div>
+<p>3) Head over to the example simulation directory and initialize the
+simulation</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>#cd lib/examples/nacl_namd
+#./init.sh
+simulation nacl_namd root is $HOME/westpa/lib/examples/nacl_namd
+Creating HDF5 file &#39;$HOME/westpa/lib/examples/nacl_namd/west.h5&#39;
+2 target state(s) present
+Calculating progress coordinate values for basis states.
+1 basis state(s) present
+Preparing initial states
+
+        Total bins:            22
+        Initial replicas:      24 in 1 bins, total weight = 1
+        Total target replicas: 528
+
+Simulation prepared.
+1 of 22 (4.545455%) active bins are populated
+per-bin minimum non-zero probability:       1
+per-bin maximum probability:                1
+per-bin probability dynamic range (kT):     0
+per-segment minimum non-zero probability:   0.0416667
+per-segment maximum non-zero probability:   0.0416667
+per-segment probability dynamic range (kT): 0
+norm = 1, error in norm = 0 (0*epsilon)
+</pre></div>
+</div>
+<ol class="arabic simple" start="4">
+<li>Run the WESTPA simulation</li>
+</ol>
+<div class="highlight-default"><div class="highlight"><pre><span></span>#./run.sh
+simulation nacl_namd root is $HOME/westpa/lib/examples/nacl_namd
+</pre></div>
+</div>
+<p>Voila! Your simulation results can be found in the west.h5 file.</p>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+            <p class="logo"><a href="../sphinx_index.html">
+              <img class="logo" src="../static/WESTPA2b.svg" alt="Logo"/>
+            </a></p>
+  <h3><a href="../sphinx_index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Quickstart Guide</a><ul>
+<li><a class="reference internal" href="#overview">Overview</a></li>
+<li><a class="reference internal" href="#installing-westpa">Installing WESTPA</a></li>
+<li><a class="reference internal" href="#running-a-westpa-simulation">Running a WESTPA simulation</a></li>
+</ul>
+</li>
+</ul>
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../sphinx_index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="../users_guide/faq.html" title="previous chapter">Frequently asked questions (FAQ)</a></li>
+      <li>Next: <a href="chignolin.html" title="next chapter">NAMD example: Molecular dynamics simulation of Chignolin</a></li>
+  </ul></li>
+</ul>
+</div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../sources/tutorials/quickstart.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2015, Matthew C. Zwier and Lillian T. Chong.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.4.9</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      
+      |
+      <a href="../sources/tutorials/quickstart.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>
