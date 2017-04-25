@@ -58,17 +58,14 @@ contributing documentation or code to the WESTPA community.</p>
 <p>WESTPA is free software, licensed under the terms of the GNU General Public
 License, Version 3. See the file <code class="docutils literal"><span class="pre">COPYING</span></code> for more information.</p>
 </div>
-<div class="section" id="requirements">
-<h2>Requirements<a class="headerlink" href="#requirements" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="installation">
+<h2>Installation<a class="headerlink" href="#installation" title="Permalink to this headline">¶</a></h2>
 <p>WESTPA is written in Python and requires version 2.7. WESTPA further requires
 a large number of scientific software libraries for Python and other
 languages. The simplest way to meet these requirements is to download the
 Anaconda Python distribution from www.continuum.io (free for all users).</p>
 <p>WESTPA currently runs on Unix-like operating systems, including Linux and
 Mac OS X. It is developed and tested on x86_64 machines running Linux.</p>
-</div>
-<div class="section" id="installation">
-<h2>Installation<a class="headerlink" href="#installation" title="Permalink to this headline">¶</a></h2>
 <p>After obtaining a copy of the code (see <a class="reference external" href="https://westpa.github.io/westpa">https://westpa.github.io/westpa</a> for details), run
 <code class="docutils literal"><span class="pre">setup.sh</span></code> in the <code class="docutils literal"><span class="pre">westpa</span></code> directory. If the version of Python you will
 be using to run the code is not first on your $PATH, then set the environment
@@ -170,29 +167,21 @@ copyright 2011 the Python Software Foundation. See
 <a class="reference external" href="http://docs.python.org/3/license.html">http://docs.python.org/3/license.html</a> for more information.</p>
 </div>
 </div>
-<div class="section" id="user-s-guide">
-<h2>User&#8217;s Guide<a class="headerlink" href="#user-s-guide" title="Permalink to this headline">¶</a></h2>
-<div class="toctree-wrapper compound">
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="users_guide/west.html"> WEST</a></li>
-<li class="toctree-l1"><a class="reference internal" href="users_guide/west_tools.html"> WEST tools</a></li>
-<li class="toctree-l1"><a class="reference internal" href="users_guide/wwmgr.html"> WEST work manager</a></li>
-<li class="toctree-l1"><a class="reference internal" href="users_guide/westext.html"> WEST extensions</a></li>
-<li class="toctree-l1"><a class="reference internal" href="users_guide/command_line_tools.html"> Command line tool index</a></li>
-<li class="toctree-l1"><a class="reference internal" href="users_guide/hdf5.html"> HDF5 file schema</a></li>
-</ul>
-</div>
-</div>
 <div class="section" id="tutorials">
 <h2>Tutorials<a class="headerlink" href="#tutorials" title="Permalink to this headline">¶</a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/quickstart.html">Quickstart guide</a></li>
+</ul>
+</div>
 <div class="section" id="introductory">
 <h3>Introductory<a class="headerlink" href="#introductory" title="Permalink to this headline">¶</a></h3>
 <div class="toctree-wrapper compound">
 <ul>
 <li class="toctree-l1"><a class="reference external" href="https://www.youtube.com/watch?v=YpltPzpcmLY">An introduction to WESTPA (video tutorial)</a></li>
 <li class="toctree-l1"><a class="reference external" href="https://www.youtube.com/watch?v=rMFvcHOOxZc">Analysis Tools (video tutorial)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tutorials/p53.html">Molecular Scale Systems</a></li>
 <li class="toctree-l1"><a class="reference external" href="https://www.youtube.com/watch?v=rY-IJcLFiaM">Spatially-resolved Systems Biology (MCell) Models (video tutorial)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/chignolin.html">Chignolin tutorial</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tutorials/amber.html">AMBER</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tutorials/gromacs.html">GROMACS</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tutorials/namd.html">NAMD</a></li>
@@ -203,10 +192,24 @@ copyright 2011 the Python Software Foundation. See
 <h3>Advanced<a class="headerlink" href="#advanced" title="Permalink to this headline">¶</a></h3>
 <div class="toctree-wrapper compound">
 <ul>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/p53.html">Molecular Scale Systems</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tutorials/openmm.html">OpenMM</a></li>
 <li class="toctree-l1"><a class="reference external" href="http://stringmethodexamples.readthedocs.org/">Weighted ensemble-based string method</a></li>
 </ul>
 </div>
+</div>
+</div>
+<div class="section" id="advanced-reference">
+<h2>Advanced Reference<a class="headerlink" href="#advanced-reference" title="Permalink to this headline">¶</a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="users_guide/west.html"> WEST</a></li>
+<li class="toctree-l1"><a class="reference internal" href="users_guide/west_tools.html"> WEST tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="users_guide/wwmgr.html"> WEST work manager</a></li>
+<li class="toctree-l1"><a class="reference internal" href="users_guide/westext.html"> WEST extensions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="users_guide/command_line_tools.html"> Command line tool index</a></li>
+<li class="toctree-l1"><a class="reference internal" href="users_guide/hdf5.html"> HDF5 file schema</a></li>
+</ul>
 </div>
 </div>
 <div class="section" id="development">
@@ -237,7 +240,6 @@ copyright 2011 the Python Software Foundation. See
   <ul>
 <li><a class="reference internal" href="#">WESTPA 1.0 beta</a><ul>
 <li><a class="reference internal" href="#overview">Overview</a></li>
-<li><a class="reference internal" href="#requirements">Requirements</a></li>
 <li><a class="reference internal" href="#installation">Installation</a></li>
 <li><a class="reference internal" href="#getting-started">Getting started</a><ul>
 <li><a class="reference internal" href="#checklist">Checklist</a></li>
@@ -252,12 +254,12 @@ copyright 2011 the Python Software Foundation. See
 <li><a class="reference internal" href="#for-included-software">For included software</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#user-s-guide">User&#8217;s Guide</a></li>
 <li><a class="reference internal" href="#tutorials">Tutorials</a><ul>
 <li><a class="reference internal" href="#introductory">Introductory</a></li>
 <li><a class="reference internal" href="#advanced">Advanced</a></li>
 </ul>
 </li>
+<li><a class="reference internal" href="#advanced-reference">Advanced Reference</a></li>
 <li><a class="reference internal" href="#development">Development</a></li>
 </ul>
 </li>

@@ -1,0 +1,526 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>NAMD example: Molecular dynamics simulation of Chignolin &#8212; WESTPA 1.0b1 documentation</title>
+    
+    <link rel="stylesheet" href="../static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../static/custom.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '1.0b1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../static/jquery.js"></script>
+    <script type="text/javascript" src="../static/underscore.js"></script>
+    <script type="text/javascript" src="../static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="top" title="WESTPA 1.0b1 documentation" href="../sphinx_index.html" />
+    <link rel="next" title="AMBER Tutorial: Molecular Dynamics of Na+/Cl- Association" href="amber.html" />
+    <link rel="prev" title="Quickstart Guide" href="quickstart.html" />
+   
+  <link rel="stylesheet" href="../static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body role="document">
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="namd-example-molecular-dynamics-simulation-of-chignolin">
+<span id="chignolin-tutorial"></span><h1>NAMD example: Molecular dynamics simulation of Chignolin<a class="headerlink" href="#namd-example-molecular-dynamics-simulation-of-chignolin" title="Permalink to this headline">¶</a></h1>
+<p>by Ernesto Suarez</p>
+<p>updated with WESTPA version 0.9.1, changeset 3afe1b17a43f</p>
+<div class="section" id="introduction">
+<h2>Introduction<a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
+<p>This tutorial assumes that you are already familiar with the packages
+<a class="reference external" href="http://www.ks.uiuc.edu/Training/Tutorials/namd/namd-tutorial-unix-html/index.html">NAMD</a>
+and
+<a class="reference external" href="http://www.ks.uiuc.edu/Training/Tutorials/vmd/tutorial-html/">VMD</a>
+and have a basic knowledge of Python and bash scripting. Once the code
+is
+<a class="reference external" href="https://chong.chem.pitt.edu/wewiki/UserGuide:Installing">installed</a>,
+the user can
+<a class="reference external" href="https://dl.dropboxusercontent.com/u/27043352/chig_namd.tar.gz">download</a>
+the working example directory (<strong>chig_namd</strong>) where this tutorial was
+run. Users have to make their own version of this folder for their
+particular system. As can be noticed, there is not a unique input
+file, but several key files that have to be modified. In this tutorial
+we will did the modifications we needed in order to “study” the
+folding in implicit solvent of a beta-hairpin, mini-protein called
+<a class="reference external" href="http://www.rcsb.org/pdb/explore/explore.do?structureId=2E4E">Chignolin
+(GYDPETGTWG)</a>.</p>
+</div>
+<div class="section" id="namd-files-needed">
+<h2>NAMD files needed<a class="headerlink" href="#namd-files-needed" title="Permalink to this headline">¶</a></h2>
+<p>We will need the starting structure <strong>seg_initial.pdb</strong>, and in this
+case we also have the file where the velocities are stored
+(<strong>seg_initial.vel</strong>), since our starting point is a continuation of a
+regular MD simulation. We will also need the protein structure file
+<strong>chig.psf</strong>, the parameters file (in this case
+<strong>par_all22_prot_na.prm</strong>) and the NAMD configuration file
+<strong>md-continue.conf</strong> that will be used to propagate the trajectories.
+Note that VMD offers an automatic psf file builder from the <strong>.pdb</strong> via
+the VMD Main menu by clicking Extensions -&gt; Modeling -&gt; Automatic PSF
+Builder. Also notice that in any weighted ensemble simulation we do need
+a stochastic component acting on the trajectories, otherwise the
+trajectories would not diverge from each other. In this example we will
+use Langevin dynamics (see the NAMD configuration file
+<strong>md-continue.conf</strong> below).</p>
+<div class="section" id="md-continue-conf">
+<h3>md-continue.conf<a class="headerlink" href="#md-continue-conf" title="Permalink to this headline">¶</a></h3>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="c1"># md-continue.conf</span>
+<span class="c1"># #   1 ps NVT production with Langevin thermostat and Generalized Born implicit solvation</span>
+<span class="c1"># ######################################################## INPUT #########################################################</span>
+  <span class="n">paraTypeCharmm</span>                      <span class="n">on</span>                      <span class="p">;</span><span class="c1"># Input parameter file is in &#39;CHARMM&#39; format, not &#39;X-PLOR&#39;</span>
+  <span class="n">coordinates</span>                         <span class="n">parent</span><span class="o">.</span><span class="n">pdb</span>              <span class="p">;</span><span class="c1"># Structure infile (.coor/.pdb)</span>
+  <span class="n">velocities</span>                          <span class="n">parent</span><span class="o">.</span><span class="n">vel</span>              <span class="p">;</span><span class="c1"># Velocity infile (.vel)</span>
+  <span class="n">structure</span>                           <span class="n">chig</span><span class="o">.</span><span class="n">psf</span>                <span class="p">;</span><span class="c1"># Topology infile (.psf)</span>
+  <span class="n">parameters</span>                          <span class="n">par_all22_prot_na</span><span class="o">.</span><span class="n">prm</span>   <span class="p">;</span><span class="c1"># Parameter infile (.prm)</span>
+<span class="c1"># ####################################################### ENSEMBLE #######################################################</span>
+  <span class="n">langevin</span>                            <span class="n">on</span>                      <span class="p">;</span><span class="c1"># Langevin thermostat enabled</span>
+  <span class="n">langevintemp</span>                        <span class="mi">300</span>                     <span class="p">;</span><span class="c1"># Langevin thermostat temperature (K)</span>
+  <span class="n">langevindamping</span>                     <span class="mi">10</span>                      <span class="p">;</span><span class="c1"># Langevin thermostat damping constant (ps -1)</span>
+  <span class="n">GBIS</span>                                <span class="n">on</span>                      <span class="p">;</span><span class="c1"># Generalized Born implicit solvent enabled</span>
+<span class="c1"># ################################################ NONBONDED INTERACTIONS ################################################</span>
+  <span class="n">cutoff</span>                              <span class="mf">999.0</span>                   <span class="p">;</span><span class="c1"># Nonbonded cutoff for van der Waals and electrostatics (A)</span>
+  <span class="n">exclude</span>                             <span class="n">scaled1</span><span class="o">-</span><span class="mi">4</span>               <span class="p">;</span><span class="c1"># Electrostatic scaling between 1-4 bonded atoms</span>
+  <span class="mi">1</span><span class="o">-</span><span class="mi">4</span><span class="n">scaling</span>                          <span class="mf">1.0</span>                     <span class="p">;</span><span class="c1"># 1-4 interaction scaling (0.83333 for Amber force field)</span>
+  <span class="n">switching</span>                           <span class="n">off</span>                     <span class="p">;</span><span class="c1"># Van der Waals switching disabled</span>
+  <span class="n">pairlistdist</span>                        <span class="mf">1000.0</span>                  <span class="p">;</span><span class="c1"># Neighbor list cut-off (A)</span>
+  <span class="n">stepspercycle</span>                       <span class="mi">250</span>                     <span class="p">;</span><span class="c1"># Neighbor list update interval (timesteps)</span>
+<span class="c1"># ######################################################## OUTPUT ########################################################</span>
+  <span class="n">outputname</span>                          <span class="n">seg</span>                     <span class="p">;</span><span class="c1"># Output file prefix</span>
+  <span class="n">outputEnergies</span>                      <span class="mi">500</span>                     <span class="p">;</span><span class="c1"># Energy log output interval (timesteps)</span>
+  <span class="n">restartfreq</span>                         <span class="mi">0</span>                       <span class="p">;</span><span class="c1"># Restart file output interval (timesteps)</span>
+  <span class="n">binaryoutput</span>                        <span class="n">no</span>                      <span class="p">;</span><span class="c1"># Do not output binary trajectory</span>
+  <span class="n">dcdfile</span>                             <span class="n">seg</span><span class="o">.</span><span class="n">dcd</span>                 <span class="p">;</span><span class="c1"># Trajectory outfile (.dcd)</span>
+  <span class="n">dcdfreq</span>                             <span class="mi">500</span>                     <span class="p">;</span><span class="c1"># Trajectory output interval (timesteps)</span>
+<span class="c1"># ###################################################### INTEGRATOR ######################################################</span>
+  <span class="n">timestep</span>                            <span class="mf">2.0</span>                     <span class="p">;</span><span class="c1"># Simulation timestep (fs)</span>
+  <span class="n">run</span>                                 <span class="mi">500</span>                     <span class="p">;</span><span class="c1"># Simulation durat</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="other-files-needed">
+<h2>Other files needed<a class="headerlink" href="#other-files-needed" title="Permalink to this headline">¶</a></h2>
+<p>The NAMD files just mentioned are in <strong>chig_namd/auxfiles</strong>. In this
+folder we also have our reference file <strong>reference.pdb</strong> with the folded
+structure, and two scripts that computes the RMSD from the reference
+file, <strong>get-rmsd-init.py</strong> and <strong>get-rmsd.py</strong>. The first one is used to
+initiate the simulation while the second one is used during the
+propagation.(see below)</p>
+<p>Specifying weighted ensemble parameters in the WESTPA files</p>
+<p>The following table shows the files we will need to modify in order to
+run our WESTPA simulation. In the following we will show the
+modifications needed on these files in our working directory. You also
+can find some general info on them
+<a class="reference external" href="https://chong.chem.pitt.edu/wewiki/UserGuide:Constructing">here</a>.</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="24%" />
+<col width="76%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Input File</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>env.sh</td>
+<td>set environment variables</td>
+</tr>
+<tr class="row-odd"><td>get_pcoord.sh</td>
+<td>calculate progress coordinate from initial structure</td>
+</tr>
+<tr class="row-even"><td>system.py</td>
+<td>WESTPA settings (low-level)</td>
+</tr>
+<tr class="row-odd"><td>runseg.sh</td>
+<td>run segment and calculate progress coordinate</td>
+</tr>
+<tr class="row-even"><td>west.cfg</td>
+<td>WESTPA settings (high-level)</td>
+</tr>
+<tr class="row-odd"><td>init.sh</td>
+<td>initialize WESTPA files and folders</td>
+</tr>
+<tr class="row-even"><td>run.sh</td>
+<td>run WESTPA</td>
+</tr>
+</tbody>
+</table>
+<div class="section" id="env-sh">
+<h3>env.sh<a class="headerlink" href="#env-sh" title="Permalink to this headline">¶</a></h3>
+<p>This script sets environment variables that may be used across the
+simulation. These include the root directory for WESTPA, the root
+directory for the simulation, the name for the simulation, and the
+python executable to use. It also sets the executable for NAMD; using an
+environment variable for this purpose makes it easier to transition code
+to different hardware or test different builds or flags of an MD code
+without editing multiple files.</p>
+</div>
+<div class="section" id="get-pcoord-sh">
+<h3>get_pcoord.sh<a class="headerlink" href="#get-pcoord-sh" title="Permalink to this headline">¶</a></h3>
+<p>This script calculates the progress coordinate of the initial state
+(<strong>seg_initial.pdb</strong>), which is the RMSD from the reference structure
+<strong>reference.pdb</strong> This script is used only during initial state
+generation, where the Python script <strong>get-rmsd-init.py</strong> is used; during
+production <strong>runseg.sh</strong> calculates the progress coordinate through
+<strong>get-rmsd.py</strong>.</p>
+</div>
+<div class="section" id="system-py">
+<h3>system.py<a class="headerlink" href="#system-py" title="Permalink to this headline">¶</a></h3>
+<p>The file <strong>system.py</strong> contains information about the progress
+coordinate, bin definitions, and the number of particles per bin. In
+this example, we will be monitoring the RMSD of our protein relative to
+the <a class="reference external" href="http://www.rcsb.org/pdb/explore/explore.do?structureId=2E4E">folded
+structure</a>,
+so the number of dimensions we will consider is one:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="bp">self</span><span class="o">.</span><span class="n">pcoord_ndim</span> <span class="o">=</span> <span class="mi">1</span>
+</pre></div>
+</div>
+<p>A system with 60 bins we can define in system.py as follows:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">binbounds</span> <span class="o">=</span> <span class="p">[</span><span class="mf">0.0</span><span class="o">+</span><span class="mf">0.1</span><span class="o">*</span><span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">xrange</span><span class="p">(</span><span class="mi">60</span><span class="p">)]</span> <span class="o">+</span> <span class="p">[</span><span class="nb">float</span><span class="p">(</span><span class="s1">&#39;inf&#39;</span><span class="p">)]</span>
+</pre></div>
+</div>
+<p>We are therefore covering the entire range of our progress coordinate
+since the RMSD is a finite non negative number. The bin boundaries are
+left inclusive e.g. a walker with a value of 0.1 would end up in the
+second bin. The positions of your bins must be either monotonically
+increasing or decreasing, otherwise you will get an error message
+indicating this requirement.</p>
+<p>The number of walkers per bin is specified through the following
+statement:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="nb">bin</span><span class="o">.</span><span class="n">target_count</span> <span class="o">=</span> <span class="mi">4</span>
+</pre></div>
+</div>
+<p>We are using tau value of 1 ps, we want also to monitor the progress
+coordinate every ps, writing the coordinates 1 times plus the initial
+configuration:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="bp">self</span><span class="o">.</span><span class="n">pcoord_len</span> <span class="o">=</span> <span class="mi">2</span>
+</pre></div>
+</div>
+<p>Finally, we specify the format in which the coordinates are stored:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="bp">self</span><span class="o">.</span><span class="n">pcoord_dtype</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">float32</span>
+</pre></div>
+</div>
+<p>runseg.sh</p>
+<p>For each segment, the WESTPA code will run the script <strong>runseg.sh</strong> in
+each iteration. This executable creates the folders where the segment
+trajectories are executed and stored, organizing them by iteration
+number and segment id. In this example, runseg.sh does the following:</p>
+<ol class="arabic simple">
+<li>For each segment, creates a the corresponding directory</li>
+<li>Copies all the files needed to run a regular NAMD molecular dynamics
+simulation into the segment directory</li>
+<li>Runs dynamics using the NAMD command &#8216;namd2&#8217; for instance:
+namd2 file.cfg &gt; file.log</li>
+<li>Computes the progress coordinate (RMSD) and records the coordinates
+to &#8216;WEST_COORD_RETURN&#8217;</li>
+<li>Removes any unnecessary files</li>
+</ol>
+<p>west.cfg</p>
+<p>In the configuration file called <strong>west.cfg</strong>, you can edit
+<strong>*max_total_iterations*</strong> to change the number of iterations and
+<strong>*max_run_wallclock*</strong> to change the maximum total time of your
+simulation. If this job is being run on a computing cluster that has a
+maximum wallclock time, make sure that the time specified under
+<strong>west.cfg</strong> is less than your requested time on the cluster. Also make
+sure that all directory locations are set correctly, especially under
+the <strong>*data_refs*</strong> heading in the <strong>*data*</strong> section, and throughout
+the <strong>*executable*</strong> section since this is how WE code knows where to
+send the output, where the initial states are, where the progress
+coordinate lies, etc. Everything should already be set correctly, but
+make sure that the variable &#8216;WEST_SIM_ROOT&#8217;, located in the <strong>env.sh</strong>
+file, is set to your where your simulation directory exists.</p>
+<p>init.sh</p>
+<p>This script initializes the WESTPA system. It removes files from
+previous runs, and uses get_pcoord.sh to generate initial states</p>
+<p>run.sh</p>
+<p>This script is used to run WESTPA.</p>
+<p>Running the simulation</p>
+<p>From the WEST_SIM_ROOT (simulation root) directory, you can initialize
+the simulation by entering the following at the command prompt:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="o">./</span><span class="n">init</span><span class="o">.</span><span class="n">sh</span>
+</pre></div>
+</div>
+<p>The script should create three directories, <strong>traj_segs</strong>, and
+<strong>seg_logs</strong>, as well as an HDF5 file named <strong>west.h5</strong>. It calls
+<strong>w_init.py</strong> from the main weighted ensemble code.</p>
+<p>Now that your simulation has been initialized, it is ready to be run by
+the weighted ensemble code. Use the command:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="o">./</span><span class="n">run</span><span class="o">.</span><span class="n">sh</span>
+</pre></div>
+</div>
+<p>The script <strong>run.sh</strong> calls <strong>w_run.py</strong> from the main weighted
+ensemble code. If it doesn&#8217;t work, check to see if the <strong>env.sh</strong> is set
+up properly and if it points to the right directory for your weighted
+ensemble code. Make sure that the &#8216;WEST_ROOT&#8217; variable is set to where
+the <strong>westpa</strong> directory exists and the &#8216;WEST_SIM_ROOT&#8217; variable is
+set to where your simulation directory exists.</p>
+<p>If this simulation is being run on a computing cluster, <strong>w_run</strong> can
+be executed from a batch script. See the clusters page for more
+information on how to submit jobs to specific clusters.</p>
+</div>
+</div>
+<div class="section" id="restarting-the-simulation">
+<h2>Restarting the simulation<a class="headerlink" href="#restarting-the-simulation" title="Permalink to this headline">¶</a></h2>
+<p>In <strong>west.cfg</strong> we have set <strong>*max_total_iterations*</strong> equals to 300.
+We might increase this number up to the desired value and run our
+simulation again. The westpa code will continue the simulation from
+where you left off, based on the data present in the <strong>west.h5</strong> file
+(see below). If you wanted to restart the simulation from the beginning,
+you would need to run the <strong>init.sh</strong> script again, which would remove
+the existing <strong>west.h5</strong> file and create a new one. Once you have
+changed the <strong>*max_total_iterations*</strong> flag to, say 400, execute the
+<strong>run.sh</strong> script again.</p>
+</div>
+<div class="section" id="analyzing-the-data">
+<h2>Analyzing the data<a class="headerlink" href="#analyzing-the-data" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="output">
+<h2>Output<a class="headerlink" href="#output" title="Permalink to this headline">¶</a></h2>
+<p>The results of the simulations are stored in the <strong>traj_segs</strong> folder.
+Here you can find the results of each small segment. It is organized by
+iterations, within which are directories for each segment (as specified
+in <strong>west.cfg</strong>). And within each segment directory are all of the NAMD
+output files. Because we specified 300 iterations in the <strong>west.cfg</strong>
+file, you should see 300 iteration directories, named <strong>000001</strong>,
+<strong>000002</strong>...</p>
+<p>In <strong>west.h5</strong> is stored the most relevant information about our
+simulation. It is convenient for the user to download the program
+<a class="reference external" href="http://www.hdfgroup.org/hdf-java-html/hdfview/">HDFView</a>, that allow
+us to see how the information is stored and helps us to create tools for
+the analysis.</p>
+<p>Observing folding events</p>
+<p>Through the following python script, we can monitor the progress of the
+simulation by plotting the C-alpha RMSD (in <a href="#id1"><span class="problematic" id="id2">|\\AA|</span></a>) of the
+closest/farest segment to the folded structure vs. the total simulation
+time.</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="ch">#!/usr/bin/env python</span>
+
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">h5py</span>
+
+<span class="k">if</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">argv</span><span class="p">)</span><span class="o">&lt;</span><span class="mi">2</span><span class="p">):</span>
+      <span class="nb">print</span> <span class="s2">&quot;Usage:&quot;</span>
+      <span class="nb">print</span> <span class="s2">&quot;getMinMax.py &lt;argv1&gt;&quot;</span>
+      <span class="nb">print</span> <span class="s2">&quot;&lt;argv1&gt;: Num of Iterations&quot;</span>
+      <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+
+<span class="n">totNumIter</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+
+<span class="k">try</span><span class="p">:</span>
+    <span class="n">datafile</span><span class="o">=</span><span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="s2">&quot;west.h5&quot;</span><span class="p">,</span><span class="s2">&quot;r&quot;</span><span class="p">)</span>
+<span class="k">except</span> <span class="ne">IOError</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+    <span class="nb">print</span> <span class="n">err</span><span class="o">.</span><span class="n">errno</span>
+    <span class="nb">print</span> <span class="n">err</span><span class="o">.</span><span class="n">strerror</span>
+    <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+
+<span class="n">counter</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="k">for</span> <span class="n">I</span> <span class="ow">in</span> <span class="n">xrange</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="n">totNumIter</span><span class="o">+</span><span class="mi">1</span><span class="p">):</span>
+      <span class="n">itr</span> <span class="o">=</span> <span class="s2">&quot;iter_&quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">I</span><span class="p">)</span><span class="o">.</span><span class="n">rjust</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span><span class="s1">&#39;0&#39;</span><span class="p">)</span>
+      <span class="n">coords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">datafile</span><span class="p">[</span><span class="s2">&quot;iterations&quot;</span><span class="p">][</span><span class="n">itr</span><span class="p">][</span><span class="s2">&quot;pcoord&quot;</span><span class="p">])</span>
+      <span class="n">numOfsegments</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">coords</span><span class="p">)</span>
+      <span class="n">counter</span> <span class="o">+=</span> <span class="n">numOfsegments</span>      <span class="c1">#Stores the total sim time in Tau units</span>
+      <span class="n">firstcoord</span> <span class="o">=</span> <span class="n">coords</span><span class="p">[:,</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span>
+      <span class="n">firstcoord</span><span class="o">.</span><span class="n">sort</span><span class="p">()</span>
+      <span class="nb">print</span> <span class="n">counter</span><span class="p">,</span> <span class="n">firstcoord</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="n">firstcoord</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+</pre></div>
+</div>
+<p>In this example, we define the folded state as any structure with a
+C-alpha RMSD less than 2.5 <a href="#id3"><span class="problematic" id="id4">|\\AA|</span></a>. As shown in the plot, folding events
+occur after the first 20ns of simulation.</p>
+<div class="figure">
+<img alt="../images/chig_minmax.png" src="../images/chig_minmax.png" />
+</div>
+<p>Computing the folding rate constant</p>
+<p>WESTPA includes several scripts for analysis located in
+<strong>$WEST_ROOT/bin</strong>. In <em>init.sh</em> we have specified the folded structure
+as those structures with RMSD less than 2.5<a href="#id5"><span class="problematic" id="id6">|\\AA|</span></a>. Using
+<strong>w_fluxanl</strong>, we can calculate the flux into this target (folded)
+state, and from that calculate the folding rate. <strong>w_fluxanl</strong> may be
+run with the following commands:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>source env.sh
+$WEST_ROOT/bin/w_fluxanl
+</pre></div>
+</div>
+<p>The script will output the flux into the target state including
+confidence intervals calculated using the block bootstrap method.</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">Calculating</span> <span class="n">mean</span> <span class="n">flux</span> <span class="ow">and</span> <span class="n">confidence</span> <span class="n">intervals</span> <span class="k">for</span> <span class="n">iterations</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">301</span><span class="p">)</span>
+<span class="n">target</span> <span class="s1">&#39;bound&#39;</span><span class="p">:</span>
+  <span class="n">correlation</span> <span class="n">length</span> <span class="o">=</span> <span class="mi">0</span> <span class="n">tau</span>
+  <span class="n">mean</span> <span class="n">flux</span> <span class="ow">and</span> <span class="n">CI</span>   <span class="o">=</span> <span class="mf">5.028992e-03</span> <span class="p">(</span><span class="mf">4.231789e-04</span><span class="p">,</span><span class="mf">1.185007e-02</span><span class="p">)</span> <span class="n">tau</span><span class="o">^</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Taking the inverse of this flux (1 / 5.028992e-03) yields the folding
+rate in units of τ, the segment duration.</p>
+<p>More information on how to use <em>w_fluxanl</em> can be viewed using the
+&#8216;&#8211;help&#8217; flag. <em>w_fluxanl</em> also stores this information in an hdf5
+file, <em>fluxanl.h5</em>. Using the python libraries h5py and pylab, we can
+visualize this data. Open a python interpreter and run the following
+commands:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">h5py</span><span class="o">,</span> <span class="nn">numpy</span><span class="o">,</span> <span class="nn">pylab</span>
+<span class="n">fluxanl</span>              <span class="o">=</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="s1">&#39;fluxanl.h5&#39;</span><span class="p">)</span>
+<span class="n">flux</span>                 <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">300</span><span class="p">)</span>
+<span class="n">first_binding</span>        <span class="o">=</span> <span class="mi">300</span> <span class="o">-</span> <span class="n">fluxanl</span><span class="p">[</span><span class="s1">&#39;target_flux&#39;</span><span class="p">][</span><span class="s1">&#39;target_0&#39;</span><span class="p">][</span><span class="s1">&#39;flux&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+<span class="n">flux</span><span class="p">[</span><span class="n">first_binding</span><span class="p">:]</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">fluxanl</span><span class="p">[</span><span class="s1">&#39;target_flux&#39;</span><span class="p">][</span><span class="s1">&#39;target_0&#39;</span><span class="p">][</span><span class="s1">&#39;flux&#39;</span><span class="p">])</span>
+<span class="n">pylab</span><span class="o">.</span><span class="n">xlim</span><span class="p">([</span><span class="mi">289</span><span class="p">,</span><span class="mi">300</span><span class="p">])</span>
+<span class="n">pylab</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">flux</span><span class="p">)</span>
+<span class="n">pylab</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">&quot;Iteration&quot;</span><span class="p">)</span>
+<span class="n">pylab</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">&quot;Instantaneous Flux $(</span><span class="se">\\</span><span class="s2">frac</span><span class="si">{1}</span><span class="s2">{</span><span class="se">\\</span><span class="s2">tau})$&quot;</span><span class="p">)</span>
+<span class="n">pylab</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+<div class="figure">
+<img alt="../images/chig_flux1.png" src="../images/chig_flux1.png" />
+</div>
+<p>The x-axis represents the iteration number, and the y-axis the flux into
+the bound state in units of τ<sup>-1</sup>. For my simulation, the first
+binding event occurred in iteration 289. The instantaneous flux is noisy
+and can be difficult to interpret, so let&#8217;s plot the time evolution of
+flux as well. Run <strong>w_fluxanl</strong> again, this time with the &#8216;&#8211;evol&#8217;
+flag.</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>$WEST_ROOT/bin/w_fluxanl --evol
+</pre></div>
+</div>
+<p>This will add a dataset named [&#8216;flux_evolution&#8217;] to the [&#8216;target_0&#8217;]
+group in &#8216;fluxanl.h5&#8217;. We may plot the time evolution of flux using the
+following commands at a python interpreter:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">h5py</span><span class="o">,</span> <span class="nn">numpy</span><span class="o">,</span> <span class="nn">pylab</span>
+<span class="n">fluxanl</span>   <span class="o">=</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="s1">&#39;fluxanl.h5&#39;</span><span class="p">)</span>
+<span class="n">mean_flux</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">300</span><span class="p">)</span>
+<span class="n">ci_ub</span>     <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">300</span><span class="p">)</span>
+<span class="n">ci_lb</span>     <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">300</span><span class="p">)</span>
+<span class="n">first_binding</span>             <span class="o">=</span> <span class="mi">300</span> <span class="o">-</span> <span class="n">fluxanl</span><span class="p">[</span><span class="s1">&#39;target_flux&#39;</span><span class="p">][</span><span class="s1">&#39;target_0&#39;</span><span class="p">][</span><span class="s1">&#39;flux_evolution&#39;</span><span class="p">][</span><span class="s1">&#39;mean&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+<span class="n">mean_flux</span><span class="p">[</span><span class="n">first_binding</span><span class="p">:]</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">fluxanl</span><span class="p">[</span><span class="s1">&#39;target_flux&#39;</span><span class="p">][</span><span class="s1">&#39;target_0&#39;</span><span class="p">][</span><span class="s1">&#39;flux_evolution&#39;</span><span class="p">][</span><span class="s1">&#39;mean&#39;</span><span class="p">])</span>
+<span class="n">ci_lb</span><span class="p">[</span><span class="n">first_binding</span><span class="p">:]</span>     <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">fluxanl</span><span class="p">[</span><span class="s1">&#39;target_flux&#39;</span><span class="p">][</span><span class="s1">&#39;target_0&#39;</span><span class="p">][</span><span class="s1">&#39;flux_evolution&#39;</span><span class="p">][</span><span class="s1">&#39;ci_lb&#39;</span><span class="p">])</span>
+<span class="n">ci_ub</span><span class="p">[</span><span class="n">first_binding</span><span class="p">:]</span>     <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">fluxanl</span><span class="p">[</span><span class="s1">&#39;target_flux&#39;</span><span class="p">][</span><span class="s1">&#39;target_0&#39;</span><span class="p">][</span><span class="s1">&#39;flux_evolution&#39;</span><span class="p">][</span><span class="s1">&#39;ci_ub&#39;</span><span class="p">])</span>
+<span class="n">pylab</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">mean_flux</span><span class="p">,</span> <span class="s1">&#39;b&#39;</span><span class="p">,</span> <span class="n">ci_lb</span><span class="p">,</span> <span class="s1">&#39;g&#39;</span><span class="p">,</span> <span class="n">ci_ub</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span>
+<span class="n">pylab</span><span class="o">.</span><span class="n">xlim</span><span class="p">([</span><span class="mi">289</span><span class="p">,</span><span class="mi">300</span><span class="p">])</span>
+<span class="n">pylab</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">&quot;Iteration&quot;</span><span class="p">)</span>
+<span class="n">pylab</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">&quot;Mean Flux $(</span><span class="se">\\</span><span class="s2">frac</span><span class="si">{1}</span><span class="s2">{</span><span class="se">\\</span><span class="s2">tau})$&quot;</span><span class="p">)</span>
+<span class="n">pylab</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+<div class="figure">
+<img alt="../images/chig_flux2.png" src="../images/chig_flux2.png" />
+</div>
+<p>Since our simulation is relatively short, we do not expect to observe a
+constant flux and the end of the simulation. The mean flux obtained from
+the output of <strong>w_fluxanl</strong> for our simulation was 5.03 x 10<sup>-3</sup>
+in units of τ<sup>-1</sup>. Since τ for our simulation was 1ps, the
+folding rate is 5.03 x 10<sup>-3</sup> ps<sup>-1</sup> with a 95% CI of 4.2
+x10<sup>-4</sup> to 1.18 x10<sup>-2</sup>. In order to obtain a more precise
+association rate and a relatively constant flux, the user would need to
+run more iterations of the simulation, which may easily be done by
+changing <em>west.cfg</em>.</p>
+</div>
+<div class="section" id="useful-links">
+<h2>Useful links<a class="headerlink" href="#useful-links" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><a class="reference external" href="http://www.ks.uiuc.edu/Training/Tutorials/namd/namd-tutorial-unix-html/index.html">NAMD tutorial from the official web
+page</a>,</li>
+<li><a class="reference external" href="http://www.ks.uiuc.edu/Training/Tutorials/vmd/tutorial-html/">VMD tutorial from the official web
+page</a></li>
+</ul>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+            <p class="logo"><a href="../sphinx_index.html">
+              <img class="logo" src="../static/WESTPA2b.svg" alt="Logo"/>
+            </a></p>
+  <h3><a href="../sphinx_index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">NAMD example: Molecular dynamics simulation of Chignolin</a><ul>
+<li><a class="reference internal" href="#introduction">Introduction</a></li>
+<li><a class="reference internal" href="#namd-files-needed">NAMD files needed</a><ul>
+<li><a class="reference internal" href="#md-continue-conf">md-continue.conf</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#other-files-needed">Other files needed</a><ul>
+<li><a class="reference internal" href="#env-sh">env.sh</a></li>
+<li><a class="reference internal" href="#get-pcoord-sh">get_pcoord.sh</a></li>
+<li><a class="reference internal" href="#system-py">system.py</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#restarting-the-simulation">Restarting the simulation</a></li>
+<li><a class="reference internal" href="#analyzing-the-data">Analyzing the data</a></li>
+<li><a class="reference internal" href="#output">Output</a></li>
+<li><a class="reference internal" href="#useful-links">Useful links</a></li>
+</ul>
+</li>
+</ul>
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../sphinx_index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="quickstart.html" title="previous chapter">Quickstart Guide</a></li>
+      <li>Next: <a href="amber.html" title="next chapter">AMBER Tutorial: Molecular Dynamics of Na<sup>+</sup>/Cl<sup>-</sup> Association</a></li>
+  </ul></li>
+</ul>
+</div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../sources/tutorials/chignolin.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2015, Matthew C. Zwier and Lillian T. Chong.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.4.9</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      
+      |
+      <a href="../sources/tutorials/chignolin.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>
