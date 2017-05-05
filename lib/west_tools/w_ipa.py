@@ -91,7 +91,7 @@ class WIPI(WESTParallelTool):
 
         self._iter = 1
         self.config_required = True
-        self.version = ".99B"
+        self.version = "1.0B"
         # Set to matplotlib if you want that.  But why would you?
         # Well, whatever, we'll just set it to that for now.
         self.interface = 'matplotlib'
