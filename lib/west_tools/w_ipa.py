@@ -237,6 +237,7 @@ class WIPI(WESTParallelTool):
                     analysis_files = ['assign', 'direct']
                     self.__settings['analysis_schemes'][scheme]['postanalysis'] = False
                 reanalyze_kinetics = False
+                assign_hash = None
                 for name in analysis_files:
                     arg_hash = None
                     if self.reanalyze == True:
@@ -252,6 +253,8 @@ class WIPI(WESTParallelTool):
                             #    raise ValueError('Reanalyze set to true.')
                             self.__analysis_schemes__[scheme][name] = h5io.WESTPAH5File(os.path.join(path, '{}.h5'.format(name)), 'r')
                             arg_hash = self.__analysis_schemes__[scheme][name].attrs['arg_hash']
+                            if name == 'assign':
+                                assign_hash = arg_hash
                         except:
                             pass
                             # We shouldn't rely on this.
@@ -301,7 +304,7 @@ class WIPI(WESTParallelTool):
                                 except:
                                     pass
                                 print('Reanalyzing file {}.h5 for scheme {}.'.format(name, scheme))
-                                reanalyze_kinetics = True
+                                #reanalyze_kinetics = True
                                 # We want to use the work manager we have here.  Otherwise, just let the tool sort out what it needs, honestly.
                                 assign.work_manager = self.work_manager
 
@@ -311,6 +314,8 @@ class WIPI(WESTParallelTool):
                                 # Stamp w/ hash, then reload as read only.
                                 self.__analysis_schemes__[scheme][name] = self.stamp_hash(os.path.join(path, '{}.h5'.format(name)), new_hash)
                             del(assign)
+                            # Update the assignment hash.
+                            assign_hash = new_hash
 
                         # Since these are all contained within one tool, now, we want it to just... load everything.
                         if name == 'direct' or name == 'reweight':
@@ -356,7 +361,7 @@ class WIPI(WESTParallelTool):
                                     args.append(str('--') + str(value).replace('_', '-'))
                             # We want to not display the averages, so...
                             args.append('--disable-averages')
-                            new_hash = self.hash_args(args=args, path=path, extra=[int(self.niters)])
+                            new_hash = self.hash_args(args=args, path=path, extra=[int(self.niters), assign_hash])
                             #if arg_hash != new_hash or self.reanalyze == True or reanalyze_kinetics == True:
                             if self.debug_mode == True:
                                 print('{:<10}: old hash, new hash -- {}, {}'.format(name, arg_hash, new_hash))
