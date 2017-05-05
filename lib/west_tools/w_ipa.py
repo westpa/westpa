@@ -281,7 +281,8 @@ class WIPI(WESTParallelTool):
                                     args.append(str(value))
                             # This is for stuff like disabling correlation analysis, etc.
                             if 'extra' in w_assign_config.keys():
-                                for value in w_assign_config['extra']:
+                                # We're sorting to ensure that the order doesn't matter.
+                                for value in sorted(w_assign_config['extra']):
                                     args.append(str('--') + str(value).replace('_', '-'))
                             # We're just calling the built in function.
                             # This is a lot cleaner than what we had in before, and far more workable.
@@ -359,7 +360,7 @@ class WIPI(WESTParallelTool):
                                     args.append(str(value))
                             # This is for stuff like disabling correlation analysis, etc.
                             if 'extra' in analysis_config.keys():
-                                for value in analysis_config['extra']:
+                                for value in sorted(analysis_config['extra']):
                                     args.append(str('--') + str(value).replace('_', '-'))
                             # We want to not display the averages, so...
                             args.append('--disable-averages')
