@@ -211,6 +211,8 @@ class WIPI(WESTParallelTool):
             pass
         # Now, check to see whether they exist, and then load them.
         self.__analysis_schemes__ = {}
+        # We really need to implement some sort of default behavior if an analysis scheme isn't set.
+        # Right now, we just crash.  That isn't really graceful.
         for scheme in self.__settings['analysis_schemes']:
             if self.__settings['analysis_schemes'][scheme]['enabled']:
                 if self.work_manager.running == False:
