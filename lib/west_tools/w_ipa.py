@@ -149,12 +149,13 @@ class WIPI(WESTParallelTool):
         #return hashlib.md5(pickle.dumps([args, extra])).hexdigest()
         # We don't care about the path, so we'll remove it.
         # Probably a better way to do this, but who cares.
-        for iarg, arg in enumerate(args):
+        cargs = list(args)
+        for iarg, arg in enumerate(cargs):
             if path in arg:
-                args[iarg] = arg.replace(path,'').replace('/', '')
+                cargs[iarg] = arg.replace(path,'').replace('/', '')
             if arg == '--disable-averages':
-                args.remove('--disable-averages')
-        to_hash = args + [extra]
+                cargs.remove('--disable-averages')
+        to_hash = cargs + [extra]
         #print(args)
         #print(to_hash)
         #print(str(to_hash).encode('base64'))
@@ -291,7 +292,7 @@ class WIPI(WESTParallelTool):
                             # Mostly, we just need to ensure that we're consistent.
                             new_hash = self.hash_args(args=args, path=path, extra=[int(self.niters), pickle.dumps(assign.binning.mapper).encode('base64'), str(assign.states).encode('base64')])
                             # Let's check the hash.  If the hash is the same, we don't need to reload.
-                            if arg_hash != new_hash and self.debug_mode == True:
+                            if self.debug_mode == True:
                                 print('{:<10}: old hash, new hash -- {}, {}'.format(name, arg_hash, new_hash))
                             if self.ignore_hash == False and (arg_hash != new_hash or self.reanalyze == True):
                                 # If the hashes are different, or we need to reanalyze, delete the file.
@@ -357,15 +358,14 @@ class WIPI(WESTParallelTool):
                             args.append('--disable-averages')
                             new_hash = self.hash_args(args=args, path=path, extra=[int(self.niters)])
                             #if arg_hash != new_hash or self.reanalyze == True or reanalyze_kinetics == True:
-                            if arg_hash != new_hash and self.debug_mode == True:
+                            if self.debug_mode == True:
                                 print('{:<10}: old hash, new hash -- {}, {}'.format(name, arg_hash, new_hash))
-                            if self.ignore_hash == False and (arg_hash != new_hash or self.reanalyze == True or reanalyze_kinetics == True):
+                            if self.ignore_hash == False and (arg_hash != new_hash or reanalyze_kinetics == True):
                                 try:
                                     os.remove(os.path.join(path, '{}.h5'.format(name)))
                                 except:
                                     pass
                                 print('Reanalyzing file {}.h5 for scheme {}.'.format(name, scheme))
-                                print(args)
                                 analysis.make_parser_and_process(args=args)
                                 # We want to hook into the existing work manager.
                                 analysis.work_manager = self.work_manager
