@@ -166,8 +166,46 @@ As an example, consider a strategy proposed several years ago [Zhang-2007] that 
 
 <p><strong>Limitations of WE</strong></p>
 <p>
-The limitations of WE simulation depend on how well the ‘orthogonal space’ (i.e., the coordinates not binned) can be sampled, as is the case for “umbrella sampling” approaches.  There are two cases which can guide our thinking: (i) the case where an ideal set of coordinates for binning can be found – so that the system can be sampled with the proper set of bins and (ii) the case where the system is simply too complex – so that no method is likely to sample it properly given typical computing resources.  Of course, there is nothing to be done about case (ii), but don’t forget that it is a possibility!  In practical terms, for case (i), significant care must go into bin construction.  Automated methods for finding slow coordinates based on initial simulations may be of value in this context.  Post-analyzing WE trajectory data based on different bin choices may also be useful.
+There are several key points to be aware of when planning a WE study.  These are limitations of path sampling generally and WE in particular.
 </p>
+
+<img src="images/event_dur.png" alt="event_dur" style="width:100%;" border=0>
+
+<p><u>Limitations intrinsic to path sampling.</u></p>
+<p>
+As I have discussed at some length in a <a href="http://statisticalbiophysicsblog.org/?p=115">blog post</a>, any path sampling method is constrained by timescales intrinsic to the system. Let’s say we’re considering a transition event from state A to B.  Even excluding the dwell time in state A, the transition event itself has some finite duration t<sub style="bottom:-0.25em;font-size:75%;line-height:0;position:relative;vertical-align: baseline;">b</sub>, which we probably don’t know in advance.  Presumably, in a complex biomolecule, typical durations are at least several nsec, if not 10s of nsec.  Generating an ensemble of ten such events then requires at least 100 nsec of total simulation – and that’s if a simulation method has no correlations.  Because WE (like other approaches) generates correlated events, there is some factor (10?  100?  1000?) by which that time needs to be multiplied to account for the number of sampled trajectories required to generate an independent trajectory.  In other words, a sufficiently complex system with large t<sub style="bottom:-0.25em;font-size:75%;line-height:0;position:relative;vertical-align: baseline;">b</sub> simply may not be amenable to path sampling – by WE or any other method.
+</p>
+
+<p>
+As I discussed in the related <a href="http://statisticalbiophysicsblog.org/?p=115">blog post</a>, there are some subtleties to how one estimates the effective t<sub style="bottom:-0.25em;font-size:75%;line-height:0;position:relative;vertical-align: baseline;">b</sub> in transitions traversing multiple metastable minima, each with its own dwell time.  We will not review that issue here.
+</p>
+
+<p>
+In the context of WE, the distribution of event duration times sketched above is highly useful in planning and understanding simulations.  A WE simulation generates finite-length trajectories: each trajectory is of a length given by the number of iterations times &tau;.  If the length of individual WE trajectories is less than typical t<sub style="bottom:-0.25em;font-size:75%;line-height:0;position:relative;vertical-align: baseline;">b</sub> values, then we cannot expect the WE simulation will reveal typical behavior in any regard – pathways, probabilities, kinetics.
+</p>
+
+<p><u>WE-specific limitations (steady state).</u></p>
+<p>
+When steady-state behavior is desired, the limitations of WE simulation depend on how well the ‘orthogonal space’ (i.e., the coordinates not binned) can be sampled, as is the case for “umbrella sampling” approaches for calculating the potential of mean force. The essential goal is to be able to estimate the conditional steady-state flows among bins: given trajectories in bin i, what is the probability to transition to j in time &tau;?  If the trajectories are not locally distributed in bin i according to what would be found in steady state (due to slow orthogonal coordinates) then the estimated steady-state behavior will be wrong.
+</p>
+
+<p>
+Automated methods for finding slow coordinates based on initial simulations may be of value in this context.  Post-analyzing WE trajectory data based on different bin choices may also be useful.
+</p>
+
+<p>
+The criterion as we understand it requires all <em>independent</em> slow coordinates to be binned in WE.  If two slow coordinates are correlated, only one needs to be binned.  For example, as shown in [Zwier-2011], although water executes complex motions when solutes associate or dissociate, the only way for the inter-solute distance to change is for water to perform such motions – so the two things are correlated.  Because WE does not apply any artificial forces, but simply “catches” solutes when they change their distance, it is sufficient to use distance as a progress coordinate.
+</p>
+
+<p><u>Non-steady-state WE.</u></p>
+<p>
+Interestingly, the limitations regarding slow coordinates do <em>not</em> apply to WE simulations using the original Huber-Kim algorithm (i.e., no reweighting or post-analysis with rate matrices).  As discussed in [Zuckerman-2017], the original WE approach tracks the time-evolution of the initial probability distribution (often a “delta function” due to starting from a single configuration).  That is, WE gives the same distribution one would find by running a large number of MD simulations started from the same initial configuration or distribution, and making a histogram on any coordinate at any time later, say 5 nsec.  Importantly, the 5 nsec distribution is fully characterized by the sampling which is possible in 5 nsec.  Even if there are slow coordinates, they should only be sampled based on 5 nsec.  It’s unlikely steady state be reached, of course, but a mathematically precise distribution is generated.  The difference between WE and MD is that WE will yield much higher precision in the tails of the 5 nsec distribution – at the price of somewhat lower precision in the peak(s).
+</p>
+
+<p>
+Recommendation.  In a challenging system, error analysis based on a single WE simulation may yield overly optimistic estimates of statistical error (i.e., too small).  A much safer approach is to perform >2 independent WE simulations and use the set of observables from the separate simulations as a gauge of statistical error.
+</p>
+
 
 <p><strong>Summing Up</strong></p>
 
@@ -241,6 +279,10 @@ The author appreciates helpful comments on this introduction from Lillian Chong,
 
 <li>
 [Zuckerman-2017] Daniel M. Zuckerman and Lillian T. Chong, Weighted Ensemble Simulation: Review of Methodology, Applications, and Software, Ann. Rev. Biophys., 2017, 46:43–57.
+</li>
+
+<li>
+[Zwier-2011] Zwier, M. C.; Kaus, J. W. & Chong, L. T., Efficient Explicit-Solvent Molecular Dynamics Simulations of Molecular Association Kinetics: Methane/Methane, Na+/Cl-, Methane/Benzene, and K+/18-Crown-6 Ether, Journal of Chemical Theory and Computation, 2011, 7, 1189-1197.
 </li>
 
 <li>
