@@ -37,29 +37,31 @@ Anaconda Python distribution from www.continuum.io (free for all users).
 WESTPA currently runs on Unix-like operating systems, including Linux and
 Mac OS X. It is developed and tested on x86_64 machines running Linux.
 
+--------------------------------
+Obtaining and Installing WESTPA
+--------------------------------
 
-------------
-Installation
-------------
+WESTPA is developed and tested on Unix-like operating systems, including Linux and Mac OS X.
 
-After obtaining a copy of the code (see https://westpa.github.io/westpa for details), run
-``setup.sh`` in the ``westpa`` directory. If the version of Python you will
-be using to run the code is not first on your $PATH, then set the environment
-variable WEST_PYTHON to the Python interpreter you want to use. For example::
-
-    cd westpa
+Before installing WESTPA, you will need to first install the Python 2.7 version provided by the latest free `Anaconda Python distribution`_. After installing the Anaconda Python distribution, either add the Python executable to your $PATH or set the environment variable WEST_PYTHON::
     export WEST_PYTHON=/opt/anaconda/bin/python2.7
+
+We recommend obtaining the latest release of WESTPA by clicking on the green "Clone or download" button on `GitHub`_. After downloading the file, unpack the file and install WESTPA by executing the following::
+
+    unzip westpa-master.zip
+    cd westpa
     ./setup.sh
 
-A ``westpa.sh`` script is created during installation, and will set the following
-environment variables::
+A westpa.sh script is created during installation, and will set the following environment variables::
 
     WEST_ROOT
     WEST_BIN
     WEST_PYTHON
 
-For installation on a cluster with modules, system administrators must set these
-variables to the appropriate values within the module file.
+These environment variables must be set in order to run WESTPA on your computing cluster.
+
+.. _`Anaconda Python distribution`: https://www.continuum.io/downloads 
+.. _`GitHub`: https://github.com/westpa/westpa
 
 ---------------
 Getting started
