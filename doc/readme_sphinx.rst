@@ -35,9 +35,9 @@ Before installing WESTPA, you will need to first install the Python 2.7 version 
 
     export WEST_PYTHON=/opt/anaconda/bin/python2.7
 
-We recommend obtaining the latest release of WESTPA by clicking on the green "Clone or download" button on `GitHub`_. After downloading the file, unpack the file and install WESTPA by executing the following::
+We recommend obtaining the latest release of WESTPA by downloading the corresponding tar.gz file from the `releases page`_. After downloading the file, unpack the file and install WESTPA by executing the following::
 
-    unzip westpa-master.zip
+    tar xvzf westpa-master.tar.gz
     cd westpa
     ./setup.sh
 
@@ -49,8 +49,9 @@ A westpa.sh script is created during installation, and will set the following en
 
 These environment variables must be set in order to run WESTPA on your computing cluster.
 
+.. _`releases page`: https://github.com/westpa/westpa/releases
 .. _`Anaconda Python distribution`: https://www.continuum.io/downloads 
-.. _`GitHub`: https://github.com/westpa/westpa
+
 ---------------
 Getting started
 ---------------
