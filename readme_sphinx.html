@@ -57,32 +57,26 @@ contributing documentation or code to the WESTPA community.</p>
 <p>WESTPA is free software, licensed under the terms of the GNU General Public
 License, Version 3. See the file <code class="docutils literal"><span class="pre">COPYING</span></code> for more information.</p>
 </div>
-<div class="section" id="installation">
-<h2>Installation<a class="headerlink" href="#installation" title="Permalink to this headline">¶</a></h2>
-<p>WESTPA is written in Python and requires version 2.7. WESTPA further requires
-a large number of scientific software libraries for Python and other
-languages. The simplest way to meet these requirements is to download the
-Anaconda Python distribution from www.continuum.io (free for all users).</p>
-<p>WESTPA currently runs on Unix-like operating systems, including Linux and
-Mac OS X. It is developed and tested on x86_64 machines running Linux.</p>
-<p>After obtaining a copy of the code (see <a class="reference external" href="https://westpa.github.io/westpa">https://westpa.github.io/westpa</a> for details), run
-<code class="docutils literal"><span class="pre">setup.sh</span></code> in the <code class="docutils literal"><span class="pre">westpa</span></code> directory. If the version of Python you will
-be using to run the code is not first on your $PATH, then set the environment
-variable WEST_PYTHON to the Python interpreter you want to use. For example:</p>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">cd</span> <span class="n">westpa</span>
-<span class="n">export</span> <span class="n">WEST_PYTHON</span><span class="o">=/</span><span class="n">opt</span><span class="o">/</span><span class="n">anaconda</span><span class="o">/</span><span class="nb">bin</span><span class="o">/</span><span class="n">python2</span><span class="o">.</span><span class="mi">7</span>
+<div class="section" id="obtaining-and-installing-westpa">
+<h2>Obtaining and Installing WESTPA<a class="headerlink" href="#obtaining-and-installing-westpa" title="Permalink to this headline">¶</a></h2>
+<p>WESTPA is developed and tested on Unix-like operating systems, including Linux and Mac OS X.</p>
+<p>Before installing WESTPA, you will need to first install the Python 2.7 version provided by the latest free <a class="reference external" href="https://www.continuum.io/downloads">Anaconda Python distribution</a>. After installing the Anaconda Python distribution, either add the Python executable to your $PATH or set the environment variable WEST_PYTHON:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">export</span> <span class="n">WEST_PYTHON</span><span class="o">=/</span><span class="n">opt</span><span class="o">/</span><span class="n">anaconda</span><span class="o">/</span><span class="nb">bin</span><span class="o">/</span><span class="n">python2</span><span class="o">.</span><span class="mi">7</span>
+</pre></div>
+</div>
+<p>We recommend obtaining the latest release of WESTPA by clicking on the green &#8220;Clone or download&#8221; button on <a class="reference external" href="https://github.com/westpa/westpa">GitHub</a>. After downloading the file, unpack the file and install WESTPA by executing the following:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">unzip</span> <span class="n">westpa</span><span class="o">-</span><span class="n">master</span><span class="o">.</span><span class="n">zip</span>
+<span class="n">cd</span> <span class="n">westpa</span>
 <span class="o">./</span><span class="n">setup</span><span class="o">.</span><span class="n">sh</span>
 </pre></div>
 </div>
-<p>A <code class="docutils literal"><span class="pre">westpa.sh</span></code> script is created during installation, and will set the following
-environment variables:</p>
+<p>A westpa.sh script is created during installation, and will set the following environment variables:</p>
 <div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">WEST_ROOT</span>
 <span class="n">WEST_BIN</span>
 <span class="n">WEST_PYTHON</span>
 </pre></div>
 </div>
-<p>For installation on a cluster with modules, system administrators must set these
-variables to the appropriate values within the module file.</p>
+<p>These environment variables must be set in order to run WESTPA on your computing cluster.</p>
 </div>
 <div class="section" id="getting-started">
 <h2>Getting started<a class="headerlink" href="#getting-started" title="Permalink to this headline">¶</a></h2>
@@ -181,7 +175,7 @@ copyright 2011 the Python Software Foundation. See
   <ul>
 <li><a class="reference internal" href="#">WESTPA 1.0 beta</a><ul>
 <li><a class="reference internal" href="#overview">Overview</a></li>
-<li><a class="reference internal" href="#installation">Installation</a></li>
+<li><a class="reference internal" href="#obtaining-and-installing-westpa">Obtaining and Installing WESTPA</a></li>
 <li><a class="reference internal" href="#getting-started">Getting started</a><ul>
 <li><a class="reference internal" href="#checklist">Checklist</a></li>
 </ul>
