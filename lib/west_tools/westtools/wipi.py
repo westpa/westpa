@@ -152,7 +152,10 @@ class KineticsIteration(object):
         for key in _1D_h5keys:
             self.__dict__[key] = self.__1D_with_error__(key, index, assign)
         try:
-            self.__dict__['total_fluxes'] = WIPIDataset(raw=self.h5file['total_fluxes'], key=None)
+            self.__dict__['total_fluxes'] = WIPIDataset(raw=np.array(self.h5file['total_fluxes']), key='total_fluxes')
+            # We'll have to update this to make things better...
+            #self.__dict__['total_fluxes'].plotter = Plotter(self.h5file['total_fluxes'][...], 'Total Fluxes', iteration=iteration, interface='text')
+            #self.__dict__['total_fluxes'].plot = self.__dict__['total_fluxes'].plotter.plot
         except:
             pass
 
