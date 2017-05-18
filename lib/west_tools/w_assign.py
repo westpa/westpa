@@ -327,7 +327,8 @@ Command-line options
             self.subsample = config['subsample']
         except:
             pass
-        self.binning.mapper = mapper_from_dict(config['analysis_schemes'][scheme]['bins'][0])
+        from westpa._rc import bins_from_yaml_dict
+        self.binning.mapper = bins_from_yaml_dict(config['analysis_schemes'][scheme]['bins'][0])
         import os
         path = os.path.join(os.getcwd(), config['directory'], scheme)
         try:
