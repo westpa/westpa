@@ -20,6 +20,7 @@ import os, sys
 import scipy.sparse as sp
 
 from westtools import Plotter
+import itertools
 
 # A useful dataclass used as a wrapper for w_ipa to facilitate
 # ease-of-use in ipython/jupyter notebooks/sessions.
@@ -399,7 +400,7 @@ class __get_data_for_iteration__(object):
         self.__dict__[key] = value
     def __dir__(self):
         dict_keys = self.__dict__.keys()
-        dict_keys += ['maxweight', 'minweight', 'walkers', 'aggregate_walkers']
+        dict_keys += ['maxweight', 'minweight', 'walkers', 'aggregate_walkers', 'successful_trajectories']
         remove = ['__dict__']
         for i in remove:
             try:
@@ -424,6 +425,31 @@ class __get_data_for_iteration__(object):
         '''
         walker = np.where(self.raw['weights'] == np.min(self.raw['weights']))[0][0]
         return self.__getitem__(walker)
+
+    @property
+    def successful_trajectories(self):
+        '''
+        Returns which trajectories are successful.
+        '''
+        #walker = np.where(self.raw['weights'] == np.min(self.raw['weights']))[0][0]
+        # Find where we have a transition....
+        state_changes = np.where(self.raw['states'][:,:-1] != self.raw['states'][:,1:])
+        walkers = state_changes[0]
+        # The index of the state change.
+        new_states = state_changes[1] + 1
+        old_states = state_changes[1]
+        walker = {}
+        for z, (i, j) in enumerate(itertools.izip(old_states, new_states)):
+            #if self.raw['states'][walkers[z], i] == istate and self.raw['states'][walkers[z], j] == jstate:
+            istate = self.raw['states'][walkers[z], i] 
+            jstate = self.raw['states'][walkers[z], j]
+            #print(z,i,j, istate, jstate)
+            try:
+                walker[istate,jstate].append(walkers[z])
+            except:
+                walker[istate,jstate] = [walkers[z]]
+
+        return walker
 
     @property
     def walkers(self):
