@@ -373,7 +373,7 @@ class __get_data_for_iteration__(object):
                 current[key] = WIPIDataset(raw={ 'direct': current['direct'][key], 'reweight': current['reweight'][key] }, key='a')
         else:
             for key in evolution_datasets:
-                current[key] = WIPIDataset(raw={ 'direct': current['direct'][key] }, name='direct')
+                current[key] = WIPIDataset(raw={ 'direct': current['direct'][key] }, key='direct')
 
         self.raw = current
     def __repr__(self):
