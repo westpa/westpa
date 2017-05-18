@@ -357,7 +357,7 @@ class __get_data_for_iteration__(object):
         #current['plot'] = Plotter(parent.direct, parent.reweight, parent.iteration, parent.assign['bin_labels'], parent.assign['state_labels'], current['populations'].states, current['populations'].bins, parent.interface)
         # Now we'll load up the results of the kinetics analysis.
         current['direct'] = KineticsIteration(parent.direct, value, parent.assign, value)
-        evolution_datasets = [ 'rate_evolution', 'conditional_flux_evolution', 'state_pop_evolution', 'color_prob_evolution' ]
+        evolution_datasets = [ 'rate_evolution', 'conditional_flux_evolution', 'state_pop_evolution', 'color_prob_evolution' , 'total_fluxes']
         # We want to load these up as... oh, who knows, I suppose?
         try:
             current['reweight'] = KineticsIteration(parent.reweight, value, parent.assign, value)
