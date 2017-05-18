@@ -453,6 +453,7 @@ class __get_data_for_iteration__(object):
             except:
                 walker[istate,jstate] = [walkers[z]]
 
+        walker = WIPIDataset(raw=walker, key=None)
         return walker
 
     @property
