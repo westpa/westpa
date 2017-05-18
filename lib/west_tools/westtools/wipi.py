@@ -151,6 +151,10 @@ class KineticsIteration(object):
             self.__dict__[key] = self.__2D_with_error__(key, index, assign)
         for key in _1D_h5keys:
             self.__dict__[key] = self.__1D_with_error__(key, index, assign)
+        try:
+            self.__dict__['total_fluxes'] = WIPIDataset(raw=self.h5file['total_fluxes'], key=None)
+        except:
+            pass
 
     def __repr__(self):
         return repr(self.__dir__())
