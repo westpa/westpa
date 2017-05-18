@@ -473,11 +473,6 @@ Command-line options
             # store histogram
             histograms_ds[iiter] = iter_hist
             del iter_hist, future
-
-    def reweight_histogram(self):
-        '''Use the reweighting code to construct a reweighted histogram.'''
-        # First, we'll steal code from w_assign to sort things into bins and create
-        # flux/population arrays.  Then we'll get everything sorted here, too.
             
 
 
