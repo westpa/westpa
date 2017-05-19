@@ -596,9 +596,9 @@ class WIPI(WESTParallelTool):
         for i in ['pcoord', 'states', 'bins', 'weights']:
             current[i] = WIPIDataset(raw=current[i], key=i)
             if i == 'weights':
-                current[i].plotter = Plotter(np.log10(current[i].raw), str('log10 of ' + str(i)), iteration=current[i].raw.shape[0], interface='text')
+                current[i].plotter = Plotter(np.log10(current[i].raw), str('log10 of ' + str(i)), iteration=current[i].raw.shape[0], interface=self.interface)
             else:
-                current[i].plotter = Plotter(current[i].raw, i, iteration=current[i].raw.shape[0], interface='text')
+                current[i].plotter = Plotter(current[i].raw, i, iteration=current[i].raw.shape[0], interface=self.interface)
             current[i].plot = current[i].plotter.plot
         return WIPIDataset(raw=current, key=seg_id)
 
