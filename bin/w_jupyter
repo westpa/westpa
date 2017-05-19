@@ -1,0 +1,37 @@
+#!/bin/bash
+
+# Copyright (C) 2013 Matthew C. Zwier and Lillian T. Chong
+#
+# This file is part of WESTPA.
+#
+# WESTPA is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# WESTPA is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
+
+# If $WEST_ROOT is not set, then set it based on the path to this script
+if [ -z "$WEST_ROOT" ]; then
+    export WEST_ROOT=$($WEST_PYTHON -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' $0/../..)
+fi
+
+# We've moved the actual environment variable setting into another script.
+source $WEST_ROOT/bin/w_env
+# Don't show any developer warnings for this.
+export PYTHONWARNINGS=""
+
+if which jupyter >/dev/null; then 
+    echo >&2 "Running Jupyter Notebook Session"
+    jupyter notebook
+else
+    echo >&2 "Running Ipython Notebook Session"
+    ipython notebook
+fi
+
