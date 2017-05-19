@@ -698,7 +698,10 @@ class WIPI(WESTParallelTool):
         self.data_reader.open()
         self.niters = self.data_reader.current_iteration - 1
         self.iteration = self.niters
-        print('Your current scheme, system and iteration are : {}, {}, {}'.format(w.scheme, os.getcwd(), w.iteration))
+        try:
+            print('Your current scheme, system and iteration are : {}, {}, {}'.format(w.scheme, os.getcwd(), w.iteration))
+        except:
+            pass
 
     @property
     def introduction(self):
