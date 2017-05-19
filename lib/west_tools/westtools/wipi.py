@@ -146,7 +146,7 @@ class KineticsIteration(object):
         self.h5file = kin_h5file
         # Keys:
         _2D_h5keys = [ 'conditional_flux_evolution', 'rate_evolution' ]
-        _1D_h5keys = [ 'state_pop_evolution', 'color_prob_evolution' ]
+        _1D_h5keys = [ 'state_pop_evolution', 'color_prob_evolution', 'target_flux_evolution' ]
         for key in _2D_h5keys:
             self.__dict__[key] = self.__2D_with_error__(key, index, assign)
         for key in _1D_h5keys:
@@ -360,7 +360,7 @@ class __get_data_for_iteration__(object):
         #current['plot'] = Plotter(parent.direct, parent.reweight, parent.iteration, parent.assign['bin_labels'], parent.assign['state_labels'], current['populations'].states, current['populations'].bins, parent.interface)
         # Now we'll load up the results of the kinetics analysis.
         current['direct'] = KineticsIteration(parent.direct, value, parent.assign, value)
-        evolution_datasets = [ 'rate_evolution', 'conditional_flux_evolution', 'state_pop_evolution', 'color_prob_evolution' , 'total_fluxes']
+        evolution_datasets = [ 'rate_evolution', 'conditional_flux_evolution', 'state_pop_evolution', 'color_prob_evolution' , 'total_fluxes', 'target_flux_evolution']
         # We want to load these up as... oh, who knows, I suppose?
         try:
             current['reweight'] = KineticsIteration(parent.reweight, value, parent.assign, value)
