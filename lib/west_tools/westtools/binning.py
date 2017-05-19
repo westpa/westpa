@@ -99,6 +99,12 @@ def mapper_from_yaml(yamlfilename):
     import yaml
     ydict = yaml.load(open(yamlfilename, 'rt'))
     ybins = ydict['bins']
+    from westpa._rc import bins_from_yaml_dict
+    #return mapper_from_dict(ybins)
+    return bins_from_yaml_dict(ybins)
+
+# We want this function to live on...
+def mapper_from_dict(ybins):
     typename = ybins.pop('type')
     kwargs = ybins
     

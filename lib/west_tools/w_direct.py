@@ -20,9 +20,9 @@ import logging
 
 # Let's suppress those numpy warnings.
 import warnings
-warnings.filterwarnings('ignore', category=DeprecationWarning)
-warnings.filterwarnings('ignore', category=RuntimeWarning)
-warnings.filterwarnings('ignore', category=FutureWarning)
+#warnings.filterwarnings('ignore', category=DeprecationWarning)
+#warnings.filterwarnings('ignore', category=RuntimeWarning)
+#warnings.filterwarnings('ignore', category=FutureWarning)
 
 import sys, random, math
 import numpy, h5py
@@ -34,7 +34,6 @@ from westtools import (WESTMasterCommand, WESTParallelTool, WESTDataReader, Iter
                        ProgressIndicatorComponent)
 from westpa import h5io
 from westpa.kinetics import labeled_flux_to_rate, sequence_macro_flux_to_rate, WKinetics
-#from westpa.kinetics.matrates import get_macrostate_rates
 # This is the base tool class.  We're going to use it for the post analysis stuff, as well.
 from westtools.kinetics_tool import WESTKineticsBase, AverageCommands
 
