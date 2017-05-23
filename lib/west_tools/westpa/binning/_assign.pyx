@@ -208,7 +208,8 @@ cpdef assign_and_label(Py_ssize_t nsegs_lb,
                        Py_ssize_t nstates,
                        index_t[:] state_map,
                        index_t[:] last_labels, # must be for all segments
-                       object pcoords # only for given segments
+                       object pcoords, # only for given segments
+                       bint subsample
                        ):
     '''Assign trajectories to bins and last-visted macrostates for each timepoint.'''
     
@@ -221,6 +222,8 @@ cpdef assign_and_label(Py_ssize_t nsegs_lb,
     
     nsegs = nsegs_ub - nsegs_lb
     npts = pcoords.shape[1]
+    # We want to enable some subsampling, for steadystate simulations...
+    # And we need to keep them alive through the merge.
     assignments = numpy.empty((nsegs,npts), index_dtype)
     trajlabels = numpy.empty((nsegs,npts), index_dtype)
     statelabels = numpy.empty((nsegs,npts), index_dtype)
@@ -232,31 +235,70 @@ cpdef assign_and_label(Py_ssize_t nsegs_lb,
     
     for iseg in range(nsegs):
         assign(pcoords[iseg,:], mask, assignments[iseg,:])
-    
-    if state_map is not None:
+
+    if subsample == True:
         with nogil:
             for iseg in range(nsegs):
-                seg_id = iseg+nsegs_lb
-                parent_id = parent_ids[iseg]
-                for ipt in range(npts):
-                    ptlabel = state_map[_assignments[iseg,ipt]]
-                    _statelabels[iseg,ipt] = ptlabel
-                    if ptlabel == nstates: # unknown state/transition region 
-                        if ipt == 0:
-                            if parent_id < 0:
-                                # We have started a trajectory in a transition region
-                                _trajlabels[iseg,ipt] = nstates
-                                _statelabels[iseg,ipt] = nstates
+                for ipt in range(npts-2):
+                    # We want to 'destroy' all assignment information that isn't the first or last point.
+                    _assignments[iseg,ipt+1] = _assignments[iseg,0]
+    
+    if state_map is not None:
+        if subsample == False:
+            with nogil:
+                for iseg in range(nsegs):
+                    seg_id = iseg+nsegs_lb
+                    parent_id = parent_ids[iseg]
+                    for ipt in range(npts):
+                        ptlabel = state_map[_assignments[iseg,ipt]]
+                        _statelabels[iseg,ipt] = ptlabel
+                        if ptlabel == nstates: # unknown state/transition region 
+                            if ipt == 0:
+                                if parent_id < 0:
+                                    # We have started a trajectory in a transition region
+                                    _trajlabels[iseg,ipt] = nstates
+                                    _statelabels[iseg,ipt] = nstates
+                                else:
+                                    # We can inherit the ending point from the previous iteration
+                                    # This should be nstates (unknown_state) for the first iteration
+                                    _trajlabels[iseg,ipt] = last_labels[parent_id]
                             else:
-                                # We can inherit the ending point from the previous iteration
-                                # This should be nstates (unknown_state) for the first iteration
-                                _trajlabels[iseg,ipt] = last_labels[parent_id]
+                                # We are currently in a transition region, but we care about the last state we visited,
+                                # so inherit that state from the previous point
+                                _trajlabels[iseg,ipt] = _trajlabels[iseg,ipt-1]
                         else:
-                            # We are currently in a transition region, but we care about the last state we visited,
-                            # so inherit that state from the previous point
+                            _trajlabels[iseg,ipt] = ptlabel
+        else:
+            with nogil:
+                for iseg in range(nsegs):
+                    seg_id = iseg+nsegs_lb
+                    parent_id = parent_ids[iseg]
+                    for ipt in range(npts):
+                        if ipt == 0:
+                            ptlabel = state_map[_assignments[iseg,ipt]]
+                            _statelabels[iseg,ipt] = ptlabel
+                            if ptlabel == nstates: # unknown state/transition region 
+                                if parent_id < 0:
+                                    # We have started a trajectory in a transition region
+                                    _trajlabels[iseg,ipt] = nstates
+                                    _statelabels[iseg,ipt] = nstates
+                                else:
+                                    # We can inherit the ending point from the previous iteration
+                                    # This should be nstates (unknown_state) for the first iteration
+                                    _trajlabels[iseg,ipt] = last_labels[parent_id]
+                            else:
+                                _trajlabels[iseg,ipt] = ptlabel
+                        if ipt != 0:
+                            # We're no longer at the first point, so just nab the previous assignment.
                             _trajlabels[iseg,ipt] = _trajlabels[iseg,ipt-1]
-                    else:
-                        _trajlabels[iseg,ipt] = ptlabel
+                            _statelabels[iseg,ipt] = _statelabels[iseg,ipt-1]
+                            # If we're at the last time point and we've had a transition, reflect it.
+                            if ipt == npts - 1:
+                                ptlabel = state_map[_assignments[iseg,ipt]]
+                                if ptlabel != nstates:
+                                    _statelabels[iseg,npts-1] = ptlabel
+                                    _trajlabels[iseg,npts-1] = ptlabel
+
     else:
         trajlabels.fill(nstates)
         statelabels.fill(nstates)

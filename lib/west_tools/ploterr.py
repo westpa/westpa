@@ -1,4 +1,4 @@
-# Copyright (C) 2013 Matthew C. Zwier and Lillian T. Chong
+# Copyright (C) 2017 Matthew C. Zwier and Lillian T. Chong
 #
 # This file is part of WESTPA.
 #
@@ -18,11 +18,12 @@
 from __future__ import print_function, division; __metaclass__ = type
 import logging
 import re, os
-from westtools import WESTMasterCommand, WESTSubcommand, ProgressIndicatorComponent
+from westtools import WESTMasterCommand, WESTSubcommand, ProgressIndicatorComponent, Plotter
 import numpy, h5py
 from westpa import h5io
-import matplotlib
-from matplotlib import pyplot
+if os.environ.get('DISPLAY') is not None:
+    import matplotlib
+    from matplotlib import pyplot
 
 log = logging.getLogger('westtools.ploterrs')
 
@@ -64,6 +65,8 @@ class CommonPloterrs(WESTSubcommand):
                              help='''Use YLABEL for the y-axis label. (Default: varies.)''')
         pogroup.add_argument('--title',
                              help='''Use TITLE for the plot title. (Default: varies.)''')
+        pogroup.add_argument('--terminal', '-t', dest='plotting', action='store_true',
+                             help='''Plot output in terminal.''')
 
     def process_args(self, args):
         self.progress.process_args(args)
@@ -79,6 +82,12 @@ class CommonPloterrs(WESTSubcommand):
         self.xlabel = args.xlabel or 'Iteration'
         self.ylabel = args.ylabel
         self.title = args.title
+        if args.plotting or os.environ.get('DISPLAY') is None:
+            self.interface = 'text'
+        else:
+            import matplotlib
+            from matplotlib import pyplot
+            self.interface = 'matplotlib'
 
     def parse_range(self, rangespec):
         try:
@@ -195,15 +204,18 @@ Command-line arguments
             self.progress.indicator.new_operation('plotting')
             self.do_plot(data, self.output_filename)
 
-class KinavgPloterr(CommonPloterrs):
-    subcommand = 'kinavg'
-    help_text = 'output of w_kinavg'
+class DirectKinetics(CommonPloterrs):
+    subcommand = 'd.kinetics'
+    help_text = 'output of w_direct kinetics'
+    input_filename = 'direct.h5'
+    flux_output_filename = 'flux_evolution_d_{state_label}.pdf'
+    rate_output_filename = 'rate_evolution_d_{istate_label}_{fstate_label}.pdf'
     description = '''\
 Plot evolution of state-to-state rates and total flux into states as generated
-by ``w_kinavg`` (when used with the ``--evolution-mode`` option). Plots are
-generated for all rates/fluxes calculated. Output filenames require (and plot
-titles and axis labels support) substitution based on which flux/rate is being
-plotted:
+by ``w_{direct/reweight} kinetics`` (when used with the ``--evolution-mode`` 
+option). Plots are generated for all rates/fluxes calculated. Output filenames 
+require (and plot titles and axis labels support) substitution based on which 
+flux/rate is being plotted:
 
   istate_label, fstate_label
     *(String, for rates)* Names of the initial and final states, as originally
@@ -220,7 +232,7 @@ plotted:
 '''
     
     def __init__(self, parent):
-        super(KinavgPloterr,self).__init__(parent)
+        super(DirectKinetics,self).__init__(parent)
         self.kinavg_file = None
 
         self.dset_slice = None
@@ -232,12 +244,12 @@ plotted:
 
     def add_args(self, parser):
         iogroup = parser.add_argument_group('input/output')
-        iogroup.add_argument('-i', '--input', default='kinavg.h5',
-                             help='''Read w_kinavg results from INPUT (default: %(default)s).''')
-        iogroup.add_argument('--rate-output', default='rate_evolution_{istate_label}_{fstate_label}.pdf',
+        iogroup.add_argument('-i', '--input', default=self.input_filename,
+                             help='''Read kinetics results from INPUT (default: %(default)s).''')
+        iogroup.add_argument('--rate-output', default=self.rate_output_filename,
                              help='''Filename pattern for rate evolution output. See above for valid
                              field names. (Default: %(default)r).''')
-        iogroup.add_argument('--flux-output', default='flux_evolution_{state_label}.pdf',
+        iogroup.add_argument('--flux-output', default=self.flux_output_filename,
                              help='''Filename pattern for flux evolution output. See above for valid
                              field names. (Default: %(default)r).''')
     
@@ -298,27 +310,44 @@ plotted:
     def go(self):
         pi = self.progress.indicator
         nstates = len(self.state_labels)
-        with pi:
-            # "w_kinavg matrix" does not currently generate target_flux_evolution
-            if 'target_flux_evolution' in self.kinavg_file:
-                pi.new_operation('plotting fluxes', nstates)
-                for istate in xrange(nstates):
-                    self.plot_flux(istate)
-                    pi.progress += 1
-            
-            # if --evolution-mode wasn't specified, we won't get this either
-            if 'rate_evolution' in self.kinavg_file:
-                pi.new_operation('plotting rates', nstates*nstates)
-                for istate in xrange(nstates):
-                    for jstate in xrange(nstates):
-                        self.plot_rate(istate, jstate)
+        if self.interface == 'matplotlib':
+            with pi:
+                # if --evolution-mode wasn't specified, neither of these exist:
+                if 'target_flux_evolution' in self.kinavg_file:
+                    pi.new_operation('plotting fluxes', nstates)
+                    for istate in xrange(nstates):
+                        self.plot_flux(istate)
                         pi.progress += 1
-            else:
-                print('rate evolution not available')
+                
+                # if --evolution-mode wasn't specified, we won't get this either
+                if 'rate_evolution' in self.kinavg_file:
+                    pi.new_operation('plotting rates', nstates*nstates)
+                    for istate in xrange(nstates):
+                        for jstate in xrange(nstates):
+                            self.plot_rate(istate, jstate)
+                            pi.progress += 1
+                else:
+                    print('rate evolution not available')
+        else:
+            plotter = Plotter(self.kinavg_file, 'rate_evolution', iteration=-1, interface='text')
+            for istate in xrange(nstates):
+                for jstate in xrange(nstates):
+                    if istate != jstate:
+                        plotter.plot(istate, jstate)
+            plotter = Plotter(self.kinavg_file, 'conditional_flux_evolution', iteration=-1, interface='text')
+            for istate in xrange(nstates):
+                for jstate in xrange(nstates):
+                    if istate != jstate:
+                        plotter.plot(istate, jstate)
 
-class StateprobsPloterr(CommonPloterrs):
-    subcommand = 'stateprobs'
-    help_text = 'output of w_stateprobs'
+
+
+class DirectStateprobs(CommonPloterrs):
+    subcommand = 'd.probs'
+    help_text = 'output of w_direct probs'
+    input_filename = 'direct.h5'
+    pop_output_filename = 'pop_evolution_d_{state_label}.pdf'
+    color_output_filename = 'color_evolution_d_{state_label}.pdf'
     description = '''\
 Plot evolution of macrostate populations and associated uncertainties. Plots
 are generated for all states calculated. Output filenames require (and plot
@@ -333,7 +362,7 @@ plotted:
 '''
     
     def __init__(self, parent):
-        super(StateprobsPloterr,self).__init__(parent)
+        super(DirectStateprobs,self).__init__(parent)
         self.stateprobs_file = None
 
         self.dset_slice = None
@@ -345,10 +374,13 @@ plotted:
 
     def add_args(self, parser):
         iogroup = parser.add_argument_group('input/output')
-        iogroup.add_argument('-i', '--input', default='stateprobs.h5',
+        iogroup.add_argument('-i', '--input', default=self.input_filename,
                              help='''Read w_kinavg results from INPUT (default: %(default)s).''')
-        iogroup.add_argument('--population-output', default='pop_evolution_{state_label}.pdf',
+        iogroup.add_argument('--population-output', default=self.pop_output_filename,
                              help='''Filename pattern for population evolution output. See above for valid
+                             field names. (Default: %(default)r).''')
+        iogroup.add_argument('--color-output', default=self.color_output_filename,
+                             help='''Filename pattern for ensemble evolution output. See above for valid
                              field names. (Default: %(default)r).''')
     
     def process_args(self, args):
@@ -356,6 +388,7 @@ plotted:
         
         self.state_labels = list(self.stateprobs_file['state_labels'][...])
         self.pop_output_pattern = args.population_output
+        self.color_output_pattern = args.color_output
                 
     def plot_pop(self, istate):
         label = self.state_labels[istate]
@@ -377,22 +410,71 @@ plotted:
         y_label = y_label.format(**subdict)
         
         self.do_plot(data, output_filename, title, x_label=x_label, y_label=y_label)
+
+    def plot_color(self, istate):
+        label = self.state_labels[istate]
+        data = self.stateprobs_file['color_prob_evolution'][:,istate]
+        
+        if (data['iter_start'] == 0).all():
+            # No data
+            return
+        
+        subdict = dict(state_label=label, state_index=istate)
+        
+        output_filename = self.color_output_pattern.format(**subdict) if self.color_output_pattern else None
+        
+        title = self.title if self.title is not None else 'Population in ensemble "{state_label}"'
+        title = title.format(**subdict)
+        
+        x_label = self.xlabel.format(**subdict) if self.xlabel else None
+        y_label = self.ylabel if self.ylabel is not None else r'Population'
+        y_label = y_label.format(**subdict)
+        
+        self.do_plot(data, output_filename, title, x_label=x_label, y_label=y_label)
     
     def go(self):
         pi = self.progress.indicator
         nstates = len(self.state_labels)
-        with pi:
-            if 'state_pop_evolution' in self.stateprobs_file:
-                pi.new_operation('plotting populations', nstates)
-                for istate in xrange(nstates):
-                    self.plot_pop(istate)
-                    pi.progress += 1
-            else:
-                print('population evolution not available')
+        if self.interface == 'matplotlib':
+            with pi:
+                if 'state_pop_evolution' in self.stateprobs_file:
+                    pi.new_operation('plotting populations', nstates)
+                    for istate in xrange(nstates):
+                        self.plot_pop(istate)
+                        pi.progress += 1
+
+                if 'color_prob_evolution' in self.stateprobs_file:
+                    pi.new_operation('plotting ensemble populations', nstates)
+                    for istate in xrange(nstates):
+                        self.plot_color(istate)
+                        pi.progress += 1
+                else:
+                    print('population evolution not available')
+        else:
+            plotter = Plotter(self.stateprobs_file, 'state_pop_evolution', iteration=-1, interface='text')
+            for istate in xrange(nstates):
+                    plotter.plot(istate)
+            plotter = Plotter(self.stateprobs_file, 'color_prob_evolution', iteration=-1, interface='text')
+            for istate in xrange(nstates):
+                    plotter.plot(istate)
+
+class ReweightStateprobs(DirectStateprobs):
+    subcommand = 'rw.probs'
+    help_text = 'output of w_reweight probs'
+    input_filename = 'reweight.h5'
+    pop_output_filename = 'pop_evolution_rw_{state_label}.pdf'
+    color_output_filename = 'color_evolution_rw_{state_label}.pdf'
+
+class ReweightKinetics(DirectKinetics):
+    subcommand = 'rw.kinetics'
+    help_text = 'output of w_reweight kinetics'
+    input_filename = 'reweight.h5'
+    flux_output_filename = 'flux_evolution_rw_{state_label}.pdf'
+    rate_output_filename = 'rate_evolution_rw_{istate_label}_{fstate_label}.pdf'
             
 class PloterrsTool(WESTMasterCommand):
     prog='ploterrs'
-    subcommands = [KinavgPloterr,StateprobsPloterr,GenericIntervalSubcommand]
+    subcommands = [DirectKinetics,DirectStateprobs,ReweightStateprobs,ReweightKinetics,GenericIntervalSubcommand]
     subparsers_title = 'supported input formats'
     description = '''\
 Plots error ranges for weighted ensemble datasets. 

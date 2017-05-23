@@ -1,4 +1,4 @@
-# Copyright (C) 2013 Matthew C. Zwier and Lillian T. Chong
+# Copyright (C) 2017 Matthew C. Zwier and Lillian T. Chong
 #
 # This file is part of WESTPA.
 #
@@ -33,4 +33,14 @@ iter_block_ci_dtype = numpy.dtype([('iter_start', n_iter_dtype),
                                    ('expected', numpy.float64),
                                    ('ci_lbound', numpy.float64),
                                    ('ci_ubound', numpy.float64),
+                                   ('sterr', numpy.float64),
                                    ('corr_len', n_iter_dtype)])
+
+# A quantity to store event duration distribution stuff.
+# Comes from the old w_kinetics.
+
+ed_list_dtype       = numpy.dtype([('istate', numpy.uint16), 
+                                   ('fstate', numpy.uint16), 
+                                   ('duration', numpy.float64),
+                                   ('weight', numpy.float64), 
+                                   ('seg_id', seg_id_dtype)])

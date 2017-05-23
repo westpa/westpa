@@ -1,4 +1,4 @@
-# Copyright (C) 2013 Matthew C. Zwier and Lillian T. Chong
+# Copyright (C) 2017 Matthew C. Zwier and Lillian T. Chong
 #
 # This file is part of WESTPA.
 #
@@ -94,7 +94,7 @@ cpdef Py_ssize_t get_bssize(double alpha) nogil:
         bssize *= 10
     return bssize
 
-cpdef mcbs_ci(dataset, estimator, alpha, n_sets=None, args=None, kwargs=None, sort=numpy.msort):
+cpdef mcbs_ci(dataset, estimator, alpha, dlen, n_sets=None, args=None, kwargs=None, sort=numpy.msort):
     '''Perform a Monte Carlo bootstrap estimate for the (1-``alpha``) confidence interval
     on the given ``dataset`` with the given ``estimator``.  This routine is not appropriate
     for time-correlated data.
@@ -122,10 +122,16 @@ cpdef mcbs_ci(dataset, estimator, alpha, n_sets=None, args=None, kwargs=None, so
     
     args = args or ()
     kwargs = kwargs or {}
-    dataset = numpy.asanyarray(dataset)
-    dlen = len(dataset)
     
-    fhat = estimator(dataset, *args, **kwargs)
+    # dataset SHOULD be a dictionary.
+    d_input = dataset.copy()
+    # Here, we're dumping in any extra kwarg arguments to pass in to the estimator.
+    try:
+        d_input.update(kwargs)
+    except:
+        pass
+
+    fhat = estimator(**d_input)
     
     try:
         estimator_shape = fhat.shape
@@ -143,7 +149,15 @@ cpdef mcbs_ci(dataset, estimator, alpha, n_sets=None, args=None, kwargs=None, so
     
     for i in xrange(n_sets):
         indices = numpy.random.randint(dlen, size=(dlen,))
-        f_synth[i] = estimator(numpy.take(dataset,indices), *args, **kwargs)
+        d_synth = {}
+        for key, dset in dataset.iteritems():
+            d_synth[key] = numpy.take(dset, indices, axis=0)
+        d_input = d_synth.copy()
+        try:
+            d_input.update(kwargs)
+        except:
+            pass
+        f_synth[i] = estimator(**d_input)
         del indices
         
     f_synth_sorted = sort(f_synth)
@@ -151,9 +165,10 @@ cpdef mcbs_ci(dataset, estimator, alpha, n_sets=None, args=None, kwargs=None, so
     ubi = int(math.ceil(n_sets*(1-alpha/2.0)))                     
     lb = f_synth_sorted[lbi]
     ub = f_synth_sorted[ubi]
+    sterr = numpy.std(f_synth_sorted)
     
     del f_synth_sorted, f_synth
-    return (fhat, lb, ub)
+    return (fhat, lb, ub, sterr)
 
 cpdef mcbs_correltime(dataset, alpha, n_sets = None):
     '''Calculate the correlation time of the given ``dataset``, significant to the

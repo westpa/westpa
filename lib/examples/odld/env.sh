@@ -3,6 +3,8 @@ if [[ -z "$WEST_ROOT" ]]; then
     exit
 fi
 
-export WEST_PYTHON=$(which python2.7)
+if [[ -z "$WEST_PYTHON" ]]; then
+    export WEST_PYTHON=$(which python2.7)
+fi
 export WM_WORK_MANAGER=serial
 

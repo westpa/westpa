@@ -1,4 +1,4 @@
-# Copyright (C) 2013 Matthew C. Zwier and Lillian T. Chong
+# Copyright (C) 2017 Matthew C. Zwier and Lillian T. Chong
 #
 # This file is part of WESTPA.
 #
@@ -377,7 +377,7 @@ cpdef labeled_flux_to_rate(weight_t[:,:,:,:] labeled_fluxes, weight_t[:,:] label
 @cython.boundscheck(False)
 @cython.wraparound(False)
 @cython.cdivision(True)
-cpdef sequence_macro_flux_to_rate(weight_t[:,:,:] fluxes, weight_t[:,:] traj_ens_pops, bint pairwise=True):
+cpdef sequence_macro_flux_to_rate(weight_t[:] dataset, weight_t[:,:] pops, Py_ssize_t istate, Py_ssize_t jstate, bint pairwise=True, stride=None):
     '''Convert a sequence of macrostate fluxes and corresponding list of trajectory ensemble populations
     to a sequence of rate matrices.
     
@@ -388,31 +388,40 @@ cpdef sequence_macro_flux_to_rate(weight_t[:,:,:] fluxes, weight_t[:,:] traj_ens
     normalized according the probability of the initial state among *all* other states.'''
     
     cdef:
-        Py_ssize_t iiter, istate, jstate, nstates
-        weight_t[:,:,:] _rates
-        weight_t p
+        Py_ssize_t iiter, nstates, itersum
+        weight_t[:] _rates, _fluxsum, _pairsum, _psum
         
-    rates = numpy.empty((fluxes.shape[0], fluxes.shape[1], fluxes.shape[2]), dtype=weight_dtype)
+    rates = numpy.zeros((dataset.shape[0]), dtype=weight_dtype)
+    #rates = :W
+    fluxsum = numpy.zeros((dataset.shape[0]), dtype=weight_dtype)
+    psum = numpy.zeros((dataset.shape[0]), dtype=weight_dtype)
+    pairsum = numpy.zeros((dataset.shape[0]), dtype=weight_dtype)
+    _fluxsum = fluxsum
+    _pairsum = pairsum
+    _psum = psum
     _rates = rates
     
+    # We want to modify this to be the SUM of fluxes up till this point, divided by the SUM of the population till then.
     with nogil:
-        for iiter in xrange(fluxes.shape[0]):
-            for istate in xrange(fluxes.shape[1]):
-                for jstate in xrange(fluxes.shape[2]):
-                    if traj_ens_pops[iiter,istate] > 0:
-                        if pairwise:
-                            p = traj_ens_pops[iiter,istate] / (traj_ens_pops[iiter,istate]+traj_ens_pops[iiter,jstate])
-                        else:
-                            p = traj_ens_pops[iiter,istate]
-                        _rates[iiter,istate,jstate] = fluxes[iiter,istate,jstate] / p
-                    elif fluxes[iiter,istate,jstate] > 0:
-                        # This is an invalid rate, but can appear in some places in recycling simulations,
-                        # so we allow things to proceed but store NaN, which will render any average
-                        # rates based on this matrix element NaN as well.
-                        _rates[iiter,istate,jstate] = NAN 
-                    else:
-                        _rates[iiter,istate,jstate] = 0
-    return rates
+        for iiter in xrange(dataset.shape[0]):
+            if iiter == 0:
+                if pairwise:
+                    _psum[0] = pops[0, istate] / (pops[0,istate] + pops[0,jstate])
+                else:
+                    _psum[0] = pops[0, istate]
+                _fluxsum[0] = dataset[0]
+            else:
+                if pairwise:
+                    _psum[iiter] = (pops[iiter, istate] / (pops[iiter,istate] + pops[iiter,jstate])) + _psum[iiter-1]
+                else:
+                    _psum[iiter] = pops[iiter,istate] + _psum[iiter-1]
+                _fluxsum[iiter] = dataset[iiter] + _fluxsum[iiter-1]
+            if _psum[iiter] > 0 and _fluxsum[iiter] > 0:
+                _rates[iiter] = _fluxsum[iiter] / _psum[iiter]
+            else:
+                _rates[iiter] = 0.0
+
+    return rates[iiter]
 
 """
 In the following ``state`` is a 5-tuple of the following arrays of doubles:

@@ -1,4 +1,4 @@
-# Copyright (C) 2013 Matthew C. Zwier and Lillian T. Chong
+# Copyright (C) 2017 Matthew C. Zwier and Lillian T. Chong
 #
 # This file is part of WESTPA.
 #
@@ -181,6 +181,10 @@ the true value of ``tau``.
         ogroup.add_argument('-o', '--output', default='fluxanl.h5',
                             help='Store intermediate data and analysis results to OUTPUT (default: %(default)s).')
         cgroup = parser.add_argument_group('calculation options')
+        cgroup.add_argument('--disable-bootstrap', '-db', dest='bootstrap', action='store_const', const=False,
+                             help='''Enable the use of Monte Carlo Block Bootstrapping.''')
+        cgroup.add_argument('--disable-correl', '-dc', dest='correl', action='store_const', const=False,
+                             help='''Disable the correlation analysis.''')
         cgroup.add_argument('-a', '--alpha', type=float, default=0.05, 
                              help='''Calculate a (1-ALPHA) confidence interval on the average flux'
                              (default: %(default)s)''')
@@ -206,6 +210,9 @@ the true value of ``tau``.
         self.output_h5file = h5py.File(args.output, 'w')
         
         self.alpha = args.alpha
+        # Disable the bootstrap or the correlation analysis.
+        self.mcbs_enable = args.bootstrap if args.bootstrap is not None else True
+        self.do_correl = args.correl if args.correl is not None else True
         self.autocorrel_alpha = args.acalpha or self.alpha
         self.n_sets = args.nsets or mclib.get_bssize(self.alpha)
         
@@ -254,9 +261,11 @@ the true value of ``tau``.
             h5io.label_axes(acorr_ds, ['lag'], ['tau'])
             
             # Calculate overall averages and CIs
-            avg, lb_ci, ub_ci, correl_len = mclib.mcbs_ci_correl(fluxes, numpy.mean, self.alpha, self.n_sets,
-                                                                 autocorrel_alpha=self.autocorrel_alpha, subsample=numpy.mean)
-            avg_fluxdata[itarget] = (self.iter_range.iter_start, self.iter_range.iter_stop, avg, lb_ci, ub_ci, correl_len)
+            #avg, lb_ci, ub_ci, correl_len = mclib.mcbs_ci_correl(fluxes, numpy.mean, self.alpha, self.n_sets,
+            #                                                     autocorrel_alpha=self.autocorrel_alpha, subsample=numpy.mean)
+            avg, lb_ci, ub_ci, sterr, correl_len = mclib.mcbs_ci_correl({'dataset': fluxes}, estimator=(lambda stride, dataset: numpy.mean(dataset)), alpha=self.alpha, n_sets=self.n_sets,
+                                                                 autocorrel_alpha=self.autocorrel_alpha, subsample=numpy.mean, do_correl=self.do_correl, mcbs_enable=self.mcbs_enable )
+            avg_fluxdata[itarget] = (self.iter_range.iter_start, self.iter_range.iter_stop, avg, lb_ci, ub_ci, sterr, correl_len)
             westpa.rc.pstatus('target {!r}:'.format(target_label))
             westpa.rc.pstatus('  correlation length = {} tau'.format(correl_len))
             westpa.rc.pstatus('  mean flux and CI   = {:e} ({:e},{:e}) tau^(-1)'.format(avg,lb_ci,ub_ci))
@@ -296,13 +305,17 @@ the true value of ``tau``.
                 istop = min((iblock+1)*self.evol_step, len(target_fluxdata['flux']))
                 fluxes = target_fluxdata['flux'][:istop]
                 
-                avg, ci_lb, ci_ub, correl_len = mclib.mcbs_ci_correl(fluxes, numpy.mean, self.alpha, self.n_sets,
+                #avg, ci_lb, ci_ub, correl_len = mclib.mcbs_ci_correl(fluxes, numpy.mean, self.alpha, self.n_sets,
+                #                                                     autocorrel_alpha = self.autocorrel_alpha,
+                #                                                     subsample=numpy.mean)
+                avg, ci_lb, ci_ub, sterr, correl_len = mclib.mcbs_ci_correl({'dataset': fluxes}, estimator=(lambda stride, dataset: numpy.mean(dataset)), alpha=self.alpha, n_sets=self.n_sets,
                                                                      autocorrel_alpha = self.autocorrel_alpha,
-                                                                     subsample=numpy.mean)
+                                                                     subsample=numpy.mean, do_correl=self.do_correl, mcbs_enable=self.mcbs_enable )
                 cis[iblock]['iter_start'] = iter_start
                 cis[iblock]['iter_stop']  = block_iter_stop
                 cis[iblock]['expected'], cis[iblock]['ci_lbound'], cis[iblock]['ci_ubound'] = avg, ci_lb, ci_ub
                 cis[iblock]['corr_len'] = correl_len
+                cis[iblock]['sterr'] = sterr
                 
                 del fluxes
 

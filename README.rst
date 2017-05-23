@@ -14,6 +14,8 @@ Zwier, M.C., Adelman, J.L., Kaus, J.W., Pratt, A.J., Wong, K.F., Rego, N.B., Sua
 Wang, D. W., Grabe, M., Zuckerman, D. M., and Chong, L. T. "WESTPA: An Interoperable, Highly 
 Scalable Software Package For Weighted Ensemble Simulation and Analysis," J. Chem. Theory Comput., 11: 800−809 (2015). 
 
+See this page_ for an overview of weighted ensemble simulation.
+
 To help us fund development and improve WESTPA please fill out a one-minute survey_ and consider 
 contributing documentation or code to the WESTPA community.
 
@@ -21,6 +23,7 @@ WESTPA is free software, licensed under the terms of the GNU General Public
 License, Version 3. See the file ``COPYING`` for more information.
 
 .. _survey: https://docs.google.com/forms/d/e/1FAIpQLSfWaB2aryInU06cXrCyAFmhD_gPibgOfFk-dspLEsXuS9-RGQ/viewform
+.. _page: https://westpa.github.io/westpa/overview.html
 
 ------------
 Requirements
@@ -34,33 +37,38 @@ Anaconda Python distribution from www.continuum.io (free for all users).
 WESTPA currently runs on Unix-like operating systems, including Linux and
 Mac OS X. It is developed and tested on x86_64 machines running Linux.
 
+--------------------------------
+Obtaining and Installing WESTPA
+--------------------------------
 
-------------
-Installation
-------------
+WESTPA is developed and tested on Unix-like operating systems, including Linux and Mac OS X.
 
-After obtaining a copy of the code (see https://westpa.github.io/westpa for details), run
-``setup.sh`` in the ``westpa`` directory. If the version of Python you will
-be using to run the code is not first on your $PATH, then set the environment
-variable WEST_PYTHON to the Python interpreter you want to use. For example::
+Before installing WESTPA, you will need to first install the Python 2.7 version provided by the latest free `Anaconda Python distribution`_. After installing the Anaconda Python distribution, either add the Python executable to your $PATH or set the environment variable WEST_PYTHON::
 
-    cd westpa
     export WEST_PYTHON=/opt/anaconda/bin/python2.7
+
+We recommend obtaining the latest release of WESTPA by downloading the corresponding tar.gz file from the `releases page`_. After downloading the file, unpack the file and install WESTPA by executing the following::
+
+    tar xvzf westpa-master.tar.gz
+    cd westpa
     ./setup.sh
 
-A ``westpa.sh`` script is created during installation, and will set the following
-environment variables::
+A westpa.sh script is created during installation, and will set the following environment variables::
 
     WEST_ROOT
     WEST_BIN
     WEST_PYTHON
 
-For installation on a cluster with modules, system administrators must set these
-variables to the appropriate values within the module file.
+These environment variables must be set in order to run WESTPA on your computing cluster.
+
+.. _`releases page`: https://github.com/westpa/westpa/releases
+.. _`Anaconda Python distribution`: https://www.continuum.io/downloads 
 
 ---------------
 Getting started
 ---------------
+
+WESTPA simulation checklist_ 
 
 To define environment variables post-installation, simply source the 
 ``westpa.sh`` script in the ``westpa`` directory from the command line
@@ -79,16 +87,20 @@ a few days with her lab and/or setting up video conferencing sessions to help yo
 simulations off the ground.
 
 .. _here: https://westpa.github.io/westpa/sphinx_index.html#tutorials
-
+.. _checklist: https://westpa.github.io/westpa/users_guide/checklist.html
 
 ------------
 Getting help
 ------------
 
+WESTPA FAQ_
+
 A mailing list for WESTPA is available, at which one can ask questions (or see
 if a question one has was previously addressed). This is the preferred means
 for obtaining help and support. See http://groups.google.com/group/westpa-users
 to sign up or search archived messages.
+
+.. _FAQ: https://westpa.github.io/westpa/users_guide/faq.html
 
 -------------------------------------------------------
 Copyright, license, and warranty information

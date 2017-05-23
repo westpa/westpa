@@ -20,9 +20,10 @@
 
 from __future__ import print_function, division; __metaclass__ = type
 
-import sys, argparse
+import sys, argparse, os
 import westpa
 import work_managers
+from westpa import h5io
 
 import logging
 log = logging.getLogger(__name__)
@@ -259,6 +260,3 @@ class WESTMasterCommand(WESTTool):
     def go(self):
         self._subcommand.go()
     
-    
-        
-        
