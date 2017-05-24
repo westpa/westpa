@@ -270,7 +270,7 @@ class KineticsIteration(object):
         # While we could try and automatically generate this above, it's a little more consistent to try it here.
         # This should show the first block for which the current iteration has contributed data.
         self.step_iter = (self.h5file[h5key]['iter_stop'][0] - self.h5file[h5key]['iter_start'][0])[1,0]
-        value = ((index-2) // self.step_iter)
+        value = ((index-self.h5file.attrs['iter_start']) // self.step_iter)
         if value < 0:
             value = 0
         raw = self.h5file[h5key][value, :, :]
@@ -283,7 +283,7 @@ class KineticsIteration(object):
         return raw
     def __1D_with_error__(self, h5key, index, assign):
         self.step_iter = (self.h5file[h5key]['iter_stop'][0] - self.h5file[h5key]['iter_start'][0])[1]
-        value = ((index-1) // self.step_iter)
+        value = ((index-self.h5file.attrs['iter_start']) // self.step_iter)
         if value < 0:
             value = 0
         raw = self.h5file[h5key][value, :]
