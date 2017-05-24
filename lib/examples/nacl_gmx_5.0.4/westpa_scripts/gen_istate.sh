@@ -13,7 +13,6 @@ mkdir -p $(dirname $WEST_ISTATE_DATA_REF)
 x=($(cat $WEST_BSTATE_DATA_REF | grep '[NA,CL]' | awk '{print $4}'))
 y=($(cat $WEST_BSTATE_DATA_REF | grep '[NA,CL]' | awk '{print $5}'))
 z=($(cat $WEST_BSTATE_DATA_REF | grep '[NA,CL]' | awk '{print $6}'))
-
 x[0]=$(echo "scale=3;((${x[0]}*10)-($WEST_RANDFLOAT/2))/10" | bc)
 x[1]=$(echo "scale=3;((${x[1]}*10)+($WEST_RANDFLOAT/2))/10" | bc)
 
