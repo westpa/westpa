@@ -7,7 +7,7 @@ Tutorials
 .. toctree::
    :maxdepth: 1
 
-   Quickstart guide <tutorials/quickstart>
+   Quickstart guide <https://github.com/westpa/westpa/wiki/Quickstart-Guide>
 
 Introductory
 #############
@@ -18,10 +18,10 @@ Introductory
    An introduction to WESTPA (video tutorial) <https://www.youtube.com/watch?v=YpltPzpcmLY>
    Analysis Tools (video tutorial) <https://www.youtube.com/watch?v=rMFvcHOOxZc>
    Spatially-resolved Systems Biology (MCell) Models (video tutorial) <https://www.youtube.com/watch?v=rY-IJcLFiaM>
-   Chignolin tutorial <tutorials/chignolin>
-   AMBER   <tutorials/amber>
-   GROMACS <tutorials/gromacs>
-   NAMD    <tutorials/namd>
+   Chignolin tutorial <https://github.com/westpa/westpa/wiki/Chignolin-Tutorial>
+   AMBER <https://github.com/westpa/westpa/wiki/Amber-Tutorial>  
+   GROMACS <https://github.com/westpa/westpa/wiki/Gromacs-Tutorial-%282016%29>
+   NAMD <https://github.com/westpa/westpa/wiki/NAMD-Tutorial>   
 
 Advanced
 #############
@@ -29,8 +29,8 @@ Advanced
 .. toctree::
    :maxdepth: 1
 
-   Molecular Scale Systems <tutorials/p53>
-   OpenMM <tutorials/openmm>
+   Molecular Scale Systems <https://github.com/westpa/westpa/wiki/Molecular-Scale-Systems-Tutorial>
+   OpenMM <https://github.com/westpa/westpa/wiki/OpenMM-Tutorial>
    Weighted ensemble-based string method <http://stringmethodexamples.readthedocs.org/>
 
 -------------------
