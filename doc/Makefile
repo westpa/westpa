@@ -58,8 +58,8 @@ html:
 
 ghpages:
 	make html
-	mv $(BUILDDIR)/html/_images $(BUILDDIR)/html/images
-	find $(BUILDDIR)/html/* -name '*.html' -exec sed -i 's/_images/images/g' {} \;
+	#mv $(BUILDDIR)/html/_images $(BUILDDIR)/html/images
+	#find $(BUILDDIR)/html/* -name '*.html' -exec sed -i 's/_images/images/g' {} \;
 	mv $(BUILDDIR)/html/_sources $(BUILDDIR)/html/sources
 	find $(BUILDDIR)/html/* -name '*.html' -exec sed -i 's/_sources/sources/g' {} \;
 	mv $(BUILDDIR)/html/_static $(BUILDDIR)/html/static
