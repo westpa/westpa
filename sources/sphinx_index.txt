@@ -4,34 +4,8 @@
 Tutorials
 ------------
 
-.. toctree::
-   :maxdepth: 1
+You can find all of the WESTPA tutorials in our `GitHub wiki <https://github.com/westpa/westpa/wiki/WESTPA-Tutorials>`_.
 
-   Quickstart guide <https://github.com/westpa/westpa/wiki/Quickstart-Guide>
-
-Introductory
-#############
-
-.. toctree::
-   :maxdepth: 1
-
-   An introduction to WESTPA (video tutorial) <https://www.youtube.com/watch?v=YpltPzpcmLY>
-   Analysis Tools (video tutorial) <https://www.youtube.com/watch?v=rMFvcHOOxZc>
-   Spatially-resolved Systems Biology (MCell) Models (video tutorial) <https://www.youtube.com/watch?v=rY-IJcLFiaM>
-   Chignolin tutorial <https://github.com/westpa/westpa/wiki/Chignolin-Tutorial>
-   AMBER <https://github.com/westpa/westpa/wiki/Amber-Tutorial>  
-   GROMACS <https://github.com/westpa/westpa/wiki/Gromacs-Tutorial-%282016%29>
-   NAMD <https://github.com/westpa/westpa/wiki/NAMD-Tutorial>   
-
-Advanced
-#############
-
-.. toctree::
-   :maxdepth: 1
-
-   Molecular Scale Systems <https://github.com/westpa/westpa/wiki/Molecular-Scale-Systems-Tutorial>
-   OpenMM <https://github.com/westpa/westpa/wiki/OpenMM-Tutorial>
-   Weighted ensemble-based string method <http://stringmethodexamples.readthedocs.org/>
 
 -------------------
 Advanced Reference
