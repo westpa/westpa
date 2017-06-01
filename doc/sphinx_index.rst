@@ -1,14 +1,7 @@
 .. include:: readme_sphinx.rst
 
-------------
-Tutorials
-------------
-
-You can find all of the WESTPA tutorials in our `GitHub wiki <https://github.com/westpa/westpa/wiki/WESTPA-Tutorials>`_.
-
-
 -------------------
-Advanced Reference
+Advanced References
 -------------------
 
 .. toctree::
@@ -22,9 +15,9 @@ Advanced Reference
     HDF5 file schema          <users_guide/hdf5>
 
 
-------------
-Development
-------------
+--------------
+For Developers
+--------------
 
 .. toctree::
    :maxdepth: 1
