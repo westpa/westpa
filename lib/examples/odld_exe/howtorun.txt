@@ -1,0 +1,2 @@
+./init.sh
+./run.sh --work-manager=processes --n-workers=8
