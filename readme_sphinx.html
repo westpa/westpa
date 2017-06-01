@@ -47,11 +47,11 @@
 <div class="section" id="overview">
 <h2>Overview<a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h2>
 <p>WESTPA is a package for constructing and running stochastic simulations using the &#8220;weighted ensemble&#8221; approach
-of Huber and Kim (1996). For use of WESTPA please cite the following:</p>
+of Huber and Kim (1996) (see <a class="reference external" href="https://westpa.github.io/westpa/overview.html">overview</a>).</p>
+<p>For use of WESTPA please cite the following:</p>
 <p>Zwier, M.C., Adelman, J.L., Kaus, J.W., Pratt, A.J., Wong, K.F., Rego, N.B., Suarez, E., Lettieri, S.,
 Wang, D. W., Grabe, M., Zuckerman, D. M., and Chong, L. T. &#8220;WESTPA: An Interoperable, Highly
 Scalable Software Package For Weighted Ensemble Simulation and Analysis,&#8221; J. Chem. Theory Comput., 11: 800−809 (2015).</p>
-<p>See this <a class="reference external" href="https://westpa.github.io/westpa/overview.html">page</a> for an overview of weighted ensemble simulation.</p>
 <p>To help us fund development and improve WESTPA please fill out a one-minute <a class="reference external" href="https://docs.google.com/forms/d/e/1FAIpQLSfWaB2aryInU06cXrCyAFmhD_gPibgOfFk-dspLEsXuS9-RGQ/viewform">survey</a> and consider
 contributing documentation or code to the WESTPA community.</p>
 <p>WESTPA is free software, licensed under the terms of the GNU General Public
@@ -77,22 +77,27 @@ License, Version 3. See the file <code class="docutils literal"><span class="pre
 </pre></div>
 </div>
 <p>These environment variables must be set in order to run WESTPA on your computing cluster.</p>
-</div>
-<div class="section" id="getting-started">
-<h2>Getting started<a class="headerlink" href="#getting-started" title="Permalink to this headline">¶</a></h2>
-<div class="section" id="checklist">
-<h3>Checklist<a class="headerlink" href="#checklist" title="Permalink to this headline">¶</a></h3>
-<p>A one-page checklist for new users can be found in the following page:</p>
-<div class="toctree-wrapper compound">
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="users_guide/checklist.html"> Checklist for setting up, running and analyzing a WESTPA simulation</a></li>
-</ul>
-</div>
 <p>To define environment variables post-installation, simply source the
 <code class="docutils literal"><span class="pre">westpa.sh</span></code> script in the <code class="docutils literal"><span class="pre">westpa</span></code> directory from the command line
 or your setup scripts.</p>
-<p>High-level tutorials of how to use the WESTPA software can be found <a class="reference external" href="https://westpa.github.io/westpa/sphinx_index.html#tutorials">here</a>.
-Further, all WESTPA command-line tools (located in <code class="docutils literal"><span class="pre">westpa/bin</span></code>) provide detailed help when
+</div>
+<div class="section" id="getting-started">
+<h2>Getting started<a class="headerlink" href="#getting-started" title="Permalink to this headline">¶</a></h2>
+<p>A Quickstart guide and tutorials are provided <a class="reference external" href="https://github.com/westpa/westpa/wiki">here</a>.</p>
+</div>
+<div class="section" id="getting-help">
+<h2>Getting help<a class="headerlink" href="#getting-help" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="faq">
+<h3>FAQ<a class="headerlink" href="#faq" title="Permalink to this headline">¶</a></h3>
+<p>Responses to frequently asked questions (FAQ) can be found in the following page:</p>
+<ul class="simple">
+<li><a class="reference external" href="https://github.com/westpa/westpa/wiki/Frequently-Asked-Questions-%28FAQ%29">Frequently Asked Questions (FAQ)</a></li>
+</ul>
+<p>A mailing list for WESTPA is available, at which one can ask questions (or see
+if a question one has was previously addressed). This is the preferred means
+for obtaining help and support. See <a class="reference external" href="http://groups.google.com/group/westpa-users">http://groups.google.com/group/westpa-users</a>
+to sign up or search archived messages.</p>
+<p>Further, all WESTPA command-line tools (located in <code class="docutils literal"><span class="pre">westpa/bin</span></code>) provide detailed help when
 given the -h/&#8211;help option.</p>
 <p>Finally, while WESTPA is a powerful tool that enables expert simulators to access much longer
 timescales than is practical with standard simulations, there can be a steep learning curve to
@@ -101,22 +106,6 @@ For serious users who have completed the online tutorials and are ready for prod
 of their system, we invite you to contact Lillian Chong (ltchong AT pitt DOT edu) about spending
 a few days with her lab and/or setting up video conferencing sessions to help you get your
 simulations off the ground.</p>
-</div>
-</div>
-<div class="section" id="getting-help">
-<h2>Getting help<a class="headerlink" href="#getting-help" title="Permalink to this headline">¶</a></h2>
-<div class="section" id="faq">
-<h3>FAQ<a class="headerlink" href="#faq" title="Permalink to this headline">¶</a></h3>
-<p>Responses to frequently asked questions (FAQ) can be found in the following page:</p>
-<div class="toctree-wrapper compound">
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="users_guide/faq.html"> Frequently Asked Questions (FAQ)</a></li>
-</ul>
-</div>
-<p>A mailing list for WESTPA is available, at which one can ask questions (or see
-if a question one has was previously addressed). This is the preferred means
-for obtaining help and support. See <a class="reference external" href="http://groups.google.com/group/westpa-users">http://groups.google.com/group/westpa-users</a>
-to sign up or search archived messages.</p>
 </div>
 </div>
 <div class="section" id="copyright-license-and-warranty-information">
@@ -176,10 +165,7 @@ copyright 2011 the Python Software Foundation. See
 <li><a class="reference internal" href="#">WESTPA 1.0 beta</a><ul>
 <li><a class="reference internal" href="#overview">Overview</a></li>
 <li><a class="reference internal" href="#obtaining-and-installing-westpa">Obtaining and Installing WESTPA</a></li>
-<li><a class="reference internal" href="#getting-started">Getting started</a><ul>
-<li><a class="reference internal" href="#checklist">Checklist</a></li>
-</ul>
-</li>
+<li><a class="reference internal" href="#getting-started">Getting started</a></li>
 <li><a class="reference internal" href="#getting-help">Getting help</a><ul>
 <li><a class="reference internal" href="#faq">FAQ</a></li>
 </ul>

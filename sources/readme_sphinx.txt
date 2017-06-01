@@ -8,13 +8,13 @@ Overview
 --------
 
 WESTPA is a package for constructing and running stochastic simulations using the "weighted ensemble" approach 
-of Huber and Kim (1996). For use of WESTPA please cite the following:
+of Huber and Kim (1996) (see overview_). 
+
+For use of WESTPA please cite the following:
 
 Zwier, M.C., Adelman, J.L., Kaus, J.W., Pratt, A.J., Wong, K.F., Rego, N.B., Suarez, E., Lettieri, S.,
 Wang, D. W., Grabe, M., Zuckerman, D. M., and Chong, L. T. "WESTPA: An Interoperable, Highly 
 Scalable Software Package For Weighted Ensemble Simulation and Analysis," J. Chem. Theory Comput., 11: 800−809 (2015). 
-
-See this page_ for an overview of weighted ensemble simulation.
 
 To help us fund development and improve WESTPA please fill out a one-minute survey_ and consider 
 contributing documentation or code to the WESTPA community.
@@ -23,7 +23,7 @@ WESTPA is free software, licensed under the terms of the GNU General Public
 License, Version 3. See the file ``COPYING`` for more information.
 
 .. _survey: https://docs.google.com/forms/d/e/1FAIpQLSfWaB2aryInU06cXrCyAFmhD_gPibgOfFk-dspLEsXuS9-RGQ/viewform
-.. _page: https://westpa.github.io/westpa/overview.html
+.. _overview: https://westpa.github.io/westpa/overview.html
 
 --------------------------------
 Obtaining and Installing WESTPA
@@ -49,6 +49,10 @@ A westpa.sh script is created during installation, and will set the following en
 
 These environment variables must be set in order to run WESTPA on your computing cluster.
 
+To define environment variables post-installation, simply source the 
+``westpa.sh`` script in the ``westpa`` directory from the command line
+or your setup scripts.
+
 .. _`releases page`: https://github.com/westpa/westpa/releases
 .. _`Anaconda Python distribution`: https://www.continuum.io/downloads 
 
@@ -56,21 +60,27 @@ These environment variables must be set in order to run WESTPA on your computing
 Getting started
 ---------------
 
-Checklist
-#########
+A Quickstart guide and tutorials are provided here_. 
 
-A one-page checklist for new users can be found in the following page: 
+.. _here: https://github.com/westpa/westpa/wiki
 
-.. toctree::
-   :maxdepth: 1
+------------
+Getting help
+------------
 
-    Checklist for setting up, running and analyzing a WESTPA simulation <users_guide/checklist>
+FAQ
+###
 
-To define environment variables post-installation, simply source the 
-``westpa.sh`` script in the ``westpa`` directory from the command line
-or your setup scripts.
+Responses to frequently asked questions (FAQ) can be found in the following page: 
+  
+- `Frequently Asked Questions (FAQ)`_
+  
 
-High-level tutorials of how to use the WESTPA software can be found here_.
+A mailing list for WESTPA is available, at which one can ask questions (or see
+if a question one has was previously addressed). This is the preferred means
+for obtaining help and support. See http://groups.google.com/group/westpa-users
+to sign up or search archived messages.
+
 Further, all WESTPA command-line tools (located in ``westpa/bin``) provide detailed help when
 given the -h/--help option.
 
@@ -82,26 +92,7 @@ of their system, we invite you to contact Lillian Chong (ltchong AT pitt DOT edu
 a few days with her lab and/or setting up video conferencing sessions to help you get your 
 simulations off the ground.
 
-.. _here: https://westpa.github.io/westpa/sphinx_index.html#tutorials
-
-------------
-Getting help
-------------
-
-FAQ
-###
-
-Responses to frequently asked questions (FAQ) can be found in the following page: 
-
-.. toctree::
-   :maxdepth: 1
-
-    Frequently Asked Questions (FAQ) <users_guide/faq>
-
-A mailing list for WESTPA is available, at which one can ask questions (or see
-if a question one has was previously addressed). This is the preferred means
-for obtaining help and support. See http://groups.google.com/group/westpa-users
-to sign up or search archived messages.
+.. _`Frequently Asked Questions (FAQ)`: https://github.com/westpa/westpa/wiki/Frequently-Asked-Questions-%28FAQ%29
 
 -------------------------------------------------------
 Copyright, license, and warranty information
