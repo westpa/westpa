@@ -353,7 +353,7 @@ class WESTDataManager:
                                 
     def prepare_backing(self): #istates):
         '''Create new HDF5 file'''
-        self.we_h5file = h5py.File(self.we_h5filename, 'w', driver=self.we_h5file_driver, flags="NPY_ARRAY_FORCECAST")
+        self.we_h5file = h5py.File(self.we_h5filename, 'w', driver=self.we_h5file_driver)
         
         with self.flushing_lock():
             self.we_h5file['/'].attrs['west_file_format_version'] = file_format_version
