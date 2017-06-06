@@ -438,7 +438,7 @@ class WESimManager:
         for _i in xrange(n_istates_needed):
             # Select a basis state according to its weight
             ibstate = numpy.digitize([random.random()], self.next_iter_bstate_cprobs)
-            basis_state = self.next_iter_bstates[ibstate]
+            basis_state = self.next_iter_bstates[ibstate[0]]
             initial_state = self.data_manager.create_initial_states(1, n_iter=self.n_iter+1)[0]
             initial_state.iter_created = self.n_iter
             initial_state.basis_state_id = basis_state.state_id
