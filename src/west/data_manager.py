@@ -222,7 +222,7 @@ class WESTDataManager:
             config.require_type_if_present(['west', 'data', entry], type_)
             
         self.we_h5filename = config.get_path(['west', 'data', 'west_data_file'], default=self.default_we_h5filename)
-        self.we_h5file_driver = config.get_choice(['data', 'west_data_file_driver'], [None, 'sec2', 'family'],
+        self.we_h5file_driver = config.get_choice(['west', 'data', 'west_data_file_driver'], [None, 'sec2', 'family'],
                                                   default=self.default_we_h5file_driver,
                                                   value_transform=(lambda x: x.lower() if x else None))
         self.iter_prec = config.get(['west', 'data', 'iter_prec'], self.default_iter_prec)
