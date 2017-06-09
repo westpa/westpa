@@ -222,7 +222,7 @@ class WESTDataManager:
             config.require_type_if_present(['west', 'data', entry], type_)
             
         self.we_h5filename = config.get_path(['west', 'data', 'west_data_file'], default=self.default_we_h5filename)
-        self.we_h5file_driver = config.get_choice(['data', 'west_data_file_driver'], [None, 'sec2', 'family'],
+        self.we_h5file_driver = config.get_choice(['west', 'data', 'west_data_file_driver'], [None, 'sec2', 'family'],
                                                   default=self.default_we_h5file_driver,
                                                   value_transform=(lambda x: x.lower() if x else None))
         self.iter_prec = config.get(['west', 'data', 'iter_prec'], self.default_iter_prec)
@@ -353,7 +353,7 @@ class WESTDataManager:
                                 
     def prepare_backing(self): #istates):
         '''Create new HDF5 file'''
-        self.we_h5file = h5py.File(self.we_h5filename, 'w', driver=self.we_h5file_driver, flags="NPY_ARRAY_FORCECAST")
+        self.we_h5file = h5py.File(self.we_h5filename, 'w', driver=self.we_h5file_driver)
         
         with self.flushing_lock():
             self.we_h5file['/'].attrs['west_file_format_version'] = file_format_version
