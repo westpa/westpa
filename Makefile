@@ -4,4 +4,3 @@ all:
 install:
 	mkdir -p $(PREFIX)
 	cp -rp ../westpa $(PREFIX)
-	#bash $(PREFIX)/westpa/westpa.sh
