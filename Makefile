@@ -1,5 +1,4 @@
 all:
-	export 
 	./setup.sh
 
 install:
