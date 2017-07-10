@@ -197,9 +197,13 @@ class RWReweight(AverageCommands):
         cogroup.add_argument('--obs-threshold', type=int, default=1,
                              help='''The minimum number of observed transitions between two states i and j necessary to include
                              fluxes in the reweighting estimate''')
+        cogroup.add_argument('--source', type=float, default=None,
+                             help='''The progress coordinate that corresponds to a 'source' bin for steady-state simulations.''')
 
     def process_args(self, args):
         self.obs_threshold = args.obs_threshold
+        self.source = args.source
+
 
     def accumulate_statistics(self,start_iter,stop_iter):
         ''' 
@@ -252,6 +256,17 @@ class RWReweight(AverageCommands):
         self.npts = self.kinetics_file.attrs['npts']
         self.state_map = self.assignments_file['state_map'][...]
         self.state_labels = self.assignments_file['state_labels'][...]
+        if self.source != None:
+            #bins = self.assignments_file['bin_labels']
+            bins = [np.fromstring(i.replace('(','').replace(')','').replace('[','').replace(']',''), sep=',')[0] for i in self.assignments_file['bin_labels']] + [np.fromstring(self.assignments_file['bin_labels'][...][-1].replace('(','').replace(')','').replace('[','').replace(']',''), sep=',')[1]]
+            source = np.digitize(self.source, bins) - 1
+            # Crude, but it should work... now let's sort out the color.
+            # This should ensure it's in the correct color ensemble...
+            self.source = source + self.assignments_file['state_map'][source]
+        else:
+            self.source = -1
+        print(self.source)
+            
 
         # Copying this over to make it more convenient...
         self.output_file.replace_dataset('state_labels', data=self.assignments_file['state_labels'][...])
@@ -405,6 +420,7 @@ Command-line options
                                                         state_labels=self.state_labels,
                                                         return_obs='R', # Set to a default, here, but we explicitly set it later.
                                                         state_map=self.state_map,
+                                                        source=self.source,
                                                         nbins=self.nbins))
 
 
@@ -582,6 +598,7 @@ Command-line options
                                                         nfbins=self.nfbins,
                                                         state_labels=self.state_labels,
                                                         return_obs='C', # Set to a default, but we explicitly set it later.
+                                                        source=self.source,
                                                         state_map=self.state_map,
                                                         nbins=self.nbins))
 

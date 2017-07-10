@@ -115,7 +115,34 @@ cpdef int normalize(weight_t[:,:] m, Py_ssize_t nfbins) nogil:
 @cython.boundscheck(False)
 @cython.wraparound(False)
 @cython.cdivision(True)
-cpdef reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, nbins, state_labels, state_map, nfbins, istate, jstate, stride, bin_last_state_map, bin_state_map, return_obs, obs_threshold=1):
+cpdef int remove_sink(weight_t[:,:] m, Py_ssize_t nfbins, int source) nogil:
+
+    # Here, we're removing any sink states.  It's not necessarily clear how to handle the sources, yet, but.
+    cdef:
+        weight_t row_sum
+        Py_ssize_t x, y
+
+    for y in range(nfbins):
+        #row_sum = 0
+        #for x in range(nfbins):
+        #    row_sum += m[y,x]
+        #if row_sum != 0:
+        #    for x in range(nfbins):
+        #        m[y,x] /= row_sum
+        if m[y,y] == 1.0:
+            for x in range(nfbins):
+                # If we're a sink state, then zero out the row and column corresponding to it.
+                m[y,x] = 0
+                #m[x,y] = 0
+            # Then, set the recycling condition, if it exists:
+            if source > -1:
+                m[y,source] = 1
+    return 0
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+@cython.cdivision(True)
+cpdef reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, nbins, state_labels, state_map, nfbins, istate, jstate, stride, bin_last_state_map, bin_state_map, return_obs, obs_threshold=1, source=-1):
 
 
 
@@ -137,8 +164,10 @@ cpdef reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, nbins, sta
         int[:,:] _total_obs, _graph
         #bint _return_flux, _return_states, _return_color
         str _return_obs
+        int _source
         #double[:] eigvals, eigvalsi
         #double[:,:] eigvecs, WORK
+
 
 
 
@@ -202,6 +231,7 @@ cpdef reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, nbins, sta
     _istate = istate
     _jstate = jstate
     _return_obs = return_obs
+    _source = source
 
 
     #NOGIL
@@ -216,6 +246,7 @@ cpdef reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, nbins, sta
 
         remove_under_obs(_transition_matrix, _total_obs, _obs_threshold, _nfbins)
         normalize(_transition_matrix, _nfbins)
+        remove_sink(_transition_matrix, _nfbins, _source)
         steadystate_solve(_transition_matrix, _strong_transition_matrix, _rw_bin_probs, _nfbins, _eigvals, _eigvalsi, _eigvecs, _WORK, _graph, _visited)
 
         for i in range(_nfbins):
