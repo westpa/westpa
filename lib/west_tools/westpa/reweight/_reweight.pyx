@@ -130,13 +130,16 @@ cpdef int remove_sink(weight_t[:,:] m, Py_ssize_t nfbins, int source) nogil:
         #    for x in range(nfbins):
         #        m[y,x] /= row_sum
         if m[y,y] == 1.0:
+            # Then, set the recycling condition, if it exists:
+            #if source > -1:
+            #    m[y,source] = 1
             for x in range(nfbins):
                 # If we're a sink state, then zero out the row and column corresponding to it.
                 m[y,x] = 0
-                #m[x,y] = 0
-            # Then, set the recycling condition, if it exists:
-            if source > -1:
-                m[y,source] = 1
+                m[x,y] = 0
+            for x in range(nfbins):
+                if source > -1:
+                    m[x,source] = 1
     return 0
 
 @cython.boundscheck(False)
