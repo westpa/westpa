@@ -199,10 +199,13 @@ class RWReweight(AverageCommands):
                              fluxes in the reweighting estimate''')
         cogroup.add_argument('--source', type=float, default=None,
                              help='''The progress coordinate that corresponds to a 'source' bin for steady-state simulations.''')
+        cogroup.add_argument('--sink', type=float, default=None,
+                             help='''The progress coordinate that corresponds to a 'sink' bin for steady-state simulations.''')
 
     def process_args(self, args):
         self.obs_threshold = args.obs_threshold
         self.source = args.source
+        self.sink = args.sink
 
 
     def accumulate_statistics(self,start_iter,stop_iter):
@@ -265,6 +268,15 @@ class RWReweight(AverageCommands):
             self.source = source + self.assignments_file['state_map'][source]
         else:
             self.source = -1
+        if self.sink != None:
+            #bins = self.assignments_file['bin_labels']
+            bins = [np.fromstring(i.replace('(','').replace(')','').replace('[','').replace(']',''), sep=',')[0] for i in self.assignments_file['bin_labels']] + [np.fromstring(self.assignments_file['bin_labels'][...][-1].replace('(','').replace(')','').replace('[','').replace(']',''), sep=',')[1]]
+            source = np.digitize(self.sink, bins) - 1
+            # Crude, but it should work... now let's sort out the color.
+            # This should ensure it's in the correct color ensemble...
+            self.sink = source + self.assignments_file['state_map'][source]
+        else:
+            self.sink = -1
         print(self.source)
             
 
@@ -421,6 +433,7 @@ Command-line options
                                                         return_obs='R', # Set to a default, here, but we explicitly set it later.
                                                         state_map=self.state_map,
                                                         source=self.source,
+                                                        sink=self.sink,
                                                         nbins=self.nbins))
 
 
@@ -599,6 +612,7 @@ Command-line options
                                                         state_labels=self.state_labels,
                                                         return_obs='C', # Set to a default, but we explicitly set it later.
                                                         source=self.source,
+                                                        sink=self.sink,
                                                         state_map=self.state_map,
                                                         nbins=self.nbins))
 

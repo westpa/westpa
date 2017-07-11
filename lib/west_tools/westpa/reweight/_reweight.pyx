@@ -115,37 +115,59 @@ cpdef int normalize(weight_t[:,:] m, Py_ssize_t nfbins) nogil:
 @cython.boundscheck(False)
 @cython.wraparound(False)
 @cython.cdivision(True)
-cpdef int remove_sink(weight_t[:,:] m, Py_ssize_t nfbins, int source) nogil:
+cpdef int remove_sink(weight_t[:,:] m, Py_ssize_t nfbins, int source, int sink) nogil:
 
     # Here, we're removing any sink states.  It's not necessarily clear how to handle the sources, yet, but.
     cdef:
         weight_t row_sum
-        Py_ssize_t x, y
+        Py_ssize_t x, y, state
 
-    for y in range(nfbins):
+    #for y in range(nfbins):
         #row_sum = 0
         #for x in range(nfbins):
         #    row_sum += m[y,x]
         #if row_sum != 0:
         #    for x in range(nfbins):
         #        m[y,x] /= row_sum
-        if m[y,y] == 1.0:
+        #if m[y,y] == 1.0:
             # Then, set the recycling condition, if it exists:
             #if source > -1:
             #    m[y,source] = 1
-            for x in range(nfbins):
+       #     for x in range(nfbins):
                 # If we're a sink state, then zero out the row and column corresponding to it.
-                m[y,x] = 0
-                m[x,y] = 0
-            for x in range(nfbins):
-                if source > -1:
-                    m[x,source] = 1
+        #        m[y,x] = 0
+                #m[x,y] = 0
+            #for x in range(nfbins):
+            #    if source > -1:
+        #if y == sink:
+        
+    for x in range(nfbins):
+        # If we're a sink state, then zero out the row and column corresponding to it.
+        m[sink,x] = 0
+        #m[x,sink] = 0
+    # Now, zero out anything that was last tagged with the sink.  We'll determine what the sink is divisible by...
+    # This is rough, and sort of assumes a low-state system (this can't be final code; we'd have to handle it a different way).
+    # But go through, find when the modulu operator returns 0, and then say 'oh, that's our state tag; now any bin id divisible by this is also in that color'
+    # If the sink is even, our state tag is 0.  Otherwise, 1.
+    if sink > -1:
+        if sink % 2 == 0:
+            state = 1
+        else:
+            state = 2
+        for y in range(nfbins):
+            # We're doing this to sort of, uh, avoid dividing by 0.
+            if y+1 % state == 0:
+                for x in range(nfbins):
+                    m[y,x] = 0
+        m[sink,source] = 1
+            
+
     return 0
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
 @cython.cdivision(True)
-cpdef reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, nbins, state_labels, state_map, nfbins, istate, jstate, stride, bin_last_state_map, bin_state_map, return_obs, obs_threshold=1, source=-1):
+cpdef reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, nbins, state_labels, state_map, nfbins, istate, jstate, stride, bin_last_state_map, bin_state_map, return_obs, obs_threshold=1, source=-1, sink=-1):
 
 
 
@@ -167,7 +189,7 @@ cpdef reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, nbins, sta
         int[:,:] _total_obs, _graph
         #bint _return_flux, _return_states, _return_color
         str _return_obs
-        int _source
+        int _source, _sink
         #double[:] eigvals, eigvalsi
         #double[:,:] eigvecs, WORK
 
@@ -235,6 +257,7 @@ cpdef reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, nbins, sta
     _jstate = jstate
     _return_obs = return_obs
     _source = source
+    _sink = sink
 
 
     #NOGIL
@@ -249,7 +272,7 @@ cpdef reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, nbins, sta
 
         remove_under_obs(_transition_matrix, _total_obs, _obs_threshold, _nfbins)
         normalize(_transition_matrix, _nfbins)
-        remove_sink(_transition_matrix, _nfbins, _source)
+        remove_sink(_transition_matrix, _nfbins, _source, _sink)
         steadystate_solve(_transition_matrix, _strong_transition_matrix, _rw_bin_probs, _nfbins, _eigvals, _eigvalsi, _eigvecs, _WORK, _graph, _visited)
 
         for i in range(_nfbins):
