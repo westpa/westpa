@@ -277,7 +277,7 @@ class RWReweight(AverageCommands):
             self.sink = source + self.assignments_file['state_map'][source]
         else:
             self.sink = -1
-        print(self.source)
+        #print(self.source)
             
 
         # Copying this over to make it more convenient...
