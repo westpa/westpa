@@ -51,7 +51,7 @@ class TargetRatio:
             self.state_to_trajectory = [1] * len(state_bins)
         else:
             for i in self.states:
-                state_bins.append(bin_mapper.assign([[i]]))
+                state_bins.append(bin_mapper.assign([i]))
 
         # Now pull the 'ratio' (statically defined here, for the moment)
         active_bins = len(set(assignments))
@@ -80,16 +80,25 @@ class TargetRatio:
             extra = 0
         self.system.bin_target_counts = target_counts
         self.we_driver.bin_target_counts = target_counts
-        #for s_bin,t_bin in itertools.izip(state_bins, self.state_to_trajectory):
-        #    self.system.bin_target_counts[s_bin] = (bin_counts * (t_bin)) + extra
-        #    self.we_driver.bin_target_counts[s_bin] = (bin_counts * (t_bin)) + extra
-        #active_walkers = int(((active_bins)*bin_counts) + (extra*active_states))
         active_walkers = int(((active_bins)*bin_counts))
+        for s_bin,t_bin in itertools.izip(state_bins, self.state_to_trajectory):
+            self.system.bin_target_counts[s_bin] = (bin_counts * (t_bin))
+            self.we_driver.bin_target_counts[s_bin] = (bin_counts * (t_bin))
+            #active_walkers += (bin_counts *(t_bin-1))
+        #active_walkers = int(((active_bins)*bin_counts) + (active_states))
         if active_walkers < self.max_replicas:
             for i in xrange(0, self.max_replicas - active_walkers):
-                rand = np.random.randint(0,active_states)
-                self.system.bin_target_counts[active_state_list[rand]] += 1
-                self.we_driver.bin_target_counts[active_state_list[rand]] += 1
+                #rand = np.random.randint(0,active_states)
+                # Distribute amongst bins!  Why guarantee that we know best?
+                rand = np.random.randint(0,bin_mapper.nbins)
+                while rand not in assignments:
+                    # Just pull a random number and make sure it's in the actual active bin list.
+                    rand = np.random.randint(0,bin_mapper.nbins)
+                #self.system.bin_target_counts[active_state_list[rand]] += 1
+                #self.we_driver.bin_target_counts[active_state_list[rand]] += 1
+                self.system.bin_target_counts[rand] += 1
+                self.we_driver.bin_target_counts[rand] += 1
+                active_walkers += 1
 
         # Report stats
         westpa.rc.pstatus('-----------stats-for-next-iteration-')
@@ -124,7 +133,7 @@ class TargetRatio:
                 state_bins.append(i)
         else:
             for i in self.states:
-                state_bins.append(bin_mapper.assign([[i]]))
+                state_bins.append(bin_mapper.assign([i]))
         active_bins = len(set(assignments))
         active_states = 0
         for s_bin,t_bin in itertools.izip(state_bins, self.state_to_trajectory):
