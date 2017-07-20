@@ -9,6 +9,7 @@ import itertools
 import westpa, west
 from westpa import extloader
 from westpa.yamlcfg import check_bool, ConfigItemMissing
+from westpa.kinetics import RateAverager
 
 class TargetRatio:
     def __init__(self, sim_manager, plugin_config):
@@ -19,6 +20,7 @@ class TargetRatio:
         self.sim_manager = sim_manager
         self.data_manager = sim_manager.data_manager
         self.system = sim_manager.system
+        self.work_manager = sim_manager.work_manager
         self.we_driver = sim_manager.we_driver
         self.priority = plugin_config.get('priority', 0)
 
@@ -43,62 +45,168 @@ class TargetRatio:
 
         assignments = bin_mapper.assign(final_pcoords)
 
-        state_bins = []
-        #if self.states == 'None':
-        if self.states == 'None':
-            for i in (set(assignments)):
-                state_bins.append(i)
-            self.state_to_trajectory = [1] * len(state_bins)
-        else:
-            for i in self.states:
-                state_bins.append(bin_mapper.assign([i]))
+        self.automatic = True
+        self.ratio_mode = False
 
-        # Now pull the 'ratio' (statically defined here, for the moment)
-        active_bins = len(set(assignments))
-        active_states = 0
-        active_state_list = []
-        for s_bin,t_bin in itertools.izip(state_bins, self.state_to_trajectory):
-            if s_bin in assignments:
-                active_bins += t_bin - 1
-                active_states += 1
-                active_state_list.append(s_bin)
-        target_counts = np.empty((bin_mapper.nbins,), np.int_)
-        bin_counts = int(np.floor(self.max_replicas / active_bins))
-        if bin_counts < 1:
-            westpa.rc.pstatus('')
-            westpa.rc.pstatus('WARNING!:')
-            westpa.rc.pstatus('Bins have been set to 0 walkers.  Enforcing a minimum of 1 walker per bin.  Consider adjusting your max walkers.  You WILL have more walkers this iteration.')
-            westpa.rc.pstatus('')
-            bin_counts = 1
-        target_counts[...] = bin_counts
+        if self.ratio_mode:
+            state_bins = []
+            #if self.states == 'None':
+            if self.states == 'None':
+                for i in (set(assignments)):
+                    state_bins.append(i)
+                self.state_to_trajectory = [1] * len(state_bins)
+            else:
+                for i in self.states:
+                    state_bins.append(bin_mapper.assign([i]))
 
-        extra = 0
-        if active_states != 0:
-            extra = np.floor((self.max_replicas - bin_counts*active_bins) / active_states)
+            # Now pull the 'ratio' (statically defined here, for the moment)
+            active_bins = len(set(assignments))
+            active_states = 0
+            active_state_list = []
+            for s_bin,t_bin in itertools.izip(state_bins, self.state_to_trajectory):
+                if s_bin in assignments:
+                    active_bins += t_bin - 1
+                    active_states += 1
+                    active_state_list.append(s_bin)
+            target_counts = np.empty((bin_mapper.nbins,), np.int_)
+            bin_counts = int(np.floor(self.max_replicas / active_bins))
+            if bin_counts < 1:
+                westpa.rc.pstatus('')
+                westpa.rc.pstatus('WARNING!:')
+                westpa.rc.pstatus('Bins have been set to 0 walkers.  Enforcing a minimum of 1 walker per bin.  Consider adjusting your max walkers.  You WILL have more walkers this iteration.')
+                westpa.rc.pstatus('')
+                bin_counts = 1
+            target_counts[...] = bin_counts
 
-        if extra < 0:
             extra = 0
-        self.system.bin_target_counts = target_counts
-        self.we_driver.bin_target_counts = target_counts
-        active_walkers = int(((active_bins)*bin_counts))
-        for s_bin,t_bin in itertools.izip(state_bins, self.state_to_trajectory):
-            self.system.bin_target_counts[s_bin] = (bin_counts * (t_bin))
-            self.we_driver.bin_target_counts[s_bin] = (bin_counts * (t_bin))
-            #active_walkers += (bin_counts *(t_bin-1))
-        #active_walkers = int(((active_bins)*bin_counts) + (active_states))
-        if active_walkers < self.max_replicas:
-            for i in xrange(0, self.max_replicas - active_walkers):
-                #rand = np.random.randint(0,active_states)
-                # Distribute amongst bins!  Why guarantee that we know best?
-                rand = np.random.randint(0,bin_mapper.nbins)
-                while rand not in assignments:
-                    # Just pull a random number and make sure it's in the actual active bin list.
+            if active_states != 0:
+                extra = np.floor((self.max_replicas - bin_counts*active_bins) / active_states)
+
+            if extra < 0:
+                extra = 0
+            self.system.bin_target_counts = target_counts
+            self.we_driver.bin_target_counts = target_counts
+            active_walkers = int(((active_bins)*bin_counts))
+            for s_bin,t_bin in itertools.izip(state_bins, self.state_to_trajectory):
+                self.system.bin_target_counts[s_bin] = (bin_counts * (t_bin))
+                self.we_driver.bin_target_counts[s_bin] = (bin_counts * (t_bin))
+                #active_walkers += (bin_counts *(t_bin-1))
+            #active_walkers = int(((active_bins)*bin_counts) + (active_states))
+            if active_walkers < self.max_replicas:
+                for i in xrange(0, self.max_replicas - active_walkers):
+                    #rand = np.random.randint(0,active_states)
+                    # Distribute amongst bins!  Why guarantee that we know best?
                     rand = np.random.randint(0,bin_mapper.nbins)
-                #self.system.bin_target_counts[active_state_list[rand]] += 1
-                #self.we_driver.bin_target_counts[active_state_list[rand]] += 1
-                self.system.bin_target_counts[rand] += 1
-                self.we_driver.bin_target_counts[rand] += 1
-                active_walkers += 1
+                    while rand not in assignments:
+                        # Just pull a random number and make sure it's in the actual active bin list.
+                        rand = np.random.randint(0,bin_mapper.nbins)
+                    #self.system.bin_target_counts[active_state_list[rand]] += 1
+                    #self.we_driver.bin_target_counts[active_state_list[rand]] += 1
+                    self.system.bin_target_counts[rand] += 1
+                    self.we_driver.bin_target_counts[rand] += 1
+                    active_walkers += 1
+
+        if self.automatic:
+            # Create the transition rate averager, then, you know, use it.  Wait, does this do it properly?  This'll be a good time to check.
+            n_iter = self.sim_manager.n_iter
+            self.windowsize = 0.5
+            eff_windowsize = int(n_iter * self.windowsize)
+            averager = RateAverager(bin_mapper, self.system, self.data_manager, self.work_manager)
+            averager.calculate(max(1, n_iter-eff_windowsize), n_iter+1, 1, 1)
+            # Not currently sure if this will give us the rates directly without some manipulation.  However, we can just print it.
+            #print(averager.average_rate.shape)
+            #print(averager.average_rate)
+            # Looks like those are indeed the rates.  Ergo, we want the self transition probability...
+            # Set everything to flat sampling.
+            active_bins = len(set(assignments))
+            target_counts = np.empty((bin_mapper.nbins,), np.int_)
+            bin_counts = int(np.floor(self.max_replicas / active_bins))
+            target_counts[...] = bin_counts
+            active_walkers = int(((active_bins)*bin_counts))
+            if active_walkers < self.max_replicas:
+                for i in xrange(0, self.max_replicas - active_walkers):
+                    # Distribute amongst bins!  Why guarantee that we know best?
+                    rand = np.random.randint(0,bin_mapper.nbins)
+                    while rand not in assignments:
+                        # Just pull a random number and make sure it's in the actual active bin list.
+                        rand = np.random.randint(0,bin_mapper.nbins)
+                    target_counts[rand] += 1
+                    active_walkers += 1
+            
+            # Now, we want to go through and adjust to ensure that our probabilities are okay...
+
+            # Here's a function that will take a vector, p, and raise each element to the power of the corresponding element in vector N.
+            # np.power(p, N)
+            # First, check our distribution of transition probabilities and see how we're doing.  We want to minimize this.
+            #p = averager.average_rate.diagonal().copy()
+            # What if instead of minimizing the self transition probability, we MAXIMIZE the most unlikely transition probability?
+            p = averager.average_rate.diagonal().copy()
+            p = np.zeros(p.shape)
+            #print(averager.average_rate)
+            for ii,i in enumerate(averager.average_rate):
+                #print(i)
+                try:
+                    p[ii] = np.min(i[np.nonzero(i)])
+                except:
+                    pass
+            p = 1 - p
+            print(p)
+            tp = np.power(p, target_counts)
+            tp_avg = np.average(tp)
+            tp_err = np.std(tp) / tp_avg
+            N = target_counts.copy()
+            
+            # Sort p such that it's in order of highest to lowest self transition probabilities...
+            # First, sort lowest to highest, then reverse (the indexing).
+            s = np.argsort(p)[::-1]
+            #s = np.argsort(p)
+            #s = np.arange(0, bin_mapper.nbins)
+
+            # Iterate through the elements and see if we can't improve the current transition probabilities...
+            print(s)
+            for i in range(0, bin_mapper.nbins):
+                # Check if the bin is active.
+                if s[i] in set(assignments):
+                    # Take from the bin with the LOWEST self transition probability...
+                    #for j in reversed(range(0, bin_mapper.nbins)):
+                    for j in reversed(range(0, bin_mapper.nbins)):
+                        Continue = True
+                        if s[j] in set(assignments):
+                            while Continue:
+                                if N[s[j]] > 2:
+                                    # We actually only care about the two bins, here...
+                                    N[s[i]] += 1
+                                    N[s[j]] -= 1
+                                    # Check if we're good.  If yes, accept.  Otherwise, reject.
+                                    new_tp = np.power(p, N)
+                                    if np.std(tp[tp!=1]) - np.std(new_tp[new_tp!=1]) > 0:
+                                        tp = new_tp
+                                    else:
+                                        N[s[i]] -= 1
+                                        N[s[j]] += 1
+                                        Continue = False
+
+                                    if N[s[j]] == 2:
+                                        print("WHY AM I HERE")
+                                        Continue = False
+                                        break
+                                else:
+                                    Continue = False
+
+                #else:
+                #    N[i] = 0
+
+                        
+                        
+
+            # Boilerplate crap to make sure it doesn't fail out right now.
+            self.system.bin_target_counts = N
+            self.we_driver.bin_target_counts = N
+            print(N)
+            print(tp)
+            bin_counts = N
+            state_bins = []
+
 
         # Report stats
         westpa.rc.pstatus('-----------stats-for-next-iteration-')
