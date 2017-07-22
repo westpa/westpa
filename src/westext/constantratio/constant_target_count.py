@@ -23,6 +23,7 @@ class TargetRatio:
         self.work_manager = sim_manager.work_manager
         self.we_driver = sim_manager.we_driver
         self.priority = plugin_config.get('priority', 0)
+        self.N_sum = None
 
         self.max_replicas = int(plugin_config.get('max_replicas'))
         self.states = plugin_config.get('state_definitions')
@@ -123,6 +124,7 @@ class TargetRatio:
             bin_counts = int(np.floor(self.max_replicas / active_bins))
             target_counts[...] = bin_counts
             active_walkers = int(((active_bins)*bin_counts))
+            accepted = 0
             if active_walkers < self.max_replicas:
                 for i in xrange(0, self.max_replicas - active_walkers):
                     # Distribute amongst bins!  Why guarantee that we know best?
@@ -142,19 +144,33 @@ class TargetRatio:
             # What if instead of minimizing the self transition probability, we MAXIMIZE the most unlikely transition probability?
             p = averager.average_rate.diagonal().copy()
             p = np.zeros(p.shape)
+            p_i = np.zeros(p.shape)
+            pcoord_var = np.zeros(p.shape)
             #print(averager.average_rate)
             for ii,i in enumerate(averager.average_rate):
                 #print(i)
                 try:
+                    p_i[ii] = i[np.nonzero(i)].shape[0]
                     p[ii] = np.min(i[np.nonzero(i)])
+                    # Assignments is the seg ID array corresponding to a bin assignment.
+                    # Find the walkers that are in bin ii, then calculate their variance.
+                    # We'll assume that our variance will increase until it's stable.
+                    # Ergo, if the variance is larger than it was before, we'll assume the bin is 'done'.
+                    pcoord_var[ii] = np.std(final_pcoords[np.where(assignments == ii)]) / np.average(final_pcoords[np.where(assignments == ii)])
+                    #p[ii] = np.power(np.min(i[np.nonzero(i)]),p_i[ii])
+                    # How many possible transitions are there?
                 except:
                     pass
             p = 1 - p
             print(p)
-            tp = np.power(p, target_counts)
+            N = target_counts.copy()
+            if self.N_sum == None:
+                self.N_sum = np.zeros(N.shape[0])
+                self.pcoord_var = np.zeros(p.shape)
+            from scipy.stats import mode
+            tp = np.power(p, (target_counts))
             tp_avg = np.average(tp)
             tp_err = np.std(tp) / tp_avg
-            N = target_counts.copy()
             
             # Sort p such that it's in order of highest to lowest self transition probabilities...
             # First, sort lowest to highest, then reverse (the indexing).
@@ -173,37 +189,67 @@ class TargetRatio:
                         Continue = True
                         if s[j] in set(assignments):
                             while Continue:
-                                if N[s[j]] > 2:
+                                # If we only have two transitions, that's likely the self transition and a 'backwards' transition.  Either way, probably
+                                # want at least three valid transitions.  Enforcing this seems to cause problems, however, particularly with the edge region.
+                                # Limit stealing from bin j if we have 10 times more sampling in the current bin i?
+                                # Avoid divide by 0 errors.
+                                # That part is actually unstable, though.
+                                #if N[s[j]] > min(mode(p_i[np.nonzero(p_i)], axis=0)[0][0]*4, bin_counts) and float(self.N_sum[s[j]]) / max(float(np.sum(self.N_sum)),1) > .001:
+                                # Let's make sure we give it a lot of chances to cross a barrier?
+                                # When is the bin done sampling?  When the variance is relatively stable, maybe?
+                                #if N[s[j]] > min(mode(p_i[np.nonzero(p_i)], axis=0)[0][0]*4, bin_counts) and self.N_sum[s[j]] > 100:
+                                #if N[s[j]] > min(mode(p_i[np.nonzero(p_i)], axis=0)[0][0]*4, bin_counts) and pcoord_var[s[j]] < self.pcoord_var[s[j]]:
+                                #if N[s[j]] > min(mode(p_i[np.nonzero(p_i)], axis=0)[0][0]*4, bin_counts):
+                                #if N[s[j]] > 2:
+                                if N[s[j]] > 2 and pcoord_var[s[j]] < self.pcoord_var[s[j]]:
                                     # We actually only care about the two bins, here...
                                     N[s[i]] += 1
                                     N[s[j]] -= 1
                                     # Check if we're good.  If yes, accept.  Otherwise, reject.
                                     new_tp = np.power(p, N)
-                                    if np.std(tp[tp!=1]) - np.std(new_tp[new_tp!=1]) > 0:
+                                    # We don't want to take too much from bins that have yet to be explored.  Let's try scoring whether or not we should actually take from bin s[j].
+                                    #if np.std(tp[tp!=1])**2 - np.std(new_tp[new_tp!=1])**2 > 0 and (np.average(tp) - tp[s[i]]) > (np.average(new_tp) - tp[s[i]]):
+                                    if np.std(tp[tp!=1])**2 - np.std(new_tp[new_tp!=1])**2 > 0:
                                         tp = new_tp
+                                        accepted += 1
                                     else:
                                         N[s[i]] -= 1
                                         N[s[j]] += 1
                                         Continue = False
 
+                                    #if N[s[j]] == 2:
+                                    #if N[s[j]] == min(mode(p_i[np.nonzero(p_i)], axis=0)[0][0]*4, bin_counts):
                                     if N[s[j]] == 2:
                                         print("WHY AM I HERE")
                                         Continue = False
                                         break
                                 else:
                                     Continue = False
+                # One problem we have that is new bins are penalized, for some reason, with few walkers, likely due to their undersampled nature
+                # (i.e., they have yet to sample rare transitions.  We should give them MORE walkers, not fewer).
 
-                #else:
-                #    N[i] = 0
+
+                # To avoid this, we may wish to do a network deconstruction and see what bins are excluded from the strongly connected network
+                # or possibly find bins for which there are fewer than average bin to bin transitions possible and give them a slight boost in 
+                # the number of walkers.  That's not a bad idea, actually.  However, we'd need to be careful, as an edge bin may likely have fewer
+                # possible pathways.
+
+                else:
+                    N[s[i]] = 0
 
                         
                         
 
+            self.N_sum += N
+            for ii,i in enumerate(self.pcoord_var):
+                self.pcoord_var[ii] = max(i, pcoord_var[ii])
             # Boilerplate crap to make sure it doesn't fail out right now.
             self.system.bin_target_counts = N
             self.we_driver.bin_target_counts = N
             print(N)
             print(tp)
+            print(self.pcoord_var)
+            #print(np.power(p, N))
             bin_counts = N
             state_bins = []
 
@@ -211,6 +257,7 @@ class TargetRatio:
         # Report stats
         westpa.rc.pstatus('-----------stats-for-next-iteration-')
         westpa.rc.pstatus('target counts: {}'.format(bin_counts))
+        westpa.rc.pstatus('accepted rounds: {}'.format(accepted))
         for ii_s_bin, s_bin in enumerate(state_bins):
             target = np.bincount(assignments)[s_bin]
             if target != 0 and self.states != 'None':
