@@ -132,7 +132,8 @@ class TargetRatio:
                 for i in xrange(0, self.max_replicas - active_walkers):
                     # Distribute amongst bins!  Why guarantee that we know best?
                     rand = np.random.randint(0,bin_mapper.nbins)
-                    while rand not in assignments:
+                    # Should REALLY properly handle recycling targets, now.
+                    while rand not in assignments or rand in set(target_states):
                         # Just pull a random number and make sure it's in the actual active bin list.
                         rand = np.random.randint(0,bin_mapper.nbins)
                     target_counts[rand] += 1
