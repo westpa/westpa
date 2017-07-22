@@ -48,6 +48,9 @@ class TargetRatio:
 
         self.automatic = True
         self.ratio_mode = False
+        target_states = []
+        for i in self.we_driver.target_states.values():
+            target_states.append(bin_mapper.assign([i.pcoord])[0])
 
         if self.ratio_mode:
             state_bins = []
@@ -119,7 +122,7 @@ class TargetRatio:
             #print(averager.average_rate)
             # Looks like those are indeed the rates.  Ergo, we want the self transition probability...
             # Set everything to flat sampling.
-            active_bins = len(set(assignments))
+            active_bins = len(set(assignments)) - len(set(target_states))
             target_counts = np.empty((bin_mapper.nbins,), np.int_)
             bin_counts = int(np.floor(self.max_replicas / active_bins))
             target_counts[...] = bin_counts
@@ -181,8 +184,8 @@ class TargetRatio:
             # Iterate through the elements and see if we can't improve the current transition probabilities...
             print(s)
             for i in range(0, bin_mapper.nbins):
-                # Check if the bin is active.
-                if s[i] in set(assignments):
+                # Check if the bin is active and not a recycling target.
+                if s[i] in set(assignments) and s[i] not in set(target_states):
                     # Take from the bin with the LOWEST self transition probability...
                     #for j in reversed(range(0, bin_mapper.nbins)):
                     for j in reversed(range(0, bin_mapper.nbins)):
