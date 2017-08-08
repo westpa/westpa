@@ -213,7 +213,7 @@ class TargetRatio:
             try:
                 I = self.I
             except:
-                I = np.zeros((p.shape[0],2,self.max_replicas), dtype=float)
+                I = np.zeros((p.shape[0],2,self.max_replicas+1), dtype=float)
             if self.pcoord_var == None:
                 try:
                     with self.data_manager.lock:
@@ -260,7 +260,7 @@ class TargetRatio:
                         X = np.vstack((I[i,0][np.nonzero(I[i,0])],I[i,1][np.nonzero(I[i,0])])).T
                         centroids, C = kMeans(X, K = 3, maxIters=10)
                         # Cut the minimum in half.  Is a threshold a thing that we want, here?
-                        minimum[i] = int(np.floor(centroids[np.where(centroids[:,1] == np.max(centroids[:,1])),0]) / 2)
+                        minimum[i] = max(int(np.floor(centroids[np.where(centroids[:,1] == np.max(centroids[:,1])),0]) / 4), 1)
                         if False:
                             if n_iter == 50:
                                 from matplotlib import pyplot as plt
@@ -298,7 +298,9 @@ class TargetRatio:
                                 # What is the 'minimum?'  Calculate this based on a log fit.
                                 #print(minimum[s[j]], N[s[j]])
                                 # It's not so much a minimum as it is a 'don't take from me if I'm below this already'.
-                                if N[s[j]] > minimum[s[j]] and pcoord_var[s[j]] < self.pcoord_var[s[j]] and pcoord_var[s[j]] / self.pcoord_var[s[j]] > .5:
+                                #if N[s[j]] > minimum[s[j]] and pcoord_var[s[j]] < self.pcoord_var[s[j]] and pcoord_var[s[j]] / self.pcoord_var[s[j]] > .5:
+                                if N[s[j]] > minimum[s[j]] and pcoord_var[s[j]] < self.pcoord_var[s[j]]:
+                                #if N[s[j]] > minimum[s[j]]:
                                     # We actually only care about the two bins, here...
                                     N[s[i]] += 1
                                     N[s[j]] -= 1
@@ -306,7 +308,14 @@ class TargetRatio:
                                     new_tp = np.power(p, N)
                                     # We don't want to take too much from bins that have yet to be explored.  Let's try scoring whether or not we should actually take from bin s[j].
                                     #if np.std(tp[tp!=1])**2 - np.std(new_tp[new_tp!=1])**2 > 0 and (np.average(tp) - tp[s[i]]) > (np.average(new_tp) - tp[s[i]]):
-                                    if np.std(tp[tp!=1])**2 - np.std(new_tp[new_tp!=1])**2 > 0:
+                                    # SEEMS TO BE ALRIGHT!
+                                    #if np.std(tp[tp!=1])**2 - np.std(new_tp[new_tp!=1])**2 > 0:
+                                    # FAILURES
+                                    #if np.std(np.log(tp[tp!=1])) - np.std(np.log(new_tp[new_tp!=1])) > 0:
+                                    #if np.std(np.log(tp[tp!=1]))**2 - np.std(np.log(new_tp[new_tp!=1]))**2 > 0:
+
+                                    # What if we just check that it minimizes the variance between the two bins?  That might work better.
+                                    if np.std(tp[[s[j],s[i]]])**2 - np.std(new_tp[[s[j],s[i]]])**2 > 0:
                                         tp = new_tp
                                         accepted += 1
                                     else:
@@ -316,10 +325,10 @@ class TargetRatio:
 
                                     #if N[s[j]] == 2:
                                     #if N[s[j]] == min(mode(p_i[np.nonzero(p_i)], axis=0)[0][0]*4, bin_counts):
-                                    if N[s[j]] == 2:
-                                        print("WHY AM I HERE")
-                                        Continue = False
-                                        break
+                                    #if N[s[j]] == 2:
+                                    #    print("WHY AM I HERE")
+                                    #    Continue = False
+                                    #    break
                                 else:
                                     Continue = False
                 else:
