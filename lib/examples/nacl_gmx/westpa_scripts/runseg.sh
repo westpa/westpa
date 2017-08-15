@@ -98,13 +98,6 @@ cat dist.xvg | tail -6 | awk '{print $2*10;}' > $WEST_PCOORD_RETURN
 echo -e "0 \n" | $GMX trjconv -f seg.trr -s seg.tpr -o seg.pdb
 cat seg.pdb | grep 'ATOM' | awk '{print $6, $7, $8}' > $WEST_COORD_RETURN
 
-# Output log
-if [ ${WEST_LOG_RETURN} ]; then
-    cat $WEST_CURRENT_SEG_DATA_REF/seg.log \
-      | awk '/Started mdrun/ {p=1}; p; /A V E R A G E S/ {p=0}' \
-      > $WEST_LOG_RETURN
-fi
-
 # Clean up all the files that we don't need to save.
-#rm -f dist.xvg md.mdp md_out.mdp nacl.top parent.gro parent.trr seg.cpt \
-#  seg.pdb seg.tpr
+rm -f dist.xvg md.mdp md_out.mdp nacl.top parent.gro parent.trr seg.cpt \
+      seg.pdb seg.tpr
