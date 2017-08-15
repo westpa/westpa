@@ -2,11 +2,9 @@
 #
 # aux_functions.py
 #
-# This Python module defines auxilliary functions used during the WESTPA 
-# simulation. In particular, these functions load atomic coordinate data
-# and log files that are output by GROMACS.
-#
-
+# This Python module define an auxilliary function used during the WESTPA 
+# simulation. This function informs WESTPA how to load atomic coordinate data 
+# from GROMACS trajectory files.
 import numpy
 
 def coord_loader(fieldname, coord_filename, segment, single_point=False):
@@ -28,4 +26,3 @@ def coord_loader(fieldname, coord_filename, segment, single_point=False):
 
     # Save to hdf5
     segment.data[fieldname] = coord
-
