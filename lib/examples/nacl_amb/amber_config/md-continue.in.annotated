@@ -2,8 +2,7 @@
 # md-continue.in
 #   RUN AS SCRIPT TO REMOVE ANNOTATIONS PRIOR TO USE
 sed "/^sed/d;s/#.*//;/^\s*$/d;s/\s*$//" $(basename $0) > $(basename $0 .annotated); exit
-0.5 ps NVT production with Langevin thermostat and GB implicit solvent
-################################### CONTROL ###################################
+5 ps unrestrained NVT production using Langevin thermostat
 &cntrl
 #################################### INPUT ####################################
   ntx       = 5,        # Read input coordinates and velocities
@@ -11,20 +10,22 @@ sed "/^sed/d;s/#.*//;/^\s*$/d;s/\s*$//" $(basename $0) > $(basename $0 .annotate
   ig        = RAND,     # Use random seed from WESTPA
 ################################# INTEGRATOR ##################################
   dt        = 0.002,    # Timestep (ps)
-  nstlim    = 250,      # Simulation duration (timesteps)
+  nstlim    = 2500,     # Simulation duration (timesteps)
+  nscm      = 500,      # Interval for removal of center-of-mass motion 
+  gamma_ln  = 1.0,      # Langevin collision frequency (ps^-1)
+  ntf       = 2,        # Omit force calculations for bond interactions with H
+  ntc       = 2,        # Apply SHAKE to hydrogen atoms
 ################################## ENSEMBLE ###################################
+  ntb       = 1,        # Periodic boundary condition (constant volume)
   ntt       = 3,        # Langevin thermostat
   temp0     = 300.0,    # System temperature (K)
-  gamma_ln  = 0.5,      # Langevin collision frequency (1 / tau) (ps-1)
 ########################### NONBONDED INTERACTIONS ############################
-  cut       = 999.0,    # Nonbonded cutoff (A)
-  rgbmax    = 999.0,    # Cutoff for effective Born radii calculation (A)
-############################## IMPLICIT SOLVENT ###############################
-  igb       = 1,        # Generalized Born implicit solvent
+  cut       = 10.0,     # Cutoff for nonbonded interactions
 ################################### OUTPUT ####################################
-  ntpr      = 50,       # Log output interval (timesteps)
+  ntpr      = 5,        # Log output interval (timesteps)
   ntxo      = 2,        # Output restart file in NetCDF binary format
-  ntwr      = 250,      # Restart file output interval (timesteps)
+  ntwr      = 2500,     # Restart file output interval (timesteps)
   ioutfm    = 1,        # Output trajectory in NetCDF binary format
   ntwx      = 50,       # Trajectory output interval (timesteps)
+  iwrap     = 1,        # Wrap coordinates in output files
 &end
