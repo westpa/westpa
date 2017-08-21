@@ -54,5 +54,5 @@ chmod +x westpa.sh
 echo ""
 echo "Installation successful!"
 echo "Your WEST_ROOT is set as $PWD."
-echo "In order to use westpa, please source $PWD/westpa.sh before running!"
+echo "In order to use westpa, please source $PWD/westpa.sh  or $PWD/westpa.csh before running!"
 echo ""
