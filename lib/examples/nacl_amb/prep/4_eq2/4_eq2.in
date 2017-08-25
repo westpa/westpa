@@ -1,4 +1,4 @@
-1 ns restrained NPT equilibration using Langevin thermostat and Berendsen barostat
+1 ns restrained NPT equilibration using Langevin thermostat and Monte Carlo barostat
 &cntrl
   irest     = 1,
   ntx       = 5,
@@ -11,7 +11,8 @@
   restraintmask = ':1-2',
   ntb       = 2,
   ntp       = 1,
-  barostat  = 1,
+  barostat  = 2,
+  mcbarint  = 100,
   pres0     = 1.0,
   comp      = 44.6,
   taup      = 1.0,
