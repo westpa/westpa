@@ -91,8 +91,9 @@ cat $TEMP | tail -n +2 | awk '{print $2}' > $WEST_PCOORD_RETURN
 if [ ${WEST_COORD_RETURN} ]; then
     COMMAND="         parm nacl.parm7\n"
     COMMAND="$COMMAND trajin  $WEST_CURRENT_SEG_DATA_REF/parent.rst\n"
-    COMMAND="$COMMAND strip :WAT \n"
     COMMAND="$COMMAND trajin  $WEST_CURRENT_SEG_DATA_REF/seg.nc\n"
+    COMMAND="$COMMAND strip :WAT \n"
+    COMMAND="$COMMAND autoimage fixed Na+ \n"
     COMMAND="$COMMAND trajout $WEST_CURRENT_SEG_DATA_REF/seg.pdb\n"
     COMMAND="$COMMAND go\n"
     echo -e $COMMAND | $CPPTRAJ 
