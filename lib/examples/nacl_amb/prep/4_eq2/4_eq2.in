@@ -7,7 +7,7 @@
   nstlim    = 500000,
   nscm      = 500,
   ntr       = 1,
-  restraint_wt  = 10.0,
+  restraint_wt  = 5.0,
   restraintmask = ':1-2',
   ntb       = 2,
   ntp       = 1,
