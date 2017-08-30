@@ -49,7 +49,7 @@ if [ "$WEST_CURRENT_SEG_INITPOINT_TYPE" = "SEG_INITPOINT_CONTINUES" ]; then
   # We'll use the "sed" command to replace the string "RAND" with a randomly
   # generated seed.
   sed "s/RAND/$WEST_RAND16/g" \
-      $WEST_SIM_ROOT/amber_config/md-continue.in > md.in
+      $WEST_SIM_ROOT/amber_config/md.in > md.in
 
   # This trajectory segment will start off where its parent segment left off.
   # The "ln" command makes symbolic links to the parent segment's rst file. 
@@ -62,7 +62,7 @@ elif [ "$WEST_CURRENT_SEG_INITPOINT_TYPE" = "SEG_INITPOINT_NEWTRAJ" ]; then
   # Again, we'll use the "sed" command to replace the string "RAND" with a 
   # randomly generated seed.
   sed "s/RAND/$WEST_RAND16/g" \
-      $WEST_SIM_ROOT/amber_config/md-genvel.in > md.in
+      $WEST_SIM_ROOT/amber_config/md.in > md.in
   # For a new segment, we only need to make a symbolic link to the .rst file.
   ln -sv $WEST_PARENT_DATA_REF ./parent.rst
 fi
