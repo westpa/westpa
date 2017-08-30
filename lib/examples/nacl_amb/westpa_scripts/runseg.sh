@@ -102,4 +102,4 @@ if [ ${WEST_COORD_RETURN} ]; then
 fi
 
 # Clean up
-rm -f $TEMP md.in nacl.prm parent.log parent.rst seg.nfo seg.pdb
+rm -f $TEMP md.in parent.rst seg.nfo seg.pdb nacl.parm7
