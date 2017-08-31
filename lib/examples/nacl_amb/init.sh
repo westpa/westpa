@@ -11,6 +11,7 @@ rm -Rf  traj_segs$SFX seg_logs$SFX istates$SFX & disown %1
 rm -f   system.h5 west.h5 seg_logs.tar
 mkdir   seg_logs traj_segs istates
 
+cp prep/1_leap/nacl.parm7 amber_config/
 cp prep/4_eq2/4_eq2.rst bstates/nacl_init.rst
 
 BSTATE_ARGS="--bstate-file bstates/bstates.txt"
