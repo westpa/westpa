@@ -5,6 +5,18 @@ class TrajWriter(object):
     '''
     A class for writing out trajectory traces as an xyz file, for subsequent
     visualization.
+
+    ---------
+    Arguments
+    ---------
+    trace: A trace returned by w.trace.
+    w: The w object loaded by w_ipa
+
+    -----------------
+    Keyword Arguments
+    -----------------
+    filename (default='trace.xyz'): A path designating the file to which the
+      trajectory should be written, in xyz format.
     '''
     def __init__(self, trace, w, filename='trace.xyz'):
         self.trace = trace
