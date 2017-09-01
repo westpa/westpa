@@ -8,8 +8,8 @@
 
 # If we are debugging, output a lot of extra information.
 if [ -n "$SEG_DEBUG" ] ; then
-    set -x
-    env | sort
+  set -x
+  env | sort
 fi
 
 # Make sure we are in the correct directory
@@ -33,4 +33,8 @@ cat $DIST.xvg | tail -n 1 | awk '{print $2*10;}' > $WEST_PCOORD_RETURN
 
 # Remove the temporary file to clean up.
 rm $DIST.xvg
+
+if [ -n "$SEG_DEBUG" ] ; then
+  head -v $WEST_PCOORD_RETURN
+fi
 
