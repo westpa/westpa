@@ -1,4 +1,5 @@
-#!/bin/sh
+#!/bin/bash
+#
 # runseg.sh
 #
 # WESTPA runs this script for each trajectory segment. WESTPA supplies
@@ -18,13 +19,12 @@
 #     directory for running pmemd/sander 
 #  2. Run the dynamics
 #  3. Calculate the progress coordinates and return data to WESTPA
-set -x
 
 
 # If we are running in debug mode, then output a lot of extra information.
 if [ -n "$SEG_DEBUG" ] ; then
-    set -x
-    env | sort
+  set -x
+  env | sort
 fi
 
 ######################## Set up for running the dynamics #######################
@@ -89,16 +89,16 @@ cat $TEMP | tail -n +2 | awk '{print $2}' > $WEST_PCOORD_RETURN
 
 # Output coordinates
 if [ ${WEST_COORD_RETURN} ]; then
-    COMMAND="         parm nacl.parm7\n"
-    COMMAND="$COMMAND trajin  $WEST_CURRENT_SEG_DATA_REF/parent.rst\n"
-    COMMAND="$COMMAND trajin  $WEST_CURRENT_SEG_DATA_REF/seg.nc\n"
-    COMMAND="$COMMAND strip :WAT \n"
-    COMMAND="$COMMAND autoimage fixed Na+ \n"
-    COMMAND="$COMMAND trajout $WEST_CURRENT_SEG_DATA_REF/seg.pdb\n"
-    COMMAND="$COMMAND go\n"
-    echo -e $COMMAND | $CPPTRAJ 
-    cat $WEST_CURRENT_SEG_DATA_REF/seg.pdb | grep 'ATOM' \
-      | awk '{print $6, $7, $8}' > $WEST_COORD_RETURN
+  COMMAND="         parm nacl.parm7\n"
+  COMMAND="$COMMAND trajin  $WEST_CURRENT_SEG_DATA_REF/parent.rst\n"
+  COMMAND="$COMMAND trajin  $WEST_CURRENT_SEG_DATA_REF/seg.nc\n"
+  COMMAND="$COMMAND strip :WAT \n"
+  COMMAND="$COMMAND autoimage fixed Na+ \n"
+  COMMAND="$COMMAND trajout $WEST_CURRENT_SEG_DATA_REF/seg.pdb\n"
+  COMMAND="$COMMAND go\n"
+  echo -e $COMMAND | $CPPTRAJ 
+  cat $WEST_CURRENT_SEG_DATA_REF/seg.pdb | grep 'ATOM' \
+    | awk '{print $6, $7, $8}' > $WEST_COORD_RETURN
 fi
 
 # Clean up
