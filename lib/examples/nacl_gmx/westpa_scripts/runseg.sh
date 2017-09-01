@@ -21,11 +21,10 @@
 #  3. Calculate the progress coordinates and return data to WESTPA
 
 
-
 # If we are running in debug mode, then output a lot of extra information.
 if [ -n "$SEG_DEBUG" ] ; then
-    set -x
-    env | sort
+  set -x
+  env | sort
 fi
 
 ######################## Set up for running the dynamics #######################
@@ -38,47 +37,30 @@ cd $WEST_CURRENT_SEG_DATA_REF
 # Make a symbolic link to the topology file. This is not unique to each segment.
 ln -sv $WEST_SIM_ROOT/gromacs_config/nacl.top .
 
-# Either continue an existing tractory, or start a new trajectory. In the 
-# latter case, we need to do a couple things differently, such as generating
-# velocities.
-#
-# First, take care of the case that this segment is a continuation of another
-# segment.  WESTPA provides the environment variable 
-# $WEST_CURRENT_SEG_INITPOINT_TYPE, and we check its value.
-if [ "$WEST_CURRENT_SEG_INITPOINT_TYPE" = "SEG_INITPOINT_CONTINUES" ]; then
-  # The weighted ensemble algorithm requires that dynamics are stochastic.
-  # We'll use the "sed" command to replace the string "RAND" with a randomly
-  # generated seed.
-  sed "s/RAND/$WEST_RAND16/g" \
-    $WEST_SIM_ROOT/gromacs_config/md-continue.mdp > md.mdp
+# Either continue an existing tractory, or start a new trajectory. Here, both
+# cases are the same.  If you need to handle the cases separately, you can
+# heck the value of the environment variable "WEST_CURRENT_SEG_INIT_POINT",
+# which is equal to either "SEG_INITPOINT_CONTINUES" or "SEG_INITPOINT_NEWTRAJ"
+# for continuations of previous segments and new trajectories, respecitvely.
+# For an example, see the nacl_amb tutorial.
 
-  # This trajectory segment will start off where its parent segment left off.
-  # The "ln" command makes symbolic links to the parent segment's edr, gro, and 
-  # and trr files. This is preferable to copying the files, since it doesn't
-  # require writing all the data again.
-  ln -sv $WEST_PARENT_DATA_REF/seg.edr ./parent.edr
-  ln -sv $WEST_PARENT_DATA_REF/seg.gro ./parent.gro
-  ln -sv $WEST_PARENT_DATA_REF/seg.trr ./parent.trr
+# The weighted ensemble algorithm requires that dynamics are stochastic.
+# We'll use the "sed" command to replace the string "RAND" with a randomly
+# generated seed.
+sed "s/RAND/$WEST_RAND16/g" \
+  $WEST_SIM_ROOT/gromacs_config/md.mdp > md.mdp
 
-  # Run the GROMACS preprocessor 
-  $GMX grompp -f md.mdp -c parent.gro -e parent.edr -p nacl.top \
-    -t parent.trr -o seg.tpr -po md_out.mdp
+# This trajectory segment will start off where its parent segment left off.
+# The "ln" command makes symbolic links to the parent segment's edr, gro, and 
+# and trr files. This is preferable to copying the files, since it doesn't
+# require writing all the data again.
+ln -sv $WEST_PARENT_DATA_REF/seg.edr ./parent.edr
+ln -sv $WEST_PARENT_DATA_REF/seg.gro ./parent.gro
+ln -sv $WEST_PARENT_DATA_REF/seg.trr ./parent.trr
 
-# Now take care of the case that the trajectory is starting anew.
-elif [ "$WEST_CURRENT_SEG_INITPOINT_TYPE" = "SEG_INITPOINT_NEWTRAJ" ]; then
-  # Again, we'll use the "sed" command to replace the string "RAND" with a 
-  # randomly generated seed.
-  sed "s/RAND/$WEST_RAND16/g" \
-    $WEST_SIM_ROOT/gromacs_config/md-genvel.mdp > md.mdp
-
-  # For a new segment, we only need to make a symbolic link to the .gro file.
-  ln -sv $WEST_PARENT_DATA_REF ./parent.gro
-
-  # Run the GROMACS preprocessor
-  $GMX grompp -f md.mdp -c parent.gro -p nacl.top \
-    -o seg.tpr -po md_out.mdp
-fi
-
+# Run the GROMACS preprocessor 
+$GMX grompp -f md.mdp -c parent.gro -e parent.edr -p nacl.top \
+  -t parent.trr -o seg.tpr -po md_out.mdp
 
 ############################## Run the dynamics ################################
 # Propagate the segment using gmx mdrun
