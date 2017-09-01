@@ -29,7 +29,7 @@ mkdir   seg_logs traj_segs istates
 # the binding process (and not the unbinding process).
 
 BSTATE_ARGS="--bstate-file bstates/bstates.txt"
-TSTATE_ARGS="--tstate bound,1.8"
+TSTATE_ARGS="--tstate bound,1.0"
 
 # Initialize the simulation, creating the main WESTPA data file (west.h5)
 # The "$@" lets us take any arguments that were passed to init.sh at the
