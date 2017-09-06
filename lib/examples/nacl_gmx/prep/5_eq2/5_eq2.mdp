@@ -2,7 +2,7 @@
 ;   1.0 ns NPT equilibration with Langevin thermostat and Parrinello-Rahman barostat
 #################################### INPUT #####################################
 define      = -DPOSRES             ; Restrain the protein
-ld_seed     = -1                   ; Use random seed from WESTPA
+ld_seed     = -1                   ; Use pseudo-random seed
 ################################# INTEGRATOR ###################################
 integrator  = sd                   ; Langevin thermostat
 dt          = 0.002                ; Timestep (ps)
