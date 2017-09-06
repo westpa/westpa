@@ -37,6 +37,9 @@ cd $WEST_CURRENT_SEG_DATA_REF
 # Make a symbolic link to the topology file. This is not unique to each segment.
 ln -sv $WEST_SIM_ROOT/gromacs_config/nacl.top .
 
+# Also symlink the forcefield
+ln -sv $WEST_SIM_ROOT/gromacs_config/tip3p_ionsjc2008.ff
+
 # Either continue an existing tractory, or start a new trajectory. Here, both
 # cases are the same.  If you need to handle the cases separately, you can
 # heck the value of the environment variable "WEST_CURRENT_SEG_INIT_POINT",
@@ -72,14 +75,14 @@ $GMX mdrun -s   seg.tpr -o seg.trr -c  seg.gro -e seg.edr \
 # Calculate the progress coordinate
 $GMX distance -f $WEST_CURRENT_SEG_DATA_REF/seg.trr \
   -s $WEST_CURRENT_SEG_DATA_REF/seg.tpr -select 1 -oall dist.xvg
-cat dist.xvg | tail -6 | awk '{print $2*10;}' > $WEST_PCOORD_RETURN
+cat dist.xvg | tail -n 51 | awk '{print $2*10;}' > $WEST_PCOORD_RETURN
 
 # Output coordinates.  To do this, we'll use trjconv to make a PDB file. Then
 # we can parse the PDB file using grep and awk, only taking the x,y,z values
 # for the coordinates.
-echo -e "0 \n" | $GMX trjconv -f seg.trr -s seg.tpr -o seg.pdb
+echo -e "1 \n" | $GMX trjconv -f seg.trr -s seg.tpr -o seg.pdb
 cat seg.pdb | grep 'ATOM' | awk '{print $6, $7, $8}' > $WEST_COORD_RETURN
 
 # Clean up all the files that we don't need to save.
 rm -f dist.xvg md.mdp md_out.mdp nacl.top parent.gro parent.trr seg.cpt \
-      seg.pdb seg.tpr
+      seg.pdb seg.tpr tip3p_ionsjc2008.ff parent.edr
