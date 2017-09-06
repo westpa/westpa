@@ -19,7 +19,10 @@ cd $WEST_SIM_ROOT
 DIST=$(mktemp)
 
 # Calculate the distance between Na+ and Cl-
-$GMX distance -f $WEST_STRUCT_DATA_REF -s $WEST_STRUCT_DATA_REF -oall $DIST \
+$GMX distance \
+  -f $WEST_STRUCT_DATA_REF/seg.trr \
+  -s $WEST_STRUCT_DATA_REF/seg.gro \
+  -oall $DIST \
   -select 1
 
 # Return the distance between Na+ and Cl- WESTPA.
@@ -37,4 +40,3 @@ rm $DIST.xvg
 if [ -n "$SEG_DEBUG" ] ; then
   head -v $WEST_PCOORD_RETURN
 fi
-
