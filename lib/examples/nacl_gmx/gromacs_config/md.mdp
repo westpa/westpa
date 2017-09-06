@@ -12,7 +12,7 @@ comm-grps   = system               ; Remove center of mass motion of system
 ################################## ENSEMBLE ####################################
 ref_t        = 300                 ; System temperature (K)
 tau_t        = 1.0                 ; Thermostat time constant (ps)
-tc_grps      = Protein Non-Protein ; Apply thermostat to system
+tc_grps      = System              ; Apply thermostat to whole system
 continuation = yes
 ############################ BONDED INTERACTIONS ###############################
 constraints           = hbonds     ; Constrain bonds to hydrogen atoms
