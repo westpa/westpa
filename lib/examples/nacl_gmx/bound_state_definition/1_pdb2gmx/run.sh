@@ -1,14 +1,9 @@
 #!/bin/sh
 
-# Check for gmx
-#GMX=$(which gmx)
-#if [ ! -n "${GMX}"]; then
-#  echo "Gromacs not found! Make sure your Gromacs installation is in your path."
-#  exit 1
-#fi
-#GROMACS_DIR=$(basename ${GMX} /bin/gmx)
-#cp ${GROMACS_DIR}/share/gromacs/top/amber03.ff/tip3p.itp tip3p_jc2008.ff/
-
+# Make the forcefield and symlink it here
+cd ../../gromacs_config || exit 1
+bash makeff.sh
+cd ../bound_state_definition/1_pdb2gmx/ || exit 1
 ln -s ../../gromacs_config/tip3p_ionsjc2008.ff .
 
 gmx pdb2gmx \
