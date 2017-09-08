@@ -42,7 +42,7 @@ ln -sv $WEST_SIM_ROOT/gromacs_config/tip3p_ionsjc2008.ff
 
 # Either continue an existing tractory, or start a new trajectory. Here, both
 # cases are the same.  If you need to handle the cases separately, you can
-# heck the value of the environment variable "WEST_CURRENT_SEG_INIT_POINT",
+# check the value of the environment variable "WEST_CURRENT_SEG_INIT_POINT",
 # which is equal to either "SEG_INITPOINT_CONTINUES" or "SEG_INITPOINT_NEWTRAJ"
 # for continuations of previous segments and new trajectories, respecitvely.
 # For an example, see the nacl_amb tutorial.
@@ -80,7 +80,7 @@ cat dist.xvg | tail -n 51 | awk '{print $2*10;}' > $WEST_PCOORD_RETURN
 # Output coordinates.  To do this, we'll use trjconv to make a PDB file. Then
 # we can parse the PDB file using grep and awk, only taking the x,y,z values
 # for the coordinates.
-echo -e "1 \n" | $GMX trjconv -f seg.trr -s seg.tpr -o seg.pdb
+echo -e "2\n1\n" | $GMX trjconv -f seg.trr -s seg.tpr -o seg.pdb -center
 cat seg.pdb | grep 'ATOM' | awk '{print $6, $7, $8}' > $WEST_COORD_RETURN
 
 # Clean up all the files that we don't need to save.
