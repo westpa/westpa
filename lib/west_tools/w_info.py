@@ -17,6 +17,7 @@
 
 from __future__ import print_function, division; __metaclass__ = type
 import logging
+import itertools
 
 # Let's suppress those numpy warnings.
 import warnings
@@ -26,6 +27,7 @@ import warnings
 
 import sys, random, math
 import numpy, h5py
+import numpy as np
 from h5py import h5s
 
 import westpa
@@ -100,6 +102,7 @@ class WIWest(WESTSubcommand):
             self.binning.mapper_source_hash = self.data_manager.we_h5file['bin_topologies']['index']['hash'][0]
         self.binning.set_we_h5file_info(self.n_iter, self.data_reader)
         self.binning.process_args(args)
+        self.args = args
         #with self.data_reader:
         #    self.iter_range.process_args(args, default_iter_step=None)
         #if self.iter_range.iter_step is None:
@@ -122,10 +125,108 @@ class WIWest(WESTSubcommand):
         print(dir(self.binning.mapper))
         print(self.binning.mapper.boundaries)
         print(self.binning.mapper.labels)
+        west = self.WESTInfoBlob(self.data_reader, self.binning, self.args, self.n_iter)
+        print(west.binning.mapper.labels)
+        #west.n_iter = 19
+        print(west.binning.mapper.labels)
+        print(west.iter_group.keys())
+        for tstate in west.tstates:
+            print(tstate)
+        print(west.recycling_events)
+        print(west.aggregate_walkers)
+
+
+    def report_default_n_iter(self, west):
+        # This should be a thing where we put in data and get out formatted data.
+        # We'll just pass in the little blob and format it the way we want.
+        report = ''' '''
+
+    def report_default_iter_range(self, west):
+        report = ''' '''
+
+
+    class WESTInfoBlob():
+        '''
+        A little class to ease pulling data in from WESTPA in a 'reporter friendly' way.
+        Nothing too large, mind you.  But it should utilize the data manager and h5file without the need
+        for the rc, and it should be able to return data that can be utilized in reporting.
+        '''
+        def __init__(self, data_reader, binning, args, n_iter = 1):
+            # west is the west h5file from the data reader.
+            # We should be able to change the iteration, if desired.
+            self.data_reader = data_reader
+            self.data_manager = self.data_reader.data_manager
+            self.binning = binning
+            self.args = args
+            #self.iter_group = None
+            self.n_iter = n_iter
+
+        @property
+        def n_iter(self):
+            return self._n_iter
+
+        @n_iter.setter
+        def n_iter(self, n_iter):
+            self._n_iter = n_iter
+            if self._n_iter == 1:
+                self.binning.mapper_source_hash = self.data_manager.we_h5file['bin_topologies']['index']['hash'][0]
+            self.binning.set_we_h5file_info(self._n_iter, self.data_reader)
+            self.binning.process_args(self.args)
+            self.iter_group = self.data_manager.get_iter_group(self._n_iter)
+
+        @property
+        def bin_labels(self):
+            # Returns a list of tuples, I believe.
+            return self.binning.mapper.labels
+
+        @property
+        def bin_boundaries(self):
+            # Returns a list of lists.
+            return self.binning.mapper.boundaries
+
+        @property
+        def mapper(self):
+            return self.binning.mapper
+
+        @property
+        def iter_group(self):
+            return self._iter_group
+        
+        @iter_group.setter
+        def iter_group(self, group):
+            self._iter_group = group
+
+        @property
+        def tstates(self):
+            if 'tstates' in self.iter_group.keys():
+                for label,pcoord in itertools.izip(self.iter_group['tstates']['index'],self.iter_group['tstates']['pcoord']):
+                    # We want the bin id, as well.  Call the bin mapper assign function.
+                    binid = self.mapper.assign([pcoord])
+                    yield label,pcoord,binid
+
+        @property
+        def recycling_events(self):
+            # Just go through and sum up the aggregate number of events.
+            self._recycling_events = 0
+            for i in range(1, self.n_iter+1):
+                iter_group = self.data_manager.get_iter_group(i)
+                self._recycling_events += len(np.where(iter_group['seg_index']['endpoint_type'] == 3)[0])
+            return self._recycling_events
+
+        @property
+        def aggregate_walkers(self):
+            self._aggregate_walkers = self.data_manager.we_h5file['summary']['n_particles'][:self.n_iter].sum()
+            return self._aggregate_walkers
+
 
 
     def go(self):
         self.w_info()
+
+
+    def print_function(self, west):
+        ''' Built in print function to print requested information '''
+        return 0
 
 class WDirect(WESTMasterCommand, WESTTool):
     prog='w_direct'
