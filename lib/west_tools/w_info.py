@@ -170,7 +170,10 @@ class WIWest(WESTSubcommand):
      #   no_func_call = attr.split('(')
     #    if callable(reduce (getattr, no_func_call[0].split('.'), obj)) == True:
         try:
-            # DANGEROUS AS
+            # DANGEROUS AS  suuuuuuch a bad idea.
+            # On the other hand, this isn't a web server.  Someone who's calling this is already running as the user.
+            # Would they target a WESTPA tool instead of just calling python or rm * to begin with?
+            # Most likely not.
             return eval(attr, {'__builtins__': {}}, obj.__dict__)
             #print("YAY")
             #func = reduce (getattr, no_func_call[0].split('.'), obj)
