@@ -120,26 +120,47 @@ class WIWest(WESTSubcommand):
         #print(self.data_manager.get_iter_group(1).attrs.keys())
         #print(self.binning.mapper)
         # Okay, that seems to work, now.  We have the bin mapper, ergo we can...
-        iter_group = self.data_manager.get_iter_group(self.n_iter)
-        print(iter_group.keys())
-        print(dir(self.binning.mapper))
-        print(self.binning.mapper.boundaries)
-        print(self.binning.mapper.labels)
+        #iter_group = self.data_manager.get_iter_group(self.n_iter)
+        #print(iter_group.keys())
+        #print(dir(self.binning.mapper))
+        #print(self.binning.mapper.boundaries)
+        #print(self.binning.mapper.labels)
         west = self.WESTInfoBlob(self.data_reader, self.binning, self.args, self.n_iter)
-        print(west.binning.mapper.labels)
+        #print(west.binning.mapper.labels)
         #west.n_iter = 19
-        print(west.binning.mapper.labels)
-        print(west.iter_group.keys())
-        for tstate in west.tstates:
-            print(tstate)
-        print(west.recycling_events)
-        print(west.aggregate_walkers)
+        #print(west.binning.mapper.labels)
+        #print(west.iter_group.keys())
+        #for tstate in west.tstates:
+        #    print(tstate)
+        #print(west.recycling_events)
+        #print(west.aggregate_walkers)
+        self.report_default_n_iter(west)
 
 
-    def report_default_n_iter(self, west):
+    def report_default_n_iter(self, west, delimiter=' '):
         # This should be a thing where we put in data and get out formatted data.
         # We'll just pass in the little blob and format it the way we want.
-        report = ''' '''
+        # n_iter, bin_labels, bin_boundaries, mapper, iter_group, tstates, recycling_events, aggregate_walkers
+        # mapper: mapper.{nbins,ndim,labels,boundaries)
+        report = '''
+           Iteration: {west.n_iter}
+      Total Segments: {west.aggregate_walkers}
+    Recycling Events: {west.recycling_events}'''.format(west=west)
+        ts = '''
+Target States
+Label   Progress Coordinate     Bin ID'''
+        bn = '''
+      Number of Bins: {mapper.nbins}
+Number of Dimensions: {mapper.ndim}
+          Boundaries: 
+{mapper.boundaries}
+        '''.format(mapper=west.mapper)
+        print(report)
+        print(ts)
+        for tstate in west.tstates:
+            print('{} {} {}'.format(tstate[0],tstate[1],tstate[2]))
+        print(bn)
+
 
     def report_default_iter_range(self, west):
         report = ''' '''
