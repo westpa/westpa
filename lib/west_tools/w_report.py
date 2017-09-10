@@ -93,6 +93,8 @@ class WIReport(WESTSubcommand):
 
     def report_single(self):
         west = self.WESTInfoBlob(self.data_reader, self.binning, self.args, self.n_iter)
+        if self.separator == None:
+            self.separator = ';'
         self.print_report(west, line=self.line, args=self.data, s2=self.separator)
 
     def report_range(self):
@@ -173,6 +175,11 @@ class WIReport(WESTSubcommand):
             self.args = args
             self.iter_group = None
             self.n_iter = n_iter
+            # These are to report things from the command line
+            #self.max = np.max
+            #self.min = np.min
+            self.np = np
+            self.numpy = numpy
 
         @property
         def n_iter(self):
@@ -206,9 +213,13 @@ class WIReport(WESTSubcommand):
             return self._recycling_events
 
         @property
-        def aggregate_walkers(self):
+        def aggregate_segments(self):
             self._aggregate_walkers = self.data_manager.we_h5file['summary']['n_particles'][:self.n_iter].sum()
             return self._aggregate_walkers
+
+        @property
+        def segments(self):
+            return self.data_manager.we_h5file['summary']['n_particles'][self.n_iter]
 
 
 class WISingle(WIReport):
