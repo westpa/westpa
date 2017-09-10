@@ -77,6 +77,10 @@ class WIWest(WESTSubcommand):
         parser.add_argument('--detail', action='store_true',
                                  help='''Display detailed per-bin information in addition to summary
                                  information.''')
+        parser.add_argument('-d', '--data', type=str, default=None,
+                                 help='''The list of data to output.''')
+        parser.add_argument('-l', '--line', action='store_true',
+                                 help='''Report as single line.  Otherwise, use multiline key: value report.''')
         suppress = ['--bins-from-system', '--bins-from-expr', '--bins-from-function', '--bins-from-file']
         self.binning.add_args(parser, suppress=suppress)
         #self.iter_range.include_args['iter_step'] = True
@@ -95,13 +99,17 @@ class WIWest(WESTSubcommand):
         self.data_reader.process_args(args)
         self.data_manager = self.data_reader.data_manager
         self.data_reader.open(mode='r')
-        self.n_iter = getattr(args,'n_iter',None) or 1
+        self.n_iter = getattr(args,'n_iter', None) or 1
+        self.data = getattr(args, 'data', None)
+        if self.data is not None:
+            self.data = self.data.split(' ')
         # We don't seem to know the bin hash, but heeeey.  If it the iter is 1, I think it's assumed/enforced
         # that the bin hash is what we initialized the simulation with.
         if self.n_iter == 1:
             self.binning.mapper_source_hash = self.data_manager.we_h5file['bin_topologies']['index']['hash'][0]
         self.binning.set_we_h5file_info(self.n_iter, self.data_reader)
         self.binning.process_args(args)
+        self.line = getattr(args, 'line')
         self.args = args
         #with self.data_reader:
         #    self.iter_range.process_args(args, default_iter_step=None)
@@ -134,37 +142,54 @@ class WIWest(WESTSubcommand):
         #    print(tstate)
         #print(west.recycling_events)
         #print(west.aggregate_walkers)
-        self.report_default_n_iter(west)
+        #self.report_default_n_iter(west)
+        self.print_report(west, line=self.line, args=self.data)
 
+    def lprint(self, k, l, ls, s=':'):
+        import types
+        if type(l) == types.ListType or type(l) == types.TupleType:
+            print(str(k).rjust(ls), s)
+            for i in l:
+                self.lprint(k=' ',l=i,ls=ls,s=' ')
+        elif type(l) == types.DictType:
+            print(str(k).rjust(ls), s)
+            label_size = 0
+            for key, value in l.iteritems():
+                label_size = max(label_size, len(key))
+            for key, i in l.iteritems():
+                self.lprint(k=key,l=i,ls=ls+label_size+len(s),s=':')
+        else:
+            print(str(k).rjust(ls), s, str(l).ljust(20))
 
-    def report_default_n_iter(self, west, delimiter=' '):
-        # This should be a thing where we put in data and get out formatted data.
-        # We'll just pass in the little blob and format it the way we want.
-        # n_iter, bin_labels, bin_boundaries, mapper, iter_group, tstates, recycling_events, aggregate_walkers
-        # mapper: mapper.{nbins,ndim,labels,boundaries)
-        report = '''
-           Iteration: {west.n_iter}
-      Total Segments: {west.aggregate_walkers}
-    Recycling Events: {west.recycling_events}'''.format(west=west)
-        ts = '''
-Target States
-Label   Progress Coordinate     Bin ID'''
-        bn = '''
-      Number of Bins: {mapper.nbins}
-Number of Dimensions: {mapper.ndim}
-          Boundaries: 
-{mapper.boundaries}
-        '''.format(mapper=west.mapper)
-        print(report)
-        print(ts)
-        for tstate in west.tstates:
-            print('{} {} {}'.format(tstate[0],tstate[1],tstate[2]))
-        print(bn)
-
-
-    def report_default_iter_range(self, west):
-        report = ''' '''
-
+    def print_report(self, west, line=False, s1=':', s2=';', args=None):
+        # Here, we're just going to print out these quantities...
+        # We'll want to put in some more appropriate formatting eventually, but
+        if args == None:
+            args = ['n_iter', 'aggregate_walkers', 'recycling_events', 'tstates', 'bin_labels', 'bin_boundaries']
+        import pprint, types
+        output = {}
+        label_size = 0
+        for arg in args:
+            if type(getattr(west,arg)) == types.GeneratorType:
+                output[arg] = []
+                for t in getattr(west,arg):
+                    output[arg].append(t)
+            else:
+                output[arg] = getattr(west,arg)
+            label_size = max(label_size, len(arg))
+        if line == False:
+            for arg in args:
+                k = arg
+                v = output[k]
+                #self.lprint(k='', l=output, ls=0, s='')
+                self.lprint(k,v,label_size, s1)
+        else:
+            #output_string = ''
+            #for arg in args:
+            #    k = arg
+            #    v = output[k]
+            print(s2.join(str(output[arg]) for arg in args))
+                #self.line_print(k, v, s2)
 
     class WESTInfoBlob():
         '''
@@ -223,7 +248,7 @@ Number of Dimensions: {mapper.ndim}
                 for label,pcoord in itertools.izip(self.iter_group['tstates']['index'],self.iter_group['tstates']['pcoord']):
                     # We want the bin id, as well.  Call the bin mapper assign function.
                     binid = self.mapper.assign([pcoord])
-                    yield label,pcoord,binid
+                    yield {'Label': label,'Progress Coordinate': pcoord, 'Bin ID': binid}
 
         @property
         def recycling_events(self):
