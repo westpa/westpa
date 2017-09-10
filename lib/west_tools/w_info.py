@@ -146,37 +146,65 @@ class WIWest(WESTSubcommand):
         self.print_report(west, line=self.line, args=self.data)
 
     def lprint(self, k, l, ls, s=':'):
-        import types
+        import types, string
         if type(l) == types.ListType or type(l) == types.TupleType:
-            print(str(k).rjust(ls), s)
+            #print(str(k).rjust(ls), s)
+            print(string.capwords(str(k).replace('_',' ').replace('-',' ').replace('.', ' ')).rjust(ls), s)
             for i in l:
                 self.lprint(k=' ',l=i,ls=ls,s=' ')
         elif type(l) == types.DictType:
-            print(str(k).rjust(ls), s)
+            print(string.capwords(str(k).replace('_',' ').replace('-',' ').replace('.', ' ')).rjust(ls), s)
             label_size = 0
             for key, value in l.iteritems():
                 label_size = max(label_size, len(key))
             for key, i in l.iteritems():
                 self.lprint(k=key,l=i,ls=ls+label_size+len(s),s=':')
         else:
-            print(str(k).rjust(ls), s, str(l).ljust(20))
+            print(string.capwords(str(k).replace('_',' ').replace('-',' ').replace('.', ' ')).rjust(ls), s, str(l).ljust(20))
+            #print(str(k).rjust(ls), s, str(l).ljust(20))
+
+    def deepgetattr(self, obj, attr):
+        # We check to see if the object is callable.  If so, do it.  Why not?  Otherwise, no.
+        # First, remove any function calls...
+        #print(attr)
+     #   no_func_call = attr.split('(')
+    #    if callable(reduce (getattr, no_func_call[0].split('.'), obj)) == True:
+        try:
+            # DANGEROUS AS
+            return eval(attr, {'__builtins__': {}}, obj.__dict__)
+            #print("YAY")
+            #func = reduce (getattr, no_func_call[0].split('.'), obj)
+            #args = no_func_call[1].replace(')','')
+            #args = args.split('[')
+            #print(args)
+            #if len(args) > 1:
+            #    args[1] = args[1].replace(']','')
+            #    return func(args[0])[args[1]]
+            #else:
+            #    return func(args[0])
+        except:
+            return reduce (getattr, attr.split('.'), obj)
 
     def print_report(self, west, line=False, s1=':', s2=';', args=None):
         # Here, we're just going to print out these quantities...
         # We'll want to put in some more appropriate formatting eventually, but
         if args == None:
-            args = ['n_iter', 'aggregate_walkers', 'recycling_events', 'tstates', 'bin_labels', 'bin_boundaries']
+            args = ['n_iter', 'aggregate_walkers', 'recycling_events', 'tstates', 'mapper.labels', 'mapper.boundaries']
         import pprint, types
         output = {}
         label_size = 0
         for arg in args:
-            if type(getattr(west,arg)) == types.GeneratorType:
-                output[arg] = []
-                for t in getattr(west,arg):
-                    output[arg].append(t)
-            else:
-                output[arg] = getattr(west,arg)
-            label_size = max(label_size, len(arg))
+            try:
+                if type(self.deepgetattr(west,arg)) == types.GeneratorType:
+                    output[arg] = []
+                    for t in self.deepgetattr(west,arg):
+                        output[arg].append(t)
+                else:
+                    output[arg] = self.deepgetattr(west,arg)
+                label_size = max(label_size, len(arg))
+            except Exception as e:
+                # Not an attribute.  Ergo, just... throw in an error, and go from there.
+                output[arg] = 'ERROR - ' + str(e)
         if line == False:
             for arg in args:
                 k = arg
@@ -202,6 +230,7 @@ class WIWest(WESTSubcommand):
             # We should be able to change the iteration, if desired.
             self.data_reader = data_reader
             self.data_manager = self.data_reader.data_manager
+            self.we_h5file = self.data_manager.we_h5file
             self.binning = binning
             self.args = args
             #self.iter_group = None
@@ -219,16 +248,6 @@ class WIWest(WESTSubcommand):
             self.binning.set_we_h5file_info(self._n_iter, self.data_reader)
             self.binning.process_args(self.args)
             self.iter_group = self.data_manager.get_iter_group(self._n_iter)
-
-        @property
-        def bin_labels(self):
-            # Returns a list of tuples, I believe.
-            return self.binning.mapper.labels
-
-        @property
-        def bin_boundaries(self):
-            # Returns a list of lists.
-            return self.binning.mapper.boundaries
 
         @property
         def mapper(self):
