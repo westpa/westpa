@@ -29,6 +29,7 @@ import sys, random, math
 import numpy, h5py
 import numpy as np
 from h5py import h5s
+import types
 
 import westpa
 from west.data_manager import weight_dtype, n_iter_dtype, seg_id_dtype
@@ -36,13 +37,13 @@ from westtools import (WESTMasterCommand, WESTTool, WESTDataReader, IterRangeSel
                        ProgressIndicatorComponent, BinMappingComponent)
 from westpa import h5io
 
-class WIWest(WESTSubcommand):
-    subcommand = 'init'
-    help_text = 'Pull information from a WESTPA HDF5 file without the configuration (rc) present.'
+class WIReport(WESTSubcommand):
+    #subcommand = 'init'
+    help_text = 'Pull information from a WESTPA HDF5 file with or without the configuration (rc) present.'
     description = '''\
 '''
     def __init__(self, parent):
-        super(WIWest,self).__init__(parent)
+        super(WIReport,self).__init__(parent)
         
         # We're trying to initialize the west.h5 file, if available.
         # However, we can't guarantee that it exists.
@@ -50,23 +51,6 @@ class WIWest(WESTSubcommand):
         self.iter_range = IterRangeSelection()
         self.binning = BinMappingComponent()
         self.data_manager = None
-        
-        self.output_filename = None
-        # This is actually applicable to both.
-        self.assignment_filename = None
-        
-        self.output_file = None
-        self.assignments_file = None
-        
-        self.evolution_mode = None
-        
-        self.mcbs_alpha = None
-        self.mcbs_acalpha = None
-        self.mcbs_nsets = None
-
-        # Now we're adding in things that come from the old w_kinetics
-        self.do_compression = True
-        
             
     def add_args(self, parser):
         self.data_reader.add_args(parser)
@@ -81,18 +65,12 @@ class WIWest(WESTSubcommand):
                                  help='''The list of data to output.''')
         parser.add_argument('-l', '--line', action='store_true',
                                  help='''Report as single line.  Otherwise, use multiline key: value report.''')
+        parser.add_argument('-s', '--separator', type=str,
+                                 help='''Separator (delimiter) for use in line-mode.''')
         suppress = ['--bins-from-system', '--bins-from-expr', '--bins-from-function', '--bins-from-file']
         self.binning.add_args(parser, suppress=suppress)
         #self.iter_range.include_args['iter_step'] = True
         #self.iter_range.add_args(parser)
-
-        #iogroup = parser.add_argument_group('input/output options')
-        #iogroup.add_argument('-a', '--assignments', default='assign.h5',
-        #                    help='''Bin assignments and macrostate definitions are in ASSIGNMENTS
-        #                    (default: %(default)s).''')
-        
-        #iogroup.add_argument('-o', '--output', dest='output', default=self.default_output_file,
-        #                    help='''Store results in OUTPUT (default: %(default)s).''')
 
     def process_args(self, args):
         # Open the data reader, which is necessary...
@@ -111,39 +89,19 @@ class WIWest(WESTSubcommand):
         self.binning.process_args(args)
         self.line = getattr(args, 'line')
         self.args = args
-        #with self.data_reader:
-        #    self.iter_range.process_args(args, default_iter_step=None)
-        #if self.iter_range.iter_step is None:
-            #use about 10 blocks by default
-        #    self.iter_range.iter_step = max(1, (self.iter_range.iter_stop - self.iter_range.iter_start) // 10)
-        
-        #self.output_filename = args.output
-        #self.assignments_filename = args.assignments
+        self.separator = getattr(args, 'separator')
 
-    def w_info(self):
-        #print(dir(self.data_manager))
-        #print(self.data_manager.we_h5file)
-        #print(self.data_manager.current_iteration)
-        #print(self.data_manager.get_iter_group(1).keys())
-        #print(self.data_manager.get_iter_group(1).attrs.keys())
-        #print(self.binning.mapper)
-        # Okay, that seems to work, now.  We have the bin mapper, ergo we can...
-        #iter_group = self.data_manager.get_iter_group(self.n_iter)
-        #print(iter_group.keys())
-        #print(dir(self.binning.mapper))
-        #print(self.binning.mapper.boundaries)
-        #print(self.binning.mapper.labels)
+    def report_single(self):
         west = self.WESTInfoBlob(self.data_reader, self.binning, self.args, self.n_iter)
-        #print(west.binning.mapper.labels)
-        #west.n_iter = 19
-        #print(west.binning.mapper.labels)
-        #print(west.iter_group.keys())
-        #for tstate in west.tstates:
-        #    print(tstate)
-        #print(west.recycling_events)
-        #print(west.aggregate_walkers)
-        #self.report_default_n_iter(west)
-        self.print_report(west, line=self.line, args=self.data)
+        self.print_report(west, line=self.line, args=self.data, s2=self.separator)
+
+    def report_range(self):
+        west = self.WESTInfoBlob(self.data_reader, self.binning, self.args, self.n_iter)
+        if self.separator == None:
+            self.separator = ';'
+        for i in range(1, self.n_iter+1):
+            west.n_iter = i
+            self.print_report(west, line=True, args=self.data, s2=self.separator)
 
     def lprint(self, k, l, ls, s=':'):
         import types, string
@@ -161,30 +119,13 @@ class WIWest(WESTSubcommand):
                 self.lprint(k=key,l=i,ls=ls+label_size+len(s),s=':')
         else:
             print(string.capwords(str(k).replace('_',' ').replace('-',' ').replace('.', ' ')).rjust(ls), s, str(l).ljust(20))
-            #print(str(k).rjust(ls), s, str(l).ljust(20))
 
     def deepgetattr(self, obj, attr):
         # We check to see if the object is callable.  If so, do it.  Why not?  Otherwise, no.
         # First, remove any function calls...
-        #print(attr)
-     #   no_func_call = attr.split('(')
-    #    if callable(reduce (getattr, no_func_call[0].split('.'), obj)) == True:
         try:
-            # DANGEROUS AS  suuuuuuch a bad idea.
-            # On the other hand, this isn't a web server.  Someone who's calling this is already running as the user.
-            # Would they target a WESTPA tool instead of just calling python or rm * to begin with?
-            # Most likely not.
+            # Not the first time we're doing this in WESTPA code.
             return eval(attr, {'__builtins__': {}}, obj.__dict__)
-            #print("YAY")
-            #func = reduce (getattr, no_func_call[0].split('.'), obj)
-            #args = no_func_call[1].replace(')','')
-            #args = args.split('[')
-            #print(args)
-            #if len(args) > 1:
-            #    args[1] = args[1].replace(']','')
-            #    return func(args[0])[args[1]]
-            #else:
-            #    return func(args[0])
         except:
             return reduce (getattr, attr.split('.'), obj)
 
@@ -193,7 +134,6 @@ class WIWest(WESTSubcommand):
         # We'll want to put in some more appropriate formatting eventually, but
         if args == None:
             args = ['n_iter', 'aggregate_walkers', 'recycling_events', 'tstates', 'mapper.labels', 'mapper.boundaries']
-        import pprint, types
         output = {}
         label_size = 0
         for arg in args:
@@ -212,15 +152,9 @@ class WIWest(WESTSubcommand):
             for arg in args:
                 k = arg
                 v = output[k]
-                #self.lprint(k='', l=output, ls=0, s='')
                 self.lprint(k,v,label_size, s1)
         else:
-            #output_string = ''
-            #for arg in args:
-            #    k = arg
-            #    v = output[k]
             print(s2.join(str(output[arg]) for arg in args))
-                #self.line_print(k, v, s2)
 
     class WESTInfoBlob():
         '''
@@ -235,8 +169,9 @@ class WIWest(WESTSubcommand):
             self.data_manager = self.data_reader.data_manager
             self.we_h5file = self.data_manager.we_h5file
             self.binning = binning
+            self.mapper = None
             self.args = args
-            #self.iter_group = None
+            self.iter_group = None
             self.n_iter = n_iter
 
         @property
@@ -251,18 +186,7 @@ class WIWest(WESTSubcommand):
             self.binning.set_we_h5file_info(self._n_iter, self.data_reader)
             self.binning.process_args(self.args)
             self.iter_group = self.data_manager.get_iter_group(self._n_iter)
-
-        @property
-        def mapper(self):
-            return self.binning.mapper
-
-        @property
-        def iter_group(self):
-            return self._iter_group
-        
-        @iter_group.setter
-        def iter_group(self, group):
-            self._iter_group = group
+            self.mapper = self.binning.mapper
 
         @property
         def tstates(self):
@@ -287,19 +211,26 @@ class WIWest(WESTSubcommand):
             return self._aggregate_walkers
 
 
-
+class WISingle(WIReport):
+    subcommand = 'single'
+    help_text = 'Pull information from a WESTPA HDF5 file with or without the configuration (rc) present.'
+    description = '''\
+'''
     def go(self):
-        self.w_info()
+        self.report_single()
 
-
-    def print_function(self, west):
-        ''' Built in print function to print requested information '''
-        return 0
+class WIRange(WIReport):
+    subcommand = 'range'
+    help_text = 'Pull information from a WESTPA HDF5 file with or without the configuration (rc) present.'
+    description = '''\
+'''
+    def go(self):
+        self.report_range()
 
 class WDirect(WESTMasterCommand, WESTTool):
     prog='w_direct'
     #subcommands = [AvgTraceSubcommand,AvgMatrixSubcommand]
-    subcommands = [WIWest]
+    subcommands = [WISingle, WIRange]
     subparsers_title = 'direct kinetics analysis schemes'
 
 if __name__ == '__main__':
