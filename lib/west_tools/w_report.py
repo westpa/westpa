@@ -26,7 +26,7 @@ import warnings
 #warnings.filterwarnings('ignore', category=FutureWarning)
 
 import sys, random, math
-import numpy, h5py
+import numpy, h5py, hashlib
 import numpy as np
 from h5py import h5s
 import types
@@ -180,6 +180,11 @@ class WIReport(WESTSubcommand):
             #self.min = np.min
             self.np = np
             self.numpy = numpy
+            # Seems to be required to maintain the namespace?  Odd.
+            self.hash = self.hash
+
+        def hash(self, to_hash):
+            return hashlib.md5(str(to_hash).encode('base64')).hexdigest()
 
         @property
         def n_iter(self):
@@ -211,6 +216,30 @@ class WIReport(WESTSubcommand):
                 iter_group = self.data_manager.get_iter_group(i)
                 self._recycling_events += len(np.where(iter_group['seg_index']['endpoint_type'] == 3)[0])
             return self._recycling_events
+
+        @property
+        def bin_boundary_changes(self):
+            # Go through, find the bin boundary hashes, then recorded when they're different.
+            ihash = None
+            iter_changes = [1]
+            for i in range(1, self.n_iter+1):
+                if i == 1:
+                    self.binning.mapper_source_hash = self.data_manager.we_h5file['bin_topologies']['index']['hash'][0]
+                self.binning.set_we_h5file_info(i, self.data_reader)
+                self.binning.process_args(self.args)
+                #self.iter_group = self.data_manager.get_iter_group(self._n_iter)
+                bhash = self.hash(self.binning.mapper.labels)
+                if i == 1:
+                    # Set binhash.
+                    ihash = bhash
+                if ihash != bhash:
+                    iter_changes.append(i)
+                ihash = bhash
+            # Reset bin mapper.
+            self.n_iter = self.n_iter
+            yield str(iter_changes)
+
+                
 
         @property
         def aggregate_segments(self):
