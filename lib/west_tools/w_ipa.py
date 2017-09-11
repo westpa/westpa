@@ -562,7 +562,7 @@ class WIPI(WESTParallelTool):
                     key = []
             except:
                 pass
-            for iter in reversed(range(1, self.iteration)):
+            for iter in reversed(range(1, self.iteration+1)):
                 iter_group = self.data_reader.get_iter_group(iter)
                 particles = self.data_reader.data_manager.get_iter_summary(int(iter))['n_particles']
                 current['pcoord'].append(iter_group['pcoord'][seg_id, :, :])
