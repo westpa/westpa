@@ -12,12 +12,14 @@ current_universe = MDAnalysis.Universe('structure.psf', 'seg.dcd')
 # between the ions
 parent_nacl = parent_universe.select_atoms('resname SOD or resname CLA')
 parent_universe.trajectory[-1]
-dist = MDAnalysis.analysis.distances.self_distance_array(parent_nacl.atoms.positions)[0]
+dist = MDAnalysis.analysis.distances.self_distance_array(parent_nacl.atoms.positions, 
+                                                         box=parent_universe.dimensions)[0]
 print("{:.03f}".format(dist))
 
 # Now calculate the distance between the ions for each timepoint of the current
 # trajectory.
 nacl = current_universe.select_atoms('resname SOD or resname CLA')
 for ts in current_universe.trajectory:
-    dist = MDAnalysis.analysis.distances.self_distance_array(nacl.atoms.positions)[0]
+    dist = MDAnalysis.analysis.distances.self_distance_array(nacl.atoms.positions,
+                                                             box=current_universe.dimensions)[0]
     print("{:.03f}".format(dist))
