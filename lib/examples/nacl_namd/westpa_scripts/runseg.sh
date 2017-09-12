@@ -72,6 +72,9 @@ $NAMD md.conf > seg.log
 # Cl- ions.  This custom Python script looks for the files nacl.psf and seg.dcd
 # The script outputs the distance between the ions at each timepoint, printing
 # one distance value per line to STDOUT.
+# Note that the script also loads the parent segment's .dcd file, in order to 
+# include the current segment's starting configuration (which is the same as the
+# parent segment's final configuration) in the calculation.
 python $WEST_SIM_ROOT/westpa_scripts/calculatedistance.py > $WEST_PCOORD_RETURN
 
 # Output coordinates. We use a custom python script that converts to the dcd 
@@ -85,4 +88,7 @@ if [ ${WEST_COORD_RETURN} ]; then
 fi
 
 # Clean up
-#rm -f md.conf parent.coor parent.vel parent.xsc nacl.pdb nacl.psf toppar
+rm -f md.conf parent.coor parent.dcd parent.vel parent.xsc seg.pdb \
+  seg.restart.coord seg.restart.coor.old seg.restart.vel seg.restart.vel.old\
+  seg.restart.xsc seg.restart.xsc.old structure.pdb structure.psf toppar
+
