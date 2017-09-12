@@ -407,7 +407,7 @@ class RecursiveBinMapper(BinMapper):
         if self._recursion_map[ibin]:
             # recursively add; this doesn't change anything for us except our
             # total bin count, which has been accounted for above
-            self._recursion_targets[ibin].add_mapper(mapper, replaces_bin_at)
+            self._recursion_targets[ibin].add_mapper(mapper, replaces_bin_at[0])
         else:
             # replace a bin on our mapper
             self._recursion_map[ibin] = True
