@@ -22,6 +22,12 @@ pkill -9 -f w_run
 rm -rf traj_segs seg_logs istates west.h5 
 mkdir   seg_logs traj_segs istates
 
+# Copy over the topology file from ./prep
+cp ./prep/1_leap/nacl.parm7 amber_config/
+
+# Copy over the equilibrated restart file from ./prep
+cp ./prep/4_eq2/4_eq2.rst bstates/nacl_init.rst
+
 # Define the arguments for the basis states (used for generating initial 
 # states; in this case we only have one), and target states (used for
 # knowing when to recycle trajectories). In this example, we recycle
