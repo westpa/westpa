@@ -77,7 +77,8 @@ class WIReport(WESTSubcommand):
         self.data_reader.process_args(args)
         self.data_manager = self.data_reader.data_manager
         self.data_reader.open(mode='r')
-        self.n_iter = getattr(args,'n_iter', None) or 1
+        # Don't default to 1.
+        self.n_iter = getattr(args,'n_iter', None) or self.data_reader.current_iteration
         self.data = getattr(args, 'data', None)
         if self.data is not None:
             self.data = self.data.split(' ')
@@ -135,7 +136,7 @@ class WIReport(WESTSubcommand):
         # Here, we're just going to print out these quantities...
         # We'll want to put in some more appropriate formatting eventually, but
         if args == None:
-            args = ['n_iter', 'aggregate_walkers', 'recycling_events', 'tstates', 'mapper.labels', 'mapper.boundaries']
+            args = ['n_iter', 'aggregate_segments', 'recycling_events', 'tstates', 'mapper.labels', 'mapper.boundaries']
         output = {}
         label_size = 0
         for arg in args:
@@ -238,8 +239,6 @@ class WIReport(WESTSubcommand):
             # Reset bin mapper.
             self.n_iter = self.n_iter
             yield str(iter_changes)
-
-                
 
         @property
         def aggregate_segments(self):
