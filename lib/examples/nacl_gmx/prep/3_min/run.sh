@@ -8,5 +8,6 @@ gmx grompp \
 gmx mdrun \
   -deffnm 3_min\
   -mp ../1_pdb2gmx/topol.top\
+  -nt 1\
   -v 
 
