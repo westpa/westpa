@@ -1,0 +1,45 @@
+; 4_eq1.mdp
+;   20.0 ps NVT equilibration with Langevin thermostat
+#################################### INPUT #####################################
+define      = -DPOSRES             ; Restrain the protein
+ld_seed     = -1                   ; Use random seed from WESTPA
+################################# INTEGRATOR ###################################
+integrator  = sd                   ; Langevin thermostat
+dt          = 0.002                ; Timestep (ps)
+nsteps      = 10000                ; Simulation duration (timesteps)
+nstcomm     = 500                  ; Center of mass motion removal interval
+comm_mode   = linear               ; Center of mass motion removal mode
+comm-grps   = system               ; Remove center of mass motion of system
+################################## ENSEMBLE ####################################
+ref_t        = 300                 ; System temperature (K)
+tau_t        = 1.0                 ; Thermostat time constant (ps)
+tc_grps      = System              ; Apply thermostat to whole system
+continuation = no 
+############################ BONDED INTERACTIONS ###############################
+constraints           = all-bonds  ; Constrain all bonds 
+constraint_algorithm  = LINCS      ; Constrain bonds using LINCS 
+lincs_iter            = 1          ;
+lincs_order           = 4          ;
+########################### NONBONDED INTERACTIONS #############################
+coulombtype     = PME              ; Switch/PME long-range electrostatics
+fourierspacing  = 0.1              ; spacing for PME grid
+pme_order       = 6                ; Interpolation order for PME
+ewald_rtol      = 0.000001         
+pbc             = xyz              ; Periodic boundary condition
+rcoulomb        = 1.0              ; Short-range electrostatic cutoff (nm)
+rcoulomb_switch = 0.9              ; Short-range electrostatic switch cutoff (nm)
+vdwtype         = Switch           ; Switch van der Waals interactions
+rvdw            = 0.9              ; Van der Waals cutoff (nm)
+rvdw_switch     = 0.8              ; Van der Waals switch cutoff (nm)
+DispCorr        = Ener             ; Long-range dispersion correction to energy
+ns_type         = grid             ; Update neighbor list using grid
+nstlist         = 10               ; Neighbor list update interval (timesteps)
+rlist           = 1.00             ; Neighbor list cut-off (nm)
+cutoff-scheme   = group            ; Cutoff scheme
+################################### OUTPUT #####################################
+nstlog        = 50                 ; Log output interval (timesteps)
+nstenergy     = 50                 ; Energy output interval (timesteps)
+nstcalcenergy = 50                 ; Energy calculation interval (timesteps)
+nstxout       = 50                 ; Trajectory output interval (timesteps)
+nstvout       = 50                 ; Velocity outout interval (timesteps)
+nstfout       = 50                 ; Force output interval (timesteps)

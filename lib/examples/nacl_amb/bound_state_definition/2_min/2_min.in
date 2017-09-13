@@ -1,0 +1,19 @@
+Restrained minimization
+&cntrl
+  imin      = 1,
+  irest     = 0,
+  ntx       = 1,
+  ntmin     = 1,
+  maxcyc    = 1000,
+  ncyc      = 500,
+  ntb       = 1,
+  ntf       = 1,
+  ntc       = 1,
+  cut       = 10.0,
+  ntpr      = 1,
+  ntxo      = 2,
+  ntwr      = 10000,
+  ioutfm    = 1,
+  ntwx      = 0,
+  iwrap     = 1,
+&end
