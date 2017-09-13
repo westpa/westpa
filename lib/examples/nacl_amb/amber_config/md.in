@@ -1,0 +1,22 @@
+5 ps unrestrained NVT production using Langevin thermostat
+&cntrl
+  ntx       = 5,
+  irest     = 1,
+  ig        = RAND,
+  dt        = 0.002,
+  nstlim    = 2500,
+  nscm      = 500,
+  gamma_ln  = 1.0,
+  ntf       = 2,
+  ntc       = 2,
+  ntb       = 1,
+  ntt       = 3,
+  temp0     = 300.0,
+  cut       = 10.0,
+  ntpr      = 5,
+  ntxo      = 2,
+  ntwr      = 2500,
+  ioutfm    = 1,
+  ntwx      = 50,
+  iwrap     = 1,
+&end

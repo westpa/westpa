@@ -21,11 +21,10 @@
 #  3. Calculate the progress coordinates and return data to WESTPA
 
 
-
 # If we are running in debug mode, then output a lot of extra information.
 if [ -n "$SEG_DEBUG" ] ; then
-    set -x
-    env | sort
+  set -x
+  env | sort
 fi
 
 ######################## Set up for running the dynamics #######################
@@ -38,47 +37,33 @@ cd $WEST_CURRENT_SEG_DATA_REF
 # Make a symbolic link to the topology file. This is not unique to each segment.
 ln -sv $WEST_SIM_ROOT/gromacs_config/nacl.top .
 
-# Either continue an existing tractory, or start a new trajectory. In the 
-# latter case, we need to do a couple things differently, such as generating
-# velocities.
-#
-# First, take care of the case that this segment is a continuation of another
-# segment.  WESTPA provides the environment variable 
-# $WEST_CURRENT_SEG_INITPOINT_TYPE, and we check its value.
-if [ "$WEST_CURRENT_SEG_INITPOINT_TYPE" = "SEG_INITPOINT_CONTINUES" ]; then
-  # The weighted ensemble algorithm requires that dynamics are stochastic.
-  # We'll use the "sed" command to replace the string "RAND" with a randomly
-  # generated seed.
-  sed "s/RAND/$WEST_RAND16/g" \
-    $WEST_SIM_ROOT/gromacs_config/md-continue.mdp > md.mdp
+# Also symlink the forcefield
+ln -sv $WEST_SIM_ROOT/gromacs_config/tip3p_ionsjc2008.ff
 
-  # This trajectory segment will start off where its parent segment left off.
-  # The "ln" command makes symbolic links to the parent segment's edr, gro, and 
-  # and trr files. This is preferable to copying the files, since it doesn't
-  # require writing all the data again.
-  ln -sv $WEST_PARENT_DATA_REF/seg.edr ./parent.edr
-  ln -sv $WEST_PARENT_DATA_REF/seg.gro ./parent.gro
-  ln -sv $WEST_PARENT_DATA_REF/seg.trr ./parent.trr
+# Either continue an existing tractory, or start a new trajectory. Here, both
+# cases are the same.  If you need to handle the cases separately, you can
+# check the value of the environment variable "WEST_CURRENT_SEG_INIT_POINT",
+# which is equal to either "SEG_INITPOINT_CONTINUES" or "SEG_INITPOINT_NEWTRAJ"
+# for continuations of previous segments and new trajectories, respecitvely.
+# For an example, see the nacl_amb tutorial.
 
-  # Run the GROMACS preprocessor 
-  $GMX grompp -f md.mdp -c parent.gro -e parent.edr -p nacl.top \
-    -t parent.trr -o seg.tpr -po md_out.mdp
+# The weighted ensemble algorithm requires that dynamics are stochastic.
+# We'll use the "sed" command to replace the string "RAND" with a randomly
+# generated seed.
+sed "s/RAND/$WEST_RAND16/g" \
+  $WEST_SIM_ROOT/gromacs_config/md.mdp > md.mdp
 
-# Now take care of the case that the trajectory is starting anew.
-elif [ "$WEST_CURRENT_SEG_INITPOINT_TYPE" = "SEG_INITPOINT_NEWTRAJ" ]; then
-  # Again, we'll use the "sed" command to replace the string "RAND" with a 
-  # randomly generated seed.
-  sed "s/RAND/$WEST_RAND16/g" \
-    $WEST_SIM_ROOT/gromacs_config/md-genvel.mdp > md.mdp
+# This trajectory segment will start off where its parent segment left off.
+# The "ln" command makes symbolic links to the parent segment's edr, gro, and 
+# and trr files. This is preferable to copying the files, since it doesn't
+# require writing all the data again.
+ln -sv $WEST_PARENT_DATA_REF/seg.edr ./parent.edr
+ln -sv $WEST_PARENT_DATA_REF/seg.gro ./parent.gro
+ln -sv $WEST_PARENT_DATA_REF/seg.trr ./parent.trr
 
-  # For a new segment, we only need to make a symbolic link to the .gro file.
-  ln -sv $WEST_PARENT_DATA_REF ./parent.gro
-
-  # Run the GROMACS preprocessor
-  $GMX grompp -f md.mdp -c parent.gro -p nacl.top \
-    -o seg.tpr -po md_out.mdp
-fi
-
+# Run the GROMACS preprocessor 
+$GMX grompp -f md.mdp -c parent.gro -e parent.edr -p nacl.top \
+  -t parent.trr -o seg.tpr -po md_out.mdp
 
 ############################## Run the dynamics ################################
 # Propagate the segment using gmx mdrun
@@ -90,21 +75,14 @@ $GMX mdrun -s   seg.tpr -o seg.trr -c  seg.gro -e seg.edr \
 # Calculate the progress coordinate
 $GMX distance -f $WEST_CURRENT_SEG_DATA_REF/seg.trr \
   -s $WEST_CURRENT_SEG_DATA_REF/seg.tpr -select 1 -oall dist.xvg
-cat dist.xvg | tail -6 | awk '{print $2*10;}' > $WEST_PCOORD_RETURN
+cat dist.xvg | tail -n 51 | awk '{print $2*10;}' > $WEST_PCOORD_RETURN
 
 # Output coordinates.  To do this, we'll use trjconv to make a PDB file. Then
 # we can parse the PDB file using grep and awk, only taking the x,y,z values
 # for the coordinates.
-echo -e "0 \n" | $GMX trjconv -f seg.trr -s seg.tpr -o seg.pdb
+echo -e "2\n1\n" | $GMX trjconv -f seg.trr -s seg.tpr -o seg.pdb -center
 cat seg.pdb | grep 'ATOM' | awk '{print $6, $7, $8}' > $WEST_COORD_RETURN
 
-# Output log
-if [ ${WEST_LOG_RETURN} ]; then
-    cat $WEST_CURRENT_SEG_DATA_REF/seg.log \
-      | awk '/Started mdrun/ {p=1}; p; /A V E R A G E S/ {p=0}' \
-      > $WEST_LOG_RETURN
-fi
-
 # Clean up all the files that we don't need to save.
-#rm -f dist.xvg md.mdp md_out.mdp nacl.top parent.gro parent.trr seg.cpt \
-#  seg.pdb seg.tpr
+rm -f dist.xvg md.mdp md_out.mdp nacl.top parent.gro parent.trr seg.cpt \
+      seg.pdb seg.tpr tip3p_ionsjc2008.ff parent.edr
