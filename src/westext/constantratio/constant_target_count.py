@@ -153,6 +153,65 @@ class TargetRatio:
                     self.we_driver.bin_target_counts[rand] += 1
                     active_walkers += 1
 
+        
+        self.threshold_mode = True
+        if self.threshold_mode:
+            # If we want to institute a weight threshold, then let's do it here by varying the number of bins.
+            # First, we'll need the bin sums...
+            print(bin_mapper)
+            print(dir(bin_mapper))
+            # We should already have this, but let's just redo it now for certain.
+            for iseg, segment in enumerate(segments):
+                final_pcoords[iseg] = segment.pcoord[-1,:]
+            assignments = bin_mapper.assign(final_pcoords)
+            # Now that we have the assignments and the active bins...
+            #print(assignments)
+            #print(assignments.shape)
+            # It's indexed according to the seg_id, so to determine the weight in each, we'll just create a new array and go from there.
+            # That is, assignments is an array where assignments[x] == segid of segment x
+            weights = np.zeros(bin_mapper.nbins)
+            for iseg, segment in enumerate(segments):
+                weights[assignments[iseg]] += segment.weight
+            print(weights)
+            # Good!  Now weights gives us the weight of each bin.  This information may be exposed elsewhere, but.
+            # We can now determine if any of the combined weights/walkers exceeds a particular threshold.
+            bins_out_of_range = []
+            walkers_to_distribute = 0
+            import math
+            for ib, b in enumerate(weights):
+                print(b/self.system.bin_target_counts[ib])
+                target_weight = b / self.system.bin_target_counts[ib]
+                self.upper_threshold = 0.20
+                self.lower_threshold = 1e-20
+                # The ideal min number of walkers is set by the thresholds.  Let's just hardcode this in for now...
+                if target_weight > self.upper_threshold:
+                    tc = math.ceil(b / self.upper_threshold)
+                    bins_out_of_range.append(ib)
+                    walkers_to_distribute -= (tc - self.system.bin_target_counts)
+                if target_weight < self.lower_threshold and target_weight != 0:
+                    tc = math.floor(b / self.lower_threshold)
+                    bins_out_of_range.append(ib)
+                    walkers_to_distribute += (self.system.bin_target_counts - tc)
+            bins = range(bin_mapper.nbins)
+            print("Yay!")
+            print(bins_out_of_range)
+            for b in bins_out_of_range:
+                print(b)
+                bins.pop(b)
+            if walkers_to_distribute < 0:
+                a = np.random.choice(bins, (-1*walkers_to_distribute))
+                self.system.bin_target_counts[a] -= 1
+            if walkers_to_distribute > 0:
+                a = np.random.choice(bins, walkers_to_distribute)
+                self.system.bin_target_counts[a] += 1
+
+
+
+    
+
+                
+
+
         if self.automatic:
             # Create the transition rate averager, then, you know, use it.  Wait, does this do it properly?  This'll be a good time to check.
             n_iter = self.sim_manager.n_iter
