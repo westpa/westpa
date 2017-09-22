@@ -182,28 +182,58 @@ class TargetRatio:
                 print(b/self.system.bin_target_counts[ib])
                 target_weight = b / self.system.bin_target_counts[ib]
                 self.upper_threshold = 0.20
-                self.lower_threshold = 1e-20
+                self.lower_threshold = 1e-05
                 # The ideal min number of walkers is set by the thresholds.  Let's just hardcode this in for now...
                 if target_weight > self.upper_threshold:
-                    tc = math.ceil(b / self.upper_threshold)
+                    log.warning("TOO LARGE!")
+                    tc = int(math.ceil(b / self.upper_threshold))
                     bins_out_of_range.append(ib)
-                    walkers_to_distribute -= (tc - self.system.bin_target_counts)
+                    walkers_to_distribute -= (tc - self.system.bin_target_counts[ib])
+                    self.system.bin_target_counts[ib] = tc
                 if target_weight < self.lower_threshold and target_weight != 0:
-                    tc = math.floor(b / self.lower_threshold)
+                    log.warning("TOO SMALL!")
+                    tc = int(math.floor(b / self.lower_threshold))
+                    if tc == 0:
+                        tc = 1
                     bins_out_of_range.append(ib)
-                    walkers_to_distribute += (self.system.bin_target_counts - tc)
-            bins = range(bin_mapper.nbins)
+                    walkers_to_distribute += (self.system.bin_target_counts[ib] - tc)
+                    self.system.bin_target_counts[ib] = tc
+            bins = list(set(assignments))
             print("Yay!")
-            print(bins_out_of_range)
+            print(bins_out_of_range, bins)
+            print(walkers_to_distribute)
             for b in bins_out_of_range:
                 print(b)
-                bins.pop(b)
+                bins.remove(b)
+            if len(bins) == 0:
+                bins = list(set(assignments))
+            print(len(bins))
             if walkers_to_distribute < 0:
                 a = np.random.choice(bins, (-1*walkers_to_distribute))
-                self.system.bin_target_counts[a] -= 1
+                #self.system.bin_target_counts[a] -= 1
+                dist_to_bins = np.bincount(a)
+                for b in bins:
+                    self.system.bin_target_counts[b] -= dist_to_bins[b]
+                for b in bins:
+                    if self.system.bin_target_counts[b] <= 0:
+                        self.system.bin_target_counts[b] = 1
+                        log.warning("CTC: You don't have enough walkers set to use threshold mode.  Add more walkers!")
             if walkers_to_distribute > 0:
                 a = np.random.choice(bins, walkers_to_distribute)
-                self.system.bin_target_counts[a] += 1
+                dist_to_bins = np.bincount(a)
+                print(dist_to_bins)
+                print(self.system.bin_target_counts)
+                for iw,w in enumerate(dist_to_bins):
+                    print(iw,w, self.system.bin_target_counts[iw] + w)
+                    # What the fuck?  It's ignoring the system choice and casting to an 8 bit.
+                    # When it's around 250!  Fucking numpy.
+                    self.system.bin_target_counts = self.system.bin_target_counts.astype(np.uint64, copy=False)
+                    print(self.system.bin_target_counts.astype(np.uint64, copy=False).dtype)
+                    print(self.system.bin_target_counts.dtype)
+                    self.system.bin_target_counts[iw] = self.system.bin_target_counts[iw] + w
+                    print(self.system.bin_target_counts.dtype)
+                print(self.system.bin_target_counts)
+            self.we_driver.bin_target_counts = self.system.bin_target_counts
 
 
 

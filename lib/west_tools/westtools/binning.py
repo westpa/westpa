@@ -396,7 +396,8 @@ class BinMappingComponent(WESTToolComponent):
                 
             if len(self.bin_target_counts) == 1:
                 flat_target_count = self.bin_target_counts
-                self.bin_target_counts = numpy.empty((self.mapper.nbins,), numpy.int)
+                # Whoa!  What's going on, here?  Let's be careful about how we type things...
+                self.bin_target_counts = numpy.empty((self.mapper.nbins,), numpy.int_)
                 self.bin_target_counts[:] = flat_target_count
             log.debug('bin target counts = {!r}'.format(self.bin_target_counts))
                 

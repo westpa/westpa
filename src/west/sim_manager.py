@@ -295,8 +295,10 @@ class WESimManager:
             segments = list(self.we_driver.current_iter_segments)
             binning = self.we_driver.final_binning
 
-        bin_occupancies = numpy.fromiter(imap(len,binning), dtype=numpy.uint, count=self.we_driver.bin_mapper.nbins)
-        target_occupancies = numpy.require(self.we_driver.bin_target_counts, dtype=numpy.uint)
+        # Hey!  Let's be careful about how we type this, here.  For plugins with variable walker counts, this can be an issue.
+        # It seems it tries to be 'smart' and change things on the fly...
+        bin_occupancies = numpy.fromiter(imap(len,binning), dtype=numpy.int_, count=self.we_driver.bin_mapper.nbins)
+        target_occupancies = numpy.require(self.we_driver.bin_target_counts, dtype=numpy.int_)
     
         # Make sure we have 
         for segment in segments:
