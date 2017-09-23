@@ -70,6 +70,17 @@ class TargetRatio:
         #self.automatic = True if not plugin_config.get('automatic') else plugin_config.get('automatic')
         self.automatic = plugin_config.get('automatic')
         self.ratio_mode = False if self.automatic else True
+        self.threshold_mode = True if plugin_config.get('thresholds') is not None else False
+        thresholds = plugin_config.get('thresholds') if plugin_config.get('thresholds') else None
+        if self.threshold_mode == True:
+            # We can just use defaults by treating it like a Boolean, but specify things by treating it like a dict.
+            if thresholds is not None and thresholds is not True:
+                self.upper_threshold = float(thresholds['upper_threshold'])
+                self.lower_threshold = float(thresholds['lower_threshold'])
+            else:
+                self.upper_threshold = 0.20
+                self.lower_threshold = 1e-20
+            print(self.upper_threshold, self.lower_threshold, thresholds)
         if len(self.state_to_trajectory) == 1:
             self.state_to_trajectory = self.state_to_trajectory * len(self.states)
 
@@ -154,7 +165,7 @@ class TargetRatio:
                     active_walkers += 1
 
         
-        self.threshold_mode = True
+        #self.threshold_mode = True
         if self.threshold_mode:
             # If we want to institute a weight threshold, then let's do it here by varying the number of bins.
             # First, we'll need the bin sums...
@@ -181,8 +192,6 @@ class TargetRatio:
             for ib, b in enumerate(weights):
                 print(b/self.system.bin_target_counts[ib])
                 target_weight = b / self.system.bin_target_counts[ib]
-                self.upper_threshold = 0.20
-                self.lower_threshold = 1e-05
                 # The ideal min number of walkers is set by the thresholds.  Let's just hardcode this in for now...
                 if target_weight > self.upper_threshold:
                     log.warning("TOO LARGE!")
@@ -206,33 +215,33 @@ class TargetRatio:
                 print(b)
                 bins.remove(b)
             if len(bins) == 0:
+                # We can't really do much here, then.
                 bins = list(set(assignments))
             print(len(bins))
+            print(self.system.bin_target_counts)
             if walkers_to_distribute < 0:
-                a = np.random.choice(bins, (-1*walkers_to_distribute))
-                #self.system.bin_target_counts[a] -= 1
+                # When we're taking walkers away, we don't want to remove more than we have.  Ergo, we generate a large array, using repeat, then pull from there...
+                # We can't remove ALL the walkers from active bins, so we only allow up to total-1 to be removed.
+                bins_to_repeat = self.system.bin_target_counts[bins] - 1
+                try:
+                    a = np.random.choice(np.repeat(bins,bins_to_repeat),size=(-1*walkers_to_distribute),replace=False)
+                except ValueError as e:
+                    a = np.random.choice(np.repeat(bins,bins_to_repeat),size=(-1*walkers_to_distribute),replace=True)
+                    log.warning("CTC: You don't have enough walkers set to use threshold mode.  Add more walkers: {}".format(e))
+                #a = np.random.choice(bins, (-1*walkers_to_distribute))
                 dist_to_bins = np.bincount(a)
-                for b in bins:
-                    self.system.bin_target_counts[b] -= dist_to_bins[b]
+                for iw,w in enumerate(dist_to_bins):
+                    self.system.bin_target_counts[iw] -= w
                 for b in bins:
                     if self.system.bin_target_counts[b] <= 0:
                         self.system.bin_target_counts[b] = 1
                         log.warning("CTC: You don't have enough walkers set to use threshold mode.  Add more walkers!")
+                print(self.system.bin_target_counts)
             if walkers_to_distribute > 0:
                 a = np.random.choice(bins, walkers_to_distribute)
                 dist_to_bins = np.bincount(a)
-                print(dist_to_bins)
-                print(self.system.bin_target_counts)
                 for iw,w in enumerate(dist_to_bins):
-                    print(iw,w, self.system.bin_target_counts[iw] + w)
-                    # What the fuck?  It's ignoring the system choice and casting to an 8 bit.
-                    # When it's around 250!  Fucking numpy.
-                    self.system.bin_target_counts = self.system.bin_target_counts.astype(np.uint64, copy=False)
-                    print(self.system.bin_target_counts.astype(np.uint64, copy=False).dtype)
-                    print(self.system.bin_target_counts.dtype)
-                    self.system.bin_target_counts[iw] = self.system.bin_target_counts[iw] + w
-                    print(self.system.bin_target_counts.dtype)
-                print(self.system.bin_target_counts)
+                    self.system.bin_target_counts[iw] += w
             self.we_driver.bin_target_counts = self.system.bin_target_counts
 
 
