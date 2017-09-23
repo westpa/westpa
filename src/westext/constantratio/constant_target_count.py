@@ -32,7 +32,7 @@ def kMeans(X, K, maxIters = 10, plot_progress = None):
         if plot_progress != None: plot_progress(X, C, np.array(centroids))
     return np.array(centroids) , C
 
-import sys
+import sys, math
 #plt.ion()
 
 def show(X, C, centroids, keep = False):
@@ -67,6 +67,7 @@ class TargetRatio:
         self.states = plugin_config.get('state_definitions')
         self.state_to_trajectory = plugin_config.get('state_weights')
         # If we set it to automatic mode, then ignore any options relating to the ratio.
+        # We can still use threshold mode, although given the way the code runs (ratio, threshold, automatic) it probably wouldn't do anything at the moment.
         #self.automatic = True if not plugin_config.get('automatic') else plugin_config.get('automatic')
         self.automatic = plugin_config.get('automatic')
         self.ratio_mode = False if self.automatic else True
@@ -99,15 +100,12 @@ class TargetRatio:
 
         assignments = bin_mapper.assign(final_pcoords)
 
-        #self.automatic = True
-        #self.ratio_mode = False
         target_states = []
         for i in self.we_driver.target_states.values():
             target_states.append(bin_mapper.assign([i.pcoord])[0])
 
         if self.ratio_mode:
             state_bins = []
-            #if self.states == 'None':
             if self.states == 'None':
                 for i in (set(assignments)):
                     state_bins.append(i)
@@ -142,12 +140,14 @@ class TargetRatio:
 
             if extra < 0:
                 extra = 0
-            self.system.bin_target_counts = target_counts
-            self.we_driver.bin_target_counts = target_counts
+            # Let's move to using target_counts, and wait until the end to place it into the structure.
+            #self.system.bin_target_counts = target_counts
+            #self.we_driver.bin_target_counts = target_counts
             active_walkers = int(((active_bins)*bin_counts))
             for s_bin,t_bin in itertools.izip(state_bins, self.state_to_trajectory):
-                self.system.bin_target_counts[s_bin] = (bin_counts * (t_bin))
-                self.we_driver.bin_target_counts[s_bin] = (bin_counts * (t_bin))
+                #self.system.bin_target_counts[s_bin] = (bin_counts * (t_bin))
+                #self.we_driver.bin_target_counts[s_bin] = (bin_counts * (t_bin))
+                target_counts[s_bin] = (bin_counts * (t_bin))
                 #active_walkers += (bin_counts *(t_bin-1))
             #active_walkers = int(((active_bins)*bin_counts) + (active_states))
             if active_walkers < self.max_replicas:
@@ -160,21 +160,25 @@ class TargetRatio:
                         rand = np.random.randint(0,bin_mapper.nbins)
                     #self.system.bin_target_counts[active_state_list[rand]] += 1
                     #self.we_driver.bin_target_counts[active_state_list[rand]] += 1
-                    self.system.bin_target_counts[rand] += 1
-                    self.we_driver.bin_target_counts[rand] += 1
+                    #self.system.bin_target_counts[rand] += 1
+                    #self.we_driver.bin_target_counts[rand] += 1
+                    target_counts[rand] += 1
                     active_walkers += 1
+            self.system.bin_target_counts = target_counts
+            self.we_driver.bin_target_counts = target_counts
 
         
         #self.threshold_mode = True
         if self.threshold_mode:
+            FAILED = False
             # If we want to institute a weight threshold, then let's do it here by varying the number of bins.
             # First, we'll need the bin sums...
-            print(bin_mapper)
-            print(dir(bin_mapper))
+            target_counts = self.system.bin_target_counts[...]
             # We should already have this, but let's just redo it now for certain.
             for iseg, segment in enumerate(segments):
                 final_pcoords[iseg] = segment.pcoord[-1,:]
             assignments = bin_mapper.assign(final_pcoords)
+            active_bin_list = list(set(assignments))
             # Now that we have the assignments and the active bins...
             #print(assignments)
             #print(assignments.shape)
@@ -183,46 +187,48 @@ class TargetRatio:
             weights = np.zeros(bin_mapper.nbins)
             for iseg, segment in enumerate(segments):
                 weights[assignments[iseg]] += segment.weight
-            print(weights)
             # Good!  Now weights gives us the weight of each bin.  This information may be exposed elsewhere, but.
             # We can now determine if any of the combined weights/walkers exceeds a particular threshold.
             bins_out_of_range = []
             walkers_to_distribute = 0
-            import math
             for ib, b in enumerate(weights):
-                print(b/self.system.bin_target_counts[ib])
-                target_weight = b / self.system.bin_target_counts[ib]
+                #print(b/self.system.bin_target_counts[ib])
+                #target_weight = b / self.system.bin_target_counts[ib]
+                log.debug('CTC: Bin ID {}, Ideal weight {}'.format(ib, b/target_counts[ib]))
+                target_weight = b / target_counts[ib]
                 # The ideal min number of walkers is set by the thresholds.  Let's just hardcode this in for now...
                 if target_weight > self.upper_threshold:
-                    log.warning("TOO LARGE!")
+                    log.debug('CTC: Bin ID {} is too heavy; requires more walkers.'.format(ib))
                     tc = int(math.ceil(b / self.upper_threshold))
                     bins_out_of_range.append(ib)
-                    walkers_to_distribute -= (tc - self.system.bin_target_counts[ib])
-                    self.system.bin_target_counts[ib] = tc
+                    #walkers_to_distribute -= (tc - self.system.bin_target_counts[ib])
+                    walkers_to_distribute -= (tc - target_counts[ib])
+                    #self.system.bin_target_counts[ib] = tc
+                    target_counts[ib] = tc
                 if target_weight < self.lower_threshold and target_weight != 0:
-                    log.warning("TOO SMALL!")
+                    log.debug('CTC: Bin ID {} is too light; merging down to one walkers.'.format(ib))
                     tc = int(math.floor(b / self.lower_threshold))
                     if tc == 0:
                         tc = 1
                     bins_out_of_range.append(ib)
-                    walkers_to_distribute += (self.system.bin_target_counts[ib] - tc)
-                    self.system.bin_target_counts[ib] = tc
+                    #walkers_to_distribute += (self.system.bin_target_counts[ib] - tc)
+                    walkers_to_distribute += (target_counts[ib] - tc)
+                    #self.system.bin_target_counts[ib] = tc
+                    target_counts[ib] = tc
             bins = list(set(assignments))
-            print("Yay!")
-            print(bins_out_of_range, bins)
-            print(walkers_to_distribute)
+            log.debug('CTC: Active Bins, Bins out of range: {}, {}'.format(bins, bins_out_of_range))
+            log.debug('CTC: Walkers to distribute/take: {}'.format(walkers_to_distribute))
             for b in bins_out_of_range:
-                print(b)
                 bins.remove(b)
             if len(bins) == 0:
                 # We can't really do much here, then.
+                log.warning('CTC: All bins are either too heavy or too light.  This should rarely happen and resolve on its own.')
                 bins = list(set(assignments))
-            print(len(bins))
-            print(self.system.bin_target_counts)
             if walkers_to_distribute < 0:
                 # When we're taking walkers away, we don't want to remove more than we have.  Ergo, we generate a large array, using repeat, then pull from there...
                 # We can't remove ALL the walkers from active bins, so we only allow up to total-1 to be removed.
-                bins_to_repeat = self.system.bin_target_counts[bins] - 1
+                #bins_to_repeat = self.system.bin_target_counts[bins] - 1
+                bins_to_repeat = target_counts[bins] - 1
                 try:
                     a = np.random.choice(np.repeat(bins,bins_to_repeat),size=(-1*walkers_to_distribute),replace=False)
                 except ValueError as e:
@@ -231,25 +237,27 @@ class TargetRatio:
                 #a = np.random.choice(bins, (-1*walkers_to_distribute))
                 dist_to_bins = np.bincount(a)
                 for iw,w in enumerate(dist_to_bins):
-                    self.system.bin_target_counts[iw] -= w
+                    #self.system.bin_target_counts[iw] -= w
+                    target_counts[iw] -= w
                 for b in bins:
-                    if self.system.bin_target_counts[b] <= 0:
-                        self.system.bin_target_counts[b] = 1
+                    #if self.system.bin_target_counts[b] <= 0:
+                    if target_counts[b] <= 0:
+                        #self.system.bin_target_counts[b] = 1
+                        target_counts[b] = 1
                         log.warning("CTC: You don't have enough walkers set to use threshold mode.  Add more walkers!")
-                print(self.system.bin_target_counts)
+                        # We failed to stay within the limits, here...
+                        FAILED = True
             if walkers_to_distribute > 0:
                 a = np.random.choice(bins, walkers_to_distribute)
                 dist_to_bins = np.bincount(a)
                 for iw,w in enumerate(dist_to_bins):
-                    self.system.bin_target_counts[iw] += w
-            self.we_driver.bin_target_counts = self.system.bin_target_counts
-
-
-
-    
-
-                
-
+                    #self.system.bin_target_counts[iw] += w
+                    target_counts[iw] += w
+            self.system.bin_target_counts = target_counts
+            self.we_driver.bin_target_counts = target_counts
+            if FAILED == False:
+                # This is a condition where we know we're outside of our target range.
+                assert self.system.bin_target_counts[active_bin_list].sum() == self.max_replicas
 
         if self.automatic:
             # Create the transition rate averager, then, you know, use it.  Wait, does this do it properly?  This'll be a good time to check.
@@ -489,17 +497,23 @@ class TargetRatio:
 
 
         # Report stats
-        westpa.rc.pstatus('-----------stats-for-next-iteration-')
-        westpa.rc.pstatus('target counts: {}'.format(bin_counts))
-        westpa.rc.pstatus('accepted rounds: {}'.format(accepted))
-        for ii_s_bin, s_bin in enumerate(state_bins):
-            target = np.bincount(assignments)[s_bin]
-            if target != 0 and self.states != 'None':
+        # We probably don't really care about this too much, at the moment.
+        assignments = bin_mapper.assign(final_pcoords)
+        active_bin_list = list(set(assignments))
+        #westpa.rc.pstatus('-----------stats-for-next-iteration-')
+        #westpa.rc.pstatus('Average target counts: {}'.format(int(np.average(self.system.bin_target_counts[active_bin_list]))))
+        #westpa.rc.pstatus('Standard Deviation in target counts: {}'.format(int(np.std(self.system.bin_target_counts[active_bin_list]))))
+        if self.automatic:
+            westpa.rc.pstatus('-----auto-stats-for-next-iteration-')
+            westpa.rc.pstatus('accepted rounds: {}'.format(accepted))
+            westpa.rc.pstatus('')
+            westpa.rc.pflush()
+        #for ii_s_bin, s_bin in enumerate(state_bins):
+        #    target = np.bincount(assignments)[s_bin]
+        #    if target != 0 and self.states != 'None':
             #if target != 0:
                 #westpa.rc.pstatus('state {}, bin {} target counts: {}'.format(ii_s_bin, s_bin, np.bincount(assignments)[s_bin]))
-                westpa.rc.pstatus('state {}, bin {} target counts: {}'.format(ii_s_bin, s_bin, self.we_driver.bin_target_counts[s_bin]))
-        westpa.rc.pstatus('')
-        westpa.rc.pflush()
+        #        westpa.rc.pstatus('state {}, bin {} target counts: {}'.format(ii_s_bin, s_bin, self.we_driver.bin_target_counts[s_bin]))
 
     def post_we(self):
         # There's a lot we don't care about here, such as coordinates, etc.  We're not changing the bin mapper, just the counts.
@@ -532,10 +546,14 @@ class TargetRatio:
         target_counts = np.empty((bin_mapper.nbins,), np.int_)
         bin_counts = int(np.floor(self.max_replicas / active_bins))
 
+        # Actually, this is just confusing, I think.
         # Report level statistics
         westpa.rc.pstatus('')
         westpa.rc.pstatus('-----------stats-for-this-iteration-')
-        westpa.rc.pstatus('target counts: {}'.format(bin_counts))
+        #westpa.rc.pstatus('target counts: {}'.format(bin_counts))
+        active_bin_list = list(set(assignments))
+        westpa.rc.pstatus('Average target counts: {}'.format(int(np.average(self.system.bin_target_counts[active_bin_list]))))
+        westpa.rc.pstatus('Standard Deviation in target counts: {}'.format(int(np.std(self.system.bin_target_counts[active_bin_list]))))
         #for ii_s_bin, s_bin in enumerate(state_bins):
         for ii_s_bin, s_bin in enumerate(state_bins):
             target = np.bincount(assignments)[s_bin]

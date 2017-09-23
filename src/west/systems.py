@@ -76,11 +76,10 @@ class WESTSystem:
     @bin_target_counts.setter
     def bin_target_counts(self, target_counts):
         maxcount = max(target_counts)
-        # This is a problematic call for any plugin that we desire to change the type to.
-        #self._bin_target_counts = numpy.array(target_counts, dtype=numpy.min_scalar_type(maxcount))
-        # That is, if it picks int8 (and it does), going over 255 produces... a lot of problems.
-        # I should fix this on the plugin level, but on the other hand...
-        self._bin_target_counts = numpy.array(target_counts, dtype=numpy.int_)
+        # This is a problematic call for any plugin that we desire to change the type to.  Therefore,
+        # all adjustments to target_counts by plugins should be done with a copy of the array, then
+        # inserted back in to avoid integer over/underflow.
+        self._bin_target_counts = numpy.array(target_counts, dtype=numpy.min_scalar_type(maxcount))
                 
     def initialize(self):
         '''Prepare this system object for use in simulation or analysis,
