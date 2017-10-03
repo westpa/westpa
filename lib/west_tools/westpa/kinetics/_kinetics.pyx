@@ -405,13 +405,15 @@ cpdef sequence_macro_flux_to_rate(weight_t[:] dataset, weight_t[:,:] pops, Py_ss
     with nogil:
         for iiter in xrange(dataset.shape[0]):
             if iiter == 0:
-                if pairwise:
+                # We need to catch if we haven't entered the istate or jstate yet.
+                # Otherwise, we introduce a NaN into the calculation that we cannot recover from.
+                if pairwise and (pops[0,istate] + pops[0,jstate]) != 0.0:
                     _psum[0] = pops[0, istate] / (pops[0,istate] + pops[0,jstate])
                 else:
                     _psum[0] = pops[0, istate]
                 _fluxsum[0] = dataset[0]
             else:
-                if pairwise:
+                if pairwise and (pops[iiter,istate] + pops[iiter,jstate]) != 0.0:
                     _psum[iiter] = (pops[iiter, istate] / (pops[iiter,istate] + pops[iiter,jstate])) + _psum[iiter-1]
                 else:
                     _psum[iiter] = pops[iiter,istate] + _psum[iiter-1]
