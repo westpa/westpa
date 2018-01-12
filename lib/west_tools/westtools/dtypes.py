@@ -43,4 +43,5 @@ ed_list_dtype       = numpy.dtype([('istate', numpy.uint16),
                                    ('fstate', numpy.uint16), 
                                    ('duration', numpy.float64),
                                    ('weight', numpy.float64), 
-                                   ('seg_id', seg_id_dtype)])
+                                   ('seg_id', seg_id_dtype),
+                                   ('path', h5py.special_dtype(vlen=str))])

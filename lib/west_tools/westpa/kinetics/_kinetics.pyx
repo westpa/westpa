@@ -449,9 +449,13 @@ cpdef _fast_transition_state_copy(Py_ssize_t iiter,
         double[:] _last_time, _prev_last_time
         double[:,:] _last_entries, _last_exits, _prev_last_entries, _prev_last_exits, _last_exits_td, _prev_last_exits_td
         double[:,:,:] _last_completions, _prev_last_completions
+        str[:] _last_paths, _prev_last_paths
         
     
     nsegs = parent_ids.shape[0]
+
+    # We want to store a string containing the parent trace from the last event to the current.
+    #vvoid_dtype = h5py.special_dtype(vlen=str)
     
     last_time = numpy.empty((nsegs,), numpy.double)
     # Use nstates + 1 to account for possible unknown states
@@ -459,12 +463,14 @@ cpdef _fast_transition_state_copy(Py_ssize_t iiter,
     last_exits = numpy.empty((nsegs,nstates+1), numpy.double)
     last_exits_td = numpy.empty((nsegs,nstates+1), numpy.double)
     last_completions = numpy.empty((nsegs,nstates+1,nstates+1), numpy.double)
+    last_paths = numpy.empty((nsegs,), str)
     
     _last_time = last_time
     _last_entries = last_entries
     _last_exits = last_exits
     _last_exits_td = last_exits_td
     _last_completions = last_completions
+    _last_paths = last_paths
     
     has_last_state = (last_state is not None)
     
@@ -474,6 +480,7 @@ cpdef _fast_transition_state_copy(Py_ssize_t iiter,
         _prev_last_exits = last_state[2]
         _prev_last_exits_td = last_state[3]
         _prev_last_completions = last_state[4]
+        _prev_last_paths = last_state[5]
     
     for seg_id in xrange(nsegs):
         parent_id = parent_ids[seg_id]
@@ -484,14 +491,16 @@ cpdef _fast_transition_state_copy(Py_ssize_t iiter,
             _last_exits[seg_id,:] = 0.0
             _last_exits_td[seg_id,:] = 0.0
             _last_completions[seg_id,:,:] = 0.0
+            _last_paths[seg_id] = ''
         else:
             _last_time[seg_id] = _prev_last_time[parent_id]
             _last_entries[seg_id,:] = _prev_last_entries[parent_id,:]
             _last_exits[seg_id,:] = _prev_last_exits[parent_id,:]
             _last_exits_td[seg_id,:] = _prev_last_exits_td[parent_id,:]
             _last_completions[seg_id,:,:] = _prev_last_completions[parent_id,:,:]
+            _last_paths[seg_id] = _prev_last_paths[parent_id] + '({},{})'.format(iiter, seg_id)
             
-    return (last_time, last_entries, last_exits, last_exits_td, last_completions)
+    return (last_time, last_entries, last_exits, last_exits_td, last_completions, last_paths)
 
 
 @cython.boundscheck(False)
@@ -513,6 +522,8 @@ cpdef find_macrostate_transitions(Py_ssize_t nstates,
         double[:] _last_time
         double[:,:] _last_entries, _last_exits, _last_exits_td
         double[:,:,:] _last_completions
+        str[:] _last_paths
+        str _path
         index_t flabel, ilabel, iistate, slabel
         weight_t _weight
     """
@@ -560,10 +571,12 @@ cpdef find_macrostate_transitions(Py_ssize_t nstates,
     _last_exits = state[2]
     _last_exits_td = state[3]
     _last_completions = state[4]
+    _last_paths = state[5]
     
     for seg_id in xrange(nsegs):
         itime = _last_time[seg_id]
         _weight = weights[seg_id]
+        _path = _last_paths[seg_id]
 
         # transitions never occur between the (overlapping) end point of previous iteration and beginning of
         # current iteration, so it suffices to start looking at timepoint 1 (and backwards to timepoint 0)
@@ -597,7 +610,7 @@ cpdef find_macrostate_transitions(Py_ssize_t nstates,
                         # list to explode
                         if iistate != flabel:
                             t_ed = tm - _last_exits_td[seg_id,iistate]
-                            durations.append((iistate,flabel,t_ed,_weight, seg_id))
+                            durations.append((iistate,flabel,t_ed,_weight, seg_id, _path))
         _last_time[seg_id] = tm
 
 
