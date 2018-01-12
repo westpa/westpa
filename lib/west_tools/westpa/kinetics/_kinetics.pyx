@@ -443,6 +443,7 @@ cpdef _fast_transition_state_copy(Py_ssize_t iiter,
                                   Py_ssize_t nstates, 
                                   seg_id_t[:] parent_ids,
                                   object last_state):
+    import h5py
     cdef:
         bint has_last_state = 0
         Py_ssize_t nsegs, seg_id, parent_id
@@ -452,10 +453,11 @@ cpdef _fast_transition_state_copy(Py_ssize_t iiter,
         str[:] _last_paths, _prev_last_paths
         
     
+    #h5py.special_dtype(vlen=str))
     nsegs = parent_ids.shape[0]
 
     # We want to store a string containing the parent trace from the last event to the current.
-    #vvoid_dtype = h5py.special_dtype(vlen=str)
+    vvoid_dtype = h5py.special_dtype(vlen=str)
     
     last_time = numpy.empty((nsegs,), numpy.double)
     # Use nstates + 1 to account for possible unknown states
@@ -463,7 +465,7 @@ cpdef _fast_transition_state_copy(Py_ssize_t iiter,
     last_exits = numpy.empty((nsegs,nstates+1), numpy.double)
     last_exits_td = numpy.empty((nsegs,nstates+1), numpy.double)
     last_completions = numpy.empty((nsegs,nstates+1,nstates+1), numpy.double)
-    last_paths = numpy.empty((nsegs,), str)
+    last_paths = numpy.empty((nsegs,), vvoid_dtype)
     
     _last_time = last_time
     _last_entries = last_entries
@@ -498,7 +500,7 @@ cpdef _fast_transition_state_copy(Py_ssize_t iiter,
             _last_exits[seg_id,:] = _prev_last_exits[parent_id,:]
             _last_exits_td[seg_id,:] = _prev_last_exits_td[parent_id,:]
             _last_completions[seg_id,:,:] = _prev_last_completions[parent_id,:,:]
-            _last_paths[seg_id] = _prev_last_paths[parent_id] + '({},{})'.format(iiter, seg_id)
+            _last_paths[seg_id] = _prev_last_paths[parent_id] + '({},{});'.format(iiter, seg_id)
             
     return (last_time, last_entries, last_exits, last_exits_td, last_completions, last_paths)
 
@@ -610,7 +612,11 @@ cpdef find_macrostate_transitions(Py_ssize_t nstates,
                         # list to explode
                         if iistate != flabel:
                             t_ed = tm - _last_exits_td[seg_id,iistate]
+                            #rpath = ';'.join(_path.split(';'))
                             durations.append((iistate,flabel,t_ed,_weight, seg_id, _path))
+                            # this command cuts off the history trace to only include the path since the LAST event.
+                            _last_paths[seg_id] = ''
+
         _last_time[seg_id] = tm
 
 

@@ -18,6 +18,7 @@
 '''Numpy/HDF5 data types shared among several WESTPA tools'''
 
 import numpy
+import h5py
 
 # Pick up a few data types from the WEST core if possible
 try:
