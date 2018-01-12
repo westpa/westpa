@@ -71,6 +71,26 @@ def _rate_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha,
 
     return results
 
+def _new_rate_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha, mcbs_nsets, mcbs_acalpha, do_correl, mcbs_enable):
+    # Our rate estimator is a little more complex, so we've defined a custom evaluation block for it,
+    # instead of just using the block evalutors that we've imported.
+    results = []
+    for istate in xrange(nstates):
+        for jstate in xrange(nstates):
+            if istate == jstate: continue
+            kwargs = { 'istate' : istate, 'jstate': jstate }
+            # Why are we sending in the total population dataset, instead of a sliced one?
+            # It's a requirement of our estimator; we need to pull from any given i to j state in order to properly normalize
+            # and avoid i to j rate constants which are affected by a third state k.
+            # That is, we need the populations for both i and j, and it's easier to just send in the entire dataset.
+            dataset = {'dataset': data_input['dataset'][(iblock, istate, jstate)], 'pops': np.cumsum(data_input['pops']) }
+            ci_res = mcbs_ci_correl(dataset,estimator=sequence_macro_flux_to_rate,
+                                    alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
+                                    subsample=numpy.mean, do_correl=do_correl, mcbs_enable=mcbs_enable, estimator_kwargs=kwargs)
+            results.append((name, iblock, istate, jstate, (start,stop) + ci_res))
+
+    return results
+
 
 # The old w_kinetics
 class DKinetics(WESTKineticsBase, WKinetics):
@@ -312,6 +332,52 @@ Command-line options
         submit_kwargs['dataset'] = {'dataset': total_fluxes }
         rate_evol = self.run_calculation(eval_block=_1D_simple_eval_block, name='Target Flux Evolution', dim=1, **submit_kwargs)
         self.output_file.replace_dataset('target_flux_evolution', data=rate_evol, shuffle=True, compression=9)
+
+        # Test new error mechanism.
+        #cond_fluxes_like = np.empty_like(self.kinetics_file['conditional_fluxes'])
+        rUNIQUE = self.compress_durations(self.kinetics_file['durations'])
+        submit_kwargs['dataset'] = {'dataset': rUNIQUE, 'pops': pops}
+        rate_evol = self.run_calculation(eval_block=_new_rate_eval_block, name='Rate Evolution', dim=2, **submit_kwargs)
+        self.output_file.replace_dataset('rate_evolution', data=rate_evol, shuffle=True, compression=9)
+
+    def compress_durations(self, durations):
+        # We're going to loop through the durations
+        # We have a duration count, and then the durations themselves
+        UNIQUE = {}
+        #for i in range(0, self.nstates):
+        #    for j in range(0, self.nstates):
+        #        UNIQUE[(i,j)] = {}
+        # Here, we compress the dataset down, but add in new 'events' without treating them as independent (we just update
+        # the path probabilities).
+        for iiter in range(0, dset.shape[0]):
+            for i in range(0, self.nstates):
+                for j in range(0, self.nstates):
+                    if iiter != 1:
+                        UNIQUE[(iiter,i,j)] = copy.deepcopy(UNIQUE[(iiter-1, i, j)])
+                    else:
+                        UNIQUE[(iiter,i,j)] = {}
+            for dur in durations['duration_count'][iiter]:
+                parent = dur['path'].split(';')[0]
+                ikey = (iiter, dur['istate'], dur['fstate'])
+                if parent in UNIQUE[ikey].keys():
+                    UNIQUE[ikey][parent] += dur['weight']
+                else:
+                    UNIQUE[ikey][parent] = dur['weight']
+
+        rUNIQUE = {}
+        for iiter in range(0, dset.shape[0]):
+            for i in range(0, self.nstates):
+                for j in range(0, self.nstates):
+                    rUNIQUE[(iiter,i,j)] = []
+                    for key, value in UNIQUE[(iiter,i,j)].keys():
+                        rUNIQUE[(iiter,i,j)].append(value)
+        # Okay, so we're returning a dictionary indexed by a tuple of iteration and states.
+        # Each list contains an up to date list of guaranteed independent flux events.
+        # We'll need a new event block, and probably a new estimator, to handle it, unless
+        # I think of something brilliant.
+        return rUNIQUE
+                
+
 
     def go(self):
         pi = self.progress.indicator
