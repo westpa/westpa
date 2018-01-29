@@ -145,6 +145,7 @@ seg_index_dtype = numpy.dtype( [ ('weight', weight_dtype),              # Statis
                                  ('parent_id', seg_id_dtype),           # ID of parent (for trajectory history)
                                  ('wtg_n_parents', numpy.uint), # number of parents this segment has in the weight transfer graph
                                  ('wtg_offset', numpy.uint),    # offset into the weight transfer graph dataset
+                                 ('group', numpy.str),          # Group ID; used during modified split/merge and analysis.
                                  ('cputime', utime_dtype),              # CPU time used in propagating this segment
                                  ('walltime', utime_dtype),             # Wallclock time used in propagating this segment
                                  ('endpoint_type', seg_endpoint_dtype), # Endpoint type (will continue, merged, or recycled) 
@@ -741,6 +742,7 @@ class WESTDataManager:
                 segment.seg_id = seg_id
                 seg_index_table[seg_id]['status'] = segment.status
                 seg_index_table[seg_id]['weight'] = segment.weight
+                seg_index_table[seg_id]['group'] = segment.group
                 seg_index_table[seg_id]['parent_id'] = segment.parent_id                
                 seg_index_table[seg_id]['wtg_n_parents'] = len(segment.wtg_parent_ids)
                 seg_index_table[seg_id]['wtg_offset'] = total_parents
@@ -861,6 +863,7 @@ class WESTDataManager:
                 ientry['cputime'] = segment.cputime
                 ientry['walltime'] = segment.walltime
                 ientry['weight'] = segment.weight
+                ientry['group'] = segment.group
     
                 pcoord_entries[iseg] = segment.pcoord
                 
@@ -959,6 +962,7 @@ class WESTDataManager:
                                   endpoint_type = int(row['endpoint_type']),
                                   walltime = float(row['walltime']),
                                   cputime = float(row['cputime']),
+                                  group = str(row['group']),
                                   weight = float(row['weight']))
                 
                 if load_pcoords:

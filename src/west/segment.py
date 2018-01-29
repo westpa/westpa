@@ -62,6 +62,7 @@ class Segment:
                  endpoint_type = None,
                  parent_id = None,  wtg_parent_ids = None, 
                  pcoord = None,
+                 group = None,
                  status = None, walltime = None, cputime = None,
                  data = None):
         # NaNs appear sometimes if a WEST program is terminated unexpectedly; replace with zero
@@ -73,6 +74,7 @@ class Segment:
         # calling __str__() on them.  Not sure if this is a numpy, h5py, or python problem
         self.n_iter = int(n_iter)  if n_iter is not None else None
         self.seg_id = long(seg_id) if seg_id is not None else None
+        self.group  = str(group)   if group  is not None else None
         self.status = int(status)  if status is not None else None
         self.parent_id = long(parent_id) if parent_id is not None else None
         self.endpoint_type = int(endpoint_type) if endpoint_type else self.SEG_ENDPOINT_UNSET
