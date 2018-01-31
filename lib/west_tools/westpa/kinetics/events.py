@@ -52,6 +52,7 @@ class WKinetics():
             # Hopefully, this is a fast operation.
             iter_group = self.data_reader.get_iter_group(n_iter)
             cn_groups = self.number_of_groups(iter_group)
+            print(cn_groups)
             n_groups = max(n_groups, cn_groups[0])
             if cn_groups == n_groups:
                 group_ids = cn_groups[1]
