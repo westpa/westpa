@@ -60,7 +60,7 @@ class WKinetics():
         durations_ds = self.output_file.replace_dataset('durations', 
                                                        shape=(n_groups,iter_count,0), maxshape=(n_groups,iter_count,None),
                                                        dtype=ed_list_dtype,
-                                                       chunks=(1,15360) if self.do_compression else None,
+                                                       chunks=(n_groups,1,15360) if self.do_compression else None,
                                                        shuffle=self.do_compression,
                                                        compression=9 if self.do_compression else None)
         durations_count_ds = self.output_file.replace_dataset('duration_count',
@@ -80,7 +80,7 @@ class WKinetics():
 
         cond_arrival_counts_ds = self.output_file.replace_dataset('conditional_arrivals',
                                                                  shape=(n_groups,iter_count,nstates,nstates), dtype=numpy.uint,
-                                                                 chunks=(h5io.calc_chunksize((in_groups,ter_count,nstates,nstates),
+                                                                 chunks=(h5io.calc_chunksize((n_groups,iter_count,nstates,nstates),
                                                                                              numpy.uint)
                                                                          if self.do_compression else None),
                                                           shuffle=self.do_compression,
@@ -103,25 +103,28 @@ class WKinetics():
         # Calculate instantaneous rate matrices and trace trajectories
         last_state = None
         pi.new_operation('Tracing trajectories', iter_count*n_groups)
-        state = {}
         last_state = {}
         for iiter, n_iter in enumerate(xrange(start_iter, stop_iter)):
             iter_group = self.data_reader.get_iter_group(n_iter)
             for gid, seg_ids in self.generate_groups(iter_group):
+                if gid not in last_state:
+                    last_state[gid] = None
                 # Get data from the main HDF5 file
+                seg_ids = list(seg_ids)
+                print(seg_ids)
                 seg_index = iter_group['seg_index'][seg_ids]
                 nsegs, npts = iter_group['pcoord'][seg_ids].shape[0:2] 
-                weights = seg_index['weight'][seg_ids]
+                weights = seg_index['weight']
                 #parent_ids = seg_index['parent_id']
                 parent_ids = self.data_reader.parent_id_dsspec.get_iter_data(n_iter)[seg_ids]
                 
                 # Get bin and traj. ensemble assignments from the previously-generated assignments file
                 assignment_iiter = h5io.get_iteration_entry(self.assignments_file, n_iter)
-                bin_assignments = numpy.require(self.assignments_file['assignments'][assignment_iiter + numpy.s_[:nsegs,:npts]][seg_ids],
+                bin_assignments = numpy.require(self.assignments_file['assignments'][assignment_iiter + numpy.s_[seg_ids,:npts]],
                                                 dtype=index_dtype)
-                label_assignments = numpy.require(self.assignments_file['trajlabels'][assignment_iiter + numpy.s_[:nsegs,:npts]][seg_ids],
+                label_assignments = numpy.require(self.assignments_file['trajlabels'][assignment_iiter + numpy.s_[seg_ids,:npts]],
                                                   dtype=index_dtype)
-                state_assignments = numpy.require(self.assignments_file['statelabels'][assignment_iiter + numpy.s_[:nsegs,:npts]][seg_ids],
+                state_assignments = numpy.require(self.assignments_file['statelabels'][assignment_iiter + numpy.s_[seg_ids,:npts]],
                                                   dtype=index_dtype)
                 
                 # Prepare to run analysis
@@ -136,10 +139,10 @@ class WKinetics():
                 # We'll need to sort through this a bit differently, as we're changing it from per iteration to per iteration AND group.
                 # As it is, if I just leave it here in the loop, it'll error out.
                 # We probably just need to copy and store the last state per GROUP.
-                state[gid] = _fast_transition_state_copy(iiter, nstates, parent_ids, last_state)
+                state = _fast_transition_state_copy(iiter, nstates, parent_ids, last_state[gid])
                 find_macrostate_transitions(nstates, weights, label_assignments, state_assignments, 1.0/(npts-1), state,
                                             cond_fluxes, cond_counts, total_fluxes, total_counts, durations)
-                last_state[gid] = state[gid]
+                last_state[gid] = state
                 
                 # Store trace-based kinetics data
                 cond_fluxes_ds[gid,iiter] = cond_fluxes
@@ -153,5 +156,6 @@ class WKinetics():
                     durations_ds[gid,iiter,:len(durations)] = durations
                         
                 # Do a little manual clean-up to prevent memory explosion
-                del iter_group, weights, parent_ids, bin_assignments, label_assignments, state, cond_fluxes, total_fluxes
+                del weights, parent_ids, bin_assignments, label_assignments, state, cond_fluxes, total_fluxes
                 pi.progress += 1
+            del iter_group

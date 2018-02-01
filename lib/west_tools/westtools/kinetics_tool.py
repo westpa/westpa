@@ -107,7 +107,7 @@ class WESTKineticsBase(WESTSubcommand):
 
         # Here, call the default function.
         gf = self.sort_by_group if group_function == None else group_function
-        yield gf(iter_group)
+        return gf(iter_group)
 
     def sort_by_group(self, iter_group, return_n_groups=False):
         # here, we pull in the groups from the h5 file, and then continue on.
@@ -119,7 +119,7 @@ class WESTKineticsBase(WESTSubcommand):
             return
         else:
             for gid in group_ids:
-                seg_ids = numpy.where(iter_group['seg_index']['group'] == gid)[0]
+                seg_ids = list(numpy.where(iter_group['seg_index']['group'] == gid)[0])
                 yield gid, seg_ids
 
 # This provides some convenience functions, modified from w_kinavg, to help with calculating evolution and averages for observables with the mclib library in a consistent manner.

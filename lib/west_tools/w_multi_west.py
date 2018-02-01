@@ -181,10 +181,14 @@ Command-line options
                 # We're getting the bin mapper, then setting the recycling target...
                 binhash = west['iterations/iter_{0:08d}'.format(2)].attrs['binhash']
                 bin_mapper = get_bin_mapper(west,binhash)
-                print(bin_mapper.assign([[1.0]]))
-                d['rt'] = bin_mapper.assign(west['tstates']['0']['pcoord'][...])[0]
+                try:
+                    d['rt'] = bin_mapper.assign(west['tstates']['0']['pcoord'][...])[0]
+                    self.source_sinks.append(bin_mapper.assign(west['tstates']['0']['pcoord'][...])[0])
+                except:
+                    d['rt'] = None
+                    self.source_sinks.append(None)
+                    pass
                 # We're going to make a set of source and sink states that we can iterate through, eventually.
-                self.source_sinks.append(bin_mapper.assign(west['tstates']['0']['pcoord'][...])[0])
                 # Keep a count of how many simulations for this particular recycling target we have...
                 try:
                     self.n_sims[d['rt']] += 1
@@ -230,7 +234,7 @@ Command-line options
                 print(iter)
                 while total_current_sims > 0 or run_once == 0:
                     #try:
-                    for westdict in westh5:
+                    for iwest, westdict in enumerate(westh5):
                         west = westdict['west']
                         if iter == 1:
                             summary = west['summary'][...]
@@ -245,7 +249,8 @@ Command-line options
                         else:
                             seg_index = westdict['seg_index'][...]
 
-                        if westdict['wm'] == None:
+                        print(westdict['wm'])
+                        if type(westdict['wm']) == type(None):
                             westdict['wm'] = np.ones(seg_index.shape[0])
                         else:
                             # Otherwise, transform the parent recycling matrix into this one.
@@ -263,13 +268,27 @@ Command-line options
                         #seg_index = west['iterations/iter_{0:08d}'.format(iter)]['seg_index'][...]
                         pcoord = west['iterations/iter_{0:08d}'.format(iter)]['pcoord'][...]
                         wtgraph = west['iterations/iter_{0:08d}'.format(iter)]['wtgraph'][...]
+                        new_dtype = np.dtype(seg_index.dtype.descr + [('group','<i8')])
+                        print(seg_index.dtype)
+                        new_seg_index = np.zeros(seg_index.shape, dtype=new_dtype)
+                        print(seg_index.dtype)
+                        print(dir(seg_index.dtype))
+                        print((seg_index.dtype.fields))
+                        for dt,val in seg_index.dtype.fields.iteritems():
+                            print(dt)
+                            new_seg_index[dt] = seg_index[dt]
+                        new_seg_index['group'] = iwest
+                        seg_index = new_seg_index
                         # Let's reweight!
                         # First, we initialize to the correct weights based on prior iterations of recycling.
                         if run_once == 0:
                             seg_index['weight'] *= westdict['wm']
                         # Now, we'll sort through any trajectories that need to be taken care of in terms of removing weight from this simulation...
                         # ... we need the source state, and the assignments.
-                        source_state = self.source_sinks[np.where(np.array(self.source_sinks) != westdict['rt'])[0][0]]
+                        try:
+                            source_state = self.source_sinks[np.where(np.array(self.source_sinks) != westdict['rt'])[0][0]]
+                        except:
+                            source_state = -1
                         assignments = bin_mapper.assign(pcoord[:,0,:])
                         in_source = np.where(assignments == source_state)[0]
 

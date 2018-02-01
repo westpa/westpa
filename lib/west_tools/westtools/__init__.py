@@ -1,5 +1,5 @@
 '''westtools -- classes for implementing command-line tools for WESTPA'''
-from core import WESTTool, WESTParallelTool, WESTToolComponent, WESTSubcommand, WESTMasterCommand
+from core import WESTTool, WESTParallelTool, WESTToolComponent, WESTSubcommand, WESTMasterCommand, WESTMultiTool
 from data_reader import WESTDataReader, WESTDSSynthesizer
 from iter_range import IterRangeSelection
 from selected_segs import SegSelector
