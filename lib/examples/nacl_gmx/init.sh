@@ -11,11 +11,6 @@
 
 source env.sh
 
-# Make sure that WESTPA is not already running.  Running two instances of 
-# WESTPA on a single node/machine can cause problems.
-# The following line will kill any WESTPA process that is currently running.
-pkill -9 -f w_run
-
 # Make sure that seg_logs (log files for each westpa segment), traj_segs (data
 # from each trajectory segment), and istates (initial states for starting new
 # trajectories) directories exist and are empty. 
