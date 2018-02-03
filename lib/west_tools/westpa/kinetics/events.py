@@ -58,36 +58,36 @@ class WKinetics():
                 group_ids = cn_groups[1]
 
         durations_ds = self.output_file.replace_dataset('durations', 
-                                                       shape=(n_groups,iter_count,0), maxshape=(n_groups,iter_count,None),
+                                                       shape=(iter_count,n_groups,0), maxshape=(iter_count,n_groups,None),
                                                        dtype=ed_list_dtype,
-                                                       chunks=(n_groups,1,15360) if self.do_compression else None,
+                                                       chunks=(1,n_groups,15360) if self.do_compression else None,
                                                        shuffle=self.do_compression,
                                                        compression=9 if self.do_compression else None)
         durations_count_ds = self.output_file.replace_dataset('duration_count',
-                                                             shape=(n_groups,iter_count,), dtype=numpy.int_, shuffle=True,compression=9)
+                                                             shape=(iter_count,n_groups,), dtype=numpy.int_, shuffle=True,compression=9)
         cond_fluxes_ds = self.output_file.replace_dataset('conditional_fluxes',
-                                                          shape=(n_groups,iter_count,nstates,nstates), dtype=weight_dtype,
-                                                          chunks=(h5io.calc_chunksize((n_groups,iter_count,nstates,nstates),weight_dtype)
+                                                          shape=(iter_count,n_groups,nstates,nstates), dtype=weight_dtype,
+                                                          chunks=(h5io.calc_chunksize((iter_count,n_groups,nstates,nstates),weight_dtype)
                                                                   if self.do_compression else None),
                                                           shuffle=self.do_compression,
                                                           compression=9 if self.do_compression else None)
         total_fluxes_ds = self.output_file.replace_dataset('total_fluxes',
-                                                          shape=(n_groups,iter_count,nstates), dtype=weight_dtype,
-                                                          chunks=(h5io.calc_chunksize((n_groups,iter_count,nstates),weight_dtype)
+                                                          shape=(iter_count,n_groups,nstates), dtype=weight_dtype,
+                                                          chunks=(h5io.calc_chunksize((iter_count,n_groups,nstates),weight_dtype)
                                                                   if self.do_compression else None),
                                                           shuffle=self.do_compression,
                                                           compression=9 if self.do_compression else None)
 
         cond_arrival_counts_ds = self.output_file.replace_dataset('conditional_arrivals',
-                                                                 shape=(n_groups,iter_count,nstates,nstates), dtype=numpy.uint,
-                                                                 chunks=(h5io.calc_chunksize((n_groups,iter_count,nstates,nstates),
+                                                                 shape=(iter_count,n_groups,nstates,nstates), dtype=numpy.uint,
+                                                                 chunks=(h5io.calc_chunksize((iter_count,n_groups,nstates,nstates),
                                                                                              numpy.uint)
                                                                          if self.do_compression else None),
                                                           shuffle=self.do_compression,
                                                           compression=9 if self.do_compression else None) 
         arrival_counts_ds = self.output_file.replace_dataset('arrivals',
-                                                            shape=(n_groups,iter_count,nstates), dtype=numpy.uint,
-                                                            chunks=(h5io.calc_chunksize((n_groups,iter_count,nstates),
+                                                            shape=(iter_count,n_groups,nstates), dtype=numpy.uint,
+                                                            chunks=(h5io.calc_chunksize((iter_count,n_groups,nstates),
                                                                                         numpy.uint)
                                                                     if self.do_compression else None),
                                                             shuffle=self.do_compression,
@@ -145,15 +145,15 @@ class WKinetics():
                 last_state[gid] = state
                 
                 # Store trace-based kinetics data
-                cond_fluxes_ds[gid,iiter] = cond_fluxes
-                total_fluxes_ds[gid,iiter] = total_fluxes
-                arrival_counts_ds[gid,iiter] = total_counts
-                cond_arrival_counts_ds[gid,iiter] = cond_counts
+                cond_fluxes_ds[iiter,gid] = cond_fluxes
+                total_fluxes_ds[iiter,gid] = total_fluxes
+                arrival_counts_ds[iiter,gid] = total_counts
+                cond_arrival_counts_ds[iiter,gid] = cond_counts
                 
-                durations_count_ds[gid,iiter] = len(durations)
+                durations_count_ds[iiter,gid] = len(durations)
                 if len(durations) > 0:
-                    durations_ds.resize((n_groups,iter_count, max(len(durations), durations_ds.shape[1])))
-                    durations_ds[gid,iiter,:len(durations)] = durations
+                    durations_ds.resize((iter_count,n_groups, max(len(durations), durations_ds.shape[1])))
+                    durations_ds[iiter,gid,:len(durations)] = durations
                         
                 # Do a little manual clean-up to prevent memory explosion
                 del weights, parent_ids, bin_assignments, label_assignments, state, cond_fluxes, total_fluxes
