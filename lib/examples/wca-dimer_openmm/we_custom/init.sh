@@ -1,7 +1,6 @@
 #!/bin/bash
 source env.sh
 ps aux | grep w_run | grep -v grep
-pkill -9 -f w_run
 
 SFX=.d$$
 mv seg_logs{,$SFX}
