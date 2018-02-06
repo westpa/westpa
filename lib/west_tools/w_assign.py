@@ -25,6 +25,7 @@ from west.data_manager import seg_id_dtype, weight_dtype
 from westpa.binning import index_dtype, assign_and_label, accumulate_labeled_populations
 from westtools import (WESTParallelTool, WESTDataReader, WESTDSSynthesizer, BinMappingComponent, mapper_from_dict,
                        ProgressIndicatorComponent)
+from westtools.kinetics_tool import WESTKineticsBase, AverageCommands
 import numpy
 import westpa
 from westpa import h5io
@@ -48,18 +49,18 @@ def parse_pcoord_value(pc_str):
         raise ValueError('too many dimensions')
     return arr
 
-def _assign_label_pop(n_iter, lb, ub, mapper, nstates, state_map, last_labels, parent_id_dsspec, weight_dsspec, pcoord_dsspec, subsample):
+def _assign_label_pop(n_iter, seg_ids, mapper, nstates, state_map, last_labels, parent_id_dsspec, weight_dsspec, pcoord_dsspec, subsample):
 
     nbins = len(state_map)-1
-    parent_ids = parent_id_dsspec.get_iter_data(n_iter,index_exp[lb:ub])
-    weights = weight_dsspec.get_iter_data(n_iter,index_exp[lb:ub])
-    pcoords = pcoord_dsspec.get_iter_data(n_iter,index_exp[lb:ub])
+    parent_ids = parent_id_dsspec.get_iter_data(n_iter,index_exp[seg_ids])
+    weights = weight_dsspec.get_iter_data(n_iter,index_exp[seg_ids])
+    pcoords = pcoord_dsspec.get_iter_data(n_iter,index_exp[seg_ids])
     
-    assignments, trajlabels, statelabels = assign_and_label(lb, ub, parent_ids,
+    assignments, trajlabels, statelabels = assign_and_label(seg_ids, parent_ids,
                                                mapper.assign, nstates, state_map, last_labels, pcoords, subsample)
     pops = numpy.zeros((nstates+1,nbins+1), weight_dtype)
     accumulate_labeled_populations(weights, assignments, trajlabels, pops)
-    return (assignments, trajlabels, pops, lb, ub, statelabels)
+    return (assignments, trajlabels, pops, seg_ids, statelabels)
 
 class WAssign(WESTParallelTool):
     prog='w_assign'
@@ -378,7 +379,7 @@ Command-line options
         log.debug('loaded states: {!r}'.format(self.states))
 
 
-    def assign_iteration(self, n_iter, nstates, nbins, state_map, last_labels):
+    def assign_iteration(self, n_iter, nstates, nbins, state_map, last_labels, n_groups=1, group_function = None):
         ''' Method to encapsulate the segment slicing (into n_worker slices) and parallel job submission
             Submits job(s), waits on completion, splices them back together
             Returns: assignments, trajlabels, pops for this iteration'''
@@ -391,7 +392,7 @@ Command-line options
         assignments = numpy.empty((nsegs, npts), dtype=index_dtype)
         trajlabels = numpy.empty((nsegs, npts), dtype=index_dtype)
         statelabels = numpy.empty((nsegs, npts), dtype=index_dtype)
-        pops = numpy.zeros((nstates+1,nbins+1), dtype=weight_dtype)
+        pops = numpy.zeros((n_groups,nstates+1,nbins+1), dtype=weight_dtype)
 
         #Submit jobs to work manager
         blocksize = nsegs // n_workers
@@ -401,19 +402,21 @@ Command-line options
         def task_gen():
             if __debug__:
                 checkset = set()
-            for lb in xrange(0, nsegs, blocksize):
-                ub = min(nsegs, lb+blocksize)
-                if __debug__:
-                    checkset.update(set(xrange(lb,ub)))
+            for gid, seg_ids in group_function(iter_group):
+                #for lb in xrange(0, nsegs, blocksize):
+                #lb = seg
+                #ub = min(nsegs, lb+blocksize)
+                #if __debug__:
+                #    checkset.update(set(xrange(lb,ub)))
                 args = ()
                 kwargs = dict(n_iter=n_iter,
-                              lb=lb, ub=ub, mapper=self.binning.mapper, nstates=nstates, state_map=state_map,
+                              seg_ids=seg_ids, mapper=self.binning.mapper, nstates=nstates, state_map=state_map,
                               last_labels=last_labels, 
                               parent_id_dsspec=self.data_reader.parent_id_dsspec, 
                               weight_dsspec=self.data_reader.weight_dsspec,
                               pcoord_dsspec=self.dssynth.dsspec,
                               subsample=self.subsample)
-                yield (_assign_label_pop, args, kwargs)
+                yield (_assign_label_pop, args, kwargs, gid)
 
                 #futures.append(self.work_manager.submit(_assign_label_pop, 
                 #kwargs=)
@@ -422,11 +425,11 @@ Command-line options
 
         #for future in self.work_manager.as_completed(futures):
         for future in self.work_manager.submit_as_completed(task_gen(), queue_size=self.max_queue_len):
-            assign_slice, traj_slice, slice_pops, lb, ub, state_slice = future.get_result(discard=True)
+            assign_slice, traj_slice, slice_pops, seg_ids, state_slice, gid = future.get_result(discard=True)
             assignments[lb:ub, :] = assign_slice
             trajlabels[lb:ub, :] = traj_slice
             statelabels[lb:ub, :] = state_slice
-            pops += slice_pops
+            pops[gid] += slice_pops
             del assign_slice, traj_slice, slice_pops, state_slice
 
         del futures
@@ -482,14 +485,26 @@ Command-line options
             iter_count = iter_stop - iter_start
             nsegs = numpy.empty((iter_count,), seg_id_dtype)
             npts = numpy.empty((iter_count,), seg_id_dtype)
+            # Hack in some group handling, here.
+            GP = WESTKineticsBase(self)
+            n_groups = 0
 
-            # scan for largest number of segments and largest number of points
-            pi.new_operation ('Scanning for segment and point counts', iter_stop-iter_start)
+            #for iiter, n_iter in enumerate(xrange(start_iter, stop_iter)):
             for iiter, n_iter in enumerate(xrange(iter_start,iter_stop)):
+                # Get data from the main HDF5 file to determine the number of groups.
+                # Hopefully, this is a fast operation.
                 iter_group = self.data_reader.get_iter_group(n_iter)
-                nsegs[iiter], npts[iiter] = iter_group['pcoord'].shape[0:2]
-                pi.progress += 1
-                del iter_group
+                cn_groups = GP.number_of_groups(iter_group)
+                n_groups = max(n_groups, cn_groups[0])
+                if cn_groups == n_groups:
+                    group_ids = cn_groups[1]
+                # scan for largest number of segments and largest number of points
+                pi.new_operation ('Scanning for segment and point counts', iter_stop-iter_start)
+                for iiter, n_iter in enumerate(xrange(iter_start,iter_stop)):
+                    iter_group = self.data_reader.get_iter_group(n_iter)
+                    nsegs[iiter], npts[iiter] = iter_group['pcoord'].shape[0:2]
+                    pi.progress += 1
+                    del iter_group
 
             pi.new_operation('Preparing output')
 
@@ -517,7 +532,7 @@ Command-line options
                                                                 chunks=h5io.calc_chunksize(assignments_shape, trajlabel_dtype),
                                                                 fillvalue=nstates)
 
-            pops_shape = (iter_count,nstates+1,nbins+1)
+            pops_shape = (iter_count,n_groups,nstates+1,nbins+1)
             pops_ds = self.output_file.create_dataset('labeled_populations', dtype=weight_dtype, shape=pops_shape,
                                                       compression=4, shuffle=True,
                                                       chunks=h5io.calc_chunksize(pops_shape, weight_dtype))
@@ -533,7 +548,7 @@ Command-line options
                     last_labels[:] = nstates #unknown state
 
                 #Slices this iteration into n_workers groups of segments, submits them to wm, splices results back together
-                assignments, trajlabels, pops, statelabels = self.assign_iteration(n_iter, nstates, nbins, state_map, last_labels)
+                assignments, trajlabels, pops, statelabels = self.assign_iteration(n_iter, nstates, nbins, state_map, last_labels, n_groups, GP.generate_groups)
 
                 ##Do stuff with this iteration's results
 

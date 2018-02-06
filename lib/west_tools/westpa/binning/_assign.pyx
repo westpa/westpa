@@ -201,8 +201,7 @@ cpdef output_map(index_t[:] output,
 
 @cython.boundscheck(False)
 @cython.wraparound(False)    
-cpdef assign_and_label(Py_ssize_t nsegs_lb, 
-                       Py_ssize_t nsegs_ub,
+cpdef assign_and_label(index_t[:] seg_ids, 
                        long[:] parent_ids, # only for given segments
                        object assign,
                        Py_ssize_t nstates,
@@ -214,13 +213,13 @@ cpdef assign_and_label(Py_ssize_t nsegs_lb,
     '''Assign trajectories to bins and last-visted macrostates for each timepoint.'''
     
     cdef:
-        Py_ssize_t ipt, nsegs, npts, iseg
+        Py_ssize_t ipt, nsegs, npts, iseg, iseg_count
         index_t[:,:] _assignments, _trajlabels, _statelabels
         index_t[:] seg_assignments
         long seg_id, parent_id, msegid
         index_t ptlabel
     
-    nsegs = nsegs_ub - nsegs_lb
+    nsegs = len(seg_ids)
     npts = pcoords.shape[1]
     # We want to enable some subsampling, for steadystate simulations...
     # And we need to keep them alive through the merge.
@@ -246,7 +245,8 @@ cpdef assign_and_label(Py_ssize_t nsegs_lb,
     if state_map is not None:
         if subsample == False:
             with nogil:
-                for iseg in range(nsegs):
+                for iseg_count in range(nsegs):
+                    iseg = seg_ids[iseg_count]
                     seg_id = iseg+nsegs_lb
                     parent_id = parent_ids[iseg]
                     for ipt in range(npts):
@@ -270,7 +270,8 @@ cpdef assign_and_label(Py_ssize_t nsegs_lb,
                             _trajlabels[iseg,ipt] = ptlabel
         else:
             with nogil:
-                for iseg in range(nsegs):
+                for iseg_count in range(nsegs):
+                    iseg = seg_ids[iseg_count]
                     seg_id = iseg+nsegs_lb
                     parent_id = parent_ids[iseg]
                     for ipt in range(npts):

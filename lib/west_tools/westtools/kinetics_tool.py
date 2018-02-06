@@ -298,7 +298,6 @@ class AverageCommands(WESTKineticsBase):
                         future_kwargs['data_input'][key] = value.iter_slice(block_start,stop) if hasattr(value, 'iter_slice') else value[block_start:stop]
                     except:
                         future_kwargs['data_input'][key] = value.iter_slice(block_start,stop) if hasattr(value, 'iter_slice') else value[block_start:stop,:]
-                    #print(future_kwargs['data_input'][key])
 
                 # We create a future object with the appropriate name, and then append it to the work manager.
                 futures.append(generate_future(self.work_manager, name, eval_block, future_kwargs))

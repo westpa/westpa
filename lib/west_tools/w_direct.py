@@ -63,7 +63,8 @@ def _rate_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha,
             # It's a requirement of our estimator; we need to pull from any given i to j state in order to properly normalize
             # and avoid i to j rate constants which are affected by a third state k.
             # That is, we need the populations for both i and j, and it's easier to just send in the entire dataset.
-            dataset = {'dataset': data_input['dataset'][:, istate, jstate], 'pops': data_input['pops'] }
+            pops = numpy.reshape(numpy.repeat(data_input['pops'].sum(axis=0)/(data_input['dataset'].shape[0]), repeats=data_input['dataset'].shape[1]), (data_input['dataset'].shape[1], data_input['pops'].shape[1]))
+            dataset = {'dataset': data_input['dataset'][:, :, istate, jstate].sum(axis=0), 'pops': pops }
             ci_res = mcbs_ci_correl(dataset,estimator=sequence_macro_flux_to_rate,
                                     alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
                                     subsample=numpy.mean, do_correl=do_correl, mcbs_enable=mcbs_enable, estimator_kwargs=kwargs)
