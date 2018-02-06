@@ -502,10 +502,11 @@ cpdef find_macrostate_transitions(Py_ssize_t nstates,
                                   index_t[:,:] state_assignments,
                                   double dt, 
                                   object state,
-                                  weight_t[:,:] macro_fluxes,
-                                  uint_t[:,:] macro_counts,
-                                  weight_t[:] target_fluxes,
-                                  uint_t[:] target_counts,
+                                  weight_t[:,:,:] macro_fluxes,
+                                  uint_t[:,:,:] macro_counts,
+                                  weight_t[:,:] target_fluxes,
+                                  uint_t[:,:] target_counts,
+                                  long[:] groups,
                                   object durations):
     cdef:
         Py_ssize_t nsegs, npts, seg_id, ipt
@@ -513,8 +514,10 @@ cpdef find_macrostate_transitions(Py_ssize_t nstates,
         double[:] _last_time
         double[:,:] _last_entries, _last_exits, _last_exits_td
         double[:,:,:] _last_completions
+        long[:] _groups
         index_t flabel, ilabel, iistate, slabel
         weight_t _weight
+        long sgrp
     """
     A cythoned function designed to track how long macrostate transitions take.  Requires the simulation
     to have already been binned and placed into macrostates, as appropriate.  Called by functions such as
@@ -564,6 +567,7 @@ cpdef find_macrostate_transitions(Py_ssize_t nstates,
     for seg_id in xrange(nsegs):
         itime = _last_time[seg_id]
         _weight = weights[seg_id]
+        sgrp = _groups[seg_id]
 
         # transitions never occur between the (overlapping) end point of previous iteration and beginning of
         # current iteration, so it suffices to start looking at timepoint 1 (and backwards to timepoint 0)
@@ -578,8 +582,8 @@ cpdef find_macrostate_transitions(Py_ssize_t nstates,
                 _last_exits_td[seg_id,flabel] = tm
 
             if flabel != ilabel:
-                target_fluxes[flabel] += _weight
-                target_counts[flabel] += 1
+                target_fluxes[sgrp,flabel] += _weight
+                target_counts[sgrp,flabel] += 1
                 _last_exits[seg_id,ilabel] = tm
                 _last_entries[seg_id,flabel] = tm
 
@@ -589,15 +593,15 @@ cpdef find_macrostate_transitions(Py_ssize_t nstates,
                     # equality applies only for 0, which means we're counting an arrival from the
                     # state where the trajectory started
                     if _last_exits[seg_id, iistate] > 0 and _last_entries[seg_id,iistate] >= _last_completions[seg_id,iistate,flabel]:
-                        macro_fluxes[iistate,flabel] += _weight
-                        macro_counts[iistate,flabel] += 1
+                        macro_fluxes[sgrp,iistate,flabel] += _weight
+                        macro_counts[sgrp,iistate,flabel] += 1
                         _last_completions[seg_id,iistate,flabel] = tm
 
                         # omit circular transitions (for now) because it causes the transition
                         # list to explode
                         if iistate != flabel:
                             t_ed = tm - _last_exits_td[seg_id,iistate]
-                            durations.append((iistate,flabel,t_ed,_weight, seg_id))
+                            durations.append((iistate,sgrp,flabel,t_ed,_weight, seg_id))
         _last_time[seg_id] = tm
 
 

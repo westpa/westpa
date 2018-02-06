@@ -55,22 +55,27 @@ def _group_eval_block(**future_kwargs):
     iiter = future_kwargs['iiter']
     parent_ids = future_kwargs['parent_ids']
     last_state = future_kwargs['last_state']
+    n_groups = future_kwargs['n_groups']
+    del future_kwargs['n_groups']
+    groups = future_kwargs['groups']
+    del future_kwargs['groups']
     state = _fast_transition_state_copy(iiter, nstates, parent_ids, last_state)
     del(future_kwargs['iiter'])
     del(future_kwargs['parent_ids'])
     del(future_kwargs['last_state'])
 
     # This is almost certainly not fast.
-    cond_fluxes = numpy.zeros((nstates,nstates), weight_dtype)
-    total_fluxes = numpy.zeros((nstates,), weight_dtype)
-    cond_counts = numpy.zeros((nstates,nstates), numpy.uint)
-    total_counts = numpy.zeros((nstates,), numpy.uint)
+    cond_fluxes = numpy.zeros((n_groups,nstates,nstates), weight_dtype)
+    total_fluxes = numpy.zeros((n_groups,nstates,), weight_dtype)
+    cond_counts = numpy.zeros((n_groups,nstates,nstates), numpy.uint)
+    total_counts = numpy.zeros((n_groups,nstates,), numpy.uint)
     durations = []
     future_kwargs.update(dict(macro_fluxes=cond_fluxes,
                          macro_counts=cond_counts,
                          target_fluxes=total_fluxes,
                          target_counts=total_counts,
                          state=state,
+                         groups=groups,
                          durations=durations))
     gid = future_kwargs['gid']
     del(future_kwargs['gid'])
@@ -161,8 +166,15 @@ class WKinetics():
             parent_ids = self.data_reader.parent_id_dsspec.get_iter_data(n_iter)
             seg_index = iter_group['seg_index']
             weights = seg_index['weight']
+
+            # We just want a numpy array of group ids, basically.
             
+            groups = numpy.zeros((seg_index.shape))
             for gid, seg_ids in self.generate_groups(iter_group):
+                groups[seg_ids] = gid
+
+            if True:
+                gid = 0    
                 if gid not in last_state:
                     last_state[gid] = None
                 # Get data from the main HDF5 file
@@ -183,12 +195,13 @@ class WKinetics():
                 # As it is, if I just leave it here in the loop, it'll error out.
                 # We probably just need to copy and store the last state per GROUP.
 
-                future_kwargs = dict(nstates=nstates, weights=weights[seg_ids],
-                                     label_assignments=label_assignments[seg_ids],
-                                     state_assignments=state_assignments[seg_ids],
+                future_kwargs = dict(nstates=nstates, weights=weights,
+                                     label_assignments=label_assignments,
+                                     state_assignments=state_assignments,
+                                     groups=groups,
                                      dt=1.0/(npts-1),
                                      iiter=iiter,
-                                     parent_ids=parent_ids[seg_ids],
+                                     parent_ids=parent_ids,
                                      last_state=last_state[gid],
                                      gid=gid)
                 
