@@ -246,8 +246,8 @@ cpdef assign_and_label(index_t[:] seg_ids,
         if subsample == False:
             with nogil:
                 for iseg_count in range(nsegs):
-                    iseg = seg_ids[iseg_count]
-                    seg_id = iseg+nsegs_lb
+                    iseg = iseg_count
+                    seg_id = seg_ids[iseg_count]
                     parent_id = parent_ids[iseg]
                     for ipt in range(npts):
                         ptlabel = state_map[_assignments[iseg,ipt]]
@@ -271,8 +271,10 @@ cpdef assign_and_label(index_t[:] seg_ids,
         else:
             with nogil:
                 for iseg_count in range(nsegs):
-                    iseg = seg_ids[iseg_count]
-                    seg_id = iseg+nsegs_lb
+                    iseg = iseg_count
+                    #seg_id = iseg+nsegs_lb
+                    seg_id = seg_ids[iseg_count]
+                    #iseg = seg_ids[iseg_count]
                     parent_id = parent_ids[iseg]
                     for ipt in range(npts):
                         if ipt == 0:
