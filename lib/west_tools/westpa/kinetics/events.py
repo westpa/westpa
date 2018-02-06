@@ -158,16 +158,16 @@ class WKinetics():
                                               dtype=index_dtype)
             state_assignments = numpy.require(self.assignments_file['statelabels'][assignment_iiter + numpy.s_[:nsegs,:npts]],
                                               dtype=index_dtype)
+            parent_ids = self.data_reader.parent_id_dsspec.get_iter_data(n_iter)
+            seg_index = iter_group['seg_index']
+            weights = seg_index['weight']
             
             for gid, seg_ids in self.generate_groups(iter_group):
                 if gid not in last_state:
                     last_state[gid] = None
                 # Get data from the main HDF5 file
                 seg_ids = list(seg_ids)
-                seg_index = iter_group['seg_index'][seg_ids]
-                weights = seg_index['weight']
                 #parent_ids = seg_index['parent_id']
-                parent_ids = self.data_reader.parent_id_dsspec.get_iter_data(n_iter)[seg_ids]
                 
                 # Get bin and traj. ensemble assignments from the previously-generated assignments file
                 # Prepare to run analysis
@@ -183,12 +183,12 @@ class WKinetics():
                 # As it is, if I just leave it here in the loop, it'll error out.
                 # We probably just need to copy and store the last state per GROUP.
 
-                future_kwargs = dict(nstates=nstates, weights=weights,
+                future_kwargs = dict(nstates=nstates, weights=weights[seg_ids],
                                      label_assignments=label_assignments[seg_ids],
                                      state_assignments=state_assignments[seg_ids],
                                      dt=1.0/(npts-1),
                                      iiter=iiter,
-                                     parent_ids=parent_ids,
+                                     parent_ids=parent_ids[seg_ids],
                                      last_state=last_state[gid],
                                      gid=gid)
                 

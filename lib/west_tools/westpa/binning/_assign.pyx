@@ -201,7 +201,7 @@ cpdef output_map(index_t[:] output,
 
 @cython.boundscheck(False)
 @cython.wraparound(False)    
-cpdef assign_and_label(index_t[:] seg_ids, 
+cpdef assign_and_label(long[:] seg_ids, 
                        long[:] parent_ids, # only for given segments
                        object assign,
                        Py_ssize_t nstates,

@@ -1799,6 +1799,10 @@ static CYTHON_INLINE PyObject* __Pyx_PyInt_From_npy_uint16(npy_uint16 value);
 static CYTHON_INLINE PyObject *__pyx_memview_get_nn___pyx_t_6westpa_7binning_7_assign_index_t(const char *itemp);
 static CYTHON_INLINE int __pyx_memview_set_nn___pyx_t_6westpa_7binning_7_assign_index_t(const char *itemp, PyObject *obj);
 
+/* MemviewDtypeToObject.proto */
+static CYTHON_INLINE PyObject *__pyx_memview_get_long(const char *itemp);
+static CYTHON_INLINE int __pyx_memview_set_long(const char *itemp, PyObject *obj);
+
 /* RealImag.proto */
 #if CYTHON_CCOMPLEX
   #ifdef __cplusplus
@@ -4887,7 +4891,7 @@ static PyObject *__pyx_pf_6westpa_7binning_7_assign_8output_map(CYTHON_UNUSED Py
 /* "westpa/binning/_assign.pyx":204
  * @cython.boundscheck(False)
  * @cython.wraparound(False)
- * cpdef assign_and_label(index_t[:] seg_ids,             # <<<<<<<<<<<<<<
+ * cpdef assign_and_label(long[:] seg_ids,             # <<<<<<<<<<<<<<
  *                        long[:] parent_ids, # only for given segments
  *                        object assign,
  */
@@ -4988,7 +4992,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_assign_and_label(__Pyx_memvie
  *     npts = pcoords.shape[1]
  *     # We want to enable some subsampling, for steadystate simulations...
  */
-  __pyx_t_1 = __pyx_memoryview_fromslice(__pyx_v_seg_ids, 1, (PyObject *(*)(char *)) __pyx_memview_get_nn___pyx_t_6westpa_7binning_7_assign_index_t, (int (*)(char *, PyObject *)) __pyx_memview_set_nn___pyx_t_6westpa_7binning_7_assign_index_t, 0);; if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 222, __pyx_L1_error)
+  __pyx_t_1 = __pyx_memoryview_fromslice(__pyx_v_seg_ids, 1, (PyObject *(*)(char *)) __pyx_memview_get_long, (int (*)(char *, PyObject *)) __pyx_memview_set_long, 0);; if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 222, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_t_2 = PyObject_Length(__pyx_t_1); if (unlikely(__pyx_t_2 == -1)) __PYX_ERR(0, 222, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
@@ -5613,7 +5617,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_assign_and_label(__Pyx_memvie
  *                     for ipt in range(npts):
  */
               __pyx_t_18 = __pyx_v_iseg_count;
-              __pyx_v_seg_id = (*((__pyx_t_6westpa_7binning_7_assign_index_t *) ( /* dim=0 */ (__pyx_v_seg_ids.data + __pyx_t_18 * __pyx_v_seg_ids.strides[0]) )));
+              __pyx_v_seg_id = (*((long *) ( /* dim=0 */ (__pyx_v_seg_ids.data + __pyx_t_18 * __pyx_v_seg_ids.strides[0]) )));
 
               /* "westpa/binning/_assign.pyx":251
  *                     iseg = iseg_count
@@ -5862,7 +5866,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_assign_and_label(__Pyx_memvie
  *                     parent_id = parent_ids[iseg]
  */
               __pyx_t_38 = __pyx_v_iseg_count;
-              __pyx_v_seg_id = (*((__pyx_t_6westpa_7binning_7_assign_index_t *) ( /* dim=0 */ (__pyx_v_seg_ids.data + __pyx_t_38 * __pyx_v_seg_ids.strides[0]) )));
+              __pyx_v_seg_id = (*((long *) ( /* dim=0 */ (__pyx_v_seg_ids.data + __pyx_t_38 * __pyx_v_seg_ids.strides[0]) )));
 
               /* "westpa/binning/_assign.pyx":278
  *                     seg_id = seg_ids[iseg_count]
@@ -6316,7 +6320,7 @@ static PyObject *__pyx_f_6westpa_7binning_7_assign_assign_and_label(__Pyx_memvie
   /* "westpa/binning/_assign.pyx":204
  * @cython.boundscheck(False)
  * @cython.wraparound(False)
- * cpdef assign_and_label(index_t[:] seg_ids,             # <<<<<<<<<<<<<<
+ * cpdef assign_and_label(long[:] seg_ids,             # <<<<<<<<<<<<<<
  *                        long[:] parent_ids, # only for given segments
  *                        object assign,
  */
@@ -6449,7 +6453,7 @@ static PyObject *__pyx_pw_6westpa_7binning_7_assign_11assign_and_label(PyObject 
       values[6] = PyTuple_GET_ITEM(__pyx_args, 6);
       values[7] = PyTuple_GET_ITEM(__pyx_args, 7);
     }
-    __pyx_v_seg_ids = __Pyx_PyObject_to_MemoryviewSlice_ds_nn___pyx_t_6westpa_7binning_7_assign_index_t(values[0]); if (unlikely(!__pyx_v_seg_ids.memview)) __PYX_ERR(0, 204, __pyx_L3_error)
+    __pyx_v_seg_ids = __Pyx_PyObject_to_MemoryviewSlice_ds_long(values[0]); if (unlikely(!__pyx_v_seg_ids.memview)) __PYX_ERR(0, 204, __pyx_L3_error)
     __pyx_v_parent_ids = __Pyx_PyObject_to_MemoryviewSlice_ds_long(values[1]); if (unlikely(!__pyx_v_parent_ids.memview)) __PYX_ERR(0, 205, __pyx_L3_error)
     __pyx_v_assign = values[2];
     __pyx_v_nstates = __Pyx_PyIndex_AsSsize_t(values[3]); if (unlikely((__pyx_v_nstates == (Py_ssize_t)-1) && PyErr_Occurred())) __PYX_ERR(0, 207, __pyx_L3_error)
@@ -27929,6 +27933,18 @@ static CYTHON_INLINE int __pyx_memview_set_nn___pyx_t_6westpa_7binning_7_assign_
     if ((value == ((npy_uint16)-1)) && PyErr_Occurred())
         return 0;
     *(__pyx_t_6westpa_7binning_7_assign_index_t *) itemp = value;
+    return 1;
+}
+
+/* MemviewDtypeToObject */
+        static CYTHON_INLINE PyObject *__pyx_memview_get_long(const char *itemp) {
+    return (PyObject *) __Pyx_PyInt_From_long(*(long *) itemp);
+}
+static CYTHON_INLINE int __pyx_memview_set_long(const char *itemp, PyObject *obj) {
+    long value = __Pyx_PyInt_As_long(obj);
+    if ((value == (long)-1) && PyErr_Occurred())
+        return 0;
+    *(long *) itemp = value;
     return 1;
 }
 

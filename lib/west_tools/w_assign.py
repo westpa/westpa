@@ -49,18 +49,19 @@ def parse_pcoord_value(pc_str):
         raise ValueError('too many dimensions')
     return arr
 
-def _assign_label_pop(n_iter, seg_ids, mapper, nstates, state_map, last_labels, parent_id_dsspec, weight_dsspec, pcoord_dsspec, subsample):
+def _assign_label_pop(n_iter, seg_ids, mapper, nstates, state_map, last_labels, parent_id_dsspec, weight_dsspec, pcoord_dsspec, subsample, gid):
 
     nbins = len(state_map)-1
     parent_ids = parent_id_dsspec.get_iter_data(n_iter,index_exp[seg_ids])
     weights = weight_dsspec.get_iter_data(n_iter,index_exp[seg_ids])
     pcoords = pcoord_dsspec.get_iter_data(n_iter,index_exp[seg_ids])
     
-    assignments, trajlabels, statelabels = assign_and_label(seg_ids, parent_ids,
+    # ARRAY CREATION IN THIS BLOCK.  USE ONLY FOR DEBUGGING.
+    assignments, trajlabels, statelabels = assign_and_label(numpy.array(seg_ids), parent_ids,
                                                mapper.assign, nstates, state_map, last_labels, pcoords, subsample)
     pops = numpy.zeros((nstates+1,nbins+1), weight_dtype)
     accumulate_labeled_populations(weights, assignments, trajlabels, pops)
-    return (assignments, trajlabels, pops, seg_ids, statelabels)
+    return (assignments, trajlabels, pops, seg_ids, statelabels, gid)
 
 class WAssign(WESTParallelTool):
     prog='w_assign'
@@ -415,20 +416,25 @@ Command-line options
                               parent_id_dsspec=self.data_reader.parent_id_dsspec, 
                               weight_dsspec=self.data_reader.weight_dsspec,
                               pcoord_dsspec=self.dssynth.dsspec,
+                              gid=gid,
                               subsample=self.subsample)
-                yield (_assign_label_pop, args, kwargs, gid)
+                yield (_assign_label_pop, args, kwargs)
+                # from assign_label_pop
+                #return (assignments, trajlabels, pops, seg_ids, statelabels)
+                #def _assign_label_pop(n_iter, seg_ids, mapper, nstates, state_map, last_labels, parent_id_dsspec, weight_dsspec, pcoord_dsspec, subsample):
 
                 #futures.append(self.work_manager.submit(_assign_label_pop, 
                 #kwargs=)
-            if __debug__:
-                assert checkset == set(xrange(nsegs)), 'segments missing: {}'.format(set(xrange(nsegs)) - checkset)
+            # Literally no longer true
+            #if __debug__:
+            #    assert checkset == set(xrange(nsegs)), 'segments missing: {}'.format(set(xrange(nsegs)) - checkset)
 
         #for future in self.work_manager.as_completed(futures):
         for future in self.work_manager.submit_as_completed(task_gen(), queue_size=self.max_queue_len):
             assign_slice, traj_slice, slice_pops, seg_ids, state_slice, gid = future.get_result(discard=True)
-            assignments[lb:ub, :] = assign_slice
-            trajlabels[lb:ub, :] = traj_slice
-            statelabels[lb:ub, :] = state_slice
+            assignments[seg_ids, :] = assign_slice
+            trajlabels[seg_ids, :] = traj_slice
+            statelabels[seg_ids, :] = state_slice
             pops[gid] += slice_pops
             del assign_slice, traj_slice, slice_pops, state_slice
 
@@ -498,13 +504,13 @@ Command-line options
                 n_groups = max(n_groups, cn_groups[0])
                 if cn_groups == n_groups:
                     group_ids = cn_groups[1]
-                # scan for largest number of segments and largest number of points
-                pi.new_operation ('Scanning for segment and point counts', iter_stop-iter_start)
-                for iiter, n_iter in enumerate(xrange(iter_start,iter_stop)):
-                    iter_group = self.data_reader.get_iter_group(n_iter)
-                    nsegs[iiter], npts[iiter] = iter_group['pcoord'].shape[0:2]
-                    pi.progress += 1
-                    del iter_group
+            # scan for largest number of segments and largest number of points
+            pi.new_operation ('Scanning for segment and point counts', iter_stop-iter_start)
+            for iiter, n_iter in enumerate(xrange(iter_start,iter_stop)):
+                iter_group = self.data_reader.get_iter_group(n_iter)
+                nsegs[iiter], npts[iiter] = iter_group['pcoord'].shape[0:2]
+                pi.progress += 1
+                del iter_group
 
             pi.new_operation('Preparing output')
 
@@ -536,7 +542,7 @@ Command-line options
             pops_ds = self.output_file.create_dataset('labeled_populations', dtype=weight_dtype, shape=pops_shape,
                                                       compression=4, shuffle=True,
                                                       chunks=h5io.calc_chunksize(pops_shape, weight_dtype))
-            h5io.label_axes(pops_ds, ['iteration', 'state', 'bin'])
+            h5io.label_axes(pops_ds, ['iteration', 'group', 'state', 'bin'])
 
             pi.new_operation('Assigning to bins', iter_stop-iter_start)
             last_labels = None # mapping of seg_id to last macrostate inhabited      
