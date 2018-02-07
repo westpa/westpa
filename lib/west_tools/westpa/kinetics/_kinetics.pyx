@@ -512,9 +512,9 @@ cpdef find_macrostate_transitions(Py_ssize_t nstates,
         Py_ssize_t nsegs, npts, seg_id, ipt
         double itime, tm, t_ed
         double[:] _last_time
+        long[:] _groups
         double[:,:] _last_entries, _last_exits, _last_exits_td
         double[:,:,:] _last_completions
-        long[:] _groups
         index_t flabel, ilabel, iistate, slabel
         weight_t _weight
         long sgrp
@@ -563,6 +563,7 @@ cpdef find_macrostate_transitions(Py_ssize_t nstates,
     _last_exits = state[2]
     _last_exits_td = state[3]
     _last_completions = state[4]
+    _groups = groups
     
     for seg_id in xrange(nsegs):
         itime = _last_time[seg_id]
@@ -601,7 +602,7 @@ cpdef find_macrostate_transitions(Py_ssize_t nstates,
                         # list to explode
                         if iistate != flabel:
                             t_ed = tm - _last_exits_td[seg_id,iistate]
-                            durations.append((iistate,sgrp,flabel,t_ed,_weight, seg_id))
+                            durations.append((iistate,flabel,sgrp,t_ed,_weight, seg_id))
         _last_time[seg_id] = tm
 
 

@@ -41,6 +41,7 @@ iter_block_ci_dtype = numpy.dtype([('iter_start', n_iter_dtype),
 
 ed_list_dtype       = numpy.dtype([('istate', numpy.uint16), 
                                    ('fstate', numpy.uint16), 
+                                   ('groups', numpy.uint16), 
                                    ('duration', numpy.float64),
                                    ('weight', numpy.float64), 
                                    ('seg_id', seg_id_dtype)])

@@ -80,7 +80,7 @@ def _group_eval_block(**future_kwargs):
     gid = future_kwargs['gid']
     del(future_kwargs['gid'])
     find_macrostate_transitions(**future_kwargs)
-    results.append((gid, cond_fluxes, total_fluxes, cond_counts, total_counts, durations, state))
+    results.append((cond_fluxes, total_fluxes, cond_counts, total_counts, durations, state))
     return results
 
 # The old w_kinetics
@@ -106,9 +106,9 @@ class WKinetics():
                 group_ids = cn_groups[1]
 
         durations_ds = self.output_file.replace_dataset('durations', 
-                                                       shape=(iter_count,n_groups,0), maxshape=(iter_count,n_groups,None),
+                                                       shape=(iter_count,0), maxshape=(iter_count,None),
                                                        dtype=ed_list_dtype,
-                                                       chunks=(1,n_groups,15360) if self.do_compression else None,
+                                                       chunks=(1,15360) if self.do_compression else None,
                                                        shuffle=self.do_compression,
                                                        compression=9 if self.do_compression else None)
         durations_count_ds = self.output_file.replace_dataset('duration_count',
@@ -150,7 +150,7 @@ class WKinetics():
 
         # Calculate instantaneous rate matrices and trace trajectories
         last_state = None
-        pi.new_operation('Tracing trajectories', iter_count*n_groups)
+        pi.new_operation('Tracing trajectories', iter_count)
         last_state = {}
         for iiter, n_iter in enumerate(xrange(start_iter, stop_iter)):
             iter_group = self.data_reader.get_iter_group(n_iter)
@@ -169,9 +169,11 @@ class WKinetics():
 
             # We just want a numpy array of group ids, basically.
             
-            groups = numpy.zeros((seg_index.shape))
+            groups = numpy.zeros((seg_index.shape), dtype=numpy.long)
+            n_groups = 0
             for gid, seg_ids in self.generate_groups(iter_group):
                 groups[seg_ids] = gid
+                n_groups += 1
 
             if True:
                 gid = 0    
@@ -202,6 +204,7 @@ class WKinetics():
                                      dt=1.0/(npts-1),
                                      iiter=iiter,
                                      parent_ids=parent_ids,
+                                     n_groups=n_groups,
                                      last_state=last_state[gid],
                                      gid=gid)
                 
@@ -212,18 +215,18 @@ class WKinetics():
                 
             for future in self.work_manager.as_completed(futures):
                 results = future.get_result(discard=True)[0]
-                gid, cond_fluxes, total_fluxes, cond_counts, total_counts, durations, state = results
+                cond_fluxes, total_fluxes, cond_counts, total_counts, durations, state = results
                 last_state[gid] = state
                 # Store trace-based kinetics data
-                cond_fluxes_ds[iiter,gid] = cond_fluxes
-                total_fluxes_ds[iiter,gid] = total_fluxes
-                arrival_counts_ds[iiter,gid] = total_counts
-                cond_arrival_counts_ds[iiter,gid] = cond_counts
+                cond_fluxes_ds[iiter] = cond_fluxes
+                total_fluxes_ds[iiter] = total_fluxes
+                arrival_counts_ds[iiter] = total_counts
+                cond_arrival_counts_ds[iiter] = cond_counts
                 
-                durations_count_ds[iiter,gid] = len(durations)
+                durations_count_ds[iiter] = len(durations)
                 if len(durations) > 0:
-                    durations_ds.resize((iter_count,n_groups, max(len(durations), durations_ds.shape[1])))
-                    durations_ds[iiter,gid,:len(durations)] = durations
+                    durations_ds.resize((iter_count, max(len(durations), durations_ds.shape[1])))
+                    durations_ds[iiter,:len(durations)] = durations
                         
                 # Do a little manual clean-up to prevent memory explosion
                 #del weights, parent_ids, bin_assignments, label_assignments, state, cond_fluxes, total_fluxes
