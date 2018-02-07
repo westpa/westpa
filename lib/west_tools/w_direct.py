@@ -65,9 +65,22 @@ def _rate_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha,
             # That is, we need the populations for both i and j, and it's easier to just send in the entire dataset.
             #pops = numpy.reshape(numpy.repeat(data_input['pops'].sum(axis=0)/(data_input['dataset'].shape[0]), repeats=data_input['dataset'].shape[1]), (data_input['dataset'].shape[1], data_input['pops'].shape[1]))
             bs = data_input['pops'].shape[0]
-            #pops = data_input['pops'].data.sum(axis=1)
+            # Doing this, we're summing over the groups.  This should return 'correct' time evolutionary values, which would be great.
+            # Now, time.  We're then bootstrapping over the TIME element.
+            #print(pops.shape)
+            #print(pops[:,0].sum(axis=0))
+            ds = data_input['dataset'].sum(axis=0)
+            #pops = data_input['pops']
+            # If we're doing pairwise, we need to renormalize the populations according to their own states before we sum everything together.
             pops = data_input['pops']
-            dataset = {'dataset': data_input['dataset'][:, istate, jstate], 'pops': pops }
+            for iiter in range(0, pops.shape[0]):
+                for gid in range(0, pops.shape[1]):
+                    n = pops[iiter,gid,istate] + pops[iiter,gid,jstate]
+                    pops[iiter,gid,:] / n
+            pops = pops.sum(axis=0)
+
+            dataset = {'dataset': ds[:, istate, jstate], 'pops': pops }
+            kwargs['pairwise'] = False
             ci_res = mcbs_ci_correl(dataset,estimator=sequence_macro_flux_to_rate,
                                     alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
                                     subsample=numpy.mean, do_correl=do_correl, mcbs_enable=mcbs_enable, estimator_kwargs=kwargs)
@@ -271,7 +284,7 @@ Command-line options
         cond_fluxes = h5io.IterBlockedDataset(self.kinetics_file['conditional_fluxes'])
         cond_fluxes.cache_data()
         print(cond_fluxes.data.shape)
-        cond_fluxes.data = cond_fluxes.data.sum(axis=1)
+        #cond_fluxes.data = cond_fluxes.data.sum(axis=1)
         print(cond_fluxes.data.shape)
         total_fluxes = h5io.IterBlockedDataset(self.kinetics_file['total_fluxes'])
         
@@ -280,8 +293,8 @@ Command-line options
         # ... but we also need this for the kinetics calculations.
         pops = h5io.IterBlockedDataset(self.assignments_file['labeled_populations'])
         pops.cache_data()
-        pops.data = pops.data.sum(axis=2)
-        pops.data = pops.data.sum(axis=1)
+        pops.data = pops.data.sum(axis=3)
+        #pops.data = pops.data.sum(axis=1)
 
         submit_kwargs = dict(pi=pi, nstates=self.nstates, start_iter=self.start_iter, stop_iter=self.stop_iter, 
                              step_iter=self.step_iter)
