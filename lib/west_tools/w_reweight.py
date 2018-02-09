@@ -51,18 +51,48 @@ from westpa.reweight import stats_process, reweight_for_c, FluxMatrix
 def _2D_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha, mcbs_nsets, mcbs_acalpha, do_correl, mcbs_enable, estimator_kwargs):
     # As our reweighting estimator is a weird function, we can't use the general mclib block.
     results = []
+    print(estimator_kwargs.keys())
+    n_groups = estimator_kwargs['n_groups']
+    del estimator_kwargs['n_groups']
+    rows = []
+    cols = []
+    obs = []
+    flux = []
+    insert = [0] * n_groups
+    for g in range(0, n_groups):
+        rows.append(estimator_kwargs['rows'][g])
+        cols.append(estimator_kwargs['cols'][g])
+        obs.append(estimator_kwargs['obs'][g])
+        flux.append(estimator_kwargs['flux'][g])
+        try:
+            insert[g] = len(estimator_kwargs['rows'][g])
+        except:
+            insert[g] = 1
+    rows = np.concatenate(rows)
+    cols = np.concatenate(cols)
+    obs = np.concatenate(obs)
+    flux = np.concatenate(flux)
+    insert = np.array(insert, dtype=np.intc)
+    estimator_kwargs.update(dict(rows=rows, cols=rows, obs=obs, flux=flux, insert=insert))
     for istate in xrange(nstates):
         for jstate in xrange(nstates):
             if istate == jstate: continue
             estimator_kwargs.update(dict(istate=istate, jstate=jstate, nstates=nstates))
+            '''submit_kwargs['estimator_kwargs'].update(  dict(rows=self.rows,
+                                                            cols=self.cols,
+                                                            obs=self.obs,
+                                                            flux=self.flux,'''
 
-            dataset = { 'indices' : np.array(range(start-1, stop-1), dtype=np.uint16) }
+
+            #dataset = { 'indices' : np.array(range(start-1, stop-1), dtype=np.uint16) }
+            dataset = { 'indices' : np.array(range(n_groups), dtype=np.uint16) }
             
             ci_res = mcbs_ci_correl(dataset,estimator=reweight_for_c,
                                     alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
                                     subsample=(lambda x: x[0]), do_correl=do_correl, mcbs_enable=mcbs_enable, estimator_kwargs=estimator_kwargs)
             results.append((name, iblock, istate, jstate, (start,stop) + ci_res))
 
+    estimator_kwargs['n_groups'] = n_groups
     return results
 
 def _1D_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha, mcbs_nsets, mcbs_acalpha, do_correl, mcbs_enable, estimator_kwargs):
@@ -232,13 +262,12 @@ class RWReweight(AverageCommands):
         ng_i = 0
         gid_l = []
         for iiter in xrange(start_iter, stop_iter):
-            ig = self.data_reader.get_iter_group(iiter)
-            for gid, seg_ids in self.generate_groups(ig):
-                ng_i += 1
-                gid_l.append(gid)
+            #ig = self.data_reader.get_iter_group(iiter)
+            iter_grp = self.kinetics_file['iterations']['iter_{:08d}'.format(iiter)]
+            ng_i = max(iter_grp['rows'][:,1])+1
             n_groups = max(ng_i, n_groups)
             ng_i = 0
-        gid_l = list(set(gid_l))
+        gid_l = range(0, n_groups)
 
         # Okay, we have the number of groups.  Hooray!
         for gid in gid_l:
@@ -246,7 +275,7 @@ class RWReweight(AverageCommands):
             self.cols[gid] = []
             self.obs[gid] = []
             self.flux[gid] = []
-            self.insert[gid] = []
+            self.insert[gid] = [0]*(start_iter)
         for iiter in xrange(start_iter, stop_iter):
             rows = []
             cols = []
@@ -254,25 +283,28 @@ class RWReweight(AverageCommands):
             flux = []
             insert = [0]*(start_iter)
             iter_grp = self.kinetics_file['iterations']['iter_{:08d}'.format(iiter)]
-            ig = self.data_reader.get_iter_group(iiter)
-            for gid, seg_ids in self.generate_groups(ig):
+            #ig = self.data_reader.get_iter_group(iiter)
+            #for gid, seg_ids in self.generate_groups(ig):
+            for gid in range(0, n_groups):
 
-                index = np.where(iter_grp['rows'][1] == gid)
+                index = np.where(iter_grp['rows'][:,1] == gid)[0]
 
-                self.rows[gid].append(iter_grp['rows'][index])
-                self.cols[gid].append(iter_grp['cols'][index])
-                self.obs[gid].append(iter_grp['obs'][index])
-                self.flux[gid].append(iter_grp['flux'][index])
+                self.rows[gid].append(iter_grp['rows'][index,0])
+                self.cols[gid].append(iter_grp['cols'][index,0])
+                self.obs[gid].append(iter_grp['obs'][index,0])
+                self.flux[gid].append(iter_grp['flux'][index,0])
                 # 'insert' is the insertion point for each iteration; that is,
                 # at what point do we look into the list for iteration X?
-                self.insert[gid].append(iter_grp['rows'][...].shape[0] + self.insert[gid][-1])
-        for gid, seg_ids in self.generate_groups(ig):
+                #self.insert[gid].append(iter_grp['rows'][index,0].shape[0] + self.insert[gid][-1])
+                self.insert[gid].append(iter_grp['rows'][index,0].shape[0] + self.insert[gid][-1])
+        for gid in range(0, n_groups):
             self.rows[gid] = np.concatenate(self.rows[gid])
             self.cols[gid] = np.concatenate(self.cols[gid])
             self.obs[gid] = np.concatenate(self.obs[gid])
             self.flux[gid] = np.concatenate(self.flux[gid])
             #assert insert[-1] == len(self.rows)
             self.insert[gid] = np.array(self.insert[gid], dtype=np.intc)
+        self.n_groups = n_groups
 
     def generate_reweight_data(self):
         ''' 
@@ -441,6 +473,7 @@ Command-line options
                                                         state_labels=self.state_labels,
                                                         return_obs='R', # Set to a default, here, but we explicitly set it later.
                                                         state_map=self.state_map,
+                                                        n_groups = self.n_groups,
                                                         nbins=self.nbins))
 
 
@@ -448,6 +481,7 @@ Command-line options
 
         # The dataset options are what we pass on to the estimator...
         submit_kwargs['estimator_kwargs']['return_obs'] = 'R'
+        submit_kwargs['estimator_kwargs']['n_groups'] = self.n_groups
         avg_rates = self.run_calculation(eval_block=_2D_eval_block, name='Average Rates', dim=2, do_averages=True, **submit_kwargs)
         avg_rates['expected'] *= (self.npts - 1)
         avg_rates['ci_ubound'] *= (self.npts - 1)
@@ -455,6 +489,7 @@ Command-line options
         self.output_file.replace_dataset('avg_rates', data=avg_rates[1])
 
         submit_kwargs['estimator_kwargs']['return_obs'] = 'F'
+        submit_kwargs['estimator_kwargs']['n_groups'] = self.n_groups
         avg_conditional_fluxes = self.run_calculation(eval_block=_2D_eval_block, name='Average Flux', dim=2, do_averages=True, **submit_kwargs)
         avg_conditional_fluxes['expected'] *= (self.npts - 1)
         avg_conditional_fluxes['ci_ubound'] *= (self.npts - 1)
