@@ -472,7 +472,7 @@ Command-line options
 
         # This now sorts it for the color populations
         pops.cache_data()
-        pops.data = pops.data.sum(axis=2)
+        pops.data = pops.data.sum(axis=3)
 
         submit_kwargs = dict(pi=pi,nstates=self.nstates, start_iter=self.start_iter, stop_iter=self.stop_iter, 
                              step_iter=self.step_iter, eval_block=_1D_simple_eval_block)

@@ -50,20 +50,23 @@ intc_dtype = numpy.intc
 @cython.wraparound(False)
 cpdef stats_process(numpy.ndarray[index_t, ndim=2] bin_assignments,
                     numpy.ndarray[weight_t, ndim=1] weights, 
-                    numpy.ndarray[weight_t, ndim=2] fluxes, 
-                    numpy.ndarray[weight_t, ndim=1] populations, 
-                    numpy.ndarray[trans_t, ndim=2] trans, 
+                    numpy.ndarray[weight_t, ndim=3] fluxes, 
+                    numpy.ndarray[weight_t, ndim=2] populations, 
+                    numpy.ndarray[trans_t, ndim=3] trans, 
                     numpy.ndarray[index_t, ndim=2] mask,
+                    numpy.ndarray[trans_t, ndim=1] groups,
+                    int n_groups,
                     str interval='timepoint'                        ):
     cdef:
         Py_ssize_t i,k
-        index_t ibin,fbin,nsegs,npts
+        index_t ibin,fbin,nsegs,npts,ngrp
     nsegs = bin_assignments.shape[0]
     npts = bin_assignments.shape[1]
 
     if interval == 'timepoint':
         for i in xrange(0,npts - 1):
             for k in xrange(nsegs):
+                ngrp = groups[k]
                 ibin = bin_assignments[k,i]
                 fbin = bin_assignments[k, i + 1]
 
@@ -72,15 +75,16 @@ cpdef stats_process(numpy.ndarray[index_t, ndim=2] bin_assignments,
 
                 w = weights[k]
 
-                fluxes[ibin, fbin] += w
-                trans[ibin, fbin] += 1
-                populations[ibin] += w
+                fluxes[ngrp,ibin, fbin] += w
+                trans[ngrp,ibin, fbin] += 1
+                populations[ngrp,ibin] += w
         return
 
     if interval == 'iteration':
         for k in xrange(nsegs):
             # Should this be 0?
             # .... this should super be 0.  What?
+            ngrp = groups[k]
             ibin = bin_assignments[k,0]
             fbin = bin_assignments[k, npts - 1]
 
@@ -89,9 +93,9 @@ cpdef stats_process(numpy.ndarray[index_t, ndim=2] bin_assignments,
 
             w = weights[k]
 
-            fluxes[ibin, fbin] += w
-            trans[ibin, fbin] += 1
-            populations[ibin] += w
+            fluxes[ngrp,ibin, fbin] += w
+            trans[ngrp,ibin, fbin] += 1
+            populations[ngrp,ibin] += w
         return
 
 @cython.boundscheck(False)

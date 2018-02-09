@@ -36,12 +36,12 @@ from westpa import h5io
 from westpa.binning import index_dtype
 from westpa.reweight import stats_process, reweight_for_c
 
-def calc_stats(bin_assignments, weights, fluxes, populations, trans, mask, sampling_frequency):
+def calc_stats(bin_assignments, weights, fluxes, populations, trans, mask, sampling_frequency, groups=None, n_groups=None):
     fluxes.fill(0.0)
     populations.fill(0.0)
     trans.fill(0)
 
-    stats_process(bin_assignments, weights, fluxes, populations, trans, mask, interval=sampling_frequency)
+    stats_process(bin_assignments, weights, fluxes, populations, trans, mask, interval=sampling_frequency, groups=groups, n_groups=n_groups)
 
 class FluxMatrix():
 
@@ -61,14 +61,21 @@ class FluxMatrix():
 
         nfbins = nbins * nstates
 
-        flux_shape = (iter_count, nfbins, nfbins)
-        pop_shape = (iter_count, nfbins)
+        # Determine number of groups so that we can shape everything appropriately.
+        for iiter, n_iter in enumerate(xrange(start_iter, stop_iter)):
+            iter_group = self.data_reader.get_iter_group(n_iter)
+            n_groups = 0
+            for gid, seg_ids in self.generate_groups(iter_group):
+                n_groups += 1
+
+        flux_shape = (iter_count, n_groups, nfbins, nfbins)
+        pop_shape = (iter_count, n_groups, nfbins)
 
         h5io.stamp_iter_range(self.output_file, start_iter, stop_iter)
 
         bin_populations_ds = self.output_file.create_dataset('bin_populations', shape=pop_shape, dtype=weight_dtype)
         h5io.stamp_iter_range(bin_populations_ds, start_iter, stop_iter)
-        h5io.label_axes(bin_populations_ds, ['iteration', 'bin'])
+        h5io.label_axes(bin_populations_ds, ['iteration', 'group', 'bin'])
 
 
         flux_grp = self.output_file.create_group('iterations')
@@ -94,6 +101,13 @@ class FluxMatrix():
             nsegs, npts = iter_group['pcoord'].shape[0:2] 
             weights = seg_index['weight']
 
+            # Generate groups.
+            groups = np.zeros((seg_index.shape), dtype=np.long)
+            n_groups = 0
+            for gid, seg_ids in self.generate_groups(iter_group):
+                groups[seg_ids] = gid
+                n_groups += 1
+
 
             # Get bin and traj. ensemble assignments from the previously-generated assignments file
             assignment_iiter = h5io.get_iteration_entry(self.assignments_file, n_iter)
@@ -113,27 +127,65 @@ class FluxMatrix():
             mask_unknown[mask_indx] = 1
 
             # Calculate bin-to-bin fluxes, bin populations and number of obs transitions
-            calc_stats(bin_assignments, weights, fluxes, populations, trans, mask_unknown, self.sampling_frequency)
+            calc_stats(bin_assignments, weights, fluxes, populations, trans, mask_unknown, self.sampling_frequency, groups, n_groups)
 
             # Store bin-based kinetics data
             bin_populations_ds[iiter] = populations
 
-            # Setup sparse data structures for flux and obs
-            fluxes_sp = sp.coo_matrix(fluxes)
-            trans_sp = sp.coo_matrix(trans)
-
-            assert fluxes_sp.nnz == trans_sp.nnz
-
             flux_iter_grp = flux_grp.create_group('iter_{:08d}'.format(n_iter))
-            flux_iter_grp.create_dataset('flux', data=fluxes_sp.data, dtype=weight_dtype)
-            flux_iter_grp.create_dataset('obs', data=trans_sp.data, dtype=np.int32)
-            flux_iter_grp.create_dataset('rows', data=fluxes_sp.row, dtype=np.int32)
-            flux_iter_grp.create_dataset('cols', data=fluxes_sp.col, dtype=np.int32)
             flux_iter_grp.attrs['nrows'] = nfbins
             flux_iter_grp.attrs['ncols'] = nfbins
 
+            # Setup sparse data structures for flux and obs
+            # Moving to a 3D format has some... uh, issues, I suppose.
+            # The big issue is really just going to be writing/reading.
+            # Which is a large issue!  Ugh.
+            fluxes_all = []
+            trans_all  = []
+            fluxes_m_all = []
+            trans_m_all  = []
+            rows_all = []
+            cols_all = []
+            events = 0
+            events_per_group = []
+            for g in range(0, fluxes.shape[0]):
+                fluxes_all.append(sp.coo_matrix(fluxes[g,:]).data)
+                trans_all.append(sp.coo_matrix(trans[g,:]).data)
+                rows_all.append(sp.coo_matrix(fluxes[g,:]).row)
+                cols_all.append(sp.coo_matrix(fluxes[g,:]).col)
+                events += fluxes_all[g].shape[0]
+                events_per_group.append(fluxes_all[g].shape[0])
+
+                # assert fluxes_sp[g].nnz == trans_sp[g].nnz
+
+            # Create a dataset filled with the appropriate number of items...
+            fluxes_tw = np.zeros((events, 2))
+            trans_tw = np.zeros((events,2))
+            rows_tw = np.zeros((events,2))
+            cols_tw = np.zeros((events,2))
+            last_point = 0
+            for g in range(0, fluxes.shape[0]):
+                fluxes_tw[last_point:last_point+events_per_group[g],1] = g
+                trans_tw[last_point:last_point+events_per_group[g],1] = g
+                rows_tw[last_point:last_point+events_per_group[g],1] = g
+                cols_tw[last_point:last_point+events_per_group[g],1] = g
+
+                print(fluxes_all[g])
+                fluxes_tw[last_point:last_point+events_per_group[g],0] = fluxes_all[g]
+                trans_tw[last_point:last_point+events_per_group[g],0] = trans_all[g]
+                rows_tw[last_point:last_point+events_per_group[g],0] = rows_all[g]
+                cols_tw[last_point:last_point+events_per_group[g],0] = cols_all[g]
+                last_point += events_per_group[g]
+
+            # Now we need to handle writing the data to h5 in a hopefully fast manner.
+            # It'd be nice to just... not have to worry about this stuff, but whatever.
+            flux_iter_grp.create_dataset('flux'.format(g), data=fluxes_tw, dtype=weight_dtype)
+            flux_iter_grp.create_dataset('obs'.format(g), data=trans_tw, dtype=np.int32)
+            flux_iter_grp.create_dataset('rows'.format(g), data=rows_tw, dtype=np.int32)
+            flux_iter_grp.create_dataset('cols'.format(g), data=cols_tw, dtype=np.int32)
+
             # Do a little manual clean-up to prevent memory explosion
-            del iter_group, weights, bin_assignments
+            del iter_group, weights, bin_assignments, groups
             del macrostate_assignments
 
             pi.progress += 1
