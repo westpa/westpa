@@ -221,22 +221,58 @@ class RWReweight(AverageCommands):
         # matches with the iteration (particularly for 'insert').
         # It's just easier to load all the data, although we could just start insert as a list of length
         # start_iter.
-        for iiter in xrange(start_iter, stop_iter):
-            iter_grp = self.kinetics_file['iterations']['iter_{:08d}'.format(iiter)]
+        self.rows = {}
+        self.cols = {}
+        self.obs = {}
+        self.flux = {}
+        self.insert = {}
 
-            rows.append(iter_grp['rows'][...])
-            cols.append(iter_grp['cols'][...])
-            obs.append(iter_grp['obs'][...])
-            flux.append(iter_grp['flux'][...])
-            # 'insert' is the insertion point for each iteration; that is,
-            # at what point do we look into the list for iteration X?
-            insert.append(iter_grp['rows'][...].shape[0] + insert[-1])
-        self.rows = np.concatenate(rows)
-        self.cols = np.concatenate(cols)
-        self.obs = np.concatenate(obs)
-        self.flux = np.concatenate(flux)
-        assert insert[-1] == len(self.rows)
-        self.insert = np.array(insert, dtype=np.intc)
+        # First, calculate the number of groups...
+        n_groups = 0
+        ng_i = 0
+        gid_l = []
+        for iiter in xrange(start_iter, stop_iter):
+            ig = self.data_reader.get_iter_group(iiter)
+            for gid, seg_ids in self.generate_groups(ig):
+                ng_i += 1
+                gid_l.append(gid)
+            n_groups = max(ng_i, n_groups)
+            ng_i = 0
+        gid_l = list(set(gid_l))
+
+        # Okay, we have the number of groups.  Hooray!
+        for gid in gid_l:
+            self.rows[gid] = []
+            self.cols[gid] = []
+            self.obs[gid] = []
+            self.flux[gid] = []
+            self.insert[gid] = []
+        for iiter in xrange(start_iter, stop_iter):
+            rows = []
+            cols = []
+            obs = []
+            flux = []
+            insert = [0]*(start_iter)
+            iter_grp = self.kinetics_file['iterations']['iter_{:08d}'.format(iiter)]
+            ig = self.data_reader.get_iter_group(iiter)
+            for gid, seg_ids in self.generate_groups(ig):
+
+                index = np.where(iter_grp['rows'][1] == gid)
+
+                self.rows[gid].append(iter_grp['rows'][index])
+                self.cols[gid].append(iter_grp['cols'][index])
+                self.obs[gid].append(iter_grp['obs'][index])
+                self.flux[gid].append(iter_grp['flux'][index])
+                # 'insert' is the insertion point for each iteration; that is,
+                # at what point do we look into the list for iteration X?
+                self.insert[gid].append(iter_grp['rows'][...].shape[0] + self.insert[gid][-1])
+        for gid, seg_ids in self.generate_groups(ig):
+            self.rows[gid] = np.concatenate(self.rows[gid])
+            self.cols[gid] = np.concatenate(self.cols[gid])
+            self.obs[gid] = np.concatenate(self.obs[gid])
+            self.flux[gid] = np.concatenate(self.flux[gid])
+            #assert insert[-1] == len(self.rows)
+            self.insert[gid] = np.array(self.insert[gid], dtype=np.intc)
 
     def generate_reweight_data(self):
         ''' 
