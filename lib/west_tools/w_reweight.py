@@ -27,6 +27,7 @@ warnings.filterwarnings('ignore', category=FutureWarning)
 import numpy as np
 import scipy.sparse as sp
 import h5py
+import copy
 
 import westpa
 from west.data_manager import weight_dtype, n_iter_dtype
@@ -53,31 +54,48 @@ def _2D_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha, m
     results = []
     print(estimator_kwargs.keys())
     n_groups = estimator_kwargs['n_groups']
-    del estimator_kwargs['n_groups']
+    #del estimator_kwargs['n_groups']
     rows = []
     cols = []
     obs = []
     flux = []
     insert = [0] * n_groups
     for g in range(0, n_groups):
-        rows.append(estimator_kwargs['rows'][g])
-        cols.append(estimator_kwargs['cols'][g])
-        obs.append(estimator_kwargs['obs'][g])
-        flux.append(estimator_kwargs['flux'][g])
+        ins_start = estimator_kwargs['insert'][g][start-1]
         try:
-            insert[g] = len(estimator_kwargs['rows'][g])
+            ins_stop = estimator_kwargs['insert'][g][stop-1]
         except:
-            insert[g] = 1
-    rows = np.concatenate(rows)
-    cols = np.concatenate(cols)
-    obs = np.concatenate(obs)
-    flux = np.concatenate(flux)
+            ins_stop = -1
+        rows.append(estimator_kwargs['rows'][g][ins_start:ins_stop])
+        cols.append(estimator_kwargs['cols'][g][ins_start:ins_stop])
+        obs.append(estimator_kwargs['obs'][g][ins_start:ins_stop])
+        flux.append(estimator_kwargs['flux'][g][ins_start:ins_stop])
+        if g == 0:
+            insert[g] = 0
+        else:
+            try:
+                #print(estimator_kwargs['rows'][g]
+                insert[g] = len(estimator_kwargs['rows'][g])
+            except:
+                insert[g] = 1
+    for i in range(0, n_groups):
+        if i != 0:
+            insert[g] += insert[g-1]
+
+    #print(rows)
+    rows = np.concatenate(np.array(rows))
+    cols = np.concatenate(np.array(cols))
+    obs = np.concatenate(np.array(obs))
+    #print(flux)
+    flux = np.concatenate(np.array(flux))
     insert = np.array(insert, dtype=np.intc)
-    estimator_kwargs.update(dict(rows=rows, cols=rows, obs=obs, flux=flux, insert=insert))
+    estimator_kwargs.update(dict(rows=rows, cols=cols, obs=obs, flux=flux, insert=insert))
     for istate in xrange(nstates):
         for jstate in xrange(nstates):
             if istate == jstate: continue
             estimator_kwargs.update(dict(istate=istate, jstate=jstate, nstates=nstates))
+            ek = copy.deepcopy(estimator_kwargs)
+            del ek['n_groups']
             '''submit_kwargs['estimator_kwargs'].update(  dict(rows=self.rows,
                                                             cols=self.cols,
                                                             obs=self.obs,
@@ -85,11 +103,11 @@ def _2D_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha, m
 
 
             #dataset = { 'indices' : np.array(range(start-1, stop-1), dtype=np.uint16) }
-            dataset = { 'indices' : np.array(range(n_groups), dtype=np.uint16) }
+            dataset = { 'indices' : np.array(range(0, n_groups), dtype=np.uint16) }
             
             ci_res = mcbs_ci_correl(dataset,estimator=reweight_for_c,
                                     alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
-                                    subsample=(lambda x: x[0]), do_correl=do_correl, mcbs_enable=mcbs_enable, estimator_kwargs=estimator_kwargs)
+                                    subsample=(lambda x: x[0]), do_correl=do_correl, mcbs_enable=mcbs_enable, estimator_kwargs=ek)
             results.append((name, iblock, istate, jstate, (start,stop) + ci_res))
 
     estimator_kwargs['n_groups'] = n_groups
@@ -256,6 +274,7 @@ class RWReweight(AverageCommands):
         self.obs = {}
         self.flux = {}
         self.insert = {}
+        prior_index = {}
 
         # First, calculate the number of groups...
         n_groups = 0
@@ -275,7 +294,8 @@ class RWReweight(AverageCommands):
             self.cols[gid] = []
             self.obs[gid] = []
             self.flux[gid] = []
-            self.insert[gid] = [0]*(start_iter)
+            self.insert[gid] = []
+            prior_index[gid] = None
         for iiter in xrange(start_iter, stop_iter):
             rows = []
             cols = []
@@ -296,7 +316,11 @@ class RWReweight(AverageCommands):
                 # 'insert' is the insertion point for each iteration; that is,
                 # at what point do we look into the list for iteration X?
                 #self.insert[gid].append(iter_grp['rows'][index,0].shape[0] + self.insert[gid][-1])
-                self.insert[gid].append(iter_grp['rows'][index,0].shape[0] + self.insert[gid][-1])
+                if iiter != 1:
+                    self.insert[gid].append(prior_index[gid] + self.insert[gid][-1])
+                else:
+                    self.insert[gid].append(0)
+                prior_index[gid] = index.shape[0]
         for gid in range(0, n_groups):
             self.rows[gid] = np.concatenate(self.rows[gid])
             self.cols[gid] = np.concatenate(self.cols[gid])

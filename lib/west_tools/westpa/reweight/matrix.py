@@ -170,7 +170,6 @@ class FluxMatrix():
                 rows_tw[last_point:last_point+events_per_group[g],1] = g
                 cols_tw[last_point:last_point+events_per_group[g],1] = g
 
-                print(fluxes_all[g])
                 fluxes_tw[last_point:last_point+events_per_group[g],0] = fluxes_all[g]
                 trans_tw[last_point:last_point+events_per_group[g],0] = trans_all[g]
                 rows_tw[last_point:last_point+events_per_group[g],0] = rows_all[g]
