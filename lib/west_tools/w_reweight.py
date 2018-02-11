@@ -66,21 +66,22 @@ def _2D_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha, m
             ins_stop = estimator_kwargs['insert'][g][stop-1]
         except:
             ins_stop = -1
+        #print(ins_start, ins_stop, len(rows))
+        #print(np.sum(estimator_kwargs['rows'][g][ins_start:ins_stop]))
         rows.append(estimator_kwargs['rows'][g][ins_start:ins_stop])
         cols.append(estimator_kwargs['cols'][g][ins_start:ins_stop])
         obs.append(estimator_kwargs['obs'][g][ins_start:ins_stop])
         flux.append(estimator_kwargs['flux'][g][ins_start:ins_stop])
-        if g == 0:
-            insert[g] = 0
-        else:
-            try:
-                #print(estimator_kwargs['rows'][g]
-                insert[g] = len(estimator_kwargs['rows'][g])
-            except:
-                insert[g] = 1
-    for i in range(0, n_groups):
-        if i != 0:
-            insert[g] += insert[g-1]
+        insert[g] = len(rows[g])
+        #try:
+            #print(estimator_kwargs['rows'][g]
+        #insert[g] = ins_stop - ins_start
+        #except:
+        #    insert[g] = 1
+    #for i in range(0, n_groups):
+    #    if i != 0:
+    #        insert[g] += insert[g-1]
+    insert = [0] + insert
 
     #print(rows)
     rows = np.concatenate(np.array(rows))
@@ -88,13 +89,14 @@ def _2D_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha, m
     obs = np.concatenate(np.array(obs))
     #print(flux)
     flux = np.concatenate(np.array(flux))
-    insert = np.array(insert, dtype=np.intc)
-    estimator_kwargs.update(dict(rows=rows, cols=cols, obs=obs, flux=flux, insert=insert))
+    insert = np.array(np.array(insert, dtype=np.intc).cumsum(), dtype=np.intc)
+    print(insert, rows.shape[0])
     for istate in xrange(nstates):
         for jstate in xrange(nstates):
             if istate == jstate: continue
             estimator_kwargs.update(dict(istate=istate, jstate=jstate, nstates=nstates))
             ek = copy.deepcopy(estimator_kwargs)
+            ek.update(dict(rows=rows, cols=cols, obs=obs, flux=flux, insert=insert))
             del ek['n_groups']
             '''submit_kwargs['estimator_kwargs'].update(  dict(rows=self.rows,
                                                             cols=self.cols,
@@ -309,25 +311,26 @@ class RWReweight(AverageCommands):
 
                 index = np.where(iter_grp['rows'][:,1] == gid)[0]
 
-                self.rows[gid].append(iter_grp['rows'][index,0])
-                self.cols[gid].append(iter_grp['cols'][index,0])
-                self.obs[gid].append(iter_grp['obs'][index,0])
-                self.flux[gid].append(iter_grp['flux'][index,0])
+                self.rows[gid].append(iter_grp['rows'][index,0][...])
+                self.cols[gid].append(iter_grp['cols'][index,0][...])
+                self.obs[gid].append(iter_grp['obs'][index,0][...])
+                self.flux[gid].append(iter_grp['flux'][index,0][...])
+                self.insert[gid].append(iter_grp['rows'][index,0][...].shape[0])
                 # 'insert' is the insertion point for each iteration; that is,
                 # at what point do we look into the list for iteration X?
                 #self.insert[gid].append(iter_grp['rows'][index,0].shape[0] + self.insert[gid][-1])
-                if iiter != 1:
-                    self.insert[gid].append(prior_index[gid] + self.insert[gid][-1])
-                else:
-                    self.insert[gid].append(0)
-                prior_index[gid] = index.shape[0]
+                #if iiter != 1:
+                #    self.insert[gid].append(prior_index[gid] + self.insert[gid][-1])
+                #else:
+                #    self.insert[gid].append(0)
+                #prior_index[gid] = index.shape[0]
         for gid in range(0, n_groups):
             self.rows[gid] = np.concatenate(self.rows[gid])
             self.cols[gid] = np.concatenate(self.cols[gid])
             self.obs[gid] = np.concatenate(self.obs[gid])
             self.flux[gid] = np.concatenate(self.flux[gid])
             #assert insert[-1] == len(self.rows)
-            self.insert[gid] = np.array(self.insert[gid], dtype=np.intc)
+            self.insert[gid] = np.array([0] + self.insert[gid], dtype=np.intc).cumsum()
         self.n_groups = n_groups
 
     def generate_reweight_data(self):
