@@ -530,7 +530,8 @@ Command-line options
         with pi:
             self.w_kinetics()
             self.w_kinavg()
-            self.w_stateprobs()
+            # We don't care about this command for our analysis.
+            #self.w_stateprobs()
 
 # Just a convenience class to average the observables.
 class DAverage(DStateProbs, DKinAvg):

@@ -51,10 +51,9 @@ from westpa.reweight import stats_process, reweight_for_c, FluxMatrix
 
 def _2D_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha, mcbs_nsets, mcbs_acalpha, do_correl, mcbs_enable, estimator_kwargs):
     # As our reweighting estimator is a weird function, we can't use the general mclib block.
+    # This huge block changes everything to use groups.
     results = []
-    print(estimator_kwargs.keys())
     n_groups = estimator_kwargs['n_groups']
-    #del estimator_kwargs['n_groups']
     rows = []
     cols = []
     obs = []
@@ -73,24 +72,13 @@ def _2D_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha, m
         obs.append(estimator_kwargs['obs'][g][ins_start:ins_stop])
         flux.append(estimator_kwargs['flux'][g][ins_start:ins_stop])
         insert[g] = len(rows[g])
-        #try:
-            #print(estimator_kwargs['rows'][g]
-        #insert[g] = ins_stop - ins_start
-        #except:
-        #    insert[g] = 1
-    #for i in range(0, n_groups):
-    #    if i != 0:
-    #        insert[g] += insert[g-1]
     insert = [0] + insert
 
-    #print(rows)
     rows = np.concatenate(np.array(rows))
     cols = np.concatenate(np.array(cols))
     obs = np.concatenate(np.array(obs))
-    #print(flux)
     flux = np.concatenate(np.array(flux))
     insert = np.array(np.array(insert, dtype=np.intc).cumsum(), dtype=np.intc)
-    print(insert, rows.shape[0])
     for istate in xrange(nstates):
         for jstate in xrange(nstates):
             if istate == jstate: continue
@@ -118,17 +106,47 @@ def _2D_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha, m
 def _1D_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha, mcbs_nsets, mcbs_acalpha, do_correl, mcbs_enable, estimator_kwargs):
     # As our reweighting estimator is a weird function, we can't use the general mclib block.
     results = []
+    n_groups = estimator_kwargs['n_groups']
+    rows = []
+    cols = []
+    obs = []
+    flux = []
+    insert = [0] * n_groups
+    for g in range(0, n_groups):
+        ins_start = estimator_kwargs['insert'][g][start-1]
+        try:
+            ins_stop = estimator_kwargs['insert'][g][stop-1]
+        except:
+            ins_stop = -1
+        #print(ins_start, ins_stop, len(rows))
+        #print(np.sum(estimator_kwargs['rows'][g][ins_start:ins_stop]))
+        rows.append(estimator_kwargs['rows'][g][ins_start:ins_stop])
+        cols.append(estimator_kwargs['cols'][g][ins_start:ins_stop])
+        obs.append(estimator_kwargs['obs'][g][ins_start:ins_stop])
+        flux.append(estimator_kwargs['flux'][g][ins_start:ins_stop])
+        insert[g] = len(rows[g])
+    insert = [0] + insert
+
+    rows = np.concatenate(np.array(rows))
+    cols = np.concatenate(np.array(cols))
+    obs = np.concatenate(np.array(obs))
+    flux = np.concatenate(np.array(flux))
+    insert = np.array(np.array(insert, dtype=np.intc).cumsum(), dtype=np.intc)
     for istate in xrange(nstates):
+        estimator_kwargs.update(dict(istate=istate, jstate=istate, nstates=nstates))
+        ek = copy.deepcopy(estimator_kwargs)
+        ek.update(dict(rows=rows, cols=cols, obs=obs, flux=flux, insert=insert))
+        del ek['n_groups']
         # A little hack to make our estimator play nice, as jstate must be there.
         # For 1D datasets (state probabilities, etc), the argument isn't used in our estimator,
         # and so any variable which has the proper type is fine.
-        estimator_kwargs.update(dict(istate=istate, jstate=istate, nstates=nstates))
 
-        dataset = { 'indices' : np.array(range(start-1, stop-1), dtype=np.uint16) }
+        #dataset = { 'indices' : np.array(range(start-1, stop-1), dtype=np.uint16) }
+        dataset = { 'indices' : np.array(range(0, n_groups), dtype=np.uint16) }
         
         ci_res = mcbs_ci_correl(dataset,estimator=reweight_for_c,
                                 alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
-                                subsample=(lambda x: x[0]), do_correl=do_correl, mcbs_enable=mcbs_enable, estimator_kwargs=estimator_kwargs)
+                                subsample=(lambda x: x[0]), do_correl=do_correl, mcbs_enable=mcbs_enable, estimator_kwargs=ek)
         results.append((name, iblock, istate, (start,stop) + ci_res))
 
     return results
@@ -136,17 +154,47 @@ def _1D_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha, m
 def _pop_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha, mcbs_nsets, mcbs_acalpha, do_correl, mcbs_enable, estimator_kwargs, **kwargs):
     # As our reweighting estimator is a weird function, we can't use the general mclib block.
     results = []
+    n_groups = estimator_kwargs['n_groups']
+    rows = []
+    cols = []
+    obs = []
+    flux = []
+    insert = [0] * n_groups
+    for g in range(0, n_groups):
+        ins_start = estimator_kwargs['insert'][g][start-1]
+        try:
+            ins_stop = estimator_kwargs['insert'][g][stop-1]
+        except:
+            ins_stop = -1
+        #print(ins_start, ins_stop, len(rows))
+        #print(np.sum(estimator_kwargs['rows'][g][ins_start:ins_stop]))
+        rows.append(estimator_kwargs['rows'][g][ins_start:ins_stop])
+        cols.append(estimator_kwargs['cols'][g][ins_start:ins_stop])
+        obs.append(estimator_kwargs['obs'][g][ins_start:ins_stop])
+        flux.append(estimator_kwargs['flux'][g][ins_start:ins_stop])
+        insert[g] = len(rows[g])
+    insert = [0] + insert
+
+    rows = np.concatenate(np.array(rows))
+    cols = np.concatenate(np.array(cols))
+    obs = np.concatenate(np.array(obs))
+    flux = np.concatenate(np.array(flux))
+    insert = np.array(np.array(insert, dtype=np.intc).cumsum(), dtype=np.intc)
     # A little hack to make our estimator play nice, as jstate must be there.
     # For 1D datasets (state probabilities, etc), the argument isn't used in our estimator,
     # and so any variable which has the proper type is fine.
     estimator_kwargs.update(dict(istate=0, jstate=0, nstates=nstates))
+    ek = copy.deepcopy(estimator_kwargs)
+    ek.update(dict(rows=rows, cols=cols, obs=obs, flux=flux, insert=insert))
+    del ek['n_groups']
+    dataset = { 'indices' : np.array(range(0, n_groups), dtype=np.uint16) }
 
-    estimator_kwargs.update({ 'indices' : np.array(range(start-1, stop-1), dtype=np.uint16), 'stride': 1  })
+    ek.update({ 'indices' : dataset, 'stride': 1  })
     #cpdef reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, nbins, state_labels, state_map, nfbins, istate, jstate, stride, bin_last_state_map, bin_state_map, return_obs, obs_threshold=1):
     #['nbins', 'rows', 'state_map', 'nfbins', 'bin_state_map', 'cols', 'jstate', 'flux', 'istate', 'return_obs', 'bin_last_state_map', 'insert', 'nstates', 'indices', 'state_labels', 'obs']
     #cpdef reweight_for_c(stride, obs_threshold=1):
     
-    ci_res = reweight_for_c(**estimator_kwargs)[...].reshape(-1,nstates).sum(axis=1)
+    ci_res = reweight_for_c(**ek)[...].reshape(-1,nstates).sum(axis=1)
 
     return ci_res
 
@@ -681,6 +729,7 @@ Command-line options
                                                         state_labels=self.state_labels,
                                                         return_obs='C', # Set to a default, but we explicitly set it later.
                                                         state_map=self.state_map,
+                                                        n_groups = self.n_groups,
                                                         nbins=self.nbins))
 
 
