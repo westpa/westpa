@@ -79,6 +79,8 @@ def _2D_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha, m
     obs = np.concatenate(np.array(obs))
     flux = np.concatenate(np.array(flux))
     insert = np.array(np.array(insert, dtype=np.intc).cumsum(), dtype=np.intc)
+    print(insert[2], flux.shape)
+    print(flux[:insert[2]].sum())
     for istate in xrange(nstates):
         for jstate in xrange(nstates):
             if istate == jstate: continue
@@ -93,6 +95,7 @@ def _2D_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha, m
 
 
             #dataset = { 'indices' : np.array(range(start-1, stop-1), dtype=np.uint16) }
+            #dataset = { 'indices' : np.array(range(0, n_groups+1), dtype=np.uint16) }
             dataset = { 'indices' : np.array(range(0, n_groups), dtype=np.uint16) }
             
             ci_res = mcbs_ci_correl(dataset,estimator=reweight_for_c,
@@ -337,6 +340,7 @@ class RWReweight(AverageCommands):
             n_groups = max(ng_i, n_groups)
             ng_i = 0
         gid_l = range(0, n_groups)
+        print(n_groups)
 
         # Okay, we have the number of groups.  Hooray!
         for gid in gid_l:
@@ -380,6 +384,7 @@ class RWReweight(AverageCommands):
             #assert insert[-1] == len(self.rows)
             self.insert[gid] = np.array([0] + self.insert[gid], dtype=np.intc).cumsum()
         self.n_groups = n_groups
+        print(self.flux[2])
 
     def generate_reweight_data(self):
         ''' 

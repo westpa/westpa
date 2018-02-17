@@ -154,6 +154,7 @@ cpdef reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, nbins, sta
     nnz = len(flux)
     lind = indices.shape[0]
     nlind = indices.shape[0]*stride
+    #nlind = indices.shape[0]
     total_fluxes = np.zeros((nfbins, nfbins), weight_dtype)
     total_obs = np.zeros((nfbins, nfbins), intc_dtype)
     transition_matrix = np.zeros((nfbins, nfbins), weight_dtype)
@@ -211,6 +212,7 @@ cpdef reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, nbins, sta
     #NOGIL
     # Reconstruct dataset.  We're just passing the same thing back and forth between functions.
     with nogil:
+    #if True:
         for i in range(_nfbins):
             for j in range(1, _nfbins+1):
                 _graph[i, j] = _nfbins
@@ -289,7 +291,7 @@ cpdef int accumulate_fluxes(int[:] hrows, int[:] hcols, int[:] hobs, weight_t[:]
 
     cdef:
         index_t curriter, elem, iiter, ipop
-        long ilem
+        long long ilem
 
     curriter = 0
 
@@ -297,8 +299,9 @@ cpdef int accumulate_fluxes(int[:] hrows, int[:] hcols, int[:] hobs, weight_t[:]
         iiter = iterations[iter]
         for ilem in range(hins[iiter], hins[iiter+1]):
             # Not sure if this is necessary, here...
-            if ilem < nnz and iiter+1 < itermax:
-                total_fluxes[hrows[ilem], hcols[ilem]] += hflux[ilem]
+            #if ilem < nnz and iiter+1 < itermax:
+            #if ilem < nnz:
+            total_fluxes[hrows[ilem], hcols[ilem]] += hflux[ilem]
 
     return 0
 
@@ -309,15 +312,16 @@ cpdef int accumulate_obs(int[:] hrows, int[:] hcols, int[:] hobs, weight_t[:] hf
 
     cdef:
         index_t curriter, elem, iiter, ipop
-        long ilem
+        long long ilem
 
     curriter = 0
 
     for iter in range(itermax):
         iiter = iterations[iter]
         for ilem in range(hins[iiter], hins[iiter+1]):
-            if ilem < nnz and iiter+1 < itermax:
-                total_obs[hrows[ilem], hcols[ilem]] += hobs[ilem]
+            #if ilem < nnz and iiter+1 < itermax:
+            #if ilem < nnz:
+            total_obs[hrows[ilem], hcols[ilem]] += hobs[ilem]
 
     return 0
 
