@@ -1,3 +1,3 @@
-#!/bin/bsh
+#!/bin/bash
 
 tleap -f tleap.in
