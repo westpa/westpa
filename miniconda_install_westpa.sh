@@ -1,5 +1,12 @@
 #!/bin/bash
 
+if [[ "$#" -ne 1 || $1 == "-h" || $1 == "--help" ]]; then
+   echo "Please specify the installation prefix for miniconda."
+   echo -e "Usage: . miniconda_install_westpa.sh <Miniconda Installation Prefix>"
+   echo ""
+   return
+fi
+
 PREFIX=$1
 
 if [ -d $PREFIX ]; then
@@ -10,10 +17,11 @@ else
    mkdir -p $(dirname $PREFIX)
 fi
 
-# Specify conda environment name
-conda_env=westpa-2017.10
+### +------------------------------------------------+ ########################################
+### | Step 1.  Install Miniconda                     | ########################################
+### +------------------------------------------------+ ########################################
 
-# Determine whether Linux or Mac
+# Determine platform of machine (currently only for Linux or Mac) 
 unameOut="$(uname -s)"
 case "${unameOut}" in
     Linux*)     platform=Linux;;
@@ -48,19 +56,32 @@ bash $(dirname $PREFIX)/$download -b -p $PREFIX
 # Prepend the Miniconda2 install location to PATH
 export PATH="$PREFIX/bin:$PATH"
 
+### +------------------------------------------------+ ########################################
+### | Step 2.  Install WESTPA in virtual environment | ########################################
+### +------------------------------------------------+ ########################################
+
+# Specify conda environment name
+conda_env=westpa-2017.10
+
 # Install WESTPA in virtual environment
 conda create --yes -n $conda_env westpa
 
-# Place WESTPA environment variables inside conda env
-mkdir -p $PREFIX/envs/$conda_env/etc/conda/activate.d
-mkdir -p $PREFIX/envs/$conda_env/etc/conda/deactivate.d
-touch $PREFIX/envs/$conda_env/etc/conda/activate.d/env_vars.sh
-cat <<EOC >> $PREFIX/envs/$conda_env/etc/conda/activate.d/env_vars.sh
-. $(dirname $(dirname `which python2.7`))/envs/$conda_env/$conda_env/westpa.sh
-EOC
+source activate $conda_env
 
-touch $PREFIX/envs/$conda_env/etc/conda/deactivate.d/env_vars.sh
+# Place WESTPA environment variables inside conda env
+export ENV_PREFIX="$(dirname $(dirname `which python2.7`))"
+mkdir -p $ENV_PREFIX/etc/conda/activate.d
+mkdir -p $ENV_PREFIX/etc/conda/deactivate.d
+touch $ENV_PREFIX/etc/conda/activate.d/env_vars.sh
+cat << EOC >> $ENV_PREFIX/etc/conda/activate.d/env_vars.sh 
+. $(dirname $(dirname `which python2.7`))/$conda_env/westpa.sh
+EOC
+touch $ENV_PREFIX/etc/conda/deactivate.d/env_vars.sh
+
+source deactivate
 
 # Reminder to add Miniconda2 install location to PATH
 echo "Be sure to add the following to your .bashrc startup file"
 echo "export PATH="$PREFIX/bin:'$PATH'""
+
+
