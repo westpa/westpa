@@ -7,7 +7,7 @@ if [[ "$#" -ne 1 || $1 == "-h" || $1 == "--help" ]]; then
    return
 fi
 
-PREFIX=$1
+PREFIX=$(readlink -f $1)
 
 if [ -d $PREFIX ]; then
    echo "$PREFIX already exists."
