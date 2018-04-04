@@ -1,5 +1,11 @@
 #!/bin/bash
 
+if echo "$0" | grep '\.sh$' > /dev/null; then
+   echo 'Please source this script rather than executing it directly.'
+   echo "Usage: source miniconda_install_westpa.sh <Miniconda Installation Prefix>"
+   exit
+fi
+
 if [[ "$#" -ne 1 || $1 == "-h" || $1 == "--help" ]]; then
    echo "Please specify the installation prefix for miniconda."
    echo -e "Usage: . miniconda_install_westpa.sh <Miniconda Installation Prefix>"
