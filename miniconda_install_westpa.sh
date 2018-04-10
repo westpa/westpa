@@ -1,16 +1,16 @@
 #!/bin/bash
 
-if echo "$0" | grep '\.sh$' > /dev/null; then
-   echo 'Please source this script rather than executing it directly.'
-   echo "Usage: source miniconda_install_westpa.sh <Miniconda Installation Prefix>"
-   exit
+if ! echo "$0" | grep '\.sh$' > /dev/null; then
+   echo 'Please execute this script directly rather than sourcing the script.'
+   echo "Usage: ./miniconda_install_westpa.sh <Miniconda Installation Prefix>"
+   return 1
 fi
 
 if [[ "$#" -ne 1 || $1 == "-h" || $1 == "--help" ]]; then
    echo "Please specify the installation prefix for miniconda."
-   echo -e "Usage: . miniconda_install_westpa.sh <Miniconda Installation Prefix>"
+   echo -e "Usage: ./miniconda_install_westpa.sh <Miniconda Installation Prefix>"
    echo ""
-   return
+   exit
 fi
 
 PREFIX="$(cd "$(dirname "$1")"; pwd)/$(basename "$1")"
@@ -18,7 +18,7 @@ PREFIX="$(cd "$(dirname "$1")"; pwd)/$(basename "$1")"
 if [ -d $PREFIX ]; then
    echo "$PREFIX already exists."
    echo "Please specify a different directory or remove the current one and try again."
-   return
+   exit
 else
    mkdir -p $(dirname $PREFIX)
 fi
@@ -44,7 +44,7 @@ elif [ ${platform} == "Mac" ]; then
 else
    echo "Installation script only supports Linux or Mac OS X."
    echo "Exiting installation."
-   return
+   exit
 fi
 
 echo "download = " ${download}
