@@ -70,7 +70,7 @@ export PATH="$PREFIX/bin:$PATH"
 conda_env=westpa-2017.10
 
 # Install WESTPA in virtual environment
-conda create --yes -n $conda_env westpa
+conda create --yes -c conda-forge -n $conda_env westpa
 
 source activate $conda_env
 
