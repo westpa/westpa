@@ -87,7 +87,7 @@ class AdaptiveVoronoiDriver:
             n_iter = max(self.data_manager.current_iteration - 1, 1)
             iter_group = self.data_manager.get_iter_group(n_iter)
 
-            # First attempt to initialize string from data rather than system
+            # Attempt to initialize voronoi centers from data rather than system
             centers = None
             try:
                 log.info('Voronoi centers from previous bin mapper')
@@ -97,7 +97,7 @@ class AdaptiveVoronoiDriver:
                 centers = bin_mapper.centers
 
             except:
-                log.warning('Initializing string centers from data failed; Using definition in system instead.')
+                log.warning('Initializing voronoi centers from data failed; Using definition in system instead.')
                 centers = self.system.bin_mapper.centers
 
         self.data_manager.close_backing()
@@ -108,7 +108,6 @@ class AdaptiveVoronoiDriver:
 
         westpa.rc.pstatus('westext.adaptvoronoi: Updating bin mapper\n')
         westpa.rc.pflush()
-
 
         try:
             dfargs = getattr(self.system, 'dfargs', None)
@@ -135,12 +134,7 @@ class AdaptiveVoronoiDriver:
         for iwalk, walk in enumerate(curr_pcoords):
             dists[iwalk] = min(self.dfunc(walk[-1], self.centers))
         max_ind = np.where(dists==dists.max())
-        #print("prev centers")
-        #print(self.centers, self.centers.shape)
-        #print(curr_pcoords[max_ind[0][0]][-1])
         self.centers = np.vstack((self.centers, curr_pcoords[max_ind[0][0]][-1]))
-        #print("new centers")
-        #print(self.centers, self.centers.shape)
 
     def prepare_new_iteration(self):
 

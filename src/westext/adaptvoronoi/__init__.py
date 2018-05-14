@@ -17,6 +17,3 @@
 
 import adaptVor_driver
 from adaptVor_driver import AdaptiveVoronoiDriver
-
-#AdaptiveVoronoi, 
-#from AdaptiveVoronoi import DefaultAdaptiveVoronoi
