@@ -115,7 +115,7 @@ class AdaptiveVoronoiDriver:
             self.system.bin_mapper = VoronoiBinMapper(self.dfunc, self.centers, 
                                                       dfargs=dfargs, 
                                                       dfkwargs=dfkwargs)
-            self.ncenters = len(self.centers)
+            self.ncenters = self.system.bin_mapper.nbins
             new_target_counts = np.empty((self.ncenters,), np.int)
             new_target_counts[...] = self.walk_count
             self.system.bin_target_counts = new_target_counts
