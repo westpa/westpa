@@ -115,10 +115,10 @@ class AdaptiveVoronoiDriver:
             self.system.bin_mapper = VoronoiBinMapper(self.dfunc, self.centers, 
                                                       dfargs=dfargs, 
                                                       dfkwargs=dfkwargs)
-            new_target_counts = np.empty((self.system.bin_mapper.nbins,), np.int)
+            self.ncenters = len(self.centers)
+            new_target_counts = np.empty((self.ncenters,), np.int)
             new_target_counts[...] = self.walk_count
             self.system.bin_target_counts = new_target_counts
-            self.ncenters = self.system.bin_mapper.nbins
         except (ValueError, TypeError) as e:
             log.error('AdaptiveVoronoiDriver Error: Failed updating the bin mapper: {}'.format(e))
             raise
@@ -143,8 +143,11 @@ class AdaptiveVoronoiDriver:
         with self.data_manager.lock:
             iter_group = self.data_manager.get_iter_group(n_iter)
 
+        # See if we are at the correct iteration frequency to update
         if n_iter % self.center_freq == 0:
+            # See if we reached the maximum number of centers
             if self.ncenters < self.max_centers:
+                # First update the centers
                 self.update_centers(iter_group)
-                # Update the bin definitions
+                # Next update the bin mapper
                 self.update_bin_mapper()
