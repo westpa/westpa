@@ -17,14 +17,12 @@
 
 from __future__ import division; __metaclass__ = type
 import logging
-log = logging.getLogger(__name__)
-
 import numpy as np
-
 import westpa, west
 from westpa import extloader
 from westpa.yamlcfg import check_bool, ConfigItemMissing
 from westpa.binning import VoronoiBinMapper
+log = logging.getLogger(__name__)
 
 
 class AdaptiveVoronoiDriver:
@@ -36,9 +34,10 @@ class AdaptiveVoronoiDriver:
         self.sim_manager = sim_manager
         self.data_manager = sim_manager.data_manager
         self.system = sim_manager.system
-        
+
         # Parameters from config file
-        self.doAdaptiveVoronoi = check_bool(plugin_config.get('av_enabled', False))
+        self.doAdaptiveVoronoi = \
+            check_bool(plugin_config.get('av_enabled', False))
         self.max_centers = plugin_config.get('max_centers', 10)
         self.walk_count = plugin_config.get('walk_count', 5)
         self.center_freq = plugin_config.get('center_freq', 1)
@@ -63,7 +62,8 @@ class AdaptiveVoronoiDriver:
 
         # Register callback
         if self.doAdaptiveVoronoi:
-            sim_manager.register_callback(sim_manager.prepare_new_iteration, self.prepare_new_iteration, self.priority)
+            sim_manager.register_callback(sim_manager.prepare_new_iteration,
+                                          self.prepare_new_iteration, self.priority)
 
     def dfunc(self):
         raise NotImplementedError
@@ -112,8 +112,8 @@ class AdaptiveVoronoiDriver:
         try:
             dfargs = getattr(self.system, 'dfargs', None)
             dfkwargs = getattr(self.system, 'dfkwargs', None)
-            self.system.bin_mapper = VoronoiBinMapper(self.dfunc, self.centers, 
-                                                      dfargs=dfargs, 
+            self.system.bin_mapper = VoronoiBinMapper(self.dfunc, self.centers,
+                                                      dfargs=dfargs,
                                                       dfkwargs=dfkwargs)
             self.ncenters = self.system.bin_mapper.nbins
             new_target_counts = np.empty((self.ncenters,), np.int)
@@ -133,7 +133,7 @@ class AdaptiveVoronoiDriver:
         dists = np.zeros(curr_pcoords.shape[0])
         for iwalk, walk in enumerate(curr_pcoords):
             dists[iwalk] = min(self.dfunc(walk[-1], self.centers))
-        max_ind = np.where(dists==dists.max())
+        max_ind = np.where(dists == dists.max())
         self.centers = np.vstack((self.centers, curr_pcoords[max_ind[0][0]][-1]))
 
     def prepare_new_iteration(self):
