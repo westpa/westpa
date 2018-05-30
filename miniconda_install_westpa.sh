@@ -72,7 +72,9 @@ conda_env=westpa-2017.10
 # Install WESTPA in virtual environment
 conda create --yes -c conda-forge -n $conda_env westpa
 
-source activate $conda_env
+. $PREFIX/etc/profile.d/conda.sh
+
+conda activate $conda_env
 
 # Place WESTPA environment variables inside conda env
 export ENV_PREFIX="$(dirname $(dirname `which python2.7`))"
@@ -84,10 +86,10 @@ cat << EOC >> $ENV_PREFIX/etc/conda/activate.d/env_vars.sh
 EOC
 touch $ENV_PREFIX/etc/conda/deactivate.d/env_vars.sh
 
-source deactivate
+conda deactivate
 
 # Reminder to add Miniconda2 install location to PATH
-echo "Be sure to add the following to your .bashrc startup file"
+echo "Be sure to add the following lines to your .bashrc startup file"
 echo "export PATH="$PREFIX/bin:'$PATH'""
-
+echo ". $PREFIX/etc/profile.d/conda.sh"
 
