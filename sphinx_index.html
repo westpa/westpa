@@ -60,7 +60,18 @@ License, Version 3. See the file <code class="docutils literal"><span class="pre
 </div>
 <div class="section" id="obtaining-and-installing-westpa">
 <h2>Obtaining and Installing WESTPA<a class="headerlink" href="#obtaining-and-installing-westpa" title="Permalink to this headline">¶</a></h2>
-<p>Directions for installing WESTPA can be found <a href="https://github.com/westpa/westpa/wiki/Installing-WESTPA">here.</a> 
+<p>Here are the simple instructions for installing WESTPA as a package within Anaconda or Miniconda.</p>
+<p>1. Begin by installing the most recent Python 2.7.x version of either <a class="reference external" href="https://www.anaconda.com/download/#linux">Anaconda</a> or <a class="reference external" href="https://conda.io/miniconda.html">Miniconda</a>.</p>
+<p>2. Open a command line terminal and type the following command.</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">conda</span> <span class="n">install</span> <span class="o">-</span><span class="n">c</span> <span class="n">conda</span><span class="o">-</span><span class="n">forge</span> <span class="n">westpa</span>
+</pre></div>
+</div>
+<p>3. Prior to running simulations or performing analysis, execute the following commands or add the commands to your ~/.bashrc file.</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">export</span> <span class="n">ENV_PREFIX</span><span class="o">=</span><span class="o">"</span><span class="o">$</span><span class="o">(</span><span class="n">dirname</span> <span class="o">$</span><span class="o">(</span><span class="n">dirname</span> <span class="o">'</span><span class="n">which</span> <span class="n">python2</span><span class="o">.</span><span class="n">7</span><span class="o">'</span><span class="o">(</span><span class="o">(</span><span class="o">"</span>
+<span class="o">./</span> <span class="o">$</span><span class="n">ENV_PREFIX</span><span class="o">/</span><span class="n">westpa</span><span class="o">-</span><span class="n">2017</span><span class="o">.</span><span class="n">10</span><span class="o">/</span><span class="n">westpa</span><span class="o">.</span><span class="n">sh</span>
+</pre></div>
+</div>
+<p>For other types of installations, including setting up WESTPA inside a virtual environment, installing from the tar.gz file and detailed instructions on how to obtain Anaconda or Miniconda, please visit our full installation page <a class="reference external" href="https://github.com/westpa/westpa/wiki/Installing-WESTPA">here</a>.</p>
 </div>
 <div class="section" id="getting-started">
 <h2>Getting started<a class="headerlink" href="#getting-started" title="Permalink to this headline">¶</a></h2>
