@@ -17,12 +17,14 @@
 
 from __future__ import division; __metaclass__ = type
 import logging
+log = logging.getLogger(__name__)
+
 import numpy as np
+
 import westpa, west
 from westpa import extloader
 from westpa.yamlcfg import check_bool, ConfigItemMissing
 from westpa.binning import VoronoiBinMapper
-log = logging.getLogger(__name__)
 
 
 class AdaptiveVoronoiDriver:
@@ -34,15 +36,19 @@ class AdaptiveVoronoiDriver:
         self.sim_manager = sim_manager
         self.data_manager = sim_manager.data_manager
         self.system = sim_manager.system
-
+        
         # Parameters from config file
-        self.doAdaptiveVoronoi = \
-            check_bool(plugin_config.get('av_enabled', False))
+        # this enables the adaptive voronoi, allows turning adaptive scheme off
+        self.doAdaptiveVoronoi = check_bool(plugin_config.get('av_enabled', False))
+        # sets maximim number of centers/voronoi bins
         self.max_centers = plugin_config.get('max_centers', 10)
+        # sets number of walkers per bin/voronoi center
         self.walk_count = plugin_config.get('walk_count', 5)
+        # center placement frequency in number of iterations
         self.center_freq = plugin_config.get('center_freq', 1)
+        # priority of the plugin (allows for order of execution)
         self.priority = plugin_config.get('priority', 0)
-
+        # pulls the distance function that will be used by the plugin
         self.dfunc = self.get_dfunc_method(plugin_config)
 
         # Get initial set of Voronoi centers
@@ -62,10 +68,13 @@ class AdaptiveVoronoiDriver:
 
         # Register callback
         if self.doAdaptiveVoronoi:
-            sim_manager.register_callback(sim_manager.prepare_new_iteration,
-                                          self.prepare_new_iteration, self.priority)
+            sim_manager.register_callback(sim_manager.prepare_new_iteration, self.prepare_new_iteration, self.priority)
 
     def dfunc(self):
+        '''
+        Distance function to be used by the plugin. This function
+        will be used to calculate the distance between each point.
+        '''
         raise NotImplementedError
 
     def get_dfunc_method(self, plugin_config):
@@ -81,13 +90,17 @@ class AdaptiveVoronoiDriver:
         return dfunc_method
 
     def get_initial_centers(self):
+        '''
+        This function pulls from the centers from either the previous bin mapper
+        or uses the definition from the system to calculate the number of centers
+        '''
         self.data_manager.open_backing()
 
         with self.data_manager.lock:
             n_iter = max(self.data_manager.current_iteration - 1, 1)
             iter_group = self.data_manager.get_iter_group(n_iter)
 
-            # Attempt to initialize voronoi centers from data rather than system
+            # First attempt to initialize string from data rather than system
             centers = None
             try:
                 log.info('Voronoi centers from previous bin mapper')
@@ -97,7 +110,7 @@ class AdaptiveVoronoiDriver:
                 centers = bin_mapper.centers
 
             except:
-                log.warning('Initializing voronoi centers from data failed; Using definition in system instead.')
+                log.warning('Initializing string centers from data failed; Using definition in system instead.')
                 centers = self.system.bin_mapper.centers
 
         self.data_manager.close_backing()
@@ -109,31 +122,47 @@ class AdaptiveVoronoiDriver:
         westpa.rc.pstatus('westext.adaptvoronoi: Updating bin mapper\n')
         westpa.rc.pflush()
 
+
         try:
             dfargs = getattr(self.system, 'dfargs', None)
             dfkwargs = getattr(self.system, 'dfkwargs', None)
-            self.system.bin_mapper = VoronoiBinMapper(self.dfunc, self.centers,
-                                                      dfargs=dfargs,
+            self.system.bin_mapper = VoronoiBinMapper(self.dfunc, self.centers, 
+                                                      dfargs=dfargs, 
                                                       dfkwargs=dfkwargs)
-            self.ncenters = self.system.bin_mapper.nbins
-            new_target_counts = np.empty((self.ncenters,), np.int)
+            new_target_counts = np.empty((self.system.bin_mapper.nbins,), np.int)
             new_target_counts[...] = self.walk_count
             self.system.bin_target_counts = new_target_counts
+            self.ncenters = self.system.bin_mapper.nbins
         except (ValueError, TypeError) as e:
             log.error('AdaptiveVoronoiDriver Error: Failed updating the bin mapper: {}'.format(e))
             raise
 
     def update_centers(self, iter_group):
-        '''Update the set of Voronoi centers'''
+        '''
+        Update the set of Voronoi centers according to Zhang 2010, J Chem Phys, 132
+        A short description of the algorithm can be found in the text: 
+        1) First reference structure is chosen randomly from the first set of given
+        structures
+        2) Given a set of n reference structures, for each configuration in the iteration
+        the distances to each reference structure is calculated and the minimum distance is 
+        found
+        3) The configuration with the minimum distance is selected as the next reference
+        '''
 
         westpa.rc.pstatus('westext.adaptvoronoi: Updating Voronoi centers\n')
         westpa.rc.pflush()
 
+        # Pull the current coordinates to find distances
         curr_pcoords = iter_group['pcoord']
+        # Initialize distance array
         dists = np.zeros(curr_pcoords.shape[0])
         for iwalk, walk in enumerate(curr_pcoords):
+            # Calculate distances using the provided function 
+            # and find the distance to the closest center
             dists[iwalk] = min(self.dfunc(walk[-1], self.centers))
-        max_ind = np.where(dists == dists.max())
+        # Find the maximum of the minimum distances
+        max_ind = np.where(dists==dists.max())
+        # Use the maximum progress coordinate as our next center
         self.centers = np.vstack((self.centers, curr_pcoords[max_ind[0][0]][-1]))
 
     def prepare_new_iteration(self):
@@ -143,11 +172,11 @@ class AdaptiveVoronoiDriver:
         with self.data_manager.lock:
             iter_group = self.data_manager.get_iter_group(n_iter)
 
-        # See if we are at the correct iteration frequency to update
+        # Check if we are at the correct frequency for updating the bin mapper
         if n_iter % self.center_freq == 0:
-            # See if we reached the maximum number of centers
+            # Check if we still need to add more centers
             if self.ncenters < self.max_centers:
-                # First update the centers
+                # First find the center to add
                 self.update_centers(iter_group)
-                # Next update the bin mapper
+                # Update the bin mapper with the new center
                 self.update_bin_mapper()
