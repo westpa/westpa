@@ -51,6 +51,8 @@ class AdaptiveVoronoiDriver:
         self.priority = plugin_config.get('priority', 0)
         # pulls the distance function that will be used by the plugin
         self.dfunc = self.get_dfunc_method(plugin_config)
+        # pulls a user defined function to build the next bin mapper
+        self.mapper_func = self.get_mapper_func(plugin_config)
 
         # Get initial set of Voronoi centers
         self.centers = self.get_initial_centers()
@@ -91,6 +93,18 @@ class AdaptiveVoronoiDriver:
 
         return dfunc_method
 
+    def get_mapper_func(self, plugin_config):
+        try:
+            methodname = plugin_config['mapper_func']
+        except KeyError:
+            return False
+
+        mapper_func = extloader.get_object(methodname)
+
+        log.info('loaded adaptive voronoi mapper function {!r}'.format(mapper_func))
+
+        return mapper_func 
+
     def get_initial_centers(self):
         '''
         This function pulls from the centers from either the
@@ -127,12 +141,22 @@ class AdaptiveVoronoiDriver:
         westpa.rc.pstatus('westext.adaptvoronoi: Updating bin mapper\n')
         westpa.rc.pflush()
 
+        #self.mapper_func = plugin_config.get('mapper_func', False)
         try:
             dfargs = getattr(self.system, 'dfargs', None)
             dfkwargs = getattr(self.system, 'dfkwargs', None)
-            self.system.bin_mapper = VoronoiBinMapper(self.dfunc, self.centers,
-                                                      dfargs=dfargs,
-                                                      dfkwargs=dfkwargs)
+            if self.mapper_func:
+                # The mapper should take in 1) distance function,
+                # 2) centers, 3) dfargs, 4) dfkwargs and return 
+                # the mapper we want
+                self.system.bin_mapper = self.mapper_func(self.dfunc, 
+                                                          self.centers, 
+                                                          dfargs=dfargs, 
+                                                          dfkwargs=dfkwargs)
+            else:
+                self.system.bin_mapper = VoronoiBinMapper(self.dfunc, self.centers,
+                                                          dfargs=dfargs,
+                                                          dfkwargs=dfkwargs)
             self.ncenters = self.system.bin_mapper.nbins
             new_target_counts = np.empty((self.ncenters,), np.int)
             new_target_counts[...] = self.walk_count
