@@ -1,4 +1,3 @@
-export WEST_ROOT=../../../
 if [[ -z "$WEST_ROOT" ]]; then
     echo "Must set environ variable WEST_ROOT"
     exit

@@ -28,6 +28,24 @@ from westpa.binning import VoronoiBinMapper
 
 
 class AdaptiveVoronoiDriver:
+    '''
+    This plugin implements an adaptive scheme using voronoi bins from
+    Zhang 2010, J Chem Phys, 132. The options exposed to the configuration
+    file are:
+
+      - av_enabled (bool, default False): Enables adaptive binning
+      - max_centers (int, default 10): The maximum number of voronoi centers to be placed
+      - walk_count (integer, default 5): Number of walkers per voronoi center
+      - center_freq (ingeter, default 1): Frequency of center placement
+      - priority (integer, default 1): Priority in the plugin order
+      - dfunc_method (function, non-optional, no default): Non-optional user defined
+          function that will be used to calculate distances between voronoi centers and 
+          data points
+      - mapper_func (function, optional): Optional user defined function for building bin
+          mappers for more complicated binning schemes e.g. embedding the voronoi binning
+          in a portion of the state space. If not defined the plugin will build a 
+          VoronoiBinMapper with the information it has.
+    '''
     def __init__(self, sim_manager, plugin_config):
 
         if not sim_manager.work_manager.is_master:
