@@ -1,4 +1,4 @@
-# Copyright (C) 2013 Joshua L. Adelman
+# Copyright (C) 2018 Ali Sinan Saglam
 #
 # This file is part of WESTPA.
 #
