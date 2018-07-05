@@ -310,7 +310,7 @@ class BinMappingComponent(WESTToolComponent):
                                 [[boundset1], [boundset2], ... ]}}; only rectilinear bin bounds are supported.''')
             
         if '--bins-from-h5file' not in suppressed_options:
-            egroup.add_argument('--bins-from-h5file', action='store_true',
+            egroup.add_argument('--bins-from-h5file', dest='bins_from_h5file', type=int, #action='store_true',
                                 help='''Load bin specification from the data file being examined
                                 (default where stored bin definitions available).''')
             
