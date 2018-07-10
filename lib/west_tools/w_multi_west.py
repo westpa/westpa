@@ -36,6 +36,9 @@ from westtools import (WESTTool, WESTDataReader, IterRangeSelection, WESTSubcomm
                        ProgressIndicatorComponent, WESTMultiTool)
 from westpa import h5io
 #from westtools.dtypes import iter_block_ci_dtype as ci_dtype
+import gc
+import objgraph
+#from pympler.tracker import SummaryTracker
 
 ci_dtype = numpy.dtype([('iter_start', n_iter_dtype),
                         ('iter_stop', n_iter_dtype),
@@ -139,6 +142,7 @@ Command-line options
     def process_args(self, args):
         self.progress.process_args(args)
         self.output_file = args.output_file
+        self.output_file_name = args.output_file
         self.west = args.west
         self.sims = args.sims
 
@@ -171,8 +175,10 @@ Command-line options
 
             #self.niters = 500
             # Initialize data manager...
-            self.data_manager = data_manager.WESTDataManager()
-            pi.new_operation('Recreating...', self.niters)
+            # Just bullshit for the current system.
+            #self.niters = self.westH5[1].attrs['west_current_iteration'] - 1
+            #print(self.niters, len(self.westH5))
+            #self.data_manager = data_manager.WESTDataManager()
             westh5 = []
             self.source_sinks = []
             self.n_sims = {}
@@ -212,6 +218,9 @@ Command-line options
                 self.futr_iter[i] = []
                 self.past_rm[i] = []
                 self.futr_rm[i] = []
+            print(pi.new_operation('Recreating...', self.niters))
+            #tracker = SummaryTracker()
+            #self.output_file.close()
             for iter in range(self.niters):
                 # We have the following datasets in each iteration:
                 # ibstates, which aren't important.
@@ -221,220 +230,61 @@ Command-line options
                 # wtgraph is going to be a little more complex to handle, but not too bad.
                 iter += 1
                 ifile = 0
+                #self.output_file = h5io.WESTPAH5File(self.output_file_name, 'w', creating_program=True)
                 # Determine how many simulations to append or remove per west file.
-                self.segments = {}
-                for key,value in self.n_sims.iteritems():
-                    self.segments[key] = int(np.floor(len(self.past_iter[key]) / value))
+                #self.segments = {}
+                #for key,value in self.n_sims.iteritems():
+                #    self.segments[key] = int(np.floor(len(self.past_iter[key]) / value))
 
                 run_once = 0
-                total_current_sims = 0
-                for i in self.source_sinks:
-                    total_current_sims += len(self.past_iter[i])
-                    total_current_sims += len(self.past_rm[i])
-                print(iter)
-                while total_current_sims > 0 or run_once == 0:
-                    #try:
-                    for iwest, westdict in enumerate(westh5):
-                        west = westdict['west']
-                        if iter == 1:
-                            summary = west['summary'][...]
-
-                        # Try recreating the bin mapper...
-                        binhash = west['iterations/iter_{0:08d}'.format(2)].attrs['binhash']
-                        bin_mapper = get_bin_mapper(west,binhash)
-
-                        # Check whether the weight multiplication matrix exists for this code...
-                        if run_once == 0:
-                            seg_index = west['iterations/iter_{0:08d}'.format(iter)]['seg_index'][...]
-                        else:
-                            seg_index = westdict['seg_index'][...]
-
-                        print(westdict['wm'])
-                        if type(westdict['wm']) == type(None):
-                            westdict['wm'] = np.ones(seg_index.shape[0])
-                        else:
-                            # Otherwise, transform the parent recycling matrix into this one.
-                            # for the moment, just copy this code here (we'll rearrange later)
-                            #seg_index = west['iterations/iter_{0:08d}'.format(iter)]['seg_index'][...]
-                            # Unfortunately, new segments have a negative index.  So we'll need to sort for those, first.
-                            # We'll make a copy, then set all negatives to be 0.
-                            # Afterwards, we'll return the index of where the parent_ids were negative,
-                            # then set the multiplier to 1, as it should be.
-                            if run_once == 0:
-                                unrecycled_parents = seg_index['parent_id'][...]
-                                unrecycled_parents[np.where(unrecycled_parents < 0)[0]] = 0
-                                westdict['wm'] = westdict['wm'][unrecycled_parents]
-                                westdict['wm'][np.where(seg_index['parent_id'] < 0)[0]] = 1
-                        #seg_index = west['iterations/iter_{0:08d}'.format(iter)]['seg_index'][...]
-                        pcoord = west['iterations/iter_{0:08d}'.format(iter)]['pcoord'][...]
-                        wtgraph = west['iterations/iter_{0:08d}'.format(iter)]['wtgraph'][...]
+                #total_current_sims = 0
+                #for i in self.source_sinks:
+                #    total_current_sims += len(self.past_iter[i])
+                #    total_current_sims += len(self.past_rm[i])
+                for ifile, west in enumerate(westh5):
+                    westdict = west['west']
+                    seg_index = westdict['iterations/iter_{0:08d}'.format(iter)]['seg_index'][...]
+                    pcoord = westdict['iterations/iter_{0:08d}'.format(iter)]['pcoord'][...]
+                    wtgraph = westdict['iterations/iter_{0:08d}'.format(iter)]['wtgraph'][...]
+                    if iter == 1 and ifile == 0:
                         new_dtype = np.dtype(seg_index.dtype.descr + [('group','<i8')])
-                        print(seg_index.dtype)
-                        new_seg_index = np.zeros(seg_index.shape, dtype=new_dtype)
-                        print(seg_index.dtype)
-                        print(dir(seg_index.dtype))
-                        print((seg_index.dtype.fields))
-                        for dt,val in seg_index.dtype.fields.iteritems():
-                            print(dt)
-                            new_seg_index[dt] = seg_index[dt]
-                        new_seg_index['group'] = iwest
-                        seg_index = new_seg_index
-                        # Let's reweight!
-                        # First, we initialize to the correct weights based on prior iterations of recycling.
-                        if run_once == 0:
-                            seg_index['weight'] *= westdict['wm']
-                        # Now, we'll sort through any trajectories that need to be taken care of in terms of removing weight from this simulation...
-                        # ... we need the source state, and the assignments.
-                        try:
-                            source_state = self.source_sinks[np.where(np.array(self.source_sinks) != westdict['rt'])[0][0]]
-                        except:
-                            source_state = -1
-                        assignments = bin_mapper.assign(pcoord[:,0,:])
-                        in_source = np.where(assignments == source_state)[0]
+                    new_seg_index = np.zeros(seg_index.shape, dtype=new_dtype)
+                    for dt,val in seg_index.dtype.fields.iteritems():
+                        new_seg_index[dt] = seg_index[dt]
+                    new_seg_index['group'] = ifile
+                    del seg_index
+                    seg_index = new_seg_index[...]
+                    del new_seg_index
+                    if ifile == 0:
+                        mseg = seg_index
+                        mpco = pcoord
+                        mwtg = wtgraph
+                        if iter == 1:
+                            summary = westdict['summary'][...]
 
-                        # ... and then we'll handle adding in any new weight into our source state from other simulations.
-                        # We can pop items off the list; we just need to be sure of how many we're taking off.
-                        # Okay, so we go through and pop off as many as we need to, assuming any exist.
-                        # If we only have one left, just... add it.
-                        if in_source.shape[0] != 0:
-                            if self.segments[source_state] != 0:
-                                for i in range(0, self.segments[source_state]):
-                                    seg = self.past_iter[source_state].pop()
-                                    #in_source = np.where(assignments == source_state)[0]
-                                    add_weight = in_source[randint(0,len(in_source)-1)]
-                                    seg_index['weight'][add_weight] += seg.weight
-                                    # Now, we'll need to adjust the weight matrix entry for it.
-                                    # As we've already reweighted, it's easiest to just repull the damn thing and call it a day.
-                                    westdict['wm'][add_weight] = seg_index['weight'][add_weight] / west['iterations/iter_{0:08d}'.format(iter)]['seg_index']['weight'][add_weight]
-                            elif self.segments[source_state] == 0 and len(self.past_iter[source_state]) > 0:
-                                for i in range(0, len(self.past_iter[source_state])):
-                                    seg = self.past_iter[source_state].pop()
-                                    #in_source = np.where(assignments == source_state)[0]
-                                    add_weight = in_source[randint(0,len(in_source)-1)]
-                                    seg_index['weight'][add_weight] += seg.weight
-                                    # Now, we'll need to adjust the weight matrix entry for it.
-                                    # As we've already reweighted, it's easiest to just repull the damn thing and call it a day.
-                                    westdict['wm'][add_weight] = seg_index['weight'][add_weight] / west['iterations/iter_{0:08d}'.format(iter)]['seg_index']['weight'][add_weight]
-                            if self.segments[source_state] > 1 and len(self.past_iter[source_state]) > 0:
-                                seg = self.past_iter[source_state].pop()
-                                #in_source = np.where(assignments == source_state)[0]
-                                add_weight = in_source[randint(0,len(in_source)-1)]
-                                seg_index['weight'][add_weight] += seg.weight
-                                # Now, we'll need to adjust the weight matrix entry for it.
-                                # As we've already reweighted, it's easiest to just repull the damn thing and call it a day.
-                                westdict['wm'][add_weight] = seg_index['weight'][add_weight] / west['iterations/iter_{0:08d}'.format(iter)]['seg_index']['weight'][add_weight]
-
-
-
-                            # Only run this if we haven't before.
-
-                        #self.past_rm[i] = []
-                        #self.futr_rm[i] = []
-                        if in_source.shape[0] != 0:
-                            if len(self.past_rm[westdict['rt']]) > 0:
-                                #for iseg in range(0, len(self.past_rm[westdict['rt']])):
-                                for iseg in range(0, self.segments[westdict['rt']]):
-                                    seg = self.past_rm[westdict['rt']].pop()
-                                    # We go through, pick a walker from the source state in the first time point, then remove the weight from it.
-                                    curr_weight = 0
-                                    max_weight = np.max(seg_index['weight'][in_source])
-                                    if max_weight > seg.weight:
-                                        while curr_weight <= seg.weight:
-                                            remove_weight = in_source[randint(0,len(in_source)-1)]
-                                            curr_weight = seg_index['weight'][remove_weight][...]
-                                        seg_index['weight'][remove_weight] -= seg.weight
-                                        seg.weight = 0
-                                        # Now, we'll need to adjust the weight matrix entry for it.
-                                        # As we've already reweighted, it's easiest to just repull the damn thing and call it a day.
-                                        westdict['wm'][remove_weight] = seg_index['weight'][remove_weight] / west['iterations/iter_{0:08d}'.format(iter)]['seg_index']['weight'][remove_weight]
-                                    else:
-                                        # If there's no suitable walker, we just remove it from everything there.
-                                        for remove_weight in in_source:
-                                            if seg_index['weight'][remove_weight] > seg.weight:
-                                                seg_index['weight'][remove_weight] -= seg.weight
-                                                seg.weight = 0
-                                            else:
-                                                # Remove a portion of the weight, and if any weight remains, add it back to the queue.
-                                                seg.weight = seg.weight - seg_index['weight'][remove_weight]*.5
-                                                seg_index['weight'][remove_weight] *= .5
-                                            westdict['wm'][remove_weight] = seg_index['weight'][remove_weight] / west['iterations/iter_{0:08d}'.format(iter)]['seg_index']['weight'][remove_weight]
-                                    if seg.weight > 0:
-                                        self.past_rm[westdict['rt']].append(self.Segment(weight=seg.weight))
-
-                                        # Now, we'll need to adjust the weight matrix entry for it.
-                                        # As we've already reweighted, it's easiest to just repull the damn thing and call it a day.
-                                    # No point in going through this again; we'll just let the removed weight stay, basically, as we cannot now get rid of it.
-                                    # It does introduce some error, but this is an approximation.  If we could have removed the weight, we already would have, and we cannot 
-                                    # have 0 weighted walkers.
-
-
-                        if run_once == 0:
-                            # Then we'll handle our own recycling events, and add them to the list of things to handle in the next simulation.
-                            assignments = bin_mapper.assign(pcoord[:,-1,:])
-                            try:
-                                in_sink = np.where(assignments[:] == westdict['rt'])[0]
-                            except:
-                                in_sink = []
-                            for iseg in in_sink:
-                                # We just add it to the list of stuff to remove next iteration.
-                                #westdict['remove_next_cycle'].append(self.Segment(weight=seg_index['weight'][iseg]))
-                                self.futr_rm[westdict['rt']].append(self.Segment(weight=seg_index['weight'][iseg]))
-                                self.futr_iter[westdict['rt']].append(self.Segment(weight=seg_index['weight'][iseg]))
-                            
-                        # What are we doing here?  We're going to rerun this function until all of our walkers have been distributed...
-                        westdict['seg_index'] = seg_index[...]
-
-                    run_once = 1
-                    new_current_sims = 0
-                    for i in self.source_sinks:
-                        new_current_sims += len(self.past_iter[i]) + len(self.past_rm[i])
-                    if new_current_sims == total_current_sims:
-                        # We haven't taken care of them, that is, there are no simulations available to absorb or remove, so just pass and
-                        # renormalize later.
-                        # The weight has already been removed, so while it isn't proper recycling (and as such, will introduce some error),
-                        # it's arguably better than nothing.
-                        total_current_sims = 0
-                    else:
-                        total_current_sims = new_current_sims
-                    #except:
-                    #    continue
-
-                # Once we've looped through once, or once we've finished taking care of everything...
-                # ... we then use the existing seg index to pull stuff through.
-                # That is, we THEN add the file to the main stuff.
-                for westdict in westh5:
-                    try:
-                        seg_index = westdict['seg_index']
-                        pcoord = westdict['west']['iterations/iter_{0:08d}'.format(iter)]['pcoord'][...]
-                        wtgraph = westdict['west']['iterations/iter_{0:08d}'.format(iter)]['wtgraph'][...]
-                        if ifile == 0:
-                            mseg = seg_index
-                            mpco = pcoord
-                            mwtg = wtgraph
-
-                            start_point.append(0)
-                        if ifile != 0:
-                            #print(mseg.shape, seg_index.shape, ifile)
-                            #print(mpco.shape, pcoord.shape, ifile)
-                            #print(mwtg.shape, wtgraph.shape, ifile)
-                            if iter != 1:
-                                addition = prev_start_point[ifile]
-                            else:
-                                addition = mseg.shape[0]
-                            seg_index['parent_id'][np.where(seg_index['parent_id'] >= 0)] += addition
-                            seg_index['parent_id'][np.where(seg_index['parent_id'] < 0)] -= addition
-                            seg_index['wtg_offset'] += mwtg.shape[0]
-                            start_point.append(mseg.shape[0])
-                            wtgraph += mwtg.shape[0]
-                            mseg = np.concatenate((mseg, seg_index))
-                            mpco = np.concatenate((mpco, pcoord))
-                            mwtg = np.concatenate((mwtg, wtgraph))
-                        ifile += 1
-                    except:
-                        continue
+                        start_point.append(0)
+                    if ifile != 0:
+                        #print(mseg.shape, seg_index.shape, ifile)
+                        #print(mpco.shape, pcoord.shape, ifile)
+                        #print(mwtg.shape, wtgraph.shape, ifile)
+                        if iter != 1:
+                            addition = prev_start_point[ifile]
+                        else:
+                            addition = mseg.shape[0]
+                        seg_index['parent_id'][np.where(seg_index['parent_id'] >= 0)] += addition
+                        seg_index['parent_id'][np.where(seg_index['parent_id'] < 0)] -= addition
+                        seg_index['wtg_offset'] += mwtg.shape[0]
+                        start_point.append(mseg.shape[0])
+                        wtgraph += mwtg.shape[0]
+                        mseg = np.concatenate((mseg, seg_index))
+                        mpco = np.concatenate((mpco, pcoord))
+                        mwtg = np.concatenate((mwtg, wtgraph))
+                    ifile += 1
+                    del seg_index, pcoord, wtgraph, westdict
+                gc.collect()
                 # Make a real copy to use in the next iteration.
-                self.past_iter = self.futr_iter.copy()
-                self.past_rm[i] = self.futr_rm.copy()
+                #self.past_iter = self.futr_iter.copy()
+                #self.past_rm[i] = self.futr_rm.copy()
                 prev_start_point = start_point
                 start_point = []
                 # This is... maybe wrong, actually?  Or at least, it's not ALL that is required for normalizing things.
@@ -451,11 +301,22 @@ Command-line options
                 ds_rate_evol = curr_iter.create_dataset('wtgraph', data=mwtg, shuffle=True, compression = 9)
                 ds_rate_evol = curr_iter.create_dataset('seg_index', data=mseg, shuffle=True, compression = 9)
                 ds_rate_evol = curr_iter.create_dataset('pcoord', data=mpco, shuffle=True, compression = 9)
-                del mseg, mpco, mwtg
+                # We need to be careful about memory, here.  We are blowing uppppp.
+                # We're STILL blowing up.  Criiiiiipes.
+                #self.segments = {}
+                del mseg, mpco, mwtg, ds_rate_evol, curr_iter#, self.segments
+                gc.collect()
+                self.output_file.flush()
+                #self.output_file.close()
+                #print("How big is our summary?")
+                #print(sys.getsizeof(summary))
+                #objgraph.show_most_common_types(limit=50)
+                #objgraph.show_growth(limit=10)
+                #objgraph.show_most_common_types(objects=objgraph.get_leaking_objects())
+                pi.progress +=1 
 
                         
 
-                pi.progress +=1 
         pi.new_operation('Writing to file...')
         ds_rate_evol = self.output_file.create_dataset('summary', data=summary, shuffle=True, compression = 9)
         self.output_file.attrs['west_current_iteration'] = self.niters

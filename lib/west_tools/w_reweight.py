@@ -79,8 +79,6 @@ def _2D_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha, m
     obs = np.concatenate(np.array(obs))
     flux = np.concatenate(np.array(flux))
     insert = np.array(np.array(insert, dtype=np.intc).cumsum(), dtype=np.intc)
-    print(insert[2], flux.shape)
-    print(flux[:insert[2]].sum())
     for istate in xrange(nstates):
         for jstate in xrange(nstates):
             if istate == jstate: continue
@@ -363,11 +361,15 @@ class RWReweight(AverageCommands):
 
                 index = np.where(iter_grp['rows'][:,1] == gid)[0]
 
-                self.rows[gid].append(iter_grp['rows'][index,0][...])
-                self.cols[gid].append(iter_grp['cols'][index,0][...])
-                self.obs[gid].append(iter_grp['obs'][index,0][...])
-                self.flux[gid].append(iter_grp['flux'][index,0][...])
-                self.insert[gid].append(iter_grp['rows'][index,0][...].shape[0])
+                try:
+                    self.rows[gid].append(iter_grp['rows'][index,0][...])
+                    self.cols[gid].append(iter_grp['cols'][index,0][...])
+                    self.obs[gid].append(iter_grp['obs'][index,0][...])
+                    self.flux[gid].append(iter_grp['flux'][index,0][...])
+                    self.insert[gid].append(iter_grp['rows'][index,0][...].shape[0])
+                except:
+                    # Failure with a new numpy/h5py?
+                    pass
                 # 'insert' is the insertion point for each iteration; that is,
                 # at what point do we look into the list for iteration X?
                 #self.insert[gid].append(iter_grp['rows'][index,0].shape[0] + self.insert[gid][-1])

@@ -21,9 +21,12 @@ import re, os
 from westtools import WESTMasterCommand, WESTSubcommand, ProgressIndicatorComponent, Plotter
 import numpy, h5py
 from westpa import h5io
-if os.environ.get('DISPLAY') is not None:
+#if os.environ.get('DISPLAY') is not None:
+try:
     import matplotlib
     from matplotlib import pyplot
+except:
+    pass
 
 log = logging.getLogger('westtools.ploterrs')
 
@@ -82,7 +85,8 @@ class CommonPloterrs(WESTSubcommand):
         self.xlabel = args.xlabel or 'Iteration'
         self.ylabel = args.ylabel
         self.title = args.title
-        if args.plotting or os.environ.get('DISPLAY') is None:
+        #if args.plotting or os.environ.get('DISPLAY') is None:
+        if args.plotting:
             self.interface = 'text'
         else:
             import matplotlib

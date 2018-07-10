@@ -158,7 +158,7 @@ cpdef mcbs_ci(dataset, estimator, alpha, dlen, n_sets=None, args=None, kwargs=No
         except:
             pass
         f_synth[i] = estimator(**d_input)
-        del indices
+        #del indices
         
     f_synth_sorted = sort(f_synth)
     lbi = int(math.floor(n_sets*alpha/2.0))
