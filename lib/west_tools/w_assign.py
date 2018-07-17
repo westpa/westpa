@@ -242,7 +242,7 @@ Command-line options
     
     def add_args(self, parser):
         self.data_reader.add_args(parser)
-        self.binning.add_args(parser) #, suppress=['--bins-from-h5file'])
+        self.binning.add_args(parser) 
         self.dssynth.add_args(parser)
         
         sgroup = parser.add_argument_group('macrostate definitions').add_mutually_exclusive_group()
