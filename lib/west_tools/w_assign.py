@@ -242,7 +242,7 @@ Command-line options
     
     def add_args(self, parser):
         self.data_reader.add_args(parser)
-        self.binning.add_args(parser, suppress=['--bins-from-h5file'])
+        self.binning.add_args(parser) 
         self.dssynth.add_args(parser)
         
         sgroup = parser.add_argument_group('macrostate definitions').add_mutually_exclusive_group()
@@ -275,11 +275,18 @@ Command-line options
     def process_args(self, args):
         self.progress.process_args(args)
         self.data_reader.process_args(args)
+        # Necessary to open the file to get the current iteration
+        # if we want to use the mapper in the file
+        self.data_reader.open(mode='r+')
+        self.n_iter = self.data_reader.current_iteration
+        # If we decide to use this option for iteration selection: 
+        # getattr(args,'bins_from_h5file',None) or self.data_reader.current_iteration
 
         with self.data_reader:
             self.dssynth.h5filename = self.data_reader.we_h5filename
             self.dssynth.process_args(args)
             if args.config_from_file == False:
+                self.binning.set_we_h5file_info(self.n_iter,self.data_reader)
                 self.binning.process_args(args)
 
         self.output_filename = args.output
