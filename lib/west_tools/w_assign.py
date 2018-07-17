@@ -275,8 +275,12 @@ Command-line options
     def process_args(self, args):
         self.progress.process_args(args)
         self.data_reader.process_args(args)
+        # Necessary to open the file to get the current iteration
+        # if we want to use the mapper in the file
         self.data_reader.open(mode='r+')
-        self.n_iter = getattr(args,'bins_from_h5file',None) or self.data_reader.current_iteration
+        self.n_iter = self.data_reader.current_iteration
+        # If we decide to use this option for iteration selection: 
+        # getattr(args,'bins_from_h5file',None) or self.data_reader.current_iteration
 
         with self.data_reader:
             self.dssynth.h5filename = self.data_reader.we_h5filename
