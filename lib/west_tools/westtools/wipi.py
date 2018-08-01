@@ -148,9 +148,15 @@ class KineticsIteration(object):
         _2D_h5keys = [ 'conditional_flux_evolution', 'rate_evolution' ]
         _1D_h5keys = [ 'state_pop_evolution', 'color_prob_evolution', 'target_flux_evolution' ]
         for key in _2D_h5keys:
-            self.__dict__[key] = self.__2D_with_error__(key, index, assign)
+            try:
+                self.__dict__[key] = self.__2D_with_error__(key, index, assign)
+            except:
+                self.__dict__[key] = None
         for key in _1D_h5keys:
-            self.__dict__[key] = self.__1D_with_error__(key, index, assign)
+            try:
+                self.__dict__[key] = self.__1D_with_error__(key, index, assign)
+            except:
+                self.__dict__[key] = None
         try:
             self.__dict__['total_fluxes'] = WIPIDataset(raw=np.array(self.h5file['total_fluxes']), key='total_fluxes')
             # We'll have to update this to make things better...
