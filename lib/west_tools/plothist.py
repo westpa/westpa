@@ -294,7 +294,7 @@ class PlotSupports2D(PlotHistBase):
                 output_h5.attrs['source_dimensions'] = numpy.array(idims, numpy.min_scalar_type(max(idims)))
                 output_h5.attrs['source_dimension_labels'] = numpy.array([dim['label'] for dim in self.dimensions])
                 for idim in idims:
-                    output_h5['midpoints_{}'.format(idim)] = midpoints
+                    output_h5['midpoints_{}'.format(idim)] = midpoints[idim]
                 output_h5['histogram'] = hist
 
                         
