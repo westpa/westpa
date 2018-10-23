@@ -134,3 +134,36 @@ class WESTDSSynthesizer(WESTToolComponent):
             assert self.default_dsname
             self.dsspec = SingleSegmentDSSpec(self.h5filename, self.default_dsname)
         
+class WESTWDSSynthesizer(WESTToolComponent):
+    group_name = 'weight dataset options'
+    
+    def __init__(self, default_dsname = None, h5filename=None):
+        super(WESTWDSSynthesizer,self).__init__()
+
+        self.h5filename = h5filename
+        self.default_dsname = default_dsname
+        
+        self.dsspec = None
+        
+    def add_args(self, parser):
+        wgroup = parser.add_argument_group(self.group_name).add_mutually_exclusive_group(required=not bool(self.default_dsname))
+
+        wgroup.add_argument('--construct-wdataset',
+                            help='''Use the given function (as in module.function) to extract source data.
+                            This function will be called once per iteration as function(n_iter, iter_group)
+                            to construct data for one iteration. Data returned must be indexable as
+                            [seg_id]''')
+        wgroup.add_argument('--wdsspecs', nargs='+', metavar='WDSSPEC',
+                            help='''Construct weight data from one or more DSSPECs.''')
+        
+    def process_args(self, args):
+        if args.construct_wdataset:
+            self.dsspec = FnDSSpec(self.h5filename, get_object(args.construct_wdataset,path=['.']))
+        elif args.dsspecs:
+            self.dsspec = MultiDSSpec([SingleSegmentDSSpec.from_string(dsspec, self.h5filename)
+                                       for dsspec in args.dsspecs])
+        else:
+            # we can only get here if a default dataset name was specified
+            assert self.default_dsname
+            # we gotta slice by weight for weights if we want to get the default to work
+            self.dsspec = SingleIterDSSpec(self.h5filename, self.default_dsname, slice=numpy.index_exp['weight'])

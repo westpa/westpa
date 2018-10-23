@@ -18,7 +18,7 @@
 from __future__ import print_function, division; __metaclass__ = type
 import logging
 from itertools import izip
-from westtools import (WESTParallelTool, WESTDataReader, WESTDSSynthesizer, IterRangeSelection, 
+from westtools import (WESTParallelTool, WESTDataReader, WESTDSSynthesizer, WESTWDSSynthesizer, IterRangeSelection, 
                        ProgressIndicatorComponent)
 import numpy, h5py
 from fasthist import histnd, normhistnd
@@ -203,6 +203,7 @@ Command-line options
         self.progress = ProgressIndicatorComponent()
         self.data_reader = WESTDataReader()
         self.input_dssynth = WESTDSSynthesizer(default_dsname='pcoord')
+        self.input_wdssynth = WESTWDSSynthesizer()
         self.iter_range = IterRangeSelection(self.data_reader)
         self.iter_range.include_args['iter_step'] = False
         self.binspec = None
@@ -261,6 +262,15 @@ Command-line options
         
         igroup.add_argument('--dsspecs', nargs='+', metavar='DSSPEC',
                             help='''Construct probability distribution from one or more DSSPECs.''')
+
+        # custom weights? v
+        wgroup = parser.add_argument_group('input weight dataset options').add_mutually_exclusive_group(required=False)
+        wgroup.add_argument('--construct-wdataset',
+                            help='''Use the given function (as in module.function) to extract weight data.
+                            This function will be called once per iteration as function(n_iter, iter_group)
+                            to construct data for one iteration. Data returned must be indexable as
+                            [seg_id][timepoint][dimension]''')
+        # custom weights? ^
         
         self.progress.add_args(parser)
         
@@ -270,14 +280,19 @@ Command-line options
         self.input_dssynth.h5filename = self.data_reader.we_h5filename
         self.input_dssynth.process_args(args)
         self.dsspec = self.input_dssynth.dsspec
-        
+
         # Carrying an open HDF5 file across a fork() seems to corrupt the entire HDF5 library
         # Open the WEST HDF5 file just long enough to process our iteration range, then close
         # and reopen in go() [which executes after the fork]
         with self.data_reader:
             self.iter_range.process_args(args)
         
-        self.wt_dsspec = SingleIterDSSpec(self.data_reader.we_h5filename, 'seg_index', slice=numpy.index_exp['weight'])
+        # custom weights? v
+        self.input_wdssynth.h5filename = self.data_reader.we_h5filename
+        self.input_wdssynth.process_args(args)
+        self.wt_dsspec = self.input_wdssynth.dsspec
+        # custom weights? ^
+        #self.wt_dsspec = SingleIterDSSpec(self.data_reader.we_h5filename, 'seg_index', slice=numpy.index_exp['weight'])
         
         self.binspec = args.bins
         self.output_filename = args.output
