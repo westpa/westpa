@@ -203,7 +203,7 @@ Command-line options
         self.progress = ProgressIndicatorComponent()
         self.data_reader = WESTDataReader()
         self.input_dssynth = WESTDSSynthesizer(default_dsname='pcoord')
-        self.input_wdssynth = WESTWDSSynthesizer()
+        self.input_wdssynth = WESTWDSSynthesizer(default_dsname='seg_index')
         self.iter_range = IterRangeSelection(self.data_reader)
         self.iter_range.include_args['iter_step'] = False
         self.binspec = None
@@ -263,14 +263,12 @@ Command-line options
         igroup.add_argument('--dsspecs', nargs='+', metavar='DSSPEC',
                             help='''Construct probability distribution from one or more DSSPECs.''')
 
-        # custom weights? v
         wgroup = parser.add_argument_group('input weight dataset options').add_mutually_exclusive_group(required=False)
         wgroup.add_argument('--construct-wdataset',
                             help='''Use the given function (as in module.function) to extract weight data.
                             This function will be called once per iteration as function(n_iter, iter_group)
                             to construct data for one iteration. Data returned must be indexable as
-                            [seg_id][timepoint][dimension]''')
-        # custom weights? ^
+                            [seg_id]''')
         
         self.progress.add_args(parser)
         
@@ -287,12 +285,10 @@ Command-line options
         with self.data_reader:
             self.iter_range.process_args(args)
         
-        # custom weights? v
+        # Reading potential custom weights
         self.input_wdssynth.h5filename = self.data_reader.we_h5filename
         self.input_wdssynth.process_args(args)
         self.wt_dsspec = self.input_wdssynth.dsspec
-        # custom weights? ^
-        #self.wt_dsspec = SingleIterDSSpec(self.data_reader.we_h5filename, 'seg_index', slice=numpy.index_exp['weight'])
         
         self.binspec = args.bins
         self.output_filename = args.output
