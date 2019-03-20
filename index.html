@@ -34,7 +34,17 @@
 
     <!-- MAIN CONTENT -->
     <div id="main_content_wrap" class="outer">
-               <aside style="float: right;">
+               <aside> 
+                  <style>
+                    aside {
+                      float: right;
+                    }
+                    @media only screen and (max-width: 600px) {
+                      aside {
+                        float: left;
+                      }
+                    }
+                 </style>
                  <header>
                    <h1 style="text-align:center;">News</h1>
                  </header>
