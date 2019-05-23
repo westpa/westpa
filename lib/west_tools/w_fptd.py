@@ -19,7 +19,7 @@ from westtools import WESTDataReader
 
 """
 
-Class WFptd(WESTTool):
+class WFptd(WESTTool):
 
     def __init__(self):
         super(WFptd,self).__init__()
@@ -28,64 +28,40 @@ Class WFptd(WESTTool):
         self.init_bins = []
         self.target_bins = []
         self.cbins = []
-        self.K = [][]
+        self.K = None
         self.merged_rates = []
         self.description = 'Calculate the first passage time distribution for transitions \
             between two states.'
-        #make_parser()
-        self.parser = argparse.ArgumentParser(description=self.description)
-        self.parser.add_argument('HDF5 input file', metavar='N', type=String, \
-            nargs=1, help='')
+        make_parser()
+        add_args(parser)
 
     '''Add arguments specific to this component to the given argparse parser.'''
     # @ self, parser
     def add_args(self, parser):
         self.data_reader.add_args(parser) # get HDF5 from user
-        self.set_bin_info.add_args(parser)
-        parser.add_argument('HDF5 input file', metavar='in', type=String)
-        parser.add_argument('Number of bins', metavar="N", type=int)
+        parser.add_argument('nbins', help='Number of bins', metavar="num_bins", type=int)
+        cgroup = parser.add_argument_group('Calculation options')
+        cgroup.add_argument('-i', required=True, help='Initial state bins', metavar='init_bins', type=int, nargs='+')
+        cgroup.add_argument('-f', required=True, help='Final state bins', metavar='final_bins', type=int, nargs='+')
 
-        cgroup = parser.add_argument_group('')
+
 
     # @ self, args
     def process_args(self, args):
         '''Take argparse-processed arguments associated with this component and deal
         with them appropriately (setting instance variables, etc)'''
         self.data_reader.open(mode='r')
-        with self.data_reader: # opens HDF5 file?
-                if args.config_from_file == False:
+        #with self.data_reader: # opens HDF5 file?
+            #if args.config_from_file == False:
+                #continue
                     #self.binning.set_we_h5file_info(self.n_iter,self.data_reader)
                     #self.binning.process_args(args)
 
-            self.output_filename = args.output
-        set_bin_info()
+            #self.output_filename = args.output
+        #set_bin_info()
         # set up K? (transition matrix)
-        """
-                # Transition matrix K
-                K = np.array([[0, 0, 0, 0, 0, 0],
-                      [0, 9.55068356e-01, 0, 4.49316443e-02, 0, 0],
-                      [0, 9.12453457e-05, 9.79353834e-01, 0, 2.05549202e-02, 0],
-                      [0, 1.34211520e-02, 0, 9.84648708e-01, 1.93013968e-03, 0.00000000e+00],
-                      [0, 0, 3.45887083e-02, 0, 9.65411292e-01, 0],
-                      [0, 0, 0, 0, 0, 0]])
 
-                f = h5py.File("reweight.h5")
-
-                # Total number of bins
-                n_bins = 6
-
-                # Transition matrix
-                trans_m = np.zeros((n_bins, n_bins))
-                # What is happening here? Stripping file of data but what is flux? The probability?
-                for iter in f['iterations'].keys():
-                    grp = f['iterations'][iter]
-                    rows = grp['rows']
-                    cols = grp['cols']
-                    flux = grp['flux']
-                    trans_m[rows, cols] += flux
-                    """
-
-    def set_bin_info(n_bins, init_bins, target_bins) {
+    def set_bin_info(n_bins, init_bins, target_bins):
         self.n_bins = n_bins
         self.init_bins = init_bins
         self.target_bins = target_bins
