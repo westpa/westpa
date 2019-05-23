@@ -30,13 +30,22 @@ Class WFptd(WESTTool):
         self.cbins = []
         self.K = [][]
         self.merged_rates = []
+        self.description = 'Calculate the first passage time distribution for transitions \
+            between two states.'
+        #make_parser()
+        self.parser = argparse.ArgumentParser(description=self.description)
+        self.parser.add_argument('HDF5 input file', metavar='N', type=String, \
+            nargs=1, help='')
 
     '''Add arguments specific to this component to the given argparse parser.'''
     # @ self, parser
     def add_args(self, parser):
         self.data_reader.add_args(parser) # get HDF5 from user
         self.set_bin_info.add_args(parser)
+        parser.add_argument('HDF5 input file', metavar='in', type=String)
+        parser.add_argument('Number of bins', metavar="N", type=int)
 
+        cgroup = parser.add_argument_group('')
 
     # @ self, args
     def process_args(self, args):
@@ -120,7 +129,7 @@ Class WFptd(WESTTool):
 
         # eigenvalues, eigenvectors of transpose of K
         eigvals, eigvecs = LA.eig(K.T)
-        unity = (np.abs(np.real(eigvals) - 1)).argmin()  # Smallest value from (abs of (real part of eigenvalues - 1))
+        unity = (np.abs(np.real(eigvals) - 1)).argmin()  # index of Smallest value from (abs of (real part of eigenvalues - 1))
         print(eigvals, eigvecs)
         eq_pop = np.abs(np.real(eigvecs)[unity])  # abs val of real part of eigenvec at index of unity
         eq_pop /= eq_pop.sum()  # divide by self? what is this
@@ -161,7 +170,6 @@ Class WFptd(WESTTool):
         print(ITER, (np.average(range(1,ITER+1), weights=np.nan_to_num(histogram)[:,0])/dt))
         print(eq_pop)
         print(eq_pop[self.cbins].sum())
-
 
 if __name__ == '__main__':
     WFptd().main()
