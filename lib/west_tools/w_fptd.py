@@ -35,7 +35,6 @@ class WFptd(WESTTool):
         make_parser()
         add_args(parser)
 
-    '''Add arguments specific to this component to the given argparse parser.'''
     # @ self, parser
     def add_args(self, parser):
         self.data_reader.add_args(parser) # get HDF5 from user
@@ -43,9 +42,7 @@ class WFptd(WESTTool):
         cgroup = parser.add_argument_group('Calculation options')
         cgroup.add_argument('-i', required=True, help='Initial state bins', metavar='init_bins', type=int, nargs='+')
         cgroup.add_argument('-f', required=True, help='Final state bins', metavar='final_bins', type=int, nargs='+')
-
-
-
+        # output option?
     # @ self, args
     def process_args(self, args):
         '''Take argparse-processed arguments associated with this component and deal
