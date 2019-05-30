@@ -42,12 +42,16 @@ class WFptd(WESTTool):
         cgroup = parser.add_argument_group('Calculation options')
         cgroup.add_argument('-i', required=True, help='Initial state bins', metavar='init_bins', type=int, nargs='+')
         cgroup.add_argument('-f', required=True, help='Final state bins', metavar='final_bins', type=int, nargs='+')
+
+        # check if sum of init/final state bin is <= total # of bins?
+        #
         # output option?
     # @ self, args
     def process_args(self, args):
         '''Take argparse-processed arguments associated with this component and deal
         with them appropriately (setting instance variables, etc)'''
         self.data_reader.open(mode='r')
+        args = parser.parse_args()
         #with self.data_reader: # opens HDF5 file?
             #if args.config_from_file == False:
                 #continue
@@ -62,39 +66,24 @@ class WFptd(WESTTool):
         self.n_bins = n_bins
         self.init_bins = init_bins
         self.target_bins = target_bins
+        # cbins: bins in neither initial nor target state
         self.cbins = list(x for x in range(0, self.n_bins) if x not in self.target_bins)
         self.merged_rates = np.empty(self.n_bins - len(self.target_bins)) # size: num bins which are NOT Target bins
 
     def go(self):
         '''Perform the analysis associated with this tool.'''
-
+        # 1. Get cbins: bins not in
+        # 2.
+        # 3. get transition matrix K
+        # 4. open h5 file
+        # 5. trans_m: empty shell for sparse trans matrix w/weights
+        # 6. fill with flux info
         dell = []
         for row in range(self.n_bins):
             if trans_m[row, :].sum() == 0:
                 dell.append(row)
             else:
                 trans_m[row, :] /= trans_m[row, :].sum()
-
-        # Can this be removed? Code under if statement below would not execute bc condition is always False
-        if False:
-            print(dell)
-            self.n_bins -= len(dell)
-            # We reverse to preserve the order; 4 doesn't shift if we delete 5 first,
-            # but 5 shifts to 4 if we delete 5 first, etc.
-            for row in dell[::-1]:
-                trans_m = np.delete(trans_m, row, axis=0)
-                trans_m = np.delete(trans_m, row, axis=1)
-                for icbin, cbin in enumerate(self.cbins):
-                    if cbin > row:
-                        self.cbins[icbin] -= 1
-                    elif cbin == row:
-                        del self.cbins[icbin]
-                if self.init_bins[0] > row:
-                    self.init_bins[0] -= 1
-                if self.target_bins[0] > row:
-                    self.target_bins[0] -= 1
-            print(self.cbins)
-            print(trans_m)
 
         # NaN values are set to zero, infinity values are set to large finite numbers.
         K = np.nan_to_num(trans_m)
@@ -106,9 +95,9 @@ class WFptd(WESTTool):
         print(eigvals, eigvecs)
         eq_pop = np.abs(np.real(eigvecs)[unity])  # abs val of real part of eigenvec at index of unity
         eq_pop /= eq_pop.sum()  # divide by self? what is this
-
+        # TODO: change this to actual distr_prob
         # probability of starting in init bin A.
-        distr_prob = np.random.rand(len(self.init_bins)) # change this to actual distr_prob
+        distr_prob = np.random.rand(len(self.init_bins))
         paths = []
 
         # lower_bound = mfpt - error
