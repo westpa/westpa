@@ -43,7 +43,6 @@ class WFptd(WESTTool):
 
         # main(self) (inherited) calls make_parser_and_process() then calls go()
 
-    # @ self, parser
     def add_args(self, parser):
 
         self.data_reader.add_args(parser) # get HDF5 from user
@@ -53,10 +52,11 @@ class WFptd(WESTTool):
         cgroup.add_argument('-f', required=True, help='Final state bins', metavar='final_bins', type=int, nargs='+')
         cgroup.add_argument('--iter', required=False, help="Number of iterations to calculate the distribution over",
             metavar="iterations", type=int, nargs=1, default=1000000)
-        # check if sum of init/final state bin is <= total # of bins?
-        #
-        # output option?
-    # @ self, args
+        ogroup = parser.add_argument_group('WEST output data options')
+        # Q FOR AUDREY: what should default input/output filenames be
+        ogroup.add_argument('-o', '--output', required=False, dest='output',
+            default='fptd.h5', nargs=1, metavar='output_filename',
+            help='Output filename (default: \'fptd.h5\')')
 
     def process_args(self, args):
         '''Take argparse-processed arguments associated with this component and deal
@@ -64,6 +64,7 @@ class WFptd(WESTTool):
         args = parser.parse_args()
         self.data_reader.process_args(args) # Q: open hdf5 file for reading?
         self.input_file = h5py.File(self.data_reader.we_h5filename) # Q: is there another way to do this?
+        self.output_file = WESTPAH5File(self.o, 'w', creating_program=True)
         if (args.iter):
             self.iter = args.iter[0]
         set_bin_info(args)
@@ -146,6 +147,12 @@ class WFptd(WESTTool):
         print(ITER, (np.average(range(1,ITER+1), weights=np.nan_to_num(histogram)[:,0])/dt))
         print(eq_pop)
         print(eq_pop[CBINS].sum())
+
+        # Save results
+        # "histogram"
+        # in paper: prob density vs FPT(A->B)/ns
+        self.output_file.create_dataset()
+
 
 if __name__ == '__main__':
     WFptd().main()
