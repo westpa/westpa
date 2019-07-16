@@ -75,7 +75,7 @@ def calc_chunksize(shape, dtype, max_chunksize=262144):
 
     chunk_shape = list(shape)
     dtype = numpy.dtype(dtype)
-    for idim in xrange(len(shape)):
+    for idim in range(len(shape)):
         chunk_nbytes = numpy.multiply.reduce(chunk_shape)*dtype.itemsize
         while chunk_shape[idim] > 1 and chunk_nbytes > max_chunksize:
             chunk_shape[idim] >>= 1 # divide by 2
@@ -227,10 +227,10 @@ def label_axes(h5object, labels, units=None):
     if len(units) and len(units) != len(labels):
         raise ValueError('number of units labels does not match number of axes')
     
-    h5object.attrs['axis_labels'] = numpy.array(map(str,labels))
+    h5object.attrs['axis_labels'] = numpy.array(list(map(str,labels)))
      
     if len(units):
-        h5object.attrs['axis_units'] = numpy.array(map(str,units))
+        h5object.attrs['axis_units'] = numpy.array(list(map(str,units)))
 
 NotGiven = object()
 def _get_one_attr(h5object, namelist, default=NotGiven):

@@ -15,7 +15,6 @@
 # You should have received a copy of the GNU General Public License
 # along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import print_function, division; __metaclass__ = type
 from westtools import WESTTool, WESTDataReader, IterRangeSelection, ProgressIndicatorComponent
 import numpy, h5py
 
@@ -135,7 +134,7 @@ Command-line arguments
         h5io.check_iter_range_least(assignments_ds, iter_start, iter_stop)
         nsegs = assignments_file['nsegs'][h5io.get_iteration_slice(assignments_file['nsegs'], iter_start,iter_stop)]
 
-        output_file.create_dataset('n_iter', dtype=n_iter_dtype, data=range(iter_start,iter_stop))
+        output_file.create_dataset('n_iter', dtype=n_iter_dtype, data=list(range(iter_start,iter_stop)))
 
         seg_count_ds = output_file.create_dataset('nsegs', dtype=numpy.uint, shape=(iter_count,nbins))
         matching_segs_ds = output_file.create_dataset('seg_ids', shape=(iter_count,nbins,count),
@@ -150,7 +149,7 @@ Command-line arguments
 
         with pi:
             pi.new_operation('Finding matching segments', extent=iter_count)
-            for iiter, n_iter in enumerate(xrange(iter_start, iter_stop)):
+            for iiter, n_iter in enumerate(range(iter_start, iter_stop)):
                 assignments = numpy.require(assignments_ds[h5io.get_iteration_entry(assignments_ds, n_iter)
                                                            + numpy.index_exp[:,timepoint]], dtype=westpa.binning.index_dtype)
                 all_weights = self.data_reader.get_iter_group(n_iter)['seg_index']['weight']
@@ -159,7 +158,7 @@ Command-line arguments
                 #for iseg in xrange(nsegs[iiter]):
                 #    segs_by_bin[iseg,assignments[iseg]] = True
                 segs_by_bin = assignments_list_to_table(nsegs[iiter],nbins,assignments)
-                for ibin in xrange(nbins):
+                for ibin in range(nbins):
                     segs = numpy.nonzero(segs_by_bin[:,ibin])[0]
 
                     seg_count_ds[iiter,ibin] = min(len(segs),count)

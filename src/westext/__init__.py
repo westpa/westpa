@@ -1,3 +1,3 @@
-import wess
-import weed
-import stringmethod
+from . import wess
+from . import weed
+from . import stringmethod

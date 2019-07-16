@@ -15,14 +15,13 @@
 # You should have received a copy of the GNU General Public License
 # along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import division, print_function; __metaclass__ = type
 
 import logging
 
 log = logging.getLogger(__name__)
 
 import numpy
-from itertools import izip
+
 
 import westpa
 from oldtools.aframe import AnalysisMixin
@@ -211,7 +210,7 @@ class TransitionEventAccumulator:
         iibdisc = self.iibdisc
         iibins = self.iibins
         tdat_maxlen = self.max_acc
-        for (trans_ti, weight, ibin, fbin, ibinpops) in izip(trans_timepoints, trans_weights, 
+        for (trans_ti, weight, ibin, fbin, ibinpops) in zip(trans_timepoints, trans_weights, 
                                                              trans_ibin, trans_fbin, trans_ibinpops):
             # Record this crossing event's data
             bin_pops_last_exit[ibin] = ibinpops[ibin]            
@@ -373,7 +372,7 @@ class TransitionAnalysisMixin(AnalysisMixin):
         if not self.__quiet_mode and (self.n_segs_visited % 1000 == 0 or self.n_segs_visited == self.n_total_segs):
             pct_visited = self.n_segs_visited / self.n_total_segs * 100
             westpa.rc.pstatus('\r  {:d} of {:d} segments ({:.1f}%) analyzed ({:d} independent trajectories)'
-                            .format(long(self.n_segs_visited), long(self.n_total_segs), float(pct_visited), self.n_trajs), 
+                            .format(int(self.n_segs_visited), int(self.n_total_segs), float(pct_visited), self.n_trajs), 
                             end='')
             westpa.rc.pflush()
 
@@ -406,9 +405,9 @@ class BFTransitionAnalysisMixin(TransitionAnalysisMixin):
         max_nrows = assignments_ds.len()
         maxwidth_nrows = len(str(max_nrows))
         
-        for traj_id in xrange(self.get_n_trajs()):
+        for traj_id in range(self.get_n_trajs()):
             nrows = self.get_traj_len(traj_id)
-            for istart in xrange(0, nrows, chunksize):
+            for istart in range(0, nrows, chunksize):
                 iend = min(istart+chunksize,nrows)
                 assignments = assignments_ds[traj_id,istart:iend]
                 weights = numpy.ones((len(assignments),))
@@ -420,7 +419,7 @@ class BFTransitionAnalysisMixin(TransitionAnalysisMixin):
                     self.accumulator.continue_accumulation(assignments, weights, binpops, traj=traj_id)
                     
                 westpa.rc.pstatus('\r  Trajectory {:d}: {:{mwnr}d}/{:<{mwnr}d} ({:.2f}%)'
-                                .format(int(traj_id), long(iend), long(nrows), iend/nrows*100,mwnr=maxwidth_nrows), 
+                                .format(int(traj_id), int(iend), int(nrows), iend/nrows*100,mwnr=maxwidth_nrows), 
                                 end='')
                 westpa.rc.pflush()
                 self.accumulator.flush_transition_data()

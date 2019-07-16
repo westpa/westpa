@@ -28,20 +28,20 @@ def solve_steady_state(T, U, target_bins_index):
         nsolve = nstates - ntarget
 
         # list of active states
-        sactive = sorted(list(set(xrange(nstates)) - set(target_bins_index)))
+        sactive = sorted(list(set(range(nstates)) - set(target_bins_index)))
 
         W = np.zeros((nsolve,nsolve))
         W_unc = np.zeros((nsolve,nsolve))
         S = np.zeros((nsolve,))
 
-        for iiw,iit in itertools.izip(xrange(nsolve),sactive):
-            for jjw,jjt in itertools.izip(xrange(nsolve),sactive):
+        for iiw,iit in zip(range(nsolve),sactive):
+            for jjw,jjt in zip(range(nsolve),sactive):
                 W[iiw,jjw] = T[jjt,iit]
                 W_unc[iiw,jjw] = U[jjt,iit]
 
-        for ii in xrange(nsolve):
+        for ii in range(nsolve):
             W[ii,ii] = 0.0
-            for jj in xrange(nstates): #nstates
+            for jj in range(nstates): #nstates
                 if jj != ii:
                     W[ii,ii] -= T[ii,jj]
 
@@ -58,7 +58,7 @@ def solve_steady_state(T, U, target_bins_index):
         try:
             P,err = scipy.optimize.nnls(W,S)
         except RuntimeError:
-            print 'Solve did not converge'
+            print('Solve did not converge')
             return None
 
         # There are some instances where a single bin has its prob set 

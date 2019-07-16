@@ -15,10 +15,9 @@
 # You should have received a copy of the GNU General Public License
 # along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import division, print_function; __metaclass__ = type
-from core import WESTToolComponent
+from .core import WESTToolComponent
 import sys,logging, pickle, math
-from itertools import count,izip
+from itertools import count
 import numpy
 import westpa
 import westpa.binning
@@ -83,9 +82,9 @@ def mapper_from_hdf5(topol_group, hashval):
         raise KeyError('hash {} not found'.format(hashval))
     
     chunksize=256
-    for istart in xrange(0,n_entries,chunksize):
+    for istart in range(0,n_entries,chunksize):
         chunk = index_ds[istart:min(istart+chunksize,n_entries)]
-        for i in xrange(len(chunk)):
+        for i in range(len(chunk)):
             if chunk[i]['hash'] == hashval:
                 pkldat = bytes(pickle_ds[istart+i,0:chunk[i]['pickle_len']].data)
                 mapper = pickle.loads(pkldat) 
@@ -116,10 +115,10 @@ def mapper_from_dict(ybins):
     if typename == 'RectilinearBinMapper':
         boundary_lists = kwargs.pop('boundaries')
         for ilist, boundaries in enumerate(boundary_lists):
-            boundary_lists[ilist] = map((lambda x: 
+            boundary_lists[ilist] = list(map((lambda x: 
                                            float('inf') 
-                                           if (x if isinstance(x, basestring) else '').lower() == 'inf' 
-                                           else x), boundaries)
+                                           if (x if isinstance(x, str) else '').lower() == 'inf' 
+                                           else x), boundaries))
         return mapper_type(boundary_lists)
     else:
         try:
@@ -142,7 +141,7 @@ def write_bin_info(mapper, assignments, weights, n_target_states, outfile=sys.st
     binweights = numpy.bincount(assignments,weights,minlength=len(assignments))
     nonzero_counts = (bincounts > 0)
     n_active = mapper.nbins - n_target_states
-    weights_by_bin = [[] for _i in xrange(mapper.nbins)]
+    weights_by_bin = [[] for _i in range(mapper.nbins)]
             
     min_bin_weight = binweights[nonzero_counts].min()
     max_bin_weight = binweights.max()
@@ -178,7 +177,7 @@ def write_bin_info(mapper, assignments, weights, n_target_states, outfile=sys.st
                     mw=mw))
                 
     for ibin, label, nwalkers, total_weight, seg_weights \
-    in izip(count(), mapper.labels, bincounts, binweights, weights_by_bin):
+    in zip(count(), mapper.labels, bincounts, binweights, weights_by_bin):
         if nwalkers > 0:
             min_seg_weight = min(seg_weights)
             max_seg_weight = max(seg_weights)
@@ -386,9 +385,9 @@ class BinMappingComponent(WESTToolComponent):
         if self._parse_target_count_args and self.target_counts_required:
             import re
             if args.target_counts is not None:
-                self.bin_target_counts = numpy.array(map(int,re.split(r'\s*,\s*', args.target_counts)))
+                self.bin_target_counts = numpy.array(list(map(int,re.split(r'\s*,\s*', args.target_counts))))
             elif args.target_counts_from is not None:
-                self.bin_target_counts = numpy.array(map(int,re.split(r'\s*,\s*', open(args.target_counts_from,'rt').read())))
+                self.bin_target_counts = numpy.array(list(map(int,re.split(r'\s*,\s*', open(args.target_counts_from,'rt').read()))))
             else:
                 # if target counts required, they will have already been loaded from a master
                 if self.bin_target_counts is None and self.target_counts_required:

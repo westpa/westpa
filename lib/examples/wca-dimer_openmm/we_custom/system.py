@@ -1,4 +1,3 @@
-from __future__ import division, print_function; __metaclass__ = type
 import numpy as np
 import west
 from west import WESTSystem

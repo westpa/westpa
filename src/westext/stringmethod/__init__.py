@@ -51,8 +51,8 @@ class WESTStringMethod(object):
         """
         pass
 
-import string_method
-from string_method import DefaultStringMethod
+from . import string_method
+from .string_method import DefaultStringMethod
 
-import string_driver
-from string_driver import StringDriver
+from . import string_driver
+from .string_driver import StringDriver

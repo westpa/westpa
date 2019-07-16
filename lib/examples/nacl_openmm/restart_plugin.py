@@ -1,4 +1,3 @@
-from __future__ import division; __metaclass__ = type
 import logging
 log = logging.getLogger(__name__)
 
@@ -20,7 +19,7 @@ class RestartDriver(object):
 
     def pre_propagation(self):
 
-        segments = self.sim_manager.incomplete_segments.values()
+        segments = list(self.sim_manager.incomplete_segments.values())
         n_iter = self.sim_manager.n_iter
 
         if n_iter == 1:

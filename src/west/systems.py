@@ -16,7 +16,6 @@
 # along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
 
-from __future__ import division; __metaclass__ = type
 
 import logging
 log = logging.getLogger(__name__)

@@ -15,11 +15,10 @@
 # You should have received a copy of the GNU General Public License
 # along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import division,print_function; __metaclass__ = type
 import numpy
 import westpa
 
-from itertools import izip, izip_longest
+from itertools import zip_longest
 from collections import namedtuple
 
 from westpa.kinetics._kinetics import flux_assign, pop_assign, calc_rates, StreamingStats1D, StreamingStats2D  #@UnresolvedImport
@@ -33,7 +32,7 @@ def grouper(n, iterable, fillvalue=None):
     "Collect data into fixed-length chunks or blocks"
     # grouper(3, 'ABCDEFG', 'x') --> ABC DEF Gxx
     args = [iter(iterable)] * n
-    return izip_longest(fillvalue=fillvalue, *args)
+    return zip_longest(fillvalue=fillvalue, *args)
 
 
 def tuple2stats(stat_tuple):
@@ -86,7 +85,7 @@ def process_iter_chunk(bin_mapper, iter_indices, iter_data=None):
         population_vector.fill(0.0)
 
         if iter_data:
-            iter_group_name = 'iter_{:0{prec}d}'.format(long(n_iter), prec=data_manager.iter_prec)
+            iter_group_name = 'iter_{:0{prec}d}'.format(int(n_iter), prec=data_manager.iter_prec)
             iter_group = iter_data[iter_group_name]
         else:
             iter_group = data_manager.get_iter_group(n_iter)
@@ -175,7 +174,7 @@ class RateAverager():
         pcoord_len = self.system.pcoord_len
 
         for n_iter in iter_indices:
-            iter_group_name = 'iter_{:0{prec}d}'.format(long(n_iter), prec=self.data_manager.iter_prec)
+            iter_group_name = 'iter_{:0{prec}d}'.format(int(n_iter), prec=self.data_manager.iter_prec)
             iter_group = self.data_manager.get_iter_group(n_iter)
             di = data[iter_group_name] = {}
 
@@ -197,8 +196,8 @@ class RateAverager():
         return data
 
     def task_generator(self, iter_start, iter_stop, block_size):
-        for iter_block in grouper(block_size, xrange(iter_start, iter_stop)):
-            iter_block = filter(lambda x: x is not None, iter_block)
+        for iter_block in grouper(block_size, range(iter_start, iter_stop)):
+            iter_block = [x for x in iter_block if x is not None]
             iter_data = self.extract_data(iter_block)
             yield (process_iter_chunk, (self.bin_mapper, iter_block), {'iter_data': iter_data})
             del iter_data
@@ -218,7 +217,7 @@ class RateAverager():
         nbins = self.bin_mapper.nbins
 
         if n_blocks == 1:
-            flux_stats_t, rate_stats_t, population_stats_t = process_iter_chunk(self.bin_mapper, range(iter_start, iter_stop))
+            flux_stats_t, rate_stats_t, population_stats_t = process_iter_chunk(self.bin_mapper, list(range(iter_start, iter_stop)))
 
             flux_stats = tuple2stats(flux_stats_t)
             rate_stats = tuple2stats(rate_stats_t)

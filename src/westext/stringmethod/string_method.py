@@ -16,7 +16,7 @@
 # along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
 import numpy as np
-from fourier_fitting import FourierFit
+from .fourier_fitting import FourierFit
 from collections import Iterable
 
 try:
@@ -229,11 +229,11 @@ class DefaultStringMethod(WESTStringMethod):
 
                 # interpolate values for unoccupied bins
                 if self._SCIPY_FLAG:
-                    for k in xrange(self._ndim_take):
+                    for k in range(self._ndim_take):
                         f = scipy.interpolate.interp1d(cfunc(~notocc),x[~notocc,k],kind='linear')
                         x[notocc,k] = f(cfunc(notocc))
                 else:
-                    for k in xrange(self._ndim_take):
+                    for k in range(self._ndim_take):
                         x[notocc,k] = np.interp(cfunc(notocc),cfunc(~notocc),x[~notocc,k])
 
             if self._fixed_ends:
@@ -247,10 +247,10 @@ class DefaultStringMethod(WESTStringMethod):
 
             # Update and smooth the string
             if self._SCIPY_FLAG:
-                for k in xrange(self._ndim_take):
+                for k in range(self._ndim_take):
                     psi_new[:,k] = scipy.linalg.solve_banded((1,1),self._A[N],b[:,k])
             else:
-                for k in xrange(self._ndim_take):
+                for k in range(self._ndim_take):
                     psi_new[:,k] = np.linalg.solve(self._A[N],b[:,k])
 
 
@@ -269,11 +269,11 @@ class DefaultStringMethod(WESTStringMethod):
             g2 = np.linspace(0,1,N)
 
             if self._SCIPY_FLAG:
-                for k in xrange(self._ndim_take):
+                for k in range(self._ndim_take):
                     f = scipy.interpolate.interp1d(L,psi_new[:,k],kind='linear')
                     psi_new[:,k] = f(g2)
             else:
-                for k in xrange(self._ndim_take):
+                for k in range(self._ndim_take):
                     psi_new[:,k] = np.interp(g2,L,psi_new[:,k])
 
             self.centers[si] = psi_new.copy()

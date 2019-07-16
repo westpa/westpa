@@ -15,7 +15,6 @@
 # You should have received a copy of the GNU General Public License
 # along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
-__metaclass__ = type
 import numpy
 from math import isnan
 
@@ -72,9 +71,9 @@ class Segment:
         # assuming that the respective fields are actually strings, probably after implicitly 
         # calling __str__() on them.  Not sure if this is a numpy, h5py, or python problem
         self.n_iter = int(n_iter)  if n_iter is not None else None
-        self.seg_id = long(seg_id) if seg_id is not None else None
+        self.seg_id = int(seg_id) if seg_id is not None else None
         self.status = int(status)  if status is not None else None
-        self.parent_id = long(parent_id) if parent_id is not None else None
+        self.parent_id = int(parent_id) if parent_id is not None else None
         self.endpoint_type = int(endpoint_type) if endpoint_type else self.SEG_ENDPOINT_UNSET
         
         self.weight = float(weight) if weight is not None else None

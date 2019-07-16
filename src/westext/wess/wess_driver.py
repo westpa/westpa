@@ -15,14 +15,13 @@
 # You should have received a copy of the GNU General Public License
 # along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import division; __metaclass__ = type
 
 import logging
 log = logging.getLogger(__name__)
 
 import numpy
 import operator
-from itertools import izip, imap
+
 
 import westpa, west
 from westpa.yamlcfg import check_bool
@@ -36,18 +35,18 @@ def reduce_array(Aij):
     """Remove empty rows and columns from an array Aij and return the reduced
         array Bij and the list of non-empty states"""
 
-    nonempty = range(0,Aij.shape[0])
+    nonempty = list(range(0,Aij.shape[0]))
     eps = numpy.finfo(Aij.dtype).eps
 
-    for i in xrange(0,Aij.shape[0]):
+    for i in range(0,Aij.shape[0]):
         if (Aij[i,:] < eps).all() and (Aij[:,i] < eps).all():
             nonempty.pop(nonempty.index(i))
 
     nne = len(nonempty)
     Bij = numpy.zeros((nne,nne))
 
-    for i in xrange(0,nne):
-        for j in xrange(0,nne):
+    for i in range(0,nne):
+        for j in range(0,nne):
             Bij[i,j] = Aij[nonempty[i],nonempty[j]]
 
     return Bij, nonempty
@@ -74,7 +73,7 @@ class WESSDriver:
                 self.windowtype = 'fraction'
                 if self.windowsize <= 0 or self.windowsize > 1:
                     raise ValueError('WESS parameter error -- fractional window size must be in (0,1]')
-            elif isinstance(windowsize,(int,long)):
+            elif isinstance(windowsize,int):
                 self.windowsize = int(windowsize)
                 self.windowtype = 'fixed'
             else:
@@ -126,7 +125,7 @@ class WESSDriver:
 
         with self.data_manager.lock:
             wess_global_group = self.data_manager.we_h5file.require_group('wess')
-            last_reweighting = long(wess_global_group.attrs.get('last_reweighting',0))
+            last_reweighting = int(wess_global_group.attrs.get('last_reweighting',0))
 
         if n_iter - last_reweighting < self.reweight_period:
             # Not time to reweight yet
@@ -140,7 +139,7 @@ class WESSDriver:
         n_bins = len(bins)
         westpa.rc.pstatus('Averaging rates')
         averager = self.get_rates(n_iter, mapper)
-        binprobs = numpy.fromiter(imap(operator.attrgetter('weight'),bins), dtype=numpy.float64, count=n_bins)
+        binprobs = numpy.fromiter(map(operator.attrgetter('weight'),bins), dtype=numpy.float64, count=n_bins)
         orig_binprobs = binprobs.copy()
 
         if self.write_matrices:
@@ -169,7 +168,7 @@ class WESSDriver:
         uij = averager.stderr_rate[numpy.ix_(oldindex,oldindex)]
 
         #target_regions = numpy.where(we_driver.target_state_mask)[0]
-        target_regions = we_driver.target_states.keys()
+        target_regions = list(we_driver.target_states.keys())
 
         flat_target_regions = []
         for target_region in target_regions:
@@ -190,14 +189,14 @@ class WESSDriver:
                                 .format(numpy.array_str(numpy.arange(n_bins)[z2nz_mask])))
         else:
             westpa.rc.pstatus('\nBin populations after reweighting:\n{!s}'.format(binprobs))
-            for (bin, newprob) in izip(bins, binprobs):
+            for (bin, newprob) in zip(bins, binprobs):
                 if len(bin):
                     bin.reweight(newprob)
 
             wess_global_group.attrs['last_reweighting'] = n_iter
 
-        assert (abs(1 - numpy.fromiter(imap(operator.attrgetter('weight'),bins), dtype=numpy.float64, count=n_bins).sum())
-                        < EPS * numpy.fromiter(imap(len,bins), dtype=numpy.int, count=n_bins).sum())
+        assert (abs(1 - numpy.fromiter(map(operator.attrgetter('weight'),bins), dtype=numpy.float64, count=n_bins).sum())
+                        < EPS * numpy.fromiter(map(len,bins), dtype=numpy.int, count=n_bins).sum())
 
         westpa.rc.pflush()
 

@@ -15,10 +15,9 @@
 # You should have received a copy of the GNU General Public License
 # along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import division, print_function; __metaclass__ = type
 
 import sys, logging, threading, multiprocessing
-import Queue
+import queue
 from . import WorkManager, WMFuture
 import work_managers
 
@@ -53,7 +52,7 @@ class ThreadsWorkManager(WorkManager):
         super(ThreadsWorkManager,self).__init__()
         self.n_workers = n_workers or multiprocessing.cpu_count()
         self.workers = []
-        self.task_queue = Queue.Queue()
+        self.task_queue = queue.Queue()
         
     def runtask(self, task_queue):
         while True:
@@ -73,7 +72,7 @@ class ThreadsWorkManager(WorkManager):
         if not self.running:
             self.running = True
             self.workers = [threading.Thread(target=self.runtask, args=[self.task_queue], name='worker-{:d}'.format(i)) 
-                            for i in xrange(0, self.n_workers)]
+                            for i in range(0, self.n_workers)]
             for thread in self.workers:
                 log.debug('starting thread {!r}'.format(thread))
                 thread.start()
@@ -81,7 +80,7 @@ class ThreadsWorkManager(WorkManager):
     def shutdown(self):
         if self.running:
             # Put one sentinel on the queue per worker, then wait for threads to terminate
-            for i in xrange(0, self.n_workers):
+            for i in range(0, self.n_workers):
                 self.task_queue.put(ShutdownSentinel)
             for thread in self.workers:
                 thread.join()

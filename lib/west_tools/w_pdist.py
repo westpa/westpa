@@ -15,9 +15,8 @@
 # You should have received a copy of the GNU General Public License
 # along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import print_function, division; __metaclass__ = type
 import logging
-from itertools import izip
+
 from westtools import (WESTParallelTool, WESTDataReader, WESTDSSynthesizer, IterRangeSelection, 
                        ProgressIndicatorComponent)
 import numpy, h5py
@@ -43,10 +42,10 @@ def _remote_min_max(ndim, dset_dtype, n_iter, dsspec):
         minval = numpy.iinfo(dset_dtype).min
         maxval = numpy.iinfo(dset_dtype).max
 
-    data_range = [(maxval,minval) for _i in xrange(ndim)]
+    data_range = [(maxval,minval) for _i in range(ndim)]
 
     dset = dsspec.get_iter_data(n_iter)
-    for idim in xrange(ndim):
+    for idim in range(ndim):
         dimdata = dset[:,:,idim]
         current_min, current_max = data_range[idim]
         current_min = min(current_min, dimdata.min())
@@ -66,7 +65,7 @@ def _remote_bin_iter(iiter, n_iter, dsspec, wt_dsspec, initpoint, binbounds, ign
     weights = wt_dsspec.get_iter_data(n_iter)
 
     dset = dset[:,initpoint:,:]
-    for ipt in xrange(npts-initpoint):
+    for ipt in range(npts-initpoint):
         histnd(dset[:,ipt,:], binbounds, weights, out=iter_hist, binbound_check = False, ignore_out_of_range=ignore_out_of_range)
 
     del weights, dset
@@ -298,7 +297,7 @@ Command-line options
     
             # Construct bin boundaries
             self.construct_bins(self.parse_binspec(self.binspec))
-            for idim, (binbounds, midpoints) in enumerate(izip(self.binbounds, self.midpoints)):
+            for idim, (binbounds, midpoints) in enumerate(zip(self.binbounds, self.midpoints)):
                 self.output_file['binbounds_{}'.format(idim)] = binbounds
                 self.output_file['midpoints_{}'.format(idim)] = midpoints
     
@@ -376,7 +375,7 @@ Command-line options
             minval = numpy.iinfo(dset_dtype).min
             maxval = numpy.iinfo(dset_dtype).max
         
-        data_range = self.data_range = [(maxval,minval) for _i in xrange(self.ndim)]
+        data_range = self.data_range = [(maxval,minval) for _i in range(self.ndim)]
 
         #futures = []
         #for n_iter in xrange(self.iter_start, self.iter_stop):
@@ -385,10 +384,10 @@ Command-line options
         
         #for future in self.work_manager.as_completed(futures):
         for future in self.work_manager.submit_as_completed(((_remote_min_max, (ndim, dset_dtype, n_iter, dsspec), {})
-                                                             for n_iter in xrange(self.iter_start, self.iter_stop)),
+                                                             for n_iter in range(self.iter_start, self.iter_stop)),
                                                             self.max_queue_len):
             bounds = future.get_result(discard=True)
-            for idim in xrange(ndim):
+            for idim in range(ndim):
                 current_min, current_max = data_range[idim]
                 current_min = min(current_min, bounds[idim][0])
                 current_max = max(current_max, bounds[idim][1])
@@ -401,7 +400,7 @@ Command-line options
 
         self.binbounds = []
         self.midpoints = []        
-        for idim in xrange(self.ndim):
+        for idim in range(self.ndim):
             lb, ub = self.data_range[idim]
             # Advance just beyond the upper bound of the range, so that we catch 
             # the maximum in the histogram
@@ -418,7 +417,7 @@ Command-line options
 
         self.binbounds = []
         self.midpoints = []        
-        for idim in xrange(self.ndim):
+        for idim in range(self.ndim):
             lb, ub = self.data_range[idim]
             # Advance just beyond the upper bound of the range, so that we catch 
             # the maximum in the histogram
@@ -455,7 +454,7 @@ Command-line options
         self.progress.indicator.new_operation('Constructing histograms',self.iter_stop-self.iter_start)
         task_gen = ((_remote_bin_iter, (iiter, n_iter, self.dsspec, self.wt_dsspec, 1 if iiter > 0 else 0, binbounds,
                                         self.ignore_out_of_range), {}) 
-                    for (iiter,n_iter) in enumerate(xrange(self.iter_start, self.iter_stop)))
+                    for (iiter,n_iter) in enumerate(range(self.iter_start, self.iter_stop)))
         #futures = set()
         #for iiter, n_iter in enumerate(xrange(self.iter_start, self.iter_stop)):
         #    initpoint = 1 if iiter > 0 else 0

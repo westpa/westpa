@@ -15,7 +15,6 @@
 # You should have received a copy of the GNU General Public License
 # along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import print_function, division; __metaclass__ = type
 import sys
 import re
 from westtools import WESTTool, WESTDataReader
@@ -86,10 +85,10 @@ class Trace:
             walltime = indexrow['walltime']
             
             try:
-                parent_id = long(indexrow['parent_id'])
+                parent_id = int(indexrow['parent_id'])
             except IndexError:
                 # old HDF5 version
-                parent_id = long(iter_group['parents'][indexrow['parents_offset']])
+                parent_id = int(iter_group['parents'][indexrow['parents_offset']])
                 
             if endpoint_type is None:
                 endpoint_type = indexrow['endpoint_type']
@@ -200,7 +199,7 @@ class Trace:
         '''
         
         # Figure out where to look for the dataset
-        if isinstance(auxfile, basestring):
+        if isinstance(auxfile, str):
             datafile = h5py.File(auxfile, 'r')
             close_datafile = True
         elif auxfile is not None:
@@ -215,7 +214,7 @@ class Trace:
             
         # Load the index if we use it
         if index_ds is not None:
-            if isinstance(index_ds,basestring):
+            if isinstance(index_ds,str):
                 index_ds = datafile[index_ds]
             index_data = index_ds[...]
         else:
@@ -398,7 +397,7 @@ The following options for datasets are supported:
     def process_args(self, args):
         self.data_reader.process_args(args)
         #self.h5storage.process_args(args)
-        self.endpoints = [map(long,endpoint.split(':')) for endpoint in args.endpoints]
+        self.endpoints = [list(map(int,endpoint.split(':'))) for endpoint in args.endpoints]
         self.output_pattern = args.output_pattern
         
         for dsstr in args.datasets or []:
@@ -523,8 +522,8 @@ The following options for datasets are supported:
 # column  2: weight
 # column  3: wallclock time (s)
 # column  4: CPU time (s)
-'''.format(n_iter = long(lastseg['n_iter']), 
-           seg_id = long(lastseg['seg_id']), 
+'''.format(n_iter = int(lastseg['n_iter']), 
+           seg_id = int(lastseg['seg_id']), 
            endpoint_type_text = Segment.endpoint_type_names[trace.endpoint_type]))
         
         
@@ -554,8 +553,8 @@ The following options for datasets are supported:
         for segment in trace:            
             pcoord_str = '    '.join(pcoord_formats.get(pcfield.dtype.str[1:], '%s') % pcfield 
                                      for pcfield in segment['final_pcoord'])
-            output_file.write(seg_pattern.format(n_iter = long(segment['n_iter']), 
-                                                 seg_id = long(segment['seg_id']),
+            output_file.write(seg_pattern.format(n_iter = int(segment['n_iter']), 
+                                                 seg_id = int(segment['seg_id']),
                                                  weight = float(segment['weight']),
                                                  walltime = float(segment['walltime']),
                                                  cputime = float(segment['cputime']), 

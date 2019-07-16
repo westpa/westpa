@@ -15,7 +15,6 @@
 # You should have received a copy of the GNU General Public License
 # along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import print_function, division; __metaclass__ = type
 
 # Let's suppress those numpy warnings.
 import warnings
@@ -91,7 +90,7 @@ class WKinetics():
         # Calculate instantaneous rate matrices and trace trajectories
         last_state = None
         pi.new_operation('Tracing trajectories', iter_count)
-        for iiter, n_iter in enumerate(xrange(start_iter, stop_iter)):
+        for iiter, n_iter in enumerate(range(start_iter, stop_iter)):
             # Get data from the main HDF5 file
             iter_group = self.data_reader.get_iter_group(n_iter)
             seg_index = iter_group['seg_index']

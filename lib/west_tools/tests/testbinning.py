@@ -15,7 +15,7 @@
 # You should have received a copy of the GNU General Public License
 # along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import division, print_function
+
 from westpa.binning.assign import (RectilinearBinMapper, PiecewiseBinMapper, FuncBinMapper, VectorizingFuncBinMapper, 
                                  VoronoiBinMapper, RecursiveBinMapper)
 from westpa.binning.assign import index_dtype, coord_dtype

@@ -17,9 +17,9 @@
 
 
 import numpy as np
-from itertools import izip
 
-import UncertMath
+
+from . import UncertMath
 
 class ClusterList(object):
     def __init__(self,ratios,nbins):
@@ -43,7 +43,7 @@ class ClusterList(object):
         """ Join clusters given a tuple (i,j) of bin pairs
         """
 
-        for i,j in izip(*pairs):
+        for i,j in zip(*pairs):
             # Both bins not joined
             if self.bin_assign[i] == -1 and self.bin_assign[j] == -1:
                 # Create new cluster
@@ -130,7 +130,7 @@ class ClusterList(object):
         """ Join clusters using direct ratios given a tuple (i,j) of bin pairs
         """
 
-        for i,j in izip(*pairs):
+        for i,j in zip(*pairs):
             # Both bins not joined
             if self.bin_assign[i] == -1 and self.bin_assign[j] == -1:
                 # Create new cluster

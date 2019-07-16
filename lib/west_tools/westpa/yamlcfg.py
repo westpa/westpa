@@ -20,7 +20,6 @@
 YAML-based configuration files for WESTPA
 '''
 
-from __future__ import division, print_function; __metaclass__ = type
 
 import yaml
 try:
@@ -30,7 +29,7 @@ except ImportError:
     from yaml import Loader as YLoader
     
 import os, warnings
-import extloader
+from . import extloader
 
 # Only needed for temporary class
 import numpy
@@ -105,7 +104,7 @@ class YAMLConfig:
         return repr(self._data)
             
     def update_from_file(self, file, required=True):
-        if isinstance(file, basestring):
+        if isinstance(file, str):
             try:
                 file = open(file, 'rt')
             except IOError:
@@ -115,9 +114,10 @@ class YAMLConfig:
                     return
 
         self._data.update(yaml.load(file, Loader=YLoader))
+        file.close()
         
     def _normalize_key(self, key):
-        if isinstance(key, basestring):
+        if isinstance(key, str):
             key = (key,)
         else:
             try:
@@ -232,7 +232,7 @@ class YAMLConfig:
     def get_path(self, key, default=NotProvided, expandvars = True, expanduser = True, realpath = True, abspath = True):
         try:
             path = self[key]
-        except KeyError, ke:
+        except KeyError as ke:
             if default is not NotProvided:
                 path = default
             else:
@@ -264,10 +264,10 @@ class YAMLConfig:
             # practice it encourages.
             return paths
         
-        if expandvars: items = map(os.path.expandvars, items)
-        if expanduser: items = map(os.path.expanduser, items)
-        if realpath:   items = map(os.path.realpath, items)
-        if abspath:    items = map(os.path.abspath, items)
+        if expandvars: items = list(map(os.path.expandvars, items))
+        if expanduser: items = list(map(os.path.expanduser, items))
+        if realpath:   items = list(map(os.path.realpath, items))
+        if abspath:    items = list(map(os.path.abspath, items))
         
         return items
 

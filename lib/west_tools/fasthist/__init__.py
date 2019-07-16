@@ -15,7 +15,7 @@
 # You should have received a copy of the GNU General Public License
 # along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
-from _fasthist import histnd #@UnresolvedImport
+from ._fasthist import histnd
 
 import numpy
 

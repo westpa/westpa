@@ -20,7 +20,6 @@
 Tools for Monte Carlo bootstrap error analysis
 '''
 
-from __future__ import division, print_function; __metaclass__ = type
 
 import logging
 
@@ -103,7 +102,7 @@ def bootstrap_ci_ll(estimator, data, alpha, n_sets, storage, sort, eargs=(), ekw
         fhat = estimator(data, *eargs, **ekwargs)
     dlen = len(data)
     
-    for iset in xrange(n_sets):
+    for iset in range(n_sets):
         indices = numpy.random.randint(dlen,size=(dlen,))
         storage[iset] = estimator(data[indices], *eargs, **ekwargs)
         

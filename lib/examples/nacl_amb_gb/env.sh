@@ -15,7 +15,7 @@ export PMEMD=$(which pmemd)
 export CPPTRAJ=$(which cpptraj)
 
 # Inform WEST where to find Python and our other scripts where to find WEST
-export WEST_PYTHON=$(which python2.7)
+export WEST_PYTHON=$(which python3)
 
 if [[ -z "$WEST_ROOT" ]]; then
     echo "Please set the environment variable WEST_ROOT"

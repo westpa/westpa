@@ -13,7 +13,7 @@ def minimize(platform, system, positions):
     # Compute initial energy.
     state = context.getState(getEnergy=True)
     initial_potential = state.getPotentialEnergy()
-    print "initial potential: %12.3f kcal/mol" % (initial_potential / units.kilocalories_per_mole)
+    print("initial potential: %12.3f kcal/mol" % (initial_potential / units.kilocalories_per_mole))
     # Minimize.
     openmm.LocalEnergyMinimizer.minimize(context)
     # Compute final energy.
@@ -21,6 +21,6 @@ def minimize(platform, system, positions):
     final_potential = state.getPotentialEnergy()
     positions = state.getPositions(asNumpy=True)
     # Report
-    print "final potential  : %12.3f kcal/mol" % (final_potential / units.kilocalories_per_mole)
+    print("final potential  : %12.3f kcal/mol" % (final_potential / units.kilocalories_per_mole))
 
     return positions

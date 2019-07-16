@@ -57,13 +57,13 @@ the total number of bins within the mapper.
 
 '''
 
-from __future__ import division, print_function; __metaclass__ = type
 
-import cPickle as pickle
+import pickle as pickle
 import hashlib, logging
 import numpy
 
-from bins import Bin
+from . import _assign
+from .bins import Bin
 
 # All bin numbers are 16-bit unsigned ints, with one element (65525) reserved to
 # indicate unknown or unassigned points. This allows up to 65,536 bins, making
@@ -76,7 +76,7 @@ UNKNOWN_INDEX = 65535
 # coord_dtype here and coord_t in _assign.pyx.
 coord_dtype = numpy.float32
 
-from _assign import output_map, apply_down, apply_down_argmin_across, rectilinear_assign #@UnresolvedImport
+from ._assign import output_map, apply_down, apply_down_argmin_across, rectilinear_assign 
 
 log = logging.getLogger(__name__)
 
@@ -89,7 +89,7 @@ class BinMapper:
 
     def construct_bins(self, type_=Bin):
         '''Construct and return an array of bins of type ``type``'''
-        return numpy.array([type_() for _i in xrange(self.nbins)], dtype=numpy.object_)
+        return numpy.array([type_() for _i in range(self.nbins)], dtype=numpy.object_)
 
     def pickle_and_hash(self):
         '''Pickle this mapper and calculate a hash of the result (thus identifying the
@@ -158,7 +158,7 @@ class RectilinearBinMapper(BinMapper):
         _boundaries = self._boundaries
         binspace_shape = tuple(self._boundlens[:]-1)
         for index in numpy.ndindex(binspace_shape):
-            bounds = [(_boundaries[idim][index[idim]], boundaries[idim][index[idim]+1]) for idim in xrange(len(_boundaries))]
+            bounds = [(_boundaries[idim][index[idim]], boundaries[idim][index[idim]+1]) for idim in range(len(_boundaries))]
             labels.append(repr(bounds))
 
     def assign(self, coords, mask=None, output=None):
@@ -229,7 +229,7 @@ class FuncBinMapper(BinMapper):
         self.nbins = nbins
         self.args = args or ()
         self.kwargs = kwargs or {}
-        self.labels = ['{!r} bin {:d}'.format(func, ibin) for ibin in xrange(nbins)]
+        self.labels = ['{!r} bin {:d}'.format(func, ibin) for ibin in range(nbins)]
 
     def assign(self, coords, mask=None, output=None):
         try:
@@ -265,7 +265,7 @@ class VectorizingFuncBinMapper(BinMapper):
         self.kwargs = kwargs or {}
         self.nbins = nbins
         self.index_dtype = numpy.min_scalar_type(self.nbins)
-        self.labels = ['{!r} bin {:d}'.format(func, ibin) for ibin in xrange(nbins)]
+        self.labels = ['{!r} bin {:d}'.format(func, ibin) for ibin in range(nbins)]
 
     def assign(self, coords, mask=None, output=None):
         try:
@@ -354,7 +354,7 @@ class RecursiveBinMapper(BinMapper):
 
     @property
     def labels(self):
-        for ilabel in xrange(self.base_mapper.nbins):
+        for ilabel in range(self.base_mapper.nbins):
             if self._recursion_map[ilabel]:
                 for label in self._recursion_targets[ilabel].labels:
                     yield label
@@ -384,7 +384,7 @@ class RecursiveBinMapper(BinMapper):
 
         n_own_bins = self.base_mapper.nbins - self._recursion_map.sum()
         startindex = self.start_index + n_own_bins
-        for mapper in self._recursion_targets.itervalues():
+        for mapper in self._recursion_targets.values():
             mapper.start_index = startindex
             startindex += mapper.nbins
 
@@ -435,7 +435,7 @@ class RecursiveBinMapper(BinMapper):
         # Which coordinates do we need to reassign, because they landed in
         # bins with embedded mappers?
         rmasks = {}
-        for (rindex, mapper) in self._recursion_targets.iteritems():
+        for (rindex, mapper) in self._recursion_targets.items():
             omask = (output == rindex)
             mmask |= omask
             rmasks[rindex] = omask
@@ -447,7 +447,7 @@ class RecursiveBinMapper(BinMapper):
             output_map(output, omap, mask & ~mmask)
 
         # do any recursive assignments necessary
-        for (rindex, mapper) in self._recursion_targets.iteritems():
+        for (rindex, mapper) in self._recursion_targets.items():
             mapper.assign(coords, mask&rmasks[rindex], output)
 
         return output

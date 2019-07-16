@@ -15,11 +15,11 @@
 # You should have received a copy of the GNU General Public License
 # along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import division, print_function
+
 
 import os, sys, logging, argparse
 import numpy
-from itertools import izip 
+ 
 log = logging.getLogger('w_fork')
 
 import westpa
@@ -101,7 +101,7 @@ state_map = numpy.empty((n_segments,),dtype=state_map_dtype)
 state_map['old_n_iter'] = n_iter
 
 
-for (iseg, (index_row, pcoord)) in enumerate(izip(old_index, old_final_pcoords)):
+for (iseg, (index_row, pcoord)) in enumerate(zip(old_index, old_final_pcoords)):
     istate = istates[iseg]
     istate.iter_created = 0
     istate.iter_used = 1
@@ -138,9 +138,9 @@ if not args.no_headers:
 
 for row in state_map:
     istate_map_file.write('{old_n_iter:20d}    {old_seg_id:20d}    {new_istate_id:20d}\n'
-                          .format(old_n_iter=long(row['old_n_iter']),
-                                  old_seg_id=long(row['old_seg_id']),
-                                  new_istate_id=long(row['new_istate_id'])))
+                          .format(old_n_iter=int(row['old_n_iter']),
+                                  old_seg_id=int(row['old_seg_id']),
+                                  new_istate_id=int(row['new_istate_id'])))
     
     
 

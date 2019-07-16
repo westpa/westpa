@@ -43,7 +43,7 @@ def calc_stats(d):
         time_in_b += 1
         curr_state = 1
 
-    for k in xrange(1, niters):
+    for k in range(1, niters):
         if d[k] < a_bound:
             state = 0
         elif d[k] > b_bound:
@@ -77,18 +77,18 @@ if __name__ == '__main__':
     #print '--------'
     #print tt_b2a
 
-    print 'ntranstions a->b: ', n_a2b
-    print 'ntranstions b->a: ', n_b2a
+    print('ntranstions a->b: ', n_a2b)
+    print('ntranstions b->a: ', n_b2a)
 
-    print 'time in a: ', time_in_a
-    print 'time in b: ', time_in_b
+    print('time in a: ', time_in_a)
+    print('time in b: ', time_in_b)
 
     total_time = time_in_a + time_in_b
 
     frac_a = (1.0 * time_in_a) / total_time
     frac_b = (1.0 * time_in_b) / total_time
-    print 'Frac a: ', frac_a
-    print 'Frac b: ', frac_b
+    print('Frac a: ', frac_a)
+    print('Frac b: ', frac_b)
 
     flux_a2b = (1.0 * n_a2b) / total_time
     flux_b2a = (1.0 * n_b2a) / total_time
@@ -96,5 +96,5 @@ if __name__ == '__main__':
     mfpt_a2b = frac_a / flux_a2b
     mfpt_b2a = frac_b / flux_b2a
 
-    print 'MFPT a->b: ', mfpt_a2b
-    print 'MFPT b->a: ', mfpt_b2a
+    print('MFPT a->b: ', mfpt_a2b)
+    print('MFPT b->a: ', mfpt_b2a)

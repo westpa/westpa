@@ -14,7 +14,7 @@ elif [ $GMX_VERSION -eq 5 ]; then
 fi
 
 # Inform WEST where to find Python and our other scripts where to find WEST
-export WEST_PYTHON=$(which python2.7)
+export WEST_PYTHON=$(which python3)
 if [[ -z "$WEST_ROOT" ]]; then
     echo "Must set environ variable WEST_ROOT"
     exit

@@ -19,7 +19,6 @@
 # module of Python 3.2, by Brian Quinlan, (C) 2011 the Python Software
 # Foundation. See http://docs.python.org/3/license.html for more information.
 
-__metaclass__ = type
 import logging
 import uuid, threading, signal
 from itertools import islice
@@ -337,12 +336,12 @@ class WMFuture:
         with self._condition:
             if self._done:
                 if self._exception:
-                    if isinstance(self._traceback, basestring):
+                    if isinstance(self._traceback, str):
                         if self._traceback:
                             log.error('uncaught exception in remote function\n{}'.format(self._traceback))
                         raise self._exception
                     else:
-                        raise self._exception, None, self._traceback
+                        raise self._exception.with_traceback(self._traceback)
             else:
                 self._condition.wait()
                 assert self._done
@@ -351,7 +350,7 @@ class WMFuture:
                         log.error('uncaught exception in remote function\n{}'.format(self._traceback))
                         raise self._exception
                     else:
-                        raise self._exception, None, self._traceback
+                        raise self._exception.with_traceback(self._traceback)
                 
             result = self._result
             if discard:

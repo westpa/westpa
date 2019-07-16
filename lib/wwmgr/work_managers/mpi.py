@@ -20,7 +20,6 @@
 A work manager which uses MPI to distribute tasks and collect results.
 """
 
-from __future__ import division, print_function; __metaclass__ = type
 
 import logging, re, threading
 from collections import deque

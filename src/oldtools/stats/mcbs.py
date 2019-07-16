@@ -20,7 +20,6 @@
 Tools for Monte Carlo bootstrap error analysis
 '''
 
-from __future__ import print_function, division; __metaclass__ = type
 import math, numpy
 
 def add_mcbs_options(parser):
@@ -74,7 +73,7 @@ def bootstrap_ci(estimator, data, alpha, n_sets=None, args=(), kwargs={}, sort=n
     
     f_synth = numpy.empty((n_sets,) + estimator_shape, dtype=estimator_dtype)
     
-    for i in xrange(0, n_sets):
+    for i in range(0, n_sets):
         indices = numpy.random.randint(dlen, size=(dlen,))
         f_synth[i] = estimator(data[indices], *args, **kwargs)
         

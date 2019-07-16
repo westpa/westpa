@@ -15,14 +15,13 @@
 # You should have received a copy of the GNU General Public License
 # along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
-__metaclass__ = type
 
 import westpa
 import itertools
 def blocked_iter(blocksize, iterable, fillvalue = None):
     # From the Python "itertools recipes" (grouper)
     args = [iter(iterable)] * blocksize
-    return itertools.izip_longest(fillvalue=fillvalue, *args)
+    return itertools.zip_longest(fillvalue=fillvalue, *args)
 
 class WESTPropagator:
     def __init__(self, rc=None):

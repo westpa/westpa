@@ -27,11 +27,11 @@ def parse_int_list(list_string):
     
     try:
         entries = set()
-        fields = re.split('\s*[;,]\s*', list_string)
+        fields = re.split(r'\s*[;,]\s*', list_string)
         for field in fields:
             if ':' in field:
-                lb, ub = map(int,re.split('\s*:\s*', field))
-                entries.update(range(lb,ub+1))
+                lb, ub = list(map(int,re.split(r'\s*:\s*', field)))
+                entries.update(list(range(lb,ub+1)))
             else:
                 entries.add(int(field))
     except (ValueError,TypeError):

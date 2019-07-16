@@ -19,7 +19,7 @@
 
 # If $WEST_ROOT is not set, then set it based on the path to this script
 if [ -z "$WEST_ROOT" ]; then
-    export WEST_ROOT=$($WEST_PYTHON -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' $0/../..)
+    export WEST_ROOT=$(python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' $0/../..)
 fi
 
 # We've moved the actual environment variable setting into another script.

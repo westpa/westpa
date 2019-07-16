@@ -15,5 +15,5 @@
 # You should have received a copy of the GNU General Public License
 # along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
-import adaptVor_driver
-from adaptVor_driver import AdaptiveVoronoiDriver
+from . import adaptVor_driver
+from .adaptVor_driver import AdaptiveVoronoiDriver

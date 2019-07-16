@@ -162,7 +162,7 @@ class WIPI(WESTParallelTool):
         #print(str(to_hash).encode('base64'))
         if self.debug_mode:
             for iarg, arg in enumerate(to_hash):
-                if type(arg) != list:
+                if not isinstance(arg, list):
                     print('arg {num:02d} -- {arg:<20}'.format(num=iarg, arg=arg))
                 else:
                     for il, l in enumerate(arg):
@@ -276,12 +276,12 @@ class WIPI(WESTParallelTool):
                             except:
                                 pass
                             args = []
-                            for key,value in w_assign_config.iteritems():
+                            for key,value in w_assign_config.items():
                                 if key != 'extra':
                                     args.append(str('--') + str(key).replace('_', '-'))
                                     args.append(str(value))
                             # This is for stuff like disabling correlation analysis, etc.
-                            if 'extra' in w_assign_config.keys():
+                            if 'extra' in list(w_assign_config.keys()):
                                 # We're sorting to ensure that the order doesn't matter.
                                 for value in sorted(w_assign_config['extra']):
                                     args.append(str('--') + str(value).replace('_', '-'))
@@ -355,12 +355,12 @@ class WIPI(WESTParallelTool):
                             # Then, we call the magic function 'make_parser_and_process' with the arguments we've pulled in.
                             # The tool has no real idea it's being called outside of its actual function, and we're good to go.
                             args = ['all']
-                            for key,value in analysis_config.iteritems():
+                            for key,value in analysis_config.items():
                                 if key != 'extra':
                                     args.append(str('--') + str(key).replace('_', '-'))
                                     args.append(str(value))
                             # This is for stuff like disabling correlation analysis, etc.
-                            if 'extra' in analysis_config.keys():
+                            if 'extra' in list(analysis_config.keys()):
                                 for value in sorted(analysis_config['extra']):
                                     args.append(str('--') + str(value).replace('_', '-'))
                             # We want to not display the averages, so...
@@ -558,12 +558,12 @@ class WIPI(WESTParallelTool):
             keys = []
             try:
                 current['auxdata'] = {}
-                for key in self.current['auxdata'].keys():
+                for key in list(self.current['auxdata'].keys()):
                     current['auxdata'][key] = []
                     key = []
             except:
                 pass
-            for iter in reversed(range(1, self.iteration+1)):
+            for iter in reversed(list(range(1, self.iteration+1))):
                 iter_group = self.data_reader.get_iter_group(iter)
                 particles = self.data_reader.data_manager.get_iter_summary(int(iter))['n_particles']
                 current['pcoord'].append(iter_group['pcoord'][seg_id, :, :])
@@ -618,13 +618,13 @@ class WIPI(WESTParallelTool):
 
         # This isn't a real fancy one.
         def __getitem__(self, value):
-            if type(value) is str:
-                print(self.__dict__.keys())
+            if isinstance(value, str):
+                print(list(self.__dict__.keys()))
                 try:
                     return self.__dict__['raw'][value]
                 except:
                     print('{} is not a valid data structure.'.format(value))
-            elif type(value) is int or type(value) is np.int64:
+            elif isinstance(value, int) or isinstance(value, np.int64):
                 # Otherwise, we assume they're trying to index for a seg_id.
                 #if value < self.parent.walkers:
                 current = {}
@@ -637,7 +637,7 @@ class WIPI(WESTParallelTool):
                 current['weights'] = self.__dict__['raw']['weights'][value]
                 try:
                     current['auxdata'] = {}
-                    for key in self.__dict__['raw']['auxdata'].keys():
+                    for key in list(self.__dict__['raw']['auxdata'].keys()):
                         current['auxdata'][key] = self.__dict__['raw']['auxdata'][key][value]
                 except:
                     pass
@@ -733,7 +733,7 @@ class WIPI(WESTParallelTool):
 
         {w}
 
-        '''.format(current=self.__format_keys__(self.current.__dir__(), split=' ', offset=12), scheme_keys=self.__format_keys__(self._scheme.raw.keys()),
+        '''.format(current=self.__format_keys__(self.current.__dir__(), split=' ', offset=12), scheme_keys=self.__format_keys__(list(self._scheme.raw.keys())),
                    w=self.__format_keys__(self.__dir__(), offset=8, max_length=0, split='', prepend='w.'))
         print(help_string)
 

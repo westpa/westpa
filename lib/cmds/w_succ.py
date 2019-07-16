@@ -15,7 +15,7 @@
 # You should have received a copy of the GNU General Public License
 # along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import division, print_function
+
 import sys, argparse
 import numpy
 import west, westpa
@@ -49,7 +49,7 @@ class WSucc(CommonOutputMixin,WESTDataReaderMixin,WESTAnalysisTool):
 # column 2:    weight
 # column>2:    final progress coordinate value
 ''')
-        for n_iter in xrange(1, self.data_manager.current_iteration):
+        for n_iter in range(1, self.data_manager.current_iteration):
             seg_index = self.get_seg_index(n_iter)
             all_seg_ids = numpy.arange(len(seg_index), dtype=numpy.int_)
             recycled_seg_ids = all_seg_ids[seg_index[:]['endpoint_type'] == west.Segment.SEG_ENDPOINT_RECYCLED]

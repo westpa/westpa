@@ -15,7 +15,6 @@
 # You should have received a copy of the GNU General Public License
 # along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import print_function, division; __metaclass__ = type
 import logging
 import re, os
 from westtools import WESTMasterCommand, WESTSubcommand
@@ -42,14 +41,14 @@ def sum_except_along(array, axes):
         axes = [axes]
         
     kept = set(axes)
-    summed = list(set(xrange(array.ndim)) - kept)
+    summed = list(set(range(array.ndim)) - kept)
     
     # Reorder axes so that the kept axes are first, and in the order they 
     # were given
     array = numpy.transpose(array, list(axes) + summed).copy()
     
     # Now, the last len(summed) axes are summed over
-    for _ in xrange(len(summed)):
+    for _ in range(len(summed)):
         array = numpy.add.reduce(array, axis=-1)
         
     return array
@@ -447,7 +446,7 @@ probability distribution must have been previously extracted with ``w_pdist``
         midpoints = self.input_h5['midpoints_{}'.format(idim)][...]
         #hist = self.input_h5['histograms'][iiter_start:iiter_stop]
         
-        for iiter in xrange(iiter_start, iiter_stop):
+        for iiter in range(iiter_start, iiter_stop):
             iter_hist = sum_except_along(self.input_h5['histograms'][iiter], idim)
             if iiter == iiter_start:
                 hist = iter_hist
@@ -474,7 +473,7 @@ probability distribution must have been previously extracted with ``w_pdist``
         binbounds_1 = self.input_h5['binbounds_{}'.format(idim1)][...]
         midpoints_1 = self.input_h5['midpoints_{}'.format(idim1)][...]
         
-        for iiter in xrange(iiter_start,iiter_stop): 
+        for iiter in range(iiter_start,iiter_stop): 
             iter_hist = sum_except_along(self.input_h5['histograms'][iiter], [idim0,idim1])
             if iiter == iiter_start:
                 hist = iter_hist
@@ -545,7 +544,7 @@ probability distribution must have been previously extracted with ``w_pdist``
         block_iters = numpy.empty((nblocks,2), dtype=n_iters.dtype)
         blocked_hists = numpy.zeros((nblocks,hists_ds.shape[1+idim]), dtype=hists_ds.dtype) 
         
-        for iblock, istart in enumerate(xrange(iiter_start, iiter_start+nblocks*self.iter_step, self.iter_step)):
+        for iblock, istart in enumerate(range(iiter_start, iiter_start+nblocks*self.iter_step, self.iter_step)):
             istop = min(istart+self.iter_step, iiter_stop)
             histslice = hists_ds[istart:istop]
             

@@ -88,7 +88,7 @@ def minimize(platform, system, positions):
     # Compute initial energy.
     state = context.getState(getEnergy=True)
     initial_potential = state.getPotentialEnergy()
-    print "initial potential: %12.3f kcal/mol" % (initial_potential / units.kilocalories_per_mole)
+    print("initial potential: %12.3f kcal/mol" % (initial_potential / units.kilocalories_per_mole))
     # Minimize.
     openmm.LocalEnergyMinimizer.minimize(context)
     # Compute final energy.
@@ -96,7 +96,7 @@ def minimize(platform, system, positions):
     final_potential = state.getPotentialEnergy()
     positions = state.getPositions(asNumpy=True)
     # Report
-    print "final potential  : %12.3f kcal/mol" % (final_potential / units.kilocalories_per_mole)
+    print("final potential  : %12.3f kcal/mol" % (final_potential / units.kilocalories_per_mole))
 
     return positions
 
@@ -104,7 +104,7 @@ def minimize(platform, system, positions):
 def equilibrate_langevin(system, timestep, collision_rate, temperature, sqrt_kT_over_m, coordinates, platform):
     nsteps = 5000
 
-    print "Equilibrating for %.3f ps..." % ((nsteps * timestep) / units.picoseconds)
+    print("Equilibrating for %.3f ps..." % ((nsteps * timestep) / units.picoseconds))
     
     # Create integrator and context.
     integrator = openmm.LangevinIntegrator(temperature, collision_rate, timestep)
@@ -121,10 +121,10 @@ def equilibrate_langevin(system, timestep, collision_rate, temperature, sqrt_kT_
     integrator.step(nsteps)
 
     # Compute energy
-    print "Computing energy."
+    print("Computing energy.")
     state = context.getState(getEnergy=True)
     potential_energy = state.getPotentialEnergy()
-    print "potential energy: %.3f kcal/mol" % (potential_energy / units.kilocalories_per_mole)
+    print("potential energy: %.3f kcal/mol" % (potential_energy / units.kilocalories_per_mole))
 
     # Get coordinates.
     state = context.getState(getPositions=True, getVelocities=True)    
@@ -133,12 +133,12 @@ def equilibrate_langevin(system, timestep, collision_rate, temperature, sqrt_kT_
     box_vectors = state.getPeriodicBoxVectors()
     system.setDefaultPeriodicBoxVectors(*box_vectors)    
 
-    print "Computing energy again."
+    print("Computing energy again.")
     context.setPositions(coordinates)
     context.setVelocities(velocities)        
     state = context.getState(getEnergy=True)
     potential_energy = state.getPotentialEnergy()
-    print "potential energy: %.3f kcal/mol" % (potential_energy / units.kilocalories_per_mole)
+    print("potential energy: %.3f kcal/mol" % (potential_energy / units.kilocalories_per_mole))
     
     total_energy = compute_energy(context, coordinates, velocities)    
 
@@ -185,32 +185,32 @@ if __name__ == "__main__":
     
     # Compute characteristic timescale.
     tau = wcadimer.tau
-    print "tau = %.3f ps" % (tau / units.picoseconds)
+    print("tau = %.3f ps" % (tau / units.picoseconds))
 
     # Compute timestep.
     equilibrate_timestep = 2 * wcadimer.stable_timestep
     timestep = equilibrate_timestep
-    print "equilibrate timestep = %.1f fs, switch timestep = %.1f fs" % (equilibrate_timestep / units.femtoseconds, timestep / units.femtoseconds)
-    print "timestep: %f" % (timestep / units.femtoseconds)
+    print("equilibrate timestep = %.1f fs, switch timestep = %.1f fs" % (equilibrate_timestep / units.femtoseconds, timestep / units.femtoseconds))
+    print("timestep: %f" % (timestep / units.femtoseconds))
 
     # Set temperature, pressure, and collision rate for stochastic thermostats.
     temperature = wcadimer.temperature
-    print "temperature = %.1f K" % (temperature / units.kelvin)
+    print("temperature = %.1f K" % (temperature / units.kelvin))
     kT = wcadimer.kT
     beta = 1.0 / kT # inverse temperature    
     collision_rate = 1.0 / tau # collision rate for Langevin integrator
-    print 'collision_rate: ', collision_rate
+    print('collision_rate: ', collision_rate)
 
     niterations = 1000000  # number of work samples to collect
     nsteps = 250 # number of steps per interation
     deviceid = 0
-    print 'nsteps: ', nsteps
+    print('nsteps: ', nsteps)
 
     # Create system.     
     [system, coordinates] = wcadimer.WCADimer()
 
     # Form vectors of masses and sqrt(kT/m) for force propagation and velocity randomization.
-    print "Creating masses array..."
+    print("Creating masses array...")
     nparticles = system.getNumParticles()
     masses = units.Quantity(numpy.zeros([nparticles,3], numpy.float64), units.amu)
     for particle_index in range(nparticles):
@@ -220,11 +220,11 @@ if __name__ == "__main__":
         sqrt_kT_over_m[particle_index,:] = units.sqrt(kT / masses[particle_index,0]) # standard deviation of velocity distribution for each coordinate for this atom
 
     # List all available platforms
-    print "Available platforms:"
+    print("Available platforms:")
     for platform_index in range(openmm.Platform.getNumPlatforms()):
         platform = openmm.Platform.getPlatform(platform_index)
-        print "%5d %s" % (platform_index, platform.getName())
-    print ""
+        print("%5d %s" % (platform_index, platform.getName()))
+    print("")
 
     # Select platform.
     #platform = openmm.Platform.getPlatformByName("CPU")
@@ -232,7 +232,7 @@ if __name__ == "__main__":
     min_platform = openmm.Platform.getPlatformByName("Reference")
 
     for prop in platform.getPropertyNames():
-        print prop, platform.getPropertyDefaultValue(prop)
+        print(prop, platform.getPropertyDefaultValue(prop))
 
     platform.setPropertyDefaultValue('CudaDeviceIndex', '%d' % deviceid)         
     platform.setPropertyDefaultValue('CudaPrecision', 'mixed')
@@ -253,11 +253,11 @@ if __name__ == "__main__":
         ncfile.sync()
 
         # Minimize.
-        print "Minimizing energy..."
+        print("Minimizing energy...")
         coordinates = minimize(min_platform, system, coordinates)
     
         # Equilibrate.
-        print "Equilibrating..."
+        print("Equilibrating...")
         coordinates, velocities = equilibrate_langevin(system, equilibrate_timestep, collision_rate, temperature, sqrt_kT_over_m, coordinates, platform)
         
         # Write initial configuration.
@@ -306,9 +306,9 @@ if __name__ == "__main__":
         final_time = time.time()
         elapsed_time = final_time - initial_time
         if iteration % 100 == 0:
-            print "iteration %5d / %5d" % (iteration, niterations)
-            print "Dynamics %.1f A -> %.1f A (barrier at %.1f A)" % (initial_distance / units.angstroms, final_distance / units.angstroms, (r0+w)/units.angstroms)
-            print "%12.3f s elapsed" % elapsed_time
+            print("iteration %5d / %5d" % (iteration, niterations))
+            print("Dynamics %.1f A -> %.1f A (barrier at %.1f A)" % (initial_distance / units.angstroms, final_distance / units.angstroms, (r0+w)/units.angstroms))
+            print("%12.3f s elapsed" % elapsed_time)
 
         sys.stdout.flush()
         sys.stderr.flush()

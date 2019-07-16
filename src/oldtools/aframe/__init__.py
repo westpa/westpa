@@ -17,7 +17,6 @@
 
 """WEST Analyis framework -- an unholy mess of classes exploiting each other"""
 
-from __future__ import division, print_function; __metaclass__ = type
 
 class ArgumentError(RuntimeError):
     def __init__(self, *args, **kwargs):
@@ -45,14 +44,14 @@ class AnalysisMixin:
             else:
                 upfunc(args)
     
-import atool
-from atool import WESTAnalysisTool
-from iter_range import IterRangeMixin
-from data_reader import WESTDataReaderMixin, ExtDataReaderMixin, BFDataManager
-from binning import BinningMixin
-from mcbs import MCBSMixin
-from trajwalker import TrajWalker
-from transitions import TransitionAnalysisMixin, TransitionEventAccumulator, BFTransitionAnalysisMixin
-from kinetics import KineticsAnalysisMixin
-from output import CommonOutputMixin
-from plotting import PlottingMixin
+from . import atool
+from .atool import WESTAnalysisTool
+from .iter_range import IterRangeMixin
+from .data_reader import WESTDataReaderMixin, ExtDataReaderMixin, BFDataManager
+from .binning import BinningMixin
+from .mcbs import MCBSMixin
+from .trajwalker import TrajWalker
+from .transitions import TransitionAnalysisMixin, TransitionEventAccumulator, BFTransitionAnalysisMixin
+from .kinetics import KineticsAnalysisMixin
+from .output import CommonOutputMixin
+from .plotting import PlottingMixin

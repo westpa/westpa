@@ -15,7 +15,6 @@
 # You should have received a copy of the GNU General Public License
 # along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import print_function, division; __metaclass__ = type
 import threading, time, blessings #@UnresolvedImport
 from collections import deque
 import numpy
@@ -136,9 +135,9 @@ class ProgressIndicator:
             else:
                 nlines = 1
 
-            for _i in xrange(nlines):
+            for _i in range(nlines):
                 self.terminal.stream.write('{t.clear_eol}{t.move_down}'.format(t=self.terminal))
-            for _i in xrange(nlines):
+            for _i in range(nlines):
                 self.terminal.stream.write('{t.move_up}'.format(t=self.terminal))
 
     @property
@@ -220,7 +219,7 @@ if __name__ == '__main__':
     with ProgressIndicator() as pi:
         pi.operation='Test 1'
         pi.extent = 10
-        for i in xrange(10):
+        for i in range(10):
             pi.progress = i+1
             time.sleep(2)
             

@@ -8,10 +8,10 @@ dis = f.variables['distance']
 chunksize = 50000
 data = []
 maxstep = dis.shape[0]
-i = range(0, maxstep + chunksize, chunksize)
+i = list(range(0, maxstep + chunksize, chunksize))
 
-for k in xrange(len(i)-1):
-    print i[k], i[k+1]
+for k in range(len(i)-1):
+    print(i[k], i[k+1])
     data.append(dis[i[k]:i[k+1]])
 
 d = np.hstack(data)

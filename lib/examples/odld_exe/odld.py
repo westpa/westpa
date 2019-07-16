@@ -18,10 +18,10 @@ reflect_at = 10.0
 coords = numpy.empty(coord_len, dtype=coord_dtype)
 
 
-print repr('inside Propagate')
-print repr(coord_len), repr(coord_dtype)
+print(repr('inside Propagate'))
+print(repr(coord_len), repr(coord_dtype))
 print(repr(coords))
-print
+print()
 
 #coords[0] = 8.0
 
@@ -29,7 +29,7 @@ f = open('odld.crd', 'r')
 coords[0] = f.readline()
 f.close
 
-print repr('coords[0] = '), repr(coords[0])
+print(repr('coords[0] = '), repr(coords[0]))
 
 twopi_by_A = 2*PI/A
 half_B = B/2
@@ -37,14 +37,14 @@ sigma = sigma
 gradfactor = sigma*sigma/2
 all_displacements = numpy.zeros(coord_len, dtype=coord_dtype)
 
-print repr('A B C x0')
-print repr(A), repr(B), repr(C), repr(x0)
-print repr(twopi_by_A), repr(half_B), repr(sigma), repr(gradfactor), repr(coord_len), repr(reflect_at)
-print repr(coord_len)
-print repr(coords)
+print(repr('A B C x0'))
+print(repr(A), repr(B), repr(C), repr(x0))
+print(repr(twopi_by_A), repr(half_B), repr(sigma), repr(gradfactor), repr(coord_len), repr(reflect_at))
+print(repr(coord_len))
+print(repr(coords))
 
 
-for istep in xrange(1,coord_len):
+for istep in range(1,coord_len):
     x = coords[istep-1]
     
     xarg = twopi_by_A*(x - x0)
@@ -77,7 +77,7 @@ for istep in xrange(1,coord_len):
         newx[to_reflect] -= 2*reflect_by
 
     coords[istep] = newx
-    print repr(istep), repr(x), repr(newx), repr(coords[istep])
+    print(repr(istep), repr(x), repr(newx), repr(coords[istep]))
     
 print(repr('newx'))
 print(repr(newx))

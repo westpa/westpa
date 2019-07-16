@@ -15,7 +15,7 @@
 # You should have received a copy of the GNU General Public License
 # along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import division, print_function
+
 
 import argparse
 
@@ -46,7 +46,7 @@ dm.open_backing()
 max_iter = dm.current_iteration
 n_iter = args.n_iter if args.n_iter > 0 else dm.current_iteration
 
-for i in xrange(n_iter, dm.current_iteration+1):
+for i in range(n_iter, dm.current_iteration+1):
     dm.del_iter_group(i)
 
 dm.del_iter_summary(n_iter)

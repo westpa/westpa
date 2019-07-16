@@ -31,7 +31,7 @@ def fn_interrupted():
 
 def will_hang():
     import sys,time
-    time.sleep(sys.maxint)
+    time.sleep(sys.maxsize)
     
 def will_busyhang():
     while True:
@@ -66,7 +66,7 @@ def random_int(seed=None):
     if seed is not None:
         random.seed(seed)
     
-    return random.randint(0,sys.maxint)
+    return random.randint(0,sys.maxsize)
 
 def get_process_index():
     import os, time
@@ -81,31 +81,31 @@ class CommonWorkManagerTests:
         future.get_result()
             
     def test_submit_many(self):
-        futures = self.work_manager.submit_many([(will_succeed,(),{}) for i in xrange(self.MED_TEST_SIZE)])
+        futures = self.work_manager.submit_many([(will_succeed,(),{}) for i in range(self.MED_TEST_SIZE)])
         for future in futures:
             future.get_result()
             
     def test_as_completed(self):
-        input = set(xrange(self.MED_TEST_SIZE))
-        futures = [self.work_manager.submit(identity, args=(i,)) for i in xrange(self.MED_TEST_SIZE)]
+        input = set(range(self.MED_TEST_SIZE))
+        futures = [self.work_manager.submit(identity, args=(i,)) for i in range(self.MED_TEST_SIZE)]
         output = set(future.get_result() for future in self.work_manager.as_completed(futures))
         assert input == output
 
     def test_submit_as_completed(self):
-        task_generator = ((busy_identity, (i,), {}) for i in xrange(self.MED_TEST_SIZE))
-        input = set(xrange(self.MED_TEST_SIZE))
+        task_generator = ((busy_identity, (i,), {}) for i in range(self.MED_TEST_SIZE))
+        input = set(range(self.MED_TEST_SIZE))
         output = set(future.get_result() for future in self.work_manager.submit_as_completed(task_generator, 10))
         assert input == output
 
     def test_wait_any(self):
-        input = set(xrange(self.MED_TEST_SIZE))
-        futures = [self.work_manager.submit(identity, args=(i,)) for i in xrange(self.MED_TEST_SIZE)]
+        input = set(range(self.MED_TEST_SIZE))
+        futures = [self.work_manager.submit(identity, args=(i,)) for i in range(self.MED_TEST_SIZE)]
         output = self.work_manager.wait_any(futures).get_result()
         assert output in input
         
     def test_wait_all(self):
-        input = set(xrange(self.MED_TEST_SIZE))
-        futures = [self.work_manager.submit(identity, args=(i,)) for i in xrange(self.MED_TEST_SIZE)]
+        input = set(range(self.MED_TEST_SIZE))
+        futures = [self.work_manager.submit(identity, args=(i,)) for i in range(self.MED_TEST_SIZE)]
         output = set(future.get_result() for future in self.work_manager.wait_all(futures))
         assert input == output
         
@@ -122,7 +122,7 @@ class CommonWorkManagerTests:
 
 class CommonParallelTests:
     def test_random_seq(self):
-        tasks = [(random_int,(),{}) for n in xrange(self.MED_TEST_SIZE)]
+        tasks = [(random_int,(),{}) for n in range(self.MED_TEST_SIZE)]
         futures = self.work_manager.submit_many(tasks)
         self.work_manager.wait_all(futures)
         result_list = [future.get_result() for future in futures]
@@ -130,7 +130,7 @@ class CommonParallelTests:
         assert len(result_list) == len(result_set)
         
     def test_random_seq_improper_seeding(self):
-        tasks = [(random_int,(1979,),{}) for n in xrange(self.MED_TEST_SIZE)]
+        tasks = [(random_int,(1979,),{}) for n in range(self.MED_TEST_SIZE)]
         futures = self.work_manager.submit_many(tasks)
         self.work_manager.wait_all(futures)
         result_list = [future.get_result() for future in futures]

@@ -1,4 +1,3 @@
-from __future__ import division, print_function; __metaclass__ = type
 import os, sys, math, itertools
 import numpy
 import west

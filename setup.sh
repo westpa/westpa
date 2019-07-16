@@ -18,12 +18,12 @@ function checkout_remote() {
 }
 
 if [[ -z "$WEST_PYTHON" ]] ;  then
-    WEST_PYTHON=$(which python2.7)
+    WEST_PYTHON=$(which python3)
 fi
 
 find . -name \*.so -print0 | xargs -0 rm &> /dev/null
 
-checkout_remote blessings  git://github.com/erikrose/blessings.git d3ba51c5870d599b40b387ac6703805c3e23d292 || exit 1
+# checkout_remote blessings  git://github.com/erikrose/blessings.git d3ba51c5870d599b40b387ac6703805c3e23d292 || exit 1
 
 if [[ -d lib/h5py ]] ; then
     echo "using custom h5py located in $PWD/lib/h5py"

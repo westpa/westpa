@@ -15,7 +15,7 @@
 # You should have received a copy of the GNU General Public License
 # along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import division, print_function
+
 from westpa.kinetics._kinetics import calc_rates, StreamingStats2D, StreamingStats1D
 from westpa.kinetics.rate_averaging import tuple2stats
 from collections import namedtuple

@@ -15,10 +15,10 @@
 # You should have received a copy of the GNU General Public License
 # along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import division, print_function
+
 
 import sys, logging, numpy, argparse
-import cStringIO
+import io
 log = logging.getLogger('w_init')
 
 import work_managers
@@ -137,7 +137,7 @@ with work_manager:
             if args.tstate_file:
                 target_states.extend(TargetState.states_from_file(args.tstate_file, system.pcoord_dtype))
             if args.tstates:
-                tstates_strio = cStringIO.StringIO('\n'.join(args.tstates).replace(',', ' '))
+                tstates_strio = io.StringIO('\n'.join(args.tstates).replace(',', ' '))
                 target_states.extend(TargetState.states_from_file(tstates_strio, system.pcoord_dtype))
                 del tstates_strio
                 
@@ -164,7 +164,7 @@ with work_manager:
             if args.tstate_file:
                 target_states.extend(TargetState.states_from_file(args.tstate_file, system.pcoord_dtype))
             if args.tstates:
-                tstates_strio = cStringIO.StringIO('\n'.join(args.tstates).replace(',', ' '))
+                tstates_strio = io.StringIO('\n'.join(args.tstates).replace(',', ' '))
                 target_states.extend(TargetState.states_from_file(tstates_strio, system.pcoord_dtype))
                 del tstates_strio
                 

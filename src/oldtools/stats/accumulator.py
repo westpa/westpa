@@ -16,7 +16,6 @@
 # along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
 
-from __future__ import division; __metaclass__ = type
 import numpy
 NAN=float('nan')
 class RunningStatsAccumulator:

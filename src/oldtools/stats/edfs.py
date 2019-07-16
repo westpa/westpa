@@ -16,7 +16,6 @@
 # along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
 
-from __future__ import division, print_function; __metaclass__ = type
 
 import numpy
 
@@ -73,7 +72,7 @@ class EDF:
         # as we go 
         ival_last = 0
         ival = 0
-        for ibin in xrange(0, len(x)):
+        for ibin in range(0, len(x)):
             while ival < len(values) and values[ival] <= x[ibin]:
                 ival+=1
             F[ibin] = weights[ival_last:ival].sum()

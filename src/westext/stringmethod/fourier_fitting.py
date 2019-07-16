@@ -36,16 +36,16 @@ class FourierFit(object):
         tlen = len(t)
         t = np.linspace(0.0,1.0,tlen)
         x_est = x_meas[0,:] + (x_meas[-1,:] - x_meas[0,:])*t[:,np.newaxis]
-        for i in xrange(self.ndims):
-            for j in xrange(self.P):
+        for i in range(self.ndims):
+            for j in range(self.P):
                 x_est[:,i] += w[i,j]*np.sin((j+1)*np.pi*t)
         return x_est
 
     def _optimize_dist(self,tk,x_meas,w,k):
         x_target = x_meas[k,:]
         x_est = x_meas[0,:] + (x_meas[-1,:] - x_meas[0,:])*tk
-        for i in xrange(self.ndims):
-            for j in xrange(self.P):
+        for i in range(self.ndims):
+            for j in range(self.P):
                 x_est[i] += w[i,j]*np.sin((j+1)*np.pi*tk)
 
         err = x_target - x_est
@@ -55,7 +55,7 @@ class FourierFit(object):
         x_target = x_meas[:,k]
         x_est = x_meas[0,k] + (x_meas[-1,k] - x_meas[0,k])*t
 
-        for j in xrange(self.P):
+        for j in range(self.P):
             x_est += w[j]*np.sin((j+1)*np.pi*t)
 
         err = weight*(x_target - x_est)
@@ -68,7 +68,7 @@ class FourierFit(object):
         if weight is None:
             weight = np.ones_like(t0)
 
-        for iiter in xrange(self.maxiters):
+        for iiter in range(self.maxiters):
             self.pp.append(self.calc_string(self.w0,self.t0,data))
             if iiter > 0:
                 err = np.sum((self.pp[-1] - self.pp[-2])**2)/ncenters
@@ -78,9 +78,9 @@ class FourierFit(object):
             else:
                 print(iiter)
             # Optimize tk
-            for ci in xrange(ncenters):
+            for ci in range(ncenters):
                 self.t0[ci] = scipy.optimize.leastsq(self._optimize_dist, self.t0[ci], args=(data,self.w0,ci))[0]
             
             # Optimize wij
-            for k in xrange(self.ndims):
+            for k in range(self.ndims):
                 self.w0[k,:] = scipy.optimize.leastsq(self._optimize_w,self.w0[k,:],args=(data,self.t0,k,weight))[0]

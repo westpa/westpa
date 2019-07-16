@@ -15,7 +15,6 @@
 # You should have received a copy of the GNU General Public License
 # along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import division; __metaclass__ = type
 
 import numpy
 
@@ -50,7 +49,7 @@ class BasisState:
     def states_to_file(cls, states, fileobj):
         '''Write a file defining basis states, which may then be read by `states_from_file()`.'''
         
-        if isinstance(fileobj, basestring):
+        if isinstance(fileobj, str):
             fileobj = open(fileobj, 'wt')
         
         max_label_len = max(8,max(len(state.label or '') for state in states))
@@ -218,7 +217,7 @@ class TargetState:
     def states_to_file(cls, states, fileobj):
         '''Write a file defining basis states, which may then be read by `states_from_file()`.'''
         
-        if isinstance(fileobj, basestring):
+        if isinstance(fileobj, str):
             fileobj = open(fileobj, 'wt')
         
         max_label_len = max(8,max(len(state.label or '') for state in states))
@@ -255,7 +254,7 @@ class TargetState:
         for line in open_statefile:
             fields = line.split()
             labels.append(fields[0])
-            pcoord_values.append(numpy.array(map(dtype, fields[1:]),dtype=dtype))
+            pcoord_values.append(numpy.array(list(map(dtype, fields[1:])),dtype=dtype))
         
         try:
             open_statefile.close()

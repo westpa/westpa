@@ -2,11 +2,12 @@ import logging
 logging.getLogger('')
 log = logging.getLogger('west')
 
-import segment 
-from segment import Segment
-import propagators, work_managers, data_manager, sim_manager, we_driver, states, systems
-from systems import WESTSystem
-from states import BasisState, TargetState
+from .segment import Segment
+from .systems import WESTSystem
+from .states import BasisState, TargetState
+
+from . import segment, propagators, data_manager, sim_manager, we_driver, states, systems
+import work_managers
 
 from westpa import rc
 

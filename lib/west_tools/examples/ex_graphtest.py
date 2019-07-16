@@ -1,4 +1,4 @@
-from __future__ import print_function, division
+
 import argparse, numpy
 import westpa
 from westtools.trajlib import trajtree
@@ -33,10 +33,10 @@ print('all_nodes has length {:d}'.format(len(all_nodes)))
 
 leaves_by_branchpoint = {}
 leftovers_by_root = {}
-for leaf in tree.leaves.itervalues():
+for leaf in tree.leaves.values():
     next = None
     for depth, node in enumerate(leaf.itrace()):
-        if (depth > 200 and len(node.next) > 1):
+        if (depth > 200 and len(node.__next__) > 1):
             branchpoint_dict = leaves_by_branchpoint.setdefault(node, {})
             leafset = branchpoint_dict.setdefault(next, set())
             leafset.add(leaf)
@@ -51,9 +51,9 @@ for leaf in tree.leaves.itervalues():
 #print(leaves_by_branchpoint)
 print('there are {:d} branch points leading to approximately independent trajectory bundles'.format(len(leaves_by_branchpoint)))
 #for ((branch,node),leaves) in leaves_by_branchpoint.iteritems():
-for (branchnode, subtrees) in leaves_by_branchpoint.iteritems():
+for (branchnode, subtrees) in leaves_by_branchpoint.items():
     print('  branch point {}:{} has {} independent subtree(s)'.format(branchnode.n_iter,branchnode.seg_id, len(subtrees)))
-    for (subtree, leaves) in subtrees.iteritems():
+    for (subtree, leaves) in subtrees.items():
         leaves=list(leaves)
         weights = numpy.fromiter((leaf.weight for leaf in leaves), dtype=numpy.float64)
         max_weight_node = leaves[numpy.argmax(weights)]
@@ -64,7 +64,7 @@ for (branchnode, subtrees) in leaves_by_branchpoint.iteritems():
         #print('subtree rooted at point ({},{}) contains {:d} leaves'.format(node.n_iter, node.seg_id,len(leaves)))
         #print('  of which ({},{}) has the highest weight ({!r})'.format(max_weight_node.n_iter, max_weight_node.seg_id, 
         #                                                                max_weight_node.weight))
-for (root, leaves) in leftovers_by_root.iteritems():
+for (root, leaves) in leftovers_by_root.items():
     print('{} trajectories from root {}:{} pruned due to shared history'.format(len(leaves), root.n_iter, root.seg_id))
     
     

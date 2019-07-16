@@ -1,4 +1,3 @@
-from __future__ import division, print_function; __metaclass__ = type
 import os
 import errno
 import random
@@ -177,7 +176,7 @@ class OpenMMPropagator(WESTPropagator):
                 velocities[0] = state.getVelocities(asNumpy=True)
 
             # Run dynamics
-            for istep in xrange(1, self.nblocks):
+            for istep in range(1, self.nblocks):
                 integrator.step(self.steps_per_write)
 
                 state = context.getState(getPositions=True, getVelocities=True)

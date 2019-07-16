@@ -1,4 +1,4 @@
-from __future__ import print_function, division
+
 import numpy
 from west.propagators import WESTPropagator
 from west.systems import WESTSystem
@@ -60,7 +60,7 @@ class ODLDPropagator(WESTPropagator):
         coord_len = self.coord_len
         reflect_at = self.reflect_at
         all_displacements = numpy.zeros((n_segs, self.coord_len, self.coord_ndim), dtype=self.coord_dtype)
-        for istep in xrange(1,coord_len):
+        for istep in range(1,coord_len):
             x = coords[:,istep-1,0]
             
             xarg = twopi_by_A*(x - x0)
@@ -100,7 +100,7 @@ class ODLDSystem(WESTSystem):
         self.pcoord_len = pcoord_len
         
         #self.bin_mapper = RectilinearBinMapper([[0,1.3] + list(numpy.arange(1.4, 10.1, 0.1)) + [float('inf')]])
-	self.bin_mapper = RectilinearBinMapper([ list(numpy.arange(0.0, 10.1, 0.1)) ])
+        self.bin_mapper = RectilinearBinMapper([ list(numpy.arange(0.0, 10.1, 0.1)) ])
         self.bin_target_counts = numpy.empty((self.bin_mapper.nbins,), numpy.int_)
         self.bin_target_counts[...] = 10
         

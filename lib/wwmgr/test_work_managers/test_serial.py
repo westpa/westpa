@@ -16,7 +16,7 @@
 # along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
 from work_managers.serial import SerialWorkManager
-from tsupport import *
+from .tsupport import *
 
 import nose.tools
 from nose.tools import raises

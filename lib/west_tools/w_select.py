@@ -15,10 +15,9 @@
 # You should have received a copy of the GNU General Public License
 # along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import print_function, division; __metaclass__ = type
 import sys
 from westtools import WESTParallelTool, WESTDataReader, IterRangeSelection, ProgressIndicatorComponent
-from itertools import imap
+
 import numpy
 
 import westpa
@@ -34,13 +33,12 @@ def _find_matching_segments(west_datafile_name, n_iter, predicate, invert=False)
     with h5io.WESTPAH5File(west_datafile_name, 'r') as west_datafile:
         iter_group = west_datafile.get_iter_group(n_iter)
         nsegs = iter_group['seg_index'].shape[0]
-        matching_ids = set(imap(long, predicate(n_iter, iter_group)))
+        matching_ids = set(map(int, predicate(n_iter, iter_group)))
 
         if invert:
-            matching_ids = set(xrange(nsegs)) - matching_ids
+            matching_ids = set(range(nsegs)) - matching_ids
 
-        matchvec = numpy.fromiter(matching_ids, dtype=seg_id_dtype, count=len(matching_ids))
-        matchvec.sort()
+        matchvec = sorted(numpy.fromiter(matching_ids, dtype=seg_id_dtype, count=len(matching_ids)))
         return n_iter, matchvec
 
 
@@ -148,7 +146,7 @@ Command-line arguments
         iter_start, iter_stop = self.iter_range.iter_start, self.iter_range.iter_stop
         iter_count = iter_stop - iter_start
 
-        output_file.create_dataset('n_iter', dtype=n_iter_dtype, data=range(iter_start,iter_stop))
+        output_file.create_dataset('n_iter', dtype=n_iter_dtype, data=list(range(iter_start,iter_stop)))
         current_seg_count = 0
         seg_count_ds = output_file.create_dataset('n_segs', dtype=numpy.uint, shape=(iter_count,))
         matching_segs_ds = output_file.create_dataset('seg_ids', shape=(iter_count,0), maxshape=(iter_count,None),
@@ -170,7 +168,7 @@ Command-line arguments
 #             for future in self.work_manager.as_completed(futures):
             for future in self.work_manager.submit_as_completed(((_find_matching_segments,
                                                                   (self.data_reader.we_h5filename,n_iter,self.predicate,self.invert),
-                                                                  {}) for n_iter in xrange(iter_start,iter_stop)),
+                                                                  {}) for n_iter in range(iter_start,iter_stop)),
                                                                 self.max_queue_len):
                 n_iter, matching_ids = future.get_result()
                 n_matches = len(matching_ids)
@@ -192,7 +190,7 @@ Command-line arguments
                 pi.new_operation('Tracing ancestors of matching segments', extent=iter_count)
                 from_previous = set()
                 current_seg_count = matching_segs_ds.shape[1]
-                for n_iter in xrange(iter_stop-1, iter_start-1, -1):
+                for n_iter in range(iter_stop-1, iter_start-1, -1):
                     iiter = n_iter - iter_start
                     n_matches = seg_count_ds[iiter]
                     matching_ids = set(from_previous)

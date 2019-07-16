@@ -107,7 +107,7 @@ def WCAFluid(N=natoms, density=density, mm=None, mass=mass, epsilon=epsilon, sig
     a = units.Quantity(numpy.array([1.0, 0.0, 0.0], numpy.float32), units.nanometer) * length/units.nanometer
     b = units.Quantity(numpy.array([0.0, 1.0, 0.0], numpy.float32), units.nanometer) * length/units.nanometer
     c = units.Quantity(numpy.array([0.0, 0.0, 1.0], numpy.float32), units.nanometer) * length/units.nanometer
-    print "box edge length = %s" % str(length)
+    print("box edge length = %s" % str(length))
     system.setDefaultPeriodicBoxVectors(a, b, c)
 
     # Add particles to system.
@@ -130,7 +130,7 @@ def WCAFluid(N=natoms, density=density, mm=None, mass=mass, epsilon=epsilon, sig
     
     # Set periodic boundary conditions with cutoff.
     force.setNonbondedMethod(mm.CustomNonbondedForce.CutoffNonPeriodic)
-    print "setting cutoff distance to %s" % str(r_WCA)
+    print("setting cutoff distance to %s" % str(r_WCA))
     force.setCutoffDistance(r_WCA)    
 
     # Add nonbonded force term to the system.
@@ -194,7 +194,7 @@ def WCADimer(N=natoms, density=density, mm=None, mass=mass, epsilon=epsilon, sig
     a = units.Quantity(numpy.array([1.0, 0.0, 0.0], numpy.float32), units.nanometer) * length/units.nanometer
     b = units.Quantity(numpy.array([0.0, 1.0, 0.0], numpy.float32), units.nanometer) * length/units.nanometer
     c = units.Quantity(numpy.array([0.0, 0.0, 1.0], numpy.float32), units.nanometer) * length/units.nanometer
-    print "box edge length = %s" % str(length)
+    print("box edge length = %s" % str(length))
     system.setDefaultPeriodicBoxVectors(a, b, c)
 
     # Add particles to system.
@@ -223,7 +223,7 @@ def WCADimer(N=natoms, density=density, mm=None, mass=mass, epsilon=epsilon, sig
         force.setNonbondedMethod(mm.CustomNonbondedForce.CutoffPeriodic)
     else:
         force.setNonbondedMethod(mm.CustomNonbondedForce.CutoffNonPeriodic)
-    print "setting cutoff distance to %s" % str(r_WCA)
+    print("setting cutoff distance to %s" % str(r_WCA))
     force.setCutoffDistance(r_WCA)    
 
     # Add nonbonded force term to the system.

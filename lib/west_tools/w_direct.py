@@ -15,7 +15,6 @@
 # You should have received a copy of the GNU General Public License
 # along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import print_function, division; __metaclass__ = type
 import logging
 
 # Let's suppress those numpy warnings.
@@ -55,8 +54,8 @@ def _rate_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha,
     # Our rate estimator is a little more complex, so we've defined a custom evaluation block for it,
     # instead of just using the block evalutors that we've imported.
     results = []
-    for istate in xrange(nstates):
-        for jstate in xrange(nstates):
+    for istate in range(nstates):
+        for jstate in range(nstates):
             if istate == jstate: continue
             kwargs = { 'istate' : istate, 'jstate': jstate }
             # Why are we sending in the total population dataset, instead of a sliced one?
@@ -422,7 +421,7 @@ Command-line options
             pops.cache_data(max_size='available')
             state_map = self.assignments_file['state_map'][...]
             try:
-                for iiter,n_iter in enumerate(xrange(self.start_iter,self.stop_iter)):
+                for iiter,n_iter in enumerate(range(self.start_iter,self.stop_iter)):
                     iter_state_pops.fill(0)
                     labeled_pops = pops.iter_entry(n_iter)
                     accumulate_state_populations_from_labeled(labeled_pops, state_map, iter_state_pops, check_state_map=False)

@@ -16,7 +16,6 @@
 # along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
 
-from __future__ import division, print_function; __metaclass__ = type
 
 import logging
 

@@ -17,7 +17,7 @@
 
 from work_managers.serial import SerialWorkManager
 from nose.tools import assert_raises #@UnresolvedImport
-from tsupport import *
+from .tsupport import *
 
 class TestWMFuture:        
     def test_result(self):

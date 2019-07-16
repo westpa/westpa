@@ -13,7 +13,7 @@ def run_npz(file, out):
     y = coords[1,:]
 
     d = 10.0 * np.sqrt(np.sum((x - y)**2))
-    print d
+    print(d)
 
     with open(out, 'w') as f:
         f.write('{:f}\n'.format(d))
@@ -22,7 +22,7 @@ def run_npz(file, out):
 def run_h5(file, out):
     f = tables.File(file, 'r')
     coords = f.root.coordinates[:]
-    print 'coords shape: ', coords.shape
+    print('coords shape: ', coords.shape)
 
     x = coords[:,0,:]
     y = coords[:,1,:]

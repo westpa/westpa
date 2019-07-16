@@ -47,7 +47,7 @@ def run(opts):
     if platform_name == 'CPU':
         properties = {'CpuThreads': '1'}
 
-    print properties
+    print(properties)
 
     # Create dummy topology to satisfy Simulation object 
     topology = app.Topology()

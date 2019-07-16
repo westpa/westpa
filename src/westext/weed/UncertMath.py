@@ -72,7 +72,7 @@ class UncertContainer(object):
         dmin = self.dmin[indx]
         dmax = self.dmax[indx]
         
-        if type(vals) is ma.core.MaskedConstant:
+        if isinstance(vals, ma.core.MaskedConstant):
             dum = np.zeros((1,))
             return UncertContainer(dum.copy(),dum.copy(),dum.copy())
         elif isinstance(vals,(float,int,np.float,np.int)):

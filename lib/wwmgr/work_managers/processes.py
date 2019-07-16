@@ -15,7 +15,6 @@
 # You should have received a copy of the GNU General Public License
 # along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import division, print_function; __metaclass__ = type
 
 import sys, logging, multiprocessing, threading, traceback, signal, os, random
 import work_managers
@@ -108,7 +107,7 @@ class ProcessWorkManager(WorkManager):
             log.debug('starting up work manager {!r}'.format(self))
             self.running = True
             self.workers = [multiprocessing.Process(target=self.task_loop, 
-                                                    name='worker-{:d}-{:x}'.format(i,id(self))) for i in xrange(self.n_workers)]
+                                                    name='worker-{:d}-{:x}'.format(i,id(self))) for i in range(self.n_workers)]
             
             pi_name = '{}_PROCESS_INDEX'.format(environment.WMEnvironment.env_prefix)
             for iworker,worker in enumerate(self.workers):
@@ -144,7 +143,7 @@ class ProcessWorkManager(WorkManager):
             self._empty_queues()
     
             # Send shutdown signal
-            for _i in xrange(self.n_workers):
+            for _i in range(self.n_workers):
                 self.task_queue.put(task_shutdown_sentinel, block=False)
                         
             for worker in self.workers:

@@ -4,7 +4,7 @@ if [[ -z "$WEST_ROOT" ]]; then
 fi
 
 if [[ -z "$WEST_PYTHON" ]]; then
-    export WEST_PYTHON=$(which python2.7)
+    export WEST_PYTHON=$(which python3)
 fi
 export WM_WORK_MANAGER=serial
 

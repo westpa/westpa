@@ -15,17 +15,16 @@
 # You should have received a copy of the GNU General Public License
 # along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import division; __metaclass__ = type
 import logging
 log = logging.getLogger(__name__)
 import numpy
 import operator
 from math import ceil
 import random
-from itertools import izip
+
 
 import westpa
-from west import Segment
+from .segment import Segment
 
 class ConsistencyError(RuntimeError):
     pass
@@ -166,7 +165,7 @@ class WEDriver:
     def recycling_segments(self):
         '''Segments designated for recycling'''
         if len(self.target_states):
-            for (ibin,tstate) in self.target_states.iteritems():
+            for (ibin,tstate) in self.target_states.items():
                 for segment in self.final_binning[ibin]:
                     yield segment                
         else:
@@ -263,7 +262,7 @@ class WEDriver:
             init_assignments = self.bin_mapper.assign(init_pcoords)
             prev_init_assignments = self.bin_mapper.assign(prev_init_pcoords)
             
-            for (entry, i, j) in izip(new_weights, prev_init_assignments, init_assignments):
+            for (entry, i, j) in zip(new_weights, prev_init_assignments, init_assignments):
                 flux_matrix[i,j] += entry.weight
                 transition_matrix[i,j] += 1
                 
@@ -280,9 +279,9 @@ class WEDriver:
     @property
     def all_initial_states(self):
         '''Return an iterator over all initial states (available or used)'''
-        for state in self.avail_initial_states.itervalues():
+        for state in self.avail_initial_states.values():
             yield state
-        for state in self.used_initial_states.itervalues():
+        for state in self.used_initial_states.values():
             yield state
                 
     def assign(self, segments, initializing=False):
@@ -309,7 +308,7 @@ class WEDriver:
         final_binning = self.final_binning
         flux_matrix = self.flux_matrix
         transition_matrix = self.transition_matrix
-        for (segment,iidx,fidx) in izip(segments, initial_assignments, final_assignments):
+        for (segment,iidx,fidx) in zip(segments, initial_assignments, final_assignments):
             initial_binning[iidx].add(segment)
             final_binning[fidx].add(segment)
             flux_matrix[iidx,fidx] += segment.weight
@@ -342,11 +341,11 @@ class WEDriver:
                                    .format(n_recycled_walkers,len(self.avail_initial_states)))
 
         used_istate_ids = set()
-        istateiter = iter(self.avail_initial_states.itervalues())
-        for (ibin,target_state) in self.target_states.iteritems():
+        istateiter = iter(self.avail_initial_states.values())
+        for (ibin,target_state) in self.target_states.items():
             target_bin = self.next_iter_binning[ibin]
             for segment in set(target_bin):
-                initial_state = istateiter.next()                
+                initial_state = next(istateiter)                
                 istate_assignment = self.bin_mapper.assign([initial_state.pcoord])[0]
                 parent = self._parent_map[segment.parent_id]
                 parent.endpoint_type = Segment.SEG_ENDPOINT_RECYCLED
@@ -393,7 +392,7 @@ class WEDriver:
         bin.remove(segment)
             
         new_segments = []
-        for _inew in xrange(0,m):
+        for _inew in range(0,m):
             new_segment = Segment(n_iter = segment.n_iter, #previously incremented
                                   weight = segment.weight/m,
                                   parent_id = segment.parent_id,
@@ -478,7 +477,7 @@ class WEDriver:
         bin = self.next_iter_binning[ibin]
         target_count = self.bin_target_counts[ibin]
         segments = numpy.array(sorted(bin, key=operator.attrgetter('weight')), dtype=numpy.object_)
-        weights = numpy.array(map(operator.attrgetter('weight'), segments))
+        weights = numpy.array(list(map(operator.attrgetter('weight'), segments)))
         ideal_weight = weights.sum() / target_count
  
         if len(bin) > 0:
@@ -502,7 +501,7 @@ class WEDriver:
         
         while True:
             segments = numpy.array(sorted(bin, key=operator.attrgetter('weight')), dtype=numpy.object_)
-            weights = numpy.array(map(operator.attrgetter('weight'), segments))
+            weights = numpy.array(list(map(operator.attrgetter('weight'), segments)))
             cumul_weight = numpy.add.accumulate(weights)
             
             to_merge = segments[cumul_weight <= ideal_weight*self.weight_merge_cutoff]
@@ -593,7 +592,7 @@ class WEDriver:
         
         # Create dummy segments
         segments = []
-        for (seg_id, (initial_state,weight)) in enumerate(izip(initial_states,weights)):
+        for (seg_id, (initial_state,weight)) in enumerate(zip(initial_states,weights)):
             dummy_segment = Segment(n_iter=0,
                                     seg_id=seg_id,
                                     parent_id=-(initial_state.state_id+1),
@@ -632,7 +631,7 @@ class WEDriver:
                 # Shared by more than one segment, and already marked as used
                 pass
             
-        for used_istate in self.used_initial_states.itervalues():
+        for used_istate in self.used_initial_states.values():
             used_istate.iter_used = 1
                     
     def rebin_current(self, parent_segments):
@@ -715,8 +714,7 @@ class WEDriver:
     
     def _log_bin_stats(self, bin, heading=None, level=logging.DEBUG):
         if log.isEnabledFor(level):
-            weights = numpy.array(map(operator.attrgetter('weight'), bin))
-            weights.sort()
+            weights = sorted(numpy.array(list(map(operator.attrgetter('weight'), bin))))
             bin_label = getattr(bin, 'label', None) or ''
             log_fmt = '\n      '.join(['', 
                                          'stats for bin {bin_label!r} {heading}',

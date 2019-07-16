@@ -18,7 +18,6 @@
 
 '''Core classes for creating WESTPA command-line tools'''
 
-from __future__ import print_function, division; __metaclass__ = type
 
 import sys, argparse, os
 import westpa
@@ -250,12 +249,19 @@ class WESTMasterCommand(WESTTool):
         subparsers = parser.add_subparsers(title=self.subparsers_title)
         if self.include_help_command:
             _WESTSubcommandHelp(self).add_to_subparsers(subparsers)
-        for instance in self._subcommand_instances.itervalues():
+        for instance in self._subcommand_instances.values():
             instance.add_to_subparsers(subparsers)
 
     def process_args(self, args):
-        self._subcommand = args.west_subcommand
-        self._subcommand.process_all_args(args)
+        try:
+            self._subcommand = args.west_subcommand
+        except AttributeError:
+            # No subcommand given; display help
+            print('Error: a command is required. See below.', file=sys.stderr)
+            self.parser.print_help(sys.stderr)
+            sys.exit(2)
+        else:
+            self._subcommand.process_all_args(args)
     
     def go(self):
         self._subcommand.go()

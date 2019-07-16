@@ -15,10 +15,9 @@
 # You should have received a copy of the GNU General Public License
 # along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import division, print_function; __metaclass__ = type
 import numpy
 from numpy import index_exp
-from core import WESTToolComponent
+from .core import WESTToolComponent
 import westpa
 from westpa.extloader import get_object
 from westpa.h5io import FnDSSpec, MultiDSSpec, SingleSegmentDSSpec, SingleIterDSSpec

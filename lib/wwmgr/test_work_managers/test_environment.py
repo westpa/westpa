@@ -19,7 +19,7 @@ import os, argparse
 import work_managers.environment
 from work_managers.environment import make_work_manager, add_wm_args, process_wm_args
 from work_managers import SerialWorkManager, ThreadsWorkManager, ProcessWorkManager, ZMQWorkManager
-from tsupport import will_succeed
+from .tsupport import will_succeed
 
 class TestInstantiations:
     '''Test to see that the environment system at least selects the proper work manager and sets the
@@ -93,8 +93,8 @@ class TestInstantiations:
         os.environ['WM_N_WORKERS'] = str(3)
         work_manager = make_work_manager()
         assert isinstance(work_manager, ZMQWorkManager)
-        assert work_manager.internal_client.n_workers == 3
         with work_manager:
             future = work_manager.submit(will_succeed)
             future.get_result()
+            assert work_manager.n_workers == 3
         

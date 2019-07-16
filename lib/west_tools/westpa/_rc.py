@@ -17,15 +17,14 @@
 
 """WEST run control and configuration routines"""
 
-from __future__ import division, print_function; __metaclass__ = type
 
 import logging
 log = logging.getLogger('westpa.rc')
 
 import os, sys, errno, numpy, math
 import westpa
-from yamlcfg import YAMLConfig
-from yamlcfg import YAMLSystem
+from .yamlcfg import YAMLConfig
+from .yamlcfg import YAMLSystem
 from . import extloader
 from work_managers import SerialWorkManager
 
@@ -47,7 +46,7 @@ def bins_from_yaml_dict(bin_dict):
             if boundary.__class__ == str:
                 parsed_lists[iboundary] = parsePCV(boundary)[0]
             else: 
-                parsed_lists[iboundary] = map((lambda x: float('inf') if (x if isinstance(x, basestring) else '').lower() == 'inf' else x), boundary)
+                parsed_lists[iboundary] = list(map((lambda x: float('inf') if (x if isinstance(x, str) else '').lower() == 'inf' else x), boundary))
         return mapper_type(parsed_lists)
     else:
         try:
@@ -158,7 +157,7 @@ class WESTRC:
             else:
                 raise
         self.config_logging()
-        self.config['args'] = {k:v for k,v in args.__dict__.iteritems() if not k.startswith('_')}
+        self.config['args'] = {k:v for k,v in args.__dict__.items() if not k.startswith('_')}
         self.process_config()
     
     def process_config(self):
@@ -427,7 +426,7 @@ class WESTRC:
         setattr(yamlSystem, 'bin_target_counts', trgt_cnt_arr)
 
         # Attach generic attribute to system 
-        for attr in system_dict.iterkeys():
+        for attr in system_dict.keys():
             if not hasattr(yamlSystem, attr):
                 setattr(yamlSystem, attr, system_dict[attr])
 
@@ -454,7 +453,7 @@ class WESTRC:
         # First we want to overwrite whatever we have from the YAML
         # file.
         print("Updating system with the options from the configuration file")
-        for key, value in system_dict.iteritems():
+        for key, value in system_dict.items():
             if key == 'pcoord_ndim':
                 self.overwrite_option(init_system, key, value)
             elif key == 'pcoord_len':
@@ -481,7 +480,7 @@ class WESTRC:
         except KeyError:
              pass
         # The generic attribute settings added here
-        for attr in system_dict.iterkeys():
+        for attr in system_dict.keys():
             if not hasattr(init_system, attr):
                 setattr(init_system, attr, system_dict[attr])
         return init_system

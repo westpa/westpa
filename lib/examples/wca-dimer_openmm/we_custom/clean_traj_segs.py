@@ -9,10 +9,10 @@ parser.add_argument('-n', '--dry-run', action='store_true', default=False)
 
 args = parser.parse_args()
 
-for k in xrange(args.iter_start, args.iter_stop + 1):
+for k in range(args.iter_start, args.iter_stop + 1):
     files = glob.glob('traj_segs/iter_{:06d}_*.npz'.format(k))
     if args.dry_run:
-        print files
+        print(files)
     else:
         for f in files:
             if not args.dry_run:

@@ -129,7 +129,7 @@ class ExecutablePropagator(WESTPropagator):
         self.initial_state_ref_template = config['west','data','data_refs','initial_state']
         
         # Load additional environment variables for all child processes
-        self.addtl_child_environ.update({k:str(v) for k,v in (config['west','executable','environ'] or {}).iteritems()})
+        self.addtl_child_environ.update({k:str(v) for k,v in (config['west','executable','environ'] or {}).items()})
         
         
         # Load configuration items relating to child processes
@@ -156,7 +156,7 @@ class ExecutablePropagator(WESTPropagator):
                 self.exe_info[child_type]['enabled'] = True
             
             # apply environment modifications specific to this executable
-            self.exe_info[child_type]['environ'] = {k:str(v) for k,v in (child_info.get('environ') or {}).iteritems()}
+            self.exe_info[child_type]['environ'] = {k:str(v) for k,v in (child_info.get('environ') or {}).items()}
             
         log.debug('exe_info: {!r}'.format(self.exe_info))
         
@@ -246,7 +246,7 @@ class ExecutablePropagator(WESTPropagator):
         return (rc, rusage)
     
     def exec_child_from_child_info(self, child_info, template_args, environ):
-        for (key, value) in child_info.get('environ', {}).iteritems():
+        for (key, value) in child_info.get('environ', {}).items():
             environ[key] = self.makepath(value)        
         return self.exec_child(executable = self.makepath(child_info['executable'], template_args),
                                environ = environ,

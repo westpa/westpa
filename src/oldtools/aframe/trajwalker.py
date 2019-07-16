@@ -15,7 +15,6 @@
 # You should have received a copy of the GNU General Public License
 # along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import division, print_function; __metaclass__ = type
 
 import logging
 
@@ -52,7 +51,7 @@ class TrajWalker:
         set of iterations within which the search is conducted.'''
                         
         roots = []
-        for n_iter in xrange(first_iter, last_iter+1):
+        for n_iter in range(first_iter, last_iter+1):
             seg_ids = self.data_reader.get_created_seg_ids(n_iter)
             segments = self.data_reader.get_segments_by_id(n_iter, seg_ids, include_pcoords = include_pcoords)
             roots.extend(segments)
@@ -67,7 +66,7 @@ class TrajWalker:
         root_ids[first_iter] = set(self.data_reader.get_seg_ids(first_iter))
         
         # Find trajectories created in [first_iter, last_iter]
-        for n_iter in xrange(first_iter, last_iter+1):
+        for n_iter in range(first_iter, last_iter+1):
             seg_ids = self.data_reader.get_created_seg_ids(n_iter)
             try:
                 root_ids[n_iter].update(seg_ids)
@@ -76,7 +75,7 @@ class TrajWalker:
                 
         # Convert to Segment objects
         segments = []
-        for (n_iter, id_set) in root_ids.iteritems():
+        for (n_iter, id_set) in root_ids.items():
             segments.extend(self.data_reader.get_segments_by_id(n_iter, id_set, include_pcoords = include_pcoords))
         return segments
     

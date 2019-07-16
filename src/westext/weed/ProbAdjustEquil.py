@@ -18,8 +18,8 @@
 import numpy as np
 import numpy.ma as ma
 
-import UncertMath
-import BinCluster
+from . import UncertMath
+from . import BinCluster
 
 
 def probAdjustEquil(binProb,rates,uncert,threshold=0.0,fullCalcClust=False,fullCalcBins=False):

@@ -55,7 +55,7 @@ def get_steady_state(rates):
     rates = rates.copy()
 
     # Convert to a transition probability matrix
-    for i in xrange(rates.shape[0]):
+    for i in range(rates.shape[0]):
         rowsum = rates[i,:].sum()
         if rowsum > 0:
             rates[i,:] = rates[i,:] / rowsum

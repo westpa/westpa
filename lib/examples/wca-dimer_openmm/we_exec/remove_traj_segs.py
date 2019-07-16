@@ -9,10 +9,10 @@ def remove_traj_segs(basedir, first_iter, last_iter, iter_prec):
 
     iter_template = '{:0' + str(iter_prec) + 'd}'
 
-    for k in xrange(first_iter, last_iter):
+    for k in range(first_iter, last_iter):
         dirname = os.path.join(basedir, iter_template.format(k))
         if os.path.exists(dirname):
-            print dirname
+            print(dirname)
             shutil.rmtree(dirname)
 
 if __name__ == '__main__':

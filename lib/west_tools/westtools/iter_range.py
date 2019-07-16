@@ -16,7 +16,6 @@
 # along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
 
-from __future__ import print_function, division; __metaclass__ = type
 from westtools.core import WESTToolComponent
 import logging
 log = logging.getLogger(__name__)
@@ -104,7 +103,7 @@ class IterRangeSelection(WESTToolComponent):
         '''Return an iterable of (block_start,block_end) over the blocks of iterations
         selected by --first-iter/--last-iter/--step-iter.'''
                             
-        for blkfirst in xrange(self.iter_start, self.iter_stop, self.iter_step):
+        for blkfirst in range(self.iter_start, self.iter_stop, self.iter_step):
             yield(blkfirst, min(self.iter_stop, blkfirst+self.iter_step))
              
     def n_iter_blocks(self):
@@ -179,7 +178,7 @@ class IterRangeSelection(WESTToolComponent):
                                                                               ds_iter_start,ds_iter_stop,ds_iter_step)))
         
         dimslices = []
-        for idim in xrange(len(dataset.shape)):
+        for idim in range(len(dataset.shape)):
             if idim == axis:
                 dimslices.append(slice(iter_start - ds_iter_start, iter_stop - ds_iter_stop + iter_step, iter_step))
             else:

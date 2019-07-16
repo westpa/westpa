@@ -15,7 +15,6 @@
 # You should have received a copy of the GNU General Public License
 # along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import print_function, division; __metaclass__ = type
 import logging
 
 # Let's suppress those numpy warnings.
@@ -51,12 +50,12 @@ from westpa.reweight import stats_process, reweight_for_c, FluxMatrix
 def _2D_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha, mcbs_nsets, mcbs_acalpha, do_correl, mcbs_enable, estimator_kwargs):
     # As our reweighting estimator is a weird function, we can't use the general mclib block.
     results = []
-    for istate in xrange(nstates):
-        for jstate in xrange(nstates):
+    for istate in range(nstates):
+        for jstate in range(nstates):
             if istate == jstate: continue
             estimator_kwargs.update(dict(istate=istate, jstate=jstate, nstates=nstates))
 
-            dataset = { 'indices' : np.array(range(start-1, stop-1), dtype=np.uint16) }
+            dataset = { 'indices' : np.array(list(range(start-1, stop-1)), dtype=np.uint16) }
             
             ci_res = mcbs_ci_correl(dataset,estimator=reweight_for_c,
                                     alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
@@ -68,13 +67,13 @@ def _2D_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha, m
 def _1D_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha, mcbs_nsets, mcbs_acalpha, do_correl, mcbs_enable, estimator_kwargs):
     # As our reweighting estimator is a weird function, we can't use the general mclib block.
     results = []
-    for istate in xrange(nstates):
+    for istate in range(nstates):
         # A little hack to make our estimator play nice, as jstate must be there.
         # For 1D datasets (state probabilities, etc), the argument isn't used in our estimator,
         # and so any variable which has the proper type is fine.
         estimator_kwargs.update(dict(istate=istate, jstate=istate, nstates=nstates))
 
-        dataset = { 'indices' : np.array(range(start-1, stop-1), dtype=np.uint16) }
+        dataset = { 'indices' : np.array(list(range(start-1, stop-1)), dtype=np.uint16) }
         
         ci_res = mcbs_ci_correl(dataset,estimator=reweight_for_c,
                                 alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
@@ -91,7 +90,7 @@ def _pop_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha, 
     # and so any variable which has the proper type is fine.
     estimator_kwargs.update(dict(istate=0, jstate=0, nstates=nstates))
 
-    estimator_kwargs.update({ 'indices' : np.array(range(start-1, stop-1), dtype=np.uint16), 'stride': 1  })
+    estimator_kwargs.update({ 'indices' : np.array(list(range(start-1, stop-1)), dtype=np.uint16), 'stride': 1  })
     #cpdef reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, nbins, state_labels, state_map, nfbins, istate, jstate, stride, bin_last_state_map, bin_state_map, return_obs, obs_threshold=1):
     #['nbins', 'rows', 'state_map', 'nfbins', 'bin_state_map', 'cols', 'jstate', 'flux', 'istate', 'return_obs', 'bin_last_state_map', 'insert', 'nstates', 'indices', 'state_labels', 'obs']
     #cpdef reweight_for_c(stride, obs_threshold=1):
@@ -221,7 +220,7 @@ class RWReweight(AverageCommands):
         # matches with the iteration (particularly for 'insert').
         # It's just easier to load all the data, although we could just start insert as a list of length
         # start_iter.
-        for iiter in xrange(start_iter, stop_iter):
+        for iiter in range(start_iter, stop_iter):
             iter_grp = self.kinetics_file['iterations']['iter_{:08d}'.format(iiter)]
 
             rows.append(iter_grp['rows'][...])
@@ -386,8 +385,8 @@ Command-line options
         pi = self.progress.indicator
 
         start_iter, stop_iter, step_iter = self.iter_range.iter_start, self.iter_range.iter_stop, self.iter_range.iter_step
-        start_pts = range(start_iter, stop_iter, step_iter)
-        indices = np.array(range(start_iter-1, stop_iter-1), dtype=np.uint16)
+        start_pts = list(range(start_iter, stop_iter, step_iter))
+        indices = np.array(list(range(start_iter-1, stop_iter-1)), dtype=np.uint16)
         submit_kwargs = dict(pi=pi, nstates=self.nstates, start_iter=self.start_iter, stop_iter=self.stop_iter, 
                              step_iter=self.step_iter)
 
@@ -564,8 +563,8 @@ Command-line options
         pi = self.progress.indicator
 
         start_iter, stop_iter, step_iter = self.iter_range.iter_start, self.iter_range.iter_stop, self.iter_range.iter_step
-        start_pts = range(start_iter, stop_iter, step_iter)
-        indices = np.array(range(start_iter-1, stop_iter-1, step_iter), dtype=np.uint16)
+        start_pts = list(range(start_iter, stop_iter, step_iter))
+        indices = np.array(list(range(start_iter-1, stop_iter-1, step_iter)), dtype=np.uint16)
         submit_kwargs = dict(pi=pi, nstates=self.nstates, start_iter=self.start_iter, stop_iter=self.stop_iter, 
                              step_iter=self.step_iter)
 
@@ -659,7 +658,7 @@ Command-line options
                 midpoints.append(((binbounds[i] - binbounds[i-1])/2)+binbounds[i-1])
             self.output_file.replace_dataset('binbounds_0', data=binbounds, shuffle=True, compression=9)
             self.output_file.replace_dataset('midpoints_0', data=midpoints, shuffle=True, compression=9)
-            self.output_file.replace_dataset('n_iter', data=range(start_iter,stop_iter), shuffle=True, compression=9)
+            self.output_file.replace_dataset('n_iter', data=list(range(start_iter,stop_iter)), shuffle=True, compression=9)
 
     def go(self):
         pi = self.progress.indicator

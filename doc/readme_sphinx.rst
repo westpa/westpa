@@ -33,7 +33,7 @@ WESTPA is developed and tested on Unix-like operating systems, including Linux a
 
 Before installing WESTPA, you will need to first install the Python 2.7 version provided by the latest free `Anaconda Python distribution`_. After installing the Anaconda Python distribution, either add the Python executable to your $PATH or set the environment variable WEST_PYTHON::
 
-    export WEST_PYTHON=/opt/anaconda/bin/python2.7
+    export WEST_PYTHON=/opt/anaconda/bin/python3
 
 We recommend obtaining the latest release of WESTPA by downloading the corresponding tar.gz file from the `releases page`_. After downloading the file, unpack the file and install WESTPA by executing the following::
 
