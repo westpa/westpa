@@ -259,7 +259,7 @@ class ExecutablePropagator(WESTPropagator):
     # Functions to create template arguments and environment values for child processes
     def update_args_env_basis_state(self, template_args, environ, basis_state):
         new_template_args = {'basis_state': basis_state}
-        new_env = {self.ENV_BSTATE_ID: str(basis_state.state_id or -1),
+        new_env = {self.ENV_BSTATE_ID: str(basis_state.state_id if basis_state.state_id is not None else -1),
                    self.ENV_BSTATE_DATA_REF: self.makepath(self.basis_state_ref_template, new_template_args)}
         template_args.update(new_template_args)
         environ.update(new_env)
@@ -267,7 +267,7 @@ class ExecutablePropagator(WESTPropagator):
     
     def update_args_env_initial_state(self, template_args, environ, initial_state):
         new_template_args = {'initial_state': initial_state}
-        new_env = {self.ENV_ISTATE_ID: str(initial_state.state_id or -1),
+        new_env = {self.ENV_ISTATE_ID: str(initial_state.state_id if initial_state.state_id is not None else -1),
                    self.ENV_ISTATE_DATA_REF: self.makepath(self.initial_state_ref_template, new_template_args)}
         
         if initial_state.basis_state is not None:
@@ -300,7 +300,7 @@ class ExecutablePropagator(WESTPropagator):
             parent_template_args = dict(template_args)
             parent_template_args['segment'] = parent
             
-            environ[self.ENV_PARENT_SEG_ID] = str(segment.parent_id)            
+            environ[self.ENV_PARENT_SEG_ID] = str(segment.parent_id if segment.parent_id is not None else -1)
             environ[self.ENV_PARENT_DATA_REF] = self.makepath(self.segment_ref_template, parent_template_args)
         elif segment.initpoint_type == Segment.SEG_INITPOINT_NEWTRAJ:
             # This segment is initiated from a basis state; WEST_PARENT_SEG_ID and WEST_PARENT_DATA_REF are
@@ -319,7 +319,7 @@ class ExecutablePropagator(WESTPropagator):
             else: # initial_state.type == InitialState.ISTATE_TYPE_GENERATED  
                 environ[self.ENV_PARENT_DATA_REF] = environ[self.ENV_ISTATE_DATA_REF]
             
-        environ[self.ENV_CURRENT_SEG_ID] = str(segment.seg_id or -1)
+        environ[self.ENV_CURRENT_SEG_ID] = str(segment.seg_id if segment.seg_id is not None else -1)
         environ[self.ENV_CURRENT_SEG_DATA_REF] = self.makepath(self.segment_ref_template, template_args)
         return template_args, environ
     
