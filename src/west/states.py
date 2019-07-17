@@ -80,7 +80,7 @@ class BasisState:
         '''
         states = []
         lineno = 0
-        for line in file(filename, 'rt'):
+        for line in open(filename, 'rt'):
             lineno += 1
             
             # remove comment portion

@@ -225,12 +225,12 @@ class ExecutablePropagator(WESTPropagator):
         all_environ.update(self.random_val_env_vars())
         all_environ.update(environ or {})
         
-        stdin  = file(stdin, 'rb') if stdin else sys.stdin        
-        stdout = file(stdout, 'wb') if stdout else sys.stdout
+        stdin  = open(stdin, 'rb') if stdin else sys.stdin        
+        stdout = open(stdout, 'wb') if stdout else sys.stdout
         if stderr == 'stdout':
             stderr = stdout
         else:
-            stderr = file(stderr, 'wb') if stderr else sys.stderr
+            stderr = open(stderr, 'wb') if stderr else sys.stderr
                 
         # close_fds is critical for preventing out-of-file errors
         proc = subprocess.Popen([executable],

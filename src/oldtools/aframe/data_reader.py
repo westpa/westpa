@@ -329,7 +329,7 @@ class ExtDataReaderMixin(AnalysisMixin):
                 upfunc(args)
 
     def is_npy(self, filename):
-        with file(filename, 'rb') as fileobj:
+        with open(filename, 'rb') as fileobj:
             first_bytes = fileobj.read(len(numpy.lib.format.MAGIC_PREFIX))
         
         if first_bytes == numpy.lib.format.MAGIC_PREFIX:
@@ -360,7 +360,7 @@ class ExtDataReaderMixin(AnalysisMixin):
         try:
             fileobj.readline
         except AttributeError:
-            fileobj = file(fileobj, 'rt')
+            fileobj = open(fileobj, 'rt')
             
         usecols = usecols or self.usecols
         chunksize = chunksize or self.ext_input_chunksize

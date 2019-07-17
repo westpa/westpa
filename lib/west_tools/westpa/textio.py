@@ -27,7 +27,7 @@ class NumericTextOutputFormatter(object):
         if hasattr(output_file, 'write'):
             self._file = output_file
         else:
-            self._file = file(output_file, mode)
+            self._file = open(output_file, mode)
             
         self._header_written = False
         self._header_lines = []
