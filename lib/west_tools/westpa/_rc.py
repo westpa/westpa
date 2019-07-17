@@ -21,7 +21,8 @@
 import logging
 log = logging.getLogger('westpa.rc')
 
-import os, sys, errno, numpy, math
+import os, sys, errno, numpy, math, warnings
+
 import westpa
 from .yamlcfg import YAMLConfig
 from .yamlcfg import YAMLSystem
@@ -213,7 +214,15 @@ class WESTRC:
 
         logging.config.dictConfig(logging_config)
         logging_config['incremental'] = True
-        logging.captureWarnings(True)
+
+        if self.verbosity == 'debug':
+            warnings.resetwarnings()
+            warnings.simplefilter("default")
+            logging.captureWarnings(True)
+        else:
+            if not sys.warnoptions:
+                warnings.simplefilter("ignore")
+            logging.captureWarnings(False)
         
     def pstatus(self, *args, **kwargs):
         fileobj = kwargs.pop('file', self.status_stream)

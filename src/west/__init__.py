@@ -10,13 +10,7 @@ from . import segment, propagators, data_manager, sim_manager, we_driver, states
 import work_managers
 
 from westpa import rc
+from westpa import version, version_tuple 
 
-version = '1.0.0 beta'
-version_tuple = (1,0,0,'beta')
-
-import warnings
-def warn_deprecated(message):
-    warnings.warn(message, DeprecationWarning,2)
-    
 __all__ = [name for name in dict(locals()) if not name.startswith('_')]
 

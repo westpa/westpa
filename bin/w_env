@@ -43,11 +43,3 @@ if echo "$PYTHONPATH" | grep -v "$WEST_PYTHONPATH" &> /dev/null; then
         export PYTHONPATH="$WEST_PYTHONPATH:$PYTHONPATH"
     fi
 fi  
-
-# Show developer-oriented warnings by default, as these may be important to
-# users (e.g. DeprecationWarnings in system or analysis files, etc.)
-if [ -z "$PYTHONWARNINGS" ] ; then
-    export PYTHONWARNINGS="d"
-else
-    export PYTHONWARNINGS="$PYTHONWARNINGS,d"
-fi
