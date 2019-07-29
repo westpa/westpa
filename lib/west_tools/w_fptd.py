@@ -101,11 +101,13 @@ class WFptd(WESTTool):
     def go(self):
         '''Perform the analysis associated with this tool.'''
         # eigenvalues, eigenvectors of tranpose of K
+        # eigenvalues: solutions to characteristic polynomial for K
+        # eigenvectors: solutions v to eqn. K<dot>v = lambda<dot>v
         eigvals, eigvecs = LA.eig(K.T)
         unity = (np.abs(np.real(eigvals) - 1)).argmin()
-        print("eigenvalues", eigvals)
-        print("eigenvectors", eigvecs)
-        print("unity", unity)
+        # print("eigenvalues", eigvals)
+        # print("eigenvectors", eigvecs)
+        # print("unity", unity)
         eq_pop = np.abs(np.real(eigvecs)[unity])
         eq_pop /= eq_pop.sum()
 
@@ -118,26 +120,26 @@ class WFptd(WESTTool):
         # lower_bound = 121.8
         lower_bound = 116
 
-
-        # What is this? This is never used
-        # Hmmm.  What about...
+        # delete (?) (lines 141-144 in new_paths_annotated):
+        """
         p_dist = np.zeros(NBINS)
         p_dist[INIT_BINS] = 1.0/float(len(INIT_BINS))
         pp_dist = np.zeros(NBINS)
         p_dist = eq_pop
-
         p_dist = p_dist
         p_dist = np.zeros((NBINS,NBINS))
+        """
         p_dist = K.copy()
 
         histogram = []
-
+        # do we need to add this line below?
+        histogram.append(p_dist[INIT_BINS, TARGET_BINS]*eq_pop[CBINS].sum())
+        # bc the first iteration below would start adding to histogram at equiv of n=2 steps
         ITER = 1600000
-        # ITER = 0
-        # 100 iterations?
         for i in range(ITER):
-            np_dist = np.dot(K,
-                      p_dist - np.diag(np.diag(p_dist)))
+            # np.diag(...) : gives 1D arr of diag vals of matrix
+            # np.diag(np.diag(...)) : gives the actual diagonal of matrix
+            np_dist = np.dot(K, p_dist - np.diag(np.diag(p_dist)))
             histogram.append(np_dist[INIT_BINS, TARGET_BINS]*eq_pop[CBINS].sum())
             p_dist = np_dist
 
@@ -151,8 +153,10 @@ class WFptd(WESTTool):
         # Save results
         # "histogram"
         # in paper: prob density vs FPT(A->B)/ns
-        self.output_file.create_dataset()
-
+        # FPT - x axis, prob density - y axis
+        self.output_file.create_dataset('probability_densities', data=float)
+        self.output_file.create_dataset('initial_states')
+        self.output_file.create_dataset('final_states')
 
 if __name__ == '__main__':
     WFptd().main()
