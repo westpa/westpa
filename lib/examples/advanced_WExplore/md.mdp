@@ -1,0 +1,66 @@
+; 50ns NVT production
+integrator               = sd
+ld_seed                  = -1
+; start time and timestep in ps 
+tinit                    = 0
+dt                       = 0.002
+nsteps                   = 1000
+; number of steps for center of mass motion removal =
+nstcomm                  = 100
+; OUTPUT CONTROL OPTIONS 
+; Output frequency for coords (x), velocities (v) and forces (f) =
+nstxout                  = 100
+nstvout                  = 100
+nstfout                  = 0
+; Output frequency for energies to log file and energy file 
+nstlog                   = 5 ; every 1 ps
+nstenergy                = 5 ; every 1 ps
+; Output frequency and precision for xtc file 
+nstxtcout                = 100 ; every 10 fs  
+xtc-precision            = 10000
+xtc_grps                 = CRN_K ;don't save the water
+; NEIGHBORSEARCHING PARAMETERS 
+; nblist update frequency =
+nstlist                  = 10
+; ns algorithm (simple or grid) 
+ns_type                  = grid
+; Periodic boundary conditions: xyz or none 
+pbc                      = xyz
+; nblist cut-off         
+rlist                    = 1.0
+domain-decomposition     = no
+; OPTIONS FOR ELECTROSTATICS AND VDW 
+; Method for doing electrostatics 
+coulombtype              = pme
+;rcoulomb-switch          = 0
+; NOT SUPPORTED WITH VERLET LISTS.  Have to make this physically relevant.
+; That is, rcoulomb must equal rvdw
+;rcoulomb                 = 1.0 
+rcoulomb                 = 0.9
+; Dielectric constant (DC) for cut-off or DC of reaction field 
+epsilon-r                = 1
+; Method for doing Van der Waals 
+vdw-type                 = switch
+; cut-off lengths        
+rvdw                     = 0.9
+rvdw-switch              = 0.8
+; Apply long range dispersion corrections for Energy and Pressure 
+DispCorr                  = EnerPres
+; OPTIONS FOR TEMPERATURE COUPLING
+tc_grps                  = system 
+tau_t                    = 1.0  ; Langevin friction constant (ps)
+ref_t                    = 300 
+;OPTIONS FOR PRESSURE COUPLING
+Pcoupl                   = No 
+pcoupltype               = isotropic
+;tau_p                    = 5.0    
+;compressibility          = 4.5e-05
+;ref_p                    = 1.0  
+; GENERATE VELOCITIES FOR STARTUP RUN 
+gen_vel                  = no 
+; OPTIONS FOR BONDS     
+constraints              = hbonds
+; Type of constraint algorithm 
+constraint-algorithm     = Lincs
+; Do not constrain the start configuration 
+unconstrained-start      = yes 
