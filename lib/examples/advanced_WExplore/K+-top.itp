@@ -1,0 +1,27 @@
+;Simple topology for a single K+ ion
+
+[ moleculetype ]
+; Name            nrexcl
+K             3
+
+[ atoms ]
+;	nr	type		resnr	residue	atom	cgnr	charge	mass
+	1	opls_408	1	K	K+	1	1.000	39.09830
+
+[ bonds ]
+;	ai	aj	funct
+
+[ pairs ]
+;	ai	aj	funct    
+
+[ angles ]
+;	ai	aj	ak	funct
+
+[ dihedrals ]
+;	ai	aj	ak	al	funct
+
+; Include Position restraint file
+#ifdef POSRES
+[ position_restraints ]
+   1   1        1000       1000       1000
+#endif

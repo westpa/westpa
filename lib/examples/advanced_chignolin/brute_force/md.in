@@ -1,0 +1,39 @@
+
+ &cntrl
+
+!!! INPUT
+ irest = 1      ! restarting simulation 
+ ntx = 5        ! read in coordinates and velocities
+
+!!! OUTPUT
+ ntxo = 2       ! restart file format binary
+ ntpr = 100000   ! write energy information every 100000 steps to log file
+ ntwx = 100000   ! write coordinates every 100000 steps to a trajectory file
+ ntwr = 100000   ! write restart file every 100000 steps to corresponding file
+ ioutfm = 1     ! use binary NetCDF format for trajectories
+
+!!! DYNAMICS
+ nstlim = 2000000000 ! perform that many MD steps
+ dt = 0.002     ! use time steps of 2fs
+
+!!! TEMPERATURE
+ ntt = 3        ! constant temperature, Langevin dynamics
+ tempi = 275    ! initial temperature T = 275 K
+ temp0 = 275    ! reference temperature T = 275 K
+ gamma_ln = 5   ! collision frequency = 5/ps
+ ig = -1        ! Langevin thermostat random force
+
+!!! CONSTRAINTS
+ ntc = 2        ! bonds with hydrogens
+
+!!! POTENTIAL ENERGY EVALUATION
+ ntf = 2        ! ignore bonded interactions with hydrogens (ntc != 1)
+ cut = 9999.0   ! effectively no truncation of nonbonded pairs (actually default with implicit solvent)
+ rgbmax = 9999.0 ! effectively no truncation betweem atom pairs for Born-radius
+
+!!! IMPLICIT SOLVENT
+ igb = 1        ! HCT GB model
+
+ /
+
+
