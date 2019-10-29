@@ -492,7 +492,7 @@ class WESimManager:
                 self.segments.update({segment.seg_id: segment for segment in incoming})
                 self.completed_segments.update({segment.seg_id: segment for segment in incoming})
                 
-                self.we_driver.assign(incoming)
+                #self.we_driver.assign(incoming)
                 new_istate_futures = self.get_istate_futures()
                 istate_gen_futures.update(new_istate_futures)
                 futures.update(new_istate_futures)
@@ -511,7 +511,8 @@ class WESimManager:
             else:
                 log.error('unknown future {!r} received from work manager'.format(future))
                 raise AssertionError('untracked future {!r}'.format(future))                    
-                    
+        self.we_driver.assign(self.segments.values())
+        self.get_istate_futures()
         log.debug('done with propagation')
         self.save_bin_data()
         self.data_manager.flush_backing()
