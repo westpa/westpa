@@ -1,0 +1,120 @@
+
+CPPTRAJ: Trajectory Analysis. V18.00
+    ___  ___  ___  ___
+     | \/ | \/ | \/ | 
+    _|_/\_|_/\_|_/\_|_
+
+| Date/time: 10/29/19 13:14:25
+| Available memory: 5.898 GB
+
+INPUT: Reading input from 'STDIN'
+  [parm /bgfs/lchong/pat53/p53forpaper/intermediate_p533/common_files/P53.MDM2.prmtop]
+	Reading '/bgfs/lchong/pat53/p53forpaper/intermediate_p533/common_files/P53.MDM2.prmtop' as Amber Topology
+	Radius Set: ArgH and AspGluO modified Bondi2 radii (mbondi3)
+  [trajin /bgfs/lchong/pat53/p53forpaper/intermediate_p533/bstates/P53.MDM2.rst]
+	Reading '/bgfs/lchong/pat53/p53forpaper/intermediate_p533/bstates/P53.MDM2.rst' as Amber Restart
+  [reference /bgfs/lchong/pat53/p53forpaper/intermediate_p533/bstates/P53.MDM2.rst]
+	Reading '/bgfs/lchong/pat53/p53forpaper/intermediate_p533/bstates/P53.MDM2.rst' as Amber Restart
+	Setting active reference for distance-based masks: 'P53.MDM2.rst'
+  [rms p53-ca-rmsd :2-14@CA reference out ca-rmsd-p53.dat mass]
+    RMSD: (:2-14@CA), reference is "default_name" (:2-14@CA), mass-weighted.
+	Best-fit RMSD will be calculated, coords will be rotated and translated.
+  [rms p53-heavy-rmsd :2-14&!@N,H,CA,HA,C,O reference out heavy-sc-rmsd-p53.dat mass]
+    RMSD: (:2-14&!@N,H,CA,HA,C,O), reference is "default_name" (:2-14&!@N,H,CA,HA,C,O), mass-weighted.
+	Best-fit RMSD will be calculated, coords will be rotated and translated.
+  [multidihedral dihedralP53 phi psi resrange 2-14 out dihedral_p53.dat]
+    MULTIDIHEDRAL: Calculating phi psi dihedrals for residues in range 2-14
+	DataSet name: dihedralP53
+	Output to dihedral_p53.dat
+	Output range is -180 to 180 degrees.
+  [distance end-to-end :1 :15 out dist-end-to-end.dat]
+    DISTANCE: :1 to :15, center of mass.
+  [go]
+---------- RUN BEGIN -------------------------------------------------
+
+PARAMETER FILES (1 total):
+ 0: P53.MDM2.prmtop, 227 atoms, 15 res, box: None, 1 mol
+
+INPUT TRAJECTORIES (1 total):
+ 0: 'P53.MDM2.rst' is an AMBER restart file with velocity info, Parm P53.MDM2.prmtop (reading 1 of 1)
+  Coordinate processing will occur on 1 frames.
+
+REFERENCE FRAMES (1 total):
+    0: P53.MDM2.rst:1
+	Active reference frame for distance-based masks is 'default_name'
+
+BEGIN TRAJECTORY PROCESSING:
+.....................................................
+ACTION SETUP FOR PARM 'P53.MDM2.prmtop' (4 actions):
+  0: [rms p53-ca-rmsd :2-14@CA reference out ca-rmsd-p53.dat mass]
+	Target mask: [:2-14@CA](13)
+	Reference mask: [:2-14@CA](13)
+  1: [rms p53-heavy-rmsd :2-14&!@N,H,CA,HA,C,O reference out heavy-sc-rmsd-p53.dat mass]
+	Target mask: [:2-14&!@N,H,CA,HA,C,O](141)
+	Reference mask: [:2-14&!@N,H,CA,HA,C,O](141)
+  2: [multidihedral dihedralP53 phi psi resrange 2-14 out dihedral_p53.dat]
+	ResRange=[2-14] phi psi, 26 dihedrals.
+  3: [distance end-to-end :1 :15 out dist-end-to-end.dat]
+	:1 (6 atoms) to :15 (3 atoms), imaging off.
+----- P53.MDM2.rst (1-1, 1) -----
+100% Complete.
+
+Read 1 frames and processed 1 frames.
+TIME: Avg. throughput= 4694.8357 frames / second.
+
+ACTION OUTPUT:
+TIME: Analyses took 0.0000 seconds.
+
+DATASETS (29 total):
+	p53-ca-rmsd "p53-ca-rmsd" (double, rms), size is 1
+	p53-heavy-rmsd "p53-heavy-rmsd" (double, rms), size is 1
+	end-to-end "end-to-end" (double, distance), size is 1
+	dihedralP53[phi]:2 "phi:2" (double, torsion(phi)), size is 1
+	dihedralP53[psi]:2 "psi:2" (double, torsion(psi)), size is 1
+	dihedralP53[phi]:3 "phi:3" (double, torsion(phi)), size is 1
+	dihedralP53[psi]:3 "psi:3" (double, torsion(psi)), size is 1
+	dihedralP53[phi]:4 "phi:4" (double, torsion(phi)), size is 1
+	dihedralP53[psi]:4 "psi:4" (double, torsion(psi)), size is 1
+	dihedralP53[phi]:5 "phi:5" (double, torsion(phi)), size is 1
+	dihedralP53[psi]:5 "psi:5" (double, torsion(psi)), size is 1
+	dihedralP53[phi]:6 "phi:6" (double, torsion(phi)), size is 1
+	dihedralP53[psi]:6 "psi:6" (double, torsion(psi)), size is 1
+	dihedralP53[phi]:7 "phi:7" (double, torsion(phi)), size is 1
+	dihedralP53[psi]:7 "psi:7" (double, torsion(psi)), size is 1
+	dihedralP53[phi]:8 "phi:8" (double, torsion(phi)), size is 1
+	dihedralP53[psi]:8 "psi:8" (double, torsion(psi)), size is 1
+	dihedralP53[phi]:9 "phi:9" (double, torsion(phi)), size is 1
+	dihedralP53[psi]:9 "psi:9" (double, torsion(psi)), size is 1
+	dihedralP53[phi]:10 "phi:10" (double, torsion(phi)), size is 1
+	dihedralP53[psi]:10 "psi:10" (double, torsion(psi)), size is 1
+	dihedralP53[phi]:11 "phi:11" (double, torsion(phi)), size is 1
+	dihedralP53[psi]:11 "psi:11" (double, torsion(psi)), size is 1
+	dihedralP53[phi]:12 "phi:12" (double, torsion(phi)), size is 1
+	dihedralP53[psi]:12 "psi:12" (double, torsion(psi)), size is 1
+	dihedralP53[phi]:13 "phi:13" (double, torsion(phi)), size is 1
+	dihedralP53[psi]:13 "psi:13" (double, torsion(psi)), size is 1
+	dihedralP53[phi]:14 "phi:14" (double, torsion(phi)), size is 1
+	dihedralP53[psi]:14 "psi:14" (double, torsion(psi)), size is 1
+
+DATAFILES (4 total):
+  ca-rmsd-p53.dat (Standard Data File):  p53-ca-rmsd
+  heavy-sc-rmsd-p53.dat (Standard Data File):  p53-heavy-rmsd
+  dihedral_p53.dat (Standard Data File):  phi:2 psi:2 phi:3 psi:3 ... phi:13 psi:13 phi:14 psi:14
+  dist-end-to-end.dat (Standard Data File):  end-to-end
+
+RUN TIMING:
+TIME:		Init               : 0.0000 s (  0.10%)
+TIME:		Trajectory Process : 0.0002 s (  1.31%)
+TIME:		Action Post        : 0.0000 s (  0.01%)
+TIME:		Analysis           : 0.0000 s (  0.00%)
+TIME:		Data File Write    : 0.0160 s ( 98.46%)
+TIME:		Other              : 0.0000 s (  0.00%)
+TIME:	Run Total 0.0162 s
+---------- RUN END ---------------------------------------------------
+TIME: Total execution time: 0.2562 seconds.
+--------------------------------------------------------------------------------
+To cite CPPTRAJ use:
+Daniel R. Roe and Thomas E. Cheatham, III, "PTRAJ and CPPTRAJ: Software for
+  Processing and Analysis of Molecular Dynamics Trajectory Data". J. Chem.
+  Theory Comput., 2013, 9 (7), pp 3084-3095.
+
