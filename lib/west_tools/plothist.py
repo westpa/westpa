@@ -210,11 +210,11 @@ class PlotHistBase(WESTSubcommand):
     def _ener_zero(self, hist):
         hist = -numpy.log(hist)
         if self.enerzero == 'min':
-            hist -= hist.min()
+            numpy.subtract(hist, hist.min(), out=hist, casting="unsafe")
         elif self.enerzero == 'max':
-            hist -= hist.max()
+            numpy.subtract(hist, hist.max(), out=hist, casting="unsafe")
         else:
-            hist -= self.enerzero
+            numpy.subtract(hist, self.enerzero, out=hist, casting="unsafe")
         return hist
         
 

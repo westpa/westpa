@@ -19,6 +19,7 @@ import sys
 import logging
 import math
 from numpy import index_exp
+import h5py
 
 from west.data_manager import seg_id_dtype, weight_dtype
 from westpa.binning import index_dtype, assign_and_label, accumulate_labeled_populations
@@ -463,17 +464,17 @@ Command-line options
 
             # Recursive mappers produce a generator rather than a list of labels
             # so consume the entire generator into a list
-            labels = [label for label in self.binning.mapper.labels]
+            labels = [numpy.string_(label) for label in self.binning.mapper.labels]
 
             self.output_file.create_dataset('bin_labels', data=labels, compression=9)
 
             if self.states:
                 nstates = len(self.states)
                 state_map[:] = nstates # state_id == nstates => unknown state
-                state_labels = [state['label'] for state in self.states]
+                state_labels = [numpy.string_(state['label']) for state in self.states]
 
                 for istate, sdict in enumerate(self.states):
-                    assert state_labels[istate] == sdict['label'] #sanity check
+                    assert state_labels[istate] == numpy.string_(sdict['label']) #sanity check
                     state_assignments = assign(sdict['coords'])
                     for assignment in state_assignments:
                         state_map[assignment] = istate
@@ -527,7 +528,7 @@ Command-line options
             pops_ds = self.output_file.create_dataset('labeled_populations', dtype=weight_dtype, shape=pops_shape,
                                                       compression=4, shuffle=True,
                                                       chunks=h5io.calc_chunksize(pops_shape, weight_dtype))
-            h5io.label_axes(pops_ds, ['iteration', 'state', 'bin'])
+            h5io.label_axes(pops_ds, [numpy.string_(i) for i in ['iteration', 'state', 'bin']])
 
             pi.new_operation('Assigning to bins', iter_stop-iter_start)
             last_labels = None # mapping of seg_id to last macrostate inhabited      
