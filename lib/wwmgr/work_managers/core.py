@@ -21,6 +21,7 @@
 
 import logging
 import uuid, threading, signal
+import h5py
 from itertools import islice
 from contextlib import contextmanager
 log = logging.getLogger(__name__)
@@ -336,7 +337,7 @@ class WMFuture:
         with self._condition:
             if self._done:
                 if self._exception:
-                    if isinstance(self._traceback, str):
+                    if isinstance(self._traceback, h5py.string_dtype(encoding='utf-8')):
                         if self._traceback:
                             log.error('uncaught exception in remote function\n{}'.format(self._traceback))
                         raise self._exception

@@ -22,6 +22,8 @@ warnings.filterwarnings('ignore', category=FutureWarning)
 warnings.filterwarnings('ignore', category=ImportWarning)
 import numpy as np
 import h5py
+import codecs
+import base64
 
 # Must be run with the WEST wrapper.
 from westpa import h5io
@@ -170,7 +172,7 @@ class WIPI(WESTParallelTool):
             #print('args: {}'.format(to_hash))
         # This SHOULD produce the same output, maybe?  That would be nice, anyway.
         # But we'll need to test it more.
-        return hashlib.md5(str(to_hash).encode('base64')).hexdigest()
+        return hashlib.md5(base64.b64encode(str(to_hash).encode())).hexdigest()
 
     def stamp_hash(self, h5file_name, new_hash):
         '''Loads a file, stamps it, and returns the opened file in read only'''
@@ -297,7 +299,10 @@ class WIPI(WESTParallelTool):
                             #new_hash = self.hash_args(args=args, path=path, extra=[self.niters, pickle.dumps(assign.binning.mapper), assign.states])
                             # We need to encode it properly to ensure that some OS specific thing doesn't kill us.  Same goes for the args, ultimately.
                             # Mostly, we just need to ensure that we're consistent.
-                            new_hash = self.hash_args(args=args, path=path, extra=[int(self.niters), pickle.dumps(assign.binning.mapper).encode('base64'), str(assign.states).encode('base64')])
+                            new_hash = self.hash_args(args=args, path=path,
+                                                      extra=[int(self.niters),
+                                                      codecs.encode(pickle.dumps(assign.binning.mapper), "base64"),
+                                                      base64.b64encode(str(assign.states).encode())])
                             # Let's check the hash.  If the hash is the same, we don't need to reload.
                             if self.debug_mode == True:
                                 print('{:<10}: old hash, new hash -- {}, {}'.format(name, arg_hash, new_hash))
