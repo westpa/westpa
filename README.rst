@@ -100,7 +100,7 @@ if a question one has was previously addressed). This is the preferred means
 for obtaining help and support. See http://groups.google.com/group/westpa-users
 to sign up or search archived messages.
 
-.. _FAQ: https://github.com/westpa/westpa/wiki/Frequently-Asked-Questions
+.. _FAQ: https://github.com/westpa/westpa/wiki/Frequently-Asked-Questions-%28FAQ%29
 
 -------------------------------------------------------
 Copyright, license, and warranty information
