@@ -86,8 +86,8 @@ of their system, we invite you to contact Lillian Chong (ltchong AT pitt DOT edu
 a few days with her lab and/or setting up video conferencing sessions to help you get your 
 simulations off the ground.
 
-.. _here: https://westpa.github.io/westpa/sphinx_index.html#tutorials
-.. _checklist: https://westpa.github.io/westpa/users_guide/checklist.html
+.. _here: https://github.com/westpa/westpa/wiki/WESTPA-Tutorials
+.. _checklist: https://github.com/westpa/westpa/wiki/Checklist-for-Setting-Up-a-WESTPA-Simulation
 
 ------------
 Getting help
@@ -100,7 +100,7 @@ if a question one has was previously addressed). This is the preferred means
 for obtaining help and support. See http://groups.google.com/group/westpa-users
 to sign up or search archived messages.
 
-.. _FAQ: https://westpa.github.io/westpa/users_guide/faq.html
+.. _FAQ: https://github.com/westpa/westpa/wiki/Frequently-Asked-Questions
 
 -------------------------------------------------------
 Copyright, license, and warranty information
