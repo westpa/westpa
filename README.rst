@@ -25,18 +25,6 @@ License, Version 3. See the file ``COPYING`` for more information.
 .. _survey: https://docs.google.com/forms/d/e/1FAIpQLSfWaB2aryInU06cXrCyAFmhD_gPibgOfFk-dspLEsXuS9-RGQ/viewform
 .. _page: https://westpa.github.io/westpa/overview.html
 
-------------
-Requirements
-------------
-
-WESTPA is written in Python and requires version 2.7. WESTPA further requires
-a large number of scientific software libraries for Python and other
-languages. The simplest way to meet these requirements is to download the
-Anaconda Python distribution from www.continuum.io (free for all users).
-
-WESTPA currently runs on Unix-like operating systems, including Linux and
-Mac OS X. It is developed and tested on x86_64 machines running Linux.
-
 --------------------------------
 Obtaining and Installing WESTPA
 --------------------------------
@@ -45,16 +33,16 @@ First, install the `Anaconda Python distribution`_. Then, make sure you are able
 
 WESTPA can then be installed through conda in a dedicated environment with the following.
 
-  conda create -n westpa -c conda-forge westpa
+    ``conda create -n westpa -c conda-forge westpa``
   
 WESTPA will be ready to use after activation with the following command.
 
-  . $(dirname $(dirname `which python2.7`))/$conda_env/westpa-2017.10/westpa.sh
+    ``. $(dirname $(dirname `which python2.7`))/$conda_env/westpa-2017.10/westpa.sh``
   
 Feel free to install any other conda packages alongside WESTPA in your environment. AmberTools, GROMACS and OpenMM all
 provide conda installations of their MD packages. An example command to create an environment containing WESTPA and AmberTools is given below.
 
-  conda create -n westpa -c conda-forge -c ambermd westpa ambertools
+    ``conda create -n westpa -c conda-forge -c ambermd westpa ambertools``
     
 .. _`Anaconda Python distribution`: https://www.continuum.io/downloads 
 
@@ -134,10 +122,10 @@ see each package's documentation for the most up-to-date possible information
 on authorship and licensing. Such packages include:
 
   h5py
-    See lib/h5py/docs/source/licenses.rst
+    See ``lib/h5py/docs/source/licenses.rst``
     
   blessings
-    See lib/blessings/LICENSE
+    See ``lib/blessings/LICENSE``
     
 In addition, the ``wwmgr`` work manager is derived from the
 ``concurrent.futures`` module (as included in Python 3.2) by Brian Quinlan and
