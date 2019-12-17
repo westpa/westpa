@@ -8,7 +8,7 @@ Joshua Adelman
 Joseph Kaus
 Nicholas Rego
 Kim Wong
-Matthew Zwier <mczwier@gmail.com>
+Matthew Zwier
 
 The work manager interface is derived from the ``concurrent.futures`` module
 of Python 3.2 by Brian Quinlan, (C) 2011 the Python Software Foundation.
