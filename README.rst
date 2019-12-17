@@ -122,10 +122,12 @@ see each package's documentation for the most up-to-date possible information
 on authorship and licensing. Such packages include:
 
 h5py
-See ``lib/h5py/docs/source/licenses.rst``
+
+  See ``lib/h5py/docs/source/licenses.rst``
     
 blessings
-See ``lib/blessings/LICENSE``
+
+  See ``lib/blessings/LICENSE``
     
 In addition, the ``wwmgr`` work manager is derived from the
 ``concurrent.futures`` module (as included in Python 3.2) by Brian Quinlan and
