@@ -44,7 +44,7 @@ provide conda installations of their MD packages. An example command to create a
 
 ``conda create -n westpa -c conda-forge -c ambermd westpa ambertools``
     
-.. _`Anaconda Python distribution`: https://www.continuum.io/downloads 
+.. _`Anaconda Python distribution`: https://www.anaconda.com/distribution/ 
 
 ---------------
 Getting started
