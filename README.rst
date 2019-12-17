@@ -109,8 +109,8 @@ Copyright, license, and warranty information
 For WESTPA
 ###########
 
-The WESTPA package is copyright (c) 2013, Matthew C. Zwier and
-Lillian T. Chong. (Individual contributions noted in each source file.)
+The WESTPA package is copyright (c) 2013, Matthew C. Zwier, A. J. Pratt,
+Lillian T. Chong, and contributors
 
 WESTPA is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
