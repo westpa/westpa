@@ -26,7 +26,7 @@ License, Version 3. See the file ``COPYING`` for more information.
 .. _page: https://westpa.github.io/westpa/overview.html
 
 --------------------------------
-Obtaining and Installing WESTPA
+Installing WESTPA
 --------------------------------
 
 First, install the `Anaconda Python distribution`_. Then, make sure you are able to activate conda environments (this is usually taken care of by the Anaconda installer).
