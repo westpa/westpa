@@ -18,8 +18,8 @@
 """
 HDF5 data manager for WEST.
 
-Original HDF5 implementation: Joe Kaus
-Current implementation: Matt Zwier
+Original HDF5 implementation: Joseph W. Kaus
+Current implementation: Matthew C. Zwier
 
 WEST exclusively uses the cross-platform, self-describing file format HDF5
 for data storage. This ensures that data is stored efficiently and portably
