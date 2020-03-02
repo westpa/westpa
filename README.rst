@@ -38,31 +38,30 @@ WESTPA currently runs on Unix-like operating systems, including Linux and
 Mac OS X. It is developed and tested on x86_64 machines running Linux.
 
 --------------------------------
-Obtaining and Installing WESTPA
+Installing WESTPA
 --------------------------------
+
 
 WESTPA is developed and tested on Unix-like operating systems, including Linux and Mac OS X.
 
 Before installing WESTPA, you will need to first install the Python 3 version provided by the latest free `Anaconda Python distribution`_. After installing the Anaconda Python distribution, either add the Python executable to your $PATH or set the environment variable WEST_PYTHON::
 
-    export WEST_PYTHON=/opt/anaconda/bin/python3
+export WEST_PYTHON=/opt/anaconda/bin/python3
 
-We recommend obtaining the latest release of WESTPA by downloading the corresponding tar.gz file from the `releases page`_. After downloading the file, unpack the file and install WESTPA by executing the following::
+WESTPA can then be installed through conda in a dedicated environment with the following.
 
-    tar xvzf westpa-master.tar.gz
-    cd westpa
-    ./setup.sh
+``conda create -n westpa -c conda-forge westpa``
+  
+WESTPA will be ready to use after activation with the following command.
 
-A westpa.sh script is created during installation, and will set the following environment variables::
+``. $(dirname $(dirname `which python3`))/$conda_env/westpa-2017.10/westpa.sh``
+  
+Feel free to install any other conda packages alongside WESTPA in your environment. AmberTools, GROMACS and OpenMM all
+provide conda installations of their MD packages. An example command to create an environment containing WESTPA and AmberTools is given below.
 
-    WEST_ROOT
-    WEST_BIN
-    WEST_PYTHON
-
-These environment variables must be set in order to run WESTPA on your computing cluster.
-
-.. _`releases page`: https://github.com/westpa/westpa/releases
-.. _`Anaconda Python distribution`: https://www.continuum.io/downloads 
+``conda create -n westpa -c conda-forge -c ambermd westpa ambertools``
+    
+.. _`Anaconda Python distribution`: https://www.anaconda.com/distribution/ 
 
 ---------------
 Getting started

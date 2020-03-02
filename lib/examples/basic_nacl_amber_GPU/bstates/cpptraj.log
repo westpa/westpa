@@ -1,0 +1,8 @@
+# 08/15/19 11:52:14
+# -p ../common_files/nacl.parm7
+# Loaded topologies:
+#   ../common_files/nacl.parm7
+trajin bstate.rst
+distance :1 :2 out dist.out
+go
+quit

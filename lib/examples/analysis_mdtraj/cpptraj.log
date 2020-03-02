@@ -1,0 +1,7 @@
+# 05/30/19 15:40:07
+parm common_files/P53.MDM2.prmtop
+trajin bstates/P53.MDM2.rst
+list trajin
+trajout P53.MDM2.nc
+run
+quit

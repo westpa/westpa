@@ -258,17 +258,18 @@ class TestNestingBinMapper:
              +---------------------------------------------------+    
         '''
         outer_mapper = FuncBinMapper(self.fn1,2)
-        middle_mapper2 = FuncBinMapper(self.fn2,2)
-        middle_mapper1 = FuncBinMapper(self.fn4,2)
+        middle_mapper1 = FuncBinMapper(self.fn2,2)
+        middle_mapper2 = FuncBinMapper(self.fn4,2)
 
         
         rmapper = RecursiveBinMapper(outer_mapper)
-        rmapper.add_mapper(middle_mapper1, [1.5])
-        rmapper.add_mapper(middle_mapper2, [0.5])
+        rmapper.add_mapper(middle_mapper1, [0.5])
+        rmapper.add_mapper(middle_mapper2, [1.5])
         
         assert rmapper.nbins == 4
         coords = numpy.array([[0.1], [0.2], [0.3], [0.4], [0.6], [1.1], [1.6]])
         output = rmapper.assign(coords)
+        print('OUTPUT', output)
         assert list(output) == [0,0,0,0,1,2,3]
         
 
@@ -303,13 +304,14 @@ class TestNestingBinMapper:
         assert list(output) == [1,1,2,2,0,3,4]
 
     def test2dRectilinearRecursion(self):
+
         '''
              0                            1                      2
              +----------------------------+----------------------+
              |                            |         1.5          |
              |                            | +--------+---------+ |
              |                            | |        |         | |
-             |             0              | |   4    |   5     | |
+             |             0              | |   3    |   4     | |
              |                            | |        |         | |
              |                            | |        |         | |
              |                            | +--------+---------+ |
@@ -317,7 +319,7 @@ class TestNestingBinMapper:
              |            0.5             |                      |
              | +-----------+------------+ |                      |
              | |           |            | |                      |
-             | |    2      |     3      | |           1          |
+             | |    1      |     2      | |           5          |
              | |           |            | |                      |
              | |           |            | |                      |
              | +-----------+------------+ |                      |
@@ -325,10 +327,11 @@ class TestNestingBinMapper:
 
         '''
 
+        
         outer_mapper = RectilinearBinMapper([[0,1,2],[0,1,2]])
 
-        upper_right_mapper = RectilinearBinMapper([[1,1.5,2],[0,2]])
-        lower_left_mapper = RectilinearBinMapper([[0,0.5,1], [0,2]])
+        upper_right_mapper = RectilinearBinMapper([[1,1.5,2],[0,1]])
+        lower_left_mapper = RectilinearBinMapper([[0,0.5,1], [1,2]])
 
         rmapper = RecursiveBinMapper(outer_mapper)
         rmapper.add_mapper(upper_right_mapper, [1.5,0.5])
@@ -339,6 +342,12 @@ class TestNestingBinMapper:
                  (0.25, 1.5), (0.75, 1.5), (1.5, 1.5)]
 
         assert rmapper.nbins == 6
-        assert (rmapper.assign(pairs) == [0,4,5,2,3,1]).all()
+        assignments = rmapper.assign(pairs)
+        expected = [0,3,4,1,2,5]
+        print('PAIRS', pairs)
+        print('LABELS', list(rmapper.labels))
+        print('EXPECTED', expected)
+        print('OUTPUT  ', assignments)
+        assert (assignments  == expected).all()
 
 
