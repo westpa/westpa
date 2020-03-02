@@ -227,10 +227,10 @@ def label_axes(h5object, labels, units=None):
     if len(units) and len(units) != len(labels):
         raise ValueError('number of units labels does not match number of axes')
     
-    h5object.attrs['axis_labels'] = numpy.array(list(map(str,labels)))
+    h5object.attrs['axis_labels'] = numpy.array([numpy.string_(i) for i in labels])
      
     if len(units):
-        h5object.attrs['axis_units'] = numpy.array(list(map(str,units)))
+        h5object.attrs['axis_units'] = numpy.array([numpy.string_(i) for i in units])
 
 NotGiven = object()
 def _get_one_attr(h5object, namelist, default=NotGiven):
@@ -524,6 +524,8 @@ class IterBlockedDataset:
                 avail_bytes = psutil.virtual_memory().available
                 if dssize > avail_bytes:
                     return
+            elif isinstance(max_size, str):
+                return
             else:
                 if dssize > max_size:
                     return

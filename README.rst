@@ -1,5 +1,5 @@
 ===============
-WESTPA 1.0 beta
+WESTPA 1.0 
 ===============
 
 
@@ -29,7 +29,7 @@ License, Version 3. See the file ``COPYING`` for more information.
 Requirements
 ------------
 
-WESTPA is written in Python and requires version 2.7. WESTPA further requires
+WESTPA is written in Python and requires version 3. WESTPA further requires
 a large number of scientific software libraries for Python and other
 languages. The simplest way to meet these requirements is to download the
 Anaconda Python distribution from www.continuum.io (free for all users).
@@ -43,7 +43,7 @@ Obtaining and Installing WESTPA
 
 WESTPA is developed and tested on Unix-like operating systems, including Linux and Mac OS X.
 
-Before installing WESTPA, you will need to first install the Python 2.7 version provided by the latest free `Anaconda Python distribution`_. After installing the Anaconda Python distribution, either add the Python executable to your $PATH or set the environment variable WEST_PYTHON::
+Before installing WESTPA, you will need to first install the Python 3 version provided by the latest free `Anaconda Python distribution`_. After installing the Anaconda Python distribution, either add the Python executable to your $PATH or set the environment variable WEST_PYTHON::
 
     export WEST_PYTHON=/opt/anaconda/bin/python3
 
@@ -68,8 +68,6 @@ These environment variables must be set in order to run WESTPA on your computing
 Getting started
 ---------------
 
-WESTPA simulation checklist_ 
-
 To define environment variables post-installation, simply source the 
 ``westpa.sh`` script in the ``westpa`` directory from the command line
 or your setup scripts.
@@ -86,8 +84,7 @@ of their system, we invite you to contact Lillian Chong (ltchong AT pitt DOT edu
 a few days with her lab and/or setting up video conferencing sessions to help you get your 
 simulations off the ground.
 
-.. _here: https://westpa.github.io/westpa/sphinx_index.html#tutorials
-.. _checklist: https://westpa.github.io/westpa/users_guide/checklist.html
+.. _here: https://github.com/westpa/westpa/wiki/WESTPA-Tutorials
 
 ------------
 Getting help
@@ -101,51 +98,3 @@ for obtaining help and support. See http://groups.google.com/group/westpa-users
 to sign up or search archived messages.
 
 .. _FAQ: https://westpa.github.io/westpa/users_guide/faq.html
-
--------------------------------------------------------
-Copyright, license, and warranty information
--------------------------------------------------------
-
-For WESTPA
-###########
-
-The WESTPA package is copyright (c) 2013, Matthew C. Zwier and
-Lillian T. Chong. (Individual contributions noted in each source file.)
-
-WESTPA is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-WESTPA is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program (see the included file ``COPYING``).  If not,
-see <http://www.gnu.org/licenses/>.
-
-Unless otherwise noted, source files included in this distribution and
-lacking a more specific attribution are subject to the above copyright,
-terms, and conditions.
-
-
-For included software
-######################
-
-Distributions of WESTPA include a number of components without modification,
-each of which is subject to its own individual terms and conditions. Please
-see each package's documentation for the most up-to-date possible information
-on authorship and licensing. Such packages include:
-
-  h5py
-    See lib/h5py/docs/source/licenses.rst
-    
-  blessings
-    See lib/blessings/LICENSE
-    
-In addition, the ``wwmgr`` work manager is derived from the
-``concurrent.futures`` module (as included in Python 3.2) by Brian Quinlan and
-copyright 2011 the Python Software Foundation. See 
-http://docs.python.org/3/license.html for more information.
