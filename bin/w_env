@@ -1,26 +1,11 @@
-#!/bin/bash
 
-# Copyright (C) 2013 Matthew C. Zwier and Lillian T. Chong
-#
-# This file is part of WESTPA.
-#
-# WESTPA is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# WESTPA is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
 # You should have received a copy of the GNU General Public License
 # along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
 
-# In the absence of other information, use whatever Python v2.7 is on the path
+# In the absence of other information, use whatever Python 3 is on the path
 if [ -z "$WEST_PYTHON" ]; then
-    export WEST_PYTHON=python2.7
+    export WEST_PYTHON=python3
 fi
 
 PATH_AFFIX="$WEST_ROOT/lib/blessings:$WEST_ROOT/lib/h5py:$WEST_ROOT/lib/wwmgr:$WEST_ROOT/src:$WEST_ROOT/lib/west_tools"
@@ -43,11 +28,3 @@ if echo "$PYTHONPATH" | grep -v "$WEST_PYTHONPATH" &> /dev/null; then
         export PYTHONPATH="$WEST_PYTHONPATH:$PYTHONPATH"
     fi
 fi  
-
-# Show developer-oriented warnings by default, as these may be important to
-# users (e.g. DeprecationWarnings in system or analysis files, etc.)
-if [ -z "$PYTHONWARNINGS" ] ; then
-    export PYTHONWARNINGS="d"
-else
-    export PYTHONWARNINGS="$PYTHONWARNINGS,d"
-fi

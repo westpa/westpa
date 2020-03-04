@@ -1,4 +1,3 @@
-from __future__ import division, print_function; __metaclass__ = type
 
 import time
 from work_managers.zeromq import ZMQWorker

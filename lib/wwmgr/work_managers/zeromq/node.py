@@ -8,7 +8,7 @@ Created on Jun 11, 2015
 import logging
 log = logging.getLogger(__name__)
 
-from core import ZMQCore, Message, PassiveMultiTimer, IsNode
+from .core import ZMQCore, Message, PassiveMultiTimer, IsNode
 
 import zmq
 from zmq.devices import ThreadProxy
@@ -70,7 +70,7 @@ class ZMQNode(ZMQCore,IsNode):
         if self.local_ann_endpoint: ann_proxy.bind_out(self.local_ann_endpoint)
         ann_proxy.connect_in(self.upstream_ann_endpoint)
         self.log.debug('connecting upstream_ann_endpoint = {!r}'.format(self.upstream_ann_endpoint))        
-        ann_proxy.setsockopt_in(zmq.SUBSCRIBE, '')        
+        ann_proxy.setsockopt_in(zmq.SUBSCRIBE, b'')        
         ann_proxy.connect_mon(ann_mon_endpoint)
         
         rr_proxy.start()
@@ -79,7 +79,7 @@ class ZMQNode(ZMQCore,IsNode):
         ann_monitor.connect(ann_mon_endpoint)
         
         inproc_socket = self.context.socket(zmq.SUB)
-        inproc_socket.setsockopt(zmq.SUBSCRIBE,'')
+        inproc_socket.setsockopt(zmq.SUBSCRIBE,b'')
         inproc_socket.bind(self.inproc_endpoint)
         
         timers = PassiveMultiTimer()

@@ -1,21 +1,4 @@
-# Copyright (C) 2017 Matthew C. Zwier and Lillian T. Chong
-#
-# This file is part of WESTPA.
-#
-# WESTPA is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# WESTPA is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import print_function, division; __metaclass__ = type
 import logging
 import re, os
 from westtools import WESTMasterCommand, WESTSubcommand, ProgressIndicatorComponent, Plotter
@@ -315,28 +298,28 @@ flux/rate is being plotted:
                 # if --evolution-mode wasn't specified, neither of these exist:
                 if 'target_flux_evolution' in self.kinavg_file:
                     pi.new_operation('plotting fluxes', nstates)
-                    for istate in xrange(nstates):
+                    for istate in range(nstates):
                         self.plot_flux(istate)
                         pi.progress += 1
                 
                 # if --evolution-mode wasn't specified, we won't get this either
                 if 'rate_evolution' in self.kinavg_file:
                     pi.new_operation('plotting rates', nstates*nstates)
-                    for istate in xrange(nstates):
-                        for jstate in xrange(nstates):
+                    for istate in range(nstates):
+                        for jstate in range(nstates):
                             self.plot_rate(istate, jstate)
                             pi.progress += 1
                 else:
                     print('rate evolution not available')
         else:
             plotter = Plotter(self.kinavg_file, 'rate_evolution', iteration=-1, interface='text')
-            for istate in xrange(nstates):
-                for jstate in xrange(nstates):
+            for istate in range(nstates):
+                for jstate in range(nstates):
                     if istate != jstate:
                         plotter.plot(istate, jstate)
             plotter = Plotter(self.kinavg_file, 'conditional_flux_evolution', iteration=-1, interface='text')
-            for istate in xrange(nstates):
-                for jstate in xrange(nstates):
+            for istate in range(nstates):
+                for jstate in range(nstates):
                     if istate != jstate:
                         plotter.plot(istate, jstate)
 
@@ -439,23 +422,23 @@ plotted:
             with pi:
                 if 'state_pop_evolution' in self.stateprobs_file:
                     pi.new_operation('plotting populations', nstates)
-                    for istate in xrange(nstates):
+                    for istate in range(nstates):
                         self.plot_pop(istate)
                         pi.progress += 1
 
                 if 'color_prob_evolution' in self.stateprobs_file:
                     pi.new_operation('plotting ensemble populations', nstates)
-                    for istate in xrange(nstates):
+                    for istate in range(nstates):
                         self.plot_color(istate)
                         pi.progress += 1
                 else:
                     print('population evolution not available')
         else:
             plotter = Plotter(self.stateprobs_file, 'state_pop_evolution', iteration=-1, interface='text')
-            for istate in xrange(nstates):
+            for istate in range(nstates):
                     plotter.plot(istate)
             plotter = Plotter(self.stateprobs_file, 'color_prob_evolution', iteration=-1, interface='text')
-            for istate in xrange(nstates):
+            for istate in range(nstates):
                     plotter.plot(istate)
 
 class ReweightStateprobs(DirectStateprobs):

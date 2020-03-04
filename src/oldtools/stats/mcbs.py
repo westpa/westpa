@@ -1,26 +1,9 @@
-# Copyright (C) 2013 Matthew C. Zwier and Lillian T. Chong
-#
-# This file is part of WESTPA.
-#
-# WESTPA is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# WESTPA is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
 
 '''
 Tools for Monte Carlo bootstrap error analysis
 '''
 
-from __future__ import print_function, division; __metaclass__ = type
 import math, numpy
 
 def add_mcbs_options(parser):
@@ -74,7 +57,7 @@ def bootstrap_ci(estimator, data, alpha, n_sets=None, args=(), kwargs={}, sort=n
     
     f_synth = numpy.empty((n_sets,) + estimator_shape, dtype=estimator_dtype)
     
-    for i in xrange(0, n_sets):
+    for i in range(0, n_sets):
         indices = numpy.random.randint(dlen, size=(dlen,))
         f_synth[i] = estimator(data[indices], *args, **kwargs)
         

@@ -1,21 +1,4 @@
-# Copyright (C) 2013 Matthew C. Zwier and Lillian T. Chong
-#
-# This file is part of WESTPA.
-#
-# WESTPA is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# WESTPA is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import print_function, division; __metaclass__ = type
 import logging
 from westtools import (WESTParallelTool, WESTDataReader, IterRangeSelection, 
                        ProgressIndicatorComponent)
@@ -110,7 +93,7 @@ Command-line options
 
             try:
                 pi.new_operation('Dispatching tasks & processing results', iter_count)
-                task_gen = ((_remote_task, (n_iter, self.task_callable), {}) for n_iter in xrange(iter_start,iter_stop))
+                task_gen = ((_remote_task, (n_iter, self.task_callable), {}) for n_iter in range(iter_start,iter_stop))
                 for future in self.work_manager.submit_as_completed(task_gen, self.max_queue_len):
                     n_iter, result = future.get_result(discard=True)
                     if self.crawler is not None:

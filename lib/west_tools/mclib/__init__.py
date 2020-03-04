@@ -1,27 +1,11 @@
-# Copyright (C) 2017 Matthew C. Zwier and Lillian T. Chong
-#
-# This file is part of WESTPA.
-#
-# WESTPA is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# WESTPA is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
 '''A package for performing Monte Carlo bootstrap estimates of
 statistics.'''
 
-from __future__ import print_function, division
+
 import math, numpy
 
-from _mclib import autocorrel_elem, mcbs_correltime, get_bssize, mcbs_ci #@UnresolvedImport
+from ._mclib import autocorrel_elem, mcbs_correltime, get_bssize, mcbs_ci
 
 def mcbs_ci_correl(estimator_datasets, estimator, alpha, n_sets=None, args=None,
                    autocorrel_alpha = None, autocorrel_n_sets=None, subsample=None, 
@@ -75,7 +59,7 @@ def mcbs_ci_correl(estimator_datasets, estimator, alpha, n_sets=None, args=None,
         estimator_datasets = {'a' : estimator_datasets}
         # This also probably means our estimator isn't going to handle kwargs, so we'll watch out for that later in testing.
         # We may have to replace the 'simple' estimator with a slightly more complex lambda function which simply ditches extra arguments.
-    for key, dset in estimator_datasets.iteritems():
+    for key, dset in estimator_datasets.items():
         estimator_datasets[key] = numpy.asanyarray(dset)
         dlen = dset.shape[0]
 
@@ -110,7 +94,7 @@ def mcbs_ci_correl(estimator_datasets, estimator, alpha, n_sets=None, args=None,
     precalc_kwargs['stride'] = 1
     pre_calculated = []
     for block in range(1, dlen+1):
-        for key, dset in estimator_datasets.iteritems():
+        for key, dset in estimator_datasets.items():
             precalc_kwargs[key] = dset[0:block]
         pre_calculated.append(estimator(**precalc_kwargs))
     # We need to get rid of any NaNs.
@@ -148,12 +132,12 @@ def mcbs_ci_correl(estimator_datasets, estimator, alpha, n_sets=None, args=None,
         subsample = subsample or (lambda x: x[numpy.random.randint(len(x))])
         # Let's make sure we decimate every array properly...
         decim_list = {}
-        for key,dset in estimator_datasets.iteritems():
+        for key,dset in estimator_datasets.items():
             dset_shape = list(dset.shape)
             n_slices = dset_shape[0] // stride
             dset_shape[0] = n_slices
             decim_set = numpy.empty((dset_shape), dtype=dset.dtype)
-            for iout, istart in enumerate(xrange(0,dset.shape[0]-stride+1,stride)):
+            for iout, istart in enumerate(range(0,dset.shape[0]-stride+1,stride)):
                 sl = dset[istart:istart+stride]
                 # We assume time is the 0th axis.
                 # Okay, so non-optimal.  Population requires the axis subsampling to be done just so...
@@ -176,7 +160,7 @@ def _1D_simple_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_a
     # This is actually appropriate for anything with a directly measured, 1D dataset, i.e.,
     # Fluxes, color populations, and state populations.
     results = []
-    for istate in xrange(nstates):
+    for istate in range(nstates):
         # Not sure if we need a jstate for these estimators, but we'll see.
         kwargs = { 'istate' : istate , 'jstate': 'B'}
         estimator_datasets = {'dataset': data_input['dataset'][:,istate]}
@@ -193,8 +177,8 @@ def _2D_simple_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_a
     # It's probably limited in this use case to conditional_fluxes, but anything that's an i to j process that is directly measured
     # is suitable for use with this.
     results = []
-    for istate in xrange(nstates):
-        for jstate in xrange(nstates):
+    for istate in range(nstates):
+        for jstate in range(nstates):
             if istate == jstate: continue
             kwargs = { 'istate' : istate, 'jstate': jstate }
             #dataset = {'dataset': cond_fluxes[:, istate, jstate]}

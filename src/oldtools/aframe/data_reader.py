@@ -1,28 +1,11 @@
-# Copyright (C) 2013 Matthew C. Zwier and Lillian T. Chong
-#
-# This file is part of WESTPA.
-#
-# WESTPA is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# WESTPA is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
 
-from __future__ import print_function, division; __metaclass__=type
 
 import logging, warnings
 log = logging.getLogger(__name__)
 
 import itertools, re
-from itertools import imap
+
 import numpy, h5py
 
 import west, westpa
@@ -164,8 +147,8 @@ class WESTDataReaderMixin(AnalysisMixin):
                 segment.pcoord = pcoords[isegid]
 
             parent_ids = all_wtg_parent_ids[parents_offset:parents_offset+n_parents]
-            segment.wtg_parent_ids = {long(parent_id) for parent_id in parent_ids}
-            segment.parent_id = long(parent_ids[0])
+            segment.wtg_parent_ids = {int(parent_id) for parent_id in parent_ids}
+            segment.parent_id = int(parent_ids[0])
             segments.append(segment)
 
         return segments        
@@ -267,7 +250,7 @@ class WESTDataReaderMixin(AnalysisMixin):
         dt = dt or getattr(self, 'dt', 1.0)
         
         total_len = 0
-        for n_iter in xrange(first_iter, last_iter+1):
+        for n_iter in range(first_iter, last_iter+1):
             total_len += self.get_pcoord_len(n_iter) - 1
         return total_len * dt 
     
@@ -306,7 +289,7 @@ class ExtDataReaderMixin(AnalysisMixin):
         input_options.add_argument('--usecols', dest='usecols', metavar='COLUMNS', type=parse_int_list,
                                    help='''Use only the given COLUMNS from the input file(s), e.g. "0", "0,1", 
                                    "0:5,7,9:10".''')
-        input_options.add_argument('--chunksize', dest='chunksize', type=long, default=self.default_chunksize,
+        input_options.add_argument('--chunksize', dest='chunksize', type=int, default=self.default_chunksize,
                                    help='''Process input data in blocks of size CHUNKSIZE.  This will only reduce memory
                                    requirements when using uncompressed Numpy (.npy) format input. (Default: %(default)d.)''')    
 
@@ -330,7 +313,7 @@ class ExtDataReaderMixin(AnalysisMixin):
                 upfunc(args)
 
     def is_npy(self, filename):
-        with file(filename, 'rb') as fileobj:
+        with open(filename, 'rb') as fileobj:
             first_bytes = fileobj.read(len(numpy.lib.format.MAGIC_PREFIX))
         
         if first_bytes == numpy.lib.format.MAGIC_PREFIX:
@@ -361,13 +344,13 @@ class ExtDataReaderMixin(AnalysisMixin):
         try:
             fileobj.readline
         except AttributeError:
-            fileobj = file(fileobj, 'rt')
+            fileobj = open(fileobj, 'rt')
             
         usecols = usecols or self.usecols
         chunksize = chunksize or self.ext_input_chunksize
         
         linenumber = 0
-        for iskip in xrange(skiprows or 0):
+        for iskip in range(skiprows or 0):
             fileobj.readline()
             linenumber += 1
         
@@ -458,13 +441,13 @@ class ExtDataReaderMixin(AnalysisMixin):
         dataset = group.create_dataset(dsname, shape=shape, dtype=array.dtype)
         
         if usecols:
-            for istart in xrange(0,maxlen,chunksize):
+            for istart in range(0,maxlen,chunksize):
                 iend = min(istart+chunksize,maxlen)
                 dataset[istart:iend] = array[istart:iend, usecols]
                 westpa.rc.pstatus('\r  Read {:{mw}d}/{:>{mw}d} rows'.format(iend,maxlen, mw=mw), end='')
                 westpa.rc.pflush()
         else:
-            for istart in xrange(0,maxlen,chunksize):
+            for istart in range(0,maxlen,chunksize):
                 dataset[istart:iend] = array[istart:iend]
                 westpa.rc.pstatus('\r  Read {:{mw}d}/{:>{mw}d} rows'.format(iend,maxlen, mw=mw), end='')
                 westpa.rc.pflush()                
@@ -478,7 +461,7 @@ class BFDataManager(AnalysisMixin):
     be the same length, but they do need to have the same time spacing for progress coordinate values.'''
         
     traj_index_dtype = numpy.dtype( [ ('pcoord_len', numpy.uint64),
-                                      ('source_data', h5py.new_vlen(str)) ] )
+                                      ('source_data', h5py.special_dtype(vlen=str)) ] )
     
     def __init__(self):
         super(BFDataManager,self).__init__()

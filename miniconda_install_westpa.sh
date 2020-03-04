@@ -67,7 +67,7 @@ export PATH="$PREFIX/bin:$PATH"
 ### +------------------------------------------------+ ########################################
 
 # Specify conda environment name
-conda_env=westpa-2017.10
+conda_env=westpa-2019.8
 
 # Install WESTPA in virtual environment
 conda create --yes -c conda-forge -n $conda_env westpa
@@ -77,12 +77,12 @@ conda create --yes -c conda-forge -n $conda_env westpa
 conda activate $conda_env
 
 # Place WESTPA environment variables inside conda env
-export ENV_PREFIX="$(dirname $(dirname `which python2.7`))"
+export ENV_PREFIX="$(dirname $(dirname `which python3`))"
 mkdir -p $ENV_PREFIX/etc/conda/activate.d
 mkdir -p $ENV_PREFIX/etc/conda/deactivate.d
 touch $ENV_PREFIX/etc/conda/activate.d/env_vars.sh
 cat << EOC >> $ENV_PREFIX/etc/conda/activate.d/env_vars.sh 
-. $(dirname $(dirname `which python2.7`))/$conda_env/westpa.sh
+. $(dirname $(dirname `which python3`))/$conda_env/westpa.sh
 EOC
 touch $ENV_PREFIX/etc/conda/deactivate.d/env_vars.sh
 

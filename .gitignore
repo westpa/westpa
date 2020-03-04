@@ -1,5 +1,4 @@
 .DS_Store
-lib/blessings/
 *.pyc
 *.pyo
 *.swp
@@ -10,3 +9,8 @@ lib/blessings/
 *.swo
 *.so
 build/
+__pycache__
+*.log
+*.h5
+westpa.sh
+westpa.csh

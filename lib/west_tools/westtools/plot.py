@@ -1,19 +1,3 @@
-# Copyright (C) 2017 Matthew C. Zwier and Lillian T. Chong
-#
-# This file is part of WESTPA.
-#
-# WESTPA is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# WESTPA is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
 #import warnings
 #warnings.filterwarnings('ignore', category=DeprecationWarning)
@@ -107,7 +91,7 @@ class Plotter(object):
                 import matplotlib
                 matplotlib.use('TkAgg')
                 from matplotlib import pyplot as plt
-                plt.bar(range(0, np.array(vector).shape[0]), vector, linewidth=0, align='center', color='gold', tick_label=labels)
+                plt.bar(list(range(0, np.array(vector).shape[0])), vector, linewidth=0, align='center', color='gold', tick_label=labels)
                 plt.show()
             except:
                 print('Unable to import plotting interface.  An X server ($DISPLAY) is required.')
@@ -142,7 +126,7 @@ class Plotter(object):
                     print(self.t.blue(labels[x]))
 
             if fullscreen_mode:
-                raw_input("Press enter to continue.")
+                input("Press enter to continue.")
 
     def __terminal_ci__(self, h5file, iteration, si, sj, tau, h5key):
         from blessings import Terminal
@@ -181,11 +165,11 @@ class Plotter(object):
                                 print(self.t.bold(self.t.red('{0:.7f}|'.format(scale[y]))))
                     for y in range(ci[0], ci[1]):
                         #with self.t.location(x+12, y):
-                        print self.t.move(y, x+12) + self.t.on_blue(' ')
+                        print(self.t.move(y, x+12) + self.t.on_blue(' '))
                             #print(self.t.on_blue(' '))
                     #with self.t.location(x+12, np.digitize(h5file['rate_evolution']['expected'][iter-1, si, sj]/tau, scale)):
                     #        print(self.t.on_blue('-'))
-                    print self.t.move(np.digitize(h5file[h5key]['expected'][in_tup]/tau, scale), x+12) + self.t.on_blue('-')
+                    print(self.t.move(np.digitize(h5file[h5key]['expected'][in_tup]/tau, scale), x+12) + self.t.on_blue('-'))
 
                 for x in range(0, w-12, w/10):
                     if x == 0:
@@ -208,7 +192,7 @@ class Plotter(object):
                 else:
                     print("{} of state {} from iter 1 to {}".format(h5key, self.state_labels[si], self.iteration))
             with self.t.location(0, h+3):
-                raw_input("Press enter to continue.")
+                input("Press enter to continue.")
 
     def __terminal_expected__(self, h5file, iteration, si, sj, tau, h5key, dim):
         from blessings import Terminal
@@ -263,9 +247,9 @@ class Plotter(object):
                             with self.t.location(0, y):
                                 print(self.t.bold(self.t.red('{0:.7f}|'.format(scale[y]))))
                     for y in range(ci[0], ci[1]):
-                        print self.t.move(y, x+12) + self.t.on_blue(' ')
+                        print(self.t.move(y, x+12) + self.t.on_blue(' '))
                             #print(self.t.on_blue(' '))
-                    print self.t.move(np.digitize(h5file[in_tup]/tau, scale), x+12) + self.t.on_blue('-')
+                    print(self.t.move(np.digitize(h5file[in_tup]/tau, scale), x+12) + self.t.on_blue('-'))
 
                 for x in range(0, w-12, w/10):
                     if x == 0:
@@ -281,4 +265,4 @@ class Plotter(object):
                 # We need to improve this.
                 print("{} from iter 1 to {}".format(h5key, self.iteration))
             with self.t.location(0, h+3):
-                raw_input("Press enter to continue.")
+                input("Press enter to continue.")

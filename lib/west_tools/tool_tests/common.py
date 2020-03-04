@@ -9,7 +9,7 @@ def get_arg_flag(key):
 def make_args(outfile,**args):
     '''Makes a list of argument strings from a dictionary for command line tools to process'''
     
-    arglist = ['{}={}'.format(get_arg_flag(key), value) if type(value) is not bool else '{}'.format(key) for (key, value) in args.items() if value is not None]
+    arglist = ['{}={}'.format(get_arg_flag(key), value) if not isinstance(value, bool) else '{}'.format(key) for (key, value) in list(args.items()) if value is not None]
     #arglist = []
     #for key, value in args.items():
     #    if value is not None:
@@ -24,8 +24,8 @@ def make_args(outfile,**args):
 
 def cycle_args(arg_list):
     '''Generator function to generate different argument combo's - returns as dictionaries'''
-    keys = arg_list.keys()
-    for values in itertools.product(*arg_list.values()):
+    keys = list(arg_list.keys())
+    for values in itertools.product(*list(arg_list.values())):
         yield {k:v for (k, v) in zip(keys, values)}
 
 class CommonToolTest:
