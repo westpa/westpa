@@ -1,21 +1,4 @@
-# Copyright (C) 2013 Joshua L. Adelman
-#
-# This file is part of WESTPA.
-#
-# WESTPA is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# WESTPA is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import division; __metaclass__ = type
 import logging
 log = logging.getLogger(__name__)
 
@@ -203,7 +186,7 @@ class StringDriver(object):
         start_iter = max(n_iter - min(self.windowsize, n_iter), 2)
         stop_iter = n_iter + 1
 
-        for n in xrange(start_iter, stop_iter):
+        for n in range(start_iter, stop_iter):
             with self.data_manager.lock:
                 iter_group = self.data_manager.get_iter_group(n)
                 seg_index = iter_group['seg_index'][...]
@@ -239,7 +222,7 @@ class StringDriver(object):
                 pass
 
             sm_global_group = self.data_manager.we_h5file.require_group('stringmethod')
-            last_update = long(sm_global_group.attrs.get('last_update', 0))
+            last_update = int(sm_global_group.attrs.get('last_update', 0))
 
         if n_iter - last_update < self.update_interval or n_iter < self.initial_update or not self.do_update:
             log.debug('Not updating string this iteration')

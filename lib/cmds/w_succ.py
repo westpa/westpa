@@ -1,21 +1,5 @@
-# Copyright (C) 2013 Matthew C. Zwier and Lillian T. Chong
-#
-# This file is part of WESTPA.
-#
-# WESTPA is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# WESTPA is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import division, print_function
+
 import sys, argparse
 import numpy
 import west, westpa
@@ -49,7 +33,7 @@ class WSucc(CommonOutputMixin,WESTDataReaderMixin,WESTAnalysisTool):
 # column 2:    weight
 # column>2:    final progress coordinate value
 ''')
-        for n_iter in xrange(1, self.data_manager.current_iteration):
+        for n_iter in range(1, self.data_manager.current_iteration):
             seg_index = self.get_seg_index(n_iter)
             all_seg_ids = numpy.arange(len(seg_index), dtype=numpy.int_)
             recycled_seg_ids = all_seg_ids[seg_index[:]['endpoint_type'] == west.Segment.SEG_ENDPOINT_RECYCLED]

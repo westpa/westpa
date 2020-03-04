@@ -1,26 +1,10 @@
-# Copyright (C) 2013 Matthew C. Zwier and Lillian T. Chong
-#
-# This file is part of WESTPA.
-#
-# WESTPA is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# WESTPA is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import division, print_function
-from west.we_driver import WEDriver
-from west.systems import WESTSystem
+
+from ..we_driver import WEDriver
+from ..systems import WESTSystem
 from westpa.binning import RectilinearBinMapper
-from west.states import TargetState, InitialState
-from west import Segment
+from ..states import TargetState, InitialState
+from ..segment import Segment
 import numpy
 
 EPS = numpy.finfo(numpy.float64).eps
@@ -66,8 +50,8 @@ class TestWEDriver:
         assert (self.we_driver.flux_matrix == numpy.array([[0.0, 0.5], [0.5,0.0]])).all()
         
     def test_passthrough(self):
-        segments = ([self.segment(0.0, 1.5, weight=0.125) for _i in xrange(4)]
-                   +[self.segment(1.5, 0.5, weight=0.125) for _i in xrange(4)])
+        segments = ([self.segment(0.0, 1.5, weight=0.125) for _i in range(4)]
+                   +[self.segment(1.5, 0.5, weight=0.125) for _i in range(4)])
         segs_by_id = {segment.seg_id: segment for segment in segments}
         self.we_driver.new_iteration()
         self.we_driver.assign(segments)
@@ -110,11 +94,11 @@ class TestWEDriver:
         assert abs(sum(seg.weight for seg in self.we_driver.next_iter_binning[0]) - 0.25) < 4*EPS
         assert abs(sum(seg.weight for seg in self.we_driver.next_iter_binning[1]) - 0.75) < 4*EPS 
         assert numpy.allclose([seg.weight for seg in self.we_driver.next_iter_binning[0]],
-                              [0.25/4.0 for _i in xrange(4)])
+                              [0.25/4.0 for _i in range(4)])
         assert numpy.allclose([seg.weight for seg in self.we_driver.next_iter_binning[1]],
-                              [0.75/4.0 for _i in xrange(4)])
+                              [0.75/4.0 for _i in range(4)])
         
-        for ibin in xrange(2):
+        for ibin in range(2):
             for segment in self.we_driver.next_iter_binning[ibin]:
                 print(segment)
                 assert segment.n_iter == 2
@@ -143,7 +127,7 @@ class TestWEDriver:
         segments = [Segment(n_iter=1, seg_id=0, pcoord=numpy.array([[0],[0.25]], dtype=numpy.float32),weight=1.0/3.0),
                     Segment(n_iter=1, seg_id=1, pcoord=numpy.array([[0],[0.75]], dtype=numpy.float32),weight=2.0/3.0)]
         
-        for _iround in xrange(nrounds):
+        for _iround in range(nrounds):
             for segment in segments:
                 segment.endpoint_type = Segment.SEG_ENDPOINT_UNSET
                 
@@ -176,7 +160,7 @@ class TestWEDriver:
         assert abs(sum(seg.weight for seg in self.we_driver.next_iter_binning[0]) - 0.25) < 5*EPS
         assert abs(sum(seg.weight for seg in self.we_driver.next_iter_binning[1]) - 0.75) < 5*EPS 
         
-        for ibin in xrange(2):
+        for ibin in range(2):
             for segment in self.we_driver.next_iter_binning[ibin]:
                 print(segment)
                 assert segment.n_iter == 2
@@ -195,13 +179,13 @@ class TestWEDriver:
         
         for ibin,bin in enumerate(self.we_driver.next_iter_binning):
             pc = numpy.array([[0.5+ibin],[0.0]])
-            for iseg in xrange(6):
+            for iseg in range(6):
                 segment = Segment(n_iter=1, seg_id=None, weight=1.0/12.0,
                                   parent_id=-(ibin+1), pcoord=pc)
                 bin.add(segment)
         
                     
-        for ibin in xrange(len(self.we_driver.next_iter_binning)):
+        for ibin in range(len(self.we_driver.next_iter_binning)):
             # This will raise KeyError if initial state tracking is done improperly
             self.we_driver._adjust_count(ibin)
 
@@ -227,7 +211,7 @@ class TestWEDriver:
         assert len(self.we_driver.next_iter_binning[1]) == 0
         assert abs(sum(seg.weight for seg in self.we_driver.next_iter_binning[0]) - 1.0) < 4*EPS 
         assert numpy.allclose([seg.weight for seg in self.we_driver.next_iter_binning[0]],
-                              [0.25 for _i in xrange(4)])
+                              [0.25 for _i in range(4)])
         assert segments[0].endpoint_type == Segment.SEG_ENDPOINT_RECYCLED
 
         
@@ -259,7 +243,7 @@ class TestWEDriver:
     @nose.SkipTest
     def test_populate_initial(self):
         for prob in [0.1, 1.0 / 3.0, 0.9999999999970001, 1.0]:
-            for tcount in xrange(30, 60):
+            for tcount in range(30, 60):
                 yield self.check_populate_initial, prob, tcount
 
     # TODO: add test for seeding the flux matrix based on recycling 

@@ -1,4 +1,3 @@
-from __future__ import division, print_function; __metaclass__ = type
 
 import time, itertools
 from work_managers.zeromq import ZMQWorkManager, ZMQWorker
@@ -39,7 +38,7 @@ class TestZMQNodeExternal(ZMQTestBase,CommonWorkManagerTests):
         self.test_node.downstream_ann_endpoint = downstream_ann_endpoint
         self.test_node.downstream_rr_endpoint = downstream_rr_endpoint
         
-        self.test_workers = [ZMQWorker(downstream_rr_endpoint, downstream_ann_endpoint) for n in xrange(self.n_workers)]
+        self.test_workers = [ZMQWorker(downstream_rr_endpoint, downstream_ann_endpoint) for n in range(self.n_workers)]
 
         # Set operation parameters 
         for core_object in itertools.chain([self.test_wm, self.test_node, self.test_core], self.test_workers):

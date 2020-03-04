@@ -1,21 +1,4 @@
-# Copyright (C) 2013 Matthew C. Zwier and Lillian T. Chong
-#
-# This file is part of WESTPA.
-#
-# WESTPA is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# WESTPA is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import division; __metaclass__ = type
 
 import numpy
 
@@ -50,7 +33,7 @@ class BasisState:
     def states_to_file(cls, states, fileobj):
         '''Write a file defining basis states, which may then be read by `states_from_file()`.'''
         
-        if isinstance(fileobj, basestring):
+        if isinstance(fileobj, str):
             fileobj = open(fileobj, 'wt')
         
         max_label_len = max(8,max(len(state.label or '') for state in states))
@@ -81,7 +64,7 @@ class BasisState:
         '''
         states = []
         lineno = 0
-        for line in file(filename, 'rt'):
+        for line in open(filename, 'rt'):
             lineno += 1
             
             # remove comment portion
@@ -218,7 +201,7 @@ class TargetState:
     def states_to_file(cls, states, fileobj):
         '''Write a file defining basis states, which may then be read by `states_from_file()`.'''
         
-        if isinstance(fileobj, basestring):
+        if isinstance(fileobj, str):
             fileobj = open(fileobj, 'wt')
         
         max_label_len = max(8,max(len(state.label or '') for state in states))
@@ -255,7 +238,7 @@ class TargetState:
         for line in open_statefile:
             fields = line.split()
             labels.append(fields[0])
-            pcoord_values.append(numpy.array(map(dtype, fields[1:]),dtype=dtype))
+            pcoord_values.append(numpy.array(list(map(dtype, fields[1:])),dtype=dtype))
         
         try:
             open_statefile.close()

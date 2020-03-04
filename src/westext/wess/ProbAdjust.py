@@ -1,19 +1,3 @@
-# Copyright (C) 2013 Joshua L. Adelman
-#
-# This file is part of WESTPA.
-#
-# WESTPA is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# WESTPA is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
 import numpy as np
 import itertools
@@ -28,20 +12,20 @@ def solve_steady_state(T, U, target_bins_index):
         nsolve = nstates - ntarget
 
         # list of active states
-        sactive = sorted(list(set(xrange(nstates)) - set(target_bins_index)))
+        sactive = sorted(list(set(range(nstates)) - set(target_bins_index)))
 
         W = np.zeros((nsolve,nsolve))
         W_unc = np.zeros((nsolve,nsolve))
         S = np.zeros((nsolve,))
 
-        for iiw,iit in itertools.izip(xrange(nsolve),sactive):
-            for jjw,jjt in itertools.izip(xrange(nsolve),sactive):
+        for iiw,iit in zip(range(nsolve),sactive):
+            for jjw,jjt in zip(range(nsolve),sactive):
                 W[iiw,jjw] = T[jjt,iit]
                 W_unc[iiw,jjw] = U[jjt,iit]
 
-        for ii in xrange(nsolve):
+        for ii in range(nsolve):
             W[ii,ii] = 0.0
-            for jj in xrange(nstates): #nstates
+            for jj in range(nstates): #nstates
                 if jj != ii:
                     W[ii,ii] -= T[ii,jj]
 
@@ -58,7 +42,7 @@ def solve_steady_state(T, U, target_bins_index):
         try:
             P,err = scipy.optimize.nnls(W,S)
         except RuntimeError:
-            print 'Solve did not converge'
+            print('Solve did not converge')
             return None
 
         # There are some instances where a single bin has its prob set 
