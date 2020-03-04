@@ -1,21 +1,4 @@
-# Copyright (C) 2017 Matthew C. Zwier and Lillian T. Chong
-#
-# This file is part of WESTPA.
-#
-# WESTPA is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# WESTPA is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import print_function, division; __metaclass__ = type
 import logging
 
 # Let's suppress those numpy warnings.
@@ -87,7 +70,7 @@ class FluxMatrix():
 
         pi.new_operation('Calculating flux matrices', iter_count)
         # Calculate instantaneous statistics
-        for iiter, n_iter in enumerate(xrange(start_iter, stop_iter)):
+        for iiter, n_iter in enumerate(range(start_iter, stop_iter)):
             # Get data from the main HDF5 file
             iter_group = self.data_reader.get_iter_group(n_iter)
             seg_index = iter_group['seg_index']

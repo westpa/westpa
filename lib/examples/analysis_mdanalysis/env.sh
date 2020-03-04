@@ -29,7 +29,7 @@ export CPPTRAJ=$(which cpptraj)
 
 ############################## Python and WESTPA ###############################
 # Next inform WESTPA what python it should use.  
-export WEST_PYTHON=$(which python2.7)
+export WEST_PYTHON=$(which python3)
 
 # Check to make sure that the environment variable WEST_ROOT is set. 
 # Here, the code '[ -z "$WEST_ROOT"]' will return TRUE if WEST_ROOT is not set,

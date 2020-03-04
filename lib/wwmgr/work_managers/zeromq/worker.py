@@ -10,7 +10,7 @@ import logging
 from _ast import Break
 log = logging.getLogger(__name__)
 
-from core import ZMQCore, Message, ZMQWMTimeout, PassiveMultiTimer, Task, Result, TIMEOUT_MASTER_BEACON
+from .core import ZMQCore, Message, ZMQWMTimeout, PassiveMultiTimer, Task, Result, TIMEOUT_MASTER_BEACON
 import threading, multiprocessing, os, signal
 from contextlib import contextmanager
 
@@ -105,9 +105,9 @@ class ZMQWorker(ZMQCore):
         rr_socket = self.context.socket(zmq.REQ)
 
         ann_socket = self.context.socket(zmq.SUB)
-        ann_socket.setsockopt(zmq.SUBSCRIBE,'')
+        ann_socket.setsockopt(zmq.SUBSCRIBE,b'')
         inproc_socket = self.context.socket(zmq.SUB)
-        inproc_socket.setsockopt(zmq.SUBSCRIBE,'')
+        inproc_socket.setsockopt(zmq.SUBSCRIBE,b'')
         
         task_socket = self.context.socket(zmq.PUSH)
         result_socket = self.context.socket(zmq.PULL)
@@ -184,7 +184,7 @@ class ZMQWorker(ZMQCore):
                         self.request_task(rr_socket, task_socket)
                 
                 # Handle any remaining messages
-                for tag, msgs in messages_by_tag.iteritems():
+                for tag, msgs in messages_by_tag.items():
                     if tag == Message.MASTER_BEACON:
                         self.identify(rr_socket)
                     elif tag == Message.RECONFIGURE_TIMEOUT:
@@ -225,21 +225,29 @@ class ZMQWorker(ZMQCore):
                 task_socket.close(linger=1)
             except:
                 pass
-        
+
+        pid = self.executor_process.pid
         self.executor_process.join(self.shutdown_timeout)
-        if self.executor_process.is_alive():            
-            self.log.debug('sending SIGINT to worker process {:d}'.format(self.executor_process.pid))
-            os.kill(self.executor_process.pid, signal.SIGINT)
+        # is_alive() is prone to a race condition so catch the case that the PID is already dead
+        if self.executor_process.is_alive():
+            self.log.debug('sending SIGTERM to worker process {:d}'.format(pid))
+            self.executor_process.terminate()
+            # try:
+            #     os.kill(self.executor_process.pid, signal.SIGINT)
+            # except ProcessLookupError:
+            #     self.log.debug('worker process {:d} already dead'.format(pid))
             self.executor_process.join(self.shutdown_timeout)
             if self.executor_process.is_alive():
-                self.log.warning('sending SIGKILL to worker process {:d}'.format(self.executor_process.pid))
-                os.kill(self.executor_process.pid, signal.SIGKILL)
-                self.executor_process.join()
-                
-            self.log.debug('worker process {:d} terminated with code {:d}'.format(self.executor_process.pid, self.executor_process.exitcode))
+                self.executor_process.kill()
+                self.log.warning('sending SIGKILL to worker process {:d}'.format(pid))
+                # try:
+                #     os.kill(self.executor_process.pid, signal.SIGKILL)
+                # except ProcessLookupError:
+                #     self.log.debug('worker process {:d} already dead'.format(pid))
+            self.executor_process.join()
+            self.log.debug('worker process {:d} terminated'.format(pid))
         else:
-            self.log.debug('worker process {:d} terminated gracefully with code {:d}'.format(self.executor_process.pid, self.executor_process.exitcode))        
-        assert not self.executor_process.is_alive()
+            self.log.debug('worker process {:d} terminated gracefully with code {:d}'.format(pid, self.executor_process.exitcode))
         
     def install_signal_handlers(self, signals = None):
         if not signals:

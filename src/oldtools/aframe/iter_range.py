@@ -1,21 +1,4 @@
-# Copyright (C) 2013 Matthew C. Zwier and Lillian T. Chong
-#
-# This file is part of WESTPA.
-#
-# WESTPA is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# WESTPA is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import division, print_function; __metaclass__ = type
 
 import logging
 
@@ -95,7 +78,7 @@ class IterRangeMixin(AnalysisMixin):
         selected by --first/--last/--step.  NOTE WELL that the second of the pair follows Python
         iterator conventions and returns one past the last element of the block.'''
                             
-        for blkfirst in xrange(self.first_iter, self.last_iter+1, self.iter_step):
+        for blkfirst in range(self.first_iter, self.last_iter+1, self.iter_step):
             yield(blkfirst, min(self.last_iter, blkfirst+self.iter_step-1)+1)
              
         
@@ -176,7 +159,7 @@ class IterRangeMixin(AnalysisMixin):
                                                                               ds_first_iter,ds_last_iter,ds_iter_step)))
         
         dimslices = []
-        for idim in xrange(len(dataset.shape)):
+        for idim in range(len(dataset.shape)):
             if idim == axis:
                 dimslices.append(slice(first_iter - ds_first_iter, last_iter - ds_first_iter + iter_step, iter_step))
             else:

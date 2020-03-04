@@ -1,5 +1,5 @@
 ===============
-WESTPA 1.0
+WESTPA 1.0 
 ===============
 
 
@@ -25,32 +25,48 @@ License, Version 3. See the file ``COPYING`` for more information.
 .. _survey: https://docs.google.com/forms/d/e/1FAIpQLSfWaB2aryInU06cXrCyAFmhD_gPibgOfFk-dspLEsXuS9-RGQ/viewform
 .. _page: https://westpa.github.io/westpa/overview.html
 
+------------
+Requirements
+------------
+
+WESTPA is written in Python and requires version 3. WESTPA further requires
+a large number of scientific software libraries for Python and other
+languages. The simplest way to meet these requirements is to download the
+Anaconda Python distribution from www.continuum.io (free for all users).
+
+WESTPA currently runs on Unix-like operating systems, including Linux and
+Mac OS X. It is developed and tested on x86_64 machines running Linux.
+
 --------------------------------
-Installing WESTPA
+Obtaining and Installing WESTPA
 --------------------------------
 
-First, install the `Anaconda Python distribution`_. Then, make sure you are able to activate conda environments (this is usually taken care of by the Anaconda installer).
+WESTPA is developed and tested on Unix-like operating systems, including Linux and Mac OS X.
 
-WESTPA can then be installed through conda in a dedicated environment with the following.
+Before installing WESTPA, you will need to first install the Python 3 version provided by the latest free `Anaconda Python distribution`_. After installing the Anaconda Python distribution, either add the Python executable to your $PATH or set the environment variable WEST_PYTHON::
 
-``conda create -n westpa -c conda-forge westpa``
-  
-WESTPA will be ready to use after activation with the following command.
+    export WEST_PYTHON=/opt/anaconda/bin/python3
 
-``. $(dirname $(dirname `which python2.7`))/$conda_env/westpa-2017.10/westpa.sh``
-  
-Feel free to install any other conda packages alongside WESTPA in your environment. AmberTools, GROMACS and OpenMM all
-provide conda installations of their MD packages. An example command to create an environment containing WESTPA and AmberTools is given below.
+We recommend obtaining the latest release of WESTPA by downloading the corresponding tar.gz file from the `releases page`_. After downloading the file, unpack the file and install WESTPA by executing the following::
 
-``conda create -n westpa -c conda-forge -c ambermd westpa ambertools``
-    
-.. _`Anaconda Python distribution`: https://www.anaconda.com/distribution/ 
+    tar xvzf westpa-master.tar.gz
+    cd westpa
+    ./setup.sh
+
+A westpa.sh script is created during installation, and will set the following environment variables::
+
+    WEST_ROOT
+    WEST_BIN
+    WEST_PYTHON
+
+These environment variables must be set in order to run WESTPA on your computing cluster.
+
+.. _`releases page`: https://github.com/westpa/westpa/releases
+.. _`Anaconda Python distribution`: https://www.continuum.io/downloads 
 
 ---------------
 Getting started
 ---------------
-
-WESTPA simulation checklist_ 
 
 To define environment variables post-installation, simply source the 
 ``westpa.sh`` script in the ``westpa`` directory from the command line
@@ -69,7 +85,6 @@ a few days with her lab and/or setting up video conferencing sessions to help yo
 simulations off the ground.
 
 .. _here: https://github.com/westpa/westpa/wiki/WESTPA-Tutorials
-.. _checklist: https://github.com/westpa/westpa/wiki/Checklist-for-Setting-Up-a-WESTPA-Simulation
 
 ------------
 Getting help
@@ -82,54 +97,4 @@ if a question one has was previously addressed). This is the preferred means
 for obtaining help and support. See http://groups.google.com/group/westpa-users
 to sign up or search archived messages.
 
-.. _FAQ: https://github.com/westpa/westpa/wiki/Frequently-Asked-Questions-%28FAQ%29
-
--------------------------------------------------------
-Copyright, license, and warranty information
--------------------------------------------------------
-
-For WESTPA
-###########
-
-The WESTPA package is copyright (c) 2013, Matthew C. Zwier, A. J. Pratt,
-Lillian T. Chong, and contributors
-
-WESTPA is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-WESTPA is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program (see the included file ``COPYING``).  If not,
-see <http://www.gnu.org/licenses/>.
-
-Unless otherwise noted, source files included in this distribution and
-lacking a more specific attribution are subject to the above copyright,
-terms, and conditions.
-
-
-For included software
-######################
-
-Distributions of WESTPA include a number of components without modification,
-each of which is subject to its own individual terms and conditions. Please
-see each package's documentation for the most up-to-date possible information
-on authorship and licensing. Such packages include:
-
-h5py
-
-  See ``lib/h5py/docs/source/licenses.rst``
-    
-blessings
-
-  See ``lib/blessings/LICENSE``
-    
-In addition, the ``wwmgr`` work manager is derived from the
-``concurrent.futures`` module (as included in Python 3.2) by Brian Quinlan and
-copyright 2011 the Python Software Foundation. See 
-http://docs.python.org/3/license.html for more information.
+.. _FAQ: https://westpa.github.io/westpa/users_guide/faq.html

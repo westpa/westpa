@@ -1,22 +1,5 @@
-# Copyright (C) 2013 Matthew C. Zwier and Lillian T. Chong
-#
-# This file is part of WESTPA.
-#
-# WESTPA is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# WESTPA is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
 
-from __future__ import division, print_function; __metaclass__ = type
 
 import logging
 
@@ -138,16 +121,16 @@ class BinningMixin(AnalysisMixin):
         
         westpa.rc.pstatus('Assigning to bins...')
         
-        for (iiter, n_iter) in enumerate(xrange(self.first_iter, self.last_iter+1)):
+        for (iiter, n_iter) in enumerate(range(self.first_iter, self.last_iter+1)):
             westpa.rc.pstatus('\r  Iteration {:d}'.format(n_iter), end='')
             seg_index = self.get_seg_index(n_iter)
             pcoords = self.get_iter_group(n_iter)['pcoord'][...]
             weights = seg_index['weight']
             
-            for seg_id in xrange(len(seg_index)):
+            for seg_id in range(len(seg_index)):
                 assignments[iiter,seg_id,:] = self.mapper.assign(pcoords[seg_id,:,:])
             
-            for it in xrange(pcoord_len):
+            for it in range(pcoord_len):
                 populations[iiter, it, :] = numpy.bincount(assignments[iiter,:len(seg_index),it], weights, minlength=self.n_bins)
         
             westpa.rc.pflush()

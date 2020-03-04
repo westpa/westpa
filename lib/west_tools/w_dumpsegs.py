@@ -1,21 +1,4 @@
-# Copyright (C) 2013 Matthew C. Zwier and Lillian T. Chong
-#
-# This file is part of WESTPA.
-#
-# WESTPA is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# WESTPA is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import print_function, division; __metaclass__ = type
 import sys
 from westtools import WESTTool, WESTDataReader
 from west import Segment
@@ -61,8 +44,8 @@ significant analysis tasks).
         segments = self.data_reader.get_segments(self.n_iter)
         
         max_seg_id_len = len(str(max(segment.seg_id for segment in segments)))
-        max_status_name_len = max(map(len,Segment.status_names.itervalues()))
-        max_endpoint_type_len = max(map(len,Segment.endpoint_type_names.itervalues()))
+        max_status_name_len = max(list(map(len,iter(Segment.status_names.values()))))
+        max_endpoint_type_len = max(list(map(len,iter(Segment.endpoint_type_names.values()))))
         max_n_parents_len = len(str(max(len(segment.wtg_parent_ids) for segment in segments)))
         
         report_line = ( '{segment.n_iter:d}  {segment.seg_id:{max_seg_id_len}d}  {segment.weight:20.14g}' 

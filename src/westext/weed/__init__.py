@@ -5,6 +5,6 @@ and testing by Carsen Stringer. Re-factoring and optimization of probability
 adjustment routines by Joshua L. Adelman (January 2012).
 '''
 
-import BinCluster, ProbAdjustEquil, UncertMath, weed_driver
-from ProbAdjustEquil import probAdjustEquil
-from weed_driver import WEEDDriver
+from . import BinCluster, ProbAdjustEquil, UncertMath, weed_driver
+from .ProbAdjustEquil import probAdjustEquil
+from .weed_driver import WEEDDriver
