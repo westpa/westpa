@@ -1,21 +1,4 @@
-# Copyright (C) 2013 Matthew C. Zwier and Lillian T. Chong
-#
-# This file is part of WESTPA.
-#
-# WESTPA is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# WESTPA is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
-__metaclass__ = type
 import numpy
 from math import isnan
 
@@ -72,9 +55,9 @@ class Segment:
         # assuming that the respective fields are actually strings, probably after implicitly 
         # calling __str__() on them.  Not sure if this is a numpy, h5py, or python problem
         self.n_iter = int(n_iter)  if n_iter is not None else None
-        self.seg_id = long(seg_id) if seg_id is not None else None
+        self.seg_id = int(seg_id) if seg_id is not None else None
         self.status = int(status)  if status is not None else None
-        self.parent_id = long(parent_id) if parent_id is not None else None
+        self.parent_id = int(parent_id) if parent_id is not None else None
         self.endpoint_type = int(endpoint_type) if endpoint_type else self.SEG_ENDPOINT_UNSET
         
         self.weight = float(weight) if weight is not None else None

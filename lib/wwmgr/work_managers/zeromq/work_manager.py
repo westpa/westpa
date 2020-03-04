@@ -7,15 +7,15 @@ Created on Jun 10, 2015
 import logging
 log = logging.getLogger(__name__)
 
-from core import ZMQCore, Message, Task, Result, ZMQWorkerMissing, ZMQWMEnvironmentError, IsNode
-from core import randport
-from worker import ZMQWorker
-from node import ZMQNode
+from .core import ZMQCore, Message, Task, Result, ZMQWorkerMissing, ZMQWMEnvironmentError, IsNode
+from .core import randport
+from .worker import ZMQWorker
+from .node import ZMQNode
 import work_managers
 from work_managers import WorkManager, WMFuture
 import multiprocessing
 
-from core import PassiveMultiTimer
+from .core import PassiveMultiTimer
 
 import zmq
 
@@ -378,7 +378,7 @@ class ZMQWorkManager(ZMQCore,WorkManager,IsNode):
             if endpoint: ann_socket.bind(endpoint)
 
         inproc_socket = self.context.socket(zmq.SUB)
-        inproc_socket.setsockopt(zmq.SUBSCRIBE,'')
+        inproc_socket.setsockopt(zmq.SUBSCRIBE,b'')
         inproc_socket.bind(self.inproc_endpoint)
         
         poller = zmq.Poller()

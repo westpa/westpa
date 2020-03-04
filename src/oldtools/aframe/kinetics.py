@@ -1,21 +1,4 @@
-# Copyright (C) 2013 Matthew C. Zwier and Lillian T. Chong
-#
-# This file is part of WESTPA.
-#
-# WESTPA is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# WESTPA is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import division, print_function; __metaclass__ = type
 
 import logging
 
@@ -88,8 +71,8 @@ class KineticsAnalysisMixin(AnalysisMixin):
             fields = re.split('\s*,\s*', range_string)
             for field in fields:
                 if '-' in field:
-                    lb, ub = map(int,re.split('\s*-\s*', field))
-                    entries.update(range(lb,ub+1))
+                    lb, ub = list(map(int,re.split('\s*-\s*', field)))
+                    entries.update(list(range(lb,ub+1)))
                 else:
                     entries.add(int(field))
         except (ValueError,TypeError):
@@ -108,13 +91,13 @@ class KineticsAnalysisMixin(AnalysisMixin):
             if (numpy.array(list(self.analysis_initial_bins)) >= n_bins).any():
                 raise ValueError('One or more initial bin indices is out of range.')
         else:
-            self.analysis_initial_bins = set(xrange(n_bins))
+            self.analysis_initial_bins = set(range(n_bins))
         
         if self.analysis_final_bins:
             if (numpy.array(list(self.analysis_final_bins)) >= n_bins).any():
                 raise ValueError('One or more final bin indices is out of range.')
         else:
-            self.analysis_final_bins = set(xrange(n_bins))
+            self.analysis_final_bins = set(range(n_bins))
         
     @property
     def selected_bin_pair_iter(self):

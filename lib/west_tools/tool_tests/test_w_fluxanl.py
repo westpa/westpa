@@ -1,4 +1,3 @@
-from __future__ import division, print_function; __metaclass__ = type
 
 import nose
 import nose.tools
@@ -6,7 +5,7 @@ from nose.tools import with_setup
 from nose.plugins.skip import SkipTest
 
 import tempfile, math
-from common import *
+from .common import *
 from w_fluxanl import WFluxanlTool
 import h5py
 
@@ -47,9 +46,9 @@ class Test_W_Fluxanl_Args(CommonToolTest):
         '''Check that output file for w_fluxanl is set up correctly'''
 
         with h5py.File(self.outfile) as f:
-            assert 'target_flux' in f.keys(), "'target flux' group not in output file"
+            assert 'target_flux' in list(f.keys()), "'target flux' group not in output file"
             target_group = f['target_flux']
-            assert 'index' in target_group.keys(), "'index' group not in output file"
+            assert 'index' in list(target_group.keys()), "'index' group not in output file"
             index_group = target_group['index']
 
             mean_flux = index_group['mean_flux'][0]

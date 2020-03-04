@@ -1,22 +1,5 @@
-# Copyright (C) 2013 Matthew C. Zwier and Lillian T. Chong
-#
-# This file is part of WESTPA.
-#
-# WESTPA is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# WESTPA is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import division, print_function; __metaclass__ = type
-from core import WESTToolComponent
+from .core import WESTToolComponent
 import re 
 import numpy
 import westpa
@@ -47,7 +30,7 @@ class SegmentSelection:
 
     def add(self, pair):
         
-        (n_iter,seg_id) = long(pair[0]), long(pair[1])
+        (n_iter,seg_id) = int(pair[0]), int(pair[1])
         self._segments.add((n_iter,seg_id))
         self._segs_by_iter.setdefault(n_iter,set()).add(seg_id)
         if self._start_iter is None:
@@ -85,7 +68,7 @@ class SegmentSelection:
                 raise ValueError('malformed segment selection {!r}'.format(line))
             
             try:
-                n_iter, seg_id = map(long,fields)
+                n_iter, seg_id = list(map(int,fields))
             except ValueError:
                 raise ValueError('malformed segment selection {!r}'.format(line))
             
@@ -117,7 +100,7 @@ class AllSegmentSelection(SegmentSelection):
     def __len__(self):
         segcount = 0
         count_from_iter = self._count_from_iter
-        for n_iter in xrange(self._start_iter, self._stop_iter):
+        for n_iter in range(self._start_iter, self._stop_iter):
             segcount += count_from_iter(n_iter)
         return segcount
     
@@ -161,7 +144,7 @@ class SegSelector(WESTToolComponent):
                 raise ValueError('malformed segment selection {!r}'.format(line))
             
             try:
-                n_iter, seg_id = map(long,fields)
+                n_iter, seg_id = list(map(int,fields))
             except ValueError:
                 raise ValueError('malformed segment selection {!r}'.format(line))
             

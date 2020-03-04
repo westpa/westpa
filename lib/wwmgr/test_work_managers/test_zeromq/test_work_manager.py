@@ -4,7 +4,6 @@ Created on Jun 2, 2015
 @author: mzwier
 '''
 
-from __future__ import division, print_function; __metaclass__ = type
 
 import time
 from work_managers.zeromq import ZMQWorkManager, ZMQWorker, ZMQWorkerMissing
@@ -99,7 +98,7 @@ class TestZMQWorkManagerBasic(ZMQTestBase):
     @contextmanager
     def expect_announcement(self, message):
         subsocket = self.test_context.socket(zmq.SUB)
-        subsocket.setsockopt(zmq.SUBSCRIBE,'')
+        subsocket.setsockopt(zmq.SUBSCRIBE,b'')
         subsocket.connect(self.ann_endpoint)
         
         time.sleep(SETUP_WAIT)
@@ -114,7 +113,7 @@ class TestZMQWorkManagerBasic(ZMQTestBase):
             
     def discard_announcements(self):
         subsocket = self.test_context.socket(zmq.SUB)
-        subsocket.setsockopt(zmq.SUBSCRIBE,'')
+        subsocket.setsockopt(zmq.SUBSCRIBE,b'')
         subsocket.connect(self.ann_endpoint)
         
         time.sleep(SETUP_WAIT)

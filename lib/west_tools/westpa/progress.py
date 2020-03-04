@@ -1,21 +1,4 @@
-# Copyright (C) 2013 Matthew C. Zwier and Lillian T. Chong
-#
-# This file is part of WESTPA.
-#
-# WESTPA is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# WESTPA is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import print_function, division; __metaclass__ = type
 import threading, time, blessings #@UnresolvedImport
 from collections import deque
 import numpy
@@ -136,9 +119,9 @@ class ProgressIndicator:
             else:
                 nlines = 1
 
-            for _i in xrange(nlines):
+            for _i in range(nlines):
                 self.terminal.stream.write('{t.clear_eol}{t.move_down}'.format(t=self.terminal))
-            for _i in xrange(nlines):
+            for _i in range(nlines):
                 self.terminal.stream.write('{t.move_up}'.format(t=self.terminal))
 
     @property
@@ -220,7 +203,7 @@ if __name__ == '__main__':
     with ProgressIndicator() as pi:
         pi.operation='Test 1'
         pi.extent = 10
-        for i in xrange(10):
+        for i in range(10):
             pi.progress = i+1
             time.sleep(2)
             

@@ -1,21 +1,5 @@
-# Copyright (C) 2013 Joshua L. Adelman
-#
-# This file is part of WESTPA.
-#
-# WESTPA is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# WESTPA is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import division, print_function
+
 from westpa.kinetics._kinetics import calc_rates, StreamingStats2D, StreamingStats1D
 from westpa.kinetics.rate_averaging import tuple2stats
 from collections import namedtuple
@@ -117,11 +101,11 @@ class TestStreamingStats2D:
         mask = numpy.zeros((nbins, nbins), numpy.uint8)
 
         rate_stats1 = StreamingStats2D((nbins, nbins))
-        for d in data[:(nbins/2)]:
+        for d in data[:(nbins//2)]:
             rate_stats1.update(d, mask)
 
         rate_stats2 = StreamingStats2D((nbins, nbins))
-        for d in data[(nbins/2):nbins]:
+        for d in data[(nbins//2):nbins]:
             rate_stats2.update(d, mask)
 
         rate_stats3 = rate_stats1 + rate_stats2
@@ -155,11 +139,11 @@ class TestStreamingStats2D:
         mask = numpy.random.randint(2, size=data.shape).astype(numpy.uint8)
 
         rate_stats1 = StreamingStats2D((nbins, nbins))
-        for di, d in enumerate(data[:(nbins/2)]):
+        for di, d in enumerate(data[:(nbins//2)]):
             rate_stats1.update(d, mask[di])
 
         rate_stats2 = StreamingStats2D((nbins, nbins))
-        for di, d in enumerate(data[(nbins/2):]):
+        for di, d in enumerate(data[(nbins//2):]):
             rate_stats2.update(d, mask[di])
 
         rate_stats3 = rate_stats1 + rate_stats2
@@ -195,11 +179,11 @@ class TestStreamingStats1D:
         mask = numpy.zeros((nbins,), numpy.uint8)
 
         rate_stats1 = StreamingStats1D(nbins)
-        for d in data[:(nbins/2)]:
+        for d in data[:(nbins//2)]:
             rate_stats1.update(d, mask)
 
         rate_stats2 = StreamingStats1D(nbins)
-        for d in data[(nbins/2):]:
+        for d in data[(nbins//2):]:
             rate_stats2.update(d, mask)
 
         rate_stats3 = rate_stats1 + rate_stats2
@@ -233,11 +217,11 @@ class TestStreamingStats1D:
         mask = numpy.random.randint(2, size=data.shape).astype(numpy.uint8)
 
         rate_stats1 = StreamingStats1D(nbins)
-        for di, d in enumerate(data[:(nbins/2)]):
+        for di, d in enumerate(data[:(nbins//2)]):
             rate_stats1.update(d, mask[di])
 
         rate_stats2 = StreamingStats1D(nbins)
-        for di, d in enumerate(data[(nbins/2):]):
+        for di, d in enumerate(data[(nbins//2):]):
             rate_stats2.update(d, mask[di])
 
         rate_stats3 = rate_stats1 + rate_stats2

@@ -1,24 +1,7 @@
-# Copyright (C) 2013 Matthew C. Zwier and Lillian T. Chong
-#
-# This file is part of WESTPA.
-#
-# WESTPA is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# WESTPA is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
 
 '''Core classes for creating WESTPA command-line tools'''
 
-from __future__ import print_function, division; __metaclass__ = type
 
 import sys, argparse, os
 import westpa
@@ -250,12 +233,19 @@ class WESTMasterCommand(WESTTool):
         subparsers = parser.add_subparsers(title=self.subparsers_title)
         if self.include_help_command:
             _WESTSubcommandHelp(self).add_to_subparsers(subparsers)
-        for instance in self._subcommand_instances.itervalues():
+        for instance in self._subcommand_instances.values():
             instance.add_to_subparsers(subparsers)
 
     def process_args(self, args):
-        self._subcommand = args.west_subcommand
-        self._subcommand.process_all_args(args)
+        try:
+            self._subcommand = args.west_subcommand
+        except AttributeError:
+            # No subcommand given; display help
+            print('Error: a command is required. See below.', file=sys.stderr)
+            self.parser.print_help(sys.stderr)
+            sys.exit(2)
+        else:
+            self._subcommand.process_all_args(args)
     
     def go(self):
         self._subcommand.go()

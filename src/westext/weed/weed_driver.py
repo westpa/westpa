@@ -1,28 +1,11 @@
-# Copyright (C) 2013 Matthew C. Zwier, Joshua L. Adelman and Lillian T. Chong
-#
-# This file is part of WESTPA.
-#
-# WESTPA is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# WESTPA is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import division; __metaclass__ = type
 
 import logging
 log = logging.getLogger(__name__)
 
 import numpy
 import operator
-from itertools import izip, imap
+
 
 import westpa, west
 from westpa.yamlcfg import check_bool
@@ -54,7 +37,7 @@ class WEEDDriver:
                 self.windowtype = 'fraction'
                 if self.windowsize <= 0 or self.windowsize > 1:
                     raise ValueError('WEED parameter error -- fractional window size must be in (0,1]')
-            elif isinstance(windowsize,(int,long)):
+            elif isinstance(windowsize,int):
                 self.windowsize = int(windowsize)
                 self.windowtype = 'fixed'
             else:
@@ -107,7 +90,7 @@ class WEEDDriver:
 
         with self.data_manager.lock:
             weed_global_group = self.data_manager.we_h5file.require_group('weed')
-            last_reweighting = long(weed_global_group.attrs.get('last_reweighting', 0))
+            last_reweighting = int(weed_global_group.attrs.get('last_reweighting', 0))
 
         if n_iter - last_reweighting < self.reweight_period:
             # Not time to reweight yet
@@ -146,7 +129,7 @@ class WEEDDriver:
             avg_rates_ds[...] = averager.average_rate
             unc_rates_ds[...] = averager.stderr_rate
 
-            binprobs = numpy.fromiter(imap(operator.attrgetter('weight'),bins), dtype=numpy.float64, count=n_bins)
+            binprobs = numpy.fromiter(map(operator.attrgetter('weight'),bins), dtype=numpy.float64, count=n_bins)
             orig_binprobs = binprobs.copy()
 
         westpa.rc.pstatus('Calculating equilibrium reweighting using window size of {:d}'.format(self.eff_windowsize))
@@ -166,12 +149,12 @@ class WEEDDriver:
                                 .format(numpy.array_str(numpy.arange(n_bins)[z2nz_mask])))
         else:
             westpa.rc.pstatus('\nBin populations after reweighting:\n{!s}'.format(binprobs))
-            for (bin, newprob) in izip(bins, binprobs):
+            for (bin, newprob) in zip(bins, binprobs):
                 bin.reweight(newprob)
 
             weed_global_group.attrs['last_reweighting'] = n_iter
 
-        assert (abs(1 - numpy.fromiter(imap(operator.attrgetter('weight'),bins), dtype=numpy.float64, count=n_bins).sum())
-                < EPS * numpy.fromiter(imap(len,bins), dtype=numpy.int, count=n_bins).sum())
+        assert (abs(1 - numpy.fromiter(map(operator.attrgetter('weight'),bins), dtype=numpy.float64, count=n_bins).sum())
+                < EPS * numpy.fromiter(map(len,bins), dtype=numpy.int, count=n_bins).sum())
 
         westpa.rc.pflush()

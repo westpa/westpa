@@ -1,25 +1,9 @@
-# Copyright (C) 2013 Joshua L. Adelman, Carsen A. Stringer and Daniel M. Zuckerman
-#
-# This file is part of WESTPA.
-#
-# WESTPA is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# WESTPA is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
 
 import numpy as np
-from itertools import izip
 
-import UncertMath
+
+from . import UncertMath
 
 class ClusterList(object):
     def __init__(self,ratios,nbins):
@@ -43,7 +27,7 @@ class ClusterList(object):
         """ Join clusters given a tuple (i,j) of bin pairs
         """
 
-        for i,j in izip(*pairs):
+        for i,j in zip(*pairs):
             # Both bins not joined
             if self.bin_assign[i] == -1 and self.bin_assign[j] == -1:
                 # Create new cluster
@@ -130,7 +114,7 @@ class ClusterList(object):
         """ Join clusters using direct ratios given a tuple (i,j) of bin pairs
         """
 
-        for i,j in izip(*pairs):
+        for i,j in zip(*pairs):
             # Both bins not joined
             if self.bin_assign[i] == -1 and self.bin_assign[j] == -1:
                 # Create new cluster

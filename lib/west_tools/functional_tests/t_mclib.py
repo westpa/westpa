@@ -1,4 +1,4 @@
-from __future__ import print_function, division
+
 import numpy
 from mclib import mcbs_ci, mcbs_ci_correl, mcbs_correltime
 
