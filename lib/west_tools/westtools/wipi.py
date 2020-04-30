@@ -325,11 +325,8 @@ class __get_data_for_iteration__(object):
         self.parent = parent
         current = {}
         current['iteration'] = value
-        try: 
-            if seg_ids == None:
-                seg_ids = range(0, iter_group['seg_index']['weight'].shape[0])
-        except:
-            pass
+        if seg_ids is None:
+            seg_ids = range(0, iter_group['seg_index']['weight'].shape[0])
         # Just make these easier to access.
         current['weights'] = iter_group['seg_index']['weight'][seg_ids]
         current['pcoord'] = iter_group['pcoord'][...][seg_ids, :, :]
