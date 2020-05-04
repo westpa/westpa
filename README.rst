@@ -43,6 +43,8 @@ Obtaining and Installing WESTPA
 
 WESTPA is developed and tested on Unix-like operating systems, including Linux and Mac OS X.
 
+We recommend installing WESTPA through conda. See the quick install instructions on our `wiki`_ for how to do this. To install from source (not recommended), please continue reading.
+
 Before installing WESTPA, you will need to first install the Python 3 version provided by the latest free `Anaconda Python distribution`_. After installing the Anaconda Python distribution, either add the Python executable to your $PATH or set the environment variable WEST_PYTHON::
 
     export WEST_PYTHON=/opt/anaconda/bin/python3
@@ -63,6 +65,7 @@ These environment variables must be set in order to run WESTPA on your computing
 
 .. _`releases page`: https://github.com/westpa/westpa/releases
 .. _`Anaconda Python distribution`: https://www.continuum.io/downloads 
+.. _`wiki`: https://github.com/westpa/westpa/wiki/WESTPA-Quick-Installation
 
 ---------------
 Getting started
