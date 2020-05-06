@@ -67,30 +67,31 @@ export PATH="$PREFIX/bin:$PATH"
 ### +------------------------------------------------+ ########################################
 
 # Specify conda environment name
-conda_env=westpa_py3
+conda_env=westpa-2020.01
 
-# Install WESTPA in virtual environment
-#KFW conda create --yes -c conda-forge -n $conda_env westpa
-conda create --yes -c kimwong -n $conda_env westpa_py3
+# Update conda first
+conda update -n base -c defaults conda
 
+# Initialize conda
+conda init $(basename $SHELL)
+
+# Source initialization parameters created by conda init
 . $PREFIX/etc/profile.d/conda.sh
 
+# Install WESTPA in virtual environment
+conda create --yes -n $conda_env -c conda-forge westpa
+##conda create --yes -n $conda_env -c kimwong westpa
+
+# Test activate/deactive: will get an error if broken
 conda activate $conda_env
 
-# Place WESTPA environment variables inside conda env
-export ENV_PREFIX="$(dirname $(dirname `which python3`))"
-mkdir -p $ENV_PREFIX/etc/conda/activate.d
-mkdir -p $ENV_PREFIX/etc/conda/deactivate.d
-touch $ENV_PREFIX/etc/conda/activate.d/env_vars.sh
-cat << EOC >> $ENV_PREFIX/etc/conda/activate.d/env_vars.sh 
-. $(dirname $(dirname `which python3`))/$conda_env/westpa.sh
-EOC
-touch $ENV_PREFIX/etc/conda/deactivate.d/env_vars.sh
+echo "WEST_ROOT   = " $WEST_ROOT
+echo "WEST_BIN    = " $WEST_BIN
+echo "WEST_PYTHON = " $WEST_PYTHON
 
 conda deactivate
 
 # Reminder to add Miniconda3 install location to PATH
-echo "Be sure to add the following lines to your .bashrc startup file"
-echo "export PATH="$PREFIX/bin:'$PATH'""
-echo ". $PREFIX/etc/profile.d/conda.sh"
+echo ""
+echo "If WEST_ROOT, WEST_BIN, and WEST_PYTHON are defined, your WESTPA installation was successful."
 
