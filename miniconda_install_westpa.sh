@@ -67,7 +67,7 @@ export PATH="$PREFIX/bin:$PATH"
 ### +------------------------------------------------+ ########################################
 
 # Specify conda environment name
-conda_env=westpa
+conda_env=westpa-2020.01
 
 # Update conda first
 conda update -n base -c defaults conda
@@ -79,8 +79,8 @@ conda init $(basename $SHELL)
 . $PREFIX/etc/profile.d/conda.sh
 
 # Install WESTPA in virtual environment
-conda create --yes -c conda-forge -n $conda_env westpa
-##conda create --yes -c kimwong -n $conda_env westpa
+conda create --yes -n $conda_env -c conda-forge westpa
+##conda create --yes -n $conda_env -c kimwong westpa
 
 # Test activate/deactive: will get an error if broken
 conda activate $conda_env
