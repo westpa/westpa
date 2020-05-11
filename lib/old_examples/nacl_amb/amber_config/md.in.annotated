@@ -1,0 +1,31 @@
+#!/bin/bash
+# md-continue.in
+#   RUN AS SCRIPT TO REMOVE ANNOTATIONS PRIOR TO USE
+sed "/^sed/d;s/#.*//;/^\s*$/d;s/\s*$//" $(basename $0) > $(basename $0 .annotated); exit
+5 ps unrestrained NVT production using Langevin thermostat
+&cntrl
+#################################### INPUT ####################################
+  ntx       = 5,        # Read input coordinates and velocities
+  irest     = 1,        # Restart calculation from input file
+  ig        = RAND,     # Use random seed from WESTPA
+################################# INTEGRATOR ##################################
+  dt        = 0.002,    # Timestep (ps)
+  nstlim    = 2500,     # Simulation duration (timesteps)
+  nscm      = 500,      # Interval for removal of center-of-mass motion 
+  gamma_ln  = 1.0,      # Langevin collision frequency (ps^-1)
+  ntf       = 2,        # Omit force calculations for bond interactions with H
+  ntc       = 2,        # Apply SHAKE to hydrogen atoms
+################################## ENSEMBLE ###################################
+  ntb       = 1,        # Periodic boundary condition (constant volume)
+  ntt       = 3,        # Langevin thermostat
+  temp0     = 300.0,    # System temperature (K)
+########################### NONBONDED INTERACTIONS ############################
+  cut       = 10.0,     # Cutoff for nonbonded interactions
+################################### OUTPUT ####################################
+  ntpr      = 5,        # Log output interval (timesteps)
+  ntxo      = 2,        # Output restart file in NetCDF binary format
+  ntwr      = 2500,     # Restart file output interval (timesteps)
+  ioutfm    = 1,        # Output trajectory in NetCDF binary format
+  ntwx      = 50,       # Trajectory output interval (timesteps)
+  iwrap     = 1,        # Wrap coordinates in output files
+&end

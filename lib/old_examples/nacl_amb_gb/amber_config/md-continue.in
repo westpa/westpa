@@ -1,0 +1,19 @@
+0.5 ps NVT production with Langevin thermostat and GB implicit solvent
+&cntrl
+  ntx       = 5,
+  irest     = 1,
+  ig        = RAND,
+  dt        = 0.002,
+  nstlim    = 250,
+  ntt       = 3,
+  temp0     = 300.0,
+  gamma_ln  = 0.5,
+  cut       = 999.0,
+  rgbmax    = 999.0,
+  igb       = 1,
+  ntpr      = 50,
+  ntxo      = 2,
+  ntwr      = 250,
+  ioutfm    = 1,
+  ntwx      = 50,
+&end

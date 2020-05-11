@@ -1,0 +1,36 @@
+; md-genvel.mdp
+;   0.5 ps NVT production with Langevin thermostat and GB implicit solvent
+#################################### INPUT ####################################
+ld_seed     = RAND      ; Use random seed from WESTPA
+tinit       = 0         ; Initial time is 0
+################################# INTEGRATOR ##################################
+integrator  = sd        ; Langevin thermostat
+dt          = 0.002     ; Timestep (ps)
+nsteps      = 250       ; Simulation duration (timesteps)
+nstcomm     = 250       ; Center of mass motion removal interval
+comm_mode   = linear    ; Center of mass motion removal mode
+################################## ENSEMBLE ###################################
+ref_t       = 300       ; System temperature (K)
+gen_vel     = yes       ; Initialize velocities from Maxwellian distribution
+tau_t       = 2.0       ; Thermostat time constant (ps)
+tc_grps     = system    ; Apply thermostat to complete system
+############################## IMPLICIT SOLVENT ###############################
+implicit_solvent = GBSA ; Generalized Born implicit solvent
+gb_algorithm     = HCT  ; Hawkins-Cramer-Truhlar radii calculation
+rgbradii         = 0.0  ; Cutoff for Born radii calculation (A)
+########################### NONBONDED INTERACTIONS ############################
+cutoff_scheme = group   ; Method of managing neighbor lists
+pbc           = no      ; Periodic boundary conditions disabled
+coulombtype   = cut-off ; Calculate coulomb interactions using cutoff
+rcoulomb      = 0.0     ; Coulomb cutoff of infinity
+vdw_type      = cut-off ; Calculate van der Waals interactions using cutoff
+rvdw          = 0.0     ; Van der Waals cutoff of infinity
+rlist         = 0.0     ; Neighbor list cutoff
+nstlist       = 0       ; Do not update neighbor list
+################################### OUTPUT ####################################
+nstlog        = 50      ; Log output interval (timesteps)
+nstenergy     = 50      ; Energy output interval (timesteps)
+nstcalcenergy = 50      ; Energy calculation interval (timesteps)
+nstxout       = 50      ; Trajectory output interval (timesteps)
+nstvout       = 50      ; Velocity outout interval (timesteps)
+nstfout       = 50      ; Force output interval (timesteps)
