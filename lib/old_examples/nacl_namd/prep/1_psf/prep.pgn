@@ -1,0 +1,9 @@
+package require psfgen
+package require solvate
+topology ../../namd_config/toppar/toppar_water_ions_for_namd.str
+segment nacl {pdb nacl_no_solvent.pdb}
+coordpdb nacl_no_solvent.pdb nacl
+writepsf nacl_no_solvent.psf
+writepdb nacl_no_solvent_processed.pdb
+solvate nacl_no_solvent.psf nacl_no_solvent_processed.pdb -minmax {{-10 -10 -10} {22 22 22}} -o nacl
+quit

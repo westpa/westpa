@@ -1,0 +1,24 @@
+; minimize.mdp
+; energy minimization 
+################################# INTEGRATOR ###################################
+integrator  = steep                ; steepest-descent minimization
+emtol       = 10.0                ; Condition for stopping minimzation
+emstep      = 0.01                 ; Step size
+dt          = 0.002                ; Timestep (ps)
+nsteps      = 2500                 ; Number of steps of minimization (at max)
+########################### NONBONDED INTERACTIONS #############################
+coulombtype     = PME              ; Switch/PME long-range electrostatics
+fourierspacing  = 0.1              ; spacing for PME grid
+pme_order       = 6                ; Interpolation order for PME
+ewald_rtol      = 0.000001         
+pbc             = xyz              ; Periodic boundary condition
+rcoulomb        = 1.0              ; Short-range electrostatic cutoff (nm)
+rcoulomb_switch = 0.9              ; Short-range electrostatic switch cutoff (nm)
+vdwtype         = Switch           ; Switch van der Waals interactions
+rvdw            = 0.9              ; Van der Waals cutoff (nm)
+rvdw_switch     = 0.8              ; Van der Waals switch cutoff (nm)
+DispCorr        = Ener             ; Long-range dispersion correction to energy
+ns_type         = grid             ; Update neighbor list using grid
+nstlist         = 10               ; Neighbor list update interval (timesteps)
+rlist           = 1.00             ; Neighbor list cut-off (nm)
+cutoff-scheme   = group            ; Cutoff scheme

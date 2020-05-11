@@ -1,0 +1,8 @@
+source leaprc.water.tip3p
+loadAmberParams frcmod.ionsjc_tip3p
+system = loadpdb ./nacl_no_solvent.pdb
+SolvateOct system TIP3PBOX 12.0
+
+SaveAmberParm   system nacl.parm7 nacl.rst
+SavePDB         system nacl_solvated.pdb
+quit

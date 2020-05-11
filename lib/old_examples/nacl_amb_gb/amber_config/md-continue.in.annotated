@@ -1,0 +1,30 @@
+#!/bin/bash
+# md-continue.in
+#   RUN AS SCRIPT TO REMOVE ANNOTATIONS PRIOR TO USE
+sed "/^sed/d;s/#.*//;/^\s*$/d;s/\s*$//" $(basename $0) > $(basename $0 .annotated); exit
+0.5 ps NVT production with Langevin thermostat and GB implicit solvent
+################################### CONTROL ###################################
+&cntrl
+#################################### INPUT ####################################
+  ntx       = 5,        # Read input coordinates and velocities
+  irest     = 1,        # Restart calculation from input file
+  ig        = RAND,     # Use random seed from WESTPA
+################################# INTEGRATOR ##################################
+  dt        = 0.002,    # Timestep (ps)
+  nstlim    = 250,      # Simulation duration (timesteps)
+################################## ENSEMBLE ###################################
+  ntt       = 3,        # Langevin thermostat
+  temp0     = 300.0,    # System temperature (K)
+  gamma_ln  = 0.5,      # Langevin collision frequency (1 / tau) (ps-1)
+########################### NONBONDED INTERACTIONS ############################
+  cut       = 999.0,    # Nonbonded cutoff (A)
+  rgbmax    = 999.0,    # Cutoff for effective Born radii calculation (A)
+############################## IMPLICIT SOLVENT ###############################
+  igb       = 1,        # Generalized Born implicit solvent
+################################### OUTPUT ####################################
+  ntpr      = 50,       # Log output interval (timesteps)
+  ntxo      = 2,        # Output restart file in NetCDF binary format
+  ntwr      = 250,      # Restart file output interval (timesteps)
+  ioutfm    = 1,        # Output trajectory in NetCDF binary format
+  ntwx      = 50,       # Trajectory output interval (timesteps)
+&end
