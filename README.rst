@@ -106,6 +106,4 @@ to sign up or search archived messages.
 Developers
 ----------
 
-Search archived messages or post to the westpa-devel Google group here_.
-
-.. _here: https://groups.google.com/group/westpa-devel
+Search archived messages or post to the westpa-devel Google group: https://groups.google.com/group/westpa-devel.
