@@ -101,3 +101,11 @@ for obtaining help and support. See http://groups.google.com/group/westpa-users
 to sign up or search archived messages.
 
 .. _FAQ: https://westpa.github.io/westpa/users_guide/faq.html
+
+----------
+Developers
+----------
+
+Search archived messages or post to the westpa-devel Google group here_.
+
+.. _here: https://groups.google.com/group/westpa-devel
