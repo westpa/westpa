@@ -5,7 +5,7 @@ import numpy
 trajnode = namedtuple('trajnode', ('n_iter', 'seg_id'))
 from collections import deque
 import westpa
-from westtools.tool_classes.selected_segs import AllSegmentSelection
+from westtools.selected_segs import AllSegmentSelection
 import _trajtree
 from _trajtree import _trajtree_base #@UnresolvedImport
 
