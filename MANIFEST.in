@@ -1,0 +1,6 @@
+include LICENSE
+
+# exclude for now to avoid potential problems with pip
+exclude pyproject.toml
+include versioneer.py
+include src/westpa/_version.py
