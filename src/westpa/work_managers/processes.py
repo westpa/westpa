@@ -1,8 +1,14 @@
+import logging
+import multiprocessing
+import os
+import random
+import signal
+import sys
+import threading
+import traceback
 
-
-import sys, logging, multiprocessing, threading, traceback, signal, os, random
-import work_managers
-from . import WorkManager, WMFuture
+import westpa.work_managers as work_managers
+from . core import WorkManager, WMFuture
 
 log = logging.getLogger(__name__)
 
@@ -13,15 +19,16 @@ log = logging.getLogger(__name__)
 task_shutdown_sentinel   = ('shutdown', None, None, (), {})
 result_shutdown_sentinel = ('shutdown', None, None)
 
+
 class ProcessWorkManager(WorkManager):
     '''A work manager using the ``multiprocessing`` module.'''
-    
+
     @classmethod
-    def from_environ(cls, wmenv=None): 
+    def from_environ(cls, wmenv=None):
         if wmenv is None:
-            wmenv = work_managers.environment.default_env 
+            wmenv = work_managers.environment.default_env
         return cls(wmenv.get_val('n_workers', multiprocessing.cpu_count(), int))
-    
+
     def __init__(self, n_workers = None, shutdown_timeout = 1):
         super(ProcessWorkManager,self).__init__()
         self.n_workers = n_workers or multiprocessing.cpu_count()
@@ -30,10 +37,10 @@ class ProcessWorkManager(WorkManager):
         self.result_queue = multiprocessing.Queue()
         self.receive_thread = None
         self.pending = None
-        
+
         self.shutdown_received = False
         self.shutdown_timeout = shutdown_timeout or 1
-        
+
     def task_loop(self):
         # Close standard input, so we don't get SIGINT from ^C
         try:
@@ -43,13 +50,13 @@ class ProcessWorkManager(WorkManager):
 
         # (re)initialize random number generator in this process
         random.seed()
-        
+
         while not self.shutdown_received:
             message, task_id, fn, args, kwargs = self.task_queue.get()[:5]
-            
+
             if message == 'shutdown':
                 break
-            
+
             try:
                 result = fn(*args, **kwargs)
             except BaseException as e:
@@ -60,11 +67,11 @@ class ProcessWorkManager(WorkManager):
 
         log.debug('exiting task_loop')
         return
-        
+
     def results_loop(self):
         while not self.shutdown_received:
             message, task_id, payload = self.result_queue.get()[:3]
-            
+
             if message == 'shutdown':
                 break
             elif message == 'exception':
@@ -82,17 +89,17 @@ class ProcessWorkManager(WorkManager):
         ft = WMFuture()
         log.debug('dispatching {!r}'.format(fn))
         self.pending[ft.task_id] = ft
-        self.task_queue.put(('task', ft.task_id, fn, args or (), kwargs or {}))        
+        self.task_queue.put(('task', ft.task_id, fn, args or (), kwargs or {}))
         return ft
-                
+
     def startup(self):
-        from work_managers import environment
+        from . import environment
         if not self.running:
             log.debug('starting up work manager {!r}'.format(self))
             self.running = True
-            self.workers = [multiprocessing.Process(target=self.task_loop, 
+            self.workers = [multiprocessing.Process(target=self.task_loop,
                                                     name='worker-{:d}-{:x}'.format(i,id(self))) for i in range(self.n_workers)]
-            
+
             pi_name = '{}_PROCESS_INDEX'.format(environment.WMEnvironment.env_prefix)
             for iworker,worker in enumerate(self.workers):
                 os.environ[pi_name] = str(iworker)
@@ -101,38 +108,38 @@ class ProcessWorkManager(WorkManager):
                 del os.environ[pi_name]
             except KeyError:
                 pass
-                
+
             self.pending = dict()
-    
+
             self.receive_thread = threading.Thread(target=self.results_loop, name='receiver')
             self.receive_thread.daemon = True
-            self.receive_thread.start()        
-    
+            self.receive_thread.start()
+
     def _empty_queues(self):
         while not self.task_queue.empty():
             try:
                 self.task_queue.get(block=False)
             except multiprocessing.queues.Empty:
                 break
-            
+
         while not self.result_queue.empty():
             try:
                 self.result_queue.get(block=False)
             except multiprocessing.queues.Empty:
-                break        
-        
+                break
+
     def shutdown(self):
         if self.running:
             log.debug('shutting down {!r}'.format(self))
             self._empty_queues()
-    
+
             # Send shutdown signal
             for _i in range(self.n_workers):
                 self.task_queue.put(task_shutdown_sentinel, block=False)
-                        
+
             for worker in self.workers:
                 worker.join(self.shutdown_timeout)
-                if worker.is_alive():            
+                if worker.is_alive():
                     log.debug('sending SIGINT to worker process {:d}'.format(worker.pid))
                     os.kill(worker.pid, signal.SIGINT)
                     worker.join(self.shutdown_timeout)
@@ -140,14 +147,11 @@ class ProcessWorkManager(WorkManager):
                         log.warning('sending SIGKILL to worker process {:d}'.format(worker.pid))
                         os.kill(worker.pid, signal.SIGKILL)
                         worker.join()
-                        
+
                     log.debug('worker process {:d} terminated with code {:d}'.format(worker.pid, worker.exitcode))
                 else:
                     log.debug('worker process {:d} terminated gracefully with code {:d}'.format(worker.pid, worker.exitcode))
-            
+
             self._empty_queues()
             self.result_queue.put(result_shutdown_sentinel)
             self.running = False
-        
-    
-    

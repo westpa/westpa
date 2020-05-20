@@ -1,11 +1,10 @@
-
-import numpy
-import westpa
-
-from itertools import zip_longest
 from collections import namedtuple
+from itertools import zip_longest
 
-from westpa.kinetics._kinetics import flux_assign, pop_assign, calc_rates, StreamingStats1D, StreamingStats2D  #@UnresolvedImport
+import numpy as np
+
+import westpa
+from westpa.core.kinetics._kinetics import flux_assign, pop_assign, calc_rates, StreamingStats1D, StreamingStats2D  #@UnresolvedImport
 
 
 # Named tuple proxy for StreamingStats class
@@ -53,13 +52,13 @@ def process_iter_chunk(bin_mapper, iter_indices, iter_data=None):
     rate_stats = StreamingStats2D((nbins, nbins))
     pop_stats = StreamingStats1D(nbins)
 
-    nomask1d = numpy.zeros((nbins,), numpy.uint8)
-    nomask2d = numpy.zeros((nbins, nbins), numpy.uint8)
-    rate_mask = numpy.zeros((nbins, nbins), numpy.uint8)
+    nomask1d = np.zeros((nbins,), np.uint8)
+    nomask2d = np.zeros((nbins, nbins), np.uint8)
+    rate_mask = np.zeros((nbins, nbins), np.uint8)
 
-    flux_matrix = numpy.zeros((nbins, nbins), numpy.float64)
-    rate_matrix = numpy.zeros((nbins, nbins), numpy.float64)
-    population_vector = numpy.zeros((nbins,), numpy.float64)
+    flux_matrix = np.zeros((nbins, nbins), np.float64)
+    rate_matrix = np.zeros((nbins, nbins), np.float64)
+    population_vector = np.zeros((nbins,), np.float64)
 
     pcoord_len = system.pcoord_len
     assign = bin_mapper.assign
@@ -137,7 +136,7 @@ def process_iter_chunk(bin_mapper, iter_indices, iter_data=None):
     c_rate_stats = StreamingStatsTuple(rate_stats.M1, rate_stats.M2, rate_stats.n)
     c_pop_stats = StreamingStatsTuple(pop_stats.M1, pop_stats.M2, pop_stats.n)
 
-    return c_flux_stats, c_rate_stats, c_pop_stats 
+    return c_flux_stats, c_rate_stats, c_pop_stats
 
 
 class RateAverager():
@@ -225,18 +224,18 @@ class RateAverager():
                 rate_stats += chunk_rate_stats
                 population_stats += chunk_pop_stats
 
-        self.average_flux = flux_stats.mean 
-        self.stderr_flux = numpy.nan_to_num(numpy.sqrt(flux_stats.var) / flux_stats.n)
+        self.average_flux = flux_stats.mean
+        self.stderr_flux = np.nan_to_num(np.sqrt(flux_stats.var) / flux_stats.n)
 
-        self.average_populations = population_stats.mean 
-        self.stderr_populations = numpy.nan_to_num(numpy.sqrt(population_stats.var) / population_stats.n)
+        self.average_populations = population_stats.mean
+        self.stderr_populations = np.nan_to_num(np.sqrt(population_stats.var) / population_stats.n)
 
-        self.average_rate = rate_stats.mean 
-        self.stderr_rate = numpy.nan_to_num(numpy.sqrt(rate_stats.var) / rate_stats.n)
+        self.average_rate = rate_stats.mean
+        self.stderr_rate = np.nan_to_num(np.sqrt(rate_stats.var) / rate_stats.n)
 
-        assert ~numpy.any(numpy.isinf(self.stderr_flux))
-        assert ~numpy.any(numpy.isinf(self.stderr_rate))
-        assert ~numpy.any(numpy.isinf(self.stderr_populations))
+        assert ~np.any(np.isinf(self.stderr_flux))
+        assert ~np.any(np.isinf(self.stderr_rate))
+        assert ~np.any(np.isinf(self.stderr_populations))
 
 
 if __name__ == '__main__':
@@ -247,16 +246,15 @@ if __name__ == '__main__':
     data_manager.open_backing('r')
     averager = RateAverager(system.bin_mapper)
     averager.calculate()
-    
+
     print('Population mean and standard error')
     print(averager.average_populations)
     print(averager.stderr_populations)
-    
+
     print('Flux matrix, mean and standard error')
     print(averager.average_flux)
     print(averager.stderr_flux)
-    
+
     print('Rate matrix, mean and standard error')
     print(averager.average_rate)
     print(averager.stderr_rate)
-

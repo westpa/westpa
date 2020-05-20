@@ -1,13 +1,13 @@
+import numpy as np
 
-from westtools import (WESTToolComponent, WESTDataReader, IterRangeSelection, WESTSubcommand,
-                       ProgressIndicatorComponent)
+from westpa.tools import (WESTDataReader, IterRangeSelection, WESTSubcommand,
+                          ProgressIndicatorComponent)
 
-import mclib
-from mclib import mcbs_correltime, mcbs_ci_correl, _1D_simple_eval_block, _2D_simple_eval_block
-from westpa import h5io
+from westpa import mclib
+from westpa.core import h5io
 
-import numpy
-from westtools.dtypes import iter_block_ci_dtype as ci_dtype
+from westpa.tools.dtypes import iter_block_ci_dtype as ci_dtype
+
 
 # A function to just help with creating future objects for the work manager.
 
@@ -17,37 +17,37 @@ def generate_future(work_manager, name, eval_block, kwargs):
     future = work_manager.submit(eval_block, kwargs=submit_kwargs)
     return future
 
-    
+
 class WESTKineticsBase(WESTSubcommand):
     '''
     Common argument processing for w_direct/w_reweight subcommands.
     Mostly limited to handling input and output from w_assign.
     '''
-    
+
     def __init__(self, parent):
         super(WESTKineticsBase,self).__init__(parent)
-        
+
         self.data_reader = WESTDataReader()
         self.iter_range = IterRangeSelection()
         self.progress = ProgressIndicatorComponent()
-        
+
         self.output_filename = None
         # This is actually applicable to both.
         self.assignment_filename = None
-        
+
         self.output_file = None
         self.assignments_file = None
-        
+
         self.evolution_mode = None
-        
+
         self.mcbs_alpha = None
         self.mcbs_acalpha = None
         self.mcbs_nsets = None
 
         # Now we're adding in things that come from the old w_kinetics
         self.do_compression = True
-        
-            
+
+
     def add_args(self, parser):
         self.progress.add_args(parser)
         self.data_reader.add_args(parser)
@@ -58,7 +58,7 @@ class WESTKineticsBase(WESTSubcommand):
         iogroup.add_argument('-a', '--assignments', default='assign.h5',
                             help='''Bin assignments and macrostate definitions are in ASSIGNMENTS
                             (default: %(default)s).''')
-        
+
         iogroup.add_argument('-o', '--output', dest='output', default=self.default_output_file,
                             help='''Store results in OUTPUT (default: %(default)s).''')
 
@@ -70,7 +70,7 @@ class WESTKineticsBase(WESTSubcommand):
         if self.iter_range.iter_step is None:
             #use about 10 blocks by default
             self.iter_range.iter_step = max(1, (self.iter_range.iter_stop - self.iter_range.iter_start) // 10)
-        
+
         self.output_filename = args.output
         self.assignments_filename = args.assignments
 
@@ -86,9 +86,9 @@ class AverageCommands(WESTKineticsBase):
         self.kinetics_file = None
 
     def add_args(self, parser):
-        
+
         iogroup = parser.add_argument_group('input/output options')
-        # self.default_kinetics_file will be picked up as a class attribute from the appropriate subclass        
+        # self.default_kinetics_file will be picked up as a class attribute from the appropriate subclass
         # We can do this with the output file, too...
         # ... by default, however, we're going to use {direct/reweight}.h5 for everything.
         # Modules which are called with different default values will, of course, still use those.
@@ -101,7 +101,7 @@ class AverageCommands(WESTKineticsBase):
                              help='''Enable the use of Monte Carlo Block Bootstrapping.''')
         cgroup.add_argument('--disable-correl', '-dc', dest='correl', action='store_const', const=False,
                              help='''Disable the correlation analysis.''')
-        cgroup.add_argument('--alpha', type=float, default=0.05, 
+        cgroup.add_argument('--alpha', type=float, default=0.05,
                              help='''Calculate a (1-ALPHA) confidence interval'
                              (default: %(default)s)''')
         cgroup.add_argument('--autocorrel-alpha', type=float, dest='acalpha', metavar='ACALPHA',
@@ -110,7 +110,7 @@ class AverageCommands(WESTKineticsBase):
                              in a noisy flux signal. (Default: same as ALPHA.)''')
         cgroup.add_argument('--nsets', type=int,
                              help='''Use NSETS samples for bootstrapping (default: chosen based on ALPHA)''')
-        
+
         cogroup = parser.add_argument_group('calculation options')
         cogroup.add_argument('-e', '--evolution-mode', choices=['cumulative', 'blocked', 'none'], default='none',
                              help='''How to calculate time evolution of rate estimates.
@@ -126,10 +126,10 @@ class AverageCommands(WESTKineticsBase):
         mgroup = parser.add_argument_group('misc options')
         mgroup.add_argument('--disable-averages', '-da', dest='display_averages', action='store_false',
                              help='''Whether or not the averages should be printed to the console (set to FALSE if flag is used).''')
-    
+
     def process_args(self, args):
         self.kinetics_filename = args.kinetics
-                
+
         # Disable the bootstrap or the correlation analysis.
         self.mcbs_enable = args.bootstrap if args.bootstrap is not None else True
         self.do_correl = args.correl if args.correl is not None else True
@@ -138,7 +138,7 @@ class AverageCommands(WESTKineticsBase):
         self.mcbs_nsets = args.nsets if args.nsets else mclib.get_bssize(self.mcbs_alpha)
 
         self.display_averages = args.display_averages
-        
+
         self.evolution_mode = args.evolution_mode
         self.evol_window_frac = args.window_frac
         if self.evol_window_frac <= 0 or self.evol_window_frac > 1:
@@ -148,7 +148,7 @@ class AverageCommands(WESTKineticsBase):
         dataset.attrs['mcbs_alpha'] = self.mcbs_alpha
         dataset.attrs['mcbs_acalpha'] = self.mcbs_acalpha
         dataset.attrs['mcbs_nsets'] = self.mcbs_nsets
-        
+
     def open_files(self):
         self.output_file = h5io.WESTPAH5File(self.output_filename, 'a', creating_program=True)
         h5io.stamp_creator_data(self.output_file)
@@ -200,7 +200,7 @@ class AverageCommands(WESTKineticsBase):
                         maxlabellen=maxlabellen))
 
     def run_calculation(self, pi, nstates, start_iter, stop_iter, step_iter, dataset, eval_block, name, dim, do_averages=False, **extra):
-        
+
         # We want to use the same codepath to run a quick average as we do the longer evolution sets, so...
         if do_averages:
             start_pts = [start_iter, stop_iter]
@@ -208,16 +208,16 @@ class AverageCommands(WESTKineticsBase):
             start_pts = list(range(start_iter, stop_iter, step_iter))
         # Our evolution dataset!
         if dim == 2:
-            evolution_dataset = numpy.zeros((len(start_pts), nstates, nstates), dtype=ci_dtype)
+            evolution_dataset = np.zeros((len(start_pts), nstates, nstates), dtype=ci_dtype)
         elif dim == 1:
-            evolution_dataset = numpy.zeros((len(start_pts), nstates), dtype=ci_dtype)
+            evolution_dataset = np.zeros((len(start_pts), nstates), dtype=ci_dtype)
         else:
             # Temp.
             print("What's wrong?")
 
         # This is appropriate for bootstrapped quantities, I think.
-        all_items = numpy.arange(1,len(start_pts)+1)
-        bootstrap_length = 0.5*(len(start_pts)*(len(start_pts)+1)) - numpy.delete(all_items, numpy.arange(1, len(start_pts)+1, step_iter))
+        all_items = np.arange(1,len(start_pts)+1)
+        bootstrap_length = 0.5*(len(start_pts)*(len(start_pts)+1)) - np.delete(all_items, np.arange(1, len(start_pts)+1, step_iter))
         if True:
             pi.new_operation('Calculating {}'.format(name), bootstrap_length[0])
 

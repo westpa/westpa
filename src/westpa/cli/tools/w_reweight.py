@@ -1,35 +1,25 @@
-
 import logging
-
-# Let's suppress those numpy warnings.
 import warnings
+
+import numpy as np
+
+from westpa.tools import (WESTMasterCommand, WESTParallelTool)
+
+from westpa.tools.kinetics_tool import WESTKineticsBase, AverageCommands, generate_future
+from westpa.core import h5io
+
+
+from westpa.mclib import mcbs_ci_correl
+
+from westpa.core.reweight import reweight_for_c, FluxMatrix
+
+
 warnings.filterwarnings('ignore', category=DeprecationWarning)
 warnings.filterwarnings('ignore', category=RuntimeWarning)
 warnings.filterwarnings('ignore', category=FutureWarning)
 
-import numpy as np
-import scipy.sparse as sp
-import h5py
-
-import westpa
-from west.data_manager import weight_dtype, n_iter_dtype
-#from westtools import (WESTTool, WESTParallelTool, WESTDataReader, IterRangeSelection,
-from westtools import (WESTMasterCommand, WESTParallelTool, WESTDataReader, IterRangeSelection, WESTSubcommand,
-                       ProgressIndicatorComponent)
-
-from westtools.kinetics_tool import WESTKineticsBase, AverageCommands, generate_future
-from westpa import h5io
-from westtools.dtypes import iter_block_ci_dtype as ci_dtype
-
 log = logging.getLogger('westtools.w_reweight')
 
-import mclib
-
-from mclib import mcbs_correltime, mcbs_ci_correl
-
-# From postanalysis matrix
-from westpa.binning import index_dtype
-from westpa.reweight import stats_process, reweight_for_c, FluxMatrix
 
 def _2D_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha, mcbs_nsets, mcbs_acalpha, do_correl, mcbs_enable, estimator_kwargs):
     # As our reweighting estimator is a weird function, we can't use the general mclib block.

@@ -1,21 +1,21 @@
-
-import sys
 import logging
 import math
-from numpy import index_exp
-import h5py
+import os
 
-from west.data_manager import seg_id_dtype, weight_dtype
-from westpa.binning import index_dtype, assign_and_label, accumulate_labeled_populations
-from westtools import (WESTParallelTool, WESTDataReader, WESTDSSynthesizer, BinMappingComponent, mapper_from_dict,
-                       ProgressIndicatorComponent)
-import numpy
+import numpy as np
+from numpy import index_exp
+
+from westpa.core.data_manager import seg_id_dtype, weight_dtype
+from westpa.core.binning import index_dtype, assign_and_label, accumulate_labeled_populations
+from westpa.tools import (WESTParallelTool, WESTDataReader, WESTDSSynthesizer, BinMappingComponent,
+                          ProgressIndicatorComponent)
 import westpa
-from westpa import h5io
-from westpa.h5io import WESTPAH5File
-from westpa.extloader import get_object
+from westpa.core import h5io
+from westpa.core.h5io import WESTPAH5File
+from westpa.core.extloader import get_object
 
 log = logging.getLogger('westtools.w_assign')
+
 
 # Changes to keep it alive...
 def parse_pcoord_value(pc_str):
@@ -23,7 +23,7 @@ def parse_pcoord_value(pc_str):
                  'numpy': numpy,
                  'inf': float('inf')}
 
-    arr = numpy.array(eval(pc_str,namespace))
+    arr = np.array(eval(pc_str,namespace))
     if arr.ndim == 0:
         arr.shape = (1,1)
     elif arr.ndim == 1:
@@ -41,7 +41,7 @@ def _assign_label_pop(n_iter, lb, ub, mapper, nstates, state_map, last_labels, p
 
     assignments, trajlabels, statelabels = assign_and_label(lb, ub, parent_ids,
                                                mapper.assign, nstates, state_map, last_labels, pcoords, subsample)
-    pops = numpy.zeros((nstates+1,nbins+1), weight_dtype)
+    pops = np.zeros((nstates+1,nbins+1), weight_dtype)
     accumulate_labeled_populations(weights, assignments, trajlabels, pops)
     return (assignments, trajlabels, pops, lb, ub, statelabels)
 
@@ -318,9 +318,8 @@ Command-line options
             self.subsample = config['subsample']
         except:
             pass
-        from westpa._rc import bins_from_yaml_dict
+        from westpa.core._rc import bins_from_yaml_dict
         self.binning.mapper = bins_from_yaml_dict(config['analysis_schemes'][scheme]['bins'][0])
-        import os
         path = os.path.join(os.getcwd(), config['directory'], scheme)
         try:
             os.mkdir(config['directory'])
@@ -345,7 +344,7 @@ Command-line options
             #  - a scalar, in which case it is one bin, 1-D
             #  - a single list, which is rejected as ambiguous
             #  - a list of lists, which is a list of coordinate tuples
-            coords = numpy.array(ystate['coords'])
+            coords = np.array(ystate['coords'])
             if coords.ndim == 0:
                 coords.shape = (1,1)
             elif coords.ndim == 1:
@@ -362,7 +361,7 @@ Command-line options
         for istate, state in enumerate(states):
             state.setdefault('label','state{}'.format(istate))
             try:
-                state['coords'] = numpy.array(state['coords'])
+                state['coords'] = np.array(state['coords'])
             except KeyError:
                 raise ValueError('state function {!r} returned a state {!r} without coordinates'.format(statefunc,state))
         self.states = states
@@ -379,10 +378,10 @@ Command-line options
         iter_group = self.data_reader.get_iter_group(n_iter)
         nsegs, npts = iter_group['pcoord'].shape[:2]
         n_workers = self.work_manager.n_workers or 1
-        assignments = numpy.empty((nsegs, npts), dtype=index_dtype)
-        trajlabels = numpy.empty((nsegs, npts), dtype=index_dtype)
-        statelabels = numpy.empty((nsegs, npts), dtype=index_dtype)
-        pops = numpy.zeros((nstates+1,nbins+1), dtype=weight_dtype)
+        assignments = np.empty((nsegs, npts), dtype=index_dtype)
+        trajlabels = np.empty((nsegs, npts), dtype=index_dtype)
+        statelabels = np.empty((nsegs, npts), dtype=index_dtype)
+        pops = np.zeros((nstates+1,nbins+1), dtype=weight_dtype)
 
         #Submit jobs to work manager
         blocksize = nsegs // n_workers
@@ -443,22 +442,22 @@ Command-line options
             nbins = self.binning.mapper.nbins
             self.output_file.attrs['nbins'] = nbins
 
-            state_map = numpy.empty((self.binning.mapper.nbins+1,), index_dtype)
+            state_map = np.empty((self.binning.mapper.nbins+1,), index_dtype)
             state_map[:] = 0 # state_id == nstates => unknown state
 
             # Recursive mappers produce a generator rather than a list of labels
             # so consume the entire generator into a list
-            labels = [numpy.string_(label) for label in self.binning.mapper.labels]
+            labels = [np.string_(label) for label in self.binning.mapper.labels]
 
             self.output_file.create_dataset('bin_labels', data=labels, compression=9)
 
             if self.states:
                 nstates = len(self.states)
                 state_map[:] = nstates # state_id == nstates => unknown state
-                state_labels = [numpy.string_(state['label']) for state in self.states]
+                state_labels = [np.string_(state['label']) for state in self.states]
 
                 for istate, sdict in enumerate(self.states):
-                    assert state_labels[istate] == numpy.string_(sdict['label']) #sanity check
+                    assert state_labels[istate] == np.string_(sdict['label']) #sanity check
                     state_assignments = assign(sdict['coords'])
                     for assignment in state_assignments:
                         state_map[assignment] = istate
@@ -471,8 +470,8 @@ Command-line options
             self.output_file.attrs['subsampled'] = self.subsample
 
             iter_count = iter_stop - iter_start
-            nsegs = numpy.empty((iter_count,), seg_id_dtype)
-            npts = numpy.empty((iter_count,), seg_id_dtype)
+            nsegs = np.empty((iter_count,), seg_id_dtype)
+            npts = np.empty((iter_count,), seg_id_dtype)
 
             # scan for largest number of segments and largest number of points
             pi.new_operation ('Scanning for segment and point counts', iter_stop-iter_start)
@@ -492,13 +491,13 @@ Command-line options
             max_npts = npts.max()
 
             assignments_shape = (iter_count,max_nsegs,max_npts)
-            assignments_dtype = numpy.min_scalar_type(nbins)
+            assignments_dtype = np.min_scalar_type(nbins)
             assignments_ds = self.output_file.create_dataset('assignments', dtype=assignments_dtype, shape=assignments_shape,
                                                              compression=4, shuffle=True,
                                                              chunks=h5io.calc_chunksize(assignments_shape, assignments_dtype),
                                                              fillvalue=nbins)
             if self.states:
-                trajlabel_dtype = numpy.min_scalar_type(nstates)
+                trajlabel_dtype = np.min_scalar_type(nstates)
                 trajlabels_ds = self.output_file.create_dataset('trajlabels', dtype=trajlabel_dtype, shape=assignments_shape,
                                                                 compression=4, shuffle=True,
                                                                 chunks=h5io.calc_chunksize(assignments_shape, trajlabel_dtype),
@@ -512,7 +511,7 @@ Command-line options
             pops_ds = self.output_file.create_dataset('labeled_populations', dtype=weight_dtype, shape=pops_shape,
                                                       compression=4, shuffle=True,
                                                       chunks=h5io.calc_chunksize(pops_shape, weight_dtype))
-            h5io.label_axes(pops_ds, [numpy.string_(i) for i in ['iteration', 'state', 'bin']])
+            h5io.label_axes(pops_ds, [np.string_(i) for i in ['iteration', 'state', 'bin']])
 
             pi.new_operation('Assigning to bins', iter_stop-iter_start)
             last_labels = None # mapping of seg_id to last macrostate inhabited
@@ -520,7 +519,7 @@ Command-line options
                 #get iteration info in this block
 
                 if iiter == 0:
-                    last_labels = numpy.empty((nsegs[iiter],), index_dtype)
+                    last_labels = np.empty((nsegs[iiter],), index_dtype)
                     last_labels[:] = nstates #unknown state
 
                 #Slices this iteration into n_workers groups of segments, submits them to wm, splices results back together

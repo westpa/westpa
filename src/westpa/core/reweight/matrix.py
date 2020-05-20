@@ -1,23 +1,20 @@
-
-import logging
-
-# Let's suppress those numpy warnings.
 import warnings
-warnings.filterwarnings('ignore', category=DeprecationWarning)
-warnings.filterwarnings('ignore', category=RuntimeWarning)
-warnings.filterwarnings('ignore', category=FutureWarning)
 
 import numpy as np
 import scipy.sparse as sp
 
-import westpa
-from west.data_manager import weight_dtype, n_iter_dtype
-
-from westpa import h5io
+from westpa.core.data_manager import weight_dtype
+from westpa.core import h5io
 
 # From postanalysis matrix
-from westpa.binning import index_dtype
-from westpa.reweight import stats_process, reweight_for_c
+from westpa.core.binning import index_dtype
+from westpa.core.reweight import stats_process
+
+
+warnings.filterwarnings('ignore', category=DeprecationWarning)
+warnings.filterwarnings('ignore', category=RuntimeWarning)
+warnings.filterwarnings('ignore', category=FutureWarning)
+
 
 def calc_stats(bin_assignments, weights, fluxes, populations, trans, mask, sampling_frequency):
     fluxes.fill(0.0)
@@ -31,7 +28,7 @@ class FluxMatrix():
     def w_postanalysis_matrix(self):
         pi = self.progress.indicator
         pi.new_operation('Initializing')
-        
+
         self.data_reader.open('r')
         nbins = self.assignments_file.attrs['nbins']
 
@@ -74,7 +71,7 @@ class FluxMatrix():
             # Get data from the main HDF5 file
             iter_group = self.data_reader.get_iter_group(n_iter)
             seg_index = iter_group['seg_index']
-            nsegs, npts = iter_group['pcoord'].shape[0:2] 
+            nsegs, npts = iter_group['pcoord'].shape[0:2]
             weights = seg_index['weight']
 
 
