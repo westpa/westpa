@@ -3,8 +3,8 @@ import logging
 import traceback
 
 import westpa
-import work_managers
-from work_managers import make_work_manager
+import westpa.work_managers as work_managers
+from westpa.work_managers import make_work_manager
 
 
 log = logging.getLogger('w_run')

@@ -1,14 +1,18 @@
-
 import logging
 
-from westtools import (WESTParallelTool, WESTDataReader, WESTDSSynthesizer, IterRangeSelection,
-                       ProgressIndicatorComponent)
-import numpy, h5py
-from fasthist import histnd, normhistnd
-from westpa import h5io
-from westpa.h5io import SingleIterDSSpec
+import h5py
+import numpy as np
+
+from westpa.tools import (WESTParallelTool, WESTDataReader, WESTDSSynthesizer, IterRangeSelection,
+                          ProgressIndicatorComponent)
+
+from westpa.fasthist import histnd, normhistnd
+from westpa.core import h5io
+from westpa.core.h5io import SingleIterDSSpec
+
 
 log = logging.getLogger('westtools.w_pdist')
+
 
 def isiterable(x):
     try:
@@ -20,11 +24,11 @@ def isiterable(x):
 
 def _remote_min_max(ndim, dset_dtype, n_iter, dsspec):
     try:
-        minval = numpy.finfo(dset_dtype).min
-        maxval = numpy.finfo(dset_dtype).max
+        minval = np.finfo(dset_dtype).min
+        maxval = np.finfo(dset_dtype).max
     except ValueError:
-        minval = numpy.iinfo(dset_dtype).min
-        maxval = numpy.iinfo(dset_dtype).max
+        minval = np.iinfo(dset_dtype).min
+        maxval = np.iinfo(dset_dtype).max
 
     data_range = [(maxval,minval) for _i in range(ndim)]
 
@@ -42,7 +46,7 @@ def _remote_min_max(ndim, dset_dtype, n_iter, dsspec):
 def _remote_bin_iter(iiter, n_iter, dsspec, wt_dsspec, initpoint, binbounds, ignore_out_of_range):
 
     iter_hist_shape = tuple(len(bounds)-1 for bounds in binbounds)
-    iter_hist = numpy.zeros(iter_hist_shape, dtype=numpy.float64)
+    iter_hist = np.zeros(iter_hist_shape, dtype=np.float64)
 
     dset = dsspec.get_iter_data(n_iter)
     npts = dset.shape[1]
@@ -112,8 +116,8 @@ kinds of arguments:
     The bin boundaries B11, B12, B13, ... will be used for the first dimension,
     B21, B22, B23, ... for the second dimension, and so on. These bin
     boundaries need not be uniformly spaced. These expressions will be
-    evaluated with Python's ``eval`` construct, with ``numpy`` available for
-    use [e.g. to specify bins using numpy.arange()].
+    evaluated with Python's ``eval`` construct, with ``np`` available for
+    use [e.g. to specify bins using np.arange()].
 
 The first two forms (integer, list of integers) will trigger a scan of all
 data in each dimension in order to determine the minimum and maximum values,
@@ -260,7 +264,7 @@ Command-line options
         with self.data_reader:
             self.iter_range.process_args(args)
 
-        self.wt_dsspec = SingleIterDSSpec(self.data_reader.we_h5filename, 'seg_index', slice=numpy.index_exp['weight'])
+        self.wt_dsspec = SingleIterDSSpec(self.data_reader.we_h5filename, 'seg_index', slice=np.index_exp['weight'])
 
         self.binspec = args.bins
         self.output_filename = args.output
@@ -297,7 +301,7 @@ Command-line options
 
     @staticmethod
     def parse_binspec(binspec):
-        namespace = {'numpy': numpy,
+        namespace = {'np': np,
                      'inf': float('inf')}
 
         try:
@@ -353,11 +357,11 @@ Command-line options
         dsspec = self.dsspec
 
         try:
-            minval = numpy.finfo(dset_dtype).min
-            maxval = numpy.finfo(dset_dtype).max
+            minval = np.finfo(dset_dtype).min
+            maxval = np.finfo(dset_dtype).max
         except ValueError:
-            minval = numpy.iinfo(dset_dtype).min
-            maxval = numpy.iinfo(dset_dtype).max
+            minval = np.iinfo(dset_dtype).min
+            maxval = np.iinfo(dset_dtype).max
 
         data_range = self.data_range = [(maxval,minval) for _i in range(self.ndim)]
 
@@ -390,7 +394,7 @@ Command-line options
             # the maximum in the histogram
             ub *= 1.01
 
-            boundset = numpy.linspace(lb,ub,bins+1)
+            boundset = np.linspace(lb,ub,bins+1)
             midpoints = (boundset[:-1] + boundset[1:]) / 2.0
             self.binbounds.append(boundset)
             self.midpoints.append(midpoints)
@@ -407,7 +411,7 @@ Command-line options
             # the maximum in the histogram
             ub *= 1.01
 
-            boundset = numpy.linspace(lb,ub,bins[idim]+1)
+            boundset = np.linspace(lb,ub,bins[idim]+1)
             midpoints = (boundset[:-1] + boundset[1:]) / 2.0
             self.binbounds.append(boundset)
             self.midpoints.append(midpoints)
@@ -416,8 +420,8 @@ Command-line options
         self.binbounds = []
         self.midpoints = []
         for boundset in bins:
-            boundset = numpy.asarray(boundset)
-            if (numpy.diff(boundset) <= 0).any():
+            boundset = np.asarray(boundset)
+            if (np.diff(boundset) <= 0).any():
                 raise ValueError('boundary set {!r} is not strictly monotonically increasing'.format(boundset))
             self.binbounds.append(boundset)
             self.midpoints.append((boundset[:-1]+boundset[1:])/2.0)
@@ -430,10 +434,10 @@ Command-line options
         self.scan_data_shape()
 
         iter_count = self.iter_stop - self.iter_start
-        histograms_ds = self.output_file.create_dataset('histograms', dtype=numpy.float64,
+        histograms_ds = self.output_file.create_dataset('histograms', dtype=np.float64,
                                                         shape=((iter_count,) + tuple(len(bounds)-1 for bounds in self.binbounds)),
                                                         compression=9 if self.compress_output else None)
-        binbounds = [numpy.require(boundset, self.dset_dtype, 'C') for boundset in self.binbounds]
+        binbounds = [np.require(boundset, self.dset_dtype, 'C') for boundset in self.binbounds]
 
         self.progress.indicator.new_operation('Constructing histograms',self.iter_stop-self.iter_start)
         task_gen = ((_remote_bin_iter, (iiter, n_iter, self.dsspec, self.wt_dsspec, 1 if iiter > 0 else 0, binbounds,

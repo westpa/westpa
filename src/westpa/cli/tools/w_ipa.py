@@ -1,31 +1,27 @@
-
+import base64
+import codecs
+import hashlib
+import os
 import warnings
+
+import numpy as np
+
+import westpa
+from westpa.core import h5io
+from westpa.cli.tools import (w_assign, w_direct, w_reweight)
+
+from westpa.tools import (WESTParallelTool, WESTDataReader,
+                          ProgressIndicatorComponent, Plotter)
+
+from westpa.tools import WIPIDataset, __get_data_for_iteration__, WIPIScheme
+
+
 warnings.filterwarnings('ignore', category=DeprecationWarning)
 warnings.filterwarnings('ignore', category=RuntimeWarning)
 warnings.filterwarnings('ignore', category=FutureWarning)
 warnings.filterwarnings('ignore', category=ImportWarning)
-import numpy as np
-import h5py
-import codecs
-import base64
-
-# Must be run with the WEST wrapper.
-from westpa import h5io
-from westpa.h5io import WESTPAH5File
-from westpa.extloader import get_object
-import westpa
-import os, sys
-import w_assign, w_direct, w_reweight
 warnings.filterwarnings('ignore')
-import scipy.sparse as sp
-import hashlib
-import json
-#sys.tracebacklimit = 5
 
-from westtools import (WESTSubcommand, WESTParallelTool, WESTDataReader, WESTDSSynthesizer, BinMappingComponent,
-                       ProgressIndicatorComponent, IterRangeSelection, Plotter)
-
-from westtools import WIPIDataset, __get_data_for_iteration__, WIPIScheme
 
 class WIPI(WESTParallelTool):
     '''
@@ -678,6 +674,8 @@ class WIPI(WESTParallelTool):
         Function automatically called by main() when launched via the command line interface.
         Generally, call main, not this function.
         '''
+        w = self
+
         print("")
         print("Welcome to w_ipa (WESTPA Interactive Python Analysis) v. {}!".format(w.version))
         print("Run w.introduction for a more thorough introduction, or w.help to see a list of options.")
@@ -690,7 +688,7 @@ class WIPI(WESTParallelTool):
         self.iteration = self.niters
         try:
             print('Your current scheme, system and iteration are : {}, {}, {}'.format(w.scheme, os.getcwd(), w.iteration))
-        except:
+        except Exception:
             pass
 
     @property

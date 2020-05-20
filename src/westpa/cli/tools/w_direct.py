@@ -1,39 +1,26 @@
-
 import logging
 
-# Let's suppress those numpy warnings.
-import warnings
-#warnings.filterwarnings('ignore', category=DeprecationWarning)
-#warnings.filterwarnings('ignore', category=RuntimeWarning)
-#warnings.filterwarnings('ignore', category=FutureWarning)
+import numpy as np
 
-import sys, random, math
-import numpy, h5py
-from h5py import h5s
+from westpa.core.data_manager import weight_dtype
+from westpa.tools import (WESTMasterCommand, WESTParallelTool)
 
-import westpa
-from west.data_manager import weight_dtype, n_iter_dtype, seg_id_dtype
-from westtools import (WESTMasterCommand, WESTParallelTool, WESTDataReader, IterRangeSelection, WESTSubcommand,
-                       ProgressIndicatorComponent)
-from westpa import h5io
-from westpa.kinetics import labeled_flux_to_rate, sequence_macro_flux_to_rate, WKinetics
-# This is the base tool class.  We're going to use it for the post analysis stuff, as well.
-from westtools.kinetics_tool import WESTKineticsBase, AverageCommands
+from westpa.core import h5io
+from westpa.core.kinetics import sequence_macro_flux_to_rate, WKinetics
 
-import mclib
-from mclib import mcbs_correltime, mcbs_ci_correl, _1D_simple_eval_block, _2D_simple_eval_block
+from westpa.tools.kinetics_tool import WESTKineticsBase, AverageCommands
 
-# We'll need to integrate this properly.
-log = logging.getLogger('westtools.w_reweight')
+from westpa.mclib import mcbs_ci_correl, _1D_simple_eval_block, _2D_simple_eval_block
 
-from westtools.dtypes import iter_block_ci_dtype as ci_dtype
 
 # From w_stateprobs
-from westpa.binning import accumulate_state_populations_from_labeled
+from westpa.core.binning import accumulate_state_populations_from_labeled
+
+log = logging.getLogger('westtools.w_reweight')
+
 
 # This block is responsible for submitting a set of calculations to be bootstrapped over for a particular type of calculation.
 # A property which wishes to be calculated should adhere to this format.
-
 def _rate_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha, mcbs_nsets, mcbs_acalpha, do_correl, mcbs_enable):
     # Our rate estimator is a little more complex, so we've defined a custom evaluation block for it,
     # instead of just using the block evalutors that we've imported.
@@ -49,7 +36,7 @@ def _rate_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha,
             dataset = {'dataset': data_input['dataset'][:, istate, jstate], 'pops': data_input['pops'] }
             ci_res = mcbs_ci_correl(dataset,estimator=sequence_macro_flux_to_rate,
                                     alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
-                                    subsample=numpy.mean, do_correl=do_correl, mcbs_enable=mcbs_enable, estimator_kwargs=kwargs)
+                                    subsample=np.mean, do_correl=do_correl, mcbs_enable=mcbs_enable, estimator_kwargs=kwargs)
             results.append((name, iblock, istate, jstate, (start,stop) + ci_res))
 
     return results
@@ -399,9 +386,9 @@ Command-line options
             # ... but then this is how the state populations are done.
             # This was taken, more or less, from the old w_stateprobs
             iter_count = self.stop_iter-self.start_iter
-            all_state_pops = numpy.empty((iter_count,self.nstates+1), weight_dtype)
-            iter_state_pops = numpy.empty((self.nstates+1,), weight_dtype)
-            avg_state_pops = numpy.zeros((self.nstates+1,), weight_dtype)
+            all_state_pops = np.empty((iter_count,self.nstates+1), weight_dtype)
+            iter_state_pops = np.empty((self.nstates+1,), weight_dtype)
+            avg_state_pops = np.zeros((self.nstates+1,), weight_dtype)
             pops.cache_data(max_size='available')
             state_map = self.assignments_file['state_map'][...]
             try:

@@ -1,14 +1,12 @@
-
 import numpy as np
-import os, sys
 import scipy.sparse as sp
 
-from westtools import Plotter
-import itertools
+from westpa.tools import Plotter
 
 # A useful dataclass used as a wrapper for w_ipa to facilitate
 # ease-of-use in ipython/jupyter notebooks/sessions.
 # It basically just wraps up numpy arrays and dicts.
+
 
 class WIPIDataset(object):
     def __init__(self, raw, key):
@@ -302,8 +300,8 @@ class __get_data_for_iteration__(object):
         kinavg, weights, pcoord, auxdata (optional), parents, summary, seg_id, walkers, states, bins
 
     kinavg, states, and bins refer to the output from w_kinavg and w_assign for this iteration
-    and analysis scheme.  They are NOT dynamics bins, but the bins defined in west.cfg.  
-    
+    and analysis scheme.  They are NOT dynamics bins, but the bins defined in west.cfg.
+
     Has the following properties:
 
         .minweight, .maxweight
@@ -438,7 +436,7 @@ class __get_data_for_iteration__(object):
         walker = {}
         for z, (i, j) in enumerate(zip(old_states, new_states)):
             #if self.raw['states'][walkers[z], i] == istate and self.raw['states'][walkers[z], j] == jstate:
-            istate = self.raw['states'][walkers[z], i] 
+            istate = self.raw['states'][walkers[z], i]
             jstate = self.raw['states'][walkers[z], j]
             #print(z,i,j, istate, jstate)
             try:

@@ -1,66 +1,65 @@
-
 '''A package for performing Monte Carlo bootstrap estimates of
 statistics.'''
 
+import numpy as np
 
-import math, numpy
+from ._mclib import mcbs_correltime, get_bssize, mcbs_ci
 
-from ._mclib import autocorrel_elem, mcbs_correltime, get_bssize, mcbs_ci
 
 def mcbs_ci_correl(estimator_datasets, estimator, alpha, n_sets=None, args=None,
-                   autocorrel_alpha = None, autocorrel_n_sets=None, subsample=None, 
+                   autocorrel_alpha = None, autocorrel_n_sets=None, subsample=None,
                    do_correl=True, mcbs_enable=None, estimator_kwargs={}):
     '''Perform a Monte Carlo bootstrap estimate for the (1-``alpha``) confidence interval
     on the given ``dataset`` with the given ``estimator``.  This routine is appropriate
     for time-correlated data, using the method described in Huber & Kim, "Weighted-ensemble
-    Brownian dynamics simulations for protein association reactions" (1996), 
+    Brownian dynamics simulations for protein association reactions" (1996),
     doi:10.1016/S0006-3495(96)79552-8 to determine a statistically-significant correlation time
     and then reducing the dataset by a factor of that correlation time before running a "classic"
     Monte Carlo bootstrap.
 
     Returns ``(estimate, ci_lb, ci_ub, correl_time)`` where ``estimate`` is the application of the
     given ``estimator`` to the input ``dataset``, ``ci_lb`` and ``ci_ub`` are the
-    lower and upper limits, respectively, of the (1-``alpha``) confidence interval on 
+    lower and upper limits, respectively, of the (1-``alpha``) confidence interval on
     ``estimate``, and ``correl_time`` is the correlation time of the dataset, significant to
     (1-``autocorrel_alpha``).
-    
+
     ``estimator`` is called as ``estimator(dataset, *args, **kwargs)``. Common estimators include:
-      * numpy.mean -- calculate the confidence interval on the mean of ``dataset``
-      * numpy.median -- calculate a confidence interval on the median of ``dataset``
-      * numpy.std -- calculate a confidence interval on the standard deviation of ``datset``.
+      * np.mean -- calculate the confidence interval on the mean of ``dataset``
+      * np.median -- calculate a confidence interval on the median of ``dataset``
+      * np.std -- calculate a confidence interval on the standard deviation of ``datset``.
 
     ``n_sets`` is the number of synthetic data sets to generate using the given ``estimator``,
     which will be chosen using `get_bssize()`_ if ``n_sets`` is not given.
-        
+
     ``autocorrel_alpha`` (which defaults to ``alpha``) can be used to adjust the significance
     level of the autocorrelation calculation. Note that too high a significance level (too low an
     alpha) for evaluating the significance of autocorrelation values can result in a failure to
-    detect correlation if the autocorrelation function is noisy.    
-    
+    detect correlation if the autocorrelation function is noisy.
+
     The given ``subsample`` function is used, if provided, to subsample the dataset prior to running
     the full Monte Carlo bootstrap. If none is provided, then a random entry from each correlated
-    block is used as the value for that block.  Other reasonable choices include ``numpy.mean``,
-    ``numpy.median``, ``(lambda x: x[0])`` or ``(lambda x: x[-1])``.  In particular, using
-    ``subsample=numpy.mean`` will converge to the block averaged mean and standard error,
+    block is used as the value for that block.  Other reasonable choices include ``np.mean``,
+    ``np.median``, ``(lambda x: x[0])`` or ``(lambda x: x[-1])``.  In particular, using
+    ``subsample=np.mean`` will converge to the block averaged mean and standard error,
     while accounting for any non-normality in the distribution of the mean.
     '''
-    
+
     if alpha > 0.5:
         raise ValueError('alpha ({}) > 0.5'.format(alpha))
-    
+
     autocorrel_alpha = alpha if not autocorrel_alpha else autocorrel_alpha
-    
+
     # We're now passing in dataset as a dict, so we need to enforce that for compatibility with older tools.
     # This just takes our dataset and puts it into a dict, as it's likely that we're using
     # mean or median as our estimators, which take "a" as argument input.
-    if type(estimator_datasets).__name__ != 'dict':
+    if not isinstance(estimator_datasets, dict):
         # Enforcing the data structure.
         pre_calculated = estimator_datasets
         estimator_datasets = {'a' : estimator_datasets}
         # This also probably means our estimator isn't going to handle kwargs, so we'll watch out for that later in testing.
         # We may have to replace the 'simple' estimator with a slightly more complex lambda function which simply ditches extra arguments.
     for key, dset in estimator_datasets.items():
-        estimator_datasets[key] = numpy.asanyarray(dset)
+        estimator_datasets[key] = np.asanyarray(dset)
         dlen = dset.shape[0]
 
     # Why do we have 'estimator_datasets'?
@@ -70,12 +69,12 @@ def mcbs_ci_correl(estimator_datasets, estimator, alpha, n_sets=None, args=None,
     # Some estimators (such as the reweighting) may not be able to be decimated in a straightforward manner with a subsample function,
     # as we cannot pre-estimate the quantity without introducing error or bias.  In those cases, we may wish to pass on all the data,
     # but ensure that our estimator only includes certain iterations (and only in a certain way).
-    
+
     n_sets = n_sets or get_bssize(alpha)
     autocorrel_n_sets = autocorrel_n_sets or get_bssize(autocorrel_alpha)
 
-    if mcbs_enable == False:
-        # While it's odd to support NOT doing the bootstrap in a library specifically designed for bootstrapping, 
+    if mcbs_enable is False:
+        # While it's odd to support NOT doing the bootstrap in a library specifically designed for bootstrapping,
         # supporting this functionality here makes writing the code a lot easier, as we can just pass in a flag.
         # Specifically, this is for situations in which error is not desired (that is, only a reasonable mean is desired).
         # It's often useful when doing a quick analysis.
@@ -84,7 +83,7 @@ def mcbs_ci_correl(estimator_datasets, estimator, alpha, n_sets=None, args=None,
             estimator_datasets.update( { 'stride': 1 } )
         except:
             pass
-        
+
         return_set = estimator(**estimator_datasets)
         # We don't try and pretend we're doing any error analysis.
         return return_set, return_set, return_set, 0, 1
@@ -98,8 +97,8 @@ def mcbs_ci_correl(estimator_datasets, estimator, alpha, n_sets=None, args=None,
             precalc_kwargs[key] = dset[0:block]
         pre_calculated.append(estimator(**precalc_kwargs))
     # We need to get rid of any NaNs.
-    pre_calculated = numpy.asanyarray(pre_calculated)
-    pre_calculated = pre_calculated[numpy.isfinite(pre_calculated)]
+    pre_calculated = np.asanyarray(pre_calculated)
+    pre_calculated = pre_calculated[np.isfinite(pre_calculated)]
     # If this happens, we have a huge NaN problem.  That is, our estimator is failing to return meaningful
     # numbers.  We should catch this when it happens, and so raise an exception, here.
     # This is almost certainly due to estimator failure.  Double check that calculation.
@@ -107,7 +106,7 @@ def mcbs_ci_correl(estimator_datasets, estimator, alpha, n_sets=None, args=None,
         raise NameError("Looks like the estimator failed.  This is likely a programming issue, and should be reported.")
     # If pre-calculated is not None, we'll use that instead of dataset.
     # We can also assume that it's a 1 dimensional set with nothing needed, so 'key' should work.
-    if do_correl == True:
+    if do_correl is True:
         correl_len = mcbs_correltime(pre_calculated, autocorrel_alpha, autocorrel_n_sets)
     else:
         correl_len = 0
@@ -119,24 +118,24 @@ def mcbs_ci_correl(estimator_datasets, estimator, alpha, n_sets=None, args=None,
         except:
             pass
 
-        return estimator(**estimator_datasets), pre_calculated.min(), pre_calculated.max(), (numpy.std(pre_calculated)), correl_len
+        return estimator(**estimator_datasets), pre_calculated.min(), pre_calculated.max(), (np.std(pre_calculated)), correl_len
 
     # else, do a blocked bootstrap
     stride = correl_len + 1
-    
+
     if stride == 1:
         # Some estimators may require the stride, so we pass it in.
         estimator_kwargs['stride'] = stride
-        return mcbs_ci(dataset=estimator_datasets, estimator=estimator, alpha=alpha, dlen=dlen, n_sets=n_sets, args=args, kwargs=estimator_kwargs, sort=numpy.msort) + (correl_len,)
+        return mcbs_ci(dataset=estimator_datasets, estimator=estimator, alpha=alpha, dlen=dlen, n_sets=n_sets, args=args, kwargs=estimator_kwargs, sort=np.msort) + (correl_len,)
     else:
-        subsample = subsample or (lambda x: x[numpy.random.randint(len(x))])
+        subsample = subsample or (lambda x: x[np.random.randint(len(x))])
         # Let's make sure we decimate every array properly...
         decim_list = {}
         for key,dset in estimator_datasets.items():
             dset_shape = list(dset.shape)
             n_slices = dset_shape[0] // stride
             dset_shape[0] = n_slices
-            decim_set = numpy.empty((dset_shape), dtype=dset.dtype)
+            decim_set = np.empty((dset_shape), dtype=dset.dtype)
             for iout, istart in enumerate(range(0,dset.shape[0]-stride+1,stride)):
                 sl = dset[istart:istart+stride]
                 # We assume time is the 0th axis.
@@ -148,15 +147,15 @@ def mcbs_ci_correl(estimator_datasets, estimator, alpha, n_sets=None, args=None,
             decim_list[key] = decim_set
             dlen = dset_shape[0]
             estimator_kwargs['stride'] = stride
-        
-        return mcbs_ci(dataset=decim_list, estimator=estimator, alpha=alpha, dlen=dlen, n_sets=n_sets, args=args, kwargs=estimator_kwargs, sort=numpy.msort) + (correl_len,)
+
+        return mcbs_ci(dataset=decim_list, estimator=estimator, alpha=alpha, dlen=dlen, n_sets=n_sets, args=args, kwargs=estimator_kwargs, sort=np.msort) + (correl_len,)
 
 
 # These are blocks designed to evaluate simple information sets.
 # Whether they should go here or in westtoools is somewhat up for debate.
 # Currently, nothing actually uses them, so there's that.
 
-def _1D_simple_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha, mcbs_nsets, mcbs_acalpha, do_correl, mcbs_enable, subsample=numpy.mean, **extra):
+def _1D_simple_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha, mcbs_nsets, mcbs_acalpha, do_correl, mcbs_enable, subsample=np.mean, **extra):
     # This is actually appropriate for anything with a directly measured, 1D dataset, i.e.,
     # Fluxes, color populations, and state populations.
     results = []
@@ -164,7 +163,7 @@ def _1D_simple_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_a
         # Not sure if we need a jstate for these estimators, but we'll see.
         kwargs = { 'istate' : istate , 'jstate': 'B'}
         estimator_datasets = {'dataset': data_input['dataset'][:,istate]}
-        ci_res = mcbs_ci_correl(estimator_datasets,estimator=(lambda stride, dataset: numpy.mean(dataset)),
+        ci_res = mcbs_ci_correl(estimator_datasets,estimator=(lambda stride, dataset: np.mean(dataset)),
                                 alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
                                 subsample=subsample, do_correl=do_correl, mcbs_enable=mcbs_enable)
 
@@ -172,18 +171,19 @@ def _1D_simple_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_a
 
     return results
 
-def _2D_simple_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha, mcbs_nsets, mcbs_acalpha, do_correl, mcbs_enable, subsample=numpy.mean, **extra):
+def _2D_simple_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha, mcbs_nsets, mcbs_acalpha, do_correl, mcbs_enable, subsample=np.mean, **extra):
     # This is really just a simple 2D block for less complex datasets, but there it is.
     # It's probably limited in this use case to conditional_fluxes, but anything that's an i to j process that is directly measured
     # is suitable for use with this.
     results = []
     for istate in range(nstates):
         for jstate in range(nstates):
-            if istate == jstate: continue
+            if istate == jstate:
+                continue
             kwargs = { 'istate' : istate, 'jstate': jstate }
             #dataset = {'dataset': cond_fluxes[:, istate, jstate]}
             estimator_datasets = {'dataset': data_input['dataset'][:, istate, jstate] }
-            ci_res = mcbs_ci_correl(estimator_datasets,estimator=(lambda stride, dataset: numpy.mean(dataset)),
+            ci_res = mcbs_ci_correl(estimator_datasets,estimator=(lambda stride, dataset: np.mean(dataset)),
                                     alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
                                     subsample=subsample, do_correl=do_correl, mcbs_enable=mcbs_enable)
 

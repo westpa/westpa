@@ -1,19 +1,24 @@
-
 import logging
-import re, os
-from westtools import WESTMasterCommand, WESTSubcommand
-import numpy, h5py
-from westpa import h5io, textio
+import os
+import re
+
+import h5py
+import numpy as np
+
 import matplotlib
 from matplotlib import pyplot
 from matplotlib.image import NonUniformImage
-from fasthist import normhistnd
-from westpa.extloader import get_object
+
+from westpa.tools import WESTMasterCommand, WESTSubcommand
+from westpa.core import h5io, textio
+from westpa.fasthist import normhistnd
+from westpa.core.extloader import get_object
 
 log = logging.getLogger('westtools.plothist')
 
 # Suppress divide-by-zero in log
-numpy.seterr(divide='ignore', invalid='ignore')
+np.seterr(divide='ignore', invalid='ignore')
+
 
 def sum_except_along(array, axes):
     '''Reduce the given array by addition over all axes except those listed in the scalar or
@@ -29,11 +34,11 @@ def sum_except_along(array, axes):
 
     # Reorder axes so that the kept axes are first, and in the order they
     # were given
-    array = numpy.transpose(array, list(axes) + summed).copy()
+    array = np.transpose(array, list(axes) + summed).copy()
 
     # Now, the last len(summed) axes are summed over
     for _ in range(len(summed)):
-        array = numpy.add.reduce(array, axis=-1)
+        array = np.add.reduce(array, axis=-1)
 
     return array
 
@@ -192,13 +197,13 @@ class PlotHistBase(WESTSubcommand):
             raise ValueError('invalid range specification {!r}: {!r}'.format(rangespec, e))
 
     def _ener_zero(self, hist):
-        hist = -numpy.log(hist)
+        hist = -np.log(hist)
         if self.enerzero == 'min':
-            numpy.subtract(hist, hist.min(), out=hist, casting="unsafe")
+            np.subtract(hist, hist.min(), out=hist, casting="unsafe")
         elif self.enerzero == 'max':
-            numpy.subtract(hist, hist.max(), out=hist, casting="unsafe")
+            np.subtract(hist, hist.max(), out=hist, casting="unsafe")
         else:
-            numpy.subtract(hist, self.enerzero, out=hist, casting="unsafe")
+            np.subtract(hist, self.enerzero, out=hist, casting="unsafe")
         return hist
 
 
@@ -224,7 +229,7 @@ class PlotSupports2D(PlotHistBase):
 
     def _do_1d_output(self, hist, idim, midpoints):
         enehist = self._ener_zero(hist)
-        log10hist = numpy.log10(hist)
+        log10hist = np.log10(hist)
 
         if self.hdf5_output_filename:
             with h5py.File(self.hdf5_output_filename, 'w') as output_h5:
@@ -241,7 +246,7 @@ class PlotSupports2D(PlotHistBase):
                 output_file.write_header('column 1: probability in bin')
                 output_file.write_header('column 2: -ln P')
                 output_file.write_header('column 3: log10 P')
-                numpy.savetxt(output_file, numpy.column_stack([midpoints,hist, enehist, log10hist]))
+                np.savetxt(output_file, np.column_stack([midpoints,hist, enehist, log10hist]))
 
         if self.plot_output_filename:
             if self.plotscale == 'energy':
@@ -268,14 +273,14 @@ class PlotSupports2D(PlotHistBase):
 
     def _do_2d_output(self, hist, idims, midpoints, binbounds):
         enehist = self._ener_zero(hist)
-        log10hist = numpy.log10(hist)
+        log10hist = np.log10(hist)
 
         if self.hdf5_output_filename:
             with h5py.File(self.hdf5_output_filename, 'w') as output_h5:
                 h5io.stamp_creator_data(output_h5)
                 output_h5.attrs['source_data'] = os.path.abspath(self.input_h5.filename)
-                output_h5.attrs['source_dimensions'] = numpy.array(idims, numpy.min_scalar_type(max(idims)))
-                output_h5.attrs['source_dimension_labels'] = numpy.array([dim['label'] for dim in self.dimensions])
+                output_h5.attrs['source_dimensions'] = np.array(idims, np.min_scalar_type(max(idims)))
+                output_h5.attrs['source_dimension_labels'] = np.array([dim['label'] for dim in self.dimensions])
                 for idim in idims:
                     output_h5['midpoints_{}'.format(idim)] = midpoints[idim]
                 output_h5['histogram'] = hist
@@ -290,7 +295,7 @@ class PlotSupports2D(PlotHistBase):
                 label = r'$\log_{10}\ P(\vec{x})$'
             else:
                 plothist = hist
-                plothist[~numpy.isfinite(plothist)] = numpy.nan
+                plothist[~np.isfinite(plothist)] = np.nan
                 label = r'$P(\vec{x})$'
 
             try:
@@ -353,7 +358,7 @@ least, must be compatible with the output format of ``w_pdist``; see
 
         idim = self.dimensions[0]['idim']
         n_iters = self.input_h5['n_iter'][...]
-        iiter = numpy.searchsorted(n_iters, self.n_iter)
+        iiter = np.searchsorted(n_iters, self.n_iter)
         binbounds = self.input_h5['binbounds_{}'.format(idim)][...]
         midpoints = self.input_h5['midpoints_{}'.format(idim)][...]
         hist = self.input_h5['histograms'][iiter]
@@ -370,7 +375,7 @@ least, must be compatible with the output format of ``w_pdist``; see
         idim1 = self.dimensions[1]['idim']
 
         n_iters = self.input_h5['n_iter'][...]
-        iiter = numpy.searchsorted(n_iters, self.n_iter)
+        iiter = np.searchsorted(n_iters, self.n_iter)
         binbounds_0 = self.input_h5['binbounds_{}'.format(idim0)][...]
         midpoints_0 = self.input_h5['midpoints_{}'.format(idim0)][...]
         binbounds_1 = self.input_h5['binbounds_{}'.format(idim1)][...]
@@ -424,8 +429,8 @@ probability distribution must have been previously extracted with ``w_pdist``
 
         idim = self.dimensions[0]['idim']
         n_iters = self.input_h5['n_iter'][...]
-        iiter_start = numpy.searchsorted(n_iters, self.iter_start)
-        iiter_stop  = numpy.searchsorted(n_iters, self.iter_stop)
+        iiter_start = np.searchsorted(n_iters, self.iter_start)
+        iiter_stop  = np.searchsorted(n_iters, self.iter_stop)
         binbounds = self.input_h5['binbounds_{}'.format(idim)][...]
         midpoints = self.input_h5['midpoints_{}'.format(idim)][...]
         #hist = self.input_h5['histograms'][iiter_start:iiter_stop]
@@ -449,8 +454,8 @@ probability distribution must have been previously extracted with ``w_pdist``
         idim1 = self.dimensions[1]['idim']
 
         n_iters = self.input_h5['n_iter'][...]
-        iiter_start = numpy.searchsorted(n_iters, self.iter_start)
-        iiter_stop  = numpy.searchsorted(n_iters, self.iter_stop)
+        iiter_start = np.searchsorted(n_iters, self.iter_start)
+        iiter_stop  = np.searchsorted(n_iters, self.iter_stop)
 
         binbounds_0 = self.input_h5['binbounds_{}'.format(idim0)][...]
         midpoints_0 = self.input_h5['midpoints_{}'.format(idim0)][...]
@@ -514,8 +519,8 @@ probability distribution must have been previously extracted with ``w_pdist``
 
         idim = self.dimensions[0]['idim']
         n_iters = self.input_h5['n_iter'][...]
-        iiter_start = numpy.searchsorted(n_iters, self.iter_start)
-        iiter_stop  = numpy.searchsorted(n_iters, self.iter_stop)
+        iiter_start = np.searchsorted(n_iters, self.iter_start)
+        iiter_stop  = np.searchsorted(n_iters, self.iter_stop)
         binbounds = self.input_h5['binbounds_{}'.format(idim)][...]
         midpoints = self.input_h5['midpoints_{}'.format(idim)][...]
         hists_ds = self.input_h5['histograms']
@@ -525,8 +530,8 @@ probability distribution must have been previously extracted with ``w_pdist``
         # We always round down, so that we don't have a dangling partial block at the end
         nblocks = itercount // self.iter_step
 
-        block_iters = numpy.empty((nblocks,2), dtype=n_iters.dtype)
-        blocked_hists = numpy.zeros((nblocks,hists_ds.shape[1+idim]), dtype=hists_ds.dtype)
+        block_iters = np.empty((nblocks,2), dtype=n_iters.dtype)
+        blocked_hists = np.zeros((nblocks,hists_ds.shape[1+idim]), dtype=hists_ds.dtype)
 
         for iblock, istart in enumerate(range(iiter_start, iiter_start+nblocks*self.iter_step, self.iter_step)):
             istop = min(istart+self.iter_step, iiter_stop)
@@ -534,7 +539,7 @@ probability distribution must have been previously extracted with ``w_pdist``
 
 
             # Sum over time
-            histslice = numpy.add.reduce(histslice, axis=0)
+            histslice = np.add.reduce(histslice, axis=0)
 
             # Sum over other dimensions
             blocked_hists[iblock] = sum_except_along(histslice, idim)
@@ -545,9 +550,9 @@ probability distribution must have been previously extracted with ``w_pdist``
             block_iters[iblock,0] = n_iters[istart]
             block_iters[iblock,1] = n_iters[istop-1]+1
 
-        #enehists = -numpy.log(blocked_hists)
+        #enehists = -np.log(blocked_hists)
         enehists = self._ener_zero(blocked_hists)
-        log10hists = numpy.log10(blocked_hists)
+        log10hists = np.log10(blocked_hists)
 
 
         if self.hdf5_output_filename:

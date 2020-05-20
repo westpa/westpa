@@ -1,21 +1,22 @@
+import logging
+import sys
 
+from . core import WorkManager, WMFuture
 
-import logging, sys
 
 log = logging.getLogger(__name__)
 
-from . import WorkManager, WMFuture
 
 class SerialWorkManager(WorkManager):
     @classmethod
     def from_environ(cls, wmenv=None):
         return cls()
-    
+
     def __init__(self):
         log.debug('initializing serial work manager')
         super(SerialWorkManager,self).__init__()
         self.n_workers = 1
-        
+
     def submit(self, fn, args=None, kwargs=None):
         ft = WMFuture()
         try:
@@ -25,4 +26,4 @@ class SerialWorkManager(WorkManager):
         else:
             ft._set_result(result)
         return ft
-    
+
