@@ -1,7 +1,6 @@
 
 """WEST run control and configuration routines"""
 
-
 import errno
 import logging
 import math
@@ -12,6 +11,7 @@ import warnings
 import numpy as np
 
 import westpa
+import westpa.core.data_manager
 from .yamlcfg import YAMLConfig
 from .yamlcfg import YAMLSystem
 from . import extloader

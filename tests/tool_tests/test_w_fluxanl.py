@@ -1,13 +1,11 @@
+import math
 
-import nose
-import nose.tools
-from nose.tools import with_setup
 from nose.plugins.skip import SkipTest
 
-import tempfile, math
 from .common import *
-from w_fluxanl import WFluxanlTool
 import h5py
+
+from westpa.cli.tools.w_fluxanl import WFluxanlTool
 
 
 def get_flux_group(f):
@@ -28,7 +26,7 @@ class Test_W_Fluxanl_Args(CommonToolTest):
 
     def test_args(self):
         '''Testing arg combos: w_fluxanl runs as expected'''
-        
+
         for args_dict in cycle_args(self.arg_combos):
             self.outfile = self.mktemp(prefix='fluxanl')
             self.w = WFluxanlTool()
@@ -58,7 +56,7 @@ class Test_W_Fluxanl_Args(CommonToolTest):
             else:
                 self.mean_flux = mean_flux
 
-            
+
             expected_alpha = kwargs['alpha'] or 0.05
             actual_alpha = index_group.attrs['mcbs_alpha']
 

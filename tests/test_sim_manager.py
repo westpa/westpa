@@ -1,15 +1,10 @@
-
-
-import os
 import argparse
-import numpy
+import os
 
-os.environ['WEST_SIM_ROOT'] = os.path.join(os.environ['WEST_ROOT'], 'lib/examples/odld')
-import westpa, west
-from westpa.binning.assign import RectilinearBinMapper
+import numpy as np
 
-import nose
-import nose.tools
+import westpa
+from westpa.core.binning.assign import RectilinearBinMapper
 
 
 class TestSimManager:
@@ -19,7 +14,8 @@ class TestSimManager:
         parser = argparse.ArgumentParser()
         westpa.rc.add_args(parser)
 
-        config_file_name = os.path.join(os.environ['WEST_SIM_ROOT'], 'west.cfg')
+        here = os.path.dirname(__file__)
+        config_file_name = os.path.join(here, 'fixtures', 'odld', 'west.cfg')
         args = parser.parse_args(['-r={}'.format(config_file_name)])
         westpa.rc.process_args(args)
         self.sim_manager = westpa.rc.get_sim_manager()
@@ -63,4 +59,4 @@ class TestSimManager:
         self.sim_manager.invoke_callbacks(hook)
 
         system = self.sim_manager.system
-        assert numpy.all(system.bin_mapper.boundaries == numpy.array([0.0, 1.0, 2.0, 3.0]))
+        assert np.all(system.bin_mapper.boundaries == np.array([0.0, 1.0, 2.0, 3.0]))
