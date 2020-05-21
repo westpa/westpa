@@ -1,4 +1,5 @@
-from westpa import rc, h5io
+from westpa import rc
+from westpa.core import h5io
 
 data_manager = rc.get_data_manager()
 
