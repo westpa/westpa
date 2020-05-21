@@ -1,10 +1,10 @@
-
-import sys
-from westtools import WESTTool, WESTDataReader
-from west import Segment
-
 import logging
-log = logging.getLogger('westtools.w_dumpsegs')
+import sys
+
+from westpa.tools import WESTTool, WESTDataReader
+from westpa.core.segment import Segment
+
+log = logging.getLogger('w_dumpsegs')
 
 
 class WDumpSegs(WESTTool):
@@ -76,6 +76,7 @@ significant analysis tasks).
 
 def entry_point():
     WDumpSegs().main()
+
 
 if __name__ == '__main__':
     entry_point()

@@ -1,14 +1,11 @@
+from westpa.tools import (WESTMasterCommand, WESTParallelTool)
 
-from westtools import (WESTMasterCommand, WESTParallelTool, WESTDataReader, IterRangeSelection, WESTSubcommand, WESTToolComponent, WESTTool,
-                       ProgressIndicatorComponent)
-
-from w_reweight import RWAverage
-import sys, argparse, os
-import work_managers
+from westpa.cli.tools.w_reweight import RWAverage
 
 # Just a shim to make sure everything works and is backwards compatible.
 # We're making sure it has the appropriate functions so that it can be called
 # as a regular tool, and not a subcommand.
+
 
 class PAAverage(RWAverage):
     subcommand = 'average'
@@ -19,8 +16,9 @@ class PAAverage(RWAverage):
     # That'll take some case handling, which is fine.
     default_kinetics_file = 'flux_matrices.h5'
 
+
 class WReweight(WESTMasterCommand, WESTParallelTool):
-    prog='w_postanalysis_reweight'
+    prog = 'w_postanalysis_reweight'
     subcommands = [PAAverage]
     subparsers_title = 'calculate state-to-state kinetics by tracing trajectories'
     description = '''\

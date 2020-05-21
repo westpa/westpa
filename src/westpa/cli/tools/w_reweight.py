@@ -18,7 +18,7 @@ warnings.filterwarnings('ignore', category=DeprecationWarning)
 warnings.filterwarnings('ignore', category=RuntimeWarning)
 warnings.filterwarnings('ignore', category=FutureWarning)
 
-log = logging.getLogger('westtools.w_reweight')
+log = logging.getLogger('w_reweight')
 
 
 def _2D_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha, mcbs_nsets, mcbs_acalpha, do_correl, mcbs_enable, estimator_kwargs):
@@ -26,7 +26,8 @@ def _2D_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha, m
     results = []
     for istate in range(nstates):
         for jstate in range(nstates):
-            if istate == jstate: continue
+            if istate == jstate:
+                continue
             estimator_kwargs.update(dict(istate=istate, jstate=jstate, nstates=nstates))
 
             dataset = { 'indices' : np.array(list(range(start-1, stop-1)), dtype=np.uint16) }

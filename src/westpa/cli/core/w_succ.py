@@ -3,17 +3,16 @@ import sys
 
 import numpy as np
 
-import west
 import westpa
 
-from oldtools.aframe import WESTAnalysisTool, WESTDataReaderMixin, CommonOutputMixin
+from westpa.oldtools.aframe import WESTAnalysisTool, WESTDataReaderMixin, CommonOutputMixin
 
 import logging
 
 log = logging.getLogger('w_succ')
 
 
-class WSucc(CommonOutputMixin,WESTDataReaderMixin,WESTAnalysisTool):
+class WSucc(CommonOutputMixin, WESTDataReaderMixin, WESTAnalysisTool):
     def __init__(self):
         super(WSucc, self).__init__()
         self.include_args['CommonOutputMixin']['print_bin_labels'] = False

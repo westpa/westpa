@@ -1,14 +1,18 @@
-
 import logging
-import re, os
-from westtools import WESTMasterCommand, WESTSubcommand, ProgressIndicatorComponent, Plotter
-import numpy, h5py
-from westpa import h5io
+import os
+import re
+
+import h5py
+import numpy as np
+
+from westpa.tools import WESTMasterCommand, WESTSubcommand, ProgressIndicatorComponent, Plotter
+from westpa.core import h5io
+
 if os.environ.get('DISPLAY') is not None:
-    import matplotlib
     from matplotlib import pyplot
 
-log = logging.getLogger('westtools.ploterrs')
+log = logging.getLogger('ploterrs')
+
 
 class CommonPloterrs(WESTSubcommand):
     def __init__(self, parent):
@@ -155,12 +159,11 @@ Command-line arguments
         self.output_filename = args.output
         (pathname, slicestr) = re.search(r'([^[]+)(\[[^\]]+\])?$', args.dsspec).groups()
         if slicestr:
-            sl = eval('numpy.index_exp' + slicestr)
+            sl = eval('np.index_exp' + slicestr)
         else:
-            sl = numpy.index_exp[...]
+            sl = np.index_exp[...]
         self.h5file, self.h5dset = h5io.resolve_filepath(pathname, mode='r')
         self.dset_slice = sl
-
 
     def load_and_validate_data(self):
         reqd_fields = set(['iter_start', 'iter_stop', 'expected', 'ci_lbound', 'ci_ubound'])

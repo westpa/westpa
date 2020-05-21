@@ -1,12 +1,12 @@
 import argparse
 import logging
 
-import numpy
+import numpy as np
 
 import westpa
-from west import Segment
-from west.states import InitialState
-from west.data_manager import n_iter_dtype, seg_id_dtype
+from westpa.core.segment import Segment
+from westpa.core.states import InitialState
+from westpa.core.data_manager import n_iter_dtype, seg_id_dtype
 
 log = logging.getLogger('w_fork')
 
@@ -78,10 +78,10 @@ def entry_point():
 
     istates = dm_new.create_initial_states(n_segments, n_iter=1)
     segments = []
-    state_map_dtype = numpy.dtype([('old_n_iter', n_iter_dtype),
+    state_map_dtype = np.dtype([('old_n_iter', n_iter_dtype),
                                    ('old_seg_id', seg_id_dtype),
                                    ('new_istate_id', seg_id_dtype)])
-    state_map = numpy.empty((n_segments,), dtype=state_map_dtype)
+    state_map = np.empty((n_segments,), dtype=state_map_dtype)
     state_map['old_n_iter'] = n_iter
 
 
@@ -97,7 +97,7 @@ def entry_point():
                           parent_id =-(istate.state_id+1),
                           wtg_parent_ids = [-(istate.state_id+1)],
                           status=Segment.SEG_STATUS_PREPARED)
-        segment.pcoord = numpy.zeros((pcoord_len, pcoord_ndim), dtype=pcoord.dtype)
+        segment.pcoord = np.zeros((pcoord_len, pcoord_ndim), dtype=pcoord.dtype)
         segment.pcoord[0] = pcoord
         segments.append(segment)
         state_map[iseg]['old_seg_id'] = iseg

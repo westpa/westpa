@@ -5,15 +5,15 @@ import sys
 
 import numpy as np
 
-import work_managers
-from work_managers import make_work_manager
+import westpa.work_managers as work_managers
+from westpa.work_managers import make_work_manager
 
 import westpa
-from west import Segment
-from west.states import BasisState, TargetState
+from westpa.core.segment import Segment
+from westpa.core.states import BasisState, TargetState
 
 
-log = logging.getLogger('w_init')
+log = logging.getLogger('w_states')
 EPS = np.finfo(np.float64).eps
 
 

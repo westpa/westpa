@@ -1,14 +1,11 @@
+from westpa.tools import (WESTMasterCommand, WESTParallelTool)
 
-from westtools import (WESTMasterCommand, WESTParallelTool, WESTDataReader, IterRangeSelection, WESTSubcommand, WESTToolComponent, WESTTool,
-                       ProgressIndicatorComponent)
-
-from w_direct import DStateProbs
-import sys, argparse, os
-import work_managers
+from westpa.cli.tools.w_direct import DStateProbs
 
 # Just a shim to make sure everything works and is backwards compatible.
 # We're making sure it has the appropriate functions so that it can be called
 # as a regular tool, and not a subcommand.
+
 
 class WStateProbs(DStateProbs):
     subcommand = 'trace'
@@ -19,8 +16,9 @@ class WStateProbs(DStateProbs):
     # That'll take some case handling, which is fine.
     default_kinetics_file = 'assign.h5'
 
+
 class WDirect(WESTMasterCommand, WESTParallelTool):
-    prog='w_stateprobs'
+    prog = 'w_stateprobs'
     subcommands = [WStateProbs]
     subparsers_title = 'calculate state-to-state kinetics by tracing trajectories'
     description = '''\

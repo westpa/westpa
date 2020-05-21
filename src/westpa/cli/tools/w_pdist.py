@@ -11,7 +11,7 @@ from westpa.core import h5io
 from westpa.core.h5io import SingleIterDSSpec
 
 
-log = logging.getLogger('westtools.w_pdist')
+log = logging.getLogger('w_pdist')
 
 
 def isiterable(x):
@@ -21,6 +21,7 @@ def isiterable(x):
         return False
     else:
         return True
+
 
 def _remote_min_max(ndim, dset_dtype, n_iter, dsspec):
     try:
@@ -301,7 +302,8 @@ Command-line options
 
     @staticmethod
     def parse_binspec(binspec):
-        namespace = {'np': np,
+        namespace = {'numpy': np,
+                     'np': np,
                      'inf': float('inf')}
 
         try:

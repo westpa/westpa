@@ -52,6 +52,7 @@ def parsePCV(pc_str):
     # other parts of the WESTPA code.
     namespace = {'math': math,
                  'numpy': np,
+                 'np': np,
                  'inf': float('inf')}
 
     arr = np.array(eval(pc_str,namespace))

@@ -14,13 +14,14 @@ from westpa.core import h5io
 from westpa.core.h5io import WESTPAH5File
 from westpa.core.extloader import get_object
 
-log = logging.getLogger('westtools.w_assign')
+log = logging.getLogger('w_assign')
 
 
 # Changes to keep it alive...
 def parse_pcoord_value(pc_str):
     namespace = {'math': math,
-                 'numpy': numpy,
+                 'numpy': np,
+                 'np': np,
                  'inf': float('inf')}
 
     arr = np.array(eval(pc_str,namespace))

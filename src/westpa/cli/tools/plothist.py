@@ -14,7 +14,7 @@ from westpa.core import h5io, textio
 from westpa.fasthist import normhistnd
 from westpa.core.extloader import get_object
 
-log = logging.getLogger('westtools.plothist')
+log = logging.getLogger('plothist')
 
 # Suppress divide-by-zero in log
 np.seterr(divide='ignore', invalid='ignore')
