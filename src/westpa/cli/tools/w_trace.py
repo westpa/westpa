@@ -1,15 +1,16 @@
-
-import sys
 import re
-from westtools import WESTTool, WESTDataReader
-import numpy, h5py, operator, time
-import westpa
-from westpa import h5io
 
-from west import Segment
-from west.states import InitialState
-from west.data_manager import (weight_dtype, n_iter_dtype, seg_id_dtype, utime_dtype, vstr_dtype,
-                               istate_type_dtype, istate_status_dtype)
+import h5py
+import numpy as np
+
+from westpa.tools import WESTTool, WESTDataReader
+import westpa
+from westpa.core import h5io
+
+from westpa.core.segment import Segment
+from westpa.core.states import InitialState
+from westpa.core.data_manager import (weight_dtype, n_iter_dtype, seg_id_dtype, utime_dtype)
+
 
 class Trace:
     '''A class representing a trace of a certain trajectory segment back to its origin.'''
@@ -96,7 +97,7 @@ class Trace:
 
         seginfo.reverse()
 
-        summary_dtype = numpy.dtype([('n_iter', n_iter_dtype),
+        summary_dtype = np.dtype([('n_iter', n_iter_dtype),
                                      ('seg_id', seg_id_dtype),
                                      ('weight', weight_dtype),
                                      ('walltime', utime_dtype),
@@ -104,7 +105,7 @@ class Trace:
                                      ('final_pcoord', pcoord_dtype, pcoord_pt_shape),
                                      ])
 
-        summary = numpy.array(seginfo, dtype=summary_dtype)
+        summary = np.array(seginfo, dtype=summary_dtype)
 
         try:
             initial_state = data_manager.get_segment_initial_states([first_segment], first_iter)[0]
@@ -136,7 +137,7 @@ class Trace:
         '''
 
         if slice_ is None:
-            slice_ = numpy.s_[...]
+            slice_ = np.s_[...]
 
         if index_data is not None:
             dataset = datafile[dsname]
@@ -206,11 +207,11 @@ class Trace:
 
         # Be sure to retrieve the time series
         if not slice_:
-            first_sl = numpy.index_exp[:, ...]
-            other_sl = numpy.index_exp[1:,...]
+            first_sl = np.index_exp[:, ...]
+            other_sl = np.index_exp[1:,...]
         else:
-            first_sl = numpy.index_exp[:] + slice_
-            other_sl = numpy.index_exp[1:] + slice_
+            first_sl = np.index_exp[:] + slice_
+            other_sl = np.index_exp[1:] + slice_
 
         # Retrieve the first segment's data
         first_n_iter, first_seg_id = self.summary[0]['n_iter'], self.summary[0]['seg_id']
@@ -220,8 +221,8 @@ class Trace:
         n_points_per_seg = len(first_iter_data)
 
         length = n_points_per_seg + (n_segs-1)*(n_points_per_seg-1)
-        tracedata = numpy.empty((length,) + first_iter_data.shape[1:], dtype=first_iter_data.dtype)
-        traceweight = numpy.empty((length,), weight_dtype)
+        tracedata = np.empty((length,) + first_iter_data.shape[1:], dtype=first_iter_data.dtype)
+        traceweight = np.empty((length,), weight_dtype)
 
         # Store first segment data
         tracedata[0:n_points_per_seg] = first_iter_data
@@ -260,8 +261,8 @@ class Trace:
         first_iter_group = self.data_manager.get_iter_group(first_n_iter)
         first_iter_ds = first_iter_group[dsname]
         n_segs = len(self)
-        tracedata = numpy.empty((n_segs,) + first_iter_ds.shape[1:], dtype=first_iter_ds.dtype)
-        traceweight = numpy.empty((n_segs,), weight_dtype)
+        tracedata = np.empty((n_segs,) + first_iter_ds.shape[1:], dtype=first_iter_ds.dtype)
+        traceweight = np.empty((n_segs,), weight_dtype)
         tracedata[0] = first_iter_ds[first_seg_id]
         traceweight[0] = self.summary[0]['weight']
         for isegm1, summary_item in enumerate(self.summary[1:]):
@@ -405,7 +406,7 @@ The following options for datasets are supported:
                 dsinfo[k] = v
             elif k == 'slice':
                 try:
-                    dsinfo['slice'] = eval('numpy.index_exp' + v)
+                    dsinfo['slice'] = eval('np.index_exp' + v)
                 except SyntaxError:
                     raise SyntaxError('invalid index expression {!r}'.format(v))
             else:

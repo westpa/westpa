@@ -23,6 +23,7 @@ log = logging.getLogger(__name__)
 
 def mapper_from_expr(expr):
     namespace = {'numpy': np,
+                 'np': np,
                  'inf': float('inf')}
     try:
         mapper = RectilinearBinMapper(eval(expr,namespace))

@@ -1,11 +1,11 @@
-
 import logging
-from westtools import (WESTParallelTool, WESTDataReader, IterRangeSelection,
-                       ProgressIndicatorComponent)
-import westpa
-from westpa.extloader import get_object
 
-log = logging.getLogger('westtools.w_crawl')
+from westpa.tools import (WESTParallelTool, WESTDataReader, IterRangeSelection,
+                          ProgressIndicatorComponent)
+import westpa
+from westpa.core.extloader import get_object
+
+log = logging.getLogger('w_crawl')
 
 
 class WESTPACrawler:
@@ -26,13 +26,13 @@ class WESTPACrawler:
 
 
 def _remote_task(n_iter, taskfn):
-    data_manager = westpa.rc.get_data_manager() # gaahhh...globals
+    data_manager = westpa.rc.get_data_manager()  # gaahhh...globals
     data_manager.open_backing(mode='r')
     return n_iter, taskfn(n_iter, data_manager.get_iter_group(n_iter))
 
 
 class WCrawl(WESTParallelTool):
-    prog='w_crawl'
+    prog = 'w_crawl'
     description = '''\
 Crawl a weighted ensemble dataset, executing a function for each iteration.
 This can be used for postprocessing of trajectories, cleanup of datasets,
@@ -48,7 +48,7 @@ Command-line options
 '''
 
     def __init__(self):
-        super(WCrawl,self).__init__()
+        super(WCrawl, self).__init__()
 
         # These are used throughout
         self.progress = ProgressIndicatorComponent()
@@ -96,11 +96,11 @@ Command-line options
 
             try:
                 pi.new_operation('Dispatching tasks & processing results', iter_count)
-                task_gen = ((_remote_task, (n_iter, self.task_callable), {}) for n_iter in range(iter_start,iter_stop))
+                task_gen = ((_remote_task, (n_iter, self.task_callable), {}) for n_iter in range(iter_start, iter_stop))
                 for future in self.work_manager.submit_as_completed(task_gen, self.max_queue_len):
                     n_iter, result = future.get_result(discard=True)
                     if self.crawler is not None:
-                        self.crawler.process_iter_result(n_iter,result)
+                        self.crawler.process_iter_result(n_iter, result)
                     pi.progress += 1
             finally:
                 pi.new_operation('Finalizing')
@@ -113,4 +113,3 @@ def entry_point():
 
 if __name__ == '__main__':
     entry_point()
-

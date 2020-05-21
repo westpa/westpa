@@ -1,25 +1,26 @@
-
-import numpy, h5py
+import h5py
+import numpy as np
 from scipy.signal import fftconvolve
 
-from westtools import WESTTool, WESTDataReader, IterRangeSelection
 import westpa
-from west.data_manager import (weight_dtype, n_iter_dtype, vstr_dtype)
-from west.we_driver import NewWeightEntry
-import mclib
-from westpa import h5io
 
-fluxentry_dtype = numpy.dtype([('n_iter', n_iter_dtype),
+from westpa.core.data_manager import (weight_dtype, n_iter_dtype, vstr_dtype)
+from westpa.core.we_driver import NewWeightEntry
+from westpa.core import h5io
+from westpa.tools import WESTTool, WESTDataReader, IterRangeSelection
+from westpa.tools.dtypes import iter_block_ci_dtype as ci_dtype
+import westpa.mclib as mclib
+
+fluxentry_dtype = np.dtype([('n_iter', n_iter_dtype),
                                ('flux', weight_dtype),
-                               ('count', numpy.uint)])
+                               ('count', np.uint)])
 
-target_index_dtype = numpy.dtype([('target_label', vstr_dtype),
+target_index_dtype = np.dtype([('target_label', vstr_dtype),
                                   ('mean_flux', weight_dtype),
                                   ('mean_flux_ci_lb', weight_dtype),
                                   ('mean_flux_ci_ub', weight_dtype),
-                                  ('mean_flux_correl_len', numpy.uintc)])
+                                  ('mean_flux_correl_len', np.uintc)])
 
-from westtools.dtypes import iter_block_ci_dtype as ci_dtype
 
 def _extract_fluxes_fileversion_lt_7(iter_start, iter_stop, data_manager):
     '''Extract fluxes from old format, where groups for iterations where recyling
@@ -29,14 +30,14 @@ def _extract_fluxes_fileversion_lt_7(iter_start, iter_stop, data_manager):
 
     iter_count = iter_stop - iter_start
     target_count = data_manager.get_iter_group(iter_start)['recycling'].shape[0]
-    fluxdata = numpy.zeros((iter_count,), dtype=fluxentry_dtype)
+    fluxdata = np.zeros((iter_count,), dtype=fluxentry_dtype)
 
     if data_manager.we_h5file_version < 5:
         flux_field = 'weight'
     else:
         flux_field = 'flux'
 
-    fluxdata = {itarget: numpy.zeros((iter_count,), dtype=fluxentry_dtype)
+    fluxdata = {itarget: np.zeros((iter_count,), dtype=fluxentry_dtype)
                 for itarget in range(target_count)}
 
     for iiter, n_iter in enumerate(range(iter_start, iter_stop)):
@@ -57,7 +58,7 @@ def _extract_fluxes_fileversion_7(iter_start, iter_stop, data_manager):
     assert data_manager.we_h5file_version >= 7
 
     iter_count = iter_stop - iter_start
-    iters = numpy.arange(iter_start, iter_stop, dtype=n_iter_dtype)
+    iters = np.arange(iter_start, iter_stop, dtype=n_iter_dtype)
 
     # for each target by name, collect the iterations, fluxes, and counts
     # This is not the most foolproof way to do this, but it's good enough, and fast.
@@ -79,7 +80,7 @@ def _extract_fluxes_fileversion_7(iter_start, iter_stop, data_manager):
                 target_info = by_target[tstate.label]
             except KeyError:
                 # State not seen before
-                target_info = by_target[tstate.label] = numpy.zeros((iter_count,), dtype=fluxentry_dtype)
+                target_info = by_target[tstate.label] = np.zeros((iter_count,), dtype=fluxentry_dtype)
                 # If the target happens not to exist in an iteration (for whatever reason),
                 # store a count of -1 as a sentinel
                 target_info['count'][:] = -1
@@ -100,7 +101,7 @@ def _extract_fluxes_fileversion_7(iter_start, iter_stop, data_manager):
     # Find the last contiguous run where target is available
     for target_label in by_target:
         fluxdata = by_target[target_label]
-        by_target[target_label] = fluxdata[numpy.searchsorted(fluxdata['count'],[0])[0]:]
+        by_target[target_label] = fluxdata[np.searchsorted(fluxdata['count'],[0])[0]:]
 
     return by_target
 
@@ -215,8 +216,8 @@ the true value of ``tau``.
         self.iter_range.record_data_iter_range(output_group)
 
         n_targets = len(fluxdata)
-        index = numpy.empty((len(fluxdata),), dtype=target_index_dtype)
-        avg_fluxdata = numpy.empty((n_targets,), dtype=ci_dtype)
+        index = np.empty((len(fluxdata),), dtype=target_index_dtype)
+        avg_fluxdata = np.empty((n_targets,), dtype=ci_dtype)
 
 
         for itarget, (target_label, target_fluxdata) in enumerate(fluxdata.items()):
@@ -244,10 +245,10 @@ the true value of ``tau``.
             h5io.label_axes(acorr_ds, ['lag'], ['tau'])
 
             # Calculate overall averages and CIs
-            #avg, lb_ci, ub_ci, correl_len = mclib.mcbs_ci_correl(fluxes, numpy.mean, self.alpha, self.n_sets,
-            #                                                     autocorrel_alpha=self.autocorrel_alpha, subsample=numpy.mean)
-            avg, lb_ci, ub_ci, sterr, correl_len = mclib.mcbs_ci_correl({'dataset': fluxes}, estimator=(lambda stride, dataset: numpy.mean(dataset)), alpha=self.alpha, n_sets=self.n_sets,
-                                                                 autocorrel_alpha=self.autocorrel_alpha, subsample=numpy.mean, do_correl=self.do_correl, mcbs_enable=self.mcbs_enable )
+            #avg, lb_ci, ub_ci, correl_len = mclib.mcbs_ci_correl(fluxes, np.mean, self.alpha, self.n_sets,
+            #                                                     autocorrel_alpha=self.autocorrel_alpha, subsample=np.mean)
+            avg, lb_ci, ub_ci, sterr, correl_len = mclib.mcbs_ci_correl({'dataset': fluxes}, estimator=(lambda stride, dataset: np.mean(dataset)), alpha=self.alpha, n_sets=self.n_sets,
+                                                                 autocorrel_alpha=self.autocorrel_alpha, subsample=np.mean, do_correl=self.do_correl, mcbs_enable=self.mcbs_enable )
             avg_fluxdata[itarget] = (self.iter_range.iter_start, self.iter_range.iter_stop, avg, lb_ci, ub_ci, sterr, correl_len)
             westpa.rc.pstatus('target {!r}:'.format(target_label))
             westpa.rc.pstatus('  correlation length = {} tau'.format(correl_len))
@@ -281,19 +282,19 @@ the true value of ``tau``.
             n_blocks = iter_count // self.evol_step
             if iter_count % self.evol_step > 0: n_blocks += 1
 
-            cis = numpy.empty((n_blocks,), dtype=ci_dtype)
+            cis = np.empty((n_blocks,), dtype=ci_dtype)
 
             for iblock in range(n_blocks):
                 block_iter_stop = min(iter_start + (iblock+1)*self.evol_step, iter_stop)
                 istop = min((iblock+1)*self.evol_step, len(target_fluxdata['flux']))
                 fluxes = target_fluxdata['flux'][:istop]
 
-                #avg, ci_lb, ci_ub, correl_len = mclib.mcbs_ci_correl(fluxes, numpy.mean, self.alpha, self.n_sets,
+                #avg, ci_lb, ci_ub, correl_len = mclib.mcbs_ci_correl(fluxes, np.mean, self.alpha, self.n_sets,
                 #                                                     autocorrel_alpha = self.autocorrel_alpha,
-                #                                                     subsample=numpy.mean)
-                avg, ci_lb, ci_ub, sterr, correl_len = mclib.mcbs_ci_correl({'dataset': fluxes}, estimator=(lambda stride, dataset: numpy.mean(dataset)), alpha=self.alpha, n_sets=self.n_sets,
+                #                                                     subsample=np.mean)
+                avg, ci_lb, ci_ub, sterr, correl_len = mclib.mcbs_ci_correl({'dataset': fluxes}, estimator=(lambda stride, dataset: np.mean(dataset)), alpha=self.alpha, n_sets=self.n_sets,
                                                                      autocorrel_alpha = self.autocorrel_alpha,
-                                                                     subsample=numpy.mean, do_correl=self.do_correl, mcbs_enable=self.mcbs_enable )
+                                                                     subsample=np.mean, do_correl=self.do_correl, mcbs_enable=self.mcbs_enable )
                 cis[iblock]['iter_start'] = iter_start
                 cis[iblock]['iter_stop']  = block_iter_stop
                 cis[iblock]['expected'], cis[iblock]['ci_lbound'], cis[iblock]['ci_ubound'] = avg, ci_lb, ci_ub

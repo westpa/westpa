@@ -1,8 +1,6 @@
+from westpa.tools import (WESTMasterCommand, WESTParallelTool)
 
-from westtools import (WESTMasterCommand, WESTParallelTool, WESTDataReader, IterRangeSelection, WESTSubcommand,
-                       ProgressIndicatorComponent)
-
-from w_direct import DKinAvg
+from westpa.cli.tools.w_direct import DKinAvg
 
 # Just a shim to make sure everything works and is backwards compatible.
 
@@ -15,7 +13,7 @@ class WKinAvg(DKinAvg):
 
 
 class WDirect(WESTMasterCommand, WESTParallelTool):
-    prog='w_kinavg'
+    prog = 'w_kinavg'
     subcommands = [WKinAvg]
     subparsers_title = 'direct kinetics analysis schemes'
     description = '''\

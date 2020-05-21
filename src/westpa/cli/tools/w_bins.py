@@ -1,19 +1,19 @@
 import logging
 import sys
 
-import numpy
+import numpy as np
 
-from westtools import WESTTool, WESTDataReader, BinMappingComponent
+from westpa.tools import WESTTool, WESTDataReader, BinMappingComponent
 import westpa
 
-from westtools.binning import write_bin_info
+from westpa.tools.binning import write_bin_info
 
 
 log = logging.getLogger('w_bins')
 
 
 class WBinTool(WESTTool):
-    prog='w_bins'
+    prog = 'w_bins'
     description = '''\
 Display information and statistics about binning in a WEST simulation, or
 modify the binning for the current iteration of a WEST simulation.
@@ -124,8 +124,8 @@ modify the binning for the current iteration of a WEST simulation.
         we_driver.assign(segments,initializing=True)
         we_driver.rebin_current(parent_segments=last_iter_segments)
 
-        weights = numpy.array([segment.weight for segment in we_driver.next_iter_segments])
-        assignments = numpy.fromiter(we_driver.next_iter_assignments,dtype=int,count=len(weights))
+        weights = np.array([segment.weight for segment in we_driver.next_iter_segments])
+        assignments = np.fromiter(we_driver.next_iter_assignments,dtype=int,count=len(weights))
         write_bin_info(mapper, assignments, weights, n_target_states, detailed=self.args.detail)
 
         if self.args.confirm:

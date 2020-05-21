@@ -1,10 +1,9 @@
+from westpa.tools import (WESTMasterCommand, WESTParallelTool)
 
-from westtools import (WESTMasterCommand, WESTParallelTool, WESTDataReader, IterRangeSelection, WESTSubcommand,
-                       ProgressIndicatorComponent)
-
-from w_direct import DKinetics
+from westpa.cli.tools.w_direct import DKinetics
 
 # Just a shim to make sure everything works and is backwards compatible.
+
 
 class WKinetics(DKinetics):
     subcommand = 'trace'
@@ -13,7 +12,7 @@ class WKinetics(DKinetics):
 
 
 class WDirect(WESTMasterCommand, WESTParallelTool):
-    prog='w_kinetics'
+    prog = 'w_kinetics'
     subcommands = [WKinetics]
     subparsers_title = 'calculate state-to-state kinetics by tracing trajectories'
     description = '''\

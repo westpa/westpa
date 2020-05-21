@@ -1,13 +1,11 @@
+from westpa.tools import WESTParallelTool, WESTDataReader, IterRangeSelection, ProgressIndicatorComponent
 
-import sys
-from westtools import WESTParallelTool, WESTDataReader, IterRangeSelection, ProgressIndicatorComponent
+import numpy as np
 
-import numpy
+from westpa.core import h5io
+from westpa.core.data_manager import seg_id_dtype, n_iter_dtype, weight_dtype
+from westpa.core.extloader import get_object
 
-import westpa
-from westpa import h5io
-from west.data_manager import seg_id_dtype, n_iter_dtype, weight_dtype
-from westpa.extloader import get_object
 
 def _find_matching_segments(west_datafile_name, n_iter, predicate, invert=False):
     '''Find all segments in iteration ``n_iter`` that match (or do not match, if
@@ -22,7 +20,7 @@ def _find_matching_segments(west_datafile_name, n_iter, predicate, invert=False)
         if invert:
             matching_ids = set(range(nsegs)) - matching_ids
 
-        matchvec = sorted(numpy.fromiter(matching_ids, dtype=seg_id_dtype, count=len(matching_ids)))
+        matchvec = sorted(np.fromiter(matching_ids, dtype=seg_id_dtype, count=len(matching_ids)))
         return n_iter, matchvec
 
 
@@ -132,7 +130,7 @@ Command-line arguments
 
         output_file.create_dataset('n_iter', dtype=n_iter_dtype, data=list(range(iter_start,iter_stop)))
         current_seg_count = 0
-        seg_count_ds = output_file.create_dataset('n_segs', dtype=numpy.uint, shape=(iter_count,))
+        seg_count_ds = output_file.create_dataset('n_segs', dtype=np.uint, shape=(iter_count,))
         matching_segs_ds = output_file.create_dataset('seg_ids', shape=(iter_count,0), maxshape=(iter_count,None),
                                                       dtype=seg_id_dtype,
                                                       chunks=h5io.calc_chunksize((iter_count,1000000), seg_id_dtype),

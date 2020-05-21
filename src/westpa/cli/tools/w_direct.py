@@ -16,7 +16,7 @@ from westpa.mclib import mcbs_ci_correl, _1D_simple_eval_block, _2D_simple_eval_
 # From w_stateprobs
 from westpa.core.binning import accumulate_state_populations_from_labeled
 
-log = logging.getLogger('westtools.w_reweight')
+log = logging.getLogger('w_direct')
 
 
 # This block is responsible for submitting a set of calculations to be bootstrapped over for a particular type of calculation.

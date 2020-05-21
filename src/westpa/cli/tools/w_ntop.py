@@ -1,11 +1,12 @@
+import h5py
+import numpy as np
 
-from westtools import WESTTool, WESTDataReader, IterRangeSelection, ProgressIndicatorComponent
-import numpy, h5py
+from westpa.tools import WESTTool, WESTDataReader, IterRangeSelection, ProgressIndicatorComponent
 
 import westpa
-from westpa import h5io
-from west.data_manager import seg_id_dtype, n_iter_dtype, weight_dtype
-from westpa.binning import assignments_list_to_table
+from westpa.core import h5io
+from westpa.core.data_manager import seg_id_dtype, n_iter_dtype, weight_dtype
+from westpa.core.binning import assignments_list_to_table
 
 
 class WNTopTool(WESTTool):
@@ -120,7 +121,7 @@ Command-line arguments
 
         output_file.create_dataset('n_iter', dtype=n_iter_dtype, data=list(range(iter_start,iter_stop)))
 
-        seg_count_ds = output_file.create_dataset('nsegs', dtype=numpy.uint, shape=(iter_count,nbins))
+        seg_count_ds = output_file.create_dataset('nsegs', dtype=np.uint, shape=(iter_count,nbins))
         matching_segs_ds = output_file.create_dataset('seg_ids', shape=(iter_count,nbins,count),
                                                       dtype=seg_id_dtype,
                                                       chunks=h5io.calc_chunksize((iter_count,nbins,count), seg_id_dtype),
@@ -134,8 +135,8 @@ Command-line arguments
         with pi:
             pi.new_operation('Finding matching segments', extent=iter_count)
             for iiter, n_iter in enumerate(range(iter_start, iter_stop)):
-                assignments = numpy.require(assignments_ds[h5io.get_iteration_entry(assignments_ds, n_iter)
-                                                           + numpy.index_exp[:,timepoint]], dtype=westpa.binning.index_dtype)
+                assignments = np.require(assignments_ds[h5io.get_iteration_entry(assignments_ds, n_iter)
+                                                           + np.index_exp[:,timepoint]], dtype=westpa.binning.index_dtype)
                 all_weights = self.data_reader.get_iter_group(n_iter)['seg_index']['weight']
 
                 # the following Cython function just executes this loop:
@@ -143,7 +144,7 @@ Command-line arguments
                 #    segs_by_bin[iseg,assignments[iseg]] = True
                 segs_by_bin = assignments_list_to_table(nsegs[iiter],nbins,assignments)
                 for ibin in range(nbins):
-                    segs = numpy.nonzero(segs_by_bin[:,ibin])[0]
+                    segs = np.nonzero(segs_by_bin[:,ibin])[0]
 
                     seg_count_ds[iiter,ibin] = min(len(segs),count)
 
@@ -151,12 +152,12 @@ Command-line arguments
                         weights = all_weights.take(segs)
 
                         if what == 'lowweight':
-                            indices = numpy.argsort(weights)[:count]
+                            indices = np.argsort(weights)[:count]
                         elif what == 'highweight':
-                            indices = numpy.argsort(weights)[::-1][:count]
+                            indices = np.argsort(weights)[::-1][:count]
                         else:
                             assert what == 'random'
-                            indices = numpy.random.permutation(len(weights))
+                            indices = np.random.permutation(len(weights))
 
                         matching_segs_ds[iiter,ibin,:len(segs)] = segs.take(indices)
                         weights_ds[iiter,ibin,:len(segs)] = weights.take(indices)
