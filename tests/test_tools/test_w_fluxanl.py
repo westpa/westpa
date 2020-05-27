@@ -1,10 +1,10 @@
 import math
 
+
+import h5py
 from nose.plugins.skip import SkipTest
 
-from .common import *
-import h5py
-
+from .common import CommonToolTest, cycle_args, make_args
 from westpa.cli.tools.w_fluxanl import WFluxanlTool
 
 
@@ -12,6 +12,7 @@ def get_flux_group(f):
     '''f is an h5py file type object'''
 
     return f['target_flux']['index']
+
 
 class Test_W_Fluxanl_Args(CommonToolTest):
     '''

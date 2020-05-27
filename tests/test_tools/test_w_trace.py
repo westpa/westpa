@@ -1,12 +1,7 @@
-
-import nose
-import nose.tools
-from nose.tools import with_setup
-from nose.plugins.skip import SkipTest
-
-from .common import *
-from w_trace import WTraceTool
 import h5py
+
+from .common import CommonToolTest
+from westpa.cli.tools.w_trace import WTraceTool
 
 
 class Test_W_Trace_Args(CommonToolTest):
@@ -29,7 +24,7 @@ class Test_W_Trace_Args(CommonToolTest):
 
         for args in self.arg_combos:
             self.w = WTraceTool()
-            
+
             self.args_so_far.extend(args)
             args.append(outarg)
             self.w.make_parser_and_process(args=args)
