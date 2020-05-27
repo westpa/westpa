@@ -1,14 +1,19 @@
 '''Module of common tool test class'''
 
-import nose
-import tempfile, shutil, os, itertools, re
+import itertools
+import os
+import re
+import shutil
+import tempfile
+
 
 def get_arg_flag(key):
     return "--{}".format(re.sub('_', '-', key))
 
+
 def make_args(outfile,**args):
     '''Makes a list of argument strings from a dictionary for command line tools to process'''
-    
+
     arglist = ['{}={}'.format(get_arg_flag(key), value) if not isinstance(value, bool) else '{}'.format(key) for (key, value) in list(args.items()) if value is not None]
     #arglist = []
     #for key, value in args.items():
@@ -22,24 +27,25 @@ def make_args(outfile,**args):
 
     return arglist
 
+
 def cycle_args(arg_list):
     '''Generator function to generate different argument combo's - returns as dictionaries'''
     keys = list(arg_list.keys())
     for values in itertools.product(*list(arg_list.values())):
-        yield {k:v for (k, v) in zip(keys, values)}
+        yield {k: v for (k, v) in zip(keys, values)}
+
 
 class CommonToolTest:
-
     test_name = None
 
     @classmethod
     def setUpClass(cls):
         cls.tempdir = tempfile.mkdtemp(prefix='w_tools_test')
         os.chdir(cls.tempdir)
-        
+
     @classmethod
     def tearDownClass(cls):
-        os.chdir('{}/lib/west_tools/tests'.format(os.environ['WEST_ROOT']))
+        # os.chdir('{}/lib/west_tools/tests'.format(os.environ['WEST_ROOT']))
         shutil.rmtree(cls.tempdir)
 
     def mktemp(self, suffix='.h5', prefix = '', dirname = None):
