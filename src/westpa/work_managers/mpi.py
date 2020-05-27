@@ -1,18 +1,18 @@
-
-
 """
 A work manager which uses MPI to distribute tasks and collect results.
 """
 
+import collections
+import logging
+import threading
 
-import logging, re, threading
-from collections import deque
 from mpi4py import MPI
 
-import work_managers
-from work_managers import WorkManager, WMFuture
+from westpa.work_managers import WorkManager, WMFuture
+
 
 log = logging.getLogger(__name__)
+
 
 class Task:
     # tasks are tuples of (task_id, function, args, keyword args)
@@ -21,11 +21,12 @@ class Task:
         self.fn = fn
         self.args = args
         self.kwargs = kwargs
-        
+
     def __repr__(self):
         return '<Task {self.task_id}: {self.fn!r}(*{self.args!r}, **{self.kwargs!r})>'\
                .format(self=self)
-    
+
+
 class MPIBase:
 
     def __init__(self):
@@ -50,7 +51,7 @@ class MPIBase:
 
     def startup(self):
         raise NotImplementedError
-    
+
     def shutdown(self):
         raise NotImplementedError
 
@@ -62,15 +63,15 @@ class MPIBase:
             return True
         else:
             return False
-    
+
 class MPIWMServer(MPIBase):
-    
+
     def __init__(self):
         super(MPIWMServer, self).__init__()
-        
+
         # tasks awaiting dispatch
-        self.task_queue = deque()
-        
+        self.task_queue = collections.deque()
+
         # MPI destination ranks for tasks; exclude master_rank
         self.task_dest = deque()
         for rank in range(self.num_procs):
@@ -81,7 +82,7 @@ class MPIWMServer(MPIBase):
         self.pending_futures = dict()
 
     def _dispatch_loop(self):
-        comm = self.comm        
+        comm = self.comm
 
         while True:
 
@@ -107,7 +108,7 @@ class MPIWMServer(MPIBase):
                     return
 
     def _receive_loop(self):
-        comm = self.comm 
+        comm = self.comm
 
         while True:
 
@@ -135,7 +136,7 @@ class MPIWMServer(MPIBase):
                 if 'shutdown' in messages:
                     log.debug('exiting _receive_loop()')
                     return
-                
+
     def _make_append_task(self, fn, args, kwargs):
         ft = WMFuture()
         task_id = ft.task_id
@@ -143,7 +144,7 @@ class MPIWMServer(MPIBase):
         self.pending_futures[task_id] = ft
         self.task_queue.append(task)
         return ft
-    
+
     def submit(self, fn, args=None, kwargs=None):
         ft = self._make_append_task(fn, args if args is not None else [], kwargs if kwargs is not None else {})
         return ft
@@ -160,13 +161,13 @@ class MPIWMServer(MPIBase):
         self._receive_thread.start()
         server_threads.append(self._receive_thread)
 
-        self.server_threads = server_threads 
+        self.server_threads = server_threads
 
 class MPIClient(MPIBase):
 
     def __init__(self):
         super(MPIClient,self).__init__()
-        
+
     def _create_worker(self):
         comm = self.comm
 
@@ -177,7 +178,7 @@ class MPIClient(MPIBase):
             message_src = self.master_rank
             message_tag = status.Get_tag()
 
-            # Check for available task 
+            # Check for available task
             if message_tag == self.task_tag:
 
                 task = comm.recv(source = message_src, tag = message_tag)
@@ -215,13 +216,13 @@ class MPIWorkManager(MPIWMServer,MPIClient,WorkManager):
         WorkManager.__init__(self)
         MPIWMServer.__init__(self)
         MPIClient.__init__(self)
-        
+
     def startup(self):
         if self.rank == self.master_rank:
             MPIWMServer.startup(self)
         else:
             MPIClient.startup(self)
-            
+
     def shutdown(self):
         comm = self.comm
         if self.rank == self.master_rank:
@@ -233,4 +234,3 @@ class MPIWorkManager(MPIWMServer,MPIClient,WorkManager):
                 comm.send('shutdown', dest = 0, tag = self.announce_tag )
 
         log.info( "MPIWMServer.shutdown complete" )
-
