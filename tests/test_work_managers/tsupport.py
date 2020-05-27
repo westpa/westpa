@@ -8,19 +8,26 @@ class ExceptionForTest(Exception):
 def will_succeed():
     return True
 
+
 def will_fail():
     raise ExceptionForTest('failed as expected')
+
 
 def fn_interrupted():
     raise KeyboardInterrupt
 
+
 def will_hang():
-    import sys,time
+    import sys
+    import time
+
     time.sleep(sys.maxsize)
+
 
 def will_busyhang():
     while True:
         pass
+
 
 def will_busyhang_uninterruptible():
     #import signal
@@ -34,8 +41,10 @@ def will_busyhang_uninterruptible():
         except BaseException:
             pass
 
+
 def identity(x):
     return x
+
 
 def busy_identity(x):
     import time
@@ -45,8 +54,10 @@ def busy_identity(x):
         pass
     return x
 
+
 def random_int(seed=None):
-    import random,sys
+    import random
+    import sys
 
     if seed is not None:
         random.seed(seed)
@@ -55,7 +66,8 @@ def random_int(seed=None):
 
 
 def get_process_index():
-    import os, time
+    import os
+    import time
     time.sleep(1) # this ensures that each task gets its own worker
     return os.environ['WM_PROCESS_INDEX']
 
