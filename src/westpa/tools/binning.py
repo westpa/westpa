@@ -78,6 +78,7 @@ def mapper_from_hdf5(topol_group, hashval):
         for i in range(len(chunk)):
             if chunk[i]['hash'] == hashval:
                 pkldat = bytes(pickle_ds[istart+i,0:chunk[i]['pickle_len']].data)
+                # mapper = pickle.loads(pkldat, encoding='latin1')
                 mapper = pickle.loads(pkldat)
                 log.debug('loaded {!r} from {!r}'.format(mapper, topol_group))
                 log.debug('hash value {!r}'.format(hashval))
@@ -89,7 +90,7 @@ def mapper_from_yaml(yamlfilename):
     import yaml
     ydict = yaml.load(open(yamlfilename, 'rt'))
     ybins = ydict['bins']
-    from westpa._rc import bins_from_yaml_dict
+    from westpa.core._rc import bins_from_yaml_dict
     #return mapper_from_dict(ybins)
     return bins_from_yaml_dict(ybins)
 
@@ -329,7 +330,7 @@ class BinMappingComponent(WESTToolComponent):
         bins_from_file = getattr(args, 'bins_from_file', None)
         bins_from_h5file = getattr(args, 'bins_from_h5file', None)
 
-        if not any([bins_from_system, bins_from_expr, bins_from_function, bins_from_h5file]):
+        if not any([bins_from_system, bins_from_expr, bins_from_function, bins_from_h5file, bins_from_file]):
             log.debug('no argument provided')
             if self.mapper_source_group is None:
                 log.info('using bins from system file')
