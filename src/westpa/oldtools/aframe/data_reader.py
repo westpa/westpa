@@ -3,6 +3,7 @@ import logging
 import h5py
 import numpy as np
 
+import westpa
 from westpa.core.segment import Segment
 from westpa.oldtools.aframe import AnalysisMixin
 from westpa.oldtools.miscfn import parse_int_list
