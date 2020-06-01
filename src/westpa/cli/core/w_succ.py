@@ -5,6 +5,7 @@ import numpy as np
 
 import westpa
 
+from westpa.core.segment import Segment
 from westpa.oldtools.aframe import WESTAnalysisTool, WESTDataReaderMixin, CommonOutputMixin
 
 import logging
@@ -39,7 +40,7 @@ class WSucc(CommonOutputMixin, WESTDataReaderMixin, WESTAnalysisTool):
         for n_iter in range(1, self.data_manager.current_iteration):
             seg_index = self.get_seg_index(n_iter)
             all_seg_ids = np.arange(len(seg_index), dtype=np.int_)
-            recycled_seg_ids = all_seg_ids[seg_index[:]['endpoint_type'] == west.Segment.SEG_ENDPOINT_RECYCLED]
+            recycled_seg_ids = all_seg_ids[seg_index[:]['endpoint_type'] == Segment.SEG_ENDPOINT_RECYCLED]
 
             if len(recycled_seg_ids) == 0:
                 # Attemping to retrieve a 0-length selection from HDF5 (the pcoords below) fails

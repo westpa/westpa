@@ -90,7 +90,7 @@ class BasisState:
     def as_numpy_record(self):
         '''Return the data for this state as a numpy record array.'''
 
-        from west.data_manager import vstr_dtype, weight_dtype, seg_id_dtype
+        from westpa.core.data_manager import vstr_dtype, weight_dtype, seg_id_dtype
         bstate_dtype = np.dtype([('state_id', seg_id_dtype),
                                     ('probability', weight_dtype),
                                     ('pcoord', self.pcoord.dtype, (len(self.pcoord),)),
@@ -160,7 +160,7 @@ class InitialState:
                 .format(object.__repr__(self)[:-1], self=self))
 
     def as_numpy_record(self):
-        from west.data_manager import (seg_id_dtype, istate_type_dtype, istate_status_dtype)
+        from westpa.core.data_manager import (seg_id_dtype, istate_type_dtype, istate_status_dtype)
         istate_dtype = np.dtype([('state_id', seg_id_dtype),
                                     ('basis_state_id', seg_id_dtype),
                                     ('iter_created', np.uint),

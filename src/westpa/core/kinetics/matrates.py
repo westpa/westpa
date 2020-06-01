@@ -1,35 +1,36 @@
-
-'''
+"""
 Routines for implementing Letteri et al.'s macrostate-to-macrostate rate calculations
 using extrapolation to steady-state populations from average rate matrices
-'''
 
-"""
 Internally, "labeled" objects (bin populations labeled by history, rate matrix elements labeled
 by history) are stored as nested arrays -- e.g. rates[initial_label, final_label, initial_bin, final_bin].
-These are converted to the flat forms required for, say, eigenvalue calculations internally, and the 
-results converted back. This is because these conversions are not expensive, and saves users of 
+These are converted to the flat forms required for, say, eigenvalue calculations internally, and the
+results converted back. This is because these conversions are not expensive, and saves users of
 this code from having to know how the flattened indexing works (something I screwed up all too
 easily during development) -- mcz
 """
 
+import logging
+import warnings
 
-import logging, warnings
-log = logging.getLogger(__name__)
-
-from _kinetics import (calculate_labeled_fluxes, #@UnresolvedImport
-                       calculate_labeled_fluxes_alllags, #@UnresolvedImport
-                       labeled_flux_to_rate, #@UnresolvedImport
-                       nested_to_flat_matrix, nested_to_flat_vector, #@UnresolvedImport
-                       flat_to_nested_vector, _reduce_labeled_rate_matrix_to_macro) #@UnresolvedImport
-
-import numpy
+import numpy as np
 import scipy.linalg
 
-from west.data_manager import weight_dtype
+from westpa.core.data_manager import weight_dtype
+
+from . _kinetics import (calculate_labeled_fluxes,  # @UnresolvedImport
+                         calculate_labeled_fluxes_alllags,  # @UnresolvedImport
+                         labeled_flux_to_rate,  # @UnresolvedImport
+                         nested_to_flat_matrix, nested_to_flat_vector,  # @UnresolvedImport
+                         flat_to_nested_vector, _reduce_labeled_rate_matrix_to_macro)  # @UnresolvedImport
+
+
+log = logging.getLogger(__name__)
+
 
 class ConsistencyWarning(UserWarning):
     pass
+
 
 def get_steady_state(rates):
     '''Get steady state solution for a rate matrix. As an optimization, returns the
@@ -54,11 +55,11 @@ def get_steady_state(rates):
         log.debug('exception obtaining eigenvectors', exc_info=True)
         return None
 
-    vals = numpy.abs(vals)
+    vals = np.abs(vals)
     log.debug('eigenvalues: {!r}'.format(list(reversed(sorted(vals)))))
-    asort = numpy.argsort(vals)
+    asort = np.argsort(vals)
     vec = vecs[:,asort[-1]]
-    ss = numpy.abs(vec)
+    ss = np.abs(vec)
 
     ss /= ss.sum()
     return ss
@@ -104,17 +105,17 @@ def estimate_rates(nbins, state_labels, weights, parent_ids, bin_assignments, la
 
     # Prepare output arrays
     if labeled_fluxes is None:
-        labeled_fluxes = numpy.zeros((nstates, nstates, nbins, nbins), weight_dtype)
+        labeled_fluxes = np.zeros((nstates, nstates, nbins, nbins), weight_dtype)
     else:
         labeled_fluxes.fill(0.0)
 
     if labeled_rates is None:
-        labeled_rates = numpy.zeros_like(labeled_fluxes)
+        labeled_rates = np.zeros_like(labeled_fluxes)
     else:
         labeled_rates.fill(0.0)
-    
+
     if unlabeled_rates is None:
-        unlabeled_rates = numpy.zeros((nbins,nbins), weight_dtype)
+        unlabeled_rates = np.zeros((nbins,nbins), weight_dtype)
     else:
         unlabeled_rates.fill(0.0)
 
@@ -132,9 +133,8 @@ def estimate_rates(nbins, state_labels, weights, parent_ids, bin_assignments, la
     labeled_flux_to_rate(labeled_fluxes, labeled_pops, labeled_rates)
 
     # Calculate an unlabeled rate matrix
-    unlabeled_fluxes = numpy.sum(labeled_fluxes,axis=(0,1))
+    unlabeled_fluxes = np.sum(labeled_fluxes,axis=(0,1))
     unlabeled_pops = labeled_pops.sum(axis=0)
     unlabeled_rates[...] = labeled_flux_to_rate(unlabeled_fluxes[None,None,:,:], unlabeled_pops[None,:])[0,0]
 
     return labeled_fluxes, labeled_rates, unlabeled_rates
-

@@ -4,7 +4,7 @@ from itertools import zip_longest
 import numpy as np
 
 import westpa
-from westpa.core.kinetics._kinetics import flux_assign, pop_assign, calc_rates, StreamingStats1D, StreamingStats2D  #@UnresolvedImport
+from westpa.core.kinetics._kinetics import flux_assign, pop_assign, calc_rates, StreamingStats1D, StreamingStats2D  # @UnresolvedImport
 
 
 # Named tuple proxy for StreamingStats class
