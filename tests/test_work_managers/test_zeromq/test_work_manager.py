@@ -239,7 +239,6 @@ class TestZMQWorkManagerInternalNone(ZMQTestBase):
     def setUp(self):
         super(TestZMQWorkManagerInternalNone,self).setUp()
 
-
         self.test_wm = ZMQWorkManager(n_local_workers=self.n_workers)
         for worker in self.test_wm.local_workers:
             worker.validation_fail_action = 'raise'
@@ -283,11 +282,14 @@ class TestZMQWorkManagerInternalNone(ZMQTestBase):
         time.sleep(1.5)
         assert isinstance(future.get_exception(),ZMQWorkerMissing)
 
+
 class TestZMQWorkManagerInternalSingle(BaseInternal):
     n_workers = 1
 
+
 class TestZMQWorkManagerInternalMultiple(BaseInternal):
     n_workers = 4
+
 
 class BaseExternal(ZMQTestBase, CommonWorkManagerTests):
 
@@ -332,8 +334,10 @@ class BaseExternal(ZMQTestBase, CommonWorkManagerTests):
 
         super(BaseExternal,self).tearDown()
 
+
 class TestZMQWorkManagerExternalSingle(BaseExternal):
     n_workers = 1
+
 
 class TestZMQWorkManagerExternalMultiple(BaseExternal):
     n_workers = 4

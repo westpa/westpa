@@ -73,7 +73,7 @@ def get_process_index():
 
 
 class CommonWorkManagerTests:
-    MED_TEST_SIZE=256
+    MED_TEST_SIZE = 256
 
     def test_submit(self):
         future = self.work_manager.submit(will_succeed)
@@ -85,28 +85,28 @@ class CommonWorkManagerTests:
             future.get_result()
 
     def test_as_completed(self):
-        input = set(range(self.MED_TEST_SIZE))
+        test_input = set(range(self.MED_TEST_SIZE))
         futures = [self.work_manager.submit(identity, args=(i,)) for i in range(self.MED_TEST_SIZE)]
         output = set(future.get_result() for future in self.work_manager.as_completed(futures))
-        assert input == output
+        assert test_input == output
 
     def test_submit_as_completed(self):
         task_generator = ((busy_identity, (i,), {}) for i in range(self.MED_TEST_SIZE))
-        input = set(range(self.MED_TEST_SIZE))
+        test_input = set(range(self.MED_TEST_SIZE))
         output = set(future.get_result() for future in self.work_manager.submit_as_completed(task_generator, 10))
-        assert input == output
+        assert test_input == output
 
     def test_wait_any(self):
-        input = set(range(self.MED_TEST_SIZE))
+        test_input = set(range(self.MED_TEST_SIZE))
         futures = [self.work_manager.submit(identity, args=(i,)) for i in range(self.MED_TEST_SIZE)]
         output = self.work_manager.wait_any(futures).get_result()
-        assert output in input
+        assert output in test_input
 
     def test_wait_all(self):
-        input = set(range(self.MED_TEST_SIZE))
+        test_input = set(range(self.MED_TEST_SIZE))
         futures = [self.work_manager.submit(identity, args=(i,)) for i in range(self.MED_TEST_SIZE)]
         output = set(future.get_result() for future in self.work_manager.wait_all(futures))
-        assert input == output
+        assert test_input == output
 
     @raises(ExceptionForTest)
     def test_exception_raise(self):
