@@ -73,7 +73,7 @@ class MPIWMServer(MPIBase):
         self.task_queue = collections.deque()
 
         # MPI destination ranks for tasks; exclude master_rank
-        self.task_dest = deque()
+        self.task_dest = collections.deque()
         for rank in range(self.num_procs):
             if rank != self.master_rank:
                 self.task_dest.append(rank)
