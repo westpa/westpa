@@ -88,7 +88,7 @@ of their system, we invite you to contact Lillian Chong (ltchong AT pitt DOT edu
 a few days with her lab and/or setting up video conferencing sessions to help you get your 
 simulations off the ground.
 
-.. _here: https://github.com/westpa/westpa/wiki/WESTPA-Tutorials
+.. _here: https://github.com/westpa/westpa/wiki/Tutorials
 
 ------------
 Getting help
