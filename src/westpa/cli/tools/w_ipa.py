@@ -110,7 +110,7 @@ class WIPI(WESTParallelTool):
         self.__config = westpa.rc.config
         self.__settings = self.__config['west']['analysis']
         for ischeme, scheme in enumerate(self.__settings['analysis_schemes']):
-            if (self.__settings['analysis_schemes'][scheme]['enabled'] == True or self.__settings['analysis_schemes'][scheme]['enabled'] == None):
+            if (self.__settings['analysis_schemes'][scheme]['enabled'] is True or self.__settings['analysis_schemes'][scheme]['enabled'] is None):
                 self.scheme = scheme
         self.data_args = args
         self.analysis_mode = args.analysis_mode
@@ -198,7 +198,7 @@ class WIPI(WESTParallelTool):
         # Right now, we just crash.  That isn't really graceful.
         for scheme in self.__settings['analysis_schemes']:
             if self.__settings['analysis_schemes'][scheme]['enabled']:
-                if self.work_manager.running == False:
+                if self.work_manager.running is False:
                     self.work_manager.startup()
                 path = os.path.join(os.getcwd(), self.__settings['directory'], scheme)
                 #if 'postanalysis' in self.__settings['analysis_schemes'][scheme] and 'postanalysis' in self.__settings['postanalysis']:
@@ -214,7 +214,7 @@ class WIPI(WESTParallelTool):
                     pass
                 self.__analysis_schemes__[scheme] = {}
                 try:
-                    if self.__settings['analysis_schemes'][scheme]['postanalysis'] == True or self.__settings['postanalysis'] == True:
+                    if self.__settings['analysis_schemes'][scheme]['postanalysis'] is True or self.__settings['postanalysis'] is True:
                         analysis_files = ['assign', 'direct', 'reweight']
                     else:
                         analysis_files = ['assign', 'direct']
@@ -225,7 +225,7 @@ class WIPI(WESTParallelTool):
                 assign_hash = None
                 for name in analysis_files:
                     arg_hash = None
-                    if self.reanalyze == True:
+                    if self.reanalyze is True:
                         reanalyze_kinetics = True
                         try:
                             os.remove(os.path.join(path, '{}.h5'.format(name)))
@@ -284,9 +284,9 @@ class WIPI(WESTParallelTool):
                                                       codecs.encode(pickle.dumps(assign.binning.mapper), "base64"),
                                                       base64.b64encode(str(assign.states).encode())])
                             # Let's check the hash.  If the hash is the same, we don't need to reload.
-                            if self.debug_mode == True:
+                            if self.debug_mode is True:
                                 print('{:<10}: old hash, new hash -- {}, {}'.format(name, arg_hash, new_hash))
-                            if self.ignore_hash == False and (arg_hash != new_hash or self.reanalyze == True):
+                            if self.ignore_hash is False and (arg_hash != new_hash or self.reanalyze is True):
                                 # If the hashes are different, or we need to reanalyze, delete the file.
                                 try:
                                     os.remove(os.path.join(path, '{}.h5'.format(name)))
@@ -352,9 +352,9 @@ class WIPI(WESTParallelTool):
                             args.append('--disable-averages')
                             new_hash = self.hash_args(args=args, path=path, extra=[int(self.niters), assign_hash])
                             #if arg_hash != new_hash or self.reanalyze == True or reanalyze_kinetics == True:
-                            if self.debug_mode == True:
+                            if self.debug_mode is True:
                                 print('{:<10}: old hash, new hash -- {}, {}'.format(name, arg_hash, new_hash))
-                            if self.ignore_hash == False and (arg_hash != new_hash or reanalyze_kinetics == True):
+                            if self.ignore_hash is False and (arg_hash != new_hash or reanalyze_kinetics is True):
                                 try:
                                     os.remove(os.path.join(path, '{}.h5'.format(name)))
                                 except:
@@ -406,7 +406,7 @@ class WIPI(WESTParallelTool):
 
     @property
     def reweight(self):
-        if self.__settings['analysis_schemes'][str(self.scheme)]['postanalysis'] == True:
+        if self.__settings['analysis_schemes'][str(self.scheme)]['postanalysis'] is True:
             return self.__analysis_schemes__[str(self.scheme)]['reweight']
         else:
             value = "This sort of analysis has not been enabled."
@@ -425,7 +425,7 @@ class WIPI(WESTParallelTool):
         '''
         # Let's do this a few different ways.
         # We want to return things about the DIFFERENT schemes, if possible.
-        if self._scheme == None:
+        if self._scheme is None:
             self._scheme = WIPIScheme(scheme=self.__analysis_schemes__, name=self._schemename, parent=self, settings=self.__settings)
 
         # This just ensures that when we call it, it's clean.
@@ -443,7 +443,7 @@ class WIPI(WESTParallelTool):
             for ischeme, schemename in enumerate(self.__settings['analysis_schemes']):
                 if ischeme == scheme:
                     scheme = schemename
-        if self.__settings['analysis_schemes'][scheme]['enabled'] == True or self.__settings['analysis_schemes'][scheme]['enabled'] == None:
+        if self.__settings['analysis_schemes'][scheme]['enabled'] is True or self.__settings['analysis_schemes'][scheme]['enabled'] is None:
             self._schemename = scheme
         else:
             print("Scheme cannot be changed to scheme: {}; it is not enabled!".format(scheme))
@@ -594,7 +594,7 @@ class WIPI(WESTParallelTool):
         Similar to current/past, but keyed differently and returns different datasets.
         See help for Future.
         '''
-        if self._future == None:
+        if self._future is None:
             self._future = self.Future(raw=self.__get_children__(), key=None)
             self._future.iteration = self.iteration+1
         return self._future

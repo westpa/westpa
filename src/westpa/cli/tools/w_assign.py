@@ -270,7 +270,7 @@ Command-line options
         with self.data_reader:
             self.dssynth.h5filename = self.data_reader.we_h5filename
             self.dssynth.process_args(args)
-            if args.config_from_file == False:
+            if args.config_from_file is False:
                 self.binning.set_we_h5file_info(self.n_iter,self.data_reader)
                 self.binning.process_args(args)
 

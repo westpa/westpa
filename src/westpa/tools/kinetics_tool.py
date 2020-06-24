@@ -224,7 +224,7 @@ class AverageCommands(WESTKineticsBase):
             futures = []
             for iblock, start in enumerate(start_pts):
                 stop = min(start+step_iter, stop_iter)
-                if self.evolution_mode == 'cumulative' or do_averages == True:
+                if self.evolution_mode == 'cumulative' or do_averages is True:
                     windowsize = int(self.evol_window_frac * (stop - start_iter))
                     block_start = max(start_iter, stop - windowsize)
                 else: # self.evolution_mode == 'blocked'

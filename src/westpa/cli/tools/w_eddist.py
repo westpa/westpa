@@ -53,7 +53,7 @@ def _remote_min_max(ndim, dset_dtype, n_iter, dsspec):
 
     dset = dsspec.get_iter_data(n_iter)
 
-    if dset == None:
+    if dset is None:
         return data_range
 
     for idim in range(ndim):

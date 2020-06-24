@@ -628,7 +628,7 @@ class WIPIScheme(object):
     @property
     def reweight(self):
         # Need to fix this...
-        if self.__settings['analysis_schemes'][str(self.name)]['postanalysis'] == True:
+        if self.__settings['analysis_schemes'][str(self.name)]['postanalysis'] is True:
             return self.__analysis_schemes__[str(self.name)]['reweight']
         else:
             value = "This sort of analysis has not been enabled."

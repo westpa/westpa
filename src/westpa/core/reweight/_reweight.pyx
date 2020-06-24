@@ -213,21 +213,21 @@ cpdef reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, nbins, sta
     # Return conditional fluxes.
     if _return_obs == b'F':
         _return_value = _rw_state_flux[_istate,_jstate]
-        if isnan(_return_value) == True:
+        if isnan(_return_value) is True:
             return 0.0
         else:
             return _return_value
     # Return state probabilities.
     elif _return_obs == b'S':
         _return_value = _rw_state_probs[_istate]
-        if isnan(_return_value) == True:
+        if isnan(_return_value) is True:
             return 0.0
         else:
             return _return_value
     # Return color (ensemble) probabilities
     elif _return_obs == b'C':
         _return_value = _rw_color_probs[_istate]
-        if isnan(_return_value) == True:
+        if isnan(_return_value) is True:
             return 0.0
         else:
             return _return_value
@@ -235,7 +235,7 @@ cpdef reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, nbins, sta
     elif _return_obs == b'R':
         if _rw_color_probs[_istate] != 0.0:
             _return_value = (_rw_state_flux[_istate,_jstate] / (_rw_color_probs[_istate] / (_rw_color_probs[_istate] + _rw_color_probs[_jstate])))
-            if isnan(_return_value) == True:
+            if isnan(_return_value) is True:
                 return 0.0
             else:
                 return _return_value

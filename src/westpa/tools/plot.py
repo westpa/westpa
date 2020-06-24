@@ -47,14 +47,14 @@ class Plotter(object):
             self.dim = 1
 
     def plot(self, i=0, j=1, tau=1, iteration=None, dim=0, interface=None):
-        if iteration == None:
+        if iteration is None:
             iteration = self.iteration
             self.__generic_ci__(self.h5file, iteration, i, j, tau=tau, h5key=self.h5key, dim=dim, interface=interface)
 
     def __generic_ci__(self, h5file, iteration, i, j, tau, h5key='rate_evolution', dim=0, interface=None):
         # This function just calls the appropriate plot function for our available
         # interface.
-        if (interface == None and self.interface == 'text') or interface == 'text':
+        if (interface is None and self.interface == 'text') or interface == 'text':
             if self.dim > 1:
                 self.__terminal_ci__(h5file, iteration, i, j, tau, h5key)
             else:
