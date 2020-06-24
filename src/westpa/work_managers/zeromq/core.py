@@ -389,7 +389,7 @@ class ZMQCore:
         '''Validate incoming message. Raises an exception if the message is improperly formatted (TypeError)
         or does not correspond to the appropriate master (ZMQWMEnvironmentError).'''
         try:
-            super_validator = super(ZMQCore,self).validate_message
+            super_validator = super().validate_message
         except AttributeError:
             pass
         else:

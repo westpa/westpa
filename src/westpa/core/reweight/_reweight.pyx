@@ -25,7 +25,7 @@ ctypedef numpy.uint_t uint_t # 32 bits on 32-bit systems, 64 bits on 64-bit syst
 ctypedef unsigned short Ushort
 ctypedef double complex Cdouble
 
-weight_dtype = numpy.float64  
+weight_dtype = numpy.float64
 index_dtype = numpy.uint16
 bool_dtype = numpy.bool_
 intc_dtype = numpy.intc
@@ -33,10 +33,10 @@ intc_dtype = numpy.intc
 @cython.boundscheck(False)
 @cython.wraparound(False)
 cpdef stats_process(numpy.ndarray[index_t, ndim=2] bin_assignments,
-                    numpy.ndarray[weight_t, ndim=1] weights, 
-                    numpy.ndarray[weight_t, ndim=2] fluxes, 
-                    numpy.ndarray[weight_t, ndim=1] populations, 
-                    numpy.ndarray[trans_t, ndim=2] trans, 
+                    numpy.ndarray[weight_t, ndim=1] weights,
+                    numpy.ndarray[weight_t, ndim=2] fluxes,
+                    numpy.ndarray[weight_t, ndim=1] populations,
+                    numpy.ndarray[trans_t, ndim=2] trans,
                     numpy.ndarray[index_t, ndim=2] mask,
                     str interval='timepoint'                        ):
     cdef:
@@ -319,7 +319,7 @@ cpdef int remove_under_obs(weight_t[:,:] flux, int[:,:] obs, int threshold, int 
 @cython.wraparound(False)
 @cython.cdivision(True)
 cpdef int calc_state_flux(weight_t[:, :] trans_matrix, weight_t[:] bin_probs, long[:] bin_last_state_map, Ushort[:] bin_state_map, int nstates, weight_t[:,:] state_flux, int K_shape) nogil:
-    
+
     cdef:
         int i, j, ii, jj
 
@@ -419,7 +419,7 @@ cpdef int steadystate_solve(weight_t[:,:] K, weight_t[:,:] K_mod, weight_t[:] bi
 cpdef int return_strong_component(weight_t[:,:] K, int K_shape, int[:, :] graph, int i, int z, int[:] visited) nogil:
 
     cdef:
-        int j, y 
+        int j, y
 
     if graph[z, 0] == 0:
         graph[z, 0] += 1

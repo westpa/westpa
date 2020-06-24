@@ -72,7 +72,7 @@ class PlottingMixin(AnalysisMixin):
     def __init__(self):
         global matplotlib, pyplot
 
-        super(PlottingMixin,self).__init__()
+        super().__init__()
 
         self.matplotlib_avail = (matplotlib is not None and pyplot is not None)
 

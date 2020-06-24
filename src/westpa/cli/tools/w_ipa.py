@@ -67,7 +67,7 @@ class WIPI(WESTParallelTool):
     '''
 
     def __init__(self):
-        super(WIPI,self).__init__()
+        super().__init__()
         self.data_reader = WESTDataReader()
         self.wm_env.default_work_manager = self.wm_env.default_parallel_work_manager
         self.progress = ProgressIndicatorComponent()

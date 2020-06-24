@@ -16,7 +16,7 @@ significant analysis tasks).
 '''
 
     def __init__(self):
-        super(WDumpSegs,self).__init__()
+        super().__init__()
         self.data_reader = WESTDataReader()
         self.n_iter = None
         self.output_file = None

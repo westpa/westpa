@@ -29,7 +29,7 @@ class DefaultStringMethod(WESTStringMethod):
                             progress coordinates if present. These progress coordinates will be ignored in the
                             calculation. None if no labels
         mpairs:         A list of lists containing the indices of pairs of centers that should move together.
-                            None if strings move independently 
+                            None if strings move independently
         dtau:           Parameter controlling the rate at which centers move toward the average value in the bin
         kappa:          Parameter controlling the smoothing of the string
         fixed_ends:     Boolean flag specifying whether to fix ends of the strings
@@ -42,9 +42,9 @@ class DefaultStringMethod(WESTStringMethod):
     """
 
     def __init__(self, centers, slen=None, slabels=None, mpairs=None, dtau=0.1,
-                    kappa=0.1, sciflag=None, fixed_ends=True, 
+                    kappa=0.1, sciflag=None, fixed_ends=True,
                     fourierflag=False, fourier_P=2, fourier_maxiters=100, fourier_tol=1.0E-6, **kwargs):
-        super(DefaultStringMethod, self).__init__(centers, **kwargs)
+        super().__init__(centers, **kwargs)
 
         self._SCIPY_FLAG = None
         self._fixed_ends = fixed_ends
@@ -167,7 +167,7 @@ class DefaultStringMethod(WESTStringMethod):
                 pprob = binprob[pi]
                 if np.sum(pprob) == 0.0:
                     continue
-                
+
                 idx = np.ix_(pi,self._indx_take)
                 pavg = np.ma.array(avgcoords[idx])
                 zind = np.where(pprob == 0)[0]
@@ -188,8 +188,8 @@ class DefaultStringMethod(WESTStringMethod):
             if occupied[0].shape != N:
                 notocc = np.ones((N,),dtype=np.bool)  # unoccupied
                 notocc[occupied] = False
-                
-                # marked paired centers as occupied to avoid reseting averaged value if 
+
+                # marked paired centers as occupied to avoid reseting averaged value if
                 # at least one is occupied
                 if self._mpairs is not None:
                     for pi in self._mpairs:
@@ -199,8 +199,8 @@ class DefaultStringMethod(WESTStringMethod):
                         else:
                             for m in pi:
                                 if (m >= si[0].start) and (m < si[0].stop):
-                                    notocc[m-si[0].start] = False 
-                
+                                    notocc[m-si[0].start] = False
+
                 cfunc = lambda z: z.nonzero()[0]
 
                 # Handle ends first
@@ -208,7 +208,7 @@ class DefaultStringMethod(WESTStringMethod):
                     x[0,:] = centers[0,:]
                     notocc[0] = False
                 if notocc[-1]:
-                    x[-1,:] = centers[-1,:] 
+                    x[-1,:] = centers[-1,:]
                     notocc[-1] = False
 
                 # interpolate values for unoccupied bins

@@ -4,30 +4,32 @@
 
 class ArgumentError(RuntimeError):
     def __init__(self, *args, **kwargs):
-        super(ArgumentError,self).__init__(*args,**kwargs)
+        super().__init__(*args,**kwargs)
+
 
 class AnalysisMixin:
     def __init__(self):
-        super(AnalysisMixin,self).__init__()
-        
+        super().__init__()
+
     def add_args(self, parser, upcall = True):
         if upcall:
             try:
-                upfunc = super(AnalysisMixin,self).add_args
+                upfunc = super().add_args
             except AttributeError:
                 pass
             else:
                 upfunc(parser)
-    
+
+
     def process_args(self, args, upcall = True):
         if upcall:
             try:
-                upfunc = super(AnalysisMixin,self).process_args
+                upfunc = super().process_args
             except AttributeError:
                 pass
             else:
                 upfunc(args)
-    
+
 from . import atool
 from .atool import WESTAnalysisTool
 from .iter_range import IterRangeMixin

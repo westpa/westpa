@@ -3,30 +3,32 @@ import numpy as np
 import numpy.ma as ma
 import itertools
 
-TOL=1.0E-6
 
-class UncertContainer(object):
+TOL = 1.0E-6
+
+
+class UncertContainer:
     """ Container to hold uncertainty measurements. Data is convert to np masked arrays
         to avoid possible numerical problems
     """
     def __init__(self,vals,vals_dmin,vals_dmax,mask=ma.nomask):
-        super(UncertContainer, self).__init__()
-        
+        super().__init__()
+
         # If input data already masked arrays extract unmasked data
-        if ma.isMaskedArray(vals): 
+        if ma.isMaskedArray(vals):
             vals = vals.data
         if ma.isMaskedArray(vals_dmin):
             vals_dmin = vals_dmin.data
         if ma.isMaskedArray(vals_dmax):
             vals_dmax = vals_dmax.data
-        
+
         # Adjust negative values
         ineg = np.where(vals_dmin <= 0.0)
         vals_dmin[ineg] = TOL*vals[ineg]
 
-        # Calculate weight based on fractional uncertainty 
+        # Calculate weight based on fractional uncertainty
         diff = vals_dmax - vals_dmin
-        diff_m = ma.masked_where(vals_dmax == vals_dmin,diff)        
+        diff_m = ma.masked_where(vals_dmax == vals_dmin,diff)
 
         self.vals = ma.masked_where(vals == 0.0,vals)
 
@@ -37,12 +39,12 @@ class UncertContainer(object):
         self.uncert.fill_vaule = np.inf
 
         assert np.all(self.wt.mask == self.uncert.mask)
-        
+
         # Mask data if uncertainty is not finite or if any of the inputs were
         # already masked
 
         mm = ma.mask_or(self.wt.mask,mask)
-        
+
         self.vals.mask = mm
         self.wt.mask = mm
         self.uncert.mask = mm
@@ -55,7 +57,7 @@ class UncertContainer(object):
         vals = self.vals[indx]
         dmin = self.dmin[indx]
         dmax = self.dmax[indx]
-        
+
         if isinstance(vals, ma.core.MaskedConstant):
             dum = np.zeros((1,))
             return UncertContainer(dum.copy(),dum.copy(),dum.copy())
@@ -113,7 +115,7 @@ class UncertContainer(object):
             dmax = self.dmax * value.dmax
 
             return UncertContainer(vals,dmin,dmax,mask=vals.mask)
-        
+
         elif isinstance(value,(float,int,np.float,np.int)):
             vals = self.vals * value
             dmin = self.dmin * value
@@ -139,7 +141,7 @@ class UncertContainer(object):
         dmax = self.dmax.T
 
         return UncertContainer(vals,dmin,dmax,mask=vals.mask)
-        
+
     def recip(self):
         vals = 1.0 / self.vals
         dmin = 1.0 / self.dmax
@@ -156,7 +158,7 @@ class UncertContainer(object):
 
     def concatenate(self,value,axis=0):
         """ Concatentate UncertContainer value to self.
-            Assumes that if dimensions of self and value do not match, to 
+            Assumes that if dimensions of self and value do not match, to
             add a np.newaxis along axis of value
         """
 
@@ -177,13 +179,13 @@ class UncertContainer(object):
                 mask =  np.expand_dims(value.mask,axis)
             else:
                 raise ValueError('Could not propery match dimensionality')
-                
+
             self.vals = ma.concatenate((self.vals,vals),axis=axis)
             self.dmin = ma.concatenate((self.dmin,dmin),axis=axis)
             self.dmax = ma.concatenate((self.dmax,dmax),axis=axis)
             self.wt = ma.concatenate((self.wt,wt),axis=axis)
             self.uncert = ma.concatenate((self.uncert,uncert),axis=axis)
-            
+
             self.mask = np.concatenate((self.mask,mask),axis=axis)
         else:
             raise ValueError('Can only concatenate with an UncertContainer object')
@@ -204,7 +206,7 @@ class UncertContainer(object):
             wt = self.wt
             dmin = self.dmin
             dmax = self.dmax
-        
+
         # Get average value
         avg,norm = ma.average(vals,axis=axis,weights=wt,returned=True)
         avg_ex = ma.expand_dims(avg,0)
@@ -215,32 +217,32 @@ class UncertContainer(object):
 
         # Seeking max deviation from the average; if above avg use max, if below use min
         term = np.empty_like(vals)
-        
+
         indices = np.where(vals > avg_ex)
         i0 = indices[0]
         irest = indices[1:]
         ii = tuple(x for x in itertools.chain([i0],irest))
         jj = tuple(x for x in itertools.chain([np.zeros_like(i0)],irest))
         term[ii] = (dmax[ii] - avg_ex[jj])**2
-        
+
         indices = np.where(vals <= avg_ex)
         i0 = indices[0]
         irest = indices[1:]
         ii = tuple(x for x in itertools.chain([i0],irest))
         jj = tuple(x for x in itertools.chain([np.zeros_like(i0)],irest))
         term[ii] = (avg_ex[jj] - dmin[ii])**2
-        
+
         dsum = ma.sum(term*wt,axis=0)     # Sum for weighted average of deviations
 
         dev = 0.5*np.sqrt(dsum/(norm*neff))
-        
+
         if isinstance(avg,(float,np.float)):
             avg = avg_ex
 
         tmp_min = avg - dev
         ii = np.where(tmp_min < 0)
         tmp_min[ii] = TOL*avg[ii]
-        
+
         return UncertContainer(avg,tmp_min,avg+dev)
 
 

@@ -111,7 +111,7 @@ Command-line options
 '''
 
     def __init__(self, parent):
-        super(DKinetics,self).__init__(parent)
+        super().__init__(parent)
 
     def open_files(self):
         self.output_file = h5io.WESTPAH5File(self.output_filename, 'a', creating_program=True)

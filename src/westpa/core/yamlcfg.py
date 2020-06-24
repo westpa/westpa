@@ -56,7 +56,7 @@ class ConfigItemMissing(KeyError):
         self.key = key
         if message is None:
             message = 'configuration item missing: {!r}'.format(key)
-        super(ConfigItemMissing,self).__init__(message)
+        super().__init__(message)
 
 class ConfigItemTypeError(TypeError):
     def __init__(self, key, expected_type, message=None):
@@ -64,7 +64,7 @@ class ConfigItemTypeError(TypeError):
         self.expected_type = expected_type
         if message is None:
             message = 'configuration item {!r} must have type {!r}'.format(key, expected_type)
-        super(ConfigItemTypeError,self).__init__(message)
+        super().__init__(message)
 
 class ConfigValueError(ValueError):
     def __init__(self, key, value, message=None):
@@ -72,7 +72,7 @@ class ConfigValueError(ValueError):
         self.value = value
         if message is None:
             message = 'bad value {!r} for configuration item {!r}'.format(key,value)
-        super(ConfigValueError,self).__init__(message)
+        super().__init__(message)
 
 
 class YAMLConfig:

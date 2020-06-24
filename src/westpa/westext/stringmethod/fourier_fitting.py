@@ -1,13 +1,12 @@
-
 import numpy as np
 import scipy
 import scipy.optimize
 
 
-class FourierFit(object):
+class FourierFit:
     def __init__(self, P=2, ndims=2, maxiters=100, tol=1.0E-6):
-        super(FourierFit, self).__init__()
-        
+        super().__init__()
+
         self.P = P
         self.maxiters = maxiters
         self.ndims = ndims
@@ -15,7 +14,7 @@ class FourierFit(object):
         self.pp = []
         self.t0 = None
         self.w0 = None
-        
+
     def calc_string(self,w,t,x_meas):
         tlen = len(t)
         t = np.linspace(0.0,1.0,tlen)
@@ -44,7 +43,7 @@ class FourierFit(object):
 
         err = weight*(x_target - x_est)
         return err
-        
+
     def optimize(self,data,weight,w0,t0):
         ncenters = data.shape[0]
         self.w0 = w0
@@ -64,7 +63,7 @@ class FourierFit(object):
             # Optimize tk
             for ci in range(ncenters):
                 self.t0[ci] = scipy.optimize.leastsq(self._optimize_dist, self.t0[ci], args=(data,self.w0,ci))[0]
-            
+
             # Optimize wij
             for k in range(self.ndims):
                 self.w0[k,:] = scipy.optimize.leastsq(self._optimize_w,self.w0[k,:],args=(data,self.t0,k,weight))[0]

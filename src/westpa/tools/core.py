@@ -71,7 +71,7 @@ class WESTTool(WESTToolComponent):
     epilog = None
 
     def __init__(self):
-        super(WESTTool,self).__init__()
+        super().__init__()
 
     def add_args(self, parser):
         '''Add arguments specific to this tool to the given argparse parser.'''
@@ -116,7 +116,7 @@ class WESTParallelTool(WESTTool):
     wwmgr command-line arguments and creates a work manager at self.work_manager.'''
 
     def __init__(self, wm_env=None):
-        super(WESTTool,self).__init__()
+        super().__init__()
         self.work_manager = None
         self.wm_env = wm_env or work_managers.environment.default_env
         self.max_queue_len = None
@@ -219,7 +219,7 @@ class WESTMasterCommand(WESTTool):
     include_help_command = True
 
     def __init__(self):
-        super(WESTMasterCommand,self).__init__()
+        super().__init__()
         self._subcommand = None
         self._subcommand_instances = {subcommand_class.subcommand: subcommand_class(self) for subcommand_class in self.subcommands}
 

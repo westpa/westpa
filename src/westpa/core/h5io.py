@@ -252,7 +252,7 @@ class WESTPAH5File(h5py.File):
         arg_creating_program = kwargs.pop('creating_program', None)
 
         # Initialize h5py file
-        super(WESTPAH5File,self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         # Try to get iteration precision and I/O class version
         h5file_iter_prec = _get_one_attr(self, ['westpa_iter_prec', 'west_iter_prec', 'wemd_iter_prec'], None)

@@ -20,7 +20,7 @@ modify the binning for the current iteration of a WEST simulation.
 -------------------------------------------------------------------------------
 '''
     def __init__(self):
-        super(WBinTool,self).__init__()
+        super().__init__()
         self.subcommand = None
         self.data_reader = WESTDataReader()
         self.binning = BinMappingComponent()

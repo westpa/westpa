@@ -38,7 +38,7 @@ class ThreadsWorkManager(WorkManager):
         return cls(wmenv.get_val('n_workers', multiprocessing.cpu_count(), int))
 
     def __init__(self, n_workers = None):
-        super(ThreadsWorkManager,self).__init__()
+        super().__init__()
         self.n_workers = n_workers or multiprocessing.cpu_count()
         self.workers = []
         self.task_queue = queue.Queue()

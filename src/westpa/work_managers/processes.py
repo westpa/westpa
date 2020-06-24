@@ -30,7 +30,7 @@ class ProcessWorkManager(WorkManager):
         return cls(wmenv.get_val('n_workers', multiprocessing.cpu_count(), int))
 
     def __init__(self, n_workers = None, shutdown_timeout = 1):
-        super(ProcessWorkManager,self).__init__()
+        super().__init__()
         self.n_workers = n_workers or multiprocessing.cpu_count()
         self.workers = None
         self.task_queue = multiprocessing.Queue()

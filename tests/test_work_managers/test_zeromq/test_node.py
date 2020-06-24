@@ -17,7 +17,7 @@ class TestZMQNodeExternal(ZMQTestBase,CommonWorkManagerTests):
     '''Tests for the core task dispersal/retrieval and shutdown operations
     (the parts of the WM that do not require ZMQWorker).'''
     def setUp(self):
-        super(TestZMQNodeExternal,self).setUp()
+        super().setUp()
 
 
         self.test_wm = ZMQWorkManager(n_local_workers=0)
@@ -76,7 +76,7 @@ class TestZMQNodeExternal(ZMQTestBase,CommonWorkManagerTests):
         self.test_node.remove_ipc_endpoints()
         self.test_wm.remove_ipc_endpoints()
 
-        super(TestZMQNodeExternal,self).tearDown()
+        super().tearDown()
 
     def test_shutdown(self):
         time.sleep(SHUTDOWN_WAIT)
@@ -96,7 +96,7 @@ class TestZMQNodeInternal(ZMQTestBase,CommonWorkManagerTests):
     '''Tests for the core task dispersal/retrieval and shutdown operations
     (the parts of the WM that do not require ZMQWorker).'''
     def setUp(self):
-        super(TestZMQNodeInternal,self).setUp()
+        super().setUp()
 
 
         self.test_wm = ZMQWorkManager(n_local_workers=0)
@@ -148,5 +148,5 @@ class TestZMQNodeInternal(ZMQTestBase,CommonWorkManagerTests):
         self.test_node.remove_ipc_endpoints()
         self.test_wm.remove_ipc_endpoints()
 
-        super(TestZMQNodeInternal,self).tearDown()
+        super().tearDown()
 

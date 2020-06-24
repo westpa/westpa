@@ -16,7 +16,7 @@ log = logging.getLogger('ploterrs')
 
 class CommonPloterrs(WESTSubcommand):
     def __init__(self, parent):
-        super(CommonPloterrs,self).__init__(parent)
+        super().__init__(parent)
 
         self.progress = ProgressIndicatorComponent()
 
@@ -137,7 +137,7 @@ Command-line arguments
     subcommand = 'generic'
     help_text = 'arbitrary HDF5 file and dataset'
     def __init__(self, parent):
-        super(GenericIntervalSubcommand,self).__init__(parent)
+        super().__init__(parent)
         self.h5file = None
         self.h5dset = None
         self.dset_slice = None
@@ -218,7 +218,7 @@ flux/rate is being plotted:
 '''
 
     def __init__(self, parent):
-        super(DirectKinetics,self).__init__(parent)
+        super().__init__(parent)
         self.kinavg_file = None
 
         self.dset_slice = None
@@ -348,7 +348,7 @@ plotted:
 '''
 
     def __init__(self, parent):
-        super(DirectStateprobs,self).__init__(parent)
+        super().__init__(parent)
         self.stateprobs_file = None
 
         self.dset_slice = None

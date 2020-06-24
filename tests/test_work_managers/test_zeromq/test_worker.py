@@ -17,7 +17,7 @@ class TestZMQWorkerBasic(ZMQTestBase):
     '''Tests for the core task dispersal/retrieval and shutdown operations
     (the parts of the WM that do not require ZMQWorker).'''
     def setUp(self):
-        super(TestZMQWorkerBasic,self).setUp()
+        super().setUp()
 
         self.rr_endpoint = self.make_endpoint()
         self.ann_endpoint = self.make_endpoint()
@@ -47,7 +47,7 @@ class TestZMQWorkerBasic(ZMQTestBase):
         self.test_worker.signal_shutdown()
         self.test_worker.comm_thread.join()
 
-        super(TestZMQWorkerBasic,self).tearDown()
+        super().tearDown()
 
     def send_task(self, task):
         self.test_core.send_message(self.ann_socket, Message.TASKS_AVAILABLE)

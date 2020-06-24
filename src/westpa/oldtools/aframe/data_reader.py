@@ -15,7 +15,7 @@ class WESTDataReaderMixin(AnalysisMixin):
     '''A mixin for analysis requiring access to the HDF5 files generated during a WEST run.'''
 
     def __init__(self):
-        super(WESTDataReaderMixin,self).__init__()
+        super().__init__()
 
         self.data_manager = None
         self.west_h5name = None
@@ -36,7 +36,7 @@ class WESTDataReaderMixin(AnalysisMixin):
     def add_args(self, parser, upcall = True):
         if upcall:
             try:
-                upcall = super(WESTDataReaderMixin,self).add_args
+                upcall = super().add_args
             except AttributeError:
                 pass
             else:
@@ -61,7 +61,7 @@ class WESTDataReaderMixin(AnalysisMixin):
 
         if upcall:
             try:
-                upfunc = super(WESTDataReaderMixin,self).process_args
+                upfunc = super().process_args
             except AttributeError:
                 pass
             else:
@@ -261,7 +261,7 @@ class ExtDataReaderMixin(AnalysisMixin):
     default_chunksize = 8192
 
     def __init__(self):
-        super(ExtDataReaderMixin,self).__init__()
+        super().__init__()
 
         self.ext_input_nargs = '+'
         self.ext_input_filenames = []
@@ -273,7 +273,7 @@ class ExtDataReaderMixin(AnalysisMixin):
     def add_args(self, parser, upcall = True):
         if upcall:
             try:
-                upcall = super(ExtDataReaderMixin,self).add_args
+                upcall = super().add_args
             except AttributeError:
                 pass
             else:
@@ -304,7 +304,7 @@ class ExtDataReaderMixin(AnalysisMixin):
 
         if upcall:
             try:
-                upfunc = super(ExtDataReaderMixin,self).process_args
+                upfunc = super().process_args
             except AttributeError:
                 pass
             else:
@@ -462,14 +462,14 @@ class BFDataManager(AnalysisMixin):
                                       ('source_data', h5py.special_dtype(vlen=str)) ] )
 
     def __init__(self):
-        super(BFDataManager,self).__init__()
+        super().__init__()
         self.bf_h5name = None
         self.bf_h5file = None
 
     def add_args(self, parser, upcall = True):
         if upcall:
             try:
-                upcall = super(BFDataManager,self).add_args
+                upcall = super().add_args
             except AttributeError:
                 pass
             else:
@@ -485,7 +485,7 @@ class BFDataManager(AnalysisMixin):
 
         if upcall:
             try:
-                upfunc = super(BFDataManager,self).process_args
+                upfunc = super().process_args
             except AttributeError:
                 pass
             else:

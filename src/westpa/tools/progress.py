@@ -5,7 +5,7 @@ from westpa.tools.core import WESTToolComponent
 
 class ProgressIndicatorComponent(WESTToolComponent):
     def __init__(self):
-        super(ProgressIndicatorComponent,self).__init__()
+        super().__init__()
         self.indicator = None
 
     def add_args(self, parser):

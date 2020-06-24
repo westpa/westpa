@@ -22,7 +22,7 @@ class TestZMQWorkManagerBasic(ZMQTestBase):
     '''Tests for the core task dispersal/retrieval and shutdown operations
     (the parts of the WM that do not require ZMQWorker).'''
     def setUp(self):
-        super(TestZMQWorkManagerBasic,self).setUp()
+        super().setUp()
 
 
         self.test_wm = ZMQWorkManager(n_local_workers=0)
@@ -48,7 +48,7 @@ class TestZMQWorkManagerBasic(ZMQTestBase):
         self.test_wm.signal_shutdown()
         self.test_wm.comm_thread.join()
 
-        super(TestZMQWorkManagerBasic,self).tearDown()
+        super().tearDown()
 
     @contextmanager
     def task_socket(self):
@@ -171,7 +171,7 @@ class TestZMQWorkManagerBasic(ZMQTestBase):
 
 class BaseInternal(ZMQTestBase,CommonWorkManagerTests):
     def setUp(self):
-        super(BaseInternal,self).setUp()
+        super().setUp()
 
 
         self.test_wm = ZMQWorkManager(n_local_workers=self.n_workers)
@@ -200,7 +200,7 @@ class BaseInternal(ZMQTestBase,CommonWorkManagerTests):
         self.test_wm.signal_shutdown()
         self.test_wm.comm_thread.join()
 
-        super(BaseInternal,self).tearDown()
+        super().tearDown()
 
 
     def test_worker_startup(self):
@@ -237,7 +237,7 @@ class TestZMQWorkManagerInternalNone(ZMQTestBase):
     n_workers = 0
 
     def setUp(self):
-        super(TestZMQWorkManagerInternalNone,self).setUp()
+        super().setUp()
 
         self.test_wm = ZMQWorkManager(n_local_workers=self.n_workers)
         for worker in self.test_wm.local_workers:
@@ -265,7 +265,7 @@ class TestZMQWorkManagerInternalNone(ZMQTestBase):
         self.test_wm.signal_shutdown()
         self.test_wm.comm_thread.join()
 
-        super(TestZMQWorkManagerInternalNone,self).tearDown()
+        super().tearDown()
 
 
     def test_shutdown_without_workers(self):
@@ -294,7 +294,7 @@ class TestZMQWorkManagerInternalMultiple(BaseInternal):
 class BaseExternal(ZMQTestBase, CommonWorkManagerTests):
 
     def setUp(self):
-        super(BaseExternal,self).setUp()
+        super().setUp()
 
 
         self.test_wm = ZMQWorkManager(n_local_workers=0)
@@ -332,7 +332,7 @@ class BaseExternal(ZMQTestBase, CommonWorkManagerTests):
         self.test_wm.signal_shutdown()
         self.test_wm.comm_thread.join()
 
-        super(BaseExternal,self).tearDown()
+        super().tearDown()
 
 
 class TestZMQWorkManagerExternalSingle(BaseExternal):

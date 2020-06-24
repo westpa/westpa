@@ -283,7 +283,7 @@ class ZMQWorkManager(ZMQCore,WorkManager,IsNode):
     def send_message(self, socket, message, payload=None, flags=0):
         message = Message(message, payload)
         message.master_id = self.node_id
-        super(ZMQWorkManager,self).send_message(socket, message, payload, flags)
+        super().send_message(socket, message, payload, flags)
 
     def handle_result(self, socket, msg):
         self.send_ack(socket,msg)
@@ -477,10 +477,10 @@ class ZMQWorkManager(ZMQCore,WorkManager,IsNode):
 
     def startup(self):
         IsNode.startup(self)
-        super(ZMQWorkManager,self).startup()
+        super().startup()
 
     def shutdown(self):
         self.signal_shutdown()
         IsNode.shutdown(self)
         self.join()
-        super(ZMQWorkManager,self).shutdown()
+        super().shutdown()

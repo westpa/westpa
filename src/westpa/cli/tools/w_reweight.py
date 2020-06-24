@@ -122,7 +122,7 @@ Command-line options
 '''
 
     def __init__(self, parent):
-        super(RWMatrix, self).__init__(parent)
+        super().__init__(parent)
         self.parent = parent
         self.assignments_file = None
 
@@ -162,7 +162,7 @@ class RWReweight(AverageCommands):
     help_text = 'Parent class for all reweighting routines, as they all use the same estimator code.'
 
     def __init__(self, parent):
-        super(RWReweight, self).__init__(parent)
+        super().__init__(parent)
         self.parent = parent
         self.assignments_file = None
 
@@ -341,7 +341,7 @@ Command-line options
     '''
 
     def __init__(self, parent):
-        super(RWRate, self).__init__(parent)
+        super().__init__(parent)
         self.parent = parent
         self.assignments_file = None
 

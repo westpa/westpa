@@ -8,7 +8,7 @@ log = logging.getLogger(__name__)
 
 class WESTAnalysisTool:
     def __init__(self):
-        super(WESTAnalysisTool,self).__init__()
+        super().__init__()
         # Whether a west.cfg is required to run a program based on this tool
         self.config_required = False
 
@@ -27,7 +27,7 @@ class WESTAnalysisTool:
         '''Add arguments to a parser common to all analyses of this type.'''
         if upcall:
             try:
-                upfunc = super(WESTAnalysisTool,self).add_args
+                upfunc = super().add_args
             except AttributeError:
                 pass
             else:
@@ -42,7 +42,7 @@ class WESTAnalysisTool:
 
         if upcall:
             try:
-                upfunc = super(WESTAnalysisTool,self).process_args
+                upfunc = super().process_args
             except AttributeError:
                 pass
             else:

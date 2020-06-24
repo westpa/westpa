@@ -7,7 +7,7 @@ log = logging.getLogger(__name__)
 
 class CommonOutputMixin(AnalysisMixin):
     def __init__(self):
-        super(CommonOutputMixin, self).__init__()
+        super().__init__()
 
         include_args = self.include_args.setdefault('CommonOutputMixin', {})
         include_args.setdefault('suppress_headers', True)

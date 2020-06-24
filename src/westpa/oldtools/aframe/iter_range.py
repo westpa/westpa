@@ -13,7 +13,7 @@ class IterRangeMixin(AnalysisMixin):
     '''A mixin for limiting the range of data considered for a given analysis. This should go after
     DataManagerMixin'''
     def __init__(self):
-        super(IterRangeMixin,self).__init__()
+        super().__init__()
 
         self.first_iter = None
         self.last_iter = None
@@ -28,7 +28,7 @@ class IterRangeMixin(AnalysisMixin):
     def add_args(self, parser, upcall = True):
         if upcall:
             try:
-                upfunc = super(IterRangeMixin,self).add_args
+                upfunc = super().add_args
             except AttributeError:
                 pass
             else:
@@ -55,7 +55,7 @@ class IterRangeMixin(AnalysisMixin):
 
         if upcall:
             try:
-                upfunc = super(IterRangeMixin,self).process_args
+                upfunc = super().process_args
             except AttributeError:
                 pass
             else:

@@ -28,7 +28,7 @@ class IterRangeSelection(WESTToolComponent):
     '''
 
     def __init__(self, data_manager=None):
-        super(IterRangeSelection,self).__init__()
+        super().__init__()
 
         self.data_manager = data_manager
 

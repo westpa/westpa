@@ -13,7 +13,7 @@ pcoord_dtype = np.float32
 
 class ODLDPropagator(WESTPropagator):
     def __init__(self, rc=None):
-        super(ODLDPropagator, self).__init__(rc)
+        super().__init__(rc)
 
         self.coord_len = pcoord_len
         self.coord_dtype = pcoord_dtype

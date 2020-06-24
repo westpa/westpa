@@ -25,7 +25,7 @@ class WESTKineticsBase(WESTSubcommand):
     '''
 
     def __init__(self, parent):
-        super(WESTKineticsBase,self).__init__(parent)
+        super().__init__(parent)
 
         self.data_reader = WESTDataReader()
         self.iter_range = IterRangeSelection()
@@ -81,7 +81,7 @@ class AverageCommands(WESTKineticsBase):
 
     def __init__(self, parent):
         # Ideally, this is stuff general to all the calculations we want to perform.
-        super(AverageCommands,self).__init__(parent)
+        super().__init__(parent)
         self.kinetics_filename = None
         self.kinetics_file = None
 

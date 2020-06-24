@@ -25,7 +25,7 @@ class ZMQWorker(ZMQCore):
     communicates with ZMQWorker via (what else?) ZeroMQ.'''
 
     def __init__(self, rr_endpoint, ann_endpoint):
-        super(ZMQWorker,self).__init__()
+        super().__init__()
 
         # Upstream endpoints
         self.rr_endpoint = rr_endpoint
@@ -273,7 +273,7 @@ class ZMQExecutor(ZMQCore):
     the ZMQWorker.'''
 
     def __init__(self, task_endpoint, result_endpoint):
-        super(ZMQExecutor,self).__init__()
+        super().__init__()
 
 
         self.task_endpoint = task_endpoint

@@ -143,7 +143,7 @@ the true value of ``tau``.
     output_format_version = 2
 
     def __init__(self):
-        super(WFluxanlTool,self).__init__()
+        super().__init__()
         self.data_reader = WESTDataReader()
         self.iter_range = IterRangeSelection()
         self.output_h5file = None

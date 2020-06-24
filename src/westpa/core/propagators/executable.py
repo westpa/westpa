@@ -87,7 +87,7 @@ class ExecutablePropagator(WESTPropagator):
     ENV_RANDFLOAT            = 'WEST_RANDFLOAT'
 
     def __init__(self, rc=None):
-        super(ExecutablePropagator,self).__init__(rc)
+        super().__init__(rc)
 
         # A mapping of environment variables to template strings which will be
         # added to the environment of all children launched.

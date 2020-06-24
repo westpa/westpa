@@ -341,7 +341,7 @@ The following options for datasets are supported:
                       'f8': '%023.15g'}
 
     def __init__(self):
-        super(WTraceTool,self).__init__()
+        super().__init__()
 
         self.data_reader = WESTDataReader()
         #self.h5storage = HDF5Storage()

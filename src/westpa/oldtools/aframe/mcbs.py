@@ -15,7 +15,7 @@ log = logging.getLogger(__name__)
 
 class MCBSMixin(AnalysisMixin):
     def __init__(self):
-        super(MCBSMixin,self).__init__()
+        super().__init__()
         self.mcbs_alpha = None
         self.mcbs_nsets = None
         self.mcbs_display_confidence = None
@@ -23,7 +23,7 @@ class MCBSMixin(AnalysisMixin):
     def add_args(self, parser, upcall = True):
         if upcall:
             try:
-                upfunc=super(MCBSMixin,self).add_args
+                upfunc=super().add_args
             except AttributeError:
                 pass
             else:
@@ -45,7 +45,7 @@ class MCBSMixin(AnalysisMixin):
 
         if upcall:
             try:
-                upfunc = super(MCBSMixin,self).process_args
+                upfunc = super().process_args
             except AttributeError:
                 pass
             else:

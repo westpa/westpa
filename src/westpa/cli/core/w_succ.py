@@ -15,7 +15,7 @@ log = logging.getLogger('w_succ')
 
 class WSucc(CommonOutputMixin, WESTDataReaderMixin, WESTAnalysisTool):
     def __init__(self):
-        super(WSucc, self).__init__()
+        super().__init__()
         self.include_args['CommonOutputMixin']['print_bin_labels'] = False
         self.output_file = sys.stdout
 

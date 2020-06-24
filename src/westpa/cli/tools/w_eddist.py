@@ -186,7 +186,7 @@ Command-line options
 '''
 
     def __init__(self):
-        super(WEDDist,self).__init__()
+        super().__init__()
 
         # Parallel processing by default (this is not actually necessary, but it is
         # informative!)

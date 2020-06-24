@@ -67,7 +67,7 @@ class MPIBase:
 class MPIWMServer(MPIBase):
 
     def __init__(self):
-        super(MPIWMServer, self).__init__()
+        super().__init__()
 
         # tasks awaiting dispatch
         self.task_queue = collections.deque()
@@ -166,7 +166,7 @@ class MPIWMServer(MPIBase):
 class MPIClient(MPIBase):
 
     def __init__(self):
-        super(MPIClient,self).__init__()
+        super().__init__()
 
     def _create_worker(self):
         comm = self.comm

@@ -232,7 +232,7 @@ class TransitionEventAccumulator:
 
 class TransitionAnalysisMixin(AnalysisMixin):
     def __init__(self):
-        super(TransitionAnalysisMixin,self).__init__()
+        super().__init__()
         self.discard_transition_data = False
         self.calc_fpts = False
         self.trans_h5gname = 'transitions'
@@ -259,7 +259,7 @@ class TransitionAnalysisMixin(AnalysisMixin):
     def add_args(self, parser, upcall = True):
         if upcall:
             try:
-                upfunc = super(TransitionAnalysisMixin,self).add_args
+                upfunc = super().add_args
             except AttributeError:
                 pass
             else:
@@ -275,7 +275,7 @@ class TransitionAnalysisMixin(AnalysisMixin):
 
         if upcall:
             try:
-                upfunc = super(TransitionAnalysisMixin,self).process_args
+                upfunc = super().process_args
             except AttributeError:
                 pass
             else:

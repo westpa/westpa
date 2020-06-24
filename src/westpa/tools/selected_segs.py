@@ -111,10 +111,9 @@ class AllSegmentSelection(SegmentSelection):
         return (n_iter >= self._start_iter and n_iter < self._stop_iter and seg_id < self._count_from_iter(n_iter))
 
 
-
 class SegSelector(WESTToolComponent):
     def __init__(self):
-        super(SegSelector,self).__init__()
+        super().__init__()
         self.segment_selection = None
         self.segsel_filename = None
 

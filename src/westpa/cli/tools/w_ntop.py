@@ -52,7 +52,7 @@ Command-line arguments
 '''
 
     def __init__(self):
-        super(WNTopTool,self).__init__()
+        super().__init__()
 
         self.data_reader = WESTDataReader()
         self.iter_range = IterRangeSelection()

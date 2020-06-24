@@ -12,7 +12,7 @@ class BinningMixin(AnalysisMixin):
     '''A mixin for performing binning on WEST data.'''
 
     def __init__(self):
-        super(BinningMixin,self).__init__()
+        super().__init__()
 
         self.mapper = None
         self.n_bins = None
@@ -25,7 +25,7 @@ class BinningMixin(AnalysisMixin):
     def add_args(self, parser, upcall = True):
         if upcall:
             try:
-                upfunc = super(BinningMixin,self).add_args
+                upfunc = super().add_args
             except AttributeError:
                 pass
             else:
@@ -58,7 +58,7 @@ class BinningMixin(AnalysisMixin):
 
         if upcall:
             try:
-                upfunc = super(BinningMixin,self).process_args
+                upfunc = super().process_args
             except AttributeError:
                 pass
             else:

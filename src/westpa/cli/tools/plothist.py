@@ -44,7 +44,7 @@ def sum_except_along(array, axes):
 
 class PlotHistBase(WESTSubcommand):
     def __init__(self, parent):
-        super(PlotHistBase,self).__init__(parent)
+        super().__init__(parent)
 
         self.input_arg_group = None
         self.output_arg_group = None
@@ -209,7 +209,7 @@ class PlotHistBase(WESTSubcommand):
 
 class PlotSupports2D(PlotHistBase):
     def __init__(self, parent):
-        super(PlotSupports2D,self).__init__(parent)
+        super().__init__(parent)
 
 
     def add_args(self, parser):

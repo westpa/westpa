@@ -12,7 +12,7 @@ log = logging.getLogger(__name__)
 
 class KineticsAnalysisMixin(AnalysisMixin):
     def __init__(self):
-        super(KineticsAnalysisMixin,self).__init__()
+        super().__init__()
 
         self.dt = None
         self.analysis_initial_bins = None
@@ -21,7 +21,7 @@ class KineticsAnalysisMixin(AnalysisMixin):
     def add_args(self, parser, upcall = True):
         if upcall:
             try:
-                upfunc = super(KineticsAnalysisMixin,self).add_args
+                upfunc = super().add_args
             except AttributeError:
                 pass
             else:
@@ -58,7 +58,7 @@ class KineticsAnalysisMixin(AnalysisMixin):
 
         if upcall:
             try:
-                upfunc = super(KineticsAnalysisMixin,self).process_args
+                upfunc = super().process_args
             except AttributeError:
                 pass
             else:

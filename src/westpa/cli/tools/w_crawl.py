@@ -48,7 +48,7 @@ Command-line options
 '''
 
     def __init__(self):
-        super(WCrawl, self).__init__()
+        super().__init__()
 
         # These are used throughout
         self.progress = ProgressIndicatorComponent()

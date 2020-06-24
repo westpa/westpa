@@ -1,9 +1,7 @@
-
 import logging
-log = logging.getLogger(__name__)
+import types
 
 import numpy as np
-import types
 
 import westpa, west
 from westpa import extloader
@@ -12,9 +10,12 @@ from westext.stringmethod import WESTStringMethod, DefaultStringMethod
 from westpa.binning import VoronoiBinMapper
 
 
-class StringDriver(object):
+log = logging.getLogger(__name__)
+
+
+class StringDriver:
     def __init__(self, sim_manager, plugin_config):
-        super(StringDriver, self).__init__()
+        super().__init__()
 
         if not sim_manager.work_manager.is_master:
                 return
@@ -166,8 +167,8 @@ class StringDriver(object):
         try:
             dfargs = getattr(self.system, 'dfargs', None)
             dfkwargs = getattr(self.system, 'dfkwargs', None)
-            self.system.bin_mapper = VoronoiBinMapper(self.dfunc, self.strings.centers, 
-                                                      dfargs=dfargs, 
+            self.system.bin_mapper = VoronoiBinMapper(self.dfunc, self.strings.centers,
+                                                      dfargs=dfargs,
                                                       dfkwargs=dfkwargs)
         except (ValueError, TypeError) as e:
             log.error('StringDriver Error: Failed updating the bin mapper: {}'.format(e))

@@ -28,7 +28,7 @@ class WESTDataReader(WESTToolComponent):
     places.'''
 
     def __init__(self):
-        super(WESTDataReader,self).__init__()
+        super().__init__()
         self.data_manager = westpa.rc.get_data_manager()
         self.we_h5filename = None
 
@@ -88,7 +88,7 @@ class WESTDSSynthesizer(WESTToolComponent):
     group_name = 'input dataset options'
 
     def __init__(self, default_dsname = None, h5filename=None):
-        super(WESTDSSynthesizer,self).__init__()
+        super().__init__()
 
         self.h5filename = h5filename
         self.default_dsname = default_dsname
