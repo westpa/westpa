@@ -10,7 +10,6 @@ import uuid
 from itertools import islice
 from contextlib import contextmanager
 
-import h5py
 
 log = logging.getLogger(__name__)
 
