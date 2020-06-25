@@ -8,7 +8,7 @@ try:
     import scipy.interpolate
     import scipy.linalg
     SCIPY_FLAG = True
-except:
+except Exception:
     SCIPY_FLAG = False
 
 from westext.stringmethod import WESTStringMethod

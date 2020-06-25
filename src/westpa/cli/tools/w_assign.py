@@ -311,13 +311,13 @@ Command-line options
     def load_config_from_west(self, scheme):
         try:
             config = westpa.rc.config['west']['analysis']
-        except:
+        except Exception:
             raise ValueError('There is no configuration file specified.')
         ystates = config['analysis_schemes'][scheme]['states']
         self.states_from_dict(ystates)
         try:
             self.subsample = config['subsample']
-        except:
+        except Exception:
             pass
         from westpa.core._rc import bins_from_yaml_dict
         self.binning.mapper = bins_from_yaml_dict(config['analysis_schemes'][scheme]['bins'][0])
@@ -325,7 +325,7 @@ Command-line options
         try:
             os.mkdir(config['directory'])
             os.mkdir(path)
-        except:
+        except Exception:
             pass
 
         self.output_filename = os.path.join(path, 'assign.h5')

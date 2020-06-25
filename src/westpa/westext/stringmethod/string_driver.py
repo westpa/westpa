@@ -147,7 +147,7 @@ class StringDriver:
 
                     centers = bin_mapper.centers
 
-                except:
+                except Exception:
                     log.warning('Initializing string centers from data failed; Using definition in system instead.')
                     centers = self.system.bin_mapper.centers
             else:

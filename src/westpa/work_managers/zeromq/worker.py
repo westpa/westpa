@@ -224,7 +224,7 @@ class ZMQWorker(ZMQCore):
                 task_socket.connect(self.task_endpoint)
                 self.send_message(task_socket, Message.SHUTDOWN)
                 task_socket.close(linger=1)
-            except:
+            except Exception:
                 pass
 
         pid = self.executor_process.pid

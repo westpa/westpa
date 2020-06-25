@@ -277,11 +277,11 @@ class WESTPAH5File(h5py.File):
     def replace_dataset(self, *args, **kwargs):
         try:
             del self[args[0]]
-        except:
+        except Exception:
             pass
         try:
             del self[kwargs['name']]
-        except:
+        except Exception:
             pass
 
         return self.create_dataset(*args, **kwargs)

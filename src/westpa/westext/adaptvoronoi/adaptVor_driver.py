@@ -22,11 +22,11 @@ class AdaptiveVoronoiDriver:
       - center_freq (ingeter, default 1): Frequency of center placement
       - priority (integer, default 1): Priority in the plugin order
       - dfunc_method (function, non-optional, no default): Non-optional user defined
-          function that will be used to calculate distances between voronoi centers and 
+          function that will be used to calculate distances between voronoi centers and
           data points
       - mapper_func (function, optional): Optional user defined function for building bin
           mappers for more complicated binning schemes e.g. embedding the voronoi binning
-          in a portion of the state space. If not defined the plugin will build a 
+          in a portion of the state space. If not defined the plugin will build a
           VoronoiBinMapper with the information it has.
     '''
     def __init__(self, sim_manager, plugin_config):
@@ -104,7 +104,7 @@ class AdaptiveVoronoiDriver:
 
         log.info('loaded adaptive voronoi mapper function {!r}'.format(mapper_func))
 
-        return mapper_func 
+        return mapper_func
 
     def get_initial_centers(self):
         '''
@@ -128,7 +128,7 @@ class AdaptiveVoronoiDriver:
 
                 centers = bin_mapper.centers
 
-            except:
+            except Exception:
                 log.warning('Initializing voronoi centers from data failed; \
                         Using definition in system instead.')
                 centers = self.system.bin_mapper.centers
@@ -148,11 +148,11 @@ class AdaptiveVoronoiDriver:
             dfkwargs = getattr(self.system, 'dfkwargs', None)
             if self.mapper_func:
                 # The mapper should take in 1) distance function,
-                # 2) centers, 3) dfargs, 4) dfkwargs and return 
+                # 2) centers, 3) dfargs, 4) dfkwargs and return
                 # the mapper we want
-                self.system.bin_mapper = self.mapper_func(self.dfunc, 
-                                                          self.centers, 
-                                                          dfargs=dfargs, 
+                self.system.bin_mapper = self.mapper_func(self.dfunc,
+                                                          self.centers,
+                                                          dfargs=dfargs,
                                                           dfkwargs=dfkwargs)
             else:
                 self.system.bin_mapper = VoronoiBinMapper(self.dfunc, self.centers,
@@ -197,7 +197,7 @@ class AdaptiveVoronoiDriver:
         # Find the maximum of the minimum distances
         max_ind = np.where(dists == dists.max())
         # Use the maximum progress coordinate as our next center
-        self.centers = np.vstack((self.centers, 
+        self.centers = np.vstack((self.centers,
              curr_pcoords[max_ind[0][0]][-1]))
 
     def prepare_new_iteration(self):

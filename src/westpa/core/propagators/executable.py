@@ -403,7 +403,7 @@ class ExecutablePropagator(WESTPropagator):
         # Determine and load the progress coordinate value for this state
         try:
             self.get_pcoord(initial_state)
-        except:
+        except Exception:
             log.exception('could not get progress coordinate for initial state {!r}'.format(initial_state))
             initial_state.istate_status = InitialState.ISTATE_STATUS_FAILED
             raise

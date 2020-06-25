@@ -81,7 +81,7 @@ def mcbs_ci_correl(estimator_datasets, estimator, alpha, n_sets=None, args=None,
         estimator_datasets.update(estimator_kwargs)
         try:
             estimator_datasets.update( { 'stride': 1 } )
-        except:
+        except Exception:
             pass
 
         return_set = estimator(**estimator_datasets)
@@ -115,7 +115,7 @@ def mcbs_ci_correl(estimator_datasets, estimator, alpha, n_sets=None, args=None,
         estimator_datasets.update(estimator_kwargs)
         try:
             estimator_datasets.update( { 'stride': 1 } )
-        except:
+        except Exception:
             pass
 
         return estimator(**estimator_datasets), pre_calculated.min(), pre_calculated.max(), (np.std(pre_calculated)), correl_len
@@ -142,7 +142,7 @@ def mcbs_ci_correl(estimator_datasets, estimator, alpha, n_sets=None, args=None,
                 # Okay, so non-optimal.  Population requires the axis subsampling to be done just so...
                 try:
                     decim_set[iout] = subsample(sl, axis=0)
-                except:
+                except Exception:
                     decim_set[iout] = subsample(sl)
             decim_list[key] = decim_set
             dlen = dset_shape[0]

@@ -248,7 +248,7 @@ class AverageCommands(WESTKineticsBase):
                 for key, value in dataset.items():
                     try:
                         future_kwargs['data_input'][key] = value.iter_slice(block_start,stop) if hasattr(value, 'iter_slice') else value[block_start:stop]
-                    except:
+                    except Exception:
                         future_kwargs['data_input'][key] = value.iter_slice(block_start,stop) if hasattr(value, 'iter_slice') else value[block_start:stop,:]
                     #print(future_kwargs['data_input'][key])
 

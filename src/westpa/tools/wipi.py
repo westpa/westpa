@@ -42,7 +42,7 @@ class WIPIDataset(object):
         for i in remove:
             try:
                 dict_keys.remove(str(i))
-            except:
+            except Exception:
                 pass
         # We don't enforce that this is a dictionary.
         if isinstance(self.__dict__['raw'], dict):
@@ -132,19 +132,19 @@ class KineticsIteration(object):
         for key in _2D_h5keys:
             try:
                 self.__dict__[key] = self.__2D_with_error__(key, index, assign)
-            except:
+            except Exception:
                 self.__dict__[key] = None
         for key in _1D_h5keys:
             try:
                 self.__dict__[key] = self.__1D_with_error__(key, index, assign)
-            except:
+            except Exception:
                 self.__dict__[key] = None
         try:
             self.__dict__['total_fluxes'] = WIPIDataset(raw=np.array(self.h5file['total_fluxes']), key='total_fluxes')
             # We'll have to update this to make things better...
             #self.__dict__['total_fluxes'].plotter = Plotter(self.h5file['total_fluxes'][...], 'Total Fluxes', iteration=iteration, interface='text')
             #self.__dict__['total_fluxes'].plot = self.__dict__['total_fluxes'].plotter.plot
-        except:
+        except Exception:
             pass
 
     def __repr__(self):
@@ -166,7 +166,7 @@ class KineticsIteration(object):
         for i in remove:
             try:
                 dict_keys.remove(str(i))
-            except:
+            except Exception:
                 pass
         return sorted(set(dict_keys))
     def keys(self):
@@ -207,7 +207,7 @@ class KineticsIteration(object):
             for i in remove:
                 try:
                     dict_keys.remove(str(i))
-                except:
+                except Exception:
                     pass
             return sorted(set(list(self.raw.dtype.names) + dict_keys))
         def keys(self):
@@ -332,7 +332,7 @@ class __get_data_for_iteration__(object):
             current['auxdata'] = {}
             for key in list(iter_group['auxdata'].keys()):
                 current['auxdata'][key] = iter_group['auxdata'][key][...][seg_ids, :]
-        except:
+        except Exception:
             pass
         current['parents'] = iter_group['seg_index']['parent_id'][seg_ids]
         current['summary'] = parent.data_reader.data_manager.get_iter_summary(int(value))
@@ -357,7 +357,7 @@ class __get_data_for_iteration__(object):
             # Assume color.
             current['instant_matrix'] = sp.coo_matrix((matrix['flux'][...], (matrix['rows'][...], matrix['cols'][...])), shape=((nbins-1)*2, (nbins-1)*2)).todense()
             reweighting = True
-        except:
+        except Exception:
           # This analysis hasn't been enabled, so we'll simply return the default error message.
             current['reweight'] = parent.reweight['rate_evolution']
             current['instant_matrix'] = parent.reweight['bin_populations']
@@ -400,7 +400,7 @@ class __get_data_for_iteration__(object):
         for i in remove:
             try:
                 dict_keys.remove(str(i))
-            except:
+            except Exception:
                 pass
         return sorted(set(list(self.__dict__['raw'].keys()) + dict_keys))
 
@@ -441,7 +441,7 @@ class __get_data_for_iteration__(object):
             #print(z,i,j, istate, jstate)
             try:
                 walker[istate,jstate].append(walkers[z])
-            except:
+            except Exception:
                 walker[istate,jstate] = [walkers[z]]
 
         walker = WIPIDataset(raw=walker, key=None)
@@ -472,7 +472,7 @@ class __get_data_for_iteration__(object):
             # This should handle everything.  Otherwise...
             try:
                 return self.raw[value]
-            except:
+            except Exception:
                 print('{} is not a valid data structure.'.format(value))
         elif isinstance(value, int) or isinstance(value, np.int64):
             # Otherwise, we assume they're trying to index for a seg_id.
@@ -493,7 +493,7 @@ class __get_data_for_iteration__(object):
                     current['auxdata'] = {}
                     for key in list(self.raw['auxdata'].keys()):
                         current['auxdata'][key] = self.raw['auxdata'][key][value]
-                except:
+                except Exception:
                     pass
                 current = WIPIDataset(current, 'Segment {} in Iter {}'.format(value, self.iteration))
                 return current
@@ -520,7 +520,7 @@ class WIPIScheme(object):
     def __str__(self):
         # Right now, this returns w.scheme, NOT necessarily what we're pulling from...
         # So you can rely on this, but it's confusing.
-        if self.name!= None:
+        if self.name is not None:
             # Set it to None, then return the original value.
             rtn_string = self.name
             self.name = None
@@ -552,7 +552,7 @@ class WIPIScheme(object):
 
     def __dir__(self):
         dict_keys = ['assign', 'direct', 'state_labels', 'bin_labels', 'west', 'reweight', 'current', 'past', 'iteration']
-        if self.name != None:
+        if self.name is not None:
             return sorted(set(dict_keys))
         else:
             return sorted(set(self.__analysis_schemes__.keys()))

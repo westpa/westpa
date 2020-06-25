@@ -23,10 +23,10 @@ class Plotter(object):
         try:
             self.bin_labels = list(bin_labels[...])
             self.state_labels = list(state_labels[...]) + ['unknown']
-        except:
+        except Exception:
             try:
                 self.state_labels = list(h5file['state_labels'][...]) + ['unknown']
-            except:
+            except Exception:
                 self.state_labels = None
         # unless we totally fail out.
         self.interface = interface
@@ -38,12 +38,12 @@ class Plotter(object):
         # This has time data, so an i to j is a 3 dim, and an i is 2.
         try:
             self.dim = len(h5file[h5key].shape)
-        except:
+        except Exception:
             self.dim = 1
         try:
             # does the ci exist?
             a = h5file[h5key]['expected']
-        except:
+        except Exception:
             self.dim = 1
 
     def plot(self, i=0, j=1, tau=1, iteration=None, dim=0, interface=None):
@@ -73,7 +73,7 @@ class Plotter(object):
                     plt.plot(h5file[h5key]['ci_ubound'][:iteration, i] / tau, color='grey')
                     plt.plot(h5file[h5key]['ci_lbound'][:iteration, i] / tau, color='grey')
                 plt.show()
-            except:
+            except Exception:
                 print('Unable to import plotting interface.  An X server ($DISPLAY) is required.')
                 if self.dim > 1:
                     self.__terminal_ci__(h5file, iteration, i, j, tau)
@@ -93,7 +93,7 @@ class Plotter(object):
                 from matplotlib import pyplot as plt
                 plt.bar(list(range(0, np.array(vector).shape[0])), vector, linewidth=0, align='center', color='gold', tick_label=labels)
                 plt.show()
-            except:
+            except Exception:
                 print('Unable to import plotting interface.  An X server ($DISPLAY) is required.')
                 self.__terminal_histo__(h5file, vector, labels)
                 return 1
@@ -178,7 +178,7 @@ class Plotter(object):
                     with self.t.location(x+12, h+1):
                         iter = x * block_size
                         print(self.t.blue(str(iter)))
-            except:
+            except Exception:
                 pass
 
             with self.t.location(0, h+2):
@@ -208,7 +208,7 @@ class Plotter(object):
         in_tup = (iteration-1, dim)
         try:
             yupper = (np.max(h5file) / tau) * 2
-        except:
+        except Exception:
             in_tup = (iteration-1)
             yupper = (np.max(h5file) / tau) * 2
         ylower = (np.min(h5file) / tau) * 2
@@ -237,7 +237,7 @@ class Plotter(object):
                     in_tup = (iter-1, dim)
                     try:
                         yupper = (h5file[in_tup] / tau)
-                    except:
+                    except Exception:
                         in_tup = (iter-1)
                         yupper = (h5file[in_tup] / tau)
                     ylower = (h5file[in_tup] / tau)
@@ -258,7 +258,7 @@ class Plotter(object):
                     with self.t.location(x+12, h+1):
                         iter = x * block_size
                         print(self.t.blue(str(iter)))
-            except:
+            except Exception:
                 pass
 
             with self.t.location(0, h+2):

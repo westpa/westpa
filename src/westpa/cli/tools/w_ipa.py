@@ -190,7 +190,7 @@ class WIPI(WESTParallelTool):
         # Make sure everything exists.
         try:
             os.mkdir(self.__settings['directory'])
-        except:
+        except Exception:
             pass
         # Now, check to see whether they exist, and then load them.
         self.__analysis_schemes__ = {}
@@ -210,7 +210,7 @@ class WIPI(WESTParallelTool):
                         self.__settings['analysis_schemes'][scheme]['postanalysis'] = self.__settings['postanalysis']
                 try:
                     os.mkdir(path)
-                except:
+                except Exception:
                     pass
                 self.__analysis_schemes__[scheme] = {}
                 try:
@@ -218,7 +218,7 @@ class WIPI(WESTParallelTool):
                         analysis_files = ['assign', 'direct', 'reweight']
                     else:
                         analysis_files = ['assign', 'direct']
-                except:
+                except Exception:
                     analysis_files = ['assign', 'direct']
                     self.__settings['analysis_schemes'][scheme]['postanalysis'] = False
                 reanalyze_kinetics = False
@@ -229,7 +229,7 @@ class WIPI(WESTParallelTool):
                         reanalyze_kinetics = True
                         try:
                             os.remove(os.path.join(path, '{}.h5'.format(name)))
-                        except:
+                        except Exception:
                             pass
                     else:
                         try:
@@ -240,7 +240,7 @@ class WIPI(WESTParallelTool):
                             arg_hash = self.__analysis_schemes__[scheme][name].attrs['arg_hash']
                             if name == 'assign':
                                 assign_hash = arg_hash
-                        except:
+                        except Exception:
                             pass
                             # We shouldn't rely on this.
                             # self.reanalyze = True
@@ -251,11 +251,11 @@ class WIPI(WESTParallelTool):
                             w_assign_config = { 'output': os.path.join(path, '{}.h5'.format(name))}
                             try:
                                 w_assign_config.update(self.__settings['w_assign'])
-                            except:
+                            except Exception:
                                 pass
                             try:
                                 w_assign_config.update(self.__settings['analysis_schemes'][scheme]['w_assign'])
-                            except:
+                            except Exception:
                                 pass
                             args = []
                             for key,value in w_assign_config.items():
@@ -290,7 +290,7 @@ class WIPI(WESTParallelTool):
                                 # If the hashes are different, or we need to reanalyze, delete the file.
                                 try:
                                     os.remove(os.path.join(path, '{}.h5'.format(name)))
-                                except:
+                                except Exception:
                                     pass
                                 print('Reanalyzing file {}.h5 for scheme {}.'.format(name, scheme))
                                 #reanalyze_kinetics = True
@@ -321,19 +321,19 @@ class WIPI(WESTParallelTool):
 
                             try:
                                 analysis_config.update(self.__settings['kinetics'])
-                            except:
+                            except Exception:
                                 pass
                             try:
                                 analysis_config.update(self.__settings['w_{}'.format(name)])
-                            except:
+                            except Exception:
                                 pass
                             try:
                                 analysis_config.update(self.__settings['analysis_schemes'][scheme]['kinetics'])
-                            except:
+                            except Exception:
                                 pass
                             try:
                                 analysis_config.update(self.__settings['analysis_schemes'][scheme]['w_{}'.format(name)])
-                            except:
+                            except Exception:
                                 pass
 
                             # We're pulling in a default set of arguments, then updating them with arguments from the west.cfg file, if appropriate, after setting the appropriate command
@@ -357,7 +357,7 @@ class WIPI(WESTParallelTool):
                             if self.ignore_hash is False and (arg_hash != new_hash or reanalyze_kinetics is True):
                                 try:
                                     os.remove(os.path.join(path, '{}.h5'.format(name)))
-                                except:
+                                except Exception:
                                     pass
                                 print('Reanalyzing file {}.h5 for scheme {}.'.format(name, scheme))
                                 analysis.make_parser_and_process(args=args)
@@ -546,7 +546,7 @@ class WIPI(WESTParallelTool):
                 for key in list(self.current['auxdata'].keys()):
                     current['auxdata'][key] = []
                     key = []
-            except:
+            except Exception:
                 pass
             for iter in reversed(list(range(1, self.iteration+1))):
                 iter_group = self.data_reader.get_iter_group(iter)
@@ -560,7 +560,7 @@ class WIPI(WESTParallelTool):
                 try:
                     for key in keys:
                         current['auxdata'][key].append(iter_group['auxdata'][key][seg_id])
-                except:
+                except Exception:
                     pass
                 seg_id = iter_group['seg_index']['parent_id'][seg_id]
                 if seg_id < 0:
@@ -576,7 +576,7 @@ class WIPI(WESTParallelTool):
         try:
             for key in keys():
                 current['auxdata'][key] = np.concatenate(np.array(list(reversed(current['auxdata'][key]))))
-        except:
+        except Exception:
             pass
         current['state_labels'] = self.assign['state_labels']
         for i in ['pcoord', 'states', 'bins', 'weights']:
@@ -607,7 +607,7 @@ class WIPI(WESTParallelTool):
                 print(list(self.__dict__.keys()))
                 try:
                     return self.__dict__['raw'][value]
-                except:
+                except Exception:
                     print('{} is not a valid data structure.'.format(value))
             elif isinstance(value, int) or isinstance(value, np.int64):
                 # Otherwise, we assume they're trying to index for a seg_id.
@@ -624,7 +624,7 @@ class WIPI(WESTParallelTool):
                     current['auxdata'] = {}
                     for key in list(self.__dict__['raw']['auxdata'].keys()):
                         current['auxdata'][key] = self.__dict__['raw']['auxdata'][key][value]
-                except:
+                except Exception:
                     pass
                 current = WIPIDataset(current, 'Segment {} in Iter {}'.format(value, self.iteration))
                 return current
@@ -659,9 +659,9 @@ class WIPI(WESTParallelTool):
                     aux_data = iter_data['auxdata'][...][children, :, :]
                     try:
                         future['aux_data'].append(aux_data)
-                    except:
+                    except Exception:
                         future['aux_data'] = aux_data
-                except:
+                except Exception:
                     pass
                 future['parents'].append(iter_data['parents'][children])
                 future['seg_id'].append(iter_data['seg_id'][children])
@@ -770,7 +770,7 @@ def entry_point():
         try:
             # Worked on MacOS.  Probably just an older version.
             c = IPython.Config()
-        except:
+        except Exception:
             # Seems to be necessary on Linux, and likely on newer installs.
             c = IPython.terminal.ipapp.load_default_config()
         c.IPCompleter.greedy = True
