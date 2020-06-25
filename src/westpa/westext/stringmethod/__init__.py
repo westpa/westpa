@@ -8,7 +8,7 @@ Joshua L. Adelman 2011
 from abc import ABCMeta, abstractmethod, abstractproperty
 
 
-class WESTStringMethod(object):
+class WESTStringMethod:
 
     ___metaclass__ = ABCMeta
 

@@ -8,7 +8,7 @@ from westpa.tools import Plotter
 # It basically just wraps up numpy arrays and dicts.
 
 
-class WIPIDataset(object):
+class WIPIDataset:
     def __init__(self, raw, key):
         self.__dict__ = {}
         self.raw = raw
@@ -122,7 +122,7 @@ class WIPIDataset(object):
     #    return self.__dict__['raw'] |= other
 
 # Similar to the above, but slightly expanded to contain information from analysis files.
-class KineticsIteration(object):
+class KineticsIteration:
     def __init__(self, kin_h5file, index, assign, iteration=-1):
         self.__dict__ = {}
         self.h5file = kin_h5file
@@ -174,7 +174,7 @@ class KineticsIteration(object):
 
     # We seriously need to rename this.
     # It's similar to the global WIPDataset, but has some nice pretty print functions.
-    class __custom_dataset__(object):
+    class __custom_dataset__:
         # This is just allow it to be indexed via properties.
         # Not a huge thing, but whatever.
         def __init__(self, raw, assign, key):
@@ -284,7 +284,7 @@ class KineticsIteration(object):
         return raw
 
 
-class __get_data_for_iteration__(object):
+class __get_data_for_iteration__:
     '''
     All interesting data from an iteration (current/past).  Whenever you change the scheme or iteration,
     this dictionary is automatically updated.  For the current iteration, it's keyed to the current seg_id.
@@ -501,7 +501,7 @@ class __get_data_for_iteration__(object):
                 print('INVALID SEG_ID {}.  SEG_ID should be less than {}.'.format(value, self.walkers))
 
 # This handles the 'schemes', and all assorted data.
-class WIPIScheme(object):
+class WIPIScheme:
     def __init__(self, scheme, name, parent, settings):
         self.__dict__ = {}
         self.raw = scheme

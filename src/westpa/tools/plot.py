@@ -8,7 +8,7 @@ import h5py
 # We don't care if we're reimporting blessings, under this context.
 #warnings.filterwarnings('ignore')
 
-class Plotter(object):
+class Plotter:
     '''
     This is a semi-generic plotting interface that has a built in curses based terminal plotter.
     It's fairly specific to what we're using it for here, but we could (and maybe should) build it out into
