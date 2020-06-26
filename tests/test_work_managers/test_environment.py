@@ -1,5 +1,6 @@
 import argparse
 import os
+import unittest
 
 import westpa.work_managers.environment
 from westpa.work_managers.environment import make_work_manager, add_wm_args, process_wm_args
@@ -7,7 +8,7 @@ from westpa.work_managers import SerialWorkManager, ThreadsWorkManager, ProcessW
 from . tsupport import will_succeed
 
 
-class TestInstantiations:
+class TestInstantiations(unittest.TestCase):
     '''Test to see that the environment system at least selects the proper work manager and sets the
     number of workers appropriately'''
 
@@ -80,6 +81,9 @@ class TestInstantiations:
         work_manager = make_work_manager()
         assert isinstance(work_manager, ZMQWorkManager)
         with work_manager:
-            future = work_manager.submit(will_succeed)
-            future.get_result()
+            # Need to send enough work to start sufficient workers
+            for _ in range(2):
+                future = work_manager.submit(will_succeed)
+                future.get_result()
+
             assert work_manager.n_workers == 3

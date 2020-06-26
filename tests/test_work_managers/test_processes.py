@@ -1,5 +1,6 @@
 import os
 import signal
+import unittest
 
 from westpa.work_managers.processes import ProcessWorkManager
 from .tsupport import CommonParallelTests, CommonWorkManagerTests
@@ -9,7 +10,7 @@ import nose.tools
 from nose.tools import raises
 
 
-class TestProcessWorkManager(CommonParallelTests, CommonWorkManagerTests):
+class TestProcessWorkManager(unittest.TestCase, CommonParallelTests, CommonWorkManagerTests):
     def setUp(self):
         self.work_manager = ProcessWorkManager()
         self.work_manager.startup()

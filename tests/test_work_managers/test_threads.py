@@ -1,8 +1,10 @@
+import unittest
+
 from westpa.work_managers.threads import ThreadsWorkManager
 from .tsupport import CommonWorkManagerTests, CommonParallelTests
 
 
-class TestThreadsWorkManager(CommonWorkManagerTests, CommonParallelTests):
+class TestThreadsWorkManager(unittest.TestCase, CommonWorkManagerTests, CommonParallelTests):
     def setUp(self):
         self.work_manager = ThreadsWorkManager()
         self.work_manager.startup()

@@ -1,10 +1,12 @@
+import unittest
+
 import h5py
 
 from .common import CommonToolTest
 from westpa.cli.tools.w_trace import WTraceTool
 
 
-class Test_W_Trace_Args(CommonToolTest):
+class Test_W_Trace_Args(unittest.TestCase, CommonToolTest):
     '''Class to test w_trace works with different positional arguments (of the form n_iter:seg_id [n_iter:seg_id])
     This class tests that a) w_trace works with different numbers of positional arguments, and b) that the output file is set up
     correctly AND the data from subsequent traces is appended (in other words, if there is an existing output file, it

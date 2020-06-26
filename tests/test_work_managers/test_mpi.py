@@ -1,9 +1,11 @@
+import unittest
+
 from westpa.work_managers.mpi import MPIWorkManager
 # from .tsupport import CommonWorkManagerTests, CommonParallelTests
 
 
 # class TestMPIWorkManager(CommonWorkManagerTests, CommonParallelTests):
-class TestMPIWorkManager:
+class TestMPIWorkManager(unittest.TestCase):
     def setUp(self):
         self.work_manager = MPIWorkManager()
         self.work_manager.startup()

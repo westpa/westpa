@@ -1,5 +1,6 @@
 from contextlib import contextmanager
 import time
+import unittest
 
 from westpa.work_managers.zeromq import ZMQWorkManager, ZMQWorker, ZMQWorkerMissing
 from westpa.work_managers.zeromq.core import Message, Task
@@ -10,20 +11,16 @@ from test_work_managers.tsupport import will_busyhang, will_busyhang_uninterrupt
 
 import zmq
 
-from unittest import skip
+from . zmq_tsupport import SETUP_WAIT, TEARDOWN_WAIT, BEACON_PERIOD, BEACON_WAIT
+from . zmq_tsupport import ZMQTestBase
 
 
-from . import SETUP_WAIT, TEARDOWN_WAIT, BEACON_PERIOD, BEACON_WAIT
-from . import ZMQTestBase
-
-
-class TestZMQWorkManagerBasic(ZMQTestBase):
+class TestZMQWorkManagerBasic(ZMQTestBase, unittest.TestCase):
 
     '''Tests for the core task dispersal/retrieval and shutdown operations
     (the parts of the WM that do not require ZMQWorker).'''
     def setUp(self):
         super().setUp()
-
 
         self.test_wm = ZMQWorkManager(n_local_workers=0)
 
@@ -130,12 +127,11 @@ class TestZMQWorkManagerBasic(ZMQTestBase):
 #         with self.expect_announcement(Message.MASTER_BEACON):
 #             time.sleep(BEACON_WAIT)
 
-    @skip
+    @unittest.skip(reason='skipping')
     def test_delayed_master_beacon(self):
         self.discard_announcements()
         with self.expect_announcement(Message.MASTER_BEACON):
             time.sleep(BEACON_WAIT)
-
 
     def test_task_avail_beacon(self):
         with self.expect_announcement(Message.TASKS_AVAILABLE):
@@ -169,10 +165,10 @@ class TestZMQWorkManagerBasic(ZMQTestBase):
             self.test_core.send_message(s, Message.RESULT, result)
         assert future.result == r
 
-class BaseInternal(ZMQTestBase,CommonWorkManagerTests):
+
+class BaseInternal:
     def setUp(self):
         super().setUp()
-
 
         self.test_wm = ZMQWorkManager(n_local_workers=self.n_workers)
         for worker in self.test_wm.local_workers:
@@ -201,7 +197,6 @@ class BaseInternal(ZMQTestBase,CommonWorkManagerTests):
         self.test_wm.comm_thread.join()
 
         super().tearDown()
-
 
     def test_worker_startup(self):
         time.sleep(0.1)
@@ -233,7 +228,8 @@ class BaseInternal(ZMQTestBase,CommonWorkManagerTests):
         self.test_wm.submit(will_busyhang_uninterruptible, (), {})
         time.sleep(1.0)
 
-class TestZMQWorkManagerInternalNone(ZMQTestBase):
+
+class TestZMQWorkManagerInternalNone(ZMQTestBase, unittest.TestCase):
     n_workers = 0
 
     def setUp(self):
@@ -283,15 +279,15 @@ class TestZMQWorkManagerInternalNone(ZMQTestBase):
         assert isinstance(future.get_exception(),ZMQWorkerMissing)
 
 
-class TestZMQWorkManagerInternalSingle(BaseInternal):
+class TestZMQWorkManagerInternalSingle(BaseInternal, ZMQTestBase, CommonWorkManagerTests, unittest.TestCase):
     n_workers = 1
 
 
-class TestZMQWorkManagerInternalMultiple(BaseInternal):
+class TestZMQWorkManagerInternalMultiple(BaseInternal, ZMQTestBase, CommonWorkManagerTests, unittest.TestCase):
     n_workers = 4
 
 
-class BaseExternal(ZMQTestBase, CommonWorkManagerTests):
+class BaseExternal:
 
     def setUp(self):
         super().setUp()
@@ -335,11 +331,11 @@ class BaseExternal(ZMQTestBase, CommonWorkManagerTests):
         super().tearDown()
 
 
-class TestZMQWorkManagerExternalSingle(BaseExternal):
+class TestZMQWorkManagerExternalSingle(BaseExternal, ZMQTestBase, CommonWorkManagerTests, unittest.TestCase):
     n_workers = 1
 
 
-class TestZMQWorkManagerExternalMultiple(BaseExternal):
+class TestZMQWorkManagerExternalMultiple(BaseExternal, ZMQTestBase, CommonWorkManagerTests, unittest.TestCase):
     n_workers = 4
 
 

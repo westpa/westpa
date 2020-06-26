@@ -1,4 +1,5 @@
 import math
+import unittest
 
 
 import h5py
@@ -14,7 +15,7 @@ def get_flux_group(f):
     return f['target_flux']['index']
 
 
-class Test_W_Fluxanl_Args(CommonToolTest):
+class Test_W_Fluxanl_Args(unittest.TestCase, CommonToolTest):
     '''
     This class tests w_fluxanl functions with different combinations of command line arguments'''
 

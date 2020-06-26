@@ -1,5 +1,6 @@
 import itertools
 import time
+import unittest
 
 from westpa.work_managers.zeromq import ZMQWorkManager, ZMQWorker
 from westpa.work_managers.zeromq.node import ZMQNode
@@ -7,18 +8,17 @@ from westpa.work_managers.zeromq.node import ZMQNode
 from test_work_managers.tsupport import CommonWorkManagerTests
 from test_work_managers.tsupport import identity, random_int
 
-from . import SETUP_WAIT, TEARDOWN_WAIT, SHUTDOWN_WAIT, BEACON_PERIOD, BEACON_WAIT
-from . import ZMQTestBase
+from . zmq_tsupport import SETUP_WAIT, TEARDOWN_WAIT, SHUTDOWN_WAIT, BEACON_PERIOD, BEACON_WAIT
+from . zmq_tsupport import ZMQTestBase
 
 
-class TestZMQNodeExternal(ZMQTestBase,CommonWorkManagerTests):
+class TestZMQNodeExternal(ZMQTestBase, CommonWorkManagerTests, unittest.TestCase):
     n_workers = 2
 
     '''Tests for the core task dispersal/retrieval and shutdown operations
     (the parts of the WM that do not require ZMQWorker).'''
     def setUp(self):
         super().setUp()
-
 
         self.test_wm = ZMQWorkManager(n_local_workers=0)
         upstream_ann_endpoint = self.test_core.make_internal_endpoint()
@@ -90,7 +90,7 @@ class TestZMQNodeExternal(ZMQTestBase,CommonWorkManagerTests):
         assert future.get_result() == r
 
 
-class TestZMQNodeInternal(ZMQTestBase,CommonWorkManagerTests):
+class TestZMQNodeInternal(ZMQTestBase, CommonWorkManagerTests, unittest.TestCase):
     n_workers = 2
 
     '''Tests for the core task dispersal/retrieval and shutdown operations

@@ -1,4 +1,5 @@
 import time
+import unittest
 
 import zmq
 
@@ -6,11 +7,11 @@ from westpa.work_managers.zeromq import ZMQWorker
 from westpa.work_managers.zeromq.core import Message, Task, Result, TIMEOUT_MASTER_BEACON
 from test_work_managers.tsupport import random_int, will_fail, will_busyhang, will_busyhang_uninterruptible, ExceptionForTest, identity
 
-from . import SETUP_WAIT, TEARDOWN_WAIT, BEACON_PERIOD
-from . import ZMQTestBase
+from . zmq_tsupport import SETUP_WAIT, TEARDOWN_WAIT, BEACON_PERIOD
+from . zmq_tsupport import ZMQTestBase
 
 
-class TestZMQWorkerBasic(ZMQTestBase):
+class TestZMQWorkerBasic(ZMQTestBase, unittest.TestCase):
 
     #endpoint_type = 'tcp'
 
