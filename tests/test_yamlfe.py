@@ -10,10 +10,11 @@ class TESTSystem(ycf.YAMLSystem):
         self.pcoord_ndim = 1
         self.pcoord_dtype = np.float32
         self.pcoord_len = 5
-        self.bin_mapper = RectilinearBinMapper([ list(np.arange(0.0, 10.1, 0.1)) ] )
+        self.bin_mapper = RectilinearBinMapper([list(np.arange(0.0, 10.1, 0.1))])
         self.bin_target_counts = np.empty((self.bin_mapper.nbins,), np.int_)
         self.bin_target_counts[...] = 10
         self.test_variable_2 = "And I'm the second one"
+
 
 # YAML Front end tests
 
@@ -29,7 +30,6 @@ class TESTSystem(ycf.YAMLSystem):
 # if it works we assure we can load the driver
 # AND overwrite it properly
 class TestYAMLFrontEnd:
-
     def testYAMLFEDriver(self):
         '''
         Test method to ensure the YAML system generator works as
@@ -40,17 +40,21 @@ class TestYAMLFrontEnd:
         rc = westpa.rc
         yamlConf = ycf.YAMLConfig()
         # A sample dictionary from a yaml file
-        test_dict = {"west":{
-                       "system": {
-                         "driver": "test_yamlfe.TESTSystem",
-                         "system_options": {
-                           "pcoord_ndim":2, "test_variable": "I'm a test variable",
-                           "pcoord_len":10, "pcoord_dtype": np.float32,
-                           "bin_target_counts": 10,
-                             "bins": {
-                               "type":"RectilinearBinMapper",
-                                 "boundaries": [[0.0, 0.5, 1.5, 2.5, 3.5, 'inf']]
-                                 }}}}}
+        test_dict = {
+            "west": {
+                "system": {
+                    "driver": "test_yamlfe.TESTSystem",
+                    "system_options": {
+                        "pcoord_ndim": 2,
+                        "test_variable": "I'm a test variable",
+                        "pcoord_len": 10,
+                        "pcoord_dtype": np.float32,
+                        "bin_target_counts": 10,
+                        "bins": {"type": "RectilinearBinMapper", "boundaries": [[0.0, 0.5, 1.5, 2.5, 3.5, 'inf']]},
+                    },
+                }
+            }
+        }
         yamlConf._data = test_dict
         rc.config = yamlConf
 
@@ -62,8 +66,7 @@ class TestYAMLFrontEnd:
         assert system.pcoord_ndim == 2
         assert system.test_variable == "I'm a test variable"
         # This one in particular checks if the bins are passed correctly
-        assert (system.bin_mapper.boundaries == \
-               np.array([[0.0, 0.5, 1.5, 2.5, 3.5, 'inf']], dtype=np.float32)).all()
+        assert (system.bin_mapper.boundaries == np.array([[0.0, 0.5, 1.5, 2.5, 3.5, 'inf']], dtype=np.float32)).all()
         assert system.pcoord_len == 10
         assert system.pcoord_dtype == np.float32
         ## These should be the same as the original
@@ -74,16 +77,20 @@ class TestYAMLFrontEnd:
         rc = westpa.rc
         yamlConf = ycf.YAMLConfig()
         # A sample dictionary from a yaml file
-        test_dict = {"west":{
-                       "system": {
-                         "system_options": {
-                           "pcoord_ndim":2, "test_variable": "I'm a test variable",
-                           "pcoord_len":10, "pcoord_dtype": np.float32,
-                           "bin_target_counts": 10,
-                             "bins": {
-                               "type":"RectilinearBinMapper",
-                                 "boundaries": ["np.arange(0.0, 5.0, 0.5)"]
-                                 }}}}}
+        test_dict = {
+            "west": {
+                "system": {
+                    "system_options": {
+                        "pcoord_ndim": 2,
+                        "test_variable": "I'm a test variable",
+                        "pcoord_len": 10,
+                        "pcoord_dtype": np.float32,
+                        "bin_target_counts": 10,
+                        "bins": {"type": "RectilinearBinMapper", "boundaries": ["np.arange(0.0, 5.0, 0.5)"]},
+                    }
+                }
+            }
+        }
         yamlConf._data = test_dict
         rc.config = yamlConf
 
@@ -95,7 +102,6 @@ class TestYAMLFrontEnd:
         assert system.pcoord_ndim == 2
         assert system.test_variable == "I'm a test variable"
         # This one in particular checks if the bins are passed correctly
-        assert (system.bin_mapper.boundaries == \
-               np.arange(0.0, 5.0, 0.5)).all()
+        assert (system.bin_mapper.boundaries == np.arange(0.0, 5.0, 0.5)).all()
         assert system.pcoord_len == 10
         assert system.pcoord_dtype == np.float32

@@ -1,23 +1,28 @@
 import numpy as np
 from scipy.spatial.distance import cdist
 
-from westpa.core.binning.assign import (RectilinearBinMapper, PiecewiseBinMapper, FuncBinMapper, VectorizingFuncBinMapper,
-                                        VoronoiBinMapper, RecursiveBinMapper)
+from westpa.core.binning.assign import (
+    RectilinearBinMapper,
+    PiecewiseBinMapper,
+    FuncBinMapper,
+    VectorizingFuncBinMapper,
+    VoronoiBinMapper,
+    RecursiveBinMapper,
+)
 from westpa.core.binning.assign import coord_dtype
-
 
 
 class TestRectilinearBinMapper:
     def test1dAssign(self):
         bounds = [0.0, 1.0, 2.0, 3.0]
-        coords = np.array([0, 0.5, 1.5, 1.6, 2.0, 2.0, 2.9])[:,None]
+        coords = np.array([0, 0.5, 1.5, 1.6, 2.0, 2.0, 2.9])[:, None]
 
         assigner = RectilinearBinMapper([bounds])
         assert (assigner.assign(coords) == [0, 0, 1, 1, 2, 2, 2]).all()
 
     def test2dAssign(self):
-        boundaries = [(-1,-0.5,0,0.5,1), (-1,-0.5,0,0.5,1)]
-        coords = np.array([ (-0.75, -0.75), (-0.25,-0.25), (0,0), (0.25,0.25), (0.75,0.75), (-0.25, 0.75), (0.25,-0.75)])
+        boundaries = [(-1, -0.5, 0, 0.5, 1), (-1, -0.5, 0, 0.5, 1)]
+        coords = np.array([(-0.75, -0.75), (-0.25, -0.25), (0, 0), (0.25, 0.25), (0.75, 0.75), (-0.25, 0.75), (0.25, -0.75)])
         assigner = RectilinearBinMapper(boundaries)
 
         """bin structure: [(a,b), (c,d)] => x in [a,b), y in [c, d)
@@ -40,19 +45,21 @@ class TestRectilinearBinMapper:
 
         assert (assigner.assign(coords) == [0, 5, 10, 10, 15, 7, 8]).all()
 
+
 class TestPiecewiseBinMapper:
     def test_bin_mapping(self):
         coords = np.array([[-0.5], [0.0], [0.5]], dtype=np.float32)
-        fr1 = (lambda x: x<0)
-        fr2 = (lambda x: x>=0)
-        pm = PiecewiseBinMapper([fr1,fr2])
+        fr1 = lambda x: x < 0
+        fr2 = lambda x: x >= 0
+        pm = PiecewiseBinMapper([fr1, fr2])
         assert list(pm.assign(coords)) == [0, 1, 1]
+
 
 class TestFuncBinMapper:
     @staticmethod
     def fn(coords, mask, output):
-        output[mask & (coords[:,0] <= 0.5)] = 0
-        output[mask & (coords[:,0] > 0.5)] = 1
+        output[mask & (coords[:, 0] <= 0.5)] = 0
+        output[mask & (coords[:, 0] > 0.5)] = 1
 
     def test_fmapper(self):
         mapper = FuncBinMapper(self.fn, 2)
@@ -61,7 +68,7 @@ class TestFuncBinMapper:
         print(repr(coords))
         output = mapper.assign(coords)
         print(repr(output))
-        assert list(output) == [0,0,0,1]
+        assert list(output) == [0, 0, 0, 1]
 
 
 class TestVectorizingFuncBinMapper:
@@ -77,29 +84,30 @@ class TestVectorizingFuncBinMapper:
         coords = np.array([0.0, 0.1, 0.5, 0.7])
         coords.shape = (coords.shape[0], 1)
         output = mapper.assign(coords)
-        assert list(output) == [0,0,0,1]
+        assert list(output) == [0, 0, 0, 1]
+
 
 class TestVoronoiBinMapper:
     @staticmethod
     def distfunc(coordvec, centers):
         if coordvec.ndim < 2:
-            new_coordvec = np.empty((1,coordvec.shape[0]), dtype=coord_dtype)
-            new_coordvec[0,:] = coordvec[:]
+            new_coordvec = np.empty((1, coordvec.shape[0]), dtype=coord_dtype)
+            new_coordvec[0, :] = coordvec[:]
             coordvec = new_coordvec
         distmat = np.require(cdist(coordvec, centers), dtype=coord_dtype)
-        return distmat[0,:]
+        return distmat[0, :]
 
     def test_vmapper(self):
-        centers = np.array([[0,0], [2,2]], dtype=coord_dtype)
-        coords = np.array([[0,0], [2,2], [0.9,0.9], [1.1, 1.1]], dtype=coord_dtype)
+        centers = np.array([[0, 0], [2, 2]], dtype=coord_dtype)
+        coords = np.array([[0, 0], [2, 2], [0.9, 0.9], [1.1, 1.1]], dtype=coord_dtype)
 
         mapper = VoronoiBinMapper(self.distfunc, centers)
         output = mapper.assign(coords)
-        assert list(output) == [0,1,0,1]
+        assert list(output) == [0, 1, 0, 1]
 
 
 class TestNestingBinMapper:
-    #pass
+    # pass
     '''
          0                            1                      2
          +----------------------------+----------------------+
@@ -115,30 +123,30 @@ class TestNestingBinMapper:
 
     @staticmethod
     def fn1(coords, mask, output):
-        test = coords[:,0] < 1
+        test = coords[:, 0] < 1
         output[mask & test] = 0
         output[mask & ~test] = 1
 
     @staticmethod
     def fn2(coords, mask, output):
-        test = coords[:,0] < 0.5
+        test = coords[:, 0] < 0.5
         output[mask & test] = 0
         output[mask & ~test] = 1
 
     @staticmethod
     def fn3(coords, mask, output):
-        test = coords[:,0] < 0.25
+        test = coords[:, 0] < 0.25
         output[mask & test] = 0
         output[mask & ~test] = 1
 
     @staticmethod
     def fn4(coords, mask, output):
-        test = coords[:,0] < 1.5
+        test = coords[:, 0] < 1.5
         output[mask & test] = 0
         output[mask & ~test] = 1
 
     def testOuterMapper(self):
-        #pass
+        # pass
         '''
              0                            1                      2
              +----------------------------+----------------------+
@@ -146,14 +154,14 @@ class TestNestingBinMapper:
              +---------------------------------------------------+
         '''
 
-        mapper = FuncBinMapper(self.fn1,2)
+        mapper = FuncBinMapper(self.fn1, 2)
         rmapper = RecursiveBinMapper(mapper)
         coords = np.array([[0.1], [0.2], [0.3], [0.4], [0.6], [1.1]])
         output = rmapper.assign(coords)
-        assert list(output) == [0,0,0,0,0,1]
+        assert list(output) == [0, 0, 0, 0, 0, 1]
 
     def testOuterMapperWithOffset(self):
-        #pass
+        # pass
         '''
              0                            1                      2
              +----------------------------+----------------------+
@@ -161,14 +169,14 @@ class TestNestingBinMapper:
              +---------------------------------------------------+
         '''
 
-        mapper = FuncBinMapper(self.fn1,2)
-        rmapper = RecursiveBinMapper(mapper,1)
+        mapper = FuncBinMapper(self.fn1, 2)
+        rmapper = RecursiveBinMapper(mapper, 1)
         coords = np.array([[0.1], [0.2], [0.3], [0.4], [0.6], [1.1]])
         output = rmapper.assign(coords)
-        assert list(output) == [1,1,1,1,1,2]
+        assert list(output) == [1, 1, 1, 1, 1, 2]
 
     def testSingleRecursion(self):
-        #pass
+        # pass
 
         '''
              0                            1                      2
@@ -183,8 +191,8 @@ class TestNestingBinMapper:
              +---------------------------------------------------+
         '''
 
-        outer_mapper = FuncBinMapper(self.fn1,2)
-        inner_mapper = FuncBinMapper(self.fn2,2)
+        outer_mapper = FuncBinMapper(self.fn1, 2)
+        inner_mapper = FuncBinMapper(self.fn2, 2)
         rmapper = RecursiveBinMapper(outer_mapper)
         rmapper.add_mapper(inner_mapper, [0.5])
         assert rmapper.nbins == 3
@@ -193,7 +201,7 @@ class TestNestingBinMapper:
         assert list(output) == [1, 1, 1, 1, 2, 0]
 
     def testDeepRecursion(self):
-        #pass
+        # pass
 
         '''
          0                            1                      2
@@ -208,9 +216,9 @@ class TestNestingBinMapper:
          +---------------------------------------------------+
         '''
 
-        outer_mapper = FuncBinMapper(self.fn1,2)
-        middle_mapper = FuncBinMapper(self.fn2,2)
-        inner_mapper  = FuncBinMapper(self.fn3,2)
+        outer_mapper = FuncBinMapper(self.fn1, 2)
+        middle_mapper = FuncBinMapper(self.fn2, 2)
+        inner_mapper = FuncBinMapper(self.fn3, 2)
 
         rmapper = RecursiveBinMapper(outer_mapper)
         rmapper.add_mapper(middle_mapper, [0.5])
@@ -222,7 +230,7 @@ class TestNestingBinMapper:
         assert list(output) == [2, 2, 3, 3, 1, 0]
 
     def testSideBySideRecursion(self):
-        #pass
+        # pass
         '''
              0                            1                      2
              +----------------------------+----------------------+
@@ -235,10 +243,9 @@ class TestNestingBinMapper:
              | +-----------+------------+ | +--------+---------+ |
              +---------------------------------------------------+
         '''
-        outer_mapper = FuncBinMapper(self.fn1,2)
-        middle_mapper1 = FuncBinMapper(self.fn2,2)
-        middle_mapper2 = FuncBinMapper(self.fn4,2)
-
+        outer_mapper = FuncBinMapper(self.fn1, 2)
+        middle_mapper1 = FuncBinMapper(self.fn2, 2)
+        middle_mapper2 = FuncBinMapper(self.fn4, 2)
 
         rmapper = RecursiveBinMapper(outer_mapper)
         rmapper.add_mapper(middle_mapper1, [0.5])
@@ -248,11 +255,10 @@ class TestNestingBinMapper:
         coords = np.array([[0.1], [0.2], [0.3], [0.4], [0.6], [1.1], [1.6]])
         output = rmapper.assign(coords)
         print('OUTPUT', output)
-        assert list(output) == [0,0,0,0,1,2,3]
-
+        assert list(output) == [0, 0, 0, 0, 1, 2, 3]
 
     def testMegaComplexRecursion(self):
-        #pass
+        # pass
         '''
              0                            1                      2
              +----------------------------+----------------------+
@@ -265,21 +271,20 @@ class TestNestingBinMapper:
              | +-----------+------------+ | +--------+---------+ |
              +---------------------------------------------------+
         '''
-        outer_mapper = FuncBinMapper(self.fn1,2)
-        middle_mapper1 = FuncBinMapper(self.fn2,2)
-        middle_mapper2 = FuncBinMapper(self.fn4,2)
-        inner_mapper = FuncBinMapper(self.fn3,2)
+        outer_mapper = FuncBinMapper(self.fn1, 2)
+        middle_mapper1 = FuncBinMapper(self.fn2, 2)
+        middle_mapper2 = FuncBinMapper(self.fn4, 2)
+        inner_mapper = FuncBinMapper(self.fn3, 2)
 
         rmapper = RecursiveBinMapper(outer_mapper)
         rmapper.add_mapper(middle_mapper1, [0.5])
         rmapper.add_mapper(inner_mapper, [0.25])
         rmapper.add_mapper(middle_mapper2, [1.5])
 
-
         assert rmapper.nbins == 5
         coords = np.array([[0.1], [0.2], [0.3], [0.4], [0.6], [1.1], [1.6]])
         output = rmapper.assign(coords)
-        assert list(output) == [1,1,2,2,0,3,4]
+        assert list(output) == [1, 1, 2, 2, 0, 3, 4]
 
     def test2dRectilinearRecursion(self):
 
@@ -305,26 +310,22 @@ class TestNestingBinMapper:
 
         '''
 
-        outer_mapper = RectilinearBinMapper([[0,1,2],[0,1,2]])
+        outer_mapper = RectilinearBinMapper([[0, 1, 2], [0, 1, 2]])
 
-        upper_right_mapper = RectilinearBinMapper([[1,1.5,2],[0,1]])
-        lower_left_mapper = RectilinearBinMapper([[0,0.5,1], [1,2]])
+        upper_right_mapper = RectilinearBinMapper([[1, 1.5, 2], [0, 1]])
+        lower_left_mapper = RectilinearBinMapper([[0, 0.5, 1], [1, 2]])
 
         rmapper = RecursiveBinMapper(outer_mapper)
-        rmapper.add_mapper(upper_right_mapper, [1.5,0.5])
+        rmapper.add_mapper(upper_right_mapper, [1.5, 0.5])
         rmapper.add_mapper(lower_left_mapper, [0.5, 1.5])
 
-
-        pairs = [(0.5, 0.5), (1.25, 0.5), (1.75, 0.5),
-                 (0.25, 1.5), (0.75, 1.5), (1.5, 1.5)]
+        pairs = [(0.5, 0.5), (1.25, 0.5), (1.75, 0.5), (0.25, 1.5), (0.75, 1.5), (1.5, 1.5)]
 
         assert rmapper.nbins == 6
         assignments = rmapper.assign(pairs)
-        expected = [0,3,4,1,2,5]
+        expected = [0, 3, 4, 1, 2, 5]
         print('PAIRS', pairs)
         print('LABELS', list(rmapper.labels))
         print('EXPECTED', expected)
         print('OUTPUT  ', assignments)
-        assert (assignments  == expected).all()
-
-
+        assert (assignments == expected).all()

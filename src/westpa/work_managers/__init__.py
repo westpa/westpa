@@ -1,4 +1,3 @@
-
 '''A system for parallel, remote execution of multiple arbitrary tasks.
 Much of this, both in concept and execution, was inspired by (and in some
 cases based heavily on) the ``concurrent.futures`` package from Python 3.2,
@@ -8,7 +7,7 @@ futures implementation).
 
 import logging
 
-from .core import WorkManager, WMFuture, FutureWatcher
+from .core import WorkManager, WMFuture, FutureWatcher  # noqa
 
 
 # Import core work managers, which should run most everywhere that
@@ -20,13 +19,11 @@ from .processes import ProcessWorkManager
 
 log = logging.getLogger(__name__)
 
-_available_work_managers = {'serial': SerialWorkManager,
-                            'threads': ThreadsWorkManager,
-                            'processes': ProcessWorkManager}
+_available_work_managers = {'serial': SerialWorkManager, 'threads': ThreadsWorkManager, 'processes': ProcessWorkManager}
 
 # Import ZeroMQ work manager if available
 try:
-    from . import zeromq
+    from . import zeromq  # noqa
     from .zeromq import ZMQWorkManager
 except ImportError:
     log.info('ZeroMQ work manager not available')
@@ -36,7 +33,7 @@ else:
 
 # Import MPI work manager if available
 try:
-    from . import mpi
+    from . import mpi  # noqa
     from .mpi import MPIWorkManager
 except ImportError:
     log.info('MPI work manager not available')
@@ -44,5 +41,17 @@ except ImportError:
 else:
     _available_work_managers['mpi'] = MPIWorkManager
 
-from . import environment
-from .environment import make_work_manager
+from . import environment  # noqa
+from .environment import make_work_manager  # noqa
+
+
+__all__ = [
+    'serial',
+    'threads',
+    'processes',
+    'SerialWorkManager',
+    'ThreadsWorkManager',
+    'ProcessWorkManager',
+    'environment',
+    'make_work_manager',
+]

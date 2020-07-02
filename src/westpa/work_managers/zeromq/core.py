@@ -35,8 +35,9 @@ WORKER_CRASH_TIMEOUT = DEFAULT_STATUS_POLL * 3
 
 log = logging.getLogger(__name__)
 
-signames = {val: name for name, val in reversed(sorted(signal.__dict__.items()))
-            if name.startswith('SIG') and not name.startswith('SIG_')}
+signames = {
+    val: name for name, val in reversed(sorted(signal.__dict__.items())) if name.startswith('SIG') and not name.startswith('SIG_')
+}
 
 
 DEFAULT_LINGER = 1
@@ -45,37 +46,43 @@ DEFAULT_LINGER = 1
 def randport(address='127.0.0.1'):
     '''Select a random unused TCP port number on the given address.'''
     s = socket.socket()
-    s.bind((address,0))
+    s.bind((address, 0))
     try:
         port = s.getsockname()[1]
     finally:
         s.close()
     return port
 
+
 class ZMQWMError(RuntimeError):
     '''Base class for errors related to the ZeroMQ work manager itself'''
+
     pass
+
 
 class ZMQWorkerMissing(ZMQWMError):
     '''Exception representing that a worker processing a task died or disappeared'''
+
     pass
+
 
 class ZMQWMEnvironmentError(ZMQWMError):
     '''Class representing an error in the environment in which the ZeroMQ work manager is running.
     This includes such things as master/worker ID mismatches.'''
 
+
 class ZMQWMTimeout(ZMQWMEnvironmentError):
     '''A timeout of a sort that indicatess that a master or worker has failed or never started.'''
+
 
 class Message:
     SHUTDOWN = 'shutdown'
 
     ACK = 'ok'
     NAK = 'no'
-    IDENTIFY = 'identify'          # Two-way identification (a reply must be an IDENTIFY message)
+    IDENTIFY = 'identify'  # Two-way identification (a reply must be an IDENTIFY message)
     TASKS_AVAILABLE = 'tasks_available'
     TASK_REQUEST = 'task_request'
-
 
     MASTER_BEACON = 'master_alive'
     RECONFIGURE_TIMEOUT = 'reconfigure_timeout'
@@ -85,23 +92,23 @@ class Message:
 
     idempotent_announcement_messages = {SHUTDOWN, TASKS_AVAILABLE, MASTER_BEACON}
 
-
     def __init__(self, message=None, payload=None, master_id=None, src_id=None):
 
-        if isinstance(message,Message):
-            self.message    = message.message
-            self.payload    = message.payload
-            self.master_id  = message.master_id
-            self.src_id     = message.src_id
+        if isinstance(message, Message):
+            self.message = message.message
+            self.payload = message.payload
+            self.master_id = message.master_id
+            self.src_id = message.src_id
         else:
-            self.master_id  = master_id
-            self.src_id     = src_id
+            self.master_id = master_id
+            self.src_id = src_id
             self.message = message
             self.payload = payload
 
     def __repr__(self):
-        return ('<{!s} master_id={master_id!s} src_id={src_id!s} message={message!r} payload={payload!r}>'
-                .format(self.__class__.__name__, **self.__dict__))
+        return '<{!s} master_id={master_id!s} src_id={src_id!s} message={message!r} payload={payload!r}>'.format(
+            self.__class__.__name__, **self.__dict__
+        )
 
     @classmethod
     def coalesce_announcements(cls, messages):
@@ -116,11 +123,13 @@ class Message:
         log.debug('coalesced {} announcements into {}'.format(len(messages), len(coalesced)))
         return coalesced
 
+
 TIMEOUT_MASTER_BEACON = 'master_beacon'
 TIMEOUT_WORKER_CONTACT = 'worker_contact'
 
+
 class Task:
-    def __init__(self, fn, args, kwargs, task_id = None):
+    def __init__(self, fn, args, kwargs, task_id=None):
         self.task_id = task_id or uuid.uuid4()
         self.fn = fn
         self.args = args
@@ -128,8 +137,9 @@ class Task:
 
     def __repr__(self):
         try:
-            return '<{} {task_id!s} {fn!r} {:d} args {:d} kwargs>'\
-                   .format(self.__class__.__name__, len(self.args), len(self.kwargs), **self.__dict__)
+            return '<{} {task_id!s} {fn!r} {:d} args {:d} kwargs>'.format(
+                self.__class__.__name__, len(self.args), len(self.kwargs), **self.__dict__
+            )
         except TypeError:
             # no length
             return '<{} {task_id!s} {fn!r}'.format(self.__class__.__name__, **self.__dict__)
@@ -139,7 +149,7 @@ class Task:
 
     def execute(self):
         '''Run this task, returning a Result object.'''
-        rsl = Result(task_id = self.task_id)
+        rsl = Result(task_id=self.task_id)
         try:
             rsl.result = self.fn(*self.args, **self.kwargs)
         except BaseException as e:
@@ -156,8 +166,9 @@ class Result:
         self.traceback = traceback
 
     def __repr__(self):
-        return '<{} {task_id!s} ({})>'\
-               .format(self.__class__.__name__, 'result' if self.exception is None else 'exception', **self.__dict__)
+        return '<{} {task_id!s} ({})>'.format(
+            self.__class__.__name__, 'result' if self.exception is None else 'exception', **self.__dict__
+        )
 
     def __hash__(self):
         return hash(self.task_id)
@@ -165,6 +176,7 @@ class Result:
 
 class PassiveTimer:
     __slots__ = {'started', 'duration'}
+
     def __init__(self, duration, started=None):
         if started is None:
             started = time.time()
@@ -186,12 +198,13 @@ class PassiveTimer:
 
     start = reset
 
+
 class PassiveMultiTimer:
     def __init__(self):
         self._identifiers = np.empty((0,), np.object_)
         self._durations = np.empty((0,), float)
         self._started = np.empty((0,), float)
-        self._indices = {} # indexes into durations/started, keyed by identifier
+        self._indices = {}  # indexes into durations/started, keyed by identifier
 
     def add_timer(self, identifier, duration):
 
@@ -199,9 +212,9 @@ class PassiveMultiTimer:
             raise KeyError('timer {!r} already present'.format(identifier))
 
         new_idx = len(self._identifiers)
-        self._durations.resize((new_idx+1,))
-        self._started.resize((new_idx+1,))
-        self._identifiers.resize((new_idx+1,))
+        self._durations.resize((new_idx + 1,))
+        self._started.resize((new_idx + 1,))
+        self._identifiers.resize((new_idx + 1,))
         self._durations[new_idx] = duration
         self._started[new_idx] = time.time()
         self._identifiers[new_idx] = identifier
@@ -225,7 +238,7 @@ class PassiveMultiTimer:
         else:
             self._started[self._indices[identifier]] = at
 
-    def expired(self, identifier, at = None):
+    def expired(self, identifier, at=None):
         at = at or time.time()
         idx = self._indices[identifier]
         return (at - self._started[idx]) > self._durations[idx]
@@ -245,6 +258,7 @@ class PassiveMultiTimer:
         at = at or time.time()
         expired_indices = (at - self._started) > self._durations
         return self._identifiers[expired_indices]
+
 
 class ZMQCore:
 
@@ -276,8 +290,6 @@ class ZMQCore:
     default_startup_timeout = 120.0
     default_shutdown_timeout = 5.0
 
-
-
     _ipc_endpoints_to_delete = []
 
     @classmethod
@@ -304,14 +316,14 @@ class ZMQCore:
 
     @classmethod
     def make_tcp_endpoint(cls, address='127.0.0.1'):
-        return 'tcp://{}:{}'.format(address,randport(address))
+        return 'tcp://{}:{}'.format(address, randport(address))
 
     @classmethod
     def make_internal_endpoint(cls):
         assert cls.internal_transport in {'ipc', 'tcp'}
         if cls.internal_transport == 'ipc':
             return cls.make_ipc_endpoint()
-        else: # cls.internal_transport == 'tcp'
+        else:  # cls.internal_transport == 'tcp'
             return cls.make_tcp_endpoint()
 
     def __init__(self):
@@ -341,13 +353,10 @@ class ZMQCore:
         # and the master.
         self.startup_timeout = self.default_startup_timeout
 
-
         # A friendlier description for logging
-        self.node_description = '{!s} on {!s} at PID {:d}'.format(self.__class__.__name__,
-                                                                  socket.gethostname(),
-                                                                  os.getpid())
+        self.node_description = '{!s} on {!s} at PID {:d}'.format(self.__class__.__name__, socket.gethostname(), os.getpid())
 
-        self.validation_fail_action = 'exit' # other options are 'raise' and 'warn'
+        self.validation_fail_action = 'exit'  # other options are 'raise' and 'warn'
 
         self.log = logging.getLogger(__name__ + '.' + self.__class__.__name__ + '.' + str(self.node_id))
 
@@ -378,12 +387,14 @@ class ZMQCore:
         return '<{!s} {!s}>'.format(self.__class__.__name__, self.node_id)
 
     def get_identification(self):
-        return {'node_id': self.node_id,
-                'master_id': self.master_id,
-                'class': self.__class__.__name__,
-                'description': self.node_description,
-                'hostname': socket.gethostname(),
-                'pid': os.getpid()}
+        return {
+            'node_id': self.node_id,
+            'master_id': self.master_id,
+            'class': self.__class__.__name__,
+            'description': self.node_description,
+            'hostname': socket.gethostname(),
+            'pid': os.getpid(),
+        }
 
     def validate_message(self, message):
         '''Validate incoming message. Raises an exception if the message is improperly formatted (TypeError)
@@ -400,7 +411,11 @@ class ZMQCore:
         if message.src_id is None:
             raise ZMQWMEnvironmentError('message src_id is not set')
         if self.master_id is not None and message.master_id is not None and message.master_id != self.master_id:
-            raise ZMQWMEnvironmentError('incoming message associated with another master (this={!s}, incoming={!s}'.format(self.master_id, message.master_id))
+            raise ZMQWMEnvironmentError(
+                'incoming message associated with another master (this={!s}, incoming={!s}'.format(
+                    self.master_id, message.master_id
+                )
+            )
 
     @contextlib.contextmanager
     def message_validation(self, msg):
@@ -475,35 +490,31 @@ class ZMQCore:
         message = Message(message, payload)
         if message.master_id is None:
             message.master_id = self.master_id
-        message.src_id=self.node_id
+        message.src_id = self.node_id
 
         if self._super_debug:
             self.log.debug('sending {!r}'.format(message))
-        socket.send_pyobj(message,flags)
+        socket.send_pyobj(message, flags)
 
-    def send_reply(self, socket, original_message, reply=Message.ACK, payload=None,flags=0):
+    def send_reply(self, socket, original_message, reply=Message.ACK, payload=None, flags=0):
         '''Send a reply to ``original_message`` on ``socket``. The reply message
         is a Message object or a message identifier. The reply master_id and worker_id are
         set from ``original_message``, unless master_id is not set, in which case it is
         set from self.master_id.'''
         reply = Message(reply, payload)
         reply.master_id = original_message.master_id or self.master_id
-        assert original_message.worker_id is not None # should have been caught by validation prior to this
+        assert original_message.worker_id is not None  # should have been caught by validation prior to this
         reply.worker_id = original_message.worker_id
         self.send_message(socket, reply)
 
     def send_ack(self, socket, original_message):
         '''Send an acknowledgement message, which is mostly just to respect REQ/REP
         recv/send patterns.'''
-        self.send_message(socket, Message(Message.ACK,
-                                          master_id=original_message.master_id or self.master_id,
-                                          src_id=self.node_id))
+        self.send_message(socket, Message(Message.ACK, master_id=original_message.master_id or self.master_id, src_id=self.node_id))
 
     def send_nak(self, socket, original_message):
         '''Send a negative acknowledgement message.'''
-        self.send_message(socket, Message(Message.NAK,
-                                          master_id=original_message.master_id or self.master_id,
-                                          src_id=self.node_id))
+        self.send_message(socket, Message(Message.NAK, master_id=original_message.master_id or self.master_id, src_id=self.node_id))
 
     def send_inproc_message(self, message, payload=None, flags=0):
         inproc_socket = self.context.socket(zmq.PUB)
@@ -526,10 +537,10 @@ class ZMQCore:
         if signal is None:
             self.log.info('shutting down')
         else:
-            self.log.info('shutting down on signal {!s}'.format(signames.get(signal,signal)))
+            self.log.info('shutting down on signal {!s}'.format(signames.get(signal, signal)))
         self.signal_shutdown()
 
-    def install_signal_handlers(self, signals = None):
+    def install_signal_handlers(self, signals=None):
         if not signals:
             signals = {signal.SIGINT, signal.SIGQUIT, signal.SIGTERM}
 
@@ -544,7 +555,7 @@ class ZMQCore:
         self.comm_thread = threading.Thread(target=self.comm_loop)
         self.comm_thread.start()
 
-        #self.install_signal_handlers()
+        # self.install_signal_handlers()
 
     def shutdown(self):
         self.shutdown_handler()
@@ -572,6 +583,7 @@ def shutdown_process(process, timeout=1.0):
         log.debug('worker process {:d} terminated gracefully with code {:d}'.format(process.pid, process.exitcode))
     assert not process.is_alive()
 
+
 class IsNode:
     def __init__(self, n_local_workers=None):
         from westpa.work_managers.zeromq.worker import ZMQWorker
@@ -591,8 +603,9 @@ class IsNode:
             self.local_rr_endpoint = None
             self.local_workers = []
 
-        self.local_worker_processes = [multiprocessing.Process(target = worker.startup, args=(n,))
-                                       for (n, worker) in enumerate(self.local_workers)]
+        self.local_worker_processes = [
+            multiprocessing.Process(target=worker.startup, args=(n,)) for (n, worker) in enumerate(self.local_workers)
+        ]
 
         self.host_info_files = []
 
@@ -604,7 +617,7 @@ class IsNode:
             info = {}
             info['rr_endpoint'] = re.sub(r'\*', hostname, self.downstream_rr_endpoint or '')
             info['ann_endpoint'] = re.sub(r'\*', hostname, self.downstream_ann_endpoint or '')
-            json.dump(info,infofile)
+            json.dump(info, infofile)
         self.host_info_files.append(filename)
 
     def startup(self):

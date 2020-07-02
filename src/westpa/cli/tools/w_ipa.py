@@ -8,10 +8,9 @@ import numpy as np
 
 import westpa
 from westpa.core import h5io
-from westpa.cli.tools import (w_assign, w_direct, w_reweight)
+from westpa.cli.tools import w_assign, w_direct, w_reweight
 
-from westpa.tools import (WESTParallelTool, WESTDataReader,
-                          ProgressIndicatorComponent, Plotter)
+from westpa.tools import WESTParallelTool, WESTDataReader, ProgressIndicatorComponent, Plotter
 
 from westpa.tools import WIPIDataset, __get_data_for_iteration__, WIPIScheme
 
@@ -85,20 +84,31 @@ class WIPI(WESTParallelTool):
         self.progress.add_args(parser)
         self.data_reader.add_args(parser)
         rgroup = parser.add_argument_group('runtime options')
-        rgroup.add_argument('--analysis-only', '-ao', dest='analysis_mode', action='store_true',
-                             help='''Use this flag to run the analysis and return to the terminal.''')
-        rgroup.add_argument('--reanalyze', '-ra', dest='reanalyze', action='store_true',
-                             help='''Use this flag to delete the existing files and reanalyze.''')
-        rgroup.add_argument('--ignore-hash', '-ih', dest='ignore_hash', action='store_true',
-                             help='''Ignore hash and don't regenerate files.''')
-        rgroup.add_argument('--debug', '-d', dest='debug_mode', action='store_true',
-                             help='''Debug output largely intended for development.''')
-        rgroup.add_argument('--terminal', '-t', dest='plotting', action='store_true',
-                             help='''Plot output in terminal.''')
+        rgroup.add_argument(
+            '--analysis-only',
+            '-ao',
+            dest='analysis_mode',
+            action='store_true',
+            help='''Use this flag to run the analysis and return to the terminal.''',
+        )
+        rgroup.add_argument(
+            '--reanalyze',
+            '-ra',
+            dest='reanalyze',
+            action='store_true',
+            help='''Use this flag to delete the existing files and reanalyze.''',
+        )
+        rgroup.add_argument(
+            '--ignore-hash', '-ih', dest='ignore_hash', action='store_true', help='''Ignore hash and don't regenerate files.'''
+        )
+        rgroup.add_argument(
+            '--debug', '-d', dest='debug_mode', action='store_true', help='''Debug output largely intended for development.'''
+        )
+        rgroup.add_argument('--terminal', '-t', dest='plotting', action='store_true', help='''Plot output in terminal.''')
         # There is almost certainly a better way to handle this, but we'll sort that later.
         import argparse
-        rgroup.add_argument('--f', '-f', dest='extra', default='blah',
-                             help=argparse.SUPPRESS)
+
+        rgroup.add_argument('--f', '-f', dest='extra', default='blah', help=argparse.SUPPRESS)
 
         parser.set_defaults(compression=True)
 
@@ -110,7 +120,10 @@ class WIPI(WESTParallelTool):
         self.__config = westpa.rc.config
         self.__settings = self.__config['west']['analysis']
         for ischeme, scheme in enumerate(self.__settings['analysis_schemes']):
-            if (self.__settings['analysis_schemes'][scheme]['enabled'] is True or self.__settings['analysis_schemes'][scheme]['enabled'] is None):
+            if (
+                self.__settings['analysis_schemes'][scheme]['enabled'] is True
+                or self.__settings['analysis_schemes'][scheme]['enabled'] is None
+            ):
                 self.scheme = scheme
         self.data_args = args
         self.analysis_mode = args.analysis_mode
@@ -129,27 +142,27 @@ class WIPI(WESTParallelTool):
         # the various namespaces.
         # In addition, it's unlikely that the functionality is desired at the individual tool level,
         # since we'll always just rewrite a file when we call the function.
-        #return hashlib.md5(pickle.dumps([args, extra])).hexdigest()
+        # return hashlib.md5(pickle.dumps([args, extra])).hexdigest()
         # We don't care about the path, so we'll remove it.
         # Probably a better way to do this, but who cares.
         cargs = list(args)
         for iarg, arg in enumerate(cargs):
             if path in arg:
-                cargs[iarg] = arg.replace(path,'').replace('/', '')
+                cargs[iarg] = arg.replace(path, '').replace('/', '')
             if arg == '--disable-averages':
                 cargs.remove('--disable-averages')
         to_hash = cargs + [extra]
-        #print(args)
-        #print(to_hash)
-        #print(str(to_hash).encode('base64'))
+        # print(args)
+        # print(to_hash)
+        # print(str(to_hash).encode('base64'))
         if self.debug_mode:
             for iarg, arg in enumerate(to_hash):
                 if not isinstance(arg, list):
                     print('arg {num:02d} -- {arg:<20}'.format(num=iarg, arg=arg))
                 else:
                     for il, l in enumerate(arg):
-                        print('arg {num:02d} -- {arg:<20}'.format(num=il+iarg, arg=l))
-            #print('args: {}'.format(to_hash))
+                        print('arg {num:02d} -- {arg:<20}'.format(num=il + iarg, arg=l))
+            # print('args: {}'.format(to_hash))
         # This SHOULD produce the same output, maybe?  That would be nice, anyway.
         # But we'll need to test it more.
         return hashlib.md5(base64.b64encode(str(to_hash).encode())).hexdigest()
@@ -201,7 +214,7 @@ class WIPI(WESTParallelTool):
                 if self.work_manager.running is False:
                     self.work_manager.startup()
                 path = os.path.join(os.getcwd(), self.__settings['directory'], scheme)
-                #if 'postanalysis' in self.__settings['analysis_schemes'][scheme] and 'postanalysis' in self.__settings['postanalysis']:
+                # if 'postanalysis' in self.__settings['analysis_schemes'][scheme] and 'postanalysis' in self.__settings['postanalysis']:
                 # Should clean this up.  But it uses the default global setting if a by-scheme one isn't set.
                 if 'postanalysis' in self.__settings:
                     if 'postanalysis' in self.__settings['analysis_schemes'][scheme]:
@@ -214,7 +227,10 @@ class WIPI(WESTParallelTool):
                     pass
                 self.__analysis_schemes__[scheme] = {}
                 try:
-                    if self.__settings['analysis_schemes'][scheme]['postanalysis'] is True or self.__settings['postanalysis'] is True:
+                    if (
+                        self.__settings['analysis_schemes'][scheme]['postanalysis'] is True
+                        or self.__settings['postanalysis'] is True
+                    ):
                         analysis_files = ['assign', 'direct', 'reweight']
                     else:
                         analysis_files = ['assign', 'direct']
@@ -234,9 +250,11 @@ class WIPI(WESTParallelTool):
                     else:
                         try:
                             # Try to load the hash.  If we fail to load the hash or the file, we need to reload.
-                            #if self.reanalyze == True:
+                            # if self.reanalyze == True:
                             #    raise ValueError('Reanalyze set to true.')
-                            self.__analysis_schemes__[scheme][name] = h5io.WESTPAH5File(os.path.join(path, '{}.h5'.format(name)), 'r')
+                            self.__analysis_schemes__[scheme][name] = h5io.WESTPAH5File(
+                                os.path.join(path, '{}.h5'.format(name)), 'r'
+                            )
                             arg_hash = self.__analysis_schemes__[scheme][name].attrs['arg_hash']
                             if name == 'assign':
                                 assign_hash = arg_hash
@@ -248,7 +266,7 @@ class WIPI(WESTParallelTool):
                         if name == 'assign':
                             assign = w_assign.WAssign()
 
-                            w_assign_config = { 'output': os.path.join(path, '{}.h5'.format(name))}
+                            w_assign_config = {'output': os.path.join(path, '{}.h5'.format(name))}
                             try:
                                 w_assign_config.update(self.__settings['w_assign'])
                             except Exception:
@@ -258,7 +276,7 @@ class WIPI(WESTParallelTool):
                             except Exception:
                                 pass
                             args = []
-                            for key,value in w_assign_config.items():
+                            for key, value in w_assign_config.items():
                                 if key != 'extra':
                                     args.append(str('--') + str(key).replace('_', '-'))
                                     args.append(str(value))
@@ -276,13 +294,19 @@ class WIPI(WESTParallelTool):
                             # We need to load up the bin mapper and states and see if they're the same.
                             assign.make_parser_and_process(args=args)
                             import pickle
-                            #new_hash = self.hash_args(args=args, path=path, extra=[self.niters, pickle.dumps(assign.binning.mapper), assign.states])
+
+                            # new_hash = self.hash_args(args=args, path=path, extra=[self.niters, pickle.dumps(assign.binning.mapper), assign.states])
                             # We need to encode it properly to ensure that some OS specific thing doesn't kill us.  Same goes for the args, ultimately.
                             # Mostly, we just need to ensure that we're consistent.
-                            new_hash = self.hash_args(args=args, path=path,
-                                                      extra=[int(self.niters),
-                                                      codecs.encode(pickle.dumps(assign.binning.mapper), "base64"),
-                                                      base64.b64encode(str(assign.states).encode())])
+                            new_hash = self.hash_args(
+                                args=args,
+                                path=path,
+                                extra=[
+                                    int(self.niters),
+                                    codecs.encode(pickle.dumps(assign.binning.mapper), "base64"),
+                                    base64.b64encode(str(assign.states).encode()),
+                                ],
+                            )
                             # Let's check the hash.  If the hash is the same, we don't need to reload.
                             if self.debug_mode is True:
                                 print('{:<10}: old hash, new hash -- {}, {}'.format(name, arg_hash, new_hash))
@@ -293,7 +317,7 @@ class WIPI(WESTParallelTool):
                                 except Exception:
                                     pass
                                 print('Reanalyzing file {}.h5 for scheme {}.'.format(name, scheme))
-                                #reanalyze_kinetics = True
+                                # reanalyze_kinetics = True
                                 # We want to use the work manager we have here.  Otherwise, just let the tool sort out what it needs, honestly.
                                 assign.work_manager = self.work_manager
 
@@ -301,20 +325,25 @@ class WIPI(WESTParallelTool):
                                 assign.data_reader.close()
 
                                 # Stamp w/ hash, then reload as read only.
-                                self.__analysis_schemes__[scheme][name] = self.stamp_hash(os.path.join(path, '{}.h5'.format(name)), new_hash)
-                            del(assign)
+                                self.__analysis_schemes__[scheme][name] = self.stamp_hash(
+                                    os.path.join(path, '{}.h5'.format(name)), new_hash
+                                )
+                            del assign
                             # Update the assignment hash.
                             assign_hash = new_hash
 
                         # Since these are all contained within one tool, now, we want it to just... load everything.
                         if name == 'direct' or name == 'reweight':
-                            assignment_file = self.__analysis_schemes__[scheme]['assign']
                             if name == 'direct':
                                 analysis = w_direct.WDirect()
                             if name == 'reweight':
                                 analysis = w_reweight.WReweight()
 
-                            analysis_config = { 'assignments': os.path.join(path, '{}.h5'.format('assign')), 'output': os.path.join(path, '{}.h5'.format(name)), 'kinetics': os.path.join(path, '{}.h5'.format(name))}
+                            analysis_config = {
+                                'assignments': os.path.join(path, '{}.h5'.format('assign')),
+                                'output': os.path.join(path, '{}.h5'.format(name)),
+                                'kinetics': os.path.join(path, '{}.h5'.format(name)),
+                            }
 
                             # Pull from general analysis options, then general SPECIFIC options for each analysis,
                             # then general options for that analysis scheme, then specific options for the analysis type in the scheme.
@@ -340,7 +369,7 @@ class WIPI(WESTParallelTool):
                             # Then, we call the magic function 'make_parser_and_process' with the arguments we've pulled in.
                             # The tool has no real idea it's being called outside of its actual function, and we're good to go.
                             args = ['all']
-                            for key,value in analysis_config.items():
+                            for key, value in analysis_config.items():
                                 if key != 'extra':
                                     args.append(str('--') + str(key).replace('_', '-'))
                                     args.append(str(value))
@@ -351,7 +380,7 @@ class WIPI(WESTParallelTool):
                             # We want to not display the averages, so...
                             args.append('--disable-averages')
                             new_hash = self.hash_args(args=args, path=path, extra=[int(self.niters), assign_hash])
-                            #if arg_hash != new_hash or self.reanalyze == True or reanalyze_kinetics == True:
+                            # if arg_hash != new_hash or self.reanalyze == True or reanalyze_kinetics == True:
                             if self.debug_mode is True:
                                 print('{:<10}: old hash, new hash -- {}, {}'.format(name, arg_hash, new_hash))
                             if self.ignore_hash is False and (arg_hash != new_hash or reanalyze_kinetics is True):
@@ -367,8 +396,10 @@ class WIPI(WESTParallelTool):
                                 analysis.go()
 
                                 # Open!
-                                self.__analysis_schemes__[scheme][name] = self.stamp_hash(os.path.join(path, '{}.h5'.format(name)), new_hash)
-                            del(analysis)
+                                self.__analysis_schemes__[scheme][name] = self.stamp_hash(
+                                    os.path.join(path, '{}.h5'.format(name)), new_hash
+                                )
+                            del analysis
 
         # Make sure this doesn't get too far out, here.  We need to keep it alive as long as we're actually analyzing things.
         # self.work_manager.shutdown()
@@ -386,13 +417,12 @@ class WIPI(WESTParallelTool):
         """
         return self.__analysis_schemes__[str(self.scheme)]['direct']
 
-
     @property
     def state_labels(self):
         print("State labels and definitions!")
         for istate, state in enumerate(self.assign['state_labels']):
             print('{}: {}'.format(istate, state))
-        print('{}: {}'.format(istate+1, 'Unknown'))
+        print('{}: {}'.format(istate + 1, 'Unknown'))
 
     @property
     def bin_labels(self):
@@ -410,8 +440,15 @@ class WIPI(WESTParallelTool):
             return self.__analysis_schemes__[str(self.scheme)]['reweight']
         else:
             value = "This sort of analysis has not been enabled."
-            current = { 'bin_prob_evolution': value, 'color_prob_evolution': value, 'conditional_flux_evolution': value, 'rate_evolution': value, 'state_labels': value, 'state_prob_evolution': value }
-            current.update({ 'bin_populations': value, 'iterations': value })
+            current = {
+                'bin_prob_evolution': value,
+                'color_prob_evolution': value,
+                'conditional_flux_evolution': value,
+                'rate_evolution': value,
+                'state_labels': value,
+                'state_prob_evolution': value,
+            }
+            current.update({'bin_populations': value, 'iterations': value})
             return current
 
     @property
@@ -426,7 +463,9 @@ class WIPI(WESTParallelTool):
         # Let's do this a few different ways.
         # We want to return things about the DIFFERENT schemes, if possible.
         if self._scheme is None:
-            self._scheme = WIPIScheme(scheme=self.__analysis_schemes__, name=self._schemename, parent=self, settings=self.__settings)
+            self._scheme = WIPIScheme(
+                scheme=self.__analysis_schemes__, name=self._schemename, parent=self, settings=self.__settings
+            )
 
         # This just ensures that when we call it, it's clean.
         self._scheme.name = None
@@ -443,7 +482,10 @@ class WIPI(WESTParallelTool):
             for ischeme, schemename in enumerate(self.__settings['analysis_schemes']):
                 if ischeme == scheme:
                     scheme = schemename
-        if self.__settings['analysis_schemes'][scheme]['enabled'] is True or self.__settings['analysis_schemes'][scheme]['enabled'] is None:
+        if (
+            self.__settings['analysis_schemes'][scheme]['enabled'] is True
+            or self.__settings['analysis_schemes'][scheme]['enabled'] is None
+        ):
             self._schemename = scheme
         else:
             print("Scheme cannot be changed to scheme: {}; it is not enabled!".format(scheme))
@@ -470,14 +512,14 @@ class WIPI(WESTParallelTool):
                     - type: RectilinearBinMapper
                       boundaries: [[0.0, 2.80, 7, 10000]]
         '''
-        #print("The following schemes are available:")
-        #print("")
-        #for ischeme, scheme in enumerate(self.__settings['analysis_schemes']):
+        # print("The following schemes are available:")
+        # print("")
+        # for ischeme, scheme in enumerate(self.__settings['analysis_schemes']):
         #    print('{}. Scheme: {}'.format(ischeme, scheme))
-        #print("")
-        #print("Set via name, or via the index listed.")
-        #print("")
-        #print("Current scheme: {}".format(self.scheme))
+        # print("")
+        # print("Set via name, or via the index listed.")
+        # print("")
+        # print("Current scheme: {}".format(self.scheme))
         self._scheme.list_schemes
 
     @property
@@ -485,7 +527,7 @@ class WIPI(WESTParallelTool):
         '''
         Returns/sets the current iteration.
         '''
-        #print("The current iteration is {}".format(self._iter))
+        # print("The current iteration is {}".format(self._iter))
         return self._iter
 
     @iteration.setter
@@ -505,7 +547,6 @@ class WIPI(WESTParallelTool):
         self._future = None
         return self._iter
 
-
     @property
     def current(self):
         '''
@@ -519,7 +560,6 @@ class WIPI(WESTParallelTool):
         The previous iteration.  See help for __get_data_for_iteration__
         '''
         return self.scheme[self.scheme.scheme].past
-
 
     def trace(self, seg_id):
         '''
@@ -539,7 +579,7 @@ class WIPI(WESTParallelTool):
         pi = self.progress.indicator
         with pi:
             pi.new_operation('Tracing scheme:iter:seg_id {}:{}:{}'.format(self.scheme, self.iteration, seg_id), self.iteration)
-            current = { 'seg_id': [], 'pcoord': [], 'states': [], 'weights': [], 'iteration': [], 'bins': [] }
+            current = {'seg_id': [], 'pcoord': [], 'states': [], 'weights': [], 'iteration': [], 'bins': []}
             keys = []
             try:
                 current['auxdata'] = {}
@@ -548,12 +588,11 @@ class WIPI(WESTParallelTool):
                     key = []
             except Exception:
                 pass
-            for iter in reversed(list(range(1, self.iteration+1))):
+            for iter in reversed(list(range(1, self.iteration + 1))):
                 iter_group = self.data_reader.get_iter_group(iter)
-                particles = self.data_reader.data_manager.get_iter_summary(int(iter))['n_particles']
                 current['pcoord'].append(iter_group['pcoord'][seg_id, :, :])
-                current['states'].append(self.assign['trajlabels'][iter-1, seg_id,:])
-                current['bins'].append(self.assign['assignments'][iter-1, seg_id,:])
+                current['states'].append(self.assign['trajlabels'][iter - 1, seg_id, :])
+                current['bins'].append(self.assign['assignments'][iter - 1, seg_id, :])
                 current['seg_id'].append(seg_id)
                 current['weights'].append(iter_group['seg_index']['weight'][seg_id])
                 current['iteration'].append(iter)
@@ -582,7 +621,9 @@ class WIPI(WESTParallelTool):
         for i in ['pcoord', 'states', 'bins', 'weights']:
             current[i] = WIPIDataset(raw=current[i], key=i)
             if i == 'weights':
-                current[i].plotter = Plotter(np.log10(current[i].raw), str('log10 of ' + str(i)), iteration=current[i].raw.shape[0], interface=self.interface)
+                current[i].plotter = Plotter(
+                    np.log10(current[i].raw), str('log10 of ' + str(i)), iteration=current[i].raw.shape[0], interface=self.interface
+                )
             else:
                 current[i].plotter = Plotter(current[i].raw, i, iteration=current[i].raw.shape[0], interface=self.interface)
             current[i].plot = current[i].plotter.plot
@@ -596,7 +637,7 @@ class WIPI(WESTParallelTool):
         '''
         if self._future is None:
             self._future = self.Future(raw=self.__get_children__(), key=None)
-            self._future.iteration = self.iteration+1
+            self._future.iteration = self.iteration + 1
         return self._future
 
     class Future(WIPIDataset):
@@ -611,9 +652,8 @@ class WIPI(WESTParallelTool):
                     print('{} is not a valid data structure.'.format(value))
             elif isinstance(value, int) or isinstance(value, np.int64):
                 # Otherwise, we assume they're trying to index for a seg_id.
-                #if value < self.parent.walkers:
+                # if value < self.parent.walkers:
                 current = {}
-                seg_items = ['weights', 'pcoord', 'auxdata', 'parents', 'seg_id', 'states']
                 current['pcoord'] = self.__dict__['raw']['pcoord'][value]
                 current['states'] = self.__dict__['raw']['states'][value]
                 current['bins'] = self.__dict__['raw']['bins'][value]
@@ -638,8 +678,17 @@ class WIPI(WESTParallelTool):
         if self.iteration == self.niters:
             print("Currently at iteration {}, which is the max.  There are no children!".format(self.iteration))
             return 0
-        iter_data = __get_data_for_iteration__(value=self.iteration+1, parent=self)
-        future = { 'weights': [], 'pcoord': [], 'parents': [], 'summary': iter_data['summary'], 'seg_id': [], 'walkers': iter_data['walkers'], 'states': [], 'bins': [] }
+        iter_data = __get_data_for_iteration__(value=self.iteration + 1, parent=self)
+        future = {
+            'weights': [],
+            'pcoord': [],
+            'parents': [],
+            'summary': iter_data['summary'],
+            'seg_id': [],
+            'walkers': iter_data['walkers'],
+            'states': [],
+            'bins': [],
+        }
         for seg_id in range(0, self.current.walkers):
             children = np.where(iter_data['parents'] == seg_id)[0]
             if len(children) == 0:
@@ -652,7 +701,7 @@ class WIPI(WESTParallelTool):
                 future['bins'].append(error)
             else:
                 # Now, we're gonna put them in the thing.
-                value = self.iteration+1
+                value = self.iteration + 1
                 future['weights'].append(iter_data['weights'][children])
                 future['pcoord'].append(iter_data['pcoord'][...][children, :, :])
                 try:
@@ -665,8 +714,8 @@ class WIPI(WESTParallelTool):
                     pass
                 future['parents'].append(iter_data['parents'][children])
                 future['seg_id'].append(iter_data['seg_id'][children])
-                future['states'].append(self.assign['trajlabels'][value-1, children, :])
-                future['bins'].append(self.assign['assignments'][value-1, children, :])
+                future['states'].append(self.assign['trajlabels'][value - 1, children, :])
+                future['bins'].append(self.assign['assignments'][value - 1, children, :])
         return future
 
     def go(self):
@@ -720,8 +769,11 @@ class WIPI(WESTParallelTool):
 
         {w}
 
-        '''.format(current=self.__format_keys__(self.current.__dir__(), split=' ', offset=12), scheme_keys=self.__format_keys__(list(self._scheme.raw.keys())),
-                   w=self.__format_keys__(self.__dir__(), offset=8, max_length=0, split='', prepend='w.'))
+        '''.format(
+            current=self.__format_keys__(self.current.__dir__(), split=' ', offset=12),
+            scheme_keys=self.__format_keys__(list(self._scheme.raw.keys())),
+            w=self.__format_keys__(self.__dir__(), offset=8, max_length=0, split='', prepend='w.'),
+        )
         print(help_string)
 
     # Just a little function to be used with the introduction.
@@ -733,7 +785,7 @@ class WIPI(WESTParallelTool):
             run_length += len(str(key))
             if run_length >= max_length:
                 run_length = offset
-                rtn += '\n' + ' '*offset
+                rtn += '\n' + ' ' * offset
         if rtn[-1] == split:
             return rtn[:-1]
         else:
@@ -762,9 +814,9 @@ def entry_point():
     # We're gonna print some defaults.
     w.main()
     if w.analysis_mode is False:
-        from IPython import embed, embed_kernel
-        from IPython.lib.kernel import find_connection_file
+        from IPython import embed
         import IPython
+
         # We're using this to set magic commands.
         # Mostly, we're using it to allow tab completion of objects stored in dictionaries.
         try:
@@ -774,12 +826,9 @@ def entry_point():
             # Seems to be necessary on Linux, and likely on newer installs.
             c = IPython.terminal.ipapp.load_default_config()
         c.IPCompleter.greedy = True
-        embed(banner1='',
-             exit_msg='Leaving w_ipa... goodbye.',
-             config=c)
+        embed(banner1='', exit_msg='Leaving w_ipa... goodbye.', config=c)
     print("")
 
 
 if __name__ == '__main__':
     entry_point()
-

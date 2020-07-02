@@ -11,14 +11,15 @@ from test_work_managers.tsupport import will_busyhang, will_busyhang_uninterrupt
 
 import zmq
 
-from . zmq_tsupport import SETUP_WAIT, TEARDOWN_WAIT, BEACON_PERIOD, BEACON_WAIT
-from . zmq_tsupport import ZMQTestBase
+from .zmq_tsupport import SETUP_WAIT, TEARDOWN_WAIT, BEACON_PERIOD, BEACON_WAIT
+from .zmq_tsupport import ZMQTestBase
 
 
 class TestZMQWorkManagerBasic(ZMQTestBase, unittest.TestCase):
 
     '''Tests for the core task dispersal/retrieval and shutdown operations
     (the parts of the WM that do not require ZMQWorker).'''
+
     def setUp(self):
         super().setUp()
 
@@ -89,7 +90,7 @@ class TestZMQWorkManagerBasic(ZMQTestBase, unittest.TestCase):
     @contextmanager
     def expect_announcement(self, message):
         subsocket = self.test_context.socket(zmq.SUB)
-        subsocket.setsockopt(zmq.SUBSCRIBE,b'')
+        subsocket.setsockopt(zmq.SUBSCRIBE, b'')
         subsocket.connect(self.ann_endpoint)
 
         time.sleep(SETUP_WAIT)
@@ -104,7 +105,7 @@ class TestZMQWorkManagerBasic(ZMQTestBase, unittest.TestCase):
 
     def discard_announcements(self):
         subsocket = self.test_context.socket(zmq.SUB)
-        subsocket.setsockopt(zmq.SUBSCRIBE,b'')
+        subsocket.setsockopt(zmq.SUBSCRIBE, b'')
         subsocket.connect(self.ann_endpoint)
 
         time.sleep(SETUP_WAIT)
@@ -122,10 +123,10 @@ class TestZMQWorkManagerBasic(ZMQTestBase, unittest.TestCase):
         with self.expect_announcement(Message.SHUTDOWN):
             self.test_wm.signal_shutdown()
 
-# This won't work, because initial beacon is discarded if no clients are connected
-#     def test_immediate_master_beacon(self):
-#         with self.expect_announcement(Message.MASTER_BEACON):
-#             time.sleep(BEACON_WAIT)
+    # This won't work, because initial beacon is discarded if no clients are connected
+    #     def test_immediate_master_beacon(self):
+    #         with self.expect_announcement(Message.MASTER_BEACON):
+    #             time.sleep(BEACON_WAIT)
 
     @unittest.skip(reason='skipping')
     def test_delayed_master_beacon(self):
@@ -140,7 +141,7 @@ class TestZMQWorkManagerBasic(ZMQTestBase, unittest.TestCase):
 
     def test_task_nak(self):
         with self.rr_socket() as s:
-            self.test_core.send_message(s,Message.TASK_REQUEST)
+            self.test_core.send_message(s, Message.TASK_REQUEST)
             msg = self.test_core.recv_message(s)
             assert msg.message == Message.NAK
 
@@ -148,7 +149,7 @@ class TestZMQWorkManagerBasic(ZMQTestBase, unittest.TestCase):
         r = random_int()
         self.test_wm.submit(identity, (r,))
         with self.rr_socket() as s:
-            self.test_core.send_message(s,Message.TASK_REQUEST)
+            self.test_core.send_message(s, Message.TASK_REQUEST)
             msg = self.test_core.recv_message(s)
             assert msg.message == Message.TASK
             assert isinstance(msg.payload, Task)
@@ -158,7 +159,7 @@ class TestZMQWorkManagerBasic(ZMQTestBase, unittest.TestCase):
         r = random_int()
         future = self.test_wm.submit(identity, (r,))
         with self.rr_socket() as s:
-            self.test_core.send_message(s,Message.TASK_REQUEST)
+            self.test_core.send_message(s, Message.TASK_REQUEST)
             msg = self.test_core.recv_message(s)
             task = msg.payload
             result = task.execute()
@@ -205,14 +206,14 @@ class BaseInternal:
 
     def test_processes_task(self):
         r = random_int()
-        future = self.test_wm.submit(identity,(r,),{})
+        future = self.test_wm.submit(identity, (r,), {})
         assert future.get_result() == r
 
     def test_two_tasks(self):
         r1 = random_int()
         r2 = random_int()
-        f1 = self.test_wm.submit(identity,(r1,),{})
-        f2 = self.test_wm.submit(identity,(r2,),{})
+        f1 = self.test_wm.submit(identity, (r1,), {})
+        f2 = self.test_wm.submit(identity, (r2,), {})
         assert f1.result == r1
         assert f2.result == r2
 
@@ -263,7 +264,6 @@ class TestZMQWorkManagerInternalNone(ZMQTestBase, unittest.TestCase):
 
         super().tearDown()
 
-
     def test_shutdown_without_workers(self):
         time.sleep(1.5)
         assert not self.test_wm.comm_thread.is_alive()
@@ -276,7 +276,7 @@ class TestZMQWorkManagerInternalNone(ZMQTestBase, unittest.TestCase):
     def test_shutdown_without_workers_raises_future_error(self):
         future = self.test_wm.submit(identity, (1,), {})
         time.sleep(1.5)
-        assert isinstance(future.get_exception(),ZMQWorkerMissing)
+        assert isinstance(future.get_exception(), ZMQWorkerMissing)
 
 
 class TestZMQWorkManagerInternalSingle(BaseInternal, ZMQTestBase, CommonWorkManagerTests, unittest.TestCase):
@@ -288,10 +288,8 @@ class TestZMQWorkManagerInternalMultiple(BaseInternal, ZMQTestBase, CommonWorkMa
 
 
 class BaseExternal:
-
     def setUp(self):
         super().setUp()
-
 
         self.test_wm = ZMQWorkManager(n_local_workers=0)
 
@@ -315,7 +313,6 @@ class BaseExternal:
             worker.shutdown_timeout = 0.5
             worker.startup()
 
-
         self.test_core.master_id = self.test_wm.master_id
 
         self.work_manager = self.test_wm
@@ -337,5 +334,3 @@ class TestZMQWorkManagerExternalSingle(BaseExternal, ZMQTestBase, CommonWorkMana
 
 class TestZMQWorkManagerExternalMultiple(BaseExternal, ZMQTestBase, CommonWorkManagerTests, unittest.TestCase):
     n_workers = 4
-
-

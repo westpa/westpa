@@ -1,7 +1,6 @@
 import logging
 
-from westpa.tools import (WESTParallelTool, WESTDataReader, IterRangeSelection,
-                          ProgressIndicatorComponent)
+from westpa.tools import WESTParallelTool, WESTDataReader, IterRangeSelection, ProgressIndicatorComponent
 import westpa
 from westpa.core.extloader import get_object
 
@@ -63,13 +62,18 @@ Command-line options
         self.iter_range.add_args(parser)
 
         tgroup = parser.add_argument_group('task options')
-        tgroup.add_argument('-c', '--crawler-instance',
-                            help='''Use CRAWLER_INSTANCE (specified as module.instance) as an instance of
+        tgroup.add_argument(
+            '-c',
+            '--crawler-instance',
+            help='''Use CRAWLER_INSTANCE (specified as module.instance) as an instance of
                             WESTPACrawler to coordinate the calculation. Required only if initialization,
-                            finalization, or task result processing is required.''')
-        tgroup.add_argument('task_callable',
-                            help='''Run TASK_CALLABLE (specified as module.function) on each iteration.
-                            Required.''')
+                            finalization, or task result processing is required.''',
+        )
+        tgroup.add_argument(
+            'task_callable',
+            help='''Run TASK_CALLABLE (specified as module.function) on each iteration.
+                            Required.''',
+        )
         self.progress.add_args(parser)
 
     def process_args(self, args):

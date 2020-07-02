@@ -13,13 +13,13 @@ def nop():
 
 
 class ProgressIndicator:
-    def __init__(self, stream=None, interval = 1):
+    def __init__(self, stream=None, interval=1):
         self.terminal = blessings.Terminal(stream=stream)
-        self.interval = interval # how often the status is updated
+        self.interval = interval  # how often the status is updated
 
-        self._operation = None # string describing operation
-        self._extent = None # how far we have to go, total
-        self._progress = 0 # how far we've gone
+        self._operation = None  # string describing operation
+        self._extent = None  # how far we have to go, total
+        self._progress = 0  # how far we've gone
 
         self._endloop = False
         self._startup_event = threading.Event()
@@ -44,8 +44,8 @@ class ProgressIndicator:
         history = np.array(self._progress_history)
         if not len(history):
             return 'unknown'
-        history[:,1] -= self._extent
-        (_slope, intercept, _r, _p, _stderr) = linregress(history[:,1], history[:,0])
+        history[:, 1] -= self._extent
+        (_slope, intercept, _r, _p, _stderr) = linregress(history[:, 1], history[:, 0])
         if not np.isfinite(intercept):
             return 'unknown'
         else:
@@ -67,20 +67,21 @@ class ProgressIndicator:
             hours = int(round(hours))
             minutes = int(round(minutes))
             if days > 0:
-                return 'about {:d} {}, {:d} {}'.format(days, 'days' if days > 1 else 'day',
-                                                       hours, 'hours' if hours > 1 else 'hour')
+                return 'about {:d} {}, {:d} {}'.format(days, 'days' if days > 1 else 'day', hours, 'hours' if hours > 1 else 'hour')
             else:
-                return 'about {:d} {}, {:d} {}'.format(hours, 'hours' if hours > 1 else 'hour',
-                                                       minutes, 'minutes' if minutes > 1 else 'minute')
+                return 'about {:d} {}, {:d} {}'.format(
+                    hours, 'hours' if hours > 1 else 'hour', minutes, 'minutes' if minutes > 1 else 'minute'
+                )
+
     def draw_fancy(self):
         operation_text = 'Operation:      '
-        progress_text  = 'Progress:       '
+        progress_text = 'Progress:       '
         remaining_text = 'Time remaining: '
 
         term = self.terminal
         stream = self.terminal.stream
 
-        stream.write('{t.clear_eol}{t.bold}{}{t.normal}{}\n'.format(operation_text,self._operation or '', t=term))
+        stream.write('{t.clear_eol}{t.bold}{}{t.normal}{}\n'.format(operation_text, self._operation or '', t=term))
 
         if self._extent:
             width = term.width
@@ -88,30 +89,32 @@ class ProgressIndicator:
             pct_part = '{:<4.0%} '.format(pct_done)
 
             barwidth = width - len(progress_text) - 2 - len(pct_part)
-            neqs = int(round(pct_done*barwidth))
+            neqs = int(round(pct_done * barwidth))
             eqs = '=' * neqs
             spaces = ' ' * (barwidth - neqs)
 
-            stream.write('{t.clear_eol}{t.bold}{progress_text}{t.normal}{pct_part}{t.bold}[{t.normal}{eqs}{spaces}{t.bold}]{t.normal}\n'
-                         .format(t=term,progress_text=progress_text,pct_part=pct_part,eqs=eqs,spaces=spaces))
+            stream.write(
+                '{t.clear_eol}{t.bold}{progress_text}{t.normal}{pct_part}{t.bold}[{t.normal}{eqs}{spaces}{t.bold}]{t.normal}\n'.format(
+                    t=term, progress_text=progress_text, pct_part=pct_part, eqs=eqs, spaces=spaces
+                )
+            )
 
             completion_est = self._completion_est()
-            stream.write('{t.clear_eol}{t.bold}{}{t.normal}{}\n'.format(remaining_text,completion_est,t=term))
-            stream.write('{t.move_up}'.format(t=term)*2)
+            stream.write('{t.clear_eol}{t.bold}{}{t.normal}{}\n'.format(remaining_text, completion_est, t=term))
+            stream.write('{t.move_up}'.format(t=term) * 2)
         stream.write('{t.move_up}'.format(t=term))
 
         self._last_update = time.time()
 
-
     def draw_simple(self):
         if self._operation != self._last_operation:
-            self.terminal.stream.write((self._operation or '(unknown)')+'...\n')
+            self.terminal.stream.write((self._operation or '(unknown)') + '...\n')
             self._last_operation = self._operation
             self._last_update = time.time()
 
-
     def draw(self):
-        if not self._operation: return
+        if not self._operation:
+            return
         if self.fancy:
             self.draw_fancy()
         else:
@@ -135,7 +138,8 @@ class ProgressIndicator:
 
     @operation.setter
     def operation(self, op):
-        if self._operation is not None: self.clear()
+        if self._operation is not None:
+            self.clear()
         self._operation = op
         self._operation_start = time.time()
         self._progress_history.clear()
@@ -175,7 +179,6 @@ class ProgressIndicator:
                 self.draw()
                 self.flush_output()
 
-
     def start(self):
         if self.fancy:
             self.terminal.stream.write(self.terminal.hide_cursor)
@@ -195,7 +198,6 @@ class ProgressIndicator:
             self.terminal.stream.write(self.terminal.normal_cursor)
         self.flush_output()
 
-
     def __enter__(self):
         self.start()
         return self
@@ -207,10 +209,10 @@ class ProgressIndicator:
 
 if __name__ == '__main__':
     with ProgressIndicator() as pi:
-        pi.operation='Test 1'
+        pi.operation = 'Test 1'
         pi.extent = 10
         for i in range(10):
-            pi.progress = i+1
+            pi.progress = i + 1
             time.sleep(2)
 
         time.sleep(0.2)

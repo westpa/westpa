@@ -13,9 +13,9 @@ class Bin(set):
         self.label = label
 
     def __repr__(self):
-        return ('<{classname} at 0x{id:x}, label={label!r}, count={count:d}, weight={weight:g}>'
-                .format(classname=self.__class__.__name__, id=id(self), label=self.label,
-                        count=len(self), weight=self.weight))
+        return '<{classname} at 0x{id:x}, label={label!r}, count={count:d}, weight={weight:g}>'.format(
+            classname=self.__class__.__name__, id=id(self), label=self.label, count=len(self), weight=self.weight
+        )
 
     @property
     def weight(self):
@@ -44,10 +44,4 @@ class Bin(set):
             p.weight *= wrat
 
         log.debug('new weight: {:g}'.format(self.weight))
-        assert abs(new_weight-self.weight) <= EPS*len(self)
-
-
-
-
-
-
+        assert abs(new_weight - self.weight) <= EPS * len(self)

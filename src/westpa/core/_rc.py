@@ -1,4 +1,3 @@
-
 """WEST run control and configuration routines"""
 
 import errno
@@ -27,7 +26,7 @@ def bins_from_yaml_dict(bin_dict):
     try:
         mapper_type = getattr(sys.modules['westpa.core.binning'], typename)
     except AttributeError:
-        raise KeyError('unknown bin mapper type {!r} in config file {!r}'.format(typename))
+        raise KeyError('unknown bin mapper type {!r}'.format(typename))
 
     if typename == 'RectilinearBinMapper':
         boundary_lists = kwargs.pop('boundaries')
@@ -36,7 +35,9 @@ def bins_from_yaml_dict(bin_dict):
             if boundary.__class__ == str:
                 parsed_lists[iboundary] = parsePCV(boundary)[0]
             else:
-                parsed_lists[iboundary] = list(map((lambda x: float('inf') if (x if isinstance(x, str) else '').lower() == 'inf' else x), boundary))
+                parsed_lists[iboundary] = list(
+                    map((lambda x: float('inf') if (x if isinstance(x, str) else '').lower() == 'inf' else x), boundary)
+                )
         return mapper_type(parsed_lists)
     else:
         try:
@@ -50,34 +51,34 @@ def parsePCV(pc_str):
     # Execute arbitrary code within a limited
     # scope to avoid nastyness. Stolen fully from
     # other parts of the WESTPA code.
-    namespace = {'math': math,
-                 'numpy': np,
-                 'np': np,
-                 'inf': float('inf')}
+    namespace = {'math': math, 'numpy': np, 'np': np, 'inf': float('inf')}
 
-    arr = np.array(eval(pc_str,namespace))
+    arr = np.array(eval(pc_str, namespace))
     if arr.ndim == 0:
-        arr.shape = (1,1)
+        arr.shape = (1, 1)
     elif arr.ndim == 1:
         arr.shape = (1,) + arr.shape
     else:
         raise ValueError('too many dimensions')
-    #return list(arr[...])
+    # return list(arr[...])
     return arr[...]
 
 
-def lazy_loaded(backing_name, loader, docstring = None):
+def lazy_loaded(backing_name, loader, docstring=None):
     def getter(self):
         obj = getattr(self, backing_name, None)
         if obj is None:
             obj = loader()
-            setattr(self,backing_name,obj)
+            setattr(self, backing_name, obj)
         return obj
+
     def setter(self, val):
-        setattr(self,backing_name,val)
+        setattr(self, backing_name, val)
+
     def deleter(self):
-        delattr(self,backing_name)
-        setattr(self,backing_name,None)
+        delattr(self, backing_name)
+        setattr(self, backing_name, None)
+
     return property(getter, setter, deleter, docstring)
 
 
@@ -87,7 +88,7 @@ class WESTRC:
     and so on.'''
 
     # Runtime config file management
-    ENV_RUNTIME_CONFIG  = 'WESTRC'
+    ENV_RUNTIME_CONFIG = 'WESTRC'
     RC_DEFAULT_FILENAME = 'west.cfg'
 
     def __init__(self):
@@ -110,33 +111,43 @@ class WESTRC:
 
     def add_args(self, parser):
         group = parser.add_argument_group('general options')
-        group.add_argument('-r', '--rcfile', metavar='RCFILE', dest='rcfile',
-                            default=(os.environ.get(self.ENV_RUNTIME_CONFIG) or self.RC_DEFAULT_FILENAME),
-                            help='use RCFILE as the WEST run-time configuration file (default: %(default)s)')
+        group.add_argument(
+            '-r',
+            '--rcfile',
+            metavar='RCFILE',
+            dest='rcfile',
+            default=(os.environ.get(self.ENV_RUNTIME_CONFIG) or self.RC_DEFAULT_FILENAME),
+            help='use RCFILE as the WEST run-time configuration file (default: %(default)s)',
+        )
 
         egroup = group.add_mutually_exclusive_group()
-        egroup.add_argument('--quiet', dest='verbosity', action='store_const', const='quiet',
-                             help='emit only essential information')
-        egroup.add_argument('--verbose', dest='verbosity', action='store_const', const='verbose',
-                             help='emit extra information')
-        egroup.add_argument('--debug', dest='verbosity', action='store_const', const='debug',
-                            help='enable extra checks and emit copious information')
+        egroup.add_argument(
+            '--quiet', dest='verbosity', action='store_const', const='quiet', help='emit only essential information'
+        )
+        egroup.add_argument('--verbose', dest='verbosity', action='store_const', const='verbose', help='emit extra information')
+        egroup.add_argument(
+            '--debug',
+            dest='verbosity',
+            action='store_const',
+            const='debug',
+            help='enable extra checks and emit copious information',
+        )
 
         group.add_argument('--version', action='version', version='WEST version %s' % westpa.__version__)
 
     @property
     def verbose_mode(self):
-        return (self.verbosity in ('verbose', 'debug'))
+        return self.verbosity in ('verbose', 'debug')
 
     @property
     def debug_mode(self):
-        return (self.verbosity == 'debug')
+        return self.verbosity == 'debug'
 
     @property
     def quiet_mode(self):
-        return (self.verbosity == 'quiet')
+        return self.verbosity == 'quiet'
 
-    def process_args(self, args, config_required = True):
+    def process_args(self, args, config_required=True):
         self.cmdline_args = args
         self.verbosity = args.verbosity
 
@@ -151,7 +162,7 @@ class WESTRC:
             else:
                 raise
         self.config_logging()
-        self.config['args'] = {k:v for k,v in args.__dict__.items() if not k.startswith('_')}
+        self.config['args'] = {k: v for k, v in args.__dict__.items() if not k.startswith('_')}
         self.process_config()
 
     def process_config(self):
@@ -162,43 +173,51 @@ class WESTRC:
         except KeyError:
             pass
 
-    def read_config(self, filename = None):
+    def read_config(self, filename=None):
         if filename:
             self.rcfile = filename
 
         if 'WEST_SIM_ROOT' not in os.environ:
-            #sys.stderr.write('-- WARNING -- setting $WEST_SIM_ROOT to current directory ({})\n'.format(os.getcwd()))
+            # sys.stderr.write('-- WARNING -- setting $WEST_SIM_ROOT to current directory ({})\n'.format(os.getcwd()))
             os.environ['WEST_SIM_ROOT'] = os.getcwd()
 
         self.config.update_from_file(self.rcfile)
 
     def config_logging(self):
         import logging.config
-        logging_config = {'version': 1, 'incremental': False,
-                          'formatters': {'standard': {'format': '-- %(levelname)-8s [%(name)s] -- %(message)s'},
-                                         'debug':    {'format': '''\
+
+        logging_config = {
+            'version': 1,
+            'incremental': False,
+            'formatters': {
+                'standard': {'format': '-- %(levelname)-8s [%(name)s] -- %(message)s'},
+                'debug': {
+                    'format': '''\
 -- %(levelname)-8s %(asctime)24s PID %(process)-12d TID %(thread)-20d
    from logger "%(name)s"
    at location %(pathname)s:%(lineno)d [%(funcName)s()]
    ::
    %(message)s
-'''}},
-                          'handlers': {'console': {'class': 'logging.StreamHandler',
-                                                   'stream': 'ext://sys.stdout',
-                                                   'formatter': 'standard'}},
-                          'loggers': {'west': {'handlers': ['console'], 'propagate': False},
-                                      'westpa': {'handlers': ['console'], 'propagate': False},
-                                      'oldtools': {'handlers': ['console'], 'propagate': False},
-                                      'westtools': {'handlers': ['console'], 'propagate': False},
-                                      'westext': {'handlers': ['console'], 'propagate': False},
-                                      'work_managers': {'handlers': ['console'], 'propagate': False},
-                                      'py.warnings': {'handlers': ['console'], 'propagate': False}},
-                          'root': {'handlers': ['console']}}
+'''
+                },
+            },
+            'handlers': {'console': {'class': 'logging.StreamHandler', 'stream': 'ext://sys.stdout', 'formatter': 'standard'}},
+            'loggers': {
+                'west': {'handlers': ['console'], 'propagate': False},
+                'westpa': {'handlers': ['console'], 'propagate': False},
+                'oldtools': {'handlers': ['console'], 'propagate': False},
+                'westtools': {'handlers': ['console'], 'propagate': False},
+                'westext': {'handlers': ['console'], 'propagate': False},
+                'work_managers': {'handlers': ['console'], 'propagate': False},
+                'py.warnings': {'handlers': ['console'], 'propagate': False},
+            },
+            'root': {'handlers': ['console']},
+        }
 
         logging_config['loggers'][self.process_name] = {'handlers': ['console'], 'propagate': False}
 
         if self.verbosity == 'debug':
-            logging_config['root']['level'] = 5 #'DEBUG'
+            logging_config['root']['level'] = 5  # 'DEBUG'
             logging_config['handlers']['console']['formatter'] = 'debug'
         elif self.verbosity == 'verbose':
             logging_config['root']['level'] = 'INFO'
@@ -239,7 +258,8 @@ class WESTRC:
     def new_sim_manager(self):
         drivername = self.config.get(['west', 'drivers', 'sim_manager'], 'default')
         if drivername.lower() == 'default':
-            from . sim_manager import WESimManager
+            from .sim_manager import WESimManager
+
             sim_manager = WESimManager(rc=self)
         else:
             sim_manager = extloader.get_object(drivername)(rc=self)
@@ -253,6 +273,7 @@ class WESTRC:
 
     def new_data_manager(self):
         import westpa
+
         drivername = self.config.get(['west', 'drivers', 'data_manager'], 'hdf5')
         if drivername.lower() in ('hdf5', 'default'):
             data_manager = westpa.core.data_manager.WESTDataManager()
@@ -268,6 +289,7 @@ class WESTRC:
 
     def new_we_driver(self):
         import westpa
+
         drivername = self.config.get(['west', 'drivers', 'we_driver'], 'default')
         if drivername.lower() == 'default':
             we_driver = westpa.core.we_driver.WEDriver()
@@ -285,6 +307,7 @@ class WESTRC:
         drivername = self.config.require(['west', 'propagation', 'propagator'])
         if drivername.lower() == 'executable':
             from westpa.core.propagators.executable import ExecutablePropagator
+
             propagator = ExecutablePropagator()
         else:
             propagator = extloader.get_object(drivername)(rc=self)
@@ -345,7 +368,7 @@ class WESTRC:
             log.debug('loaded system driver {!r}'.format(system))
             system.initialize()
         # Second let's see if we have info in the YAML file
-        yamloptions = self.config.get(['west','system','system_options'])
+        yamloptions = self.config.get(['west', 'system', 'system_options'])
         if not yamloptions:
             # Same here, yaml file doesn't have sys info
             log.info("Config file doesn't contain any system info")
@@ -384,19 +407,14 @@ class WESTRC:
         # require for these settings since they are musts.
 
         # First basic pcoord settings
-        ndim = self.config.require(
-            ['west', 'system', 'system_options', 'pcoord_ndim'])
-        plen = self.config.require(
-            ['west', 'system', 'system_options', 'pcoord_len'])
+        ndim = self.config.require(['west', 'system', 'system_options', 'pcoord_ndim'])
+        plen = self.config.require(['west', 'system', 'system_options', 'pcoord_len'])
         # Dtype needs to be ran as code from YAML file, document YAML code execution syntax
         # somewhere
-        ptype = self.config.require(
-            ['west', 'system', 'system_options', 'pcoord_dtype'])
+        ptype = self.config.require(['west', 'system', 'system_options', 'pcoord_dtype'])
         # Bins
-        bins_obj = self.config.require(
-            ['west', 'system', 'system_options', 'bins'])
-        trgt_cnt = self.config.require(
-            ['west', 'system', 'system_options', 'bin_target_counts'])
+        bins_obj = self.config.require(['west', 'system', 'system_options', 'bins'])
+        trgt_cnt = self.config.require(['west', 'system', 'system_options', 'bin_target_counts'])
         # Now add the parsed settings to the system
         mapper = bins_from_yaml_dict(bins_obj)
         setattr(yamlSystem, 'pcoord_ndim', ndim)
@@ -417,13 +435,11 @@ class WESTRC:
         # I might just scrap the iterable later and only allow
         # integers.
         if hasattr(trgt_cnt, "__iter__"):
-            assert len(trgt_cnt) == mapper.nbins, \
-              "Count iterable size doesn't match the number of bins"
+            assert len(trgt_cnt) == mapper.nbins, "Count iterable size doesn't match the number of bins"
             trgt_cnt_arr = trgt_cnt
         else:
-            assert trgt_cnt == np.int(trgt_cnt), \
-              "Counts are not integer valued, ambiguous input"
-            trgt_cnt_arr    = np.zeros(mapper.nbins)
+            assert trgt_cnt == np.int(trgt_cnt), "Counts are not integer valued, ambiguous input"
+            trgt_cnt_arr = np.zeros(mapper.nbins)
             trgt_cnt_arr[:] = trgt_cnt
         setattr(yamlSystem, 'bin_target_counts', trgt_cnt_arr)
 
@@ -434,7 +450,6 @@ class WESTRC:
 
         # Return complete system
         return yamlSystem
-
 
     def update_from_yaml(self, init_system, system_dict):
         """
@@ -463,24 +478,21 @@ class WESTRC:
             elif key == 'pcoord_dtype':
                 self.overwrite_option(init_system, key, value)
             elif key == "bins":
-                self.overwrite_option(init_system, 'bin_mapper',\
-                     bins_from_yaml_dict(value))
+                self.overwrite_option(init_system, 'bin_mapper', bins_from_yaml_dict(value))
         # Target counts have to be parsed after we have a mapper in
         # place
         try:
             trgt_cnt = system_dict['bin_target_counts']
             if hasattr(trgt_cnt, "__iter__"):
-                assert len(trgt_cnt) == init_system.bin_mapper.nbins, \
-                  "Count iterable size doesn't match the number of bins"
+                assert len(trgt_cnt) == init_system.bin_mapper.nbins, "Count iterable size doesn't match the number of bins"
                 trgt_cnt_arr = trgt_cnt
             else:
-                assert trgt_cnt == np.int(trgt_cnt), \
-                  "Counts are not integer valued, ambiguous input"
-                trgt_cnt_arr    = np.zeros(init_system.bin_mapper.nbins)
+                assert trgt_cnt == np.int(trgt_cnt), "Counts are not integer valued, ambiguous input"
+                trgt_cnt_arr = np.zeros(init_system.bin_mapper.nbins)
                 trgt_cnt_arr[:] = int(trgt_cnt)
             self.overwrite_option(init_system, 'bin_target_counts', trgt_cnt_arr)
         except KeyError:
-             pass
+            pass
         # The generic attribute settings added here
         for attr in system_dict.keys():
             if not hasattr(init_system, attr):
@@ -489,7 +501,7 @@ class WESTRC:
 
     def overwrite_option(self, system, key, value):
         if hasattr(system, key):
-            log.info("Overwriting system option: %s"%key)
+            log.info("Overwriting system option: %s" % key)
         setattr(system, key, value)
 
     def get_system_driver(self):

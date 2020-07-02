@@ -20,28 +20,43 @@ class MCBSMixin(AnalysisMixin):
         self.mcbs_nsets = None
         self.mcbs_display_confidence = None
 
-    def add_args(self, parser, upcall = True):
+    def add_args(self, parser, upcall=True):
         if upcall:
             try:
-                upfunc=super().add_args
+                upfunc = super().add_args
             except AttributeError:
                 pass
             else:
                 upfunc(parser)
         group = parser.add_argument_group('Monte Carlo bootstrap options')
-        group.add_argument('--confidence', dest='mcbs_confidence', type=float, default=0.95, metavar='P',
-                           help='''Construct a confidence interval of width P (default: 0.95=95%%).''')
-        group.add_argument('--bssize', dest='mcbs_nsets', type=int, metavar='NSETS',
-                           help='''Use NSETS synthetic data sets to calculate confidence intervals (default:
-                                   calculated based on confidence level, but not less than 1000).''' )
+        group.add_argument(
+            '--confidence',
+            dest='mcbs_confidence',
+            type=float,
+            default=0.95,
+            metavar='P',
+            help='''Construct a confidence interval of width P (default: 0.95=95%%).''',
+        )
+        group.add_argument(
+            '--bssize',
+            dest='mcbs_nsets',
+            type=int,
+            metavar='NSETS',
+            help='''Use NSETS synthetic data sets to calculate confidence intervals (default:
+                                   calculated based on confidence level, but not less than 1000).''',
+        )
 
-    def process_args(self, args, upcall = True):
-        self.mcbs_alpha = 1-args.mcbs_confidence
-        self.mcbs_nsets = args.mcbs_size if args.mcbs_nsets else min(1000,calc_mcbs_nsets(self.mcbs_alpha))
-        self.mcbs_display_confidence = '{:.{cp}f}'.format(100*args.mcbs_confidence,
-                                                                    cp = -int(math.floor(math.log10(self.mcbs_alpha)))-2)
-        westpa.rc.pstatus('Using bootstrap of {:d} sets to calculate {:s}% confidence interval (alpha={:g}).'
-                        .format(self.mcbs_nsets, self.mcbs_display_confidence, self.mcbs_alpha))
+    def process_args(self, args, upcall=True):
+        self.mcbs_alpha = 1 - args.mcbs_confidence
+        self.mcbs_nsets = args.mcbs_size if args.mcbs_nsets else min(1000, calc_mcbs_nsets(self.mcbs_alpha))
+        self.mcbs_display_confidence = '{:.{cp}f}'.format(
+            100 * args.mcbs_confidence, cp=-int(math.floor(math.log10(self.mcbs_alpha))) - 2
+        )
+        westpa.rc.pstatus(
+            'Using bootstrap of {:d} sets to calculate {:s}% confidence interval (alpha={:g}).'.format(
+                self.mcbs_nsets, self.mcbs_display_confidence, self.mcbs_alpha
+            )
+        )
 
         if upcall:
             try:
@@ -51,7 +66,7 @@ class MCBSMixin(AnalysisMixin):
             else:
                 upfunc(args)
 
-    def calc_mcbs_nsets(self, alpha = None):
+    def calc_mcbs_nsets(self, alpha=None):
         alpha = alpha or self.mcbs_alpha
         return calc_mcbs_nsets(alpha)
 
@@ -61,17 +76,17 @@ class MCBSMixin(AnalysisMixin):
         return calc_ci_bound_indices(n_sets, alpha)
 
 
-ciinfo_dtype = np.dtype([('expectation', np.float64),
-                            ('ci_lower', np.float64),
-                            ('ci_upper', np.float64),
-                            ])
+ciinfo_dtype = np.dtype([('expectation', np.float64), ('ci_lower', np.float64), ('ci_upper', np.float64)])
+
 
 def calc_mcbs_nsets(alpha):
     '''Return a bootstrap data set size appropriate for the given confidence level.'''
-    return int(10**(math.ceil(-math.log10(alpha))+1))
+    return int(10 ** (math.ceil(-math.log10(alpha)) + 1))
+
 
 def calc_ci_bound_indices(n_sets, alpha):
-    return (int(math.floor(n_sets*alpha/2)), int(math.ceil(n_sets*(1-alpha/2))))
+    return (int(math.floor(n_sets * alpha / 2)), int(math.ceil(n_sets * (1 - alpha / 2))))
+
 
 def bootstrap_ci_ll(estimator, data, alpha, n_sets, storage, sort, eargs=(), ekwargs={}, fhat=None):
     '''Low-level routine for calculating bootstrap error estimates.  Arguments and return values are as those for
@@ -86,18 +101,18 @@ def bootstrap_ci_ll(estimator, data, alpha, n_sets, storage, sort, eargs=(), ekw
     dlen = len(data)
 
     for iset in range(n_sets):
-        indices = np.random.randint(dlen,size=(dlen,))
+        indices = np.random.randint(dlen, size=(dlen,))
         storage[iset] = estimator(data[indices], *eargs, **ekwargs)
 
     synth_sorted = sort(storage)
-    lbi = int(math.floor(n_sets*alpha/2))
-    ubi = int(math.ceil(n_sets*(1-alpha/2)))
+    lbi = int(math.floor(n_sets * alpha / 2))
+    ubi = int(math.ceil(n_sets * (1 - alpha / 2)))
 
     lb = synth_sorted[lbi]
     ub = synth_sorted[ubi]
 
     try:
-        return (fhat, lb, ub, ub-lb, abs((ub-lb)/fhat) if fhat else 0, max(ub-fhat,fhat-lb))
+        return (fhat, lb, ub, ub - lb, abs((ub - lb) / fhat) if fhat else 0, max(ub - fhat, fhat - lb))
     finally:
         del fhat, lb, ub, indices
 

@@ -20,4 +20,3 @@ class TestThreadsWorkManagerAux:
         work_manager.shutdown()
         for worker in work_manager.workers:
             assert not worker.is_alive()
-

@@ -20,8 +20,7 @@ from westpa.core.yamlcfg import check_bool
 log = logging.getLogger(__name__)
 
 # Get a list of user-friendly signal names
-SIGNAL_NAMES = {getattr(signal, name): name for name in dir(signal)
-                if name.startswith('SIG') and not name.startswith('SIG_')}
+SIGNAL_NAMES = {getattr(signal, name): name for name in dir(signal) if name.startswith('SIG') and not name.startswith('SIG_')}
 
 
 def pcoord_loader(fieldname, pcoord_return_filename, destobj, single_point):
@@ -44,10 +43,9 @@ def pcoord_loader(fieldname, pcoord_return_filename, destobj, single_point):
     else:
         expected_shape = (system.pcoord_len, system.pcoord_ndim)
         if pcoord.ndim == 1:
-            pcoord.shape = (len(pcoord),1)
+            pcoord.shape = (len(pcoord), 1)
     if pcoord.shape != expected_shape:
-        raise ValueError('progress coordinate data has incorrect shape {!r} [expected {!r}]'.format(pcoord.shape,
-                                                                                                    expected_shape))
+        raise ValueError('progress coordinate data has incorrect shape {!r} [expected {!r}]'.format(pcoord.shape, expected_shape))
     destobj.pcoord = pcoord
 
 
@@ -59,32 +57,32 @@ def aux_data_loader(fieldname, data_filename, segment, single_point):
 
 
 class ExecutablePropagator(WESTPropagator):
-    ENV_CURRENT_ITER         = 'WEST_CURRENT_ITER'
+    ENV_CURRENT_ITER = 'WEST_CURRENT_ITER'
 
     # Environment variables set during propagation
-    ENV_CURRENT_SEG_ID       = 'WEST_CURRENT_SEG_ID'
+    ENV_CURRENT_SEG_ID = 'WEST_CURRENT_SEG_ID'
     ENV_CURRENT_SEG_DATA_REF = 'WEST_CURRENT_SEG_DATA_REF'
-    ENV_CURRENT_SEG_INITPOINT= 'WEST_CURRENT_SEG_INITPOINT_TYPE'
-    ENV_PARENT_SEG_ID        = 'WEST_PARENT_ID'
-    ENV_PARENT_DATA_REF      = 'WEST_PARENT_DATA_REF'
+    ENV_CURRENT_SEG_INITPOINT = 'WEST_CURRENT_SEG_INITPOINT_TYPE'
+    ENV_PARENT_SEG_ID = 'WEST_PARENT_ID'
+    ENV_PARENT_DATA_REF = 'WEST_PARENT_DATA_REF'
 
     # Environment variables set during propagation and state generation
-    ENV_BSTATE_ID            = 'WEST_BSTATE_ID'
-    ENV_BSTATE_DATA_REF      = 'WEST_BSTATE_DATA_REF'
-    ENV_ISTATE_ID            = 'WEST_ISTATE_ID'
-    ENV_ISTATE_DATA_REF      = 'WEST_ISTATE_DATA_REF'
+    ENV_BSTATE_ID = 'WEST_BSTATE_ID'
+    ENV_BSTATE_DATA_REF = 'WEST_BSTATE_DATA_REF'
+    ENV_ISTATE_ID = 'WEST_ISTATE_ID'
+    ENV_ISTATE_DATA_REF = 'WEST_ISTATE_DATA_REF'
 
     # Environment variables for progress coordinate calculation
-    ENV_STRUCT_DATA_REF      = 'WEST_STRUCT_DATA_REF'
+    ENV_STRUCT_DATA_REF = 'WEST_STRUCT_DATA_REF'
 
     # Set everywhere a progress coordinate is required
-    ENV_PCOORD_RETURN        = 'WEST_PCOORD_RETURN'
+    ENV_PCOORD_RETURN = 'WEST_PCOORD_RETURN'
 
-    ENV_RAND16               = 'WEST_RAND16'
-    ENV_RAND32               = 'WEST_RAND32'
-    ENV_RAND64               = 'WEST_RAND64'
-    ENV_RAND128              = 'WEST_RAND128'
-    ENV_RANDFLOAT            = 'WEST_RANDFLOAT'
+    ENV_RAND16 = 'WEST_RAND16'
+    ENV_RAND32 = 'WEST_RAND32'
+    ENV_RAND64 = 'WEST_RAND64'
+    ENV_RAND128 = 'WEST_RAND128'
+    ENV_RANDFLOAT = 'WEST_RANDFLOAT'
 
     def __init__(self, rc=None):
         super().__init__(rc)
@@ -110,53 +108,51 @@ class ExecutablePropagator(WESTPropagator):
         # Validate configuration
         config = self.rc.config
 
-        for key in [('west','executable','propagator','executable'),
-                    ('west','data','data_refs','segment'),
-                    ('west','data','data_refs','basis_state'),
-                    ('west','data','data_refs','initial_state')]:
+        for key in [
+            ('west', 'executable', 'propagator', 'executable'),
+            ('west', 'data', 'data_refs', 'segment'),
+            ('west', 'data', 'data_refs', 'basis_state'),
+            ('west', 'data', 'data_refs', 'initial_state'),
+        ]:
             config.require(key)
 
-        self.segment_ref_template       = config['west','data','data_refs','segment']
-        self.basis_state_ref_template   = config['west','data','data_refs','basis_state']
-        self.initial_state_ref_template = config['west','data','data_refs','initial_state']
+        self.segment_ref_template = config['west', 'data', 'data_refs', 'segment']
+        self.basis_state_ref_template = config['west', 'data', 'data_refs', 'basis_state']
+        self.initial_state_ref_template = config['west', 'data', 'data_refs', 'initial_state']
 
         # Load additional environment variables for all child processes
-        self.addtl_child_environ.update({k:str(v) for k,v in (config['west','executable','environ'] or {}).items()})
-
+        self.addtl_child_environ.update({k: str(v) for k, v in (config['west', 'executable', 'environ'] or {}).items()})
 
         # Load configuration items relating to child processes
         for child_type in ('propagator', 'pre_iteration', 'post_iteration', 'get_pcoord', 'gen_istate'):
-            child_info = config.get(['west','executable',child_type])
+            child_info = config.get(['west', 'executable', child_type])
             if not child_info:
                 continue
 
             info_prefix = ['west', 'executable', child_type]
 
             # require executable to be specified if anything is specified at all
-            config.require(info_prefix+['executable'])
+            config.require(info_prefix + ['executable'])
 
             self.exe_info[child_type]['executable'] = child_info['executable']
-            self.exe_info[child_type]['stdin']  = child_info.get('stdin', os.devnull)
+            self.exe_info[child_type]['stdin'] = child_info.get('stdin', os.devnull)
             self.exe_info[child_type]['stdout'] = child_info.get('stdout', None)
             self.exe_info[child_type]['stderr'] = child_info.get('stderr', None)
             self.exe_info[child_type]['cwd'] = child_info.get('cwd', None)
 
             if child_type not in ('propagator', 'get_pcoord', 'gen_istate'):
-                self.exe_info[child_type]['enabled'] = child_info.get('enabled',True)
+                self.exe_info[child_type]['enabled'] = child_info.get('enabled', True)
             else:
                 # for consistency, propagator, get_pcoord, and gen_istate can never be disabled
                 self.exe_info[child_type]['enabled'] = True
 
             # apply environment modifications specific to this executable
-            self.exe_info[child_type]['environ'] = {k:str(v) for k,v in (child_info.get('environ') or {}).items()}
+            self.exe_info[child_type]['environ'] = {k: str(v) for k, v in (child_info.get('environ') or {}).items()}
 
         log.debug('exe_info: {!r}'.format(self.exe_info))
 
         # Load configuration items relating to dataset input
-        self.data_info['pcoord'] = {'name': 'pcoord',
-                                    'loader': pcoord_loader,
-                                    'enabled': True,
-                                    'filename': None}
+        self.data_info['pcoord'] = {'name': 'pcoord', 'loader': pcoord_loader, 'enabled': True, 'filename': None}
         dataset_configs = config.get(['west', 'executable', 'datasets']) or []
         for dsinfo in dataset_configs:
             try:
@@ -177,19 +173,22 @@ class ExecutablePropagator(WESTPropagator):
                 loader = aux_data_loader
 
             dsinfo['loader'] = loader
-            self.data_info.setdefault(dsname,{}).update(dsinfo)
+            self.data_info.setdefault(dsname, {}).update(dsinfo)
 
         log.debug('data_info: {!r}'.format(self.data_info))
 
     @staticmethod
-    def makepath(template, template_args = None,
-                  expanduser = True, expandvars = True, abspath = False, realpath = False):
+    def makepath(template, template_args=None, expanduser=True, expandvars=True, abspath=False, realpath=False):
         template_args = template_args or {}
         path = template.format(**template_args)
-        if expandvars: path = os.path.expandvars(path)
-        if expanduser: path = os.path.expanduser(path)
-        if realpath:   path = os.path.realpath(path)
-        if abspath:    path = os.path.abspath(path)
+        if expandvars:
+            path = os.path.expandvars(path)
+        if expanduser:
+            path = os.path.expanduser(path)
+        if realpath:
+            path = os.path.realpath(path)
+        if abspath:
+            path = os.path.abspath(path)
         path = os.path.normpath(path)
         return path
 
@@ -198,11 +197,13 @@ class ExecutablePropagator(WESTPropagator):
         as a dictionary, suitable for use in ``os.environ.update()`` or as the ``env`` argument to
         ``subprocess.Popen()``. Every child process executed by ``exec_child()`` gets these.'''
 
-        return {self.ENV_RAND16:               str(random.randint(0,2**16)),
-                self.ENV_RAND32:               str(random.randint(0,2**32)),
-                self.ENV_RAND64:               str(random.randint(0,2**64)),
-                self.ENV_RAND128:              str(random.randint(0,2**128)),
-                self.ENV_RANDFLOAT:            str(random.random())}
+        return {
+            self.ENV_RAND16: str(random.randint(0, 2 ** 16)),
+            self.ENV_RAND32: str(random.randint(0, 2 ** 32)),
+            self.ENV_RAND64: str(random.randint(0, 2 ** 64)),
+            self.ENV_RAND128: str(random.randint(0, 2 ** 128)),
+            self.ENV_RANDFLOAT: str(random.random()),
+        }
 
     def exec_child(self, executable, environ=None, stdin=None, stdout=None, stderr=None, cwd=None):
         '''Execute a child process with the environment set from the current environment, the
@@ -217,7 +218,7 @@ class ExecutablePropagator(WESTPropagator):
         all_environ.update(self.random_val_env_vars())
         all_environ.update(environ or {})
 
-        stdin  = open(stdin, 'rb') if stdin else sys.stdin
+        stdin = open(stdin, 'rb') if stdin else sys.stdin
         stdout = open(stdout, 'wb') if stdout else sys.stdout
         if stderr == 'stdout':
             stderr = stdout
@@ -225,10 +226,15 @@ class ExecutablePropagator(WESTPropagator):
             stderr = open(stderr, 'wb') if stderr else sys.stderr
 
         # close_fds is critical for preventing out-of-file errors
-        proc = subprocess.Popen([executable],
-                                cwd = cwd,
-                                stdin=stdin, stdout=stdout, stderr=stderr if stderr != stdout else subprocess.STDOUT,
-                                close_fds=True, env=all_environ)
+        proc = subprocess.Popen(
+            [executable],
+            cwd=cwd,
+            stdin=stdin,
+            stdout=stdout,
+            stderr=stderr if stderr != stdout else subprocess.STDOUT,
+            close_fds=True,
+            env=all_environ,
+        )
 
         # Wait on child and get resource usage
         (_pid, _status, rusage) = os.wait4(proc.pid, 0)
@@ -240,27 +246,32 @@ class ExecutablePropagator(WESTPropagator):
     def exec_child_from_child_info(self, child_info, template_args, environ):
         for (key, value) in child_info.get('environ', {}).items():
             environ[key] = self.makepath(value)
-        return self.exec_child(executable = self.makepath(child_info['executable'], template_args),
-                               environ = environ,
-                               cwd = self.makepath(child_info['cwd'], template_args) if child_info['cwd'] else None,
-                               stdin = self.makepath(child_info['stdin'], template_args) if child_info['stdin'] else os.devnull,
-                               stdout= self.makepath(child_info['stdout'], template_args) if child_info['stdout'] else None,
-                               stderr= self.makepath(child_info['stderr'], template_args) if child_info['stderr'] else None)
-
+        return self.exec_child(
+            executable=self.makepath(child_info['executable'], template_args),
+            environ=environ,
+            cwd=self.makepath(child_info['cwd'], template_args) if child_info['cwd'] else None,
+            stdin=self.makepath(child_info['stdin'], template_args) if child_info['stdin'] else os.devnull,
+            stdout=self.makepath(child_info['stdout'], template_args) if child_info['stdout'] else None,
+            stderr=self.makepath(child_info['stderr'], template_args) if child_info['stderr'] else None,
+        )
 
     # Functions to create template arguments and environment values for child processes
     def update_args_env_basis_state(self, template_args, environ, basis_state):
         new_template_args = {'basis_state': basis_state}
-        new_env = {self.ENV_BSTATE_ID: str(basis_state.state_id if basis_state.state_id is not None else -1),
-                   self.ENV_BSTATE_DATA_REF: self.makepath(self.basis_state_ref_template, new_template_args)}
+        new_env = {
+            self.ENV_BSTATE_ID: str(basis_state.state_id if basis_state.state_id is not None else -1),
+            self.ENV_BSTATE_DATA_REF: self.makepath(self.basis_state_ref_template, new_template_args),
+        }
         template_args.update(new_template_args)
         environ.update(new_env)
         return template_args, environ
 
     def update_args_env_initial_state(self, template_args, environ, initial_state):
         new_template_args = {'initial_state': initial_state}
-        new_env = {self.ENV_ISTATE_ID: str(initial_state.state_id if initial_state.state_id is not None else -1),
-                   self.ENV_ISTATE_DATA_REF: self.makepath(self.initial_state_ref_template, new_template_args)}
+        new_env = {
+            self.ENV_ISTATE_ID: str(initial_state.state_id if initial_state.state_id is not None else -1),
+            self.ENV_ISTATE_DATA_REF: self.makepath(self.initial_state_ref_template, new_template_args),
+        }
 
         if initial_state.basis_state is not None:
             basis_state = initial_state.basis_state
@@ -288,7 +299,7 @@ class ExecutablePropagator(WESTPropagator):
             # to us (we'd need at least the subset of parents for all segments sent in the call to propagate)
             # that may make a good west.cfg option for future crazy extensibility, but for now,
             # just populate the bare minimum
-            parent = Segment(n_iter=segment.n_iter-1, seg_id=segment.parent_id)
+            parent = Segment(n_iter=segment.n_iter - 1, seg_id=segment.parent_id)
             parent_template_args = dict(template_args)
             parent_template_args['segment'] = parent
 
@@ -308,7 +319,7 @@ class ExecutablePropagator(WESTPropagator):
             assert initial_state.istate_type in (InitialState.ISTATE_TYPE_BASIS, InitialState.ISTATE_TYPE_GENERATED)
             if initial_state.istate_type == InitialState.ISTATE_TYPE_BASIS:
                 environ[self.ENV_PARENT_DATA_REF] = environ[self.ENV_BSTATE_DATA_REF]
-            else: # initial_state.type == InitialState.ISTATE_TYPE_GENERATED
+            else:  # initial_state.type == InitialState.ISTATE_TYPE_GENERATED
                 environ[self.ENV_PARENT_DATA_REF] = environ[self.ENV_ISTATE_DATA_REF]
 
         environ[self.ENV_CURRENT_SEG_ID] = str(segment.seg_id if segment.seg_id is not None else -1)
@@ -321,7 +332,7 @@ class ExecutablePropagator(WESTPropagator):
         self.update_args_env_segment(template_args, environ, segment)
         return template_args
 
-    def exec_for_segment(self, child_info, segment, addtl_env = None):
+    def exec_for_segment(self, child_info, segment, addtl_env=None):
         '''Execute a child process with environment and template expansion from the given
         segment.'''
         template_args, environ = {}, {}
@@ -330,7 +341,7 @@ class ExecutablePropagator(WESTPropagator):
         environ.update(addtl_env or {})
         return self.exec_child_from_child_info(child_info, template_args, environ)
 
-    def exec_for_iteration(self, child_info, n_iter, addtl_env = None):
+    def exec_for_iteration(self, child_info, n_iter, addtl_env=None):
         '''Execute a child process with environment and template expansion from the given
         iteration number.'''
         template_args, environ = {}, {}
@@ -338,7 +349,7 @@ class ExecutablePropagator(WESTPropagator):
         environ.update(addtl_env or {})
         return self.exec_child_from_child_info(child_info, template_args, environ)
 
-    def exec_for_basis_state(self, child_info, basis_state, addtl_env = None):
+    def exec_for_basis_state(self, child_info, basis_state, addtl_env=None):
         '''Execute a child process with environment and template expansion from the
         given basis state'''
         template_args, environ = {}, {}
@@ -346,7 +357,7 @@ class ExecutablePropagator(WESTPropagator):
         environ.update(addtl_env or {})
         return self.exec_child_from_child_info(child_info, template_args, environ)
 
-    def exec_for_initial_state(self, child_info, initial_state,  addtl_env = None):
+    def exec_for_initial_state(self, child_info, initial_state, addtl_env=None):
         '''Execute a child process with environment and template expansion from the given
         initial state.'''
         template_args, environ = {}, {}
@@ -375,8 +386,7 @@ class ExecutablePropagator(WESTPropagator):
         fd, rfname = tempfile.mkstemp()
         os.close(fd)
 
-        addtl_env = {self.ENV_PCOORD_RETURN: rfname,
-                     self.ENV_STRUCT_DATA_REF: struct_ref}
+        addtl_env = {self.ENV_PCOORD_RETURN: rfname, self.ENV_STRUCT_DATA_REF: struct_ref}
 
         try:
             rc, rusage = execfn(child_info, state, addtl_env)
@@ -384,7 +394,7 @@ class ExecutablePropagator(WESTPropagator):
                 log.error('get_pcoord executable {!r} returned {}'.format(child_info['executable'], rc))
 
             loader = self.data_info['pcoord']['loader']
-            loader('pcoord', rfname, state, single_point = True)
+            loader('pcoord', rfname, state, single_point=True)
         finally:
             try:
                 os.unlink(rfname)
@@ -432,7 +442,6 @@ class ExecutablePropagator(WESTPropagator):
                 if rc != 0:
                     log.warning('post-iteration executable {!r} returned {}'.format(child_info['executable'], rc))
 
-
     def propagate(self, segments):
         child_info = self.exe_info['propagator']
 
@@ -445,7 +454,7 @@ class ExecutablePropagator(WESTPropagator):
             del_return_files = {}
 
             for dataset in self.data_info:
-                if not self.data_info[dataset].get('enabled',False):
+                if not self.data_info[dataset].get('enabled', False):
                     continue
 
                 return_template = self.data_info[dataset].get('filename')
@@ -477,7 +486,7 @@ class ExecutablePropagator(WESTPropagator):
             # Extract data and store on segment for recording in the master thread/process/node
             for dataset in self.data_info:
                 # pcoord is always enabled (see __init__)
-                if not self.data_info[dataset].get('enabled',False):
+                if not self.data_info[dataset].get('enabled', False):
                     continue
 
                 filename = return_files[dataset]

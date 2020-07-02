@@ -10,7 +10,7 @@ import os
 import signal
 import threading
 
-from . core import ZMQCore, Message, ZMQWMTimeout, PassiveMultiTimer, Task, Result, TIMEOUT_MASTER_BEACON
+from .core import ZMQCore, Message, ZMQWMTimeout, PassiveMultiTimer, Task, Result, TIMEOUT_MASTER_BEACON
 
 import zmq
 
@@ -43,13 +43,12 @@ class ZMQWorker(ZMQCore):
 
         # Executor process
 
-        self.shutdown_timeout = 5.0 # Five second wait between shutdown message and SIGINT and SIGINT and SIGKILL
+        self.shutdown_timeout = 5.0  # Five second wait between shutdown message and SIGINT and SIGINT and SIGKILL
         self.executor_process = None
 
     @property
     def is_master(self):
         return False
-
 
     def update_master_info(self, msg):
         if self.master_id is None:
@@ -57,18 +56,22 @@ class ZMQWorker(ZMQCore):
         self.timers.reset(TIMEOUT_MASTER_BEACON)
 
     def identify(self, rr_socket):
-        if self.master_id is None or self.identified or self.timers.expired(TIMEOUT_MASTER_BEACON): return
+        if self.master_id is None or self.identified or self.timers.expired(TIMEOUT_MASTER_BEACON):
+            return
         self.send_message(rr_socket, Message.IDENTIFY, payload=self.get_identification())
-        self.recv_ack(rr_socket,timeout=self.master_beacon_period*self.timeout_factor*1000)
+        self.recv_ack(rr_socket, timeout=self.master_beacon_period * self.timeout_factor * 1000)
         self.identified = True
 
     def request_task(self, rr_socket, task_socket):
-        if self.master_id is None: return
-        elif self.pending_task is not None: return
-        elif self.timers.expired(TIMEOUT_MASTER_BEACON): return
+        if self.master_id is None:
+            return
+        elif self.pending_task is not None:
+            return
+        elif self.timers.expired(TIMEOUT_MASTER_BEACON):
+            return
         else:
             self.send_message(rr_socket, Message.TASK_REQUEST)
-            reply = self.recv_message(rr_socket,timeout=self.master_beacon_period*self.timeout_factor*1000)
+            reply = self.recv_message(rr_socket, timeout=self.master_beacon_period * self.timeout_factor * 1000)
             self.update_master_info(reply)
             if reply.message == Message.NAK:
                 # No task available
@@ -97,7 +100,7 @@ class ZMQWorker(ZMQCore):
         msg.src_id = self.node_id
         self.pending_task = None
         self.send_message(rr_socket, msg)
-        reply = self.recv_ack(rr_socket, timeout=self.master_beacon_period*self.timeout_factor*1000)
+        reply = self.recv_ack(rr_socket, timeout=self.master_beacon_period * self.timeout_factor * 1000)
         self.update_master_info(reply)
 
     def comm_loop(self):
@@ -106,9 +109,9 @@ class ZMQWorker(ZMQCore):
         rr_socket = self.context.socket(zmq.REQ)
 
         ann_socket = self.context.socket(zmq.SUB)
-        ann_socket.setsockopt(zmq.SUBSCRIBE,b'')
+        ann_socket.setsockopt(zmq.SUBSCRIBE, b'')
         inproc_socket = self.context.socket(zmq.SUB)
-        inproc_socket.setsockopt(zmq.SUBSCRIBE,b'')
+        inproc_socket.setsockopt(zmq.SUBSCRIBE, b'')
 
         task_socket = self.context.socket(zmq.PUSH)
         result_socket = self.context.socket(zmq.PULL)
@@ -138,12 +141,12 @@ class ZMQWorker(ZMQCore):
                 # If a timer is already expired, next_expiration_in() will return 0, which
                 # zeromq interprets as infinite wait; so instead we select a 1 ms wait in this
                 # case.
-                poll_results = dict(poller.poll((timers.next_expiration_in() or 0.001)*1000))
+                poll_results = dict(poller.poll((timers.next_expiration_in() or 0.001) * 1000))
 
                 if poll_results and not peer_found:
                     timers.remove_timer('startup_timeout')
                     peer_found = True
-                    timers.change_duration(TIMEOUT_MASTER_BEACON, self.master_beacon_period*self.timeout_factor)
+                    timers.change_duration(TIMEOUT_MASTER_BEACON, self.master_beacon_period * self.timeout_factor)
                     timers.reset(TIMEOUT_MASTER_BEACON)
 
                 announcements = []
@@ -156,8 +159,8 @@ class ZMQWorker(ZMQCore):
                 if ann_socket in poll_results:
                     announcements.extend(self.recv_all(ann_socket))
 
-                #announcements = Message.coalesce_announcements(announcements)
-                #self.log.debug('received {:d} announcements'.format(len(announcements)))
+                # announcements = Message.coalesce_announcements(announcements)
+                # self.log.debug('received {:d} announcements'.format(len(announcements)))
 
                 messages_by_tag = {}
                 for msg in announcements:
@@ -192,7 +195,7 @@ class ZMQWorker(ZMQCore):
                         for msg in msgs:
                             self.handle_reconfigure_timeout(msg, timers)
                     elif tag == Message.TASKS_AVAILABLE:
-                        self.request_task(rr_socket,task_socket)
+                        self.request_task(rr_socket, task_socket)
 
                 del announcements, messages_by_tag
 
@@ -250,7 +253,7 @@ class ZMQWorker(ZMQCore):
         else:
             self.log.debug('worker process {:d} terminated gracefully with code {:d}'.format(pid, self.executor_process.exitcode))
 
-    def install_signal_handlers(self, signals = None):
+    def install_signal_handlers(self, signals=None):
         if not signals:
             signals = {signal.SIGINT, signal.SIGQUIT, signal.SIGTERM}
 
@@ -260,7 +263,7 @@ class ZMQWorker(ZMQCore):
     def startup(self, process_index=None):
         self.install_signal_handlers()
         executor = ZMQExecutor(self.task_endpoint, self.result_endpoint)
-        self.executor_process = multiprocessing.Process(target = executor.startup, args=(process_index,))
+        self.executor_process = multiprocessing.Process(target=executor.startup, args=(process_index,))
         self.executor_process.start()
         self.context = zmq.Context()
         self.comm_thread = threading.Thread(target=self.comm_loop)
@@ -275,10 +278,8 @@ class ZMQExecutor(ZMQCore):
     def __init__(self, task_endpoint, result_endpoint):
         super().__init__()
 
-
         self.task_endpoint = task_endpoint
         self.result_endpoint = result_endpoint
-
 
     def comm_loop(self):
 
@@ -293,7 +294,7 @@ class ZMQExecutor(ZMQCore):
         try:
             while True:
                 try:
-                    msg = self.recv_message(task_socket,timeout=100)
+                    msg = self.recv_message(task_socket, timeout=100)
                 except KeyboardInterrupt:
                     break
                 except ZMQWMTimeout:
@@ -309,13 +310,12 @@ class ZMQExecutor(ZMQCore):
             self.context.destroy(linger=0)
             self.context = None
 
-
     def startup(self, process_index=None):
         if process_index is not None:
             from westpa.work_managers import environment
+
             pi_name = '{}_PROCESS_INDEX'.format(environment.WMEnvironment.env_prefix)
             self.log.debug('Setting {}={}'.format(pi_name, process_index))
             os.environ[pi_name] = str(process_index)
         self.context = zmq.Context()
         self.comm_loop()
-

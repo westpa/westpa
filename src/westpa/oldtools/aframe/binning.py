@@ -22,7 +22,7 @@ class BinningMixin(AnalysisMixin):
         self.binning_h5group = None
         self.mapper_hash = None
 
-    def add_args(self, parser, upcall = True):
+    def add_args(self, parser, upcall=True):
         if upcall:
             try:
                 upfunc = super().add_args
@@ -33,14 +33,22 @@ class BinningMixin(AnalysisMixin):
 
         group = parser.add_argument_group('binning options')
         egroup = group.add_mutually_exclusive_group()
-        egroup.add_argument('--binexpr', '--binbounds', dest='binexpr',
-                            help='''Construct rectilinear bins from BINEXPR. This must be a list of lists of bin boundaries
+        egroup.add_argument(
+            '--binexpr',
+            '--binbounds',
+            dest='binexpr',
+            help='''Construct rectilinear bins from BINEXPR. This must be a list of lists of bin boundaries
                             (one list of bin boundaries for each dimension of the progress coordinate), formatted as a Python
-                            expression. E.g. "[[0,1,2,4,inf], [-inf,0,inf]]".''')
-        group.add_argument('--discard-bin-assignments', dest='discard_bin_assignments', action='store_true',
-                           help='''Discard any existing bin assignments stored in the analysis HDF5 file.''')
+                            expression. E.g. "[[0,1,2,4,inf], [-inf,0,inf]]".''',
+        )
+        group.add_argument(
+            '--discard-bin-assignments',
+            dest='discard_bin_assignments',
+            action='store_true',
+            help='''Discard any existing bin assignments stored in the analysis HDF5 file.''',
+        )
 
-    def process_args(self, args, upcall = True):
+    def process_args(self, args, upcall=True):
         if args.binexpr:
             westpa.rc.pstatus("Constructing rectilinear bin boundaries from the following expression: '{}'".format(args.binexpr))
             self.mapper = self.mapper_from_expr(args.binexpr)
@@ -66,9 +74,8 @@ class BinningMixin(AnalysisMixin):
 
     def mapper_from_expr(self, expr):
         from westpa.binning import RectilinearBinMapper
-        namespace = {'numpy': np,
-                     'np': np,
-                     'inf': float('inf')}
+
+        namespace = {'numpy': np, 'np': np, 'inf': float('inf')}
 
         try:
             return RectilinearBinMapper(eval(expr, namespace))
@@ -76,9 +83,7 @@ class BinningMixin(AnalysisMixin):
             if 'has no len' in str(e):
                 raise ValueError('invalid bin boundary specification; you probably forgot to make a list of lists')
 
-    def write_bin_labels(self, dest,
-                         header='# bin labels:\n',
-                         format='# bin {bin_index:{max_iwidth}d} -- {label!s}\n'):
+    def write_bin_labels(self, dest, header='# bin labels:\n', format='# bin {bin_index:{max_iwidth}d} -- {label!s}\n'):
         '''Print labels for all bins in ``self.mapper`` to ``dest``.  If provided, ``header``
         is printed before any labels.   The ``format`` string specifies how bin labels are to be printed.  Valid entries are:
           * ``bin_index`` -- the zero-based index of the bin
@@ -86,7 +91,7 @@ class BinningMixin(AnalysisMixin):
           * ``max_iwidth`` -- the maximum width (in characters) of the bin index, for pretty alignment
         '''
         dest.write(header or '')
-        max_iwidth = len(str(self.mapper.nbins-1))
+        max_iwidth = len(str(self.mapper.nbins - 1))
         for (ibin, label) in enumerate(self.mapper.labels):
             dest.write(format.format(bin_index=ibin, label=label, max_iwidth=max_iwidth))
 
@@ -115,22 +120,22 @@ class BinningMixin(AnalysisMixin):
         max_n_segs = self.max_iter_segs_in_range(self.first_iter, self.last_iter)
         pcoord_len = self.get_pcoord_len(self.first_iter)
 
-        assignments = np.zeros((n_iters, max_n_segs,pcoord_len), np.min_scalar_type(self.n_bins))
+        assignments = np.zeros((n_iters, max_n_segs, pcoord_len), np.min_scalar_type(self.n_bins))
         populations = np.zeros((n_iters, pcoord_len, self.n_bins), np.float64)
 
         westpa.rc.pstatus('Assigning to bins...')
 
-        for (iiter, n_iter) in enumerate(range(self.first_iter, self.last_iter+1)):
+        for (iiter, n_iter) in enumerate(range(self.first_iter, self.last_iter + 1)):
             westpa.rc.pstatus('\r  Iteration {:d}'.format(n_iter), end='')
             seg_index = self.get_seg_index(n_iter)
             pcoords = self.get_iter_group(n_iter)['pcoord'][...]
             weights = seg_index['weight']
 
             for seg_id in range(len(seg_index)):
-                assignments[iiter,seg_id,:] = self.mapper.assign(pcoords[seg_id,:,:])
+                assignments[iiter, seg_id, :] = self.mapper.assign(pcoords[seg_id, :, :])
 
             for it in range(pcoord_len):
-                populations[iiter, it, :] = np.bincount(assignments[iiter,:len(seg_index),it], weights, minlength=self.n_bins)
+                populations[iiter, it, :] = np.bincount(assignments[iiter, : len(seg_index), it], weights, minlength=self.n_bins)
 
             westpa.rc.pflush()
             del pcoords, weights, seg_index
@@ -166,8 +171,8 @@ class BinningMixin(AnalysisMixin):
         else:
             westpa.rc.pstatus('Using existing bin assignments.')
 
-    def get_bin_assignments(self, first_iter = None, last_iter = None):
+    def get_bin_assignments(self, first_iter=None, last_iter=None):
         return self.slice_per_iter_data(self.binning_h5group['bin_assignments'], first_iter, last_iter)
 
-    def get_bin_populations(self, first_iter = None, last_iter = None):
+    def get_bin_populations(self, first_iter=None, last_iter=None):
         return self.slice_per_iter_data(self.binning_h5group['bin_populations'], first_iter, last_iter)

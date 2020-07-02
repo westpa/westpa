@@ -75,5 +75,3 @@ class TestProcessWorkManagerAux:
             work_manager.wait_all(futures)
             results = set(future.get_result() for future in futures)
             assert results == set(str(n) for n in range(work_manager.n_workers)), results
-
-

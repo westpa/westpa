@@ -34,26 +34,34 @@ class CommonPloterrs(WESTSubcommand):
         self.progress.add_args(parser)
 
         pogroup = self.plot_options_group = parser.add_argument_group('plot options')
-        pogroup.add_argument('--xscale', choices=['linear', 'log', 'symlog'], default='linear',
-                             help='''Use "linear", "log", or "symlog" scaling for the x axis.
-                             (Default: %(default)s).''')
-        pogroup.add_argument('--yscale', choices=['linear', 'log', 'symlog'], default='linear',
-                             help='''Use "linear", "log", or "symlog" scaling for the y axis.
-                             (Default: %(default)s).''')
-        pogroup.add_argument('--xrange',
-                             help='''Restrict X range to XRANGE, which must be formatted as "xmin,xmax".
-                             (Default: determined by input data.)''')
-        pogroup.add_argument('--yrange',
-                             help='''Restrict Y range to YRANGE, which must be formatted as "ymin,ymax".
-                             (Default: determined by input data.)''')
-        pogroup.add_argument('--xlabel',
-                             help='''Use XLABEL for the x-axis label. (Default: varies.)''')
-        pogroup.add_argument('--ylabel',
-                             help='''Use YLABEL for the y-axis label. (Default: varies.)''')
-        pogroup.add_argument('--title',
-                             help='''Use TITLE for the plot title. (Default: varies.)''')
-        pogroup.add_argument('--terminal', '-t', dest='plotting', action='store_true',
-                             help='''Plot output in terminal.''')
+        pogroup.add_argument(
+            '--xscale',
+            choices=['linear', 'log', 'symlog'],
+            default='linear',
+            help='''Use "linear", "log", or "symlog" scaling for the x axis.
+                             (Default: %(default)s).''',
+        )
+        pogroup.add_argument(
+            '--yscale',
+            choices=['linear', 'log', 'symlog'],
+            default='linear',
+            help='''Use "linear", "log", or "symlog" scaling for the y axis.
+                             (Default: %(default)s).''',
+        )
+        pogroup.add_argument(
+            '--xrange',
+            help='''Restrict X range to XRANGE, which must be formatted as "xmin,xmax".
+                             (Default: determined by input data.)''',
+        )
+        pogroup.add_argument(
+            '--yrange',
+            help='''Restrict Y range to YRANGE, which must be formatted as "ymin,ymax".
+                             (Default: determined by input data.)''',
+        )
+        pogroup.add_argument('--xlabel', help='''Use XLABEL for the x-axis label. (Default: varies.)''')
+        pogroup.add_argument('--ylabel', help='''Use YLABEL for the y-axis label. (Default: varies.)''')
+        pogroup.add_argument('--title', help='''Use TITLE for the plot title. (Default: varies.)''')
+        pogroup.add_argument('--terminal', '-t', dest='plotting', action='store_true', help='''Plot output in terminal.''')
 
     def process_args(self, args):
         self.progress.process_args(args)
@@ -72,15 +80,13 @@ class CommonPloterrs(WESTSubcommand):
         if args.plotting or os.environ.get('DISPLAY') is None:
             self.interface = 'text'
         else:
-            import matplotlib
-            from matplotlib import pyplot
             self.interface = 'matplotlib'
 
     def parse_range(self, rangespec):
         try:
-            (lbt,ubt) = rangespec.split(',')
+            (lbt, ubt) = rangespec.split(',')
             return float(lbt), float(ubt)
-        except (ValueError,TypeError) as e:
+        except (ValueError, TypeError) as e:
             raise ValueError('invalid range specification {!r}: {!s}'.format(rangespec, e))
 
     def do_plot(self, data, output_filename, title=None, x_range=None, y_range=None, x_label=None, y_label=None):
@@ -136,6 +142,7 @@ Command-line arguments
 '''
     subcommand = 'generic'
     help_text = 'arbitrary HDF5 file and dataset'
+
     def __init__(self, parent):
         super().__init__(parent)
         self.h5file = None
@@ -145,15 +152,21 @@ Command-line arguments
 
     def add_args(self, parser):
         iogroup = parser.add_argument_group('input/output options')
-        iogroup.add_argument('-o', '--output', default='errbars.pdf',
-                             help='''Write plot to OUTPUT (default: %(default)s), whose format will
-                             be determined by filename extension.''')
-        iogroup.add_argument('dsspec',
-                             help='''Use data located at DSSPEC, which must be formatted as
+        iogroup.add_argument(
+            '-o',
+            '--output',
+            default='errbars.pdf',
+            help='''Write plot to OUTPUT (default: %(default)s), whose format will
+                             be determined by filename extension.''',
+        )
+        iogroup.add_argument(
+            'dsspec',
+            help='''Use data located at DSSPEC, which must be formatted as
                              FILENAME/PATH[SLICE]. FILENAME is the HDF5 file to read, PATH is the
                              HDF5 path to the dataset, and SLICE, if provided, must be the Numpy-style
                              slice (including brackets) which selects a vector of data of the
-                             appropriate type.''')
+                             appropriate type.''',
+        )
 
     def process_args(self, args):
         self.output_filename = args.output
@@ -183,12 +196,12 @@ Command-line arguments
 
         return data
 
-
     def go(self):
         with self.progress.indicator:
             data = self.load_and_validate_data()
             self.progress.indicator.new_operation('plotting')
             self.do_plot(data, self.output_filename)
+
 
 class DirectKinetics(CommonPloterrs):
     subcommand = 'd.kinetics'
@@ -227,17 +240,23 @@ flux/rate is being plotted:
 
         self.state_labels = None
 
-
     def add_args(self, parser):
         iogroup = parser.add_argument_group('input/output')
-        iogroup.add_argument('-i', '--input', default=self.input_filename,
-                             help='''Read kinetics results from INPUT (default: %(default)s).''')
-        iogroup.add_argument('--rate-output', default=self.rate_output_filename,
-                             help='''Filename pattern for rate evolution output. See above for valid
-                             field names. (Default: %(default)r).''')
-        iogroup.add_argument('--flux-output', default=self.flux_output_filename,
-                             help='''Filename pattern for flux evolution output. See above for valid
-                             field names. (Default: %(default)r).''')
+        iogroup.add_argument(
+            '-i', '--input', default=self.input_filename, help='''Read kinetics results from INPUT (default: %(default)s).'''
+        )
+        iogroup.add_argument(
+            '--rate-output',
+            default=self.rate_output_filename,
+            help='''Filename pattern for rate evolution output. See above for valid
+                             field names. (Default: %(default)r).''',
+        )
+        iogroup.add_argument(
+            '--flux-output',
+            default=self.flux_output_filename,
+            help='''Filename pattern for flux evolution output. See above for valid
+                             field names. (Default: %(default)r).''',
+        )
 
     def process_args(self, args):
         self.kinavg_file = h5py.File(args.input, 'r')
@@ -249,7 +268,7 @@ flux/rate is being plotted:
 
     def plot_flux(self, istate):
         label = self.state_labels[istate]
-        data = self.kinavg_file['target_flux_evolution'][:,istate]
+        data = self.kinavg_file['target_flux_evolution'][:, istate]
 
         if (data['iter_start'] == 0).all():
             # No data
@@ -272,14 +291,13 @@ flux/rate is being plotted:
     def plot_rate(self, istate, jstate):
         ilabel = self.state_labels[istate]
         jlabel = self.state_labels[jstate]
-        data = self.kinavg_file['rate_evolution'][:,istate, jstate]
+        data = self.kinavg_file['rate_evolution'][:, istate, jstate]
 
         if (data['iter_start'] == 0).all():
             # No data
             return
 
-        subdict = dict(istate_label=ilabel, istate_index=istate,
-                       fstate_label=jlabel, fstate_index=jstate)
+        subdict = dict(istate_label=ilabel, istate_index=istate, fstate_label=jlabel, fstate_index=jstate)
 
         output_filename = self.rate_output_pattern.format(**subdict) if self.rate_output_pattern else None
 
@@ -307,7 +325,7 @@ flux/rate is being plotted:
 
                 # if --evolution-mode wasn't specified, we won't get this either
                 if 'rate_evolution' in self.kinavg_file:
-                    pi.new_operation('plotting rates', nstates*nstates)
+                    pi.new_operation('plotting rates', nstates * nstates)
                     for istate in range(nstates):
                         for jstate in range(nstates):
                             self.plot_rate(istate, jstate)
@@ -325,7 +343,6 @@ flux/rate is being plotted:
                 for jstate in range(nstates):
                     if istate != jstate:
                         plotter.plot(istate, jstate)
-
 
 
 class DirectStateprobs(CommonPloterrs):
@@ -357,17 +374,23 @@ plotted:
 
         self.state_labels = None
 
-
     def add_args(self, parser):
         iogroup = parser.add_argument_group('input/output')
-        iogroup.add_argument('-i', '--input', default=self.input_filename,
-                             help='''Read w_kinavg results from INPUT (default: %(default)s).''')
-        iogroup.add_argument('--population-output', default=self.pop_output_filename,
-                             help='''Filename pattern for population evolution output. See above for valid
-                             field names. (Default: %(default)r).''')
-        iogroup.add_argument('--color-output', default=self.color_output_filename,
-                             help='''Filename pattern for ensemble evolution output. See above for valid
-                             field names. (Default: %(default)r).''')
+        iogroup.add_argument(
+            '-i', '--input', default=self.input_filename, help='''Read w_kinavg results from INPUT (default: %(default)s).'''
+        )
+        iogroup.add_argument(
+            '--population-output',
+            default=self.pop_output_filename,
+            help='''Filename pattern for population evolution output. See above for valid
+                             field names. (Default: %(default)r).''',
+        )
+        iogroup.add_argument(
+            '--color-output',
+            default=self.color_output_filename,
+            help='''Filename pattern for ensemble evolution output. See above for valid
+                             field names. (Default: %(default)r).''',
+        )
 
     def process_args(self, args):
         self.stateprobs_file = h5py.File(args.input, 'r')
@@ -378,7 +401,7 @@ plotted:
 
     def plot_pop(self, istate):
         label = self.state_labels[istate]
-        data = self.stateprobs_file['state_pop_evolution'][:,istate]
+        data = self.stateprobs_file['state_pop_evolution'][:, istate]
 
         if (data['iter_start'] == 0).all():
             # No data
@@ -399,7 +422,7 @@ plotted:
 
     def plot_color(self, istate):
         label = self.state_labels[istate]
-        data = self.stateprobs_file['color_prob_evolution'][:,istate]
+        data = self.stateprobs_file['color_prob_evolution'][:, istate]
 
         if (data['iter_start'] == 0).all():
             # No data
@@ -439,10 +462,11 @@ plotted:
         else:
             plotter = Plotter(self.stateprobs_file, 'state_pop_evolution', iteration=-1, interface='text')
             for istate in range(nstates):
-                    plotter.plot(istate)
+                plotter.plot(istate)
             plotter = Plotter(self.stateprobs_file, 'color_prob_evolution', iteration=-1, interface='text')
             for istate in range(nstates):
-                    plotter.plot(istate)
+                plotter.plot(istate)
+
 
 class ReweightStateprobs(DirectStateprobs):
     subcommand = 'rw.probs'
@@ -451,6 +475,7 @@ class ReweightStateprobs(DirectStateprobs):
     pop_output_filename = 'pop_evolution_rw_{state_label}.pdf'
     color_output_filename = 'color_evolution_rw_{state_label}.pdf'
 
+
 class ReweightKinetics(DirectKinetics):
     subcommand = 'rw.kinetics'
     help_text = 'output of w_reweight kinetics'
@@ -458,9 +483,10 @@ class ReweightKinetics(DirectKinetics):
     flux_output_filename = 'flux_evolution_rw_{state_label}.pdf'
     rate_output_filename = 'rate_evolution_rw_{istate_label}_{fstate_label}.pdf'
 
+
 class PloterrsTool(WESTMasterCommand):
-    prog='ploterrs'
-    subcommands = [DirectKinetics,DirectStateprobs,ReweightStateprobs,ReweightKinetics,GenericIntervalSubcommand]
+    prog = 'ploterrs'
+    subcommands = [DirectKinetics, DirectStateprobs, ReweightStateprobs, ReweightKinetics, GenericIntervalSubcommand]
     subparsers_title = 'supported input formats'
     description = '''\
 Plots error ranges for weighted ensemble datasets.

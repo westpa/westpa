@@ -23,8 +23,8 @@ def calc_stats(bin_assignments, weights, fluxes, populations, trans, mask, sampl
 
     stats_process(bin_assignments, weights, fluxes, populations, trans, mask, interval=sampling_frequency)
 
-class FluxMatrix():
 
+class FluxMatrix:
     def w_postanalysis_matrix(self):
         pi = self.progress.indicator
         pi.new_operation('Initializing')
@@ -33,10 +33,10 @@ class FluxMatrix():
         nbins = self.assignments_file.attrs['nbins']
 
         state_labels = self.assignments_file['state_labels'][...]
-        state_map = self.assignments_file['state_map'][...]
+        # state_map = self.assignments_file['state_map'][...]
         nstates = len(state_labels)
 
-        start_iter, stop_iter = self.iter_range.iter_start, self.iter_range.iter_stop # h5io.get_iter_range(self.assignments_file)
+        start_iter, stop_iter = self.iter_range.iter_start, self.iter_range.iter_stop  # h5io.get_iter_range(self.assignments_file)
         iter_count = stop_iter - start_iter
 
         nfbins = nbins * nstates
@@ -50,19 +50,17 @@ class FluxMatrix():
         h5io.stamp_iter_range(bin_populations_ds, start_iter, stop_iter)
         h5io.label_axes(bin_populations_ds, ['iteration', 'bin'])
 
-
         flux_grp = self.output_file.create_group('iterations')
         self.output_file.attrs['nrows'] = nfbins
         self.output_file.attrs['ncols'] = nfbins
-
 
         fluxes = np.empty(flux_shape[1:], weight_dtype)
         populations = np.empty(pop_shape[1:], weight_dtype)
         trans = np.empty(flux_shape[1:], np.int64)
 
         # Check to make sure this isn't a data set with target states
-        #tstates = self.data_reader.data_manager.get_target_states(0)
-        #if len(tstates) > 0:
+        # tstates = self.data_reader.data_manager.get_target_states(0)
+        # if len(tstates) > 0:
         #    raise ValueError('Postanalysis reweighting analysis does not support WE simulation run under recycling conditions')
 
         pi.new_operation('Calculating flux matrices', iter_count)
@@ -74,20 +72,21 @@ class FluxMatrix():
             nsegs, npts = iter_group['pcoord'].shape[0:2]
             weights = seg_index['weight']
 
-
             # Get bin and traj. ensemble assignments from the previously-generated assignments file
             assignment_iiter = h5io.get_iteration_entry(self.assignments_file, n_iter)
-            bin_assignments = np.require(self.assignments_file['assignments'][assignment_iiter + np.s_[:nsegs,:npts]],
-                                            dtype=index_dtype)
+            bin_assignments = np.require(
+                self.assignments_file['assignments'][assignment_iiter + np.s_[:nsegs, :npts]], dtype=index_dtype
+            )
 
             mask_unknown = np.zeros_like(bin_assignments, dtype=np.uint16)
 
             macrostate_iiter = h5io.get_iteration_entry(self.assignments_file, n_iter)
-            macrostate_assignments = np.require(self.assignments_file['trajlabels'][macrostate_iiter + np.s_[:nsegs,:npts]],
-                                        dtype=index_dtype)
+            macrostate_assignments = np.require(
+                self.assignments_file['trajlabels'][macrostate_iiter + np.s_[:nsegs, :npts]], dtype=index_dtype
+            )
 
             # Transform bin_assignments to take macrostate membership into account
-            bin_assignments  = nstates * bin_assignments + macrostate_assignments
+            bin_assignments = nstates * bin_assignments + macrostate_assignments
 
             mask_indx = np.where(macrostate_assignments == nstates)
             mask_unknown[mask_indx] = 1
@@ -123,5 +122,5 @@ class FluxMatrix():
             if self.assignments_file.attrs['subsampled'] is True or self.sampling_frequency == 'iteration':
                 self.output_file.attrs['npts'] = 2
             else:
-                #self.output_file.attrs['npts'] = npts if self.sampling_frequency == 'timepoint' else 2
+                # self.output_file.attrs['npts'] = npts if self.sampling_frequency == 'timepoint' else 2
                 self.output_file.attrs['npts'] = npts

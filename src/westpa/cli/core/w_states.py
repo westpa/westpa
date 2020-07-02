@@ -18,7 +18,9 @@ EPS = np.finfo(np.float64).eps
 
 
 def entry_point():
-    parser = argparse.ArgumentParser('w_states', description='''\
+    parser = argparse.ArgumentParser(
+        'w_states',
+        description='''\
     Display or manipulate basis (initial) or target (recycling) states for a WEST simulation.  By default, states are
     displayed (or dumped to files).  If ``--replace`` is specified, all basis/target states are replaced for the
     next iteration.  If ``--append`` is specified, the given target state(s) are appended to the list for the
@@ -28,32 +30,58 @@ def entry_point():
     probabilities in ways that may be error-prone. Instead, use ``w_states --show --bstate-file=bstates.txt``
     and then edit the resulting ``bstates.txt`` file to include the new desired basis states, then use
     ``w_states --replace --bstate-file=bstates.txt`` to update the WEST HDF5 file appropriately.
-    ''')
+    ''',
+    )
     westpa.rc.add_args(parser)
     smgroup = parser.add_argument_group('modes of operation')
     mode_group = smgroup.add_mutually_exclusive_group()
-    mode_group.add_argument('--show', dest='mode', action='store_const', const='show',
-                            help='Display current basis/target states (or dump to files).')
-    mode_group.add_argument('--append', dest='mode', action='store_const', const='append',
-                            help='Append the given basis/target states to those currently in use.')
-    mode_group.add_argument('--replace', dest='mode', action='store_const', const='replace',
-                            help='Replace current basis/target states with those specified.')
-    parser.add_argument('--bstate-file', metavar='BSTATE_FILE',
-                        help='''Read (--append/--replace) or write (--show) basis state names, probabilities,
-                        and data references from/to BSTATE_FILE.''')
-    parser.add_argument('--bstate', action='append', dest='bstates',
-                        help='''Add the given basis state (specified as a string 'label,probability[,auxref]')
+    mode_group.add_argument(
+        '--show', dest='mode', action='store_const', const='show', help='Display current basis/target states (or dump to files).'
+    )
+    mode_group.add_argument(
+        '--append',
+        dest='mode',
+        action='store_const',
+        const='append',
+        help='Append the given basis/target states to those currently in use.',
+    )
+    mode_group.add_argument(
+        '--replace',
+        dest='mode',
+        action='store_const',
+        const='replace',
+        help='Replace current basis/target states with those specified.',
+    )
+    parser.add_argument(
+        '--bstate-file',
+        metavar='BSTATE_FILE',
+        help='''Read (--append/--replace) or write (--show) basis state names, probabilities,
+                        and data references from/to BSTATE_FILE.''',
+    )
+    parser.add_argument(
+        '--bstate',
+        action='append',
+        dest='bstates',
+        help='''Add the given basis state (specified as a string 'label,probability[,auxref]')
                         to the list of basis states (after those specified in --bstate-file, if any). This argument
                         may be specified more than once, in which case the given states are appended in the order
-                        they are given on the command line.''')
-    parser.add_argument('--tstate-file', metavar='TSTATE_FILE',
-                        help='''Read (--append/--replace) or write (--show) target state names
-                        and representative progress coordinates from/to TSTATE_FILE''')
-    parser.add_argument('--tstate', action='append', dest='tstates',
-                        help='''Add the given target state (specified as a string 'label,pcoord0[,pcoord1[,...]]') to the
+                        they are given on the command line.''',
+    )
+    parser.add_argument(
+        '--tstate-file',
+        metavar='TSTATE_FILE',
+        help='''Read (--append/--replace) or write (--show) target state names
+                        and representative progress coordinates from/to TSTATE_FILE''',
+    )
+    parser.add_argument(
+        '--tstate',
+        action='append',
+        dest='tstates',
+        help='''Add the given target state (specified as a string 'label,pcoord0[,pcoord1[,...]]') to the
                         list of target states (after those specified in the file given by --tstates-from, if any).
                         This argument may be specified more than once, in which case the given states are appended
-                        in the order they appear on the command line.''')
+                        in the order they appear on the command line.''',
+    )
     parser.set_defaults(mode='show')
 
     work_managers.environment.add_wm_args(parser)
@@ -89,7 +117,7 @@ def entry_point():
             elif args.mode == 'replace':
                 seg_index = data_manager.get_seg_index(n_iter)
                 if (seg_index['status'] == Segment.SEG_STATUS_COMPLETE).any():
-                    print('Iteration {:d} has completed segments; applying new states to iteration {:d}'.format(n_iter,n_iter+1))
+                    print('Iteration {:d} has completed segments; applying new states to iteration {:d}'.format(n_iter, n_iter + 1))
                     n_iter += 1
 
                 basis_states = []
@@ -98,19 +126,19 @@ def entry_point():
                 if args.bstates:
                     for bstate_str in args.bstates:
                         fields = bstate_str.split(',')
-                        label=fields[0]
-                        probability=float(fields[1])
+                        label = fields[0]
+                        probability = float(fields[1])
                         try:
                             auxref = fields[2]
                         except IndexError:
                             auxref = None
-                        basis_states.append(BasisState(label=label,probability=probability,auxref=auxref))
+                        basis_states.append(BasisState(label=label, probability=probability, auxref=auxref))
 
                 if basis_states:
                     # Check that the total probability of basis states adds to one
                     tprob = sum(bstate.probability for bstate in basis_states)
                     if abs(1.0 - tprob) > len(basis_states) * EPS:
-                        pscale = 1/tprob
+                        pscale = 1 / tprob
                         log.warning('Basis state probabilities do not add to unity; rescaling by {:g}'.format(pscale))
                         for bstate in basis_states:
                             bstate.probability *= pscale
@@ -137,7 +165,7 @@ def entry_point():
 
                 data_manager.update_iter_group_links(n_iter)
 
-            else: # args.mode == 'append'
+            else:  # args.mode == 'append'
                 if args.bstate_file or args.bstates:
                     sys.stderr.write('refusing to append basis states; use --show followed by --replace instead\n')
                     sys.exit(2)
@@ -146,7 +174,7 @@ def entry_point():
 
                 seg_index = data_manager.get_seg_index(n_iter)
                 if (seg_index['status'] == Segment.SEG_STATUS_COMPLETE).any():
-                    print('Iteration {:d} has completed segments; applying new states to iteration {:d}'.format(n_iter,n_iter+1))
+                    print('Iteration {:d} has completed segments; applying new states to iteration {:d}'.format(n_iter, n_iter + 1))
                     n_iter += 1
 
                 if args.tstate_file:

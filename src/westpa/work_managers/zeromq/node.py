@@ -6,6 +6,7 @@ Created on Jun 11, 2015
 
 
 import logging
+
 log = logging.getLogger(__name__)
 
 from .core import ZMQCore, Message, PassiveMultiTimer, IsNode
@@ -13,10 +14,11 @@ from .core import ZMQCore, Message, PassiveMultiTimer, IsNode
 import zmq
 from zmq.devices import ThreadProxy
 
-class ZMQNode(ZMQCore,IsNode):
+
+class ZMQNode(ZMQCore, IsNode):
     def __init__(self, upstream_rr_endpoint, upstream_ann_endpoint, n_local_workers=None):
         ZMQCore.__init__(self)
-        IsNode.__init__(self,n_local_workers)
+        IsNode.__init__(self, n_local_workers)
 
         self.upstream_rr_endpoint = upstream_rr_endpoint
         self.upstream_ann_endpoint = upstream_ann_endpoint
@@ -33,7 +35,6 @@ class ZMQNode(ZMQCore,IsNode):
     @property
     def is_master(self):
         return False
-
 
     def comm_loop(self):
         self.context = zmq.Context.instance()
@@ -60,14 +61,15 @@ class ZMQNode(ZMQCore,IsNode):
         ann_mon_endpoint = 'inproc://{:x}'.format(id(ann_monitor))
         ann_monitor.bind(ann_mon_endpoint)
 
-
         rr_proxy.bind_in(self.downstream_rr_endpoint)
-        if self.local_rr_endpoint: rr_proxy.bind_in(self.local_rr_endpoint)
+        if self.local_rr_endpoint:
+            rr_proxy.bind_in(self.local_rr_endpoint)
         self.log.debug('connecting upstream_rr_endpoint = {!r}'.format(self.upstream_rr_endpoint))
         rr_proxy.connect_out(self.upstream_rr_endpoint)
 
         ann_proxy.bind_out(self.downstream_ann_endpoint)
-        if self.local_ann_endpoint: ann_proxy.bind_out(self.local_ann_endpoint)
+        if self.local_ann_endpoint:
+            ann_proxy.bind_out(self.local_ann_endpoint)
         ann_proxy.connect_in(self.upstream_ann_endpoint)
         self.log.debug('connecting upstream_ann_endpoint = {!r}'.format(self.upstream_ann_endpoint))
         ann_proxy.setsockopt_in(zmq.SUBSCRIBE, b'')
@@ -79,7 +81,7 @@ class ZMQNode(ZMQCore,IsNode):
         ann_monitor.connect(ann_mon_endpoint)
 
         inproc_socket = self.context.socket(zmq.SUB)
-        inproc_socket.setsockopt(zmq.SUBSCRIBE,b'')
+        inproc_socket.setsockopt(zmq.SUBSCRIBE, b'')
         inproc_socket.bind(self.inproc_endpoint)
 
         timers = PassiveMultiTimer()
@@ -97,16 +99,16 @@ class ZMQNode(ZMQCore,IsNode):
         poller.register(inproc_socket, zmq.POLLIN)
         try:
             while True:
-                poll_results = dict(poller.poll((timers.next_expiration_in() or 0.001)*1000))
+                poll_results = dict(poller.poll((timers.next_expiration_in() or 0.001) * 1000))
 
                 if inproc_socket in poll_results:
-                    msgs = self.recv_all(ann_monitor,validate=False)
+                    msgs = self.recv_all(ann_monitor, validate=False)
                     if Message.SHUTDOWN in (msg.message for msg in msgs):
                         self.log.debug('shutdown received')
                         break
 
                 if ann_monitor in poll_results:
-                    msgs = self.recv_all(ann_monitor,validate=False)
+                    msgs = self.recv_all(ann_monitor, validate=False)
                     message_tags = {msg.message for msg in msgs}
                     if Message.SHUTDOWN in message_tags:
                         self.log.debug('shutdown received')
@@ -114,7 +116,6 @@ class ZMQNode(ZMQCore,IsNode):
                     if not peer_found and (Message.MASTER_BEACON in message_tags or Message.TASKS_AVAILABLE in message_tags):
                         peer_found = True
                         timers.remove_timer('startup_timeout')
-
 
                 if not peer_found and timers.expired('startup_timeout'):
                     self.log.error('startup phase elapsed with no contact from peer; shutting down')
@@ -129,4 +130,3 @@ class ZMQNode(ZMQCore,IsNode):
     def startup(self):
         IsNode.startup(self)
         super().startup()
-

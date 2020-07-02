@@ -4,7 +4,7 @@ import queue
 import sys
 import threading
 
-from . core import WorkManager, WMFuture
+from .core import WorkManager, WMFuture
 import westpa.work_managers as work_managers
 
 log = logging.getLogger(__name__)
@@ -31,13 +31,14 @@ ShutdownSentinel = object()
 
 class ThreadsWorkManager(WorkManager):
     '''A work manager using threads.'''
+
     @classmethod
     def from_environ(cls, wmenv=None):
         if wmenv is None:
             wmenv = work_managers.environment.default_env
         return cls(wmenv.get_val('n_workers', multiprocessing.cpu_count(), int))
 
-    def __init__(self, n_workers = None):
+    def __init__(self, n_workers=None):
         super().__init__()
         self.n_workers = n_workers or multiprocessing.cpu_count()
         self.workers = []
@@ -60,8 +61,10 @@ class ThreadsWorkManager(WorkManager):
     def startup(self):
         if not self.running:
             self.running = True
-            self.workers = [threading.Thread(target=self.runtask, args=[self.task_queue], name='worker-{:d}'.format(i))
-                            for i in range(0, self.n_workers)]
+            self.workers = [
+                threading.Thread(target=self.runtask, args=[self.task_queue], name='worker-{:d}'.format(i))
+                for i in range(0, self.n_workers)
+            ]
             for thread in self.workers:
                 log.debug('starting thread {!r}'.format(thread))
                 thread.start()

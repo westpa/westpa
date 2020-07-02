@@ -11,52 +11,50 @@ def extensions():
 
     np_inc = np_get_include()
 
-    common_cflags = ['-O3', ]
-
-    fasthist_module = \
-        Extension('westpa.fasthist._fasthist',
-                sources=['src/westpa/fasthist/_fasthist.pyx',],
-                include_dirs=[np_inc, ],
-                extra_compile_args=common_cflags)
-
-    trajtree_module = \
-        Extension('westpa.trajtree._trajtree',
-                sources=['src/westpa/trajtree/_trajtree.pyx',],
-                include_dirs=[np_inc, ],
-                extra_compile_args=common_cflags)
-
-    mclib_module = \
-        Extension('westpa.mclib._mclib',
-                sources=['src/westpa/mclib/_mclib.pyx',],
-                include_dirs=[np_inc, ],
-                extra_compile_args=common_cflags)
-
-    binning_module = \
-        Extension('westpa.core.binning._assign',
-                sources=['src/westpa/core/binning/_assign.pyx',],
-                include_dirs=[np_inc, ],
-                extra_compile_args=common_cflags)
-
-    kinetics_module = \
-        Extension('westpa.core.kinetics._kinetics',
-                sources=['src/westpa/core/kinetics/_kinetics.pyx',],
-                include_dirs=[np_inc, ],
-                extra_compile_args=common_cflags)
-
-    reweight_module = \
-        Extension('westpa.core.reweight._reweight',
-                sources=['src/westpa/core/reweight/_reweight.pyx',],
-                include_dirs=[np_inc, ],
-                extra_compile_args=common_cflags)
-
-    exts = [
-        fasthist_module,
-        trajtree_module,
-        mclib_module,
-        binning_module,
-        kinetics_module,
-        reweight_module
+    common_cflags = [
+        '-O3',
     ]
+
+    fasthist_module = Extension(
+        'westpa.fasthist._fasthist',
+        sources=['src/westpa/fasthist/_fasthist.pyx'],
+        include_dirs=[np_inc],
+        extra_compile_args=common_cflags,
+    )
+
+    trajtree_module = Extension(
+        'westpa.trajtree._trajtree',
+        sources=['src/westpa/trajtree/_trajtree.pyx'],
+        include_dirs=[np_inc],
+        extra_compile_args=common_cflags,
+    )
+
+    mclib_module = Extension(
+        'westpa.mclib._mclib', sources=['src/westpa/mclib/_mclib.pyx'], include_dirs=[np_inc], extra_compile_args=common_cflags
+    )
+
+    binning_module = Extension(
+        'westpa.core.binning._assign',
+        sources=['src/westpa/core/binning/_assign.pyx'],
+        include_dirs=[np_inc],
+        extra_compile_args=common_cflags,
+    )
+
+    kinetics_module = Extension(
+        'westpa.core.kinetics._kinetics',
+        sources=['src/westpa/core/kinetics/_kinetics.pyx'],
+        include_dirs=[np_inc],
+        extra_compile_args=common_cflags,
+    )
+
+    reweight_module = Extension(
+        'westpa.core.reweight._reweight',
+        sources=['src/westpa/core/reweight/_reweight.pyx'],
+        include_dirs=[np_inc],
+        extra_compile_args=common_cflags,
+    )
+
+    exts = [fasthist_module, trajtree_module, mclib_module, binning_module, kinetics_module, reweight_module]
 
     exts = cythonize(exts, language_level=sys.version_info[0])
 
@@ -106,14 +104,10 @@ metadata = dict(
     version=versioneer.get_version(),
     keywords='',
     cmdclass=versioneer.get_cmdclass(),
-    install_requires=[
-    ],
+    install_requires=[],
     zip_safe=False,
-    entry_points={
-        'console_scripts': console_scripts,
-    },
-    package_data={
-    },
+    entry_points={'console_scripts': console_scripts},
+    package_data={},
     packages=find_packages(where='src'),
     package_dir={"": "src"},
 )

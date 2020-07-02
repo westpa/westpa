@@ -11,12 +11,16 @@ def get_arg_flag(key):
     return "--{}".format(re.sub('_', '-', key))
 
 
-def make_args(outfile,**args):
+def make_args(outfile, **args):
     '''Makes a list of argument strings from a dictionary for command line tools to process'''
 
-    arglist = ['{}={}'.format(get_arg_flag(key), value) if not isinstance(value, bool) else '{}'.format(key) for (key, value) in list(args.items()) if value is not None]
-    #arglist = []
-    #for key, value in args.items():
+    arglist = [
+        '{}={}'.format(get_arg_flag(key), value) if not isinstance(value, bool) else '{}'.format(key)
+        for (key, value) in list(args.items())
+        if value is not None
+    ]
+    # arglist = []
+    # for key, value in args.items():
     #    if value is not None:
     #        if type(value) is not bool:
     #            arglist.append('{}={}'.format(get_arg_flag(key), value))
@@ -48,7 +52,7 @@ class CommonToolTest:
         # os.chdir('{}/lib/west_tools/tests'.format(os.environ['WEST_ROOT']))
         shutil.rmtree(cls.tempdir)
 
-    def mktemp(self, suffix='.h5', prefix = '', dirname = None):
+    def mktemp(self, suffix='.h5', prefix='', dirname=None):
         '''Helper method to make a tempfile (to be written/read by tools)'''
 
         if dirname is None:
@@ -63,14 +67,14 @@ class CommonToolTest:
     def check_runs_with_args(self, **kwargs):
 
         try:
-            self.w.go() #Run tool with given args
+            self.w.go()  # Run tool with given args
 
-            self.check_output(**kwargs) #Check that output hdf5 file is set up correctly
+            self.check_output(**kwargs)  # Check that output hdf5 file is set up correctly
 
         except Exception as e:
             return (0, e)
         else:
-            return(1, None)
+            return (1, None)
 
     def check_output(self, **kwargs):
         raise NotImplementedError

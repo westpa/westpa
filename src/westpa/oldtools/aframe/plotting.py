@@ -22,40 +22,46 @@ else:
         matplotlib = None
         pyplot = None
 
-    cmap_data = np.array( [ (124,   0,  24),
-                               (211,   0,  32),
-                               (244, 184,   0),
-                               (245, 235,   0),
-                               (129, 183,   2),
-                               ( 32, 128,  38),
-                               ( 21,  27,  87),
-                               ( 36,  62, 137),
-                               (178, 220, 245),
-                               (255, 255, 255) ], np.float32)
+    cmap_data = np.array(
+        [
+            (124, 0, 24),
+            (211, 0, 32),
+            (244, 184, 0),
+            (245, 235, 0),
+            (129, 183, 2),
+            (32, 128, 38),
+            (21, 27, 87),
+            (36, 62, 137),
+            (178, 220, 245),
+            (255, 255, 255),
+        ],
+        np.float32,
+    )
     cmap_data /= 255.0
-    cm_hovmol   = matplotlib.colors.LinearSegmentedColormap.from_list('hovmol', cmap_data)
+    cm_hovmol = matplotlib.colors.LinearSegmentedColormap.from_list('hovmol', cmap_data)
     cm_hovmol_r = matplotlib.colors.LinearSegmentedColormap.from_list('hovmol_r', np.flipud(cmap_data))
 
-    _pdr_data = {'red':     [(0.0,1.0,1.0),
-                             (0.25, 1.0, 1.0),
-                             (0.50, 1.0, 1.0),
-                             (0.75, 0.0, 0.0),
-                             (0.90, 0.50, 0.50),
-                             (0.95, 0.0, 0.0),
-                             (1.0,1.0,1.0)],
-                 'green':   [(0.0,1.0,1.0),
-                             (0.25, 0.0, 0.0),
-                             (0.50, 1.0, 1.0),
-                             (0.75, 1.0, 1.0),
-                             (0.90, 0.86, 0.86),
-                             (0.95, 0.0, 0.0),
-                             (1.0,1.0,1.0)],
-                 'blue':    [(0.0,1.0,1.0),
-                             (0.25, 0.0, 0.0),
-                             (0.75, 0.0, 0.0),
-                             (0.90, 1.0, 1.0),
-                             (0.95, 1.0, 1.0),
-                             (1.0,1.0,1.0)]}
+    _pdr_data = {
+        'red': [
+            (0.0, 1.0, 1.0),
+            (0.25, 1.0, 1.0),
+            (0.50, 1.0, 1.0),
+            (0.75, 0.0, 0.0),
+            (0.90, 0.50, 0.50),
+            (0.95, 0.0, 0.0),
+            (1.0, 1.0, 1.0),
+        ],
+        'green': [
+            (0.0, 1.0, 1.0),
+            (0.25, 0.0, 0.0),
+            (0.50, 1.0, 1.0),
+            (0.75, 1.0, 1.0),
+            (0.90, 0.86, 0.86),
+            (0.95, 0.0, 0.0),
+            (1.0, 1.0, 1.0),
+        ],
+        'blue': [(0.0, 1.0, 1.0), (0.25, 0.0, 0.0), (0.75, 0.0, 0.0), (0.90, 1.0, 1.0), (0.95, 1.0, 1.0), (1.0, 1.0, 1.0)],
+    }
 
     cm_pdr = matplotlib.colors.LinearSegmentedColormap('pdr', _pdr_data, 2048)
     cm_pdr_r = matplotlib.colors.LinearSegmentedColormap('pdr_r', matplotlib.cm.revcmap(_pdr_data), 2048)
@@ -74,7 +80,7 @@ class PlottingMixin(AnalysisMixin):
 
         super().__init__()
 
-        self.matplotlib_avail = (matplotlib is not None and pyplot is not None)
+        self.matplotlib_avail = matplotlib is not None and pyplot is not None
 
     def require_matplotlib(self):
         global matplotlib
@@ -82,4 +88,3 @@ class PlottingMixin(AnalysisMixin):
             raise RuntimeError('matplotlib is not available')
         else:
             return matplotlib
-

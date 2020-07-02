@@ -3,8 +3,7 @@ import logging
 import h5py
 import numpy as np
 
-from westpa.tools import (WESTParallelTool, WESTDataReader, WESTDSSynthesizer, IterRangeSelection,
-                          ProgressIndicatorComponent)
+from westpa.tools import WESTParallelTool, WESTDataReader, WESTDSSynthesizer, IterRangeSelection, ProgressIndicatorComponent
 
 from westpa.fasthist import histnd, normhistnd
 from westpa.core import h5io
@@ -31,11 +30,11 @@ def _remote_min_max(ndim, dset_dtype, n_iter, dsspec):
         minval = np.iinfo(dset_dtype).min
         maxval = np.iinfo(dset_dtype).max
 
-    data_range = [(maxval,minval) for _i in range(ndim)]
+    data_range = [(maxval, minval) for _i in range(ndim)]
 
     dset = dsspec.get_iter_data(n_iter)
     for idim in range(ndim):
-        dimdata = dset[:,:,idim]
+        dimdata = dset[:, :, idim]
         current_min, current_max = data_range[idim]
         current_min = min(current_min, dimdata.min())
         current_max = max(current_max, dimdata.max())
@@ -44,28 +43,29 @@ def _remote_min_max(ndim, dset_dtype, n_iter, dsspec):
     del dset
     return data_range
 
+
 def _remote_bin_iter(iiter, n_iter, dsspec, wt_dsspec, initpoint, binbounds, ignore_out_of_range):
 
-    iter_hist_shape = tuple(len(bounds)-1 for bounds in binbounds)
+    iter_hist_shape = tuple(len(bounds) - 1 for bounds in binbounds)
     iter_hist = np.zeros(iter_hist_shape, dtype=np.float64)
 
     dset = dsspec.get_iter_data(n_iter)
     npts = dset.shape[1]
     weights = wt_dsspec.get_iter_data(n_iter)
 
-    dset = dset[:,initpoint:,:]
-    for ipt in range(npts-initpoint):
-        histnd(dset[:,ipt,:], binbounds, weights, out=iter_hist, binbound_check = False, ignore_out_of_range=ignore_out_of_range)
+    dset = dset[:, initpoint:, :]
+    for ipt in range(npts - initpoint):
+        histnd(dset[:, ipt, :], binbounds, weights, out=iter_hist, binbound_check=False, ignore_out_of_range=ignore_out_of_range)
 
     del weights, dset
 
     # normalize histogram
-    normhistnd(iter_hist,binbounds)
+    normhistnd(iter_hist, binbounds)
     return iiter, n_iter, iter_hist
 
 
 class WPDist(WESTParallelTool):
-    prog='w_pdist'
+    prog = 'w_pdist'
     description = '''\
 Calculate time-resolved, multi-dimensional probability distributions of WE
 datasets.
@@ -197,9 +197,8 @@ Command-line options
         self.output_filename = None
         self.output_file = None
 
-
         self.dsspec = None
-        self.wt_dsspec = None # dsspec for weights
+        self.wt_dsspec = None  # dsspec for weights
 
         # These are used during histogram generation only
         self.iter_start = None
@@ -209,46 +208,63 @@ Command-line options
         self.dset_dtype = None
         self.binbounds = None  # bin boundaries for each dimension
         self.midpoints = None  # bin midpoints for each dimension
-        self.data_range = None # data range for each dimension, as the pairs (min,max)
+        self.data_range = None  # data range for each dimension, as the pairs (min,max)
         self.ignore_out_of_range = False
         self.compress_output = False
-
 
     def add_args(self, parser):
         self.data_reader.add_args(parser)
 
         self.iter_range.add_args(parser)
 
-        parser.add_argument('-b', '--bins', dest='bins', metavar='BINEXPR', default='100',
-                            help='''Use BINEXPR for bins. This may be an integer, which will be used for each
+        parser.add_argument(
+            '-b',
+            '--bins',
+            dest='bins',
+            metavar='BINEXPR',
+            default='100',
+            help='''Use BINEXPR for bins. This may be an integer, which will be used for each
                             dimension of the progress coordinate; a list of integers (formatted as [n1,n2,...])
                             which will use n1 bins for the first dimension, n2 for the second dimension, and so on;
                             or a list of lists of boundaries (formatted as [[a1, a2, ...], [b1, b2, ...], ... ]), which
                             will use [a1, a2, ...] as bin boundaries for the first dimension, [b1, b2, ...] as bin boundaries
-                            for the second dimension, and so on. (Default: 100 bins in each dimension.)''')
+                            for the second dimension, and so on. (Default: 100 bins in each dimension.)''',
+        )
 
-        parser.add_argument('-o', '--output', dest='output', default='pdist.h5',
-                            help='''Store results in OUTPUT (default: %(default)s).''')
-        parser.add_argument('-C', '--compress', action='store_true',
-                            help='''Compress histograms. May make storage of higher-dimensional histograms
+        parser.add_argument(
+            '-o', '--output', dest='output', default='pdist.h5', help='''Store results in OUTPUT (default: %(default)s).'''
+        )
+        parser.add_argument(
+            '-C',
+            '--compress',
+            action='store_true',
+            help='''Compress histograms. May make storage of higher-dimensional histograms
                             more tractable, at the (possible extreme) expense of increased analysis time.
-                            (Default: no compression.)''')
+                            (Default: no compression.)''',
+        )
 
-        parser.add_argument('--loose', dest='ignore_out_of_range', action='store_true',
-                            help='''Ignore values that do not fall within bins. (Risky, as this can make buggy bin
+        parser.add_argument(
+            '--loose',
+            dest='ignore_out_of_range',
+            action='store_true',
+            help='''Ignore values that do not fall within bins. (Risky, as this can make buggy bin
                             boundaries appear as reasonable data. Only use if you are
-                            sure of your bin boundary specification.)''')
+                            sure of your bin boundary specification.)''',
+        )
 
         igroup = parser.add_argument_group('input dataset options').add_mutually_exclusive_group(required=False)
 
-        igroup.add_argument('--construct-dataset',
-                            help='''Use the given function (as in module.function) to extract source data.
+        igroup.add_argument(
+            '--construct-dataset',
+            help='''Use the given function (as in module.function) to extract source data.
                             This function will be called once per iteration as function(n_iter, iter_group)
                             to construct data for one iteration. Data returned must be indexable as
-                            [seg_id][timepoint][dimension]''')
+                            [seg_id][timepoint][dimension]''',
+        )
 
-        igroup.add_argument('--dsspecs', nargs='+', metavar='DSSPEC',
-                            help='''Construct probability distribution from one or more DSSPECs.''')
+        igroup.add_argument(
+            '--dsspecs', nargs='+', metavar='DSSPEC', help='''Construct probability distribution from one or more DSSPECs.'''
+        )
 
         self.progress.add_args(parser)
 
@@ -271,7 +287,6 @@ Command-line options
         self.output_filename = args.output
         self.ignore_out_of_range = bool(args.ignore_out_of_range)
         self.compress_output = args.compress or False
-
 
     def go(self):
         self.data_reader.open('r')
@@ -302,19 +317,16 @@ Command-line options
 
     @staticmethod
     def parse_binspec(binspec):
-        namespace = {'numpy': np,
-                     'np': np,
-                     'inf': float('inf')}
+        namespace = {'numpy': np, 'np': np, 'inf': float('inf')}
 
         try:
-            binspec_compiled = eval(binspec,namespace)
+            binspec_compiled = eval(binspec, namespace)
         except Exception as e:
             raise ValueError('invalid bin specification: {!r}'.format(e))
         else:
             if log.isEnabledFor(logging.DEBUG):
                 log.debug('bin specs: {!r}'.format(binspec_compiled))
         return binspec_compiled
-
 
     def construct_bins(self, bins):
         '''
@@ -345,14 +357,12 @@ Command-line options
             self.ndim = dset.shape[2]
             self.dset_dtype = dset.dtype
 
-
     def scan_data_range(self):
         '''Scan input data for range in each dimension. The number of dimensions is determined
         from the shape of the progress coordinate as of self.iter_start.'''
 
-        self.progress.indicator.new_operation('Scanning for data range', self.iter_stop-self.iter_start)
+        self.progress.indicator.new_operation('Scanning for data range', self.iter_stop - self.iter_start)
         self.scan_data_shape()
-
 
         dset_dtype = self.dset_dtype
         ndim = self.ndim
@@ -365,17 +375,18 @@ Command-line options
             minval = np.iinfo(dset_dtype).min
             maxval = np.iinfo(dset_dtype).max
 
-        data_range = self.data_range = [(maxval,minval) for _i in range(self.ndim)]
+        data_range = self.data_range = [(maxval, minval) for _i in range(self.ndim)]
 
-        #futures = []
-        #for n_iter in xrange(self.iter_start, self.iter_stop):
-            #_remote_min_max(ndim, dset_dtype, n_iter, dsspec)
+        # futures = []
+        # for n_iter in xrange(self.iter_start, self.iter_stop):
+        # _remote_min_max(ndim, dset_dtype, n_iter, dsspec)
         #    futures.append(self.work_manager.submit(_remote_min_max, args=(ndim, dset_dtype, n_iter, dsspec)))
 
-        #for future in self.work_manager.as_completed(futures):
-        for future in self.work_manager.submit_as_completed(((_remote_min_max, (ndim, dset_dtype, n_iter, dsspec), {})
-                                                             for n_iter in range(self.iter_start, self.iter_stop)),
-                                                            self.max_queue_len):
+        # for future in self.work_manager.as_completed(futures):
+        for future in self.work_manager.submit_as_completed(
+            ((_remote_min_max, (ndim, dset_dtype, n_iter, dsspec), {}) for n_iter in range(self.iter_start, self.iter_stop)),
+            self.max_queue_len,
+        ):
             bounds = future.get_result(discard=True)
             for idim in range(ndim):
                 current_min, current_max = data_range[idim]
@@ -396,7 +407,7 @@ Command-line options
             # the maximum in the histogram
             ub *= 1.01
 
-            boundset = np.linspace(lb,ub,bins+1)
+            boundset = np.linspace(lb, ub, bins + 1)
             midpoints = (boundset[:-1] + boundset[1:]) / 2.0
             self.binbounds.append(boundset)
             self.midpoints.append(midpoints)
@@ -413,7 +424,7 @@ Command-line options
             # the maximum in the histogram
             ub *= 1.01
 
-            boundset = np.linspace(lb,ub,bins[idim]+1)
+            boundset = np.linspace(lb, ub, bins[idim] + 1)
             midpoints = (boundset[:-1] + boundset[1:]) / 2.0
             self.binbounds.append(boundset)
             self.midpoints.append(midpoints)
@@ -426,7 +437,7 @@ Command-line options
             if (np.diff(boundset) <= 0).any():
                 raise ValueError('boundary set {!r} is not strictly monotonically increasing'.format(boundset))
             self.binbounds.append(boundset)
-            self.midpoints.append((boundset[:-1]+boundset[1:])/2.0)
+            self.midpoints.append((boundset[:-1] + boundset[1:]) / 2.0)
 
     def construct_histogram(self):
         '''Construct a histogram using bins previously constructed with ``construct_bins()``.
@@ -436,24 +447,32 @@ Command-line options
         self.scan_data_shape()
 
         iter_count = self.iter_stop - self.iter_start
-        histograms_ds = self.output_file.create_dataset('histograms', dtype=np.float64,
-                                                        shape=((iter_count,) + tuple(len(bounds)-1 for bounds in self.binbounds)),
-                                                        compression=9 if self.compress_output else None)
+        histograms_ds = self.output_file.create_dataset(
+            'histograms',
+            dtype=np.float64,
+            shape=((iter_count,) + tuple(len(bounds) - 1 for bounds in self.binbounds)),
+            compression=9 if self.compress_output else None,
+        )
         binbounds = [np.require(boundset, self.dset_dtype, 'C') for boundset in self.binbounds]
 
-        self.progress.indicator.new_operation('Constructing histograms',self.iter_stop-self.iter_start)
-        task_gen = ((_remote_bin_iter, (iiter, n_iter, self.dsspec, self.wt_dsspec, 1 if iiter > 0 else 0, binbounds,
-                                        self.ignore_out_of_range), {})
-                    for (iiter,n_iter) in enumerate(range(self.iter_start, self.iter_stop)))
-        #futures = set()
-        #for iiter, n_iter in enumerate(xrange(self.iter_start, self.iter_stop)):
+        self.progress.indicator.new_operation('Constructing histograms', self.iter_stop - self.iter_start)
+        task_gen = (
+            (
+                _remote_bin_iter,
+                (iiter, n_iter, self.dsspec, self.wt_dsspec, 1 if iiter > 0 else 0, binbounds, self.ignore_out_of_range),
+                {},
+            )
+            for (iiter, n_iter) in enumerate(range(self.iter_start, self.iter_stop))
+        )
+        # futures = set()
+        # for iiter, n_iter in enumerate(xrange(self.iter_start, self.iter_stop)):
         #    initpoint = 1 if iiter > 0 else 0
         #    futures.add(self.work_manager.submit(_remote_bin_iter,
         #                                            args=(iiter, n_iter, self.dsspec, self.wt_dsspec, initpoint, binbounds)))
 
-        #for future in self.work_manager.as_completed(futures):
-            #future = self.work_manager.wait_any(futures)
-        #for future in self.work_manager.submit_as_completed(task_gen, self.queue_size):
+        # for future in self.work_manager.as_completed(futures):
+        # future = self.work_manager.wait_any(futures)
+        # for future in self.work_manager.submit_as_completed(task_gen, self.queue_size):
         log.debug('max queue length: {!r}'.format(self.max_queue_len))
         for future in self.work_manager.submit_as_completed(task_gen, self.max_queue_len):
             iiter, n_iter, iter_hist = future.get_result(discard=True)

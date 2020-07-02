@@ -42,6 +42,7 @@ def sum_except_along(array, axes):
 
     return array
 
+
 class PlotHistBase(WESTSubcommand):
     def __init__(self, parent):
         super().__init__(parent)
@@ -80,47 +81,77 @@ class PlotHistBase(WESTSubcommand):
     def add_args(self, parser):
         igroup = self.input_arg_group = parser.add_argument_group('input options')
         igroup.add_argument('input', help='HDF5 file containing histogram data')
-        igroup.add_argument('firstdim', nargs='?', metavar='DIMENSION',
-                            help='''Plot for the given DIMENSION, specified as INT[:[LB,UB]:LABEL], where
+        igroup.add_argument(
+            'firstdim',
+            nargs='?',
+            metavar='DIMENSION',
+            help='''Plot for the given DIMENSION, specified as INT[:[LB,UB]:LABEL], where
                             INT is a zero-based integer identifying the dimension in the histogram,
                             LB and UB are lower and upper bounds for plotting, and LABEL is the label for
-                            the plot axis. (Default: dimension 0, full range.)''')
+                            the plot axis. (Default: dimension 0, full range.)''',
+        )
 
         ogroup = self.output_arg_group = parser.add_argument_group('output options')
-        ogroup.add_argument('-o', '--output', '--plot-output', dest='plot_output', default='hist.pdf', metavar='PLOT_OUTPUT',
-                            help='''Store plot as PLOT_OUTPUT. This may be set to an empty string
+        ogroup.add_argument(
+            '-o',
+            '--output',
+            '--plot-output',
+            dest='plot_output',
+            default='hist.pdf',
+            metavar='PLOT_OUTPUT',
+            help='''Store plot as PLOT_OUTPUT. This may be set to an empty string
                             (e.g. --plot-output='') to suppress plotting entirely. The output
                             format is determined by filename extension (and thus defaults to PDF).
-                            Default: "%(default)s".''')
-        ogroup.add_argument('--hdf5-output',
-                            help='''Store plot data in the HDF5 file HDF5_OUTPUT.''')
-        ogroup.add_argument('--plot-contour', dest='plot_contour', action='store_const', const=True, default=False,
-                            help='''Determines whether or not to superimpose a contour plot over the heatmap for 2D objects.''')
-
+                            Default: "%(default)s".''',
+        )
+        ogroup.add_argument('--hdf5-output', help='''Store plot data in the HDF5 file HDF5_OUTPUT.''')
+        ogroup.add_argument(
+            '--plot-contour',
+            dest='plot_contour',
+            action='store_const',
+            const=True,
+            default=False,
+            help='''Determines whether or not to superimpose a contour plot over the heatmap for 2D objects.''',
+        )
 
         pgroup = parser.add_argument_group('plot options')
         pmgroup = pgroup.add_mutually_exclusive_group()
-        pgroup.add_argument('--title', dest='title',
-                             help='Include TITLE as the top-of-graph title')
-        pmgroup.add_argument('--linear', dest='plotscale', action='store_const', const='linear',
-                             help='Plot the histogram on a linear scale.')
-        pmgroup.add_argument('--energy', dest='plotscale', action='store_const', const='energy',
-                             help='Plot the histogram on an inverted natural log scale, corresponding to (free) energy (default).')
-        pmgroup.add_argument('--zero-energy', dest='enerzero', metavar='E', default='min',
-                             help='Set the zero of energy to E, which may be a scalar, "min" or "max"')
-        pmgroup.add_argument('--log10', dest='plotscale', action='store_const', const='log10',
-                             help='Plot the histogram on a base-10 log scale.')
-        pgroup.add_argument('--range',
-                            help='''Plot histogram ordinates over the given RANGE, specified as "LB,UB",
+        pgroup.add_argument('--title', dest='title', help='Include TITLE as the top-of-graph title')
+        pmgroup.add_argument(
+            '--linear', dest='plotscale', action='store_const', const='linear', help='Plot the histogram on a linear scale.'
+        )
+        pmgroup.add_argument(
+            '--energy',
+            dest='plotscale',
+            action='store_const',
+            const='energy',
+            help='Plot the histogram on an inverted natural log scale, corresponding to (free) energy (default).',
+        )
+        pmgroup.add_argument(
+            '--zero-energy',
+            dest='enerzero',
+            metavar='E',
+            default='min',
+            help='Set the zero of energy to E, which may be a scalar, "min" or "max"',
+        )
+        pmgroup.add_argument(
+            '--log10', dest='plotscale', action='store_const', const='log10', help='Plot the histogram on a base-10 log scale.'
+        )
+        pgroup.add_argument(
+            '--range',
+            help='''Plot histogram ordinates over the given RANGE, specified as "LB,UB",
                             where LB and UB are the lower and upper bounds, respectively. For 1-D plots,
                             this is the Y axis. For 2-D plots, this is the colorbar axis.
-                            (Default: full range.)''')
-        pgroup.add_argument('--postprocess-function',
-                                help='''Names a function (as in module.function) that will be called just prior
+                            (Default: full range.)''',
+        )
+        pgroup.add_argument(
+            '--postprocess-function',
+            help='''Names a function (as in module.function) that will be called just prior
                                 to saving the plot. The function will be called as ``postprocess(hist, midpoints, binbounds)``
                                 where ``hist`` is the histogram that was plotted, ``midpoints`` is the bin midpoints for
                                 each dimension, and ``binbounds`` is the bin boundaries for each dimension for 2-D plots,
-                                or None otherwise. The plot must be modified in place using the pyplot stateful interface.''')
+                                or None otherwise. The plot must be modified in place using the pyplot stateful interface.''',
+        )
 
         parser.set_defaults(plotscale='energy')
 
@@ -141,7 +172,7 @@ class PlotHistBase(WESTSubcommand):
             self.dimensions.append(self.parse_dimspec(args.firstdim))
 
         if not args.firstdim:
-            self.dimensions.append({'idim': 0, 'label':'dimension 0'})
+            self.dimensions.append({'idim': 0, 'label': 'dimension 0'})
 
         if args.enerzero:
             lenerzero = args.enerzero.lower()
@@ -160,13 +191,13 @@ class PlotHistBase(WESTSubcommand):
             self.avail_iter_step = h5io.get_iter_step(self.input_h5['histograms'])
         except KeyError:
             self.avail_iter_step = 1
-        log.info('HDF5 file {!r} contains data for iterations {} -- {} with a step of {}'.format(args.input,
-                                                                                                 self.avail_iter_start,
-                                                                                                 self.avail_iter_stop,
-                                                                                                 self.avail_iter_step))
+        log.info(
+            'HDF5 file {!r} contains data for iterations {} -- {} with a step of {}'.format(
+                args.input, self.avail_iter_start, self.avail_iter_stop, self.avail_iter_step
+            )
+        )
         if args.postprocess_function:
-            self.postprocess_function = get_object(args.postprocess_function,path=['.'])
-
+            self.postprocess_function = get_object(args.postprocess_function, path=['.'])
 
     def parse_dimspec(self, dimspec):
         dimdata = {}
@@ -191,9 +222,9 @@ class PlotHistBase(WESTSubcommand):
 
     def parse_range(self, rangespec):
         try:
-            (lbt,ubt) = rangespec.split(',')
+            (lbt, ubt) = rangespec.split(',')
             return float(lbt), float(ubt)
-        except (ValueError,TypeError) as e:
+        except (ValueError, TypeError) as e:
             raise ValueError('invalid range specification {!r}: {!r}'.format(rangespec, e))
 
     def _ener_zero(self, hist):
@@ -211,21 +242,24 @@ class PlotSupports2D(PlotHistBase):
     def __init__(self, parent):
         super().__init__(parent)
 
-
     def add_args(self, parser):
-        self.input_arg_group.add_argument('seconddim', nargs='?', metavar='ADDTLDIM',
-                                          help='''For instantaneous/average plots, plot along the given additional
-                                          dimension, producing a color map.''')
-        self.output_arg_group.add_argument('--text-output',
-                                           help='''Store plot data in a text format at TEXT_OUTPUT. This option is
-                                           only valid for 1-D histograms. (Default: no text output.)''')
+        self.input_arg_group.add_argument(
+            'seconddim',
+            nargs='?',
+            metavar='ADDTLDIM',
+            help='''For instantaneous/average plots, plot along the given additional
+                                          dimension, producing a color map.''',
+        )
+        self.output_arg_group.add_argument(
+            '--text-output',
+            help='''Store plot data in a text format at TEXT_OUTPUT. This option is
+                                           only valid for 1-D histograms. (Default: no text output.)''',
+        )
 
     def process_args(self, args):
         self.text_output_filename = args.text_output
         if args.seconddim is not None:
             self.dimensions.append(self.parse_dimspec(args.seconddim))
-
-
 
     def _do_1d_output(self, hist, idim, midpoints):
         enehist = self._ener_zero(hist)
@@ -241,17 +275,17 @@ class PlotSupports2D(PlotHistBase):
 
         if self.text_output_filename:
             with textio.NumericTextOutputFormatter(self.text_output_filename) as output_file:
-                output_file.write_header('source data: {} dimension {}'.format(os.path.abspath(self.input_h5.filename),idim))
+                output_file.write_header('source data: {} dimension {}'.format(os.path.abspath(self.input_h5.filename), idim))
                 output_file.write_header('column 0: midpoint of bin')
                 output_file.write_header('column 1: probability in bin')
                 output_file.write_header('column 2: -ln P')
                 output_file.write_header('column 3: log10 P')
-                np.savetxt(output_file, np.column_stack([midpoints,hist, enehist, log10hist]))
+                np.savetxt(output_file, np.column_stack([midpoints, hist, enehist, log10hist]))
 
         if self.plot_output_filename:
             if self.plotscale == 'energy':
                 plothist = enehist
-                label = r'$\Delta F(x)\,/\,kT$' +'\n' + r'$\left[-\ln\,P(x)\right]$'
+                label = r'$\Delta F(x)\,/\,kT$' + '\n' + r'$\left[-\ln\,P(x)\right]$'
             elif self.plotscale == 'log10':
                 plothist = log10hist
                 label = r'$\log_{10}\ P(x)$'
@@ -285,11 +319,10 @@ class PlotSupports2D(PlotHistBase):
                     output_h5['midpoints_{}'.format(idim)] = midpoints[idim]
                 output_h5['histogram'] = hist
 
-
         if self.plot_output_filename:
             if self.plotscale == 'energy':
                 plothist = enehist
-                label = r'$\Delta F(\vec{x})\,/\,kT$' +'\n' + r'$\left[-\ln\,P(x)\right]$'
+                label = r'$\Delta F(\vec{x})\,/\,kT$' + '\n' + r'$\left[-\ln\,P(x)\right]$'
             elif self.plotscale == 'log10':
                 plothist = log10hist
                 label = r'$\log_{10}\ P(\vec{x})$'
@@ -305,15 +338,16 @@ class PlotSupports2D(PlotHistBase):
 
             pyplot.figure()
             # Transpose input so that axis 0 is displayed as x and axis 1 is displayed as y
-#            pyplot.imshow(plothist.T, interpolation='nearest', aspect='auto',
-#                          extent=(midpoints[0][0], midpoints[0][-1], midpoints[1][0], midpoints[1][-1]),
-#                          origin='lower', vmin=vmin, vmax=vmax)
+            #            pyplot.imshow(plothist.T, interpolation='nearest', aspect='auto',
+            #                          extent=(midpoints[0][0], midpoints[0][-1], midpoints[1][0], midpoints[1][-1]),
+            #                          origin='lower', vmin=vmin, vmax=vmax)
 
             # The following reproduces the former calls to imshow and colorbar
             norm = matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
             ax = pyplot.gca()
-            nui = NonUniformImage(ax, extent=(midpoints[0][0], midpoints[0][-1], midpoints[1][0], midpoints[1][-1]),
-                                  origin='lower', norm=norm)
+            nui = NonUniformImage(
+                ax, extent=(midpoints[0][0], midpoints[0][-1], midpoints[1][0], midpoints[1][-1]), origin='lower', norm=norm
+            )
             nui.set_data(midpoints[0], midpoints[1], plothist.T)
             ax.images.append(nui)
             ax.set_xlim(midpoints[0][0], midpoints[0][-1])
@@ -330,12 +364,12 @@ class PlotSupports2D(PlotHistBase):
             if self.postprocess_function:
                 self.postprocess_function(plothist, midpoints, binbounds)
             if self.plot_contour:
-                pyplot.contour(midpoints[0], midpoints[1],plothist.T)
+                pyplot.contour(midpoints[0], midpoints[1], plothist.T)
             pyplot.savefig(self.plot_output_filename)
 
 
 class InstantPlotHist(PlotSupports2D):
-    subcommand='instant'
+    subcommand = 'instant'
     help_text = 'plot probability distribution for a single WE iteration'
     description = '''\
 Plot a probability distribution for a single WE iteration. The probability
@@ -343,13 +377,20 @@ distribution must have been previously extracted with ``w_pdist`` (or, at
 least, must be compatible with the output format of ``w_pdist``; see
 ``w_pdist --help`` for more information).
 '''
+
     def add_args(self, parser):
-        self.input_arg_group.add_argument('--iter', metavar='N_ITER', dest='n_iter', type=int,
-                                          help='''Plot distribution for iteration N_ITER
-                                          (default: last completed iteration).''')
+        self.input_arg_group.add_argument(
+            '--iter',
+            metavar='N_ITER',
+            dest='n_iter',
+            type=int,
+            help='''Plot distribution for iteration N_ITER
+                                          (default: last completed iteration).''',
+        )
+
     def process_args(self, args):
         if args.n_iter:
-            self.n_iter = min(args.n_iter, self.avail_iter_stop-1)
+            self.n_iter = min(args.n_iter, self.avail_iter_stop - 1)
         else:
             self.n_iter = self.avail_iter_stop - 1
 
@@ -384,10 +425,9 @@ least, must be compatible with the output format of ``w_pdist``; see
         hist = self.input_h5['histograms'][iiter]
 
         # Average over other dimensions
-        hist = sum_except_along(hist, [idim0,idim1])
-        normhistnd(hist, [binbounds_0,binbounds_1])
-        self._do_2d_output(hist, [idim0,idim1], [midpoints_0,midpoints_1], [binbounds_0,binbounds_1])
-
+        hist = sum_except_along(hist, [idim0, idim1])
+        normhistnd(hist, [binbounds_0, binbounds_1])
+        self._do_2d_output(hist, [idim0, idim1], [midpoints_0, midpoints_1], [binbounds_0, binbounds_1])
 
     def go(self):
         if len(self.dimensions) == 2:
@@ -397,7 +437,7 @@ least, must be compatible with the output format of ``w_pdist``; see
 
 
 class AveragePlotHist(PlotSupports2D):
-    subcommand='average'
+    subcommand = 'average'
     help_text = 'plot average of a probability distribution over a WE simulation'
     description = '''\
 Plot a probability distribution averaged over multiple iterations. The
@@ -405,12 +445,24 @@ probability distribution must have been previously extracted with ``w_pdist``
 (or, at least, must be compatible with the output format of ``w_pdist``; see
 ``w_pdist --help`` for more information).
 '''
+
     def add_args(self, parser):
         igroup = self.input_arg_group
-        igroup.add_argument('--first-iter', dest='first_iter', type=int, metavar='N_ITER', default=1,
-                            help='''Begin averaging at iteration N_ITER (default: %(default)d).''')
-        igroup.add_argument('--last-iter', dest='last_iter', type=int, metavar='N_ITER',
-                            help='''Conclude averaging with N_ITER, inclusive (default: last completed iteration).''')
+        igroup.add_argument(
+            '--first-iter',
+            dest='first_iter',
+            type=int,
+            metavar='N_ITER',
+            default=1,
+            help='''Begin averaging at iteration N_ITER (default: %(default)d).''',
+        )
+        igroup.add_argument(
+            '--last-iter',
+            dest='last_iter',
+            type=int,
+            metavar='N_ITER',
+            help='''Conclude averaging with N_ITER, inclusive (default: last completed iteration).''',
+        )
 
     def process_args(self, args):
         if args.first_iter:
@@ -419,10 +471,9 @@ probability distribution must have been previously extracted with ``w_pdist``
             self.iter_start = self.avail_iter_start
 
         if args.last_iter:
-            self.iter_stop = min(args.last_iter+1, self.avail_iter_stop)
+            self.iter_stop = min(args.last_iter + 1, self.avail_iter_stop)
         else:
-                self.iter_stop = self.avail_iter_stop
-
+            self.iter_stop = self.avail_iter_stop
 
     def do_average_plot_1d(self):
         '''Plot the average histogram for iterations self.iter_start to self.iter_stop'''
@@ -430,10 +481,10 @@ probability distribution must have been previously extracted with ``w_pdist``
         idim = self.dimensions[0]['idim']
         n_iters = self.input_h5['n_iter'][...]
         iiter_start = np.searchsorted(n_iters, self.iter_start)
-        iiter_stop  = np.searchsorted(n_iters, self.iter_stop)
+        iiter_stop = np.searchsorted(n_iters, self.iter_stop)
         binbounds = self.input_h5['binbounds_{}'.format(idim)][...]
         midpoints = self.input_h5['midpoints_{}'.format(idim)][...]
-        #hist = self.input_h5['histograms'][iiter_start:iiter_stop]
+        # hist = self.input_h5['histograms'][iiter_start:iiter_stop]
 
         for iiter in range(iiter_start, iiter_stop):
             iter_hist = sum_except_along(self.input_h5['histograms'][iiter], idim)
@@ -446,7 +497,6 @@ probability distribution must have been previously extracted with ``w_pdist``
         normhistnd(hist, [binbounds])
         self._do_1d_output(hist, idim, midpoints)
 
-
     def do_average_plot_2d(self):
         '''Plot the histogram for iteration self.n_iter'''
 
@@ -455,22 +505,22 @@ probability distribution must have been previously extracted with ``w_pdist``
 
         n_iters = self.input_h5['n_iter'][...]
         iiter_start = np.searchsorted(n_iters, self.iter_start)
-        iiter_stop  = np.searchsorted(n_iters, self.iter_stop)
+        iiter_stop = np.searchsorted(n_iters, self.iter_stop)
 
         binbounds_0 = self.input_h5['binbounds_{}'.format(idim0)][...]
         midpoints_0 = self.input_h5['midpoints_{}'.format(idim0)][...]
         binbounds_1 = self.input_h5['binbounds_{}'.format(idim1)][...]
         midpoints_1 = self.input_h5['midpoints_{}'.format(idim1)][...]
 
-        for iiter in range(iiter_start,iiter_stop):
-            iter_hist = sum_except_along(self.input_h5['histograms'][iiter], [idim0,idim1])
+        for iiter in range(iiter_start, iiter_stop):
+            iter_hist = sum_except_along(self.input_h5['histograms'][iiter], [idim0, idim1])
             if iiter == iiter_start:
                 hist = iter_hist
             else:
                 hist += iter_hist
 
-        normhistnd(hist, [binbounds_0,binbounds_1])
-        self._do_2d_output(hist, [idim0,idim1], [midpoints_0, midpoints_1], [binbounds_0,binbounds_1])
+        normhistnd(hist, [binbounds_0, binbounds_1])
+        self._do_2d_output(hist, [idim0, idim1], [midpoints_0, midpoints_1], [binbounds_0, binbounds_1])
 
     def go(self):
         if len(self.dimensions) == 2:
@@ -488,14 +538,27 @@ probability distribution must have been previously extracted with ``w_pdist``
 (or, at least, must be compatible with the output format of ``w_pdist``; see
 ``w_pdist --help`` for more information).
 '''
+
     def add_args(self, parser):
         igroup = self.input_arg_group
-        igroup.add_argument('--first-iter', dest='first_iter', type=int, metavar='N_ITER', default=1,
-                            help='''Begin analysis at iteration N_ITER (default: %(default)d).''')
-        igroup.add_argument('--last-iter', dest='last_iter', type=int, metavar='N_ITER',
-                            help='''Conclude analysis with N_ITER, inclusive (default: last completed iteration).''')
-        igroup.add_argument('--step-iter', dest='step_iter', type=int, metavar='STEP',
-                            help='''Average in blocks of STEP iterations.''')
+        igroup.add_argument(
+            '--first-iter',
+            dest='first_iter',
+            type=int,
+            metavar='N_ITER',
+            default=1,
+            help='''Begin analysis at iteration N_ITER (default: %(default)d).''',
+        )
+        igroup.add_argument(
+            '--last-iter',
+            dest='last_iter',
+            type=int,
+            metavar='N_ITER',
+            help='''Conclude analysis with N_ITER, inclusive (default: last completed iteration).''',
+        )
+        igroup.add_argument(
+            '--step-iter', dest='step_iter', type=int, metavar='STEP', help='''Average in blocks of STEP iterations.'''
+        )
 
     def process_args(self, args):
         if args.first_iter:
@@ -504,7 +567,7 @@ probability distribution must have been previously extracted with ``w_pdist``
             self.iter_start = self.avail_iter_start
 
         if args.last_iter:
-            self.iter_stop = min(args.last_iter+1, self.avail_iter_stop)
+            self.iter_stop = min(args.last_iter + 1, self.avail_iter_stop)
         else:
             self.iter_stop = self.avail_iter_stop
 
@@ -520,7 +583,7 @@ probability distribution must have been previously extracted with ``w_pdist``
         idim = self.dimensions[0]['idim']
         n_iters = self.input_h5['n_iter'][...]
         iiter_start = np.searchsorted(n_iters, self.iter_start)
-        iiter_stop  = np.searchsorted(n_iters, self.iter_stop)
+        iiter_stop = np.searchsorted(n_iters, self.iter_stop)
         binbounds = self.input_h5['binbounds_{}'.format(idim)][...]
         midpoints = self.input_h5['midpoints_{}'.format(idim)][...]
         hists_ds = self.input_h5['histograms']
@@ -530,13 +593,12 @@ probability distribution must have been previously extracted with ``w_pdist``
         # We always round down, so that we don't have a dangling partial block at the end
         nblocks = itercount // self.iter_step
 
-        block_iters = np.empty((nblocks,2), dtype=n_iters.dtype)
-        blocked_hists = np.zeros((nblocks,hists_ds.shape[1+idim]), dtype=hists_ds.dtype)
+        block_iters = np.empty((nblocks, 2), dtype=n_iters.dtype)
+        blocked_hists = np.zeros((nblocks, hists_ds.shape[1 + idim]), dtype=hists_ds.dtype)
 
-        for iblock, istart in enumerate(range(iiter_start, iiter_start+nblocks*self.iter_step, self.iter_step)):
-            istop = min(istart+self.iter_step, iiter_stop)
+        for iblock, istart in enumerate(range(iiter_start, iiter_start + nblocks * self.iter_step, self.iter_step)):
+            istop = min(istart + self.iter_step, iiter_stop)
             histslice = hists_ds[istart:istop]
-
 
             # Sum over time
             histslice = np.add.reduce(histslice, axis=0)
@@ -547,13 +609,12 @@ probability distribution must have been previously extracted with ``w_pdist``
             # Normalize
             normhistnd(blocked_hists[iblock], [binbounds])
 
-            block_iters[iblock,0] = n_iters[istart]
-            block_iters[iblock,1] = n_iters[istop-1]+1
+            block_iters[iblock, 0] = n_iters[istart]
+            block_iters[iblock, 1] = n_iters[istop - 1] + 1
 
-        #enehists = -np.log(blocked_hists)
+        # enehists = -np.log(blocked_hists)
         enehists = self._ener_zero(blocked_hists)
         log10hists = np.log10(blocked_hists)
-
 
         if self.hdf5_output_filename:
             with h5py.File(self.hdf5_output_filename, 'w') as output_h5:
@@ -567,7 +628,7 @@ probability distribution must have been previously extracted with ``w_pdist``
         if self.plot_output_filename:
             if self.plotscale == 'energy':
                 plothist = enehists
-                label = r'$\Delta F(x)\,/\,kT$' +'\n' + r'$\left[-\ln\,P(x)\right]$'
+                label = r'$\Delta F(x)\,/\,kT$' + '\n' + r'$\left[-\ln\,P(x)\right]$'
             elif self.plotscale == 'log10':
                 plothist = log10hists
                 label = r'$\log_{10}\ P(x)$'
@@ -583,15 +644,16 @@ probability distribution must have been previously extracted with ``w_pdist``
             pyplot.figure()
             norm = matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
             ax = pyplot.gca()
-            nui = NonUniformImage(ax, extent=(midpoints[0], midpoints[-1], block_iters[0,-1], block_iters[-1,-1]),
-                                  origin='lower', norm=norm)
+            nui = NonUniformImage(
+                ax, extent=(midpoints[0], midpoints[-1], block_iters[0, -1], block_iters[-1, -1]), origin='lower', norm=norm
+            )
 
             # not sure why plothist works but plothist.T doesn't, and the opposite is true
             # for _do_2d_output
-            nui.set_data(midpoints, block_iters[:,-1], plothist)
+            nui.set_data(midpoints, block_iters[:, -1], plothist)
             ax.images.append(nui)
             ax.set_xlim(midpoints[0], midpoints[-1])
-            ax.set_ylim(block_iters[0,-1], block_iters[-1,-1])
+            ax.set_ylim(block_iters[0, -1], block_iters[-1, -1])
             cb = pyplot.colorbar(nui)
             cb.set_label(label)
             pyplot.xlabel(self.dimensions[0]['label'])
@@ -605,9 +667,9 @@ probability distribution must have been previously extracted with ``w_pdist``
 
 
 class PlotHistTool(WESTMasterCommand):
-    prog='plothist'
+    prog = 'plothist'
     subparsers_title = 'plotting modes'
-    subcommands = [InstantPlotHist,AveragePlotHist,EvolutionPlotHist]
+    subcommands = [InstantPlotHist, AveragePlotHist, EvolutionPlotHist]
     description = '''\
 Plot probability density functions (histograms) generated by w_pdist or other
 programs conforming to the same output format. This program operates in one of

@@ -1,4 +1,4 @@
-from . import accumulator
-from .accumulator import RunningStatsAccumulator
+from . import accumulator  # noqa
+from .accumulator import RunningStatsAccumulator  # noqa
 
-from . import mcbs
+from . import mcbs  # noqa

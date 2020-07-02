@@ -49,8 +49,10 @@ class Test_W_Trace_Args(unittest.TestCase, CommonToolTest):
 
             traj_group = f['trajectories']
 
-            #Expected trace groups - successive runs of w_trace with different traces should add
+            # Expected trace groups - successive runs of w_trace with different traces should add
             # newly traced groups to output hdf5 file
-            expected_groups = sorted([self.w.output_pattern % (n_iter,seg_id) for n_iter, seg_id in self.endpoints])
+            expected_groups = sorted([self.w.output_pattern % (n_iter, seg_id) for n_iter, seg_id in self.endpoints])
 
-            assert list(traj_group.keys()) == expected_groups, "H5 groups ({}) are not as expected ({})".format(list(traj_group.keys()), expected_groups)
+            assert list(traj_group.keys()) == expected_groups, "H5 groups ({}) are not as expected ({})".format(
+                list(traj_group.keys()), expected_groups
+            )

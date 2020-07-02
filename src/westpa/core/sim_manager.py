@@ -11,9 +11,9 @@ import time
 import numpy as np
 
 import westpa
-from . data_manager import weight_dtype
-from . segment import Segment
-from . states import InitialState
+from .data_manager import weight_dtype
+from .segment import Segment
+from .states import InitialState
 from . import extloader
 from . import wm_ops
 
@@ -29,15 +29,15 @@ def grouper(n, iterable, fillvalue=None):
     args = [iter(iterable)] * n
     return zip_longest(fillvalue=fillvalue, *args)
 
+
 class PropagationError(RuntimeError):
     pass
+
 
 class WESimManager:
     def process_config(self):
         config = self.rc.config
-        for (entry, type_) in [('gen_istates', bool),
-                               ('block_size', int),
-                               ('save_transition_matrices', bool)]:
+        for (entry, type_) in [('gen_istates', bool), ('block_size', int), ('save_transition_matrices', bool)]:
             config.require_type_if_present(['west', 'propagation', entry], type_)
 
         self.do_gen_istates = config.get(['west', 'propagation', 'gen_istates'], False)
@@ -45,7 +45,6 @@ class WESimManager:
         self.save_transition_matrices = config.get(['west', 'propagation', 'save_transition_matrices'], False)
         self.max_run_walltime = config.get(['west', 'propagation', 'max_run_wallclock'], default=None)
         self.max_total_iterations = config.get(['west', 'propagation', 'max_total_iterations'], default=None)
-
 
     def __init__(self, rc=None):
         self.rc = rc or westpa.rc
@@ -56,10 +55,19 @@ class WESimManager:
 
         # A table of function -> list of (priority, name, callback) tuples
         self._callback_table = {}
-        self._valid_callbacks = set((self.prepare_run, self.finalize_run,
-                                     self.prepare_iteration, self.finalize_iteration,
-                                     self.pre_propagation, self.post_propagation,
-                                     self.pre_we, self.post_we, self.prepare_new_iteration))
+        self._valid_callbacks = set(
+            (
+                self.prepare_run,
+                self.finalize_run,
+                self.prepare_iteration,
+                self.finalize_iteration,
+                self.pre_propagation,
+                self.post_propagation,
+                self.pre_we,
+                self.post_we,
+                self.prepare_new_iteration,
+            )
+        )
         self._callbacks_by_name = {fn.__name__: fn for fn in self._valid_callbacks}
         self.n_propagated = 0
 
@@ -72,29 +80,28 @@ class WESimManager:
         self.process_config()
 
         # Per-iteration variables
-        self.n_iter = None                  # current iteration
+        self.n_iter = None  # current iteration
 
         # Basis and initial states for this iteration, in case the propagator needs them
-        self.current_iter_bstates = None       # BasisStates valid at this iteration
-        self.current_iter_istates = None       # InitialStates used in this iteration
+        self.current_iter_bstates = None  # BasisStates valid at this iteration
+        self.current_iter_istates = None  # InitialStates used in this iteration
 
         # Basis states for next iteration
-        self.next_iter_bstates = None          # BasisStates valid for the next iteration
-        self.next_iter_bstate_cprobs = None    # Cumulative probabilities for basis states, used for selection
+        self.next_iter_bstates = None  # BasisStates valid for the next iteration
+        self.next_iter_bstate_cprobs = None  # Cumulative probabilities for basis states, used for selection
 
         # Initial states for next iteration
-        #self.next_iter_istates = None
-        #self.next_iter_avail_istates = None    # InitialStates available for use next iteration
-        #self.next_iter_assigned_istates = None # InitialStates that were available or generated in this iteration but then used
+        # self.next_iter_istates = None
+        # self.next_iter_avail_istates = None    # InitialStates available for use next iteration
+        # self.next_iter_assigned_istates = None # InitialStates that were available or generated in this iteration but then used
 
         # Tracking of this iteration's segments
-        self.segments = None                # Mapping of seg_id to segment for all segments in this iteration
-        self.completed_segments = None      # Mapping of seg_id to segment for all completed segments in this iteration
-        self.incomplete_segments = None     # Mapping of seg_id to segment for all incomplete segments in this iteration
+        self.segments = None  # Mapping of seg_id to segment for all segments in this iteration
+        self.completed_segments = None  # Mapping of seg_id to segment for all completed segments in this iteration
+        self.incomplete_segments = None  # Mapping of seg_id to segment for all incomplete segments in this iteration
 
         # Tracking of binning
-        self.bin_mapper_hash = None         # Hash of bin mapper from most recently-run WE, for use by post-WE analysis plugins
-
+        self.bin_mapper_hash = None  # Hash of bin mapper from most recently-run WE, for use by post-WE analysis plugins
 
     def register_callback(self, hook, function, priority=0):
         '''Registers a callback to execute during the given ``hook`` into the simulation loop. The optional
@@ -107,9 +114,9 @@ class WESimManager:
                 raise KeyError('invalid hook {!r}'.format(hook))
 
         try:
-            self._callback_table[hook].add((priority,function.__name__,function))
+            self._callback_table[hook].add((priority, function.__name__, function))
         except KeyError:
-            self._callback_table[hook] = set([(priority,function.__name__,function)])
+            self._callback_table[hook] = set([(priority, function.__name__, function)])
 
         log.debug('registered callback {!r} for hook {!r}'.format(function, hook))
 
@@ -117,7 +124,7 @@ class WESimManager:
         callbacks = self._callback_table.get(hook, [])
         sorted_callbacks = sorted(callbacks)
         for (priority, name, fn) in sorted_callbacks:
-            log.debug('invoking callback {!r} for hook {!r}'.format(fn,hook))
+            log.debug('invoking callback {!r} for hook {!r}'.format(fn, hook))
             fn(*args, **kwargs)
 
     def load_plugins(self):
@@ -126,7 +133,7 @@ class WESimManager:
         except KeyError:
             return
 
-        for plugin_config in (plugins_config or []):
+        for plugin_config in plugins_config or []:
             plugin_name = plugin_config['plugin']
             if plugin_config.get('enabled', True):
                 log.info('loading plugin {!r}'.format(plugin_name))
@@ -135,33 +142,33 @@ class WESimManager:
 
     def report_bin_statistics(self, bins, save_summary=False):
         segments = list(self.segments.values())
-        bin_counts = np.fromiter(map(len,bins), dtype=np.int_, count=len(bins))
+        bin_counts = np.fromiter(map(len, bins), dtype=np.int_, count=len(bins))
         target_counts = self.we_driver.bin_target_counts
 
         # Do not include bins with target count zero (e.g. sinks, never-filled bins) in the (non)empty bins statistics
-        n_active_bins = len(target_counts[target_counts!=0])
+        n_active_bins = len(target_counts[target_counts != 0])
         seg_probs = np.fromiter(map(operator.attrgetter('weight'), segments), dtype=weight_dtype, count=len(segments))
         bin_probs = np.fromiter(map(operator.attrgetter('weight'), bins), dtype=weight_dtype, count=len(bins))
         norm = seg_probs.sum()
 
-        assert abs(1 - norm) < EPS*(len(segments)+n_active_bins)
+        assert abs(1 - norm) < EPS * (len(segments) + n_active_bins)
 
-        min_seg_prob = seg_probs[seg_probs!=0].min()
+        min_seg_prob = seg_probs[seg_probs != 0].min()
         max_seg_prob = seg_probs.max()
-        seg_drange   = math.log(max_seg_prob/min_seg_prob)
-        min_bin_prob = bin_probs[bin_probs!=0].min()
+        seg_drange = math.log(max_seg_prob / min_seg_prob)
+        min_bin_prob = bin_probs[bin_probs != 0].min()
         max_bin_prob = bin_probs.max()
-        bin_drange = math.log(max_bin_prob/min_bin_prob)
-        n_pop = len(bin_counts[bin_counts!=0])
+        bin_drange = math.log(max_bin_prob / min_bin_prob)
+        n_pop = len(bin_counts[bin_counts != 0])
 
-        self.rc.pstatus('{:d} of {:d} ({:%}) active bins are populated'.format(n_pop, n_active_bins,n_pop/n_active_bins))
+        self.rc.pstatus('{:d} of {:d} ({:%}) active bins are populated'.format(n_pop, n_active_bins, n_pop / n_active_bins))
         self.rc.pstatus('per-bin minimum non-zero probability:       {:g}'.format(min_bin_prob))
         self.rc.pstatus('per-bin maximum probability:                {:g}'.format(max_bin_prob))
         self.rc.pstatus('per-bin probability dynamic range (kT):     {:g}'.format(bin_drange))
         self.rc.pstatus('per-segment minimum non-zero probability:   {:g}'.format(min_seg_prob))
         self.rc.pstatus('per-segment maximum non-zero probability:   {:g}'.format(max_seg_prob))
         self.rc.pstatus('per-segment probability dynamic range (kT): {:g}'.format(seg_drange))
-        self.rc.pstatus('norm = {:g}, error in norm = {:g} ({:.2g}*epsilon)'.format(norm,(norm-1),(norm-1)/EPS))
+        self.rc.pstatus('norm = {:g}, error in norm = {:g} ({:.2g}*epsilon)'.format(norm, (norm - 1), (norm - 1) / EPS))
         self.rc.pflush()
 
         if save_summary:
@@ -172,8 +179,10 @@ class WESimManager:
             iter_summary['max_bin_prob'] = max_bin_prob
             iter_summary['min_seg_prob'] = min_seg_prob
             iter_summary['max_seg_prob'] = max_seg_prob
-            if np.isnan(iter_summary['cputime']): iter_summary['cputime'] = 0.0
-            if np.isnan(iter_summary['walltime']): iter_summary['walltime'] = 0.0
+            if np.isnan(iter_summary['cputime']):
+                iter_summary['cputime'] = 0.0
+            if np.isnan(iter_summary['walltime']):
+                iter_summary['walltime'] = 0.0
             self.data_manager.update_iter_summary(iter_summary)
 
     def get_bstate_pcoords(self, basis_states):
@@ -181,8 +190,7 @@ class WESimManager:
         as necessary.  The HDF5 file is not updated.'''
 
         self.rc.pstatus('Calculating progress coordinate values for basis states.')
-        futures = [self.work_manager.submit(wm_ops.get_pcoord, args=(basis_state,))
-                   for basis_state in basis_states]
+        futures = [self.work_manager.submit(wm_ops.get_pcoord, args=(basis_state,)) for basis_state in basis_states]
         fmap = {future: i for (i, future) in enumerate(futures)}
         for future in self.work_manager.as_completed(futures):
             basis_states[fmap[future]].pcoord = future.get_result().pcoord
@@ -192,12 +200,21 @@ class WESimManager:
         pstatus('{:d} basis state(s) present'.format(len(basis_states)), end='')
         if self.rc.verbose_mode:
             pstatus(':')
-            pstatus('{:6s}    {:12s}    {:20s}    {:20s}    {}'
-                             .format('ID', 'Label', 'Probability', 'Aux Reference', 'Progress Coordinate'))
+            pstatus(
+                '{:6s}    {:12s}    {:20s}    {:20s}    {}'.format(
+                    'ID', 'Label', 'Probability', 'Aux Reference', 'Progress Coordinate'
+                )
+            )
             for basis_state in basis_states:
-                pstatus('{:<6d}    {:12s}    {:<20.14g}    {:20s}    {}'.
-                                 format(basis_state.state_id, basis_state.label, basis_state.probability, basis_state.auxref or '',
-                                        ', '.join(map(str,basis_state.pcoord))))
+                pstatus(
+                    '{:<6d}    {:12s}    {:<20.14g}    {:20s}    {}'.format(
+                        basis_state.state_id,
+                        basis_state.label,
+                        basis_state.probability,
+                        basis_state.auxref or '',
+                        ', '.join(map(str, basis_state.pcoord)),
+                    )
+                )
         pstatus()
         self.rc.pflush()
 
@@ -208,8 +225,11 @@ class WESimManager:
             pstatus(':')
             pstatus('{:6s}    {:12s}    {}'.format('ID', 'Label', 'Progress Coordinate'))
             for target_state in target_states:
-                pstatus('{:<6d}    {:12s}    {}'
-                                 .format(target_state.state_id, target_state.label, ','.join(map(str,target_state.pcoord))))
+                pstatus(
+                    '{:<6d}    {:12s}    {}'.format(
+                        target_state.state_id, target_state.label, ','.join(map(str, target_state.pcoord))
+                    )
+                )
         pstatus()
         self.rc.pflush()
 
@@ -231,7 +251,6 @@ class WESimManager:
         data_manager.save_target_states(target_states)
         self.report_target_states(target_states)
 
-
         # Process basis states
         self.get_bstate_pcoords(basis_states)
         self.data_manager.create_ibstate_group(basis_states)
@@ -247,16 +266,18 @@ class WESimManager:
 
         for basis_state in basis_states:
             for _iseg in range(segs_per_state):
-                initial_state = data_manager.create_initial_states(1,1)[0]
-                initial_state.basis_state_id =  basis_state.state_id
+                initial_state = data_manager.create_initial_states(1, 1)[0]
+                initial_state.basis_state_id = basis_state.state_id
                 initial_state.basis_state = basis_state
                 initial_state.istate_type = istate_type
-                weights.append(basis_state.probability/segs_per_state)
+                weights.append(basis_state.probability / segs_per_state)
                 initial_states.append(initial_state)
 
         if self.do_gen_istates:
-            futures = [work_manager.submit(wm_ops.gen_istate, args=(initial_state.basis_state, initial_state))
-                       for initial_state in initial_states]
+            futures = [
+                work_manager.submit(wm_ops.gen_istate, args=(initial_state.basis_state, initial_state))
+                for initial_state in initial_states
+            ]
             for future in work_manager.as_completed(futures):
                 rbstate, ristate = future.get_result()
                 initial_states[ristate.state_id].pcoord = ristate.pcoord
@@ -268,7 +289,6 @@ class WESimManager:
 
         for initial_state in initial_states:
             log.debug('initial state created: {!r}'.format(initial_state))
-
 
         # save list of initial states just generated
         # some of these may not be used, depending on how WE shakes out
@@ -282,7 +302,7 @@ class WESimManager:
             segments = list(self.we_driver.current_iter_segments)
             binning = self.we_driver.final_binning
 
-        bin_occupancies = np.fromiter(map(len,binning), dtype=np.uint, count=self.we_driver.bin_mapper.nbins)
+        bin_occupancies = np.fromiter(map(len, binning), dtype=np.uint, count=self.we_driver.bin_mapper.nbins)
         target_occupancies = np.require(self.we_driver.bin_target_counts, dtype=np.uint)
 
         # Make sure we have
@@ -300,16 +320,19 @@ class WESimManager:
             for segment in segments:
                 pstatus('{!r}'.format(segment))
 
-
-        pstatus('''
+        pstatus(
+            '''
         Total bins:            {total_bins:d}
         Initial replicas:      {init_replicas:d} in {occ_bins:d} bins, total weight = {weight:g}
         Total target replicas: {total_replicas:d}
-        '''.format(total_bins=len(bin_occupancies),
-                   init_replicas=int(sum(bin_occupancies)),
-                   occ_bins=len(bin_occupancies[bin_occupancies > 0]),
-                   weight = float(sum(segment.weight for segment in segments)),
-                   total_replicas = int(sum(target_occupancies))))
+        '''.format(
+                total_bins=len(bin_occupancies),
+                init_replicas=int(sum(bin_occupancies)),
+                occ_bins=len(bin_occupancies[bin_occupancies > 0]),
+                weight=float(sum(segment.weight for segment in segments)),
+                total_replicas=int(sum(target_occupancies)),
+            )
+        )
 
         # Send the segments over to the data manager to commit to disk
         data_manager.current_iteration = 1
@@ -317,7 +340,7 @@ class WESimManager:
         # Report statistics
         pstatus('Simulation prepared.')
         self.segments = {segment.seg_id: segment for segment in segments}
-        self.report_bin_statistics(binning,save_summary=True)
+        self.report_bin_statistics(binning, save_summary=True)
         data_manager.flush_backing()
 
     def prepare_iteration(self):
@@ -328,7 +351,7 @@ class WESimManager:
         target_states = self.data_manager.get_target_states(self.n_iter)
         new_weights = self.data_manager.get_new_weight_data(self.n_iter)
 
-        self.we_driver.new_iteration(target_states=target_states, new_weights= new_weights)
+        self.we_driver.new_iteration(target_states=target_states, new_weights=new_weights)
 
         # Get basis states used in this iteration
         self.current_iter_bstates = self.data_manager.get_basis_states(self.n_iter)
@@ -355,12 +378,14 @@ class WESimManager:
             self.rc.pstatus('Beginning iteration {:d}'.format(self.n_iter))
         elif incomplete_segments:
             self.rc.pstatus('Continuing iteration {:d}'.format(self.n_iter))
-        self.rc.pstatus('{:d} segments remain in iteration {:d} ({:d} total)'.format(len(incomplete_segments), self.n_iter,
-                                                                                     len(segments)))
+        self.rc.pstatus(
+            '{:d} segments remain in iteration {:d} ({:d} total)'.format(len(incomplete_segments), self.n_iter, len(segments))
+        )
 
         # Get the initial states active for this iteration (so that the propagator has them if necessary)
-        self.current_iter_istates = {state.state_id: state for state in
-                                     self.data_manager.get_segment_initial_states(list(segments.values()))}
+        self.current_iter_istates = {
+            state.state_id: state for state in self.data_manager.get_segment_initial_states(list(segments.values()))
+        }
         log.debug('This iteration uses {:d} initial states'.format(len(self.current_iter_istates)))
 
         # Assign this iteration's segments' initial points to bins and report on bin population
@@ -379,11 +404,12 @@ class WESimManager:
             self.we_driver.assign(list(completed_segments.values()))
 
         # Get the basis states and initial states for the next iteration, necessary for doing on-the-fly recycling
-        self.next_iter_bstates = self.data_manager.get_basis_states(self.n_iter+1)
+        self.next_iter_bstates = self.data_manager.get_basis_states(self.n_iter + 1)
         self.next_iter_bstate_cprobs = np.add.accumulate([bstate.probability for bstate in self.next_iter_bstates])
 
-        self.we_driver.avail_initial_states = {istate.state_id: istate
-                                               for istate in self.data_manager.get_unused_initial_states(n_iter=self.n_iter+1)}
+        self.we_driver.avail_initial_states = {
+            istate.state_id: istate for istate in self.data_manager.get_unused_initial_states(n_iter=self.n_iter + 1)
+        }
         log.debug('{:d} unused initial states found'.format(len(self.we_driver.avail_initial_states)))
 
         # Invoke callbacks
@@ -417,8 +443,7 @@ class WESimManager:
         n_istates_needed = self.we_driver.n_istates_needed
 
         log.debug('{:d} unused initial states available'.format(len(self.we_driver.avail_initial_states)))
-        log.debug('{:d} new initial states required for recycling {:d} walkers'.format(n_istates_needed,
-                                                                                       n_recycled))
+        log.debug('{:d} new initial states required for recycling {:d} walkers'.format(n_istates_needed, n_recycled))
 
         futures = set()
         updated_states = []
@@ -426,7 +451,7 @@ class WESimManager:
             # Select a basis state according to its weight
             ibstate = np.digitize([random.random()], self.next_iter_bstate_cprobs)
             basis_state = self.next_iter_bstates[ibstate[0]]
-            initial_state = self.data_manager.create_initial_states(1, n_iter=self.n_iter+1)[0]
+            initial_state = self.data_manager.create_initial_states(1, n_iter=self.n_iter + 1)[0]
             initial_state.iter_created = self.n_iter
             initial_state.basis_state_id = basis_state.state_id
             initial_state.istate_status = InitialState.ISTATE_STATUS_PENDING
@@ -442,7 +467,7 @@ class WESimManager:
                 initial_state.istate_status = InitialState.ISTATE_STATUS_PREPARED
                 self.we_driver.avail_initial_states[initial_state.state_id] = initial_state
             updated_states.append(initial_state)
-        self.data_manager.update_initial_states(updated_states, n_iter=self.n_iter+1)
+        self.data_manager.update_initial_states(updated_states, n_iter=self.n_iter + 1)
         return futures
 
     def propagate(self):
@@ -460,8 +485,9 @@ class WESimManager:
         # Dispatch propagation tasks using work manager
         for segment_block in grouper(self.propagator_block_size, segments):
             segment_block = [_f for _f in segment_block if _f]
-            pbstates, pistates = westpa.core.states.pare_basis_initial_states(self.current_iter_bstates,
-                                                                       list(self.current_iter_istates.values()), segment_block)
+            pbstates, pistates = westpa.core.states.pare_basis_initial_states(
+                self.current_iter_bstates, list(self.current_iter_istates.values()), segment_block
+            )
             future = self.work_manager.submit(wm_ops.propagate, args=(pbstates, pistates, segment_block))
             futures.add(future)
             segment_futures.add(future)
@@ -493,7 +519,7 @@ class WESimManager:
                 log.debug('received newly-prepared initial state {!r}'.format(initial_state))
                 initial_state.istate_status = InitialState.ISTATE_STATUS_PREPARED
                 with self.data_manager.expiring_flushing_lock():
-                    self.data_manager.update_initial_states([initial_state], n_iter=self.n_iter+1)
+                    self.data_manager.update_initial_states([initial_state], n_iter=self.n_iter + 1)
                 self.we_driver.avail_initial_states[initial_state.state_id] = initial_state
             else:
                 log.error('unknown future {!r} received from work manager'.format(future))
@@ -532,8 +558,11 @@ class WESimManager:
         else:
             log.debug('propagation complete for iteration {:d}'.format(self.n_iter))
 
-        failed_istates = [istate for istate in self.we_driver.used_initial_states.values()
-                          if istate.istate_status != InitialState.ISTATE_STATUS_PREPARED]
+        failed_istates = [
+            istate
+            for istate in self.we_driver.used_initial_states.values()
+            if istate.istate_status != InitialState.ISTATE_STATUS_PREPARED
+        ]
         log.debug('{!r}'.format(failed_istates))
         if failed_istates:
             failed_ids = '  \n'.join(str(istate.state_id) for istate in failed_istates)
@@ -541,7 +570,6 @@ class WESimManager:
             raise PropagationError('initial state generation failed for {:d} states'.format(len(failed_istates)))
         else:
             log.debug('initial state generation complete for iteration {:d}'.format(self.n_iter))
-
 
     def run_we(self):
         '''Run the weighted ensemble algorithm based on the binning in self.final_bins and
@@ -562,13 +590,13 @@ class WESimManager:
 
         if self.we_driver.used_initial_states:
             for initial_state in self.we_driver.used_initial_states.values():
-                initial_state.iter_used = self.n_iter+1
+                initial_state.iter_used = self.n_iter + 1
             self.data_manager.update_initial_states(list(self.we_driver.used_initial_states.values()))
 
-        self.data_manager.update_segments(self.n_iter,list(self.segments.values()))
+        self.data_manager.update_segments(self.n_iter, list(self.segments.values()))
 
-        self.data_manager.require_iter_group(self.n_iter+1)
-        self.data_manager.save_iter_binning(self.n_iter+1, hashed, pickled, self.we_driver.bin_target_counts)
+        self.data_manager.require_iter_group(self.n_iter + 1)
+        self.data_manager.save_iter_binning(self.n_iter + 1, hashed, pickled, self.we_driver.bin_target_counts)
 
         # Report on recycling
         recycling_events = {}
@@ -581,9 +609,9 @@ class WESimManager:
         tstates_by_id = {state.state_id: state for state in self.we_driver.target_states.values()}
         for tstate_id, weights in recycling_events.items():
             tstate = tstates_by_id[tstate_id]
-            self.rc.pstatus('Recycled {:g} probability ({:d} walkers) from target state {!r}'.format(sum(weights),
-                                                                                                     len(weights),
-                                                                                                     tstate.label))
+            self.rc.pstatus(
+                'Recycled {:g} probability ({:d} walkers) from target state {!r}'.format(sum(weights), len(weights), tstate.label)
+            )
 
     def prepare_new_iteration(self):
         '''Commit data for the coming iteration to the HDF5 file.'''
@@ -594,8 +622,8 @@ class WESimManager:
             for segment in self.we_driver.next_iter_segments:
                 self.rc.pstatus('{!r} pcoord[0]={!r}'.format(segment, segment.pcoord[0]))
 
-        self.data_manager.prepare_iteration(self.n_iter+1, list(self.we_driver.next_iter_segments))
-        self.data_manager.save_new_weight_data(self.n_iter+1, self.we_driver.new_weights)
+        self.data_manager.prepare_iteration(self.n_iter + 1, list(self.we_driver.next_iter_segments))
+        self.data_manager.save_new_weight_data(self.n_iter + 1, self.we_driver.new_weights)
 
     def run(self):
         run_starttime = time.time()
@@ -607,14 +635,13 @@ class WESimManager:
             run_killtime = None
 
         self.n_iter = self.data_manager.current_iteration
-        max_iter = self.max_total_iterations or self.n_iter+1
+        max_iter = self.max_total_iterations or self.n_iter + 1
 
         iter_elapsed = 0
         while self.n_iter <= max_iter:
 
-            if max_walltime and time.time() + 1.1*iter_elapsed >= run_killtime:
-                self.rc.pstatus('Iteration {:d} would require more than the allotted time. Ending run.'
-                                .format(self.n_iter))
+            if max_walltime and time.time() + 1.1 * iter_elapsed >= run_killtime:
+                self.rc.pstatus('Iteration {:d} would require more than the allotted time. Ending run.'.format(self.n_iter))
                 return
 
             try:
@@ -655,7 +682,7 @@ class WESimManager:
                 self.data_manager.current_iteration += 1
 
                 try:
-                    #This may give NaN if starting a truncated simulation
+                    # This may give NaN if starting a truncated simulation
                     walltime = timedelta(seconds=float(iter_summary['walltime']))
                 except ValueError:
                     walltime = 0.0
@@ -665,9 +692,7 @@ class WESimManager:
                 except ValueError:
                     cputime = 0.0
 
-                self.rc.pstatus('Iteration wallclock: {0!s}, cputime: {1!s}\n'\
-                                          .format(walltime,
-                                                  cputime))
+                self.rc.pstatus('Iteration wallclock: {0!s}, cputime: {1!s}\n'.format(walltime, cputime))
                 self.rc.pflush()
             finally:
                 self.data_manager.flush_backing()

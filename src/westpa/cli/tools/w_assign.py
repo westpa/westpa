@@ -7,8 +7,7 @@ from numpy import index_exp
 
 from westpa.core.data_manager import seg_id_dtype, weight_dtype
 from westpa.core.binning import index_dtype, assign_and_label, accumulate_labeled_populations
-from westpa.tools import (WESTParallelTool, WESTDataReader, WESTDSSynthesizer, BinMappingComponent,
-                          ProgressIndicatorComponent)
+from westpa.tools import WESTParallelTool, WESTDataReader, WESTDSSynthesizer, BinMappingComponent, ProgressIndicatorComponent
 import westpa
 from westpa.core import h5io
 from westpa.core.h5io import WESTPAH5File
@@ -19,35 +18,37 @@ log = logging.getLogger('w_assign')
 
 # Changes to keep it alive...
 def parse_pcoord_value(pc_str):
-    namespace = {'math': math,
-                 'numpy': np,
-                 'np': np,
-                 'inf': float('inf')}
+    namespace = {'math': math, 'numpy': np, 'np': np, 'inf': float('inf')}
 
-    arr = np.array(eval(pc_str,namespace))
+    arr = np.array(eval(pc_str, namespace))
     if arr.ndim == 0:
-        arr.shape = (1,1)
+        arr.shape = (1, 1)
     elif arr.ndim == 1:
         arr.shape = (1,) + arr.shape
     else:
         raise ValueError('too many dimensions')
     return arr
 
-def _assign_label_pop(n_iter, lb, ub, mapper, nstates, state_map, last_labels, parent_id_dsspec, weight_dsspec, pcoord_dsspec, subsample):
 
-    nbins = len(state_map)-1
-    parent_ids = parent_id_dsspec.get_iter_data(n_iter,index_exp[lb:ub])
-    weights = weight_dsspec.get_iter_data(n_iter,index_exp[lb:ub])
-    pcoords = pcoord_dsspec.get_iter_data(n_iter,index_exp[lb:ub])
+def _assign_label_pop(
+    n_iter, lb, ub, mapper, nstates, state_map, last_labels, parent_id_dsspec, weight_dsspec, pcoord_dsspec, subsample
+):
 
-    assignments, trajlabels, statelabels = assign_and_label(lb, ub, parent_ids,
-                                               mapper.assign, nstates, state_map, last_labels, pcoords, subsample)
-    pops = np.zeros((nstates+1,nbins+1), weight_dtype)
+    nbins = len(state_map) - 1
+    parent_ids = parent_id_dsspec.get_iter_data(n_iter, index_exp[lb:ub])
+    weights = weight_dsspec.get_iter_data(n_iter, index_exp[lb:ub])
+    pcoords = pcoord_dsspec.get_iter_data(n_iter, index_exp[lb:ub])
+
+    assignments, trajlabels, statelabels = assign_and_label(
+        lb, ub, parent_ids, mapper.assign, nstates, state_map, last_labels, pcoords, subsample
+    )
+    pops = np.zeros((nstates + 1, nbins + 1), weight_dtype)
     accumulate_labeled_populations(weights, assignments, trajlabels, pops)
     return (assignments, trajlabels, pops, lb, ub, statelabels)
 
+
 class WAssign(WESTParallelTool):
-    prog='w_assign'
+    prog = 'w_assign'
     description = '''\
 Assign walkers to bins, producing a file (by default named "assign.h5")
 which can be used in subsequent analysis.
@@ -231,31 +232,49 @@ Command-line options
         self.dssynth.add_args(parser)
 
         sgroup = parser.add_argument_group('macrostate definitions').add_mutually_exclusive_group()
-        sgroup.add_argument('--states', nargs='+', metavar='STATEDEF',
-                            help='''Single-bin kinetic macrostate, specified by a coordinate tuple (e.g. '1.0' or '[1.0,1.0]'),
+        sgroup.add_argument(
+            '--states',
+            nargs='+',
+            metavar='STATEDEF',
+            help='''Single-bin kinetic macrostate, specified by a coordinate tuple (e.g. '1.0' or '[1.0,1.0]'),
                             optionally labeled (e.g. 'bound:[1.0,1.0]'). States corresponding to multiple bins
-                            must be specified with --states-from-file.''')
-        sgroup.add_argument('--states-from-file', metavar='STATEFILE',
-                            help='''Load kinetic macrostates from the YAML file STATEFILE. See description
-                            above for the appropriate structure.''')
-        sgroup.add_argument('--states-from-function', metavar='STATEFUNC',
-                            help='''Load kinetic macrostates from the function STATEFUNC, specified as
+                            must be specified with --states-from-file.''',
+        )
+        sgroup.add_argument(
+            '--states-from-file',
+            metavar='STATEFILE',
+            help='''Load kinetic macrostates from the YAML file STATEFILE. See description
+                            above for the appropriate structure.''',
+        )
+        sgroup.add_argument(
+            '--states-from-function',
+            metavar='STATEFUNC',
+            help='''Load kinetic macrostates from the function STATEFUNC, specified as
                             module_name.func_name. This function is called with the bin mapper as an argument,
                             and must return a list of dictionaries {'label': state_label, 'coords': 2d_array_like}
                             one for each macrostate; the 'coords' entry must contain enough rows to identify all bins
-                            in the macrostate.''')
+                            in the macrostate.''',
+        )
 
         agroup = parser.add_argument_group('other options')
-        agroup.add_argument('-o', '--output', dest='output', default='assign.h5',
-                            help='''Store results in OUTPUT (default: %(default)s).''')
-        agroup.add_argument('--subsample', dest='subsample', action='store_const', const=True,
-                             help='''Determines whether or not the data should be subsampled.
-                             This is rather useful for analysing steady state simulations.''')
-        agroup.add_argument('--config-from-file', dest='config_from_file', action='store_true',
-                            help='''Load bins/macrostates from a scheme specified in west.cfg.''')
-        agroup.add_argument('--scheme-name', dest='scheme',
-                            help='''Name of scheme specified in west.cfg.''')
-
+        agroup.add_argument(
+            '-o', '--output', dest='output', default='assign.h5', help='''Store results in OUTPUT (default: %(default)s).'''
+        )
+        agroup.add_argument(
+            '--subsample',
+            dest='subsample',
+            action='store_const',
+            const=True,
+            help='''Determines whether or not the data should be subsampled.
+                             This is rather useful for analysing steady state simulations.''',
+        )
+        agroup.add_argument(
+            '--config-from-file',
+            dest='config_from_file',
+            action='store_true',
+            help='''Load bins/macrostates from a scheme specified in west.cfg.''',
+        )
+        agroup.add_argument('--scheme-name', dest='scheme', help='''Name of scheme specified in west.cfg.''')
 
     def process_args(self, args):
         self.progress.process_args(args)
@@ -271,7 +290,7 @@ Command-line options
             self.dssynth.h5filename = self.data_reader.we_h5filename
             self.dssynth.process_args(args)
             if args.config_from_file is False:
-                self.binning.set_we_h5file_info(self.n_iter,self.data_reader)
+                self.binning.set_we_h5file_info(self.n_iter, self.data_reader)
                 self.binning.process_args(args)
 
         self.output_filename = args.output
@@ -286,12 +305,12 @@ Command-line options
         elif args.states_from_file:
             self.load_state_file(args.states_from_file)
         elif args.states_from_function:
-            self.load_states_from_function(get_object(args.states_from_function,path=['.']))
+            self.load_states_from_function(get_object(args.states_from_function, path=['.']))
 
         if self.states and len(self.states) < 2:
             raise ValueError('zero, two, or more macrostates are required')
 
-        #self.output_file = WESTPAH5File(args.output, 'w', creating_program=True)
+        # self.output_file = WESTPAH5File(args.output, 'w', creating_program=True)
         log.debug('state list: {!r}'.format(self.states))
 
         self.subsample = args.subsample if args.subsample is not None else False
@@ -320,6 +339,7 @@ Command-line options
         except Exception:
             pass
         from westpa.core._rc import bins_from_yaml_dict
+
         self.binning.mapper = bins_from_yaml_dict(config['analysis_schemes'][scheme]['bins'][0])
         path = os.path.join(os.getcwd(), config['directory'], scheme)
         try:
@@ -332,6 +352,7 @@ Command-line options
 
     def load_state_file(self, state_filename):
         import yaml
+
         ydict = yaml.load(open(state_filename, 'rt'))
         ystates = ydict['states']
         self.states_from_dict(ystates)
@@ -347,10 +368,11 @@ Command-line options
             #  - a list of lists, which is a list of coordinate tuples
             coords = np.array(ystate['coords'])
             if coords.ndim == 0:
-                coords.shape = (1,1)
+                coords.shape = (1, 1)
             elif coords.ndim == 1:
-                raise ValueError('list {!r} is ambiguous (list of 1-d coordinates, or single multi-d coordinate?)'
-                                 .format(ystate['coords']))
+                raise ValueError(
+                    'list {!r} is ambiguous (list of 1-d coordinates, or single multi-d coordinate?)'.format(ystate['coords'])
+                )
             elif coords.ndim > 2:
                 raise ValueError('coordinates must be 2-D')
             state['coords'] = coords
@@ -360,14 +382,13 @@ Command-line options
     def load_states_from_function(self, statefunc):
         states = statefunc(self.binning.mapper)
         for istate, state in enumerate(states):
-            state.setdefault('label','state{}'.format(istate))
+            state.setdefault('label', 'state{}'.format(istate))
             try:
                 state['coords'] = np.array(state['coords'])
             except KeyError:
-                raise ValueError('state function {!r} returned a state {!r} without coordinates'.format(statefunc,state))
+                raise ValueError('state function {!r} returned a state {!r} without coordinates'.format(statefunc, state))
         self.states = states
         log.debug('loaded states: {!r}'.format(self.states))
-
 
     def assign_iteration(self, n_iter, nstates, nbins, state_map, last_labels):
         ''' Method to encapsulate the segment slicing (into n_worker slices) and parallel job submission
@@ -382,9 +403,9 @@ Command-line options
         assignments = np.empty((nsegs, npts), dtype=index_dtype)
         trajlabels = np.empty((nsegs, npts), dtype=index_dtype)
         statelabels = np.empty((nsegs, npts), dtype=index_dtype)
-        pops = np.zeros((nstates+1,nbins+1), dtype=weight_dtype)
+        pops = np.zeros((nstates + 1, nbins + 1), dtype=weight_dtype)
 
-        #Submit jobs to work manager
+        # Submit jobs to work manager
         blocksize = nsegs // n_workers
         if nsegs % n_workers > 0:
             blocksize += 1
@@ -393,25 +414,31 @@ Command-line options
             if __debug__:
                 checkset = set()
             for lb in range(0, nsegs, blocksize):
-                ub = min(nsegs, lb+blocksize)
+                ub = min(nsegs, lb + blocksize)
                 if __debug__:
-                    checkset.update(set(range(lb,ub)))
+                    checkset.update(set(range(lb, ub)))
                 args = ()
-                kwargs = dict(n_iter=n_iter,
-                              lb=lb, ub=ub, mapper=self.binning.mapper, nstates=nstates, state_map=state_map,
-                              last_labels=last_labels,
-                              parent_id_dsspec=self.data_reader.parent_id_dsspec,
-                              weight_dsspec=self.data_reader.weight_dsspec,
-                              pcoord_dsspec=self.dssynth.dsspec,
-                              subsample=self.subsample)
+                kwargs = dict(
+                    n_iter=n_iter,
+                    lb=lb,
+                    ub=ub,
+                    mapper=self.binning.mapper,
+                    nstates=nstates,
+                    state_map=state_map,
+                    last_labels=last_labels,
+                    parent_id_dsspec=self.data_reader.parent_id_dsspec,
+                    weight_dsspec=self.data_reader.weight_dsspec,
+                    pcoord_dsspec=self.dssynth.dsspec,
+                    subsample=self.subsample,
+                )
                 yield (_assign_label_pop, args, kwargs)
 
-                #futures.append(self.work_manager.submit(_assign_label_pop,
-                #kwargs=)
+                # futures.append(self.work_manager.submit(_assign_label_pop,
+                # kwargs=)
             if __debug__:
                 assert checkset == set(range(nsegs)), 'segments missing: {}'.format(set(range(nsegs)) - checkset)
 
-        #for future in self.work_manager.as_completed(futures):
+        # for future in self.work_manager.as_completed(futures):
         for future in self.work_manager.submit_as_completed(task_gen(), queue_size=self.max_queue_len):
             assign_slice, traj_slice, slice_pops, lb, ub, state_slice = future.get_result(discard=True)
             assignments[lb:ub, :] = assign_slice
@@ -436,15 +463,15 @@ Command-line options
             # We always assign the entire simulation, so that no trajectory appears to start
             # in a transition region that doesn't get initialized in one.
             iter_start = 1
-            iter_stop =  self.data_reader.current_iteration
+            iter_stop = self.data_reader.current_iteration
 
             h5io.stamp_iter_range(self.output_file, iter_start, iter_stop)
 
             nbins = self.binning.mapper.nbins
             self.output_file.attrs['nbins'] = nbins
 
-            state_map = np.empty((self.binning.mapper.nbins+1,), index_dtype)
-            state_map[:] = 0 # state_id == nstates => unknown state
+            state_map = np.empty((self.binning.mapper.nbins + 1,), index_dtype)
+            state_map[:] = 0  # state_id == nstates => unknown state
 
             # Recursive mappers produce a generator rather than a list of labels
             # so consume the entire generator into a list
@@ -454,16 +481,16 @@ Command-line options
 
             if self.states:
                 nstates = len(self.states)
-                state_map[:] = nstates # state_id == nstates => unknown state
+                state_map[:] = nstates  # state_id == nstates => unknown state
                 state_labels = [np.string_(state['label']) for state in self.states]
 
                 for istate, sdict in enumerate(self.states):
-                    assert state_labels[istate] == np.string_(sdict['label']) #sanity check
+                    assert state_labels[istate] == np.string_(sdict['label'])  # sanity check
                     state_assignments = assign(sdict['coords'])
                     for assignment in state_assignments:
                         state_map[assignment] = istate
                 self.output_file.create_dataset('state_map', data=state_map, compression=9, shuffle=True)
-                self.output_file['state_labels'] = state_labels #+ ['(unknown)']
+                self.output_file['state_labels'] = state_labels  # + ['(unknown)']
             else:
                 nstates = 0
             self.output_file.attrs['nstates'] = nstates
@@ -475,8 +502,8 @@ Command-line options
             npts = np.empty((iter_count,), seg_id_dtype)
 
             # scan for largest number of segments and largest number of points
-            pi.new_operation ('Scanning for segment and point counts', iter_stop-iter_start)
-            for iiter, n_iter in enumerate(range(iter_start,iter_stop)):
+            pi.new_operation('Scanning for segment and point counts', iter_stop - iter_start)
+            for iiter, n_iter in enumerate(range(iter_start, iter_stop)):
                 iter_group = self.data_reader.get_iter_group(n_iter)
                 nsegs[iiter], npts[iiter] = iter_group['pcoord'].shape[0:2]
                 pi.progress += 1
@@ -491,49 +518,69 @@ Command-line options
             max_nsegs = nsegs.max()
             max_npts = npts.max()
 
-            assignments_shape = (iter_count,max_nsegs,max_npts)
+            assignments_shape = (iter_count, max_nsegs, max_npts)
             assignments_dtype = np.min_scalar_type(nbins)
-            assignments_ds = self.output_file.create_dataset('assignments', dtype=assignments_dtype, shape=assignments_shape,
-                                                             compression=4, shuffle=True,
-                                                             chunks=h5io.calc_chunksize(assignments_shape, assignments_dtype),
-                                                             fillvalue=nbins)
+            assignments_ds = self.output_file.create_dataset(
+                'assignments',
+                dtype=assignments_dtype,
+                shape=assignments_shape,
+                compression=4,
+                shuffle=True,
+                chunks=h5io.calc_chunksize(assignments_shape, assignments_dtype),
+                fillvalue=nbins,
+            )
             if self.states:
                 trajlabel_dtype = np.min_scalar_type(nstates)
-                trajlabels_ds = self.output_file.create_dataset('trajlabels', dtype=trajlabel_dtype, shape=assignments_shape,
-                                                                compression=4, shuffle=True,
-                                                                chunks=h5io.calc_chunksize(assignments_shape, trajlabel_dtype),
-                                                                fillvalue=nstates)
-                statelabels_ds = self.output_file.create_dataset('statelabels', dtype=trajlabel_dtype, shape=assignments_shape,
-                                                                compression=4, shuffle=True,
-                                                                chunks=h5io.calc_chunksize(assignments_shape, trajlabel_dtype),
-                                                                fillvalue=nstates)
+                trajlabels_ds = self.output_file.create_dataset(
+                    'trajlabels',
+                    dtype=trajlabel_dtype,
+                    shape=assignments_shape,
+                    compression=4,
+                    shuffle=True,
+                    chunks=h5io.calc_chunksize(assignments_shape, trajlabel_dtype),
+                    fillvalue=nstates,
+                )
+                statelabels_ds = self.output_file.create_dataset(
+                    'statelabels',
+                    dtype=trajlabel_dtype,
+                    shape=assignments_shape,
+                    compression=4,
+                    shuffle=True,
+                    chunks=h5io.calc_chunksize(assignments_shape, trajlabel_dtype),
+                    fillvalue=nstates,
+                )
 
-            pops_shape = (iter_count,nstates+1,nbins+1)
-            pops_ds = self.output_file.create_dataset('labeled_populations', dtype=weight_dtype, shape=pops_shape,
-                                                      compression=4, shuffle=True,
-                                                      chunks=h5io.calc_chunksize(pops_shape, weight_dtype))
+            pops_shape = (iter_count, nstates + 1, nbins + 1)
+            pops_ds = self.output_file.create_dataset(
+                'labeled_populations',
+                dtype=weight_dtype,
+                shape=pops_shape,
+                compression=4,
+                shuffle=True,
+                chunks=h5io.calc_chunksize(pops_shape, weight_dtype),
+            )
             h5io.label_axes(pops_ds, [np.string_(i) for i in ['iteration', 'state', 'bin']])
 
-            pi.new_operation('Assigning to bins', iter_stop-iter_start)
-            last_labels = None # mapping of seg_id to last macrostate inhabited
-            for iiter, n_iter in enumerate(range(iter_start,iter_stop)):
-                #get iteration info in this block
+            pi.new_operation('Assigning to bins', iter_stop - iter_start)
+            last_labels = None  # mapping of seg_id to last macrostate inhabited
+            for iiter, n_iter in enumerate(range(iter_start, iter_stop)):
+                # get iteration info in this block
 
                 if iiter == 0:
                     last_labels = np.empty((nsegs[iiter],), index_dtype)
-                    last_labels[:] = nstates #unknown state
+                    last_labels[:] = nstates  # unknown state
 
-                #Slices this iteration into n_workers groups of segments, submits them to wm, splices results back together
+                # Slices this iteration into n_workers groups of segments, submits them to wm, splices results back together
                 assignments, trajlabels, pops, statelabels = self.assign_iteration(n_iter, nstates, nbins, state_map, last_labels)
 
-                ##Do stuff with this iteration's results
+                # Do stuff with this iteration's results
 
-                last_labels = trajlabels[:,-1].copy()
-                assignments_ds[iiter, 0:nsegs[iiter], 0:npts[iiter]] = assignments
+                last_labels = trajlabels[:, -1].copy()
+                assignments_ds[iiter, 0 : nsegs[iiter], 0 : npts[iiter]] = assignments
                 pops_ds[iiter] = pops
                 if self.states:
-                    trajlabels_ds[iiter, 0:nsegs[iiter], 0:npts[iiter]]  = trajlabels
-                    statelabels_ds[iiter, 0:nsegs[iiter], 0:npts[iiter]]  = statelabels
+                    trajlabels_ds[iiter, 0 : nsegs[iiter], 0 : npts[iiter]] = trajlabels
+                    statelabels_ds[iiter, 0 : nsegs[iiter], 0 : npts[iiter]] = statelabels
 
                 pi.progress += 1
                 del assignments, trajlabels, pops, statelabels
@@ -548,4 +595,3 @@ def entry_point():
 
 if __name__ == '__main__':
     entry_point()
-

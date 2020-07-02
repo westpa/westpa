@@ -4,7 +4,13 @@ from itertools import zip_longest
 import numpy as np
 
 import westpa
-from westpa.core.kinetics._kinetics import flux_assign, pop_assign, calc_rates, StreamingStats1D, StreamingStats2D  # @UnresolvedImport
+from westpa.core.kinetics._kinetics import (
+    flux_assign,
+    pop_assign,
+    calc_rates,
+    StreamingStats1D,
+    StreamingStats2D,
+)  # @UnresolvedImport
 
 
 # Named tuple proxy for StreamingStats class
@@ -20,7 +26,7 @@ def grouper(n, iterable, fillvalue=None):
 
 def tuple2stats(stat_tuple):
     ndims = stat_tuple.M1.ndim
-    assert ndims == 1 or ndims ==2
+    assert ndims == 1 or ndims == 2
 
     if ndims == 2:
         stats = StreamingStats2D(stat_tuple.M1.shape)
@@ -45,7 +51,7 @@ def process_iter_chunk(bin_mapper, iter_indices, iter_data=None):
     data_manager = westpa.rc.get_data_manager()
     system = westpa.rc.get_system_driver()
 
-    itercount = len(iter_indices)
+    # itercount = len(iter_indices)
     nbins = bin_mapper.nbins
 
     flux_stats = StreamingStats2D((nbins, nbins))
@@ -97,20 +103,20 @@ def process_iter_chunk(bin_mapper, iter_indices, iter_data=None):
             new_init_assignments = assign(new_init_pcoords)
 
             flux_assign(weights, prev_init_assignments, new_init_assignments, flux_matrix)
-            #for (weight,i,j) in izip (weights, prev_init_assignments, new_init_assignments):
+            # for (weight,i,j) in izip (weights, prev_init_assignments, new_init_assignments):
             #    flux_matrices[iiter,i,j] += weight
             del index
             del prev_init_pcoords, new_init_pcoords, prev_init_assignments, new_init_assignments, weights
 
-        #iter_group = data_manager.get_iter_group(n_iter)
+        # iter_group = data_manager.get_iter_group(n_iter)
         if iter_data:
             weights = iter_group['weight']
             initial_pcoords = iter_group['initial_pcoords']
             final_pcoords = iter_group['final_pcoords']
         else:
             weights = iter_group['seg_index']['weight']
-            initial_pcoords = iter_group['pcoord'][:,0]
-            final_pcoords = iter_group['pcoord'][:,pcoord_len-1]
+            initial_pcoords = iter_group['pcoord'][:, 0]
+            final_pcoords = iter_group['pcoord'][:, pcoord_len - 1]
 
         initial_assignments = assign(initial_pcoords)
         final_assignments = assign(final_pcoords)
@@ -139,7 +145,7 @@ def process_iter_chunk(bin_mapper, iter_indices, iter_data=None):
     return c_flux_stats, c_rate_stats, c_pop_stats
 
 
-class RateAverager():
+class RateAverager:
     '''Calculate bin-to-bin kinetic properties (fluxes, rates, populations) at
     1-tau resolution'''
 
@@ -173,8 +179,8 @@ class RateAverager():
                 di_nw['new_init_pcoord'] = nwgroup['new_init_pcoord'][...]
 
             di['weight'] = iter_group['seg_index']['weight']
-            di['initial_pcoords'] = iter_group['pcoord'][:,0]
-            di['final_pcoords'] = iter_group['pcoord'][:,pcoord_len-1]
+            di['initial_pcoords'] = iter_group['pcoord'][:, 0]
+            di['final_pcoords'] = iter_group['pcoord'][:, pcoord_len - 1]
 
         return data
 

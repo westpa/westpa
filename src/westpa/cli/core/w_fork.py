@@ -12,7 +12,9 @@ log = logging.getLogger('w_fork')
 
 
 def entry_point():
-    parser = argparse.ArgumentParser('w_fork', description='''\
+    parser = argparse.ArgumentParser(
+        'w_fork',
+        description='''\
     Prepare a new weighted ensemble simulation from an existing one at a particular
     point. A new HDF5 file is generated. In the case of executable propagation,
     it is the user's responsibility to prepare the new simulation directory
@@ -22,22 +24,39 @@ def entry_point():
     created, both in the new HDF5 file and as a flat text file, to aid in this.
     Target states and basis states for the new simulation are taken from those
     in the original simulation.
-    ''')
+    ''',
+    )
 
     westpa.rc.add_args(parser)
-    parser.add_argument('-i', '--input', dest='input_h5file',
-                        help='''Create simulation from the given INPUT_H5FILE (default: read from
-                                configuration file.''')
-    parser.add_argument('-I', '--iteration', dest='n_iter', type=int,
-                        help='''Take initial distribution for new simulation from iteration N_ITER
-                                (default: last complete iteration).''')
-    parser.add_argument('-o', '--output', dest='output_h5file', default='forked.h5',
-                        help='''Save new simulation HDF5 file as OUTPUT (default: %(default)s).''')
-    parser.add_argument('--istate-map', default='istate_map.txt',
-                        help='''Write text file describing mapping of existing segments to new initial
-                                states in ISTATE_MAP (default: %(default)s).''')
-    parser.add_argument('--no-headers', action='store_true',
-                        help='''Do not write header to ISTATE_MAP''')
+    parser.add_argument(
+        '-i',
+        '--input',
+        dest='input_h5file',
+        help='''Create simulation from the given INPUT_H5FILE (default: read from
+                                configuration file.''',
+    )
+    parser.add_argument(
+        '-I',
+        '--iteration',
+        dest='n_iter',
+        type=int,
+        help='''Take initial distribution for new simulation from iteration N_ITER
+                                (default: last complete iteration).''',
+    )
+    parser.add_argument(
+        '-o',
+        '--output',
+        dest='output_h5file',
+        default='forked.h5',
+        help='''Save new simulation HDF5 file as OUTPUT (default: %(default)s).''',
+    )
+    parser.add_argument(
+        '--istate-map',
+        default='istate_map.txt',
+        help='''Write text file describing mapping of existing segments to new initial
+                                states in ISTATE_MAP (default: %(default)s).''',
+    )
+    parser.add_argument('--no-headers', action='store_true', help='''Do not write header to ISTATE_MAP''')
     args = parser.parse_args()
     westpa.rc.process_args(args)
 
@@ -74,16 +93,13 @@ def entry_point():
     n_segments = old_pcoord_ds.shape[0]
     pcoord_len = old_pcoord_ds.shape[1]
     pcoord_ndim = old_pcoord_ds.shape[2]
-    old_final_pcoords = old_pcoord_ds[:,pcoord_len-1,:]
+    old_final_pcoords = old_pcoord_ds[:, pcoord_len - 1, :]
 
     istates = dm_new.create_initial_states(n_segments, n_iter=1)
     segments = []
-    state_map_dtype = np.dtype([('old_n_iter', n_iter_dtype),
-                                   ('old_seg_id', seg_id_dtype),
-                                   ('new_istate_id', seg_id_dtype)])
+    state_map_dtype = np.dtype([('old_n_iter', n_iter_dtype), ('old_seg_id', seg_id_dtype), ('new_istate_id', seg_id_dtype)])
     state_map = np.empty((n_segments,), dtype=state_map_dtype)
     state_map['old_n_iter'] = n_iter
-
 
     for (iseg, (index_row, pcoord)) in enumerate(zip(old_index, old_final_pcoords)):
         istate = istates[iseg]
@@ -93,10 +109,14 @@ def entry_point():
         istate.istate_status = InitialState.ISTATE_STATUS_PREPARED
         istate.pcoord = pcoord
 
-        segment = Segment(n_iter=1, seg_id=iseg, weight=index_row['weight'],
-                          parent_id =-(istate.state_id+1),
-                          wtg_parent_ids = [-(istate.state_id+1)],
-                          status=Segment.SEG_STATUS_PREPARED)
+        segment = Segment(
+            n_iter=1,
+            seg_id=iseg,
+            weight=index_row['weight'],
+            parent_id=-(istate.state_id + 1),
+            wtg_parent_ids=[-(istate.state_id + 1)],
+            status=Segment.SEG_STATUS_PREPARED,
+        )
         segment.pcoord = np.zeros((pcoord_len, pcoord_ndim), dtype=pcoord.dtype)
         segment.pcoord[0] = pcoord
         segments.append(segment)
@@ -121,12 +141,12 @@ def entry_point():
         istate_map_file.write('# column 2: new simulation initial state ID\n')
 
     for row in state_map:
-        istate_map_file.write('{old_n_iter:20d}    {old_seg_id:20d}    {new_istate_id:20d}\n'
-                              .format(old_n_iter=int(row['old_n_iter']),
-                                      old_seg_id=int(row['old_seg_id']),
-                                      new_istate_id=int(row['new_istate_id'])))
+        istate_map_file.write(
+            '{old_n_iter:20d}    {old_seg_id:20d}    {new_istate_id:20d}\n'.format(
+                old_n_iter=int(row['old_n_iter']), old_seg_id=int(row['old_seg_id']), new_istate_id=int(row['new_istate_id'])
+            )
+        )
 
 
 if __name__ == '__main__':
     entry_point()
-

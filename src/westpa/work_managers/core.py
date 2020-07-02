@@ -47,7 +47,7 @@ class WorkManager:
 
     def sigint_handler(self, signum, frame):
         self.shutdown()
-        if self.prior_sigint_handler in (signal.SIG_IGN,None):
+        if self.prior_sigint_handler in (signal.SIG_IGN, None):
             pass
         elif self.prior_sigint_handler == signal.SIG_DFL:
             raise KeyboardInterrupt
@@ -86,7 +86,7 @@ class WorkManager:
         picklable; note particularly that off-path modules are not picklable unless pre-loaded in the worker
         process.'''
 
-        return [self.submit(fn,args,kwargs) for (fn,args,kwargs) in tasks]
+        return [self.submit(fn, args, kwargs) for (fn, args, kwargs) in tasks]
 
     def as_completed(self, futures):
         '''Return a generator which yields results from the given ``futures`` as they become
@@ -119,7 +119,7 @@ class WorkManager:
         maximum number of Futures that should be pending at any given time. The default value of
         ``None`` submits all of the tasks at once.'''
 
-        futures = [self.submit(fn,args,kwargs) for (fn,args,kwargs) in islice(task_generator, queue_size)]
+        futures = [self.submit(fn, args, kwargs) for (fn, args, kwargs) in islice(task_generator, queue_size)]
         pending = set(futures)
 
         with WMFuture.all_acquired(pending):
@@ -128,7 +128,7 @@ class WorkManager:
         while pending:
             watcher.wait()
             completed = watcher.reset()
-            new_futures = [self.submit(fn,args,kwargs) for (fn,args,kwargs) in islice(task_generator, len(completed))]
+            new_futures = [self.submit(fn, args, kwargs) for (fn, args, kwargs) in islice(task_generator, len(completed))]
             pending.update(new_futures)
 
             with WMFuture.all_acquired(new_futures):
@@ -150,7 +150,7 @@ class WorkManager:
                 return completed.pop()
             else:
                 # Otherwise, we need to install a watcher
-                watcher = FutureWatcher(futures, threshold = 1)
+                watcher = FutureWatcher(futures, threshold=1)
 
         watcher.wait()
         completed = watcher.reset()
@@ -176,7 +176,7 @@ class WorkManager:
 class FutureWatcher:
     '''A device to wait on multiple results and/or exceptions with only one lock.'''
 
-    def __init__(self, futures, threshold = 1):
+    def __init__(self, futures, threshold=1):
         self.event = threading.Event()
         self.lock = threading.RLock()
         self.threshold = threshold
@@ -224,7 +224,7 @@ class WMFuture:
         for future in futures:
             future._condition.acquire()
 
-        yield # to contents of "with" block
+        yield  # to contents of "with" block
 
         for future in futures:
             future._condition.release()
@@ -318,7 +318,7 @@ class WMFuture:
             self._invoke_callbacks()
             self._notify_watchers()
 
-    def get_result(self,discard=True):
+    def get_result(self, discard=True):
         '''Get the result associated with this future, blocking until it is available.
         If ``discard`` is true, then removes the reference to the result contained
         in this instance, so that a collection of futures need not turn into a cache of
@@ -370,6 +370,7 @@ class WMFuture:
                 self._condition.wait()
                 assert self._done
                 return self._exception
+
     exception = property(get_exception, None, None, get_exception.__doc__)
 
     def get_traceback(self):
@@ -381,12 +382,15 @@ class WMFuture:
                 self._condition.wait()
                 assert self._done
                 return self._traceback
+
     traceback = property(get_traceback, None, None, get_traceback.__doc__)
 
     def is_done(self):
         'Indicates whether this future is done executing (may block if this future is being updated).'
         with self._condition:
             return self._done
+
     done = property(is_done, None, None, is_done.__doc__)
+
 
 # end class WMFuture

@@ -14,23 +14,24 @@ traj_segs directory) is deleted or moved for the corresponding iterations.
 
 
 def entry_point():
-    parser = argparse.ArgumentParser('w_truncate', description='''\
+    parser = argparse.ArgumentParser(
+        'w_truncate',
+        description='''\
     Remove all iterations after a certain point in a WESTPA simulation.
     ''',
-    epilog=warning_string)
-
+        epilog=warning_string,
+    )
 
     westpa.rc.add_args(parser)
-    parser.add_argument('-n', '--iter', dest='n_iter', type=int,
-                        help='Truncate this iteration and those following.')
+    parser.add_argument('-n', '--iter', dest='n_iter', type=int, help='Truncate this iteration and those following.')
     args = parser.parse_args()
     westpa.rc.process_args(args, config_required=False)
     dm = westpa.rc.get_data_manager()
     dm.open_backing()
-    max_iter = dm.current_iteration
+    # max_iter = dm.current_iteration
     n_iter = args.n_iter if args.n_iter > 0 else dm.current_iteration
 
-    for i in range(n_iter, dm.current_iteration+1):
+    for i in range(n_iter, dm.current_iteration + 1):
         dm.del_iter_group(i)
 
     dm.del_iter_summary(n_iter)

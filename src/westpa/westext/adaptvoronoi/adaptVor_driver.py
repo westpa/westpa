@@ -1,13 +1,13 @@
-
 import logging
-log = logging.getLogger(__name__)
 
 import numpy as np
 
-import westpa, west
+import westpa
 from westpa import extloader
 from westpa.yamlcfg import check_bool, ConfigItemMissing
 from westpa.binning import VoronoiBinMapper
+
+log = logging.getLogger(__name__)
 
 
 class AdaptiveVoronoiDriver:
@@ -29,10 +29,11 @@ class AdaptiveVoronoiDriver:
           in a portion of the state space. If not defined the plugin will build a
           VoronoiBinMapper with the information it has.
     '''
+
     def __init__(self, sim_manager, plugin_config):
 
         if not sim_manager.work_manager.is_master:
-                return
+            return
 
         self.sim_manager = sim_manager
         self.data_manager = sim_manager.data_manager
@@ -40,8 +41,7 @@ class AdaptiveVoronoiDriver:
 
         # Parameters from config file
         # this enables the adaptive voronoi, allows turning adaptive scheme off
-        self.doAdaptiveVoronoi = \
-             check_bool(plugin_config.get('av_enabled', False))
+        self.doAdaptiveVoronoi = check_bool(plugin_config.get('av_enabled', False))
         # sets maximim number of centers/voronoi bins
         self.max_centers = plugin_config.get('max_centers', 10)
         # sets number of walkers per bin/voronoi center
@@ -72,8 +72,7 @@ class AdaptiveVoronoiDriver:
 
         # Register callback
         if self.doAdaptiveVoronoi:
-            sim_manager.register_callback(sim_manager.prepare_new_iteration,
-                                  self.prepare_new_iteration, self.priority)
+            sim_manager.register_callback(sim_manager.prepare_new_iteration, self.prepare_new_iteration, self.priority)
 
     def dfunc(self):
         '''
@@ -129,8 +128,10 @@ class AdaptiveVoronoiDriver:
                 centers = bin_mapper.centers
 
             except Exception:
-                log.warning('Initializing voronoi centers from data failed; \
-                        Using definition in system instead.')
+                log.warning(
+                    'Initializing voronoi centers from data failed; \
+                        Using definition in system instead.'
+                )
                 centers = self.system.bin_mapper.centers
 
         self.data_manager.close_backing()
@@ -142,7 +143,7 @@ class AdaptiveVoronoiDriver:
         westpa.rc.pstatus('westext.adaptvoronoi: Updating bin mapper\n')
         westpa.rc.pflush()
 
-        #self.mapper_func = plugin_config.get('mapper_func', False)
+        # self.mapper_func = plugin_config.get('mapper_func', False)
         try:
             dfargs = getattr(self.system, 'dfargs', None)
             dfkwargs = getattr(self.system, 'dfkwargs', None)
@@ -150,21 +151,20 @@ class AdaptiveVoronoiDriver:
                 # The mapper should take in 1) distance function,
                 # 2) centers, 3) dfargs, 4) dfkwargs and return
                 # the mapper we want
-                self.system.bin_mapper = self.mapper_func(self.dfunc,
-                                                          self.centers,
-                                                          dfargs=dfargs,
-                                                          dfkwargs=dfkwargs)
+                self.system.bin_mapper = self.mapper_func(self.dfunc, self.centers, dfargs=dfargs, dfkwargs=dfkwargs)
             else:
-                self.system.bin_mapper = VoronoiBinMapper(self.dfunc, self.centers,
-                                                          dfargs=dfargs,
-                                                          dfkwargs=dfkwargs)
+                self.system.bin_mapper = VoronoiBinMapper(self.dfunc, self.centers, dfargs=dfargs, dfkwargs=dfkwargs)
             self.ncenters = self.system.bin_mapper.nbins
             new_target_counts = np.empty((self.ncenters,), np.int)
             new_target_counts[...] = self.walk_count
             self.system.bin_target_counts = new_target_counts
         except (ValueError, TypeError) as e:
-            log.error('AdaptiveVoronoiDriver Error: \
-                    Failed updating the bin mapper: {}'.format(e))
+            log.error(
+                'AdaptiveVoronoiDriver Error: \
+                    Failed updating the bin mapper: {}'.format(
+                    e
+                )
+            )
             raise
 
     def update_centers(self, iter_group):
@@ -197,8 +197,7 @@ class AdaptiveVoronoiDriver:
         # Find the maximum of the minimum distances
         max_ind = np.where(dists == dists.max())
         # Use the maximum progress coordinate as our next center
-        self.centers = np.vstack((self.centers,
-             curr_pcoords[max_ind[0][0]][-1]))
+        self.centers = np.vstack((self.centers, curr_pcoords[max_ind[0][0]][-1]))
 
     def prepare_new_iteration(self):
 

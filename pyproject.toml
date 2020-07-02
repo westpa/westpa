@@ -1,0 +1,28 @@
+[tool.black]
+line-length = 132
+skip-string-normalization = true
+include = '\.pyi?$'
+exclude = '''
+(
+    /(
+        asv_bench/env
+      | \.egg
+      | \.git
+      | \.hg
+      | \.mypy_cache
+      | \.nox
+      | \.tox
+      | \.venv
+      | _build
+      | buck-out
+      | build
+      | dist
+      | docs
+      | doc
+     )/ | (
+      setup.py
+      | versioneer.py
+      | _version.py
+     )
+)
+'''

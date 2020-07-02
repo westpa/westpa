@@ -1,6 +1,7 @@
 import unittest
 
 from westpa.work_managers.mpi import MPIWorkManager
+
 # from .tsupport import CommonWorkManagerTests, CommonParallelTests
 
 

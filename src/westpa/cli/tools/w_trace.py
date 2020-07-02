@@ -9,13 +9,13 @@ from westpa.core import h5io
 
 from westpa.core.segment import Segment
 from westpa.core.states import InitialState
-from westpa.core.data_manager import (weight_dtype, n_iter_dtype, seg_id_dtype, utime_dtype)
+from westpa.core.data_manager import weight_dtype, n_iter_dtype, seg_id_dtype, utime_dtype
 
 
 class Trace:
     '''A class representing a trace of a certain trajectory segment back to its origin.'''
 
-    def __init__(self, summary, endpoint_type, basis_state, initial_state, data_manager = None):
+    def __init__(self, summary, endpoint_type, basis_state, initial_state, data_manager=None):
         self.summary = summary
         self.endpoint_type = endpoint_type
         self.basis_state = basis_state
@@ -39,7 +39,7 @@ class Trace:
         return iter(self.summary)
 
     @classmethod
-    def from_data_manager(cls, n_iter, seg_id, data_manager = None):
+    def from_data_manager(cls, n_iter, seg_id, data_manager=None):
         '''Construct and return a trajectory trace whose last segment is identified
         by ``seg_id`` in the iteration number ``n_iter``.'''
 
@@ -64,7 +64,7 @@ class Trace:
             assert seg_id < n_segs
 
             indexrow = seg_index[seg_id]
-            final_pcoord = pcoord_ds[seg_id, pcoord_len-1]
+            final_pcoord = pcoord_ds[seg_id, pcoord_len - 1]
             weight = indexrow['weight']
             cputime = indexrow['cputime']
             walltime = indexrow['walltime']
@@ -97,13 +97,16 @@ class Trace:
 
         seginfo.reverse()
 
-        summary_dtype = np.dtype([('n_iter', n_iter_dtype),
-                                     ('seg_id', seg_id_dtype),
-                                     ('weight', weight_dtype),
-                                     ('walltime', utime_dtype),
-                                     ('cputime', utime_dtype),
-                                     ('final_pcoord', pcoord_dtype, pcoord_pt_shape),
-                                     ])
+        summary_dtype = np.dtype(
+            [
+                ('n_iter', n_iter_dtype),
+                ('seg_id', seg_id_dtype),
+                ('weight', weight_dtype),
+                ('walltime', utime_dtype),
+                ('cputime', utime_dtype),
+                ('final_pcoord', pcoord_dtype, pcoord_pt_shape),
+            ]
+        )
 
         summary = np.array(seginfo, dtype=summary_dtype)
 
@@ -112,8 +115,8 @@ class Trace:
         except KeyError:
             # old HDF5 version
             assert parent_id < 0
-            istate_pcoord = data_manager.get_iter_group(first_iter)['pcoord'][first_seg_id,0]
-            istate_id = -(first_parent_id+1)
+            istate_pcoord = data_manager.get_iter_group(first_iter)['pcoord'][first_seg_id, 0]
+            istate_id = -(first_parent_id + 1)
             basis_state = None
             initial_state = InitialState(istate_id, None, iter_created=0, pcoord=istate_pcoord)
 
@@ -122,8 +125,7 @@ class Trace:
 
         return cls(summary, endpoint_type, basis_state, initial_state, data_manager)
 
-    def get_segment_data_slice(self, datafile, dsname, n_iter, seg_id, slice_=None, index_data=None,
-                               iter_prec=None):
+    def get_segment_data_slice(self, datafile, dsname, n_iter, seg_id, slice_=None, index_data=None, iter_prec=None):
         '''Return the data from the dataset named ``dsname`` within the given ``datafile`` (an open
         h5py.File object) for the given iteration and segment. By default, it is assumed that the
         dataset is stored in the iteration group for iteration ``n_iter``, but if ``index_data``
@@ -142,18 +144,18 @@ class Trace:
         if index_data is not None:
             dataset = datafile[dsname]
 
-            for i, (i_n_iter,i_seg_id) in enumerate(index_data):
-                if (i_n_iter,i_seg_id) == (n_iter,seg_id):
+            for i, (i_n_iter, i_seg_id) in enumerate(index_data):
+                if (i_n_iter, i_seg_id) == (n_iter, seg_id):
                     break
             else:
-                raise KeyError((n_iter,seg_id))
+                raise KeyError((n_iter, seg_id))
 
             itpl = (i,) + slice_
             return dataset[itpl]
         else:
             if not iter_prec:
                 iter_prec = datafile.attrs.get('west_iter_prec', self.data_manager.default_iter_prec)
-            igname_tail = 'iter_{:0{iter_prec:d}d}'.format(int(n_iter),iter_prec=int(iter_prec))
+            igname_tail = 'iter_{:0{iter_prec:d}d}'.format(int(n_iter), iter_prec=int(iter_prec))
             try:
                 iter_group = datafile['/iterations/' + igname_tail]
             except KeyError:
@@ -164,7 +166,7 @@ class Trace:
 
             return dataset[itpl]
 
-    def trace_timepoint_dataset(self, dsname, slice_=None, auxfile=None,index_ds=None):
+    def trace_timepoint_dataset(self, dsname, slice_=None, auxfile=None, index_ds=None):
         '''Return a trace along this trajectory over a dataset which is layed out as [seg_id][timepoint][...].
         Overlapping values at segment boundaries are accounted for.  Returns (data_trace, weight), where
         data_trace is a time series of the dataset along this trajectory, and weight is the corresponding
@@ -199,7 +201,7 @@ class Trace:
 
         # Load the index if we use it
         if index_ds is not None:
-            if isinstance(index_ds,str):
+            if isinstance(index_ds, str):
                 index_ds = datafile[index_ds]
             index_data = index_ds[...]
         else:
@@ -208,7 +210,7 @@ class Trace:
         # Be sure to retrieve the time series
         if not slice_:
             first_sl = np.index_exp[:, ...]
-            other_sl = np.index_exp[1:,...]
+            other_sl = np.index_exp[1:, ...]
         else:
             first_sl = np.index_exp[:] + slice_
             other_sl = np.index_exp[1:] + slice_
@@ -220,7 +222,7 @@ class Trace:
         n_segs = len(self)
         n_points_per_seg = len(first_iter_data)
 
-        length = n_points_per_seg + (n_segs-1)*(n_points_per_seg-1)
+        length = n_points_per_seg + (n_segs - 1) * (n_points_per_seg - 1)
         tracedata = np.empty((length,) + first_iter_data.shape[1:], dtype=first_iter_data.dtype)
         traceweight = np.empty((length,), weight_dtype)
 
@@ -236,12 +238,12 @@ class Trace:
             seg_id = summary_item['seg_id']
             weight = summary_item['weight']
 
-            offset = n_points_per_seg + iseg*(n_points_per_seg-1)
+            offset = n_points_per_seg + iseg * (n_points_per_seg - 1)
             length = n_points_per_seg - 1
             seg_data = get_data_slice(datafile, dsname, n_iter, seg_id, other_sl, index_data, iter_prec)
 
-            tracedata[offset:offset+length] = seg_data
-            traceweight[offset:offset+length] = weight
+            tracedata[offset : offset + length] = seg_data
+            traceweight[offset : offset + length] = weight
             del seg_data
 
         if close_datafile:
@@ -278,8 +280,9 @@ class Trace:
         return tracedata, traceweight
     """
 
+
 class WTraceTool(WESTTool):
-    prog='w_trace'
+    prog = 'w_trace'
     description = '''\
 Trace individual WEST trajectories and emit (or calculate) quantities along the
 trajectory.
@@ -330,65 +333,79 @@ The following options for datasets are supported:
 -------------------------------------------------------------------------------
 '''
 
-
-    pcoord_formats = {'u8': '%20d',
-                      'i8': '%20d',
-                      'u4': '%10d',
-                      'i4': '%11d',
-                      'u2': '%5d',
-                      'i2': '%6d',
-                      'f4': '%14.7g',
-                      'f8': '%023.15g'}
+    pcoord_formats = {
+        'u8': '%20d',
+        'i8': '%20d',
+        'u4': '%10d',
+        'i4': '%11d',
+        'u2': '%5d',
+        'i2': '%6d',
+        'f4': '%14.7g',
+        'f8': '%023.15g',
+    }
 
     def __init__(self):
         super().__init__()
 
         self.data_reader = WESTDataReader()
-        #self.h5storage = HDF5Storage()
+        # self.h5storage = HDF5Storage()
         self.output_file = None
         self.output_pattern = None
         self.endpoints = None
         self.datasets = []
 
-
     # Interface for command-line tools
     def add_args(self, parser):
         self.data_reader.add_args(parser)
-        #self.h5storage.add_args(parser)
-        parser.add_argument('-d', '--dataset', dest='datasets',
-                            #this breaks argparse (see http://bugs.python.org/issue11874)
-                            #metavar='DSNAME[,alias=ALIAS][,index=INDEX][,file=FILE][,slice=SLICE]',
-                            metavar='DSNAME',
-                            action='append',
-                            help='''Include the dataset named DSNAME in trace output. An extended form like
+        # self.h5storage.add_args(parser)
+        parser.add_argument(
+            '-d',
+            '--dataset',
+            dest='datasets',
+            # this breaks argparse (see http://bugs.python.org/issue11874)
+            # metavar='DSNAME[,alias=ALIAS][,index=INDEX][,file=FILE][,slice=SLICE]',
+            metavar='DSNAME',
+            action='append',
+            help='''Include the dataset named DSNAME in trace output. An extended form like
                             DSNAME[,alias=ALIAS][,index=INDEX][,file=FILE][,slice=SLICE] will
                             obtain the dataset from the given FILE instead of the main WEST HDF5 file,
                             slice it by SLICE, call it ALIAS in output, and/or access per-segment data by a n_iter,seg_id
-                            INDEX instead of a seg_id indexed dataset in the group for n_iter.''')
-        parser.add_argument('endpoints',  metavar='N_ITER:SEG_ID', nargs='+',
-                            help='''Trace trajectory ending (or at least alive at) N_ITER:SEG_ID.''')
+                            INDEX instead of a seg_id indexed dataset in the group for n_iter.''',
+        )
+        parser.add_argument(
+            'endpoints',
+            metavar='N_ITER:SEG_ID',
+            nargs='+',
+            help='''Trace trajectory ending (or at least alive at) N_ITER:SEG_ID.''',
+        )
 
-        #tgroup = parser.add_argument_group('trace options')
+        # tgroup = parser.add_argument_group('trace options')
         ogroup = parser.add_argument_group('output options')
-        ogroup.add_argument('--output-pattern', default='traj_%d_%d',
-                            help='''Write per-trajectory data to output files/HDF5 groups whose names begin with OUTPUT_PATTERN,
+        ogroup.add_argument(
+            '--output-pattern',
+            default='traj_%d_%d',
+            help='''Write per-trajectory data to output files/HDF5 groups whose names begin with OUTPUT_PATTERN,
                                  which must contain two printf-style format flags which will be replaced with the iteration number
                                  and segment ID of the terminal segment of the trajectory being traced.
-                                 (Default: %(default)s.)''')
-        ogroup.add_argument('-o', '--output', default='trajs.h5',
-                            help='Store intermediate data and analysis results to OUTPUT (default: %(default)s).')
-
+                                 (Default: %(default)s.)''',
+        )
+        ogroup.add_argument(
+            '-o',
+            '--output',
+            default='trajs.h5',
+            help='Store intermediate data and analysis results to OUTPUT (default: %(default)s).',
+        )
 
     def process_args(self, args):
         self.data_reader.process_args(args)
-        #self.h5storage.process_args(args)
-        self.endpoints = [list(map(int,endpoint.split(':'))) for endpoint in args.endpoints]
+        # self.h5storage.process_args(args)
+        self.endpoints = [list(map(int, endpoint.split(':'))) for endpoint in args.endpoints]
         self.output_pattern = args.output_pattern
 
         for dsstr in args.datasets or []:
             self.datasets.append(self.parse_dataset_string(dsstr))
 
-        #self.h5storage.open_analysis_h5file()
+        # self.h5storage.open_analysis_h5file()
         self.output_file = h5py.File(args.output)
 
     def parse_dataset_string(self, dsstr):
@@ -400,7 +417,7 @@ The following options for datasets are supported:
         dsinfo['dsname'] = fields[0]
 
         for field in (field.strip() for field in fields[1:]):
-            k,v = field.split('=')
+            k, v = field.split('=')
             k = k.lower()
             if k in ('alias', 'file', 'index'):
                 dsinfo[k] = v
@@ -417,17 +434,17 @@ The following options for datasets are supported:
     def go(self):
         self.data_reader.open('r')
 
-        #Create a new 'trajectories' group if this is the first trace
+        # Create a new 'trajectories' group if this is the first trace
         try:
             trajs_group = h5io.create_hdf5_group(self.output_file, 'trajectories', replace=False, creating_program=self.prog)
         except ValueError:
             trajs_group = self.output_file['trajectories']
 
         for n_iter, seg_id in self.endpoints:
-            trajname = self.output_pattern % (n_iter,seg_id)
+            trajname = self.output_pattern % (n_iter, seg_id)
             trajgroup = trajs_group.create_group(trajname)
 
-            trace = Trace.from_data_manager(n_iter,seg_id, self.data_reader.data_manager)
+            trace = Trace.from_data_manager(n_iter, seg_id, self.data_reader.data_manager)
 
             with open(trajname + '_trace.txt', 'wt') as trace_output:
                 self.emit_trace_text(trace, trace_output)
@@ -450,7 +467,7 @@ The following options for datasets are supported:
                 alias = dsinfo.get('alias', dsname)
                 index = dsinfo.get('index')
 
-                data, weights = trace.trace_timepoint_dataset(dsname, auxfile=aux_h5file, slice_=slice_,index_ds=index)
+                data, weights = trace.trace_timepoint_dataset(dsname, auxfile=aux_h5file, slice_=slice_, index_ds=index)
 
                 # Save data to HDF5
                 try:
@@ -491,61 +508,87 @@ The following options for datasets are supported:
         lastseg = trace[-1]
         len_n_iter = max(6, len(str(lastseg['n_iter'])))
         len_seg_id = max(6, max(len(str(seg_id)) for seg_id in trace['seg_id']))
-        seg_pattern = '    '.join(['{n_iter:{len_n_iter}d}',
-                                   '{seg_id:{len_seg_id}d}',
-                                   '{weight:22.17e}',
-                                   '{walltime:10.6g}',
-                                   '{cputime:10.6g}',
-                                   '{pcoord_str:s}'
-                                   ]) + '\n'
+        seg_pattern = (
+            '    '.join(
+                [
+                    '{n_iter:{len_n_iter}d}',
+                    '{seg_id:{len_seg_id}d}',
+                    '{weight:22.17e}',
+                    '{walltime:10.6g}',
+                    '{cputime:10.6g}',
+                    '{pcoord_str:s}',
+                ]
+            )
+            + '\n'
+        )
 
-
-        output_file.write('''\
+        output_file.write(
+            '''\
 # Trace of trajectory ending in n_iter:seg_id {n_iter:d}:{seg_id:d} (endpoint type {endpoint_type_text:s})
 # column  0: iteration (0 => initial state)
 # column  1: seg_id (or initial state ID)
 # column  2: weight
 # column  3: wallclock time (s)
 # column  4: CPU time (s)
-'''.format(n_iter = int(lastseg['n_iter']),
-           seg_id = int(lastseg['seg_id']),
-           endpoint_type_text = Segment.endpoint_type_names[trace.endpoint_type]))
-
+'''.format(
+                n_iter=int(lastseg['n_iter']),
+                seg_id=int(lastseg['seg_id']),
+                endpoint_type_text=Segment.endpoint_type_names[trace.endpoint_type],
+            )
+        )
 
         if pcoord_ndim == 1:
-            output_file.write('''\
+            output_file.write(
+                '''\
 # column  5: final progress coordinate value
-''')
+'''
+            )
         else:
             fpcbegin = 5
             fpcend = fpcbegin + pcoord_ndim - 1
-            output_file.write('''\
+            output_file.write(
+                '''\
 # columns {fpcbegin:d} -- {fpcend:d}: final progress coordinate value
-'''.format(fpcbegin=fpcbegin,fpcend=fpcend))
-
+'''.format(
+                    fpcbegin=fpcbegin, fpcend=fpcend
+                )
+            )
 
         pcoord_formats = self.pcoord_formats
 
         # Output row for initial state
         initial_state = trace.initial_state
-        pcoord_str = '    '.join(pcoord_formats.get(pcfield.dtype.str[1:], '%s') % pcfield
-                                 for pcfield in initial_state.pcoord)
-        output_file.write(seg_pattern.format(n_iter=0, seg_id=initial_state.state_id,
-                                             weight=0.0, walltime=0, cputime=0, pcoord_str=pcoord_str,
-                                             len_n_iter=len_n_iter,len_seg_id=len_seg_id))
+        pcoord_str = '    '.join(pcoord_formats.get(pcfield.dtype.str[1:], '%s') % pcfield for pcfield in initial_state.pcoord)
+        output_file.write(
+            seg_pattern.format(
+                n_iter=0,
+                seg_id=initial_state.state_id,
+                weight=0.0,
+                walltime=0,
+                cputime=0,
+                pcoord_str=pcoord_str,
+                len_n_iter=len_n_iter,
+                len_seg_id=len_seg_id,
+            )
+        )
 
         # Output rows for segments
         for segment in trace:
-            pcoord_str = '    '.join(pcoord_formats.get(pcfield.dtype.str[1:], '%s') % pcfield
-                                     for pcfield in segment['final_pcoord'])
-            output_file.write(seg_pattern.format(n_iter = int(segment['n_iter']),
-                                                 seg_id = int(segment['seg_id']),
-                                                 weight = float(segment['weight']),
-                                                 walltime = float(segment['walltime']),
-                                                 cputime = float(segment['cputime']),
-                                                 pcoord_str=pcoord_str,
-                                                 len_n_iter=len_n_iter,
-                                                 len_seg_id=len_seg_id))
+            pcoord_str = '    '.join(
+                pcoord_formats.get(pcfield.dtype.str[1:], '%s') % pcfield for pcfield in segment['final_pcoord']
+            )
+            output_file.write(
+                seg_pattern.format(
+                    n_iter=int(segment['n_iter']),
+                    seg_id=int(segment['seg_id']),
+                    weight=float(segment['weight']),
+                    walltime=float(segment['walltime']),
+                    cputime=float(segment['cputime']),
+                    pcoord_str=pcoord_str,
+                    len_n_iter=len_n_iter,
+                    len_seg_id=len_seg_id,
+                )
+            )
 
 
 def entry_point():

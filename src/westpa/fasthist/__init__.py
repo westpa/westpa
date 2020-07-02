@@ -1,4 +1,4 @@
-from . _fasthist import histnd  # noqa
+from ._fasthist import histnd  # noqa
 
 import numpy as np
 
@@ -11,8 +11,9 @@ def normhistnd(hist, binbounds):
     ndim = hist.ndim
 
     if ndim != len(binbounds):
-        raise ValueError('shape of histogram [{!r}] does not match bin boundary sets (there are {})'
-                         .format(hist.shape, len(binbounds)))
+        raise ValueError(
+            'shape of histogram [{!r}] does not match bin boundary sets (there are {})'.format(hist.shape, len(binbounds))
+        )
 
     diffs = [np.diff(bb) for bb in binbounds]
 

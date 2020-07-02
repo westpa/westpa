@@ -1,4 +1,4 @@
-from westpa.tools import (WESTMasterCommand, WESTParallelTool)
+from westpa.tools import WESTMasterCommand, WESTParallelTool
 
 from westpa.cli.tools.w_reweight import RWMatrix
 
@@ -14,11 +14,11 @@ class PAMatrix(RWMatrix):
     # This isn't strictly necessary, but for the moment, here it is.
     # We really need to modify the underlying class so that we don't pull this sort of stuff if it isn't necessary.
     # That'll take some case handling, which is fine.
-    #default_kinetics_file = 'assign.h5'
+    # default_kinetics_file = 'assign.h5'
 
 
 class WReweight(WESTMasterCommand, WESTParallelTool):
-    prog='w_postanalysis_matrix'
+    prog = 'w_postanalysis_matrix'
     subcommands = [PAMatrix]
     subparsers_title = 'calculate state-to-state kinetics by tracing trajectories'
     description = '''\
@@ -68,6 +68,7 @@ def entry_point():
     print('WARNING: {} is being deprecated.  Please use w_reweight instead.'.format(WReweight.prog))
     # If we're not really supporting subcommands...
     import sys
+
     try:
         if sys.argv[1] != 'init':
             sys.argv.insert(1, 'init')

@@ -48,7 +48,7 @@ class WESTToolComponent:
             except KeyError:
                 pass
             else:
-                fn(self,parser)
+                fn(self, parser)
 
     def process_all_args(self, args):
         self.args = args
@@ -60,7 +60,8 @@ class WESTToolComponent:
             except KeyError:
                 pass
             else:
-                fn(self,args)
+                fn(self, args)
+
 
 class WESTTool(WESTToolComponent):
     '''Base class for WEST command line tools'''
@@ -80,23 +81,28 @@ class WESTTool(WESTToolComponent):
     def process_args(self, args):
         '''Take argparse-processed arguments associated with this tool and deal
         with them appropriately (setting instance variables, etc)'''
-        westpa.rc.process_args(args, config_required = self.config_required)
+        westpa.rc.process_args(args, config_required=self.config_required)
 
     def make_parser(self, prog=None, usage=None, description=None, epilog=None, args=None):
         prog = prog or self.prog
         usage = usage or self.usage
         description = description or self.description
         epilog = epilog or self.epilog
-        parser = argparse.ArgumentParser(prog=prog, usage=usage, description=description, epilog=epilog,
-                                         formatter_class=argparse.RawDescriptionHelpFormatter,
-                                         conflict_handler='resolve')
+        parser = argparse.ArgumentParser(
+            prog=prog,
+            usage=usage,
+            description=description,
+            epilog=epilog,
+            formatter_class=argparse.RawDescriptionHelpFormatter,
+            conflict_handler='resolve',
+        )
         self.add_all_args(parser)
         return parser
 
     def make_parser_and_process(self, prog=None, usage=None, description=None, epilog=None, args=None):
         '''A convenience function to create a parser, call add_all_args(), and then call process_all_args().
         The argument namespace is returned.'''
-        parser = self.make_parser(prog,usage,description,epilog,args)
+        parser = self.make_parser(prog, usage, description, epilog, args)
         args = parser.parse_args(args)
         self.process_all_args(args)
         return args
@@ -124,7 +130,7 @@ class WESTParallelTool(WESTTool):
     def make_parser_and_process(self, prog=None, usage=None, description=None, epilog=None, args=None):
         '''A convenience function to create a parser, call add_all_args(), and then call process_all_args().
         The argument namespace is returned.'''
-        parser = self.make_parser(prog,usage,description,epilog,args)
+        parser = self.make_parser(prog, usage, description, epilog, args)
         self.wm_env.add_wm_args(parser)
 
         args = parser.parse_args(args)
@@ -139,9 +145,12 @@ class WESTParallelTool(WESTTool):
 
     def add_args(self, parser):
         pgroup = parser.add_argument_group('parallelization options')
-        pgroup.add_argument('--max-queue-length', type=int,
-                            help='''Maximum number of tasks that can be queued. Useful to limit RAM use
-                            for tasks that have very large requests/response. Default: no limit.''')
+        pgroup.add_argument(
+            '--max-queue-length',
+            type=int,
+            help='''Maximum number of tasks that can be queued. Useful to limit RAM use
+                            for tasks that have very large requests/response. Default: no limit.''',
+        )
 
     def process_args(self, args):
         self.max_queue_len = args.max_queue_length
@@ -160,6 +169,7 @@ class WESTParallelTool(WESTTool):
             else:
                 self.work_manager.run()
 
+
 class WESTSubcommand(WESTToolComponent):
     '''Base class for command-line tool subcommands. A little sugar for making this
     more uniform.'''
@@ -173,9 +183,12 @@ class WESTSubcommand(WESTToolComponent):
         self.subparser = None
 
     def add_to_subparsers(self, subparsers):
-        subparser = subparsers.add_parser(self.subcommand, help=self.help_text, description=self.description,
-                                          formatter_class=argparse.RawDescriptionHelpFormatter,
-                                          )
+        subparser = subparsers.add_parser(
+            self.subcommand,
+            help=self.help_text,
+            description=self.description,
+            formatter_class=argparse.RawDescriptionHelpFormatter,
+        )
         self.add_all_args(subparser)
         subparser.set_defaults(west_subcommand=self)
         self.subparser = subparser
@@ -207,7 +220,6 @@ class _WESTSubcommandHelp(WESTSubcommand):
         else:
             self.parent._subcommand_instances[self.command].subparser.print_help(sys.stdout)
         sys.exit(0)
-
 
 
 class WESTMasterCommand(WESTTool):

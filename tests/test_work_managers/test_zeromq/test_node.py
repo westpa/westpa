@@ -8,8 +8,8 @@ from westpa.work_managers.zeromq.node import ZMQNode
 from test_work_managers.tsupport import CommonWorkManagerTests
 from test_work_managers.tsupport import identity, random_int
 
-from . zmq_tsupport import SETUP_WAIT, TEARDOWN_WAIT, SHUTDOWN_WAIT, BEACON_PERIOD, BEACON_WAIT
-from . zmq_tsupport import ZMQTestBase
+from .zmq_tsupport import SETUP_WAIT, TEARDOWN_WAIT, SHUTDOWN_WAIT, BEACON_PERIOD, BEACON_WAIT
+from .zmq_tsupport import ZMQTestBase
 
 
 class TestZMQNodeExternal(ZMQTestBase, CommonWorkManagerTests, unittest.TestCase):
@@ -17,6 +17,7 @@ class TestZMQNodeExternal(ZMQTestBase, CommonWorkManagerTests, unittest.TestCase
 
     '''Tests for the core task dispersal/retrieval and shutdown operations
     (the parts of the WM that do not require ZMQWorker).'''
+
     def setUp(self):
         super().setUp()
 
@@ -48,16 +49,16 @@ class TestZMQNodeExternal(ZMQTestBase, CommonWorkManagerTests, unittest.TestCase
         self.test_node.startup()
         self.test_wm.startup()
 
-        #self.test_wm.startup()
-        #self.test_node.startup()
-        #self.test_worker.startup()
+        # self.test_wm.startup()
+        # self.test_node.startup()
+        # self.test_worker.startup()
 
         self.test_core.master_id = self.test_wm.master_id
         self.test_node.master_id = self.test_wm.master_id
 
         self.work_manager = self.test_wm
 
-        #time.sleep(1.0)
+        # time.sleep(1.0)
         time.sleep(SETUP_WAIT)
 
     def tearDown(self):
@@ -86,7 +87,7 @@ class TestZMQNodeExternal(ZMQTestBase, CommonWorkManagerTests, unittest.TestCase
 
     def test_task(self):
         r = random_int()
-        future = self.test_wm.submit(identity,(r,),{})
+        future = self.test_wm.submit(identity, (r,), {})
         assert future.get_result() == r
 
 
@@ -95,9 +96,9 @@ class TestZMQNodeInternal(ZMQTestBase, CommonWorkManagerTests, unittest.TestCase
 
     '''Tests for the core task dispersal/retrieval and shutdown operations
     (the parts of the WM that do not require ZMQWorker).'''
+
     def setUp(self):
         super().setUp()
-
 
         self.test_wm = ZMQWorkManager(n_local_workers=0)
         upstream_ann_endpoint = self.test_core.make_internal_endpoint()
@@ -124,16 +125,16 @@ class TestZMQNodeInternal(ZMQTestBase, CommonWorkManagerTests, unittest.TestCase
         self.test_node.startup()
         self.test_wm.startup()
 
-        #self.test_wm.startup()
-        #self.test_node.startup()
-        #self.test_worker.startup()
+        # self.test_wm.startup()
+        # self.test_node.startup()
+        # self.test_worker.startup()
 
         self.test_core.master_id = self.test_wm.master_id
         self.test_node.master_id = self.test_wm.master_id
 
         self.work_manager = self.test_wm
 
-        #time.sleep(1.0)
+        # time.sleep(1.0)
         time.sleep(SETUP_WAIT)
 
     def tearDown(self):
@@ -149,4 +150,3 @@ class TestZMQNodeInternal(ZMQTestBase, CommonWorkManagerTests, unittest.TestCase
         self.test_wm.remove_ipc_endpoints()
 
         super().tearDown()
-

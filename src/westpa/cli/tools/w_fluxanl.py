@@ -4,22 +4,24 @@ from scipy.signal import fftconvolve
 
 import westpa
 
-from westpa.core.data_manager import (weight_dtype, n_iter_dtype, vstr_dtype)
+from westpa.core.data_manager import weight_dtype, n_iter_dtype, vstr_dtype
 from westpa.core.we_driver import NewWeightEntry
 from westpa.core import h5io
 from westpa.tools import WESTTool, WESTDataReader, IterRangeSelection
 from westpa.tools.dtypes import iter_block_ci_dtype as ci_dtype
 import westpa.mclib as mclib
 
-fluxentry_dtype = np.dtype([('n_iter', n_iter_dtype),
-                               ('flux', weight_dtype),
-                               ('count', np.uint)])
+fluxentry_dtype = np.dtype([('n_iter', n_iter_dtype), ('flux', weight_dtype), ('count', np.uint)])
 
-target_index_dtype = np.dtype([('target_label', vstr_dtype),
-                                  ('mean_flux', weight_dtype),
-                                  ('mean_flux_ci_lb', weight_dtype),
-                                  ('mean_flux_ci_ub', weight_dtype),
-                                  ('mean_flux_correl_len', np.uintc)])
+target_index_dtype = np.dtype(
+    [
+        ('target_label', vstr_dtype),
+        ('mean_flux', weight_dtype),
+        ('mean_flux_ci_lb', weight_dtype),
+        ('mean_flux_ci_ub', weight_dtype),
+        ('mean_flux_correl_len', np.uintc),
+    ]
+)
 
 
 def _extract_fluxes_fileversion_lt_7(iter_start, iter_stop, data_manager):
@@ -37,8 +39,7 @@ def _extract_fluxes_fileversion_lt_7(iter_start, iter_stop, data_manager):
     else:
         flux_field = 'flux'
 
-    fluxdata = {itarget: np.zeros((iter_count,), dtype=fluxentry_dtype)
-                for itarget in range(target_count)}
+    fluxdata = {itarget: np.zeros((iter_count,), dtype=fluxentry_dtype) for itarget in range(target_count)}
 
     for iiter, n_iter in enumerate(range(iter_start, iter_stop)):
         rdata = data_manager.get_iter_group(n_iter)['recycling']
@@ -49,6 +50,7 @@ def _extract_fluxes_fileversion_lt_7(iter_start, iter_stop, data_manager):
         del rdata
 
     return fluxdata
+
 
 def _extract_fluxes_fileversion_7(iter_start, iter_stop, data_manager):
     '''Extract fluxes from HDF5 file version 7, where recycling information is
@@ -70,7 +72,7 @@ def _extract_fluxes_fileversion_7(iter_start, iter_stop, data_manager):
     for iiter, n_iter in enumerate(range(iter_start, iter_stop)):
         target_states = data_manager.get_target_states(n_iter)
         try:
-            new_weight_index = data_manager.get_iter_group(n_iter+1)['new_weights']['index']
+            new_weight_index = data_manager.get_iter_group(n_iter + 1)['new_weights']['index']
         except KeyError:
             # no recycling data available
             continue
@@ -86,9 +88,9 @@ def _extract_fluxes_fileversion_7(iter_start, iter_stop, data_manager):
                 target_info['count'][:] = -1
                 target_info['n_iter'][:] = iters[:]
 
-            recycled_from_tstate = ( (new_weight_index['source_type'] == NewWeightEntry.NW_SOURCE_RECYCLED)
-                                    &(new_weight_index['target_state_id'] == tstate.state_id)
-                                   )
+            recycled_from_tstate = (new_weight_index['source_type'] == NewWeightEntry.NW_SOURCE_RECYCLED) & (
+                new_weight_index['target_state_id'] == tstate.state_id
+            )
 
             recycle_count = recycled_from_tstate.sum()
             target_info['count'][iiter] = recycle_count
@@ -101,9 +103,10 @@ def _extract_fluxes_fileversion_7(iter_start, iter_stop, data_manager):
     # Find the last contiguous run where target is available
     for target_label in by_target:
         fluxdata = by_target[target_label]
-        by_target[target_label] = fluxdata[np.searchsorted(fluxdata['count'],[0])[0]:]
+        by_target[target_label] = fluxdata[np.searchsorted(fluxdata['count'], [0])[0] :]
 
     return by_target
+
 
 def extract_fluxes(iter_start=None, iter_stop=None, data_manager=None):
     '''Extract flux values from the WEST HDF5 file for iterations >= iter_start
@@ -119,15 +122,14 @@ def extract_fluxes(iter_start=None, iter_stop=None, data_manager=None):
     iter_start = iter_start or 1
     iter_stop = iter_stop or data_manager.current_iteration
 
-
     if data_manager.we_h5file_version < 7:
         return _extract_fluxes_fileversion_lt_7(iter_start, iter_stop, data_manager)
     else:
-        return _extract_fluxes_fileversion_7(iter_start, iter_stop,data_manager)
+        return _extract_fluxes_fileversion_7(iter_start, iter_stop, data_manager)
 
 
 class WFluxanlTool(WESTTool):
-    prog='w_fluxanl'
+    prog = 'w_fluxanl'
     description = '''\
 Extract fluxes into pre-defined target states from WEST data,
 average, and construct confidence intervals. Monte Carlo bootstrapping
@@ -162,28 +164,63 @@ the true value of ``tau``.
         self.data_reader.add_args(parser)
         self.iter_range.add_args(parser)
         ogroup = parser.add_argument_group('output options')
-        ogroup.add_argument('-o', '--output', default='fluxanl.h5',
-                            help='Store intermediate data and analysis results to OUTPUT (default: %(default)s).')
+        ogroup.add_argument(
+            '-o',
+            '--output',
+            default='fluxanl.h5',
+            help='Store intermediate data and analysis results to OUTPUT (default: %(default)s).',
+        )
         cgroup = parser.add_argument_group('calculation options')
-        cgroup.add_argument('--disable-bootstrap', '-db', dest='bootstrap', action='store_const', const=False,
-                             help='''Enable the use of Monte Carlo Block Bootstrapping.''')
-        cgroup.add_argument('--disable-correl', '-dc', dest='correl', action='store_const', const=False,
-                             help='''Disable the correlation analysis.''')
-        cgroup.add_argument('-a', '--alpha', type=float, default=0.05,
-                             help='''Calculate a (1-ALPHA) confidence interval on the average flux'
-                             (default: %(default)s)''')
-        cgroup.add_argument('--autocorrel-alpha', type=float, dest='acalpha', metavar='ACALPHA',
-                             help='''Evaluate autocorrelation of flux to (1-ACALPHA) significance.
+        cgroup.add_argument(
+            '--disable-bootstrap',
+            '-db',
+            dest='bootstrap',
+            action='store_const',
+            const=False,
+            help='''Enable the use of Monte Carlo Block Bootstrapping.''',
+        )
+        cgroup.add_argument(
+            '--disable-correl',
+            '-dc',
+            dest='correl',
+            action='store_const',
+            const=False,
+            help='''Disable the correlation analysis.''',
+        )
+        cgroup.add_argument(
+            '-a',
+            '--alpha',
+            type=float,
+            default=0.05,
+            help='''Calculate a (1-ALPHA) confidence interval on the average flux'
+                             (default: %(default)s)''',
+        )
+        cgroup.add_argument(
+            '--autocorrel-alpha',
+            type=float,
+            dest='acalpha',
+            metavar='ACALPHA',
+            help='''Evaluate autocorrelation of flux to (1-ACALPHA) significance.
                              Note that too small an ACALPHA will result in failure to detect autocorrelation
-                             in a noisy flux signal. (Default: same as ALPHA.)''')
-        cgroup.add_argument('-N', '--nsets', type=int,
-                             help='''Use NSETS samples for bootstrapping (default: chosen based on ALPHA)''')
-        cgroup.add_argument('--evol', action='store_true', dest='do_evol',
-                            help='''Calculate time evolution of flux confidence intervals (expensive).''')
-        cgroup.add_argument('--evol-step', type=int, default=1, metavar='ESTEP',
-                            help='''Calculate time evolution of flux confidence intervals every ESTEP
-                            iterations (default: %(default)s)''')
-
+                             in a noisy flux signal. (Default: same as ALPHA.)''',
+        )
+        cgroup.add_argument(
+            '-N', '--nsets', type=int, help='''Use NSETS samples for bootstrapping (default: chosen based on ALPHA)'''
+        )
+        cgroup.add_argument(
+            '--evol',
+            action='store_true',
+            dest='do_evol',
+            help='''Calculate time evolution of flux confidence intervals (expensive).''',
+        )
+        cgroup.add_argument(
+            '--evol-step',
+            type=int,
+            default=1,
+            metavar='ESTEP',
+            help='''Calculate time evolution of flux confidence intervals every ESTEP
+                            iterations (default: %(default)s)''',
+        )
 
     def process_args(self, args):
         self.data_reader.process_args(args)
@@ -204,8 +241,11 @@ the true value of ``tau``.
         self.evol_step = args.evol_step or 1
 
     def calc_store_flux_data(self):
-        westpa.rc.pstatus('Calculating mean flux and confidence intervals for iterations [{},{})'
-                        .format(self.iter_range.iter_start, self.iter_range.iter_stop))
+        westpa.rc.pstatus(
+            'Calculating mean flux and confidence intervals for iterations [{},{})'.format(
+                self.iter_range.iter_start, self.iter_range.iter_stop
+            )
+        )
 
         fluxdata = extract_fluxes(self.iter_range.iter_start, self.iter_range.iter_stop, self.data_reader)
 
@@ -218,7 +258,6 @@ the true value of ``tau``.
         n_targets = len(fluxdata)
         index = np.empty((len(fluxdata),), dtype=target_index_dtype)
         avg_fluxdata = np.empty((n_targets,), dtype=ci_dtype)
-
 
         for itarget, (target_label, target_fluxdata) in enumerate(fluxdata.items()):
             # Create group and index entry
@@ -233,26 +272,33 @@ the true value of ``tau``.
             target_group['flux'] = target_fluxdata['flux']
             h5io.label_axes(target_group['flux'], ['n_iter'], units=['tau^-1'])
 
-
             # Calculate flux autocorrelation
             fluxes = target_fluxdata['flux']
             mean_flux = fluxes.mean()
             fmm = fluxes - mean_flux
-            acorr = fftconvolve(fmm,fmm[::-1])
-            acorr = acorr[len(acorr)//2:]
+            acorr = fftconvolve(fmm, fmm[::-1])
+            acorr = acorr[len(acorr) // 2 :]
             acorr /= acorr[0]
             acorr_ds = target_group.create_dataset('flux_autocorrel', data=acorr)
             h5io.label_axes(acorr_ds, ['lag'], ['tau'])
 
             # Calculate overall averages and CIs
-            #avg, lb_ci, ub_ci, correl_len = mclib.mcbs_ci_correl(fluxes, np.mean, self.alpha, self.n_sets,
+            # avg, lb_ci, ub_ci, correl_len = mclib.mcbs_ci_correl(fluxes, np.mean, self.alpha, self.n_sets,
             #                                                     autocorrel_alpha=self.autocorrel_alpha, subsample=np.mean)
-            avg, lb_ci, ub_ci, sterr, correl_len = mclib.mcbs_ci_correl({'dataset': fluxes}, estimator=(lambda stride, dataset: np.mean(dataset)), alpha=self.alpha, n_sets=self.n_sets,
-                                                                 autocorrel_alpha=self.autocorrel_alpha, subsample=np.mean, do_correl=self.do_correl, mcbs_enable=self.mcbs_enable )
+            avg, lb_ci, ub_ci, sterr, correl_len = mclib.mcbs_ci_correl(
+                {'dataset': fluxes},
+                estimator=(lambda stride, dataset: np.mean(dataset)),
+                alpha=self.alpha,
+                n_sets=self.n_sets,
+                autocorrel_alpha=self.autocorrel_alpha,
+                subsample=np.mean,
+                do_correl=self.do_correl,
+                mcbs_enable=self.mcbs_enable,
+            )
             avg_fluxdata[itarget] = (self.iter_range.iter_start, self.iter_range.iter_stop, avg, lb_ci, ub_ci, sterr, correl_len)
             westpa.rc.pstatus('target {!r}:'.format(target_label))
             westpa.rc.pstatus('  correlation length = {} tau'.format(correl_len))
-            westpa.rc.pstatus('  mean flux and CI   = {:e} ({:e},{:e}) tau^(-1)'.format(avg,lb_ci,ub_ci))
+            westpa.rc.pstatus('  mean flux and CI   = {:e} ({:e},{:e}) tau^(-1)'.format(avg, lb_ci, ub_ci))
             index[itarget]['mean_flux'] = avg
             index[itarget]['mean_flux_ci_lb'] = lb_ci
             index[itarget]['mean_flux_ci_ub'] = ub_ci
@@ -267,36 +313,43 @@ the true value of ``tau``.
         self.fluxdata = fluxdata
         self.output_h5file['avg_flux'] = avg_fluxdata
 
-
-
     def calc_evol_flux(self):
-        westpa.rc.pstatus('Calculating cumulative evolution of flux confidence intervals every {} iteration(s)'
-                        .format(self.evol_step))
+        westpa.rc.pstatus(
+            'Calculating cumulative evolution of flux confidence intervals every {} iteration(s)'.format(self.evol_step)
+        )
 
         for itarget, (target_label, target_fluxdata) in enumerate(self.fluxdata.items()):
             fluxes = target_fluxdata['flux']
             target_group = self.target_groups[target_label]
             iter_start = target_group['n_iter'][0]
-            iter_stop  = target_group['n_iter'][-1]
+            iter_stop = target_group['n_iter'][-1]
             iter_count = iter_stop - iter_start
             n_blocks = iter_count // self.evol_step
-            if iter_count % self.evol_step > 0: n_blocks += 1
+            if iter_count % self.evol_step > 0:
+                n_blocks += 1
 
             cis = np.empty((n_blocks,), dtype=ci_dtype)
 
             for iblock in range(n_blocks):
-                block_iter_stop = min(iter_start + (iblock+1)*self.evol_step, iter_stop)
-                istop = min((iblock+1)*self.evol_step, len(target_fluxdata['flux']))
+                block_iter_stop = min(iter_start + (iblock + 1) * self.evol_step, iter_stop)
+                istop = min((iblock + 1) * self.evol_step, len(target_fluxdata['flux']))
                 fluxes = target_fluxdata['flux'][:istop]
 
-                #avg, ci_lb, ci_ub, correl_len = mclib.mcbs_ci_correl(fluxes, np.mean, self.alpha, self.n_sets,
+                # avg, ci_lb, ci_ub, correl_len = mclib.mcbs_ci_correl(fluxes, np.mean, self.alpha, self.n_sets,
                 #                                                     autocorrel_alpha = self.autocorrel_alpha,
                 #                                                     subsample=np.mean)
-                avg, ci_lb, ci_ub, sterr, correl_len = mclib.mcbs_ci_correl({'dataset': fluxes}, estimator=(lambda stride, dataset: np.mean(dataset)), alpha=self.alpha, n_sets=self.n_sets,
-                                                                     autocorrel_alpha = self.autocorrel_alpha,
-                                                                     subsample=np.mean, do_correl=self.do_correl, mcbs_enable=self.mcbs_enable )
+                avg, ci_lb, ci_ub, sterr, correl_len = mclib.mcbs_ci_correl(
+                    {'dataset': fluxes},
+                    estimator=(lambda stride, dataset: np.mean(dataset)),
+                    alpha=self.alpha,
+                    n_sets=self.n_sets,
+                    autocorrel_alpha=self.autocorrel_alpha,
+                    subsample=np.mean,
+                    do_correl=self.do_correl,
+                    mcbs_enable=self.mcbs_enable,
+                )
                 cis[iblock]['iter_start'] = iter_start
-                cis[iblock]['iter_stop']  = block_iter_stop
+                cis[iblock]['iter_stop'] = block_iter_stop
                 cis[iblock]['expected'], cis[iblock]['ci_lbound'], cis[iblock]['ci_ubound'] = avg, ci_lb, ci_ub
                 cis[iblock]['corr_len'] = correl_len
                 cis[iblock]['sterr'] = sterr

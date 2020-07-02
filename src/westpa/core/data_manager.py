@@ -47,9 +47,9 @@ from h5py import h5s
 import numpy as np
 
 from . import h5io
-from . segment import Segment
-from . states import BasisState, TargetState, InitialState
-from . we_driver import NewWeightEntry
+from .segment import Segment
+from .states import BasisState, TargetState, InitialState
+from .we_driver import NewWeightEntry
 
 import westpa
 
@@ -71,6 +71,7 @@ class flushing_lock:
         self.fileobj.flush()
         self.lock.release()
 
+
 class expiring_flushing_lock:
     def __init__(self, lock, flush_method, nextsync):
         self.lock = lock
@@ -88,18 +89,18 @@ class expiring_flushing_lock:
 
 # Data types for use in the HDF5 file
 seg_id_dtype = np.int64  # Up to 9 quintillion segments per iteration; signed so that initial states can be stored negative
-n_iter_dtype = np.uint32 # Up to 4 billion iterations
+n_iter_dtype = np.uint32  # Up to 4 billion iterations
 weight_dtype = np.float64  # about 15 digits of precision in weights
 utime_dtype = np.float64  # ("u" for Unix time) Up to ~10^300 cpu-seconds
 vstr_dtype = h5py.special_dtype(vlen=str)
 h5ref_dtype = h5py.special_dtype(ref=h5py.Reference)
 binhash_dtype = np.dtype('|S64')
 
-#seg_status_dtype    = h5py.special_dtype(enum=(np.uint8, Segment.statuses))
-#seg_initpoint_dtype = h5py.special_dtype(enum=(np.uint8, Segment.initpoint_types))
-#seg_endpoint_dtype  = h5py.special_dtype(enum=(np.uint8, Segment.endpoint_types))
-#istate_type_dtype   = h5py.special_dtype(enum=(np.uint8, InitialState.istate_types))
-#istate_status_dtype = h5py.special_dtype(enum=(np.uint8, InitialState.istate_statuses))
+# seg_status_dtype    = h5py.special_dtype(enum=(np.uint8, Segment.statuses))
+# seg_initpoint_dtype = h5py.special_dtype(enum=(np.uint8, Segment.initpoint_types))
+# seg_endpoint_dtype  = h5py.special_dtype(enum=(np.uint8, Segment.endpoint_types))
+# istate_type_dtype   = h5py.special_dtype(enum=(np.uint8, InitialState.istate_types))
+# istate_status_dtype = h5py.special_dtype(enum=(np.uint8, InitialState.istate_statuses))
 
 seg_status_dtype = np.uint8
 seg_initpoint_dtype = np.uint8
@@ -107,16 +108,19 @@ seg_endpoint_dtype = np.uint8
 istate_type_dtype = np.uint8
 istate_status_dtype = np.uint8
 
-summary_table_dtype = np.dtype( [ ('n_particles', seg_id_dtype),    # Number of live trajectories in this iteration
-                                     ('norm', weight_dtype),          # Norm of probability, to watch for errors or drift
-                                     ('min_bin_prob', weight_dtype),  # Per-bin minimum probability
-                                     ('max_bin_prob', weight_dtype),  # Per-bin maximum probability
-                                     ('min_seg_prob', weight_dtype),  # Per-segment minimum probability
-                                     ('max_seg_prob', weight_dtype),  # Per-segment maximum probability
-                                     ('cputime', utime_dtype),       # Total CPU time for this iteration
-                                     ('walltime', utime_dtype),# Total wallclock time for this iteration
-                                     ('binhash', binhash_dtype),
-                                     ] )
+summary_table_dtype = np.dtype(
+    [
+        ('n_particles', seg_id_dtype),  # Number of live trajectories in this iteration
+        ('norm', weight_dtype),  # Norm of probability, to watch for errors or drift
+        ('min_bin_prob', weight_dtype),  # Per-bin minimum probability
+        ('max_bin_prob', weight_dtype),  # Per-bin maximum probability
+        ('min_seg_prob', weight_dtype),  # Per-segment minimum probability
+        ('max_seg_prob', weight_dtype),  # Per-segment maximum probability
+        ('cputime', utime_dtype),  # Total CPU time for this iteration
+        ('walltime', utime_dtype),  # Total wallclock time for this iteration
+        ('binhash', binhash_dtype),
+    ]
+)
 
 
 # The HDF5 file tracks two distinct, but related, histories:
@@ -127,62 +131,73 @@ summary_table_dtype = np.dtype( [ ('n_particles', seg_id_dtype),    # Number of 
 #        which can be thought of as an adjacency list (the "weight graph")
 # segment ID is implied by the row in the index table, and so is not stored
 # initpoint_type remains implicitly stored as negative IDs (if parent_id < 0, then init_state_id = -(parent_id+1)
-seg_index_dtype = np.dtype( [ ('weight', weight_dtype),              # Statistical weight of this segment
-                                 ('parent_id', seg_id_dtype),           # ID of parent (for trajectory history)
-                                 ('wtg_n_parents', np.uint), # number of parents this segment has in the weight transfer graph
-                                 ('wtg_offset', np.uint),    # offset into the weight transfer graph dataset
-                                 ('cputime', utime_dtype),              # CPU time used in propagating this segment
-                                 ('walltime', utime_dtype),             # Wallclock time used in propagating this segment
-                                 ('endpoint_type', seg_endpoint_dtype), # Endpoint type (will continue, merged, or recycled)
-                                 ('status', seg_status_dtype),          # Status of propagation of this segment
-                                 ] )
+seg_index_dtype = np.dtype(
+    [
+        ('weight', weight_dtype),  # Statistical weight of this segment
+        ('parent_id', seg_id_dtype),  # ID of parent (for trajectory history)
+        ('wtg_n_parents', np.uint),  # number of parents this segment has in the weight transfer graph
+        ('wtg_offset', np.uint),  # offset into the weight transfer graph dataset
+        ('cputime', utime_dtype),  # CPU time used in propagating this segment
+        ('walltime', utime_dtype),  # Wallclock time used in propagating this segment
+        ('endpoint_type', seg_endpoint_dtype),  # Endpoint type (will continue, merged, or recycled)
+        ('status', seg_status_dtype),  # Status of propagation of this segment
+    ]
+)
 
 # Index to basis/initial states
-ibstate_index_dtype = np.dtype([('iter_valid', np.uint),
-                                   ('n_bstates', np.uint),
-                                   ('group_ref', h5ref_dtype)])
+ibstate_index_dtype = np.dtype([('iter_valid', np.uint), ('n_bstates', np.uint), ('group_ref', h5ref_dtype)])
 
 # Basis state index type
-bstate_dtype = np.dtype( [ ('label', vstr_dtype),            # An optional descriptive label
-                              ('probability', weight_dtype),   # Probability that this state will be selected
-                              ('auxref', vstr_dtype),           # An optional auxiliar data reference
-                              ])
+bstate_dtype = np.dtype(
+    [
+        ('label', vstr_dtype),  # An optional descriptive label
+        ('probability', weight_dtype),  # Probability that this state will be selected
+        ('auxref', vstr_dtype),  # An optional auxiliar data reference
+    ]
+)
 
 # Even when initial state generation is off and basis states are passed through directly, an initial state entry
 # is created, as that allows precise tracing of the history of a given state in the most complex case of
 # a new initial state for every new trajectory.
-istate_dtype = np.dtype( [('iter_created', np.uint),      # Iteration during which this state was generated (0 for at w_init)
-                             ('iter_used', np.uint),           # When this state was used to start a new trajectory
-                             ('basis_state_id', seg_id_dtype),    # Which basis state this state was generated from
-                             ('istate_type', istate_type_dtype),  # What type this initial state is (generated or basis)
-                             ('istate_status', istate_status_dtype), # Whether this initial state is ready to go
-                             ])
+istate_dtype = np.dtype(
+    [
+        ('iter_created', np.uint),  # Iteration during which this state was generated (0 for at w_init)
+        ('iter_used', np.uint),  # When this state was used to start a new trajectory
+        ('basis_state_id', seg_id_dtype),  # Which basis state this state was generated from
+        ('istate_type', istate_type_dtype),  # What type this initial state is (generated or basis)
+        ('istate_status', istate_status_dtype),  # Whether this initial state is ready to go
+    ]
+)
 
-tstate_index_dtype = np.dtype([('iter_valid', np.uint), # Iteration when this state list is valid
-                                  ('n_states', np.uint),
-                                  ('group_ref', h5ref_dtype)])  # Reference to a group containing further data; this will be the
-                                                                # null reference if there is no target state for that timeframe.
-tstate_dtype = np.dtype( [('label', vstr_dtype),])           # An optional descriptive label for this state
+tstate_index_dtype = np.dtype(
+    [('iter_valid', np.uint), ('n_states', np.uint), ('group_ref', h5ref_dtype)]  # Iteration when this state list is valid
+)  # Reference to a group containing further data; this will be the
+# null reference if there is no target state for that timeframe.
+tstate_dtype = np.dtype([('label', vstr_dtype)])  # An optional descriptive label for this state
 
 # Support for west.we_driver.NewWeightEntry
 nw_source_dtype = np.uint8
-nw_index_dtype = np.dtype([('source_type', nw_source_dtype),
-                              ('weight', weight_dtype),
-                              ('prev_seg_id', seg_id_dtype),
-                              ('target_state_id', seg_id_dtype),
-                              ('initial_state_id', seg_id_dtype)])
+nw_index_dtype = np.dtype(
+    [
+        ('source_type', nw_source_dtype),
+        ('weight', weight_dtype),
+        ('prev_seg_id', seg_id_dtype),
+        ('target_state_id', seg_id_dtype),
+        ('initial_state_id', seg_id_dtype),
+    ]
+)
 
 # Storage of bin identities
-binning_index_dtype = np.dtype([('hash', binhash_dtype),
-                                   ('pickle_len', np.uint32)])
+binning_index_dtype = np.dtype([('hash', binhash_dtype), ('pickle_len', np.uint32)])
+
 
 class WESTDataManager:
     """Data manager for assisiting the reading and writing of WEST data from/to HDF5 files."""
 
     # defaults for various options
     default_iter_prec = 8
-    default_we_h5filename      = 'west.h5'
-    default_we_h5file_driver   = None
+    default_we_h5filename = 'west.h5'
+    default_we_h5file_driver = None
     default_flush_period = 60
 
     # Compress any auxiliary dataset whose total size (across all segments) is more than 1MB
@@ -208,18 +223,22 @@ class WESTDataManager:
             config.require_type_if_present(['west', 'data', entry], type_)
 
         self.we_h5filename = config.get_path(['west', 'data', 'west_data_file'], default=self.default_we_h5filename)
-        self.we_h5file_driver = config.get_choice(['west', 'data', 'west_data_file_driver'], [None, 'sec2', 'family'],
-                                                  default=self.default_we_h5file_driver,
-                                                  value_transform=(lambda x: x.lower() if x else None))
+        self.we_h5file_driver = config.get_choice(
+            ['west', 'data', 'west_data_file_driver'],
+            [None, 'sec2', 'family'],
+            default=self.default_we_h5file_driver,
+            value_transform=(lambda x: x.lower() if x else None),
+        )
         self.iter_prec = config.get(['west', 'data', 'iter_prec'], self.default_iter_prec)
-        self.aux_compression_threshold = config.get(['west','data','aux_compression_threshold'],
-                                                    self.default_aux_compression_threshold)
-        self.flush_period = config.get(['west','data','flush_period'], self.default_flush_period)
+        self.aux_compression_threshold = config.get(
+            ['west', 'data', 'aux_compression_threshold'], self.default_aux_compression_threshold
+        )
+        self.flush_period = config.get(['west', 'data', 'flush_period'], self.default_flush_period)
 
         # Process dataset options
-        dsopts_list = config.get(['west','data','datasets']) or []
+        dsopts_list = config.get(['west', 'data', 'datasets']) or []
         for dsopts in dsopts_list:
-            dsopts = normalize_dataset_options(dsopts, path_prefix='auxdata' if dsopts['name']!='pcoord' else '')
+            dsopts = normalize_dataset_options(dsopts, path_prefix='auxdata' if dsopts['name'] != 'pcoord' else '')
             try:
                 self.dataset_options[dsopts['name']].update(dsopts)
             except KeyError:
@@ -263,7 +282,7 @@ class WESTDataManager:
 
     @property
     def closed(self):
-        return (self.we_h5file is None)
+        return self.we_h5file is None
 
     def iter_group_name(self, n_iter, absolute=True):
         if absolute:
@@ -287,7 +306,7 @@ class WESTDataManager:
             try:
                 return self.we_h5file['/iterations/iter_{:0{prec}d}'.format(int(n_iter), prec=self.iter_prec)]
             except KeyError:
-                return self.we_h5file['/iter_{:0{prec}d}'.format(int(n_iter),prec=self.iter_prec)]
+                return self.we_h5file['/iter_{:0{prec}d}'.format(int(n_iter), prec=self.iter_prec)]
 
     def get_seg_index(self, n_iter):
         with self.lock:
@@ -337,7 +356,7 @@ class WESTDataManager:
 
             log.debug('opened WEST HDF5 file version {:d}'.format(self.we_h5file_version))
 
-    def prepare_backing(self): #istates):
+    def prepare_backing(self):  # istates):
         '''Create new HDF5 file'''
         self.we_h5file = h5py.File(self.we_h5filename, 'w', driver=self.we_h5file_driver)
 
@@ -345,10 +364,7 @@ class WESTDataManager:
             self.we_h5file['/'].attrs['west_file_format_version'] = file_format_version
             self.we_h5file['/'].attrs['west_iter_prec'] = self.iter_prec
             self.current_iteration = 0
-            self.we_h5file['/'].create_dataset('summary',
-                                               shape=(1,),
-                                               dtype=summary_table_dtype,
-                                               maxshape=(None,))
+            self.we_h5file['/'].create_dataset('summary', shape=(1,), dtype=summary_table_dtype, maxshape=(None,))
             self.we_h5file.create_group('/iterations')
 
     def close_backing(self):
@@ -376,7 +392,7 @@ class WESTDataManager:
         tstates = list(tstates)
         if tstates:
             state_table = np.empty((len(tstates),), dtype=tstate_dtype)
-            state_pcoords = np.empty((len(tstates),system.pcoord_ndim), dtype=system.pcoord_dtype)
+            state_pcoords = np.empty((len(tstates), system.pcoord_ndim), dtype=system.pcoord_dtype)
             for i, state in enumerate(tstates):
                 state.state_id = i
                 state_table[i]['label'] = state.label
@@ -392,14 +408,13 @@ class WESTDataManager:
             try:
                 master_index = master_group['index']
             except KeyError:
-                master_index = master_group.create_dataset('index', shape=(1,), maxshape=(None,),
-                                                            dtype=tstate_index_dtype)
+                master_index = master_group.create_dataset('index', shape=(1,), maxshape=(None,), dtype=tstate_index_dtype)
                 n_sets = 1
             else:
                 n_sets = len(master_index) + 1
                 master_index.resize((n_sets,))
 
-            set_id = n_sets-1
+            set_id = n_sets - 1
             master_index_row = master_index[set_id]
             master_index_row['iter_valid'] = n_iter
             master_index_row['n_states'] = len(tstates)
@@ -452,8 +467,10 @@ class WESTDataManager:
                 tstate_index = tstate_group['index'][...]
                 tstate_pcoords = tstate_group['pcoord'][...]
 
-                tstates = [TargetState(state_id=i, label=str(row['label']), pcoord=pcoord.copy())
-                            for (i, (row, pcoord))  in enumerate(zip(tstate_index, tstate_pcoords))]
+                tstates = [
+                    TargetState(state_id=i, label=str(row['label']), pcoord=pcoord.copy())
+                    for (i, (row, pcoord)) in enumerate(zip(tstate_index, tstate_pcoords))
+                ]
             else:
                 tstates = []
 
@@ -471,11 +488,10 @@ class WESTDataManager:
             try:
                 master_index = master_group['index']
             except KeyError:
-                master_index = master_group.create_dataset('index', dtype=ibstate_index_dtype,
-                                                             shape=(1,), maxshape=(None,))
+                master_index = master_group.create_dataset('index', dtype=ibstate_index_dtype, shape=(1,), maxshape=(None,))
                 n_sets = 1
             else:
-                n_sets = len(master_index)+1
+                n_sets = len(master_index) + 1
                 master_index.resize((n_sets,))
 
             set_id = n_sets - 1
@@ -485,11 +501,10 @@ class WESTDataManager:
             state_group = master_group.create_group(str(set_id))
             master_index_row['group_ref'] = state_group.ref
 
-
             if basis_states:
                 system = westpa.rc.get_system_driver()
                 state_table = np.empty((len(basis_states),), dtype=bstate_dtype)
-                state_pcoords = np.empty((len(basis_states),system.pcoord_ndim), dtype=system.pcoord_dtype)
+                state_pcoords = np.empty((len(basis_states), system.pcoord_ndim), dtype=system.pcoord_dtype)
                 for i, state in enumerate(basis_states):
                     state.state_id = i
                     state_table[i]['label'] = state.label
@@ -503,7 +518,6 @@ class WESTDataManager:
             master_index[set_id] = master_index_row
             return state_group
 
-
     def get_basis_states(self, n_iter=None):
         '''Return a list of BasisState objects representing the basis states that are in use for iteration n_iter.'''
 
@@ -515,11 +529,17 @@ class WESTDataManager:
             except KeyError:
                 return []
             bstate_pcoords = ibstate_group['bstate_pcoord'][...]
-            bstates = [BasisState(state_id=i, label=row['label'], probability=row['probability'],
-                                  auxref = str(row['auxref']) or None, pcoord=pcoord.copy())
-                       for (i, (row, pcoord))  in enumerate(zip(bstate_index, bstate_pcoords))]
+            bstates = [
+                BasisState(
+                    state_id=i,
+                    label=row['label'],
+                    probability=row['probability'],
+                    auxref=str(row['auxref']) or None,
+                    pcoord=pcoord.copy(),
+                )
+                for (i, (row, pcoord)) in enumerate(zip(bstate_index, bstate_pcoords))
+            ]
             return bstates
-
 
     def create_initial_states(self, n_states, n_iter=None):
         '''Create storage for ``n_states`` initial states associated with iteration ``n_iter``, and
@@ -533,11 +553,13 @@ class WESTDataManager:
             try:
                 istate_index = ibstate_group['istate_index']
             except KeyError:
-                istate_index = ibstate_group.create_dataset('istate_index', dtype=istate_dtype,
-                                                            shape=(n_states,), maxshape=(None,))
-                istate_pcoords = ibstate_group.create_dataset('istate_pcoord', dtype=system.pcoord_dtype,
-                                                              shape=(n_states,system.pcoord_ndim),
-                                                              maxshape=(None,system.pcoord_ndim))
+                istate_index = ibstate_group.create_dataset('istate_index', dtype=istate_dtype, shape=(n_states,), maxshape=(None,))
+                istate_pcoords = ibstate_group.create_dataset(
+                    'istate_pcoord',
+                    dtype=system.pcoord_dtype,
+                    shape=(n_states, system.pcoord_ndim),
+                    maxshape=(None, system.pcoord_ndim),
+                )
                 len_index = len(istate_index)
                 first_id = 0
             else:
@@ -545,24 +567,29 @@ class WESTDataManager:
                 len_index = len(istate_index) + n_states
                 istate_index.resize((len_index,))
                 istate_pcoords = ibstate_group['istate_pcoord']
-                istate_pcoords.resize((len_index,system.pcoord_ndim))
-
+                istate_pcoords.resize((len_index, system.pcoord_ndim))
 
         index_entries = istate_index[first_id:len_index]
         new_istates = []
         for irow, row in enumerate(index_entries):
             row['iter_created'] = n_iter
             row['istate_status'] = InitialState.ISTATE_STATUS_PENDING
-            new_istates.append(InitialState(state_id=first_id+irow, basis_state_id=None,
-                                            iter_created=n_iter, istate_status=InitialState.ISTATE_STATUS_PENDING))
+            new_istates.append(
+                InitialState(
+                    state_id=first_id + irow,
+                    basis_state_id=None,
+                    iter_created=n_iter,
+                    istate_status=InitialState.ISTATE_STATUS_PENDING,
+                )
+            )
         istate_index[first_id:len_index] = index_entries
         return new_istates
 
-    def update_initial_states(self, initial_states, n_iter = None):
+    def update_initial_states(self, initial_states, n_iter=None):
         '''Save the given initial states in the HDF5 file'''
 
         system = westpa.rc.get_system_driver()
-        initial_states = sorted(initial_states,key=attrgetter('state_id'))
+        initial_states = sorted(initial_states, key=attrgetter('state_id'))
         if not initial_states:
             return
 
@@ -575,7 +602,9 @@ class WESTDataManager:
             for i, initial_state in enumerate(initial_states):
                 index_entries[i]['iter_created'] = initial_state.iter_created
                 index_entries[i]['iter_used'] = initial_state.iter_used or InitialState.ISTATE_UNUSED
-                index_entries[i]['basis_state_id'] = initial_state.basis_state_id if initial_state.basis_state_id is not None else -1
+                index_entries[i]['basis_state_id'] = (
+                    initial_state.basis_state_id if initial_state.basis_state_id is not None else -1
+                )
                 index_entries[i]['istate_type'] = initial_state.istate_type or InitialState.ISTATE_TYPE_UNSET
                 index_entries[i]['istate_status'] = initial_state.istate_status or InitialState.ISTATE_STATUS_PENDING
                 pcoord_vals[i] = initial_state.pcoord
@@ -595,9 +624,16 @@ class WESTDataManager:
             istate_pcoords = ibstate_group['pcoord'][...]
 
             for state_id, (state, pcoord) in enumerate(zip(istate_index, istate_pcoords)):
-                states.append(InitialState(state_id=state_id, basis_state_id=int(state['basis_state_id']),
-                                           iter_created=int(state['iter_created']), iter_used=int(state['iter_used']),
-                                           istate_type=int(state['istate_type']), pcoord=pcoord.copy()))
+                states.append(
+                    InitialState(
+                        state_id=state_id,
+                        basis_state_id=int(state['basis_state_id']),
+                        iter_created=int(state['iter_created']),
+                        iter_used=int(state['iter_used']),
+                        istate_type=int(state['istate_type']),
+                        pcoord=pcoord.copy(),
+                    )
+                )
             return states
 
     def get_segment_initial_states(self, segments, n_iter=None):
@@ -607,7 +643,7 @@ class WESTDataManager:
             n_iter = n_iter or self.current_iteration
             ibstate_group = self.get_iter_group(n_iter)['ibstates']
 
-            istate_ids = {-int(segment.parent_id+1) for segment in segments if segment.parent_id < 0}
+            istate_ids = {-int(segment.parent_id + 1) for segment in segments if segment.parent_id < 0}
             sorted_istate_ids = sorted(istate_ids)
             if not sorted_istate_ids:
                 return []
@@ -617,13 +653,18 @@ class WESTDataManager:
             istates = []
 
             for state_id, state, pcoord in zip(sorted_istate_ids, istate_rows, istate_pcoords):
-                istate = InitialState(state_id=state_id, basis_state_id=int(state['basis_state_id']),
-                                      iter_created=int(state['iter_created']), iter_used=int(state['iter_used']),
-                                      istate_type=int(state['istate_type']), pcoord=pcoord.copy())
+                istate = InitialState(
+                    state_id=state_id,
+                    basis_state_id=int(state['basis_state_id']),
+                    iter_created=int(state['iter_created']),
+                    iter_used=int(state['iter_used']),
+                    istate_type=int(state['istate_type']),
+                    pcoord=pcoord.copy(),
+                )
                 istates.append(istate)
             return istates
 
-    def get_unused_initial_states(self, n_states = None, n_iter = None):
+    def get_unused_initial_states(self, n_states=None, n_iter=None):
         '''Retrieve any prepared but unused initial states applicable to the given iteration.
         Up to ``n_states`` states are returned; if ``n_states`` is None, then all unused states
         are returned.'''
@@ -642,26 +683,29 @@ class WESTDataManager:
             states = []
             istart = 0
             while istart < n_index_entries and len(states) < n_states:
-                istop = min(istart+chunksize, n_index_entries)
+                istop = min(istart + chunksize, n_index_entries)
                 istate_chunk = istate_index[istart:istop]
                 pcoord_chunk = istate_pcoords[istart:istop]
-                #state_ids = np.arange(istart,istop,dtype=np.uint)
+                # state_ids = np.arange(istart,istop,dtype=np.uint)
 
                 for ci in range(len(istate_chunk)):
                     row = istate_chunk[ci]
                     pcoord = pcoord_chunk[ci]
-                    state_id = istart+ci
+                    state_id = istart + ci
                     if row['iter_used'] == ISTATE_UNUSED and row['istate_status'] == ISTATE_STATUS_PREPARED:
-                        istate = InitialState(state_id = state_id,
-                                                   basis_state_id=int(row['basis_state_id']),
-                                                   iter_created = int(row['iter_created']), iter_used=0,
-                                                   istate_type = int(row['istate_type']),
-                                                   pcoord=pcoord.copy(),
-                                                   istate_status=ISTATE_STATUS_PREPARED)
+                        istate = InitialState(
+                            state_id=state_id,
+                            basis_state_id=int(row['basis_state_id']),
+                            iter_created=int(row['iter_created']),
+                            iter_used=0,
+                            istate_type=int(row['istate_type']),
+                            pcoord=pcoord.copy(),
+                            istate_status=ISTATE_STATUS_PREPARED,
+                        )
                         states.append(istate)
                     del row, pcoord, state_id
                 istart += chunksize
-                del istate_chunk, pcoord_chunk #, state_ids, unused, ids_of_unused
+                del istate_chunk, pcoord_chunk  # , state_ids, unused, ids_of_unused
             log.debug('found {:d} unused states'.format(len(states)))
             return states[:n_states]
 
@@ -684,7 +728,7 @@ class WESTDataManager:
             # Create a table of summary information about each iteration
             summary_table = self.we_h5file['summary']
             if len(summary_table) < n_iter:
-                summary_table.resize((n_iter+1,))
+                summary_table.resize((n_iter + 1,))
 
             iter_group = self.require_iter_group(n_iter)
 
@@ -695,8 +739,7 @@ class WESTDataManager:
                     pass
 
             # everything indexed by [particle] goes in an index table
-            seg_index_table_ds = iter_group.create_dataset('seg_index', shape=(n_particles,),
-                                                           dtype=seg_index_dtype)
+            seg_index_table_ds = iter_group.create_dataset('seg_index', shape=(n_particles,), dtype=seg_index_dtype)
             # unfortunately, h5py doesn't like in-place modification of individual fields; it expects
             # tuples. So, construct everything in a numpy array and then dump the whole thing into hdf5
             # In fact, this appears to be an h5py best practice (collect as much in ram as possible and then dump)
@@ -705,16 +748,13 @@ class WESTDataManager:
             summary_row = np.zeros((1,), dtype=summary_table_dtype)
             summary_row['n_particles'] = n_particles
             summary_row['norm'] = np.add.reduce(list(map(attrgetter('weight'), segments)))
-            summary_table[n_iter-1] = summary_row
+            summary_table[n_iter - 1] = summary_row
 
             # pcoord is indexed as [particle, time, dimension]
-            pcoord_opts = self.dataset_options.get('pcoord',{'name': 'pcoord',
-                                                             'h5path': 'pcoord',
-                                                             'compression': False})
+            pcoord_opts = self.dataset_options.get('pcoord', {'name': 'pcoord', 'h5path': 'pcoord', 'compression': False})
             shape = (n_particles, pcoord_len, pcoord_ndim)
             pcoord_ds = create_dataset_from_dsopts(iter_group, pcoord_opts, shape, pcoord_dtype)
             pcoord = np.empty((n_particles, pcoord_len, pcoord_ndim), pcoord_dtype)
-
 
             total_parents = 0
             for (seg_id, segment) in enumerate(segments):
@@ -736,32 +776,31 @@ class WESTDataManager:
                 if segment.pcoord is not None:
                     if len(segment.pcoord) == 1:
                         # Initial pcoord
-                        pcoord[seg_id,0,:] = segment.pcoord[0,:]
+                        pcoord[seg_id, 0, :] = segment.pcoord[0, :]
                     elif segment.pcoord.shape != pcoord.shape[1:]:
-                        raise ValueError('segment pcoord shape [%r] does not match expected shape [%r]'
-                                         % (segment.pcoord.shape, pcoord.shape[1:]))
+                        raise ValueError(
+                            'segment pcoord shape [%r] does not match expected shape [%r]'
+                            % (segment.pcoord.shape, pcoord.shape[1:])
+                        )
                     else:
-                        pcoord[seg_id,...] = segment.pcoord
-
+                        pcoord[seg_id, ...] = segment.pcoord
 
             if total_parents > 0:
-                wtgraph_ds = iter_group.create_dataset('wtgraph', (total_parents,), seg_id_dtype,
-                                                       compression='gzip', shuffle=True)
+                wtgraph_ds = iter_group.create_dataset('wtgraph', (total_parents,), seg_id_dtype, compression='gzip', shuffle=True)
                 parents = np.empty((total_parents,), seg_id_dtype)
 
                 for (seg_id, segment) in enumerate(segments):
                     offset = seg_index_table[seg_id]['wtg_offset']
                     extent = seg_index_table[seg_id]['wtg_n_parents']
                     parent_list = list(segment.wtg_parent_ids)
-                    parents[offset:offset+extent] = parent_list[:]
+                    parents[offset : offset + extent] = parent_list[:]
 
-                    assert set(parents[offset:offset+extent]) == set(segment.wtg_parent_ids)
+                    assert set(parents[offset : offset + extent]) == set(segment.wtg_parent_ids)
 
                 wtgraph_ds[:] = parents
 
             # Create convenient hard links
             self.update_iter_group_links(n_iter)
-
 
             # Since we accumulated many of these changes in RAM (and not directly in HDF5), propagate
             # the changes out to HDF5
@@ -788,17 +827,17 @@ class WESTDataManager:
             if tstate_group is not None:
                 iter_group['tstates'] = tstate_group
 
-    def get_iter_summary(self,n_iter=None):
+    def get_iter_summary(self, n_iter=None):
         n_iter = n_iter or self.current_iteration
         with self.lock:
-            return self.we_h5file['summary'][n_iter-1]
+            return self.we_h5file['summary'][n_iter - 1]
 
-    def update_iter_summary(self,summary,n_iter=None):
+    def update_iter_summary(self, summary, n_iter=None):
         n_iter = n_iter or self.current_iteration
         with self.lock:
-            self.we_h5file['summary'][n_iter-1] = summary
+            self.we_h5file['summary'][n_iter - 1] = summary
 
-    def del_iter_summary(self, min_iter): #delete the iterations starting at min_iter
+    def del_iter_summary(self, min_iter):  # delete the iterations starting at min_iter
         with self.lock:
             self.we_h5file['summary'].resize((min_iter - 1,))
 
@@ -823,9 +862,9 @@ class WESTDataManager:
             pcoord_dtype = system.pcoord_dtype
 
             seg_index_entries = np.empty((n_segments,), dtype=seg_index_dtype)
-            pcoord_entries = np.empty((n_segments,pcoord_len,pcoord_ndim), dtype=pcoord_dtype)
+            pcoord_entries = np.empty((n_segments, pcoord_len, pcoord_ndim), dtype=pcoord_dtype)
 
-            pc_msel = h5s.create_simple(pcoord_entries.shape, (h5s.UNLIMITED,)*pcoord_entries.ndim)
+            pc_msel = h5s.create_simple(pcoord_entries.shape, (h5s.UNLIMITED,) * pcoord_entries.ndim)
             pc_msel.select_all()
             si_msel = h5s.create_simple(seg_index_entries.shape, (h5s.UNLIMITED,))
             si_msel.select_all()
@@ -836,12 +875,12 @@ class WESTDataManager:
                 seg_id = seg_ids[iseg]
                 op = h5s.SELECT_OR if iseg != 0 else h5s.SELECT_SET
                 si_fsel.select_hyperslab((seg_id,), (1,), op=op)
-                pc_fsel.select_hyperslab((seg_id,0,0), (1,pcoord_len,pcoord_ndim), op=op)
+                pc_fsel.select_hyperslab((seg_id, 0, 0), (1, pcoord_len, pcoord_ndim), op=op)
 
             # read summary data so that we have valud parent and weight transfer information
             si_dsid.read(si_msel, si_fsel, seg_index_entries)
 
-            for (iseg, (segment, ientry)) in enumerate(zip(segments,seg_index_entries)):
+            for (iseg, (segment, ientry)) in enumerate(zip(segments, seg_index_entries)):
                 ientry['status'] = segment.status
                 ientry['endpoint_type'] = segment.endpoint_type or Segment.SEG_ENDPOINT_UNSET
                 ientry['cputime'] = segment.cputime
@@ -851,8 +890,8 @@ class WESTDataManager:
                 pcoord_entries[iseg] = segment.pcoord
 
             # write progress coordinates and index using low level HDF5 functions for efficiency
-            si_dsid.write(si_msel,si_fsel,seg_index_entries)
-            pc_dsid.write(pc_msel,pc_fsel,pcoord_entries)
+            si_dsid.write(si_msel, si_fsel, seg_index_entries)
+            pc_dsid.write(pc_msel, pc_fsel, pcoord_entries)
 
             # Now, to deal with auxiliary data
             # If any segment has any auxiliary data, then the aux dataset must spring into
@@ -868,22 +907,23 @@ class WESTDataManager:
             for segment in segments:
                 if segment.data:
                     for dsname in segment.data:
-                        data = np.asarray(segment.data[dsname],order='C')
+                        data = np.asarray(segment.data[dsname], order='C')
                         segment.data[dsname] = data
                         dsets[dsname] = (data.shape, data.dtype)
 
             # Then we iterate over data sets and store data
             if dsets:
                 for (dsname, (shape, dtype)) in dsets.items():
-                    #dset = self._require_aux_dataset(iter_group, dsname, n_total_segments, shape, dtype)
+                    # dset = self._require_aux_dataset(iter_group, dsname, n_total_segments, shape, dtype)
                     try:
                         dsopts = self.dataset_options[dsname]
                     except KeyError:
                         dsopts = normalize_dataset_options({'name': dsname}, path_prefix='auxdata')
 
                     shape = (n_total_segments,) + shape
-                    dset = require_dataset_from_dsopts(iter_group, dsopts, shape, dtype,
-                                                       autocompress_threshold=self.aux_compression_threshold, n_iter=n_iter)
+                    dset = require_dataset_from_dsopts(
+                        iter_group, dsopts, shape, dtype, autocompress_threshold=self.aux_compression_threshold, n_iter=n_iter
+                    )
                     if dset is None:
                         # storage is suppressed
                         continue
@@ -894,15 +934,15 @@ class WESTDataManager:
                             pass
                         else:
                             source_rank = len(auxdataset.shape)
-                            source_sel = h5s.create_simple(auxdataset.shape, (h5s.UNLIMITED,)*source_rank)
+                            source_sel = h5s.create_simple(auxdataset.shape, (h5s.UNLIMITED,) * source_rank)
                             source_sel.select_all()
                             dest_sel = dset.id.get_space()
-                            dest_sel.select_hyperslab((segment.seg_id,)+(0,)*source_rank, (1,)+auxdataset.shape)
+                            dest_sel.select_hyperslab((segment.seg_id,) + (0,) * source_rank, (1,) + auxdataset.shape)
                             dset.id.write(source_sel, dest_sel, auxdataset)
                     if 'delram' in list(dsopts.keys()):
                         del dsets[dsname]
 
-    def get_segments(self, n_iter=None, seg_ids=None, load_pcoords = True):
+    def get_segments(self, n_iter=None, seg_ids=None, load_pcoords=True):
         '''Return the given (or all) segments from a given iteration.
 
         If the optional parameter ``load_auxdata`` is true, then all auxiliary datasets
@@ -911,7 +951,6 @@ class WESTDataManager:
         be set by the option ``load_auxdata`` in the ``[data]`` section of ``west.cfg``. This
         essentially requires as much RAM as there is per-iteration auxiliary data, so this
         behavior is not on by default.'''
-
 
         n_iter = n_iter or self.current_iteration
         file_version = self.we_h5file_version
@@ -939,13 +978,15 @@ class WESTDataManager:
             segments = []
 
             for iseg, (seg_id, row) in enumerate(zip(seg_ids, seg_index_entries)):
-                segment = Segment(seg_id = seg_id,
-                                  n_iter = n_iter,
-                                  status = int(row['status']),
-                                  endpoint_type = int(row['endpoint_type']),
-                                  walltime = float(row['walltime']),
-                                  cputime = float(row['cputime']),
-                                  weight = float(row['weight']))
+                segment = Segment(
+                    seg_id=seg_id,
+                    n_iter=n_iter,
+                    status=int(row['status']),
+                    endpoint_type=int(row['endpoint_type']),
+                    walltime=float(row['walltime']),
+                    cputime=float(row['cputime']),
+                    weight=float(row['weight']),
+                )
 
                 if load_pcoords:
                     segment.pcoord = pcoord_entries[iseg]
@@ -953,14 +994,14 @@ class WESTDataManager:
                 if file_version < 5:
                     wtg_n_parents = row['n_parents']
                     wtg_offset = row['parents_offset']
-                    wtg_parent_ids = all_parent_ids[wtg_offset:wtg_offset+wtg_n_parents]
+                    wtg_parent_ids = all_parent_ids[wtg_offset : wtg_offset + wtg_n_parents]
                     segment.parent_id = int(wtg_parent_ids[0])
                 else:
                     wtg_n_parents = row['wtg_n_parents']
                     wtg_offset = row['wtg_offset']
-                    wtg_parent_ids = all_parent_ids[wtg_offset:wtg_offset+wtg_n_parents]
+                    wtg_parent_ids = all_parent_ids[wtg_offset : wtg_offset + wtg_n_parents]
                     segment.parent_id = int(row['parent_id'])
-                segment.wtg_parent_ids = set(map(int,wtg_parent_ids))
+                segment.wtg_parent_ids = set(map(int, wtg_parent_ids))
                 assert len(segment.wtg_parent_ids) == wtg_n_parents
                 segments.append(segment)
             del all_parent_ids
@@ -1026,9 +1067,10 @@ class WESTDataManager:
         '''Return the seg_ids of segments who have the given segment as a parent.'''
 
         with self.lock:
-            if n_iter == self.current_iteration: return []
+            if n_iter == self.current_iteration:
+                return []
 
-            iter_group = self.get_iter_group(n_iter+1)
+            iter_group = self.get_iter_group(n_iter + 1)
             seg_index = iter_group['seg_index']
             seg_ids = np.arange(len(seg_index), dtype=seg_id_dtype)
 
@@ -1044,7 +1086,8 @@ class WESTDataManager:
     def get_children(self, segment):
         '''Return all segments which have the given segment as a parent'''
 
-        if segment.n_iter == self.current_iteration: return []
+        if segment.n_iter == self.current_iteration:
+            return []
 
         # Examine the segment index from the following iteration to see who has this segment
         # as a parent.  We don't need to worry about the number of parents each segment
@@ -1052,14 +1095,14 @@ class WESTDataManager:
         # gives the primary parent ID
 
         with self.lock:
-            iter_group = self.get_iter_group(segment.n_iter+1)
+            iter_group = self.get_iter_group(segment.n_iter + 1)
             seg_index = iter_group['seg_index'][...]
 
             # This is one of the slowest pieces of code I've ever written...
-            #seg_index = iter_group['seg_index'][...]
-            #seg_ids = [seg_id for (seg_id,row) in enumerate(seg_index)
+            # seg_index = iter_group['seg_index'][...]
+            # seg_ids = [seg_id for (seg_id,row) in enumerate(seg_index)
             #           if all_parent_ids[row['parents_offset']] == segment.seg_id]
-            #return self.get_segments_by_id(segment.n_iter+1, seg_ids)
+            # return self.get_segments_by_id(segment.n_iter+1, seg_ids)
             if self.we_h5file_version < 5:
                 parents = iter_group['parents'][seg_index['parent_offsets']]
             else:
@@ -1073,7 +1116,7 @@ class WESTDataManager:
             except TypeError:
                 seg_ids = [seg_ids]
 
-            return self.get_segments(segment.n_iter+1, seg_ids)
+            return self.get_segments(segment.n_iter + 1, seg_ids)
 
     # The following are dictated by the SimManager interface
     def prepare_run(self):
@@ -1146,7 +1189,7 @@ class WESTDataManager:
                 prev_init_pcoords = nwgroup['prev_init_pcoord'][...]
                 prev_final_pcoords = nwgroup['prev_final_pcoord'][...]
                 new_init_pcoords = nwgroup['new_init_pcoord'][...]
-            except (KeyError,ValueError): #zero-length selections raise ValueError
+            except (KeyError, ValueError):  # zero-length selections raise ValueError
                 return []
 
         entries = []
@@ -1154,22 +1197,27 @@ class WESTDataManager:
             irow = index[i]
 
             prev_seg_id = irow['prev_seg_id']
-            if prev_seg_id == -1: prev_seg_id = None
+            if prev_seg_id == -1:
+                prev_seg_id = None
 
             initial_state_id = irow['initial_state_id']
-            if initial_state_id == -1: initial_state_id = None
+            if initial_state_id == -1:
+                initial_state_id = None
 
             target_state_id = irow['target_state_id']
-            if target_state_id == -1: target_state_id = None
+            if target_state_id == -1:
+                target_state_id = None
 
-            entry = NewWeightEntry(source_type=irow['source_type'],
-                                   weight=irow['weight'],
-                                   prev_seg_id=prev_seg_id,
-                                   prev_init_pcoord=prev_init_pcoords[i].copy(),
-                                   prev_final_pcoord=prev_final_pcoords[i].copy(),
-                                   new_init_pcoord=new_init_pcoords[i].copy(),
-                                   target_state_id=target_state_id,
-                                   initial_state_id=initial_state_id)
+            entry = NewWeightEntry(
+                source_type=irow['source_type'],
+                weight=irow['weight'],
+                prev_seg_id=prev_seg_id,
+                prev_init_pcoord=prev_init_pcoords[i].copy(),
+                prev_final_pcoord=prev_final_pcoords[i].copy(),
+                new_init_pcoord=new_init_pcoords[i].copy(),
+                target_state_id=target_state_id,
+                initial_state_id=initial_state_id,
+            )
 
             entries.append(entry)
         return entries
@@ -1197,15 +1245,15 @@ class WESTDataManager:
                 raise KeyError('hash {} not found'.format(hashval))
 
             chunksize = self.table_scan_chunksize
-            for istart in range(0,n_entries,chunksize):
-                chunk = index[istart:min(istart+chunksize,n_entries)]
+            for istart in range(0, n_entries, chunksize):
+                chunk = index[istart : min(istart + chunksize, n_entries)]
                 for i in range(len(chunk)):
                     if chunk[i]['hash'] == hashval:
-                        return istart+i
+                        return istart + i
 
             raise KeyError('hash {} not found'.format(hashval))
 
-    def get_bin_mapper(self,  hashval):
+    def get_bin_mapper(self, hashval):
         '''Look up the given hash value in the binning table, unpickling and returning the corresponding
         bin mapper if available, or raising KeyError if not.'''
 
@@ -1232,10 +1280,10 @@ class WESTDataManager:
             chunksize = self.table_scan_chunksize
 
             for istart in range(0, n_entries, chunksize):
-                chunk = index[istart:min(istart+chunksize, n_entries)]
+                chunk = index[istart : min(istart + chunksize, n_entries)]
                 for i in range(len(chunk)):
                     if chunk[i]['hash'] == hashval:
-                        pkldat = bytes(pkl[istart+i, 0:chunk[i]['pickle_len']].data)
+                        pkldat = bytes(pkl[istart + i, 0 : chunk[i]['pickle_len']].data)
                         mapper = pickle.loads(pkldat)
                         log.debug('loaded {!r} from {!r}'.format(mapper, binning_group))
                         log.debug('hash value {!r}'.format(hashval))
@@ -1268,22 +1316,28 @@ class WESTDataManager:
                 pickle_ds = binning_group['pickles']
             except KeyError:
                 index = binning_group.create_dataset('index', shape=(1,), maxshape=(None,), dtype=binning_index_dtype)
-                pickle_ds = binning_group.create_dataset('pickles', dtype=np.uint8,
-                                                         shape=(1,len(pickle_data)), maxshape=(None,None), chunks=(1,4096),
-                                                         compression='gzip', compression_opts=9)
+                pickle_ds = binning_group.create_dataset(
+                    'pickles',
+                    dtype=np.uint8,
+                    shape=(1, len(pickle_data)),
+                    maxshape=(None, None),
+                    chunks=(1, 4096),
+                    compression='gzip',
+                    compression_opts=9,
+                )
                 n_entries = 1
             else:
                 n_entries = len(index) + 1
                 index.resize((n_entries,))
                 new_hsize = max(pickle_ds.shape[1], len(pickle_data))
-                pickle_ds.resize((n_entries,new_hsize))
+                pickle_ds.resize((n_entries, new_hsize))
 
-            index_row = index[n_entries-1]
+            index_row = index[n_entries - 1]
             index_row['hash'] = hashval
             index_row['pickle_len'] = len(pickle_data)
-            index[n_entries-1] = index_row
-            pickle_ds[n_entries-1,:len(pickle_data)] = memoryview(pickle_data)
-            return n_entries-1
+            index[n_entries - 1] = index_row
+            pickle_ds[n_entries - 1, : len(pickle_data)] = memoryview(pickle_data)
+            return n_entries - 1
 
     def save_iter_binning(self, n_iter, hashval, pickled_mapper, target_counts):
         '''Save information about the binning used to generate segments for iteration n_iter.'''
@@ -1304,12 +1358,13 @@ class WESTDataManager:
             else:
                 iter_group.attrs['binhash'] = ''
 
+
 def normalize_dataset_options(dsopts, path_prefix='', n_iter=0):
     dsopts = dict(dsopts)
 
     ds_name = dsopts['name']
     if path_prefix:
-        default_h5path = '{}/{}'.format(path_prefix,ds_name)
+        default_h5path = '{}/{}'.format(path_prefix, ds_name)
     else:
         default_h5path = ds_name
 
@@ -1326,15 +1381,17 @@ def normalize_dataset_options(dsopts, path_prefix='', n_iter=0):
 
     return dsopts
 
+
 def create_dataset_from_dsopts(group, dsopts, shape=None, dtype=None, data=None, autocompress_threshold=None, n_iter=None):
-    #log.debug('create_dataset_from_dsopts(group={!r}, dsopts={!r}, shape={!r}, dtype={!r}, data={!r}, autocompress_threshold={!r})'
+    # log.debug('create_dataset_from_dsopts(group={!r}, dsopts={!r}, shape={!r}, dtype={!r}, data={!r}, autocompress_threshold={!r})'
     #          .format(group,dsopts,shape,dtype,data,autocompress_threshold))
-    if not dsopts.get('store',True):
+    if not dsopts.get('store', True):
         return None
 
     if 'file' in list(dsopts.keys()):
         import h5py
-#        dsopts['file'] = str(dsopts['file']).format(n_iter=n_iter)
+
+        #        dsopts['file'] = str(dsopts['file']).format(n_iter=n_iter)
         h5_auxfile = h5io.WESTPAH5File(dsopts['file'].format(n_iter=n_iter))
         h5group = group
         if not ("iter_" + str(n_iter).zfill(8)) in h5_auxfile:
@@ -1380,13 +1437,13 @@ def create_dataset_from_dsopts(group, dsopts, shape=None, dtype=None, data=None,
     compression_directive = dsopts.get('compression')
     if compression_directive is None:
         # No directive
-        nbytes = np.multiply.reduce(shape)*h5_dtype.itemsize
+        nbytes = np.multiply.reduce(shape) * h5_dtype.itemsize
         if autocompress_threshold and nbytes > autocompress_threshold:
             compression = 9
-    elif compression_directive == 0: # includes False
+    elif compression_directive == 0:  # includes False
         # Compression prohibited
         compression = None
-    else: # compression explicitly requested
+    else:  # compression explicitly requested
         compression = compression_directive
 
     # Is scale/offset requested?
@@ -1400,7 +1457,7 @@ def create_dataset_from_dsopts(group, dsopts, shape=None, dtype=None, data=None,
     else:
         shuffle = False
 
-    need_chunks = any([compression,scaleoffset is not None,shuffle])
+    need_chunks = any([compression, scaleoffset is not None, shuffle])
 
     # We use user-provided chunks if available
     chunks_directive = dsopts.get('chunks')
@@ -1416,16 +1473,13 @@ def create_dataset_from_dsopts(group, dsopts, shape=None, dtype=None, data=None,
     if not chunks and need_chunks:
         chunks = calc_chunksize(shape, h5_dtype)
 
-    opts = {'shape': shape,
-            'dtype': h5_dtype,
-            'compression': compression,
-            'shuffle': shuffle,
-            'chunks': chunks}
+    opts = {'shape': shape, 'dtype': h5_dtype, 'compression': compression, 'shuffle': shuffle, 'chunks': chunks}
 
     try:
         import h5py._hl.filters
+
         h5py._hl.filters._COMP_FILTERS['scaleoffset']
-    except (ImportError,KeyError,AttributeError):
+    except (ImportError, KeyError, AttributeError):
         # filter not available, or an unexpected version of h5py
         # use lossless compression instead
         opts['compression'] = True
@@ -1433,8 +1487,7 @@ def create_dataset_from_dsopts(group, dsopts, shape=None, dtype=None, data=None,
         opts['scaleoffset'] = scaleoffset
 
     if log.isEnabledFor(logging.DEBUG):
-        log.debug('requiring aux dataset {!r}, shape={!r}, opts={!r}'
-                  .format(h5_dsname, shape, opts))
+        log.debug('requiring aux dataset {!r}, shape={!r}, opts={!r}'.format(h5_dsname, shape, opts))
 
     dset = containing_group.require_dataset(h5_dsname, **opts)
 
@@ -1443,22 +1496,24 @@ def create_dataset_from_dsopts(group, dsopts, shape=None, dtype=None, data=None,
 
     if 'file' in list(dsopts.keys()):
         import h5py
+
         if not dsopts['h5path'] in h5group:
-            h5group[dsopts['h5path']] = h5py.ExternalLink(dsopts['file'].format(n_iter=n_iter), ("/" +"iter_" + str(n_iter).zfill(8) + "/" + dsopts['h5path']))
+            h5group[dsopts['h5path']] = h5py.ExternalLink(
+                dsopts['file'].format(n_iter=n_iter), ("/" + "iter_" + str(n_iter).zfill(8) + "/" + dsopts['h5path'])
+            )
 
     return dset
 
 
 def require_dataset_from_dsopts(group, dsopts, shape=None, dtype=None, data=None, autocompress_threshold=None, n_iter=None):
-    if not dsopts.get('store',True):
+    if not dsopts.get('store', True):
         return None
     try:
         return group[dsopts['h5path']]
     except KeyError:
-        return create_dataset_from_dsopts(group,dsopts,shape=shape,dtype=dtype,data=data,
-                                          autocompress_threshold=autocompress_threshold, n_iter=n_iter)
-
-
+        return create_dataset_from_dsopts(
+            group, dsopts, shape=shape, dtype=dtype, data=data, autocompress_threshold=autocompress_threshold, n_iter=n_iter
+        )
 
 
 def calc_chunksize(shape, dtype, max_chunksize=262144):
@@ -1467,15 +1522,18 @@ def calc_chunksize(shape, dtype, max_chunksize=262144):
 
     chunk_shape = list(shape)
     for idim in range(len(shape)):
-        chunk_nbytes = np.multiply.reduce(chunk_shape)*dtype.itemsize
+        chunk_nbytes = np.multiply.reduce(chunk_shape) * dtype.itemsize
         while chunk_shape[idim] > 1 and chunk_nbytes > max_chunksize:
-            chunk_shape[idim] >>= 1 # divide by 2
-            chunk_nbytes = np.multiply.reduce(chunk_shape)*dtype.itemsize
+            chunk_shape[idim] >>= 1  # divide by 2
+            chunk_nbytes = np.multiply.reduce(chunk_shape) * dtype.itemsize
 
         if chunk_nbytes <= max_chunksize:
             break
 
     chunk_shape = tuple(chunk_shape)
-    log.debug('selected chunk shape {} for data set of type {} shaped {} (chunk size = {} bytes)'
-              .format(chunk_shape, dtype, shape, chunk_nbytes))
+    log.debug(
+        'selected chunk shape {} for data set of type {} shaped {} (chunk size = {} bytes)'.format(
+            chunk_shape, dtype, shape, chunk_nbytes
+        )
+    )
     return chunk_shape

@@ -3,7 +3,7 @@ import types
 
 import numpy as np
 
-import westpa, west
+import westpa
 from westpa import extloader
 from westpa.yamlcfg import check_bool, ConfigItemMissing
 from westext.stringmethod import WESTStringMethod, DefaultStringMethod
@@ -18,7 +18,7 @@ class StringDriver:
         super().__init__()
 
         if not sim_manager.work_manager.is_master:
-                return
+            return
 
         self.sim_manager = sim_manager
         self.data_manager = sim_manager.data_manager
@@ -50,8 +50,12 @@ class StringDriver:
         try:
             sm_params = self.system.sm_params
         except AttributeError as e:
-            log.error('String Driver Error: system does not define sm_params. \
-                        This is required and should be added to the system definition; {}'.format(e))
+            log.error(
+                'String Driver Error: system does not define sm_params. \
+                        This is required and should be added to the system definition; {}'.format(
+                    e
+                )
+            )
             raise
 
         # Initialize the string
@@ -167,9 +171,7 @@ class StringDriver:
         try:
             dfargs = getattr(self.system, 'dfargs', None)
             dfkwargs = getattr(self.system, 'dfkwargs', None)
-            self.system.bin_mapper = VoronoiBinMapper(self.dfunc, self.strings.centers,
-                                                      dfargs=dfargs,
-                                                      dfkwargs=dfkwargs)
+            self.system.bin_mapper = VoronoiBinMapper(self.dfunc, self.strings.centers, dfargs=dfargs, dfkwargs=dfkwargs)
         except (ValueError, TypeError) as e:
             log.error('StringDriver Error: Failed updating the bin mapper: {}'.format(e))
             raise
@@ -192,21 +194,21 @@ class StringDriver:
                 iter_group = self.data_manager.get_iter_group(n)
                 seg_index = iter_group['seg_index'][...]
 
-                pcoords = iter_group['pcoord'][:,-1,:]  # Only read final point
+                pcoords = iter_group['pcoord'][:, -1, :]  # Only read final point
                 bin_indices = self.system.bin_mapper.assign(pcoords)
                 weights = seg_index['weight']
 
-                pcoord_w = pcoords * weights[:,np.newaxis]
+                pcoord_w = pcoords * weights[:, np.newaxis]
                 uniq_indices = np.unique(bin_indices)
 
                 for indx in uniq_indices:
-                    avg_pos[indx,:] += pcoord_w[bin_indices == indx].sum(axis=0)
+                    avg_pos[indx, :] += pcoord_w[bin_indices == indx].sum(axis=0)
 
                 sum_bin_weight += np.bincount(bin_indices.astype(np.int), weights=weights, minlength=nbins)
 
         # Some bins might have zero samples so exclude to avoid divide by zero
         occ_ind = np.nonzero(sum_bin_weight)
-        avg_pos[occ_ind] /= sum_bin_weight[occ_ind][:,np.newaxis]
+        avg_pos[occ_ind] /= sum_bin_weight[occ_ind][:, np.newaxis]
 
         return avg_pos, sum_bin_weight
 

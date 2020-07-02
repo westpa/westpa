@@ -1,7 +1,6 @@
 import numpy as np
 
-from westpa.tools import (WESTDataReader, IterRangeSelection, WESTSubcommand,
-                          ProgressIndicatorComponent)
+from westpa.tools import WESTDataReader, IterRangeSelection, WESTSubcommand, ProgressIndicatorComponent
 
 from westpa import mclib
 from westpa.core import h5io
@@ -10,6 +9,7 @@ from westpa.tools.dtypes import iter_block_ci_dtype as ci_dtype
 
 
 # A function to just help with creating future objects for the work manager.
+
 
 def generate_future(work_manager, name, eval_block, kwargs):
     submit_kwargs = {'name': name}
@@ -47,7 +47,6 @@ class WESTKineticsBase(WESTSubcommand):
         # Now we're adding in things that come from the old w_kinetics
         self.do_compression = True
 
-
     def add_args(self, parser):
         self.progress.add_args(parser)
         self.data_reader.add_args(parser)
@@ -55,12 +54,21 @@ class WESTKineticsBase(WESTSubcommand):
         self.iter_range.add_args(parser)
 
         iogroup = parser.add_argument_group('input/output options')
-        iogroup.add_argument('-a', '--assignments', default='assign.h5',
-                            help='''Bin assignments and macrostate definitions are in ASSIGNMENTS
-                            (default: %(default)s).''')
+        iogroup.add_argument(
+            '-a',
+            '--assignments',
+            default='assign.h5',
+            help='''Bin assignments and macrostate definitions are in ASSIGNMENTS
+                            (default: %(default)s).''',
+        )
 
-        iogroup.add_argument('-o', '--output', dest='output', default=self.default_output_file,
-                            help='''Store results in OUTPUT (default: %(default)s).''')
+        iogroup.add_argument(
+            '-o',
+            '--output',
+            dest='output',
+            default=self.default_output_file,
+            help='''Store results in OUTPUT (default: %(default)s).''',
+        )
 
     def process_args(self, args):
         self.progress.process_args(args)
@@ -68,11 +76,12 @@ class WESTKineticsBase(WESTSubcommand):
         with self.data_reader:
             self.iter_range.process_args(args, default_iter_step=None)
         if self.iter_range.iter_step is None:
-            #use about 10 blocks by default
+            # use about 10 blocks by default
             self.iter_range.iter_step = max(1, (self.iter_range.iter_stop - self.iter_range.iter_start) // 10)
 
         self.output_filename = args.output
         self.assignments_filename = args.assignments
+
 
 # This provides some convenience functions, modified from w_kinavg, to help with calculating evolution and averages for observables with the mclib library in a consistent manner.
 # It's used in both w_direct and w_reweight.
@@ -92,40 +101,78 @@ class AverageCommands(WESTKineticsBase):
         # We can do this with the output file, too...
         # ... by default, however, we're going to use {direct/reweight}.h5 for everything.
         # Modules which are called with different default values will, of course, still use those.
-        iogroup.add_argument('-k', '--kinetics', default=self.default_kinetics_file,
-                            help='''Populations and transition rates are stored in KINETICS
-                            (default: %(default)s).''')
+        iogroup.add_argument(
+            '-k',
+            '--kinetics',
+            default=self.default_kinetics_file,
+            help='''Populations and transition rates are stored in KINETICS
+                            (default: %(default)s).''',
+        )
 
         cgroup = parser.add_argument_group('confidence interval calculation options')
-        cgroup.add_argument('--disable-bootstrap', '-db', dest='bootstrap', action='store_const', const=False,
-                             help='''Enable the use of Monte Carlo Block Bootstrapping.''')
-        cgroup.add_argument('--disable-correl', '-dc', dest='correl', action='store_const', const=False,
-                             help='''Disable the correlation analysis.''')
-        cgroup.add_argument('--alpha', type=float, default=0.05,
-                             help='''Calculate a (1-ALPHA) confidence interval'
-                             (default: %(default)s)''')
-        cgroup.add_argument('--autocorrel-alpha', type=float, dest='acalpha', metavar='ACALPHA',
-                             help='''Evaluate autocorrelation to (1-ACALPHA) significance.
+        cgroup.add_argument(
+            '--disable-bootstrap',
+            '-db',
+            dest='bootstrap',
+            action='store_const',
+            const=False,
+            help='''Enable the use of Monte Carlo Block Bootstrapping.''',
+        )
+        cgroup.add_argument(
+            '--disable-correl',
+            '-dc',
+            dest='correl',
+            action='store_const',
+            const=False,
+            help='''Disable the correlation analysis.''',
+        )
+        cgroup.add_argument(
+            '--alpha',
+            type=float,
+            default=0.05,
+            help='''Calculate a (1-ALPHA) confidence interval'
+                             (default: %(default)s)''',
+        )
+        cgroup.add_argument(
+            '--autocorrel-alpha',
+            type=float,
+            dest='acalpha',
+            metavar='ACALPHA',
+            help='''Evaluate autocorrelation to (1-ACALPHA) significance.
                              Note that too small an ACALPHA will result in failure to detect autocorrelation
-                             in a noisy flux signal. (Default: same as ALPHA.)''')
-        cgroup.add_argument('--nsets', type=int,
-                             help='''Use NSETS samples for bootstrapping (default: chosen based on ALPHA)''')
+                             in a noisy flux signal. (Default: same as ALPHA.)''',
+        )
+        cgroup.add_argument('--nsets', type=int, help='''Use NSETS samples for bootstrapping (default: chosen based on ALPHA)''')
 
         cogroup = parser.add_argument_group('calculation options')
-        cogroup.add_argument('-e', '--evolution-mode', choices=['cumulative', 'blocked', 'none'], default='none',
-                             help='''How to calculate time evolution of rate estimates.
+        cogroup.add_argument(
+            '-e',
+            '--evolution-mode',
+            choices=['cumulative', 'blocked', 'none'],
+            default='none',
+            help='''How to calculate time evolution of rate estimates.
                              ``cumulative`` evaluates rates over windows starting with --start-iter and getting progressively
                              wider to --stop-iter by steps of --step-iter.
                              ``blocked`` evaluates rates over windows of width --step-iter, the first of which begins at
                              --start-iter.
-                             ``none`` (the default) disables calculation of the time evolution of rate estimates.''')
-        cogroup.add_argument('--window-frac', type=float, default=1.0,
-                             help='''Fraction of iterations to use in each window when running in ``cumulative`` mode.
-                             The (1 - frac) fraction of iterations will be discarded from the start of each window.''')
+                             ``none`` (the default) disables calculation of the time evolution of rate estimates.''',
+        )
+        cogroup.add_argument(
+            '--window-frac',
+            type=float,
+            default=1.0,
+            help='''Fraction of iterations to use in each window when running in ``cumulative`` mode.
+                             The (1 - frac) fraction of iterations will be discarded from the start of each window.''',
+        )
 
         mgroup = parser.add_argument_group('misc options')
-        mgroup.add_argument('--disable-averages', '-da', dest='display_averages', action='store_false',
-                             help='''Whether or not the averages should be printed to the console (set to FALSE if flag is used).''')
+        mgroup.add_argument(
+            '--disable-averages',
+            '-da',
+            dest='display_averages',
+            action='store_false',
+            help='''Whether or not the averages should be printed to the console (set to FALSE if flag is used).''',
+        )
 
     def process_args(self, args):
         self.kinetics_filename = args.kinetics
@@ -152,11 +199,10 @@ class AverageCommands(WESTKineticsBase):
     def open_files(self):
         self.output_file = h5io.WESTPAH5File(self.output_filename, 'a', creating_program=True)
         h5io.stamp_creator_data(self.output_file)
-        self.assignments_file = h5io.WESTPAH5File(self.assignments_filename, 'r')#, driver='core', backing_store=False)
-        self.kinetics_file = h5io.WESTPAH5File(self.kinetics_filename, 'r')#, driver='core', backing_store=False)
+        self.assignments_file = h5io.WESTPAH5File(self.assignments_filename, 'r')  # , driver='core', backing_store=False)
+        self.kinetics_file = h5io.WESTPAH5File(self.kinetics_filename, 'r')  # , driver='core', backing_store=False)
         if not self.iter_range.check_data_iter_range_least(self.assignments_file):
             raise ValueError('assignments data do not span the requested iterations')
-
 
     def open_assignments(self):
         # Actually, I should rename this, as we're not OPENING assignments.
@@ -165,11 +211,16 @@ class AverageCommands(WESTKineticsBase):
         self.nbins = self.assignments_file.attrs['nbins']
         self.state_labels = self.assignments_file['state_labels'][...]
         assert self.nstates == len(self.state_labels)
-        self.start_iter, self.stop_iter, self.step_iter = self.iter_range.iter_start, self.iter_range.iter_stop, self.iter_range.iter_step
+        self.start_iter, self.stop_iter, self.step_iter = (
+            self.iter_range.iter_start,
+            self.iter_range.iter_stop,
+            self.iter_range.iter_step,
+        )
 
         # Import for the reweighting code.
 
-        state_map = self.assignments_file['state_map'][...]
+        # state_map = self.assignments_file['state_map'][...]
+
         # We've moved this into a different step so that it's compatible with
         # loading up from the all command.
         # Otherwise, we try to load the kinetics (since we're just mixing subclasses)
@@ -179,27 +230,37 @@ class AverageCommands(WESTKineticsBase):
 
     def print_averages(self, dataset, header, dim=1):
         print(header)
-        maxlabellen = max(list(map(len,self.state_labels)))
+        maxlabellen = max(list(map(len, self.state_labels)))
         for istate in range(self.nstates):
             if dim == 1:
-                print('{:{maxlabellen}s}: mean={:21.15e} CI=({:21.15e}, {:21.15e}) * tau^-1'
-                        .format(self.state_labels[istate],
+                print(
+                    '{:{maxlabellen}s}: mean={:21.15e} CI=({:21.15e}, {:21.15e}) * tau^-1'.format(
+                        self.state_labels[istate],
                         dataset['expected'][istate],
                         dataset['ci_lbound'][istate],
                         dataset['ci_ubound'][istate],
-                        maxlabellen=maxlabellen))
+                        maxlabellen=maxlabellen,
+                    )
+                )
 
             else:
                 for jstate in range(self.nstates):
-                    if istate == jstate: continue
-                    print('{:{maxlabellen}s} -> {:{maxlabellen}s}: mean={:21.15e} CI=({:21.15e}, {:21.15e}) * tau^-1'
-                        .format(self.state_labels[istate], self.state_labels[jstate],
-                        dataset['expected'][istate,jstate],
-                        dataset['ci_lbound'][istate,jstate],
-                        dataset['ci_ubound'][istate,jstate],
-                        maxlabellen=maxlabellen))
+                    if istate == jstate:
+                        continue
+                    print(
+                        '{:{maxlabellen}s} -> {:{maxlabellen}s}: mean={:21.15e} CI=({:21.15e}, {:21.15e}) * tau^-1'.format(
+                            self.state_labels[istate],
+                            self.state_labels[jstate],
+                            dataset['expected'][istate, jstate],
+                            dataset['ci_lbound'][istate, jstate],
+                            dataset['ci_ubound'][istate, jstate],
+                            maxlabellen=maxlabellen,
+                        )
+                    )
 
-    def run_calculation(self, pi, nstates, start_iter, stop_iter, step_iter, dataset, eval_block, name, dim, do_averages=False, **extra):
+    def run_calculation(
+        self, pi, nstates, start_iter, stop_iter, step_iter, dataset, eval_block, name, dim, do_averages=False, **extra
+    ):
 
         # We want to use the same codepath to run a quick average as we do the longer evolution sets, so...
         if do_averages:
@@ -216,29 +277,37 @@ class AverageCommands(WESTKineticsBase):
             print("What's wrong?")
 
         # This is appropriate for bootstrapped quantities, I think.
-        all_items = np.arange(1,len(start_pts)+1)
-        bootstrap_length = 0.5*(len(start_pts)*(len(start_pts)+1)) - np.delete(all_items, np.arange(1, len(start_pts)+1, step_iter))
+        all_items = np.arange(1, len(start_pts) + 1)
+        bootstrap_length = 0.5 * (len(start_pts) * (len(start_pts) + 1)) - np.delete(
+            all_items, np.arange(1, len(start_pts) + 1, step_iter)
+        )
         if True:
             pi.new_operation('Calculating {}'.format(name), bootstrap_length[0])
 
             futures = []
             for iblock, start in enumerate(start_pts):
-                stop = min(start+step_iter, stop_iter)
+                stop = min(start + step_iter, stop_iter)
                 if self.evolution_mode == 'cumulative' or do_averages is True:
                     windowsize = int(self.evol_window_frac * (stop - start_iter))
                     block_start = max(start_iter, stop - windowsize)
-                else: # self.evolution_mode == 'blocked'
+                else:  # self.evolution_mode == 'blocked'
                     block_start = start
 
                 # Create a basic set of kwargs for this iteration slice.
-                future_kwargs = dict(iblock=iblock, start=block_start, stop=stop,
-                                     nstates=nstates,
-                                     mcbs_alpha=self.mcbs_alpha, mcbs_nsets=self.mcbs_nsets,
-                                     mcbs_acalpha=self.mcbs_acalpha,
-                                     do_correl=self.do_correl,name=name,
-                                     mcbs_enable=self.mcbs_enable,
-                                     data_input={},
-                                     **extra)
+                future_kwargs = dict(
+                    iblock=iblock,
+                    start=block_start,
+                    stop=stop,
+                    nstates=nstates,
+                    mcbs_alpha=self.mcbs_alpha,
+                    mcbs_nsets=self.mcbs_nsets,
+                    mcbs_acalpha=self.mcbs_acalpha,
+                    do_correl=self.do_correl,
+                    name=name,
+                    mcbs_enable=self.mcbs_enable,
+                    data_input={},
+                    **extra
+                )
 
                 # Slice up the datasets for this iteration slice.
                 # We're assuming they're all h5io iter blocked datasets; it's up to the calling routine
@@ -247,10 +316,14 @@ class AverageCommands(WESTKineticsBase):
                 # Actually, I'm less sure how to handle this for pre-calculated datasets.  Need to consider this.  But for now...
                 for key, value in dataset.items():
                     try:
-                        future_kwargs['data_input'][key] = value.iter_slice(block_start,stop) if hasattr(value, 'iter_slice') else value[block_start:stop]
+                        future_kwargs['data_input'][key] = (
+                            value.iter_slice(block_start, stop) if hasattr(value, 'iter_slice') else value[block_start:stop]
+                        )
                     except Exception:
-                        future_kwargs['data_input'][key] = value.iter_slice(block_start,stop) if hasattr(value, 'iter_slice') else value[block_start:stop,:]
-                    #print(future_kwargs['data_input'][key])
+                        future_kwargs['data_input'][key] = (
+                            value.iter_slice(block_start, stop) if hasattr(value, 'iter_slice') else value[block_start:stop, :]
+                        )
+                    # print(future_kwargs['data_input'][key])
 
                 # We create a future object with the appropriate name, and then append it to the work manager.
                 futures.append(generate_future(self.work_manager, name, eval_block, future_kwargs))
@@ -262,11 +335,11 @@ class AverageCommands(WESTKineticsBase):
 
                 if dim == 2:
                     for result in future_result:
-                        name,iblock,istate,jstate,ci_result = result
+                        name, iblock, istate, jstate, ci_result = result
                         evolution_dataset[iblock, istate, jstate] = ci_result
                 elif dim == 1:
                     for result in future_result:
-                        name,iblock,istate,ci_result = result
+                        name, iblock, istate, ci_result = result
                         evolution_dataset[iblock, istate] = ci_result
 
         return evolution_dataset

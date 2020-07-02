@@ -8,7 +8,6 @@ from westpa.core.binning.assign import RectilinearBinMapper
 
 
 class TestSimManager:
-
     def setup(self):
 
         parser = argparse.ArgumentParser()

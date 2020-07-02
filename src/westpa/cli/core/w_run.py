@@ -13,8 +13,12 @@ log = logging.getLogger('w_run')
 def entry_point():
     parser = argparse.ArgumentParser('w_run', 'start/continue a WEST simulation')
     westpa.rc.add_args(parser)
-    parser.add_argument('--oneseg', dest='only_one_segment', action='store_true',
-                        help='only propagate one segment (useful for debugging propagators)')
+    parser.add_argument(
+        '--oneseg',
+        dest='only_one_segment',
+        action='store_true',
+        help='only propagate one segment (useful for debugging propagators)',
+    )
 
     work_managers.environment.add_wm_args(parser)
 

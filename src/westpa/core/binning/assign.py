@@ -1,4 +1,3 @@
-
 '''
 Bin assignment for WEST simulations. This module defines "bin mappers" which take
 vectors of coordinates (or rather, coordinate tuples), and assign each a definite
@@ -48,7 +47,7 @@ import pickle
 
 import numpy as np
 
-from . bins import Bin
+from .bins import Bin
 
 
 # All bin numbers are 16-bit unsigned ints, with one element (65525) reserved to
@@ -65,6 +64,7 @@ coord_dtype = np.float32
 from ._assign import output_map, apply_down, apply_down_argmin_across, rectilinear_assign
 
 log = logging.getLogger(__name__)
+
 
 class BinMapper:
     hashfunc = hashlib.sha256
@@ -92,8 +92,10 @@ class BinMapper:
     def __repr__(self):
         return '<{} at 0x{:x} with {:d} bins>'.format(self.__class__.__name__, id(self), self.nbins or 0)
 
+
 class NopMapper(BinMapper):
     '''Put everything into one bin.'''
+
     def __init__(self):
         super().__init__()
         self.nbins = 1
@@ -110,8 +112,10 @@ class NopMapper(BinMapper):
 
         output[mask] = 0
 
+
 class RectilinearBinMapper(BinMapper):
     '''Bin into a rectangular grid based on tuples of float values'''
+
     def __init__(self, boundaries):
         super().__init__()
         self._boundaries = None
@@ -132,19 +136,19 @@ class RectilinearBinMapper(BinMapper):
         self._boundaries = []
         self.labels = labels = []
         for boundset in boundaries:
-            boundarray = np.asarray(boundset,dtype=coord_dtype, order='C')
+            boundarray = np.asarray(boundset, dtype=coord_dtype, order='C')
             db = np.diff(boundarray)
             if (db <= 0).any():
                 raise ValueError('boundary set must be strictly monotonically increasing')
             self._boundaries.append(boundarray)
         self._boundlens = np.array([len(boundset) for boundset in self._boundaries], dtype=index_dtype)
         self.ndim = len(self._boundaries)
-        self.nbins = np.multiply.accumulate([1] + [len(bounds)-1 for bounds in self._boundaries])[-1]
+        self.nbins = np.multiply.accumulate([1] + [len(bounds) - 1 for bounds in self._boundaries])[-1]
 
         _boundaries = self._boundaries
-        binspace_shape = tuple(self._boundlens[:]-1)
+        binspace_shape = tuple(self._boundlens[:] - 1)
         for index in np.ndindex(binspace_shape):
-            bounds = [(_boundaries[idim][index[idim]], boundaries[idim][index[idim]+1]) for idim in range(len(_boundaries))]
+            bounds = [(_boundaries[idim][index[idim]], boundaries[idim][index[idim] + 1]) for idim in range(len(_boundaries))]
             labels.append(repr(bounds))
 
     def assign(self, coords, mask=None, output=None):
@@ -173,6 +177,7 @@ class RectilinearBinMapper(BinMapper):
 
         return output
 
+
 class PiecewiseBinMapper(BinMapper):
     '''Binning using a set of functions returing boolean values; if the Nth function
     returns True for a coordinate tuple, then that coordinate is in the Nth bin.'''
@@ -195,21 +200,23 @@ class PiecewiseBinMapper(BinMapper):
         coord_subset = coords[mask]
         fnvals = np.empty((len(coord_subset), len(self.functions)), dtype=index_dtype)
         for ifn, fn in enumerate(self.functions):
-            rsl = np.apply_along_axis(fn,0,coord_subset)
+            rsl = np.apply_along_axis(fn, 0, coord_subset)
             if rsl.ndim > 1:
                 # this should work like a squeeze, unless the function returned something truly
                 # stupid (e.g., a 3d array with at least two dimensions greater than 1), in which
                 # case a broadcast error will occur
-                fnvals[:,ifn] = rsl.flat
+                fnvals[:, ifn] = rsl.flat
             else:
-                fnvals[:,ifn] = rsl
+                fnvals[:, ifn] = rsl
         amask = np.require(fnvals.argmax(axis=1), dtype=index_dtype)
         output[mask] = amask
         return output
 
+
 class FuncBinMapper(BinMapper):
     '''Binning using a custom function which must iterate over input coordinate
     sets itself.'''
+
     def __init__(self, func, nbins, args=None, kwargs=None):
         self.func = func
         self.nbins = nbins
@@ -242,9 +249,11 @@ class FuncBinMapper(BinMapper):
 
         return output
 
+
 class VectorizingFuncBinMapper(BinMapper):
     '''Binning using a custom function which is evaluated once for each (unmasked)
     coordinate tuple provided.'''
+
     def __init__(self, func, nbins, args=None, kwargs=None):
         self.func = func
         self.args = args or ()
@@ -277,6 +286,7 @@ class VectorizingFuncBinMapper(BinMapper):
         apply_down(self.func, self.args, self.kwargs, coords, mask, output)
 
         return output
+
 
 class VoronoiBinMapper(BinMapper):
     '''A one-dimensional mapper which assigns a multidimensional pcoord to the
@@ -318,10 +328,10 @@ class VoronoiBinMapper(BinMapper):
         elif len(output) != len(coords):
             raise TypeError('output has different length than coords')
 
-        apply_down_argmin_across(self.dfunc, (self.centers,) + self.dfargs, self.dfkwargs, self.nbins,
-                                 coords, mask, output)
+        apply_down_argmin_across(self.dfunc, (self.centers,) + self.dfargs, self.dfkwargs, self.nbins, coords, mask, output)
 
         return output
+
 
 class RecursiveBinMapper(BinMapper):
     '''Nest mappers one within another.'''
@@ -362,8 +372,7 @@ class RecursiveBinMapper(BinMapper):
             # This looks like uninitialized access, but self._output_map is always set during __init__
             # (by self.start_index = 0, or whatever value was passed in), so this modifies the existing
             # set chosen above
-            self._output_map[not_recursed] = np.arange(self._start_index, self._start_index + n_not_recursed,
-                                                          dtype=index_dtype)
+            self._output_map[not_recursed] = np.arange(self._start_index, self._start_index + n_not_recursed, dtype=index_dtype)
         else:
             # No un-replaced bins
             self._output_map = None
@@ -380,9 +389,9 @@ class RecursiveBinMapper(BinMapper):
 
         replaces_bin_at = np.require(replaces_bin_at, dtype=coord_dtype)
         if replaces_bin_at.ndim < 1:
-            replaces_bin_at.shape = (1,1)
+            replaces_bin_at.shape = (1, 1)
         elif replaces_bin_at.ndim < 2:
-            replaces_bin_at.shape = (1,replaces_bin_at.shape[0])
+            replaces_bin_at.shape = (1, replaces_bin_at.shape[0])
         elif replaces_bin_at.ndim > 2 or replaces_bin_at.shape[1] > 1:
             raise TypeError('a single coordinate vector is required')
 
@@ -422,7 +431,7 @@ class RecursiveBinMapper(BinMapper):
         # bins with embedded mappers?
         rmasks = {}
         for (rindex, mapper) in self._recursion_targets.items():
-            omask = (output == rindex)
+            omask = output == rindex
             mmask |= omask
             rmasks[rindex] = omask
 
@@ -434,6 +443,6 @@ class RecursiveBinMapper(BinMapper):
 
         # do any recursive assignments necessary
         for (rindex, mapper) in self._recursion_targets.items():
-            mapper.assign(coords, mask&rmasks[rindex], output)
+            mapper.assign(coords, mask & rmasks[rindex], output)
 
         return output

@@ -6,7 +6,7 @@ import random
 import numpy as np
 
 import westpa
-from . segment import Segment
+from .segment import Segment
 
 log = logging.getLogger(__name__)
 
@@ -14,15 +14,25 @@ log = logging.getLogger(__name__)
 class ConsistencyError(RuntimeError):
     pass
 
+
 class AccuracyError(RuntimeError):
     pass
+
 
 class NewWeightEntry:
     NW_SOURCE_RECYCLED = 0
 
-    def __init__(self, source_type, weight, prev_seg_id=None,
-                 prev_init_pcoord=None, prev_final_pcoord=None, new_init_pcoord=None,
-                 target_state_id = None, initial_state_id = None):
+    def __init__(
+        self,
+        source_type,
+        weight,
+        prev_seg_id=None,
+        prev_init_pcoord=None,
+        prev_final_pcoord=None,
+        new_init_pcoord=None,
+        target_state_id=None,
+        initial_state_id=None,
+    ):
         self.source_type = source_type
         self.weight = weight
         self.prev_seg_id = prev_seg_id
@@ -33,8 +43,10 @@ class NewWeightEntry:
         self.initial_state_id = initial_state_id
 
     def __repr__(self):
-        return ('<{} object at 0x{:x}: weight={self.weight:g} target_state_id={self.target_state_id} prev_final_pcoord={self.prev_final_pcoord}>'
-                .format(self.__class__.__name__, id(self), self=self))
+        return '<{} object at 0x{:x}: weight={self.weight:g} target_state_id={self.target_state_id} prev_final_pcoord={self.prev_final_pcoord}>'.format(
+            self.__class__.__name__, id(self), self=self
+        )
+
 
 class WEDriver:
     '''A class implemented Huber & Kim's weighted ensemble algorithm over Segment objects.
@@ -77,7 +89,7 @@ class WEDriver:
         self.initial_binning = None
 
         # binning on final points (pre-WE)
-        self.final_binning   = None
+        self.final_binning = None
 
         # binning on initial points for next iteration
         self.next_iter_binning = None
@@ -111,7 +123,6 @@ class WEDriver:
         self.weight_merge_cutoff = config.get(['west', 'we', 'weight_merge_cutoff'], self.weight_merge_cutoff)
         log.info('Merge cutoff: {}'.format(self.weight_merge_cutoff))
 
-
     @property
     def next_iter_segments(self):
         '''Newly-created segments for the next iteration'''
@@ -142,7 +153,7 @@ class WEDriver:
     @property
     def current_iter_assignments(self):
         '''Bin assignments (indices) for endpoints of current iteration.'''
-        for ibin,_bin in enumerate(self.final_binning):
+        for ibin, _bin in enumerate(self.final_binning):
             for walker in _bin:
                 yield ibin
 
@@ -150,7 +161,7 @@ class WEDriver:
     def recycling_segments(self):
         '''Segments designated for recycling'''
         if len(self.target_states):
-            for (ibin,tstate) in self.target_states.items():
+            for (ibin, tstate) in self.target_states.items():
                 for segment in self.final_binning[ibin]:
                     yield segment
         else:
@@ -219,12 +230,12 @@ class WEDriver:
         nbins = self.bin_mapper.nbins
         log.debug('mapper is {!r}, handling {:d} bins'.format(self.bin_mapper, nbins))
 
-        self.initial_binning    = self.bin_mapper.construct_bins()
-        self.final_binning      = self.bin_mapper.construct_bins()
-        self.next_iter_binning  = None
+        self.initial_binning = self.bin_mapper.construct_bins()
+        self.final_binning = self.bin_mapper.construct_bins()
+        self.next_iter_binning = None
 
-        flux_matrix = self.flux_matrix = np.zeros((nbins,nbins), dtype=np.float64)
-        transition_matrix = self.transition_matrix = np.zeros((nbins,nbins), np.uint)
+        flux_matrix = self.flux_matrix = np.zeros((nbins, nbins), dtype=np.float64)
+        transition_matrix = self.transition_matrix = np.zeros((nbins, nbins), np.uint)
 
         # map target state specifications to bins
         target_states = target_states or []
@@ -240,7 +251,7 @@ class WEDriver:
             init_pcoords = np.empty((len(new_weights), self.system.pcoord_ndim), dtype=self.system.pcoord_dtype)
             prev_init_pcoords = np.empty((len(new_weights), self.system.pcoord_ndim), dtype=self.system.pcoord_dtype)
 
-            for (ientry,entry) in enumerate(new_weights):
+            for (ientry, entry) in enumerate(new_weights):
                 init_pcoords[ientry] = entry.new_init_pcoord
                 prev_init_pcoords[ientry] = entry.prev_init_pcoord
 
@@ -248,8 +259,8 @@ class WEDriver:
             prev_init_assignments = self.bin_mapper.assign(prev_init_pcoords)
 
             for (entry, i, j) in zip(new_weights, prev_init_assignments, init_assignments):
-                flux_matrix[i,j] += entry.weight
-                transition_matrix[i,j] += 1
+                flux_matrix[i, j] += entry.weight
+                transition_matrix[i, j] += 1
 
             del init_pcoords, prev_init_pcoords, init_assignments, prev_init_assignments
 
@@ -276,34 +287,37 @@ class WEDriver:
         pre-existing segments.'''
 
         # collect initial and final coordinates into one place
-        all_pcoords = np.empty((2,len(segments), self.system.pcoord_ndim), dtype=self.system.pcoord_dtype)
+        all_pcoords = np.empty((2, len(segments), self.system.pcoord_ndim), dtype=self.system.pcoord_dtype)
 
         for iseg, segment in enumerate(segments):
-            all_pcoords[0,iseg] = segment.pcoord[0,:]
-            all_pcoords[1,iseg] = segment.pcoord[-1,:]
+            all_pcoords[0, iseg] = segment.pcoord[0, :]
+            all_pcoords[1, iseg] = segment.pcoord[-1, :]
 
         # assign based on initial and final progress coordinates
-        initial_assignments = self.bin_mapper.assign(all_pcoords[0,:,:])
+        initial_assignments = self.bin_mapper.assign(all_pcoords[0, :, :])
         if initializing:
             final_assignments = initial_assignments
         else:
-            final_assignments = self.bin_mapper.assign(all_pcoords[1,:,:])
+            final_assignments = self.bin_mapper.assign(all_pcoords[1, :, :])
 
         initial_binning = self.initial_binning
         final_binning = self.final_binning
         flux_matrix = self.flux_matrix
         transition_matrix = self.transition_matrix
-        for (segment,iidx,fidx) in zip(segments, initial_assignments, final_assignments):
+        for (segment, iidx, fidx) in zip(segments, initial_assignments, final_assignments):
             initial_binning[iidx].add(segment)
             final_binning[fidx].add(segment)
-            flux_matrix[iidx,fidx] += segment.weight
-            transition_matrix[iidx,fidx] += 1
+            flux_matrix[iidx, fidx] += segment.weight
+            transition_matrix[iidx, fidx] += 1
 
         n_recycled_total = self.n_recycled_segs
         n_new_states = n_recycled_total - len(self.avail_initial_states)
 
-        log.debug('{} walkers scheduled for recycling, {} initial states available'.format(n_recycled_total,
-                                                                                           len(self.avail_initial_states)))
+        log.debug(
+            '{} walkers scheduled for recycling, {} initial states available'.format(
+                n_recycled_total, len(self.avail_initial_states)
+            )
+        )
 
         if n_new_states > 0:
             return n_new_states
@@ -322,12 +336,15 @@ class WEDriver:
         if not n_recycled_walkers:
             return
         elif n_recycled_walkers > len(self.avail_initial_states):
-            raise ConsistencyError('need {} initial states for recycling, but only {} present'
-                                   .format(n_recycled_walkers,len(self.avail_initial_states)))
+            raise ConsistencyError(
+                'need {} initial states for recycling, but only {} present'.format(
+                    n_recycled_walkers, len(self.avail_initial_states)
+                )
+            )
 
         used_istate_ids = set()
         istateiter = iter(self.avail_initial_states.values())
-        for (ibin,target_state) in self.target_states.items():
+        for (ibin, target_state) in self.target_states.items():
             target_bin = self.next_iter_binning[ibin]
             for segment in set(target_bin):
                 initial_state = next(istateiter)
@@ -336,23 +353,28 @@ class WEDriver:
                 parent.endpoint_type = Segment.SEG_ENDPOINT_RECYCLED
 
                 if log.isEnabledFor(logging.DEBUG):
-                    log.debug('recycling {!r} from target state {!r} to initial state {!r}'.format(segment, target_state,
-                                                                                                   initial_state))
+                    log.debug(
+                        'recycling {!r} from target state {!r} to initial state {!r}'.format(segment, target_state, initial_state)
+                    )
                     log.debug('parent is {!r}'.format(parent))
 
-
-                segment.parent_id = -(initial_state.state_id+1)
+                segment.parent_id = -(initial_state.state_id + 1)
                 segment.pcoord[0] = initial_state.pcoord
 
-                self.new_weights.append(NewWeightEntry(source_type=NewWeightEntry.NW_SOURCE_RECYCLED,
-                                                       weight=parent.weight, prev_seg_id=parent.seg_id,
-                                                       # the .copy() is crucial, otherwise the slice of pcoords will
-                                                       # keep the parent segments' pcoord data alive unnecessarily long
-                                                       prev_init_pcoord=parent.pcoord[0].copy(),
-                                                       prev_final_pcoord=parent.pcoord[-1].copy(),
-                                                       new_init_pcoord=initial_state.pcoord.copy(),
-                                                       target_state_id=target_state.state_id,
-                                                       initial_state_id=initial_state.state_id) )
+                self.new_weights.append(
+                    NewWeightEntry(
+                        source_type=NewWeightEntry.NW_SOURCE_RECYCLED,
+                        weight=parent.weight,
+                        prev_seg_id=parent.seg_id,
+                        # the .copy() is crucial, otherwise the slice of pcoords will
+                        # keep the parent segments' pcoord data alive unnecessarily long
+                        prev_init_pcoord=parent.pcoord[0].copy(),
+                        prev_final_pcoord=parent.pcoord[-1].copy(),
+                        new_init_pcoord=initial_state.pcoord.copy(),
+                        target_state_id=target_state.state_id,
+                        initial_state_id=initial_state.state_id,
+                    )
+                )
 
                 if log.isEnabledFor(logging.DEBUG):
                     log.debug('new weight entry is {!r}'.format(self.new_weights[-1]))
@@ -370,21 +392,22 @@ class WEDriver:
         for state_id in used_istate_ids:
             self.used_initial_states[state_id] = self.avail_initial_states.pop(state_id)
 
-
     def _split_walker(self, segment, m, bin):
         '''Split the walker ``segment`` (in ``bin``) into ``m`` walkers'''
 
         bin.remove(segment)
 
         new_segments = []
-        for _inew in range(0,m):
-            new_segment = Segment(n_iter = segment.n_iter, #previously incremented
-                                  weight = segment.weight/m,
-                                  parent_id = segment.parent_id,
-                                  wtg_parent_ids = set(segment.wtg_parent_ids),
-                                  pcoord = segment.pcoord.copy(),
-                                  status = Segment.SEG_STATUS_PREPARED)
-            new_segment.pcoord[0,:] = segment.pcoord[0,:]
+        for _inew in range(0, m):
+            new_segment = Segment(
+                n_iter=segment.n_iter,  # previously incremented
+                weight=segment.weight / m,
+                parent_id=segment.parent_id,
+                wtg_parent_ids=set(segment.wtg_parent_ids),
+                pcoord=segment.pcoord.copy(),
+                status=Segment.SEG_STATUS_PREPARED,
+            )
+            new_segment.pcoord[0, :] = segment.pcoord[0, :]
             new_segments.append(new_segment)
 
         bin.update(new_segments)
@@ -401,24 +424,25 @@ class WEDriver:
         if cumul_weight is None:
             cumul_weight = np.add.accumulate([segment.weight for segment in segments])
 
-        glom = Segment(n_iter = segments[0].n_iter, # assumed correct (and equal among all segments)
-                       weight = cumul_weight[len(segments)-1],
-                       status = Segment.SEG_STATUS_PREPARED,
-                       pcoord = self.system.new_pcoord_array(),
-                       )
+        glom = Segment(
+            n_iter=segments[0].n_iter,  # assumed correct (and equal among all segments)
+            weight=cumul_weight[len(segments) - 1],
+            status=Segment.SEG_STATUS_PREPARED,
+            pcoord=self.system.new_pcoord_array(),
+        )
 
         # Select the history to use
         # The following takes a random number in the interval 0 <= x < glom.weight, then
         # sees where this value falls among the (sorted) weights of the segments being merged;
         # this ensures that a walker with (e.g.) twice the weight of its brethren has twice the
         # probability of having its history selected for continuation
-        iparent = np.digitize((random.uniform(0,glom.weight),),cumul_weight)[0]
+        iparent = np.digitize((random.uniform(0, glom.weight),), cumul_weight)[0]
         gparent_seg = segments[iparent]
 
         # Inherit history from this segment ("gparent" stands for "glom parent", as opposed to historical
         # parent).
         glom.parent_id = gparent_seg.parent_id
-        glom.pcoord[0,:] = gparent_seg.pcoord[0,:]
+        glom.pcoord[0, :] = gparent_seg.pcoord[0, :]
 
         # Weight comes from all segments being merged, and therefore all their
         # parent segments
@@ -453,7 +477,6 @@ class WEDriver:
         if log.isEnabledFor(logging.DEBUG):
             log.debug('merging ({:d}) {!r} into 1:\n    {!r}'.format(len(segments), segments, glom))
 
-
         bin.add(glom)
 
     def _split_by_weight(self, ibin):
@@ -468,12 +491,11 @@ class WEDriver:
         if len(bin) > 0:
             assert target_count > 0
 
-        to_split = segments[weights > self.weight_split_threshold*ideal_weight]
+        to_split = segments[weights > self.weight_split_threshold * ideal_weight]
 
         for segment in to_split:
             m = int(math.ceil(segment.weight / ideal_weight))
             self._split_walker(segment, m, bin)
-
 
     def _merge_by_weight(self, ibin):
         '''Merge underweight particles'''
@@ -489,7 +511,7 @@ class WEDriver:
             weights = np.array(list(map(operator.attrgetter('weight'), segments)))
             cumul_weight = np.add.accumulate(weights)
 
-            to_merge = segments[cumul_weight <= ideal_weight*self.weight_merge_cutoff]
+            to_merge = segments[cumul_weight <= ideal_weight * self.weight_merge_cutoff]
             if len(to_merge) < 2:
                 return
 
@@ -539,7 +561,7 @@ class WEDriver:
 
         # Regardless of current particle count, always split overweight particles and merge underweight particles
         # Then and only then adjust for correct particle count
-        for (ibin,bin) in enumerate(self.next_iter_binning):
+        for (ibin, bin) in enumerate(self.next_iter_binning):
             if len(bin) == 0:
                 continue
 
@@ -555,7 +577,6 @@ class WEDriver:
         log.debug('used initial states: {!r}'.format(self.used_initial_states))
         log.debug('available initial states: {!r}'.format(self.avail_initial_states))
 
-
     def populate_initial(self, initial_states, weights, system=None):
         '''Create walkers for a new weighted ensemble simulation.
 
@@ -569,29 +590,33 @@ class WEDriver:
 
         # This has to be down here to avoid an import race
         from westpa.core.data_manager import weight_dtype
+
         EPS = np.finfo(weight_dtype).eps
 
         system = system or westpa.rc.get_system_driver()
-        self.new_iteration(initial_states=[], target_states=[],
-                           bin_mapper=system.bin_mapper, bin_target_counts=system.bin_target_counts)
+        self.new_iteration(
+            initial_states=[], target_states=[], bin_mapper=system.bin_mapper, bin_target_counts=system.bin_target_counts
+        )
 
         # Create dummy segments
         segments = []
-        for (seg_id, (initial_state,weight)) in enumerate(zip(initial_states,weights)):
-            dummy_segment = Segment(n_iter=0,
-                                    seg_id=seg_id,
-                                    parent_id=-(initial_state.state_id+1),
-                                    weight=weight,
-                                    wtg_parent_ids=set([-(initial_state.state_id+1)]),
-                                    pcoord=system.new_pcoord_array(),
-                                    status=Segment.SEG_STATUS_PREPARED)
-            dummy_segment.pcoord[[0,-1]] = initial_state.pcoord
+        for (seg_id, (initial_state, weight)) in enumerate(zip(initial_states, weights)):
+            dummy_segment = Segment(
+                n_iter=0,
+                seg_id=seg_id,
+                parent_id=-(initial_state.state_id + 1),
+                weight=weight,
+                wtg_parent_ids=set([-(initial_state.state_id + 1)]),
+                pcoord=system.new_pcoord_array(),
+                status=Segment.SEG_STATUS_PREPARED,
+            )
+            dummy_segment.pcoord[[0, -1]] = initial_state.pcoord
             segments.append(dummy_segment)
 
         # Adjust weights, if necessary
         tprob = sum(weights)
         if abs(1.0 - tprob) > len(weights) * EPS:
-            pscale = 1.0/tprob
+            pscale = 1.0 / tprob
             log.warning('Weights of initial segments do not sum to unity; scaling by {:g}'.format(pscale))
             for segment in segments:
                 segment.weight *= pscale
@@ -607,7 +632,7 @@ class WEDriver:
         self.used_initial_states = {}
         for segment in self.next_iter_segments:
             segment.parent_id = dummysegs_by_id[segment.parent_id].parent_id
-            segment.wtg_parent_ids=set([segment.parent_id])
+            segment.wtg_parent_ids = set([segment.parent_id])
             assert segment.initpoint_type == Segment.SEG_INITPOINT_NEWTRAJ
             istate = istates_by_id[segment.initial_state_id]
             try:
@@ -640,12 +665,14 @@ class WEDriver:
                 else:
                     assert segment.n_iter == n_iter
 
-                new_segment = Segment(n_iter=segment.n_iter,
-                                      parent_id=segment.parent_id,
-                                      weight=segment.weight,
-                                      wtg_parent_ids=set(segment.wtg_parent_ids or []),
-                                      pcoord=new_pcoord_array(),
-                                      status=Segment.SEG_STATUS_PREPARED)
+                new_segment = Segment(
+                    n_iter=segment.n_iter,
+                    parent_id=segment.parent_id,
+                    weight=segment.weight,
+                    wtg_parent_ids=set(segment.wtg_parent_ids or []),
+                    pcoord=new_pcoord_array(),
+                    status=Segment.SEG_STATUS_PREPARED,
+                )
                 new_segment.pcoord[0] = segment.pcoord[0]
                 self.next_iter_binning[ibin].add(new_segment)
 
@@ -679,12 +706,14 @@ class WEDriver:
                     assert segment.n_iter == n_iter
 
                 segment.endpoint_type = Segment.SEG_ENDPOINT_CONTINUES
-                new_segment = Segment(n_iter=segment.n_iter+1,
-                                      parent_id=segment.seg_id,
-                                      weight=segment.weight,
-                                      wtg_parent_ids=[segment.seg_id],
-                                      pcoord=new_pcoord_array(),
-                                      status=Segment.SEG_STATUS_PREPARED)
+                new_segment = Segment(
+                    n_iter=segment.n_iter + 1,
+                    parent_id=segment.seg_id,
+                    weight=segment.weight,
+                    wtg_parent_ids=[segment.seg_id],
+                    pcoord=new_pcoord_array(),
+                    status=Segment.SEG_STATUS_PREPARED,
+                )
                 new_segment.pcoord[0] = segment.pcoord[-1]
                 self.next_iter_binning[ibin].add(new_segment)
 
@@ -701,18 +730,28 @@ class WEDriver:
         if log.isEnabledFor(level):
             weights = sorted(np.array(list(map(operator.attrgetter('weight'), bin))))
             bin_label = getattr(bin, 'label', None) or ''
-            log_fmt = '\n      '.join(['',
-                                         'stats for bin {bin_label!r} {heading}',
-                                         '  count: {bin.count:d}, target count: {bin.target_count:d}',
-                                         '  total weight: {bin.weight:{weight_spec}},  ideal weight: {ideal_weight:{weight_spec}}',
-                                         '  mean weight:  {mean_weight:{weight_spec}},  stdev weight: {stdev_weight:{weight_spec}}',
-                                         '  min weight:   {min_weight:{weight_spec}},  med weight  : {median_weight:{weight_spec}}'
-                                         +', max weight: {max_weight:{weight_spec}}'])
-            log_msg = log_fmt.format(log_fmt, weight_spec='<12.6e',
-                                     bin_label=bin_label, heading=heading, bin=bin,
-                                     ideal_weight = bin.weight/bin.target_count,
-                                     mean_weight = weights.mean(), stdev_weight = weights.std(),
-                                     min_weight = weights[0], median_weight=np.median(weights), max_weight=weights[-1])
+            log_fmt = '\n      '.join(
+                [
+                    '',
+                    'stats for bin {bin_label!r} {heading}',
+                    '  count: {bin.count:d}, target count: {bin.target_count:d}',
+                    '  total weight: {bin.weight:{weight_spec}},  ideal weight: {ideal_weight:{weight_spec}}',
+                    '  mean weight:  {mean_weight:{weight_spec}},  stdev weight: {stdev_weight:{weight_spec}}',
+                    '  min weight:   {min_weight:{weight_spec}},  med weight  : {median_weight:{weight_spec}}'
+                    + ', max weight: {max_weight:{weight_spec}}',
+                ]
+            )
+            log_msg = log_fmt.format(
+                log_fmt,
+                weight_spec='<12.6e',
+                bin_label=bin_label,
+                heading=heading,
+                bin=bin,
+                ideal_weight=bin.weight / bin.target_count,
+                mean_weight=weights.mean(),
+                stdev_weight=weights.std(),
+                min_weight=weights[0],
+                median_weight=np.median(weights),
+                max_weight=weights[-1],
+            )
             log.log(level, log_msg)
-
-

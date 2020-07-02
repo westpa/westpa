@@ -22,24 +22,24 @@ log = logging.getLogger(__name__)
 
 
 def mapper_from_expr(expr):
-    namespace = {'numpy': np,
-                 'np': np,
-                 'inf': float('inf')}
+    namespace = {'numpy': np, 'np': np, 'inf': float('inf')}
     try:
-        mapper = RectilinearBinMapper(eval(expr,namespace))
+        mapper = RectilinearBinMapper(eval(expr, namespace))
     except TypeError as e:
         if 'has no len' in str(e):
             raise ValueError('invalid bin boundary specification (a list of lists is required)')
         else:
             raise
     else:
-        log.debug('loaded {!r} from expression {!r}'.format(mapper,expr))
+        log.debug('loaded {!r} from expression {!r}'.format(mapper, expr))
         return mapper
+
 
 def mapper_from_system():
     system = westpa.rc.get_system_driver()
-    log.debug('loaded {!r} from {!r}'.format(system.bin_mapper,system))
+    log.debug('loaded {!r} from {!r}'.format(system.bin_mapper, system))
     return system.bin_mapper
+
 
 def mapper_from_function(funcspec):
     '''Return a mapper constructed by calling a function in a named module.
@@ -52,10 +52,11 @@ def mapper_from_function(funcspec):
         funcpart = funcspec
         pathinfo = ['.']
 
-    fn = get_object(funcpart,['.'] + pathinfo)
+    fn = get_object(funcpart, ['.'] + pathinfo)
     mapper = fn()
-    log.debug('loaded {!r} from {!r}'.format(mapper,fn))
+    log.debug('loaded {!r} from {!r}'.format(mapper, fn))
     return mapper
+
 
 def mapper_from_hdf5(topol_group, hashval):
     '''Retrieve the mapper identified by ``hashval`` from the given bin topology group
@@ -72,12 +73,12 @@ def mapper_from_hdf5(topol_group, hashval):
     if n_entries == 0:
         raise KeyError('hash {} not found'.format(hashval))
 
-    chunksize=256
-    for istart in range(0,n_entries,chunksize):
-        chunk = index_ds[istart:min(istart+chunksize,n_entries)]
+    chunksize = 256
+    for istart in range(0, n_entries, chunksize):
+        chunk = index_ds[istart : min(istart + chunksize, n_entries)]
         for i in range(len(chunk)):
             if chunk[i]['hash'] == hashval:
-                pkldat = bytes(pickle_ds[istart+i,0:chunk[i]['pickle_len']].data)
+                pkldat = bytes(pickle_ds[istart + i, 0 : chunk[i]['pickle_len']].data)
                 # mapper = pickle.loads(pkldat, encoding='latin1')
                 mapper = pickle.loads(pkldat)
                 log.debug('loaded {!r} from {!r}'.format(mapper, topol_group))
@@ -86,13 +87,17 @@ def mapper_from_hdf5(topol_group, hashval):
 
     raise KeyError('hash {} not found'.format(hashval))
 
+
 def mapper_from_yaml(yamlfilename):
     import yaml
+
     ydict = yaml.load(open(yamlfilename, 'rt'))
     ybins = ydict['bins']
     from westpa.core._rc import bins_from_yaml_dict
-    #return mapper_from_dict(ybins)
+
+    # return mapper_from_dict(ybins)
     return bins_from_yaml_dict(ybins)
+
 
 # We want this function to live on...
 def mapper_from_dict(ybins):
@@ -100,17 +105,16 @@ def mapper_from_dict(ybins):
     kwargs = ybins
 
     try:
-        mapper_type = getattr(sys.modules['westpa.binning'], typename)
+        mapper_type = getattr(sys.modules['westpa.core.binning'], typename)
     except AttributeError:
-        raise KeyError('unknown bin mapper type {!r} in YAML file {!r}'.format(typename, yamlfilename))
+        raise KeyError('unknown bin mapper type {!r}'.format(typename))
 
     if typename == 'RectilinearBinMapper':
         boundary_lists = kwargs.pop('boundaries')
         for ilist, boundaries in enumerate(boundary_lists):
-            boundary_lists[ilist] = list(map((lambda x:
-                                           float('inf')
-                                           if (x if isinstance(x, str) else '').lower() == 'inf'
-                                           else x), boundaries))
+            boundary_lists[ilist] = list(
+                map((lambda x: float('inf') if (x if isinstance(x, str) else '').lower() == 'inf' else x), boundaries)
+            )
         return mapper_type(boundary_lists)
     else:
         try:
@@ -118,6 +122,7 @@ def mapper_from_dict(ybins):
         except Exception:
             log.exception('exception instantiating mapper')
             raise
+
 
 def write_bin_info(mapper, assignments, weights, n_target_states, outfile=sys.stdout, detailed=False):
     '''Write information about binning to ``outfile``, given a mapper (``mapper``) and the weights
@@ -130,8 +135,8 @@ def write_bin_info(mapper, assignments, weights, n_target_states, outfile=sys.st
     enormeps = abs(enorm / EPS)
     bincounts = np.bincount(assignments, minlength=len(assignments))
     n_occupied = np.count_nonzero(bincounts)
-    binweights = np.bincount(assignments,weights,minlength=len(assignments))
-    nonzero_counts = (bincounts > 0)
+    binweights = np.bincount(assignments, weights, minlength=len(assignments))
+    nonzero_counts = bincounts > 0
     n_active = mapper.nbins - n_target_states
     weights_by_bin = [[] for _i in range(mapper.nbins)]
 
@@ -140,19 +145,21 @@ def write_bin_info(mapper, assignments, weights, n_target_states, outfile=sys.st
     min_seg_weight = weights.min()
     max_seg_weight = weights.max()
 
-    ndec = int(math.ceil(-math.log10(1/n_active)))
+    ndec = int(math.ceil(-math.log10(1 / n_active)))
 
     outfile.write('{:d} segments\n'.format(len(weights)))
-    outfile.write('{:d} bins total, {:d} targets, {:d} ({:.{ndec}%}) occupied\n'
-            .format(mapper.nbins, n_target_states, n_occupied, n_occupied/n_active,ndec=ndec))
+    outfile.write(
+        '{:d} bins total, {:d} targets, {:d} ({:.{ndec}%}) occupied\n'.format(
+            mapper.nbins, n_target_states, n_occupied, n_occupied / n_active, ndec=ndec
+        )
+    )
     outfile.write('Minimum probability by bin:     {:23.17e}\n'.format(min_bin_weight))
     outfile.write('Maximum probability by bin:     {:23.17e}\n'.format(max_bin_weight))
-    outfile.write('Dynamic range (by bin):         {:g} kT\n'.format(-math.log(min_bin_weight/max_bin_weight)))
+    outfile.write('Dynamic range (by bin):         {:g} kT\n'.format(-math.log(min_bin_weight / max_bin_weight)))
     outfile.write('Minimum probability by segment: {:23.17e}\n'.format(min_seg_weight))
     outfile.write('Maximum probability by segment: {:23.17e}\n'.format(max_seg_weight))
-    outfile.write('Dynamic range (by segment):     {:g} kT\n'.format(-math.log(min_seg_weight/max_seg_weight)))
-    outfile.write('Norm = {:g}, error in norm = {:g} ({:.0f} epsilon)\n'
-            .format(norm, enorm, enormeps))
+    outfile.write('Dynamic range (by segment):     {:g} kT\n'.format(-math.log(min_seg_weight / max_seg_weight)))
+    outfile.write('Norm = {:g}, error in norm = {:g} ({:.0f} epsilon)\n'.format(norm, enorm, enormeps))
 
     if not detailed:
         return
@@ -161,31 +168,48 @@ def write_bin_info(mapper, assignments, weights, n_target_states, outfile=sys.st
     for iseg, weight in enumerate(weights):
         weights_by_bin[assignments[iseg]].append(weight)
 
-    mw = max(6,max(len(str(mapper.nbins-1)), len(str(bincounts.max()))))
-    fmt = '    '.join(['{ibin:{mw}d}','{nwalkers:{mw}d}','{weight:23.17e}',
-                       '{min_weight:23.17e}','{max_weight:23.17e}','{weight_ratio:12.5f}','{label}\n'])
-    outfile.write('{:>{mw}s}    {:>{mw}s}    {:23s}    {:23s}    {:23s}    {:12s}    {}\n'
-            .format('Index', 'Count', 'Total weight', 'Min seg weight', 'Max seg weight', 'Weight ratio', 'Label',
-                    mw=mw))
+    mw = max(6, max(len(str(mapper.nbins - 1)), len(str(bincounts.max()))))
+    fmt = '    '.join(
+        [
+            '{ibin:{mw}d}',
+            '{nwalkers:{mw}d}',
+            '{weight:23.17e}',
+            '{min_weight:23.17e}',
+            '{max_weight:23.17e}',
+            '{weight_ratio:12.5f}',
+            '{label}\n',
+        ]
+    )
+    outfile.write(
+        '{:>{mw}s}    {:>{mw}s}    {:23s}    {:23s}    {:23s}    {:12s}    {}\n'.format(
+            'Index', 'Count', 'Total weight', 'Min seg weight', 'Max seg weight', 'Weight ratio', 'Label', mw=mw
+        )
+    )
 
-    for ibin, label, nwalkers, total_weight, seg_weights \
-    in zip(count(), mapper.labels, bincounts, binweights, weights_by_bin):
+    for ibin, label, nwalkers, total_weight, seg_weights in zip(count(), mapper.labels, bincounts, binweights, weights_by_bin):
         if nwalkers > 0:
             min_seg_weight = min(seg_weights)
             max_seg_weight = max(seg_weights)
-            weight_ratio = max_seg_weight/min_seg_weight
+            weight_ratio = max_seg_weight / min_seg_weight
         else:
             min_seg_weight = 0
             max_seg_weight = 0
             weight_ratio = 0
-        outfile.write(fmt.format(ibin=ibin, label=label, nwalkers=nwalkers, weight=total_weight, min_weight=min_seg_weight,
-                           max_weight=max_seg_weight,weight_ratio=weight_ratio,mw=mw))
+        outfile.write(
+            fmt.format(
+                ibin=ibin,
+                label=label,
+                nwalkers=nwalkers,
+                weight=total_weight,
+                min_weight=min_seg_weight,
+                max_weight=max_seg_weight,
+                weight_ratio=weight_ratio,
+                mw=mw,
+            )
+        )
 
 
-
-def write_bin_labels(mapper, dest,
-                     header='# bin labels:\n',
-                     fmt='# bin {index:{max_iwidth}d} -- {label!s}\n'):
+def write_bin_labels(mapper, dest, header='# bin labels:\n', fmt='# bin {index:{max_iwidth}d} -- {label!s}\n'):
 
     '''Print labels for all bins in ``mapper`` to the file-like object``dest``.
 
@@ -203,10 +227,10 @@ def write_bin_labels(mapper, dest,
     '''
 
     if header:
-        dest.write(header.format(mapper=mapper,classname=mapper.__class__.__name__, nbins=mapper.bins))
+        dest.write(header.format(mapper=mapper, classname=mapper.__class__.__name__, nbins=mapper.bins))
 
-    max_iwidth = len(str(mapper.nbins-1))
-    for (ibin,label) in enumerate(mapper.labels):
+    max_iwidth = len(str(mapper.nbins - 1))
+    for (ibin, label) in enumerate(mapper.labels):
         dest.write(fmt.format(index=ibin, label=label, max_iwidth=max_iwidth))
 
 
@@ -271,39 +295,57 @@ class BinMappingComponent(WESTToolComponent):
 
         self._parse_target_count_args = False
 
-
     def add_args(self, parser, description='binning options', suppress=[]):
         suppressed_options = set(suppress)
 
         group = parser.add_argument_group(description)
         egroup = group.add_mutually_exclusive_group()
         if '--bins-from-system' not in suppressed_options:
-            egroup.add_argument('--bins-from-system', action='store_true',
-                                help='''Bins are constructed by the system driver specified in the WEST configuration file
-                                (default where stored bin definitions not available).''')
+            egroup.add_argument(
+                '--bins-from-system',
+                action='store_true',
+                help='''Bins are constructed by the system driver specified in the WEST configuration file
+                                (default where stored bin definitions not available).''',
+            )
         if '--bins-from-expr' not in suppressed_options:
-            egroup.add_argument('--bins-from-expr', '--binbounds', dest='bins_from_expr',
-                                help='''Construct bins on a rectilinear grid according to the given BINEXPR. This must
+            egroup.add_argument(
+                '--bins-from-expr',
+                '--binbounds',
+                dest='bins_from_expr',
+                help='''Construct bins on a rectilinear grid according to the given BINEXPR. This must
                                 be a list of lists of bin boundaries (one list of bin boundaries for each dimension
                                 of the progress coordinate), formatted as a Python expression. E.g. "[[0,1,2,4,inf],[-inf,0,inf]]".
                                 The numpy module and the special symbol "inf" (for floating-point infinity) are available
-                                for use within BINEXPR.''')
+                                for use within BINEXPR.''',
+            )
         if '--bins-from-function' not in suppressed_options:
-            egroup.add_argument('--bins-from-function', '--binfunc', dest='bins_from_function',
-                                help='''Supply an external function which, when called, returns a properly constructed
+            egroup.add_argument(
+                '--bins-from-function',
+                '--binfunc',
+                dest='bins_from_function',
+                help='''Supply an external function which, when called, returns a properly constructed
                                 bin mapper which will then be used for bin assignments. This should be formatted as
                                 "[PATH:]MODULE.FUNC", where the function FUNC in module MODULE will be used; the optional
-                                PATH will be prepended to the module search path when loading MODULE.''')
+                                PATH will be prepended to the module search path when loading MODULE.''',
+            )
         if '--bins-from-file' not in suppressed_options:
-            egroup.add_argument('--bins-from-file', '--binfile', dest='bins_from_file', metavar='BINFILE',
-                                help='''Load bin specification from the YAML file BINFILE. This currently
+            egroup.add_argument(
+                '--bins-from-file',
+                '--binfile',
+                dest='bins_from_file',
+                metavar='BINFILE',
+                help='''Load bin specification from the YAML file BINFILE. This currently
                                 takes the form {'bins': {'type': 'RectilinearBinMapper', 'boundaries':
-                                [[boundset1], [boundset2], ... ]}}; only rectilinear bin bounds are supported.''')
+                                [[boundset1], [boundset2], ... ]}}; only rectilinear bin bounds are supported.''',
+            )
 
         if '--bins-from-h5file' not in suppressed_options:
-            egroup.add_argument('--bins-from-h5file', action='store_true',
-                                help='''Load bin specification from the data file being examined
-                                (default where stored bin definitions available).''')
+            egroup.add_argument(
+                '--bins-from-h5file',
+                action='store_true',
+                help='''Load bin specification from the data file being examined
+                                (default where stored bin definitions available).''',
+            )
 
     def add_target_count_args(self, parser, description='bin target count options'):
         '''Add options to the given parser corresponding to target counts.'''
@@ -312,20 +354,25 @@ class BinMappingComponent(WESTToolComponent):
         group = parser.add_argument_group(description)
         egroup = group.add_mutually_exclusive_group()
 
-        egroup.add_argument('--target-counts',
-                            help='''Use TARGET_COUNTS instead of stored or system driver target counts.
+        egroup.add_argument(
+            '--target-counts',
+            help='''Use TARGET_COUNTS instead of stored or system driver target counts.
                             TARGET_COUNTS is a comma-separated list of integers. As a special case, a single
-                            integer is acceptable, in which case the same target count is used for all bins.''')
-        egroup.add_argument('--target-counts-from', metavar='FILENAME',
-                            help='''Read target counts from the text file FILENAME instead of using stored or system
+                            integer is acceptable, in which case the same target count is used for all bins.''',
+        )
+        egroup.add_argument(
+            '--target-counts-from',
+            metavar='FILENAME',
+            help='''Read target counts from the text file FILENAME instead of using stored or system
                             driver target counts. FILENAME must contain a list of integers, separated by arbitrary
-                            whitespace (including newlines).''')
+                            whitespace (including newlines).''',
+        )
 
     def process_args(self, args):
 
         # User may have suppressed any of these arguments
         bins_from_system = getattr(args, 'bins_from_system', None)
-        bins_from_expr = getattr(args,'bins_from_expr', None)
+        bins_from_expr = getattr(args, 'bins_from_expr', None)
         bins_from_function = getattr(args, 'bins_from_function', None)
         bins_from_file = getattr(args, 'bins_from_file', None)
         bins_from_h5file = getattr(args, 'bins_from_h5file', None)
@@ -346,8 +393,9 @@ class BinMappingComponent(WESTToolComponent):
             assert self.mapper_source_hash is not None
             self.mapper, self.mapper_pickle, self.mapper_hash = mapper_from_hdf5(self.mapper_source_group, self.mapper_source_hash)
             self.mapper_source = 'file'
-            self.mapper_source_desc = 'HDF5 file {} (group "{}")'.format(self.mapper_source_group.file.filename,
-                                                                         self.mapper_source_group.name)
+            self.mapper_source_desc = 'HDF5 file {} (group "{}")'.format(
+                self.mapper_source_group.file.filename, self.mapper_source_group.name
+            )
         elif bins_from_file:
             self.mapper = mapper_from_yaml(args.bins_from_file)
             self.mapper_source = args.bins_from_file
@@ -376,10 +424,11 @@ class BinMappingComponent(WESTToolComponent):
 
         if self._parse_target_count_args and self.target_counts_required:
             import re
+
             if args.target_counts is not None:
-                self.bin_target_counts = np.array(list(map(int,re.split(r'\s*,\s*', args.target_counts))))
+                self.bin_target_counts = np.array(list(map(int, re.split(r'\s*,\s*', args.target_counts))))
             elif args.target_counts_from is not None:
-                self.bin_target_counts = np.array(list(map(int,re.split(r'\s*,\s*', open(args.target_counts_from,'rt').read()))))
+                self.bin_target_counts = np.array(list(map(int, re.split(r'\s*,\s*', open(args.target_counts_from, 'rt').read()))))
             else:
                 # if target counts required, they will have already been loaded from a master
                 if self.bin_target_counts is None and self.target_counts_required:
@@ -390,7 +439,6 @@ class BinMappingComponent(WESTToolComponent):
                 self.bin_target_counts = np.empty((self.mapper.nbins,), np.int)
                 self.bin_target_counts[:] = flat_target_count
             log.debug('bin target counts = {!r}'.format(self.bin_target_counts))
-
 
     def set_we_h5file_info(self, n_iter=None, data_manager=None, required=False):
         '''Set up to load a bin mapper from the master WEST HDF5 file. The mapper is actually loaded
@@ -404,8 +452,8 @@ class BinMappingComponent(WESTToolComponent):
 
         try:
             self.mapper_source_group = data_manager.we_h5file['/bin_topologies']
-            self.mapper_source_group['index']   # raises KeyError if missing
-            self.mapper_source_group['pickles'] # raises KeyError if missing
+            self.mapper_source_group['index']  # raises KeyError if missing
+            self.mapper_source_group['pickles']  # raises KeyError if missing
             self.mapper_source_hash = iter_group.attrs['binhash']
         except TypeError:
             if required:
@@ -418,7 +466,6 @@ class BinMappingComponent(WESTToolComponent):
             self.bin_target_counts = iter_group['bin_target_counts'][...]
         except KeyError:
             pass
-
 
     def set_other_h5file_info(self, topology_group, hashval):
         '''Set up to load a bin mapper from (any) open HDF5 file, where bin topologies are

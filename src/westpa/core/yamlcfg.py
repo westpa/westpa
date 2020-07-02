@@ -15,7 +15,7 @@ except ImportError:
     from yaml import Loader as YLoader
 
 from . import extloader
-from . binning import NopMapper
+from .binning import NopMapper
 
 # Only needed for temporary class
 import westpa
@@ -26,13 +26,15 @@ NotProvided = object()
 class ConfigValueWarning(UserWarning):
     pass
 
+
 def warn_dubious_config_entry(entry, value, expected_type=None, category=ConfigValueWarning, stacklevel=1):
     if expected_type:
-        warnings.warn('dubious configuration entry {}: {} (expected type {})'.format(entry, value, expected_type),
-                      category, stacklevel+1)
+        warnings.warn(
+            'dubious configuration entry {}: {} (expected type {})'.format(entry, value, expected_type), category, stacklevel + 1
+        )
     else:
-        warnings.warn('dubious configuration entry {}: {}'.format(entry, value),
-                      category, stacklevel+1)
+        warnings.warn('dubious configuration entry {}: {}'.format(entry, value), category, stacklevel + 1)
+
 
 def check_bool(value, action='warn'):
     '''Check that the given ``value`` is boolean in type. If not, either
@@ -43,8 +45,11 @@ def check_bool(value, action='warn'):
 
     if not isinstance(value, bool):
         if action == 'warn':
-            warnings.warn('dubious boolean value {!r}, will be treated as {!r}'
-                          .format(value,bool(value)),category=ConfigValueWarning,stacklevel=2)
+            warnings.warn(
+                'dubious boolean value {!r}, will be treated as {!r}'.format(value, bool(value)),
+                category=ConfigValueWarning,
+                stacklevel=2,
+            )
         elif action == 'raise':
             raise ValueError('dubious boolean value {!r}, would be treated as {!r}'.format(value, bool(value)))
     else:
@@ -58,6 +63,7 @@ class ConfigItemMissing(KeyError):
             message = 'configuration item missing: {!r}'.format(key)
         super().__init__(message)
 
+
 class ConfigItemTypeError(TypeError):
     def __init__(self, key, expected_type, message=None):
         self.key = key
@@ -66,18 +72,18 @@ class ConfigItemTypeError(TypeError):
             message = 'configuration item {!r} must have type {!r}'.format(key, expected_type)
         super().__init__(message)
 
+
 class ConfigValueError(ValueError):
     def __init__(self, key, value, message=None):
         self.key = key
         self.value = value
         if message is None:
-            message = 'bad value {!r} for configuration item {!r}'.format(key,value)
+            message = 'bad value {!r} for configuration item {!r}'.format(key, value)
         super().__init__(message)
 
 
 class YAMLConfig:
-    preload_config_files = ['/etc/westpa/westrc',
-                              os.path.expanduser('~/.westrc')]
+    preload_config_files = ['/etc/westpa/westrc', os.path.expanduser('~/.westrc')]
 
     def __init__(self):
         self._data = {}
@@ -127,7 +133,7 @@ class YAMLConfig:
         key = self._normalize_key(key)
 
         try:
-            objchain = self._resolve_object_chain(key,-1)
+            objchain = self._resolve_object_chain(key, -1)
         except KeyError:
             # creation of a new (possibly nested) entry
             val = self._data
@@ -145,7 +151,7 @@ class YAMLConfig:
 
     def __delitem__(self, key):
         key = self._normalize_key(key)
-        objchain = self._resolve_object_chain(key,-1)
+        objchain = self._resolve_object_chain(key, -1)
         del objchain[-1][key[-1]]
 
     def __contains__(self, key):
@@ -168,7 +174,7 @@ class YAMLConfig:
 
         if type_ is not None:
             if not isinstance(item, type_):
-                raise ConfigItemTypeError(item,type_)
+                raise ConfigItemTypeError(item, type_)
         return item
 
     def require_type_if_present(self, key, type_):
@@ -181,7 +187,7 @@ class YAMLConfig:
             return
         else:
             if not isinstance(item, type_):
-                raise ConfigItemTypeError(item,type_)
+                raise ConfigItemTypeError(item, type_)
 
     def coerce_type_if_present(self, key, type_):
         try:
@@ -214,7 +220,7 @@ class YAMLConfig:
 
         return type_(item)
 
-    def get_path(self, key, default=NotProvided, expandvars = True, expanduser = True, realpath = True, abspath = True):
+    def get_path(self, key, default=NotProvided, expandvars=True, expanduser=True, realpath=True, abspath=True):
         try:
             path = self[key]
         except KeyError as ke:
@@ -223,15 +229,18 @@ class YAMLConfig:
             else:
                 raise ke
 
-        if expandvars: path = os.path.expandvars(path)
-        if expanduser: path = os.path.expanduser(path)
-        if realpath:   path = os.path.realpath(path)
-        if abspath:    path = os.path.abspath(path)
+        if expandvars:
+            path = os.path.expandvars(path)
+        if expanduser:
+            path = os.path.expanduser(path)
+        if realpath:
+            path = os.path.realpath(path)
+        if abspath:
+            path = os.path.abspath(path)
 
         return path
 
-    def get_pathlist(self, key, default=NotProvided, sep=os.pathsep,
-                     expandvars = True, expanduser = True, realpath = True, abspath = True):
+    def get_pathlist(self, key, default=NotProvided, sep=os.pathsep, expandvars=True, expanduser=True, realpath=True, abspath=True):
         try:
             paths = self[key]
         except KeyError as ke:
@@ -249,13 +258,16 @@ class YAMLConfig:
             # practice it encourages.
             return paths
 
-        if expandvars: items = list(map(os.path.expandvars, items))
-        if expanduser: items = list(map(os.path.expanduser, items))
-        if realpath:   items = list(map(os.path.realpath, items))
-        if abspath:    items = list(map(os.path.abspath, items))
+        if expandvars:
+            items = list(map(os.path.expandvars, items))
+        if expanduser:
+            items = list(map(os.path.expanduser, items))
+        if realpath:
+            items = list(map(os.path.realpath, items))
+        if abspath:
+            items = list(map(os.path.abspath, items))
 
         return items
-
 
     def get_python_object(self, key, default=NotProvided, path=None):
         try:
@@ -278,14 +290,17 @@ class YAMLConfig:
                 raise
 
         choices = set(choices)
-        if value_transform: value = value_transform(value)
+        if value_transform:
+            value = value_transform(value)
         if value not in choices:
-            raise ConfigValueError(key, value,
-                                   message='bad value {!r} for configuration item {!r} (valid choices: {!r})'
-                                           .format(value,key,tuple(sorted(choices))))
+            raise ConfigValueError(
+                key,
+                value,
+                message='bad value {!r} for configuration item {!r} (valid choices: {!r})'.format(
+                    value, key, tuple(sorted(choices))
+                ),
+            )
         return value
-
-
 
 
 # Temporary class here
@@ -329,7 +344,7 @@ class YAMLSystem:
 
         # Mapper
         self.bin_mapper = NopMapper()
-        #self.bin_mapper = None
+        # self.bin_mapper = None
         self._bin_target_counts = None
 
         self.bin_target_counts = [1]

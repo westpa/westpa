@@ -23,7 +23,7 @@ class WESTAnalysisTool:
         # (messy, but it doesn't seem crucial enough so far to make it cleaner)
         self.include_args = {}
 
-    def add_args(self, parser, upcall = True):
+    def add_args(self, parser, upcall=True):
         '''Add arguments to a parser common to all analyses of this type.'''
         if upcall:
             try:
@@ -34,10 +34,16 @@ class WESTAnalysisTool:
                 upfunc(parser)
 
         group = parser.add_argument_group('general analysis options')
-        group.add_argument('-A', '--analysis-file', dest='anal_h5name', metavar='H5FILE', default='analysis.h5',
-                            help='Store intermediate and final results in H5FILE (default: %(default)s).')
+        group.add_argument(
+            '-A',
+            '--analysis-file',
+            dest='anal_h5name',
+            metavar='H5FILE',
+            default='analysis.h5',
+            help='Store intermediate and final results in H5FILE (default: %(default)s).',
+        )
 
-    def process_args(self, args, upcall = True):
+    def process_args(self, args, upcall=True):
         self.anal_h5name = args.anal_h5name
 
         if upcall:

@@ -1,7 +1,10 @@
-
 '''Miscellaneous routines to help with input and output of WEST-related data in text format'''
 
-import time, sys, getpass, socket
+import getpass
+import socket
+import sys
+import time
+
 
 class NumericTextOutputFormatter:
     comment_string = '# '
@@ -27,7 +30,7 @@ class NumericTextOutputFormatter:
             self.emit_header = self.__class__.emit_header
 
     def __getattr__(self, attr):
-        return getattr(self._file,attr)
+        return getattr(self._file, attr)
 
     def close(self):
         if not self._header_written:

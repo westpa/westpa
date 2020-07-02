@@ -1,4 +1,4 @@
-from westpa.tools import (WESTMasterCommand, WESTParallelTool)
+from westpa.tools import WESTMasterCommand, WESTParallelTool
 
 from westpa.cli.tools.w_reweight import RWAverage
 
@@ -39,6 +39,7 @@ def entry_point():
     print('WARNING: {} is being deprecated.  Please use w_reweight instead.'.format(WReweight.prog))
     # If we're not really supporting subcommands...
     import sys
+
     try:
         if sys.argv[1] != 'average':
             sys.argv.insert(1, 'average')

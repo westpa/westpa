@@ -3,7 +3,7 @@ import logging
 import numpy as np
 
 from westpa.core.data_manager import weight_dtype
-from westpa.tools import (WESTMasterCommand, WESTParallelTool)
+from westpa.tools import WESTMasterCommand, WESTParallelTool
 
 from westpa.core import h5io
 from westpa.core.kinetics import sequence_macro_flux_to_rate, WKinetics
@@ -27,24 +27,33 @@ def _rate_eval_block(iblock, start, stop, nstates, data_input, name, mcbs_alpha,
     results = []
     for istate in range(nstates):
         for jstate in range(nstates):
-            if istate == jstate: continue
-            kwargs = { 'istate' : istate, 'jstate': jstate }
+            if istate == jstate:
+                continue
+            kwargs = {'istate': istate, 'jstate': jstate}
             # Why are we sending in the total population dataset, instead of a sliced one?
             # It's a requirement of our estimator; we need to pull from any given i to j state in order to properly normalize
             # and avoid i to j rate constants which are affected by a third state k.
             # That is, we need the populations for both i and j, and it's easier to just send in the entire dataset.
-            dataset = {'dataset': data_input['dataset'][:, istate, jstate], 'pops': data_input['pops'] }
-            ci_res = mcbs_ci_correl(dataset,estimator=sequence_macro_flux_to_rate,
-                                    alpha=mcbs_alpha,n_sets=mcbs_nsets,autocorrel_alpha=mcbs_acalpha,
-                                    subsample=np.mean, do_correl=do_correl, mcbs_enable=mcbs_enable, estimator_kwargs=kwargs)
-            results.append((name, iblock, istate, jstate, (start,stop) + ci_res))
+            dataset = {'dataset': data_input['dataset'][:, istate, jstate], 'pops': data_input['pops']}
+            ci_res = mcbs_ci_correl(
+                dataset,
+                estimator=sequence_macro_flux_to_rate,
+                alpha=mcbs_alpha,
+                n_sets=mcbs_nsets,
+                autocorrel_alpha=mcbs_acalpha,
+                subsample=np.mean,
+                do_correl=do_correl,
+                mcbs_enable=mcbs_enable,
+                estimator_kwargs=kwargs,
+            )
+            results.append((name, iblock, istate, jstate, (start, stop) + ci_res))
 
     return results
 
 
 # The old w_kinetics
 class DKinetics(WESTKineticsBase, WKinetics):
-    subcommand='init'
+    subcommand = 'init'
     default_kinetics_file = 'direct.h5'
     default_output_file = 'direct.h5'
     help_text = 'calculate state-to-state kinetics by tracing trajectories'
@@ -116,7 +125,7 @@ Command-line options
     def open_files(self):
         self.output_file = h5io.WESTPAH5File(self.output_filename, 'a', creating_program=True)
         h5io.stamp_creator_data(self.output_file)
-        self.assignments_file = h5io.WESTPAH5File(self.assignments_filename, 'r')#, driver='core', backing_store=False)
+        self.assignments_file = h5io.WESTPAH5File(self.assignments_filename, 'r')  # , driver='core', backing_store=False)
         if not self.iter_range.check_data_iter_range_least(self.assignments_file):
             raise ValueError('assignments data do not span the requested iterations')
 
@@ -124,6 +133,7 @@ Command-line options
         pi = self.progress.indicator
         with pi:
             self.w_kinetics()
+
 
 # The old w_kinavg
 class DKinAvg(AverageCommands):
@@ -228,7 +238,7 @@ Command-line options
 
     def w_kinavg(self):
         pi = self.progress.indicator
-        #pi = None
+        # pi = None
 
         # We're initializing the various datasets...
         self.open_files()
@@ -238,28 +248,34 @@ Command-line options
         cond_fluxes.cache_data()
         total_fluxes = h5io.IterBlockedDataset(self.kinetics_file['total_fluxes'])
 
-
         # This is necessary for both color and state populations...
         # ... but we also need this for the kinetics calculations.
         pops = h5io.IterBlockedDataset(self.assignments_file['labeled_populations'])
         pops.cache_data()
         pops.data = pops.data.sum(axis=2)
 
-        submit_kwargs = dict(pi=pi, nstates=self.nstates, start_iter=self.start_iter, stop_iter=self.stop_iter,
-                             step_iter=self.step_iter)
+        submit_kwargs = dict(
+            pi=pi, nstates=self.nstates, start_iter=self.start_iter, stop_iter=self.stop_iter, step_iter=self.step_iter
+        )
 
         # Calculate averages for the simulation, then report, if necessary.
 
         submit_kwargs['dataset'] = {'dataset': cond_fluxes, 'pops': pops}
-        avg_rates = self.run_calculation(eval_block=_rate_eval_block, name='Rate Evolution', dim=2, do_averages=True, **submit_kwargs)
+        avg_rates = self.run_calculation(
+            eval_block=_rate_eval_block, name='Rate Evolution', dim=2, do_averages=True, **submit_kwargs
+        )
         self.output_file.replace_dataset('avg_rates', data=avg_rates[1])
 
-        submit_kwargs['dataset'] = {'dataset': cond_fluxes }
-        avg_conditional_fluxes = self.run_calculation(eval_block=_2D_simple_eval_block, name='Conditional Flux Evolution', dim=2, do_averages=True, **submit_kwargs)
+        submit_kwargs['dataset'] = {'dataset': cond_fluxes}
+        avg_conditional_fluxes = self.run_calculation(
+            eval_block=_2D_simple_eval_block, name='Conditional Flux Evolution', dim=2, do_averages=True, **submit_kwargs
+        )
         self.output_file.replace_dataset('avg_conditional_fluxes', data=avg_conditional_fluxes[1])
 
-        submit_kwargs['dataset'] = {'dataset': total_fluxes }
-        avg_total_fluxes = self.run_calculation(eval_block=_1D_simple_eval_block, name='Target Flux Evolution', dim=1, do_averages=True, **submit_kwargs)
+        submit_kwargs['dataset'] = {'dataset': total_fluxes}
+        avg_total_fluxes = self.run_calculation(
+            eval_block=_1D_simple_eval_block, name='Target Flux Evolution', dim=1, do_averages=True, **submit_kwargs
+        )
         self.output_file.replace_dataset('avg_total_fluxes', data=avg_total_fluxes[1])
 
         # Now, print them!
@@ -275,11 +291,13 @@ Command-line options
         rate_evol = self.run_calculation(eval_block=_rate_eval_block, name='Rate Evolution', dim=2, **submit_kwargs)
         self.output_file.replace_dataset('rate_evolution', data=rate_evol, shuffle=True, compression=9)
 
-        submit_kwargs['dataset'] = {'dataset': cond_fluxes }
-        rate_evol = self.run_calculation(eval_block=_2D_simple_eval_block, name='Conditional Flux Evolution', dim=2, **submit_kwargs)
+        submit_kwargs['dataset'] = {'dataset': cond_fluxes}
+        rate_evol = self.run_calculation(
+            eval_block=_2D_simple_eval_block, name='Conditional Flux Evolution', dim=2, **submit_kwargs
+        )
         self.output_file.replace_dataset('conditional_flux_evolution', data=rate_evol, shuffle=True, compression=9)
 
-        submit_kwargs['dataset'] = {'dataset': total_fluxes }
+        submit_kwargs['dataset'] = {'dataset': total_fluxes}
         rate_evol = self.run_calculation(eval_block=_1D_simple_eval_block, name='Target Flux Evolution', dim=1, **submit_kwargs)
         self.output_file.replace_dataset('target_flux_evolution', data=rate_evol, shuffle=True, compression=9)
 
@@ -383,28 +401,28 @@ Command-line options
 '''
 
     def calculate_state_populations(self, pops):
-            # ... but then this is how the state populations are done.
-            # This was taken, more or less, from the old w_stateprobs
-            iter_count = self.stop_iter-self.start_iter
-            all_state_pops = np.empty((iter_count,self.nstates+1), weight_dtype)
-            iter_state_pops = np.empty((self.nstates+1,), weight_dtype)
-            avg_state_pops = np.zeros((self.nstates+1,), weight_dtype)
-            pops.cache_data(max_size='available')
-            state_map = self.assignments_file['state_map'][...]
-            try:
-                for iiter,n_iter in enumerate(range(self.start_iter,self.stop_iter)):
-                    iter_state_pops.fill(0)
-                    labeled_pops = pops.iter_entry(n_iter)
-                    accumulate_state_populations_from_labeled(labeled_pops, state_map, iter_state_pops, check_state_map=False)
-                    all_state_pops[iiter] = iter_state_pops
-                    avg_state_pops += iter_state_pops
-                    del labeled_pops
-            finally:
-                pops.drop_cache()
+        # ... but then this is how the state populations are done.
+        # This was taken, more or less, from the old w_stateprobs
+        iter_count = self.stop_iter - self.start_iter
+        all_state_pops = np.empty((iter_count, self.nstates + 1), weight_dtype)
+        iter_state_pops = np.empty((self.nstates + 1,), weight_dtype)
+        avg_state_pops = np.zeros((self.nstates + 1,), weight_dtype)
+        pops.cache_data(max_size='available')
+        state_map = self.assignments_file['state_map'][...]
+        try:
+            for iiter, n_iter in enumerate(range(self.start_iter, self.stop_iter)):
+                iter_state_pops.fill(0)
+                labeled_pops = pops.iter_entry(n_iter)
+                accumulate_state_populations_from_labeled(labeled_pops, state_map, iter_state_pops, check_state_map=False)
+                all_state_pops[iiter] = iter_state_pops
+                avg_state_pops += iter_state_pops
+                del labeled_pops
+        finally:
+            pops.drop_cache()
 
-            state_pops = h5io.IterBlockedDataset.empty_like(pops)
-            state_pops.data = all_state_pops
-            return state_pops
+        state_pops = h5io.IterBlockedDataset.empty_like(pops)
+        state_pops.data = all_state_pops
+        return state_pops
 
     def w_stateprobs(self):
         pi = self.progress.indicator
@@ -412,7 +430,7 @@ Command-line options
         self.open_files()
         self.open_assignments()
         # So far, we definitely need this boilerplate...
-        #pi.new_operation('Reading data')
+        # pi.new_operation('Reading data')
 
         # This is necessary for both color and state populations...
         pops = h5io.IterBlockedDataset(self.assignments_file['labeled_populations'])
@@ -423,8 +441,14 @@ Command-line options
         pops.cache_data()
         pops.data = pops.data.sum(axis=2)
 
-        submit_kwargs = dict(pi=pi,nstates=self.nstates, start_iter=self.start_iter, stop_iter=self.stop_iter,
-                             step_iter=self.step_iter, eval_block=_1D_simple_eval_block)
+        submit_kwargs = dict(
+            pi=pi,
+            nstates=self.nstates,
+            start_iter=self.start_iter,
+            stop_iter=self.stop_iter,
+            step_iter=self.step_iter,
+            eval_block=_1D_simple_eval_block,
+        )
 
         # Calculate and print averages
         submit_kwargs['dataset'] = {'dataset': pops}
@@ -454,6 +478,7 @@ Command-line options
         with pi:
             self.w_stateprobs()
 
+
 # Just a convenience class to run everything.
 class DAll(DStateProbs, DKinAvg, DKinetics):
     subcommand = 'all'
@@ -481,6 +506,7 @@ Command-line options
             self.w_kinavg()
             self.w_stateprobs()
 
+
 # Just a convenience class to average the observables.
 class DAverage(DStateProbs, DKinAvg):
     subcommand = 'average'
@@ -507,8 +533,8 @@ Command-line options
 
 
 class WDirect(WESTMasterCommand, WESTParallelTool):
-    prog='w_direct'
-    #subcommands = [AvgTraceSubcommand,AvgMatrixSubcommand]
+    prog = 'w_direct'
+    # subcommands = [AvgTraceSubcommand,AvgMatrixSubcommand]
     subcommands = [DKinetics, DAverage, DKinAvg, DStateProbs, DAll]
     subparsers_title = 'direct kinetics analysis schemes'
 

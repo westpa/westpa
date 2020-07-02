@@ -43,23 +43,32 @@ class IterRangeSelection(WESTToolComponent):
 
         self.iter_count = None
 
-        self.include_args.update({'iter_start': True,
-                                  'iter_stop':  True,
-                                  'iter_step':  False})
+        self.include_args.update({'iter_start': True, 'iter_stop': True, 'iter_step': False})
 
     def add_args(self, parser):
         group = parser.add_argument_group('iteration range')
 
         if self.include_args['iter_start']:
-            group.add_argument('--first-iter', dest='first_iter', type=int, metavar='N_ITER', default=1,
-                               help='''Begin analysis at iteration N_ITER (default: %(default)d).''')
+            group.add_argument(
+                '--first-iter',
+                dest='first_iter',
+                type=int,
+                metavar='N_ITER',
+                default=1,
+                help='''Begin analysis at iteration N_ITER (default: %(default)d).''',
+            )
         if self.include_args['iter_stop']:
-            group.add_argument('--last-iter', dest='last_iter', type=int, metavar='N_ITER',
-                               help='''Conclude analysis with N_ITER, inclusive (default: last completed iteration).''')
+            group.add_argument(
+                '--last-iter',
+                dest='last_iter',
+                type=int,
+                metavar='N_ITER',
+                help='''Conclude analysis with N_ITER, inclusive (default: last completed iteration).''',
+            )
         if self.include_args['iter_step']:
-            group.add_argument('--step-iter', dest='step_iter', type=int, metavar='STEP',
-                               help='''Analyze/report in blocks of STEP iterations.''')
-
+            group.add_argument(
+                '--step-iter', dest='step_iter', type=int, metavar='STEP', help='''Analyze/report in blocks of STEP iterations.'''
+            )
 
     def process_args(self, args, override_iter_start=None, override_iter_stop=None, default_iter_step=1):
         if override_iter_start is not None:
@@ -90,7 +99,7 @@ class IterRangeSelection(WESTToolComponent):
         selected by --first-iter/--last-iter/--step-iter.'''
 
         for blkfirst in range(self.iter_start, self.iter_stop, self.iter_step):
-            yield(blkfirst, min(self.iter_stop, blkfirst+self.iter_step))
+            yield (blkfirst, min(self.iter_stop, blkfirst + self.iter_step))
 
     def n_iter_blocks(self):
         '''Return the number of blocks of iterations (as returned by ``iter_block_iter``)
@@ -101,74 +110,76 @@ class IterRangeSelection(WESTToolComponent):
         else:
             return npoints // self.iter_step + 1
 
-    def record_data_iter_range(self, h5object, iter_start = None, iter_stop = None):
+    def record_data_iter_range(self, h5object, iter_start=None, iter_stop=None):
         '''Store attributes ``iter_start`` and ``iter_stop`` on the given HDF5 object (group/dataset)'''
         iter_start = self.iter_start if iter_start is None else iter_start
-        iter_stop  = self.iter_stop if iter_stop is None else iter_stop
+        iter_stop = self.iter_stop if iter_stop is None else iter_stop
         h5object.attrs['iter_start'] = iter_start
         h5object.attrs['iter_stop'] = iter_stop
 
-    def record_data_iter_step(self, h5object, iter_step = None):
+    def record_data_iter_step(self, h5object, iter_step=None):
         '''Store attribute ``iter_step`` on the given HDF5 object (group/dataset).'''
         iter_step = self.iter_step if iter_step is None else iter_step
         h5object.attrs['iter_step'] = iter_step
 
-    def check_data_iter_range_least(self, h5object, iter_start = None, iter_stop = None):
+    def check_data_iter_range_least(self, h5object, iter_start=None, iter_stop=None):
         '''Check that the given HDF5 object contains (as denoted by its ``iter_start``/``iter_stop`` attributes)
         data at least for the iteration range specified.'''
         iter_start = self.iter_start if iter_start is None else iter_start
-        iter_stop  = self.iter_stop if iter_stop is None else iter_stop
+        iter_stop = self.iter_stop if iter_stop is None else iter_stop
 
         return h5io.check_iter_range_least(h5object, iter_start, iter_stop)
 
-    def check_data_iter_range_equal(self, h5object, iter_start = None, iter_stop = None):
+    def check_data_iter_range_equal(self, h5object, iter_start=None, iter_stop=None):
         '''Check that the given HDF5 object contains (as denoted by its ``iter_start``/``iter_stop`` attributes)
         data exactly for the iteration range specified.'''
 
         iter_start = self.iter_start if iter_start is None else iter_start
-        iter_stop  = self.iter_stop if iter_stop is None else iter_stop
+        iter_stop = self.iter_stop if iter_stop is None else iter_stop
 
         return h5io.check_iter_range_equal(h5object, iter_start, iter_stop)
 
-    def check_data_iter_step_conformant(self, h5object, iter_step = None):
+    def check_data_iter_step_conformant(self, h5object, iter_step=None):
         '''Check that the given HDF5 object contains per-iteration data at an iteration stride suitable for extracting data
         with the given stride (in other words, the given ``iter_step`` is a multiple of the stride with
         which data was recorded).'''
 
         iter_step = iter_step or self.iter_step
         obj_iter_step = h5object.attrs.get('iter_step')
-        return (obj_iter_step % iter_step == 0)
+        return obj_iter_step % iter_step == 0
 
-    def check_data_iter_step_equal(self, h5object, iter_step = None):
+    def check_data_iter_step_equal(self, h5object, iter_step=None):
         '''Check that the given HDF5 object contains per-iteration data at an iteration stride the same as
         that specified.'''
         iter_step = iter_step or self.iter_step
         obj_iter_step = h5object.attrs.get('iter_step')
-        return (obj_iter_step == iter_step)
+        return obj_iter_step == iter_step
 
-    def slice_per_iter_data(self, dataset, iter_start = None, iter_stop = None, iter_step = None, axis=0):
+    def slice_per_iter_data(self, dataset, iter_start=None, iter_stop=None, iter_step=None, axis=0):
         '''Return the subset of the given dataset corresponding to the given iteration range and stride. Unless
         otherwise specified, the first dimension of the dataset is the one sliced.'''
 
         iter_start = self.iter_start if iter_start is None else iter_start
-        iter_stop  = self.iter_stop if iter_stop is None else iter_stop
+        iter_stop = self.iter_stop if iter_stop is None else iter_stop
         iter_step = self.iter_step if iter_step is None else iter_step
 
         ds_iter_start = dataset.attrs['iter_start']
-        ds_iter_stop  = dataset.attrs['iter_stop']
-        ds_iter_step  = dataset.attrs.get('iter_step', 1)
+        ds_iter_stop = dataset.attrs['iter_stop']
+        ds_iter_step = dataset.attrs.get('iter_step', 1)
 
         if iter_start < ds_iter_start or iter_stop > ds_iter_stop or ds_iter_step % iter_step > 0:
-            raise IndexError(('Cannot slice requested iterations [{:d},{:d}) (stride={:d}) from dataset {!r}'
-                              +'with range [{:d},{:d}) (stride={:d}).'.format(iter_start,iter_stop,iter_step,
-                                                                              ds_iter_start,ds_iter_stop,ds_iter_step)))
+            raise IndexError(
+                'Cannot slice requested iterations [{:d},{:d}) (stride={:d}) from dataset {!r} with range [{:d},{:d}) (stride={:d}).'.format(
+                    iter_start, iter_stop, iter_step, dataset, ds_iter_start, ds_iter_stop, ds_iter_step
+                )
+            )
 
         dimslices = []
         for idim in range(len(dataset.shape)):
             if idim == axis:
                 dimslices.append(slice(iter_start - ds_iter_start, iter_stop - ds_iter_stop + iter_step, iter_step))
             else:
-                dimslices.append(slice(None,None,None))
+                dimslices.append(slice(None, None, None))
 
         dimslices = tuple(dimslices)
         log.debug('slicing {!r} with {!r}'.format(dataset, dimslices))
@@ -176,13 +187,12 @@ class IterRangeSelection(WESTToolComponent):
         log.debug('resulting data is of shape {!r}'.format(data.shape))
         return data
 
-
-    def iter_range(self, iter_start = None, iter_stop = None, iter_step = None, dtype=None):
+    def iter_range(self, iter_start=None, iter_stop=None, iter_step=None, dtype=None):
         '''Return a sequence for the given iteration numbers and stride, filling
         in missing values from those stored on ``self``. The smallest data type capable of
         holding ``iter_stop`` is returned unless otherwise specified using the ``dtype``
         argument.'''
         iter_start = self.iter_start if iter_start is None else iter_start
-        iter_stop  = self.iter_stop if iter_stop is None else iter_stop
+        iter_stop = self.iter_stop if iter_stop is None else iter_stop
         iter_step = self.iter_step if iter_step is None else iter_step
         return np.arange(iter_start, iter_stop, iter_step, dtype=(dtype or np.min_scalar_type(iter_stop)))

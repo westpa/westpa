@@ -5,7 +5,7 @@ import unittest
 import westpa.work_managers.environment
 from westpa.work_managers.environment import make_work_manager, add_wm_args, process_wm_args
 from westpa.work_managers import SerialWorkManager, ThreadsWorkManager, ProcessWorkManager, ZMQWorkManager
-from . tsupport import will_succeed
+from .tsupport import will_succeed
 
 
 class TestInstantiations(unittest.TestCase):

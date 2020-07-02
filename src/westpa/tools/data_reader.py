@@ -16,7 +16,7 @@ def _get_parent_ids(n_iter, iter_group):
         # field not found
         offsets = seg_index['parents_offset'][:]
         all_parents = iter_group['parents'][...]
-        return np.require(all_parents.take(offsets),dtype=np.int64)
+        return np.require(all_parents.take(offsets), dtype=np.int64)
     else:
         return seg_index['parent_id']
 
@@ -37,8 +37,13 @@ class WESTDataReader(WESTToolComponent):
 
     def add_args(self, parser):
         group = parser.add_argument_group('WEST input data options')
-        group.add_argument('-W', '--west-data', dest='we_h5filename', metavar='WEST_H5FILE',
-                           help='''Take WEST data from WEST_H5FILE (default: read from the HDF5 file specified in west.cfg).''')
+        group.add_argument(
+            '-W',
+            '--west-data',
+            dest='we_h5filename',
+            metavar='WEST_H5FILE',
+            help='''Take WEST data from WEST_H5FILE (default: read from the HDF5 file specified in west.cfg).''',
+        )
 
     def process_args(self, args):
         if args.we_h5filename:
@@ -66,7 +71,7 @@ class WESTDataReader(WESTToolComponent):
     def parent_id_dsspec(self):
         if self._parent_id_dsspec is None:
             assert self.we_h5filename is not None
-            #self._parent_id_dsspec = SingleIterDSSpec(self.we_h5filename, 'seg_index', slice=index_exp['parent_id'])
+            # self._parent_id_dsspec = SingleIterDSSpec(self.we_h5filename, 'seg_index', slice=index_exp['parent_id'])
             self._parent_id_dsspec = FnDSSpec(self.we_h5filename, _get_parent_ids)
         return self._parent_id_dsspec
 
@@ -87,7 +92,7 @@ class WESTDSSynthesizer(WESTToolComponent):
 
     group_name = 'input dataset options'
 
-    def __init__(self, default_dsname = None, h5filename=None):
+    def __init__(self, default_dsname=None, h5filename=None):
         super().__init__()
 
         self.h5filename = h5filename
@@ -98,23 +103,22 @@ class WESTDSSynthesizer(WESTToolComponent):
     def add_args(self, parser):
         igroup = parser.add_argument_group(self.group_name).add_mutually_exclusive_group(required=not bool(self.default_dsname))
 
-        igroup.add_argument('--construct-dataset',
-                            help='''Use the given function (as in module.function) to extract source data.
+        igroup.add_argument(
+            '--construct-dataset',
+            help='''Use the given function (as in module.function) to extract source data.
                             This function will be called once per iteration as function(n_iter, iter_group)
                             to construct data for one iteration. Data returned must be indexable as
-                            [seg_id][timepoint][dimension]''')
+                            [seg_id][timepoint][dimension]''',
+        )
 
-        igroup.add_argument('--dsspecs', nargs='+', metavar='DSSPEC',
-                            help='''Construct source data from one or more DSSPECs.''')
+        igroup.add_argument('--dsspecs', nargs='+', metavar='DSSPEC', help='''Construct source data from one or more DSSPECs.''')
 
     def process_args(self, args):
         if args.construct_dataset:
-            self.dsspec = FnDSSpec(self.h5filename, get_object(args.construct_dataset,path=['.']))
+            self.dsspec = FnDSSpec(self.h5filename, get_object(args.construct_dataset, path=['.']))
         elif args.dsspecs:
-            self.dsspec = MultiDSSpec([SingleSegmentDSSpec.from_string(dsspec, self.h5filename)
-                                       for dsspec in args.dsspecs])
+            self.dsspec = MultiDSSpec([SingleSegmentDSSpec.from_string(dsspec, self.h5filename) for dsspec in args.dsspecs])
         else:
             # we can only get here if a default dataset name was specified
             assert self.default_dsname
             self.dsspec = SingleSegmentDSSpec(self.h5filename, self.default_dsname)
-

@@ -13,11 +13,13 @@ class WIPIDataset:
         self.__dict__ = {}
         self.raw = raw
         self.name = key
+
     def __repr__(self):
         if isinstance(self.__dict__['raw'], dict):
             return repr(self.__dir__())
         else:
             return repr(self.raw)
+
     def __getitem__(self, value):
         if not isinstance(value, str):
             return self.__dict__['raw'][value]
@@ -25,8 +27,10 @@ class WIPIDataset:
             return self.__dict__['raw'][value]
         elif value in list(self.__dict__.keys()):
             return self.__dict__[value]
+
     def __setitem__(self, key, value):
         self.__dict__[key] = value
+
     def __getattr__(self, value):
         # Check if it's an attribute of the underlying datatype.
         # If not, just use the getitem function.
@@ -34,8 +38,10 @@ class WIPIDataset:
             return getattr(self.__dict__['raw'], value)
         else:
             return self.__getitem__(value)
+
     def __setattr__(self, key, value):
         self.__dict__[key] = value
+
     def __dir__(self):
         dict_keys = list(self.__dict__.keys())
         remove = ['raw', 'name', '__dict__', 'plotter']
@@ -49,77 +55,102 @@ class WIPIDataset:
             return sorted(set(list(self.raw.keys()) + dict_keys))
         else:
             return sorted(set(dict_keys))
+
     def keys(self):
         print(self.__dir__())
+
     # We want to override the basic math functions, now, so... this is only valid for numpy sets.
     def __add__(self, other):
         return self.__dict__['raw'] + other
+
     def __radd__(self, other):
         return other + self.__dict__['raw']
+
     def __sub__(self, other):
         return self.__dict__['raw'] - other
+
     def __rsub__(self, other):
         return other - self.__dict__['raw']
+
     def __mul__(self, other):
         return self.__dict__['raw'] * other
+
     def __rmul__(self, other):
         return other * self.__dict__['raw']
+
     def __div__(self, other):
         return self.__dict__['raw'] / other
+
     def __floordiv__(self, other):
         return self.__dict__['raw'] // other
+
     def __rdiv__(self, other):
         return other / self.__dict__['raw']
+
     def __mod__(self, other):
         return self.__dict__['raw'] % other
+
     def __pow__(self, other):
         return self.__dict__['raw'] ** other
+
     def __lshift__(self, other):
         return self.__dict__['raw'] << other
+
     def __rshift__(self, other):
         return self.__dict__['raw'] >> other
+
     def __and__(self, other):
         return self.__dict__['raw'] & other
+
     def __eq__(self, other):
         return self.__dict__['raw'] == other
+
     def __ne__(self, other):
         return self.__dict__['raw'] != other
+
     def __lt__(self, other):
         return self.__dict__['raw'] < other
+
     def __gt__(self, other):
         return self.__dict__['raw'] > other
+
     def __le__(self, other):
         return self.__dict__['raw'] <= other
+
     def __ge__(self, other):
         return self.__dict__['raw'] >= other
+
     def __xor__(self, other):
         return self.__dict__['raw'] ^ other
+
     def __or__(self, other):
         return self.__dict__['raw'] | other
-    #def __iadd__(self, other):
+
+    # def __iadd__(self, other):
     #    return self.__dict__['raw'] += other
-    #def __isub__(self, other):
+    # def __isub__(self, other):
     #    return self.__dict__['raw'] -= other
-    #def __imul__(self, other):
+    # def __imul__(self, other):
     #    return self.__dict__['raw'] *= other
-    #def __idiv__(self, other):
+    # def __idiv__(self, other):
     #    return self.__dict__['raw'] /= other
-    #def __ifloordiv__(self, other):
+    # def __ifloordiv__(self, other):
     #    return self.__dict__['raw'] //= other
-    #def __imod__(self, other):
+    # def __imod__(self, other):
     #    return self.__dict__['raw'] %= other
-    #def __ipow__(self, other):
+    # def __ipow__(self, other):
     #    return self.__dict__['raw'] **= other
-    #def __ilshift__(self, other):
+    # def __ilshift__(self, other):
     #    return self.__dict__['raw'] <<= other
-    #def __irshift__(self, other):
+    # def __irshift__(self, other):
     #    return self.__dict__['raw'] >>= other
-    #def __iand__(self, other):
+    # def __iand__(self, other):
     #    return self.__dict__['raw'] &= other
-    #def __ixor__(self, other):
+    # def __ixor__(self, other):
     #    return self.__dict__['raw'] ^= other
-    #def __ior__(self, other):
+    # def __ior__(self, other):
     #    return self.__dict__['raw'] |= other
+
 
 # Similar to the above, but slightly expanded to contain information from analysis files.
 class KineticsIteration:
@@ -127,8 +158,8 @@ class KineticsIteration:
         self.__dict__ = {}
         self.h5file = kin_h5file
         # Keys:
-        _2D_h5keys = [ 'conditional_flux_evolution', 'rate_evolution' ]
-        _1D_h5keys = [ 'state_pop_evolution', 'color_prob_evolution', 'target_flux_evolution' ]
+        _2D_h5keys = ['conditional_flux_evolution', 'rate_evolution']
+        _1D_h5keys = ['state_pop_evolution', 'color_prob_evolution', 'target_flux_evolution']
         for key in _2D_h5keys:
             try:
                 self.__dict__[key] = self.__2D_with_error__(key, index, assign)
@@ -142,33 +173,39 @@ class KineticsIteration:
         try:
             self.__dict__['total_fluxes'] = WIPIDataset(raw=np.array(self.h5file['total_fluxes']), key='total_fluxes')
             # We'll have to update this to make things better...
-            #self.__dict__['total_fluxes'].plotter = Plotter(self.h5file['total_fluxes'][...], 'Total Fluxes', iteration=iteration, interface='text')
-            #self.__dict__['total_fluxes'].plot = self.__dict__['total_fluxes'].plotter.plot
+            # self.__dict__['total_fluxes'].plotter = Plotter(self.h5file['total_fluxes'][...], 'Total Fluxes', iteration=iteration, interface='text')
+            # self.__dict__['total_fluxes'].plot = self.__dict__['total_fluxes'].plotter.plot
         except Exception:
             pass
 
     def __repr__(self):
         return repr(self.__dir__())
+
     def __getitem__(self, value):
         if value in list(self.__dict__.keys()):
             return self.__dict__[value]
+
     def __setitem__(self, key, value):
         self.__dict__[key] = value
+
     def __getattr__(self, value):
         if value in list(self.__dict__.keys()):
             return self.__dict__[value]
+
     def __setattr__(self, key, value):
         self.__dict__[key] = value
+
     def __dir__(self):
         dict_keys = list(self.__dict__.keys())
         # We don't want to show the plotter class; just the plot function
-        remove = [ 'h5file', '__dict__']
+        remove = ['h5file', '__dict__']
         for i in remove:
             try:
                 dict_keys.remove(str(i))
             except Exception:
                 pass
         return sorted(set(dict_keys))
+
     def keys(self):
         print(self.__dir__())
 
@@ -184,22 +221,28 @@ class KineticsIteration:
             self.assign = assign
             self.nstates = assign.attrs['nstates']
             self.dim = len(raw.shape)
+
         def __repr__(self):
             return repr(self.__dir__())
+
         def __getitem__(self, value):
             if value in self.__dict__['raw'].dtype.names:
                 return self.__dict__['raw'][value]
             elif value in list(self.__dict__.keys()):
                 return self.__dict__[value]
+
         def __setitem__(self, key, value):
             self.__dict__[key] = value
+
         def __getattr__(self, value):
             if value in self.__dict__['raw'].dtype.names:
                 return self.__dict__['raw'][value]
             elif value in list(self.__dict__.keys()):
                 return self.__dict__[value]
+
         def __setattr__(self, key, value):
             self.__dict__[key] = value
+
         def __dir__(self):
             dict_keys = list(self.__dict__.keys())
             # We don't want to show the plotter class; just the plot function
@@ -210,73 +253,85 @@ class KineticsIteration:
                 except Exception:
                     pass
             return sorted(set(list(self.raw.dtype.names) + dict_keys))
+
         def keys(self):
             print(self.__dir__())
+
         def _repr_pretty_(self, p, cycle):
             if self.dim == 1:
                 return self._1D_repr_pretty_(p, cycle)
             if self.dim == 2:
                 return self._2D_repr_pretty_(p, cycle)
+
         def _1D_repr_pretty_(self, p, cycle):
-           # We're just using this as a way to print things in a pretty way.  They can still be indexed appropriately.
-           # Stolen shamelessly from westtools/kinetics_tool.py
-            maxlabellen = max(list(map(len,self.assign['state_labels'])))
-            p.text('')
-            p.text('{name} data:\n'.format(name=self.name))
-            for istate in range(self.nstates):
-                p.text('{:{maxlabellen}s}: mean={:21.15e} CI=({:21.15e}, {:21.15e}) * tau^-1\n'
-                    .format(self.assign['state_labels'][istate],
-                    self.raw['expected'][istate],
-                    self.raw['ci_lbound'][istate],
-                    self.raw['ci_ubound'][istate],
-                    maxlabellen=maxlabellen))
-            p.text('To access data, index via the following names:\n')
-            p.text(str(self.__dir__()))
-            return " "
-        def _2D_repr_pretty_(self, p, cycle):
             # We're just using this as a way to print things in a pretty way.  They can still be indexed appropriately.
             # Stolen shamelessly from westtools/kinetics_tool.py
-            maxlabellen = max(list(map(len,self.assign['state_labels'])))
+            maxlabellen = max(list(map(len, self.assign['state_labels'])))
             p.text('')
             p.text('{name} data:\n'.format(name=self.name))
             for istate in range(self.nstates):
-                for jstate in range(self.nstates):
-                    if istate == jstate: continue
-                    p.text('{:{maxlabellen}s} -> {:{maxlabellen}s}: mean={:21.15e} CI=({:21.15e}, {:21.15e}) * tau^-1\n'
-                        .format(self.assign['state_labels'][istate], self.assign['state_labels'][jstate],
-                        self.raw['expected'][istate, jstate],
-                        self.raw['ci_lbound'][istate, jstate],
-                        self.raw['ci_ubound'][istate, jstate],
-                        maxlabellen=maxlabellen))
+                p.text(
+                    '{:{maxlabellen}s}: mean={:21.15e} CI=({:21.15e}, {:21.15e}) * tau^-1\n'.format(
+                        self.assign['state_labels'][istate],
+                        self.raw['expected'][istate],
+                        self.raw['ci_lbound'][istate],
+                        self.raw['ci_ubound'][istate],
+                        maxlabellen=maxlabellen,
+                    )
+                )
             p.text('To access data, index via the following names:\n')
             p.text(str(self.__dir__()))
             return " "
 
+        def _2D_repr_pretty_(self, p, cycle):
+            # We're just using this as a way to print things in a pretty way.  They can still be indexed appropriately.
+            # Stolen shamelessly from westtools/kinetics_tool.py
+            maxlabellen = max(list(map(len, self.assign['state_labels'])))
+            p.text('')
+            p.text('{name} data:\n'.format(name=self.name))
+            for istate in range(self.nstates):
+                for jstate in range(self.nstates):
+                    if istate == jstate:
+                        continue
+                    p.text(
+                        '{:{maxlabellen}s} -> {:{maxlabellen}s}: mean={:21.15e} CI=({:21.15e}, {:21.15e}) * tau^-1\n'.format(
+                            self.assign['state_labels'][istate],
+                            self.assign['state_labels'][jstate],
+                            self.raw['expected'][istate, jstate],
+                            self.raw['ci_lbound'][istate, jstate],
+                            self.raw['ci_ubound'][istate, jstate],
+                            maxlabellen=maxlabellen,
+                        )
+                    )
+            p.text('To access data, index via the following names:\n')
+            p.text(str(self.__dir__()))
+            return " "
 
     def __2D_with_error__(self, h5key, index, assign):
         # Check the start and stop, calculate the block size, and index appropriately.
         # While we could try and automatically generate this above, it's a little more consistent to try it here.
         # This should show the first block for which the current iteration has contributed data.
-        self.step_iter = (self.h5file[h5key]['iter_stop'][0] - self.h5file[h5key]['iter_start'][0])[1,0]
-        value = ((index-self.h5file.attrs['iter_start']) // self.step_iter)
+        self.step_iter = (self.h5file[h5key]['iter_stop'][0] - self.h5file[h5key]['iter_start'][0])[1, 0]
+        value = (index - self.h5file.attrs['iter_start']) // self.step_iter
         if value < 0:
             value = 0
         raw = self.h5file[h5key][value, :, :]
-        error = (raw['ci_ubound'] - raw['ci_lbound']) / (2*raw['expected'])
-        expected = raw['expected']
+        error = (raw['ci_ubound'] - raw['ci_lbound']) / (2 * raw['expected'])
+        # expected = raw['expected']
         raw = self.__custom_dataset__(raw, assign, h5key)
         raw.error = error
         raw.plotter = Plotter(self.h5file, h5key, iteration=value, interface='text')
         raw.plot = raw.plotter.plot
         return raw
+
     def __1D_with_error__(self, h5key, index, assign):
         self.step_iter = (self.h5file[h5key]['iter_stop'][0] - self.h5file[h5key]['iter_start'][0])[1]
-        value = ((index-self.h5file.attrs['iter_start']) // self.step_iter)
+        value = (index - self.h5file.attrs['iter_start']) // self.step_iter
         if value < 0:
             value = 0
         raw = self.h5file[h5key][value, :]
-        error = (raw['ci_ubound'] - raw['ci_lbound']) / (2*raw['expected'])
-        expected = raw['expected']
+        error = (raw['ci_ubound'] - raw['ci_lbound']) / (2 * raw['expected'])
+        # expected = raw['expected']
         raw = self.__custom_dataset__(raw, assign, h5key)
         raw.error = error
         raw.plotter = Plotter(self.h5file, h5key, iteration=value, interface='text')
@@ -311,7 +366,7 @@ class __get_data_for_iteration__:
     If you change the analysis scheme, so, too, will the important values.
     '''
 
-    def __init__(self, parent, value, seg_ids = None):
+    def __init__(self, parent, value, seg_ids=None):
         '''
         Initializes and sets the correct data.
         '''
@@ -319,7 +374,7 @@ class __get_data_for_iteration__:
         self.__dict__ = {}
         # Is this function thread safe?
         iter_group = parent.data_reader.get_iter_group(value)
-        #iter_group = parent.west['iterations/iter_{num:08d}'.format(num=value)]
+        # iter_group = parent.west['iterations/iter_{num:08d}'.format(num=value)]
         self.parent = parent
         current = {}
         current['iteration'] = value
@@ -338,27 +393,36 @@ class __get_data_for_iteration__:
         current['summary'] = parent.data_reader.data_manager.get_iter_summary(int(value))
         current['seg_id'] = np.array(list(range(0, iter_group['seg_index'].shape[0])))[seg_ids]
         current['walkers'] = current['summary']['n_particles']
-        current['states'] = parent.assign['trajlabels'][value-1, :current['walkers'], :][seg_ids]
-        current['bins'] = parent.assign['assignments'][value-1, :current['walkers'], :][seg_ids]
+        current['states'] = parent.assign['trajlabels'][value - 1, : current['walkers'], :][seg_ids]
+        current['bins'] = parent.assign['assignments'][value - 1, : current['walkers'], :][seg_ids]
         # Calculates the bin population for this iteration.
         nbins = parent.assign['state_map'].shape[0]
         # We have to take the 'unknown' state into account
-        nstates = parent.assign['state_labels'].shape[0] + 1
+        # nstates = parent.assign['state_labels'].shape[0] + 1
         # Temporarily disabled while I sort out the fact that we shouldn't be using data from w_assign for state populations.
-        #current['plot'] = Plotter(parent.direct, parent.reweight, parent.iteration, parent.assign['bin_labels'], parent.assign['state_labels'], current['populations'].states, current['populations'].bins, parent.interface)
+        # current['plot'] = Plotter(parent.direct, parent.reweight, parent.iteration, parent.assign['bin_labels'], parent.assign['state_labels'], current['populations'].states, current['populations'].bins, parent.interface)
         # Now we'll load up the results of the kinetics analysis.
         current['direct'] = KineticsIteration(parent.direct, value, parent.assign, value)
-        evolution_datasets = [ 'rate_evolution', 'conditional_flux_evolution', 'state_pop_evolution', 'color_prob_evolution' , 'total_fluxes', 'target_flux_evolution']
+        evolution_datasets = [
+            'rate_evolution',
+            'conditional_flux_evolution',
+            'state_pop_evolution',
+            'color_prob_evolution',
+            'total_fluxes',
+            'target_flux_evolution',
+        ]
         # We want to load these up as... oh, who knows, I suppose?
         try:
             current['reweight'] = KineticsIteration(parent.reweight, value, parent.assign, value)
             # We'll make this not a sparse matrix...
             matrix = parent.reweight['iterations/iter_{:08d}'.format(value)]
             # Assume color.
-            current['instant_matrix'] = sp.coo_matrix((matrix['flux'][...], (matrix['rows'][...], matrix['cols'][...])), shape=((nbins-1)*2, (nbins-1)*2)).todense()
+            current['instant_matrix'] = sp.coo_matrix(
+                (matrix['flux'][...], (matrix['rows'][...], matrix['cols'][...])), shape=((nbins - 1) * 2, (nbins - 1) * 2)
+            ).todense()
             reweighting = True
         except Exception:
-          # This analysis hasn't been enabled, so we'll simply return the default error message.
+            # This analysis hasn't been enabled, so we'll simply return the default error message.
             current['reweight'] = parent.reweight['rate_evolution']
             current['instant_matrix'] = parent.reweight['bin_populations']
             current['matrix'] = parent.reweight['bin_populations']
@@ -366,12 +430,13 @@ class __get_data_for_iteration__:
         # Check if the analysis has been enabled.  If yes, make them specify dataset dictionaries.  If not, return the thing.
         if reweighting:
             for key in evolution_datasets:
-                current[key] = WIPIDataset(raw={ 'direct': current['direct'][key], 'reweight': current['reweight'][key] }, key='a')
+                current[key] = WIPIDataset(raw={'direct': current['direct'][key], 'reweight': current['reweight'][key]}, key='a')
         else:
             for key in evolution_datasets:
-                current[key] = WIPIDataset(raw={ 'direct': current['direct'][key] }, key='direct')
+                current[key] = WIPIDataset(raw={'direct': current['direct'][key]}, key='direct')
 
         self.raw = current
+
     def __repr__(self):
         '''
         Returns the dictionary containing the iteration's values.
@@ -386,13 +451,16 @@ class __get_data_for_iteration__:
 
     def __setitem__(self, key, value):
         self.__dict__[key] = value
+
     def __getattr__(self, value):
         if value in list(self.__dict__['raw'].keys()):
             return self.__dict__['raw'][value]
         elif value in list(self.__dict__.keys()):
             return self.__dict__[value]
+
     def __setattr__(self, key, value):
         self.__dict__[key] = value
+
     def __dir__(self):
         dict_keys = list(self.__dict__.keys())
         dict_keys += ['maxweight', 'minweight', 'walkers', 'aggregate_walkers', 'successful_trajectories']
@@ -426,23 +494,23 @@ class __get_data_for_iteration__:
         '''
         Returns which trajectories are successful.
         '''
-        #walker = np.where(self.raw['weights'] == np.min(self.raw['weights']))[0][0]
+        # walker = np.where(self.raw['weights'] == np.min(self.raw['weights']))[0][0]
         # Find where we have a transition....
-        state_changes = np.where(self.raw['states'][:,:-1] != self.raw['states'][:,1:])
+        state_changes = np.where(self.raw['states'][:, :-1] != self.raw['states'][:, 1:])
         walkers = state_changes[0]
         # The index of the state change.
         new_states = state_changes[1] + 1
         old_states = state_changes[1]
         walker = {}
         for z, (i, j) in enumerate(zip(old_states, new_states)):
-            #if self.raw['states'][walkers[z], i] == istate and self.raw['states'][walkers[z], j] == jstate:
+            # if self.raw['states'][walkers[z], i] == istate and self.raw['states'][walkers[z], j] == jstate:
             istate = self.raw['states'][walkers[z], i]
             jstate = self.raw['states'][walkers[z], j]
-            #print(z,i,j, istate, jstate)
+            # print(z,i,j, istate, jstate)
             try:
-                walker[istate,jstate].append(walkers[z])
+                walker[istate, jstate].append(walkers[z])
             except Exception:
-                walker[istate,jstate] = [walkers[z]]
+                walker[istate, jstate] = [walkers[z]]
 
         walker = WIPIDataset(raw=walker, key=None)
         return walker
@@ -454,20 +522,37 @@ class __get_data_for_iteration__:
         '''
         # Returns number of walkers for iteration X.  Assumes current iteration, but can go with different one.
         # Make this just... yeah, put this elsewhere.
-        return self.parent.west['summary']['n_particles'][self.iteration-1]
+        return self.parent.west['summary']['n_particles'][self.iteration - 1]
 
     @property
     def aggregate_walkers(self):
-        return self.parent.west['summary']['n_particles'][:self.iteration].sum()
-
+        return self.parent.west['summary']['n_particles'][: self.iteration].sum()
 
     def __getitem__(self, value):
         '''
         Responsible for handling whether this is treated like a dictionary of data sets, or an array of walker data.
         '''
         # Check to see if we're indexing via any of the active string types.  We should probably break it down via string or int, instead of 'what exists and what doesn't', but it works for now.
-        active_items = ['kinavg', 'statepops', 'weights', 'pcoord', 'auxdata', 'parents', 'summary', 'seg_id', 'walkers', 'states', 'bins', 'populations', 'plot', 'instant_matrix', 'kinrw', 'matrix', 'rwstatepops']
-        #if value in active_items:
+        # active_items = [
+        # 'kinavg',
+        # 'statepops',
+        # 'weights',
+        # 'pcoord',
+        # 'auxdata',
+        # 'parents',
+        # 'summary',
+        # 'seg_id',
+        # 'walkers',
+        # 'states',
+        # 'bins',
+        # 'populations',
+        # 'plot',
+        # 'instant_matrix',
+        # 'kinrw',
+        # 'matrix',
+        # 'rwstatepops',
+        # ]
+        # if value in active_items:
         if isinstance(value, str):
             # This should handle everything.  Otherwise...
             try:
@@ -480,8 +565,8 @@ class __get_data_for_iteration__:
                 current = {}
                 current['plotter'] = {}
                 for i in ['pcoord']:
-                    current[i] = WIPIDataset(raw=self.raw[i][value,:,:], key=i)
-                    current[i].plotter = Plotter(self.raw[i][value,:,:], i, iteration=self.iteration, interface='text')
+                    current[i] = WIPIDataset(raw=self.raw[i][value, :, :], key=i)
+                    current[i].plotter = Plotter(self.raw[i][value, :, :], i, iteration=self.iteration, interface='text')
                     current[i].plot = current[i].plotter.plot
 
                 current['states'] = self.raw['states'][value, :]
@@ -500,12 +585,13 @@ class __get_data_for_iteration__:
             else:
                 print('INVALID SEG_ID {}.  SEG_ID should be less than {}.'.format(value, self.walkers))
 
+
 # This handles the 'schemes', and all assorted data.
 class WIPIScheme:
     def __init__(self, scheme, name, parent, settings):
         self.__dict__ = {}
         self.raw = scheme
-        #self.name = parent._schemename
+        # self.name = parent._schemename
         self.__analysis_schemes__ = scheme
         self.iteration = parent.iteration
         self.__dict__['name'] = None
@@ -513,10 +599,13 @@ class WIPIScheme:
         # Are these necessary?  We'll try to edit these out.
         self.parent = parent
         self.data_reader = parent.data_reader
+
     def __setattr__(self, key, value):
         self.__dict__[key] = value
+
     def __repr__(self):
         return self.__str__()
+
     def __str__(self):
         # Right now, this returns w.scheme, NOT necessarily what we're pulling from...
         # So you can rely on this, but it's confusing.
@@ -527,6 +616,7 @@ class WIPIScheme:
             return rtn_string
         else:
             return str(self.scheme)
+
     def __getitem__(self, value):
         if not isinstance(value, str):
             for ischeme, schemename in enumerate(self.__dict__['raw'].keys()):
@@ -613,7 +703,7 @@ class WIPIScheme:
         print("State labels and definitions!")
         for istate, state in enumerate(self.assign['state_labels']):
             print('{}: {}'.format(istate, state))
-        print('{}: {}'.format(istate+1, 'Unknown'))
+        print('{}: {}'.format(istate + 1, 'Unknown'))
 
     @property
     def bin_labels(self):
@@ -632,8 +722,15 @@ class WIPIScheme:
             return self.__analysis_schemes__[str(self.name)]['reweight']
         else:
             value = "This sort of analysis has not been enabled."
-            current = { 'bin_prob_evolution': value, 'color_prob_evolution': value, 'conditional_flux_evolution': value, 'rate_evolution': value, 'state_labels': value, 'state_prob_evolution': value }
-            current.update({ 'bin_populations': value, 'iterations': value })
+            current = {
+                'bin_prob_evolution': value,
+                'color_prob_evolution': value,
+                'conditional_flux_evolution': value,
+                'rate_evolution': value,
+                'state_labels': value,
+                'state_prob_evolution': value,
+            }
+            current.update({'bin_populations': value, 'iterations': value})
             return current
 
     @property

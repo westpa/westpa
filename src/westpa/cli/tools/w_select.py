@@ -25,7 +25,7 @@ def _find_matching_segments(west_datafile_name, n_iter, predicate, invert=False)
 
 
 class WSelectTool(WESTParallelTool):
-    prog='w_select'
+    prog = 'w_select'
     description = '''\
 Select dynamics segments matching various criteria. This requires a
 user-provided prediate function. By default, only matching segments are
@@ -91,19 +91,22 @@ Command-line arguments
         self.iter_range.add_args(parser)
 
         sgroup = parser.add_argument_group('selection options')
-        sgroup.add_argument('-p', '--predicate-function', metavar='MODULE.FUNCTION',
-                             help='''Use the given predicate function to match segments. This function
+        sgroup.add_argument(
+            '-p',
+            '--predicate-function',
+            metavar='MODULE.FUNCTION',
+            help='''Use the given predicate function to match segments. This function
                              should take an iteration number and the HDF5 group corresponding to that
                              iteration and return a sequence of seg_ids matching the predicate, as in
-                             ``match_predicate(n_iter, iter_group)``.''')
-        sgroup.add_argument('-v', '--invert', dest='invert', action='store_true',
-                            help='''Invert the match predicate.''')
-        sgroup.add_argument('-a', '--include-ancestors', action ='store_true',
-                            help='''Include ancestors of matched segments in output.''')
+                             ``match_predicate(n_iter, iter_group)``.''',
+        )
+        sgroup.add_argument('-v', '--invert', dest='invert', action='store_true', help='''Invert the match predicate.''')
+        sgroup.add_argument(
+            '-a', '--include-ancestors', action='store_true', help='''Include ancestors of matched segments in output.'''
+        )
 
         ogroup = parser.add_argument_group('output options')
-        ogroup.add_argument('-o', '--output', default='select.h5',
-                            help='''Write output to OUTPUT (default: %(default)s).''')
+        ogroup.add_argument('-o', '--output', default='select.h5', help='''Write output to OUTPUT (default: %(default)s).''')
         self.progress.add_args(parser)
 
     def process_args(self, args):
@@ -112,7 +115,7 @@ Command-line arguments
         with self.data_reader:
             self.iter_range.process_args(args)
 
-        predicate = get_object(args.predicate_function,path=['.'])
+        predicate = get_object(args.predicate_function, path=['.'])
         if not callable(predicate):
             raise TypeError('predicate object {!r} is not callable'.format(predicate))
         self.predicate = predicate
@@ -128,43 +131,58 @@ Command-line arguments
         iter_start, iter_stop = self.iter_range.iter_start, self.iter_range.iter_stop
         iter_count = iter_stop - iter_start
 
-        output_file.create_dataset('n_iter', dtype=n_iter_dtype, data=list(range(iter_start,iter_stop)))
+        output_file.create_dataset('n_iter', dtype=n_iter_dtype, data=list(range(iter_start, iter_stop)))
         current_seg_count = 0
         seg_count_ds = output_file.create_dataset('n_segs', dtype=np.uint, shape=(iter_count,))
-        matching_segs_ds = output_file.create_dataset('seg_ids', shape=(iter_count,0), maxshape=(iter_count,None),
-                                                      dtype=seg_id_dtype,
-                                                      chunks=h5io.calc_chunksize((iter_count,1000000), seg_id_dtype),
-                                                      shuffle=True, compression=9)
-        weights_ds = output_file.create_dataset('weights', shape=(iter_count,0), maxshape=(iter_count,None),
-                                                dtype=weight_dtype,
-                                                chunks=h5io.calc_chunksize((iter_count,1000000), weight_dtype),
-                                                shuffle=True,compression=9)
+        matching_segs_ds = output_file.create_dataset(
+            'seg_ids',
+            shape=(iter_count, 0),
+            maxshape=(iter_count, None),
+            dtype=seg_id_dtype,
+            chunks=h5io.calc_chunksize((iter_count, 1000000), seg_id_dtype),
+            shuffle=True,
+            compression=9,
+        )
+        weights_ds = output_file.create_dataset(
+            'weights',
+            shape=(iter_count, 0),
+            maxshape=(iter_count, None),
+            dtype=weight_dtype,
+            chunks=h5io.calc_chunksize((iter_count, 1000000), weight_dtype),
+            shuffle=True,
+            compression=9,
+        )
 
         with pi:
             pi.new_operation('Finding matching segments', extent=iter_count)
-#             futures = set()
-#             for n_iter in xrange(iter_start,iter_stop):
-#                 futures.add(self.work_manager.submit(_find_matching_segments,
-#                                                      args=(self.data_reader.we_h5filename,n_iter,self.predicate,self.invert)))
+            #             futures = set()
+            #             for n_iter in xrange(iter_start,iter_stop):
+            #                 futures.add(self.work_manager.submit(_find_matching_segments,
+            #                                                      args=(self.data_reader.we_h5filename,n_iter,self.predicate,self.invert)))
 
-#             for future in self.work_manager.as_completed(futures):
-            for future in self.work_manager.submit_as_completed(((_find_matching_segments,
-                                                                  (self.data_reader.we_h5filename,n_iter,self.predicate,self.invert),
-                                                                  {}) for n_iter in range(iter_start,iter_stop)),
-                                                                self.max_queue_len):
+            #             for future in self.work_manager.as_completed(futures):
+            for future in self.work_manager.submit_as_completed(
+                (
+                    (_find_matching_segments, (self.data_reader.we_h5filename, n_iter, self.predicate, self.invert), {})
+                    for n_iter in range(iter_start, iter_stop)
+                ),
+                self.max_queue_len,
+            ):
                 n_iter, matching_ids = future.get_result()
                 n_matches = len(matching_ids)
 
                 if n_matches:
                     if n_matches > current_seg_count:
                         current_seg_count = len(matching_ids)
-                        matching_segs_ds.resize((iter_count,n_matches))
-                        weights_ds.resize((iter_count,n_matches))
+                        matching_segs_ds.resize((iter_count, n_matches))
+                        weights_ds.resize((iter_count, n_matches))
                         current_seg_count = n_matches
 
-                    seg_count_ds[n_iter-iter_start] = n_matches
-                    matching_segs_ds[n_iter-iter_start,:n_matches] = matching_ids
-                    weights_ds[n_iter-iter_start,:n_matches] = self.data_reader.get_iter_group(n_iter)['seg_index']['weight'][sorted(matching_ids)]
+                    seg_count_ds[n_iter - iter_start] = n_matches
+                    matching_segs_ds[n_iter - iter_start, :n_matches] = matching_ids
+                    weights_ds[n_iter - iter_start, :n_matches] = self.data_reader.get_iter_group(n_iter)['seg_index']['weight'][
+                        sorted(matching_ids)
+                    ]
                 del matching_ids
                 pi.progress += 1
 
@@ -172,27 +190,29 @@ Command-line arguments
                 pi.new_operation('Tracing ancestors of matching segments', extent=iter_count)
                 from_previous = set()
                 current_seg_count = matching_segs_ds.shape[1]
-                for n_iter in range(iter_stop-1, iter_start-1, -1):
+                for n_iter in range(iter_stop - 1, iter_start - 1, -1):
                     iiter = n_iter - iter_start
                     n_matches = seg_count_ds[iiter]
                     matching_ids = set(from_previous)
                     if n_matches:
-                        matching_ids.update(matching_segs_ds[iiter, :seg_count_ds[iiter]])
+                        matching_ids.update(matching_segs_ds[iiter, : seg_count_ds[iiter]])
                     from_previous.clear()
 
                     n_matches = len(matching_ids)
                     if n_matches > current_seg_count:
-                        matching_segs_ds.resize((iter_count,n_matches))
-                        weights_ds.resize((iter_count,n_matches))
+                        matching_segs_ds.resize((iter_count, n_matches))
+                        weights_ds.resize((iter_count, n_matches))
                         current_seg_count = n_matches
 
                     if n_matches > 0:
                         seg_count_ds[iiter] = n_matches
                         matching_ids = sorted(matching_ids)
-                        matching_segs_ds[iiter,:n_matches] = matching_ids
-                        weights_ds[iiter,:n_matches] = self.data_reader.get_iter_group(n_iter)['seg_index']['weight'][sorted(matching_ids)]
+                        matching_segs_ds[iiter, :n_matches] = matching_ids
+                        weights_ds[iiter, :n_matches] = self.data_reader.get_iter_group(n_iter)['seg_index']['weight'][
+                            sorted(matching_ids)
+                        ]
                         parent_ids = self.data_reader.get_iter_group(n_iter)['seg_index']['parent_id'][sorted(matching_ids)]
-                        from_previous.update(parent_id for parent_id in parent_ids if parent_id >= 0) # filter initial states
+                        from_previous.update(parent_id for parent_id in parent_ids if parent_id >= 0)  # filter initial states
                         del parent_ids
                     del matching_ids
                     pi.progress += 1

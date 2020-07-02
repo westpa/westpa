@@ -23,12 +23,10 @@ class Task:
         self.kwargs = kwargs
 
     def __repr__(self):
-        return '<Task {self.task_id}: {self.fn!r}(*{self.args!r}, **{self.kwargs!r})>'\
-               .format(self=self)
+        return '<Task {self.task_id}: {self.fn!r}(*{self.args!r}, **{self.kwargs!r})>'.format(self=self)
 
 
 class MPIBase:
-
     def __init__(self):
         # Initialize communicator and obtain standard MPI variables
         comm = MPI.COMM_WORLD
@@ -46,9 +44,6 @@ class MPIBase:
         self.result_tag = 20
         self.announce_tag = 30
 
-        # create an empty message buffer
-        messages = []
-
     def startup(self):
         raise NotImplementedError
 
@@ -64,8 +59,8 @@ class MPIBase:
         else:
             return False
 
-class MPIWMServer(MPIBase):
 
+class MPIWMServer(MPIBase):
     def __init__(self):
         super().__init__()
 
@@ -94,7 +89,7 @@ class MPIWMServer(MPIBase):
                 except IndexError:
                     break
                 else:
-                    comm.send(task, dest = task_dest, tag = self.task_tag )
+                    comm.send(task, dest=task_dest, tag=self.task_tag)
 
             status = MPI.Status()
             comm.Iprobe(self.master_rank, self.announce_tag, status)
@@ -102,7 +97,7 @@ class MPIWMServer(MPIBase):
 
             # Check for announcements
             if message_tag == self.announce_tag:
-                messages = comm.recv(source = self.master_rank, tag = self.announce_tag)
+                messages = comm.recv(source=self.master_rank, tag=self.announce_tag)
                 if 'shutdown' in messages:
                     log.debug('exiting _dispatch_loop()')
                     return
@@ -119,20 +114,20 @@ class MPIWMServer(MPIBase):
 
             # results are tuples of (task_id, {'result', 'exception'}, value)
             if message_tag == self.result_tag:
-                (task_id, result_stat, result_value) = comm.recv(source = message_src, tag = message_tag)
+                (task_id, result_stat, result_value) = comm.recv(source=message_src, tag=message_tag)
 
                 ft = self.pending_futures.pop(task_id)
 
                 if result_stat == 'exception':
                     ft._set_exception(*result_value)
-# Check with Matt on what else to do for an exception
+                # Check with Matt on what else to do for an exception
                 else:
                     ft._set_result(result_value)
                     self.task_dest.append(message_src)
 
             # Check for announcements
             elif message_tag == self.announce_tag:
-                messages = comm.recv(source = message_src, tag = message_tag)
+                messages = comm.recv(source=message_src, tag=message_tag)
                 if 'shutdown' in messages:
                     log.debug('exiting _receive_loop()')
                     return
@@ -163,8 +158,8 @@ class MPIWMServer(MPIBase):
 
         self.server_threads = server_threads
 
-class MPIClient(MPIBase):
 
+class MPIClient(MPIBase):
     def __init__(self):
         super().__init__()
 
@@ -181,20 +176,20 @@ class MPIClient(MPIBase):
             # Check for available task
             if message_tag == self.task_tag:
 
-                task = comm.recv(source = message_src, tag = message_tag)
+                task = comm.recv(source=message_src, tag=message_tag)
 
                 try:
                     result_value = task.fn(*task.args, **task.kwargs)
-                except Exception as e:
+                except Exception:
                     result_object = (task.task_id, 'exception', result_value)
                 else:
                     result_object = (task.task_id, 'result', result_value)
 
-                comm.send(result_object, dest = self.master_rank, tag = self.result_tag)
+                comm.send(result_object, dest=self.master_rank, tag=self.result_tag)
 
             # Check for announcements
             if message_tag == self.announce_tag:
-                messages = comm.recv(source = message_src, tag = message_tag)
+                messages = comm.recv(source=message_src, tag=message_tag)
                 if 'shutdown' in messages:
                     return
 
@@ -206,8 +201,10 @@ class MPIClient(MPIBase):
     def run(self):
         self._worker_thread.join()
 
-class MPIWorkManager(MPIWMServer,MPIClient,WorkManager):
+
+class MPIWorkManager(MPIWMServer, MPIClient, WorkManager):
     '''A work manager using MPI.'''
+
     @classmethod
     def from_environ(cls, wmenv=None):
         return cls()
@@ -228,9 +225,9 @@ class MPIWorkManager(MPIWMServer,MPIClient,WorkManager):
         if self.rank == self.master_rank:
             # send 'shutdown' to client threads
             for x in self.task_dest:
-                comm.send('shutdown', dest = x, tag = self.announce_tag )
+                comm.send('shutdown', dest=x, tag=self.announce_tag)
             # send 'shutdown' to server threads
             for thread in self.server_threads:
-                comm.send('shutdown', dest = 0, tag = self.announce_tag )
+                comm.send('shutdown', dest=0, tag=self.announce_tag)
 
-        log.info( "MPIWMServer.shutdown complete" )
+        log.info("MPIWMServer.shutdown complete")

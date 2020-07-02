@@ -26,7 +26,7 @@ def load_module(module_name, path=None):
 
         # This will raise ImportError if next_component is not found
         # (as one would hope)
-        log.debug('find_module({!r},{!r})'.format(next_component,path))
+        log.debug('find_module({!r},{!r})'.format(next_component, path))
         (fp, pathname, desc) = imp.find_module(next_component, path)
 
         qname = '.'.join(qname_components)

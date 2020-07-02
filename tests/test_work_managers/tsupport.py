@@ -30,10 +30,10 @@ def will_busyhang():
 
 
 def will_busyhang_uninterruptible():
-    #import signal
-    #signal.signal(signal.SIGINT, signal.SIG_IGN)
-    #signal.signal(signal.SIGQUIT, signal.SIG_IGN)
-    #while True:
+    # import signal
+    # signal.signal(signal.SIGINT, signal.SIG_IGN)
+    # signal.signal(signal.SIGQUIT, signal.SIG_IGN)
+    # while True:
     #    pass
     while True:
         try:
@@ -48,6 +48,7 @@ def identity(x):
 
 def busy_identity(x):
     import time
+
     delay = 0.01
     start = time.time()
     while time.time() - start < delay:
@@ -62,13 +63,14 @@ def random_int(seed=None):
     if seed is not None:
         random.seed(seed)
 
-    return random.randint(0,sys.maxsize)
+    return random.randint(0, sys.maxsize)
 
 
 def get_process_index():
     import os
     import time
-    time.sleep(1) # this ensures that each task gets its own worker
+
+    time.sleep(1)  # this ensures that each task gets its own worker
     return os.environ['WM_PROCESS_INDEX']
 
 
@@ -80,7 +82,7 @@ class CommonWorkManagerTests:
         future.get_result()
 
     def test_submit_many(self):
-        futures = self.work_manager.submit_many([(will_succeed,(),{}) for i in range(self.MED_TEST_SIZE)])
+        futures = self.work_manager.submit_many([(will_succeed, (), {}) for i in range(self.MED_TEST_SIZE)])
         for future in futures:
             future.get_result()
 
@@ -121,7 +123,7 @@ class CommonWorkManagerTests:
 
 class CommonParallelTests:
     def test_random_seq(self):
-        tasks = [(random_int,(),{}) for n in range(self.MED_TEST_SIZE)]
+        tasks = [(random_int, (), {}) for n in range(self.MED_TEST_SIZE)]
         futures = self.work_manager.submit_many(tasks)
         self.work_manager.wait_all(futures)
         result_list = [future.get_result() for future in futures]
@@ -129,7 +131,7 @@ class CommonParallelTests:
         assert len(result_list) == len(result_set)
 
     def test_random_seq_improper_seeding(self):
-        tasks = [(random_int,(1979,),{}) for n in range(self.MED_TEST_SIZE)]
+        tasks = [(random_int, (1979,), {}) for n in range(self.MED_TEST_SIZE)]
         futures = self.work_manager.submit_many(tasks)
         self.work_manager.wait_all(futures)
         result_list = [future.get_result() for future in futures]

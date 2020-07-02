@@ -3,7 +3,7 @@ from westpa.core import h5io
 
 data_manager = rc.get_data_manager()
 
-##Store west.h5 file in RAM for testing
+# Store west.h5 file in RAM for testing
 west_file_name = 'west.h5'
 west_file = h5io.WESTPAH5File(west_file_name, driver='core', backing_store=False)
 

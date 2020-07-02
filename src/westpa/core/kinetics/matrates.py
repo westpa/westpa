@@ -18,11 +18,15 @@ import scipy.linalg
 
 from westpa.core.data_manager import weight_dtype
 
-from . _kinetics import (calculate_labeled_fluxes,  # @UnresolvedImport
-                         calculate_labeled_fluxes_alllags,  # @UnresolvedImport
-                         labeled_flux_to_rate,  # @UnresolvedImport
-                         nested_to_flat_matrix, nested_to_flat_vector,  # @UnresolvedImport
-                         flat_to_nested_vector, _reduce_labeled_rate_matrix_to_macro)  # @UnresolvedImport
+from ._kinetics import (
+    calculate_labeled_fluxes,  # @UnresolvedImport
+    calculate_labeled_fluxes_alllags,  # @UnresolvedImport
+    labeled_flux_to_rate,  # @UnresolvedImport
+    nested_to_flat_matrix,
+    nested_to_flat_vector,  # @UnresolvedImport
+    flat_to_nested_vector,
+    _reduce_labeled_rate_matrix_to_macro,
+)  # @UnresolvedImport
 
 
 log = logging.getLogger(__name__)
@@ -41,13 +45,13 @@ def get_steady_state(rates):
 
     # Convert to a transition probability matrix
     for i in range(rates.shape[0]):
-        rowsum = rates[i,:].sum()
+        rowsum = rates[i, :].sum()
         if rowsum > 0:
-            rates[i,:] = rates[i,:] / rowsum
+            rates[i, :] = rates[i, :] / rowsum
         else:
-            if rates[:,i].sum() != 0:
+            if rates[:, i].sum() != 0:
                 warnings.warn('sink microstate in rate matrix', ConsistencyWarning)
-            rates[i,:] = 0
+            rates[i, :] = 0
 
     try:
         vals, vecs = scipy.linalg.eig(rates.T)
@@ -58,11 +62,12 @@ def get_steady_state(rates):
     vals = np.abs(vals)
     log.debug('eigenvalues: {!r}'.format(list(reversed(sorted(vals)))))
     asort = np.argsort(vals)
-    vec = vecs[:,asort[-1]]
+    vec = vecs[:, asort[-1]]
     ss = np.abs(vec)
 
     ss /= ss.sum()
     return ss
+
 
 def get_macrostate_rates(labeled_rates, labeled_pops, extrapolate=True):
     '''Using a labeled rate matrix and labeled bin populations, calculate the steady state
@@ -79,7 +84,7 @@ def get_macrostate_rates(labeled_rates, labeled_pops, extrapolate=True):
     if extrapolate:
         ss = get_steady_state(rates)
         if ss is None:
-            warnings.warn('no well-defined steady state; using average populations',ConsistencyWarning)
+            warnings.warn('no well-defined steady state; using average populations', ConsistencyWarning)
             ss = nested_to_flat_vector(labeled_pops)
     else:
         ss = nested_to_flat_vector(labeled_pops)
@@ -88,9 +93,21 @@ def get_macrostate_rates(labeled_rates, labeled_pops, extrapolate=True):
 
     return flat_to_nested_vector(nstates, nbins, ss), macro_rates
 
-def estimate_rates(nbins, state_labels, weights, parent_ids, bin_assignments, label_assignments, state_map, labeled_pops,
-                   all_lags=False,
-                   labeled_fluxes = None, labeled_rates = None, unlabeled_rates = None):
+
+def estimate_rates(
+    nbins,
+    state_labels,
+    weights,
+    parent_ids,
+    bin_assignments,
+    label_assignments,
+    state_map,
+    labeled_pops,
+    all_lags=False,
+    labeled_fluxes=None,
+    labeled_rates=None,
+    unlabeled_rates=None,
+):
     '''Estimate fluxes and rates over multiple iterations. The number of iterations is determined by how many
     vectors of weights, parent IDs, bin assignments, and label assignments are passed.
 
@@ -101,7 +118,7 @@ def estimate_rates(nbins, state_labels, weights, parent_ids, bin_assignments, la
 
     assert len(weights) == len(parent_ids) == len(bin_assignments) == len(label_assignments)
     nstates = len(state_labels)
-    nbins = labeled_pops.shape[1]-1
+    nbins = labeled_pops.shape[1] - 1
 
     # Prepare output arrays
     if labeled_fluxes is None:
@@ -115,10 +132,9 @@ def estimate_rates(nbins, state_labels, weights, parent_ids, bin_assignments, la
         labeled_rates.fill(0.0)
 
     if unlabeled_rates is None:
-        unlabeled_rates = np.zeros((nbins,nbins), weight_dtype)
+        unlabeled_rates = np.zeros((nbins, nbins), weight_dtype)
     else:
         unlabeled_rates.fill(0.0)
-
 
     # Loop over all possible windows to accumulate flux matrix
     # flux matrix is [initial_label][final_label][initial_bin][final_bin]
@@ -133,8 +149,8 @@ def estimate_rates(nbins, state_labels, weights, parent_ids, bin_assignments, la
     labeled_flux_to_rate(labeled_fluxes, labeled_pops, labeled_rates)
 
     # Calculate an unlabeled rate matrix
-    unlabeled_fluxes = np.sum(labeled_fluxes,axis=(0,1))
+    unlabeled_fluxes = np.sum(labeled_fluxes, axis=(0, 1))
     unlabeled_pops = labeled_pops.sum(axis=0)
-    unlabeled_rates[...] = labeled_flux_to_rate(unlabeled_fluxes[None,None,:,:], unlabeled_pops[None,:])[0,0]
+    unlabeled_rates[...] = labeled_flux_to_rate(unlabeled_fluxes[None, None, :, :], unlabeled_pops[None, :])[0, 0]
 
     return labeled_fluxes, labeled_rates, unlabeled_rates

@@ -10,14 +10,14 @@ log = logging.getLogger(__name__)
 
 
 class TransitionEventAccumulator:
-    index_dtype  = np.uintp
-    count_dtype  = np.uint64
+    index_dtype = np.uintp
+    count_dtype = np.uint64
     weight_dtype = np.float64
-    output_tdat_chunksize = 4096      # HDF5 chunksize for transition data (~300 KiB)
-    tdat_buffersize = 524288          # Internal buffer length (~38 MiB)
+    output_tdat_chunksize = 4096  # HDF5 chunksize for transition data (~300 KiB)
+    tdat_buffersize = 524288  # Internal buffer length (~38 MiB)
     max_acc = 32768
 
-    def __init__(self, n_bins, output_group, calc_fpts = True):
+    def __init__(self, n_bins, output_group, calc_fpts=True):
         self.calc_fpts = calc_fpts
         self.n_bins = n_bins
         self.iibins = np.arange(n_bins)
@@ -25,18 +25,20 @@ class TransitionEventAccumulator:
 
         self.bin_index_dtype = np.min_scalar_type(n_bins)
 
-        self.tdat_dtype = np.dtype( [('traj',             self.index_dtype),
-                                        ('n_iter',           self.index_dtype),
-                                        ('timepoint',        self.index_dtype),
-                                        ('initial_bin',      self.bin_index_dtype),
-                                        ('final_bin',        self.bin_index_dtype),
-                                        ('initial_weight',   self.weight_dtype),
-                                        ('final_weight',     self.weight_dtype),
-                                        ('initial_bin_pop',  self.weight_dtype),
-                                        ('duration',         self.index_dtype),
-                                        ('fpt',              self.index_dtype),
-                                        ])
-
+        self.tdat_dtype = np.dtype(
+            [
+                ('traj', self.index_dtype),
+                ('n_iter', self.index_dtype),
+                ('timepoint', self.index_dtype),
+                ('initial_bin', self.bin_index_dtype),
+                ('final_bin', self.bin_index_dtype),
+                ('initial_weight', self.weight_dtype),
+                ('final_weight', self.weight_dtype),
+                ('initial_bin_pop', self.weight_dtype),
+                ('duration', self.index_dtype),
+                ('fpt', self.index_dtype),
+            ]
+        )
 
         # HDF5 group in which to store results
         self.output_group = output_group
@@ -46,50 +48,51 @@ class TransitionEventAccumulator:
         self.output_tdat_ds = None
 
         # Accumulators/counters
-        self.n_trans           = None # shape (n_bins,n_bins)
+        self.n_trans = None  # shape (n_bins,n_bins)
 
         # Time points and per-timepoint data
-        self.last_exit          = None # (n_bins,)
-        self.last_entry         = None # (n_bins,)
-        self.last_completion    = None # (n_bins,n_bins)
-        self.weight_last_exit   = None # (n_bins)
-        self.bin_pops_last_exit = None # (n_bins,)
+        self.last_exit = None  # (n_bins,)
+        self.last_entry = None  # (n_bins,)
+        self.last_completion = None  # (n_bins,n_bins)
+        self.weight_last_exit = None  # (n_bins)
+        self.bin_pops_last_exit = None  # (n_bins,)
 
         # Analysis continuation information
-        self.timepoint          = None # current time index for separate calls on same trajectory
-        self.last_bin           = None # last region occupied, for separate calls on same trajectory
-        self.last_bin_pop       = None # total weight in self.last_region at end of last processing step
+        self.timepoint = None  # current time index for separate calls on same trajectory
+        self.last_bin = None  # last region occupied, for separate calls on same trajectory
+        self.last_bin_pop = None  # total weight in self.last_region at end of last processing step
 
         self.clear()
 
     def clear(self):
         self.clear_state()
-        self.n_trans         = np.zeros((self.n_bins,self.n_bins), self.count_dtype)
+        self.n_trans = np.zeros((self.n_bins, self.n_bins), self.count_dtype)
         self.tdat_buffer = np.empty((self.tdat_buffersize,), dtype=self.tdat_dtype)
         self.tdat_buffer_offset = 0
         self.output_tdat_offset = 0
         self.output_tdat_ds = None
 
     def clear_state(self):
-        self.last_exit          = np.zeros((self.n_bins,), self.index_dtype)
-        self.last_entry         = np.zeros((self.n_bins,), self.index_dtype)
-        self.last_completion    = np.zeros((self.n_bins,self.n_bins), self.index_dtype)
-        self.weight_last_exit   = np.zeros((self.n_bins,), self.weight_dtype)
+        self.last_exit = np.zeros((self.n_bins,), self.index_dtype)
+        self.last_entry = np.zeros((self.n_bins,), self.index_dtype)
+        self.last_completion = np.zeros((self.n_bins, self.n_bins), self.index_dtype)
+        self.weight_last_exit = np.zeros((self.n_bins,), self.weight_dtype)
         self.bin_pops_last_exit = np.zeros((self.n_bins,), self.weight_dtype)
-        self.timepoint          = 0
-        self.last_bin           = None
-        self.last_bin_pop       = None
+        self.timepoint = 0
+        self.last_bin = None
+        self.last_bin_pop = None
 
     def get_state(self):
-        return {'last_entry':           self.last_entry.copy(),
-                'last_exit':            self.last_exit.copy(),
-                'last_completion':      self.last_completion.copy(),
-                'weight_last_exit':     self.weight_last_exit.copy(),
-                'bin_pops_last_exit':   self.bin_pops_last_exit.copy(),
-                'timepoint':            self.timepoint,
-                'last_bin':             self.last_bin,
-                'last_bin_pop':         self.last_bin_pop,
-                }
+        return {
+            'last_entry': self.last_entry.copy(),
+            'last_exit': self.last_exit.copy(),
+            'last_completion': self.last_completion.copy(),
+            'weight_last_exit': self.weight_last_exit.copy(),
+            'bin_pops_last_exit': self.bin_pops_last_exit.copy(),
+            'timepoint': self.timepoint,
+            'last_bin': self.last_bin,
+            'last_bin_pop': self.last_bin_pop,
+        }
 
     def set_state(self, state_dict):
         self.last_entry = state_dict['last_entry']
@@ -112,10 +115,14 @@ class TransitionEventAccumulator:
             except KeyError:
                 pass
 
-            self.output_tdat_ds = self.output_group.create_dataset('transitions', shape=(1,),
-                                                                   dtype=self.tdat_dtype, maxshape=(None,),
-                                                                   chunks=(self.output_tdat_chunksize,),
-                                                                   compression='gzip')
+            self.output_tdat_ds = self.output_group.create_dataset(
+                'transitions',
+                shape=(1,),
+                dtype=self.tdat_dtype,
+                maxshape=(None,),
+                chunks=(self.output_tdat_chunksize,),
+                compression='gzip',
+            )
 
         # If the amount of data to write exceeds our remaining buffer space, flush the buffer, then
         # write data directly to HDF5, otherwise just add to the buffer and wait for the last flush
@@ -123,10 +130,10 @@ class TransitionEventAccumulator:
             self.flush_transition_data()
             ub = self.output_tdat_offset + len(tdat)
             self.output_tdat_ds.resize((ub,))
-            self.output_tdat_ds[self.output_tdat_offset:ub] = tdat
+            self.output_tdat_ds[self.output_tdat_offset : ub] = tdat
             self.output_tdat_offset += len(tdat)
         else:
-            self.tdat_buffer[self.tdat_buffer_offset:(self.tdat_buffer_offset+len(tdat))] = tdat
+            self.tdat_buffer[self.tdat_buffer_offset : (self.tdat_buffer_offset + len(tdat))] = tdat
             self.tdat_buffer_offset += len(tdat)
 
     def flush_transition_data(self):
@@ -136,13 +143,14 @@ class TransitionEventAccumulator:
 
         # self.tdat_buffer_offset is the number of items in the buffer
         nbuf = self.tdat_buffer_offset
-        if nbuf == 0: return
+        if nbuf == 0:
+            return
         ub = nbuf + self.output_tdat_offset
         if ub > self.output_tdat_ds.len():
             # Resize dataset to fit data
             self.output_tdat_ds.resize((ub,))
 
-        self.output_tdat_ds[self.output_tdat_offset:ub] = self.tdat_buffer[:nbuf]
+        self.output_tdat_ds[self.output_tdat_offset : ub] = self.tdat_buffer[:nbuf]
         self.output_tdat_offset += nbuf
         self.tdat_buffer_offset = 0
 
@@ -152,35 +160,35 @@ class TransitionEventAccumulator:
         self._accumulate_transitions(timepoints, assignments, weights, bin_pops, traj, n_iter)
 
     def continue_accumulation(self, assignments, weights, bin_pops, traj=0, n_iter=0):
-        aug_assign = np.empty((len(assignments)+1,), assignments.dtype)
+        aug_assign = np.empty((len(assignments) + 1,), assignments.dtype)
         aug_assign[0] = self.last_bin
         aug_assign[1:] = assignments
 
-        aug_weights = np.empty((len(weights)+1,), self.weight_dtype)
+        aug_weights = np.empty((len(weights) + 1,), self.weight_dtype)
         aug_weights[0] = 0
         aug_weights[1:] = weights
 
-        aug_pops = np.empty((len(bin_pops)+1, len(bin_pops[0])), self.weight_dtype)
-        aug_pops[0,:] = 0
+        aug_pops = np.empty((len(bin_pops) + 1, len(bin_pops[0])), self.weight_dtype)
+        aug_pops[0, :] = 0
         aug_pops[0, self.last_bin] = self.last_bin_pop
         aug_pops[1:] = bin_pops
 
-        timepoints = np.arange(self.timepoint, self.timepoint+len(aug_assign))
+        timepoints = np.arange(self.timepoint, self.timepoint + len(aug_assign))
         self._accumulate_transitions(timepoints, aug_assign, aug_weights, aug_pops, traj, n_iter)
 
     def _accumulate_transitions(self, timepoints, assignments, weights, bin_pops, traj, n_iter):
         tdat = []
 
         assignments_from_1 = assignments[1:]
-        assignments_to_1   = assignments[:-1]
+        assignments_to_1 = assignments[:-1]
 
         calc_fpts = self.calc_fpts
 
         trans_occur = assignments_from_1 != assignments_to_1
-        trans_ibin  = assignments_to_1[trans_occur]
-        trans_fbin  = assignments_from_1[trans_occur]
+        trans_ibin = assignments_to_1[trans_occur]
+        trans_fbin = assignments_from_1[trans_occur]
         trans_timepoints = timepoints[1:][trans_occur]
-        trans_weights   = weights[1:][trans_occur] # arrival weights
+        trans_weights = weights[1:][trans_occur]  # arrival weights
         trans_ibinpops = bin_pops[:-1][trans_occur]
 
         last_exit = self.last_exit
@@ -192,8 +200,9 @@ class TransitionEventAccumulator:
         iibdisc = self.iibdisc
         iibins = self.iibins
         tdat_maxlen = self.max_acc
-        for (trans_ti, weight, ibin, fbin, ibinpops) in zip(trans_timepoints, trans_weights,
-                                                             trans_ibin, trans_fbin, trans_ibinpops):
+        for (trans_ti, weight, ibin, fbin, ibinpops) in zip(
+            trans_timepoints, trans_weights, trans_ibin, trans_fbin, trans_ibinpops
+        ):
             # Record this crossing event's data
             bin_pops_last_exit[ibin] = ibinpops[ibin]
             last_exit[ibin] = trans_ti
@@ -202,25 +211,49 @@ class TransitionEventAccumulator:
 
             # See what other transitions this crossing event completes
             iibdisc[:] = last_exit > 0
-            iibdisc &= last_entry > last_completion[:,fbin]
+            iibdisc &= last_entry > last_completion[:, fbin]
 
             # Calculate event durations, etc for each transition generated by this crossing event
-            durations = -last_exit + trans_ti + 1 # = time now - time of exit from initial bin
+            durations = -last_exit + trans_ti + 1  # = time now - time of exit from initial bin
             if calc_fpts:
-                fpts      = -last_completion[fbin,:] + trans_ti # = time now - time of last final->initial transition
-                fpts[last_completion[:,fbin]==0] = 0
+                fpts = -last_completion[fbin, :] + trans_ti  # = time now - time of last final->initial transition
+                fpts[last_completion[:, fbin] == 0] = 0
 
                 for iibin in iibins[iibdisc]:
-                    tdat.append((traj, n_iter,trans_ti,iibin,fbin,weight_last_exit[iibin],
-                                 weight, bin_pops_last_exit[iibin],durations[iibin], fpts[iibin]))
+                    tdat.append(
+                        (
+                            traj,
+                            n_iter,
+                            trans_ti,
+                            iibin,
+                            fbin,
+                            weight_last_exit[iibin],
+                            weight,
+                            bin_pops_last_exit[iibin],
+                            durations[iibin],
+                            fpts[iibin],
+                        )
+                    )
             else:
                 for iibin in iibins[iibdisc]:
-                    tdat.append((traj, n_iter,trans_ti,iibin,fbin,weight_last_exit[iibin],
-                                 weight, bin_pops_last_exit[iibin],durations[iibin], 0))
+                    tdat.append(
+                        (
+                            traj,
+                            n_iter,
+                            trans_ti,
+                            iibin,
+                            fbin,
+                            weight_last_exit[iibin],
+                            weight,
+                            bin_pops_last_exit[iibin],
+                            durations[iibin],
+                            0,
+                        )
+                    )
 
             # Update tracking and statistics
-            last_completion[iibdisc,fbin] = trans_ti
-            n_trans[iibdisc,fbin] += 1
+            last_completion[iibdisc, fbin] = trans_ti
+            n_trans[iibdisc, fbin] += 1
 
             if len(tdat) > tdat_maxlen:
                 self.record_transition_data(tdat)
@@ -228,7 +261,8 @@ class TransitionEventAccumulator:
         self.record_transition_data(tdat)
         self.timepoint = timepoints[-1]
         self.last_bin = assignments[-1]
-        self.last_bin_pop = bin_pops[-1,assignments[-1]]
+        self.last_bin_pop = bin_pops[-1, assignments[-1]]
+
 
 class TransitionAnalysisMixin(AnalysisMixin):
     def __init__(self):
@@ -256,7 +290,7 @@ class TransitionAnalysisMixin(AnalysisMixin):
             self.__transitions_ds = self.trans_h5group['transitions']
             return self.__transitions_ds
 
-    def add_args(self, parser, upcall = True):
+    def add_args(self, parser, upcall=True):
         if upcall:
             try:
                 upfunc = super().add_args
@@ -266,12 +300,15 @@ class TransitionAnalysisMixin(AnalysisMixin):
                 upfunc(parser)
 
         group = parser.add_argument_group('transition analysis options')
-        group.add_argument('--discard-transition-data', dest='discard_transition_data', action='store_true',
-                           help='''Discard any existing transition data stored in the analysis HDF5 file.''')
+        group.add_argument(
+            '--discard-transition-data',
+            dest='discard_transition_data',
+            action='store_true',
+            help='''Discard any existing transition data stored in the analysis HDF5 file.''',
+        )
 
-    def process_args(self, args, upcall = True):
+    def process_args(self, args, upcall=True):
         self.discard_transition_data = args.discard_transition_data
-
 
         if upcall:
             try:
@@ -304,18 +341,24 @@ class TransitionAnalysisMixin(AnalysisMixin):
         output_group = self.require_transitions_group()
 
         self.n_segs_visited = 0
-        self.n_total_segs = self.total_segs_in_range(self.first_iter,self.last_iter)
-        self.accumulator = TransitionEventAccumulator(self.n_bins, output_group, calc_fpts = self.calc_fpts)
-        self.bin_assignments = self.get_bin_assignments(self.first_iter,self.last_iter)
-        self.bin_populations = self.get_bin_populations(self.first_iter,self.last_iter)
+        self.n_total_segs = self.total_segs_in_range(self.first_iter, self.last_iter)
+        self.accumulator = TransitionEventAccumulator(self.n_bins, output_group, calc_fpts=self.calc_fpts)
+        self.bin_assignments = self.get_bin_assignments(self.first_iter, self.last_iter)
+        self.bin_populations = self.get_bin_populations(self.first_iter, self.last_iter)
 
-        walker = TrajWalker(data_reader = self)
+        walker = TrajWalker(data_reader=self)
 
         self.__pcoord_len = self.get_pcoord_len(self.first_iter)
         self.__quiet_mode = westpa.rc.quiet_mode
 
-        walker.trace_trajectories(self.first_iter, self.last_iter, callable=self._segment_callback, include_pcoords=False,
-                                  get_state = self.accumulator.get_state, set_state = self.accumulator.set_state)
+        walker.trace_trajectories(
+            self.first_iter,
+            self.last_iter,
+            callable=self._segment_callback,
+            include_pcoords=False,
+            get_state=self.accumulator.get_state,
+            set_state=self.accumulator.set_state,
+        )
         self.accumulator.flush_transition_data()
         try:
             del output_group['n_trans']
@@ -342,24 +385,29 @@ class TransitionAnalysisMixin(AnalysisMixin):
         if len(history) == 0:
             # New trajectory
             self.n_trajs += 1
-            self.accumulator.start_accumulation(self.bin_assignments[iiter, seg_id, :], weights, bin_pops,
-                                                traj=self.n_trajs, n_iter=segment.n_iter)
+            self.accumulator.start_accumulation(
+                self.bin_assignments[iiter, seg_id, :], weights, bin_pops, traj=self.n_trajs, n_iter=segment.n_iter
+            )
         else:
             # Continuing trajectory
-            self.accumulator.continue_accumulation(self.bin_assignments[iiter, seg_id, :], weights, bin_pops,
-                                                   traj=self.n_trajs, n_iter=segment.n_iter)
+            self.accumulator.continue_accumulation(
+                self.bin_assignments[iiter, seg_id, :], weights, bin_pops, traj=self.n_trajs, n_iter=segment.n_iter
+            )
 
         self.n_segs_visited += 1
 
         if not self.__quiet_mode and (self.n_segs_visited % 1000 == 0 or self.n_segs_visited == self.n_total_segs):
             pct_visited = self.n_segs_visited / self.n_total_segs * 100
-            westpa.rc.pstatus('\r  {:d} of {:d} segments ({:.1f}%) analyzed ({:d} independent trajectories)'
-                            .format(int(self.n_segs_visited), int(self.n_total_segs), float(pct_visited), self.n_trajs),
-                            end='')
+            westpa.rc.pstatus(
+                '\r  {:d} of {:d} segments ({:.1f}%) analyzed ({:d} independent trajectories)'.format(
+                    int(self.n_segs_visited), int(self.n_total_segs), float(pct_visited), self.n_trajs
+                ),
+                end='',
+            )
             westpa.rc.pflush()
 
-class BFTransitionAnalysisMixin(TransitionAnalysisMixin):
 
+class BFTransitionAnalysisMixin(TransitionAnalysisMixin):
     def require_transitions(self):
         self.require_bin_assignments()
         self.require_transitions_group()
@@ -375,13 +423,13 @@ class BFTransitionAnalysisMixin(TransitionAnalysisMixin):
             self.delete_transitions_group()
             self.find_transitions()
 
-    def find_transitions(self,chunksize=65536):
+    def find_transitions(self, chunksize=65536):
         self.require_bf_h5file()
         self.require_binning_group()
         westpa.rc.pstatus('Finding transitions...')
         output_group = self.require_analysis_group('transitions')
 
-        self.accumulator = TransitionEventAccumulator(self.n_bins, output_group, calc_fpts = True)
+        self.accumulator = TransitionEventAccumulator(self.n_bins, output_group, calc_fpts=True)
         assignments_ds = self.binning_h5group['bin_assignments']
 
         max_nrows = assignments_ds.len()
@@ -390,19 +438,22 @@ class BFTransitionAnalysisMixin(TransitionAnalysisMixin):
         for traj_id in range(self.get_n_trajs()):
             nrows = self.get_traj_len(traj_id)
             for istart in range(0, nrows, chunksize):
-                iend = min(istart+chunksize,nrows)
-                assignments = assignments_ds[traj_id,istart:iend]
+                iend = min(istart + chunksize, nrows)
+                assignments = assignments_ds[traj_id, istart:iend]
                 weights = np.ones((len(assignments),))
-                binpops = np.ones((len(assignments),self.n_bins))
+                binpops = np.ones((len(assignments), self.n_bins))
 
                 if istart == 0:
                     self.accumulator.start_accumulation(assignments, weights, binpops, traj=traj_id)
                 else:
                     self.accumulator.continue_accumulation(assignments, weights, binpops, traj=traj_id)
 
-                westpa.rc.pstatus('\r  Trajectory {:d}: {:{mwnr}d}/{:<{mwnr}d} ({:.2f}%)'
-                                .format(int(traj_id), int(iend), int(nrows), iend/nrows*100,mwnr=maxwidth_nrows),
-                                end='')
+                westpa.rc.pstatus(
+                    '\r  Trajectory {:d}: {:{mwnr}d}/{:<{mwnr}d} ({:.2f}%)'.format(
+                        int(traj_id), int(iend), int(nrows), iend / nrows * 100, mwnr=maxwidth_nrows
+                    ),
+                    end='',
+                )
                 westpa.rc.pflush()
                 self.accumulator.flush_transition_data()
                 del assignments, weights, binpops

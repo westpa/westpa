@@ -1,4 +1,4 @@
-from westpa.tools import (WESTMasterCommand, WESTParallelTool)
+from westpa.tools import WESTMasterCommand, WESTParallelTool
 
 from westpa.cli.tools.w_direct import DKinetics
 
@@ -82,6 +82,7 @@ Command-line options
 def entry_point():
     print('WARNING: {} is being deprecated.  Please use w_direct instead.'.format(WDirect.prog))
     import sys
+
     try:
         if sys.argv[1] != 'trace':
             sys.argv.insert(1, 'trace')

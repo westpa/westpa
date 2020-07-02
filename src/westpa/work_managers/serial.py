@@ -1,7 +1,7 @@
 import logging
 import sys
 
-from . core import WorkManager, WMFuture
+from .core import WorkManager, WMFuture
 
 
 log = logging.getLogger(__name__)
@@ -26,4 +26,3 @@ class SerialWorkManager(WorkManager):
         else:
             ft._set_result(result)
         return ft
-

@@ -1,4 +1,3 @@
-
 import numpy as np
 from .fourier_fitting import FourierFit
 from collections import Iterable
@@ -7,6 +6,7 @@ try:
     import scipy
     import scipy.interpolate
     import scipy.linalg
+
     SCIPY_FLAG = True
 except Exception:
     SCIPY_FLAG = False
@@ -14,6 +14,7 @@ except Exception:
 from westext.stringmethod import WESTStringMethod
 
 import logging
+
 log = logging.getLogger(__name__)
 
 
@@ -41,9 +42,22 @@ class DefaultStringMethod(WESTStringMethod):
         fourier_tol:    Tolerance for ending fourier fitting
     """
 
-    def __init__(self, centers, slen=None, slabels=None, mpairs=None, dtau=0.1,
-                    kappa=0.1, sciflag=None, fixed_ends=True,
-                    fourierflag=False, fourier_P=2, fourier_maxiters=100, fourier_tol=1.0E-6, **kwargs):
+    def __init__(
+        self,
+        centers,
+        slen=None,
+        slabels=None,
+        mpairs=None,
+        dtau=0.1,
+        kappa=0.1,
+        sciflag=None,
+        fixed_ends=True,
+        fourierflag=False,
+        fourier_P=2,
+        fourier_maxiters=100,
+        fourier_tol=1.0e-6,
+        **kwargs
+    ):
         super().__init__(centers, **kwargs)
 
         self._SCIPY_FLAG = None
@@ -59,9 +73,9 @@ class DefaultStringMethod(WESTStringMethod):
 
         self._centers = centers
 
-        self._nstrings = len(slen)      # Number of strings
+        self._nstrings = len(slen)  # Number of strings
         self._N = centers.shape[0]
-        self._ndim = centers.shape[1]    # Number of progress coordinates
+        self._ndim = centers.shape[1]  # Number of progress coordinates
 
         if slen and isinstance(slen, Iterable):
             self._slen = np.array(slen)
@@ -81,12 +95,12 @@ class DefaultStringMethod(WESTStringMethod):
         self._strindx = []
 
         indx_all = np.arange(self._ndim)
-        self._indx_take = np.setdiff1d(indx_all,self._skip_dim)
+        self._indx_take = np.setdiff1d(indx_all, self._skip_dim)
         self._ndim_take = len(self._indx_take)
 
         start_count = 0
         for sl in slen:
-            self._strindx.append(np.index_exp[start_count:(start_count+sl),self._indx_take])
+            self._strindx.append(np.index_exp[start_count : (start_count + sl), self._indx_take])
             start_count += sl
 
         # Fourier fitting parameters
@@ -108,15 +122,15 @@ class DefaultStringMethod(WESTStringMethod):
     @property
     def length(self):
         L = []
-        for sid,si in enumerate(self._strindx):
+        for sid, si in enumerate(self._strindx):
             L.append(self.calculate_length(self._centers[si])[-1])
 
         return L
 
-    def calculate_length(self,x):
+    def calculate_length(self, x):
         dd = x - np.roll(x, 1, axis=0)
-        dd[0,:] = 0.0
-        return np.cumsum(np.sqrt((dd*dd).sum(axis=1)))
+        dd[0, :] = 0.0
+        return np.cumsum(np.sqrt((dd * dd).sum(axis=1)))
 
     def finalize_init(self):
         # Set up A and kappan for each string
@@ -131,26 +145,26 @@ class DefaultStringMethod(WESTStringMethod):
                 ld = np.zeros((ulen,))
                 d = np.ones((ulen,))
 
-                d[1:-1] = 2.0*self._kappan[ulen] + 1.0
+                d[1:-1] = 2.0 * self._kappan[ulen] + 1.0
                 ud[2:] = -self._kappan[ulen]
                 ld[:-2] = -self._kappan[ulen]
 
-                self._A[ulen] = np.mat([ud,d,ld])
+                self._A[ulen] = np.mat([ud, d, ld])
 
             else:
                 self._A[ulen] = np.eye(ulen)
                 di = np.diag_indices(ulen, ndim=2)
-                ii = (di[0][1:-1],di[1][1:-1])
+                ii = (di[0][1:-1], di[1][1:-1])
 
-                self._A[ulen][ii] = 2.0*self._kappan[ulen] + 1.0
+                self._A[ulen][ii] = 2.0 * self._kappan[ulen] + 1.0
 
-                dd = np.zeros((ulen-1,))
+                dd = np.zeros((ulen - 1,))
                 dd[1:] = -self._kappan[ulen]
-                self._A[ulen] += np.diag(dd,k=1)
+                self._A[ulen] += np.diag(dd, k=1)
 
-                dd = np.zeros((ulen-1,))
+                dd = np.zeros((ulen - 1,))
                 dd[:-1] = -self._kappan[ulen]
-                self._A[ulen] += np.diag(dd,k=-1)
+                self._A[ulen] += np.diag(dd, k=-1)
 
     def update_string_centers(self, avgcoords, binprob):
         """ Update the position of all string centers
@@ -168,14 +182,14 @@ class DefaultStringMethod(WESTStringMethod):
                 if np.sum(pprob) == 0.0:
                     continue
 
-                idx = np.ix_(pi,self._indx_take)
+                idx = np.ix_(pi, self._indx_take)
                 pavg = np.ma.array(avgcoords[idx])
                 zind = np.where(pprob == 0)[0]
-                pavg[zind,:] = np.ma.masked
+                pavg[zind, :] = np.ma.masked
 
                 avgcoords[idx] = pavg.mean(axis=0)
 
-        for sid,si in enumerate(self._strindx):
+        for sid, si in enumerate(self._strindx):
 
             x = avgcoords.copy()[si]
             centers = self.centers[si]
@@ -186,7 +200,7 @@ class DefaultStringMethod(WESTStringMethod):
             # if avgcoords has missing values fill them by linearly interpolating
             # present data
             if occupied[0].shape != N:
-                notocc = np.ones((N,),dtype=np.bool)  # unoccupied
+                notocc = np.ones((N,), dtype=np.bool)  # unoccupied
                 notocc[occupied] = False
 
                 # marked paired centers as occupied to avoid reseting averaged value if
@@ -199,65 +213,64 @@ class DefaultStringMethod(WESTStringMethod):
                         else:
                             for m in pi:
                                 if (m >= si[0].start) and (m < si[0].stop):
-                                    notocc[m-si[0].start] = False
+                                    notocc[m - si[0].start] = False
 
                 cfunc = lambda z: z.nonzero()[0]
 
                 # Handle ends first
                 if notocc[0]:
-                    x[0,:] = centers[0,:]
+                    x[0, :] = centers[0, :]
                     notocc[0] = False
                 if notocc[-1]:
-                    x[-1,:] = centers[-1,:]
+                    x[-1, :] = centers[-1, :]
                     notocc[-1] = False
 
                 # interpolate values for unoccupied bins
                 if self._SCIPY_FLAG:
                     for k in range(self._ndim_take):
-                        f = scipy.interpolate.interp1d(cfunc(~notocc),x[~notocc,k],kind='linear')
-                        x[notocc,k] = f(cfunc(notocc))
+                        f = scipy.interpolate.interp1d(cfunc(~notocc), x[~notocc, k], kind='linear')
+                        x[notocc, k] = f(cfunc(notocc))
                 else:
                     for k in range(self._ndim_take):
-                        x[notocc,k] = np.interp(cfunc(notocc),cfunc(~notocc),x[~notocc,k])
+                        x[notocc, k] = np.interp(cfunc(notocc), cfunc(~notocc), x[~notocc, k])
 
             if self._fixed_ends:
-                x[0,:] = centers[0,:]
-                x[-1,:] = centers[-1,:]
+                x[0, :] = centers[0, :]
+                x[-1, :] = centers[-1, :]
 
             psi = centers
             psi_new = np.zeros_like(psi)
 
-            b = psi - self._dtau*(psi - x)
+            b = psi - self._dtau * (psi - x)
 
             # Update and smooth the string
             if self._SCIPY_FLAG:
                 for k in range(self._ndim_take):
-                    psi_new[:,k] = scipy.linalg.solve_banded((1,1),self._A[N],b[:,k])
+                    psi_new[:, k] = scipy.linalg.solve_banded((1, 1), self._A[N], b[:, k])
             else:
                 for k in range(self._ndim_take):
-                    psi_new[:,k] = np.linalg.solve(self._A[N],b[:,k])
-
+                    psi_new[:, k] = np.linalg.solve(self._A[N], b[:, k])
 
             # Optionally smooth using fourier method
             if self._FFIT_FLAG:
-                w0 = np.zeros((self._ndim_take,self._ffp),np.float)
-                t0 = np.linspace(0,1,psi_new.shape[0])
+                w0 = np.zeros((self._ndim_take, self._ffp), np.float)
+                t0 = np.linspace(0, 1, psi_new.shape[0])
 
-                ff = FourierFit(P=self._ffp,maxiters=self._ffmaxiters)
-                ff.optimize(psi_new,None,w0,t0)
+                ff = FourierFit(P=self._ffp, maxiters=self._ffmaxiters)
+                ff.optimize(psi_new, None, w0, t0)
                 psi_new = ff.pp[-1][:]
 
             # Enforce equal spacing between centers along the string
             L = self.calculate_length(psi_new)
             L /= L[-1]
-            g2 = np.linspace(0,1,N)
+            g2 = np.linspace(0, 1, N)
 
             if self._SCIPY_FLAG:
                 for k in range(self._ndim_take):
-                    f = scipy.interpolate.interp1d(L,psi_new[:,k],kind='linear')
-                    psi_new[:,k] = f(g2)
+                    f = scipy.interpolate.interp1d(L, psi_new[:, k], kind='linear')
+                    psi_new[:, k] = f(g2)
             else:
                 for k in range(self._ndim_take):
-                    psi_new[:,k] = np.interp(g2,L,psi_new[:,k])
+                    psi_new[:, k] = np.interp(g2, L, psi_new[:, k])
 
             self.centers[si] = psi_new.copy()

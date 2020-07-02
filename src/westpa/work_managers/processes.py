@@ -8,7 +8,7 @@ import threading
 import traceback
 
 import westpa.work_managers as work_managers
-from . core import WorkManager, WMFuture
+from .core import WorkManager, WMFuture
 
 log = logging.getLogger(__name__)
 
@@ -16,7 +16,7 @@ log = logging.getLogger(__name__)
 # Results are tuples (rtype, task_id, payload) where rtype is 'result' or 'exception' and payload is the return value
 # or exception, respectively.
 
-task_shutdown_sentinel   = ('shutdown', None, None, (), {})
+task_shutdown_sentinel = ('shutdown', None, None, (), {})
 result_shutdown_sentinel = ('shutdown', None, None)
 
 
@@ -29,7 +29,7 @@ class ProcessWorkManager(WorkManager):
             wmenv = work_managers.environment.default_env
         return cls(wmenv.get_val('n_workers', multiprocessing.cpu_count(), int))
 
-    def __init__(self, n_workers = None, shutdown_timeout = 1):
+    def __init__(self, n_workers=None, shutdown_timeout=1):
         super().__init__()
         self.n_workers = n_workers or multiprocessing.cpu_count()
         self.workers = None
@@ -94,14 +94,17 @@ class ProcessWorkManager(WorkManager):
 
     def startup(self):
         from . import environment
+
         if not self.running:
             log.debug('starting up work manager {!r}'.format(self))
             self.running = True
-            self.workers = [multiprocessing.Process(target=self.task_loop,
-                                                    name='worker-{:d}-{:x}'.format(i,id(self))) for i in range(self.n_workers)]
+            self.workers = [
+                multiprocessing.Process(target=self.task_loop, name='worker-{:d}-{:x}'.format(i, id(self)))
+                for i in range(self.n_workers)
+            ]
 
             pi_name = '{}_PROCESS_INDEX'.format(environment.WMEnvironment.env_prefix)
-            for iworker,worker in enumerate(self.workers):
+            for iworker, worker in enumerate(self.workers):
                 os.environ[pi_name] = str(iworker)
                 worker.start()
             try:

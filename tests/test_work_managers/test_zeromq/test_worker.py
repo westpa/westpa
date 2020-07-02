@@ -5,18 +5,26 @@ import zmq
 
 from westpa.work_managers.zeromq import ZMQWorker
 from westpa.work_managers.zeromq.core import Message, Task, Result, TIMEOUT_MASTER_BEACON
-from test_work_managers.tsupport import random_int, will_fail, will_busyhang, will_busyhang_uninterruptible, ExceptionForTest, identity
+from test_work_managers.tsupport import (
+    random_int,
+    will_fail,
+    will_busyhang,
+    will_busyhang_uninterruptible,
+    ExceptionForTest,
+    identity,
+)
 
-from . zmq_tsupport import SETUP_WAIT, TEARDOWN_WAIT, BEACON_PERIOD
-from . zmq_tsupport import ZMQTestBase
+from .zmq_tsupport import SETUP_WAIT, TEARDOWN_WAIT, BEACON_PERIOD
+from .zmq_tsupport import ZMQTestBase
 
 
 class TestZMQWorkerBasic(ZMQTestBase, unittest.TestCase):
 
-    #endpoint_type = 'tcp'
+    # endpoint_type = 'tcp'
 
     '''Tests for the core task dispersal/retrieval and shutdown operations
     (the parts of the WM that do not require ZMQWorker).'''
+
     def setUp(self):
         super().setUp()
 
@@ -58,7 +66,7 @@ class TestZMQWorkerBasic(ZMQTestBase, unittest.TestCase):
 
     def recv_result(self):
         msg = self.test_core.recv_message(self.rr_socket)
-        self.test_core.send_ack(self.rr_socket,msg)
+        self.test_core.send_ack(self.rr_socket, msg)
         assert msg.message == Message.RESULT
         assert isinstance(msg.payload, Result)
         return msg.payload
@@ -66,7 +74,6 @@ class TestZMQWorkerBasic(ZMQTestBase, unittest.TestCase):
     def roundtrip_task(self, task):
         self.send_task(task)
         return self.recv_result()
-
 
     def test_meta(self):
         pass
@@ -86,7 +93,7 @@ class TestZMQWorkerBasic(ZMQTestBase, unittest.TestCase):
     def test_responds_to_task_avail(self):
         self.test_core.send_message(self.ann_socket, Message.TASKS_AVAILABLE)
         msg = self.test_core.recv_message(self.rr_socket)
-        self.test_core.send_nak(self.rr_socket,msg)
+        self.test_core.send_nak(self.rr_socket, msg)
         assert msg.message == Message.TASK_REQUEST
 
     def test_shutdown_on_master_disappearance(self):
