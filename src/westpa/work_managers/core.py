@@ -10,6 +10,8 @@ import uuid
 from itertools import islice
 from contextlib import contextmanager
 
+import h5py
+
 
 log = logging.getLogger(__name__)
 
@@ -64,7 +66,6 @@ class WorkManager:
     def shutdown(self):
         '''Cleanly shut down any active workers.'''
         self.running = False
-
 
     def run(self):
         '''Run the worker loop (in clients only).'''
@@ -325,7 +326,7 @@ class WMFuture:
         with self._condition:
             if self._done:
                 if self._exception:
-                    if isinstance(self._traceback, str):
+                    if isinstance(self._traceback, h5py.string_dtype(encoding='utf-8').type):
                         if self._traceback:
                             log.error('uncaught exception in remote function\n{}'.format(self._traceback))
                         raise self._exception
