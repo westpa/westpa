@@ -5,8 +5,8 @@ import unittest
 from westpa.work_managers.zeromq import ZMQWorkManager, ZMQWorker
 from westpa.work_managers.zeromq.node import ZMQNode
 
-from test_work_managers.tsupport import CommonWorkManagerTests
-from test_work_managers.tsupport import identity, random_int
+from ..tsupport import CommonWorkManagerTests
+from ..tsupport import identity, random_int
 
 from .zmq_tsupport import SETUP_WAIT, TEARDOWN_WAIT, SHUTDOWN_WAIT, BEACON_PERIOD, BEACON_WAIT
 from .zmq_tsupport import ZMQTestBase

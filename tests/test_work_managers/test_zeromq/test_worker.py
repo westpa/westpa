@@ -5,7 +5,8 @@ import zmq
 
 from westpa.work_managers.zeromq import ZMQWorker
 from westpa.work_managers.zeromq.core import Message, Task, Result, TIMEOUT_MASTER_BEACON
-from test_work_managers.tsupport import (
+
+from ..tsupport import (
     random_int,
     will_fail,
     will_busyhang,

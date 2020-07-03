@@ -212,9 +212,14 @@ class PassiveMultiTimer:
             raise KeyError('timer {!r} already present'.format(identifier))
 
         new_idx = len(self._identifiers)
-        self._durations.resize((new_idx + 1,))
-        self._started.resize((new_idx + 1,))
-        self._identifiers.resize((new_idx + 1,))
+
+        # Necessary due to coverage.py's use of a tracer triggering an error on resize
+        refcheck = True if sys.gettrace() is None else False
+
+        self._durations.resize((new_idx + 1,), refcheck=refcheck)
+        self._started.resize((new_idx + 1,), refcheck=refcheck)
+        self._identifiers.resize((new_idx + 1,), refcheck=refcheck)
+
         self._durations[new_idx] = duration
         self._started[new_idx] = time.time()
         self._identifiers[new_idx] = identifier

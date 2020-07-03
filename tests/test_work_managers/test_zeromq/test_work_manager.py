@@ -5,8 +5,8 @@ import unittest
 from westpa.work_managers.zeromq import ZMQWorkManager, ZMQWorker, ZMQWorkerMissing
 from westpa.work_managers.zeromq.core import Message, Task
 
-from test_work_managers.tsupport import identity, random_int, CommonWorkManagerTests, ExceptionForTest
-from test_work_managers.tsupport import will_busyhang, will_busyhang_uninterruptible, will_fail
+from ..tsupport import identity, random_int, CommonWorkManagerTests, ExceptionForTest
+from ..tsupport import will_busyhang, will_busyhang_uninterruptible, will_fail
 
 
 import zmq
