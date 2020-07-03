@@ -1,4 +1,4 @@
-import imp
+import importlib
 import logging
 import sys
 
@@ -10,6 +10,9 @@ def load_module(module_name, path=None):
     if module_name in sys.modules:
         log.debug('module %r already loaded' % module_name)
         return sys.modules[module_name]
+
+    if path is None:
+        return importlib.import_module(module_name)
 
     spec_components = list(reversed(module_name.split('.')))
     qname_components = []
@@ -24,29 +27,33 @@ def load_module(module_name, path=None):
         except IndexError:
             parent = None
 
-        # This will raise ImportError if next_component is not found
-        # (as one would hope)
-        log.debug('find_module({!r},{!r})'.format(next_component, path))
-        (fp, pathname, desc) = imp.find_module(next_component, path)
-
         qname = '.'.join(qname_components)
-        try:
-            module = imp.load_module(qname, fp, pathname, desc)
-        finally:
-            try:
-                fp.close()
-            except AttributeError:
-                pass
 
-        # make the module appear in sys.modules
-        sys.modules[qname] = module
+        if qname in sys.modules:
+            log.debug("Skipping preloaded module {}".format(qname))
+            module = sys.modules[qname]
+        else:
+            log.debug('find_spec({!r}, {!r})'.format(qname, path))
+
+            spec = importlib.machinery.PathFinder().find_spec(qname, path)
+
+            if spec is None:
+                raise ImportError(f'No module named {qname}')
+
+            module = importlib.util.module_from_spec(spec)
+
+            if spec.name not in sys.modules:
+                sys.modules[spec.name] = module
+
+            spec.loader.exec_module(module)
+
+            # Make the module appear in the parent module's namespace
+            if parent:
+                setattr(parent, next_component, module)
+
+            log.debug('module %r loaded' % qname)
+
         mod_chain.append(module)
-
-        # Make the module appear in the parent module's namespace
-        if parent:
-            setattr(parent, next_component, module)
-
-        log.debug('module %r loaded' % qname)
 
     return module
 
