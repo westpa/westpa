@@ -48,7 +48,7 @@ import pickle
 import numpy as np
 
 from .bins import Bin
-
+from ._assign import output_map, apply_down, apply_down_argmin_across, rectilinear_assign
 
 # All bin numbers are 16-bit unsigned ints, with one element (65525) reserved to
 # indicate unknown or unassigned points. This allows up to 65,536 bins, making
@@ -61,7 +61,6 @@ UNKNOWN_INDEX = 65535
 # coord_dtype here and coord_t in _assign.pyx.
 coord_dtype = np.float32
 
-from ._assign import output_map, apply_down, apply_down_argmin_across, rectilinear_assign
 
 log = logging.getLogger(__name__)
 

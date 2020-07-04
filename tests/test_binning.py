@@ -146,7 +146,6 @@ class TestNestingBinMapper:
         output[mask & ~test] = 1
 
     def testOuterMapper(self):
-        # pass
         '''
              0                            1                      2
              +----------------------------+----------------------+
@@ -161,7 +160,6 @@ class TestNestingBinMapper:
         assert list(output) == [0, 0, 0, 0, 0, 1]
 
     def testOuterMapperWithOffset(self):
-        # pass
         '''
              0                            1                      2
              +----------------------------+----------------------+
@@ -176,8 +174,6 @@ class TestNestingBinMapper:
         assert list(output) == [1, 1, 1, 1, 1, 2]
 
     def testSingleRecursion(self):
-        # pass
-
         '''
              0                            1                      2
              +----------------------------+----------------------+
@@ -201,8 +197,6 @@ class TestNestingBinMapper:
         assert list(output) == [1, 1, 1, 1, 2, 0]
 
     def testDeepRecursion(self):
-        # pass
-
         '''
          0                            1                      2
          +----------------------------+----------------------+
@@ -230,7 +224,6 @@ class TestNestingBinMapper:
         assert list(output) == [2, 2, 3, 3, 1, 0]
 
     def testSideBySideRecursion(self):
-        # pass
         '''
              0                            1                      2
              +----------------------------+----------------------+
@@ -258,7 +251,6 @@ class TestNestingBinMapper:
         assert list(output) == [0, 0, 0, 0, 1, 2, 3]
 
     def testMegaComplexRecursion(self):
-        # pass
         '''
              0                            1                      2
              +----------------------------+----------------------+
