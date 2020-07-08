@@ -53,6 +53,7 @@ MANIFEST
 
 # Testing
 .coverage
+coverage.xml
 htmlcov
 
 
