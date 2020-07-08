@@ -1,0 +1,10 @@
+[flake8]
+max-line-length = 132
+ignore =
+    E203,  # space before : (needed for how black formats slicing)
+    E266,  # too many leading '#' for block comment 
+    E501,  # line lengths too long
+    W503,  # line break before binary operator
+    W504,  # line break after binary operator
+    E402,  # module level import not at top of file
+    E731,  # do not assign a lambda expression, use a def
