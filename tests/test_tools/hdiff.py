@@ -50,9 +50,10 @@ class H5Diff:
             #   things being compared are arrays it becomes an element-wise comparison.
             # If the latter is the case, then we need to ensure ALL elements are true.
 
-            # TODO: This may be checking numbers which differ up to floating point accuracy
             comparison = non_reference_test_elements == non_reference_ref_elements
 
+            # If you're comparing to datasets that are arrays of floats, then they may differ up to floating point precision.
+            #    So, use numpy's 'isclose' to check if they're close within the default tolerance of 1e-8.
             if non_reference_ref_elements.dtype == 'float64':
                 comparison = isclose(non_reference_test_elements, non_reference_ref_elements)
 
