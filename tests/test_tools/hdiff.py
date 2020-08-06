@@ -1,5 +1,5 @@
 import h5py
-from numpy import isclose
+from numpy import isclose, ndarray
 
 
 class H5Diff:
@@ -54,7 +54,7 @@ class H5Diff:
 
             # If you're comparing to datasets that are arrays of floats, then they may differ up to floating point precision.
             #    So, use numpy's 'isclose' to check if they're close within the default tolerance of 1e-8.
-            if non_reference_ref_elements.dtype == 'float64':
+            if type(non_reference_ref_elements) is ndarray and non_reference_ref_elements.dtype == 'float64':
                 comparison = isclose(non_reference_test_elements, non_reference_ref_elements)
 
             if type(comparison) == bool:
