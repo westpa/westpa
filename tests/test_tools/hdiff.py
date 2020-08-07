@@ -1,5 +1,5 @@
 import h5py
-from numpy import isclose, ndarray
+from numpy import isclose, ndarray, issubdtype, floating
 
 
 class H5Diff:
@@ -36,8 +36,7 @@ class H5Diff:
                 non_reference_test_elements = [
                     x for i, x in enumerate(test_object[()][0]) if not test_object[()].dtype.names[i] in ref_names
                 ]
-
-                print(ref_object[()])
+                
                 non_reference_ref_elements = [
                     x for i, x in enumerate(ref_object[()][0]) if not ref_object[()].dtype.names[i] in ref_names
                 ]
@@ -54,13 +53,19 @@ class H5Diff:
 
             # If you're comparing to datasets that are arrays of floats, then they may differ up to floating point precision.
             #    So, use numpy's 'isclose' to check if they're close within the default tolerance of 1e-8.
-            if type(non_reference_ref_elements) is ndarray and non_reference_ref_elements.dtype == 'float64':
+            if type(non_reference_ref_elements) is ndarray and issubdtype(non_reference_ref_elements.dtype, floating):
                 comparison = isclose(non_reference_test_elements, non_reference_ref_elements)
 
             if type(comparison) == bool:
                 assert non_reference_test_elements == non_reference_ref_elements
             else:
-                assert comparison.all()
+                try:
+                    assert comparison.all()
+                except AssertionError:
+                    print(f"Elements that didn't match in {name}: ")
+                    print(non_reference_ref_elements[~comparison])
+                    print(non_reference_test_elements[~comparison])
+                    raise AssertionError
 
         # If it's a group, do nothing
         # TODO: Is it sufficient to check only the datasets? The groups should just be organizational units
