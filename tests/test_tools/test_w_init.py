@@ -21,15 +21,20 @@ class Test_W_Init(unittest.TestCase):
     def test_run_w_init(self):
         '''Tests initialization of a WESTPA simulation system from a prebuilt .cfg'''
 
+        # TODO: This *shouldn't* need to be tracked, after calling chdir everything should be dumped into odld_path
+        #    However, it seems that this is not the case, and the generated west.h5 is dropped wherever pytest is 
+        #    launched from, hence the need for tracking this.
         self.starting_path = os.getcwd()
 
-        os.chdir(os.path.dirname(__file__) + '/odld')
+        odld_path = os.path.dirname(__file__) + '/ref'
+
+        os.chdir(odld_path)
 
         with mock.patch(
             target='argparse.ArgumentParser.parse_args',
             return_value=argparse.Namespace(
                 force=True,
-                rcfile=os.path.dirname(__file__) + '/odld/west.cfg',
+                rcfile=odld_path + '/west.cfg',
                 bstate_file=None,
                 verbosity=1,
                 bstates=['initial,1.0'],
@@ -46,7 +51,7 @@ class Test_W_Init(unittest.TestCase):
         #   to ensure that w_init is producing the same output.
         # Instead, use my H5Diff class.
         # If the checked contents differ, an AssertionError will be raised.
-        diff = H5Diff(os.path.dirname(__file__) + '/odld/west_ref.h5', self.starting_path + '/west.h5')
+        diff = H5Diff(odld_path + '/west_ref.h5', self.starting_path + '/west.h5')
         diff.check()
 
     def tearDown(self):
