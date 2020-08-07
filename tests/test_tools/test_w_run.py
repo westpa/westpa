@@ -43,4 +43,4 @@ class Test_W_Run(unittest.TestCase):
 
     def tearDown(self):
 
-        os.remove(os.path.dirname(__file__) + '/odld/west.h5')
+        os.remove(os.path.dirname(__file__) + '/ref/west.h5')
