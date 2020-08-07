@@ -57,15 +57,9 @@ class H5Diff:
                 comparison = isclose(non_reference_test_elements, non_reference_ref_elements)
 
             if type(comparison) == bool:
-                assert non_reference_test_elements == non_reference_ref_elements
+                assert non_reference_test_elements == non_reference_ref_elements, f"Elements didn't match in {name}"
             else:
-                try:
-                    assert comparison.all()
-                except AssertionError:
-                    print(f"Elements that didn't match in {name}: ")
-                    print(non_reference_ref_elements[~comparison])
-                    print(non_reference_test_elements[~comparison])
-                    raise AssertionError
+                assert comparison.all(), f"Elements didn't match in {name}"
 
         # If it's a group, do nothing
         # TODO: Is it sufficient to check only the datasets? The groups should just be organizational units
