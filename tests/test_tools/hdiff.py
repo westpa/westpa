@@ -36,7 +36,7 @@ class H5Diff:
                 non_reference_test_elements = [
                     x for i, x in enumerate(test_object[()][0]) if not test_object[()].dtype.names[i] in ref_names
                 ]
-                
+
                 non_reference_ref_elements = [
                     x for i, x in enumerate(ref_object[()][0]) if not ref_object[()].dtype.names[i] in ref_names
                 ]
