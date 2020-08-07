@@ -1,5 +1,6 @@
 import numpy as np
 from numpy.random import normal as random_normal
+from numpy.random import RandomState
 
 from westpa.core.binning import RectilinearBinMapper
 from westpa.core.propagators import WESTPropagator
@@ -27,6 +28,8 @@ class ODLDPropagator(WESTPropagator):
         self.B = 10
         self.C = 0.5
         self.x0 = 1
+
+        self.prng = RandomState(seed=8675309)
 
         # Implement a reflecting boundary at this x value
         # (or None, for no reflection)
@@ -67,7 +70,8 @@ class ODLDPropagator(WESTPropagator):
             eCx = np.exp(C * x)
             eCx_less_one = eCx - 1.0
 
-            all_displacements[:, istep, 0] = displacements = random_normal(scale=sigma, size=(n_segs,))
+            # all_displacements[:, istep, 0] = displacements = random_normal(scale=sigma, size=(n_segs,))
+            all_displacements[:, istep, 0] = displacements = self.prng.normal(scale=sigma, size=(n_segs,))
             grad = half_B / (eCx_less_one * eCx_less_one) * (twopi_by_A * eCx_less_one * np.sin(xarg) + C * eCx * np.cos(xarg))
 
             newx = x - gradfactor * grad + displacements
