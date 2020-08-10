@@ -16,10 +16,13 @@ class H5Diff:
 
         test_object = obj
         ref_object = self.ref_file.get(name)
-        assert ref_object is not None
+        assert ref_object is not None, f"Element {ref_object} did not exist in test file"
 
         # If it's a dataset, compare the actual contents
         if type(test_object) == h5py._hl.dataset.Dataset:
+
+            if name in self.excluded_datasets:
+                return None
 
             # These are the names of the dtypes corresponding to some h5py Reference objects.
             # Reference objects are pointers to other parts of the h5 file
@@ -54,12 +57,19 @@ class H5Diff:
             # If you're comparing to datasets that are arrays of floats, then they may differ up to floating point precision.
             #    So, use numpy's 'isclose' to check if they're close within the default tolerance of 1e-8.
             if type(non_reference_ref_elements) is ndarray and issubdtype(non_reference_ref_elements.dtype, floating):
-                comparison = isclose(non_reference_test_elements, non_reference_ref_elements)
+                comparison = isclose(non_reference_test_elements, non_reference_ref_elements, atol=self.float_thresh)
 
             if type(comparison) == bool:
                 assert non_reference_test_elements == non_reference_ref_elements, f"Elements didn't match in {name}"
             else:
-                assert comparison.all(), f"Elements didn't match in {name}"
+                try:
+                    assert comparison.all(), f"Elements didn't match in {name}"
+
+                except AssertionError as e:
+                    print(non_reference_ref_elements)
+                    print(non_reference_test_elements)
+                    print(non_reference_ref_elements[~comparison] - non_reference_test_elements[~comparison])
+                    raise e
 
         # If it's a group, do nothing
         # TODO: Is it sufficient to check only the datasets? The groups should just be organizational units
@@ -78,8 +88,10 @@ class H5Diff:
     #   for flipping the logic.
     # But if it's flipped, then if there's extra junk in the test file, that wouldn't be revealed.
     # This works for the time being, and as an **extremely** janky hack fix, you could do it both ways...
-    def check(self):
+    def check(self, float_thresh=1e-8, excluded_datasets=[]):
 
+        self.float_thresh = float_thresh
+        self.excluded_datasets = excluded_datasets
         self.test_file.visititems(self.check_in_ref)
 
 
