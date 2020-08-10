@@ -1,9 +1,5 @@
-import sys
 import h5py
 from numpy import isclose
-
-sys.dont_write_bytecode = True
-
 
 class H5Diff:
     def __init__(self, ref_file, test_file):
