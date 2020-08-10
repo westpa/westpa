@@ -1,6 +1,7 @@
 import h5py
 from numpy import isclose
 
+
 class H5Diff:
     def __init__(self, ref_file, test_file):
 
