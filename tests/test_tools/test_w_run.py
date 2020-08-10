@@ -66,6 +66,7 @@ class Test_W_Run(unittest.TestCase):
 
         _hfile = h5py.File(self.odld_path + '/west.h5')
         assert 'iter_00000003' in _hfile['/iterations'].keys()
+        _hfile.close()
 
     def tearDown(self):
 
