@@ -1,12 +1,14 @@
-import sys, os, shutil, tempfile
+import sys
+import os
+import shutil
+import tempfile
 
 from .h5diff import H5Diff
 
 import unittest
 
-import h5py
-
 sys.dont_write_bytecode = True
+
 
 class Test_W_Assign(unittest.TestCase):
 
@@ -15,7 +17,7 @@ class Test_W_Assign(unittest.TestCase):
     def test_run_w_direct(self):
         '''Testing if w_direct runs as expected and the direct.h5 file looks good.'''
 
-        temp = tempfile.TemporaryDirectory(dir = "./")
+        temp = tempfile.TemporaryDirectory(dir="./")
         os.chdir(temp.name)
         shutil.copy2('../refs/west.h5', './')
         os.system("w_direct all")

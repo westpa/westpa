@@ -1,12 +1,14 @@
-import sys, os, shutil, tempfile
+import sys
+import os
+import shutil
+import tempfile
 
 from .h5diff import H5Diff
 
 import unittest
 
-import h5py
-
 sys.dont_write_bytecode = True
+
 
 class Test_W_IPA(unittest.TestCase):
 
@@ -15,7 +17,7 @@ class Test_W_IPA(unittest.TestCase):
     def test_run_w_ipa(self):
         '''Testing if w_ipa runs as expected and the h5 files looks good.'''
 
-        temp = tempfile.TemporaryDirectory(dir = "./")
+        temp = tempfile.TemporaryDirectory(dir="./")
         os.chdir(temp.name)
         shutil.copy2('../refs/west.cfg', './')
         shutil.copy2('../refs/west.h5', './')
@@ -24,8 +26,8 @@ class Test_W_IPA(unittest.TestCase):
         assert os.path.isfile('./ANALYSIS/TEST/direct.h5'), "The direct.h5 file was not generated."
 
         diff = H5Diff('../refs/assign_ipa_ref.h5', './ANALYSIS/TEST/assign.h5')
-#       TODO: this is broken
-#       diff = H5Diff('../refs/direct_ipa_ref.h5', './ANALYSIS/TEST/direct.h5')
+        #       TODO: this is broken
+        #       diff = H5Diff('../refs/direct_ipa_ref.h5', './ANALYSIS/TEST/direct.h5')
         diff.check()
 
         os.chdir("../")
