@@ -3,6 +3,7 @@ import argparse
 import os
 
 from .hdiff import H5Diff
+import westpa
 
 from westpa.cli.core.w_init import entry_point
 from unittest import mock
@@ -26,6 +27,7 @@ class Test_W_Init(unittest.TestCase):
         self.starting_path = os.getcwd()
 
         self.odld_path = os.path.dirname(__file__) + '/ref'
+        os.environ['WEST_SIM_ROOT'] = self.odld_path
 
         os.chdir(self.odld_path)
 
@@ -58,5 +60,11 @@ class Test_W_Init(unittest.TestCase):
 
     def tearDown(self):
 
+        westpa.rc._sim_manager = None
+        westpa.rc._system = None
+        westpa.rc._data_manager = None
+        westpa.rc._we_driver = None
+        westpa.rc._propagator = None
+        os.environ['WEST_SIM_ROOT'] = ''
         os.remove(self.odld_path + '/west.h5')
         os.chdir(self.starting_path)
