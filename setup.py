@@ -95,6 +95,32 @@ console_scripts_tools = [
 
 console_scripts = console_scripts_core + console_scripts_tools
 
+CLASSIFIERS = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Cython",
+]
+
+INSTALL_REQUIRES = [
+    "numpy >= 1.16.0",
+    "scipy >= 0.19.1",
+    "h5py >= 2.10",
+    "pyyaml",
+    "pyzmq",
+    "matplotlib",
+    "blessings",
+    "ipykernel",
+]
+
+EXTRAS_REQUIRE = {"tests": ["pytest", "pytest-cov", "nose"]}
+
+EXTRAS_REQUIRE["dev"] = EXTRAS_REQUIRE["tests"] + ["pre-commit"]
+
 
 metadata = dict(
     name='westpa',
@@ -104,9 +130,12 @@ metadata = dict(
     version=versioneer.get_version(),
     keywords='',
     cmdclass=versioneer.get_cmdclass(),
-    install_requires=[],
+    python_requires=">=3.6",
     zip_safe=False,
+    classifiers=CLASSIFIERS,
     entry_points={'console_scripts': console_scripts},
+    install_requires=INSTALL_REQUIRES,
+    extras_require=EXTRAS_REQUIRE,
     package_data={},
     packages=find_packages(where='src'),
     package_dir={"": "src"},

@@ -23,6 +23,7 @@ class TestSimManager:
 
     def teardown(self):
         westpa.rc._sim_manager = None
+        westpa.rc._system = None
         del os.environ['WEST_SIM_ROOT']
 
     def test_sim_manager(self):
