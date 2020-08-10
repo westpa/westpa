@@ -4,9 +4,11 @@ on:
   push:
     branches:
       - "master"
+      - "westpa-2.0-restruct"
   pull_request:
     branches:
       - "master"
+      - "westpa-2.0-restruct"
   #schedule:
     # Nightly tests run on master by default:
     #   Scheduled workflows run on the latest commit on the default or base branch.
@@ -74,3 +76,22 @@ jobs:
         file: ./coverage.xml
         flags: unittests
         name: codecov-{{ '${{ matrix.os }}' }}-py{{ '${{ matrix.python-version }}' }}
+        fail_ci_if_error: true
+
+  install-dev:
+    strategy:
+      matrix:
+        os: ["ubuntu-latest", "macos-latest"]
+
+    name: "Verify dev env"
+    runs-on: "${{ matrix.os }}"
+
+    steps:
+      - uses: "actions/checkout@v2"
+      - uses: "actions/setup-python@v1"
+        with:
+          python-version: "3.8"
+      - name: "Install in dev mode"
+        run: "python -m pip install -e .[dev]"
+      - name: "Import package"
+        run: "python -c 'import westpa; print(westpa.__version__)'"
