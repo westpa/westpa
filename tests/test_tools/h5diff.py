@@ -84,7 +84,7 @@ class H5Diff:
 
 
 # TODO: Add some simple argument handler here
-#if __name__ == "__main__":
+# if __name__ == "__main__":
 #
 #    diff = H5Diff("./assign_ref.h5", "./analysis_tocompare.h5")
 #
