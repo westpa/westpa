@@ -1,6 +1,6 @@
 import sys, os, shutil, tempfile
 
-from h5diff import H5Diff
+from .h5diff import H5Diff
 
 import unittest
 
