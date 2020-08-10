@@ -16,7 +16,7 @@ class Test_W_PDIST(unittest.TestCase):
         shutil.copy2(os.path.join(ref_dir, 'west.cfg'), './')
         shutil.copy2(os.path.join(ref_dir, 'west.h5'), './')
         os.system("w_pdist")
-        assert os.path.isfile('./ANALYSIS/TEST/pdist.h5'), "The pdist.h5 file was not generated."
+        assert os.path.isfile('./pdist.h5'), "The pdist.h5 file was not generated."
         diff = H5Diff(os.path.join(ref_dir, 'pdist_ref.h5'), './pdist.h5')
         diff.check()
         os.remove('west.h5')
