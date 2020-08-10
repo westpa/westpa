@@ -20,9 +20,9 @@ class Test_W_Succ(unittest.TestCase):
         Then test for correct file output with -o and --output flags.
         '''
 
-        ref_dir = os.path.join(os.getcwd(), "refs")
+        ref_dir = os.path.join(os.path.dirname(__file__), "refs")
         w_succ_ref = os.path.join(ref_dir, "w_succ_ref")
-        temp = tempfile.TemporaryDirectory(dir=os.getcwd())
+        temp = tempfile.TemporaryDirectory(dir=os.path.dirname(__file__))
 
         os.chdir(temp.name)
         shutil.copy2(os.path.join(ref_dir, "west.cfg"), temp.name)
@@ -41,5 +41,5 @@ class Test_W_Succ(unittest.TestCase):
         os.system("w_succ -o temp_test_o.txt")
         self.assertTrue(filecmp.cmp("temp_test_o.txt", w_succ_ref), "-o flag output file was not successfully generated")
 
-        os.chdir(os.path.dirname(os.getcwd()))
+        os.chdir(os.path.dirname(temp.name))
         temp.cleanup()
