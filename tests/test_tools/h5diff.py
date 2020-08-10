@@ -1,7 +1,9 @@
-import sys, h5py
+import sys
+import h5py
 from numpy import isclose
 
 sys.dont_write_bytecode = True
+
 
 class H5Diff:
     def __init__(self, ref_file, test_file):
@@ -85,7 +87,7 @@ class H5Diff:
 
 
 # TODO: Add some simple argument handler here
-#if __name__ == "__main__":
+# if __name__ == "__main__":
 #
 #    diff = H5Diff("./assign_ref.h5", "./analysis_tocompare.h5")
 #
