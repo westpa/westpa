@@ -18,25 +18,27 @@ class Test_W_Init(unittest.TestCase):
 
         super().__init__(methodName='test_run_w_init')
 
-    def test_run_w_init(self):
-        '''Tests initialization of a WESTPA simulation system from a prebuilt .cfg'''
+    def setUp(self):
 
         # TODO: This *shouldn't* need to be tracked, after calling chdir everything should be dumped into odld_path
-        #    However, it seems that this is not the case, and the generated west.h5 is dropped wherever pytest is 
+        #    However, it seems that this is not the case, and the generated west.h5 is dropped wherever pytest is
         #    launched from, hence the need for tracking this.
         self.starting_path = os.getcwd()
 
-        odld_path = os.path.dirname(__file__) + '/ref'
+        self.odld_path = os.path.dirname(__file__) + '/ref'
 
-        os.chdir(odld_path)
+        os.chdir(self.odld_path)
+
+    def test_run_w_init(self):
+        '''Tests initialization of a WESTPA simulation system from a prebuilt .cfg'''
 
         with mock.patch(
             target='argparse.ArgumentParser.parse_args',
             return_value=argparse.Namespace(
                 force=True,
-                rcfile=odld_path + '/west.cfg',
+                rcfile=self.odld_path + '/west.cfg',
                 bstate_file=None,
-                verbosity=1,
+                verbosity='0',
                 bstates=['initial,1.0'],
                 tstate_file=None,
                 tstates=None,
@@ -51,9 +53,10 @@ class Test_W_Init(unittest.TestCase):
         #   to ensure that w_init is producing the same output.
         # Instead, use my H5Diff class.
         # If the checked contents differ, an AssertionError will be raised.
-        diff = H5Diff(odld_path + '/west_ref.h5', self.starting_path + '/west.h5')
+        diff = H5Diff(self.odld_path + '/west_ref.h5', self.odld_path + '/west.h5')
         diff.check()
 
     def tearDown(self):
 
-        os.remove(self.starting_path + '/west.h5')
+        os.remove(self.odld_path + '/west.h5')
+        os.chdir(self.starting_path)
