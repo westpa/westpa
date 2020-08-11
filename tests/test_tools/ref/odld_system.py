@@ -1,5 +1,4 @@
 import numpy as np
-from numpy.random import normal as random_normal
 from numpy.random import RandomState
 
 from westpa.core.binning import RectilinearBinMapper
