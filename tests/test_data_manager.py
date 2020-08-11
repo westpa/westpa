@@ -14,13 +14,14 @@ import westpa
 
 
 class TestDataManager:
+
     def setup(self):
         """ Literally just writing what Josh and John did to set up rc stuff
          in their sim manager test"""
         parser = argparse.ArgumentParser()
         westpa.rc.add_args(parser)
         here = os.path.dirname(__file__)
-        # Set SIM_ROOT to folder with west.cfg for odld simulation
+        # Set SIM_ROOT to fixtures folder with west.cfg for odld simulation
         os.environ['WEST_SIM_ROOT'] = os.path.join(here, 'fixtures', 'odld')
 
         config_file_name = os.path.join(here, 'fixtures', 'odld', 'west.cfg')
@@ -36,9 +37,12 @@ class TestDataManager:
         del os.environ['WEST_SIM_ROOT']
 
     def test_data_manager(self):
-        assert self.data_manager.get_basis_states = [] # will this work? is it comparing references or value
+        assert(len(self.data_manager.get_basis_states()) == 0)
 
         self.get_iter_summary()
 
     def test_target_states(self):
         self.data_manager.get_target_states()
+
+    def test_inital_states(self):
+        assert(len(self.data_manager.get_initial_states()) == 0)
