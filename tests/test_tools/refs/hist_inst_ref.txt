@@ -1,12 +1,3 @@
-# created by program: /home/hep32/apps/westpa_history/lib/west_tools/plothist.py
-# created by user:    hep32
-# created on host:    piston
-# created at:         Tue Aug 11 10:05:17 2020
-# source data: /home/hep32/functional_test/anthony_test/pdist_ref.h5 dimension 0
-# column 0: midpoint of bin
-# column 1: probability in bin
-# column 2: -ln P
-# column 3: log10 P
 5.952380431652068982e-01 1.256387915593186646e-17 3.872842481250821578e+01 -1.690087624945948974e+01
 6.907634535312652257e-01 1.774006071212145548e-16 3.608084028365959739e+01 -1.575104489820811260e+01
 7.862888638973235533e-01 6.045235246058544506e-15 3.255222509775894224e+01 -1.421858679421144345e+01
