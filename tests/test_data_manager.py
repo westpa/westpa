@@ -1,13 +1,10 @@
 import argparse
 import os
 
-import numpy as np
 import westpa
-import logging
 
 
 class TestDataManager:
-
     def setup(self):
         parser = argparse.ArgumentParser()
         westpa.rc.add_args(parser)
@@ -38,7 +35,7 @@ class TestDataManager:
 
     def test_data_manager(self):
         assert self.data_manager.h5_access_mode == 'r+'
-        assert self.data_manager.we_h5file == None
+        assert self.data_manager.we_h5file is None
         assert os.path.basename(self.data_manager.we_h5filename) == 'west.h5'
         assert self.data_manager.aux_compression_threshold == 16384
         assert len(self.data_manager.dataset_options) == 2
