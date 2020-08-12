@@ -3,46 +3,42 @@ import os
 
 import numpy as np
 import westpa
-
-""" IDEA: instantiate data manager and check that everything is set up correctly
-    question: what state is the data manager expected to be in?
-    also: look at data manger file to see other basic functions to call to check
-    that set up is working correctly
-    * and need to be careful since apparently DataManager state is persisting after
-    sim manager test is run? <-- need to check on this and make sure we don't have similar issues here
-"""
+import logging
 
 
 class TestDataManager:
 
     def setup(self):
-        """ Literally just writing what Josh and John did to set up rc stuff
-         in their sim manager test"""
         parser = argparse.ArgumentParser()
         westpa.rc.add_args(parser)
+
         here = os.path.dirname(__file__)
         # Set SIM_ROOT to fixtures folder with west.cfg for odld simulation
         os.environ['WEST_SIM_ROOT'] = os.path.join(here, 'fixtures', 'odld')
 
         config_file_name = os.path.join(here, 'fixtures', 'odld', 'west.cfg')
-        args = parser.parse_args(['-r={}'.format(config_file_name)])
+        args = parser.parse_args(['-r={}'.format(config_file_name), "--verbose"])
         westpa.rc.process_args(args)
 
         self.data_manager = westpa.rc.get_data_manager()
 
+        """ 1. westpa.rc.get_data_manager() is executed and calls the new_data_manager function.
+            2. The new_data_manager instantiates a WESTDataManager object, thus calling the
+               WESTDataManager.__init__() constructor. In __init__, process_config() is executed.
+            3. process_config() will read in the fixtures/odld/west.cfg.
+               That's all that the setup does in it's current state.
+            4. The test checks that the defaults that are set in __init__ are
+               indeed the defaults and that the data-manager relevant parts specified
+               in west.cfg are indeed updated accordingly."""
+
     def teardown(self):
-        # Also modeled after sim_manager test teardown
         westpa.rc._data_manager = None
         westpa.rc._system = None
         del os.environ['WEST_SIM_ROOT']
 
     def test_data_manager(self):
-        assert(len(self.data_manager.get_basis_states()) == 0)
-
-        self.get_iter_summary()
-
-    def test_target_states(self):
-        self.data_manager.get_target_states()
-
-    def test_inital_states(self):
-        assert(len(self.data_manager.get_initial_states()) == 0)
+        assert self.data_manager.h5_access_mode == 'r+'
+        assert self.data_manager.we_h5file == None
+        assert os.path.basename(self.data_manager.we_h5filename) == 'west.h5'
+        assert self.data_manager.aux_compression_threshold == 16384
+        assert len(self.data_manager.dataset_options) == 2
