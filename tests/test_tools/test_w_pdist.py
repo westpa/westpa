@@ -2,7 +2,7 @@ import os
 import shutil
 from .h5diff import H5Diff
 import unittest
-from westpa.cli.tools.w_pdist import entrypoint
+from westpa.cli.tools.w_pdist import entry_point
 
 
 class Test_W_PDIST(unittest.TestCase):
