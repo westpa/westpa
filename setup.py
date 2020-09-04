@@ -115,6 +115,7 @@ INSTALL_REQUIRES = [
     "matplotlib",
     "blessings",
     "ipykernel",
+    "mpi4py",
 ]
 
 EXTRAS_REQUIRE = {"tests": ["pytest", "pytest-cov", "nose"]}
