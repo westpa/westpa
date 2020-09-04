@@ -115,10 +115,12 @@ INSTALL_REQUIRES = [
     "matplotlib",
     "blessings",
     "ipykernel",
-    "mpi4py",
 ]
 
-EXTRAS_REQUIRE = {"tests": ["pytest", "pytest-cov", "nose"]}
+EXTRAS_REQUIRE = {
+    "tests": ["pytest", "pytest-cov", "nose"],
+    "mpi": ["mpi4py"],
+}
 
 EXTRAS_REQUIRE["dev"] = EXTRAS_REQUIRE["tests"] + ["pre-commit"]
 
