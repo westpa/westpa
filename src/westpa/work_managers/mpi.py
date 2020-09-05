@@ -54,18 +54,18 @@ class MPIWorkManager(WorkManager):
         size = MPI.COMM_WORLD.Get_size()
 
         if size == 1:
-            return super(MPIWorkManager, cls).__new__(Serial)
+            return super().__new__(Serial)
         elif rank == 0:
-            return super(MPIWorkManager, cls).__new__(Manager)
+            return super().__new__(Manager)
         else:
-            return super(MPIWorkManager, cls).__new__(Worker)
+            return super().__new__(Worker)
 
     def __init__(self):
         """Initialize info shared by Manager and Worker classes.
         """
         log.debug('MPIWorkManager.__init__()')
 
-        super(MPIWorkManager, self).__init__()
+        super().__init__()
         comm = MPI.COMM_WORLD
         self.comm = MPI.COMM_WORLD
         self.rank = comm.Get_rank()
@@ -96,7 +96,7 @@ class Serial(MPIWorkManager):
     """
 
     def __init__(self):
-        super(Serial, self).__init__()
+        super().__init__()
         log.debug('Serial.__init__()')
 
     def submit(self, fn, args=None, kwargs=None):
@@ -124,7 +124,7 @@ class Manager(MPIWorkManager):
     def __init__(self):
         """Initialize different state variables used by Manager.
         """
-        super(Manager, self).__init__()
+        super().__init__()
         log.debug('Manager__init__()')
 
         # number of workers
@@ -277,7 +277,7 @@ class Worker(MPIWorkManager):
     """
 
     def __init__(self):
-        super(Worker, self).__init__()
+        super().__init__()
         log.debug('Worker.__init__() %s' % self.rank)
 
     def startup(self):
@@ -325,7 +325,7 @@ class Worker(MPIWorkManager):
                 return
 
     @property
-    def is_manager(self):
+    def is_master(self):
         """Worker processes need to be marked as not manager.  This ensures that
         the proper branching is followed in w_run.py.
         """
