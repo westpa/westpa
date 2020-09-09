@@ -2,9 +2,9 @@ import unittest
 
 import h5py
 
-from .common import CommonToolTest
+from common import CommonToolTest
 from westpa.cli.tools.w_trace import WTraceTool
-from .h5diff import H5Diff
+from h5diff import H5Diff
 
 
 class Test_W_Trace_Args(unittest.TestCase, CommonToolTest):

@@ -1,6 +1,6 @@
 import os
 import shutil
-from .h5diff import H5Diff
+from h5diff import H5Diff
 import unittest
 
 
