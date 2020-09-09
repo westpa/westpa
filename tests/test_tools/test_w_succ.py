@@ -14,17 +14,11 @@ class Test_W_Succ(unittest.TestCase):
 
     test_name = 'W_SUCC'
 
-    def __init__(self, methodName):
-
-        super().__init__(methodName='test_run_w_succ')
-
-    def setUp(self):
+    def test_run_w_succ(self):
 
         self.starting_path = os.getcwd()
         self.odld_path = os.path.dirname(__file__) + '/refs'
         os.chdir(self.odld_path)
-
-    def test_run_w_succ(self):
 
         temp_w_succ_output_file = open('w_succ_temp', 'w+')
 
@@ -44,8 +38,6 @@ class Test_W_Succ(unittest.TestCase):
 
         assert os.path.isfile('w_succ_temp'), 'The output file was not generated.'
         self.assertTrue(filecmp.cmp('w_succ_ref', 'w_succ_temp'), 'The output file was not generated correctly')
-
-    def tearDown(self):
 
         os.remove(self.odld_path + '/w_succ_temp')
         os.chdir(self.starting_path)
