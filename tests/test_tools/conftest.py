@@ -5,6 +5,16 @@ from shutil import copyfile
 
 from westpa import rc
 
+REFERENCE_PATH = os.path.join(os.path.dirname(__file__), 'ref')
+
+H5_FILENAME = 'west.h5'
+CFG_FILENAME = 'west.cfg'
+REF_CFG_FILENAME = 'west_init_ref.cfg'
+
+# TODO: Is putting this here, outside of any function bad practice?
+#   Need it here so that clear_state doesn't take an argument...
+STARTING_PATH = os.getcwd()
+
 
 @pytest.fixture
 def ref_3iter(request):
@@ -13,30 +23,17 @@ def ref_3iter(request):
     west.h5, plus the config file west.cfg
     """
 
-    starting_path = os.getcwd()
-    odld_path = os.path.dirname(__file__) + '/ref'
+    os.chdir(REFERENCE_PATH)
 
-    os.chdir(odld_path)
-    copyfile('west_3iter.h5', 'west.h5')
-    copyfile('west_init_ref.cfg', 'west.cfg')
+    copyfile('west_3iter.h5', H5_FILENAME)
+    copyfile(REF_CFG_FILENAME, CFG_FILENAME)
 
-    request.cls.h5_filepath = os.path.join(odld_path, 'west.h5')
-    request.cls.cfg_filepath = os.path.join(odld_path, 'west.cfg')
-    os.environ['WEST_SIM_ROOT'] = odld_path
+    request.cls.cfg_filepath = os.path.join(REFERENCE_PATH, CFG_FILENAME)
+    request.cls.h5_filepath = os.path.join(REFERENCE_PATH, H5_FILENAME)
 
-    def fin():
+    os.environ['WEST_SIM_ROOT'] = REFERENCE_PATH
 
-        os.remove('west.cfg')
-        os.remove('west.h5')
-        os.chdir(starting_path)
-
-        rc._sim_manager = None
-        rc._system = None
-        rc._data_manager = None
-        rc._we_driver = None
-        rc._propagator = None
-
-    request.addfinalizer(fin)
+    request.addfinalizer(clear_state)
 
 
 @pytest.fixture
@@ -45,34 +42,17 @@ def ref_cfg(request):
     Fixture that prepares a simulation directory with a populated west.cfg file.
     """
 
-    starting_path = os.getcwd()
+    os.chdir(REFERENCE_PATH)
 
-    odld_path = os.path.dirname(__file__) + '/ref'
+    copyfile(REF_CFG_FILENAME, CFG_FILENAME)
 
-    os.chdir(odld_path)
+    request.cls.cfg_filepath = os.path.join(REFERENCE_PATH, CFG_FILENAME)
+    request.cls.h5_filepath = os.path.join(REFERENCE_PATH, H5_FILENAME)
+    request.cls.ref_h5_filepath = os.path.join(REFERENCE_PATH, 'west_ref.h5')
 
-    copyfile('west_init_ref.cfg', 'west.cfg')
+    os.environ['WEST_SIM_ROOT'] = REFERENCE_PATH
 
-    request.cls.cfg_filepath = os.path.join(odld_path, 'west.cfg')
-    request.cls.h5_filepath = os.path.join(odld_path, 'west.h5')
-    request.cls.ref_h5_filepath = os.path.join(odld_path, 'west_ref.h5')
-
-    os.environ['WEST_SIM_ROOT'] = odld_path
-
-    def fin():
-
-        os.remove('west.cfg')
-        os.remove('west.h5')
-        os.chdir(starting_path)
-        os.environ['WEST_SIM_ROOT'] = ''
-
-        rc._sim_manager = None
-        rc._system = None
-        rc._data_manager = None
-        rc._we_driver = None
-        rc._propagator = None
-
-    request.addfinalizer(fin)
+    request.addfinalizer(clear_state)
 
 
 @pytest.fixture
@@ -82,31 +62,31 @@ def ref_initialized(request):
     west.h5, plus the config file west.cfg
     """
 
-    starting_path = os.getcwd()
+    os.chdir(REFERENCE_PATH)
 
-    odld_path = os.path.dirname(__file__) + '/ref'
+    copyfile('west_ref.h5', H5_FILENAME)
+    copyfile(REF_CFG_FILENAME, CFG_FILENAME)
 
-    os.chdir(odld_path)
-    copyfile('west_ref.h5', 'west.h5')
-    copyfile('west_init_ref.cfg', 'west.cfg')
+    request.cls.cfg_filepath = os.path.join(REFERENCE_PATH, CFG_FILENAME)
+    request.cls.h5_filepath = os.path.join(REFERENCE_PATH, H5_FILENAME)
+    request.cls.REFERENCE_PATH = REFERENCE_PATH
 
-    os.environ['WEST_SIM_ROOT'] = odld_path
-    request.cls.cfg_filepath = os.path.join(odld_path, 'west.cfg')
-    request.cls.h5_filepath = os.path.join(odld_path, 'west.h5')
-    request.cls.odld_path = odld_path
+    os.environ['WEST_SIM_ROOT'] = REFERENCE_PATH
 
-    def fin():
+    request.addfinalizer(clear_state)
 
-        print("Cleaning up w_run")
-        os.remove('west.cfg')
-        os.remove('west.h5')
-        os.chdir(starting_path)
-        os.environ['WEST_SIM_ROOT'] = ''
 
-        rc._sim_manager = None
-        rc._system = None
-        rc._data_manager = None
-        rc._we_driver = None
-        rc._propagator = None
+def clear_state():
 
-    request.addfinalizer(fin)
+    os.remove(CFG_FILENAME)
+    os.remove(H5_FILENAME)
+
+    os.chdir(STARTING_PATH)
+
+    os.environ['WEST_SIM_ROOT'] = ''
+
+    rc._sim_manager = None
+    rc._system = None
+    rc._data_manager = None
+    rc._we_driver = None
+    rc._propagator = None
