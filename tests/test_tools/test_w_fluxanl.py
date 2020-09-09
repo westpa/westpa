@@ -5,7 +5,7 @@ import unittest
 import h5py
 from nose.plugins.skip import SkipTest
 
-from .common import CommonToolTest, cycle_args, make_args
+from common import CommonToolTest, cycle_args, make_args
 from westpa.cli.tools.w_fluxanl import WFluxanlTool
 
 
