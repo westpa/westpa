@@ -17,7 +17,7 @@ class Test_W_Init:
             target='argparse.ArgumentParser.parse_args',
             return_value=argparse.Namespace(
                 force=True,
-                rcfile=self.cfg_path,
+                rcfile=self.cfg_filepath,
                 bstate_file=None,
                 verbosity='0',
                 bstates=['initial,1.0'],
@@ -34,7 +34,7 @@ class Test_W_Init:
         #   to ensure that w_init is producing the same output.
         # Instead, use my H5Diff class.
         # If the checked contents differ, an AssertionError will be raised.
-        diff = H5Diff(self.odld_path + '/west_ref.h5', self.odld_path + '/west.h5')
+        diff = H5Diff(self.ref_h5_filepath, self.h5_filepath)
         diff.check()
 
     def tearDown(self):

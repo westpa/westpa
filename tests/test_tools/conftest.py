@@ -22,8 +22,10 @@ def initialized_west_ref(request):
 
     copyfile('west_init_ref.cfg', 'west.cfg')
 
-    request.cls.cfg_path = os.path.join(odld_path, 'west.cfg')
-    request.cls.odld_path = odld_path
+    request.cls.cfg_filepath = os.path.join(odld_path, 'west.cfg')
+    request.cls.h5_filepath = os.path.join(odld_path, 'west.h5')
+    request.cls.ref_h5_filepath = os.path.join(odld_path, 'west_ref.h5')
+
     os.environ['WEST_SIM_ROOT'] = odld_path
 
     def fin():
