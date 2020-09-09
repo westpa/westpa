@@ -1,5 +1,7 @@
 import os
 import filecmp
+import shutil
+import tempfile
 import unittest
 import argparse
 
@@ -16,9 +18,13 @@ class Test_W_Succ(unittest.TestCase):
 
     def test_run_w_succ(self):
 
-        self.starting_path = os.getcwd()
-        self.odld_path = os.path.dirname(__file__) + '/refs'
-        os.chdir(self.odld_path)
+        ref_dir = os.path.join(os.path.dirname(__file__), "refs")
+        w_succ_ref = os.path.join(ref_dir, "w_succ_ref")
+        temp = tempfile.TemporaryDirectory(dir=os.path.dirname(__file__))
+
+        os.chdir(temp.name)
+        shutil.copy2(os.path.join(ref_dir, "west.cfg"), temp.name)
+        shutil.copy2(os.path.join(ref_dir, "west.h5"), temp.name)
 
         temp_w_succ_output_file = open('w_succ_temp', 'w+')
 
@@ -37,7 +43,7 @@ class Test_W_Succ(unittest.TestCase):
         temp_w_succ_output_file.close()
 
         assert os.path.isfile('w_succ_temp'), 'The output file was not generated.'
-        self.assertTrue(filecmp.cmp('w_succ_ref', 'w_succ_temp'), 'The output file was not generated correctly')
+        self.assertTrue(filecmp.cmp(w_succ_ref, 'w_succ_temp'), 'The output file was not generated correctly')
 
-        os.remove(self.odld_path + '/w_succ_temp')
-        os.chdir(self.starting_path)
+        os.chdir(os.path.dirname(temp.name))
+        temp.cleanup()
