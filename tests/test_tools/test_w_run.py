@@ -1,6 +1,4 @@
-import unittest
 import argparse
-import os
 
 import h5py
 
@@ -9,29 +7,11 @@ import westpa
 from westpa.cli.core.w_run import entry_point
 from unittest import mock
 
-from shutil import copy
 
-
-class Test_W_Run(unittest.TestCase):
+class Test_W_Run:
     test_name = 'W_RUN'
 
-    def __init__(self, methodName):
-
-        super().__init__(methodName='test_run_w_run')
-
-    def setUp(self):
-
-        self.starting_path = os.getcwd()
-        # self.initial_PWD = os.environ['PWD']
-
-        self.odld_path = os.path.dirname(__file__) + '/ref'
-        os.chdir(self.odld_path)
-        os.environ['WEST_SIM_ROOT'] = self.odld_path
-        westpa.rc.config = westpa.core.yamlcfg.YAMLConfig()
-
-        copy(self.odld_path + '/west_ref.h5', self.odld_path + '/west.h5')
-
-    def test_run_w_run(self):
+    def test_run_w_run(self, w_run_fixture):
         '''Tests running an initialized WESTPA system for 3 iterations'''
 
         with mock.patch(
@@ -39,7 +19,7 @@ class Test_W_Run(unittest.TestCase):
             return_value=argparse.Namespace(
                 n_workers=None,
                 only_one_segment=False,
-                rcfile=self.odld_path + '/west.cfg',
+                rcfile=self.cfg_filepath,
                 verbosity='0',
                 work_manager=None,
                 zmq_comm_mode=None,
@@ -64,7 +44,7 @@ class Test_W_Run(unittest.TestCase):
         # TODO: Modify the ODLD system to run identically across runs, and then remove the excluded
         #   datasets.
 
-        _hfile = h5py.File(self.odld_path + '/west.h5')
+        _hfile = h5py.File(self.h5_filepath)
         assert 'iter_00000003' in _hfile['/iterations'].keys()
         _hfile.close()
 
@@ -75,7 +55,3 @@ class Test_W_Run(unittest.TestCase):
         westpa.rc._data_manager = None
         westpa.rc._we_driver = None
         westpa.rc._propagator = None
-        os.environ['WEST_SIM_ROOT'] = ''
-
-        os.remove(self.odld_path + '/west.h5')
-        os.chdir(self.starting_path)
