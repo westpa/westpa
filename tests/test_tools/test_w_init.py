@@ -1,7 +1,7 @@
 import argparse
 
 from .hdiff import H5Diff
-import westpa
+from westpa import rc
 
 from westpa.cli.core.w_init import entry_point
 from unittest import mock
@@ -39,8 +39,8 @@ class Test_W_Init:
 
     def tearDown(self):
 
-        westpa.rc._sim_manager = None
-        westpa.rc._system = None
-        westpa.rc._data_manager = None
-        westpa.rc._we_driver = None
-        westpa.rc._propagator = None
+        rc._sim_manager = None
+        rc._system = None
+        rc._data_manager = None
+        rc._we_driver = None
+        rc._propagator = None
