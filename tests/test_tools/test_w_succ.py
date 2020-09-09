@@ -1,10 +1,10 @@
 import os
-import shutil
-import tempfile
 import filecmp
 import unittest
+import argparse
 
-# from westpa.cli.core.w_succ import find_successful_trajs
+from westpa.cli.core.w_succ import entry_point
+from unittest import mock
 
 
 class Test_W_Succ(unittest.TestCase):
@@ -14,32 +14,38 @@ class Test_W_Succ(unittest.TestCase):
 
     test_name = 'W_SUCC'
 
-    def test_w_succ_output(self):
-        '''
-        First, test if the output contains the correct information of segments which successfully reach a target state.
-        Then test for correct file output with -o and --output flags.
-        '''
+    def __init__(self, methodName):
 
-        ref_dir = os.path.join(os.path.dirname(__file__), "refs")
-        w_succ_ref = os.path.join(ref_dir, "w_succ_ref")
-        temp = tempfile.TemporaryDirectory(dir=os.path.dirname(__file__))
+        super().__init__(methodName='test_run_w_succ')
 
-        os.chdir(temp.name)
-        shutil.copy2(os.path.join(ref_dir, "west.cfg"), temp.name)
-        shutil.copy2(os.path.join(ref_dir, "west.h5"), temp.name)
+    def setUp(self):
 
-        # generate w_succ command line output file and standardize it by removing WEST data dir header line
-        os.system("w_succ > temp.txt")
-        os.system("sed -i'.original' '/#/,$!d' temp.txt")
+        self.starting_path = os.getcwd()
+        self.odld_path = os.path.dirname(__file__) + '/refs'
+        os.chdir(self.odld_path)
 
-        self.assertTrue(filecmp.cmp("temp.txt", w_succ_ref), "the cli output was not successfully generated")
+    def test_run_w_succ(self):
 
-        # test output to file args
-        os.system("w_succ --output temp_test_output.txt")
-        self.assertTrue(filecmp.cmp("temp_test_output.txt", w_succ_ref), "--output flag output file was not successfully generated")
+        temp_w_succ_output_file = open('w_succ_temp', 'w+')
 
-        os.system("w_succ -o temp_test_o.txt")
-        self.assertTrue(filecmp.cmp("temp_test_o.txt", w_succ_ref), "-o flag output file was not successfully generated")
+        with mock.patch(
+            target='argparse.ArgumentParser.parse_args',
+            return_value=argparse.Namespace(
+                verbosity='debug',
+                rcfile='west.cfg',
+                output_file=temp_w_succ_output_file,
+                west_h5name='west.h5',
+                anal_h5name='analysis.h5',
+            ),
+        ):
+            entry_point()
 
-        os.chdir(os.path.dirname(temp.name))
-        temp.cleanup()
+        temp_w_succ_output_file.close()
+
+        assert os.path.isfile('w_succ_temp'), 'The output file was not generated.'
+        self.assertTrue(filecmp.cmp('w_succ_ref', 'w_succ_temp'), 'The cli output was not generated correctly')
+
+    def tearDown(self):
+
+        os.remove(self.odld_path + '/w_succ_temp')
+        os.chdir(self.starting_path)
