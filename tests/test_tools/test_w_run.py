@@ -5,18 +5,9 @@ import h5py
 from westpa.cli.core.w_run import entry_point
 from unittest import mock
 
-from westpa.core.yamlcfg import YAMLConfig
-from westpa import rc
-
 
 class Test_W_Run:
-    test_name = 'W_RUN'
-
-    def setUp(self):
-
-        rc.config = YAMLConfig()
-
-    def test_run_w_run(self, w_run_fixture):
+    def test_run_w_run(self, ref_initialized):
         '''Tests running an initialized WESTPA system for 3 iterations'''
 
         with mock.patch(
@@ -52,11 +43,3 @@ class Test_W_Run:
         _hfile = h5py.File(self.h5_filepath)
         assert 'iter_00000003' in _hfile['/iterations'].keys()
         _hfile.close()
-
-    def tearDown(self):
-
-        rc._sim_manager = None
-        rc._system = None
-        rc._data_manager = None
-        rc._we_driver = None
-        rc._propagator = None

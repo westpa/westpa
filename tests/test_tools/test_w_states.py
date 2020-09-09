@@ -1,16 +1,12 @@
 import argparse
 
-from westpa import rc
-
 from westpa.cli.core.w_states import entry_point
 from unittest import mock
 from pytest import fixture
 
 
 class Test_W_States:
-    test_name = 'W_STATES'
-
-    def test_run_w_states(self, w_states_fixture):
+    def test_run_w_states(self, ref_initialized):
         '''Tests running w_states on a sample h5 file'''
 
         with mock.patch(
@@ -29,11 +25,3 @@ class Test_W_States:
     @fixture(autouse=True)
     def capfd(self, capfd):
         self.capfd = capfd
-
-    def tearDown(self):
-
-        rc._sim_manager = None
-        rc._system = None
-        rc._data_manager = None
-        rc._we_driver = None
-        rc._propagator = None

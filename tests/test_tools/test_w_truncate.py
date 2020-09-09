@@ -1,21 +1,20 @@
 import argparse
 
-from westpa import rc
-
 from westpa.cli.core.w_truncate import entry_point
 from unittest import mock
 import h5py
 
+import os
+
 
 class Test_W_Truncate:
-    test_name = 'W_TRUNCATE'
-
-    def test_run_w_truncate(self, w_truncate_fixture):
+    def test_run_w_truncate(self, ref_3iter):
         '''Tests running w_truncate on a 3 iteration h5 file'''
 
         _hfile = h5py.File(self.h5_filepath, mode='r')
         assert 'iter_00000003' in _hfile['/iterations'].keys()
         _hfile.close()
+        del _hfile
 
         with mock.patch(
             target='argparse.ArgumentParser.parse_args',
@@ -23,15 +22,9 @@ class Test_W_Truncate:
         ):
             entry_point()
 
+        print(os.getcwd())
         _hfile = h5py.File(self.h5_filepath, mode='r')
+        print(_hfile['/iterations'].keys())
         assert 'iter_00000003' not in _hfile['/iterations'].keys()
         assert 'iter_00000002' not in _hfile['/iterations'].keys()
         _hfile.close()
-
-    def tearDown(self):
-
-        rc._sim_manager = None
-        rc._system = None
-        rc._data_manager = None
-        rc._we_driver = None
-        rc._propagator = None

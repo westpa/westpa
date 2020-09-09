@@ -1,16 +1,13 @@
 import argparse
 
 from .hdiff import H5Diff
-from westpa import rc
 
 from westpa.cli.core.w_init import entry_point
 from unittest import mock
 
 
 class Test_W_Init:
-    test_name = 'W_INIT'
-
-    def test_run_w_init(self, initialized_west_ref):
+    def test_run_w_init(self, ref_cfg):
         '''Tests initialization of a WESTPA simulation system from a prebuilt .cfg'''
 
         with mock.patch(
@@ -36,11 +33,3 @@ class Test_W_Init:
         # If the checked contents differ, an AssertionError will be raised.
         diff = H5Diff(self.ref_h5_filepath, self.h5_filepath)
         diff.check()
-
-    def tearDown(self):
-
-        rc._sim_manager = None
-        rc._system = None
-        rc._data_manager = None
-        rc._we_driver = None
-        rc._propagator = None
