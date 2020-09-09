@@ -3,7 +3,7 @@ import shutil
 import unittest
 from unittest import mock
 
-from .h5diff import H5Diff
+from h5diff import H5Diff
 from westpa.cli.tools.w_pdist import entry_point
 import argparse
 
@@ -31,7 +31,7 @@ class Test_W_PDIST(unittest.TestCase):
                 dsspecs=None,
                 group_name='pcoord',
                 first_iter=1,
-                last_iter=50,
+                last_iter=None,
                 bins='100',
                 output='pdist.h5',
                 ignore_out_of_range=False,
