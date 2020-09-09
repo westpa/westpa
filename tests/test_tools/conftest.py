@@ -63,3 +63,25 @@ def w_run_fixture(request):
         os.environ['WEST_SIM_ROOT'] = ''
 
     request.addfinalizer(fin)
+
+
+@pytest.fixture
+def w_states_fixture(request):
+
+    starting_path = os.getcwd()
+    odld_path = os.path.dirname(__file__) + '/ref'
+
+    os.chdir(odld_path)
+    copyfile('west_ref.h5', 'west.h5')
+
+    copyfile('west_init_ref.cfg', 'west.cfg')
+    request.cls.cfg_filepath = os.path.join(odld_path, 'west.cfg')
+
+    def fin():
+
+        os.remove('west.cfg')
+        os.remove('west.h5')
+        os.chdir(starting_path)
+        os.environ['WEST_SIM_ROOT'] = ''
+
+    request.addfinalizer(fin)
