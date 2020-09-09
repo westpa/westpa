@@ -1,0 +1,97 @@
+name: test
+
+on:
+  push:
+    branches:
+      - "master"
+      - "westpa-2.0-restruct"
+  pull_request:
+    branches:
+      - "master"
+      - "westpa-2.0-restruct"
+  #schedule:
+    # Nightly tests run on master by default:
+    #   Scheduled workflows run on the latest commit on the default or base branch.
+    #   (from https://help.github.com/en/actions/reference/events-that-trigger-workflows#scheduled-events-schedule)
+    #- cron: "0 0 * * *"
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python 3.8
+        uses: actions/setup-python@v1
+        with:
+          python-version: 3.8
+      - name: Linting
+        run: |
+          pip install pre-commit
+          pre-commit run --all-files
+
+  test:
+    name: Test on Linux, Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.7", "3.8"]
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Additional info about the build
+      shell: bash
+      run: |
+        uname -a
+        df -h
+        ulimit -a
+
+    # More info on options: https://github.com/goanpeca/setup-miniconda
+    - uses: goanpeca/setup-miniconda@v1
+      with:
+        python-version: ${{ matrix.python-version }}
+        environment-file: devtools/conda-envs/test_env.yaml
+        activate-environment: test_env
+        auto-update-conda: true
+        auto-activate-base: false
+        show-channel-urls: true
+
+    - name: Install package
+      # conda setup requires this special shell
+      shell: bash -l {0}
+      run: |
+        conda info --all
+        python -m pip install . -v --no-deps
+        conda list
+
+    - name: Run tests
+      # conda setup requires this special shell
+      shell: bash -l {0}
+      run: |
+        pytest -v --cov=westpa --cov-report=xml --color=yes tests
+
+    - name: CodeCov
+      uses: codecov/codecov-action@v1
+      with:
+        file: ./coverage.xml
+        flags: unittests
+        name: codecov-{{ '${{ matrix.os }}' }}-py{{ '${{ matrix.python-version }}' }}
+        fail_ci_if_error: true
+
+  install-dev:
+    strategy:
+      matrix:
+        os: ["ubuntu-latest", "macos-latest"]
+
+    name: "Verify dev env"
+    runs-on: "${{ matrix.os }}"
+
+    steps:
+      - uses: "actions/checkout@v2"
+      - uses: "actions/setup-python@v1"
+        with:
+          python-version: "3.8"
+      - name: "Install in dev mode"
+        run: "python -m pip install -e .[dev]"
+      - name: "Import package"
+        run: "python -c 'import westpa; print(westpa.__version__)'"
