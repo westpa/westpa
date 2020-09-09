@@ -43,7 +43,7 @@ class Test_W_Succ(unittest.TestCase):
         temp_w_succ_output_file.close()
 
         assert os.path.isfile('w_succ_temp'), 'The output file was not generated.'
-        self.assertTrue(filecmp.cmp('w_succ_ref', 'w_succ_temp'), 'The cli output was not generated correctly')
+        self.assertTrue(filecmp.cmp('w_succ_ref', 'w_succ_temp'), 'The output file was not generated correctly')
 
     def tearDown(self):
 
