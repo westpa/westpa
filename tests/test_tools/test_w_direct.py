@@ -12,7 +12,7 @@ class Test_W_Assign(unittest.TestCase):
         '''Testing if w_direct runs as expected and the direct.h5 file looks good.'''
 
         ref_dir = os.path.join(os.path.dirname(__file__), 'refs')
-        shutil.copy2(os.path.join(ref_dir, 'west.h5'), './')
+        shutil.copy2(os.path.join(ref_dir, 'west_ref.h5'), './west.h5')
         os.system('w_direct all')
         assert os.path.isfile('./direct.h5'), "The direct.h5 file was not generated."
         diff = H5Diff(os.path.join(ref_dir, 'direct_ref.h5'), './direct.h5')
