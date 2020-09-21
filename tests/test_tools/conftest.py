@@ -6,14 +6,14 @@ from shutil import copyfile
 from westpa import rc
 
 REFERENCE_PATH = os.path.join(os.path.dirname(__file__), 'ref')
-ref_dir = os.path.join(os.path.dirname(__file__), 'refs')
+refs_dir = os.path.join(os.path.dirname(__file__), 'refs')
 
 
 H5_FILENAME = 'west.h5'
 CFG_FILENAME = 'west.cfg'
 REF_CFG_FILENAME = 'west_init_ref.cfg'
-ref_cfg_file = 'west_ref.cfg'
-ref_h5_file = 'west_ref.h5'
+refs_cfg_file = 'west_ref.cfg'
+refs_h5_file = 'west_ref.h5'
 
 # TODO: Is putting this here, outside of any function bad practice?
 #   Need it here so that clear_state doesn't take an argument...
@@ -22,19 +22,19 @@ STARTING_PATH = os.getcwd()
 @pytest.fixture
 def ref_50iter(request):
     """
-    Fixture that prepares a simulation directory with a completed 3-iteration WESTPA,
+    Fixture that prepares a simulation directory with a completed 50-iteration WESTPA,
     west.h5, plus the config file west.cfg
     """
 
     os.chdir(ref_dir)
 
-    copyfile(ref_h5_file, H5_FILENAME)
-    copyfile(ref_cfg_file, CFG_FILENAME)
+    copyfile(refs_h5_file, H5_FILENAME)
+    copyfile(refs_cfg_file, CFG_FILENAME)
 
-    request.cls.cfg_filepath = os.path.join(ref_dir, CFG_FILENAME)
-    request.cls.h5_filepath = os.path.join(ref_dir, H5_FILENAME)
+    request.cls.cfg_filepath = os.path.join(refs_dir, CFG_FILENAME)
+    request.cls.h5_filepath = os.path.join(refs_dir, H5_FILENAME)
 
-    os.environ['WEST_SIM_ROOT'] = ref_dir
+    os.environ['WEST_SIM_ROOT'] = refs_dir
 
     request.addfinalizer(clear_state)
 
