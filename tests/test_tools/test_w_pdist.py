@@ -11,8 +11,6 @@ class Test_W_PDIST:
     def test_run_w_pdist(self, ref_50iter):
         '''Testing if w_pdist runs as expected and the pdist.h5 file looks good.'''
 
-        ref_dir = os.path.join(os.path.dirname(__file__), 'refs')
-
         with mock.patch(
             target='argparse.ArgumentParser.parse_args',
             return_value=argparse.Namespace(
@@ -36,7 +34,7 @@ class Test_W_PDIST:
             entry_point()
 
         assert os.path.isfile('./pdist.h5'), "The pdist.h5 file was not generated."
-        diff = H5Diff(os.path.join(ref_dir, 'pdist_ref.h5'), './pdist.h5')
+        diff = H5Diff('pdist_ref.h5', './pdist.h5')
         diff.check()
 
         # clean up
