@@ -26,7 +26,7 @@ def ref_50iter(request):
     west.h5, plus the config file west.cfg
     """
 
-    os.chdir(ref_dir)
+    os.chdir(refs_dir)
 
     copyfile(refs_h5_file, H5_FILENAME)
     copyfile(refs_cfg_file, CFG_FILENAME)
