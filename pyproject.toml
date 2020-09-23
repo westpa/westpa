@@ -1,0 +1,48 @@
+[build-system]
+# Minimum requirements for the build system to execute.
+# See current numpy pinning in https://github.com/scipy/oldest-supported-numpy
+requires = [
+    "setuptools",
+    "wheel",
+    "Cython>=0.29.16",  # Note: sync with setup.py
+    "numpy==1.16.0; python_version=='3.6' and platform_system!='AIX'",
+    "numpy==1.16.0; python_version=='3.7' and platform_system!='AIX'",
+    "numpy==1.17.3; python_version>='3.8' and platform_system!='AIX'",
+    "numpy==1.16.0; python_version=='3.6' and platform_system=='AIX'",
+    "numpy==1.16.0; python_version=='3.7' and platform_system=='AIX'",
+    "numpy==1.17.3; python_version>='3.8' and platform_system=='AIX'",
+    "scipy>=0.19.1",
+]
+# Uncommenting this requires adding the top level of the repo to sys.path in the setup.py
+# so that it can find the vendorized copy of versioneer. I see that other projects don't
+# always include this (pandas, numpy, etc), so leaving this off for now
+# build-backend = "setuptools.build_meta"
+
+[tool.black]
+line-length = 132
+skip-string-normalization = true
+include = '\.pyi?$'
+exclude = '''
+(
+    /(
+        asv_bench/env
+      | \.egg
+      | \.git
+      | \.hg
+      | \.mypy_cache
+      | \.nox
+      | \.tox
+      | \.venv
+      | _build
+      | buck-out
+      | build
+      | dist
+      | docs
+      | doc
+     )/ | (
+      setup.py
+      | versioneer.py
+      | _version.py
+     )
+)
+'''

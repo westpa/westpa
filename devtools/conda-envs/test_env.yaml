@@ -1,0 +1,21 @@
+name: test_env
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python
+  - cython
+  - numpy
+  - scipy
+  - h5py
+  - pyyaml
+  - pyzmq
+  - matplotlib-base
+  - blessings
+  - ipykernel
+  - mpi4py
+  # testing
+  - pytest
+  - pytest-cov
+  - nose
+  - codecov
