@@ -14,6 +14,7 @@ from westpa.core.segment import Segment
 from westpa.core.states import BasisState
 from westpa.core.sim_manager import PropagationError
 
+
 class TestSimManager(TestCase):
     def setUp(self):
         parser = argparse.ArgumentParser()
@@ -28,7 +29,7 @@ class TestSimManager(TestCase):
         self.sim_manager = westpa.rc.get_sim_manager()
         self.test_dir = tempfile.mkdtemp()
         self.hdf5 = os.path.join(self.test_dir, "test.h5")
-        self.basis_states = [BasisState(label="label",probability=1.0)]
+        self.basis_states = [BasisState(label="label", probability=1.0)]
         self.segments = [self.segment(0.0, 1.5, weight=0.125) for _i in range(4)] + [
             self.segment(1.5, 0.5, weight=0.125) for _i in range(4)
         ]
@@ -39,7 +40,7 @@ class TestSimManager(TestCase):
         self.sim_manager.incomplete_segments = self.sim_manager.segments
         self.sim_manager.current_iter_istates = self.sim_manager.segments
         self.sim_manager.completed_segments = self.sim_manager.segments
-        self.sim_manager.report_bin_statistics = MagicMock(return_value = True)
+        self.sim_manager.report_bin_statistics = MagicMock(return_value=True)
 
         data = self.sim_manager.we_driver.rc.get_data_manager()
         data.we_h5filename = self.hdf5
@@ -47,14 +48,14 @@ class TestSimManager(TestCase):
         data.create_ibstate_group([])
         data.create_initial_states(1)
         data.save_target_states([])
-        data.update_segments = MagicMock(return_value = None)
+        data.update_segments = MagicMock(return_value=None)
 
         n_iter = 0
         it_name = data.iter_group_name(n_iter)
         for group in ["seg_index", "parents", "ibstates", "pcoord"]:
             data.we_h5file.create_group(it_name + "/" + group)
-        data.get_new_weight_data = MagicMock(return_value = None)
-        data.get_segments = MagicMock(return_value = self.segments)
+        data.get_new_weight_data = MagicMock(return_value=None)
+        data.get_segments = MagicMock(return_value=self.segments)
         self.sim_manager.we_driver.rc.get_data_manager = MagicMock(return_value=data)
         self.sim_manager.n_iter = n_iter
 
@@ -109,11 +110,11 @@ class TestSimManager(TestCase):
 
     def test_process_config(self):
         self.sim_manager.process_config()
-        self.assertTrue(self.sim_manager.do_gen_istates) 
-        self.assertEquals(self.sim_manager.propagator_block_size, 10000) 
-        self.assertFalse(self.sim_manager.save_transition_matrices) 
-        self.assertEquals(self.sim_manager.max_run_walltime, 10800) 
-        self.assertEquals(self.sim_manager.max_total_iterations, 100) 
+        self.assertTrue(self.sim_manager.do_gen_istates)
+        self.assertEquals(self.sim_manager.propagator_block_size, 10000)
+        self.assertFalse(self.sim_manager.save_transition_matrices)
+        self.assertEquals(self.sim_manager.max_run_walltime, 10800)
+        self.assertEquals(self.sim_manager.max_total_iterations, 100)
 
     def test_load_plugins(self):
         self.sim_manager.load_plugins()
@@ -121,7 +122,7 @@ class TestSimManager(TestCase):
     def test_report_bin_statistics(self):
         self.sim_manager.report_bin_statistics([0.0, 1.0, 2.0, 5.0])
 
-    def test_get_bstate_pcoords(self): 
+    def test_get_bstate_pcoords(self):
         self.sim_manager.get_bstate_pcoords(self.basis_states)
 
     def test_report_basis_states(self):
@@ -146,7 +147,7 @@ class TestSimManager(TestCase):
         self.sim_manager.get_istate_futures()
 
     def test_propagate(self):
-        westpa.core.states.pare_basis_initial_states = MagicMock(return_value = ([],[]))
+        westpa.core.states.pare_basis_initial_states = MagicMock(return_value=([], []))
         self.sim_manager.propagate
 
     def test_save_bin_data(self):
