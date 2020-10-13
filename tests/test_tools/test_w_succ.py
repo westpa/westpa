@@ -19,11 +19,11 @@ class Test_W_Succ:
         with mock.patch(
             target='argparse.ArgumentParser.parse_args',
             return_value=argparse.Namespace(
-                verbosity='debug',
+                verbosity=0,
                 rcfile=self.cfg_filepath,
                 output_file=temp_w_succ_output_file,
                 west_h5name=self.h5_filepath,
-                anal_h5name='analysis.h5',
+                anal_h5name=self.h5_filepath,
             ),
         ):
             entry_point()

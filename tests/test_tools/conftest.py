@@ -20,7 +20,7 @@ STARTING_PATH = os.getcwd()
 def ref_initialized(request):
     """
     Fixture that prepares a simulation directory with an initialized WESTPA system,
-    west.h5, plus the config file west.cfg
+    west.h5, plus the config file west.cfg.
     """
 
     os.chdir(REFERENCE_PATH)
