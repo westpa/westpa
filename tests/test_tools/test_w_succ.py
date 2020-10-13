@@ -23,7 +23,7 @@ class Test_W_Succ:
                 rcfile=self.cfg_filepath,
                 output_file=temp_w_succ_output_file,
                 west_h5name=self.h5_filepath,
-                west_h5filename=self.h5_filepath,
+                we_h5filename=self.h5_filepath,
                 anal_h5name=self.h5_filepath,
             ),
         ):
