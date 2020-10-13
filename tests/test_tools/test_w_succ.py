@@ -19,7 +19,7 @@ class Test_W_Succ:
         with mock.patch(
             target='argparse.ArgumentParser.parse_args',
             return_value=argparse.Namespace(
-                verbosity=0,
+                verbosity='debug',
                 rcfile=self.cfg_filepath,
                 output_file=temp_w_succ_output_file,
                 west_h5name=self.h5_filepath,
