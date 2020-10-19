@@ -5,7 +5,7 @@ from shutil import copyfile
 
 from westpa import rc
 
-refs_dir = os.path.join(os.path.dirname(__file__), 'refs')
+refs_dir = os.path.join(os.path.dirname(__file__), '../refs')
 
 
 H5_FILENAME = 'west.h5'

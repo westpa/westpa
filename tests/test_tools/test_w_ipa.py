@@ -11,7 +11,7 @@ class Test_W_IPA(unittest.TestCase):
     def test_run_w_ipa(self):
         '''Testing if w_ipa runs as expected and the h5 files looks good.'''
 
-        ref_dir = os.path.join(os.path.dirname(__file__), 'refs')
+        ref_dir = os.path.join(os.path.dirname(__file__), '../refs')
         shutil.copy2(os.path.join(ref_dir, 'west_ref.cfg'), './west.cfg')
         shutil.copy2(os.path.join(ref_dir, 'west_ref.h5'), './west.h5')
         os.system('w_ipa -ao')
