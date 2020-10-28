@@ -1,6 +1,4 @@
-import unittest
 import argparse
-import os
 import shutil
 
 from h5diff import H5Diff
@@ -10,7 +8,6 @@ from unittest import mock
 
 
 class Test_W_Assign:
-
     def test_run_w_assign(self, ref_50iter):
 
         with mock.patch(
@@ -32,6 +29,6 @@ class Test_W_Assign:
 
         diff = H5Diff('./assign_ref.h5', './ANALYSIS/TEST/assign.h5')
         diff.check()
-        
+
         # clean up
         shutil.rmtree('ANALYSIS')
