@@ -5,10 +5,12 @@ on:
     branches:
       - "master"
       - "westpa-2.0-restruct"
+      - "westpa-2.0-tests"
   pull_request:
     branches:
       - "master"
       - "westpa-2.0-restruct"
+      - "westpa-2.0-tests"
   #schedule:
     # Nightly tests run on master by default:
     #   Scheduled workflows run on the latest commit on the default or base branch.
