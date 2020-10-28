@@ -34,7 +34,7 @@ class Test_W_PDIST:
             entry_point()
 
         assert os.path.isfile('./pdist.h5'), "The pdist.h5 file was not generated."
-        diff = H5Diff('pdist_ref.h5', './pdist.h5')
+        diff = H5Diff('pdist_ref.h5', 'pdist.h5')
         diff.check()
 
         # clean up
