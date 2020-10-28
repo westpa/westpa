@@ -14,7 +14,7 @@ class Test_W_PDIST:
         with mock.patch(
             target='argparse.ArgumentParser.parse_args',
             return_value=argparse.Namespace(
-                verbosity='0',
+                verbosity='debug',
                 rcfile=self.cfg_filepath,
                 max_queue_length=None,
                 we_h5filename=self.h5_filepath,

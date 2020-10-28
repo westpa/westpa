@@ -17,7 +17,7 @@ class Test_Plothist:
         with mock.patch(
             target='argparse.ArgumentParser.parse_args',
             return_value=argparse.Namespace(
-                verbosity='0',
+                verbosity='debug',
                 rcfile=self.cfg_filepath,
                 input='pdist_ref.h5',
                 firstdim='0',
@@ -53,7 +53,7 @@ class Test_Plothist:
         with mock.patch(
             target='argparse.ArgumentParser.parse_args',
             return_value=argparse.Namespace(
-                verbosity='0',
+                verbosity='debug',
                 rcfile=self.cfg_filepath,
                 input='pdist_ref.h5',
                 firstdim='0',
@@ -89,7 +89,7 @@ class Test_Plothist:
         with mock.patch(
             target='argparse.ArgumentParser.parse_args',
             return_value=argparse.Namespace(
-                verbosity='0',
+                verbosity='debug',
                 rcfile=self.cfg_filepath,
                 input='pdist_ref.h5',
                 firstdim='0',
