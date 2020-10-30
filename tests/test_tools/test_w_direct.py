@@ -1,6 +1,8 @@
 import argparse
 import os
 import pytest
+import shutil
+import unittest
 
 from h5diff import H5Diff
 
@@ -8,8 +10,25 @@ from westpa.cli.tools.w_direct import entry_point, DAll
 from unittest import mock
 
 
+class Test_W_Assign(unittest.TestCase):
+
+    test_name = 'W_DIRECT'
+
+    def test_run_w_direct(self):
+        '''Testing if w_direct runs as expected and the direct.h5 file looks good.'''
+
+        ref_dir = os.path.join(os.path.dirname(__file__), '../refs')
+        shutil.copy2(os.path.join(ref_dir, 'west_ref.h5'), './west.h5')
+        os.system('w_direct all')
+        assert os.path.isfile('./direct.h5'), "The direct.h5 file was not generated."
+        diff = H5Diff(os.path.join(ref_dir, 'direct_ref.h5'), './direct.h5')
+        diff.check()
+        os.remove('direct.h5')
+        os.remove('west.h5')
+
+
 @pytest.mark.skip
-class Test_W_Direct:
+class Test_W_Direct_new:
     def test_run_w_direct(self, ref_50iter):
 
         with mock.patch(
