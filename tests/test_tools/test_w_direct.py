@@ -10,7 +10,7 @@ from westpa.cli.tools.w_direct import entry_point, DAll
 from unittest import mock
 
 
-class Test_W_Assign(unittest.TestCase):
+class Test_W_Direct(unittest.TestCase):
 
     test_name = 'W_DIRECT'
 
@@ -28,7 +28,7 @@ class Test_W_Assign(unittest.TestCase):
 
 
 @pytest.mark.skip
-class Test_W_Direct_new:
+class Test_W_Direct_New:
     def test_run_w_direct(self, ref_50iter):
 
         with mock.patch(
