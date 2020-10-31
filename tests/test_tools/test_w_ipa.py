@@ -8,6 +8,7 @@ from unittest import mock
 
 from westpa.cli.tools.w_ipa import entry_point
 
+
 class Test_W_IPA(unittest.TestCase):
 
     test_name = 'W_IPA'
@@ -32,7 +33,6 @@ class Test_W_IPA(unittest.TestCase):
 
 @pytest.mark.skip
 class Test_W_IPA_new:
-
     def test_run_w_ipa(self, ref_50iter):
         '''Testing if w_ipa runs as expected and the h5 files looks good.'''
 
@@ -58,7 +58,6 @@ class Test_W_IPA_new:
             ),
         ):
             entry_point()
-
 
         assert os.path.isfile('./ANALYSIS/TEST/assign.h5'), "The assign.h5 file was not generated."
         assert os.path.isfile('./ANALYSIS/TEST/direct.h5'), "The direct.h5 file was not generated."
