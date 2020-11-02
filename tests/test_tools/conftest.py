@@ -17,6 +17,7 @@ refs_h5_file = 'west_ref.h5'
 #   Need it here so that clear_state doesn't take an argument...
 STARTING_PATH = os.getcwd()
 
+
 @pytest.fixture
 def ref_3iter(request):
     """
@@ -27,7 +28,7 @@ def ref_3iter(request):
     os.chdir(REFERENCE_PATH)
 
     copyfile('west_3iter.h5', H5_FILENAME)
-    copyfile(REF_CFG_FILENAME, CFG_FILENAME)
+    copyfile('west_init_ref.cfg', CFG_FILENAME)
 
     request.cls.cfg_filepath = os.path.join(REFERENCE_PATH, CFG_FILENAME)
     request.cls.h5_filepath = os.path.join(REFERENCE_PATH, H5_FILENAME)
@@ -45,7 +46,7 @@ def ref_cfg(request):
 
     os.chdir(REFERENCE_PATH)
 
-    copyfile(REF_CFG_FILENAME, CFG_FILENAME)
+    copyfile('west_init_ref.cfg', CFG_FILENAME)
 
     request.cls.cfg_filepath = os.path.join(REFERENCE_PATH, CFG_FILENAME)
     request.cls.h5_filepath = os.path.join(REFERENCE_PATH, H5_FILENAME)
@@ -66,7 +67,7 @@ def ref_initialized(request):
     os.chdir(REFERENCE_PATH)
 
     copyfile('west_init_ref.h5', H5_FILENAME)
-    copyfile(REF_CFG_FILENAME, CFG_FILENAME)
+    copyfile('west_init_ref.cfg', CFG_FILENAME)
 
     request.cls.cfg_filepath = os.path.join(REFERENCE_PATH, CFG_FILENAME)
     request.cls.h5_filepath = os.path.join(REFERENCE_PATH, H5_FILENAME)
