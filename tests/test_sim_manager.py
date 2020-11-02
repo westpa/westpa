@@ -24,6 +24,10 @@ class TestSimManager:
     def teardown(self):
         westpa.rc._sim_manager = None
         westpa.rc._system = None
+        westpa.rc._data_manager = None
+        westpa.rc._we_driver = None
+        westpa.rc._propagator = None
+        westpa.rc.config = westpa.core.yamlcfg.YAMLConfig()
         del os.environ['WEST_SIM_ROOT']
 
     def test_sim_manager(self):
