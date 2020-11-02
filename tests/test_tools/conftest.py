@@ -71,7 +71,6 @@ def ref_initialized(request):
 
     request.cls.cfg_filepath = os.path.join(REFERENCE_PATH, CFG_FILENAME)
     request.cls.h5_filepath = os.path.join(REFERENCE_PATH, H5_FILENAME)
-    request.cls.REFERENCE_PATH = REFERENCE_PATH
 
     os.environ['WEST_SIM_ROOT'] = REFERENCE_PATH
 
