@@ -2,7 +2,7 @@ import unittest
 
 import h5py
 
-from .common import CommonToolTest
+from common import CommonToolTest
 from westpa.cli.tools.w_trace import WTraceTool
 
 
