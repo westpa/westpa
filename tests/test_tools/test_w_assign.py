@@ -5,10 +5,8 @@ from h5diff import H5Diff
 
 from westpa.cli.tools.w_assign import entry_point
 from unittest import mock
-import pytest
 
 
-@pytest.mark.skip
 class Test_W_Assign:
     def test_run_w_assign(self, ref_50iter):
 
