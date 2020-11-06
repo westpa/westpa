@@ -9,8 +9,8 @@ from unittest import mock
 class Test_W_Init:
     def test_run_w_init(self, ref_cfg):
         '''Tests initialization of a WESTPA simulation system from a prebuilt .cfg'''
-        #This test is named in such a way so it always runs before test_w_assign.py. It will fail otherwise.
-        
+        # This test is named in such a way so it always runs before test_w_assign.py. It will fail otherwise.
+
         with mock.patch(
             target='argparse.ArgumentParser.parse_args',
             return_value=argparse.Namespace(
