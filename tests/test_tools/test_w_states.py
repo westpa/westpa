@@ -3,8 +3,10 @@ import argparse
 from westpa.cli.core.w_states import entry_point
 from unittest import mock
 from pytest import fixture
+import pytest
 
 
+@pytest.mark.skip
 class Test_W_States:
     def test_run_w_states(self, ref_initialized):
         '''Tests running w_states on a sample h5 file'''
