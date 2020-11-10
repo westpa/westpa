@@ -5,6 +5,7 @@ from unittest import mock
 from pytest import fixture
 import pytest
 
+
 @pytest.mark.skip
 class Test_W_States:
     def test_run_w_states(self, ref_initialized):
@@ -22,7 +23,6 @@ class Test_W_States:
         known_state_string = 'initial                1    None        # state_id=0    pcoord=[8.0]'
 
         assert state_string == known_state_string
-        os.environ['WEST_SIM_ROOT'] = ''
 
     @fixture(autouse=True)
     def capfd(self, capfd):
