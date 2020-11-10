@@ -3,6 +3,8 @@ import argparse
 from westpa.cli.core.w_states import entry_point
 from unittest import mock
 from pytest import fixture
+import westpa
+import os
 
 
 class Test_W_States:
@@ -21,6 +23,13 @@ class Test_W_States:
         known_state_string = 'initial                1    None        # state_id=0    pcoord=[8.0]'
 
         assert state_string == known_state_string
+        os.environ['WEST_SIM_ROOT'] = ''
+
+        westpa.rc_sim_manager = None
+        westpa.rc_system = None
+        westpa.rc_data_manager = None
+        westpa.rc_we_driver = None
+        westpa.rc_propagator = None
 
     @fixture(autouse=True)
     def capfd(self, capfd):
