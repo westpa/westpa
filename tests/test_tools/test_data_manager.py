@@ -11,7 +11,7 @@ class TestDataManager:
 
         here = os.path.dirname(__file__)
         # Set SIM_ROOT to fixtures folder with west.cfg for odld simulation
-        os.environ['WEST_SIM_ROOT'] = os.path.join(here, 'fixtures', 'odld')
+        os.environ['WEST_SIM_ROOT'] = os.path.join(here, '../fixtures', 'odld')
 
         config_file_name = os.path.join(here, '../fixtures', 'odld', 'west.cfg')
         args = parser.parse_args(['-r={}'.format(config_file_name), "--verbose"])
