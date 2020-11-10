@@ -31,10 +31,6 @@ class TestDataManager:
     def teardown(self):
         westpa.rc._data_manager = None
         westpa.rc._system = None
-        westpa.rc_sim_manager = None
-        westpa.rc_we_driver = None
-        westpa.rc_propagator = None
-
         del os.environ['WEST_SIM_ROOT']
 
     def test_data_manager(self):
