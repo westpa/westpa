@@ -19,7 +19,7 @@ on:
 
 jobs:
   lint:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     steps:
       - uses: actions/checkout@v2
       - name: Set up Python 3.8
@@ -33,7 +33,7 @@ jobs:
 
   test:
     name: Test on Linux, Python ${{ matrix.python-version }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     strategy:
       matrix:
         python-version: ["3.7", "3.8"]
@@ -83,7 +83,7 @@ jobs:
   install-dev:
     strategy:
       matrix:
-        os: ["ubuntu-latest", "macos-latest"]
+        os: ["ubuntu-18.04", "macos-latest"]
 
     name: "Verify dev env"
     runs-on: "${{ matrix.os }}"
