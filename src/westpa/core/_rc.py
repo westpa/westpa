@@ -296,6 +296,23 @@ class WESTRC:
         else:
             we_driver = extloader.get_object(drivername)(rc=self)
         log.debug('loaded WE algorithm driver: {!r}'.format(we_driver))
+
+        group_function = self.config.get(['west', 'drivers', 'group_function'], 'default')
+        if group_function.lower() == 'default':
+            try:
+                group_function = 'westpa.core.we_driver._group_walkers_identity'
+                we_driver.group_function = westpa.core.we_driver._group_walkers_identity
+            except Exception:
+                pass
+        else:
+            we_driver.group_function = extloader.get_object(group_function)
+        we_driver.group_function_kwargs = self.config.get(['west', 'drivers', 'group_arguments'])
+        # Necessary if the user hasn't specified any options.
+        if we_driver.group_function_kwargs is None:
+            we_driver.group_function_kwargs = {}
+        log.debug('loaded WE algorithm driver grouping function {!r}'.format(group_function))
+        log.debug('WE algorithm driver grouping function kwargs: {!r}'.format(we_driver.group_function_kwargs))
+
         return we_driver
 
     def get_we_driver(self):
