@@ -21,9 +21,9 @@ class TestSimManager(TestCase):
         westpa.rc.add_args(parser)
 
         here = os.path.dirname(__file__)
-        os.environ['WEST_SIM_ROOT'] = os.path.join(here, '..', 'fixtures', 'odld')
+        os.environ['WEST_SIM_ROOT'] = os.path.join(here, 'fixtures', 'odld')
 
-        config_file_name = os.path.join(here, '..', 'fixtures', 'odld', 'west.cfg')
+        config_file_name = os.path.join(here, 'fixtures', 'odld', 'west.cfg')
         args = parser.parse_args(['-r={}'.format(config_file_name)])
         westpa.rc.process_args(args)
         self.sim_manager = westpa.rc.get_sim_manager()
