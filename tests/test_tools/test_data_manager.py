@@ -1,24 +1,29 @@
+import unittest
 import argparse
 import os
-
 import westpa
 
 
-class TestDataManager:
-    def setup(self):
+class TestDataManager(unittest.TestCase):
+    test_name = 'DATA_MANAGER'
+
+    def __init__(self, methodName):
+        super().__init__(methodName='test_data_manager')
+
+    def setUp(self):
         parser = argparse.ArgumentParser()
         westpa.rc.add_args(parser)
 
         here = os.path.dirname(__file__)
         # Set SIM_ROOT to fixtures folder with west.cfg for odld simulation
-        os.environ['WEST_SIM_ROOT'] = os.path.join(here, 'fixtures', 'odld')
+        os.environ['WEST_SIM_ROOT'] = os.path.join(here, '../fixtures', 'odld')
 
         config_file_name = os.path.join(here, '../fixtures', 'odld', 'west.cfg')
         args = parser.parse_args(['-r={}'.format(config_file_name), "--verbose"])
         westpa.rc.process_args(args)
 
         self.data_manager = westpa.rc.get_data_manager()
-
+        assert self.data_manager.h5_access_mode == 'r+'
         """ 1. westpa.rc.get_data_manager() is executed and calls the new_data_manager function.
             2. The new_data_manager instantiates a WESTDataManager object, thus calling the
                WESTDataManager.__init__() constructor. In __init__, process_config() is executed.
@@ -28,14 +33,14 @@ class TestDataManager:
                indeed the defaults and that the data-manager relevant parts specified
                in west.cfg are indeed updated accordingly."""
 
-    def teardown(self):
+    def tearDown(self):
         westpa.rc._data_manager = None
         westpa.rc._system = None
         del os.environ['WEST_SIM_ROOT']
 
     def test_data_manager(self):
         assert self.data_manager.h5_access_mode == 'r+'
-        assert self.data_manager.we_h5file is None
+        assert self.data_manager.closed
         assert os.path.basename(self.data_manager.we_h5filename) == 'west.h5'
         assert self.data_manager.aux_compression_threshold == 16384
         assert len(self.data_manager.dataset_options) == 2
