@@ -408,7 +408,7 @@ class WEDriver:
     def _split_walker(self, segment, m, bin):
         '''Split the walker ``segment`` (in ``bin``) into ``m`` walkers'''
 
-        bin.remove(segment)
+        # KFW:binless bin.remove(segment)
 
         new_segments = []
         for _inew in range(0, m):
@@ -490,7 +490,7 @@ class WEDriver:
         if log.isEnabledFor(logging.DEBUG):
             log.debug('merging ({:d}) {!r} into 1:\n    {!r}'.format(len(segments), segments, glom))
 
-        #KFW:binless bin.add(glom)
+        # KFW:binless bin.add(glom)
         return glom, gparent_seg
 
     def _split_by_weight(self, bin, target_count, ideal_weight, number_of_groups):
@@ -509,11 +509,12 @@ class WEDriver:
             bin.remove(segment)
             new_segments_list = self._split_walker(segment, m, bin)
             bin.update(new_segments_list)
-            for new_segment in new_segments_list:
-                try:
-                    new_segment.id_hist = list(segment.id_hist)
-                except AttributeError:
-                    pass
+
+    # KFW CHECK BACK            for new_segment in new_segments_list:
+    # KFW CHECK BACK                try:
+    # KFW CHECK BACK                    new_segment.id_hist = list(segment.id_hist)
+    # KFW CHECK BACK                except AttributeError:
+    # KFW CHECK BACK                    pass
 
     def _merge_by_weight(self, bin, target_count, ideal_weight, number_of_groups):
         '''Merge underweight particles'''
@@ -528,10 +529,12 @@ class WEDriver:
                 return
             bin.difference_update(to_merge)
             new_segment, parent = self._merge_walkers(to_merge, cumul_weight, bin)
-            try:
-                new_segment.id_hist = list(parent.id_hist)
-            except AttributeError:
-                pass
+            bin.add(new_segment)
+
+    # KFW CHECK BACK            try:
+    # KFW CHECK BACK                new_segment.id_hist = list(parent.id_hist)
+    # KFW CHECK BACK            except AttributeError:
+    # KFW CHECK BACK                pass
 
     def _adjust_count(self, bin, groups, target_count):
         weight_getter = operator.attrgetter('weight')
@@ -549,15 +552,16 @@ class WEDriver:
             for i in sorted_groups:
                 log.debug('adjusting counts by splitting')
                 # always split the highest probability walker into two
-                segments = sorted(bin, key=weight_getter)
+                # KFW BINLESS segments = sorted(bin, key=weight_getter)
+                segments = sorted(i, key=weight_getter)
                 bin.remove(segments[-1])
                 i.remove(segments[-1])
                 new_segments_list = self._split_walker(segments[-1], 2, bin)
-                for new_segment in new_segments_list:
-                    try:
-                        new_segment.id_hist = list(segments[-1].id_hist)
-                    except AttributeError:
-                        pass
+                # KFW CHECK BACK                for new_segment in new_segments_list:
+                # KFW CHECK BACK                    try:
+                # KFW CHECK BACK                        new_segment.id_hist = list(segments[-1].id_hist)
+                # KFW CHECK BACK                    except AttributeError:
+                # KFW CHECK BACK                        pass
                 i.update(new_segments_list)
                 bin.update(new_segments_list)
 
@@ -567,21 +571,21 @@ class WEDriver:
         # merge
         while len(bin) > target_count:
             sorted_groups.reverse()
-            #           Adjust to go from lowest weight group to highest to merge
+            # Adjust to go from lowest weight group to highest to merge
             for i in sorted_groups:
                 # Ensures that there are least two walkers to merge
                 if len(i) > 1:
                     log.debug('adjusting counts by merging')
                     # always merge the two lowest-probability walkers
-                    segments = sorted(bin, key=weight_getter)
+                    segments = sorted(i, key=weight_getter)
                     bin.difference_update(segments[:2])
                     i.difference_update(segments[:2])
                     merged_segment, parent = self._merge_walkers(segments[:2], cumul_weight=None, bin=bin)
-                    try:
-                        merged_segment.id_hist = list(parent.id_hist)
-                    except AttributeError:
-                        pass
-                    #                    merged_segment = self._merge_walkers(segments[:2], cumul_weight=None, bin=bin)
+                    # KFW CHECK BACK                    try:
+                    # KFW CHECK BACK                        merged_segment.id_hist = list(parent.id_hist)
+                    # KFW CHECK BACK                    except AttributeError:
+                    # KFW CHECK BACK                        pass
+                    # merged_segment = self._merge_walkers(segments[:2], cumul_weight=None, bin=bin)
                     i.add(merged_segment)
                     bin.add(merged_segment)
                     # As long as we're changing the merge_walkers and split_walkers, adjust them so that they don't update the bin within the function
@@ -627,7 +631,7 @@ class WEDriver:
             total_number_of_groups += len(groups)
             # Clear the bin
             segments = np.array(sorted(bin, key=operator.attrgetter('weight')), dtype=np.object_)
-            weights = np.array(map(operator.attrgetter('weight'), segments))
+            weights = np.array(list(map(operator.attrgetter('weight'), segments)))
             ideal_weight = weights.sum() / target_count
             bin.clear()
             # Determines to see whether we have more sub bins than we have target walkers in a bin (or equal to), and then uses
@@ -637,14 +641,17 @@ class WEDriver:
                     # Merges all members of set i.  Checks to see whether there are any to merge.
                     if len(i) > 1:
                         (segment, parent) = self._merge_walkers(
-                            list(i), np.add.accumulate(np.array(map(operator.attrgetter('weight'), i))), i
+                            # KFW list(i), np.add.accumulate(np.array(map(operator.attrgetter('weight'), i))), i
+                            list(i),
+                            np.add.accumulate(np.array(list(map(operator.attrgetter('weight'), i)))),
+                            i,
                         )
                         i.clear()
                         i.add(segment)
-                        try:
-                            segment.id_hist = list(parent.id_hist)
-                        except AttributeError:
-                            pass
+                    # KFW CHECK BACK                        try:
+                    # KFW CHECK BACK                            segment.id_hist = list(parent.id_hist)
+                    # KFW CHECK BACK                        except AttributeError:
+                    # KFW CHECK BACK                            pass
                     # Add all members of the set i to the bin.  This keeps the bins in sync for the adjustment step.
                     bin.update(i)
 
@@ -661,6 +668,7 @@ class WEDriver:
                     # A modified adjustment routine is necessary to ensure we don't unnecessarily destroy trajectory pathways.
                     self._adjust_count(bin, groups, target_count)
             total_number_of_particles += len(bin)
+        print('Total number of groups: {!r}'.format(total_number_of_groups))
 
         self._check_post()
 
@@ -766,6 +774,10 @@ class WEDriver:
                     status=Segment.SEG_STATUS_PREPARED,
                 )
                 new_segment.pcoord[0] = segment.pcoord[0]
+                # KFW CHECK BACK                try:
+                # KFW CHECK BACK                    new_segment.id_hist = segment.id_hist
+                # KFW CHECK BACK                except AttributeError:
+                # KFW CHECK BACK                    pass
                 self.next_iter_binning[ibin].add(new_segment)
 
         self._run_we()
@@ -807,6 +819,10 @@ class WEDriver:
                     status=Segment.SEG_STATUS_PREPARED,
                 )
                 new_segment.pcoord[0] = segment.pcoord[-1]
+                # KFW CHECK BACK                try:
+                # KFW CHECK BACK                    new_segment.id_hist = segment.id_hist
+                # KFW CHECK BACK                except AttributeError:
+                # KFW CHECK BACK                    pass
                 self.next_iter_binning[ibin].add(new_segment)
 
                 # Store a link to the parent segment, so we can update its endpoint status as we need,
