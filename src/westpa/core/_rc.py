@@ -512,6 +512,14 @@ class WESTRC:
     def get_work_manager(self):
         return self.work_manager
 
+    def clear_state(self):
+
+        self._sim_manager = None
+        self._system = None
+        self._data_manager = None
+        self._we_driver = None
+        self._propagator = None
+
     propagator = property(get_propagator)
     we_driver = property(get_we_driver)
     system = property(get_system_driver)
