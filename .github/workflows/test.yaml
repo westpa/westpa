@@ -5,10 +5,12 @@ on:
     branches:
       - "master"
       - "westpa-2.0-restruct"
+      - "westpa-2.0-tests"
   pull_request:
     branches:
       - "master"
       - "westpa-2.0-restruct"
+      - "westpa-2.0-tests"
   #schedule:
     # Nightly tests run on master by default:
     #   Scheduled workflows run on the latest commit on the default or base branch.
@@ -17,11 +19,11 @@ on:
 
 jobs:
   lint:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     steps:
       - uses: actions/checkout@v2
       - name: Set up Python 3.8
-        uses: actions/setup-python@v1
+        uses: actions/setup-python@v2
         with:
           python-version: 3.8
       - name: Linting
@@ -31,7 +33,7 @@ jobs:
 
   test:
     name: Test on Linux, Python ${{ matrix.python-version }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     strategy:
       matrix:
         python-version: ["3.7", "3.8"]
@@ -47,7 +49,7 @@ jobs:
         ulimit -a
 
     # More info on options: https://github.com/goanpeca/setup-miniconda
-    - uses: goanpeca/setup-miniconda@v1
+    - uses: conda-incubator/setup-miniconda@v2
       with:
         python-version: ${{ matrix.python-version }}
         environment-file: devtools/conda-envs/test_env.yaml
@@ -81,14 +83,14 @@ jobs:
   install-dev:
     strategy:
       matrix:
-        os: ["ubuntu-latest", "macos-latest"]
+        os: ["ubuntu-18.04", "macos-latest"]
 
     name: "Verify dev env"
     runs-on: "${{ matrix.os }}"
 
     steps:
       - uses: "actions/checkout@v2"
-      - uses: "actions/setup-python@v1"
+      - uses: "actions/setup-python@v2"
         with:
           python-version: "3.8"
       - name: "Install in dev mode"
