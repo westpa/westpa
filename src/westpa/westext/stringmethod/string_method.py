@@ -1,6 +1,9 @@
-import numpy as np
-from .fourier_fitting import FourierFit
+from abc import ABCMeta, abstractmethod, abstractproperty
 from collections import Iterable
+import logging
+
+import numpy as np
+
 
 try:
     import scipy
@@ -11,11 +14,38 @@ try:
 except Exception:
     SCIPY_FLAG = False
 
-from westpa.westext.stringmethod import WESTStringMethod
+from .fourier_fitting import FourierFit
 
-import logging
 
 log = logging.getLogger(__name__)
+
+
+class WESTStringMethod:
+
+    ___metaclass__ = ABCMeta
+
+    def __init__(self, centers, **kwargs):
+        pass
+
+    @abstractproperty
+    def centers(self):
+        """ Return the centers of all of the strings
+        """
+        pass
+
+    @abstractproperty
+    def length(self):
+        """ Return a list of the lengths of each string
+        """
+        pass
+
+    @abstractmethod
+    def update_string_centers(self, avgcoords, binprob):
+        """ Given a set of average coordinates (avgcoords) in each bin
+        and the individual probabilities for each bin (binprob), update
+        the string centers
+        """
+        pass
 
 
 class DefaultStringMethod(WESTStringMethod):
