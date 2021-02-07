@@ -1,6 +1,7 @@
 import unittest
 import argparse
 import os
+import tempfile
 import westpa
 
 
@@ -22,8 +23,15 @@ class TestDataManager(unittest.TestCase):
         args = parser.parse_args(['-r={}'.format(config_file_name), "--verbose"])
         westpa.rc.process_args(args)
 
-        self.data_manager = westpa.rc.get_data_manager()
-        assert self.data_manager.h5_access_mode == 'r+'
+        self.sim_manager = westpa.rc.get_sim_manager()
+        self.test_dir = tempfile.mkdtemp()
+        self.hdf5 = os.path.join(self.test_dir, "west.h5")
+        # data = westpa.rc.get_sim_manager().we_driver.rc.get_data_manager()
+        # data.we_h5filename = self.hdf5
+
+        self.data_manager = westpa.rc.new_data_manager()
+        self.data_manager.we_h5filename = self.hdf5
+        self.assertEqual( self.data_manager.h5_access_mode , 'r+')
         """ 1. westpa.rc.get_data_manager() is executed and calls the new_data_manager function.
             2. The new_data_manager instantiates a WESTDataManager object, thus calling the
                WESTDataManager.__init__() constructor. In __init__, process_config() is executed.

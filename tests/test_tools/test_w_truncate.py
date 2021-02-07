@@ -12,7 +12,7 @@ class Test_W_Truncate:
         '''Tests running w_truncate on a 3 iteration h5 file'''
 
         _hfile = h5py.File(self.h5_filepath, mode='r')
-        assert 'iter_00000003' in _hfile['/iterations'].keys()
+        assert 'iter_00000003' in list(_hfile['/iterations'].keys())
         _hfile.close()
         del _hfile
 
@@ -25,6 +25,6 @@ class Test_W_Truncate:
         print(os.getcwd())
         _hfile = h5py.File(self.h5_filepath, mode='r')
         print(_hfile['/iterations'].keys())
-        assert 'iter_00000003' not in _hfile['/iterations'].keys()
-        assert 'iter_00000002' not in _hfile['/iterations'].keys()
+        assert 'iter_00000003' not in list(_hfile['/iterations'].keys())
+        assert 'iter_00000002' not in list(_hfile['/iterations'].keys())
         _hfile.close()
