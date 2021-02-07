@@ -147,7 +147,7 @@ class StringDriver:
                 log.info('Attempting to initialize stringmethod from data')
 
                 try:
-                    binhash = iter_group.attrs['binhash']
+                    binhash = iter_group.attrs['binhash'].encode()
                     bin_mapper = self.data_manager.get_bin_mapper(binhash)
 
                     centers = bin_mapper.centers
