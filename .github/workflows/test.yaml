@@ -3,12 +3,12 @@ name: test
 on:
   push:
     branches:
-      - "master"
+      - "main"
       - "westpa-2.0-restruct"
       - "westpa-2.0-tests"
   pull_request:
     branches:
-      - "master"
+      - "main"
       - "westpa-2.0-restruct"
       - "westpa-2.0-tests"
   #schedule:
