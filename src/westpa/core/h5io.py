@@ -76,6 +76,13 @@ def calc_chunksize(shape, dtype, max_chunksize=262144):
     chunk_shape = tuple(chunk_shape)
     return chunk_shape
 
+def tostr(b):
+    if b is None:
+        return None
+    elif isinstance(b, bytes):
+        return b.decode()
+    else:
+        return str(b)
 
 #
 # Group and dataset manipulation functions
