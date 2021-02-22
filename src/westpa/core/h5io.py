@@ -78,7 +78,7 @@ def calc_chunksize(shape, dtype, max_chunksize=262144):
 
 
 def tostr(b):
-    '''Convert a nonstandard string object ``b`` to str with the handling of the 
+    '''Convert a nonstandard string object ``b`` to str with the handling of the
     case where ``b`` is bytes.'''
 
     if b is None:
