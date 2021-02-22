@@ -1,5 +1,5 @@
 ===============
-WESTPA 1.0 
+WESTPA 2.0 
 ===============
 
 
@@ -19,8 +19,7 @@ See this page_ and this powerpoint_ for an overview of weighted ensemble simulat
 To help us fund development and improve WESTPA please fill out a one-minute survey_ and consider 
 contributing documentation or code to the WESTPA community.
 
-WESTPA is free software, licensed under the terms of the GNU General Public
-License, Version 3. See the file ``COPYING`` for more information.
+WESTPA is free software, licensed under the terms of the MIT License. See the file ``LICENSE`` for more information.
 
 .. _survey: https://docs.google.com/forms/d/e/1FAIpQLSfWaB2aryInU06cXrCyAFmhD_gPibgOfFk-dspLEsXuS9-RGQ/viewform
 .. _page: https://westpa.github.io/westpa/overview.html
