@@ -363,6 +363,7 @@ class WESTDataManager:
         with self.flushing_lock():
             self.we_h5file['/'].attrs['west_file_format_version'] = file_format_version
             self.we_h5file['/'].attrs['west_iter_prec'] = self.iter_prec
+            self.we_h5file['/'].attrs['west_version'] = westpa.__version__
             self.current_iteration = 0
             self.we_h5file['/'].create_dataset('summary', shape=(1,), dtype=summary_table_dtype, maxshape=(None,))
             self.we_h5file.create_group('/iterations')
