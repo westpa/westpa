@@ -535,7 +535,7 @@ class WESTDataManager:
                     state_id=i,
                     label=row['label'],
                     probability=row['probability'],
-                    auxref=str(row['auxref']) or None,
+                    auxref=h5io.tostr(row['auxref']) or None,
                     pcoord=pcoord.copy(),
                 )
                 for (i, (row, pcoord)) in enumerate(zip(bstate_index, bstate_pcoords))
