@@ -1,9 +1,9 @@
 import numpy as np
 
-from westpa.core.segment import Segment
+from westpa.core.segment import Segment, ITrajectory
 
 
-class BasisState:
+class BasisState(ITrajectory):
     '''Describes an basis (micro)state. These basis states are used to generate
     initial states for new trajectories, either at the beginning of the simulation
     (i.e. at w_init) or due to recycling.
@@ -25,6 +25,7 @@ class BasisState:
         self.pcoord = np.atleast_1d(pcoord)
         self.auxref = auxref
         self.state_id = state_id
+        super(BasisState, self).__init__()
 
     def __repr__(self):
         return '{} state_id={self.state_id!r} label={self.label!r} prob={self.probability!r} pcoord={self.pcoord!r}>'.format(
@@ -122,7 +123,7 @@ class BasisState:
         return bstaterec
 
 
-class InitialState:
+class InitialState(ITrajectory):
     '''Describes an initial state for a new trajectory. These are generally constructed by
     appropriate modification of a basis state.
 
@@ -181,6 +182,7 @@ class InitialState:
         self.iter_created = iter_created
         self.iter_used = iter_used
         self.pcoord = np.atleast_1d(pcoord)
+        super(InitialState, self).__init__()
 
     def __repr__(self):
         return '{} state_id={self.state_id!r} istate_type={self.istate_type!r} basis_state_id={self.basis_state_id!r} iter_created={self.iter_created!r} pcoord={self.pcoord!r}>'.format(

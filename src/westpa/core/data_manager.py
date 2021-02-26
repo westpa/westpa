@@ -41,15 +41,19 @@ import sys
 import threading
 import time
 from operator import attrgetter
+from os.path import isfile
 
 import h5py
 from h5py import h5s
 import numpy as np
+from mdtraj import load as load_traj
 
 from . import h5io
 from .segment import Segment
 from .states import BasisState, TargetState, InitialState
 from .we_driver import NewWeightEntry
+from .propagators.executable import ExecutablePropagator
+from .trajectory import WESTTrajectory
 
 import westpa
 
@@ -57,6 +61,8 @@ import westpa
 log = logging.getLogger(__name__)
 
 file_format_version = 7
+
+makepath = ExecutablePropagator.makepath
 
 
 class flushing_lock:
@@ -233,7 +239,9 @@ class WESTDataManager:
         self.aux_compression_threshold = config.get(
             ['west', 'data', 'aux_compression_threshold'], self.default_aux_compression_threshold
         )
-        self.flush_period = config.get(['west', 'data', 'flush_period'], self.default_flush_period)
+        self.flush_period = config.get(['west', 'data', 'flush_period'], self.default_flush_period)        
+        self.iter_ref_h5_template = config.get(['west', 'data', 'data_refs', 'iteration'], None)
+        self.store_h5 = self.iter_ref_h5_template is not None
 
         # Process dataset options
         dsopts_list = config.get(['west', 'data', 'datasets']) or []
@@ -266,6 +274,8 @@ class WESTDataManager:
         self.last_flush = 0
 
         self._system = None
+        self.iter_ref_h5_template = None
+        self.store_h5 = False
 
         self.dataset_options = {}
         self.process_config()
@@ -519,6 +529,67 @@ class WESTDataManager:
             master_index[set_id] = master_index_row
             return state_group
 
+    def create_ibstate_iter_h5file(self, basis_states):
+        if not self.store_h5:
+            return
+        
+        segments = []
+        for i, state in enumerate(basis_states):
+            dummy_segment = Segment(n_iter=0,
+                                    seg_id=state.state_id,
+                                    parent_id=-(state.state_id+1),
+                                    weight=state.probability,
+                                    wtg_parent_ids=None,
+                                    pcoord=state.pcoord,
+                                    status=Segment.SEG_STATUS_UNSET)
+            dummy_segment.get_traj_from(state)
+            segments.append(dummy_segment)
+
+        # # link the iteration file in west.h5
+        self.prepare_iteration(0, segments)
+        self.update_iter_h5file(0, segments)
+    
+    def update_iter_h5file(self, n_iter, segments):
+        if not self.store_h5:
+            return
+        
+        n_frames_per_iter = self.system.pcoord_len - 1
+        if n_iter == 0:
+            base_time = 0
+        else:
+            base_time = n_frames_per_iter * (n_iter - 1) + 1
+
+        iter_ref_h5_file = makepath(self.iter_ref_h5_template, {'n_iter': n_iter})
+
+        with h5io.WESTIterationFile(iter_ref_h5_file, 'a') as outf:
+            for segment in segments:
+                # we may consider logging warnings instead throwing errors for later. 
+                # right now this is good for debugging purposes
+                if segment.trajectory is None:
+                    raise ValueError('no trajectory data present for %s'%repr(segment))
+                
+                wtraj = WESTTrajectory(segment.trajectory, iter_labels=n_iter, seg_labels=segment.seg_id)
+                if wtraj.n_frames == 0:
+                    raise ValueError('no trajectory data present for %s'%repr(segment))
+
+                if n_iter == 0:
+                    base_time = 0
+                else:
+                    iter_duration = wtraj.time[-1] - wtraj.time[0]
+                    base_time = iter_duration * (n_iter - 1)
+
+                wtraj.time -= wtraj.time[0]
+                wtraj.time += base_time
+                outf.write_data(wtraj)
+        
+        iter_group = self.get_iter_group(n_iter)
+
+        if 'trajectories' in iter_group:
+            del iter_group['trajectories']
+
+        iter_group['trajectories'] = h5py.ExternalLink(iter_ref_h5_file, '/')
+
+
     def get_basis_states(self, n_iter=None):
         '''Return a list of BasisState objects representing the basis states that are in use for iteration n_iter.'''
 
@@ -718,18 +789,20 @@ class WESTDataManager:
         log.debug('preparing HDF5 group for iteration %d (%d segments)' % (n_iter, len(segments)))
 
         # Ensure we have a list for guaranteed ordering
+        init = n_iter == 0
         segments = list(segments)
         n_particles = len(segments)
         system = self.system
         pcoord_ndim = system.pcoord_ndim
-        pcoord_len = system.pcoord_len
+        pcoord_len = 2 if init else system.pcoord_len
         pcoord_dtype = system.pcoord_dtype
 
         with self.lock:
-            # Create a table of summary information about each iteration
-            summary_table = self.we_h5file['summary']
-            if len(summary_table) < n_iter:
-                summary_table.resize((n_iter + 1,))
+            if not init:
+                # Create a table of summary information about each iteration
+                summary_table = self.we_h5file['summary']
+                if len(summary_table) < n_iter:
+                    summary_table.resize((n_iter + 1,))
 
             iter_group = self.require_iter_group(n_iter)
 
@@ -746,10 +819,11 @@ class WESTDataManager:
             # In fact, this appears to be an h5py best practice (collect as much in ram as possible and then dump)
             seg_index_table = seg_index_table_ds[...]
 
-            summary_row = np.zeros((1,), dtype=summary_table_dtype)
-            summary_row['n_particles'] = n_particles
-            summary_row['norm'] = np.add.reduce(list(map(attrgetter('weight'), segments)))
-            summary_table[n_iter - 1] = summary_row
+            if not init:
+                summary_row = np.zeros((1,), dtype=summary_table_dtype)
+                summary_row['n_particles'] = n_particles
+                summary_row['norm'] = np.add.reduce(list(map(attrgetter('weight'), segments)))
+                summary_table[n_iter - 1] = summary_row
 
             # pcoord is indexed as [particle, time, dimension]
             pcoord_opts = self.dataset_options.get('pcoord', {'name': 'pcoord', 'h5path': 'pcoord', 'compression': False})
@@ -775,16 +849,25 @@ class WESTDataManager:
 
                 # Assign progress coordinate if any exists
                 if segment.pcoord is not None:
-                    if len(segment.pcoord) == 1:
+                    if init:
+                        if segment.pcoord.shape != pcoord.shape[2:]:
+                            raise ValueError(
+                                'basis state pcoord shape [%r] does not match expected shape [%r]'
+                                % (segment.pcoord.shape, pcoord.shape[2:])
+                            )
                         # Initial pcoord
-                        pcoord[seg_id, 0, :] = segment.pcoord[0, :]
-                    elif segment.pcoord.shape != pcoord.shape[1:]:
-                        raise ValueError(
-                            'segment pcoord shape [%r] does not match expected shape [%r]'
-                            % (segment.pcoord.shape, pcoord.shape[1:])
-                        )
+                        pcoord[seg_id, 1, :] = segment.pcoord[:]
                     else:
-                        pcoord[seg_id, ...] = segment.pcoord
+                        if len(segment.pcoord) == 1:
+                            # Initial pcoord
+                            pcoord[seg_id, 0, :] = segment.pcoord[0, :]
+                        elif segment.pcoord.shape != pcoord.shape[1:]:
+                            raise ValueError(
+                                'segment pcoord shape [%r] does not match expected shape [%r]'
+                                % (segment.pcoord.shape, pcoord.shape[1:])
+                            )
+                        else:
+                            pcoord[seg_id, ...] = segment.pcoord
 
             if total_parents > 0:
                 wtgraph_ds = iter_group.create_dataset('wtgraph', (total_parents,), seg_id_dtype, compression='gzip', shuffle=True)

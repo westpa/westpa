@@ -2,8 +2,22 @@ import math
 
 import numpy as np
 
+class ITrajectory:
+    def __init__(self):
+        self.topology = None
+        self.trajectory = None
+        self.restart = None
 
-class Segment:
+    def get_traj_from(self, receiver):
+        if not isinstance(receiver, ITrajectory):
+            raise TypeError('receiver does not have trajectory data entries')
+
+        self.topology = receiver.topology
+        self.trajectory = receiver.trajectory
+        self.restart = receiver.restart
+
+
+class Segment(ITrajectory):
     '''A class wrapping segment data that must be passed through the work manager or data manager.
     Most fields are self-explanatory.  One item worth noting is that a negative parent ID means that
     the segment starts from the initial state with ID -(segment.parent_id+1)
@@ -76,6 +90,8 @@ class Segment:
         self.walltime = walltime
         self.cputime = cputime
         self.data = data if data else {}
+
+        super(Segment, self).__init__()
 
     def __repr__(self):
         return '<%s(%s) n_iter=%r seg_id=%r weight=%r parent_id=%r wtg_parent_ids=%r pcoord[0]=%r pcoord[-1]=%r>' % (

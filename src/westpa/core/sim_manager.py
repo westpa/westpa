@@ -254,6 +254,7 @@ class WESimManager:
         # Process basis states
         self.get_bstate_pcoords(basis_states)
         self.data_manager.create_ibstate_group(basis_states)
+        self.data_manager.create_ibstate_iter_h5file(basis_states)
         self.report_basis_states(basis_states)
 
         pstatus('Preparing initial states')
@@ -422,6 +423,8 @@ class WESimManager:
     def finalize_iteration(self):
         '''Clean up after an iteration and prepare for the next.'''
         log.debug('finalizing iteration {:d}'.format(self.n_iter))
+
+        self.data_manager.update_iter_h5file(self.n_iter, self.segments.values())
 
         self.invoke_callbacks(self.finalize_iteration)
 

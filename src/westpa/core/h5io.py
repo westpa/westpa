@@ -13,6 +13,12 @@ import h5py
 import numpy as np
 from numpy import index_exp
 
+from mdtraj import Trajectory, join as join_traj
+from mdtraj.utils import in_units_of, import_
+from mdtraj.formats import HDF5TrajectoryFile
+
+from .trajectory import WESTTrajectory
+
 try:
     import psutil
 except ImportError:
@@ -153,6 +159,57 @@ def get_creator_data(h5group):
         d[attr] = attrs.get(attr)
     return d
 
+def load_west(filename):
+    """Load WESTPA trajectory files from disk.
+
+    Parameters
+    ----------
+    filename : str
+        String filename of HDF Trajectory file.
+    """
+
+    with h5py.File(filename, 'r') as f:
+        iter_group_template = 'iter_{1:0{0}d}'
+        iter_prec = f.attrs['west_iter_prec']
+        trajectories = []
+        n = 0
+        
+        iter_group_name = iter_group_template.format(iter_prec, n)
+        for iter_group_name in f['iterations']:
+            iter_group = f['iterations/' + iter_group_name]
+
+            if 'trajectories' not in iter_group:
+                continue
+
+            if 'pcoord' not in iter_group:
+                continue
+
+            pcoord3d = iter_group['pcoord'][:]
+            if pcoord3d.ndim != 3:
+                continue
+            
+            # ignore the first frame of each segment
+            pcoord3d = pcoord3d[:, 1:, :]
+            pcoords = np.concatenate(pcoord3d, axis=0)
+
+            traj_link = iter_group['trajectories']
+            traj_filename = traj_link.file.filename
+
+            with WESTIterationFile(traj_filename) as traj_file:
+                try:
+                    traj = traj_file.read_as_traj()
+                except:
+                    continue
+
+            traj.pcoords = pcoords
+            trajectories.append(traj)
+
+            n += 1
+            iter_group_name = iter_group_template.format(iter_prec, n)
+
+    west_traj = join_traj(trajectories)
+
+    return west_traj
 
 ###
 # Iteration range metadata
@@ -340,6 +397,110 @@ class WESTPAH5File(h5py.File):
         if group is None:
             group = self['/iterations']
         return group[self.iter_object_name(n_iter)]
+
+
+class WESTIterationFile(HDF5TrajectoryFile):
+    def __init__(self, file, mode='r', force_overwrite=True, compression='zlib', link=None):
+        if isinstance(file, str):
+            super(WESTIterationFile, self).__init__(file, mode, force_overwrite, compression)
+        else:
+            try:
+                self._init_from_handle(file)
+            except AttributeError:
+                raise ValueError('unknown input type: %s'%str(type(file)))
+    
+    def _init_from_handle(self, handle):
+        self._handle = handle
+        self._open = handle.isopen != 0
+        self.mode = mode = handle.mode  # the mode in which the file was opened?
+
+        if not mode in ['r', 'w', 'a']:
+            raise ValueError("mode must be one of ['r', 'w', 'a']")
+
+        # import tables
+        self.tables = import_('tables')
+
+        if mode == 'w':
+            # what frame are we currently reading or writing at?
+            self._frame_index = 0
+            # do we need to write the header information?
+            self._needs_initialization = True
+
+        elif mode == 'a':
+            try:
+                self._frame_index = len(self._handle.root.coordinates)
+                self._needs_initialization = False
+            except self.tables.NoSuchNodeError:
+                self._frame_index = 0
+                self._needs_initialization = True
+        elif mode == 'r':
+            self._frame_index = 0
+            self._needs_initialization = False
+        
+    def has_topology(self):
+        try:
+            _ = self._get_node('/', name='topology')[0]
+        except self.tables.NoSuchNodeError:
+            return False
+
+        return True
+
+    def has_pointer(self):
+        try:
+            _ = self._get_node('/', name='pointer')[0]
+        except self.tables.NoSuchNodeError:
+            return False
+
+        return True
+    
+    def read_as_traj(self, n_frames=None, stride=None, atom_indices=None):
+        if n_frames is None:
+            n_frames = np.inf
+        if stride is not None:
+            stride = int(stride)
+
+        total_n_frames = len(self._handle.root.coordinates)
+        frame_slice = slice(self._frame_index, min(self._frame_index + n_frames, total_n_frames), stride)
+
+        pnode = self._get_node(where='/', name='pointer')
+
+        iter_labels = pnode[frame_slice, 0]
+        seg_labels = pnode[frame_slice, 1]
+        traj = super(WESTIterationFile, self).read_as_traj(n_frames, stride, atom_indices)
+        
+        return WESTTrajectory(traj, iter_labels=iter_labels, seg_labels=seg_labels, pcoords=None)
+
+    def write_data(self, traj):
+        # pointers
+        if not self.has_pointer():
+            self._create_earray('/', name='pointer', atom=self.tables.Int16Atom(), shape=(0, 2))
+        
+        iter_idx = traj.iter_labels
+        seg_idx = traj.seg_labels
+
+        pointers = np.stack((iter_idx, seg_idx)).T
+
+        node = self._get_node(where='/', name='pointer')
+        node.append(pointers)
+
+        # trajectory
+        self.write(coordinates=in_units_of(traj.xyz, Trajectory._distance_unit, self.distance_unit),
+                   time=traj.time,
+                   cell_lengths=in_units_of(traj.unitcell_lengths, Trajectory._distance_unit, self.distance_unit),
+                   cell_angles=traj.unitcell_angles)
+
+        # topology
+        if self.mode == 'a':
+            if not self.has_topology():
+                self.topology = traj.topology
+        elif self.mode == 'w':
+            self.topology = traj.topology
+
+    @property
+    def _create_group(self):
+        if self.tables.__version__ >= '3.0.0':
+            return self._handle.create_group
+        return self._handle.createGroup
 
 
 ### Generalized WE dataset access classes
