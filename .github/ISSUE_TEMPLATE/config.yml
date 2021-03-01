@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: WESTPA User Community Support
+    url: https://groups.google.com/g/westpa-users
+    about: Please ask questions about using/running WESTPA here.
+  - name: WESTPA Developer Discussions
+    url: https://groups.google.com/g/westpa-devel
+    about: For more informal discussions on developing/improving WESTPA, ask your questions here.
