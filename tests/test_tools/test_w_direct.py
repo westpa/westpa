@@ -26,6 +26,7 @@ class Test_W_Direct(unittest.TestCase):
         os.remove('direct.h5')
         os.remove('west.h5')
 
+
 @pytest.mark.skip(reason="work-in-progress test that uses entry point")
 class Test_W_Direct_New:
     def test_run_w_direct(self, ref_50iter):
