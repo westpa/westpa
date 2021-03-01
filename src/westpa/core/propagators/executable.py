@@ -163,6 +163,7 @@ class ExecutablePropagator(WESTPropagator):
         self.segment_ref_template = config['west', 'data', 'data_refs', 'segment']
         self.basis_state_ref_template = config['west', 'data', 'data_refs', 'basis_state']
         self.initial_state_ref_template = config['west', 'data', 'data_refs', 'initial_state']
+        store_h5 = config.get(['west', 'data', 'data_refs', 'iteration']) is not None
 
         # Load additional environment variables for all child processes
         self.addtl_child_environ.update({k: str(v) for k, v in (config['west', 'executable', 'environ'] or {}).items()})
@@ -203,12 +204,12 @@ class ExecutablePropagator(WESTPropagator):
                                     'dir': False}
         self.data_info['topology'] = {'name': 'topology', 
                                       'loader': topology_loader, 
-                                      'enabled': True, 
+                                      'enabled': store_h5, 
                                       'filename': None,
                                       'dir': True}
         self.data_info['trajectory'] = {'name': 'trajectory', 
                                         'loader': trajectory_loader, 
-                                        'enabled': True, 
+                                        'enabled': store_h5, 
                                         'filename': None,
                                         'dir': True}
 
