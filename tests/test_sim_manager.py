@@ -63,10 +63,6 @@ class TestSimManager(TestCase):
         westpa.rc._system = None
         westpa.rc._data_manager = None
         del os.environ['WEST_SIM_ROOT']
-        # del self.sim_manager
-        # shutil.rmtree(self.test_dir)
-        # data = westpa.rc.new_data_manager()
-        # data.we_h5filename = None
 
     def dummy_callback_one(self):
         system = self.sim_manager.system

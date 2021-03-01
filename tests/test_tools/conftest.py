@@ -7,7 +7,6 @@ import tempfile
 
 import westpa
 
-# REFERENCE_PATH = os.path.join(os.path.dirname(__file__), 'refs')
 REFERENCE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'refs')
 
 H5_FILENAME = 'west.h5'
@@ -40,11 +39,7 @@ def ref_3iter(request):
     copyfile(os.path.join(REFERENCE_PATH, 'west_3iter.h5'), H5_FILENAME)
     copyfile(os.path.join(REFERENCE_PATH, 'west_init_ref.cfg'), CFG_FILENAME)
 
-    # copyfile(os.path.join(REFERENCE_PATH, 'west_init_ref.h5'), 'west_init_ref.h5')
-
-    # request.cls.cfg_filepath = 'west_init_ref.cfg'
     request.cls.cfg_filepath = CFG_FILENAME
-    # request.cls.ref_h5_filepath = 'west_init_ref.h5'
     request.cls.h5_filepath = H5_FILENAME
 
     os.environ['WEST_SIM_ROOT'] = test_dir
@@ -65,7 +60,6 @@ def ref_cfg(request, tmpdir):
 
     copyfile(os.path.join(REFERENCE_PATH, 'west_init_ref.cfg'), CFG_FILENAME)
     copyfile(os.path.join(REFERENCE_PATH, 'west_init_ref.h5'), "west_init_ref.h5")
-    # copyfile(os.path.join(REFERENCE_PATH, H5_FILENAME), H5_FILENAME)
 
     request.cls.cfg_filepath = CFG_FILENAME
     request.cls.h5_filepath = H5_FILENAME
