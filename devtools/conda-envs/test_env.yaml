@@ -5,7 +5,7 @@ channels:
 dependencies:
   - python
   - cython
-  - numpy
+  - numpy<=1.18.5
   - scipy
   - h5py
   - pyyaml

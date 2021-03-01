@@ -1,5 +1,6 @@
 import nose
 import nose.tools
+from unittest import TestCase
 
 import numpy as np
 
@@ -12,8 +13,8 @@ from westpa.core.we_driver import WEDriver
 EPS = np.finfo(np.float64).eps
 
 
-class TestWEDriver:
-    def setup(self):
+class TestWEDriver(TestCase):
+    def setUp(self):
         system = WESTSystem()
         system.bin_mapper = RectilinearBinMapper([[0.0, 1.0, 2.0]])
         system.bin_target_counts = np.array([4, 4])
@@ -29,7 +30,7 @@ class TestWEDriver:
         self._seg_id += 1
         return segment
 
-    def teardown(self):
+    def tearDown(self):
         self.we_driver.clear()
         del self.we_driver
         del self.system
