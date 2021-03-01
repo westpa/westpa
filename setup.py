@@ -1,9 +1,11 @@
 import sys
 
-from setuptools import setup, Extension, find_packages
+from setuptools import setup, Extension, find_packages, dist
 
 import versioneer
 
+
+dist.Distribution().fetch_build_eggs(['Cython', 'numpy>=1.16'])
 
 def extensions():
     from Cython.Build import cythonize
@@ -95,6 +97,12 @@ console_scripts_tools = [
 
 console_scripts = console_scripts_core + console_scripts_tools
 
+SETUP_REQUIRES = [
+    "setuptools>=18",
+    "cython",
+]
+
+
 CLASSIFIERS = [
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
@@ -134,6 +142,7 @@ metadata = dict(
     keywords='',
     cmdclass=versioneer.get_cmdclass(),
     python_requires=">=3.6",
+    setup_requires=SETUP_REQUIRES,
     zip_safe=False,
     classifiers=CLASSIFIERS,
     entry_points={'console_scripts': console_scripts},
