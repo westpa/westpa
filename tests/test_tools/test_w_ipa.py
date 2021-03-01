@@ -31,7 +31,7 @@ class Test_W_IPA(unittest.TestCase):
         os.remove('west.cfg')
 
 
-@pytest.mark.skip
+@pytest.mark.skip(reason="work-in-progress test that uses entry point")
 class Test_W_IPA_new:
     def test_run_w_ipa(self, ref_50iter):
         '''Testing if w_ipa runs as expected and the h5 files looks good.'''
