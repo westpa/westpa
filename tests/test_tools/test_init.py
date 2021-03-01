@@ -2,8 +2,7 @@ import argparse
 
 from h5diff import H5Diff
 
-import westpa
-from westpa.cli.core.w_init import entry_point
+import westpa.cli.core.w_init
 from unittest import mock
 
 
@@ -18,7 +17,7 @@ class Test_W_Init:
                 force=True,
                 rcfile=self.cfg_filepath,
                 bstate_file=None,
-                verbosity='debug',
+                verbosity='verbose',
                 bstates=['initial,1.0'],
                 tstate_file=None,
                 tstates=None,
@@ -26,8 +25,7 @@ class Test_W_Init:
                 shotgun=False,
             ),
         ):
-            # data_manager = westpa.rc.new_data_manager()
-            entry_point()
+            westpa.cli.core.w_init.entry_point()
 
         # h5 files contain some internal information that includes timestamps, so I can't just compare md5 checksums
         #   to ensure that w_init is producing the same output.

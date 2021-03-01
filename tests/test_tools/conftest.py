@@ -1,11 +1,11 @@
 import pytest
 import os
-import glob 
+import glob
 
 from shutil import copyfile, copy
 import tempfile
 
-from westpa import rc
+import westpa
 
 # REFERENCE_PATH = os.path.join(os.path.dirname(__file__), 'refs')
 REFERENCE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'refs')
@@ -53,15 +53,15 @@ def ref_3iter(request):
 
 
 @pytest.fixture
-def ref_cfg(request):
+def ref_cfg(request, tmpdir):
     """
     Fixture that prepares a simulation directory with a populated west.cfg file.
     """
 
-    test_dir = tempfile.mkdtemp()
+    test_dir = str(tmpdir)
     os.chdir(test_dir)
-    copy_ref(test_dir)
 
+    copy_ref(test_dir)
 
     copyfile(os.path.join(REFERENCE_PATH, 'west_init_ref.cfg'), CFG_FILENAME)
     copyfile(os.path.join(REFERENCE_PATH, 'west_init_ref.h5'), "west_init_ref.h5")
@@ -72,18 +72,19 @@ def ref_cfg(request):
     request.cls.ref_h5_filepath = 'west_init_ref.h5'
 
     os.environ['WEST_SIM_ROOT'] = test_dir
+    westpa.rc = westpa.core._rc.WESTRC()
 
     request.addfinalizer(clear_state)
 
 
 @pytest.fixture
-def ref_initialized(request):
+def ref_initialized(request, tmpdir):
     """
     Fixture that prepares a simulation directory with an initialized WESTPA system,
     west.h5, plus the config file west.cfg
     """
 
-    test_dir = tempfile.mkdtemp()
+    test_dir = str(tmpdir)
 
     os.chdir(test_dir)
     copy_ref(test_dir)
@@ -95,51 +96,36 @@ def ref_initialized(request):
     request.cls.h5_filepath = H5_FILENAME
 
     os.environ['WEST_SIM_ROOT'] = test_dir
+    westpa.rc = westpa.core._rc.WESTRC()
 
     request.addfinalizer(clear_state)
 
 
 @pytest.fixture
-def ref_50iter(request):
+def ref_50iter(request, tmpdir):
     """
     Fixture that prepares a simulation directory with a completed 50-iteration WESTPA,
     west.h5, plus the config file west.cfg
     """
 
-    test_dir = tempfile.mkdtemp()
+    test_dir = str(tmpdir)
 
     os.chdir(test_dir)
     copy_ref(test_dir)
 
-    copyfile(os.path.join(REFERENCE_PATH, 'west_init_ref.h5'), 'west_init_ref.h5')
-    # copyfile(os.path.join(REFERENCE_PATH, H5_FILENAME), H5_FILENAME)
-    copyfile(os.path.join(REFERENCE_PATH, CFG_FILENAME), CFG_FILENAME)
+    copyfile(os.path.join(REFERENCE_PATH, 'west_ref.h5'), H5_FILENAME)
+    copyfile(os.path.join(REFERENCE_PATH, 'west_ref.cfg'), CFG_FILENAME)
 
     request.cls.cfg_filepath = CFG_FILENAME
     request.cls.h5_filepath = H5_FILENAME
-    # request.cls.ref_h5_filepath = 'west_init_ref.h5'
-
-
-
-    # request.cls.cfg_filepath = CFG_FILENAME
-    # request.cls.h5_filepath = "pdist_ref.h5"
 
     os.environ['WEST_SIM_ROOT'] = test_dir
+    westpa.rc = westpa.core._rc.WESTRC()
 
     request.addfinalizer(clear_state)
 
 
 def clear_state():
-
-    os.remove(CFG_FILENAME)
-    os.remove(H5_FILENAME)
-
     os.chdir(STARTING_PATH)
-
-    os.environ['WEST_SIM_ROOT'] = ''
-
-    rc._sim_manager = None
-    rc._system = None
-    rc._data_manager = None
-    rc._we_driver = None
-    rc._propagator = None
+    del os.environ['WEST_SIM_ROOT']
+    westpa.rc = westpa.core._rc.WESTRC()

@@ -31,7 +31,7 @@ class TestDataManager(unittest.TestCase):
 
         self.data_manager = westpa.rc.new_data_manager()
         self.data_manager.we_h5filename = self.hdf5
-        self.assertEqual( self.data_manager.h5_access_mode , 'r+')
+        self.assertEqual(self.data_manager.h5_access_mode, 'r+')
         """ 1. westpa.rc.get_data_manager() is executed and calls the new_data_manager function.
             2. The new_data_manager instantiates a WESTDataManager object, thus calling the
                WESTDataManager.__init__() constructor. In __init__, process_config() is executed.
@@ -42,9 +42,8 @@ class TestDataManager(unittest.TestCase):
                in west.cfg are indeed updated accordingly."""
 
     def tearDown(self):
-        westpa.rc._data_manager = None
-        westpa.rc._system = None
         del os.environ['WEST_SIM_ROOT']
+        westpa.rc = westpa.core._rc.WESTRC()
 
     def test_data_manager(self):
         assert self.data_manager.h5_access_mode == 'r+'

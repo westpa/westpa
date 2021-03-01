@@ -1,9 +1,11 @@
+import argparse
 import os
 from unittest import mock
+
+import numpy as np
+
 from h5diff import H5Diff
-import filecmp
 from westpa.cli.tools.plothist import entry_point, AveragePlotHist, InstantPlotHist, EvolutionPlotHist
-import argparse
 
 
 class Test_Plothist:
@@ -41,7 +43,10 @@ class Test_Plothist:
         os.system("cat phist_avg.txt | tail -n +10 > hist_avg.txt")
         assert os.path.isfile('./hist_avg.pdf'), "The average pdf was not generated."
         assert os.path.isfile('./hist_avg.txt'), "The text output file was not generated."
-        assert filecmp.cmp('hist_avg_ref.txt', 'hist_avg.txt'), "Text output file not generated correctly."
+
+        expected = np.loadtxt('hist_avg_ref.txt')
+        actual = np.loadtxt('hist_avg.txt')
+        assert np.allclose(actual, expected), "Text output file not generated correctly."
 
         os.remove('hist_avg.pdf')
         os.remove('phist_avg.txt')
@@ -77,7 +82,10 @@ class Test_Plothist:
         os.system("cat phist_inst.txt | tail -n +10 > hist_inst.txt")
         assert os.path.isfile('./hist_inst.pdf'), "The instant pdf was not generated."
         assert os.path.isfile('./hist_inst.txt'), "The text output file was not generated."
-        assert filecmp.cmp('hist_inst_ref.txt', 'hist_inst.txt'), "Text output file not generated correctly."
+
+        expected = np.loadtxt('hist_inst_ref.txt')
+        actual = np.loadtxt('hist_inst.txt')
+        assert np.allclose(actual, expected), "Text output file not generated correctly."
 
         os.remove('hist_inst.pdf')
         os.remove('phist_inst.txt')
