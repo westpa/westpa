@@ -3,7 +3,6 @@ import os
 from unittest import TestCase
 from unittest.mock import MagicMock
 import tempfile
-import shutil
 import pytest
 
 import numpy as np
