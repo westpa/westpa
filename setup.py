@@ -5,7 +5,6 @@ from setuptools import setup, Extension, find_packages, dist
 import versioneer
 
 
-
 def extensions():
     from Cython.Build import cythonize
     from numpy import get_include as np_get_include
