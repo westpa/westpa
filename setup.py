@@ -95,12 +95,6 @@ console_scripts_tools = [
 
 console_scripts = console_scripts_core + console_scripts_tools
 
-SETUP_REQUIRES = [
-    "setuptools>=18",
-    "cython",
-]
-
-
 CLASSIFIERS = [
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
@@ -140,7 +134,6 @@ metadata = dict(
     keywords='',
     cmdclass=versioneer.get_cmdclass(),
     python_requires=">=3.6",
-    setup_requires=SETUP_REQUIRES,
     zip_safe=False,
     classifiers=CLASSIFIERS,
     entry_points={'console_scripts': console_scripts},
@@ -153,6 +146,8 @@ metadata = dict(
 
 
 if __name__ == '__main__':
-    dist.Distribution().fetch_build_eggs(['Cython', 'numpy>=1.16', 'scipy>=0.19.1'])
+    dist.Distribution().fetch_build_eggs(
+        ['Cython', 'numpy>=1.16', 'scipy>=0.19.1']
+    )  # workaround to install cython,numpy,scipy before setup
     metadata['ext_modules'] = extensions()
     setup(**metadata)
