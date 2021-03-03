@@ -3,7 +3,8 @@ import numpy as np
 
 class WESTTrajectory(Trajectory):
     
-    def __init__(self, coordinates, topology=None, time=None, iter_labels=None, seg_labels=None, pcoords=None, unitcell_lengths=None, unitcell_angles=None):
+    def __init__(self, coordinates, topology=None, time=None, iter_labels=None, seg_labels=None, pcoords=None, 
+                 unitcell_lengths=None, unitcell_angles=None):
         if isinstance(coordinates, Trajectory):
             xyz = coordinates.xyz
             topology = coordinates.topology if topology is None else topology

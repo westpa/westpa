@@ -18,6 +18,7 @@ from westpa.core.segment import Segment
 from westpa.core.yamlcfg import check_bool
 
 from mdtraj import load as load_traj, load_topology, FormatRegistry, formats as mdformats
+from mdtraj.core.trajectory import _TOPOLOGY_EXTS as TOPOLOGY_EXTS
 
 log = logging.getLogger(__name__)
 FormatRegistry.loaders['.rst'] = mdformats.amberrst.load_restrt
@@ -35,9 +36,22 @@ def get_first_file(dir):
         if not os.path.isfile(filepath):
             continue
 
-        return filepath
+        return filename
 
-    return None
+    raise ValueError('no valid file present in %s'%dir)
+
+def get_filenames_with_extensions(dir):
+    filenames = []
+    for filename in os.listdir(dir):
+        filepath = os.path.join(dir, filename)
+        if not '.' in filename:
+            continue
+        if not os.path.isfile(filepath):
+            continue
+
+        filenames.append(filename)
+
+    return filenames
 
 
 def pcoord_loader(fieldname, pcoord_return_filename, destobj, single_point):
@@ -73,30 +87,57 @@ def aux_data_loader(fieldname, data_filename, segment, single_point):
         raise ValueError('could not read any data for {}'.format(fieldname))
 
 
-def topology_loader(fieldname, coord_file, segment, single_point):
-    # coord_file here is actually a directory. We just need one and the only file from the directory
+def topology_loader(fieldname, top_folder, segment, single_point):
+    # We just need one and the only file from top_folder
     # it needs to be this way because the filename, namly the extension, bears information that tell
     # us which format it is in
     try:
-        top_file = get_first_file(coord_file)
+        top_file = get_first_file(top_folder)
         if top_file:
-            data = load_topology(top_file)
-            segment.topology = data
+            data = load_topology(os.path.join(top_folder, top_file))
+            segment.data['iterh5/topology'] = data
     except Exception as e:
         log.warning('could not read any data for {}: {}'.format(fieldname, str(e)))
 
-def trajectory_loader(fieldname, coord_file, segment, single_point):
+def trajectory_loader(fieldname, coord_folder, segment, single_point):
+    # We just need one and the only file from coord_folder
+    # it needs to be this way because the filename, namly the extension, bears information that tell
+    # us which format it is in
+    try:
+        traj_file = get_first_file(coord_folder)
+        if traj_file:
+            top = segment.data.pop('iterh5/topology', None)
+            data = load_traj(os.path.join(coord_folder, traj_file), top=top)
+            segment.data['iterh5/trajectory'] = data
+    except Exception as e:
+        log.warning('could not read any data for {}: {}'.format(fieldname, str(e)))
+
+def restart_loader(fieldname, restart_folder, segment, single_point):
+    # We just need one and the only file from restart_folder
+    # it needs to be this way because we will need the filename
+    try:
+        restart_file = get_first_file(restart_folder)
+        with open(os.path.join(restart_folder, restart_file), mode='rb') as f:
+            data = f.read()
+        segment.data['iterh5/restart'] = (data, restart_file)
+    except Exception as e:
+        log.warning('could not read any data for {}: {}'.format(fieldname, str(e)))
+
+def restart_writer(path, segment):
     # coord_file here is actually a directory. We just need one and the only file from the directory
     # it needs to be this way because the filename, namly the extension, bears information that tell
     # us which format it is in
     try:
-        traj_file = get_first_file(coord_file)
-        if traj_file:
-            data = load_traj(traj_file, top=segment.topology)
-            segment.trajectory = data
-    except Exception as e:
-        log.warning('could not read any data for {}: {}'.format(fieldname, str(e)))
+        restart = segment.data.pop('iterh5/restart', None)
+        if restart is None:
+            raise ValueError('restart data is not present')
+        
+        data, ref = restart
+        with open(os.path.join(path, ref), mode='wb') as f:
+            data = f.write(data)
 
+    except Exception as e:
+        log.warning('could not write any data for {}: {}'.format(str(segment), str(e)))
 
 class ExecutablePropagator(WESTPropagator):
     ENV_CURRENT_ITER = 'WEST_CURRENT_ITER'
@@ -116,11 +157,6 @@ class ExecutablePropagator(WESTPropagator):
 
     # Environment variables for progress coordinate calculation
     ENV_STRUCT_DATA_REF = 'WEST_STRUCT_DATA_REF'
-
-    # Set everywhere a progress coordinate is required
-    ENV_PCOORD_RETURN = 'WEST_PCOORD_RETURN'
-    ENV_TOPOLOGY_RETURN = 'WEST_TOPOLOGY_RETURN'
-    ENV_TRAJECTORY_RETURN = 'WEST_TRAJECTORY_RETURN'
 
     ENV_RAND16 = 'WEST_RAND16'
     ENV_RAND32 = 'WEST_RAND32'
@@ -212,6 +248,11 @@ class ExecutablePropagator(WESTPropagator):
                                         'enabled': store_h5, 
                                         'filename': None,
                                         'dir': True}
+        self.data_info['restart'] = {'name': 'restart', 
+                                     'loader': restart_loader, 
+                                     'enabled': store_h5, 
+                                     'filename': None,
+                                     'dir': True}
 
         dataset_configs = config.get(['west', 'executable', 'datasets']) or []
         for dsinfo in dataset_configs:
@@ -399,6 +440,8 @@ class ExecutablePropagator(WESTPropagator):
         self.update_args_env_iter(template_args, environ, segment.n_iter)
         self.update_args_env_segment(template_args, environ, segment)
         environ.update(addtl_env or {})
+        self.prepare_file_system(segment, environ)
+        child_info['cwd'] = environ[self.ENV_CURRENT_SEG_DATA_REF]
         return self.exec_child_from_child_info(child_info, template_args, environ)
 
     def exec_for_iteration(self, child_info, n_iter, addtl_env=None):
@@ -424,6 +467,17 @@ class ExecutablePropagator(WESTPropagator):
         self.update_args_env_initial_state(template_args, environ, initial_state)
         environ.update(addtl_env or {})
         return self.exec_child_from_child_info(child_info, template_args, environ)
+    
+    def prepare_file_system(self, segment, environ):
+        try:
+            # If the filesystem is properly clean.
+            os.makedirs(environ[self.ENV_CURRENT_SEG_DATA_REF])
+        except:
+            # If the filesystem is NOT properly clean.
+            shutil.rmtree(environ[self.ENV_CURRENT_SEG_DATA_REF])
+            os.makedirs(environ[self.ENV_CURRENT_SEG_DATA_REF])
+        if self.data_info['restart']['enabled']:
+            restart_writer(environ[self.ENV_CURRENT_SEG_DATA_REF], segment=segment)
 
     def setup_dataset_return(self, subset_keys=None):
         if subset_keys is None:
@@ -505,7 +559,7 @@ class ExecutablePropagator(WESTPropagator):
             raise TypeError('state must be a BasisState or InitialState')
 
         child_info = self.exe_info.get('get_pcoord')
-        addtl_env, return_files, del_return_files = self.setup_dataset_return(['pcoord', 'topology', 'trajectory'])
+        addtl_env, return_files, del_return_files = self.setup_dataset_return(['pcoord', 'topology', 'trajectory', 'restart'])
         addtl_env[self.ENV_STRUCT_DATA_REF] = struct_ref
 
         rc, rusage = execfn(child_info, state, addtl_env)

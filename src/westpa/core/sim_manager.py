@@ -404,6 +404,9 @@ class WESimManager:
         if completed_segments:
             self.we_driver.assign(list(completed_segments.values()))
 
+        # load restart data
+        self.data_manager.prepare_segment_restarts(incomplete_segments.values(), self.current_iter_bstates, self.current_iter_istates)
+
         # Get the basis states and initial states for the next iteration, necessary for doing on-the-fly recycling
         self.next_iter_bstates = self.data_manager.get_basis_states(self.n_iter + 1)
         self.next_iter_bstate_cprobs = np.add.accumulate([bstate.probability for bstate in self.next_iter_bstates])
@@ -423,8 +426,6 @@ class WESimManager:
     def finalize_iteration(self):
         '''Clean up after an iteration and prepare for the next.'''
         log.debug('finalizing iteration {:d}'.format(self.n_iter))
-
-        self.data_manager.update_iter_h5file(self.n_iter, self.segments.values())
 
         self.invoke_callbacks(self.finalize_iteration)
 

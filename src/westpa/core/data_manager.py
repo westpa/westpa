@@ -60,7 +60,7 @@ import westpa
 
 log = logging.getLogger(__name__)
 
-file_format_version = 7
+file_format_version = 8
 
 makepath = ExecutablePropagator.makepath
 
@@ -541,8 +541,8 @@ class WESTDataManager:
                                     weight=state.probability,
                                     wtg_parent_ids=None,
                                     pcoord=state.pcoord,
-                                    status=Segment.SEG_STATUS_UNSET)
-            dummy_segment.get_traj_from(state)
+                                    status=Segment.SEG_STATUS_UNSET,
+                                    data=state.data)
             segments.append(dummy_segment)
 
         # # link the iteration file in west.h5
@@ -563,31 +563,12 @@ class WESTDataManager:
 
         with h5io.WESTIterationFile(iter_ref_h5_file, 'a') as outf:
             for segment in segments:
-                # we may consider logging warnings instead throwing errors for later. 
-                # right now this is good for debugging purposes
-                if segment.trajectory is None:
-                    raise ValueError('no trajectory data present for %s'%repr(segment))
-                
-                wtraj = WESTTrajectory(segment.trajectory, iter_labels=n_iter, seg_labels=segment.seg_id)
-                if wtraj.n_frames == 0:
-                    raise ValueError('no trajectory data present for %s'%repr(segment))
-
-                if n_iter == 0:
-                    base_time = 0
-                else:
-                    iter_duration = wtraj.time[-1] - wtraj.time[0]
-                    base_time = iter_duration * (n_iter - 1)
-
-                wtraj.time -= wtraj.time[0]
-                wtraj.time += base_time
-                outf.write_data(wtraj)
+                outf.write_segment(segment, True)
         
         iter_group = self.get_iter_group(n_iter)
 
-        if 'trajectories' in iter_group:
-            del iter_group['trajectories']
-
-        iter_group['trajectories'] = h5py.ExternalLink(iter_ref_h5_file, '/')
+        if 'trajectories' not in iter_group:
+            iter_group['trajectories'] = h5py.ExternalLink(iter_ref_h5_file, '/')
 
 
     def get_basis_states(self, n_iter=None):
@@ -991,6 +972,8 @@ class WESTDataManager:
             for segment in segments:
                 if segment.data:
                     for dsname in segment.data:
+                        if dsname.startswith('iterh5/'):
+                            continue
                         data = np.asarray(segment.data[dsname], order='C')
                         segment.data[dsname] = data
                         dsets[dsname] = (data.shape, data.dtype)
@@ -1025,6 +1008,8 @@ class WESTDataManager:
                             dset.id.write(source_sel, dest_sel, auxdataset)
                     if 'delram' in list(dsopts.keys()):
                         del dsets[dsname]
+
+            self.update_iter_h5file(n_iter, segments)
 
     def get_segments(self, n_iter=None, seg_ids=None, load_pcoords=True):
         '''Return the given (or all) segments from a given iteration.
@@ -1101,6 +1086,31 @@ class WESTDataManager:
                         segment.data[dsname] = ds[seg_id]
 
         return segments
+
+    def prepare_segment_restarts(self, segments, basis_states=None, initial_states=None):
+        if not self.store_h5:
+            return
+
+        for segment in segments:
+            if segment.parent_id < 0:
+                if initial_states is None or basis_states is None:
+                    raise ValueError('initial and basis states required for preparing the segments')
+                initial_state = initial_states[segment.initial_state_id]
+                basis_state = basis_states[initial_state.basis_state_id]
+                parent = Segment(n_iter=0, seg_id=basis_state.state_id)
+            else:
+                parent = Segment(n_iter=segment.n_iter-1, seg_id=segment.parent_id)
+
+            try:
+                parent_iter_ref_h5_file = makepath(self.iter_ref_h5_template, {'n_iter': parent.n_iter})
+
+                with h5io.WESTIterationFile(parent_iter_ref_h5_file, 'r') as outf:
+                    outf.read_restart(parent)
+
+                segment.data['iterh5/restart'] = parent.data['iterh5/restart']
+            except Exception as e:
+                print('could not prepare restart data for segment {}/{}: {}'.format(segment.n_iter, segment.seg_id, str(e)))    
+
 
     def get_all_parent_ids(self, n_iter):
         file_version = self.we_h5file_version

@@ -436,23 +436,32 @@ class WESTIterationFile(HDF5TrajectoryFile):
         elif mode == 'r':
             self._frame_index = 0
             self._needs_initialization = False
-        
-    def has_topology(self):
+
+    def _has_node(self, where, name):
         try:
-            _ = self._get_node('/', name='topology')[0]
+            self._get_node(where, name=name)
         except self.tables.NoSuchNodeError:
             return False
 
         return True
+
+    def has_topology(self):
+        return self._has_node('/', 'topology')
 
     def has_pointer(self):
-        try:
-            _ = self._get_node('/', name='pointer')[0]
-        except self.tables.NoSuchNodeError:
-            return False
+        return self._has_node('/', 'pointer')
 
-        return True
+    def has_restart(self, seg_id):
+        return self._has_node('/restart', str(seg_id))
     
+    def write_data(self, where, name, data):
+        node = self._get_node(where=where, name=name)
+        node.append(data)
+
+    def read_data(self, where, name):
+        node = self._get_node(where=where, name=name)
+        return node.read()
+
     def read_as_traj(self, n_frames=None, stride=None, atom_indices=None):
         if n_frames is None:
             n_frames = np.inf
@@ -470,37 +479,106 @@ class WESTIterationFile(HDF5TrajectoryFile):
         
         return WESTTrajectory(traj, iter_labels=iter_labels, seg_labels=seg_labels, pcoords=None)
 
-    def write_data(self, traj):
-        # pointers
-        if not self.has_pointer():
-            self._create_earray('/', name='pointer', atom=self.tables.Int16Atom(), shape=(0, 2))
-        
-        iter_idx = traj.iter_labels
-        seg_idx = traj.seg_labels
+    def read_restart(self, segment):
+        if self.has_restart(segment.seg_id):
+            data = self.read_data('/restart/%d'%segment.seg_id, 'data')
+            node = self._get_node('/restart', str(segment.seg_id))
 
-        pointers = np.stack((iter_idx, seg_idx)).T
+            if not 'ref' in node._v_attrs:
+                raise ValueError('restart reference missing for {}'.format(str(segment)))
 
-        node = self._get_node(where='/', name='pointer')
-        node.append(pointers)
+            ref = node._v_attrs['ref']
+            segment.data['iterh5/restart'] = (data, ref)
+        else:
+            raise ValueError('no restart data available for {}'.format(str(segment)))
 
-        # trajectory
-        self.write(coordinates=in_units_of(traj.xyz, Trajectory._distance_unit, self.distance_unit),
-                   time=traj.time,
-                   cell_lengths=in_units_of(traj.unitcell_lengths, Trajectory._distance_unit, self.distance_unit),
-                   cell_angles=traj.unitcell_angles)
+    def write_segment(self, segment, pop=False):
+        n_iter = segment.n_iter
 
-        # topology
-        if self.mode == 'a':
-            if not self.has_topology():
+        self.root._v_attrs['n_iter'] = n_iter
+
+        if pop:
+            get_data = segment.data.pop
+        else:
+            get_data = segment.data.get
+
+        traj = get_data('iterh5/trajectory', None)
+        restart = get_data('iterh5/restart', None)
+
+        if traj is not None:
+            # create trajectory object
+            traj = WESTTrajectory(traj, iter_labels=n_iter, seg_labels=segment.seg_id)
+            if traj.n_frames == 0:
+                # we may consider logging warnings instead throwing errors for later. 
+                # right now this is good for debugging purposes
+                raise ValueError('no trajectory data present for %s'%repr(segment))
+
+            if n_iter == 0:
+                base_time = 0
+            else:
+                iter_duration = traj.time[-1] - traj.time[0]
+                base_time = iter_duration * (n_iter - 1)
+
+            traj.time -= traj.time[0]
+            traj.time += base_time
+
+            # pointers
+            if not self.has_pointer():
+                self._create_earray('/', name='pointer', atom=self.tables.Int16Atom(), shape=(0, 2))
+            
+            iter_idx = traj.iter_labels
+            seg_idx = traj.seg_labels
+
+            pointers = np.stack((iter_idx, seg_idx)).T
+
+            self.write_data('/', 'pointer', pointers)
+
+            # trajectory
+            self.write(coordinates=in_units_of(traj.xyz, Trajectory._distance_unit, self.distance_unit),
+                    time=traj.time,
+                    cell_lengths=in_units_of(traj.unitcell_lengths, Trajectory._distance_unit, self.distance_unit),
+                    cell_angles=traj.unitcell_angles)
+
+            # topology
+            if self.mode == 'a':
+                if not self.has_topology():
+                    self.topology = traj.topology
+            elif self.mode == 'w':
                 self.topology = traj.topology
-        elif self.mode == 'w':
-            self.topology = traj.topology
+
+        # restart
+        if restart is not None:
+            data, ref = restart
+            if self.has_restart(segment.seg_id):
+                self._remove_node('/restart', name=str(segment.seg_id))
+
+            self._create_array('/restart/%d'%segment.seg_id, 
+                               name='data', 
+                               atom=self.tables.StringAtom(itemsize=len(data)), 
+                               obj=data,
+                               createparents=True)
+
+            node = self._get_node('/restart', str(segment.seg_id))
+            node._v_attrs['ref'] = ref
+        
 
     @property
     def _create_group(self):
         if self.tables.__version__ >= '3.0.0':
             return self._handle.create_group
         return self._handle.createGroup
+
+    @property
+    def _create_array(self):
+        if self.tables.__version__ >= '3.0.0':
+            return self._handle.create_array
+        return self._handle.createArray
+
+    @property
+    def _remove_node(self):
+        if self.tables.__version__ >= '3.0.0':
+            return self._handle.remove_node
+        return self._handle.removeNode
 
 
 ### Generalized WE dataset access classes
