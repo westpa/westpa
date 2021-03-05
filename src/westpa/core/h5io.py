@@ -482,13 +482,7 @@ class WESTIterationFile(HDF5TrajectoryFile):
     def read_restart(self, segment):
         if self.has_restart(segment.seg_id):
             data = self.read_data('/restart/%d'%segment.seg_id, 'data')
-            node = self._get_node('/restart', str(segment.seg_id))
-
-            if not 'ref' in node._v_attrs:
-                raise ValueError('restart reference missing for {}'.format(str(segment)))
-
-            ref = node._v_attrs['ref']
-            segment.data['iterh5/restart'] = (data, ref)
+            segment.data['iterh5/restart'] = data
         else:
             raise ValueError('no restart data available for {}'.format(str(segment)))
 
@@ -504,6 +498,7 @@ class WESTIterationFile(HDF5TrajectoryFile):
 
         traj = get_data('iterh5/trajectory', None)
         restart = get_data('iterh5/restart', None)
+        slog = get_data('iterh5/log', None)
 
         if traj is not None:
             # create trajectory object
@@ -548,19 +543,25 @@ class WESTIterationFile(HDF5TrajectoryFile):
 
         # restart
         if restart is not None:
-            data, ref = restart
             if self.has_restart(segment.seg_id):
                 self._remove_node('/restart', name=str(segment.seg_id))
 
             self._create_array('/restart/%d'%segment.seg_id, 
                                name='data', 
-                               atom=self.tables.StringAtom(itemsize=len(data)), 
-                               obj=data,
+                               atom=self.tables.StringAtom(itemsize=len(restart)), 
+                               obj=restart,
+                               createparents=True)
+        
+        if slog is not None:
+            if self._has_node('/log', str(segment.seg_id)):
+                self._remove_node('/log', name=str(segment.seg_id))
+
+            self._create_array('/log/%d'%segment.seg_id, 
+                               name='data', 
+                               atom=self.tables.StringAtom(itemsize=len(slog)), 
+                               obj=slog,
                                createparents=True)
 
-            node = self._get_node('/restart', str(segment.seg_id))
-            node._v_attrs['ref'] = ref
-        
 
     @property
     def _create_group(self):

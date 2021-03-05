@@ -7,6 +7,8 @@ import subprocess
 import sys
 import tempfile
 import time
+import tarfile
+from io import BytesIO
 
 import numpy as np
 
@@ -17,12 +19,9 @@ from westpa.core.states import BasisState, InitialState
 from westpa.core.segment import Segment
 from westpa.core.yamlcfg import check_bool
 
-from mdtraj import load as load_traj, load_topology, FormatRegistry, formats as mdformats
-from mdtraj.core.trajectory import _TOPOLOGY_EXTS as TOPOLOGY_EXTS
+from westpa.core.trajectory import load_trajectory
 
 log = logging.getLogger(__name__)
-FormatRegistry.loaders['.rst'] = mdformats.amberrst.load_restrt
-FormatRegistry.fileobjects['.rst'] = mdformats.AmberRestartFile
 
 # Get a list of user-friendly signal names
 SIGNAL_NAMES = {getattr(signal, name): name for name in dir(signal) if name.startswith('SIG') and not name.startswith('SIG_')}
@@ -39,20 +38,6 @@ def get_first_file(dir):
         return filename
 
     raise ValueError('no valid file present in %s'%dir)
-
-def get_filenames_with_extensions(dir):
-    filenames = []
-    for filename in os.listdir(dir):
-        filepath = os.path.join(dir, filename)
-        if not '.' in filename:
-            continue
-        if not os.path.isfile(filepath):
-            continue
-
-        filenames.append(filename)
-
-    return filenames
-
 
 def pcoord_loader(fieldname, pcoord_return_filename, destobj, single_point):
     """Read progress coordinate data into the ``pcoord`` field on ``destobj``.
@@ -86,29 +71,13 @@ def aux_data_loader(fieldname, data_filename, segment, single_point):
     if data.nbytes == 0:
         raise ValueError('could not read any data for {}'.format(fieldname))
 
-
-def topology_loader(fieldname, top_folder, segment, single_point):
-    # We just need one and the only file from top_folder
-    # it needs to be this way because the filename, namly the extension, bears information that tell
-    # us which format it is in
-    try:
-        top_file = get_first_file(top_folder)
-        if top_file:
-            data = load_topology(os.path.join(top_folder, top_file))
-            segment.data['iterh5/topology'] = data
-    except Exception as e:
-        log.warning('could not read any data for {}: {}'.format(fieldname, str(e)))
-
 def trajectory_loader(fieldname, coord_folder, segment, single_point):
-    # We just need one and the only file from coord_folder
+    # We just need one and the only trajectory and topology file from coord_folder
     # it needs to be this way because the filename, namly the extension, bears information that tell
     # us which format it is in
     try:
-        traj_file = get_first_file(coord_folder)
-        if traj_file:
-            top = segment.data.pop('iterh5/topology', None)
-            data = load_traj(os.path.join(coord_folder, traj_file), top=top)
-            segment.data['iterh5/trajectory'] = data
+        data = load_trajectory(coord_folder)
+        segment.data['iterh5/trajectory'] = data
     except Exception as e:
         log.warning('could not read any data for {}: {}'.format(fieldname, str(e)))
 
@@ -116,12 +85,15 @@ def restart_loader(fieldname, restart_folder, segment, single_point):
     # We just need one and the only file from restart_folder
     # it needs to be this way because we will need the filename
     try:
-        restart_file = get_first_file(restart_folder)
-        with open(os.path.join(restart_folder, restart_file), mode='rb') as f:
-            data = f.read()
-        segment.data['iterh5/restart'] = (data, restart_file)
+        d = BytesIO()
+        with tarfile.open(mode='w:gz', fileobj=d) as t:
+            t.add(restart_folder, arcname='.')
+
+        segment.data['iterh5/restart'] = d.getvalue() + b'\x01' # add tail protection
     except Exception as e:
         log.warning('could not read any data for {}: {}'.format(fieldname, str(e)))
+    finally:
+        d.close()
 
 def restart_writer(path, segment):
     # coord_file here is actually a directory. We just need one and the only file from the directory
@@ -132,12 +104,28 @@ def restart_writer(path, segment):
         if restart is None:
             raise ValueError('restart data is not present')
         
-        data, ref = restart
-        with open(os.path.join(path, ref), mode='wb') as f:
-            data = f.write(data)
+        d = BytesIO(restart[:-1]) # remove tail protection
+        with tarfile.open(fileobj=d, mode='r:gz') as t:
+            t.extractall(path=path)
 
     except Exception as e:
-        log.warning('could not write any data for {}: {}'.format(str(segment), str(e)))
+        log.warning('could not write restart data for {}: {}'.format(str(segment), str(e)))
+    finally:
+        d.close()
+
+def seglog_loader(fieldname, log_folder, segment, single_point):
+    # We just need one and the only file from restart_folder
+    # it needs to be this way because we will need the filename
+    try:
+        d = BytesIO()
+        with tarfile.open(mode='w:gz', fileobj=d) as t:
+            t.add(log_folder, arcname='.')
+
+        segment.data['iterh5/log'] = d.getvalue() + b'\x01' # add tail protection
+    except Exception as e:
+        log.warning('could not read any data for {}: {}'.format(fieldname, str(e)))
+    finally:
+        d.close()
 
 class ExecutablePropagator(WESTPropagator):
     ENV_CURRENT_ITER = 'WEST_CURRENT_ITER'
@@ -238,11 +226,6 @@ class ExecutablePropagator(WESTPropagator):
                                     'enabled': True, 
                                     'filename': None,
                                     'dir': False}
-        self.data_info['topology'] = {'name': 'topology', 
-                                      'loader': topology_loader, 
-                                      'enabled': store_h5, 
-                                      'filename': None,
-                                      'dir': True}
         self.data_info['trajectory'] = {'name': 'trajectory', 
                                         'loader': trajectory_loader, 
                                         'enabled': store_h5, 
@@ -253,6 +236,11 @@ class ExecutablePropagator(WESTPropagator):
                                      'enabled': store_h5, 
                                      'filename': None,
                                      'dir': True}
+        self.data_info['log'] = {'name': 'seglog', 
+                                 'loader': seglog_loader, 
+                                 'enabled': store_h5, 
+                                 'filename': None,
+                                 'dir': True}
 
         dataset_configs = config.get(['west', 'executable', 'datasets']) or []
         for dsinfo in dataset_configs:
@@ -559,7 +547,7 @@ class ExecutablePropagator(WESTPropagator):
             raise TypeError('state must be a BasisState or InitialState')
 
         child_info = self.exe_info.get('get_pcoord')
-        addtl_env, return_files, del_return_files = self.setup_dataset_return(['pcoord', 'topology', 'trajectory', 'restart'])
+        addtl_env, return_files, del_return_files = self.setup_dataset_return(['pcoord', 'trajectory', 'restart', 'log'])
         addtl_env[self.ENV_STRUCT_DATA_REF] = struct_ref
 
         rc, rusage = execfn(child_info, state, addtl_env)

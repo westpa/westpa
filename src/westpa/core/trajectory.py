@@ -1,5 +1,14 @@
-from mdtraj import Trajectory
 import numpy as np
+import os
+
+from mdtraj import Trajectory, load as load_traj, load_topology, FormatRegistry, formats as mdformats
+from mdtraj.core.trajectory import _TOPOLOGY_EXTS as TOPOLOGY_EXTS, _get_extension as get_extension
+
+FormatRegistry.loaders['.rst'] = mdformats.amberrst.load_restrt
+FormatRegistry.fileobjects['.rst'] = mdformats.AmberRestartFile
+
+TRAJECTORY_EXTS = FormatRegistry.loaders.keys()
+
 
 class WESTTrajectory(Trajectory):
     
@@ -240,3 +249,30 @@ class WESTTrajectory(Trajectory):
 
         return traj
 
+def load_trajectory(folder):
+    traj_file = top_file = None
+    for filename in os.listdir(folder):
+        filepath = os.path.join(folder, filename)
+        if not os.path.isfile(filepath):
+            continue
+
+        ext = get_extension(filename).lower()
+        if ext in TOPOLOGY_EXTS and top_file is None:
+            top_file = filename
+        elif ext in TRAJECTORY_EXTS and traj_file is None:
+            traj_file = filename
+
+        if top_file is not None and traj_file is not None:
+            break
+    
+    if top_file is None:
+        raise ValueError('topology file not found')
+
+    if traj_file is None:
+        raise ValueError('trajectory file not found')
+
+    traj_file = os.path.join(folder, traj_file)
+    top_file = os.path.join(folder, top_file)
+
+    traj = load_traj(traj_file, top=top_file)
+    return traj
