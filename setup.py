@@ -1,6 +1,6 @@
 import sys
 
-from setuptools import setup, Extension, find_packages, dist
+from setuptools import setup, Extension, find_packages
 
 import versioneer
 
