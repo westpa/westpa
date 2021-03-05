@@ -146,8 +146,5 @@ metadata = dict(
 
 
 if __name__ == '__main__':
-    dist.Distribution().fetch_build_eggs(
-        ['Cython', 'numpy>=1.16', 'scipy>=0.19.1']
-    )  # workaround to install cython,numpy,scipy before setup
     metadata['ext_modules'] = extensions()
     setup(**metadata)
