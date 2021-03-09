@@ -85,7 +85,6 @@ def get_bin_mapper(we_h5file, hashval):
                     pkldat = bytes(pkl[istart + i, 0 : chunk[i]['pickle_len']].data)
                     mapper = pickle.loads(pkldat)
                     log.debug('loaded {!r} from {!r}'.format(mapper, binning_group))
-                    print('here')
                     log.debug('hash value {!r}'.format(hashval))
                     return mapper
 
