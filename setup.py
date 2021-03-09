@@ -91,6 +91,7 @@ console_scripts_tools = [
     'w_postanalysis_reweight = westpa.cli.tools.w_postanalysis_reweight:entry_point',
     'ploterr = westpa.cli.tools.ploterr:entry_point',
     'plothist = westpa.cli.tools.plothist:entry_point',
+    'w_multi_west = westpa.cli.tools.w_multi_west:entry_point',
 ]
 
 console_scripts = console_scripts_core + console_scripts_tools
