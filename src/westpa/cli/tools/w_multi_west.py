@@ -185,7 +185,7 @@ Command-line options
                 d = {'west': west, 'wm': None, 'rt': None, 'remove_next_cycle': [], 'seg_index': None}
                 # We're getting the bin mapper, then setting the recycling target...
                 binhash = west['iterations/iter_{0:08d}'.format(2)].attrs['binhash']
-                print(binhash)
+                # print(binhash)
                 bin_mapper = get_bin_mapper(west, bytes(binhash, 'utf-8'))
                 try:
                     d['rt'] = bin_mapper.assign(west['tstates']['0']['pcoord'][...])[0]
