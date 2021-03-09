@@ -173,7 +173,7 @@ Command-line arguments
             for iiter, n_iter in enumerate(range(iter_start, iter_stop)):
                 assignments = np.require(
                     assignments_ds[h5io.get_iteration_entry(assignments_ds, n_iter) + np.index_exp[:, timepoint]],
-                    dtype=westpa.binning.index_dtype,
+                    dtype=westpa.core.binning.index_dtype,
                 )
                 all_weights = self.data_reader.get_iter_group(n_iter)['seg_index']['weight']
 
