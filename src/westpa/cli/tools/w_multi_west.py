@@ -20,12 +20,8 @@ import numpy as np
 import pickle
 
 log = logging.getLogger(__name__)
-import westpa
-import westpa.core.binning
 from westpa.tools.core import WESTTool
-from westpa.core.data_manager import n_iter_dtype, weight_dtype
-from westpa.core.extloader import get_object
-from westpa.tools.core import WESTToolComponent
+from westpa.core.data_manager import n_iter_dtype
 from westpa.tools.progress import ProgressIndicatorComponent
 from westpa.core import h5io
 from westpa.tools.core import WESTMultiTool
@@ -87,9 +83,9 @@ def get_bin_mapper(we_h5file, hashval):
             for i in range(len(chunk)):
                 if chunk[i]['hash'] == hashval:
                     pkldat = bytes(pkl[istart + i, 0 : chunk[i]['pickle_len']].data)
-                    mapper = pickle.loads(pkldat) 
+                    mapper = pickle.loads(pkldat)
                     log.debug('loaded {!r} from {!r}'.format(mapper, binning_group))
-                    print('here') 
+                    print('here')
                     log.debug('hash value {!r}'.format(hashval))
                     return mapper
 
@@ -135,7 +131,7 @@ Command-line options
         opened_files = self.generate_file_list([self.west])
         self.westH5 = opened_files[self.west]
         # Just some temp things while I clean everything up...
-        west_files = self.westH5
+        # west_files = self.westH5
         # Determine max iteration ...
 
         # We can't really use the old method anymore, as we need to calculate rates in the bootstrap.
@@ -240,7 +236,7 @@ Command-line options
                 # for key,value in self.n_sims.items():
                 #    self.segments[key] = int(np.floor(len(self.past_iter[key]) / value))
 
-                run_once = 0
+                # run_once = 0
                 # total_current_sims = 0
                 # for i in self.source_sinks:
                 #    total_current_sims += len(self.past_iter[i])
@@ -272,7 +268,7 @@ Command-line options
                         # print(mpco.shape, pcoord.shape, ifile)
                         # print(mwtg.shape, wtgraph.shape, ifile)
                         if iter != 1:
-                            addition = prev_start_point[ifile]
+                            addition = prev_start_point[ifile]  # noqa: F821
                         else:
                             addition = mseg.shape[0]
                         seg_index['parent_id'][np.where(seg_index['parent_id'] >= 0)] += addition
@@ -289,7 +285,7 @@ Command-line options
                 # Make a real copy to use in the next iteration.
                 # self.past_iter = self.futr_iter.copy()
                 # self.past_rm[i] = self.futr_rm.copy()
-                prev_start_point = start_point
+                prev_start_point = start_point  # noqa: F841
                 start_point = []
                 # This is... maybe wrong, actually?  Or at least, it's not ALL that is required for normalizing things.
                 # We need to weight everything by 1/N, then just normalize if that normalization was wrong.  Keep the relative weights sane.
@@ -320,7 +316,7 @@ Command-line options
                 pi.progress += 1
 
         pi.new_operation('Writing to file...')
-        ds_rate_evol = self.output_file.create_dataset('summary', data=summary, shuffle=True, compression=9)
+        ds_rate_evol = self.output_file.create_dataset('summary', data=summary, shuffle=True, compression=9)  # noqa: F841
         self.output_file.attrs['west_current_iteration'] = self.niters
         self.output_file.attrs['west_file_format_version'] = 7
         self.output_file.attrs['west_iter_prec'] = 8
