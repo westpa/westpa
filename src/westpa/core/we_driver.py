@@ -118,7 +118,7 @@ class WEDriver:
 
         # Make property for grouping function.
         # KFW self.group_function = None
-        self.group_function = self._group_walkers_identity()
+        self.group_function = _group_walkers_identity()
         self.group_function_kwargs = {}
 
         self.process_config()
