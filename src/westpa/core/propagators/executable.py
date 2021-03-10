@@ -26,19 +26,6 @@ log = logging.getLogger(__name__)
 # Get a list of user-friendly signal names
 SIGNAL_NAMES = {getattr(signal, name): name for name in dir(signal) if name.startswith('SIG') and not name.startswith('SIG_')}
 
-
-def get_first_file(dir):
-    for filename in os.listdir(dir):
-        filepath = os.path.join(dir, filename)
-        if not '.' in filename:
-            continue
-        if not os.path.isfile(filepath):
-            continue
-
-        return filename
-
-    raise ValueError('no valid file present in %s'%dir)
-
 def pcoord_loader(fieldname, pcoord_return_filename, destobj, single_point):
     """Read progress coordinate data into the ``pcoord`` field on ``destobj``.
     An exception will be raised if the data is malformed.  If ``single_point`` is true,
