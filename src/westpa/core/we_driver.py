@@ -109,6 +109,8 @@ class WEDriver:
 
         self.process_config()
 
+        # Kim Wong was here.
+
     def process_config(self):
         config = self.rc.config
 
