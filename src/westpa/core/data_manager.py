@@ -239,7 +239,7 @@ class WESTDataManager:
         self.aux_compression_threshold = config.get(
             ['west', 'data', 'aux_compression_threshold'], self.default_aux_compression_threshold
         )
-        self.flush_period = config.get(['west', 'data', 'flush_period'], self.default_flush_period)        
+        self.flush_period = config.get(['west', 'data', 'flush_period'], self.default_flush_period)
         self.iter_ref_h5_template = config.get(['west', 'data', 'data_refs', 'iteration'], None)
         self.store_h5 = self.iter_ref_h5_template is not None
 
@@ -532,12 +532,12 @@ class WESTDataManager:
     def create_ibstate_iter_h5file(self, basis_states):
         if not self.store_h5:
             return
-        
+
         segments = []
         for i, state in enumerate(basis_states):
             dummy_segment = Segment(n_iter=0,
                                     seg_id=state.state_id,
-                                    parent_id=-(state.state_id+1),
+                                    parent_id=-(state.state_id + 1),
                                     weight=state.probability,
                                     wtg_parent_ids=None,
                                     pcoord=state.pcoord,
@@ -548,28 +548,21 @@ class WESTDataManager:
         # # link the iteration file in west.h5
         self.prepare_iteration(0, segments)
         self.update_iter_h5file(0, segments)
-    
+
     def update_iter_h5file(self, n_iter, segments):
         if not self.store_h5:
             return
-        
-        n_frames_per_iter = self.system.pcoord_len - 1
-        if n_iter == 0:
-            base_time = 0
-        else:
-            base_time = n_frames_per_iter * (n_iter - 1) + 1
 
         iter_ref_h5_file = makepath(self.iter_ref_h5_template, {'n_iter': n_iter})
 
         with h5io.WESTIterationFile(iter_ref_h5_file, 'a') as outf:
             for segment in segments:
                 outf.write_segment(segment, True)
-        
+
         iter_group = self.get_iter_group(n_iter)
 
         if 'trajectories' not in iter_group:
             iter_group['trajectories'] = h5py.ExternalLink(iter_ref_h5_file, '/')
-
 
     def get_basis_states(self, n_iter=None):
         '''Return a list of BasisState objects representing the basis states that are in use for iteration n_iter.'''
@@ -1099,7 +1092,7 @@ class WESTDataManager:
                 basis_state = basis_states[initial_state.basis_state_id]
                 parent = Segment(n_iter=0, seg_id=basis_state.state_id)
             else:
-                parent = Segment(n_iter=segment.n_iter-1, seg_id=segment.parent_id)
+                parent = Segment(n_iter=segment.n_iter - 1, seg_id=segment.parent_id)
 
             try:
                 parent_iter_ref_h5_file = makepath(self.iter_ref_h5_template, {'n_iter': parent.n_iter})
@@ -1109,8 +1102,7 @@ class WESTDataManager:
 
                 segment.data['iterh5/restart'] = parent.data['iterh5/restart']
             except Exception as e:
-                print('could not prepare restart data for segment {}/{}: {}'.format(segment.n_iter, segment.seg_id, str(e)))    
-
+                print('could not prepare restart data for segment {}/{}: {}'.format(segment.n_iter, segment.seg_id, str(e)))
 
     def get_all_parent_ids(self, n_iter):
         file_version = self.we_h5file_version

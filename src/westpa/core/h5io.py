@@ -159,6 +159,7 @@ def get_creator_data(h5group):
         d[attr] = attrs.get(attr)
     return d
 
+
 def load_west(filename):
     """Load WESTPA trajectory files from disk.
 
@@ -173,7 +174,7 @@ def load_west(filename):
         iter_prec = f.attrs['west_iter_prec']
         trajectories = []
         n = 0
-        
+
         iter_group_name = iter_group_template.format(iter_prec, n)
         for iter_group_name in f['iterations']:
             iter_group = f['iterations/' + iter_group_name]
@@ -187,7 +188,7 @@ def load_west(filename):
             pcoord3d = iter_group['pcoord'][:]
             if pcoord3d.ndim != 3:
                 continue
-            
+
             # ignore the first frame of each segment
             pcoord3d = pcoord3d[:, 1:, :]
             pcoords = np.concatenate(pcoord3d, axis=0)
@@ -210,6 +211,7 @@ def load_west(filename):
     west_traj = join_traj(trajectories)
 
     return west_traj
+
 
 ###
 # Iteration range metadata
@@ -407,14 +409,14 @@ class WESTIterationFile(HDF5TrajectoryFile):
             try:
                 self._init_from_handle(file)
             except AttributeError:
-                raise ValueError('unknown input type: %s'%str(type(file)))
-    
+                raise ValueError('unknown input type: %s' % str(type(file)))
+
     def _init_from_handle(self, handle):
         self._handle = handle
         self._open = handle.isopen != 0
         self.mode = mode = handle.mode  # the mode in which the file was opened?
 
-        if not mode in ['r', 'w', 'a']:
+        if mode not in ['r', 'w', 'a']:
             raise ValueError("mode must be one of ['r', 'w', 'a']")
 
         # import tables
@@ -453,7 +455,7 @@ class WESTIterationFile(HDF5TrajectoryFile):
 
     def has_restart(self, seg_id):
         return self._has_node('/restart', str(seg_id))
-    
+
     def write_data(self, where, name, data):
         node = self._get_node(where=where, name=name)
         node.append(data)
@@ -476,12 +478,12 @@ class WESTIterationFile(HDF5TrajectoryFile):
         iter_labels = pnode[frame_slice, 0]
         seg_labels = pnode[frame_slice, 1]
         traj = super(WESTIterationFile, self).read_as_traj(n_frames, stride, atom_indices)
-        
+
         return WESTTrajectory(traj, iter_labels=iter_labels, seg_labels=seg_labels, pcoords=None)
 
     def read_restart(self, segment):
         if self.has_restart(segment.seg_id):
-            data = self.read_data('/restart/%d'%segment.seg_id, 'data')
+            data = self.read_data('/restart/%d' % segment.seg_id, 'data')
             segment.data['iterh5/restart'] = data
         else:
             raise ValueError('no restart data available for {}'.format(str(segment)))
@@ -504,9 +506,9 @@ class WESTIterationFile(HDF5TrajectoryFile):
             # create trajectory object
             traj = WESTTrajectory(traj, iter_labels=n_iter, seg_labels=segment.seg_id)
             if traj.n_frames == 0:
-                # we may consider logging warnings instead throwing errors for later. 
+                # we may consider logging warnings instead throwing errors for later.
                 # right now this is good for debugging purposes
-                raise ValueError('no trajectory data present for %s'%repr(segment))
+                raise ValueError('no trajectory data present for %s' % repr(segment))
 
             if n_iter == 0:
                 base_time = 0
@@ -520,7 +522,7 @@ class WESTIterationFile(HDF5TrajectoryFile):
             # pointers
             if not self.has_pointer():
                 self._create_earray('/', name='pointer', atom=self.tables.Int16Atom(), shape=(0, 2))
-            
+
             iter_idx = traj.iter_labels
             seg_idx = traj.seg_labels
 
@@ -530,9 +532,9 @@ class WESTIterationFile(HDF5TrajectoryFile):
 
             # trajectory
             self.write(coordinates=in_units_of(traj.xyz, Trajectory._distance_unit, self.distance_unit),
-                    time=traj.time,
-                    cell_lengths=in_units_of(traj.unitcell_lengths, Trajectory._distance_unit, self.distance_unit),
-                    cell_angles=traj.unitcell_angles)
+                       time=traj.time,
+                       cell_lengths=in_units_of(traj.unitcell_lengths, Trajectory._distance_unit, self.distance_unit),
+                       cell_angles=traj.unitcell_angles)
 
             # topology
             if self.mode == 'a':
@@ -546,22 +548,21 @@ class WESTIterationFile(HDF5TrajectoryFile):
             if self.has_restart(segment.seg_id):
                 self._remove_node('/restart', name=str(segment.seg_id))
 
-            self._create_array('/restart/%d'%segment.seg_id, 
-                               name='data', 
-                               atom=self.tables.StringAtom(itemsize=len(restart)), 
+            self._create_array('/restart/%d' % segment.seg_id,
+                               name='data',
+                               atom=self.tables.StringAtom(itemsize=len(restart)),
                                obj=restart,
                                createparents=True)
-        
+
         if slog is not None:
             if self._has_node('/log', str(segment.seg_id)):
                 self._remove_node('/log', name=str(segment.seg_id))
 
-            self._create_array('/log/%d'%segment.seg_id, 
-                               name='data', 
-                               atom=self.tables.StringAtom(itemsize=len(slog)), 
+            self._create_array('/log/%d' % segment.seg_id,
+                               name='data',
+                               atom=self.tables.StringAtom(itemsize=len(slog)),
                                obj=slog,
                                createparents=True)
-
 
     @property
     def _create_group(self):
