@@ -117,7 +117,8 @@ class WEDriver:
         self.avail_initial_states = None
 
         # Make property for grouping function.
-        self.group_function = None
+        # KFW self.group_function = None
+        self.group_function = self._group_walkers_identity()
         self.group_function_kwargs = {}
 
         self.process_config()
