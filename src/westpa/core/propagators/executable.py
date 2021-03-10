@@ -26,6 +26,7 @@ log = logging.getLogger(__name__)
 # Get a list of user-friendly signal names
 SIGNAL_NAMES = {getattr(signal, name): name for name in dir(signal) if name.startswith('SIG') and not name.startswith('SIG_')}
 
+
 def pcoord_loader(fieldname, pcoord_return_filename, destobj, single_point):
     """Read progress coordinate data into the ``pcoord`` field on ``destobj``.
     An exception will be raised if the data is malformed.  If ``single_point`` is true,
@@ -58,6 +59,7 @@ def aux_data_loader(fieldname, data_filename, segment, single_point):
     if data.nbytes == 0:
         raise ValueError('could not read any data for {}'.format(fieldname))
 
+
 def trajectory_loader(fieldname, coord_folder, segment, single_point):
     # We just need one and the only trajectory and topology file from coord_folder
     # it needs to be this way because the filename, namly the extension, bears information that tell
@@ -68,6 +70,7 @@ def trajectory_loader(fieldname, coord_folder, segment, single_point):
     except Exception as e:
         log.warning('could not read any data for {}: {}'.format(fieldname, str(e)))
 
+
 def restart_loader(fieldname, restart_folder, segment, single_point):
     # We just need one and the only file from restart_folder
     # it needs to be this way because we will need the filename
@@ -76,11 +79,12 @@ def restart_loader(fieldname, restart_folder, segment, single_point):
         with tarfile.open(mode='w:gz', fileobj=d) as t:
             t.add(restart_folder, arcname='.')
 
-        segment.data['iterh5/restart'] = d.getvalue() + b'\x01' # add tail protection
+        segment.data['iterh5/restart'] = d.getvalue() + b'\x01'  # add tail protection
     except Exception as e:
         log.warning('could not read any data for {}: {}'.format(fieldname, str(e)))
     finally:
         d.close()
+
 
 def restart_writer(path, segment):
     # coord_file here is actually a directory. We just need one and the only file from the directory
@@ -90,8 +94,8 @@ def restart_writer(path, segment):
         restart = segment.data.pop('iterh5/restart', None)
         if restart is None:
             raise ValueError('restart data is not present')
-        
-        d = BytesIO(restart[:-1]) # remove tail protection
+
+        d = BytesIO(restart[:-1])  # remove tail protection
         with tarfile.open(fileobj=d, mode='r:gz') as t:
             t.extractall(path=path)
 
@@ -99,6 +103,7 @@ def restart_writer(path, segment):
         log.warning('could not write restart data for {}: {}'.format(str(segment), str(e)))
     finally:
         d.close()
+
 
 def seglog_loader(fieldname, log_folder, segment, single_point):
     # We just need one and the only file from restart_folder
@@ -108,11 +113,12 @@ def seglog_loader(fieldname, log_folder, segment, single_point):
         with tarfile.open(mode='w:gz', fileobj=d) as t:
             t.add(log_folder, arcname='.')
 
-        segment.data['iterh5/log'] = d.getvalue() + b'\x01' # add tail protection
+        segment.data['iterh5/log'] = d.getvalue() + b'\x01'  # add tail protection
     except Exception as e:
         log.warning('could not read any data for {}: {}'.format(fieldname, str(e)))
     finally:
         d.close()
+
 
 class ExecutablePropagator(WESTPropagator):
     ENV_CURRENT_ITER = 'WEST_CURRENT_ITER'
@@ -208,24 +214,24 @@ class ExecutablePropagator(WESTPropagator):
         log.debug('exe_info: {!r}'.format(self.exe_info))
 
         # Load configuration items relating to dataset input
-        self.data_info['pcoord'] = {'name': 'pcoord', 
-                                    'loader': pcoord_loader, 
-                                    'enabled': True, 
+        self.data_info['pcoord'] = {'name': 'pcoord',
+                                    'loader': pcoord_loader,
+                                    'enabled': True,
                                     'filename': None,
                                     'dir': False}
-        self.data_info['trajectory'] = {'name': 'trajectory', 
-                                        'loader': trajectory_loader, 
-                                        'enabled': store_h5, 
+        self.data_info['trajectory'] = {'name': 'trajectory',
+                                        'loader': trajectory_loader,
+                                        'enabled': store_h5,
                                         'filename': None,
                                         'dir': True}
-        self.data_info['restart'] = {'name': 'restart', 
-                                     'loader': restart_loader, 
-                                     'enabled': store_h5, 
+        self.data_info['restart'] = {'name': 'restart',
+                                     'loader': restart_loader,
+                                     'enabled': store_h5,
                                      'filename': None,
                                      'dir': True}
-        self.data_info['log'] = {'name': 'seglog', 
-                                 'loader': seglog_loader, 
-                                 'enabled': store_h5, 
+        self.data_info['log'] = {'name': 'seglog',
+                                 'loader': seglog_loader,
+                                 'enabled': store_h5,
                                  'filename': None,
                                  'dir': True}
 
@@ -442,7 +448,7 @@ class ExecutablePropagator(WESTPropagator):
         self.update_args_env_initial_state(template_args, environ, initial_state)
         environ.update(addtl_env or {})
         return self.exec_child_from_child_info(child_info, template_args, environ)
-    
+
     def prepare_file_system(self, segment, environ):
         try:
             # If the filesystem is properly clean.
@@ -463,7 +469,7 @@ class ExecutablePropagator(WESTPropagator):
         del_return_files = {}
 
         for dataset in self.data_info:
-            if not dataset in subset_keys:
+            if dataset not in subset_keys:
                 continue
 
             if not self.data_info[dataset].get('enabled', False):
@@ -484,12 +490,12 @@ class ExecutablePropagator(WESTPropagator):
                 del_return_files[dataset] = True
 
             addtl_env['WEST_{}_RETURN'.format(dataset.upper())] = return_files[dataset]
-        
+
         return addtl_env, return_files, del_return_files
 
     def retrieve_dataset_return(self, segment, return_files, del_return_files, single_point):
         for dataset in self.data_info:
-            if not dataset in return_files:
+            if dataset not in return_files:
                 continue
 
             # pcoord is always enabled (see __init__)
