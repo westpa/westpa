@@ -114,10 +114,11 @@ Command-line options
     def add_args(self, parser):
         self.progress.add_args(parser)
         iogroup = parser.add_argument_group('input/output options')
-        iogroup.add_argument('--output-file', default='multi.h5', help='''The name of the output file to store results in.''')
+        iogroup.add_argument('-o', '--output-file', default='multi.h5', help='''The name of the output file to store results in.''')
         iogroup.add_argument(
-            '-w',
+            '-W',
             '--west',
+            '--WEST_H5FILE',
             default='west.h5',
             help='''The name of the main .h5 file inside each simulation
                              directory''',
