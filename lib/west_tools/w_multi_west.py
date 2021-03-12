@@ -109,7 +109,7 @@ Command-line options
         iogroup = parser.add_argument_group('input/output options')
         iogroup.add_argument('--output-file', default='multi.h5',
                             help='''The name of the output file to store results in.''')
-        iogroup.add_argument('-w','--west', default='west.h5', 
+        iogroup.add_argument('-w','--west', '--WEST_H5FILE', default='west.h5', 
                             help='''The name of the main .h5 file inside each simulation
                              directory''')
 
