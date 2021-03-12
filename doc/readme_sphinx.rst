@@ -1,6 +1,6 @@
-===============
-WESTPA 1.0 beta
-===============
+==========
+WESTPA 2.0
+==========
 
 
 --------
@@ -19,8 +19,8 @@ Scalable Software Package For Weighted Ensemble Simulation and Analysis," J. Che
 To help us fund development and improve WESTPA please fill out a one-minute survey_ and consider 
 contributing documentation or code to the WESTPA community.
 
-WESTPA is free software, licensed under the terms of the GNU General Public
-License, Version 3. See the file ``COPYING`` for more information.
+WESTPA is free software, licensed under the terms of the MIT
+License. See the file ``LICENSE`` for more information.
 
 .. _survey: https://docs.google.com/forms/d/e/1FAIpQLSfWaB2aryInU06cXrCyAFmhD_gPibgOfFk-dspLEsXuS9-RGQ/viewform
 .. _overview: https://westpa.github.io/westpa/overview.html
@@ -31,7 +31,7 @@ Obtaining and Installing WESTPA
 
 WESTPA is developed and tested on Unix-like operating systems, including Linux and Mac OS X.
 
-Before installing WESTPA, you will need to first install the Python 2.7 version provided by the latest free `Anaconda Python distribution`_. After installing the Anaconda Python distribution, either add the Python executable to your $PATH or set the environment variable WEST_PYTHON::
+Before installing WESTPA, you will need to first install the Python 3 version provided by the latest free `Anaconda Python distribution`_. After installing the Anaconda Python distribution, either add the Python executable to your $PATH or set the environment variable WEST_PYTHON::
 
     export WEST_PYTHON=/opt/anaconda/bin/python3
 
@@ -73,8 +73,8 @@ FAQ
 
 Responses to frequently asked questions (FAQ) can be found in the following page: 
   
-- `Frequently Asked Questions (FAQ)`_
-  
+- `Frequently Asked Questions <https://github.com/westpa/westpa/wiki/Frequently-Asked-Questions>`__
+
 
 A mailing list for WESTPA is available, at which one can ask questions (or see
 if a question one has was previously addressed). This is the preferred means
