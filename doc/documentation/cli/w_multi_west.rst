@@ -1,5 +1,5 @@
-w_pdist
-=======
+w_multi_west
+============
 
 The ``w_multi_west`` tool combines multiple WESTPA simulations into a single aggregate simulation to facilitate the analysis of the set of simulations. In particular, the tool creates a single ``west.h5`` file that contains all of the data from the west.h5 files of the individual simulations. Each iteration x in the new file contains all of the segments from iteration x from each of the set of simulation, all normalized to the total weight.
 
