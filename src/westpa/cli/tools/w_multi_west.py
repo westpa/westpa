@@ -85,7 +85,6 @@ def get_bin_mapper(we_h5file, hashval):
                     pkldat = bytes(pkl[istart + i, 0 : chunk[i]['pickle_len']].data)
                     mapper = pickle.loads(pkldat)
                     log.debug('loaded {!r} from {!r}'.format(mapper, binning_group))
-                    print('here')
                     log.debug('hash value {!r}'.format(hashval))
                     return mapper
 
@@ -185,7 +184,7 @@ Command-line options
                 d = {'west': west, 'wm': None, 'rt': None, 'remove_next_cycle': [], 'seg_index': None}
                 # We're getting the bin mapper, then setting the recycling target...
                 binhash = west['iterations/iter_{0:08d}'.format(2)].attrs['binhash']
-                print(binhash)
+                # print(binhash)
                 bin_mapper = get_bin_mapper(west, bytes(binhash, 'utf-8'))
                 try:
                     d['rt'] = bin_mapper.assign(west['tstates']['0']['pcoord'][...])[0]
