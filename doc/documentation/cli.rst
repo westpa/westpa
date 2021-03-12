@@ -27,6 +27,7 @@ westpa.cli package
     w_states     <cli/w_states>
     w_eddist     <cli/w_eddist>
     w_ntop       <cli/w_ntop>
+    w_multi_west <cli/w_multi_west>
 
 .. toctree::
    :maxdepth: 1
