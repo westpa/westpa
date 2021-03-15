@@ -18,7 +18,7 @@ The data is laid out in HDF5 as follows:
             - pcoord -- progress coordinate data organized as [seg_id][time][dimension]
             - wtg_parents -- data used to reconstruct the split/merge history of trajectories
             - recycling -- flux and event count for recycled particles, on a per-target-state basis
-            - aux_data/ -- auxiliary datasets (data stored on the 'data' field of Segment objects)
+            - auxdata/ -- auxiliary datasets (data stored on the 'data' field of Segment objects)
 
 The file root object has an integer attribute 'west_file_format_version' which can be used to
 determine how to access data even as the file format (i.e. organization of data within HDF5 file)
