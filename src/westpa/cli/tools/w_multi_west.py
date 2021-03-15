@@ -157,7 +157,7 @@ Command-line options
                 self.total_walkers[:] += west['summary'][:-1]['n_particles']
             except (ValueError):
                 self.total_walkers[:] += west['summary'][:-1]['n_particles'][: len(self.total_walkers)]
-    
+
     class Segment:
         def __init__(self, weight=0, iteration=0, simid=0, recycled_in=0):
             self.weight = weight
@@ -171,7 +171,7 @@ Command-line options
             pi.new_operation('Initializing')
             self.open_files()
             self.total_number_of_walkers()
-            if self.auxall == True:
+            if self.auxall is True:
                 self.aux = list(self.westH5[1]['iterations/iter_00000001/auxdata'].keys())
             # Create a giant WEST.h5 file, separating the individual walkers, and renormalizing the weights.
             # It should then be compatible with existing toolsets.
