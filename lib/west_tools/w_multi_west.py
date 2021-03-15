@@ -112,7 +112,7 @@ Command-line options
         iogroup.add_argument('-w','--west', '--WEST_H5FILE', default='west.h5', 
                             help='''The name of the main .h5 file inside each simulation
                              directory''')
-        iogroup.add_argument('-a', '--aux', action='append', help='''Names of additional auxillary datasets to be combined''')
+        iogroup.add_argument('-a', '--aux', action='append', help='''Names of additional auxiliary datasets to be combined''')
 
 
     def open_files(self):
