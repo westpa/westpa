@@ -9,7 +9,7 @@ Overview
 usage::
 
  w_multi_west [-h] [-m master] [-n sims] [--quiet | --verbose | --debug] [--version] 
-              [-W WEST_H5FILE]
+              [-W WEST_H5FILE] [-a aux]
               [--serial | --parallel | --work-manager WORK_MANAGER] [--n-workers N_WORKERS]
               [--zmq-mode MODE] [--zmq-comm-mode COMM_MODE] [--zmq-write-host-info INFO_FILE]
               [--zmq-read-host-info INFO_FILE] [--zmq-upstream-rr-endpoint ENDPOINT]
@@ -27,6 +27,8 @@ General options::
                         Master path of simulations where all the smaller simulations are stored 
                         (default: Current Directory)
   -n, --sims n          Number of simulation directories. Assumes leading zeros. (default: 0)
+  -a, --aux auxdata     Name of additional auxiliary datasets to be combined. Can be called 
+                        multiple times. (default: None)
   --quiet               emit only essential information
   --verbose             emit extra information
   --version             show program's version number and exit
@@ -54,18 +56,23 @@ Both input and output files are *hdf5* format::
   -o, --output file
     Store this tool's output in file. (Default: multi.h5)
 
+  -a, --aux auxdata
+    Name of additional auxiliary dataset to be combined. Can be called multiple times. 
+    (Default: None)
+
 Examples
 --------
-If you have five simulations, and your directory is set up such that you 
+If you have five simulations, set up your directory such that you 
 have five directories are named numerically with leading zeroes, and each 
-directory contains a ``west.h5`` file. If you run ``ls``, you will see 
-the following output::
+directory contains a ``west.h5`` file. For this example, each ``west.h5`` 
+also contains an auxiliary dataset called ``RMSD``. If you run ``ls``, you 
+will see the following output::
 
   01 02 03 04 05 
 
 To run the w_multi_west tool, do the following::
 
-  w_multi_west.py -m . -n 5
+  w_multi_west.py -m . -n 5 --aux=RMSD
 
 If you used any custom WESTSystem, include that in the directory where you 
 run the code.
