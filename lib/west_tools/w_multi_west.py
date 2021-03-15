@@ -114,7 +114,6 @@ Command-line options
                              directory''')
         iogroup.add_argument('-a', '--aux', action='append', help='''Names of additional auxiliary datasets to be combined''')
 
-
     def open_files(self):
         self.output_file = h5io.WESTPAH5File(self.output_file, 'w', creating_program=True)
         h5io.stamp_creator_data(self.output_file)
@@ -284,7 +283,7 @@ Command-line options
                     ifile += 1
                     del seg_index, pcoord, wtgraph, westdict
                     if self.aux:
-                        del aux_data
+                        del auxdata
                 gc.collect()
                 # Make a real copy to use in the next iteration.
                 #self.past_iter = self.futr_iter.copy()
