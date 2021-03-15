@@ -123,8 +123,8 @@ Command-line options
             help='''The name of the main .h5 file inside each simulation
                              directory''',
         )
-        iogroup.add_argument('-a', '--aux', action='append', help='''Names of additional auxillary datasets to be combined''')
-        # iogroup.add_argument('--auxall', action='store_false', help='''Combine all auxillary datasets. Default: False''')
+        iogroup.add_argument('-a', '--aux', action='append', help='''Names of additional auxiliary datasets to be combined''')
+        # iogroup.add_argument('--auxall', action='store_false', help='''Combine all auxiliary datasets. Default: False''')
 
     def open_files(self):
         self.output_file = h5io.WESTPAH5File(self.output_file, 'w', creating_program=True)
