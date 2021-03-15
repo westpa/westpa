@@ -124,7 +124,7 @@ Command-line options
                              directory''',
         )
         iogroup.add_argument('-a', '--aux', action='append', help='''Names of additional auxiliary datasets to be combined''')
-        # iogroup.add_argument('--auxall', action='store_false', help='''Combine all auxiliary datasets. Default: False''')
+        iogroup.add_argument('-aa', '--auxall', action='store_true', help='''Combine all auxiliary datasets. Default: False''')
 
     def open_files(self):
         self.output_file = h5io.WESTPAH5File(self.output_file, 'w', creating_program=True)
@@ -147,7 +147,7 @@ Command-line options
         self.west = args.west
         self.sims = args.sims
         self.aux = args.aux
-        # if args.auxall == True:
+        self.auxall = args.auxall
 
     def total_number_of_walkers(self):
         self.total_walkers = [0] * self.niters
@@ -157,7 +157,7 @@ Command-line options
                 self.total_walkers[:] += west['summary'][:-1]['n_particles']
             except (ValueError):
                 self.total_walkers[:] += west['summary'][:-1]['n_particles'][: len(self.total_walkers)]
-
+    
     class Segment:
         def __init__(self, weight=0, iteration=0, simid=0, recycled_in=0):
             self.weight = weight
@@ -171,7 +171,8 @@ Command-line options
             pi.new_operation('Initializing')
             self.open_files()
             self.total_number_of_walkers()
-
+            if self.auxall == True:
+                self.aux = list(self.westH5[1]['iterations/iter_00000001/auxdata'].keys())
             # Create a giant WEST.h5 file, separating the individual walkers, and renormalizing the weights.
             # It should then be compatible with existing toolsets.
             # Isn't really going to start with auxdata, but we'll add it in.
