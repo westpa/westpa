@@ -9,7 +9,7 @@ Overview
 usage::
 
  w_multi_west [-h] [-m master] [-n sims] [--quiet | --verbose | --debug] [--version] 
-              [-W WEST_H5FILE] [-a aux]
+              [-W WEST_H5FILE] [-a aux] [--auxall]
               [--serial | --parallel | --work-manager WORK_MANAGER] [--n-workers N_WORKERS]
               [--zmq-mode MODE] [--zmq-comm-mode COMM_MODE] [--zmq-write-host-info INFO_FILE]
               [--zmq-read-host-info INFO_FILE] [--zmq-upstream-rr-endpoint ENDPOINT]
@@ -27,8 +27,6 @@ General options::
                         Master path of simulations where all the smaller simulations are stored 
                         (default: Current Directory)
   -n, --sims n          Number of simulation directories. Assumes leading zeros. (default: 0)
-  -a, --aux auxdata     Name of additional auxiliary datasets to be combined. Can be called 
-                        multiple times. (default: None)
   --quiet               emit only essential information
   --verbose             emit extra information
   --version             show program's version number and exit
@@ -51,7 +49,7 @@ distribution data.
 Both input and output files are *hdf5* format::
 
   -W, --west, --WEST_H5FILE file
-    The name of the main .h5 file inside each simulation directory. (Default: west.h5))
+    The name of the main .h5 file inside each simulation directory. (Default: west.h5)
 
   -o, --output file
     Store this tool's output in file. (Default: multi.h5)
@@ -59,6 +57,9 @@ Both input and output files are *hdf5* format::
   -a, --aux auxdata
     Name of additional auxiliary dataset to be combined. Can be called multiple times. 
     (Default: None)
+
+  -aa, --auxall
+    Combine all auxiliary datsets as labeled in ``west.h5`` in folder 01. (Default: False)
 
 Examples
 --------
