@@ -123,6 +123,8 @@ Command-line options
             help='''The name of the main .h5 file inside each simulation
                              directory''',
         )
+        iogroup.add_argument('-a', '--aux', action='append', help='''Names of additional auxillary datasets to be combined''')
+        # iogroup.add_argument('--auxall', action='store_false', help='''Combine all auxillary datasets. Default: False''')
 
     def open_files(self):
         self.output_file = h5io.WESTPAH5File(self.output_file, 'w', creating_program=True)
@@ -144,6 +146,8 @@ Command-line options
         self.output_file_name = args.output_file
         self.west = args.west
         self.sims = args.sims
+        self.aux = args.aux
+        # if args.auxall == True:
 
     def total_number_of_walkers(self):
         self.total_walkers = [0] * self.niters
@@ -185,7 +189,6 @@ Command-line options
                 d = {'west': west, 'wm': None, 'rt': None, 'remove_next_cycle': [], 'seg_index': None}
                 # We're getting the bin mapper, then setting the recycling target...
                 binhash = west['iterations/iter_{0:08d}'.format(2)].attrs['binhash']
-                # print(binhash)
                 bin_mapper = get_bin_mapper(west, bytes(binhash, 'utf-8'))
                 try:
                     d['rt'] = bin_mapper.assign(west['tstates']['0']['pcoord'][...])[0]
@@ -228,6 +231,7 @@ Command-line options
                 # seg_index
                 # wtgraph
                 # wtgraph is going to be a little more complex to handle, but not too bad.
+                # aux data specified
                 iter += 1
                 ifile = 0
                 # self.output_file = h5io.WESTPAH5File(self.output_file_name, 'w', creating_program=True)
@@ -246,6 +250,10 @@ Command-line options
                     seg_index = westdict['iterations/iter_{0:08d}'.format(iter)]['seg_index'][...]
                     pcoord = westdict['iterations/iter_{0:08d}'.format(iter)]['pcoord'][...]
                     wtgraph = westdict['iterations/iter_{0:08d}'.format(iter)]['wtgraph'][...]
+                    if self.aux:
+                        auxdata = {}
+                        for i in self.aux:
+                            auxdata[str(i)] = westdict['iterations/iter_{0:08d}'.format(iter)]['auxdata'][str(i)][...]
                     if iter == 1 and ifile == 0:
                         new_dtype = np.dtype(seg_index.dtype.descr + [('group', '<i8')])
                     new_seg_index = np.zeros(seg_index.shape, dtype=new_dtype)
@@ -259,6 +267,10 @@ Command-line options
                         mseg = seg_index
                         mpco = pcoord
                         mwtg = wtgraph
+                        if self.aux:
+                            maux = {}
+                            for i in self.aux:
+                                maux[str(i)] = auxdata[str(i)]
                         if iter == 1:
                             summary = westdict['summary'][...]
 
@@ -279,8 +291,13 @@ Command-line options
                         mseg = np.concatenate((mseg, seg_index))
                         mpco = np.concatenate((mpco, pcoord))
                         mwtg = np.concatenate((mwtg, wtgraph))
+                        if self.aux:
+                            for i in self.aux:
+                                maux[str(i)] = np.concatenate((maux[str(i)], auxdata[str(i)]))
                     ifile += 1
                     del seg_index, pcoord, wtgraph, westdict
+                    if self.aux:
+                        del auxdata
                 gc.collect()
                 # Make a real copy to use in the next iteration.
                 # self.past_iter = self.futr_iter.copy()
@@ -301,10 +318,16 @@ Command-line options
                 ds_rate_evol = curr_iter.create_dataset('wtgraph', data=mwtg, shuffle=True, compression=9)
                 ds_rate_evol = curr_iter.create_dataset('seg_index', data=mseg, shuffle=True, compression=9)
                 ds_rate_evol = curr_iter.create_dataset('pcoord', data=mpco, shuffle=True, compression=9)
+                if self.aux:
+                    aux_iter = self.output_file.create_group('iterations/iter_{0:08d}/auxdata'.format(iter))
+                    for i in self.aux:
+                        ds_rate_evol = aux_iter.create_dataset(str(i), data=maux[str(i)], shuffle=True, compression=9)
                 # We need to be careful about memory, here.  We are blowing uppppp.
                 # We're STILL blowing up.  Criiiiiipes.
                 # self.segments = {}
                 del mseg, mpco, mwtg, ds_rate_evol, curr_iter  # , self.segments
+                if self.aux:
+                    del maux, aux_iter
                 gc.collect()
                 self.output_file.flush()
                 # self.output_file.close()
