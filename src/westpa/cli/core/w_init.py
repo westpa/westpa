@@ -18,6 +18,7 @@ EPS = np.finfo(np.float64).eps
 
 
 def entry_point():
+
     parser = argparse.ArgumentParser(
         'w_init',
         description='''\
@@ -81,10 +82,34 @@ def entry_point():
         help='''Do not run the weighted ensemble bin/split/merge algorithm on newly-created segments.''',
     )
 
+    # TODO: Does this belong here or not? I like that it's parsing arguments, which is the purpose of entry_point.
+    #   I don't necessarily like that it's setting state across different parts of the program.
+
     work_managers.environment.add_wm_args(parser)
     args = parser.parse_args()
     westpa.rc.process_args(args)
     work_managers.environment.process_wm_args(args)
+
+    initialize(args.tstates, args.tstate_file, args.bstates, args.bstate_file, args.segs_per_state, args.shotgun)
+
+
+def initialize(tstates, tstate_file, bstates, bstate_file, segs_per_state, shotgun):
+    """
+    Initialize a WESTPA simulation.
+
+    tstates : list of str
+
+    tstate_file : str
+
+    bstates : list of str
+
+    bstate_file : str
+
+    segs_per_state : int
+
+    shotgun : bool
+    """
+
     westpa.rc.work_manager = work_manager = make_work_manager()
 
     system = westpa.rc.get_system_driver()
@@ -98,19 +123,19 @@ def entry_point():
         if work_manager.is_master:
             # Process target states
             target_states = []
-            if args.tstate_file:
-                target_states.extend(TargetState.states_from_file(args.tstate_file, system.pcoord_dtype))
-            if args.tstates:
-                tstates_strio = io.StringIO('\n'.join(args.tstates).replace(',', ' '))
+            if tstate_file:
+                target_states.extend(TargetState.states_from_file(tstate_file, system.pcoord_dtype))
+            if tstates:
+                tstates_strio = io.StringIO('\n'.join(tstates).replace(',', ' '))
                 target_states.extend(TargetState.states_from_file(tstates_strio, system.pcoord_dtype))
                 del tstates_strio
 
             # Process basis states
             basis_states = []
-            if args.bstate_file:
-                basis_states.extend(BasisState.states_from_file(args.bstate_file))
-            if args.bstates:
-                for bstate_str in args.bstates:
+            if bstate_file:
+                basis_states.extend(BasisState.states_from_file(bstate_file))
+            if bstates:
+                for bstate_str in bstates:
                     fields = bstate_str.split(',')
                     label = fields[0]
                     probability = float(fields[1])
@@ -133,9 +158,7 @@ def entry_point():
                     bstate.probability *= pscale
 
             # Prepare simulation
-            sim_manager.initialize_simulation(
-                basis_states, target_states, segs_per_state=args.segs_per_state, suppress_we=args.shotgun
-            )
+            sim_manager.initialize_simulation(basis_states, target_states, segs_per_state=segs_per_state, suppress_we=shotgun)
         else:
             work_manager.run()
 
