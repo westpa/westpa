@@ -2,19 +2,19 @@ from h5diff import H5Diff
 import westpa.cli.core.w_init
 
 
+# Placeholder class that will set all kwargs as attributes
+class MockArgs:
+    def __init__(self, **kwargs):
+        self.__dict__.update(kwargs)
+
+
 class Test_W_Init:
     def test_run_w_init(self, ref_cfg):
         '''Tests initialization of a WESTPA simulation system from a prebuilt .cfg'''
         # This test is named in such a way so it always runs before test_w_assign.py. It will fail otherwise.
 
         # The argument processing is just looking for an object with these attributes
-        class TestArgs:
-            def __init__(self, force, rcfile, verbosity):
-                self.force = force
-                self.rcfile = rcfile
-                self.verbosity = verbosity
-
-        args = TestArgs(force=True, rcfile=self.cfg_filepath, verbosity='verbose')
+        args = MockArgs(force=True, rcfile=self.cfg_filepath, verbosity='verbose')
 
         westpa.rc.process_args(args)
 
