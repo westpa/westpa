@@ -25,6 +25,12 @@ def entry_point():
     args = parser.parse_args()
     westpa.rc.process_args(args)
     work_managers.environment.process_wm_args(args)
+
+    run_simulation()
+
+
+def run_simulation():
+
     work_manager = westpa.rc.work_manager = make_work_manager()
 
     # Load the sim manager and other drivers
