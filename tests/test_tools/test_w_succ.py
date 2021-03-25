@@ -1,9 +1,8 @@
 import os
 import filecmp
-import argparse
-
-from westpa.cli.core.w_succ import entry_point
-from unittest import mock
+from westpa.cli.core.w_succ import WSucc
+import westpa
+from common import MockArgs
 
 
 class Test_W_Succ:
@@ -14,17 +13,21 @@ class Test_W_Succ:
     def test_run_w_succ(self, ref_50iter):
         temp_w_succ_output_file = open('w_succ_temp.txt', 'w')
 
-        with mock.patch(
-            target='argparse.ArgumentParser.parse_args',
-            return_value=argparse.Namespace(
-                rcfile=self.cfg_filepath,
-                verbosity='debug',
-                output_file=temp_w_succ_output_file,
-                west_h5name=self.h5_filepath,
-                anal_h5name='analysis.h5',
-            ),
-        ):
-            entry_point()
+        args = MockArgs(
+            rcfile=self.cfg_filepath,
+            verbosity='debug',
+            output_file=temp_w_succ_output_file,
+            west_h5name=self.h5_filepath,
+            anal_h5name='analysis.h5',
+        )
+
+        westpa.rc.process_args(args, config_required=False)
+
+        w_succ = WSucc()
+        w_succ.process_args(args)
+        w_succ.output_file = temp_w_succ_output_file
+
+        w_succ.find_successful_trajs()
 
         temp_w_succ_output_file.close()
         assert os.path.isfile('./w_succ_temp.txt'), 'The output file was not generated.'
