@@ -88,6 +88,21 @@ def entry_point():
     args = parser.parse_args()
     westpa.rc.process_args(args)
     work_managers.environment.process_wm_args(args)
+
+    # Need to have something to pass to initialize
+    if not hasattr(args, 'bstates'):
+        args.bstates = None
+    if not hasattr(args, 'tstates'):
+        args.tstates = None
+    if not hasattr(args, 'tstate_file'):
+        args.tstate_file = None
+
+    initialize(args.mode, args.bstates, args.bstate_file, args.tstates, args.tstate_file)
+
+
+# TODO: This would benefit from a refactor to set default args to None, and replace some of those "if <argument>" clauses
+def initialize(mode, bstates, _bstate_file, tstates, _tstate_file):
+
     work_manager = make_work_manager()
 
     system = westpa.rc.get_system_driver()
@@ -99,32 +114,32 @@ def entry_point():
             sim_manager = westpa.rc.get_sim_manager()
             n_iter = data_manager.current_iteration
 
-            assert args.mode in ('show', 'replace', 'append')
-            if args.mode == 'show':
+            assert mode in ('show', 'replace', 'append')
+            if mode == 'show':
 
                 basis_states = data_manager.get_basis_states(n_iter)
                 if basis_states:
-                    bstate_file = sys.stdout if not args.bstate_file else open(args.bstate_file, 'wt')
+                    bstate_file = sys.stdout if not _bstate_file else open(_bstate_file, 'wt')
                     bstate_file.write('# Basis states for iteration {:d}\n'.format(n_iter))
                     BasisState.states_to_file(basis_states, bstate_file)
 
                 target_states = data_manager.get_target_states(n_iter)
                 if target_states:
-                    tstate_file = sys.stdout if not args.tstate_file else open(args.tstate_file, 'wt')
+                    tstate_file = sys.stdout if not _tstate_file else open(_tstate_file, 'wt')
                     tstate_file.write('# Target states for iteration {:d}\n'.format(n_iter))
                     TargetState.states_to_file(target_states, tstate_file)
 
-            elif args.mode == 'replace':
+            elif mode == 'replace':
                 seg_index = data_manager.get_seg_index(n_iter)
                 if (seg_index['status'] == Segment.SEG_STATUS_COMPLETE).any():
                     print('Iteration {:d} has completed segments; applying new states to iteration {:d}'.format(n_iter, n_iter + 1))
                     n_iter += 1
 
                 basis_states = []
-                if args.bstate_file:
-                    basis_states.extend(BasisState.states_from_file(args.bstate_file))
-                if args.bstates:
-                    for bstate_str in args.bstates:
+                if _bstate_file:
+                    basis_states.extend(BasisState.states_from_file(_bstate_file))
+                if bstates:
+                    for bstate_str in bstates:
                         fields = bstate_str.split(',')
                         label = fields[0]
                         probability = float(fields[1])
@@ -150,10 +165,10 @@ def entry_point():
 
                 # Now handle target states
                 target_states = []
-                if args.tstate_file:
-                    target_states.extend(TargetState.states_from_file(args.tstate_file, system.pcoord_dtype))
-                if args.tstates:
-                    tstates_strio = io.StringIO('\n'.join(args.tstates).replace(',', ' '))
+                if _tstate_file:
+                    target_states.extend(TargetState.states_from_file(_tstate_file, system.pcoord_dtype))
+                if tstates:
+                    tstates_strio = io.StringIO('\n'.join(tstates).replace(',', ' '))
                     target_states.extend(TargetState.states_from_file(tstates_strio, system.pcoord_dtype))
                     del tstates_strio
 
@@ -166,7 +181,7 @@ def entry_point():
                 data_manager.update_iter_group_links(n_iter)
 
             else:  # args.mode == 'append'
-                if args.bstate_file or args.bstates:
+                if _bstate_file or bstates:
                     sys.stderr.write('refusing to append basis states; use --show followed by --replace instead\n')
                     sys.exit(2)
 
@@ -177,10 +192,10 @@ def entry_point():
                     print('Iteration {:d} has completed segments; applying new states to iteration {:d}'.format(n_iter, n_iter + 1))
                     n_iter += 1
 
-                if args.tstate_file:
-                    target_states.extend(TargetState.states_from_file(args.tstate_file, system.pcoord_dtype))
-                if args.tstates:
-                    tstates_strio = io.StringIO('\n'.join(args.tstates).replace(',', ' '))
+                if _tstate_file:
+                    target_states.extend(TargetState.states_from_file(_tstate_file, system.pcoord_dtype))
+                if tstates:
+                    tstates_strio = io.StringIO('\n'.join(tstates).replace(',', ' '))
                     target_states.extend(TargetState.states_from_file(tstates_strio, system.pcoord_dtype))
                     del tstates_strio
 
