@@ -1,7 +1,7 @@
 import numpy as np
 import os
 
-from mdtraj import Trajectory, load as load_traj, load_topology, FormatRegistry, formats as mdformats
+from mdtraj import Trajectory, load as load_traj, FormatRegistry, formats as mdformats
 from mdtraj.core.trajectory import _TOPOLOGY_EXTS as TOPOLOGY_EXTS, _get_extension as get_extension
 
 FormatRegistry.loaders['.rst'] = mdformats.amberrst.load_restrt
@@ -11,9 +11,8 @@ TRAJECTORY_EXTS = FormatRegistry.loaders.keys()
 
 
 class WESTTrajectory(Trajectory):
-    
-    def __init__(self, coordinates, topology=None, time=None, iter_labels=None, seg_labels=None, pcoords=None, 
-                 unitcell_lengths=None, unitcell_angles=None):
+    def __init__(self, coordinates, topology=None, time=None, iter_labels=None, seg_labels=None, pcoords=None,
+                 parent_ids=None, unitcell_lengths=None, unitcell_angles=None):
         if isinstance(coordinates, Trajectory):
             xyz = coordinates.xyz
             topology = coordinates.topology if topology is None else topology
@@ -28,13 +27,14 @@ class WESTTrajectory(Trajectory):
         self.iter_labels = iter_labels
         self.seg_labels = seg_labels
         self.pcoords = pcoords
+        self.parent_ids = parent_ids
 
     def _check_labels(self, value):
         if value is None:
             value = 0
         elif isinstance(value, list):
             value = np.array(value)
-        
+
         if np.isscalar(value):
             value = np.array([value] * self.n_frames, dtype=int)
         elif value.shape != (self.n_frames,):
@@ -48,10 +48,10 @@ class WESTTrajectory(Trajectory):
             value = 0.
         elif isinstance(value, list):
             value = np.array(value)
-        
+
         if np.isscalar(value):
             value = np.array([(value, )] * self.n_frames, dtype=int)
-        
+
         if value.ndim == 1:
             value = np.repeat(value, self.n_frames, axis=0)
         elif value.ndim != 2:
@@ -64,7 +64,7 @@ class WESTTrajectory(Trajectory):
 
     def iter_label_values(self):
         visited_ids = []
-        
+
         for i in self.iter_labels:
             if i in visited_ids:
                 continue
@@ -74,7 +74,7 @@ class WESTTrajectory(Trajectory):
     def seg_label_values(self, iteration=None):
         seg_labels = self.seg_labels[self.iter_labels == iteration]
         visited_ids = []
-        
+
         for j in seg_labels:
             if j in visited_ids:
                 continue
@@ -91,7 +91,7 @@ class WESTTrajectory(Trajectory):
         for i, j in self.label_values:
             IandJ = np.logical_and(self.iter_labels==i, self.seg_labels==j)
             yield i, j, IandJ
-            
+
     @property
     def iter_labels(self):
         """Iteration index corresponding to each frame
@@ -136,6 +136,14 @@ class WESTTrajectory(Trajectory):
     def pcoords(self, value):
         self._pcoords = self._check_pcoords(value)
 
+    @property
+    def parent_ids(self):
+        return self._parent_ids
+
+    @parent_ids.setter
+    def parent_ids(self, value):
+        self._parent_ids = self._check_labels(value)
+
     def join(self, other, check_topology=True, discard_overlapping_frames=False):
         if isinstance(other, Trajectory):
             other = [other]
@@ -155,6 +163,7 @@ class WESTTrajectory(Trajectory):
 
         iter_labels = []
         seg_labels = []
+        parent_ids = []
         pshape = self.pcoords.shape
         pcoords = []
 
@@ -173,6 +182,13 @@ class WESTTrajectory(Trajectory):
 
             seg_labels.append(segs)
 
+            if hasattr(t, "parent_ids"):
+                pids = t.parent_ids
+            else:
+                pids = np.zeros(len(t)) - 1   # default parent_id: -1
+
+            parent_ids.append(pids)
+
             if hasattr(t, "pcoords"):
                 p = t.pcoords
             else:
@@ -182,9 +198,11 @@ class WESTTrajectory(Trajectory):
 
         iter_labels = np.concatenate(iter_labels)
         seg_labels = np.concatenate(seg_labels)
+        parent_ids = np.concatenate(parent_ids)
         pcoords = np.concatenate(pcoords)
 
-        new_westpa_traj = WESTTrajectory(new_traj, iter_labels=iter_labels, seg_labels=seg_labels, pcoords=pcoords)
+        new_westpa_traj = WESTTrajectory(new_traj, iter_labels=iter_labels, seg_labels=seg_labels,
+                                         pcoords=pcoords, parent_ids=parent_ids)
 
         return new_westpa_traj
 
@@ -232,7 +250,7 @@ class WESTTrajectory(Trajectory):
 
                 for k, traj_idx in enumerate(traj_indices):
                     M[i, j, k] = traj_idx
-            
+
             selected_indices = M[key].flatten()
             if np.isscalar(selected_indices):
                 selected_indices = np.array([selected_indices])
@@ -241,13 +259,16 @@ class WESTTrajectory(Trajectory):
         iters = self.iter_labels[key]
         segs = self.seg_labels[key]
         pcoords = self.pcoords[key, :]
+        parent_ids = self.parent_ids[key]
 
         traj = super(WESTTrajectory, self).slice(key, copy)
         traj.iter_labels = iters
         traj.seg_labels = segs
         traj.pcoords = pcoords
+        traj.parent_ids = parent_ids
 
         return traj
+
 
 def load_trajectory(folder):
     traj_file = top_file = None
@@ -264,7 +285,7 @@ def load_trajectory(folder):
 
         if top_file is not None and traj_file is not None:
             break
-    
+
     if top_file is None:
         raise ValueError('topology file not found')
 

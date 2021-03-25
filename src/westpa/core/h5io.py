@@ -8,6 +8,7 @@ import posixpath
 import socket
 import sys
 import time
+import logging
 
 import h5py
 import numpy as np
@@ -23,6 +24,8 @@ try:
     import psutil
 except ImportError:
     psutil = None
+
+log = logging.getLogger(__name__)
 
 #
 # Constants and globals
@@ -179,30 +182,45 @@ def load_west(filename):
         for iter_group_name in f['iterations']:
             iter_group = f['iterations/' + iter_group_name]
 
-            if 'trajectories' not in iter_group:
-                continue
-
+            # pcoord is required
             if 'pcoord' not in iter_group:
                 continue
 
-            pcoord3d = iter_group['pcoord'][:]
-            if pcoord3d.ndim != 3:
+            raw_pcoord = iter_group['pcoord'][:]
+            if raw_pcoord.ndim != 3:
+                log.warn('pcoord is expected to be a 3-d ndarray instead of {}-d'.format(data.ndim))
                 continue
-
             # ignore the first frame of each segment
-            pcoord3d = pcoord3d[:, 1:, :]
-            pcoords = np.concatenate(pcoord3d, axis=0)
+            raw_pcoord = raw_pcoord[:, 1:, :]
+            pcoords = np.concatenate(raw_pcoord, axis=0)
+            n_frames = raw_pcoord.shape[1]
 
-            traj_link = iter_group['trajectories']
-            traj_filename = traj_link.file.filename
+            if 'seg_index' in iter_group:
+                raw_pid = iter_group['seg_index']['parent_id'][:]
 
-            with WESTIterationFile(traj_filename) as traj_file:
-                try:
-                    traj = traj_file.read_as_traj()
-                except:
-                    continue
+                if np.any(raw_pid < 0):
+                    init_basis_ids = iter_group['ibstates']['istate_index']['basis_state_id'][:]
+                    init_ids = -(raw_pid[raw_pid < 0] + 1)
+                    raw_pid[raw_pid < 0] = [init_basis_ids[iid] for iid in init_ids]
+                parent_ids = raw_pid.repeat(n_frames, axis=0)
+            else:
+                parent_ids = None
+
+            if 'trajectories' in iter_group:
+                traj_link = iter_group['trajectories']
+                traj_filename = traj_link.file.filename
+
+                with WESTIterationFile(traj_filename) as traj_file:
+                    try:
+                        traj = traj_file.read_as_traj()
+                    except:
+                        continue
+            else:
+                continue
+                # traj = WESTTrajectory(None)  # TODO: [HDF5] allow initializing trajectory without coordinates
 
             traj.pcoords = pcoords
+            traj.parent_ids = parent_ids
             trajectories.append(traj)
 
             n += 1
