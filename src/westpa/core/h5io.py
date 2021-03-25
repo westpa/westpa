@@ -84,7 +84,7 @@ def tostr(b):
     if b is None:
         return None
     elif isinstance(b, bytes):
-        return b.decode()
+        return b.decode('utf-8')
     else:
         return str(b)
 
