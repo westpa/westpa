@@ -1,11 +1,6 @@
 from h5diff import H5Diff
 import westpa.cli.core.w_init
-
-
-# Placeholder class that will set all kwargs as attributes
-class MockArgs:
-    def __init__(self, **kwargs):
-        self.__dict__.update(kwargs)
+from common import MockArgs
 
 
 class Test_W_Init:

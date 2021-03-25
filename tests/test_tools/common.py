@@ -7,6 +7,12 @@ import shutil
 import tempfile
 
 
+# Placeholder class that will set all kwargs as attributes
+class MockArgs:
+    def __init__(self, **kwargs):
+        self.__dict__.update(kwargs)
+
+
 def get_arg_flag(key):
     return "--{}".format(re.sub('_', '-', key))
 

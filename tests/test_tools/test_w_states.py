@@ -1,15 +1,7 @@
-import argparse
-
-from westpa.cli.core.w_states import entry_point
 from pytest import fixture
 import westpa.cli.core.w_states
 import westpa.work_managers as work_managers
-
-
-# Placeholder class that will set all kwargs as attributes
-class MockArgs:
-    def __init__(self, **kwargs):
-        self.__dict__.update(kwargs)
+from common import MockArgs
 
 
 class Test_W_States:
