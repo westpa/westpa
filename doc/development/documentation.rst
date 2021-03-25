@@ -9,7 +9,7 @@ Docstrings are formatted in the `Numpy style
 which are converted to ReStructuredText using Sphinx' `Napoleon
 <http://sphinxcontrib-napoleon.readthedocs.org/en/latest/>`_ plugin, a feature included with Sphinx.
 
-Make sure sphinx and readthedocs are installed on the system. The settings for the documentation 
+Make sure ``sphinx`` and ``sphinx_rtd_theme`` are installed on the system. The settings for the documentation 
 are specified in ``/westpa/doc/conf.py``. In order to successfully build the documentation, your system 
 has to statisfy the minimum environment to install WESTPA.
 
