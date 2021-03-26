@@ -47,7 +47,7 @@ We recommend installing WESTPA through conda. See the quick install instructions
 
 Before installing WESTPA, we recommend you to first install the Python 3 version provided by the latest free `Anaconda Python distribution`_. Create a new python environment for the install with the following::
 
-    conda create -n westpa-2.0
+    conda create -n westpa-2.0 python=3.7
 
 We recommend obtaining the latest release of WESTPA by downloading the corresponding tar.gz file from the `releases page`_. After downloading the file, unpack the file and install WESTPA by executing the following::
 
