@@ -513,7 +513,7 @@ class WESTDataManager:
                 return []
             bstate_pcoords = ibstate_group['bstate_pcoord'][...]
             bstates = [BasisState(state_id=i, label=row['label'], probability=row['probability'],
-                                  auxref = str(row['auxref']) or None, pcoord=pcoord.copy())
+                                  auxref = h5io.tostr(row['auxref']) or None, pcoord=pcoord.copy())
                        for (i, (row, pcoord))  in enumerate(zip(bstate_index, bstate_pcoords))]
             return bstates
             
