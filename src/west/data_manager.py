@@ -1235,7 +1235,7 @@ class WESTDataManager:
                 for i in range(len(chunk)):
                     if chunk[i]['hash'] == bytes(hashval, 'utf-8'):
                         pkldat = bytes(pkl[istart+i, 0:chunk[i]['pickle_len']].data)
-                        mapper = pickle.loads(pkldat)
+                        mapper = pickle.loads(pkldat, encoding='latin1')
                         log.debug('loaded {!r} from {!r}'.format(mapper, binning_group))
                         log.debug('hash value {!r}'.format(hashval))
                         return mapper
