@@ -1176,7 +1176,7 @@ class WESTDataManager:
         bin data tables if found, or raises KeyError if not.'''
 
         try:
-            hashval = hashval.hexdigest()
+            bytes(hashval, 'utf-8')  = hashval.hexdigest()
         except AttributeError:
             pass
         
@@ -1202,13 +1202,13 @@ class WESTDataManager:
             
             raise KeyError('hash {} not found'.format(hashval))
 
-    def get_bin_mapper(self,  hashval):
+    def get_bin_mapper(self, hashval):
         '''Look up the given hash value in the binning table, unpickling and returning the corresponding
         bin mapper if available, or raising KeyError if not.'''
 
         # Convert to a hex digest if we need to
         try:
-            hashval = hashval.hexdigest()
+            bytes(hashval,'utf-8') = hashval.hexdigest()
         except AttributeError:
             pass
 
@@ -1231,7 +1231,7 @@ class WESTDataManager:
             for istart in range(0, n_entries, chunksize):
                 chunk = index[istart:min(istart+chunksize, n_entries)]
                 for i in range(len(chunk)):
-                    if chunk[i]['hash'] == hashval:
+                    if chunk[i]['hash'] == bytes(hashval, 'utf-8'):
                         pkldat = bytes(pkl[istart+i, 0:chunk[i]['pickle_len']].data)
                         mapper = pickle.loads(pkldat)
                         log.debug('loaded {!r} from {!r}'.format(mapper, binning_group))
