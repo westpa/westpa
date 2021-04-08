@@ -1176,7 +1176,8 @@ class WESTDataManager:
         bin data tables if found, or raises KeyError if not.'''
 
         try:
-            hashval = hashval.hexdigest()
+            bhashval = bytes(hashval, 'utf-8')
+            bhashval  = hashval.hexdigest()
         except AttributeError:
             pass
         
@@ -1208,7 +1209,8 @@ class WESTDataManager:
 
         # Convert to a hex digest if we need to
         try:
-            hashval = hashval.hexdigest()
+            bhashval = bytes(hashval,'utf-8') 
+            bhashval = hashval.hexdigest()
         except AttributeError:
             pass
 
