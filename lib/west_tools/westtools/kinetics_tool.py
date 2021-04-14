@@ -217,7 +217,7 @@ class AverageCommands(WESTKineticsBase):
 
         # This is appropriate for bootstrapped quantities, I think.
         all_items = numpy.arange(1,len(start_pts)+1)
-        bootstrap_length = 0.5*(len(start_pts)*(len(start_pts)+1)) - numpy.delete(all_items, numpy.arange(1, len(start_pts)+1, step_iter))
+        bootstrap_length = 0.5*(len(start_pts)*(len(start_pts)+1)) - numpy.delete(all_items, numpy.arange(1, len(start_pts), step_iter))
         if True:
             pi.new_operation('Calculating {}'.format(name), bootstrap_length[0])
 
