@@ -64,7 +64,7 @@ else:
     }
 
     cm_pdr = matplotlib.colors.LinearSegmentedColormap('pdr', _pdr_data, 2048)
-    cm_pdr_r = matplotlib.colors.LinearSegmentedColormap('pdr_r', matplotlib.cm.revcmap(_pdr_data), 2048)
+    cm_pdr_r = cm_pdr.reversed()
 
     matplotlib.cm.register_cmap('pdr', cm_pdr)
     matplotlib.cm.register_cmap('pdr_r', cm_pdr_r)
