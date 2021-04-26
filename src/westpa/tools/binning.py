@@ -77,7 +77,7 @@ def mapper_from_hdf5(topol_group, hashval):
     for istart in range(0, n_entries, chunksize):
         chunk = index_ds[istart : min(istart + chunksize, n_entries)]
         for i in range(len(chunk)):
-            if chunk[i]['hash'] == hashval:
+            if chunk[i]['hash'] == bytes(hashval, 'utf-8'):
                 pkldat = bytes(pickle_ds[istart + i, 0 : chunk[i]['pickle_len']].data)
                 # mapper = pickle.loads(pkldat, encoding='latin1')
                 mapper = pickle.loads(pkldat)

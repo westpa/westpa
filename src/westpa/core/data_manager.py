@@ -1248,7 +1248,7 @@ class WESTDataManager:
             for istart in range(0, n_entries, chunksize):
                 chunk = index[istart : min(istart + chunksize, n_entries)]
                 for i in range(len(chunk)):
-                    if chunk[i]['hash'] == hashval:
+                    if chunk[i]['hash'] == bytes(hashval, 'utf-8'):
                         return istart + i
 
             raise KeyError('hash {} not found'.format(hashval))
@@ -1282,7 +1282,7 @@ class WESTDataManager:
             for istart in range(0, n_entries, chunksize):
                 chunk = index[istart : min(istart + chunksize, n_entries)]
                 for i in range(len(chunk)):
-                    if chunk[i]['hash'] == hashval:
+                    if chunk[i]['hash'] == bytes(hashval, 'utf-8'):
                         pkldat = bytes(pkl[istart + i, 0 : chunk[i]['pickle_len']].data)
                         mapper = pickle.loads(pkldat)
                         log.debug('loaded {!r} from {!r}'.format(mapper, binning_group))
