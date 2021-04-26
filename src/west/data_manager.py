@@ -1176,8 +1176,7 @@ class WESTDataManager:
         bin data tables if found, or raises KeyError if not.'''
 
         try:
-            bhashval = bytes(hashval, 'utf-8')
-            bhashval  = hashval.hexdigest()
+            hashval  = hashval.hexdigest()
         except AttributeError:
             pass
         
@@ -1198,7 +1197,7 @@ class WESTDataManager:
             for istart in range(0,n_entries,chunksize):
                 chunk = index[istart:min(istart+chunksize,n_entries)]
                 for i in range(len(chunk)):
-                    if chunk[i]['hash'] == hashval:
+                    if chunk[i]['hash'] == bytes(hashval, 'utf-8'):
                         return istart+i
             
             raise KeyError('hash {} not found'.format(hashval))
@@ -1209,8 +1208,7 @@ class WESTDataManager:
 
         # Convert to a hex digest if we need to
         try:
-            bhashval = bytes(hashval,'utf-8') 
-            bhashval = hashval.hexdigest()
+            hashval = hexdigest()
         except AttributeError:
             pass
 
