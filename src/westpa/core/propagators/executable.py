@@ -316,6 +316,7 @@ class ExecutablePropagator(WESTPropagator):
             stderr=stderr if stderr != stdout else subprocess.STDOUT,
             close_fds=True,
             env=all_environ,
+            shell=True
         )
 
         # Wait on child and get resource usage
