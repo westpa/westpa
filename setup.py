@@ -115,6 +115,7 @@ INSTALL_REQUIRES = [
     "matplotlib",
     "blessings",
     "ipykernel",
+    "mdtraj"
 ]
 
 EXTRAS_REQUIRE = {
