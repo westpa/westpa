@@ -126,7 +126,7 @@ EXTRAS_REQUIRE["dev"] = EXTRAS_REQUIRE["tests"] + ["pre-commit"]
 
 
 metadata = dict(
-    name='westpa',
+    name='openeye-westpa',
     url='http://github.com/westpa/westpa',
     license='MIT',
     long_description=open('README.rst', encoding='utf8').read(),
