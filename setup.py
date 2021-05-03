@@ -132,7 +132,7 @@ metadata = dict(
     long_description=open('README.rst', encoding='utf8').read(),
     version="2020.3", #versioneer.get_version(),
     keywords='',
-    cmdclass=versioneer.get_cmdclass(),
+    # cmdclass=versioneer.get_cmdclass(),
     python_requires=">=3.6",
     zip_safe=False,
     classifiers=CLASSIFIERS,
