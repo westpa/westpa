@@ -4,3 +4,4 @@ include LICENSE
 exclude pyproject.toml
 include versioneer.py
 include src/westpa/_version.py
+global-include *.pyx
