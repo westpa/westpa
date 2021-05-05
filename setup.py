@@ -118,6 +118,12 @@ INSTALL_REQUIRES = [
     "mdtraj"
 ]
 
+SETUP_REQUIRES = [
+    "numpy>=1.16.0",
+    "scipy>=0.19.1",
+    "Cython>=0.29.16"
+]
+
 EXTRAS_REQUIRE = {
     "tests": ["pytest", "pytest-cov", "nose"],
     "mpi": ["mpi4py"],
@@ -131,7 +137,7 @@ metadata = dict(
     url='http://github.com/westpa/westpa',
     license='MIT',
     long_description=open('README.rst', encoding='utf8').read(),
-    version="2020.3.6", #versioneer.get_version(),
+    version="2020.3.7a1", #versioneer.get_version(),
     keywords='',
     # cmdclass=versioneer.get_cmdclass(),
     python_requires=">=3.6",
@@ -139,6 +145,7 @@ metadata = dict(
     classifiers=CLASSIFIERS,
     entry_points={'console_scripts': console_scripts},
     install_requires=INSTALL_REQUIRES,
+    setup_requires=SETUP_REQUIRES,
     extras_require=EXTRAS_REQUIRE,
     package_data={},
     packages=find_packages(where='src'),
@@ -147,6 +154,9 @@ metadata = dict(
 
 
 if __name__ == '__main__':
+    from sys import argv
 
-    metadata['ext_modules'] = extensions()
+    if argv[1] != "egg_info":
+        metadata['ext_modules'] = extensions()
+        
     setup(**metadata)
