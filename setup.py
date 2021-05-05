@@ -118,6 +118,11 @@ INSTALL_REQUIRES = [
     "mdtraj"
 ]
 
+SETUP_REQUIRES = [
+    "numpy >= 1.16.0",
+    "Cython"
+]
+
 EXTRAS_REQUIRE = {
     "tests": ["pytest", "pytest-cov", "nose"],
     "mpi": ["mpi4py"],
@@ -131,7 +136,7 @@ metadata = dict(
     url='http://github.com/westpa/westpa',
     license='MIT',
     long_description=open('README.rst', encoding='utf8').read(),
-    version="2020.3.2", #versioneer.get_version(),
+    version="2020.3.3", #versioneer.get_version(),
     keywords='',
     # cmdclass=versioneer.get_cmdclass(),
     python_requires=">=3.6",
@@ -139,6 +144,7 @@ metadata = dict(
     classifiers=CLASSIFIERS,
     entry_points={'console_scripts': console_scripts},
     install_requires=INSTALL_REQUIRES,
+    setup_requires=SETUP_REQUIRES,
     extras_require=EXTRAS_REQUIRE,
     package_data={},
     packages=find_packages(where='src'),
