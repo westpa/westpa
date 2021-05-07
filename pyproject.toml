@@ -1,5 +1,5 @@
 [build-system]
-build-backend = 'setuptools.build_meta'
+build-backend = 'setuptools.build_meta:__legacy__'
 # Minimum requirements for the build system to execute.
 # See current numpy pinning in https://github.com/scipy/oldest-supported-numpy
 requires = [
