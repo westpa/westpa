@@ -66,11 +66,11 @@ class WIPIDataset(object):
         return self.__dict__['raw'] * other
     def __rmul__(self, other):
         return other * self.__dict__['raw']
-    def __div__(self, other):
+    def __truediv__(self, other):
         return self.__dict__['raw'] / other
     def __floordiv__(self, other):
         return self.__dict__['raw'] // other
-    def __rdiv__(self, other):
+    def __rtruediv__(self, other):
         return other / self.__dict__['raw']
     def __mod__(self, other):
         return self.__dict__['raw'] % other
