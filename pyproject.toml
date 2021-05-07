@@ -1,17 +1,14 @@
 [build-system]
+build-backend = 'setuptools.build_meta'
 # Minimum requirements for the build system to execute.
 # See current numpy pinning in https://github.com/scipy/oldest-supported-numpy
 requires = [
     "setuptools",
     "wheel",
     "Cython>=0.29.16",  # Note: sync with setup.py
-    "numpy==1.16.0; python_version=='3.6' and platform_system!='AIX'",
-    "numpy==1.16.0; python_version=='3.7' and platform_system!='AIX'",
-    "numpy==1.17.3; python_version>='3.8' and platform_system!='AIX'",
-    "numpy==1.16.0; python_version=='3.6' and platform_system=='AIX'",
-    "numpy==1.16.0; python_version=='3.7' and platform_system=='AIX'",
-    "numpy==1.17.3; python_version>='3.8' and platform_system=='AIX'",
+    "oldest-supported-numpy",
     "scipy>=0.19.1",
+    "versioneer-518",
 ]
 # Uncommenting this requires adding the top level of the repo to sys.path in the setup.py
 # so that it can find the vendorized copy of versioneer. I see that other projects don't

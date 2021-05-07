@@ -147,6 +147,5 @@ metadata = dict(
 
 
 if __name__ == '__main__':
-
     metadata['ext_modules'] = extensions()
     setup(**metadata)
