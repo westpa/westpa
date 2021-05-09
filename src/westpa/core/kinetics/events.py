@@ -144,3 +144,5 @@ class WKinetics:
             # Do a little manual clean-up to prevent memory explosion
             del iter_group, weights, parent_ids, bin_assignments, label_assignments, state, cond_fluxes, total_fluxes
             pi.progress += 1
+
+        self.close_files()
