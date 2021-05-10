@@ -455,7 +455,7 @@ class WESTRC:
             assert len(trgt_cnt) == mapper.nbins, "Count iterable size doesn't match the number of bins"
             trgt_cnt_arr = trgt_cnt
         else:
-            assert trgt_cnt == np.int(trgt_cnt), "Counts are not integer valued, ambiguous input"
+            assert trgt_cnt == int(trgt_cnt), "Counts are not integer valued, ambiguous input"
             trgt_cnt_arr = np.zeros(mapper.nbins)
             trgt_cnt_arr[:] = trgt_cnt
         setattr(yamlSystem, 'bin_target_counts', trgt_cnt_arr)
@@ -504,7 +504,7 @@ class WESTRC:
                 assert len(trgt_cnt) == init_system.bin_mapper.nbins, "Count iterable size doesn't match the number of bins"
                 trgt_cnt_arr = trgt_cnt
             else:
-                assert trgt_cnt == np.int(trgt_cnt), "Counts are not integer valued, ambiguous input"
+                assert trgt_cnt == int(trgt_cnt), "Counts are not integer valued, ambiguous input"
                 trgt_cnt_arr = np.zeros(init_system.bin_mapper.nbins)
                 trgt_cnt_arr[:] = int(trgt_cnt)
             self.overwrite_option(init_system, 'bin_target_counts', trgt_cnt_arr)
