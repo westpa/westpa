@@ -87,13 +87,13 @@ One environment variable is made available by multi-process work managers
 (processes and ZMQ) to help clients configure themselves (e.g. select an
 appropriate GPU on a multi-GPU node):
 
-=============== =============== ===============================================
-Variable        Applicable to   Meaning
-=============== =============== ===============================================
-WM_PROCESS_ID   processes, zmq  Contains an integer, 0 based, identifying the
-                                process among the set of processes started on a
-                                given node.
-=============== =============== ===============================================
+================== =============== ===============================================
+Variable           Applicable to   Meaning
+================== =============== ===============================================
+WM_PROCESS_INDEX   processes, zmq  Contains an integer, 0 based, identifying the
+                                   process among the set of processes started on a
+                                   given node.
+================== =============== ===============================================
 
 The ZeroMQ work manager for clusters
 ------------------------------------
