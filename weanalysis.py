@@ -34,8 +34,7 @@ class Segment:
     def parent(self):
         if not self.iteration.prev:
             return None
-        return Segment(self.info['parent_id'],
-                       self.iteration.prev)
+        return Segment(self.info['parent_id'], self.iteration.prev)
 
     @property
     def children(self):
@@ -56,21 +55,39 @@ class Segment:
 
 class Iteration:
 
-    def __init__(self, number,  dataset):
+    def __init__(self, number, dataset):
         self.number = number
         self.dataset = dataset
 
     @property
+    def group(self):
+        return self.dataset.iteration_group(self.number)
+
+    @property
     def segment_info(self):
-        return self.dataset.segment_info(self.number)
+        return self.group['seg_index']
 
     @property
     def pcoord(self):
-        return self.dataset.pcoord(self.number)
+        return self.group['pcoord']
 
     @property
     def num_segments(self):
         return self.segment_info.shape[0]
+
+    @property
+    def segment_weights(self):
+        return self.segment_info['weight']
+
+    @property
+    def segments(self):
+        return (Segment(index, self) for index in range(self.num_segments))
+
+    def segment(self, index):
+        valid_range = range(self.num_segments)
+        if index not in valid_range:
+            raise ValueError(f'segment index must be in {valid_range}')
+        return Segment(index, self)
 
     @property
     def prev(self):
@@ -84,16 +101,6 @@ class Iteration:
             return None
         return self.dataset.iteration(self.number + 1)
 
-    @property
-    def segments(self):
-        return (Segment(index, self) for index in range(self.num_segments))
-
-    def segment(self, index):
-        valid_range = range(self.num_segments)
-        if index not in valid_range:
-            raise ValueError(f'segment index must be in {valid_range}')
-        return Segment(index, self)
-
     def __eq__(self, other):
         return self.number == other.number and self.dataset is other.dataset
 
@@ -104,16 +111,7 @@ class Iteration:
 class WEDataset:
 
     def __init__(self, h5filename):
-        self.h5file = h5py.File(h5filename)
-
-    def _iter_group(self, iteration_number):
-        return self.h5file['iterations'][f'iter_{iteration_number:08d}']
-
-    def segment_info(self, iteration_number):
-        return self._iter_group(iteration_number)['seg_index']
-
-    def pcoord(self, iteration_number):
-        return self._iter_group(iteration_number)['pcoord']
+        self.h5file = h5py.File(h5filename, 'r')
 
     @property
     def num_iterations(self):
@@ -121,14 +119,16 @@ class WEDataset:
 
     @property
     def iterations(self):
-        return (Iteration(iteration_number, self)
-                for iteration_number in range(1, self.num_iterations + 1))
+        return (Iteration(n, self) for n in range(1, self.num_iterations + 1))
 
     def iteration(self, number):
         valid_range = range(1, self.num_iterations + 1)
         if number not in valid_range:
             raise ValueError(f'iteration number must be in {valid_range}')
         return Iteration(number, self)
+
+    def iteration_group(self, number):
+        return self.h5file['iterations'][f'iter_{number:08d}']
 
     def __len__(self):
         return self.num_iterations
