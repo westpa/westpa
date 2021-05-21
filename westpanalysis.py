@@ -1,4 +1,4 @@
-import h5py
+from westpa.core.h5io import WESTPAH5File
 
 
 class Segment:
@@ -45,6 +45,12 @@ class Segment:
 
     def trace(self):
         return trace(self)
+
+    def trajectory(self):
+        if self.dataset.segment_traj_loader:
+            return self.dataset.segment_traj_loader(
+                self.iteration.number, self.index)
+        return None
 
     def __eq__(self, other):
         return self.index == other.index and self.iteration == other.iteration
@@ -108,10 +114,21 @@ class Iteration:
         return f'{self.__class__.__name__}({self.number}, {self.dataset})'
 
 
-class WEDataset:
+class WESTDataset:
 
-    def __init__(self, h5filename):
-        self.h5file = h5py.File(h5filename, 'r')
+    def __init__(self, h5filename, segment_traj_loader=None):
+        self.h5file = WESTPAH5File(h5filename, 'r')
+        self.segment_traj_loader = segment_traj_loader
+
+    @property
+    def segment_traj_loader(self):
+        return self._segment_traj_loader
+
+    @segment_traj_loader.setter
+    def segment_traj_loader(self, value):
+        if value is not None:
+            _ = value(1, 0)
+        self._segment_traj_loader = value
 
     @property
     def num_iterations(self):
@@ -128,7 +145,7 @@ class WEDataset:
         return Iteration(number, self)
 
     def iteration_group(self, number):
-        return self.h5file['iterations'][f'iter_{number:08d}']
+        return self.h5file.get_iter_group(number)
 
     def __len__(self):
         return self.num_iterations
