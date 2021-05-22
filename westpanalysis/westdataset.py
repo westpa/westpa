@@ -64,11 +64,12 @@ class Segment:
     def trace(self):
         """Return the trace (ancestral line) of the segment.
 
-        Returns
-        -------
-        Iterable[Segment]
+        Refer to :func:`trace` for full documentation.
 
-        See :func:`trace`.
+        See Also
+        --------
+        :func:`trace`
+            Equivalent function.
 
         """
         return trace(self)
