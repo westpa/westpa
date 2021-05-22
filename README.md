@@ -45,14 +45,14 @@ trace = segment.trace()
 
 ### Loading Segment Trajectories
 
-To enable loading segment trajectories, set the `seg_traj_loader` attribute
+To enable loading segment trajectories, set the `segment_traj_loader` attribute
 of the dataset. An example using [MDTraj](https://www.mdtraj.org) might look like this:
 ```py
 import mdtraj
 
 def load_segment_traj(iteration_number, segment_index):
     return mdtraj.load(
-        f'traj_segs/{iteration_number:06d}/{segment_index:06d}.h5')
+        f'traj_segs/{iteration_number:06d}/{segment_index:06d}/seg.h5')
 
 dataset.segment_traj_loader = load_segment_traj
 ```
