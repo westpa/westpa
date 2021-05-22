@@ -64,15 +64,27 @@ class Segment:
     def trace(self):
         """Return the trace (ancestral line) of the segment.
 
+        Returns
+        -------
+        Iterable[Segment]
+
         See :func:`trace`.
 
         """
         return trace(self)
 
     def trajectory(self):
-        """Load and return the trajectory of the segment.
+        """Return the trajectory of the segment.
 
-         See :class:`SegmentTrajectoryLoader`.
+        Returns
+        -------
+        sequence
+            The trajectory of the segment.
+
+        See Also
+        --------
+        :attr:`WESTDataset.segment_traj_loader`
+            Function used to load the trajectory.
 
          """
         if not self.dataset.segment_traj_loader:
@@ -81,7 +93,7 @@ class Segment:
             self.iteration.number, self.index)
 
     def trace_trajectory(self, concat_operator=None):
-        """Load and return the trajectory of the segment's trace.
+        """Return the trajectory of the trace of the segment.
 
         Parameters
         ----------
@@ -90,6 +102,16 @@ class Segment:
             concatenation. This parameter may be provided if the type
             returned by :func:`self.dataset.seg_traj_loader` does not
             support concatenation via `traj1 + traj2` (the default).
+
+        Returns
+        -------
+        sequence
+            The trajectory of the trace (ancestral line) of the segment.
+
+        See Also
+        --------
+        :attr:`WESTDataset.segment_traj_loader`
+            Function used to load the segment trajectories.
 
         """
         if not self.dataset.segment_traj_loader:
@@ -151,7 +173,7 @@ class Iteration:
 
     @property
     def segments(self):
-        """Iterable[Segment]: Iterable of the segments."""
+        """Iterable[Segment]: Segments of the iteration."""
         return (Segment(index, self) for index in range(self.num_segments))
 
     def segment(self, index):
