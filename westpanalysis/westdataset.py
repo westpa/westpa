@@ -4,6 +4,7 @@ import westpa.tools.binning
 
 from abc import ABC, abstractmethod
 from westpa.core.h5io import WESTPAH5File
+from westpa.core.states import BasisState, InitialState, TargetState
 
 
 class WESTDataset:
@@ -39,6 +40,11 @@ class WESTDataset:
     def summary(self):
         """h5py.Dataset: The 'summary' dataset of the HDF5 file."""
         return self.h5file['summary']
+
+    @property
+    def basis_state_info(self):
+        """h5py.Dataset: 'bstate_index' dataset."""
+        return self.h5group['ibstates']['bstate_index']
 
     @property
     def num_iterations(self):
@@ -117,7 +123,7 @@ class Iteration:
         return self.h5group['seg_index']
 
     @property
-    def progress_coords(self):
+    def pcoords(self):
         """h5py.Dataset: 'pcoord' dataset of the iteration."""
         return self.h5group['pcoord']
 
@@ -160,6 +166,77 @@ class Iteration:
     def segments(self):
         """Iterable[Segment]: Segments of the iteration."""
         return (Segment(index, self) for index in range(self.num_segments))
+
+    @property
+    def _ibstates(self):
+        return self.h5group['ibstates']
+
+    @property
+    def _tstates(self):
+        return self.h5group['tstates']
+
+    @property
+    def basis_state_info(self):
+        """h5py.Dataset: 'bstate_index' dataset."""
+        return self._ibstates['bstate_index']
+
+    @property
+    def basis_state_pcoords(self):
+        """h5py.Dataset. 'bstate_pcoord' dataset."""
+        return self._ibstates['bstate_pcoord']
+
+    @property
+    def basis_states(self):
+        """list[BasisState]: Basis states in use for the iteration."""
+        return [BasisState(info['label'], info['probability'], pcoord=pcoord,
+                           auxref=info['auxref'], state_id=state_id)
+                for state_id, (info, pcoord) in enumerate(
+                    zip(self.basis_state_info, self.basis_state_pcoords))]
+
+    @property
+    def initial_state_info(self):
+        """h5py.Dataset. 'istate_index' dataset."""
+        return self._ibstates['istate_index']
+
+    @property
+    def initial_state_pcoords(self):
+        """h5py.Dataset. 'istate_pcoord' dataset."""
+        return self._ibstates['istate_pcoord']
+
+    @property
+    def initial_states(self):
+        """list[InitialState]: Initial states."""
+        return [InitialState(state_id, info['basis_state_id'],
+                             info['iter_created'], iter_used=info['iter_used'],
+                             istate_type=info['istate_type'],
+                             istate_status=info['istate_status'],
+                             pcoord=pcoord)
+                for state_id, (info, pcoord) in enumerate(
+                    zip(self.initial_state_info, self.initial_state_pcoords))]
+
+    @property
+    def target_state_info(self):
+        """h5py.Dataset: 'index' dataset for target states."""
+        return self._tstates['index']
+
+    @property
+    def target_state_pcoords(self):
+        """h5py.Dataset: 'pcoord' dataset for target states."""
+        return self._tstates['pcoord']
+
+    @property
+    def target_states(self):
+        """list[TargetState]: Target states."""
+        return [TargetState(info['label'], pcoord, state_id=state_id)
+                for state_id, (info, pcoord) in enumerate(
+                    zip(self.target_state_info, self.target_state_pcoords))]
+
+    @property
+    def target(self):
+        """BinUnion: Union of bins that serve as the target."""
+        if not self.next:
+            return None
+        return Target(self)
 
     def bin(self, index):
         """Return the bin with the given index.
@@ -238,14 +315,14 @@ class Segment:
         return self.info['weight']
 
     @property
-    def progress_coords(self):
-        """2D ndarray: Progress coordinate values of each snapshot."""
-        return self.iteration.progress_coords[self.index]
+    def pcoords(self):
+        """2D ndarray: Progress coordinates at each snapshot time."""
+        return self.iteration.pcoords[self.index]
 
     @property
     def num_snapshots(self):
         """int: Number of snapshots (saved frames)."""
-        return self.progress_coords.shape[0]
+        return self.pcoords.shape[0]
 
     @property
     def parent(self):
@@ -288,7 +365,7 @@ class Segment:
 
          """
         if not self.dataset.segment_traj_loader:
-            return None
+            raise ValueError('segment trajectory loader must be set')
         return self.dataset.segment_traj_loader(
             self.iteration.number, self.index)
 
@@ -342,11 +419,6 @@ class Bin:
         self.iteration = iteration
 
     @property
-    def dataset(self):
-        """WESTDataset: Simulation record to which the bin belongs."""
-        return self.iteration.dataset
-
-    @property
     def mapper(self):
         """BinMapper: Bin mapper that defines the bin."""
         return self.iteration.bin_mapper
@@ -356,8 +428,8 @@ class Bin:
         """int: Target number of particles in the bin."""
         return self.iteration.bin_target_counts[self.index]
 
-    def __contains__(self, item):
-        result = self.mapper.assign([item])
+    def __contains__(self, pcoord):
+        result = self.mapper.assign([pcoord])
         if result.size != 1:
             raise ValueError('left operand must be a single point in '
                              'progress coordinate space')
@@ -367,27 +439,86 @@ class Bin:
         return f'{self.__class__.__name__}({self.index}, {self.iteration})'
 
 
+class BinUnion:
+    """A union of bins.
+
+    Parameters
+    ----------
+    *bins : Bin
+        The bins comprising the union.
+
+    """
+
+    def __init__(self, *bins):
+        if not all(isinstance(bin_, Bin) for bin_ in bins):
+            raise TypeError('arguments must be of type Bin')
+        self._bins = bins
+
+    @property
+    def bins(self):
+        """tuple[Bin]: Bins comprising the union."""
+        return self._bins
+
+    def __bool__(self):
+        return bool(self.bins)
+
+    def __contains__(self, pcoord):
+        return any(pcoord in bin_ for bin_ in self.bins)
+
+    def __repr__(self):
+        return f'{self.__class__.__name__}{self.bins}'
+
+
+class Target(BinUnion):
+    """A union of bins that serve as a target.
+
+    Parameters
+    ----------
+    iteration : Iteration
+        The iteration for which the target is defined.
+
+    """
+
+    def __init__(self, iteration):
+        pcoords = iteration.target_state_pcoords[:]
+        bin_indices = set(iteration.next.bin_mapper.assign(pcoords))
+        super().__init__(*(Bin(i, iteration.next) for i in bin_indices))
+        self.iteration = iteration
+
+    @property
+    def states(self):
+        """list[TargetState]: Target states defining the target."""
+        return self.iteration.target_states
+
+    def __repr__(self):
+        return f'{self.__class__.__name__}({self.iteration})'
+
+
 class Trace:
-    """A trace of a segment back to its origin.
+    """A trace of a segment back to a source or initial state.
 
     Parameters
     ----------
     segment : Segment
-        The final segment of the trace.
+        The traced segment.
+    source : Bin or BinUnion, optional
+        The source (macro)state. If provided, the trace is continued
+        only as far back as `source`. Otherwise, the trace extends back
+        to the initial state.
 
     """
 
-    def __init__(self, segment):
+    def __init__(self, segment, source=None):
+        if source is None:
+            source = BinUnion()
+
         segments = []
-        while segment:
+        while segment and segment.pcoords[-1] not in source:
             segments.append(segment)
             segment = segment.parent
-        self.segments = tuple(reversed(segments))
 
-    @property
-    def dataset(self):
-        """WESTDataset: Simulation record to which the trace belongs."""
-        return self.segments[0].dataset
+        self.segments = tuple(reversed(segments))
+        self.source = source
 
     def trajectory(self, concat_operator=None):
         """Return the trajectory of the trace.
@@ -411,24 +542,13 @@ class Trace:
             Function used to load the segment trajectories.
 
         """
-        if not self.dataset.segment_traj_loader:
-            return None
         if concat_operator is None:
             concat_operator = operator.concat
-        trajectories = (segment.trajectory() for segment in self)
+        trajectories = (segment.trajectory() for segment in self.segments)
         return functools.reduce(concat_operator, trajectories)
 
-    def __iter__(self):
-        return iter(self.segments)
-
-    def __getitem__(self, key):
-        return self.segments[key]
-
-    def __len__(self):
-        return len(self.segments)
-
-    def __contains__(self, item):
-        return item in self.segments
-
     def __repr__(self):
-        return f'{self.__class__.__name__}({self.segments[-1]})'
+        s = f'{self.__class__.__name__}({self.segments[-1]}'
+        if self.source:
+            s += f', source={self.source}'
+        return s + ')'
