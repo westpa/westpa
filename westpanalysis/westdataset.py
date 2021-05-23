@@ -52,7 +52,7 @@ class WESTDataset:
                 for number in range(1, self.num_iterations + 1))
 
     def iteration(self, number):
-        """Get the iteration with the given iteration number.
+        """Return the iteration with the given iteration number.
 
         Parameters
         ----------
@@ -162,7 +162,7 @@ class Iteration:
         return (Segment(index, self) for index in range(self.num_segments))
 
     def bin(self, index):
-        """Get the bin with the given index.
+        """Return the bin with the given index.
 
         Parameters
         ----------
@@ -181,7 +181,7 @@ class Iteration:
         return Bin(index, self)
 
     def segment(self, index):
-        """Get the segment with the given index.
+        """Return the segment with the given index.
 
         Parameters
         ----------
