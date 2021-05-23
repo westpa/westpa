@@ -470,12 +470,16 @@ class BinUnion:
 
 
 class Target(BinUnion):
-    """A union of bins that serve as a target.
+    """A union of bins that serve as the target for an iteration.
 
     Parameters
     ----------
     iteration : Iteration
         The iteration for which the target is defined.
+
+    Notes
+    -----
+    The bins of the target belong to the *next* iteration.
 
     """
 
