@@ -30,7 +30,7 @@ segment = dataset.iteration(10).segment(4)
 
 Get the weight and progress coordinate values of a segment:
 ```py
-weight, progress_coords = segment.weight, segment.progress_coords
+weight, pcoords = segment.weight, segment.pcoords
 ```
 
 Get the parent and children of a segment:
