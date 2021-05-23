@@ -30,7 +30,7 @@ segment = dataset.iteration(10).segment(4)
 
 Get the weight and progress coordinate values of a segment:
 ```py
-weight, pcoords = segment.weight, segment.pcoords
+weight, progress_coords = segment.weight, segment.progress_coords
 ```
 
 Get the parent and children of a segment:
@@ -38,7 +38,7 @@ Get the parent and children of a segment:
 parent, children = segment.parent, segment.children
 ```
 
-Get the trace (ancestral line) of a segment:
+Trace a segment back to its origin:
 ```py
 trace = segment.trace()
 ```
@@ -64,6 +64,6 @@ segment_traj = segment.trajectory()
 
 and the trajectory of its trace can be loaded using
 ```py
-trace_traj = segment.trace_trajectory()
+trace_traj = segment.trace().trajectory()
 ```
 
