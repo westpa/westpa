@@ -532,8 +532,8 @@ class Trace:
         concat_operator : callable, default :func:`operator.concat`
             A function that takes two trajectories and returns their
             concatenation. This parameter may be provided if the type
-            returned by :func:`self.dataset.seg_traj_loader` does not
-            support concatenation via `traj1 + traj2` (the default).
+            returned by the segment trajectory loader does not support
+            concatenation via ``traj1 + traj2`` (the default).
 
         Returns
         -------
