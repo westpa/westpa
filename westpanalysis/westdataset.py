@@ -233,7 +233,7 @@ class Iteration:
 
     @property
     def target(self):
-        """BinUnion: Union of bins that serve as the target."""
+        """Target: Union of bins that serve as the target."""
         if not self.next:
             return None
         return Target(self)
