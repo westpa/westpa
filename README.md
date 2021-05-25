@@ -24,7 +24,7 @@ for iteration in run:
 
 Retrieve a particular segment:
 ```py
-segment = dataset.iteration(10).segment(4)
+segment = run.iteration(10).segment(4)
 ```
 
 Get the weight and progress coordinate values of a segment:
