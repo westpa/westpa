@@ -57,6 +57,11 @@ class Run:
         return (Iteration(number, self)
                 for number in range(1, self.num_iterations + 1))
 
+    @property
+    def num_segments(self):
+        """int: Total number of segments."""
+        return sum(iteration.num_segments for iteration in self)
+
     def iteration(self, number):
         """Return the iteration with the given iteration number.
 
