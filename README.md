@@ -8,7 +8,7 @@ This package provides an API for analyzing weighted-ensemble simulation data gen
 from westpanalysis import Run
 ```
 A `Run` represents a completed WESTPA simulation. 
-Runs may be loaded from WESTPA HDF5 simulation data files.
+Runs may be constructed from WESTPA HDF5 simulation data files.
 ```py
 run = Run('west.h5')
 ```
