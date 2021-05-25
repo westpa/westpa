@@ -1,8 +1,6 @@
 # WESTPAnalysis
 
 This package provides an API for analyzing weighted-ensemble simulation data generated using the [WESTPA](http://westpa.github.io/westpa/) framework.
-
-*This package is currently in pre-alpha phase.*
  
 ## Getting Started
 
