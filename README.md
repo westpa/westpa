@@ -7,19 +7,20 @@ This package provides an API for analyzing weighted-ensemble simulation data gen
 ## Getting Started
 
 ```py
-from westpanalysis import WESTDataset
+from westpanalysis import Run
 ```
-A `WESTDataset` provides a view over a WESTPA HDF5 simulation data file.
+A `Run` represents a completed WESTPA simulation. 
+Runs may be loaded from WESTPA HDF5 simulation data files.
 ```py
-dataset = WESTDataset('west.h5')
+run = Run('west.h5')
 ```
 
 ### How To
 
 Iterate over simulation iterations and segments:
 ```py
-for iteration in dataset.iterations:
-    for segment in iteration.segments:
+for iteration in run:
+    for segment in iteration:
         ...
 ```
 
@@ -46,7 +47,7 @@ trace = segment.trace()
 ### Loading Segment Trajectories
 
 To enable loading segment trajectories, set the `segment_traj_loader` attribute
-of the dataset. An example using [MDTraj](https://www.mdtraj.org) might look like this:
+of the `Run`. An example using [MDTraj](https://www.mdtraj.org) might look like this:
 ```py
 import mdtraj
 
@@ -54,7 +55,7 @@ def load_segment_traj(iteration_number, segment_index):
     return mdtraj.load(
         f'traj_segs/{iteration_number:06d}/{segment_index:06d}/seg.h5')
 
-dataset.segment_traj_loader = load_segment_traj
+run.segment_traj_loader = load_segment_traj
 ```
 
 Then the trajectory of a segment can be loaded using
