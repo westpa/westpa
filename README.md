@@ -37,7 +37,7 @@ Get the parent and children of a segment:
 parent, children = segment.parent, segment.children
 ```
 
-Trace a segment back to its origin:
+Trace a segment back to its initial state:
 ```py
 trace = segment.trace()
 ```
