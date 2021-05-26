@@ -121,6 +121,11 @@ class Run:
     def __eq__(self, other):
         return self.h5file == other.h5file
 
+    def __str__(self):
+        if self.name:
+            return f'<{self.DESCRIPTION} "{self.name}">'
+        return repr(self)
+
     def __repr__(self):
         if self.name:
             return f'<{self.DESCRIPTION} "{self.name}" at {hex(id(self))}>'
@@ -389,8 +394,10 @@ class Segment:
         return (segment for segment in self.iteration.next.segments
                 if segment.parent == self)
 
-    def trace(self):
+    def trace(self, source=None):
         """Return the trace (ancestral line) of the segment.
+
+        For full documentation see :class:`Trace`.
 
         Returns
         -------
@@ -398,7 +405,7 @@ class Segment:
             The trace of the segment.
 
         """
-        return Trace(self)
+        return Trace(self, source=source)
 
     def trajectory(self):
         """Return the trajectory of the segment.
@@ -602,7 +609,7 @@ class Trace:
         return functools.reduce(concat_operator, trajectories)
 
     def __repr__(self):
-        s = f'{self.__class__.__name__}({self.segments[-1]}'
+        s = f'Trace({self.segments[-1]}'
         if self.source:
-            s += f', source={self.source}'
+            s += f',\n      source={self.source}'
         return s + ')'
