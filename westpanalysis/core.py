@@ -14,6 +14,8 @@ class Run:
     ----------
     h5filename : str, default 'west.h5'
         Pathname of a WESTPA HDF5 data file.
+    name : str, optional
+        Name of the run. Default is ''.
     segment_traj_loader : callable, optional
         A function to be used to load segment trajectories. The required
         signature and return type of `seg_traj_loader` are specified by the
@@ -21,8 +23,11 @@ class Run:
 
     """
 
-    def __init__(self, h5filename='west.h5', segment_traj_loader=None):
+    DESCRIPTION = 'WESTPA Run'
+
+    def __init__(self, h5filename='west.h5', name=None, segment_traj_loader=None):
         self.h5file = WESTPAH5File(h5filename, 'r')
+        self.name = name
         self.segment_traj_loader = segment_traj_loader
 
     @property
@@ -37,6 +42,24 @@ class Run:
         self._segment_traj_loader = value
 
     @property
+    def _default_name(self):
+        return ''
+
+    @property
+    def name(self):
+        """str: Name of the run."""
+        return self._name
+
+    @name.setter
+    def name(self, value):
+        if value is None:
+            self._name = self._default_name
+            return
+        if not isinstance(value, str):
+            raise TypeError('name must be a string')
+        self._name = value
+
+    @property
     def summary(self):
         """h5py.Dataset: The 'summary' dataset of the HDF5 file."""
         return self.h5file['summary']
@@ -44,7 +67,7 @@ class Run:
     @property
     def basis_state_info(self):
         """h5py.Dataset: 'bstate_index' dataset."""
-        return self.h5group['ibstates']['bstate_index']
+        return self.h5file['ibstates']['bstate_index']
 
     @property
     def num_iterations(self):
@@ -90,8 +113,13 @@ class Run:
     def __container__(self, iteration):
         return iteration.run is self
 
+    def __eq__(self, other):
+        return self.h5file == other.h5file
+
     def __repr__(self):
-        return f"{self.__class__.__name__}('{self.h5file.filename}')"
+        if self.name:
+            return f'<{self.DESCRIPTION} "{self.name}" at {hex(id(self))}>'
+        return f'<{self.DESCRIPTION} at {hex(id(self))}>'
 
 
 class Iteration:
@@ -294,7 +322,7 @@ class Iteration:
         return segment.iteration is self
 
     def __eq__(self, other):
-        return self.number == other.number and self.run is other.run
+        return self.number == other.number and self.run == other.run
 
     def __repr__(self):
         return f'{self.__class__.__name__}({self.number}, {self.run})'
