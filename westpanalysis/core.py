@@ -25,10 +25,15 @@ class Run:
 
     DESCRIPTION = 'WESTPA Run'
 
-    def __init__(self, h5filename='west.h5', name=None, segment_traj_loader=None):
+    def __init__(self, h5filename='west.h5', name=None,
+                 segment_traj_loader=None):
         self.h5file = WESTPAH5File(h5filename, 'r')
         self.name = name
         self.segment_traj_loader = segment_traj_loader
+
+        # Pull the segment weights into memory.
+        for iteration in self:
+            _ = iteration.segment_weights
 
     @property
     def segment_traj_loader(self):
@@ -196,7 +201,7 @@ class Iteration:
         """int: Number of segments in the iteration."""
         return self.segment_info.shape[0]
 
-    @property
+    @functools.cached_property
     def segment_weights(self):
         """1D ndarray: Statistical weights of the segments."""
         return self.segment_info['weight']
@@ -357,7 +362,7 @@ class Segment:
     @property
     def weight(self):
         """float64: Statistical weight of the segment."""
-        return self.info['weight']
+        return self.iteration.segment_weights[self.index]
 
     @property
     def pcoords(self):
