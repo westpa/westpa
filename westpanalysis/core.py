@@ -31,10 +31,6 @@ class Run:
         self.name = name
         self.segment_traj_loader = segment_traj_loader
 
-        # Pull the segment weights into memory.
-        for iteration in self:
-            _ = iteration.segment_weights
-
     @property
     def segment_traj_loader(self):
         """callable: Function used to load segment trajectories."""
