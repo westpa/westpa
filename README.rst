@@ -2,7 +2,6 @@
 WESTPA 2.0 
 ===============
 
-
 --------
 Overview
 --------
@@ -29,8 +28,8 @@ WESTPA is free software, licensed under the terms of the MIT License. See the fi
 Requirements
 ------------
 
-WESTPA is written in Python and requires version 3. WESTPA further requires
-a large number of scientific software libraries for Python and other
+WESTPA is written in Python and requires version 3.6 or later. WESTPA further
+requires a large number of scientific software libraries for Python and other
 languages. The simplest way to meet these requirements is to download the
 Anaconda Python distribution from www.continuum.io (free for all users).
 
@@ -45,23 +44,16 @@ WESTPA is developed and tested on Unix-like operating systems, including Linux a
 
 We recommend installing WESTPA through conda. See the quick install instructions on our `wiki`_ for how to do this. To install from source (not recommended), please continue reading.
 
-Before installing WESTPA, you will need to first install the Python 3 version provided by the latest free `Anaconda Python distribution`_. After installing the Anaconda Python distribution, either add the Python executable to your $PATH or set the environment variable WEST_PYTHON::
+Before installing WESTPA, we recommend you to first install the Python 3 version provided by the latest free `Anaconda Python distribution`_. Create a new python environment for the install with the following::
 
-    export WEST_PYTHON=/opt/anaconda/bin/python3
+    conda create -n westpa-2.0 python=3.7
 
 We recommend obtaining the latest release of WESTPA by downloading the corresponding tar.gz file from the `releases page`_. After downloading the file, unpack the file and install WESTPA by executing the following::
 
-    tar xvzf westpa-master.tar.gz
+    tar xvzf westpa-main.tar.gz
     cd westpa
-    ./setup.sh
-
-A westpa.sh script is created during installation, and will set the following environment variables::
-
-    WEST_ROOT
-    WEST_BIN
-    WEST_PYTHON
-
-These environment variables must be set in order to run WESTPA on your computing cluster.
+    conda activate westpa-2.0
+    python -m pip install -e .
 
 .. _`releases page`: https://github.com/westpa/westpa/releases
 .. _`Anaconda Python distribution`: https://www.anaconda.com/products/individual
@@ -71,12 +63,8 @@ These environment variables must be set in order to run WESTPA on your computing
 Getting started
 ---------------
 
-To define environment variables post-installation, simply source the 
-``westpa.sh`` script in the ``westpa`` directory from the command line
-or your setup scripts.
-
 High-level tutorials of how to use the WESTPA software can be found here_.
-Further, all WESTPA command-line tools (located in ``westpa/bin``) provide detailed help when
+Further, all WESTPA command-line tools provide detailed help when
 given the -h/--help option.
 
 Finally, while WESTPA is a powerful tool that enables expert simulators to access much longer 

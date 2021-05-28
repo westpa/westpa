@@ -45,7 +45,11 @@ def pcoord_loader(fieldname, pcoord_return_filename, destobj, single_point):
         if pcoord.ndim == 1:
             pcoord.shape = (len(pcoord), 1)
     if pcoord.shape != expected_shape:
-        raise ValueError('progress coordinate data has incorrect shape {!r} [expected {!r}]'.format(pcoord.shape, expected_shape))
+        raise ValueError(
+            'progress coordinate data has incorrect shape {!r} [expected {!r}] Check pcoord.err or seg_logs for more information.'.format(
+                pcoord.shape, expected_shape
+            )
+        )
     destobj.pcoord = pcoord
 
 
@@ -124,7 +128,7 @@ class ExecutablePropagator(WESTPropagator):
         self.addtl_child_environ.update({k: str(v) for k, v in (config['west', 'executable', 'environ'] or {}).items()})
 
         # Load configuration items relating to child processes
-        for child_type in ('propagator', 'pre_iteration', 'post_iteration', 'get_pcoord', 'gen_istate'):
+        for child_type in ('propagator', 'pre_iteration', 'post_iteration', 'get_pcoord', 'gen_istate', 'group_walkers'):
             child_info = config.get(['west', 'executable', child_type])
             if not child_info:
                 continue

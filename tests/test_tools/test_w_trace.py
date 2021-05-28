@@ -15,7 +15,7 @@ class Test_W_Trace_Args(unittest.TestCase, CommonToolTest):
     generated reference files.'''
 
     arg_combos = [['20:0'], ['20:1', '20:2']]
-    ref_files = ['../refs/trajs_ref_20_0.h5', '../refs/trajs_ref_full.h5']
+    ref_files = ['refs/trajs_ref_20_0.h5', 'refs/trajs_ref_full.h5']
 
     test_name = 'W_TRACE'
 

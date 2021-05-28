@@ -126,7 +126,7 @@ class UncertContainer:
         else:
             raise TypeError('Attempted to multiply by value of unsupported type')
 
-    def __div__(self, value):
+    def __truediv__(self, value):
         if isinstance(value, UncertContainer):
             vals = self.vals / value.vals
             dmin = self.dmin / value.dmax

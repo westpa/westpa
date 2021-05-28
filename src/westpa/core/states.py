@@ -20,7 +20,7 @@ class BasisState:
     '''
 
     def __init__(self, label, probability, pcoord=None, auxref=None, state_id=None):
-        self.label = label
+        self.label = str(label, encoding="UTF-8") if type(label) is bytes else label
         self.probability = probability
         self.pcoord = np.atleast_1d(pcoord)
         self.auxref = auxref
@@ -52,7 +52,7 @@ class BasisState:
         for state in states:
             state_id_str = str(state.state_id) if state.state_id is not None else 'None'
             pcoord_str = str(list(state.pcoord))
-            auxref_str = str(state.auxref)
+            auxref_str = 'None' if state.auxref == b'' or state.auxref == "b''" else str(state.auxref)
             fileobj.write(
                 fmt.format(
                     state=state,
