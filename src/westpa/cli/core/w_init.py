@@ -90,13 +90,6 @@ def entry_point():
     system = westpa.rc.get_system_driver()
     sim_manager = westpa.rc.get_sim_manager()
 
-    # These variables are not used, but at least the propagator
-    # needs to be instantiated to initialize the rc._propagator
-    # before launching workers from the work_manager
-    propagator = westpa.rc.get_propagator()  # noqa
-    data_manager = westpa.rc.get_data_manager()
-    h5file = data_manager.we_h5filename  # noqa
-
     data_manager = westpa.rc.get_data_manager()
 
     data_manager.system = system

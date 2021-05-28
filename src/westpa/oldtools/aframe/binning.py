@@ -73,7 +73,7 @@ class BinningMixin(AnalysisMixin):
                 upfunc(args)
 
     def mapper_from_expr(self, expr):
-        from westpa.binning import RectilinearBinMapper
+        from westpa.core.binning import RectilinearBinMapper
 
         namespace = {'numpy': np, 'np': np, 'inf': float('inf')}
 
