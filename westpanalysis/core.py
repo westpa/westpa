@@ -557,7 +557,7 @@ class Trace:
     Parameters
     ----------
     segment : Segment
-        The traced segment.
+        The terminal segment.
     source : Bin or BinUnion, optional
         The source (macro)state. If provided, the trace is continued
         only as far back as `source`. Otherwise, the trace extends back
