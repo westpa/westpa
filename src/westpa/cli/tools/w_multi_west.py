@@ -225,7 +225,7 @@ Command-line options
             print(pi.new_operation('Recreating...', self.niters))
             # tracker = SummaryTracker()
             # self.output_file.close()
-            for iter in range(self.niters):
+            for iter in range(self.niters + 1):
                 # We have the following datasets in each iteration:
                 # ibstates, which aren't important.
                 # pcoord
