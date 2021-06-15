@@ -1,4 +1,4 @@
-I11:07:10 From Daniel Zuckerman to Everyone:
+11:07:10 From Daniel Zuckerman to Everyone:
 	Questions welcome in the chat at any time.
 11:08:22 From Alexander Balaeff to Everyone:
 	Doesn't selecting a reaction coordinate & range define, de facto, the target states?
