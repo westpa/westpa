@@ -1,4 +1,5 @@
 import functools
+import itertools
 import operator
 import westpa.tools.binning
 
@@ -85,6 +86,12 @@ class Run:
     def num_segments(self):
         """int: Total number of segments."""
         return sum(iteration.num_segments for iteration in self)
+
+    @property
+    def successful_segments(self):
+        """Iterable[Segment]: Segments that ended in the target."""
+        return itertools.chain(iteration.successful_segments
+                               for iteration in self)
 
     def iteration(self, number):
         """Return the iteration with the given iteration number.
@@ -213,6 +220,11 @@ class Iteration:
         return (Segment(index, self) for index in range(self.num_segments))
 
     @property
+    def successful_segments(self):
+        """Iterable[Segment]: Segments that ended in target."""
+        return (segment for segment in self if segment.successful)
+
+    @property
     def _ibstates(self):
         return self.h5group['ibstates']
 
@@ -276,7 +288,7 @@ class Iteration:
                 for state_id, (info, pcoord) in enumerate(
                     zip(self.target_state_info, self.target_state_pcoords))]
 
-    @property
+    @functools.cached_property
     def target(self):
         """Target: Union of bins that serve as the target."""
         if not self.next:
@@ -390,6 +402,26 @@ class Segment:
         return (segment for segment in self.iteration.next.segments
                 if segment.parent == self)
 
+    @property
+    def successful(self):
+        """bool: True if the segment ended in the target, False otherwise."""
+        return self.pcoords[-1] in self.iteration.target
+
+    @functools.cached_property
+    def trajectory(self):
+        """sequence: The trajectory of the segment.
+
+        See Also
+        --------
+        Run.segment_traj_loader
+            Function used to load the trajectory.
+
+        """
+        if not self.run.segment_traj_loader:
+            raise ValueError('segment trajectory loader must be set')
+        return self.run.segment_traj_loader(
+            self.iteration.number, self.index)
+
     def trace(self, source=None):
         """Return the trace (ancestral line) of the segment.
 
@@ -402,25 +434,6 @@ class Segment:
 
         """
         return Trace(self, source=source)
-
-    def trajectory(self):
-        """Return the trajectory of the segment.
-
-        Returns
-        -------
-        sequence
-            The trajectory of the segment.
-
-        See Also
-        --------
-        Run.segment_traj_loader
-            Function used to load the trajectory.
-
-         """
-        if not self.run.segment_traj_loader:
-            raise ValueError('segment trajectory loader must be set')
-        return self.run.segment_traj_loader(
-            self.iteration.number, self.index)
 
     def __len__(self):
         return self.num_snapshots
@@ -558,7 +571,7 @@ class Trace:
     ----------
     segment : Segment
         The terminal segment.
-    source : Bin or BinUnion, optional
+    source : Bin, BinUnion, or Container, optional
         The source (macro)state. If provided, the trace is continued
         only as far back as `source`. Otherwise, the trace extends back
         to the initial state.
@@ -577,21 +590,15 @@ class Trace:
         self.segments = tuple(reversed(segments))
         self.source = source
 
-    def trajectory(self, concat_operator=None):
-        """Return the trajectory of the trace.
+    @functools.cached_property
+    def trajectory(self):
+        """sequence: The trajectory of the trace.
 
-        Parameters
-        ----------
-        concat_operator : callable, default :func:`operator.concat`
-            A function that takes two trajectories and returns their
-            concatenation. This parameter may be provided if the type
-            returned by the segment trajectory loader does not support
-            concatenation via ``traj1 + traj2`` (the default).
-
-        Returns
-        -------
-        sequence
-            The trajectory of the trace.
+        Notes
+        -----
+        For this method to work, it must be possible to concatenate two
+        segment trajectories using the standard :func:`operator.concat`
+        concatenation operator (that is, ``traj1 + traj2``).
 
         See Also
         --------
@@ -599,10 +606,8 @@ class Trace:
             Function used to load the segment trajectories.
 
         """
-        if concat_operator is None:
-            concat_operator = operator.concat
-        trajectories = (segment.trajectory() for segment in self.segments)
-        return functools.reduce(concat_operator, trajectories)
+        trajectories = (segment.trajectory for segment in self.segments)
+        return functools.reduce(operator.concat, trajectories)
 
     def __repr__(self):
         s = f'Trace({self.segments[-1]}'
