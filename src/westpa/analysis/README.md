@@ -1,6 +1,7 @@
 # `westpa.analysis`
 
-This module provides an API for analyzing weighted-ensemble simulation data generated using the [WESTPA](http://westpa.github.io/westpa/) framework.
+This module provides an API for analyzing weighted-ensemble simulation data
+generated using the WESTPA framework.
  
 ## Getting Started
 
