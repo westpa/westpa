@@ -90,8 +90,8 @@ class Run:
     @property
     def successful_segments(self):
         """Iterable[Segment]: Segments that ended in the target."""
-        return itertools.chain(iteration.successful_segments
-                               for iteration in self)
+        return itertools.chain.from_iterable(
+            iteration.successful_segments for iteration in self)
 
     def iteration(self, number):
         """Return the iteration with the given iteration number.
@@ -291,8 +291,6 @@ class Iteration:
     @functools.cached_property
     def target(self):
         """Target: Union of bins that serve as the target."""
-        if not self.next:
-            return None
         return Target(self)
 
     def bin(self, index):
@@ -550,9 +548,12 @@ class Target(BinUnion):
     """
 
     def __init__(self, iteration):
-        pcoords = iteration.target_state_pcoords[:]
-        bin_indices = set(iteration.next.bin_mapper.assign(pcoords))
-        super().__init__(*(Bin(i, iteration.next) for i in bin_indices))
+        if not iteration.next:
+            super().__init__()  # Sink for final iteration is empty.
+        else:
+            pcoords = iteration.target_state_pcoords[:]
+            bin_indices = set(iteration.next.bin_mapper.assign(pcoords))
+            super().__init__(*(Bin(i, iteration.next) for i in bin_indices))
         self.iteration = iteration
 
     @property
