@@ -1,0 +1,128 @@
+11:22:56 From Ashlin James Poruthoor (he/him) to Everyone:
+	Hi! great talk!!! Can you please elaborate on how shooting moves differ in a diffusive dynamics and others? How is the single shoot method helps in this scenario ? Thanks a lot!  
+11:23:19 From Joseph Clayton to Everyone:
+	Can you give a brief explanation of the differences between these methods and other “classic” transition samplings such as string-method and steered MD?
+11:23:24 From Alex Dickson to Everyone:
+	What is a good acceptance probability for the shooting moves in the TPS algorithm?
+11:29:15 From Gianmarco Lazzeri to Everyone:
+	Thank you Prof Bolhuis for the very informative talk. I didn’t understand if we are allowed to use the sole members of Transition Path Ensemble for Transition Interface Sampling. What’s the difference with the straightforward approach in which we extract pieces of trajectories from a long MD simulation?
+11:29:59 From Ashlin James Poruthoor (he/him) to Everyone:
+	Yeah! Thanks a lot!
+11:36:56 From Alexander Balaeff to Everyone:
+	Prof. Bolhuis: thank you very much, a great talk indeed! Were there applications of open path sampling to protein folding/refolding modeling?
+11:37:03 From Peter Bolhuis to Everyone:
+	@Joseph Clayton, thanks for the question. I did not have time to explain the differences with the other ‘two ended’ methods. String methods is usally bound to a defined path in a collective variable space. Steered MD uses a force to reach the target state. If you want to know more please look at a review article, such as Dellago and Bolhuis, Adv Pol. Sci. 2009.
+11:42:00 From Peter Bolhuis to Everyone:
+	@GianMarco Lazzeri, Thanks for the question. The TPS and TIS methods are indeed statiastiical ‘tricks’  to avoid long stretches in the straight froward MD. In principle a long MD should give the same answer for the rate. However, since it is  a rare event the AB trajectories occurs only 1 in a billion. Very rare indeed. You are allowed to use the sole members, ie. the paths from TPS or TIS as a representation for the long MD, if you know the apriori chance to observe this trajectory you can resample from the TIS simulaiotns. This is done in the so-called Reweighted Path Ensemble. This RPE can be constructed from the TIS.  OPS can help you do that.
+11:42:31 From Gianmarco Lazzeri to Everyone:
+	@Peter Bolhuis thank you for the answer
+11:46:43 From Peter Bolhuis to Everyone:
+	@Alexander Balaeff: There are some applications to folding of  (very( small proteins, e.g. beta-haripin, villin, WW,TrpCage using the Single Replica TIS (Du and PGB, JCP 2014).  Here the outcome is a kinetic reaction network, or MSM. We have not gone further, but I would love to have someone have a look at this.
+11:47:06 From Joseph Clayton to Everyone:
+	Do you suggest using RMSD for calculating the distance between walkers, or calculating a number of collective variables and finding the distance on that space?
+11:51:43 From Greg Bowman to Everyone:
+	@AlexD How generally useful do you expect REVO to be? It sounds awesome for unbinding and other problems where the target state has high entropy. But it seems like just favoring spreading out could be counter productive if you wanted to look at something like binding, folding, or anything with a low entropy target
+11:53:22 From Daniel Zuckerman to Everyone:
+	Alex D: Very nice work, as always.  A couple of technical comments.  (1) To clarify, when progress coordinates are defined in WE, it is not literally *assumed* that other coordinates are fast.  Rather, as you said, WE is always unbiased, but the efficiency is affected by choice of progress coordinates/bins.  I certainly agree there are better ways than simple bins but there is no guarantee these other choices are sufficient.  Calculations have to be carefully analyzed no matter what, as you emphasize.
+11:54:09 From Peter Bolhuis to Everyone:
+	@Ashlin James Poruthoor: I hope I answered your question during the Q&A,. Just to be clear: NVE MD needs two-shooting. Stochastic dynamics, BD,LD, NVT MD (with stochastic thermostat), can of course also use two-way shooting. However, the  acceptance can be low. If acceptance of one-way is 30%, the 2-way is leas than 10%. one way shooting is then much better.
+11:56:37 From Lillian Chong to Everyone:
+	AlexD: Nice work! Just wanted to point out that the upcoming WESTPA 2.0 has followed the latest trend of being an entirely Python package.
+11:56:42 From Daniel Zuckerman to Everyone:
+	Alex D: (2) I believe that resampling without bins can always be mapped to a binning scheme.  To my knowledge, mathematicians have now proved this.  We can discuss offline.  Regardless, your work is really great and highly innovative - very important contributions.
+11:57:29 From Hellemann Holguin, Erich to Everyone:
+	Is REVO only applied in wepy? or can it also be used in WESTPA?
+11:57:42 From Naomi Latorraca to Everyone:
+	@Alex, great talk!! What do you make of the fact that the Rosetta-predicted pose didn’t unbind? Typically, wouldn’t you be more likely to rely on a pose that is stable, rather one that’s unstable?
+11:58:03 From Mandato, Alysia to Everyone:
+	Can you explain a little more on how you choose the walkers to resample based on distance? (least central vs most central)
+11:58:20 From Dhiman Ray to Everyone:
+	@Prof. Alex Dickson - Can REVO and WExplore also perform equilibrium WE in stead of steady state WE?
+12:19:40 From Lillian Chong to Everyone:
+	@Erich, sinless WE strategies, including REVO, can now be implemented in the new resampler module of WESTPA 2.0. We have not implemented Revo since it is already available in wepy.
+12:20:21 From Lillian Chong to Everyone:
+	“binless” got autocorrected to “sinless” :)
+12:21:45 From Gabriel Monteiro da Silva to Everyone:
+	Good to hear, it was getting tiring to confess every time I ran WESTPA
+12:22:22 From Hellemann Holguin, Erich to Everyone:
+	@Chong, thank you professor!
+12:33:31 From Alex Dickson to Everyone:
+	@dhiman Absolutely, you just don’t include boundary conditions.
+12:36:11 From Alex Dickson to Everyone:
+	@alysia The Vi values (i.e. the sum of distances from walker i) directly determine which walkers we propose for merging / cloning. The highest Vi gets chosen for cloning and the walkers with the lowest weighted sum of their Vi get chosen for merging.  There are some restrictions in there related to walker weights, etc. but that is pretty much it.
+12:37:57 From Mandato, Alysia to Everyone:
+	Thank you so much!
+12:40:30 From Alex Dickson to Everyone:
+	@naomi It was puzzling that we couldn’t get that pose to unbind easily. Another thing about that pose was that probability didn’t accumulate into a specific state, but was more diffuse than the other simulations.  The big takeaway from that paper was that all of those poses are able to interconvert before unbinding, since poses directly outside the protein in the membrane had not yet committed to the unbound state.   So I’m not quite sure what *the best* pose is.. could be pose R after all :)
+12:42:41 From Alex Dickson to Everyone:
+	@dan Thanks for the insights!  That is a cool point about mapping binless resampling to a binned version. I’d like to learn more about that.
+12:53:37 From Peter Bolhuis to Everyone:
+	@Sapna Sarupria, great work! One (maybe standard question by now) How dependent are the results to the sampling initial interfaces. One often sees that only a few initial trajectories are included. Can you avoid this dependency?
+12:53:39 From Dhiman Ray to Everyone:
+	@Prof. Sarupria - Very interesting talk! Question: For sampling structures (exactly) at the interface crossing points you may need to save coordinates at very frequent interval making the MD simulation inefficient. How do you manage this problem?
+12:54:55 From Daniel Zuckerman to Everyone:
+	@Sapna - love the contour approach, very elegant!
+12:58:28 From Peter Bolhuis to Everyone:
+	@Sapna Sarupria, I like the contourFFS, could some thing like that also be translated to TIS?
+13:04:00 From David Swenson to Everyone:
+	@Sapna : Do you have any comments on the scaling of the contour method with the dimensionality of the CV space? e.g., does it require a convex hull calculation, or is it less expensive than that?
+13:04:37 From Lillian Chong to Everyone:
+	@Sapna, I like your contour approach, too! Would love to see if this can be used in WE as well. I wonder if WE might be effective in sampling your initial basin. My lab has found WE sampling to be more extensive than REMD.
+13:04:47 From Sapna Sarupria to Everyone:
+	@Peter Bolhuis — There is surely a dependence on the initial interfaces. The best that can be done is to ensure there are many decorrelated configurations at the first interface. The decorrelation should be looked at in many order parameters (rather than only the one that is being used for the FFS). Another thing to do is to sample the basin (equilibrium sampling) using some other advanced sampling method (e.g. read) and then compare the sampling of the interface with that obtained from the equilibrium sampling. We are also working on-the-fly measurement of path diversity. This can at least flag the sampling and alert the user to basin sampling without waiting to finish the entire FFS.
+13:05:44 From Sapna Sarupria to Everyone:
+	@Peter Bolhius — I think the logic of contour can be extended out to TIS. At least given we are still really just defining interfaces it should be possible to extend to TIS.
+13:06:25 From Peter Bolhuis to Everyone:
+	@Sapna, thanks. sounds like something we should try.
+13:07:03 From Sapna Sarupria to Everyone:
+	@Dhinmay Ray — yes, indeed. How frequently to store the configurations is also a carefully determined parameter. You don’t want to miss important fluctuations but also don’t want to capture noise. This does lead to large intermediate data but after you have calculated the order parameter you can delete most of the trajectories. You can store only successful ones.
+13:07:25 From Sapna Sarupria to Everyone:
+	@Peter — I would love to talk more about it with you!!
+13:09:59 From Dhiman Ray to Everyone:
+	@Prof. Sarupria - Thank you!
+13:11:00 From Sapna Sarupria to Everyone:
+	@David Swenson — you hit the nail on the head. Extending to multiple dimensions is expensive. We ensure that the flux along the length of the contour is constant to avoid biasing any one direction. This further could increase the cost. So if we were to extend this out to even more dimensions, and you have sparse areas then it can become expensive. We have been thinking of how to address this but don’t have an answer yet. We have not used convex hull calculation for the contour placement but we do ensure that there are no holes and intersections. That is a bit time-consuming but not the main time consuming step of cFFS.
+13:12:27 From Sapna Sarupria to Everyone:
+	@Lillian Chong — I think we could use contours with WE. I would surely be interested in exploring that. That is a good suggestion — using WE for basin simulations could be very helpful especially in our case we cannot really use REMD. Would be worth discussing more.
+13:14:43 From David Swenson to Everyone:
+	@Sapna Thanks! (And I'm also interested in the TIS/counter-based interface connection -- a similar idea based on MSM-like Voronoi cells was actually what initiated the development of OpenPathSampling -- then we got distracted by the software itself)
+13:14:57 From David Swenson to Everyone:
+	contour-based*
+13:16:17 From Ashlin James Poruthoor (he/him) to Everyone:
+	@Sapna and @Peter, can one achieve an equilibrium distribution or extract equilibrium properties using a converged   FFS and TIS? 
+13:16:48 From Sapna Sarupria to Everyone:
+	@David and @Peter — I guess the question would be is can we decide interfaces (contours) on the fly in TIS. Because we don’t know the combination between OPs a priori.
+13:20:59 From Peter Bolhuis to Everyone:
+	@sapna, This on the fly approach is possible, certainly in a sequential sampling of the interfaces.
+13:22:28 From Sapna Sarupria to Everyone:
+	@Peter — then I think contours should work. Definitely would be fun to explore!
+13:22:29 From Greg Bowman to Everyone:
+	@DanZ Very cool work! My reading list has grown a lot:)
+13:22:32 From Peter Bolhuis to Everyone:
+	@Dan Zuckerman, is there simple connection between the haMSM rate estimators  and the rate expressions that FFS and TIS use?
+13:22:46 From liwei chang to Everyone:
+	@Prof. Zuckerman Great work on folding! Besides the folding rates, how about the estimated state relative population or any new insights on the folding pathways out of the analysis?
+13:24:02 From Gabriel Monteiro da Silva to Everyone:
+	@Dan - thanks a lot for the talk! I have two quick questions, I’ve read the haMSM paper in-depth and I would like to test the method for my simulations, but I’ve found the implementation to be non-trivial. In the paper it is mentioned that you use trajectories from the final WE iterations to make the model, is there any reason why this is done instead of using the entire run, and if so, are there trade-offs?
+13:24:41 From Gabriel Monteiro da Silva to Everyone:
+	Also, are there any scripts or notebooks you or your collaborators would be willing to share for making the models? Thank you!
+13:27:10 From liwei chang to Everyone:
+	Thank you!
+13:27:32 From Peter Bolhuis to Everyone:
+	@Dan, Thanks for the elaboration. I just thought that maybe you had an easy answer. I guess I just have to study your approach more in detail :-)
+13:29:38 From Gabriel Monteiro da Silva to Everyone:
+	Gotcha, thank you so much!
+13:30:22 From Joseph Clayton to Everyone:
+	Thanks for all the info, speakers! And thanks Lillian and Dan for organizing!
+13:30:31 From Sapna Sarupria to Everyone:
+	The active participation of the students definitely deserves applause!
+13:31:30 From Tao Liu to Everyone:
+	Thanks Lillian!
+13:31:38 From Peter Bolhuis to Everyone:
+	Thanks!
+13:31:51 From Leung, Jeremy to Everyone:
+	If you have trouble getting into a room (might have trouble if you're using the web client), feel free to ask any of us and we'll send you over.
+13:32:00 From Lillian Chong to Everyone:
+	From Peter Bolhuis: https://docs.google.com/forms/d/e/1FAIpQLSdlrSwDLMhdDE7PJRi-Y_OmP9vCr8QOWWpWtt8O8uXFcZEybw/viewform
+13:32:29 From Alexander Balaeff to Everyone:
+	Thank you dear organizers and speakers! As a last minute suggestion, could the chats be saved for those who forgot to do it while Zoom was still up? :=)

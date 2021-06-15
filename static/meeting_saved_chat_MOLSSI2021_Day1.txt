@@ -1,0 +1,208 @@
+I11:07:10 From Daniel Zuckerman to Everyone:
+	Questions welcome in the chat at any time.
+11:08:22 From Alexander Balaeff to Everyone:
+	Doesn't selecting a reaction coordinate & range define, de facto, the target states?
+11:10:27 From Shubhandra Tripathi to Everyone:
+	how we generate different starting structures for weighted ensemble simulation?
+11:10:27 From Shashank Pant to Everyone:
+	How does WE make sure that the most probable pathways are not missed due to inadequate sampling of the slowest processes?
+11:14:32 From Unmesh to Everyone:
+	How a particle is driven to the less probable regions In the PES? I can understand the different partitioning of the reaction coordinate
+11:16:46 From Gabriel Monteiro da Silva to Everyone:
+	Thank you Lillian for the talk and for organizing this school, I’m curious if there are any recommended analysis pipelines to identify metastable states and their relative populations from WESTPA runs. I’ve read the history-augmented Markov State Model paper and found it to be very useful for calculating rates (but, at least in my naive understanding, it could also be used to find metastable states?), just curious what the current state of the art is. Thanks again!
+11:19:48 From Jiale Shi to Everyone:
+	Hi, whether does weighted ensemble need to calculate the gradient of the CVs?
+11:20:50 From Alan Grossfield (he/him) to Everyone:
+	No — one of the main powers of WE is that you don’t have extra forces in the system. The MD is standard and unbiased — the progress coordinate is only calculated during the binning/splitting/merging step
+11:21:57 From Zhaleh Ghaemi to Everyone:
+	Thanks for organizing the school! What are some of the limitations of the method?
+11:24:36 From Sriramvignesh Mani to Everyone:
+	Hi, thanks for organizing the path sampling sessions ! Just curious to know how replicating an unbiased MD trajectory into multiple trajectories help in overcoming the free-energy barrier of the process of interest?
+11:24:45 From Alexander Balaeff to Everyone:
+	Fantastic work! :) Were there studies that used multi-dimensional reaction coordinates in WE simulations?
+11:29:11 From dlynch to Everyone:
+	For the collection of trajectories obtained. Are they independent or correlated? How can you tell if you have the most probable?
+11:30:38 From Mohini Yadav to Everyone:
+	Thank you for the informative talk, Dr. Lillian! My question is very basic. How do you keep protein stable when using GPU? When I try GPU the protein breaks every time, do you have any advice how I can keep the protein from breaking while using GPU?
+11:31:55 From Avishek Das to Everyone:
+	Are there internal diagnostics to the WE method for saying whether one has converged to the unbiased reactive trajectory ensemble?
+11:49:20 From Sapna Sarupria to Everyone:
+	Alan, this is very exciting!! what are some words of advice you have for anyone thinking of developing such user-friendly, well-documented, expandable software.
+11:50:45 From Lillian Chong to Everyone:
+	Hi Shubhandra, we normally generate starting structures using a separate weighted ensemble simulation to make sure that the structures are reasonably equilibrated.
+11:51:40 From Lillian Chong to Everyone:
+	I’m paying attention to Alan’s talk, but will answer a couple of questions. If I don’t get to your question, please join my breakout room at 1:30pm :)
+11:52:26 From Sapna Sarupria to Everyone:
+	Another question — what is the speed comparisons of analysis using LOOSa and say gromacs directly. For example, RMSD calculation using LOOS and using g_rmsd (or gmx rmsd)
+11:54:08 From Lillian Chong to Everyone:
+	Hi Shashank, regarding your question about the most probable pathways, the answer is that it is the same situation as for standard simulations: we can’t be sure about getting the most probable pathways in the absence of experimental validation. The best we can do is to monitor convergence as we would for standard simulations. In the worst scenario, weighted ensemble simulations with “poorly selected” progress coordinates are a glorified brute force simulation.
+11:54:28 From Joseph Clayton to Everyone:
+	Do AtomGroup methods only work on a frame by frame basis, or is there a trajectory iterator that could also be used?
+11:54:59 From David Swenson to Everyone:
+	LOOS looks very useful! Is there (or would it be possible to add) a way via the Python API to load a trajectory that already exists in memory, as opposed to coming from a file (e.g., could I pass numpy arrays with coords, box vectors, etc)?
+11:55:55 From Carlos Eduardo Sequeiros Borja to Everyone:
+	It looks really nice work alan, I have a question regarding use of some parts of LOOS. The modularity of the library would allow someone to use only one part of it? Let's say only the trajectory parser and loader to use in a molecular viewer. My question is related to the fact that you stated that the complete lirary is quite heavy and if someone would like to use only a "small piece" it would be nice to only use that part of the code.
+11:56:16 From Lillian Chong to Everyone:
+	Alan, great talk! Does LOOS have facilities for imaging trajectories with periodic boundary conditions during analysis?
+11:57:20 From Joseph Clayton to Everyone:
+	Aside from the C++ framework, how does using PyLOOS differ from using other MD analysis packages such as MDTraj?
+11:57:23 From Kyle Le Huray to Everyone:
+	Hi Alan, thanks that was great. Very simple question - using LOOS would I be able to select frames from a trajectory that satisfy some conditions, and output coordinate files from those frames?
+11:57:56 From David LeBard to Everyone:
+	Some of us still remember TCL :)
+11:58:02 From Alexander Balaeff to Everyone:
+	YES
+11:58:14 From Mohini Yadav to Everyone:
+	Thank you for the informative talk, Dr. Alan! LOOS looks like a very useful tool.
+11:58:19 From Joseph Clayton to Everyone:
+	Some of us still use TCL ;) but I agree on the slowness of the VMD framework
+11:58:31 From Matthew Guberman-Pfeffer to Everyone:
+	I was “forced” to learn TCL as a postdoc as  my first experience with MD!
+11:59:45 From Muyun Lihan to Everyone:
+	Hi Alan, what’s you thought on other packages like MDtraj or MDanalysis that also provide libraries for tool development?
+12:11:19 From Hellemann Holguin, Erich to Everyone:
+	https://www.livecomsjournal.org/article/10607-a-suite-of-tutorials-for-the-westpa-rare-events-sampling-software-article-v1-0
+12:16:10 From Alan Grossfield (he/him) to Everyone:
+	Answering Sapna’s question: I guess what I would suggest is a) write something use to you, but then b) listen to what users want. Engaging with your potential users is the key to getting folks to adopt
+12:16:18 From Felipe Alfonso Bravo Moraga to Everyone:
+	There are any tutorial of WESPA with protein-ligand dissociation ??
+12:18:28 From Alan Grossfield (he/him) to Everyone:
+	Answering Joseph: AtomicGroup classes hold a single set of coordinates. The way you handle a trajectory is by looping over it (or jumping around — we support random access), which updates the coordinates. If for some reason you need to hold multiple parts in memory at once, you can make a deep copy so that the Atoms are unique (and not pointers to the same actual objects)
+12:22:27 From Alan Grossfield (he/him) to Everyone:
+	Answering David Swenson: the answer is no and yes. At the moment, we don’t have support for reading trajectories from memory. However, doing so would be pretty easy — you’d just need another subclass to Trajectory that implemented the actual reading, whether that was inter-process communication or a socket or whatever. There’s nothing intrinsically file based. The only catch is that tools assume it’s possible to do random access of frames, which could in principle be tricky
+12:24:06 From Daniel Zuckerman to Everyone:
+	a good starting point for learning about WE - https://www.annualreviews.org/doi/abs/10.1146/annurev-biophys-070816-033834
+12:24:10 From Alan Grossfield (he/him) to Everyone:
+	Also, we do have a function to dump coordinates from an AtomicGroup to numpy arrays, to interoperate with scipy or something like pyEMMA or MSMBuilder
+12:24:15 From Lillian Chong to Everyone:
+	Hi Unmesh, WE is an efficient algorithm for filling empty bins in configurational space. By replicating trajectories that transition to empty bins, the algorithm populates less probable regions.
+12:25:21 From Lillian Chong to Everyone:
+	Hi Zhaleh, the main limitation of WE is the use of a progress coordinate, which determines which trajectories are replicated or terminated. This is a common limitation to many rare-event sampling strategies.
+12:25:24 From Alan Grossfield (he/him) to Everyone:
+	Answering Carlos: you do have to build the whole library to use it, which takes a little while to do but isn’t too onerous.
+12:26:53 From Alan Grossfield (he/him) to Everyone:
+	Answering Kyle: yes, it’s definitely possible to identify frames with certain properties, and we have facilities to write out trajectories in XTC and DCD format, so you could write out a new trajectory containing only frames where a ligand is bound, or whatever
+12:27:52 From Alan Grossfield (he/him) to Everyone:
+	Answering Muyan: I think you’re trying to get me in trouble :-)
+12:31:19 From Daniel Zuckerman to Everyone:
+	reminder to mute
+12:31:34 From Alan Grossfield (he/him) to Everyone:
+	More seriously, the biggest difference is one of design. MDAnalysis is really a python package centered around numpy arrays, which means to get good performance you have to use numpy operations — python loops are very slow. Also, if you’re like me you have to think really hard to do complex array ops. LOOS is more conventional, in that the vast majority of the work is done in the C++, and the focus is on the key objects: Coords, Atoms, AtomicGroups
+12:32:00 From Alan Grossfield (he/him) to Everyone:
+	I know less about the design of MDTraj, but from what I can tell it’s also pretty numpy-centric
+12:34:11 From Alan Grossfield (he/him) to Everyone:
+	Also, from what I can tell MDAnalysis tends to focus on a small number of larger applications, whereas loos uses more of a unix-like approach, with a large number of composable tools
+12:34:27 From Alan Grossfield (he/him) to Everyone:
+	And a focus on rapid exploration.
+12:41:37 From Muyun Lihan to Everyone:
+	Thank you for the comment! I agree that LOOS will have an edge on large-scale analysis where parallelism is a pain for python-based codes.
+12:44:11 From Alan Grossfield (he/him) to Everyone:
+	In fairness, most of loos isn’t written to be parallel (other than some linear algebra stuff that uses multithreaded libraries). We tend to favor making the code as simple to read and write as possible, and often the best parallelization tool is the ampersand (“&”) — just run multiple analyses at the same time
+12:46:24 From Zhaleh Ghaemi to Everyone:
+	What are the typical life time of the cryptic pockets?
+12:54:11 From Connor McGee (University of Nottingham) he/him to Everyone:
+	Hi Greg, I'm incredibly interested in your deep learning work, it's probably not directly relevant for here but what is the best way to contact you with questions in the future?
+12:55:15 From Gabriel Monteiro da Silva to Everyone:
+	Hi Greg, In the case of using the states sampled with FAST and identified with MSMs, what kind of granularity do you find to be best for orienting follow-up studies (e.g., virtual screening using the cryptic pockets as targets)? In short, can you get away with docking to the macrostates of interest since you know their predicted relative populations? Or would you dock to the microstates that make up a particular macrostate instead?
+12:55:40 From Alexander Balaeff to Everyone:
+	From the cartoon we saw, Adaptive Sampling is good for mapping the valleys. What about barrier crossings?
+12:56:59 From Mohini Yadav to Everyone:
+	Thank you for the informative talk, Dr. Greg! What are the system requirements to use finding@home? How to do simulations on finding@home supercomputer?
+12:58:00 From Mohini Yadav to Everyone:
+	*folding@home
+12:59:45 From Gabriel Monteiro da Silva to Everyone:
+	Cool, thanks!
+13:01:52 From Wei-Tse Hsu to Everyone:
+	Excuse me. Will this video be recorded?
+13:02:13 From Lillian Chong to Everyone:
+	No, this talk will not be recorded since it is interactive.
+13:02:36 From Greg Bowman to Everyone:
+	We’ve focused more on probabilities of pockets so far, as opposed to life times. The probabilities of the ones we like are around 0.1-5%. Looking at lifetimes would be interesting too
+13:03:36 From Greg Bowman to Everyone:
+	You can reach me at g.bowman@wustl.edu with questions, and I can introduce you to relevant students
+13:05:28 From Greg Bowman to Everyone:
+	@Gabriel We find that using fine grained state decompositions is important for getting details that can impact docking or experimental observables. We often cluster to radii of 1-1.5 angstroms (backbone and c betas)
+13:06:06 From Hellemann Holguin, Erich to Everyone:
+	Hi Greg, thanks for the talk, isn't it a worry of your algorithm to unfold the protein since you are inflating pockets? or do you have a limit for them?
+13:07:43 From Greg Bowman to Everyone:
+	@balaeff FAST will cross barriers too, especially good at entropic barriers. It will try to go around large energy barriers but if that doesn’t work it will cross. Our 2018 JCTC paper gives more details and shows examples where it crosses barriers
+13:07:55 From Alex Dickson to Everyone:
+	@RebeccaWade I had a question about the interaction fingerprint analysis package.  In the GitHub example it uses a NAMD trajectory.  Could this be used with other types of data? e.g.  MDTraj trajectories or  OpenMM states?
+13:08:14 From Alex Dickson to Everyone:
+	for others, it is here:
+13:08:15 From Alex Dickson to Everyone:
+	https://github.com/HITS-MCM/MD-IFP/blob/master/examples/IFP.py
+13:09:22 From Greg Bowman to Everyone:
+	@mohini Right now Folding@home is only available to a handful of research groups and their collaborators. We’re looking to change that in the coming years
+13:09:43 From Dhiman Ray to Everyone:
+	Hi Prof. Wade! Your recorded lecture was very helpful I have a few questions on tauRAMD. 1) Is tauRAMD statistically exact (i.e. with infinte sampling we can get guaranteed exact relative kinetics)? 2) Can we study protein conformational changes coupled to ligand uninding? 3) Is there a way to reweight the trajectories to get the absolute kinetics without experimnetal data?
+13:11:31 From Tao Liu to Everyone:
+	Hi Prof. Wade, could you elaborate a bit on how to decide the magnitude of the external force?
+13:11:40 From Kyle Le Huray to Everyone:
+	Hi Rebecca, I enjoyed the video. You mentioned that in the tauRAMD workflow you initially run conventional MD simulations to explore the local energy landscape of the ligand bound state. How do you select which of the poses observed in these initial simulations to use as the starting point for your dissociation replicas?
+13:11:43 From Greg Bowman to Everyone:
+	@erich I would love it if unfolding proteins was a problem:) At present, we usually don’t have nearly enough compute resources though. Most of what we see is still within a couple of kT of the ground state. The blessing is that what we see is usually reasonably populated (e.g. for drug design) but of course there can be cases where one would like to see higher energy states.
+13:12:19 From Hellemann Holguin, Erich to Everyone:
+	Thanks!
+13:13:53 From Ahmet Menteş to Everyone:
+	@Prof. Wade, How efficient/useful to study protein conformational changes coupled to ligand binding/unbinding? Thanks
+13:16:29 From Felipe Alfonso Bravo Moraga to Everyone:
+	Hello prof Rebecca, Im using RAMD-Gromacs I would like
+	 to know if its  better increase ramd-force-out-freq or decrease ramd-group1-force. 
+	I asked because in my protein-ligand system dissociation is very fast using the value of tutorial KBbox, or how to adapt correctly this values
+13:17:52 From Alexander Balaeff to Everyone:
+	@ProfWade: in tau-RAMD, can one designate part of the protein as a "component"? E.g., could one use tau-RAMD to sample the loop motions that @ProfBowman showed in his talk?
+13:18:59 From Henry Chan to Everyone:
+	Hello Prof Wade, thanks for your informative talks! May I ask: 1) Has tauRAMD been used for peptide binding in proteins? 2) You mentioned the comparison of tau between compounds binding to the same protein. How about comparison of tau of the same compound binding to different proteins (e.g. different beta-lactamases) or mutated proteins?
+13:19:33 From Lillian Chong to Everyone:
+	Hi Rebecca! What is the longest residence time that you can estimate with your current tauRAMD protocols?
+13:21:37 From Dhiman Ray to Everyone:
+	@Prof. Wade: Thank you for the explanation!
+13:33:24 From Alan Grossfield (he/him) to Everyone:
+	Great job, everyone!
+13:33:37 From Henry Chan to Everyone:
+	Thank you very much Prof Wade for the explanations!
+13:33:37 From Greg Bowman to Everyone:
+	Here’s our deep learning work for anyone who is interested https://www.nature.com/articles/s41467-021-23246-1
+13:33:41 From Sapna Sarupria to Everyone:
+	The audience participation has been very commendable.
+13:33:47 From Kyle Le Huray to Everyone:
+	Thanks to all speakers!
+13:33:57 From Dylan Suvlu to Everyone:
+	Wonderful presentations. Many thanks to the speakers and organizers!
+13:33:58 From Peter Bolhuis to Everyone:
+	Thanks everyone, great session. See you next week.
+13:34:04 From Niyi Adelakun to Everyone:
+	Thank you 🙇 
+13:34:04 From Tao Liu to Everyone:
+	Thank you!
+13:34:09 From Andres Santiago Arango to Everyone:
+	Thank you!
+13:34:10 From Naomi Latorraca to Everyone:
+	Thank you!! :)
+13:34:10 From Mohini Yadav to Everyone:
+	Thank you for the informative talk, Dr. Rebecca!
+13:34:15 From Alexander Balaeff to Everyone:
+	Thank you very much to the speakers and the organizers!!
+13:34:15 From Tugba Ozturk (she/her) - Washington University in St Louis to Everyone:
+	Thank you!
+13:34:15 From Matthew Guberman-Pfeffer to Everyone:
+	This was the best virtual conference I’ve attended. Thank you!
+13:34:16 From Carlos Eduardo Sequeiros Borja to Everyone:
+	Thank you for the presentations :)
+13:34:19 From Sapna Sarupria to Everyone:
+	See you all next week! Thanks for the fantastic talks. Thanks Lillian and Dan for organizing.
+13:34:22 From Ahmet Menteş to Everyone:
+	Thank you
+13:34:28 From David LeBard to Everyone:
+	Thanks for the talks today!
+13:34:42 From Alexander to Everyone:
+	Thank you!)
+13:44:22 From Leung, Jeremy to Everyone:
+	If anyone needs help/have trouble getting to any of the rooms I can send you over.
+13:44:59 From Niyi Adelakun to Everyone:
+	kindly send me to Rebecca's room. thank you.
+14:00:33 From Alan Grossfield (he/him) to Everyone:
+	I’m heading off — if anyone else comes looking for me, could you tell them to email me?
+14:16:00 From Ashlin James Poruthoor (he/him) to Everyone:
+	It was a great time! Thanks a lot everyone!
