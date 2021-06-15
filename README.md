@@ -56,13 +56,14 @@ def load_segment_traj(iteration_number, segment_index):
 run.segment_traj_loader = load_segment_traj
 ```
 
-Then the trajectory of a segment can be loaded using
+Then the trajectory of a segment can be accessed via its `trajectory`
+property:
 ```py
-segment_traj = segment.trajectory()
+segment_traj = segment.trajectory
 ```
-
-and the trajectory of its trace can be loaded using
+The trajectory of a trace can be accessed similarly:
 ```py
-trace_traj = segment.trace().trajectory()
+trace = segment.trace()
+trace_traj = trace.trajectory
 ```
-
+In both cases, the `trajectory` property is cached after loading.
