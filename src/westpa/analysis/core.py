@@ -174,10 +174,15 @@ class Iteration:
         """h5py.Dataset: 'seg_index' dataset of the iteration."""
         return self.h5group['seg_index']
 
-    @property
-    def pcoords(self):
-        """h5py.Dataset: 'pcoord' dataset of the iteration."""
-        return self.h5group['pcoord']
+    @functools.cached_property
+    def segment_pcoords(self):
+        """3D ndarray: Progress coordinate values of each segment."""
+        return self.h5group['pcoord'][:]
+
+    @functools.cached_property
+    def segment_weights(self):
+        """1D ndarray: Statistical weight of each segment."""
+        return self.segment_info['weight']
 
     @property
     def bin_target_counts(self):
@@ -208,11 +213,6 @@ class Iteration:
     def num_segments(self):
         """int: Number of segments in the iteration."""
         return self.segment_info.shape[0]
-
-    @functools.cached_property
-    def segment_weights(self):
-        """1D ndarray: Statistical weights of the segments."""
-        return self.segment_info['weight']
 
     @property
     def segments(self):
@@ -378,7 +378,7 @@ class Segment:
     @property
     def pcoords(self):
         """2D ndarray: Progress coordinates at each snapshot time."""
-        return self.iteration.pcoords[self.index]
+        return self.iteration.segment_pcoords[self.index]
 
     @property
     def num_snapshots(self):
