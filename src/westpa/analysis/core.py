@@ -78,9 +78,9 @@ class Run:
 
     @property
     def iterations(self):
-        """Iterable[Iteration]: Sequence of iterations."""
-        return (Iteration(number, self)
-                for number in range(1, self.num_iterations + 1))
+        """Sequence[Iteration]: Sequence of iterations."""
+        return [Iteration(number, self)
+                for number in range(1, self.num_iterations + 1)]
 
     @property
     def num_segments(self):
@@ -230,7 +230,7 @@ class Iteration:
 
     @property
     def _tstates(self):
-        return self.h5group['tstates']
+        return self.h5group.get('tstates')  # may be None
 
     @property
     def basis_state_info(self):
@@ -274,16 +274,18 @@ class Iteration:
     @property
     def target_state_info(self):
         """h5py.Dataset: 'index' dataset for target states."""
-        return self._tstates['index']
+        return self._tstates['index'] if self._tstates else None
 
     @property
     def target_state_pcoords(self):
         """h5py.Dataset: 'pcoord' dataset for target states."""
-        return self._tstates['pcoord']
+        return self._tstates['pcoord'] if self._tstates else None
 
     @property
     def target_states(self):
         """list[TargetState]: Target states."""
+        if self._tstates is None:
+            return []
         return [TargetState(info['label'], pcoord, state_id=state_id)
                 for state_id, (info, pcoord) in enumerate(
                     zip(self.target_state_info, self.target_state_pcoords))]
@@ -548,8 +550,8 @@ class Target(BinUnion):
     """
 
     def __init__(self, iteration):
-        if not iteration.next:
-            super().__init__()  # Sink for final iteration is empty.
+        if not iteration.next or not iteration.target_states:
+            super().__init__()
         else:
             pcoords = iteration.target_state_pcoords[:]
             bin_indices = set(iteration.next.bin_mapper.assign(pcoords))
