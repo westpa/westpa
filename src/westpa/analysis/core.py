@@ -19,8 +19,8 @@ class Run:
         Name of the run. Default is ''.
     segment_traj_loader : callable, optional
         A function to be used to load segment trajectories. The required
-        signature and return type of `seg_traj_loader` are specified by the
-        :class:`SegmentTrajectoryLoader` abstract base class.
+        signature and return type of `segment_traj_loader` are specified
+        by the :class:`SegmentTrajectoryLoader` abstract base class.
 
     """
 
