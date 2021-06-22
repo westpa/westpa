@@ -25,3 +25,7 @@ div.document {
 div.documentwrapper {
   margin-top: 15px;
 }
+
+.wy-side-nav-search, .wy-nav-top {
+    background: #272525;
+}

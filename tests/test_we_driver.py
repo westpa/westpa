@@ -1,5 +1,6 @@
 import nose
 import nose.tools
+from unittest import TestCase
 
 import numpy as np
 
@@ -12,8 +13,8 @@ from westpa.core.we_driver import WEDriver
 EPS = np.finfo(np.float64).eps
 
 
-class TestWEDriver:
-    def setup(self):
+class TestWEDriver(TestCase):
+    def setUp(self):
         system = WESTSystem()
         system.bin_mapper = RectilinearBinMapper([[0.0, 1.0, 2.0]])
         system.bin_target_counts = np.array([4, 4])
@@ -29,7 +30,7 @@ class TestWEDriver:
         self._seg_id += 1
         return segment
 
-    def teardown(self):
+    def tearDown(self):
         self.we_driver.clear()
         del self.we_driver
         del self.system
@@ -189,9 +190,14 @@ class TestWEDriver:
                 segment = Segment(n_iter=1, seg_id=None, weight=1.0 / 12.0, parent_id=-(ibin + 1), pcoord=pc)
                 bin.add(segment)
 
-        for ibin in range(len(self.we_driver.next_iter_binning)):
-            # This will raise KeyError if initial state tracking is done improperly
-            self.we_driver._adjust_count(ibin)
+        # for ibin in range(len(self.we_driver.next_iter_binning)):
+        # This will raise KeyError if initial state tracking is done improperly
+        #     self.we_driver._adjust_count(ibin)
+
+        for ibin, bin in enumerate(self.we_driver.next_iter_binning):
+            target_count = self.we_driver.bin_target_counts[ibin]
+            groups = self.we_driver.group_function(self.we_driver, ibin, **self.we_driver.group_function_kwargs)
+            self.we_driver._adjust_count(bin, groups, target_count)
 
         assert len(self.we_driver.next_iter_binning[0]) == 5
         assert len(self.we_driver.next_iter_binning[1]) == 5
