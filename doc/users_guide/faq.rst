@@ -1,5 +1,9 @@
-Frequently asked questions (FAQ)
-=================================
+.. _Frequently Asked Questions (FAQ)
+
+Frequently Asked Questions (FAQ)
+================================
+
+This page may be outdated, the most recent list of FAQs are available `here: <https://github.com/westpa/westpa/wiki/Frequently-Asked-Questions>`__
 
 Simulation
 -----------
