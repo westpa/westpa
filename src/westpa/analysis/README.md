@@ -45,26 +45,24 @@ trace = segment.trace()
 
 ### Loading Segment Trajectories
 
-To enable loading segment trajectories, set the `segment_traj_loader` attribute
-of the `Run`. An example using [MDTraj](https://www.mdtraj.org) might look like this:
 ```py
 import mdtraj
 
-def load_segment_traj(iteration_number, segment_index):
-    return mdtraj.load(
-        f'traj_segs/{iteration_number:06d}/{segment_index:06d}/seg.h5')
+from westpa.analysis import segment_trajectory
 
-run.segment_traj_loader = load_segment_traj
+@segment_trajectory
+def traj(segment):
+    filename = f'traj_segs/{segment.iteration.number}/{segment.index}/seg.h5'
+    return mdtraj.load(filename)
 ```
 
-Then the trajectory of a segment can be accessed via its `trajectory`
+Then the trajectory of a segment can be accessed via the `traj`
 property:
 ```py
-segment_traj = segment.trajectory
+segment_traj = segment.traj
 ```
 The trajectory of a trace can be accessed similarly:
 ```py
 trace = segment.trace()
-trace_traj = trace.trajectory
+trace_traj = trace.traj
 ```
-In both cases, the `trajectory` property is cached after loading.
