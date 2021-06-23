@@ -55,7 +55,7 @@ class SegmentTrajectory:
 
         return value
 
-    def __set__(self):
+    def __set__(self, obj, value):
         raise AttributeError("can't set attribute")
 
 
@@ -64,11 +64,14 @@ class TraceTrajectory:
     def __init__(self, name):
         self.name = name
 
+    def get_segment_traj(self, segment):
+        return getattr(segment, self.name)
+
     def __get__(self, obj, objtype=None):
         if obj is None:
             return self
-        trajs = (getattr(segment, self.name) for segment in obj.segments)
-        return functools.reduce(operator.concat, trajs)
+        segment_trajs = map(self.get_segment_traj, obj.segments)
+        return functools.reduce(operator.concat, segment_trajs)
 
     def __set__(self, obj, value):
         raise AttributeError("can't set attribute")

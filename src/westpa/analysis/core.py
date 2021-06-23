@@ -4,11 +4,11 @@ import operator
 import westpa.tools.binning
 
 from abc import ABC, abstractmethod
-from westpa.core.h5io import WESTPAH5File
+from westpa.core.h5io import FileLinkedDSSpec
 from westpa.core.states import BasisState, InitialState, TargetState
 
 
-class Run:
+class Run(FileLinkedDSSpec):
     """A completed WESTPA simulation run.
 
     Parameters
@@ -17,35 +17,14 @@ class Run:
         Pathname of a WESTPA HDF5 data file.
     name : str, optional
         Name of the run. Default is ''.
-    segment_traj_loader : callable, optional
-        A function to be used to load segment trajectories. The required
-        signature and return type of `segment_traj_loader` are specified
-        by the :class:`SegmentTrajectoryLoader` abstract base class.
 
     """
 
     DESCRIPTION = 'WESTPA Run'
 
-    def __init__(self, h5filename='west.h5', name=None,
-                 segment_traj_loader=None):
-        self.h5file = WESTPAH5File(h5filename, 'r')
+    def __init__(self, h5filename='west.h5', name=None):
+        super().__init__(h5filename)
         self.name = name
-        self.segment_traj_loader = segment_traj_loader
-
-    @property
-    def segment_traj_loader(self):
-        """callable: Function used to load segment trajectories."""
-        return self._segment_traj_loader
-
-    @segment_traj_loader.setter
-    def segment_traj_loader(self, value):
-        if value is not None:
-            _ = value(1, 0)
-        self._segment_traj_loader = value
-
-    @property
-    def _default_name(self):
-        return ''
 
     @property
     def name(self):
@@ -55,9 +34,8 @@ class Run:
     @name.setter
     def name(self, value):
         if value is None:
-            self._name = self._default_name
-            return
-        if not isinstance(value, str):
+            value = ''
+        elif not isinstance(value, str):
             raise TypeError('name must be a string')
         self._name = value
 
@@ -118,7 +96,7 @@ class Run:
     def __iter__(self):
         return iter(self.iterations)
 
-    def __container__(self, iteration):
+    def __contains__(self, iteration):
         return iteration.run is self
 
     def __eq__(self, other):
