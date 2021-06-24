@@ -77,6 +77,18 @@ def calc_chunksize(shape, dtype, max_chunksize=262144):
     return chunk_shape
 
 
+def tostr(b):
+    '''Convert a nonstandard string object ``b`` to str with the handling of the
+    case where ``b`` is bytes.'''
+
+    if b is None:
+        return None
+    elif isinstance(b, bytes):
+        return b.decode('utf-8')
+    else:
+        return str(b)
+
+
 #
 # Group and dataset manipulation functions
 #

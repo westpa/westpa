@@ -3,11 +3,11 @@ name: test
 on:
   push:
     branches:
-      - "master"
+      - "main"
       - "westpa-2.0-restruct"
   pull_request:
     branches:
-      - "master"
+      - "main"
       - "westpa-2.0-restruct"
   #schedule:
     # Nightly tests run on master by default:
@@ -20,10 +20,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - name: Set up Python 3.8
-        uses: actions/setup-python@v1
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v2
         with:
-          python-version: 3.8
+          python-version: 3.9
       - name: Linting
         run: |
           pip install pre-commit
@@ -34,10 +34,12 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.7", "3.8"]
+        python-version: ["3.7", "3.8", "3.9"]
 
     steps:
     - uses: actions/checkout@v2
+      with: 
+        fetch-depth: 2
 
     - name: Additional info about the build
       shell: bash
@@ -47,7 +49,7 @@ jobs:
         ulimit -a
 
     # More info on options: https://github.com/goanpeca/setup-miniconda
-    - uses: goanpeca/setup-miniconda@v1
+    - uses: conda-incubator/setup-miniconda@v2
       with:
         python-version: ${{ matrix.python-version }}
         environment-file: devtools/conda-envs/test_env.yaml
@@ -88,7 +90,7 @@ jobs:
 
     steps:
       - uses: "actions/checkout@v2"
-      - uses: "actions/setup-python@v1"
+      - uses: "actions/setup-python@v2"
         with:
           python-version: "3.8"
       - name: "Install in dev mode"

@@ -17,7 +17,7 @@ The data is laid out in HDF5 as follows:
             - pcoord -- progress coordinate data organized as [seg_id][time][dimension]
             - wtg_parents -- data used to reconstruct the split/merge history of trajectories
             - recycling -- flux and event count for recycled particles, on a per-target-state basis
-            - aux_data/ -- auxiliary datasets (data stored on the 'data' field of Segment objects)
+            - auxdata/ -- auxiliary datasets (data stored on the 'data' field of Segment objects)
 
 The file root object has an integer attribute 'west_file_format_version' which can be used to
 determine how to access data even as the file format (i.e. organization of data within HDF5 file)
@@ -534,7 +534,7 @@ class WESTDataManager:
                     state_id=i,
                     label=row['label'],
                     probability=row['probability'],
-                    auxref=str(row['auxref']) or None,
+                    auxref=h5io.tostr(row['auxref']) or None,
                     pcoord=pcoord.copy(),
                 )
                 for (i, (row, pcoord)) in enumerate(zip(bstate_index, bstate_pcoords))
@@ -1248,7 +1248,7 @@ class WESTDataManager:
             for istart in range(0, n_entries, chunksize):
                 chunk = index[istart : min(istart + chunksize, n_entries)]
                 for i in range(len(chunk)):
-                    if chunk[i]['hash'] == hashval:
+                    if chunk[i]['hash'] == bytes(hashval, 'utf-8'):
                         return istart + i
 
             raise KeyError('hash {} not found'.format(hashval))
@@ -1282,7 +1282,7 @@ class WESTDataManager:
             for istart in range(0, n_entries, chunksize):
                 chunk = index[istart : min(istart + chunksize, n_entries)]
                 for i in range(len(chunk)):
-                    if chunk[i]['hash'] == hashval:
+                    if chunk[i]['hash'] == bytes(hashval, 'utf-8'):
                         pkldat = bytes(pkl[istart + i, 0 : chunk[i]['pickle_len']].data)
                         mapper = pickle.loads(pkldat)
                         log.debug('loaded {!r} from {!r}'.format(mapper, binning_group))
