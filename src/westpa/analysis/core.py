@@ -385,21 +385,6 @@ class Segment:
         """bool: True if the segment ended in the target, False otherwise."""
         return self.pcoords[-1] in self.iteration.target
 
-    @functools.cached_property
-    def trajectory(self):
-        """sequence: The trajectory of the segment.
-
-        See Also
-        --------
-        Run.segment_traj_loader
-            Function used to load the trajectory.
-
-        """
-        if not self.run.segment_traj_loader:
-            raise ValueError('segment trajectory loader must be set')
-        return self.run.segment_traj_loader(
-            self.iteration.number, self.index)
-
     def trace(self, source=None):
         """Return the trace (ancestral line) of the segment.
 
@@ -421,29 +406,6 @@ class Segment:
 
     def __repr__(self):
         return f'{self.__class__.__name__}({self.index}, {self.iteration})'
-
-
-class SegmentTrajectoryLoader(ABC):
-    """API for segment trajectory loaders."""
-
-    @abstractmethod
-    def __call__(self, iteration_number, segment_index):
-        """Return the trajectory of a given segment.
-
-        Parameters
-        ----------
-        iteration_number : int
-            Number (1-based) of iteration to which the segment belongs.
-        segment_index : int
-            Index (0-based) of the segment within the iteration.
-
-        Returns
-        -------
-        sequence
-            The trajectory of the segment.
-
-        """
-        ...
 
 
 class Bin:
@@ -570,25 +532,6 @@ class Trace:
 
         self.segments = tuple(reversed(segments))
         self.source = source
-
-    @functools.cached_property
-    def trajectory(self):
-        """sequence: The trajectory of the trace.
-
-        Notes
-        -----
-        For this method to work, it must be possible to concatenate two
-        segment trajectories using the standard :func:`operator.concat`
-        concatenation operator (that is, ``traj1 + traj2``).
-
-        See Also
-        --------
-        Run.segment_traj_loader
-            Function used to load the segment trajectories.
-
-        """
-        trajectories = (segment.trajectory for segment in self.segments)
-        return functools.reduce(operator.concat, trajectories)
 
     def __repr__(self):
         s = f'Trace({self.segments[-1]}'

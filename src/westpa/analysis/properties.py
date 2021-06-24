@@ -77,7 +77,7 @@ class TraceTrajectory:
         raise AttributeError("can't set attribute")
 
 
-def segment_trajectory(fget=None, *, cached=True):
+def segment_trajectory(fget=None, *, cached=True, concat_operator=None):
     def register_segment_trajectory(fget):
         name = fget.__name__
 
