@@ -233,7 +233,7 @@ class WESimManager:
         pstatus()
         self.rc.pflush()
 
-    def initialize_simulation(self, basis_states, target_states, segs_per_state=1, suppress_we=False):
+    def initialize_simulation(self, basis_states, target_states, start_states, segs_per_state=1, suppress_we=False):
         '''Initialize a new weighted ensemble simulation, taking ``segs_per_state`` initial
         states from each of the given ``basis_states``.
 
@@ -256,6 +256,12 @@ class WESimManager:
         self.data_manager.create_ibstate_group(basis_states)
         self.report_basis_states(basis_states)
 
+        # Process start states
+        # Unlike the above, does not create an ibstate group.
+        # TODO: Should it?
+        self.get_bstate_pcoords(start_states)
+        self.report_basis_states(start_states)
+
         pstatus('Preparing initial states')
         initial_states = []
         weights = []
@@ -271,6 +277,18 @@ class WESimManager:
                 initial_state.basis_state = basis_state
                 initial_state.istate_type = istate_type
                 weights.append(basis_state.probability / segs_per_state)
+                initial_states.append(initial_state)
+
+        for start_state in start_states:
+            for _iseg in range(segs_per_state):
+                initial_state = data_manager.create_initial_states(1, 1)[0]
+                initial_state.basis_state_id = start_state.state_id
+                initial_state.basis_state = start_state
+
+                # Start states are assigned their own type, so they can be identified later
+                initial_state.istate_type = InitialState.ISTATE_TYPE_START
+                weights.append(start_state.probability / segs_per_state)
+                initial_state.iter_used = 1
                 initial_states.append(initial_state)
 
         if self.do_gen_istates:

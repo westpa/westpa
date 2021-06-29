@@ -539,6 +539,14 @@ class WESTDataManager:
                 )
                 for (i, (row, pcoord)) in enumerate(zip(bstate_index, bstate_pcoords))
             ]
+
+            bstate_total_prob = sum(bstate.probability for bstate in bstates)
+
+            # This should run once in the second iteration, and only if start-states are specified,
+            # but is necessary to re-normalize (i.e. normalize without start-state probabilities included)
+            for i, bstate in enumerate(bstates):
+                bstate.probability /= bstate_total_prob
+                bstates[i] = bstate
             return bstates
 
     def create_initial_states(self, n_states, n_iter=None):

@@ -149,6 +149,7 @@ class InitialState:
     ISTATE_TYPE_BASIS = 1
     ISTATE_TYPE_GENERATED = 2
     ISTATE_TYPE_RESTART = 3
+    ISTATE_TYPE_START = 4
 
     ISTATE_UNUSED = 0
 
@@ -312,7 +313,9 @@ def pare_basis_initial_states(basis_states, initial_states, segments=None):
         return_istates = set(initial_states)
 
     return_bstates = set(
-        bstatemap[istate.basis_state_id] for istate in return_istates if istate.istate_type != InitialState.ISTATE_TYPE_RESTART
+        bstatemap[istate.basis_state_id]
+        for istate in return_istates
+        if istate.istate_type != InitialState.ISTATE_TYPE_RESTART and istate.istate_type != InitialState.ISTATE_TYPE_START
     )
 
     return return_bstates, return_istates
