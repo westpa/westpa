@@ -41,7 +41,7 @@ def segment_property(fget=None, *, cache=True):
 
 
 def segment_trajectory(fget=None, *, cache=True):
-    """Transform a function for getting segment trajectories into a
+    """Transform a function for getting a segment trajectory into a
     trajectory attribute of the same name.
 
     Parameters
