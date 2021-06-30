@@ -533,6 +533,15 @@ class Trace:
         self.segments = tuple(reversed(segments))
         self.source = source
 
+    def __len__(self):
+        return len(self.segments)
+
+    def __iter__(self):
+        return iter(self.segments)
+
+    def __contains__(self, segment):
+        return segment in self.segments
+
     def __repr__(self):
         s = f'Trace({self.segments[-1]}'
         if self.source:
