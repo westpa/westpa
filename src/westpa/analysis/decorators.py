@@ -1,3 +1,5 @@
+import functools
+
 from westpa.analysis.core import Segment, Trace
 from westpa.analysis.trajtools import Trajectory, TrajectoryConcatenator
 
