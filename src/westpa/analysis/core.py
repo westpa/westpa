@@ -3,28 +3,46 @@ import itertools
 import operator
 import westpa.tools.binning
 
-from abc import ABC, abstractmethod
-from westpa.core.h5io import FileLinkedDSSpec
+from westpa.core.h5io import WESTPAH5File
 from westpa.core.states import BasisState, InitialState, TargetState
 
 
-class Run(FileLinkedDSSpec):
+class Run:
     """A completed WESTPA simulation run.
 
     Parameters
     ----------
-    h5filename : str, default 'west.h5'
-        Pathname of a WESTPA HDF5 data file.
+    h5filename : str or file-like object, default 'west.h5'
+        Pathname or stream of a WESTPA HDF5 data file.
     name : str, optional
-        Name of the run. Default is ''.
+        Name of the run. Default is the empty string.
 
     """
 
     DESCRIPTION = 'WESTPA Run'
 
     def __init__(self, h5filename='west.h5', name=None):
-        super().__init__(h5filename)
+        self.h5filename = h5filename
         self.name = name
+
+    @property
+    def h5filename(self):
+        return self.h5file.filename
+
+    @h5filename.setter
+    def h5filename(self, value):
+        self.h5file = WESTPAH5File(value, 'r')
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        state['h5filename'] = state['h5file'].filename
+        del state['h5file']
+        return state
+
+    def __setstate__(self, state):
+        state['h5file'] = WESTPAH5File(state['h5filename'], 'r')
+        del state['h5filename']
+        self.__dict__.update(state)
 
     @property
     def name(self):
