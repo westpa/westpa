@@ -106,7 +106,7 @@ class SegmentCollector:
 
         Returns
         -------
-        list
+        list of sequences
             The trajectory of each walker.
 
         """
@@ -143,6 +143,10 @@ class Trajectory:
         the trajectory of the walker.
     cache_segments : bool, default True
         Whether to cache trajectory segments.
+    concatenator : callable, optional
+        Function for concatenating trajectories. Must take a sequence of
+        trajectories as input and return their concatenation. The default
+        `concatenator` is :func:`concatenate`.
 
     See Also
     --------
@@ -152,7 +156,8 @@ class Trajectory:
 
     """
 
-    def __init__(self, name, segment_getter, cache_segments=True):
+    def __init__(self, name, segment_getter, cache_segments=True,
+                 concatenator=None):
         for cls in Walker, Trace:
             if hasattr(cls, name):
                 msg = f"class '{cls.__name__}' already has attribute '{name}'"
@@ -164,6 +169,7 @@ class Trajectory:
         self.name = name
         self.segment_getter = segment_getter
         self.cache_segments = cache_segments
+        self.concatenator = concatenator
 
     @cached_property
     def segment_collector(self):
@@ -190,6 +196,18 @@ class Trajectory:
         self._cache_segments = value
 
     @property
+    def concatenator(self):
+        return self._concatenator
+
+    @concatenator.setter
+    def concatenator(self, value):
+        if value is None:
+            value = concatenate
+        elif not isinstance(value, Callable):
+            raise TypeError('concatenator must be callable')
+        self._concatenator = value
+
+    @property
     def private_name(self):
         return '_' + self.name
 
@@ -209,9 +227,7 @@ class Trajectory:
 
         if owner is Trace:
             segments = self.segment_collector.get_segments(instance)
-            if isinstance(segments[0], np.ndarray):
-                return np.concatenate(segments)
-            return reduce(operator.concat, segments)
+            return self.concatenator(segments)
 
         msg = f'owner must be Walker or Trace, not {owner.__name__}'
         raise TypeError(msg)
@@ -223,3 +239,22 @@ class Trajectory:
         if not hasattr(value, '__getitem__'):
             msg = f"'{type(value).__name__}' object can't be concatenated"
             raise TypeError(msg)
+
+
+def concatenate(trajectories):
+    """Return the concatenation of a sequence of trajectories.
+
+    Parameters
+    ----------
+    trajectories : sequence of sequences
+        A sequence of trajectories.
+
+    Returns
+    -------
+    sequence
+        The concatenation of `trajectories`.
+
+    """
+    if isinstance(trajectories[0], np.ndarray):
+        return np.concatenate(trajectories)
+    return reduce(operator.concat, trajectories)
