@@ -1,8 +1,9 @@
-import functools
 import itertools
 import operator
+import pandas as pd
 import westpa.tools.binning
 
+from functools import cached_property
 from westpa.core.h5io import WESTPAH5File
 from westpa.core.states import BasisState, InitialState, TargetState
 
@@ -59,18 +60,13 @@ class Run:
 
     @property
     def summary(self):
-        """h5py.Dataset: The 'summary' dataset of the HDF5 file."""
-        return self.h5file['summary']
-
-    @property
-    def basis_state_info(self):
-        """h5py.Dataset: 'bstate_index' dataset."""
-        return self.h5file['ibstates']['bstate_index']
+        """pd.DataFrame: Summary data for the run."""
+        return pd.DataFrame(self.h5file['summary'][:])
 
     @property
     def num_iterations(self):
-        """int: Number of iterations in the run."""
-        return len(self.h5file['iterations'])
+        """int: Number of completed iterations."""
+        return self.h5file.attrs['west_current_iteration'] - 1
 
     @property
     def iterations(self):
@@ -80,17 +76,17 @@ class Run:
 
     @property
     def num_segments(self):
-        """int: Total number of segments."""
+        """int: Total number of trajectory segments."""
         return sum(iteration.num_segments for iteration in self)
 
     @property
-    def successful_segments(self):
-        """Iterable[Segment]: Segments that ended in the target."""
+    def successful_walkers(self):
+        """Iterable[Walker]: Walkers that stopped in the target."""
         return itertools.chain.from_iterable(
-            iteration.successful_segments for iteration in self)
+            iteration.successful_walkers for iteration in self)
 
     def iteration(self, number):
-        """Return the iteration with the given iteration number.
+        """Return a specific iteration.
 
         Parameters
         ----------
@@ -167,25 +163,28 @@ class Iteration:
 
     @property
     def segment_info(self):
-        """h5py.Dataset: 'seg_index' dataset of the iteration."""
-        return self.h5group['seg_index']
+        """pd.DataFrame: Segment summary data for the iteration."""
+        return pd.DataFrame(self.h5group['seg_index'][:], dtype=object)
 
-    @functools.cached_property
+    @cached_property
     def segment_pcoords(self):
         """3D ndarray: Progress coordinate values of each segment."""
         return self.h5group['pcoord'][:]
 
-    @functools.cached_property
-    def segment_weights(self):
-        """1D ndarray: Statistical weight of each segment."""
+    @cached_property
+    def walker_weights(self):
+        """1D ndarray: Statistical weight of each walker."""
         return self.segment_info['weight']
 
     @property
     def bin_target_counts(self):
-        """h5py.Dataset: 'bin_target_counts' dataset of the iteration."""
-        return self.h5group.get('bin_target_counts')  # May be None.
+        """1D ndarray, dtype=uint64: Target count for each bin."""
+        val = self.h5group.get('bin_target_counts')
+        if val is None:
+            return None
+        return val[:]
 
-    @functools.cached_property
+    @cached_property
     def bin_mapper(self):
         """BinMapper: Bin mapper used in the iteration."""
         if self.bin_target_counts is None:
@@ -198,6 +197,8 @@ class Iteration:
     @property
     def num_bins(self):
         """int: Number of bins."""
+        if self.number == 1:
+            return 1
         return self.bin_target_counts.shape[0]
 
     @property
@@ -206,19 +207,24 @@ class Iteration:
         return (Bin(index, self) for index in range(self.num_bins))
 
     @property
-    def num_segments(self):
-        """int: Number of segments in the iteration."""
+    def num_walkers(self):
+        """int: Number of walkers in the iteration."""
         return self.segment_info.shape[0]
 
     @property
-    def segments(self):
-        """Iterable[Segment]: Segments of the iteration."""
-        return (Segment(index, self) for index in range(self.num_segments))
+    def num_segments(self):
+        """int: Number of trajectory segments (alias self.num_walkers)."""
+        return self.num_walkers
 
     @property
-    def successful_segments(self):
-        """Iterable[Segment]: Segments that ended in target."""
-        return (segment for segment in self if segment.successful)
+    def walkers(self):
+        """Iterable[Walker]: Walkers in the iteration."""
+        return (Walker(index, self) for index in range(self.num_walkers))
+
+    @property
+    def successful_walkers(self):
+        """Iterable[Walker]: Walkers that stopped in the target."""
+        return (walker for walker in self if walker.successful)
 
     @property
     def _ibstates(self):
@@ -226,17 +232,17 @@ class Iteration:
 
     @property
     def _tstates(self):
-        return self.h5group.get('tstates')  # may be None
+        return self.h5group.get('tstates')  # None for equilibrium sampling
 
     @property
     def basis_state_info(self):
-        """h5py.Dataset: 'bstate_index' dataset."""
-        return self._ibstates['bstate_index']
+        """pd.DataFrame: Basis state summary data."""
+        return pd.DataFrame(self._ibstates['bstate_index'][:])
 
     @property
     def basis_state_pcoords(self):
-        """h5py.Dataset. 'bstate_pcoord' dataset."""
-        return self._ibstates['bstate_pcoord']
+        """2D ndarray: Progress coordinates of each basis state."""
+        return self._ibstates['bstate_pcoord'][:]
 
     @property
     def basis_states(self):
@@ -248,12 +254,12 @@ class Iteration:
 
     @property
     def initial_state_info(self):
-        """h5py.Dataset. 'istate_index' dataset."""
-        return self._ibstates['istate_index']
+        """pd.DataFrame: Initial state summary data."""
+        return pd.DataFrame(self._ibstates['istate_index'][:])
 
     @property
     def initial_state_pcoords(self):
-        """h5py.Dataset. 'istate_pcoord' dataset."""
+        """2D ndarray: Progress coordinates of each initial state."""
         return self._ibstates['istate_pcoord']
 
     @property
@@ -269,13 +275,13 @@ class Iteration:
 
     @property
     def target_state_info(self):
-        """h5py.Dataset: 'index' dataset for target states."""
-        return self._tstates['index'] if self._tstates else None
+        """pd.DataFrame: Target state summary data."""
+        return pd.DataFrame(self._tstates['index'][:]) if self._tstates else None
 
     @property
     def target_state_pcoords(self):
-        """h5py.Dataset: 'pcoord' dataset for target states."""
-        return self._tstates['pcoord'] if self._tstates else None
+        """2D ndarray: Progress coordinates of each target state."""
+        return self._tstates['pcoord'][:] if self._tstates else None
 
     @property
     def target_states(self):
@@ -286,7 +292,7 @@ class Iteration:
                 for state_id, (info, pcoord) in enumerate(
                     zip(self.target_state_info, self.target_state_pcoords))]
 
-    @functools.cached_property
+    @cached_property
     def target(self):
         """Target: Union of bins that serve as the target."""
         return Target(self)
@@ -310,30 +316,30 @@ class Iteration:
             raise ValueError(f'bin index must be in {valid_range}')
         return Bin(index, self)
 
-    def segment(self, index):
-        """Return the segment with the given index.
+    def walker(self, index):
+        """Return the walker with the given index.
 
         Parameters
         ----------
         index : int
-            Segment index (0-based).
+            Walker index (0-based).
 
         Returns
         -------
-        Segment
-            The segment indexed by `index`.
+        Walker
+            The walker indexed by `index`.
 
         """
-        valid_range = range(self.num_segments)
+        valid_range = range(self.num_walkers)
         if index not in valid_range:
-            raise ValueError(f'segment index must be in {valid_range}')
-        return Segment(index, self)
+            raise ValueError(f'walker index must be in {valid_range}')
+        return Walker(index, self)
 
     def __iter__(self):
-        return iter(self.segments)
+        return iter(self.walkers)
 
-    def __contains__(self, segment):
-        return segment.iteration is self
+    def __contains__(self, walker):
+        return walker.iteration is self
 
     def __eq__(self, other):
         return self.number == other.number and self.run == other.run
@@ -342,15 +348,15 @@ class Iteration:
         return f'{self.__class__.__name__}({self.number}, {self.run})'
 
 
-class Segment:
-    """A segment of an iteration of a WESTPA simulation.
+class Walker:
+    """A walker in an iteration of a WESTPA simulation.
 
     Parameters
     ----------
     index : int
-        Segment index (0-based).
+        Walker index (0-based).
     iteration : Iteration
-        Iteration to which the segment belongs.
+        Iteration to which the walker belongs.
 
     """
 
@@ -360,21 +366,21 @@ class Segment:
 
     @property
     def run(self):
-        """Run: Run to which the segment belongs."""
+        """Run: Run to which the walker belongs."""
         return self.iteration.run
 
     @property
-    def info(self):
-        """numpy.void: 'seg_index' row of the segment."""
-        return self.iteration.segment_info[self.index]
-
-    @property
     def weight(self):
-        """float64: Statistical weight of the segment."""
-        return self.iteration.segment_weights[self.index]
+        """float64: Statistical weight of the walker."""
+        return self.iteration.walker_weights[self.index]
 
     @property
-    def pcoords(self):
+    def segment_info(self):
+        """pd.Series: Segment summary data."""
+        return self.iteration.segment_info.iloc[self.index]
+
+    @property
+    def segment_pcoords(self):
         """2D ndarray: Progress coordinates at each snapshot time."""
         return self.iteration.segment_pcoords[self.index]
 
@@ -385,39 +391,36 @@ class Segment:
 
     @property
     def parent(self):
-        """Segment: The parent of the segment."""
+        """Walker: The parent of the walker."""
         if not self.iteration.prev:
             return None
-        return Segment(self.info['parent_id'], self.iteration.prev)
+        return Walker(self.segment_info['parent_id'], self.iteration.prev)
 
     @property
     def children(self):
-        """Iterable[Segment]: The children of the segment."""
+        """Iterable[Walker]: The children of the walker."""
         if not self.iteration.next:
             return ()
-        return (segment for segment in self.iteration.next.segments
-                if segment.parent == self)
+        return (walker for walker in self.iteration.next.walkers
+                if walker.parent == self)
 
     @property
     def successful(self):
-        """bool: True if the segment ended in the target, False otherwise."""
+        """bool: True if the walker stopped in the target, False otherwise."""
         return self.pcoords[-1] in self.iteration.target
 
     def trace(self, source=None):
-        """Return the trace (ancestral line) of the segment.
+        """Return the trace (ancestral line) of the walker.
 
         For full documentation see :class:`Trace`.
 
         Returns
         -------
         Trace
-            The trace of the segment.
+            The trace of the walker.
 
         """
         return Trace(self, source=source)
-
-    def __len__(self):
-        return self.num_snapshots
 
     def __eq__(self, other):
         return self.index == other.index and self.iteration == other.iteration
@@ -526,12 +529,12 @@ class Target(BinUnion):
 
 
 class Trace:
-    """A trace of a segment back to a source or initial state.
+    """A trace of a walker's history back to a source or initial state.
 
     Parameters
     ----------
-    segment : Segment
-        The terminal segment.
+    walker : Walker
+        The terminal walker.
     source : Bin, BinUnion, or Container, optional
         The source (macro)state. If provided, the trace is continued
         only as far back as `source`. Otherwise, the trace extends back
@@ -539,29 +542,29 @@ class Trace:
 
     """
 
-    def __init__(self, segment, source=None):
+    def __init__(self, walker, source=None):
         if source is None:
             source = BinUnion()
 
-        segments = []
-        while segment and segment.pcoords[-1] not in source:
-            segments.append(segment)
-            segment = segment.parent
+        walkers = []
+        while walker and walker.segment_pcoords[-1] not in source:
+            walkers.append(walker)
+            walker = walker.parent
 
-        self.segments = tuple(reversed(segments))
+        self.walkers = tuple(reversed(walkers))
         self.source = source
 
     def __len__(self):
-        return len(self.segments)
+        return len(self.walkers)
 
     def __iter__(self):
-        return iter(self.segments)
+        return iter(self.walkers)
 
-    def __contains__(self, segment):
-        return segment in self.segments
+    def __contains__(self, walker):
+        return walker in self.walkers
 
     def __repr__(self):
-        s = f'Trace({self.segments[-1]}'
+        s = f'Trace({self.walkers[-1]}'
         if self.source:
             s += f',\n      source={self.source}'
         return s + ')'
