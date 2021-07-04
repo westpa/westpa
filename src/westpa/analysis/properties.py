@@ -82,9 +82,6 @@ class Property:
     def argmin(self, args):
         return argmin(self, args)
 
-    def mean(self, args, weights=None):
-        return mean(self, args, weights=None)
-
 
 class WalkerProperty(Property):
 
