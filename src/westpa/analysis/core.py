@@ -167,8 +167,8 @@ class Iteration:
         return pd.DataFrame(self.h5group['seg_index'][:], dtype=object)
 
     @cached_property
-    def segment_pcoords(self):
-        """3D ndarray: Progress coordinate values of each segment."""
+    def walker_pcoords(self):
+        """3D ndarray: Progress coordinate snaphots of each walker."""
         return self.h5group['pcoord'][:]
 
     @cached_property
@@ -380,13 +380,13 @@ class Walker:
         return self.iteration.segment_info.iloc[self.index]
 
     @property
-    def segment_pcoords(self):
-        """2D ndarray: Progress coordinates at each snapshot time."""
+    def pcoords(self):
+        """2D ndarray: Progress coordinate snapshots."""
         return self.iteration.segment_pcoords[self.index]
 
     @property
     def num_snapshots(self):
-        """int: Number of snapshots (saved frames)."""
+        """int: Number of snapshots."""
         return self.pcoords.shape[0]
 
     @property
@@ -529,15 +529,18 @@ class Target(BinUnion):
 
 
 class Trace:
-    """A trace of a walker's history back to a source or initial state.
+    """A trace of a walker's ancestry back to a source or initial state.
 
     Parameters
     ----------
     walker : Walker
         The terminal walker.
     source : Bin, BinUnion, or Container, optional
-        The source (macro)state. If provided, the trace is continued
-        only as far back as `source`. Otherwise, the trace extends back
+        The source (macro)state, specified as a :type:`Container` object
+        whose :meth:`__contains__` method is the indicator function for
+        the corresponding subset of progress coordinate space. If `source`
+        is provided, the trace is continued only as far back as the last
+        walker that stopped in `source`. Otherwise, the trace extends back
         to the initial state.
 
     """
