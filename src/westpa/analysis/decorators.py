@@ -37,7 +37,7 @@ def trajectory_segment(fget=None, *, cache=True):
     fget : callable
         Function for getting a trajectory segment. Must take a single
         :type:`Walker` object as input and return a sequence.
-    cached : bool, default True
+    cache : bool, default True
         Whether to cache trajectory segments.
 
     Returns

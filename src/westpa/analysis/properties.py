@@ -12,6 +12,7 @@ class Property:
             raise TypeError("can't assign Property to multiple owners")
         if name != self.name:
             raise AttributeError("can't assign multiple names to Property")
+
         self.owner = owner
 
     def __init__(self, fget, *, owner=None, cache=False):
@@ -92,7 +93,7 @@ class WalkerProperty(Property):
 
     def weighted_average(self, iterations):
         num_iterations = 0
-        for iteration in _type_checked_generator(iterations, Iteration):
+        for iteration in iterations:
             num_iterations += 1
             values = [self(walker) for walker in iteration]
             if num_iterations == 1:
@@ -114,10 +115,3 @@ def argmax(func, args):
 
 def argmin(func, args):
     return argmax(lambda x: -func(x), args)
-
-
-def _type_checked_generator(objs, objtype):
-    for obj in objs:
-        if not isinstance(obj, objtype):
-            raise TypeError(f"objs must be of type '{objtype.__name__}'")
-        yield obj
