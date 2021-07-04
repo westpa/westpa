@@ -80,6 +80,11 @@ class Run:
         return sum(iteration.num_segments for iteration in self)
 
     @property
+    def walkers(self):
+        """Iterable[Walker]: All walkers in the run."""
+        return itertools.chain.from_iterable(self)
+
+    @property
     def successful_walkers(self):
         """Iterable[Walker]: Walkers that stopped in the target."""
         return itertools.chain.from_iterable(
@@ -167,12 +172,12 @@ class Iteration:
         return pd.DataFrame(self.h5group['seg_index'][:], dtype=object)
 
     @cached_property
-    def walker_pcoords(self):
+    def pcoords(self):
         """3D ndarray: Progress coordinate snaphots of each walker."""
         return self.h5group['pcoord'][:]
 
     @cached_property
-    def walker_weights(self):
+    def weights(self):
         """1D ndarray: Statistical weight of each walker."""
         return self.segment_info['weight']
 
@@ -372,22 +377,22 @@ class Walker:
     @property
     def weight(self):
         """float64: Statistical weight of the walker."""
-        return self.iteration.walker_weights[self.index]
-
-    @property
-    def segment_info(self):
-        """pd.Series: Segment summary data."""
-        return self.iteration.segment_info.iloc[self.index]
+        return self.iteration.weights[self.index]
 
     @property
     def pcoords(self):
         """2D ndarray: Progress coordinate snapshots."""
-        return self.iteration.segment_pcoords[self.index]
+        return self.iteration.pcoords[self.index]
 
     @property
     def num_snapshots(self):
         """int: Number of snapshots."""
         return self.pcoords.shape[0]
+
+    @property
+    def segment_info(self):
+        """pd.Series: Segment summary data."""
+        return self.iteration.segment_info.iloc[self.index]
 
     @property
     def parent(self):

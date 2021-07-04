@@ -1,6 +1,8 @@
 import functools
+import numpy as np
 
 from westpa.analysis.core import Walker, Trace
+from westpa.analysis.properties import WalkerProperty
 from westpa.analysis.trajtools import Trajectory
 
 
@@ -18,28 +20,12 @@ def walker_property(fget=None, *, cache=True):
 
     Returns
     -------
-    :type:`property` or :type:`functools.cached_property`
+    WalkerProperty
         The newly created property attribute. Equivalent to
-        ``getattr(Walker, func.__name__)``.
+        ``getattr(Walker, fget.__name__)``.
 
     """
-    if fget is None:
-        return functools.partial(walker_property, cache=cache)
-
-    name = fget.__name__
-
-    if hasattr(Walker, name):
-        raise AttributeError(f'Walker.{name} already exists')
-
-    if cache:
-        prop = functools.cached_property(fget)
-        prop.__set_name__(Walker, name)
-    else:
-        prop = property(fget)
-
-    setattr(Walker, name, prop)
-
-    return prop
+    return WalkerProperty(fget, cache=cache)
 
 
 def trajectory_segment(fget=None, *, cache=True):
