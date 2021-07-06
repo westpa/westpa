@@ -35,12 +35,12 @@ class Property:
             self.__set_name__(owner, self.name)
 
     @property
-    def name(self):
-        return self.fget.__name__
-
-    @property
     def __doc__(self):
         return self.fget.__doc__
+
+    @property
+    def name(self):
+        return self.fget.__name__
 
     @property
     def private_name(self):
@@ -88,7 +88,20 @@ class WalkerProperty(Property):
     def __init__(self, fget, *, cache=False):
         super().__init__(fget, owner=Walker, cache=cache)
 
-    def weighted_average(self, iterations):
+    def average(self, iterations):
+        """Compute the weighted average over a given set of iterations.
+
+        Parameters
+        ----------
+        iterations : Iterable[Iteration]
+            The iterations over which to compute the average.
+
+        Returns
+        -------
+        array_like
+            The weighted average of the walker property over `iterations`.
+
+        """
         num_iterations = 0
         for iteration in iterations:
             num_iterations += 1
@@ -98,6 +111,8 @@ class WalkerProperty(Property):
                 continue
             value += np.dot(iteration.weights, values)
         return value / num_iterations
+
+    # TODO(Jeff): Implement blocked averages.
 
 
 def argmax(func, args):
