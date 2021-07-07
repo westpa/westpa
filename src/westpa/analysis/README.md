@@ -16,53 +16,54 @@ run = Run('west.h5')
 
 ### How To
 
-Iterate over simulation iterations and segments:
+Iterate over simulation iterations and walkers:
 ```py
 for iteration in run:
-    for segment in iteration:
+    for walker in iteration:
         ...
 ```
 
-Retrieve a particular segment:
+Retrieve a particular walker:
 ```py
-segment = run.iteration(10).segment(4)
+walker = run.iteration(10).walker(4)
 ```
 
-Get the weight and progress coordinate values of a segment:
+Get the weight and progress-coordinate snapshots of a walker:
 ```py
-weight, pcoords = segment.weight, segment.pcoords
+weight, pcoords = walker.weight, walker.pcoords
 ```
 
-Get the parent and children of a segment:
+Get the parent and children of a walker:
 ```py
-parent, children = segment.parent, segment.children
+parent, children = walker.parent, walker.children
 ```
 
-Trace the ancestry of a segment back to its origin:
+Trace the ancestry of a walker back to an initial state:
 ```py
-trace = segment.trace()
+trace = walker.trace()
 ```
 
-### Loading Segment Trajectories
+### Retrieving Trajectory Segments
 
 ```py
 import mdtraj
 
-from westpa.analysis import segment_trajectory
+from westpa.analysis import trajectory_segment
 
-@segment_trajectory
-def traj(segment):
-    filename = f'traj_segs/{segment.iteration.number}/{segment.index}/seg.h5'
+@trajectory_segment
+def traj(walker):
+    filename = f'traj_segs/{walker.iteration.number}/{walker.index}/seg.h5'
     return mdtraj.load(filename)
 ```
 
-Then the trajectory of a segment can be accessed via the `traj`
-property:
+Then the trajectory segment associated with a particular walker can be accessed via the `traj` attribute:
 ```py
-segment_traj = segment.traj
+segment = walker.traj
 ```
-The trajectory of a trace can be accessed similarly:
+The trajectory of a trace (i.e., the concatentation of a sequence of 
+trajectory segments) can be accessed similarly:
 ```py
-trace = segment.trace()
+trace = walker.trace()
 trace_traj = trace.traj
 ```
+
