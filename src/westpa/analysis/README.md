@@ -16,7 +16,7 @@ run = Run('west.h5')
 
 ### How To
 
-Iterate over simulation iterations and walkers:
+Iterate over iterations and walkers:
 ```py
 for iteration in run:
     for walker in iteration:
@@ -28,7 +28,7 @@ Retrieve a particular walker:
 walker = run.iteration(10).walker(4)
 ```
 
-Get the weight and progress-coordinate snapshots of a walker:
+Get the weight and progress coordinate values of a walker:
 ```py
 weight, pcoords = walker.weight, walker.pcoords
 ```
