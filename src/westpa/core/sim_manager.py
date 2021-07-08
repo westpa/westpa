@@ -258,7 +258,7 @@ class WESimManager:
 
         # Process start states
         # Unlike the above, does not create an ibstate group.
-        # TODO: Should it?
+        # TODO: Should it? I don't think so, if needed it can be traced back through basis_auxref
         self.get_bstate_pcoords(start_states)
         self.report_basis_states(start_states)
 
@@ -284,6 +284,7 @@ class WESimManager:
                 initial_state = data_manager.create_initial_states(1, 1)[0]
                 initial_state.basis_state_id = start_state.state_id
                 initial_state.basis_state = start_state
+                initial_state.basis_auxref = start_state.auxref
 
                 # Start states are assigned their own type, so they can be identified later
                 initial_state.istate_type = InitialState.ISTATE_TYPE_START

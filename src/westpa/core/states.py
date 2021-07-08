@@ -173,6 +173,7 @@ class InitialState:
         istate_status=None,
         pcoord=None,
         basis_state=None,
+        basis_auxref=None,
     ):
         self.state_id = state_id
         self.basis_state_id = basis_state_id
@@ -182,6 +183,7 @@ class InitialState:
         self.iter_created = iter_created
         self.iter_used = iter_used
         self.pcoord = np.atleast_1d(pcoord)
+        self.basis_auxref = basis_auxref
 
     def __repr__(self):
         return '{} state_id={self.state_id!r} istate_type={self.istate_type!r} basis_state_id={self.basis_state_id!r} iter_created={self.iter_created!r} pcoord={self.pcoord!r}>'.format(
@@ -199,7 +201,7 @@ class InitialState:
                 ('iter_used', np.uint),
                 ('istate_type', istate_type_dtype),
                 ('istate_status', istate_status_dtype),
-                ('pcoord', self.pcoord.dtype, (len(self.pcoord),)),
+                ('basis_auxref', str)('pcoord', self.pcoord.dtype, (len(self.pcoord),)),
             ]
         )
         return np.array(
