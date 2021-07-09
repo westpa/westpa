@@ -568,7 +568,7 @@ class Trace:
             source = BinUnion()
 
         walkers = []
-        while walker and walker.segment_pcoords[-1] not in source:
+        while walker and walker.pcoords[-1] not in source:
             walkers.append(walker)
             walker = walker.parent
 

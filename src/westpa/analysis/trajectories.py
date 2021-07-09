@@ -1,8 +1,7 @@
-import functools
+import concurrent.futures as cf
 import operator
 import numpy as np
 
-from concurrent.futures import ThreadPoolExecutor
 from functools import cached_property, reduce
 from tqdm import tqdm
 from westpa.analysis.core import Walker, Trace
@@ -121,9 +120,14 @@ class SegmentCollector:
         )
 
         if self.use_threads:
-            with ThreadPoolExecutor(self.max_workers) as executor:
-                segments = tqdm(executor.map(self.get_segment, walkers),
-                                **tqdm_kwargs)
+            with cf.ThreadPoolExecutor(self.max_workers) as executor:
+                future_to_key = {
+                    executor.submit(self.get_segment, walker): key
+                    for key, walker in enumerate(walkers)}
+                futures = list(tqdm(cf.as_completed(future_to_key),
+                                    **tqdm_kwargs))
+                futures.sort(key=future_to_key.get)
+                segments = (future.result() for future in futures)
         else:
             segments = tqdm(map(self.get_segment, walkers), **tqdm_kwargs)
 
