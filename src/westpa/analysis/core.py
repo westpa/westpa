@@ -121,11 +121,6 @@ class Run:
     def __eq__(self, other):
         return self.h5file == other.h5file
 
-    def __str__(self):
-        if self.name:
-            return f'<{self.DESCRIPTION} "{self.name}">'
-        return repr(self)
-
     def __repr__(self):
         if self.name:
             return f'<{self.DESCRIPTION} "{self.name}" at {hex(id(self))}>'
@@ -412,7 +407,25 @@ class Walker:
     @property
     def successful(self):
         """bool: True if the walker stopped in the target, False otherwise."""
-        return self.pcoords[-1] in self.iteration.target
+        return self.stopped_in(self.iteration.target)
+
+    def stopped_in(self, pcoord_subset):
+        """Return True if the walker stopped (i.e., terminated) in a given
+        subset of progress coordinate space, False otherwise.
+
+        Parameters
+        ----------
+        pcoord_subset : Bin, BinUnion, or Container
+            A :type:`Container` object representing a subset of progress
+            coordinate space.
+
+        Returns
+        -------
+        bool
+            Whether the walker stopped in `pcoord_subset`.
+
+        """
+        return self.pcoords[-1] in pcoord_subset
 
     def trace(self, source=None):
         """Return the trace (ancestral line) of the walker.

@@ -1,3 +1,4 @@
+import functools
 import operator
 import numpy as np
 
@@ -10,7 +11,7 @@ from typing import Callable, Iterable
 
 
 class SegmentCollector:
-    """An object that retrieves trajectory segments.
+    """An object that manages the retrieval of trajectory segments.
 
     Parameters
     ----------
@@ -134,19 +135,20 @@ class Trajectory:
 
     Parameters
     ----------
-    name : str
-        Name of the :type:`Walker` and :type:`Trace` attribute to which to
-        assign the descriptor.
-    segment_getter : callable
+    fget : callable
         Function for getting a trajectory segment. Must take a single
         :type:`Walker` object as input and return a sequence representing
         the trajectory of the walker.
-    cache_segments : bool, default True
-        Whether to cache trajectory segments.
+    name : str, optional
+        Name of the :type:`Walker` and :type:`Trace` attribute to which
+        to assign the trajectory descriptor. The default `attrname` is the
+        name of the `fget`.
     concatenator : callable, optional
         Function for concatenating trajectories. Must take a sequence of
         trajectories as input and return their concatenation. The default
         `concatenator` is :func:`concatenate`.
+    cache_segments : bool, default True
+        Whether to cache trajectory segments.
 
     See Also
     --------
@@ -156,37 +158,56 @@ class Trajectory:
 
     """
 
-    def __init__(self, name, segment_getter, cache_segments=True,
-                 concatenator=None):
+    def __init__(self, fget=None, *, name=None,
+                 concatenator=None, cache_segments=True):
+        if fget is None:
+            return functools.partial(self.__init__, name=name,
+                                     cache_segments=cache_segments,
+                                     concatenator=concatenator)
+
+        if name is None:
+            name = fget.__name__
+
+        self.fget = fget
+        self.name = name
+        self.concatenator = concatenator
+        self.cache_segments = cache_segments
+
+        # Attach self to Walker and Trace classes.
         for cls in Walker, Trace:
             if hasattr(cls, name):
                 msg = f"class '{cls.__name__}' already has attribute '{name}'"
                 raise AttributeError(msg)
-
         for cls in Walker, Trace:
             setattr(cls, name, self)
 
-        self.name = name
-        self.segment_getter = segment_getter
-        self.cache_segments = cache_segments
-        self.concatenator = concatenator
+    @property
+    def private_name(self):
+        """str: Name of the :type:`Walker` instance attribute used for
+        caching segments.
+
+        """
+        return '_' + self.name
 
     @cached_property
     def segment_collector(self):
+        """SegmentCollector: Segment retrieval manager."""
         return SegmentCollector(self)
 
     @property
-    def segment_getter(self):
-        return self._segment_getter
+    def fget(self):
+        """callable: Function for getting trajectory segments."""
+        return self._fget
 
-    @segment_getter.setter
-    def segment_getter(self, value):
+    @fget.setter
+    def fget(self, value):
         if not isinstance(value, Callable):
-            raise TypeError('segment_getter must be callable')
-        self._segment_getter = value
+            raise TypeError('fget must be callable')
+        self._fget = value
 
     @property
     def cache_segments(self):
+        """bool: Whether to cache trajectory segments."""
         return self._cache_segments
 
     @cache_segments.setter
@@ -197,6 +218,7 @@ class Trajectory:
 
     @property
     def concatenator(self):
+        """callable: Function for concatenating trajectories."""
         return self._concatenator
 
     @concatenator.setter
@@ -207,10 +229,6 @@ class Trajectory:
             raise TypeError('concatenator must be callable')
         self._concatenator = value
 
-    @property
-    def private_name(self):
-        return '_' + self.name
-
     def __get__(self, instance, owner):
         if instance is None:
             return self
@@ -219,8 +237,8 @@ class Trajectory:
             if hasattr(instance, self.private_name):
                 value = getattr(instance, self.private_name)
             else:
-                value = self.segment_getter(instance)
-                self.validate_segment(value)
+                value = self.fget(instance)
+                self._validate_segment(value)
                 if self.cache_segments:
                     setattr(instance, self.private_name, value)
             return value
@@ -235,10 +253,40 @@ class Trajectory:
     def __set__(self, instance, value):
         raise AttributeError("can't set attribute")
 
-    def validate_segment(self, value):
+    def __call__(self, arg):
+        if isinstance(arg, Walker):
+            return self.__get__(arg, Walker)
+        if isinstance(arg, Trace):
+            return self.__get__(arg, Trace)
+        raise TypeError('argument must be a Walker or Trace')
+
+    def _validate_segment(self, value):
         if not hasattr(value, '__getitem__'):
             msg = f"'{type(value).__name__}' object can't be concatenated"
             raise TypeError(msg)
+
+
+def trajectory_segment(fget=None, *, cache=True):
+    """Transform a function for getting a trajectory segment into a
+    trajectory attribute of the same name.
+
+    Parameters
+    ----------
+    fget : callable
+        Function for getting a trajectory segment. Must take a single
+        :type:`Walker` object as input and return a sequence.
+    cache : bool, default True
+        Whether to cache trajectory segments.
+
+    Returns
+    -------
+    Trajectory
+        The newly created trajectory attribute. Equivalent to
+        ``getattr(Walker, fget.__name__)`` and
+        ``getattr(Trace, fget.__name__)``.
+
+    """
+    return Trajectory(fget, cache_segments=cache)
 
 
 def concatenate(trajectories):
