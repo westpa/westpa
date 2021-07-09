@@ -141,8 +141,8 @@ class Trajectory:
         the trajectory of the walker.
     name : str, optional
         Name of the :type:`Walker` and :type:`Trace` attribute to which
-        to assign the trajectory descriptor. The default `attrname` is the
-        name of the `fget`.
+        to assign the trajectory descriptor. If not provided, `name` will
+        default to the function name of `fget`.
     concatenator : callable, optional
         Function for concatenating trajectories. Must take a sequence of
         trajectories as input and return their concatenation. The default
@@ -152,7 +152,7 @@ class Trajectory:
 
     See Also
     --------
-    westpa.analysis.decorators.trajectory_segment
+    trajectory_segment
         Decorator that transforms a function for getting trajectory
         segments into a :type:`Trajectory` descriptor.
 
@@ -162,8 +162,8 @@ class Trajectory:
                  concatenator=None, cache_segments=True):
         if fget is None:
             return functools.partial(self.__init__, name=name,
-                                     cache_segments=cache_segments,
-                                     concatenator=concatenator)
+                                     concatenator=concatenator,
+                                     cache_segments=cache_segments)
 
         if name is None:
             name = fget.__name__
