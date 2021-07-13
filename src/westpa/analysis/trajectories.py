@@ -2,6 +2,12 @@ import concurrent.futures as cf
 import operator
 import numpy as np
 
+# Required for fast concatenation of MDTraj trajectories.
+try:
+    import mdtraj
+except ImportError:
+    mdtraj = None
+
 from functools import cached_property, reduce
 from tqdm import tqdm
 from westpa.analysis.core import Walker, Trace
@@ -309,4 +315,6 @@ def concatenate(trajectories):
     """
     if isinstance(trajectories[0], np.ndarray):
         return np.concatenate(trajectories)
+    if mdtraj and isinstance(trajectories[0], mdtraj.Trajectory):
+        return trajectories[0].join(trajectories[1:], check_topology=False)
     return reduce(operator.concat, trajectories)
