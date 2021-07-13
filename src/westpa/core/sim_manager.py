@@ -361,6 +361,7 @@ class WESimManager:
         self.segments = {segment.seg_id: segment for segment in segments}
         self.report_bin_statistics(binning, save_summary=True)
         data_manager.flush_backing()
+        data_manager.close_backing()
 
     def prepare_iteration(self):
         log.debug('beginning iteration {:d}'.format(self.n_iter))
