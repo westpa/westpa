@@ -3,12 +3,17 @@ import operator
 import numpy as np
 
 import westpa
+from westpa.cli.core import w_init
 
 import json
 
 import os
+import subprocess
 import shutil
 import sys
+import pickle
+
+import tqdm
 
 sys.path.append("/Users/russojd/Research/molssi_2021/msmWE_cc/msm_we")
 from msm_we import msm_we
@@ -53,28 +58,47 @@ def prepare_coordinates(plugin_config, h5file):
     # TODO: Don't need this explicit option, use WEST_SIM_ROOT or something
     WEfolder = plugin_config.get('we_folder')
 
+    parentTraj = plugin_config.get('parent_traj_filename')
+    childTraj = plugin_config.get('child_traj_filename')
+
     model = msm_we.modelWE()
-    log.debug('initializing...')
+    log.info('Preparing coordinates...')
     model.initialize(fileSpecifier, refPDBfile, initPDBfile, modelName)
     model.get_iterations()
 
-    for n_iter in range(1, model.maxIter):
+    for n_iter in tqdm.tqdm(range(1, model.maxIter)):
 
         nS = model.numSegments[n_iter - 1].astype(int)
         coords = np.zeros((nS, 2, model.nAtoms, 3))
+        dsetName = "/iterations/iter_%08d/auxdata/coord" % int(n_iter)
+
+        coords_exist = False
+        try:
+            dset = h5file.create_dataset(dsetName, np.shape(coords))
+        except RuntimeError:
+            log.debug('coords exist for iteration ' + str(n_iter) + ' NOT overwritten')
+            coords_exist = True
+            continue
+
         for iS in range(nS):
             trajpath = WEfolder + "/traj_segs/%06d/%06d" % (n_iter, iS)
-            coord0 = np.squeeze(md.load(trajpath + '/parent.xml', top=model.reference_structure.topology)._xyz)
-            coord1 = np.squeeze(md.load(trajpath + '/seg.xml', top=model.reference_structure.topology)._xyz)
+
+            # TODO: HACK, this should  not be hardcoded
+            try:
+                coord0 = np.squeeze(md.load(f'{trajpath}/{parentTraj}', top=model.reference_structure.topology)._xyz)
+            except OSError:
+                # coord0 = np.squeeze(md.load(trajpath + '/parent.xml', top=model.reference_structure.topology)._xyz)
+                log.warning("Parent traj file doesn't exist, loading reference structure coords")
+                coord0 = np.squeeze(model.reference_structure._xyz)
+
+            coord1 = np.squeeze(md.load(f'{trajpath}/{childTraj}', top=model.reference_structure.topology)._xyz)
+
             coords[iS, 0, :, :] = coord0
             coords[iS, 1, :, :] = coord1
 
-        dsetName = "/iterations/iter_%08d/auxdata/coord" % int(n_iter)
-        try:
-            dset = h5file.create_dataset(dsetName, np.shape(coords))
+        if not coords_exist:
+            log.debug(f"Writing coords for iter {n_iter}")
             dset[:] = coords
-        except Exception:
-            log.debug('coords exist for iteration ' + str(n_iter) + ' NOT overwritten\n')
 
     # f.close()
 
@@ -107,33 +131,47 @@ def msmwe_compute_ss(plugin_config, last_iter):
     model.n_lag = n_lag
 
     last_iter_cluster = last_iter  # model.maxIter-1 #last iter often not complete
+    #####
     # TODO: magic number? Maximum possible number of segments I think based on the while loop below
-    ncoords = 100000
     i = last_iter_cluster
-
-    numCoords = 0
     coordSet = np.zeros((0, model.nAtoms, 3))  # extract coordinate libraries for clustering
-    pcoordSet = np.zeros((0, model.pcoord_ndim))
 
     log.debug("Loading in iteration data.. (this could take a while)")
+    log.debug(f'coord shape is {coordSet.shape}')
 
-    # Keep adding iterations until the total number of segments is equal to ncoords
-    while numCoords < ncoords:
-        print(f"Doing iteration {i}/{last_iter_cluster} (goes backwards to 0) | {numCoords}", end='\r')
-        # TODO: Replace this, which iterates over a set of trajectory files, with something that just looks at auxdata
-        # Load data into the model's state
+    ##### Replacement
+    # First dimension is the total number of segments
+    model.get_iterations()
+    # Ignore the last iteration, as above
+    total_segments = int(sum(model.numSegments[:-1]))
+    coordSet = np.zeros((total_segments, model.nAtoms, 3))  # extract coordinate libraries for clustering
+    pcoordSet = np.zeros((total_segments, model.pcoord_ndim))
+
+    last_seg = total_segments
+
+    # Update iterations N+1 -> 1
+    for i in tqdm.tqdm(range(last_iter, 0, -1)):
+        # log.debug(f"Appending coords from iteration {i}/{last_iter} (goes backwards to 0)")
+
         model.load_iter_data(i)
         model.get_iter_coordinates()
 
-        # TODO: Slowwwwwww appends
-        indGood = np.squeeze(np.where(np.sum(np.sum(model.cur_iter_coords, 2), 1) != 0))
-        coordSet = np.append(coordSet, model.cur_iter_coords[indGood, :, :], axis=0)
-        pcoordSet = np.append(pcoordSet, model.pcoord1List[indGood, :], axis=0)
-        numCoords = np.shape(coordSet)[0]
-        i = i - 1
+        first_seg = last_seg - len(model.segindList)
+        assert first_seg >= 0, "Referencing a segment that doesn't exist"
 
-        if i == 0:
-            break
+        # log.debug(f"This covers segments {first_seg} to {last_seg}")
+
+        indGood = np.squeeze(np.where(np.sum(np.sum(model.cur_iter_coords, 2), 1) != 0))
+
+        coordSet[first_seg:last_seg] = model.cur_iter_coords[indGood, :, :]
+        pcoordSet[first_seg:last_seg] = model.pcoord1List[indGood, :]
+
+        last_seg = first_seg
+
+    log.debug(f"Segment weights has {list(model.seg_weights.keys())}")
+    log.debug(f"Segment weights has {len(list(model.seg_weights.keys()))}")
+    # raise Exception
+    #####
 
     # Set the coords, and pcoords
     # TODO: There's no need to set these as attributes of the object
@@ -184,9 +222,12 @@ def msmwe_compute_ss(plugin_config, last_iter):
     westpa.rc.pstatus(model.Tmatrix)
     westpa.rc.pstatus(f"Processed flux matrix has shape {model.fluxMatrix.shape}")
 
+    logging.getLogger("msm_we").setLevel("DEBUG")
     model.get_steady_state_algebraic()  # gets steady-state from eigen decomp, output model.pSS
+    logging.getLogger("msm_we").setLevel("INFO")
     model.get_steady_state_target_flux()  # gets steady-state target flux, output model.JtargetSS
 
+    # FIXME: Why is this the wrong shape?
     ss_alg = model.pSS
     ss_flux = model.JtargetSS
 
@@ -328,7 +369,6 @@ class RestartDriver:
             # If we just completed the simulation of the final restart, do nothing and exit, we're all done
             if restart_state['restarts_completed'] >= self.n_restarts:
                 log.info("All restarts completed! Exiting.")
-                raise Exception
                 return
 
         log.debug(f"{restart_state['restarts_completed']}/{self.n_restarts} completed")
@@ -340,25 +380,26 @@ class RestartDriver:
         # Get haMSM steady-state estimate
         westpa.rc.pstatus("Computing steady-state")
         ss_dist, ss_flux, model = msmwe_compute_ss(self.plugin_config, self.cur_iter)
+        self.ss_dist = ss_dist
 
         # For some reason, this is returned irregularly as a list of lists sometimes.
         # TODO: Fix that...
         westpa.rc.pstatus(f"Flattening {ss_dist}")
-        self.ss_dist = np.array(list(flatten(ss_dist)))
+        # self.ss_dist = np.array(list(flatten(ss_dist)))
         self.model = model
 
         # Obtain cluster-structures
         westpa.rc.pstatus("Obtaining cluster-structures")
 
         # TODO: I think when the flux matrix is cleaned, the cluster  structures are not reassigned to the new, reduced set of clusters
-        logging.getLogger("msm_we").setLevel("DEBUG")
+        # logging.getLogger("msm_we").setLevel("DEBUG")
         model.update_cluster_structures()
-        logging.getLogger("msm_we").setLevel("INFO")
+        # logging.getLogger("msm_we").setLevel("INFO")
 
         # Construct start-state file with all structures and their weights
         # TODO: Don't explicitly write EVERY structure to disk, or this will be a nightmare for large runs.
         # However, for now, it's fine...
-        westpa.rc.pstatus("Writing structures")
+        log.debug("Writing structures")
 
         # TODO: Do this with pathlib
         restart_directory = f"restart{restart_state['restarts_completed']}"
@@ -366,29 +407,69 @@ class RestartDriver:
         if not os.path.exists(struct_directory):
             os.makedirs(struct_directory)
 
-        log.debug('===')
-        log.debug(self.ss_dist)
-        log.debug('===')
+        log.debug(f'Steady-state distribution: {self.ss_dist}')
+
+        log.info("Computing fluxes")
+        model.get_steady_state_algebraic()  # gets steady-state from eigen decomp, output model.pSS
+        model.get_steady_state_target_flux()  # gets steady-state target flux, output model.JtargetSS
+
+        log.info(f"Target steady-state flux is {model.JtargetSS}")
+
+        flux_filename = f"{restart_directory}/restart{restart_state['restarts_completed']}_JtargetSS.txt"
+        with open(flux_filename, 'w') as fp:
+
+            log.info(f"Writing flux to {flux_filename}")
+            # np.savetxt(fp, model.JtargetSS)
+            fp.write(str(model.JtargetSS))
+            fp.close()
+
+        ss_filename = f"{restart_directory}/restart{restart_state['restarts_completed']}_pSS.txt"
+        with open(ss_filename, 'w') as fp:
+
+            log.info(f"Writing pSS to {ss_filename}")
+            # fp.write(model.pSS)
+            np.savetxt(fp, model.pSS)
+            fp.close()
 
         # TODO: Include start states from previous runs
         sstates_filename = f"{restart_directory}/restart{restart_state['restarts_completed']}_startstates.txt"
         with open(sstates_filename, 'w') as fp:
 
-            for (bin_idx, structures) in model.cluster_structures.items():
+            # Track the total number of segments iterated over
+            seg_idx = 0
 
-                print(self.ss_dist)
-                bin_prob = self.ss_dist[bin_idx] / len(structures)
+            # This comparison is not correct
+            # n_structures = sum([len(x) for x in model.cluster_structures.values()])
+            # # Make sure the total number of structures matches the number of structure weights
+            # #   Do this here, because if we do it above we have to get the list of structures and then flatten it.
+            # log.debug(f"{n_structures} structures and {len(model.seg_weights)} weights")
+            # assert n_structures == len(model.cluster_structure_weights), "Number of structures doesn't match number of weight entries"
+
+            # Loop over each set of (bin index, all the structures in that bin)
+            for (msm_bin_idx, structures) in tqdm.tqdm(model.cluster_structures.items()):
+
+                # The per-segment bin probability
+                bin_prob = self.ss_dist[msm_bin_idx] / len(structures)
 
                 if bin_prob == 0:
-                    westpa.rc.pstatus(f"MSM-Bin {bin_idx}  has probability 0, so not saving any structs from it.")
+                    westpa.rc.pstatus(f"MSM-Bin {msm_bin_idx}  has probability 0, so not saving any structs from it.")
                     continue
+
+                msm_bin_we_weight = sum(model.cluster_structure_weights[msm_bin_idx])
 
                 # Write each structure to disk
                 # TODO: I need atomtypes to go with each coordinate!
+                #   Do I? I don't think that's true.
+                # Loop over each structure  within a bin.
                 for struct_idx, structure in enumerate(structures):
 
-                    structure_filename = f"{struct_directory}/bin{bin_idx}_struct{struct_idx}.pdb"
+                    structure_filename = f"{struct_directory}/bin{msm_bin_idx}_struct{struct_idx}.pdb"
                     with md.formats.PDBTrajectoryFile(structure_filename, 'w') as struct_file:
+
+                        # One structure per segment
+                        seg_we_weight = model.cluster_structure_weights[msm_bin_idx][struct_idx]
+
+                        structure_weight = bin_prob * (seg_we_weight / msm_bin_we_weight)
 
                         topology = model.reference_structure.topology
                         angles = model.reference_structure.unitcell_angles[0]
@@ -396,16 +477,14 @@ class RestartDriver:
                         # log.debug(angles)
                         # log.debug(lengths)
                         coords = structure * 10  # Correct units
-                        # print(coords)
-                        # raise Exception
 
                         # Write the structure file
                         struct_file.write(coords, topology, modelIndex=1, unitcell_angles=angles, unitcell_lengths=lengths)
 
                         # Add this start-state to the start-states file
-                        # fp.write(f'b{bin_idx}_s{struct_idx} {bin_prob} {os.path.abspath(structure_filename)}\n')
                         # This path is relative to WEST_SIM_ROOT
-                        fp.write(f'b{bin_idx}_s{struct_idx} {bin_prob} {structure_filename}\n')
+                        fp.write(f'b{msm_bin_idx}_s{struct_idx} {structure_weight} {structure_filename}\n')
+                        seg_idx += 1
 
         ### Start the new simulation
         # Back up west.h5
@@ -416,6 +495,12 @@ class RestartDriver:
         ## Run init w/ the new start-state file + the original basis state
         # I can get these from sim_manager.current_iter_bstates
         original_bstates = self.sim_manager.current_iter_bstates
+
+        if original_bstates is None:
+            original_bstates = self.data_manager.get_basis_states(self.sim_manager.n_iter - 1)
+
+        assert original_bstates is not None, "Bstates are none in the current iteration"
+
         bstates_str = ""
         for original_bstate in original_bstates:
             orig_bstate_prob = original_bstate.probability
@@ -429,9 +514,6 @@ class RestartDriver:
         bstates_filename = f"{restart_directory}/restart{restart_state['restarts_completed']}_basisstates.txt"
         with open(bstates_filename, 'w') as fp:
             fp.write(bstates_str)
-
-        # with open(sstates_filename, 'a') as fp:
-        #     fp.write(bstates_str)
 
         # TODO: Don't repeat this code!
         original_tstates = self.data_manager.get_target_states(self.cur_iter)
@@ -448,7 +530,7 @@ class RestartDriver:
             fp.write(tstates_str)
 
         # Close west.h5
-        # TODO: Doing this here is kinda janky. It shouldn't really be a problem, especially as long as
+        # TODO: Doing this here is kinda janky. But it shouldn't really be a problem, especially as long as
         #   this plugin's priority is low...
         # data_manager.finalize_run() currently only flushes and closes the west.h5, and at time of writing,
         # nothing else happens after that, WESTPA just finishes running.
@@ -460,18 +542,54 @@ class RestartDriver:
             f"Run: \n\t w_init --tstate-file {tstates_filename} "
             + f"--bstate-file {bstates_filename} --sstate-file {sstates_filename} --segs-per-state 5"
         )
-        # w_init.initialize(tstate_file=tstates_filename,
-        #                   bstate_file=bstates_filename,
-        #                   sstate_file=sstates_filename,
-        #                   tstates=None,
-        #                   bstates=None,
-        #                   sstates=None,
-        #                   segs_per_state=5,
-        #                   shotgun=False)
+
+        # TODO: Move traj_segs and seg_logs
+
+        for data_folder in ['traj_segs', 'seg_logs']:
+            old_path = data_folder
+            new_path = f"{restart_directory}/{data_folder}"
+
+            log.debug(f"Moving {old_path} to {new_path}")
+
+            try:
+                shutil.move(old_path, new_path)
+            except FileNotFoundError:
+                log.warning(f"Folder {data_folder}  was not found. This may be normal, but check your configuration.")
+                continue
+            else:
+                os.mkdir(old_path)
+
+        log.info("Initializing new run")
+
+        westpa.rc.pstatus(f"\n\n===== Restart {restart_state['restarts_completed']} initializing =====\n")
+        w_init.initialize(
+            tstate_file=tstates_filename,
+            bstate_file=bstates_filename,
+            sstate_file=sstates_filename,
+            tstates=None,
+            bstates=None,
+            sstates=None,
+            segs_per_state=5,
+            shotgun=False,
+        )
 
         # Update restart_file file
         restart_state['restarts_completed'] += 1
         with open(self.restart_file, 'w') as fp:
             json.dump(restart_state, fp)
 
-        # raise Exception
+        # Pickle the model
+        objFile = f"{restart_directory}/restart{restart_state['restarts_completed']}_hamsm.obj"
+        with open(objFile, "wb") as objFileHandler:
+            del model.clusters
+            log.debug("Pickling model")
+            pickle.dump(model, objFileHandler)
+            objFileHandler.close()
+
+        log.info("New WE run ready!")
+        westpa.rc.pstatus(f"\n\n===== Restart {restart_state['restarts_completed']} running =====\n")
+
+        # TODO: Do this via the Python API instead of by running a run.sh
+        #       Get the flags that were passed to w_run for this one, and pass it to the next.
+        current_env = os.environ.copy()
+        subprocess.Popen('./run.sh', env=current_env).wait()
