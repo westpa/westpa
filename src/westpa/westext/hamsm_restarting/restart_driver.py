@@ -482,9 +482,9 @@ class RestartDriver:
 
         # TODO: I think when the flux matrix is cleaned, the cluster structures are not
         #  reassigned to the new, reduced set of clusters
-        # logging.getLogger("msm_we").setLevel("DEBUG")
+        logging.getLogger("msm_we").setLevel("DEBUG")
         model.update_cluster_structures()
-        # logging.getLogger("msm_we").setLevel("INFO")
+        logging.getLogger("msm_we").setLevel("INFO")
 
         # Construct start-state file with all structures and their weights
         # TODO: Don't explicitly write EVERY structure to disk, or this will be a nightmare for large runs.
@@ -534,7 +534,11 @@ class RestartDriver:
             for (msm_bin_idx, structures) in tqdm.tqdm(model.cluster_structures.items()):
 
                 # The per-segment bin probability
-                bin_prob = self.ss_dist[msm_bin_idx] / len(structures)
+                log.debug(f"Looking at bin {msm_bin_idx},  mapped to {model.cluster_mapping[msm_bin_idx]}")
+
+                # Map a cluster number onto a cluster INDEX, because after cleaning the cluster numbers may no longer
+                # be consecutive.
+                bin_prob = self.ss_dist[model.cluster_mapping[msm_bin_idx]] / len(structures)
 
                 if bin_prob == 0:
                     westpa.rc.pstatus(f"MSM-Bin {msm_bin_idx}  has probability 0, so not saving any structs from it.")
