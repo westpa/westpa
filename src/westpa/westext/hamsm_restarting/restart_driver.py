@@ -11,6 +11,7 @@ import os
 import subprocess
 import shutil
 import pickle
+import importlib.util
 
 import tqdm
 
@@ -140,6 +141,32 @@ def msmwe_compute_ss(plugin_config, last_iter):
     n_lag = 0
 
     log.debug("Initializing msm_we")
+
+    # ##### Monkey-patch modelWE with the user-override functions
+    override_file = plugin_config.get('user_functions')
+
+    # First, import the file with the user-override functions
+    # This is a decently janky implementation, but it seems to work, and I don't know of a better way of doing it.
+    # This is nice because it avoids mucking around with the path, which I think is a Good Thing.
+
+    # We're given a path to the user-specified file containing overrides
+    # This comes from https://stackoverflow.com/questions/67631/how-to-import-a-module-given-the-full-path
+
+    # I don't think the name provided here actually matters
+    user_override_spec = importlib.util.spec_from_file_location("override_module", override_file)
+    user_overrides = importlib.util.module_from_spec(user_override_spec)
+
+    # Make the functions that were overriden in override_file available in the namespace under user_overrides
+    user_override_spec.loader.exec_module(user_overrides)
+
+    # So now we can do the actual monkey-patching of modelWE.
+    # We monkey-patch at the module level rather than just override the function in the instanced object
+    #   so that the functions retain access to self.
+    # TODO: Would be nice to just iterate over every function defined in user_overrides and patch them all  in
+    msm_we.modelWE.processCoordinates = user_overrides.processCoordinates
+    msm_we.modelWE.reduceCoordinates = user_overrides.reduceCoordinates
+    # ##### Done with monkey-patching.
+
     model = msm_we.modelWE()
 
     fileSpecifier = plugin_config.get('file_specifier')
@@ -163,15 +190,12 @@ def msmwe_compute_ss(plugin_config, last_iter):
     model.n_lag = n_lag
 
     last_iter_cluster = last_iter  # model.maxIter-1 #last iter often not complete
-    #####
-    # TODO: magic number? Maximum possible number of segments I think based on the while loop below
     i = last_iter_cluster
     coordSet = np.zeros((0, model.nAtoms, 3))  # extract coordinate libraries for clustering
 
     log.debug("Loading in iteration data.. (this could take a while)")
     log.debug(f'coord shape is {coordSet.shape}')
 
-    ##### Replacement
     # First dimension is the total number of segments
     model.get_iterations()
     # Ignore the last iteration, as above
@@ -272,40 +296,40 @@ def msmwe_compute_ss(plugin_config, last_iter):
     return ss_alg, ss_flux, model
 
 
-def reduce_array(Aij):
-    """
-    Remove empty rows and columns from an array Aij and return the reduced
-        array Bij and the list of non-empty states,
-
-    Parameters
-    ----------
-    Aij: np.ndarray
-        The array to reduce.
-
-    Returns
-    -------
-    Bij: np.ndarray
-        Aij, with empty rows and columns removed
-
-    nonempty: list
-        Indices of the empty rows and columns which were removed from Aij
-    """
-
-    nonempty = list(range(0, Aij.shape[0]))
-    eps = np.finfo(Aij.dtype).eps
-
-    for i in range(0, Aij.shape[0]):
-        if (Aij[i, :] < eps).all() and (Aij[:, i] < eps).all():
-            nonempty.pop(nonempty.index(i))
-
-    nne = len(nonempty)
-    Bij = np.zeros((nne, nne))
-
-    for i in range(0, nne):
-        for j in range(0, nne):
-            Bij[i, j] = Aij[nonempty[i], nonempty[j]]
-
-    return Bij, nonempty
+# def reduce_array(Aij):
+#     """
+#     Remove empty rows and columns from an array Aij and return the reduced
+#         array Bij and the list of non-empty states,
+#
+#     Parameters
+#     ----------
+#     Aij: np.ndarray
+#         The array to reduce.
+#
+#     Returns
+#     -------
+#     Bij: np.ndarray
+#         Aij, with empty rows and columns removed
+#
+#     nonempty: list
+#         Indices of the empty rows and columns which were removed from Aij
+#     """
+#
+#     nonempty = list(range(0, Aij.shape[0]))
+#     eps = np.finfo(Aij.dtype).eps
+#
+#     for i in range(0, Aij.shape[0]):
+#         if (Aij[i, :] < eps).all() and (Aij[:, i] < eps).all():
+#             nonempty.pop(nonempty.index(i))
+#
+#     nne = len(nonempty)
+#     Bij = np.zeros((nne, nne))
+#
+#     for i in range(0, nne):
+#         for j in range(0, nne):
+#             Bij[i, j] = Aij[nonempty[i], nonempty[j]]
+#
+#     return Bij, nonempty
 
 
 class RestartDriver:
@@ -503,13 +527,6 @@ class RestartDriver:
 
             # Track the total number of segments iterated over
             seg_idx = 0
-
-            # This comparison is not correct
-            # n_structures = sum([len(x) for x in model.cluster_structures.values()])
-            # # Make sure the total number of structures matches the number of structure weights
-            # #   Do this here, because if we do it above we have to get the list of structures and then flatten it.
-            # log.debug(f"{n_structures} structures and {len(model.seg_weights)} weights")
-            # assert n_structures == len(model.cluster_structure_weights), "Number of structures doesn't match number of weight entries"
 
             log.info("Obtaining potential start structures")
 
