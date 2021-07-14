@@ -10,19 +10,21 @@ import json
 import os
 import subprocess
 import shutil
-import sys
 import pickle
 
 import tqdm
 
-sys.path.append("/Users/russojd/Research/molssi_2021/msmWE_cc/msm_we")
+import mdtraj as md
+from rich.logging import RichHandler
+
+# Ensure this is installed via pip. msm_we's setup.py is all set up for that.
+# Navigate to the folder where msm_we is, and run python3 -m pip install .
+#   If you're doing development on msm_we, add the -e flag to pip, i.e. "python3 -m pip install -e ."
+#   -e will install it in editable mode, so changes to msm_we will take effect next time it's imported.
+#   Otherwise, if you modify the msm_we code, you'll need to re-install it through pip.
 from msm_we import msm_we
 
-import mdtraj as md
-
 EPS = np.finfo(np.float64).eps
-
-from rich.logging import RichHandler
 
 FORMAT = "%(message)s"
 logging.basicConfig(level="NOTSET", format=FORMAT, datefmt="[%X]", handlers=[RichHandler()])
@@ -30,24 +32,24 @@ log = logging.getLogger("restart_driver")
 log.setLevel("DEBUG")
 logging.getLogger("msm_we").setLevel("INFO")
 
-from collections.abc import Iterable
 
-
-def flatten(_list):
-    for el in _list:
-        if isinstance(el, Iterable) and not isinstance(el, (str, bytes)):
-            yield from flatten(el)
-        else:
-            yield el
-
-
-# This is basically CollectCoordinates
-# This is an extra step that, if necessary, puts all
 # TODO: Break this out into a separate module, let it be specified (if it's necessary) as a plugin option
 #   This may not always be required -- i.e. you may be able to directly output to the h5 file in your propagator
 def prepare_coordinates(plugin_config, h5file):
     """
-    Copy relevant coordinates from trajectory files into auxdata/coord of the h5 file
+    Copy relevant coordinates from trajectory files into <iteration>/auxdata/coord of the h5 file.
+
+    Directly modifies the input h5 file.
+
+    Adapted from original msmWE collectCoordinates.py script.
+
+    Parameters
+    ----------
+    plugin_config: YAMLConfig object
+        Stores the configuration options provided to the plugin in the WESTPA configuration file
+
+    h5file: h5py.File
+        WESTPA h5 data file
     """
 
     fileSpecifier = plugin_config.get('file_specifier')
@@ -97,13 +99,43 @@ def prepare_coordinates(plugin_config, h5file):
             coords[iS, 1, :, :] = coord1
 
         if not coords_exist:
-            log.debug(f"Writing coords for iter {n_iter}")
+            # log.debug(f"Writing coords for iter {n_iter}")
             dset[:] = coords
-
-    # f.close()
 
 
 def msmwe_compute_ss(plugin_config, last_iter):
+    """
+    Prepare and initialize an msm_we model, and use it to predict a steady-state distribution.
+
+    1. Load coordinate data
+    2. Perform dimensionality reduction
+    3. Compute flux and transition matrices
+    4. Compute steady-state distribution (via eigenvectors of transition matrix)
+    5. Compute target-state flux
+
+    TODO
+    ----
+    This function does far too many things. Break it up a bit.
+
+    Parameters
+    ----------
+    plugin_config: YAMLConfig object
+        Stores the configuration options provided to the plugin in the WESTPA configuration file
+
+    last_iter: int
+        The last WE iteration to use for computing steady-state.
+
+    Returns
+    -------
+    ss_alg: np.ndarray
+        The steady-state distribution
+
+    ss_flux: float
+        Flux into target state
+
+    model: modelWE object
+        The modelWE object produced for analysis.
+    """
 
     n_lag = 0
 
@@ -235,30 +267,29 @@ def msmwe_compute_ss(plugin_config, last_iter):
     westpa.rc.pstatus(ss_alg)
     westpa.rc.pstatus(ss_flux)
 
-    # objFile = (
-    #         modelName
-    #         + "_s"
-    #         + str(first_iter)
-    #         + "_e"
-    #         + str(last_iter)
-    #         + "_nC"
-    #         + str(n_clusters)
-    #         + ".obj"
-    # )
-    # objFileHandler = open(objFile, "wb")
-    # del model.clusters
-    # # print("Pickling model")
-    # pickle.dump(model, objFileHandler)
-    # objFileHandler.close()
-
     westpa.rc.pstatus("Completed flux matrix calculation and steady-state estimation!")
 
     return ss_alg, ss_flux, model
 
 
 def reduce_array(Aij):
-    """Remove empty rows and columns from an array Aij and return the reduced
-        array Bij and the list of non-empty states"""
+    """
+    Remove empty rows and columns from an array Aij and return the reduced
+        array Bij and the list of non-empty states,
+
+    Parameters
+    ----------
+    Aij: np.ndarray
+        The array to reduce.
+
+    Returns
+    -------
+    Bij: np.ndarray
+        Aij, with empty rows and columns removed
+
+    nonempty: list
+        Indices of the empty rows and columns which were removed from Aij
+    """
 
     nonempty = list(range(0, Aij.shape[0]))
     eps = np.finfo(Aij.dtype).eps
@@ -278,7 +309,27 @@ def reduce_array(Aij):
 
 
 class RestartDriver:
+    """
+    WESTPA plugin to automatically handle estimating steady-state from a WE run, re-initializing a new WE run in that
+    steady-state, and then running that initialized WE run.
+
+    Data from the previous run will be stored in the restart<restart_number>/ subdirectory of $WEST_SIM_ROOT.
+
+    This plugin depends on having the start-states implementation in the main WESTPA code, which allows initializing
+    a WE run using states that are NOT later used for recycling.
+
+    These are used so that when the new WE run is initialized, initial structure selection is chosen by w_init, using
+    weights assigned to the start-states based on MSM bin weight and WE segment weight.
+
+    Since it closes out the current WE run and starts a new one, this plugin should run LAST, after all other plugins.
+    """
+
     def __init__(self, sim_manager, plugin_config):
+        """
+        Initialize the RestartDriver plugin.
+
+        Pulls the data_manager and sim_manager from the WESTPA run that just completed, along with
+        """
 
         westpa.rc.pstatus("Restart plugin initialized")
 
@@ -294,8 +345,10 @@ class RestartDriver:
         self.restart_file = plugin_config.get('restart_file', 'restart.dat')
 
         self.coord_len = plugin_config.get('coord_len', 2)
-        # self.reweight_period = plugin_config.get('reweight_period', 2)
         self.n_restarts = plugin_config.get('n_restarts', 2)
+
+        # This should be low priority, because it closes the H5 file and starts a new WE run. So it should run LAST
+        #   after any other plugins.
         self.priority = plugin_config.get('priority', 100)  # I think a big number is lower priority...
 
         # sim_manager.register_callback(sim_manager.post_we,
@@ -308,7 +361,15 @@ class RestartDriver:
 
     def get_original_bins(self):
         """
-        Returns the WE bins and their probabilities at the end of the previous iteration.
+        Obtains the WE bins and their probabilities at the end of the previous iteration.
+
+        Returns
+        -------
+        bins : np.ndarray
+            Array of WE bins
+
+        binprobs: np.ndarray
+            WE bin weights
         """
 
         we_driver = self.sim_manager.we_driver
@@ -321,6 +382,8 @@ class RestartDriver:
     @property
     def cur_iter(self):
         """
+        Get the current WE iteration.
+
         Returns
         -------
         int: The current iteration. Subtract one, because in finalize_run the iter has been incremented
@@ -330,6 +393,8 @@ class RestartDriver:
     @property
     def is_last_iteration(self):
         """
+        Get whether this is the last iteration in this WE run.
+
         Returns
         -------
         bool: Whether the current iteration is the final iteration
@@ -391,7 +456,8 @@ class RestartDriver:
         # Obtain cluster-structures
         westpa.rc.pstatus("Obtaining cluster-structures")
 
-        # TODO: I think when the flux matrix is cleaned, the cluster  structures are not reassigned to the new, reduced set of clusters
+        # TODO: I think when the flux matrix is cleaned, the cluster structures are not
+        #  reassigned to the new, reduced set of clusters
         # logging.getLogger("msm_we").setLevel("DEBUG")
         model.update_cluster_structures()
         # logging.getLogger("msm_we").setLevel("INFO")
@@ -444,6 +510,8 @@ class RestartDriver:
             # #   Do this here, because if we do it above we have to get the list of structures and then flatten it.
             # log.debug(f"{n_structures} structures and {len(model.seg_weights)} weights")
             # assert n_structures == len(model.cluster_structure_weights), "Number of structures doesn't match number of weight entries"
+
+            log.info("Obtaining potential start structures")
 
             # Loop over each set of (bin index, all the structures in that bin)
             for (msm_bin_idx, structures) in tqdm.tqdm(model.cluster_structures.items()):
