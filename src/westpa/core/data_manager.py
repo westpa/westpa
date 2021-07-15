@@ -443,7 +443,7 @@ class WESTDataManager:
             # This extra [0] is to work around a bug in h5py
             try:
                 group = self.we_h5file[group_ref]
-            except AttributeError:
+            except (TypeError, AttributeError):
                 group = self.we_h5file[group_ref[0]]
             else:
                 log.debug('h5py fixed; remove alternate code path')
