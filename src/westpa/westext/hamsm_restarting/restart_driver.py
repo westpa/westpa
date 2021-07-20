@@ -482,6 +482,7 @@ class RestartDriver:
 
         # TODO: There might be a more logical way to order these, but as it is, worst case I prepare_coordinates()
         #   unnecessarily on t he last restart
+        # FIXME: There is certainly a much simpler formulation of this. Fix ASAP.
         # We've just finished a run. Let's check if we have to do any more runs in this marathon before doing a restart.
         #   In the case of n_runs == 1, then we're just doing a single run and restarting it every so often.
         #   Otherwise, a marathon consists of multiple runs,  and restarts are performed between marathons.
@@ -491,6 +492,7 @@ class RestartDriver:
             # If we just completed the simulation of the final restart, do the analysis still
             if restart_state['restarts_completed'] >= self.n_restarts:
                 log.info("All restarts completed! Performing final analysis.")
+                prepare_coordinates(self.plugin_config, self.data_manager.we_h5file)
 
                 # return
 
@@ -718,6 +720,12 @@ class RestartDriver:
             np.savetxt(fp, model.pSS)
             fp.close()
 
+        # If this is the last run of the last restart, do nothing and exit.
+        if restart_state['runs_completed'] >= self.n_runs and restart_state['restarts_completed'] >= self.n_restarts:
+            log.info("All restarts completed!")
+
+            return
+
         # TODO: Include start states from previous runs
         sstates_filename = f"{restart_directory}/startstates.txt"
         with open(sstates_filename, 'w') as fp:
@@ -725,7 +733,7 @@ class RestartDriver:
             # Track the total number of segments iterated over
             seg_idx = 0
 
-            log.info(f"Obtaining potential start structures ({model.cluster_structures.items()} avail)")
+            log.info(f"Obtaining potential start structures ({len(model.cluster_structures.items())} avail)")
 
             # Loop over each set of (bin index, all the structures in that bin)
             for (msm_bin_idx, structures) in tqdm.tqdm(model.cluster_structures.items()):
@@ -877,4 +885,7 @@ class RestartDriver:
         # TODO: Do this via the Python API instead of by running a run.sh
         #       Get the flags that were passed to w_run for this one, and pass it to the next.
         current_env = os.environ.copy()
-        subprocess.Popen('./run.sh', env=current_env).wait()
+
+        # I think wait() might introduce a memory leak here
+        #   On the flip side, if the child processes error out, the paren't won't return an error status
+        subprocess.Popen('./run.sh', env=current_env)  # .wait()
