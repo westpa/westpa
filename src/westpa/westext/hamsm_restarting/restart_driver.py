@@ -214,7 +214,6 @@ def msmwe_compute_ss(plugin_config, west_files, last_iter):
 
     # Update iterations N+1 -> 1
     for i in tqdm.tqdm(range(last_iter, 0, -1)):
-        # log.debug(f"Appending coords from iteration {i}/{last_iter} (goes backwards to 0)")
 
         model.load_iter_data(i)
         model.get_iter_coordinates()
@@ -231,18 +230,10 @@ def msmwe_compute_ss(plugin_config, west_files, last_iter):
 
         last_seg = first_seg
 
-    # log.debug(f"Segment weights has {list(model.seg_weights.keys())}")
-    # log.debug(f"Segment weights has {len(list(model.seg_weights.keys()))}")
-    # raise Exception
-    #####
-
     # Set the coords, and pcoords
     # TODO: There's no need to set these as attributes of the object
     model.all_coords = coordSet
     model.pcoordSet = pcoordSet
-
-    # log.debug(f"CoordLIST: {model.cur_iter_coords.shape}")
-    # log.debug(f"CoordSET: {model.all_coords.shape}")
 
     # TODO: Are first_iter and last_iter used consistently everywhere? Some places they're taken as parameters,
     #   some places the current value is just pulled from state
@@ -279,15 +270,9 @@ def msmwe_compute_ss(plugin_config, west_files, last_iter):
     model.organize_fluxMatrix()  # gets rid of bins with no connectivity, sorts along p1, output model.fluxMatrix
     model.get_Tmatrix()  # normalizes fluxMatrix to transition matrix, output model.Tmatrix
 
-    # westpa.rc.pstatus("Flux matrix:")
-    # westpa.rc.pstatus(model.fluxMatrix)
-    # westpa.rc.pstatus("T matrix: ")
-    # westpa.rc.pstatus(model.Tmatrix)
     log.debug(f"Processed flux matrix has shape {model.fluxMatrix.shape}")
 
-    # logging.getLogger("msm_we").setLevel("DEBUG")
     model.get_steady_state_algebraic()  # gets steady-state from eigen decomp, output model.pSS
-    # logging.getLogger("msm_we").setLevel("INFO")
     model.get_steady_state_target_flux()  # gets steady-state target flux, output model.JtargetSS
 
     # FIXME: Why is this the wrong shape?
@@ -301,42 +286,6 @@ def msmwe_compute_ss(plugin_config, west_files, last_iter):
     westpa.rc.pstatus("Completed flux matrix calculation and steady-state estimation!")
 
     return ss_alg, ss_flux, model
-
-
-# def reduce_array(Aij):
-#     """
-#     Remove empty rows and columns from an array Aij and return the reduced
-#         array Bij and the list of non-empty states,
-#
-#     Parameters
-#     ----------
-#     Aij: np.ndarray
-#         The array to reduce.
-#
-#     Returns
-#     -------
-#     Bij: np.ndarray
-#         Aij, with empty rows and columns removed
-#
-#     nonempty: list
-#         Indices of the empty rows and columns which were removed from Aij
-#     """
-#
-#     nonempty = list(range(0, Aij.shape[0]))
-#     eps = np.finfo(Aij.dtype).eps
-#
-#     for i in range(0, Aij.shape[0]):
-#         if (Aij[i, :] < eps).all() and (Aij[:, i] < eps).all():
-#             nonempty.pop(nonempty.index(i))
-#
-#     nne = len(nonempty)
-#     Bij = np.zeros((nne, nne))
-#
-#     for i in range(0, nne):
-#         for j in range(0, nne):
-#             Bij[i, j] = Aij[nonempty[i], nonempty[j]]
-#
-#     return Bij, nonempty
 
 
 class RestartDriver:
@@ -662,10 +611,16 @@ class RestartDriver:
         # Get haMSM steady-state estimate
         westpa.rc.pstatus("Building haMSM and computing steady-state")
         marathon_west_files = []
-        for run_number in range(1, 1 + restart_state['runs_completed']):
 
-            west_file_path = f"{restart_directory}/run{run_number}/west.h5"
-            marathon_west_files.append(west_file_path)
+        # Use all files in all restarts
+        # Restarts index at 0, because there's  a 0th restart before you've... restarted anything.
+        # Runs index at 1, because Run 1 is the first run.
+        # TODO: Let the user pick last half or something in the plugin config.
+        for restart_number in range(0, 1 + restart_state['restarts_completed']):
+            for run_number in range(1, 1 + restart_state['runs_completed']):
+
+                west_file_path = f"restart{restart_number}/run{run_number}/west.h5"
+                marathon_west_files.append(west_file_path)
 
         log.debug(f"WESTPA datafile for analysis are {marathon_west_files}")
         # raise Exception
