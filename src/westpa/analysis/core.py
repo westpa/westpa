@@ -1,6 +1,7 @@
 import itertools
 import operator
 import pandas as pd
+import sys
 import westpa.tools.binning
 
 from functools import cached_property
@@ -473,6 +474,25 @@ class Bin:
         """int: Target number of particles in the bin."""
         return self.iteration.bin_target_counts[self.index]
 
+    def union(self, *others):
+        """Return the union of this bin with other bins.
+
+        Parameters
+        ----------
+        *others : Bin
+            Other bins comprising the union.
+
+        Return
+        ------
+        BinUnion
+            The union of `self` and `others`.
+
+        """
+        return BinUnion(self, *others)
+
+    def __or__(self, other):
+        return self.union(other)
+
     def __contains__(self, pcoord):
         result = self.mapper.assign([pcoord])
         if result.size != 1:
@@ -503,6 +523,31 @@ class BinUnion:
     def bins(self):
         """tuple[Bin]: Bins comprising the union."""
         return self._bins
+
+    def union(self, *others):
+        """Return the union of this bin with other bins.
+
+        Parameters
+        ----------
+        *others : BinUnion or Bin
+            Other bins comprising the union.
+
+        Return
+        ------
+        BinUnion
+            The union of `self` and `others`.
+
+        """
+        bins = list(self.bins)
+        for other in others:
+            if isinstance(other, Bin):
+                bins.append(other)
+                continue
+            bins += other.bins
+        return BinUnion(*bins)
+
+    def __or__(self, other):
+        return self.union(other)
 
     def __bool__(self):
         return bool(self.bins)
@@ -563,17 +608,28 @@ class Trace:
 
     """
 
-    def __init__(self, walker, source=None):
+    def __init__(self, walker, source=None, max_length=None):
         if source is None:
             source = BinUnion()
+
+        if max_length is None:
+            max_length = sys.maxsize
+        else:
+            if max_length <= 0:
+                raise ValueError('max_length must be greater than 0')
+            if not isinstance(max_length, int):
+                raise TypeError('max_length must be an integer')
 
         walkers = []
         while walker and walker.pcoords[-1] not in source:
             walkers.append(walker)
+            if len(walkers) == max_length:
+                break
             walker = walker.parent
 
         self.walkers = tuple(reversed(walkers))
         self.source = source
+        self.max_length = max_length
 
     def __len__(self):
         return len(self.walkers)
@@ -588,4 +644,6 @@ class Trace:
         s = f'Trace({self.walkers[-1]}'
         if self.source:
             s += f',\n      source={self.source}'
+        if self.max_length < sys.maxsize:
+            s += f',\n      max_length={self.max_length}'
         return s + ')'
