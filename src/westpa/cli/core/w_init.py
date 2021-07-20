@@ -119,7 +119,7 @@ def entry_point():
     )
 
 
-def initialize(tstates, tstate_file, bstates, bstate_file, sstates, sstate_file, segs_per_state, shotgun):
+def initialize(tstates, tstate_file, bstates, bstate_file, sstates=None, sstate_file=None, segs_per_state=1, shotgun=False):
     """
     Initialize a WESTPA simulation.
 
