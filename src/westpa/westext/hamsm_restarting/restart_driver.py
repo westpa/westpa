@@ -42,6 +42,8 @@ def prepare_coordinates(plugin_config, h5file):
 
     Directly modifies the input h5 file.
 
+    Adds ALL coordinates to auxdata/coord.
+
     Adapted from original msmWE collectCoordinates.py script.
 
     Parameters
