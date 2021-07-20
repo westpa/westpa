@@ -468,7 +468,7 @@ class WESTDataManager:
                 tstate_pcoords = tstate_group['pcoord'][...]
 
                 tstates = [
-                    TargetState(state_id=i, label=str(row['label']), pcoord=pcoord.copy())
+                    TargetState(state_id=i, label=h5io.tostr(row['label']), pcoord=pcoord.copy())
                     for (i, (row, pcoord)) in enumerate(zip(tstate_index, tstate_pcoords))
                 ]
             else:
@@ -532,7 +532,7 @@ class WESTDataManager:
             bstates = [
                 BasisState(
                     state_id=i,
-                    label=row['label'],
+                    label=h5io.tostr(row['label']),
                     probability=row['probability'],
                     auxref=h5io.tostr(row['auxref']) or None,
                     pcoord=pcoord.copy(),
