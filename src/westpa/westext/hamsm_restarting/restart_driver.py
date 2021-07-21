@@ -4,6 +4,7 @@ import numpy as np
 
 import westpa
 from westpa.cli.core import w_init
+from westpa.core.extloader import get_object
 
 import json
 
@@ -146,6 +147,8 @@ def msmwe_compute_ss(plugin_config, west_files, last_iter):
 
     log.debug("Initializing msm_we")
 
+    # TODO: Refactor this to use westpa.core.extloader.get_object
+    #   I'm reinventing the wheel a bit here, I can replace almost all this code w/ that
     # ##### Monkey-patch modelWE with the user-override functions
     override_file = plugin_config.get('user_functions')
 
@@ -328,6 +331,9 @@ class RestartDriver:
         self.coord_len = plugin_config.get('coord_len', 2)
         self.n_restarts = plugin_config.get('n_restarts', 2)
         self.n_runs = plugin_config.get('n_runs', 1)
+
+        struct_filetype = plugin_config.get('struct_filetype', 'mdtraj.formats.PDBTrajectoryFile')
+        self.struct_filetype = get_object(struct_filetype)
 
         # This should be low priority, because it closes the H5 file and starts a new WE run. So it should run LAST
         #   after any other plugins.
@@ -716,7 +722,7 @@ class RestartDriver:
                 for struct_idx, structure in enumerate(structures):
 
                     structure_filename = f"{struct_directory}/bin{msm_bin_idx}_struct{struct_idx}.pdb"
-                    with md.formats.PDBTrajectoryFile(structure_filename, 'w') as struct_file:
+                    with self.struct_filetype(structure_filename, 'w') as struct_file:
 
                         # One structure per segment
                         seg_we_weight = model.cluster_structure_weights[msm_bin_idx][struct_idx]
@@ -734,7 +740,19 @@ class RestartDriver:
                         coords = structure * 10  # Correct units
 
                         # Write the structure file
-                        struct_file.write(coords, topology, modelIndex=1, unitcell_angles=angles, unitcell_lengths=lengths)
+                        if struct_file is md.formats.PDBTrajectoryFile:
+                            struct_file.write(coords, topology, modelIndex=1, unitcell_angles=angles, unitcell_lengths=lengths)
+                        elif struct_file is md.formats.AmberRestartFile:
+                            # AmberRestartFile takes slightly differently named keyword args
+                            struct_file.write(coords, topology, modelIndex=1, cell_angles=angles, cell_lengths=lengths)
+                        else:
+                            # Otherwise, YOLO just hope all the positional arguments are in the right place
+                            log.warning(
+                                "This output filetype is probably supported, but not explicitly handled."
+                                " You should ensure that it takes argument as (coords, topology, modelindex, "
+                                "unit cell angles, unit cell lengths)"
+                            )
+                            struct_file.write(coords, topology, 1, angles, lengths)
 
                         # Add this start-state to the start-states file
                         # This path is relative to WEST_SIM_ROOT
