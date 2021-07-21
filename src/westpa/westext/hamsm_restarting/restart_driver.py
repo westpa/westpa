@@ -277,8 +277,9 @@ def msmwe_compute_ss(plugin_config, west_files, last_iter):
     model.get_steady_state_algebraic()  # gets steady-state from eigen decomp, output model.pSS
     model.get_steady_state_target_flux()  # gets steady-state target flux, output model.JtargetSS
 
-    # FIXME: Why is this the wrong shape?
-    ss_alg = model.pSS
+    # Why is model.pss sometimes the wrong shape? It's "occasionally" returned as a nested array.
+    # Squeeze fixes it and removes the dimension of length 1, but why does it happen in the first place?
+    ss_alg = np.squeeze(model.pSS)
     ss_flux = model.JtargetSS
 
     westpa.rc.pstatus("Got steady state:")
