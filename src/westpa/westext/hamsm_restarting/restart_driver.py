@@ -80,7 +80,7 @@ def prepare_coordinates(plugin_config, h5file):
         coords_exist = False
         try:
             dset = h5file.create_dataset(dsetName, np.shape(coords))
-        except RuntimeError:
+        except (RuntimeError, ValueError):
             log.debug('coords exist for iteration ' + str(n_iter) + ' NOT overwritten')
             coords_exist = True
             continue
