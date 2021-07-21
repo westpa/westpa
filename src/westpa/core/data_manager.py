@@ -642,7 +642,7 @@ class WESTDataManager:
                         iter_created=int(state['iter_created']),
                         iter_used=int(state['iter_used']),
                         istate_type=int(state['istate_type']),
-                        basis_auxref=str(state['basis_auxref']),
+                        basis_auxref=h5io.tostr(state['basis_auxref']),
                         pcoord=pcoord.copy(),
                     )
                 )
@@ -671,7 +671,7 @@ class WESTDataManager:
                     iter_created=int(state['iter_created']),
                     iter_used=int(state['iter_used']),
                     istate_type=int(state['istate_type']),
-                    basis_auxref=str(state['basis_auxref']),
+                    basis_auxref=h5io.tostr(state['basis_auxref']),
                     pcoord=pcoord.copy(),
                 )
                 istates.append(istate)
