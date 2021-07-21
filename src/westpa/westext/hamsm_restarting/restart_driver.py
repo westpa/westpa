@@ -747,19 +747,21 @@ class RestartDriver:
                         coords = structure * 10  # Correct units
 
                         # Write the structure file
-                        if struct_file is md.formats.PDBTrajectoryFile:
+                        if self.struct_filetype is md.formats.PDBTrajectoryFile:
                             struct_file.write(coords, topology, modelIndex=1, unitcell_angles=angles, unitcell_lengths=lengths)
-                        elif struct_file is md.formats.AmberRestartFile:
+
+                        elif self.struct_filetype is md.formats.AmberRestartFile:
                             # AmberRestartFile takes slightly differently named keyword args
-                            struct_file.write(coords, topology, modelIndex=1, cell_angles=angles, cell_lengths=lengths)
+                            struct_file.write(coords, topology, cell_angles=angles, cell_lengths=lengths)
+
                         else:
                             # Otherwise, YOLO just hope all the positional arguments are in the right place
                             log.warning(
-                                "This output filetype is probably supported, but not explicitly handled."
-                                " You should ensure that it takes argument as (coords, topology, modelindex, "
-                                "unit cell angles, unit cell lengths)"
+                                f"This output filetype ({self.struct_filetype}) is probably supported, "
+                                f"but not explicitly handled."
+                                " You should ensure that it takes argument as (coords, topology)"
                             )
-                            struct_file.write(coords, topology, 1, angles, lengths)
+                            struct_file.write(coords, topology)
 
                         # Add this start-state to the start-states file
                         # This path is relative to WEST_SIM_ROOT
