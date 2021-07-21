@@ -34,10 +34,17 @@ log = logging.getLogger("restart_driver")
 log.setLevel("DEBUG")
 logging.getLogger("msm_we").setLevel("INFO")
 
+# Map structure types to extensions.
+# This tells the plugin what extension to put on generated start-state files.
+STRUCT_EXTENSIONS = {
+    md.formats.PDBTrajectoryFile: "pdb",
+    md.formats.AmberRestartFile: "rst7",
+}
+
 
 # TODO: Break this out into a separate module, let it be specified (if it's necessary) as a plugin option
 #   This may not always be required -- i.e. you may be able to directly output to the h5 file in your propagator
-def prepare_coordinates(plugin_config, h5file):
+def prepare_coordinates(plugin_config, h5file, we_h5filename):
     """
     Copy relevant coordinates from trajectory files into <iteration>/auxdata/coord of the h5 file.
 
@@ -56,7 +63,6 @@ def prepare_coordinates(plugin_config, h5file):
         WESTPA h5 data file
     """
 
-    fileSpecifier = plugin_config.get('file_specifier')
     refPDBfile = plugin_config.get('ref_pdb_file')
     initPDBfile = plugin_config.get('init_pdb_file')
     modelName = plugin_config.get('model_name')
@@ -69,7 +75,7 @@ def prepare_coordinates(plugin_config, h5file):
 
     model = msm_we.modelWE()
     log.info('Preparing coordinates...')
-    model.initialize(fileSpecifier, refPDBfile, initPDBfile, modelName)
+    model.initialize(we_h5filename, refPDBfile, initPDBfile, modelName)
     model.get_iterations()
 
     for n_iter in tqdm.tqdm(range(1, model.maxIter)):
@@ -89,11 +95,9 @@ def prepare_coordinates(plugin_config, h5file):
         for iS in range(nS):
             trajpath = WEfolder + "/traj_segs/%06d/%06d" % (n_iter, iS)
 
-            # TODO: HACK, this should  not be hardcoded
             try:
                 coord0 = np.squeeze(md.load(f'{trajpath}/{parentTraj}', top=model.reference_structure.topology)._xyz)
             except OSError:
-                # coord0 = np.squeeze(md.load(trajpath + '/parent.xml', top=model.reference_structure.topology)._xyz)
                 log.warning("Parent traj file doesn't exist, loading reference structure coords")
                 coord0 = np.squeeze(model.reference_structure._xyz)
 
@@ -103,7 +107,6 @@ def prepare_coordinates(plugin_config, h5file):
             coords[iS, 1, :, :] = coord1
 
         if not coords_exist:
-            # log.debug(f"Writing coords for iter {n_iter}")
             dset[:] = coords
 
     log.debug(f"Wrote coords for {n_iter} iterations.")
@@ -169,13 +172,11 @@ def msmwe_compute_ss(plugin_config, west_files, last_iter):
     # So now we can do the actual monkey-patching of modelWE.
     # We monkey-patch at the module level rather than just override the function in the instanced object
     #   so that the functions retain access to self.
-    # TODO: Would be nice to just iterate over every function defined in user_overrides and patch them all  in
     msm_we.modelWE.processCoordinates = user_overrides.processCoordinates
     # ##### Done with monkey-patching.
 
     model = msm_we.modelWE()
 
-    # fileSpecifier = plugin_config.get('file_specifier')
     fileSpecifier = ' '.join(west_files)
     refPDBfile = plugin_config.get('ref_pdb_file')
     initPDBfile = plugin_config.get('init_pdb_file')
@@ -186,7 +187,7 @@ def msmwe_compute_ss(plugin_config, west_files, last_iter):
     # Fire up the model object
     # (Eventually this will just go in __init__)
 
-    # TODO: In RestartXX/RunYY fileSpecifier should be a list of all RestartXX/Run{1..YY}/west.h5
+    # In RestartXX/RunYY fileSpecifier is a list of all Restart{0..XX}/Run{1..YY}/west.h5
     model.initialize(fileSpecifier, refPDBfile, initPDBfile, modelName)
 
     # Set some model parameters
@@ -233,18 +234,15 @@ def msmwe_compute_ss(plugin_config, west_files, last_iter):
         last_seg = first_seg
 
     # Set the coords, and pcoords
-    # TODO: There's no need to set these as attributes of the object
     model.all_coords = coordSet
     model.pcoordSet = pcoordSet
 
     # TODO: Are first_iter and last_iter used consistently everywhere? Some places they're taken as parameters,
     #   some places the current value is just pulled from state
-    # TODO: What does "cluster" mean?
     first_iter_cluster = i
     model.first_iter = first_iter_cluster
     model.last_iter = last_iter_cluster
 
-    # TODO: Related to above comment, just use coordSet not model.coordSet
     n_coords = np.shape(model.all_coords)[0]
 
     model.dimReduce()
@@ -252,6 +250,7 @@ def msmwe_compute_ss(plugin_config, west_files, last_iter):
     clusterFile = (
         modelName + "_clusters_s" + str(first_iter_cluster) + "_e" + str(last_iter_cluster) + "_nC" + str(n_clusters) + ".h5"
     )
+    # TODO: Uncomment this to actually load the clusterFile if it exists.  For now, disable for development.
     exists = os.path.isfile(clusterFile)
     exists = False
     log.warning("Skipping any potential cluster reloading!")
@@ -339,7 +338,6 @@ class RestartDriver:
         #   after any other plugins.
         self.priority = plugin_config.get('priority', 100)  # I think a big number is lower priority...
 
-        # sim_manager.register_callback(sim_manager.post_we,
         sim_manager.register_callback(sim_manager.finalize_run, self.prepare_new_we, self.priority)
 
         # Initialize data
@@ -453,7 +451,7 @@ class RestartDriver:
             # If we just completed the simulation of the final restart, do the analysis still
             if restart_state['restarts_completed'] >= self.n_restarts:
                 log.info("All restarts completed! Performing final analysis.")
-                prepare_coordinates(self.plugin_config, self.data_manager.we_h5file)
+                prepare_coordinates(self.plugin_config, self.data_manager.we_h5file, self.data_manager.we_h5filename)
 
                 # return
 
@@ -464,10 +462,10 @@ class RestartDriver:
                 # Duplicating this is  gross, but given the structure here, my options are either put it above these ifs
                 #   entirely, meaning it'll be unnecessarily run at the end of the final restart, or duplicate it below.
                 log.info("Preparing coordinates for this run.")
-                prepare_coordinates(self.plugin_config, self.data_manager.we_h5file)
+                prepare_coordinates(self.plugin_config, self.data_manager.we_h5file, self.data_manager.we_h5filename)
 
                 # Move data from this run to a subfolder
-                # TODO: Remove duplicate code
+                # TODO: Remove duplicate code, goes with above comment about simpler formulation.
                 for data_folder in ['traj_segs', 'seg_logs']:
                     old_path = data_folder
                     new_path = f"{run_directory}/{old_path}"
@@ -498,7 +496,7 @@ class RestartDriver:
             log.info(f"Run {restart_state['runs_completed']}/{self.n_runs} completed.")
 
             log.info("Preparing coordinates for this run.")
-            prepare_coordinates(self.plugin_config, self.data_manager.we_h5file)
+            prepare_coordinates(self.plugin_config, self.data_manager.we_h5file, self.data_manager.we_h5filename)
 
             # Move data from this run to a subfolder
             # #   I.e., move traj_segs, seg_logs, west.h5 to $WEST_SIM_ROOT/restarting/runXX
@@ -616,7 +614,7 @@ class RestartDriver:
 
         # Flush h5 file writes and copy it to the run directory
         self.data_manager.finalize_run()
-        shutil.copyfile('west.h5', f"{run_directory}/west.h5")
+        shutil.copyfile(self.data_manager.we_h5filename, f"{run_directory}/west.h5")
 
         # Get haMSM steady-state estimate
         westpa.rc.pstatus("Building haMSM and computing steady-state")
@@ -726,13 +724,9 @@ class RestartDriver:
                 for struct_idx, structure in enumerate(structures):
 
                     # TODO: Move this elsewhere, or put in plugin config
-                    struct_extension = {
-                        md.formats.PDBTrajectoryFile: "pdb",
-                        md.formats.AmberRestartFile: "rst7",
-                    }
 
                     structure_filename = (
-                        f"{struct_directory}/bin{msm_bin_idx}_" f"struct{struct_idx}.{struct_extension[self.struct_filetype]}"
+                        f"{struct_directory}/bin{msm_bin_idx}_" f"struct{struct_idx}.{STRUCT_EXTENSIONS[self.struct_filetype]}"
                     )
 
                     with self.struct_filetype(structure_filename, 'w') as struct_file:
