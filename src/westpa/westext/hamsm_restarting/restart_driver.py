@@ -752,7 +752,7 @@ class RestartDriver:
 
                         elif self.struct_filetype is md.formats.AmberRestartFile:
                             # AmberRestartFile takes slightly differently named keyword args
-                            struct_file.write(coords, topology, cell_angles=angles, cell_lengths=lengths)
+                            struct_file.write(coords, time=None, cell_angles=angles, cell_lengths=lengths)
 
                         else:
                             # Otherwise, YOLO just hope all the positional arguments are in the right place
