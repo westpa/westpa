@@ -171,7 +171,6 @@ def msmwe_compute_ss(plugin_config, west_files, last_iter):
     #   so that the functions retain access to self.
     # TODO: Would be nice to just iterate over every function defined in user_overrides and patch them all  in
     msm_we.modelWE.processCoordinates = user_overrides.processCoordinates
-    msm_we.modelWE.reduceCoordinates = user_overrides.reduceCoordinates
     # ##### Done with monkey-patching.
 
     model = msm_we.modelWE()
@@ -396,9 +395,13 @@ class RestartDriver:
         """
         This function prepares a new WESTPA simulation using haMSM analysis to accelerate convergence.
 
-        # TODO: Update this to include marathons
+        The marathon functionality does re-implement some of the functionality of w_multi_west.
+        However, w_multi_west merges independent WE simulations, which may or may not be desirable.
+        I think for the purposes of this, it's good to keep the runs completely independent until haMSM model building.
+        Either that, or I'm just justifying not having known about w_multi_west when I wrote this. TBD.
+
+        # TODO: Replace data copies with moves, copies are sloooow
         # TODO: Replace all manual path-building with pathlib
-        # TODO: Don't move all data -- copy first, and then rm the originals right before the next w_run
 
         The algorithm is as follows:
             1. Check to see if we've just completed the final iteration

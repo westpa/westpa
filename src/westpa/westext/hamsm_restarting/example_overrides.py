@@ -33,36 +33,4 @@ def processCoordinates(self, coords):
         return dist
 
 
-def reduceCoordinates(self, coords):
-    """
-    Defines the coordinate reduction strategy used.
-    The reduced corodinates are stored in /auxdata for each iteration.
-
-    Parameters
-    ----------
-    coords: array-like
-        Array of coordinates to reduce.
-
-    Returns
-    -------
-    Reduced data
-
-    """
-
-    log.debug("Reducing coordinates")
-
-    if self.dimReduceMethod == "none":
-        nC = np.shape(coords)
-        nC = nC[0]
-        data = coords.reshape(nC, 3 * self.nAtoms)
-        return data
-
-    if self.dimReduceMethod == "pca" or self.dimReduceMethod == "vamp":
-        coords = self.processCoordinates(coords)
-        coords = self.coordinates.transform(coords)
-        return coords
-
-    raise Exception
-
-
 log.info("Loading user-override functions for modelWE")
