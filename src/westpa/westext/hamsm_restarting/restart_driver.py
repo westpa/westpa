@@ -737,10 +737,13 @@ class RestartDriver:
                         structure_weight = seg_we_weight * (bin_prob / msm_bin_we_weight)
 
                         topology = model.reference_structure.topology
-                        angles = model.reference_structure.unitcell_angles[0]
-                        lengths = model.reference_structure.unitcell_lengths[0] * 10
-                        # log.debug(angles)
-                        # log.debug(lengths)
+
+                        if model.reference_structure.unitcell_angles is not None:
+                            angles = model.reference_structure.unitcell_angles[0]
+                            lengths = model.reference_structure.unitcell_lengths[0] * 10
+                        else:
+                            angles, lengths = None, None
+
                         coords = structure * 10  # Correct units
 
                         # Write the structure file
