@@ -725,7 +725,16 @@ class RestartDriver:
                 # Loop over each structure  within a bin.
                 for struct_idx, structure in enumerate(structures):
 
-                    structure_filename = f"{struct_directory}/bin{msm_bin_idx}_struct{struct_idx}.pdb"
+                    # TODO: Move this elsewhere, or put in plugin config
+                    struct_extension = {
+                        md.formats.PDBTrajectoryFile: "pdb",
+                        md.formats.AmberRestartFile: "rst7",
+                    }
+
+                    structure_filename = (
+                        f"{struct_directory}/bin{msm_bin_idx}_" f"struct{struct_idx}.{struct_extension[self.struct_filetype]}"
+                    )
+
                     with self.struct_filetype(structure_filename, 'w') as struct_file:
 
                         # One structure per segment
@@ -762,6 +771,7 @@ class RestartDriver:
                                 " You should ensure that it takes argument as (coords, topology)"
                             )
                             struct_file.write(coords, topology)
+                            raise Exception("Don't know what extension to use for this filetype")
 
                         # Add this start-state to the start-states file
                         # This path is relative to WEST_SIM_ROOT
