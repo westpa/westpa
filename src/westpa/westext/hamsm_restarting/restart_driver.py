@@ -473,9 +473,9 @@ class RestartDriver:
 
                     log.debug(f"Moving {old_path} to {new_path}")
                     try:
-                        shutil.copytree(old_path, new_path)
+                        shutil.rename(old_path, new_path)
                     except FileNotFoundError:
-                        log.warning(f"Folder {data_folder} was not found." f"This may be normal, but check your configuration.")
+                        log.warning(f"Folder {data_folder} was not found." "This may be normal, but check your configuration.")
                         # continue
                     else:
                         # Make a new traj_segs folder for the next run
@@ -509,7 +509,7 @@ class RestartDriver:
 
                 log.debug(f"Moving {old_path} to {new_path}")
                 try:
-                    shutil.copytree(old_path, new_path)
+                    shutil.rename(old_path, new_path)
                 except FileNotFoundError:
                     log.warning(f"Folder {data_folder} was not found." f"This may be normal, but check your configuration.")
                     # continue
@@ -583,8 +583,8 @@ class RestartDriver:
             )
 
             for data_folder in ['traj_segs', 'seg_logs']:
-                log.debug(f"Removing original {data_folder}")
-                shutil.rmtree(data_folder)
+                log.debug(f"Preparing new {data_folder}")
+                # shutil.rmtree(data_folder)
                 os.mkdir(data_folder)
 
             # TODO: Do this via the Python API instead of by running a run.sh
@@ -875,6 +875,6 @@ class RestartDriver:
         #       Get the flags that were passed to w_run for this one, and pass it to the next.
         current_env = os.environ.copy()
 
-        # I think wait() might introduce a memory leak here
-        #   On the flip side, if the child processes error out, the paren't won't return an error status
+        # TODO: Shouldn't this just inherit the work manager and stuff from the running process?
+        #   w_init picks up whatever --debug flag was passed to the initial w_run, maybe this does too.
         subprocess.Popen('./run.sh', env=current_env).wait()
