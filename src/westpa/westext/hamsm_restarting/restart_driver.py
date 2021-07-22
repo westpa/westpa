@@ -278,6 +278,7 @@ def msmwe_compute_ss(plugin_config, west_files, last_iter):
 
     # Why is model.pss sometimes the wrong shape? It's "occasionally" returned as a nested array.
     # Squeeze fixes it and removes the dimension of length 1, but why does it happen in the first place?
+
     ss_alg = np.squeeze(model.pSS)
     ss_flux = model.JtargetSS
 
@@ -876,4 +877,4 @@ class RestartDriver:
 
         # I think wait() might introduce a memory leak here
         #   On the flip side, if the child processes error out, the paren't won't return an error status
-        subprocess.Popen('./run.sh', env=current_env)  # .wait()
+        subprocess.Popen('./run.sh', env=current_env).wait()
