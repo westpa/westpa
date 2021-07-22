@@ -75,6 +75,9 @@ def prepare_coordinates(plugin_config, h5file, we_h5filename):
 
     model = msm_we.modelWE()
     log.info('Preparing coordinates...')
+
+    # Only need the model to get the number of iterations and atoms
+    # TODO: Replace this with something more lightweight, get directly from WE
     model.initialize(we_h5filename, refPDBfile, initPDBfile, modelName)
     model.get_iterations()
 
@@ -279,7 +282,7 @@ def msmwe_compute_ss(plugin_config, west_files, last_iter):
     # Why is model.pss sometimes the wrong shape? It's "occasionally" returned as a nested array.
     # Squeeze fixes it and removes the dimension of length 1, but why does it happen in the first place?
 
-    ss_alg = np.squeeze(model.pSS)
+    ss_alg = np.squeeze(model.pSS.A)
     ss_flux = model.JtargetSS
 
     westpa.rc.pstatus("Got steady state:")
@@ -473,7 +476,7 @@ class RestartDriver:
 
                     log.debug(f"Moving {old_path} to {new_path}")
                     try:
-                        shutil.rename(old_path, new_path)
+                        os.rename(old_path, new_path)
                     except FileNotFoundError:
                         log.warning(f"Folder {data_folder} was not found." "This may be normal, but check your configuration.")
                         # continue
@@ -509,7 +512,7 @@ class RestartDriver:
 
                 log.debug(f"Moving {old_path} to {new_path}")
                 try:
-                    shutil.rename(old_path, new_path)
+                    os.rename(old_path, new_path)
                 except FileNotFoundError:
                     log.warning(f"Folder {data_folder} was not found." f"This may be normal, but check your configuration.")
                     # continue
