@@ -4,12 +4,12 @@ import numpy as np
 
 import westpa
 from westpa.cli.core import w_init
+from westpa.cli.core import w_run
 from westpa.core.extloader import get_object
 
 import json
 
 import os
-import subprocess
 import shutil
 import pickle
 import importlib.util
@@ -590,16 +590,8 @@ class RestartDriver:
                 # shutil.rmtree(data_folder)
                 os.mkdir(data_folder)
 
-            # TODO: Do this via the Python API instead of by running a run.sh
-            #       For  that, need to get the flags that were passed to w_run for this one, and pass it to the next.
-            current_env = os.environ.copy()
-
-            subprocess.Popen('./run.sh', env=current_env).wait()
-
+            w_run.run_simulation()
             return
-
-            # # Until I finish implementing marathons, error out here.
-            # raise NotImplementedError
 
         log.debug(f"{restart_state['restarts_completed']}/{self.n_restarts} completed")
 
@@ -878,10 +870,4 @@ class RestartDriver:
         log.info("New WE run ready!")
         westpa.rc.pstatus(f"\n\n===== Restart {restart_state['restarts_completed']} running =====\n")
 
-        # TODO: Do this via the Python API instead of by running a run.sh
-        #       Get the flags that were passed to w_run for this one, and pass it to the next.
-        current_env = os.environ.copy()
-
-        # TODO: Shouldn't this just inherit the work manager and stuff from the running process?
-        #   w_init picks up whatever --debug flag was passed to the initial w_run, maybe this does too.
-        subprocess.Popen('./run.sh', env=current_env).wait()
+        w_run.run_simulation()
