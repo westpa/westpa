@@ -113,6 +113,24 @@ class WESimManager:
             except KeyError:
                 raise KeyError('invalid hook {!r}'.format(hook))
 
+        # It's possible to register a callback that's a duplicate function, but at a different place in memory.
+        #   For example, if you launch a run without clearing state from a previous run.
+        #   More details on this are available in https://github.com/westpa/westpa/issues/182 but the below code
+        #   handles specifically the problem that causes in plugin loading.
+        try:
+            # Before checking for set membership of (priority, function.__name__, function), just check
+            #   function names for collisions in this hook.
+            hook_function_names = [callback[1] for callback in self._callback_table[hook]]
+        except KeyError:
+            # If there's no entry in self._callback_table for this hook, then there definitely aren't any collisions
+            #   because no plugins are registered to it yet in the first place.
+            pass
+        else:
+            # If there are plugins registered to this hook, check for duplicate names.
+            if function.__name__ in hook_function_names:
+                log.debug("This plugin has already been loaded, skipping")
+                return
+
         try:
             self._callback_table[hook].add((priority, function.__name__, function))
         except KeyError:
