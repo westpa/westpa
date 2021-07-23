@@ -11,7 +11,7 @@ try:
 except Exception:
     SCIPY_FLAG = False
 
-from westext.stringmethod import WESTStringMethod
+from westpa.westext.stringmethod import WESTStringMethod
 
 import logging
 
