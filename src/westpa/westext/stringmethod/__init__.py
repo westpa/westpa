@@ -6,12 +6,6 @@ Joshua L. Adelman 2011
 
 from abc import ABCMeta, abstractmethod, abstractproperty
 
-from . import string_method
-from .string_method import DefaultStringMethod
-
-from . import string_driver
-from .string_driver import StringDriver
-
 
 class WESTStringMethod:
 
@@ -41,4 +35,11 @@ class WESTStringMethod:
         pass
 
 
-__all__ = ['string_method', 'DefaultStringMethod', 'string_driver', 'StringDriver']
+from . import string_method
+from .string_method import DefaultStringMethod
+
+from . import string_driver
+from .string_driver import StringDriver
+
+
+__all__ = ['string_method', 'DefaultStringMethod', 'string_driver', 'StringDriver', 'WESTStringMethod']
