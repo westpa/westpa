@@ -353,10 +353,10 @@ Full-Width Styles
 
 .doc_link {
   float: left;
-  width: 100px;
+  width: 60px;
   height: 40px;
   display: block;
-  padding-right: 30px;
+  padding-right: 0px;
   color: black;
   font-size: 18px;
 }
@@ -365,9 +365,23 @@ Full-Width Styles
  color: red;
 }
 
+.sphinx_link {
+  float: left;
+  width: 150px;
+  height: 40px;
+  display: block;
+  padding-right: 0px;
+  color: black;
+  font-size: 18px;
+}
+
+.sphinx_link:hover {
+ color: red;
+}
+
 .gh_link {
   float: left;
-  width: 200px;
+  width: 160px;
   height: 40px;
   display: block;
   padding-right: 0px;
