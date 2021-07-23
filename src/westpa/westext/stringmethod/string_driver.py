@@ -4,10 +4,10 @@ import types
 import numpy as np
 
 import westpa
-from westpa import extloader
-from westpa.yamlcfg import check_bool, ConfigItemMissing
-from westext.stringmethod import WESTStringMethod, DefaultStringMethod
-from westpa.binning import VoronoiBinMapper
+from westpa.core import extloader
+from westpa.core.yamlcfg import check_bool, ConfigItemMissing
+from westpa.westext.stringmethod import WESTStringMethod, DefaultStringMethod
+from westpa.core.binning import VoronoiBinMapper
 
 
 log = logging.getLogger(__name__)

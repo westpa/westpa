@@ -4,9 +4,9 @@ import operator
 import numpy as np
 
 import westpa
-from westpa.yamlcfg import check_bool
-from westpa.kinetics import RateAverager
-from westext.weed.ProbAdjustEquil import probAdjustEquil
+from westpa.core.yamlcfg import check_bool
+from westpa.core.kinetics import RateAverager
+from westpa.westext.weed.ProbAdjustEquil import probAdjustEquil
 
 EPS = np.finfo(np.float64).eps
 
