@@ -856,6 +856,10 @@ class RestartDriver:
             + f"Restart {restart_state['restarts_completed']} initializing =====\n"
         )
 
+        for data_folder in ['traj_segs', 'seg_logs']:
+            log.debug(f"Preparing new {data_folder}")
+            os.mkdir(data_folder)
+
         westpa.rc.pstatus(
             f"\nRun: \n\t w_init --tstate-file {tstates_filename} "
             + f"--bstate-file {bstates_filename} --sstate-file {sstates_filename} --segs-per-state {segs_per_state}\n"
