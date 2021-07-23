@@ -1,7 +1,9 @@
 ===============
 WESTPA 2.0 
 ===============
-
+.. image:: https://readthedocs.org/projects/westpa/badge/?version=latest
+        :target: https://westpa.readthedocs.io/en/latest/?badge=latest
+        :alt: Documentation Status
 --------
 Overview
 --------
