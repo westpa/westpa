@@ -403,11 +403,11 @@ class RestartDriver:
         I think for the purposes of this, it's good to keep the runs completely independent until haMSM model building.
         Either that, or I'm just justifying not having known about w_multi_west when I wrote this. TBD.
 
-        # TODO: Replace data copies with moves, copies are sloooow
         # TODO: Replace all manual path-building with pathlib
 
         The algorithm is as follows:
             1. Check to see if we've just completed the final iteration
+            2. Handle launching multiple runs, if desired
             2. Build haMSM
             3. Obtain structures for each haMSM bin
             4. Make each structure a start-state, with probability set by (MSM-bin SS prob / # structures in bin)
@@ -477,6 +477,7 @@ class RestartDriver:
                     log.debug(f"Moving {old_path} to {new_path}")
                     try:
                         os.rename(old_path, new_path)
+                        os.mkdir(old_path)
                     except FileNotFoundError:
                         log.warning(f"Folder {data_folder} was not found." "This may be normal, but check your configuration.")
                         # continue
@@ -513,6 +514,7 @@ class RestartDriver:
                 log.debug(f"Moving {old_path} to {new_path}")
                 try:
                     os.rename(old_path, new_path)
+                    os.mkdir(old_path)
                 except FileNotFoundError:
                     log.warning(f"Folder {data_folder} was not found." f"This may be normal, but check your configuration.")
                     # continue
@@ -564,6 +566,13 @@ class RestartDriver:
                 + f"Restart {restart_state['restarts_completed']} initializing =====\n"
             )
 
+            westpa.rc.pstatus(
+                f"\nRun: \n\t w_init --tstate-file {initialization_state['tstate-file']} "
+                + f"--bstate-file {initialization_state['bstate-file']} "
+                f"--sstate-file {initialization_state['sstate-file']} "
+                f"--segs-per-state {initialization_state['segs-per-state']}\n"
+            )
+
             w_init.initialize(
                 tstate_file=initialization_state['tstate-file'],
                 bstate_file=initialization_state['bstate-file'],
@@ -585,10 +594,10 @@ class RestartDriver:
                 + f"Restart {restart_state['restarts_completed']} running =====\n"
             )
 
-            for data_folder in ['traj_segs', 'seg_logs']:
-                log.debug(f"Preparing new {data_folder}")
-                # shutil.rmtree(data_folder)
-                os.mkdir(data_folder)
+            # for data_folder in ['traj_segs', 'seg_logs']:
+            #     log.debug(f"Preparing new {data_folder}")
+            #     # shutil.rmtree(data_folder)
+            #     os.mkdir(data_folder)
 
             w_run.run_simulation()
             return
@@ -848,9 +857,9 @@ class RestartDriver:
             + f"Restart {restart_state['restarts_completed']} initializing =====\n"
         )
 
-        for data_folder in ['traj_segs', 'seg_logs']:
-            log.debug(f"Preparing new {data_folder}")
-            os.mkdir(data_folder)
+        # for data_folder in ['traj_segs', 'seg_logs']:
+        #     log.debug(f"Preparing new {data_folder}")
+        #     os.mkdir(data_folder)
 
         westpa.rc.pstatus(
             f"\nRun: \n\t w_init --tstate-file {tstates_filename} "
