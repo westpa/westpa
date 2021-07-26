@@ -45,6 +45,12 @@ trace = walker.trace()
 
 ### Retrieving Trajectory Segments
 
+The `trajectory_segment()` decorator transforms a function for loading the
+trajectory of a particular walker into a trajectory descriptor attached to
+both `Walker` and `Trace` instances. The following code (which uses the
+[MDTraj](https://www.mdtraj.org/1.9.5/index.html) library) demonstrates its
+use:
+
 ```py
 import mdtraj
 
@@ -56,7 +62,7 @@ def traj(walker):
     return mdtraj.load(filename)
 ```
 
-Then the trajectory segment associated with a particular walker can be accessed via the `traj` attribute:
+The trajectory segment associated with a particular walker can then be accessed via the `traj` attribute:
 ```py
 segment = walker.traj
 ```
