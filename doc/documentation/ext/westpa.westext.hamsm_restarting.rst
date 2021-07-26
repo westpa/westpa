@@ -137,8 +137,18 @@ Doing only post-analysis
 If you want to ONLY use this for haMSM post-analysis, and not restarting, just set :code:`n_restarts: 0` in the configuration.
 
 
-Notes
-*****
+Work manager for restarting
+***************************
+
+If you're using some parallelism (which you should), and you're using the plugin to do restarts or multiple runs,
+then your choice of work manager can be important.
+This plugin handles starting new WESTPA runs using the Python API.
+The process work manager, by default, uses :code:`fork` to start new workers which seems to eventually causes
+memory issues, since :code:`fork` passes the entire contents of the parent to each child.
+Switching the spawn method to :code:`forkserver` or :code:`spawn` may introduce other issues.
+
+Using the ZMQ work manager works well. The MPI work manager should also work well, though is untested.
+Both of these handle starting new workers in a more efficient way, without copying the full state of the parent.
 
 Potential Pitfalls/Troubleshooting
 ******************
