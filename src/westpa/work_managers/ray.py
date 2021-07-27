@@ -65,7 +65,7 @@ class RayWorkManager(WorkManager):
     def submit_as_completed(self, task_generator, queue_size=None):
         """
         Take in a generator of tasks.
-        Create the tasks, send them to Ray, and return the results *as they become available*.
+        Create the tasks, send them to Ray, and return the futures.
         """
 
         pending_ray_ids = set()
@@ -116,6 +116,8 @@ class RayWorkManager(WorkManager):
         Accept a function, and farm it out to Ray workers. Does NOT wait for completion or return the result.
 
         This is *not* yet a drop-in replacement for submit(), which returns a Future.
+
+        TODO: Figure out how to pass westpa.rc state to workers
         """
 
         @ray.remote
@@ -133,17 +135,13 @@ class RayWorkManager(WorkManager):
         """
 
         ray_id = self.ray_submit(fn, args, kwargs)
-
         result_future = RayFuture(ray_id=ray_id)
 
         return result_future
 
     def as_completed(self, futures):
         '''
-        SHOULD return a generator which yields ``futures`` as they become
-        available.
-
-        For now, return all the results at once.
+        Return a generators which yields ``futures`` as they become available.
         '''
 
         remaining = [future.ray_id for future in futures]
