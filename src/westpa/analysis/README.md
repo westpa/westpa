@@ -62,7 +62,7 @@ def traj(walker):
     return mdtraj.load(filename)
 ```
 
-The trajectory segment associated with a particular walker can then be accessed via the `traj` attribute:
+The trajectory segment associated with a given walker can then be accessed via the `traj` attribute:
 ```py
 segment = walker.traj
 ```
