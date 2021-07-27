@@ -824,7 +824,7 @@ class RestartDriver:
         with open(objFile, "wb") as objFileHandler:
             del model.clusters
             log.debug("Pickling model")
-            pickle.dump(model, objFileHandler)
+            pickle.dump(model, objFileHandler, protocol=4)
             objFileHandler.close()
 
         if restart_state['restarts_completed'] >= self.n_restarts:
