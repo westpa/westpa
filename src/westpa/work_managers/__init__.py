@@ -16,10 +16,16 @@ from . import serial, threads, processes  # noqa
 from .serial import SerialWorkManager
 from .threads import ThreadsWorkManager
 from .processes import ProcessWorkManager
+from .ray import RayWorkManager
 
 log = logging.getLogger(__name__)
 
-_available_work_managers = {'serial': SerialWorkManager, 'threads': ThreadsWorkManager, 'processes': ProcessWorkManager}
+_available_work_managers = {
+    'serial': SerialWorkManager,
+    'threads': ThreadsWorkManager,
+    'processes': ProcessWorkManager,
+    'ray': RayWorkManager,
+}
 
 # Import ZeroMQ work manager if available
 try:
@@ -40,6 +46,16 @@ except ImportError:
     log.debug('traceback follows', exc_info=True)
 else:
     _available_work_managers['mpi'] = MPIWorkManager
+
+# Import Ray work manager if available
+try:
+    from . import ray  # noqa
+    from .ray import RayWorkManager
+except ImportError:
+    log.info('Ray work manager not available')
+    log.debug('traceback follows', exc_info=True)
+else:
+    _available_work_managers['ray'] = RayWorkManager
 
 from . import environment  # noqa
 from .environment import make_work_manager  # noqa
