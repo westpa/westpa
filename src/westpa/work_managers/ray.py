@@ -20,20 +20,33 @@ class RayFuture:
 
     For this demo, I'm going to try eliminating them for simplicity.
     However, I need to be sure the same functions are exposed so we don't have to change anything elsewhere.
+
+    This allows specifying the data itself, for a completed task (like in submit_as_completed). Alternatively, you
+    can supply just the ray_id, and when you call get_result() it'll wait for the calculation to complete.
     """
 
-    def __init__(self, data):
+    def __init__(self, *, data=None, ray_id=None):
+        """
+        Must provide either data or ray_id as a keyword argument
+        """
+
+        if data is not None and ray_id is not None:
+            raise Exception("Specify only one of data or ray_id for a RayFuture.")
 
         self.data = data
+        self.ray_id = ray_id
 
-    def get_result(self, discard):
+    def get_result(self, discard=None):
         """
         Return the result of a future.
         Although the discard argument is unused here, it's passed in some places, so this function needs to be able
             to accept it.
         """
 
-        return self.data
+        if self.data is not None:
+            return self.data
+        else:
+            return ray.get(self.ray_id)
 
 
 class RayWorkManager(WorkManager):
@@ -52,7 +65,7 @@ class RayWorkManager(WorkManager):
     def submit_as_completed(self, task_generator, queue_size=None):
         """
         Take in a generator of tasks.
-        Create the tasks, send them to Ray, and return the results.
+        Create the tasks, send them to Ray, and return the results *as they become available*.
         """
 
         pending_ray_ids = set()
@@ -63,10 +76,7 @@ class RayWorkManager(WorkManager):
 
             pending_ray_ids.add(ray_id)
 
-        # Wait for all results to be completed, and spit them out
-        results = ray.get(list(pending_ray_ids))
-        result_futures = [RayFuture(result) for result in results]
-
+        result_futures = [RayFuture(ray_id=_id) for _id in pending_ray_ids]
         return result_futures
 
     def startup(self):
@@ -116,3 +126,30 @@ class RayWorkManager(WorkManager):
         ray_id = remote_function.remote()
 
         return ray_id
+
+    def submit(self, fn, args=(), kwargs={}):
+        """
+        Accept a function, farm it out to Ray workers, and return a Future.
+        """
+
+        ray_id = self.ray_submit(fn, args, kwargs)
+
+        result_future = RayFuture(ray_id=ray_id)
+
+        return result_future
+
+    def as_completed(self, futures):
+        '''
+        SHOULD return a generator which yields ``futures`` as they become
+        available.
+
+        For now, return all the results at once.
+        '''
+
+        remaining = [future.ray_id for future in futures]
+        while len(remaining) > 0:
+
+            ready, remaining = ray.wait(remaining)
+
+            for _ready in ready:
+                yield RayFuture(ray_id=_ready)
