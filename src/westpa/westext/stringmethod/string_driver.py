@@ -5,9 +5,10 @@ import numpy as np
 
 import westpa
 from westpa.core import extloader
-from westpa.core.yamlcfg import check_bool, ConfigItemMissing
-from westpa.westext.stringmethod import WESTStringMethod, DefaultStringMethod
 from westpa.core.binning import VoronoiBinMapper
+from westpa.core.yamlcfg import check_bool, ConfigItemMissing
+
+from westpa.westext.stringmethod import WESTStringMethod, DefaultStringMethod
 
 
 log = logging.getLogger(__name__)
@@ -146,7 +147,7 @@ class StringDriver:
                 log.info('Attempting to initialize stringmethod from data')
 
                 try:
-                    binhash = iter_group.attrs['binhash']
+                    binhash = iter_group.attrs['binhash'].encode()
                     bin_mapper = self.data_manager.get_bin_mapper(binhash)
 
                     centers = bin_mapper.centers
