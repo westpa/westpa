@@ -29,9 +29,9 @@ from msm_we import msm_we
 EPS = np.finfo(np.float64).eps
 
 FORMAT = "%(message)s"
-logging.basicConfig(level="NOTSET", format=FORMAT, datefmt="[%X]", handlers=[RichHandler()])
+logging.basicConfig(format=FORMAT, datefmt="[%X]", handlers=[RichHandler()])
 log = logging.getLogger("restart_driver")
-log.setLevel("DEBUG")
+log.setLevel("INFO")
 logging.getLogger("msm_we").setLevel("INFO")
 
 # Map structure types to extensions.
@@ -414,9 +414,6 @@ class RestartDriver:
             5. Potentially some renormalization?
             6. Start new WE simulation
         """
-
-        log.setLevel("DEBUG")
-        logging.getLogger("msm_we").setLevel("INFO")
 
         # Do nothing if it's not the final iteration
         if not self.is_last_iteration:
