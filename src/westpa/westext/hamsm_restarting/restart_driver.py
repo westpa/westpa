@@ -194,9 +194,20 @@ def msmwe_compute_ss(plugin_config, west_files, last_iter):
     model.initialize(fileSpecifier, refPDBfile, initPDBfile, modelName)
 
     # Set some model parameters
-    model.WEtargetp1 = plugin_config.get('target_pcoord1')
-    model.WEbasisp1_min = plugin_config.get('basis_pcoord1_min')
-    model.WEbasisp1_max = plugin_config.get('basis_pcoord1_max')
+    WEtargetp1 = plugin_config.get('target_pcoord1', None)
+    if WEtargetp1 is not None:
+        log.warning(
+            "Using a deprecated target pcoord specification. "
+            "You should change this to explicitly give target_pcoord1_min and target_pcoord1_max as bounds. "
+            "Defaulting min to -np.inf for now.."
+        )
+
+    model.WEtargetp1_bounds = [
+        plugin_config.get('target_pcoord1_min', -np.inf),
+        plugin_config.get('target_pcoord1_max', WEtargetp1),
+    ]
+    model.WEbasisp1_bounds = [plugin_config.get('basis_pcoord1_min'), plugin_config.get('basis_pcoord1_max')]
+
     model.pcoord_ndim0 = plugin_config.get('pcoord_ndim0')
     model.dimReduceMethod = plugin_config.get('dim_reduce_method')
 
