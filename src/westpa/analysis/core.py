@@ -76,9 +76,14 @@ class Run:
                 for number in range(1, self.num_iterations + 1)]
 
     @property
-    def num_segments(self):
-        """int: Total number of trajectory segments."""
+    def num_walkers(self):
+        """int: Total number of walkers."""
         return sum(iteration.num_segments for iteration in self)
+
+    @property
+    def num_segments(self):
+        """int: Alias self.num_walkers."""
+        return self.num_walkers
 
     @property
     def walkers(self):
