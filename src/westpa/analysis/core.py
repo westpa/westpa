@@ -1,5 +1,4 @@
 import itertools
-import operator
 import pandas as pd
 import sys
 import westpa.tools.binning
@@ -72,8 +71,7 @@ class Run:
     @property
     def iterations(self):
         """Sequence[Iteration]: Sequence of iterations."""
-        return [Iteration(number, self)
-                for number in range(1, self.num_iterations + 1)]
+        return [Iteration(number, self) for number in range(1, self.num_iterations + 1)]
 
     @property
     def num_walkers(self):
@@ -93,8 +91,7 @@ class Run:
     @property
     def successful_walkers(self):
         """Iterable[Walker]: Walkers that stopped in the target."""
-        return itertools.chain.from_iterable(
-            iteration.successful_walkers for iteration in self)
+        return itertools.chain.from_iterable(iteration.successful_walkers for iteration in self)
 
     def iteration(self, number):
         """Return a specific iteration.
@@ -144,6 +141,7 @@ class Iteration:
         Simulation run to which the iteration belongs.
 
     """
+
     def __init__(self, number, run):
         self.number = number
         self.run = run
@@ -195,9 +193,7 @@ class Iteration:
         """BinMapper: Bin mapper used in the iteration."""
         if self.bin_target_counts is None:
             return None
-        mapper, _, _ = westpa.tools.binning.mapper_from_hdf5(
-            self.run.h5file['bin_topologies'],
-            self.h5group.attrs['binhash'])
+        mapper, _, _ = westpa.tools.binning.mapper_from_hdf5(self.run.h5file['bin_topologies'], self.h5group.attrs['binhash'])
         return mapper
 
     @property
@@ -253,10 +249,10 @@ class Iteration:
     @property
     def basis_states(self):
         """list[BasisState]: Basis states in use for the iteration."""
-        return [BasisState(info['label'], info['probability'], pcoord=pcoord,
-                           auxref=info['auxref'], state_id=state_id)
-                for state_id, (info, pcoord) in enumerate(
-                    zip(self.basis_state_info, self.basis_state_pcoords))]
+        return [
+            BasisState(info['label'], info['probability'], pcoord=pcoord, auxref=info['auxref'], state_id=state_id)
+            for state_id, (info, pcoord) in enumerate(zip(self.basis_state_info, self.basis_state_pcoords))
+        ]
 
     @property
     def initial_state_info(self):
@@ -271,13 +267,18 @@ class Iteration:
     @property
     def initial_states(self):
         """list[InitialState]: Initial states."""
-        return [InitialState(state_id, info['basis_state_id'],
-                             info['iter_created'], iter_used=info['iter_used'],
-                             istate_type=info['istate_type'],
-                             istate_status=info['istate_status'],
-                             pcoord=pcoord)
-                for state_id, (info, pcoord) in enumerate(
-                    zip(self.initial_state_info, self.initial_state_pcoords))]
+        return [
+            InitialState(
+                state_id,
+                info['basis_state_id'],
+                info['iter_created'],
+                iter_used=info['iter_used'],
+                istate_type=info['istate_type'],
+                istate_status=info['istate_status'],
+                pcoord=pcoord,
+            )
+            for state_id, (info, pcoord) in enumerate(zip(self.initial_state_info, self.initial_state_pcoords))
+        ]
 
     @property
     def target_state_info(self):
@@ -294,9 +295,10 @@ class Iteration:
         """list[TargetState]: Target states."""
         if self._tstates is None:
             return []
-        return [TargetState(info['label'], pcoord, state_id=state_id)
-                for state_id, (info, pcoord) in enumerate(
-                    zip(self.target_state_info, self.target_state_pcoords))]
+        return [
+            TargetState(info['label'], pcoord, state_id=state_id)
+            for state_id, (info, pcoord) in enumerate(zip(self.target_state_info, self.target_state_pcoords))
+        ]
 
     @cached_property
     def target(self):
@@ -407,8 +409,7 @@ class Walker:
         """Iterable[Walker]: The children of the walker."""
         if not self.iteration.next:
             return ()
-        return (walker for walker in self.iteration.next.walkers
-                if walker.parent == self)
+        return (walker for walker in self.iteration.next.walkers if walker.parent == self)
 
     @property
     def successful(self):
@@ -501,8 +502,7 @@ class Bin:
     def __contains__(self, pcoord):
         result = self.mapper.assign([pcoord])
         if result.size != 1:
-            raise ValueError('left operand must be a single point in '
-                             'progress coordinate space')
+            raise ValueError('left operand must be a single point in progress coordinate space')
         return result[0] == self.index
 
     def __repr__(self):

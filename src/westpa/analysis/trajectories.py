@@ -8,11 +8,11 @@ try:
 except ImportError:
     mdtraj = None
 
-from functools import cached_property, reduce
+from functools import cached_property, partial, reduce
 from tqdm import tqdm
 from westpa.analysis.core import Walker, Trace
 
-from typing import Callable, Iterable
+from typing import Callable
 
 
 class SegmentCollector:
@@ -35,8 +35,7 @@ class SegmentCollector:
 
     """
 
-    def __init__(self, traj_descr, use_threads=False, max_workers=None,
-                 show_progress=False):
+    def __init__(self, traj_descr, use_threads=False, max_workers=None, show_progress=False):
         self.traj_descr = traj_descr
         self.use_threads = use_threads
         self.max_workers = max_workers
@@ -118,20 +117,12 @@ class SegmentCollector:
         """
         walkers = tuple(walkers)
 
-        tqdm_kwargs = dict(
-            desc='Retrieving segments',
-            disable=(not self.show_progress),
-            position=0,
-            total=len(walkers),
-        )
+        tqdm_kwargs = dict(desc='Retrieving segments', disable=(not self.show_progress), position=0, total=len(walkers),)
 
         if self.use_threads:
             with cf.ThreadPoolExecutor(self.max_workers) as executor:
-                future_to_key = {
-                    executor.submit(self.get_segment, walker): key
-                    for key, walker in enumerate(walkers)}
-                futures = list(tqdm(cf.as_completed(future_to_key),
-                                    **tqdm_kwargs))
+                future_to_key = {executor.submit(self.get_segment, walker): key for key, walker in enumerate(walkers)}
+                futures = list(tqdm(cf.as_completed(future_to_key), **tqdm_kwargs))
                 futures.sort(key=future_to_key.get)
                 segments = (future.result() for future in futures)
         else:
@@ -162,18 +153,15 @@ class Trajectory:
 
     See Also
     --------
-    trajectory_segment
+    :func:`trajectory_segment`
         Decorator that transforms a function for getting trajectory
         segments into a :type:`Trajectory` descriptor.
 
     """
 
-    def __init__(self, fget=None, *, name=None,
-                 concatenator=None, cache_segments=True):
+    def __init__(self, fget=None, *, name=None, concatenator=None, cache_segments=True):
         if fget is None:
-            return functools.partial(self.__init__, name=name,
-                                     concatenator=concatenator,
-                                     cache_segments=cache_segments)
+            return partial(self.__init__, name=name, concatenator=concatenator, cache_segments=cache_segments)
 
         if name is None:
             name = fget.__name__

@@ -1,7 +1,4 @@
-from westpa.analysis.core import Walker, Iteration
-
-from typing import Callable, Sequence
-from numpy.typing import ArrayLike
+import numpy as np
 
 
 def time_average(observable, iterations):
