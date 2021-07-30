@@ -446,55 +446,43 @@ class RestartDriver:
         # Make the folder to store data for this marathon
         restart_directory = f"restart{restart_state['restarts_completed']}"
         run_directory = f"{restart_directory}/run{restart_state['runs_completed']}"
-        # os.mkdir(restart_directory)
-        # os.mkdir(run_directory)
         if not os.path.exists(run_directory):
             os.makedirs(run_directory)
 
-        # TODO: There might be a more logical way to order these, but as it is, worst case I prepare_coordinates()
-        #   unnecessarily on t he last restart
-        # FIXME: There is certainly a much simpler formulation of this. Fix ASAP.
+        # Write coordinates to h5
+        prepare_coordinates(self.plugin_config, self.data_manager.we_h5file, self.data_manager.we_h5filename)
+
+        for data_folder in ['traj_segs', 'seg_logs']:
+            old_path = data_folder
+            new_path = f"{run_directory}/{old_path}"
+
+            log.debug(f"Moving {old_path} to {new_path}")
+            try:
+                os.rename(old_path, new_path)
+            except FileNotFoundError:
+                log.warning(f"Folder {data_folder} was not found." "This may be normal, but check your configuration.")
+            else:
+                # Make a new data folder for the next run
+                os.mkdir(old_path)
+
+        last_run = restart_state['runs_completed'] >= self.n_runs
+        last_restart = restart_state['restarts_completed'] >= self.n_restarts
+
         # We've just finished a run. Let's check if we have to do any more runs in this marathon before doing a restart.
         #   In the case of n_runs == 1, then we're just doing a single run and restarting it every so often.
         #   Otherwise, a marathon consists of multiple runs,  and restarts are performed between marathons.
-        if restart_state['runs_completed'] >= self.n_runs:
+        if last_run:
             log.info(f"All {self.n_runs} runs in this marathon completed.")
 
-            # If we just completed the simulation of the final restart, do the analysis still
-            if restart_state['restarts_completed'] >= self.n_restarts:
+            if last_restart:
                 log.info("All restarts completed! Performing final analysis.")
-                prepare_coordinates(self.plugin_config, self.data_manager.we_h5file, self.data_manager.we_h5filename)
 
-                # return
-
-            # Run this, and continue below to handle the restart.
-            elif restart_state['restarts_completed'] < self.n_restarts:
+            else:
                 log.info("Proceeding to prepare a restart.")
 
                 # Duplicating this is  gross, but given the structure here, my options are either put it above these ifs
                 #   entirely, meaning it'll be unnecessarily run at the end of the final restart, or duplicate it below.
                 log.info("Preparing coordinates for this run.")
-                prepare_coordinates(self.plugin_config, self.data_manager.we_h5file, self.data_manager.we_h5filename)
-
-                # Move data from this run to a subfolder
-                # TODO: Remove duplicate code, goes with above comment about simpler formulation.
-                for data_folder in ['traj_segs', 'seg_logs']:
-                    old_path = data_folder
-                    new_path = f"{run_directory}/{old_path}"
-
-                    log.debug(f"Moving {old_path} to {new_path}")
-                    try:
-                        os.rename(old_path, new_path)
-                        os.mkdir(old_path)
-                    except FileNotFoundError:
-                        log.warning(f"Folder {data_folder} was not found." "This may be normal, but check your configuration.")
-                        # continue
-                    else:
-                        # Make a new traj_segs folder for the next run
-                        # os.mkdir(old_path)
-                        pass
-                # Back up west.h5
-                # self.data_manager.finalize_run()
 
                 old_initialization_path = self.initialization_file
                 new_initialization_path = f"{restart_directory}/{self.initialization_file}"
@@ -503,42 +491,15 @@ class RestartDriver:
 
                 # Now, continue on to haMSM calculation below.
 
-        # If we have more runs left to do in this marathon
-        elif restart_state['runs_completed'] < self.n_runs:
+        # If we have more runs left to do in this marathon, prepare them
+        elif not last_run:
 
             log.info(f"Run {restart_state['runs_completed']}/{self.n_runs} completed.")
 
-            log.info("Preparing coordinates for this run.")
-            prepare_coordinates(self.plugin_config, self.data_manager.we_h5file, self.data_manager.we_h5filename)
-
-            # Move data from this run to a subfolder
-            # #   I.e., move traj_segs, seg_logs, west.h5 to $WEST_SIM_ROOT/restarting/runXX
-            # TODO: Remove duplicate code
-
-            for data_folder in ['traj_segs', 'seg_logs']:
-                old_path = data_folder
-                new_path = f"{run_directory}/{old_path}"
-
-                log.debug(f"Moving {old_path} to {new_path}")
-                try:
-                    os.rename(old_path, new_path)
-                    os.mkdir(old_path)
-                except FileNotFoundError:
-                    log.warning(f"Folder {data_folder} was not found." f"This may be normal, but check your configuration.")
-                    # continue
-                else:
-                    # Make a new traj_segs folder for the next run
-                    # os.mkdir(old_path)
-                    pass
-            # Back up west.h5
-            self.data_manager.finalize_run()
-            shutil.copyfile('west.h5', f"{run_directory}/west.h5")
-
             # TODO: Initialize a new run, from the same configuration as this run was
-            # TODO: On the 1st run, I can write bstates/tstates/sstates into restart files, and use those for spawning
+            #   On the 1st run, I can write bstates/tstates/sstates into restart files, and use those for spawning
             #   subsequent runs in the marathon. That way, I don't make unnecessary copies of all those.
             # Basis and target states are unchanged. Can I get the original parameters passed to w_init?
-            # Or do I need to extract them out manually and recreate them somehow?
             # Ideally, I should be able to call w_init with the exact same parameters that went to it the first time
             # I need to pass w_init.initialize():
             #   - Basis states
@@ -547,24 +508,45 @@ class RestartDriver:
             #   - Segs per state
             #   - Shotgun (probably never used here, but I should grab it just in case.)
             initialization_state = {
-                'tstate-file': None,
-                'bstate-file': None,
-                'sstate-file': None,
+                'tstate_file': None,
+                'bstate_file': None,
+                'sstate_file': None,
                 'tstates': None,
                 'bstates': None,
                 'sstates': None,
-                'segs-per-state': None,
+                'segs_per_state': None,
             }
 
-            # TODO: Implement this, and get rid of the initialization_file usage right below
+            # TODO: Implement this, and get rid of the initialization_file usage right below. Placeholder for now.
             if restart_state['runs_completed'] == 1:
 
                 # Get and write basis, target, start states and segs per state for this marathon to disk
                 pass
 
+            # Save the WESTPA h5 data from this run
+            self.data_manager.finalize_run()
+            shutil.copyfile('west.h5', f"{run_directory}/west.h5")
+
             if os.path.exists(self.initialization_file):
                 with open(self.initialization_file, 'r') as fp:
                     initialization_dict = json.load(fp)
+
+                    # Some of my initial files had this old-style formatting. Handle it for now, but remove eventually
+                    for old_key, new_key in [
+                        ('tstate-file', 'tstate_file'),
+                        ('bstate-file', 'bstate_file'),
+                        ('sstate-file', 'sstate_file'),
+                        ('segs-per-state', 'segs_per_state'),
+                    ]:
+                        if old_key in initialization_state.keys():
+                            log.warning(
+                                f"This initialization JSON file {self.initialization_file} uses the deprecated  "
+                                f"hyphenated form for  {old_key}. Replace with underscores."
+                            )
+
+                            value = initialization_state.pop(old_key)
+                            initialization_state[new_key] = value
+
                     initialization_state.update(initialization_dict)
             else:
                 raise Exception("No initialization JSON file provided -- " "I don't know how to start new runs in this marathon.")
@@ -575,21 +557,14 @@ class RestartDriver:
             )
 
             westpa.rc.pstatus(
-                f"\nRun: \n\t w_init --tstate-file {initialization_state['tstate-file']} "
-                + f"--bstate-file {initialization_state['bstate-file']} "
-                f"--sstate-file {initialization_state['sstate-file']} "
-                f"--segs-per-state {initialization_state['segs-per-state']}\n"
+                f"\nRun: \n\t w_init --tstate-file {initialization_state['tstate_file']} "
+                + f"--bstate-file {initialization_state['bstate_file']} "
+                f"--sstate-file {initialization_state['sstate_file']} "
+                f"--segs-per-state {initialization_state['segs_per_state']}\n"
             )
 
             w_init.initialize(
-                tstate_file=initialization_state['tstate-file'],
-                bstate_file=initialization_state['bstate-file'],
-                sstate_file=initialization_state['sstate-file'],
-                tstates=initialization_state['tstates'],
-                bstates=initialization_state['bstates'],
-                sstates=initialization_state['sstates'],
-                segs_per_state=initialization_state['segs-per-state'],
-                shotgun=False,
+                **initialization_state, shotgun=False,
             )
 
             with open(self.restart_file, 'w') as fp:
@@ -602,15 +577,10 @@ class RestartDriver:
                 + f"Restart {restart_state['restarts_completed']} running =====\n"
             )
 
-            # for data_folder in ['traj_segs', 'seg_logs']:
-            #     log.debug(f"Preparing new {data_folder}")
-            #     # shutil.rmtree(data_folder)
-            #     os.mkdir(data_folder)
-
             w_run.run_simulation()
             return
 
-        log.debug(f"{restart_state['restarts_completed']}/{self.n_restarts} completed")
+        log.debug(f"{restart_state['restarts_completed']}/{self.n_restarts} restarts completed")
 
         # Build the haMSM
         westpa.rc.pstatus("Initializing haMSM")
@@ -622,21 +592,19 @@ class RestartDriver:
 
         assert original_bstates is not None, "Bstates are none in the current iteration"
 
-        # TODO: Don't repeat this code!
         original_tstates = self.data_manager.get_target_states(self.cur_iter)
 
         # Flush h5 file writes and copy it to the run directory
         self.data_manager.finalize_run()
         shutil.copyfile(self.data_manager.we_h5filename, f"{run_directory}/west.h5")
 
-        # Get haMSM steady-state estimate
         westpa.rc.pstatus("Building haMSM and computing steady-state")
-        marathon_west_files = []
 
         # Use all files in all restarts
         # Restarts index at 0, because there's  a 0th restart before you've... restarted anything.
         # Runs index at 1, because Run 1 is the first run.
         # TODO: Let the user pick last half or something in the plugin config.
+        marathon_west_files = []
         for restart_number in range(0, 1 + restart_state['restarts_completed']):
             for run_number in range(1, 1 + restart_state['runs_completed']):
 
@@ -644,49 +612,27 @@ class RestartDriver:
                 marathon_west_files.append(west_file_path)
 
         log.debug(f"WESTPA datafile for analysis are {marathon_west_files}")
-        # raise Exception
 
         ss_dist, ss_flux, model = msmwe_compute_ss(self.plugin_config, marathon_west_files, self.cur_iter)
         self.ss_dist = ss_dist
-
-        # For some reason, this is returned irregularly as a list of lists sometimes.
-        # TODO: Fix that...
-        westpa.rc.pstatus(f"Flattening {ss_dist}")
-        # self.ss_dist = np.array(list(flatten(ss_dist)))
         self.model = model
+
+        log.debug(f'Steady-state distribution: {self.ss_dist}')
+        log.info(f"Target steady-state flux is {self.ss_flux}")
 
         # Obtain cluster-structures
         westpa.rc.pstatus("Obtaining cluster-structures")
-
-        # TODO: I think when the flux matrix is cleaned, the cluster structures are not
-        #  reassigned to the new, reduced set of clusters
-        # logging.getLogger("msm_we").setLevel("DEBUG")
         model.update_cluster_structures()
-        # logging.getLogger("msm_we").setLevel("INFO")
-
-        # Construct start-state file with all structures and their weights
-        # TODO: Don't explicitly write EVERY structure to disk, or this will be a nightmare for large runs.
-        # However, for now, it's fine...
-        log.debug("Writing structures")
 
         # TODO: Do this with pathlib
         struct_directory = f"{restart_directory}/structs"
         if not os.path.exists(struct_directory):
             os.makedirs(struct_directory)
 
-        log.debug(f'Steady-state distribution: {self.ss_dist}')
-
-        log.info("Computing fluxes")
-        model.get_steady_state_algebraic()  # gets steady-state from eigen decomp, output model.pSS
-        model.get_steady_state_target_flux()  # gets steady-state target flux, output model.JtargetSS
-
-        log.info(f"Target steady-state flux is {model.JtargetSS}")
-
         flux_filename = f"{restart_directory}/JtargetSS.txt"
         with open(flux_filename, 'w') as fp:
 
             log.info(f"Writing flux to {flux_filename}")
-            # np.savetxt(fp, model.JtargetSS)
             fp.write(str(model.JtargetSS))
             fp.close()
 
@@ -694,16 +640,18 @@ class RestartDriver:
         with open(ss_filename, 'w') as fp:
 
             log.info(f"Writing pSS to {ss_filename}")
-            # fp.write(model.pSS)
             np.savetxt(fp, model.pSS)
             fp.close()
 
         # If this is the last run of the last restart, do nothing and exit.
         if restart_state['runs_completed'] >= self.n_runs and restart_state['restarts_completed'] >= self.n_restarts:
             log.info("All restarts completed!")
-
             return
 
+        # Construct start-state file with all structures and their weights
+        # TODO: Don't explicitly write EVERY structure to disk, or this will be a nightmare for large runs.
+        # However, for now, it's fine...
+        log.debug("Writing structures")
         # TODO: Include start states from previous runs
         sstates_filename = f"{restart_directory}/startstates.txt"
         with open(sstates_filename, 'w') as fp:
@@ -716,9 +664,7 @@ class RestartDriver:
             # Loop over each set of (bin index, all the structures in that bin)
             for (msm_bin_idx, structures) in tqdm.tqdm(model.cluster_structures.items()):
 
-                # The per-segment bin probability
-                # log.debug(f"Looking at bin {msm_bin_idx},  mapped to {model.cluster_mapping[msm_bin_idx]}")
-
+                # The per-segment bin probability.
                 # Map a cluster number onto a cluster INDEX, because after cleaning the cluster numbers may no longer
                 # be consecutive.
                 bin_prob = self.ss_dist[model.cluster_mapping[msm_bin_idx]] / len(structures)
@@ -730,13 +676,8 @@ class RestartDriver:
                 # The total amount of WE weight in this MSM microbin
                 msm_bin_we_weight = sum(model.cluster_structure_weights[msm_bin_idx])
 
-                # Write each structure to disk
-                # TODO: I need atomtypes to go with each coordinate!
-                #   Do I? I don't think that's true.
-                # Loop over each structure  within a bin.
+                # Write each structure to disk. Loop over each structure within a bin.
                 for struct_idx, structure in enumerate(structures):
-
-                    # TODO: Move this elsewhere, or put in plugin config
 
                     structure_filename = (
                         f"{struct_directory}/bin{msm_bin_idx}_" f"struct{struct_idx}.{STRUCT_EXTENSIONS[self.struct_filetype]}"
@@ -787,11 +728,6 @@ class RestartDriver:
 
         ### Start the new simulation
 
-        # Keep west.cfg as-is, it should be reusable in the next restart w/o modification!
-
-        ## Run init w/ the new start-state file + the original basis state
-        # I can get these from sim_manager.current_iter_bstates
-
         bstates_str = ""
         for original_bstate in original_bstates:
             orig_bstate_prob = original_bstate.probability
@@ -818,24 +754,16 @@ class RestartDriver:
         with open(tstates_filename, 'w') as fp:
             fp.write(tstates_str)
 
-        # Close west.h5
-        # TODO: Doing this here is kinda janky. But it shouldn't really be a problem, especially as long as
-        #   this plugin's priority is low...
-        # data_manager.finalize_run() currently only flushes and closes the west.h5, and at time of writing,
-        # nothing else happens after that, WESTPA just finishes running.
-        # But you could imagine a situation where something *is* supposed to write to west.h5 in finalize step.
-        # In that case, if this has higher priority, the other thing would crash.
-        # self.data_manager.finalize_run()
-
         # Pickle the model
         objFile = f"{restart_directory}/hamsm.obj"
         with open(objFile, "wb") as objFileHandler:
+            # I think the clusters are not pickle-able, but verify
             del model.clusters
             log.debug("Pickling model")
             pickle.dump(model, objFileHandler, protocol=4)
             objFileHandler.close()
 
-        if restart_state['restarts_completed'] >= self.n_restarts:
+        if last_restart:
             log.info("All restarts completed! Finished.")
             return
 
@@ -852,10 +780,13 @@ class RestartDriver:
         segs_per_state = 1
 
         initialization_state = {
-            'tstate-file': tstates_filename,
-            'bstate-file': bstates_filename,
-            'sstate-file': sstates_filename,
-            'segs-per-state': segs_per_state,
+            'tstate_file': tstates_filename,
+            'bstate_file': bstates_filename,
+            'sstate_file': sstates_filename,
+            'tstates': None,
+            'bstates': None,
+            'sstates': None,
+            'segs_per_state': segs_per_state,
         }
         with open(self.initialization_file, 'w') as fp:
             json.dump(initialization_state, fp)
@@ -865,24 +796,11 @@ class RestartDriver:
             + f"Restart {restart_state['restarts_completed']} initializing =====\n"
         )
 
-        # for data_folder in ['traj_segs', 'seg_logs']:
-        #     log.debug(f"Preparing new {data_folder}")
-        #     os.mkdir(data_folder)
-
         westpa.rc.pstatus(
             f"\nRun: \n\t w_init --tstate-file {tstates_filename} "
             + f"--bstate-file {bstates_filename} --sstate-file {sstates_filename} --segs-per-state {segs_per_state}\n"
         )
-        w_init.initialize(
-            tstate_file=tstates_filename,
-            bstate_file=bstates_filename,
-            sstate_file=sstates_filename,
-            tstates=None,
-            bstates=None,
-            sstates=None,
-            segs_per_state=segs_per_state,
-            shotgun=False,
-        )
+        w_init.initialize(**initialization_state, shotgun=False)
 
         log.info("New WE run ready!")
         westpa.rc.pstatus(f"\n\n===== Restart {restart_state['restarts_completed']} running =====\n")
