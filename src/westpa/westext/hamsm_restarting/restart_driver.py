@@ -488,6 +488,10 @@ class RestartDriver:
                 os.rename(old_path, new_path)
             except FileNotFoundError:
                 log.warning(f"Folder {data_folder} was not found." "This may be normal, but check your configuration.")
+            except OSError:
+                log.warning(f"{new_path} already exists. Overwriting.")
+                os.replace(old_path, new_path)
+                os.mkdir(old_path)
             else:
                 # Make a new data folder for the next run
                 os.mkdir(old_path)
