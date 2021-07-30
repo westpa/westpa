@@ -42,6 +42,33 @@ STRUCT_EXTENSIONS = {
 }
 
 
+def fix_deprecated_initialization(initialization_state):
+    """
+    I changed my initialization JSON schema to use underscores instead of hyphens so I can directly expand it into
+    keywords arguments to w_init. This just handles any old-style JSON files I still had, so they don't choke and die.
+    """
+
+    log.info(f"Starting processing, dict is now {initialization_state}")
+
+    # Some of my initial files had this old-style formatting. Handle it for now, but remove eventually
+    for old_key, new_key in [
+        ('tstate-file', 'tstate_file'),
+        ('bstate-file', 'bstate_file'),
+        ('sstate-file', 'sstate_file'),
+        ('segs-per-state', 'segs_per_state'),
+    ]:
+        if old_key in initialization_state.keys():
+            log.warning(
+                f"This initialization JSON file uses the deprecated  " f"hyphenated form for  {old_key}. Replace with underscores."
+            )
+
+            value = initialization_state.pop(old_key)
+            initialization_state[new_key] = value
+
+    log.info(f"Finished processing, dict is now {initialization_state}")
+    return initialization_state
+
+
 # TODO: Break this out into a separate module, let it be specified (if it's necessary) as a plugin option
 #   This may not always be required -- i.e. you may be able to directly output to the h5 file in your propagator
 def prepare_coordinates(plugin_config, h5file, we_h5filename):
@@ -530,23 +557,7 @@ class RestartDriver:
             if os.path.exists(self.initialization_file):
                 with open(self.initialization_file, 'r') as fp:
                     initialization_dict = json.load(fp)
-
-                    # Some of my initial files had this old-style formatting. Handle it for now, but remove eventually
-                    for old_key, new_key in [
-                        ('tstate-file', 'tstate_file'),
-                        ('bstate-file', 'bstate_file'),
-                        ('sstate-file', 'sstate_file'),
-                        ('segs-per-state', 'segs_per_state'),
-                    ]:
-                        if old_key in initialization_state.keys():
-                            log.warning(
-                                f"This initialization JSON file {self.initialization_file} uses the deprecated  "
-                                f"hyphenated form for  {old_key}. Replace with underscores."
-                            )
-
-                            value = initialization_state.pop(old_key)
-                            initialization_state[new_key] = value
-
+                    initialization_dict = fix_deprecated_initialization(initialization_dict)
                     initialization_state.update(initialization_dict)
             else:
                 raise Exception("No initialization JSON file provided -- " "I don't know how to start new runs in this marathon.")
@@ -617,8 +628,8 @@ class RestartDriver:
         self.ss_dist = ss_dist
         self.model = model
 
-        log.debug(f'Steady-state distribution: {self.ss_dist}')
-        log.info(f"Target steady-state flux is {self.ss_flux}")
+        log.debug(f'Steady-state distribution: {ss_dist}')
+        log.info(f"Target steady-state flux is {ss_flux}")
 
         # Obtain cluster-structures
         westpa.rc.pstatus("Obtaining cluster-structures")
