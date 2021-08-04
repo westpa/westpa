@@ -484,14 +484,15 @@ class RestartDriver:
             new_path = f"{run_directory}/{old_path}"
 
             log.debug(f"Moving {old_path} to {new_path}")
+
+            if os.path.exists(new_path):
+                log.error(f"{new_path} already exists. Removing and overwriting.")
+                shutil.rmtree(new_path)
+
             try:
                 os.rename(old_path, new_path)
             except FileNotFoundError:
-                log.warning(f"Folder {data_folder} was not found." "This may be normal, but check your configuration.")
-            except OSError:
-                log.warning(f"{new_path} already exists. Overwriting.")
-                os.replace(old_path, new_path)
-                os.mkdir(old_path)
+                log.warning(f"Folder {old_path} was not found." "This may be normal, but check your configuration.")
             else:
                 # Make a new data folder for the next run
                 os.mkdir(old_path)
