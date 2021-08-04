@@ -240,57 +240,23 @@ def msmwe_compute_ss(plugin_config, west_files, last_iter):
 
     model.n_lag = n_lag
 
-    last_iter_cluster = last_iter  # model.maxIter-1 #last iter often not complete
-    i = last_iter_cluster
-    coordSet = np.zeros((0, model.nAtoms, 3))  # extract coordinate libraries for clustering
+    # last_iter_cluster = last_iter  # model.maxIter-1 #last iter often not complete
+    # i = last_iter_cluster
+    # coordSet = np.zeros((0, model.nAtoms, 3))  # extract coordinate libraries for clustering
 
     log.debug("Loading in iteration data.. (this could take a while)")
-    log.debug(f'coord shape is {coordSet.shape}')
+    # log.debug(f'coord shape is {coordSet.shape}')
 
     # First dimension is the total number of segments
     model.get_iterations()
-    # Ignore the last iteration, as above
-    total_segments = int(sum(model.numSegments[:-1]))
-    coordSet = np.zeros((total_segments, model.nAtoms, 3))  # extract coordinate libraries for clustering
-    pcoordSet = np.zeros((total_segments, model.pcoord_ndim))
 
-    last_seg = total_segments
-
-    # Update iterations N+1 -> 1
-    for i in tqdm.tqdm(range(last_iter, 0, -1)):
-
-        model.load_iter_data(i)
-        model.get_iter_coordinates()
-
-        first_seg = last_seg - len(model.segindList)
-        assert first_seg >= 0, "Referencing a segment that doesn't exist"
-
-        # log.debug(f"This covers segments {first_seg} to {last_seg}")
-
-        indGood = np.squeeze(np.where(np.sum(np.sum(model.cur_iter_coords, 2), 1) != 0))
-
-        coordSet[first_seg:last_seg] = model.cur_iter_coords[indGood, :, :]
-        pcoordSet[first_seg:last_seg] = model.pcoord1List[indGood, :]
-
-        last_seg = first_seg
-
-    # Set the coords, and pcoords
-    model.all_coords = coordSet
-    model.pcoordSet = pcoordSet
-
-    # TODO: Are first_iter and last_iter used consistently everywhere? Some places they're taken as parameters,
-    #   some places the current value is just pulled from state
-    first_iter_cluster = i
-    model.first_iter = first_iter_cluster
-    model.last_iter = last_iter_cluster
-
-    n_coords = np.shape(model.all_coords)[0]
+    model.get_coordSet(last_iter)
 
     model.dimReduce()
 
-    clusterFile = (
-        modelName + "_clusters_s" + str(first_iter_cluster) + "_e" + str(last_iter_cluster) + "_nC" + str(n_clusters) + ".h5"
-    )
+    first_iter, last_iter = model.first_iter, model.last_iter
+
+    clusterFile = modelName + "_clusters_s" + str(first_iter) + "_e" + str(last_iter) + "_nC" + str(n_clusters) + ".h5"
     # TODO: Uncomment this to actually load the clusterFile if it exists.  For now, disable for development.
     exists = os.path.isfile(clusterFile)
     exists = False
@@ -303,7 +269,7 @@ def msmwe_compute_ss(plugin_config, west_files, last_iter):
     # Otherwise, do the clustering (which will create and save to that file)
     else:
         # FIXME: This gives the wrong shape, but loading from the clusterfile gives the right shape
-        print("clustering " + str(n_coords) + " coordinates into " + str(n_clusters) + " clusters...")
+        print("clustering " + str(model.n_coords) + " coordinates into " + str(n_clusters) + " clusters...")
         model.cluster_coordinates(n_clusters)
 
     first_iter = 1
