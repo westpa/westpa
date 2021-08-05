@@ -499,12 +499,6 @@ class RestartDriver:
             #   subsequent runs in the marathon. That way, I don't make unnecessary copies of all those.
             # Basis and target states are unchanged. Can I get the original parameters passed to w_init?
             # Ideally, I should be able to call w_init with the exact same parameters that went to it the first time
-            # I need to pass w_init.initialize():
-            #   - Basis states
-            #   - Target states
-            #   - Start states
-            #   - Segs per state
-            #   - Shotgun (probably never used here, but I should grab it just in case.)
             initialization_state = {
                 'tstate_file': None,
                 'bstate_file': None,
