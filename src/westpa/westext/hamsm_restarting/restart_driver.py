@@ -626,9 +626,9 @@ class RestartDriver:
             fp.close()
 
         # If this is the last run of the last restart, do nothing and exit.
-        if restart_state['runs_completed'] >= self.n_runs and restart_state['restarts_completed'] >= self.n_restarts:
-            log.info("All restarts completed!")
-            return
+        # if restart_state['runs_completed'] >= self.n_runs and restart_state['restarts_completed'] >= self.n_restarts:
+        #     log.info("All restarts completed!")
+        #     return
 
         # Construct start-state file with all structures and their weights
         # TODO: Don't explicitly write EVERY structure to disk, or this will be a nightmare for large runs.
