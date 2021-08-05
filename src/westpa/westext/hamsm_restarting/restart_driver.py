@@ -289,7 +289,11 @@ def msmwe_compute_ss(plugin_config, west_files, last_iter):
     # Why is model.pss sometimes the wrong shape? It's "occasionally" returned as a nested array.
     # Squeeze fixes it and removes the dimension of length 1, but why does it happen in the first place?
 
-    ss_alg = np.squeeze(model.pSS.A)
+    if type(model.pSS) is np.matrix:
+        ss_alg = np.squeeze(model.pSS.A)
+    else:
+        ss_alg = np.squeeze(model.pSS)
+
     ss_flux = model.JtargetSS
 
     westpa.rc.pstatus("Got steady state:")
@@ -341,6 +345,9 @@ class RestartDriver:
         self.coord_len = plugin_config.get('coord_len', 2)
         self.n_restarts = plugin_config.get('n_restarts', 2)
         self.n_runs = plugin_config.get('n_runs', 1)
+
+        # Default to using all restarts
+        self.restarts_to_use = plugin_config.get('n_restarts_to_use', self.n_restarts)
 
         struct_filetype = plugin_config.get('struct_filetype', 'mdtraj.formats.PDBTrajectoryFile')
         self.struct_filetype = get_object(struct_filetype)
