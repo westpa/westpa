@@ -88,6 +88,9 @@ def prepare_coordinates(plugin_config, h5file, we_h5filename):
 
     h5file: h5py.File
         WESTPA h5 data file
+
+    we_h5filename: string
+        Name of the WESTPA h5 file
     """
 
     refPDBfile = plugin_config.get('ref_pdb_file')
