@@ -27,6 +27,7 @@ This plugin requires the following section in :code:`west.cfg` (or whatever your
     - plugin: westpa.westext.hamsm_restarting.restart_driver.RestartDriver
       n_restarts: 0 	# Number of restarts to perform
       n_runs: 5			# Number of runs within each restart
+      n_restarts_to_use: 0.5    # Amount of prior restarts' data to use. -1, a decimal in (0,1), or an integer. Details below.
       coord_len: 2		# Length of pcoords returned
       initialization_file: restart_initialization.json	# JSON describing w_run parameters for new runs
       ref_pdb_file: common_files/bstate.pdb 		    # File containing reference structure/topology
@@ -45,8 +46,15 @@ This plugin requires the following section in :code:`west.cfg` (or whatever your
 
 Some sample parameters are provided in the above, but of course should be modified to your specific system.
 
-Note that ref_pdb_file and init_pdb_file can be any filetype supported by :code:`msm_we.initialize()`'s structure loading.
+**Note about `restarts_to_use`**: `restarts_to_use` can be specified in a few different ways. A value of `-1` means
+to use all available data. A decimal `0 < restarts_to_use < 1` will use the last `restarts_to_use * current_restart`
+iterations of data -- so, for example, set to 0.5 to use the last half of the data, or 0.75 to use the last 3/4. Finally,
+and integer value will just use the last `restarts_to_use` iterations.
+
+Note that ref_pdb_file can be any filetype supported by :code:`msm_we.initialize()`'s structure loading.
 At the time of writing, this is limited to PDB, however that is planned to be extended.
+Also at the time of writing, that's only used to set model.nAtoms, so if you're using some weird topology that's
+unsupported, you should be able to scrap that and manually set nAtoms on the object.
 
 Also in this file, :code:`west.data.data_refs.basis_state` MUST point to
 :code:`$WEST_SIM_ROOT/{basis_state.auxref}` and not a subdirectory if restarts are being used.

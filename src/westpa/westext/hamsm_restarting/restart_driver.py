@@ -341,11 +341,16 @@ class RestartDriver:
         self.initialization_file = plugin_config.get('initialization_file', 'restart_initialization.json')
 
         self.coord_len = plugin_config.get('coord_len', 2)
-        self.n_restarts = plugin_config.get('n_restarts', 2)
+        self.n_restarts = plugin_config.get('n_restarts', -1)
         self.n_runs = plugin_config.get('n_runs', 1)
 
         # Default to using all restarts
         self.restarts_to_use = plugin_config.get('n_restarts_to_use', self.n_restarts)
+        assert self.restarts_to_use > 0 or self.restarts_to_use == -1, "Invalid number of restarts to use"
+        if self.restarts_to_use >= 1:
+            assert (
+                self.restarts_to_use == self.restarts_to_use // 1
+            ), "If choosing a decimal restarts_to_use, must be between 0 and 1."
 
         struct_filetype = plugin_config.get('struct_filetype', 'mdtraj.formats.PDBTrajectoryFile')
         self.struct_filetype = get_object(struct_filetype)
@@ -589,7 +594,33 @@ class RestartDriver:
         # Runs index at 1, because Run 1 is the first run.
         # TODO: Let the user pick last half or something in the plugin config.
         marathon_west_files = []
-        for restart_number in range(0, 1 + restart_state['restarts_completed']):
+        # When doing the first restart, restarts_completed is 0 (because the first restart isn't complete yet) and
+        #   the data generated during this restart is in /restart0.
+        # So when doing the Nth restart, restarts_completed is N-1
+
+        # If set to -1, use all restarts
+        if self.restarts_to_use == -1:
+            last_N_restarts = 1 + restart_state['restarts_completed']
+        # If this is an integer, use the last N restarts
+        elif self.restarts_to_use >= 1:
+            last_N_restarts = self.restarts_to_use
+        # If it's a decimal between 0 and 1, use it as a fraction
+        # At restart 1, and a fraction of 0.5, this should just use restart 1
+        elif 0 < self.restarts_to_use < 1:
+            last_N_restarts = int(self.restarts_to_use * (1 + restart_state['restarts_completed']))
+
+            # If this fraction is <1, use all until it's not
+            if last_N_restarts < 1:
+                last_N_restarts = 1 + restart_state['restarts_completed']
+
+        log.info(f"Last N is {last_N_restarts}")
+        first_restart = max(1 + restart_state['restarts_completed'] - last_N_restarts, 0)
+        usable_restarts = range(first_restart, 1 + restart_state['restarts_completed'])
+
+        log.info(
+            f"At restart {restart_state['restarts_completed']}, building haMSM using data from restarts {list(usable_restarts)}"
+        )
+        for restart_number in usable_restarts:
             for run_number in range(1, 1 + restart_state['runs_completed']):
 
                 west_file_path = f"restart{restart_number}/run{run_number}/west.h5"
