@@ -267,17 +267,17 @@ def msmwe_compute_ss(plugin_config, west_files, last_iter):
 
     # If a cluster file with the name corresponding to these parameters exists, load clusters from it.
     if exists:
-        print("loading clusters...")
+        log.debug("loading clusters...")
         model.load_clusters(clusterFile)
     # Otherwise, do the clustering (which will create and save to that file)
     else:
         # FIXME: This gives the wrong shape, but loading from the clusterfile gives the right shape
-        print("clustering " + str(model.n_coords) + " coordinates into " + str(n_clusters) + " clusters...")
+        log.debug("clustering " + str(model.n_coords) + " coordinates into " + str(n_clusters) + " clusters...")
         model.cluster_coordinates(n_clusters)
 
     first_iter = 1
     model.get_fluxMatrix(n_lag, first_iter, last_iter)  # extracts flux matrix, output model.fluxMatrixRaw
-    westpa.rc.pstatus(f"Unprocessed flux matrix has shape {model.fluxMatrixRaw.shape}")
+    log.debug(f"Unprocessed flux matrix has shape {model.fluxMatrixRaw.shape}")
     model.organize_fluxMatrix()  # gets rid of bins with no connectivity, sorts along p1, output model.fluxMatrix
     model.get_Tmatrix()  # normalizes fluxMatrix to transition matrix, output model.Tmatrix
 
@@ -574,7 +574,7 @@ class RestartDriver:
         log.debug(f"{restart_state['restarts_completed']}/{self.n_restarts} restarts completed")
 
         # Build the haMSM
-        westpa.rc.pstatus("Initializing haMSM")
+        log.debug("Initializing haMSM")
 
         # Need to write the h5 file and close it out, but I need to get the current bstates first.
         original_bstates = self.sim_manager.current_iter_bstates
@@ -589,7 +589,7 @@ class RestartDriver:
         self.data_manager.finalize_run()
         shutil.copyfile(self.data_manager.we_h5filename, f"{run_directory}/west.h5")
 
-        westpa.rc.pstatus("Building haMSM and computing steady-state")
+        log.debug("Building haMSM and computing steady-state")
 
         # Use all files in all restarts
         # Restarts index at 0, because there's  a 0th restart before you've... restarted anything.
@@ -615,7 +615,7 @@ class RestartDriver:
             if last_N_restarts < 1:
                 last_N_restarts = 1 + restart_state['restarts_completed']
 
-        log.info(f"Last N is {last_N_restarts}")
+        log.debug(f"Last N is {last_N_restarts}")
         first_restart = max(1 + restart_state['restarts_completed'] - last_N_restarts, 0)
         usable_restarts = range(first_restart, 1 + restart_state['restarts_completed'])
 
@@ -638,7 +638,7 @@ class RestartDriver:
         log.info(f"Target steady-state flux is {ss_flux}")
 
         # Obtain cluster-structures
-        westpa.rc.pstatus("Obtaining cluster-structures")
+        log.debug("Obtaining cluster-structures")
         model.update_cluster_structures()
 
         # TODO: Do this with pathlib
@@ -649,14 +649,14 @@ class RestartDriver:
         flux_filename = f"{restart_directory}/JtargetSS.txt"
         with open(flux_filename, 'w') as fp:
 
-            log.info(f"Writing flux to {flux_filename}")
+            log.debug(f"Writing flux to {flux_filename}")
             fp.write(str(model.JtargetSS))
             fp.close()
 
         ss_filename = f"{restart_directory}/pSS.txt"
         with open(ss_filename, 'w') as fp:
 
-            log.info(f"Writing pSS to {ss_filename}")
+            log.debug(f"Writing pSS to {ss_filename}")
             np.savetxt(fp, model.pSS)
             fp.close()
 
