@@ -497,11 +497,6 @@ class RestartDriver:
                 #   entirely, meaning it'll be unnecessarily run at the end of the final restart, or duplicate it below.
                 log.info("Preparing coordinates for this run.")
 
-                old_initialization_path = self.initialization_file
-                new_initialization_path = f"{restart_directory}/{self.initialization_file}"
-                log.debug(f"Moving initialization file from {old_initialization_path} to {new_initialization_path}.")
-                shutil.move(old_initialization_path, new_initialization_path)
-
                 # Now, continue on to haMSM calculation below.
 
         # If we have more runs left to do in this marathon, prepare them
@@ -796,6 +791,11 @@ class RestartDriver:
         # TODO: Read this from config if available
         segs_per_state = 1
 
+        old_initialization_path = self.initialization_file
+        new_initialization_path = f"{restart_directory}/{self.initialization_file}"
+        log.debug(f"Moving initialization file from {old_initialization_path} to {new_initialization_path}.")
+        shutil.move(old_initialization_path, new_initialization_path)
+
         initialization_state = {
             'tstate_file': tstates_filename,
             'bstate_file': bstates_filename,
@@ -805,6 +805,7 @@ class RestartDriver:
             'sstates': None,
             'segs_per_state': segs_per_state,
         }
+
         with open(self.initialization_file, 'w') as fp:
             json.dump(initialization_state, fp)
 
