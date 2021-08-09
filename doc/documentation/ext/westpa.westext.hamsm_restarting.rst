@@ -29,8 +29,7 @@ This plugin requires the following section in :code:`west.cfg` (or whatever your
       n_runs: 5			# Number of runs within each restart
       coord_len: 2		# Length of pcoords returned
       initialization_file: restart_initialization.json	# JSON describing w_run parameters for new runs
-      ref_pdb_file: common_files/bstate.pdb 		    # File containing reference structure
-      init_pdb_file: bstates/bstate.pdb 	            # File containing basis state reference
+      ref_pdb_file: common_files/bstate.pdb 		    # File containing reference structure/topology
       model_name: NaClFlux		    # Name for msm_we model
       n_clusters: 25				# Number of clusters in haMSM building
       we_folder: .					# Should point to the same directory as WEST_SIM_ROOT

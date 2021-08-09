@@ -94,7 +94,6 @@ def prepare_coordinates(plugin_config, h5file, we_h5filename):
     """
 
     refPDBfile = plugin_config.get('ref_pdb_file')
-    initPDBfile = plugin_config.get('init_pdb_file')
     modelName = plugin_config.get('model_name')
 
     # TODO: Don't need this explicit option, use WEST_SIM_ROOT or something
@@ -108,7 +107,7 @@ def prepare_coordinates(plugin_config, h5file, we_h5filename):
 
     # Only need the model to get the number of iterations and atoms
     # TODO: Replace this with something more lightweight, get directly from WE
-    model.initialize(we_h5filename, refPDBfile, initPDBfile, modelName)
+    model.initialize(we_h5filename, refPDBfile, modelName)
     model.get_iterations()
 
     for n_iter in tqdm.tqdm(range(1, model.maxIter)):
@@ -212,16 +211,15 @@ def msmwe_compute_ss(plugin_config, west_files, last_iter):
 
     fileSpecifier = ' '.join(west_files)
     refPDBfile = plugin_config.get('ref_pdb_file')
-    initPDBfile = plugin_config.get('init_pdb_file')
     modelName = plugin_config.get('model_name')
     n_clusters = plugin_config.get('n_clusters')
-    # last_iter = plugin_config.get('last_iter')
 
     # Fire up the model object
     # (Eventually this will just go in __init__)
 
     # In RestartXX/RunYY fileSpecifier is a list of all Restart{0..XX}/Run{1..YY}/west.h5
-    model.initialize(fileSpecifier, refPDBfile, initPDBfile, modelName)
+    # model.initialize(fileSpecifier, refPDBfile, initPDBfile, modelName)
+    model.initialize(fileSpecifier, refPDBfile, modelName)
 
     # Set some model parameters
     WEtargetp1 = plugin_config.get('target_pcoord1', None)
