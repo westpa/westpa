@@ -294,11 +294,11 @@ def msmwe_compute_ss(plugin_config, west_files, last_iter):
 
     ss_flux = model.JtargetSS
 
-    westpa.rc.pstatus("Got steady state:")
-    westpa.rc.pstatus(ss_alg)
-    westpa.rc.pstatus(ss_flux)
+    log.debug("Got steady state:")
+    log.debug(ss_alg)
+    log.debug(ss_flux)
 
-    westpa.rc.pstatus("Completed flux matrix calculation and steady-state estimation!")
+    log.info("Completed flux matrix calculation and steady-state estimation!")
 
     return ss_alg, ss_flux, model
 
@@ -536,8 +536,8 @@ class RestartDriver:
                 raise Exception("No initialization JSON file provided -- " "I don't know how to start new runs in this marathon.")
 
             westpa.rc.pstatus(
-                f"\n\n===== Run {restart_state['runs_completed']+1}, "
-                + f"Restart {restart_state['restarts_completed']} initializing =====\n"
+                f"\n\n===== Restart {restart_state['restarts_completed']}, "
+                + f"Run {restart_state['runs_completed']+1} initializing =====\n"
             )
 
             westpa.rc.pstatus(
@@ -557,8 +557,8 @@ class RestartDriver:
             # TODO: Launch the new run, and spawn it off with w_run
             log.info("New WE run ready!")
             westpa.rc.pstatus(
-                f"\n\n===== Run {restart_state['runs_completed']+1}, "
-                + f"Restart {restart_state['restarts_completed']} running =====\n"
+                f"\n\n===== Restart {restart_state['restarts_completed']}, "
+                + f"Run {restart_state['runs_completed']+1} running =====\n"
             )
 
             w_run.run_simulation()
@@ -776,8 +776,9 @@ class RestartDriver:
             json.dump(initialization_state, fp)
 
         westpa.rc.pstatus(
-            f"\n\n===== Run {restart_state['runs_completed']+1}, "
-            + f"Restart {restart_state['restarts_completed']} initializing =====\n"
+            f"\n\n"
+            f"===== Restart {restart_state['restarts_completed']}, "
+            + f"Run {restart_state['runs_completed']+1} initializing =====\n"
         )
 
         westpa.rc.pstatus(
