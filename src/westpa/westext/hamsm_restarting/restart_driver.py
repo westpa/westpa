@@ -346,6 +346,12 @@ class RestartDriver:
         self.n_restarts = plugin_config.get('n_restarts', -1)
         self.n_runs = plugin_config.get('n_runs', 1)
 
+        # .get() might return this as a bool anyways, but be safe
+        self.debug = bool(plugin_config.get('debug', False))
+        if self.debug:
+            log.setLevel("DEBUG")
+            msm_we_logger.setLevel("DEBUG")
+
         # Default to using all restarts
         self.restarts_to_use = plugin_config.get('n_restarts_to_use', self.n_restarts)
         assert self.restarts_to_use > 0 or self.restarts_to_use == -1, "Invalid number of restarts to use"

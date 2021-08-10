@@ -43,6 +43,7 @@ This plugin requires the following section in :code:`west.cfg` (or whatever your
       child_traj_filename: seg.xml		    # Name of child file in each segment
       user_functions: westpa_scripts/restart_overrides.py	# Python file defining coordinate processing
       struct_filetype: mdtraj.formats.PDBTrajectoryFile 	# Filetype for output start-structures
+      debug: False    # Optional, defaults to False. If true, enables debug-mode logging.
 
 Some sample parameters are provided in the above, but of course should be modified to your specific system.
 
