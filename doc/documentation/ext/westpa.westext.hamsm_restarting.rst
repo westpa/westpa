@@ -158,9 +158,29 @@ Switching the spawn method to :code:`forkserver` or :code:`spawn` may introduce 
 Using the ZMQ work manager works well. The MPI work manager should also work well, though is untested.
 Both of these handle starting new workers in a more efficient way, without copying the full state of the parent.
 
+
+Continuing a failed run
+***********************
+
+The restarting plugin has a few different things it expects to find when it runs.
+Crashes during the WE run should not affect this.
+However, if the plugin itself crashes while running, these may be left in a weird state.
+
+If the plugin crashes while running, make sure:
+
+- :code:`restart.dat` contains the correct entries. :code:`restarts_completed` is the number of restarts *successfully* completed, and same for :code:`runs_completed` within that restart.
+
+- :code:`restart_initialization.json` is pointing to the correct restart
+
+It may help to :code:`w_truncate` the very last iteration and allow WESTPA to re-do it.
+
 Potential Pitfalls/Troubleshooting
-******************
-- Verify that `msm_we <https://github.com/jdrusso/msm_we>`_ is installed
+**********************************
+- Basis state calculation may take a LONG time with a large number of start-states. A simple RMSD calculation using cpptraj and 500,000 start-states took over 6 hours. Reducing the number of runs used through :code:`n_restarts_to_use` will ameliorate this.
+
+- If :code:`restart_driver.prepare_coordinates()` has written a coordinate for an iteration, subsequent runs will NOT overwrite it, and will skip it.
+
+- In general: verify that `msm_we <https://github.com/jdrusso/msm_we>`_ is installed
 
 - Verify that :code:`restart_initialization.json` has been correctly set
 
