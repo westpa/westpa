@@ -123,6 +123,7 @@ SETUP_REQUIRES = [
     "numpy>=1.16.0",
     "scipy>=0.19.1",
     "Cython>=0.29.16"
+    "tqdm",
 ]
 
 EXTRAS_REQUIRE = {

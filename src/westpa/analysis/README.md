@@ -16,55 +16,56 @@ run = Run('west.h5')
 
 ### How To
 
-Iterate over simulation iterations and segments:
+Iterate over iterations and walkers:
 ```py
 for iteration in run:
-    for segment in iteration:
+    for walker in iteration:
         ...
 ```
 
-Retrieve a particular segment:
+Retrieve a particular walker:
 ```py
-segment = run.iteration(10).segment(4)
+walker = run.iteration(10).walker(4)
 ```
 
-Get the weight and progress coordinate values of a segment:
+Get the weight and progress coordinate values of a walker:
 ```py
-weight, pcoords = segment.weight, segment.pcoords
+weight, pcoords = walker.weight, walker.pcoords
 ```
 
-Get the parent and children of a segment:
+Get the parent and children of a walker:
 ```py
-parent, children = segment.parent, segment.children
+parent, children = walker.parent, walker.children
 ```
 
-Trace the ancestry of a segment back to its origin:
+Trace the ancestry of a walker back to an initial state:
 ```py
-trace = segment.trace()
+trace = walker.trace()
 ```
 
-### Loading Segment Trajectories
+### Retrieving Trajectories
 
-To enable loading segment trajectories, set the `segment_traj_loader` attribute
-of the `Run`. An example using [MDTraj](https://www.mdtraj.org) might look like this:
+The `trajectory_segment()` decorator transforms a function for loading the
+trajectory of a particular walker into a trajectory attribute attached to
+both `Walker` and `Trace` instances. The following code, which uses the
+[MDTraj](https://www.mdtraj.org/1.9.5/index.html) library, demonstrates its
+use:
+
 ```py
-import mdtraj
+from westpa.analysis import trajectory_segment
+from mdtraj import Trajectory
 
-def load_segment_traj(iteration_number, segment_index):
-    return mdtraj.load(
-        f'traj_segs/{iteration_number:06d}/{segment_index:06d}/seg.h5')
-
-run.segment_traj_loader = load_segment_traj
+@trajectory_segment
+def traj(walker):
+    filename = f'traj_segs/{walker.iteration.number:06d}/{walker.index:06d}/seg.h5'
+    return Trajectory.load(filename)
 ```
-
-Then the trajectory of a segment can be accessed via its `trajectory`
-property:
+The trajectory segment associated with a given walker can then be accessed via the `traj` attribute:
 ```py
-segment_traj = segment.trajectory
+segment = walker.traj
 ```
-The trajectory of a trace can be accessed similarly:
+The trajectory of a trace (i.e., the concatentation of a sequence of 
+trajectory segments) can be accessed similarly:
 ```py
-trace = segment.trace()
-trace_traj = trace.trajectory
+trajectory = trace.traj
 ```
-In both cases, the `trajectory` property is cached after loading.
