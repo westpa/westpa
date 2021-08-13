@@ -272,7 +272,7 @@ def msmwe_compute_ss(plugin_config, west_files, last_iter):
     # Otherwise, do the clustering (which will create and save to that file)
     else:
         # FIXME: This gives the wrong shape, but loading from the clusterfile gives the right shape
-        log.debug("clustering " + str(model.n_coords) + " coordinates into " + str(n_clusters) + " clusters...")
+        log.debug("clustering coordinates into " + str(n_clusters) + " clusters...")
         model.cluster_coordinates(n_clusters)
 
     first_iter = 1
