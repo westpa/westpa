@@ -250,8 +250,8 @@ class Iteration:
     def basis_states(self):
         """list[BasisState]: Basis states in use for the iteration."""
         return [
-            BasisState(info['label'], info['probability'], pcoord=pcoord, auxref=info['auxref'], state_id=state_id)
-            for state_id, (info, pcoord) in enumerate(zip(self.basis_state_info, self.basis_state_pcoords))
+            BasisState(row.label, row.probability, pcoord=pcoord, auxref=row.auxref, state_id=row.Index)
+            for row, pcoord in zip(self.basis_state_info.itertuples(), self.basis_state_pcoords)
         ]
 
     @property
@@ -269,15 +269,15 @@ class Iteration:
         """list[InitialState]: Initial states."""
         return [
             InitialState(
-                state_id,
-                info['basis_state_id'],
-                info['iter_created'],
-                iter_used=info['iter_used'],
-                istate_type=info['istate_type'],
-                istate_status=info['istate_status'],
+                row.Index,
+                row.basis_state_id,
+                row.iter_created,
+                iter_used=row.iter_used,
+                istate_type=row.istate_type,
+                istate_status=row.istate_status,
                 pcoord=pcoord,
             )
-            for state_id, (info, pcoord) in enumerate(zip(self.initial_state_info, self.initial_state_pcoords))
+            for row, pcoord in zip(self.initial_state_info.itertuples(), self.initial_state_pcoords)
         ]
 
     @property
@@ -296,8 +296,8 @@ class Iteration:
         if self._tstates is None:
             return []
         return [
-            TargetState(info['label'], pcoord, state_id=state_id)
-            for state_id, (info, pcoord) in enumerate(zip(self.target_state_info, self.target_state_pcoords))
+            TargetState(row.label, pcoord, state_id=row.Index)
+            for row, pcoord in zip(self.target_state_info.itertuples(), self.target_state_pcoords)
         ]
 
     @cached_property
