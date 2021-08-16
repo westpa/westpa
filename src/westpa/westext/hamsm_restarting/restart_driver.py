@@ -713,10 +713,12 @@ class RestartDriver:
 
                         topology = model.reference_structure.topology
 
-                        if model.reference_structure.unitcell_angles is not None:
+                        try:
                             angles = model.reference_structure.unitcell_angles[0]
                             lengths = model.reference_structure.unitcell_lengths[0] * 10
-                        else:
+                        # This throws typeerror if reference_structure.unitcell_angles is None, or AttributeError
+                        #   if reference_structure.unitcell_angles doesn't exist.
+                        except (TypeError, AttributeError):
                             angles, lengths = None, None
 
                         coords = structure * 10  # Correct units
