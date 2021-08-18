@@ -1,9 +1,6 @@
-import argparse
-
 from h5diff import H5Diff
-
 import westpa.cli.core.w_init
-from unittest import mock
+from common import MockArgs
 
 
 class Test_W_Init:
@@ -11,21 +8,14 @@ class Test_W_Init:
         '''Tests initialization of a WESTPA simulation system from a prebuilt .cfg'''
         # This test is named in such a way so it always runs before test_w_assign.py. It will fail otherwise.
 
-        with mock.patch(
-            target='argparse.ArgumentParser.parse_args',
-            return_value=argparse.Namespace(
-                force=True,
-                rcfile=self.cfg_filepath,
-                bstate_file=None,
-                verbosity='verbose',
-                bstates=['initial,1.0'],
-                tstate_file=None,
-                tstates=None,
-                segs_per_state=1,
-                shotgun=False,
-            ),
-        ):
-            westpa.cli.core.w_init.entry_point()
+        # The argument processing is just looking for an object with these attributes
+        args = MockArgs(force=True, rcfile=self.cfg_filepath, verbosity='verbose')
+
+        westpa.rc.process_args(args)
+
+        westpa.cli.core.w_init.initialize(
+            tstates=None, tstate_file=None, bstates=['initial,1.0'], bstate_file=None, segs_per_state=1, shotgun=False
+        )
 
         # h5 files contain some internal information that includes timestamps, so I can't just compare md5 checksums
         #   to ensure that w_init is producing the same output.
