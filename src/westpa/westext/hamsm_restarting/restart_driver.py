@@ -215,13 +215,14 @@ def msmwe_compute_ss(plugin_config, west_files, last_iter):
     refPDBfile = plugin_config.get('ref_pdb_file')
     modelName = plugin_config.get('model_name')
     n_clusters = plugin_config.get('n_clusters')
+    tau = plugin_config.get('tau', None)
 
     # Fire up the model object
     # (Eventually this will just go in __init__)
 
     # In RestartXX/RunYY fileSpecifier is a list of all Restart{0..XX}/Run{1..YY}/west.h5
     # model.initialize(fileSpecifier, refPDBfile, initPDBfile, modelName)
-    model.initialize(fileSpecifier, refPDBfile, modelName)
+    model.initialize(fileSpecifier, refPDBfile, modelName, tau)
 
     # Set some model parameters
     WEtargetp1 = plugin_config.get('target_pcoord1', None)

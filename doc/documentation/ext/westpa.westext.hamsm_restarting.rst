@@ -37,6 +37,7 @@ This plugin requires the following section in :code:`west.cfg` (or whatever your
       target_pcoord1: 2.6			# Progress value in the target state
       basis_pcoord1_min: 14.0		# Maximum progress coordinate within the basis state
       basis_pcoord1_max: 15.0		# Minimum progress coordinate within the basis state
+      tau: 5e-13                    # Resampling time, i.e. length of a WE iteration in physical units
       pcoord_ndim0: 1	            # Dimensionality of progress coordinate
       dim_reduce_method: pca		# Dimensionality reduction scheme, either "pca", "vamp", or "none"
       parent_traj_filename: parent.xml		# Name of parent file in each segment
