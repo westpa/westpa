@@ -778,8 +778,6 @@ class RestartDriver:
         # Pickle the model
         objFile = f"{restart_directory}/hamsm.obj"
         with open(objFile, "wb") as objFileHandler:
-            # I think the clusters are not pickle-able, but verify
-            del model.clusters
             log.debug("Pickling model")
             pickle.dump(model, objFileHandler, protocol=4)
             objFileHandler.close()
