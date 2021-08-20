@@ -111,7 +111,7 @@ INSTALL_REQUIRES = [
     "numpy >= 1.16.0",
     "scipy >= 0.19.1",
     "h5py >= 2.10",
-    "mdtraj >= 1.9.5"
+    "mdtraj >= 1.9.5",
     "pyyaml",
     "pyzmq",
     "matplotlib",
@@ -140,7 +140,7 @@ metadata = dict(
     url='http://github.com/westpa/westpa',
     license='MIT',
     long_description=open('README.rst', encoding='utf8').read(),
-    version="2020.3.12",  # versioneer.get_version(),
+    version="2020.3.13",  # versioneer.get_version(),
     keywords='',
     # cmdclass=versioneer.get_cmdclass(),
     python_requires=">=3.6",
