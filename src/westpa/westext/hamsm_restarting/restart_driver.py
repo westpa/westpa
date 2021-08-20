@@ -1,3 +1,4 @@
+import h5py
 import logging
 import operator
 import numpy as np
@@ -6,6 +7,7 @@ import westpa
 from westpa.cli.core import w_init
 from westpa.cli.core import w_run
 from westpa.core.extloader import get_object
+from westpa.core.segment import Segment
 
 import json
 
@@ -42,6 +44,25 @@ STRUCT_EXTENSIONS = {
     md.formats.PDBTrajectoryFile: "pdb",
     md.formats.AmberRestartFile: "rst7",
 }
+
+
+def check_target_reached(h5_filename):
+    """
+    Check if the target state was reached, given the data in a WEST H5 file.
+
+    Parameters
+    ----------
+    h5_filename: string
+        Path to a WESTPA HDF5 data file
+    """
+    with h5py.File(h5_filename, 'r') as h5_file:
+        # Get the key to the final iteration. Need to do -2 instead of -1 because there's an empty-ish final iteration
+        #   written.
+        for iteration_key in list(h5_file['iterations'].keys())[-2:0:-1]:
+            endpoint_types = h5_file[f'iterations/{iteration_key}/seg_index']['endpoint_type']
+            if Segment.SEG_ENDPOINT_RECYCLED in endpoint_types:
+                return True
+    return False
 
 
 def fix_deprecated_initialization(initialization_state):
@@ -112,6 +133,7 @@ def prepare_coordinates(plugin_config, h5file, we_h5filename):
     model.initialize(we_h5filename, refPDBfile, modelName)
     model.get_iterations()
 
+    n_iter = None
     for n_iter in tqdm.tqdm(range(1, model.maxIter)):
 
         nS = model.numSegments[n_iter - 1].astype(int)
