@@ -450,6 +450,9 @@ class RestartDriver:
 
         restart_state = {'restarts_completed': 0, 'runs_completed': 0}
 
+        # TODO: Check for the existence of the extension lockfile here
+        doing_extension = False
+
         # Look for a restart.dat file to get the current state (how many restarts have been performed already)
         if os.path.exists(self.restart_file):
             with open(self.restart_file, 'r') as fp:
@@ -536,34 +539,44 @@ class RestartDriver:
             self.data_manager.finalize_run()
             shutil.copyfile('west.h5', f"{run_directory}/west.h5")
 
-            if os.path.exists(self.initialization_file):
-                with open(self.initialization_file, 'r') as fp:
-                    initialization_dict = json.load(fp)
-                    initialization_dict = fix_deprecated_initialization(initialization_dict)
-                    initialization_state.update(initialization_dict)
-            else:
-                raise Exception("No initialization JSON file provided -- " "I don't know how to start new runs in this marathon.")
+            if not doing_extension:
+                if os.path.exists(self.initialization_file):
+                    with open(self.initialization_file, 'r') as fp:
+                        initialization_dict = json.load(fp)
+                        initialization_dict = fix_deprecated_initialization(initialization_dict)
+                        initialization_state.update(initialization_dict)
+                else:
+                    raise Exception(
+                        "No initialization JSON file provided -- " "I don't know how to start new runs in this marathon."
+                    )
 
-            westpa.rc.pstatus(
-                f"\n\n===== Restart {restart_state['restarts_completed']}, "
-                + f"Run {restart_state['runs_completed']+1} initializing =====\n"
-            )
+                westpa.rc.pstatus(
+                    f"\n\n===== Restart {restart_state['restarts_completed']}, "
+                    + f"Run {restart_state['runs_completed']+1} initializing =====\n"
+                )
 
-            westpa.rc.pstatus(
-                f"\nRun: \n\t w_init --tstate-file {initialization_state['tstate_file']} "
-                + f"--bstate-file {initialization_state['bstate_file']} "
-                f"--sstate-file {initialization_state['sstate_file']} "
-                f"--segs-per-state {initialization_state['segs_per_state']}\n"
-            )
+                westpa.rc.pstatus(
+                    f"\nRun: \n\t w_init --tstate-file {initialization_state['tstate_file']} "
+                    + f"--bstate-file {initialization_state['bstate_file']} "
+                    f"--sstate-file {initialization_state['sstate_file']} "
+                    f"--segs-per-state {initialization_state['segs_per_state']}\n"
+                )
 
-            w_init.initialize(
-                **initialization_state, shotgun=False,
-            )
+                w_init.initialize(
+                    **initialization_state, shotgun=False,
+                )
+
+            # If we're doing an extension set
+            elif doing_extension:
+
+                # TODO:  Instead of w_initting a new iteration, copy the files from restart0/runXX back into ./
+
+                # Then, continue as normal
+                pass
 
             with open(self.restart_file, 'w') as fp:
                 json.dump(restart_state, fp)
 
-            # TODO: Launch the new run, and spawn it off with w_run
             log.info("New WE run ready!")
             westpa.rc.pstatus(
                 f"\n\n===== Restart {restart_state['restarts_completed']}, "
@@ -631,6 +644,42 @@ class RestartDriver:
                 marathon_west_files.append(west_file_path)
 
         log.debug(f"WESTPA datafile for analysis are {marathon_west_files}")
+
+        #
+        # If this is the first restart, check to see if you got any target state flux
+        if restart_state['restarts_completed'] == 0:
+            pass
+
+            # TODO: Check to see if you got any target flux in ANY runs
+            target_reached = True
+
+            # If you reached the target, clean up from the extensions and then continue as normal
+            if target_reached:
+
+                # TODO: Remove the doing_extensions.lck lockfile
+
+                # TODO: Restore the original, non-extended west.cfg
+
+                # Then continue as normal
+                pass
+
+            # If no runs reached the target, then we need to extend them
+            elif not target_reached:
+
+                # TODO: Write the doing_extensions.lck "lockfile" to indicate we're in extend mode (or keep if exists)
+
+                # TODO: Reset runs_completed to 0
+
+                # TODO: Copy traj_segs, seg_logs, and west.h5 for restart0/run0 back into ./
+                #       Later: (May only need to copy the latest iteration traj_segs, to avoid tons of back and forth)
+
+                # TODO: Backup (copy) west.cfg to west_normal.cfg  (if west_normal.cfg does not exist)
+                #       If it DOES exist, then we must be extending again, so extend on the current west.cfg
+
+                # TODO: Create a new west.cfg by extending west.propagation.max_total_iterations
+
+                # TODO: w_run (which will use the extended west.cfg)
+                pass
 
         ss_dist, ss_flux, model = msmwe_compute_ss(self.plugin_config, marathon_west_files, self.cur_iter)
         self.ss_dist = ss_dist
