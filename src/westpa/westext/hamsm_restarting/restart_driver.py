@@ -31,7 +31,7 @@ from msm_we import msm_we
 EPS = np.finfo(np.float64).eps
 
 log = logging.getLogger(__name__)
-log.setLevel("DEBUG")
+log.setLevel("INFO")
 log.propagate = False
 log.addHandler(RichHandler())
 
