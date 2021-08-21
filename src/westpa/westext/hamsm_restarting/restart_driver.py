@@ -31,7 +31,7 @@ from msm_we import msm_we
 EPS = np.finfo(np.float64).eps
 
 log = logging.getLogger(__name__)
-log.setLevel("INFO")
+log.setLevel("DEBUG")
 log.propagate = False
 log.addHandler(RichHandler())
 
@@ -44,6 +44,9 @@ STRUCT_EXTENSIONS = {
     md.formats.PDBTrajectoryFile: "pdb",
     md.formats.AmberRestartFile: "rst7",
 }
+
+EXTENSION_LOCKFILE = 'doing_extension'
+WEST_CFG_BACKUP = 'west_original_length.cfg'
 
 
 def check_target_reached(h5_filename):
@@ -130,8 +133,11 @@ def prepare_coordinates(plugin_config, h5file, we_h5filename):
 
     # Only need the model to get the number of iterations and atoms
     # TODO: Replace this with something more lightweight, get directly from WE
+    log.debug(f'Doing collectCoordinates on  WE file {we_h5filename}')
     model.initialize(we_h5filename, refPDBfile, modelName)
     model.get_iterations()
+
+    log.debug(f"Found {model.maxIter} iterations")
 
     n_iter = None
     for n_iter in tqdm.tqdm(range(1, model.maxIter)):
@@ -365,6 +371,10 @@ class RestartDriver:
         self.restart_file = plugin_config.get('restart_file', 'restart.dat')
         self.initialization_file = plugin_config.get('initialization_file', 'restart_initialization.json')
 
+        self.extension_iters = plugin_config.get('extension_iters', 50)
+        self.max_total_iterations = westpa.rc.config.get(['west', 'propagation', 'max_total_iterations'], default=None)
+        self.base_total_iterations = self.max_total_iterations
+
         self.coord_len = plugin_config.get('coord_len', 2)
         self.n_restarts = plugin_config.get('n_restarts', -1)
         self.n_runs = plugin_config.get('n_runs', 1)
@@ -442,6 +452,136 @@ class RestartDriver:
 
         return self.cur_iter == final_iter
 
+    def janky_clear_state(self):
+
+        # from westpa.work_managers import make_work_manager
+
+        # work_manager = westpa.rc.work_manager = make_work_manager()
+
+        # Load the sim manager and other drivers
+        # sim_manager = westpa.rc.get_sim_manager()
+        # system = westpa.rc.get_system_driver()
+        # data_manager = westpa.rc.get_data_manager()
+        # we_driver = westpa.rc.get_we_driver()
+        # propagator = westpa.rc.get_propagator()
+
+        westpa.rc._sim_manager = None
+        westpa.rc._data_manager = None
+
+    def prepare_extension_run(self, run_number, restart_state, first_extension=False):
+        """
+        Copy the necessary files for an extension run  (versus initializing a fresh run)
+
+        Parameters
+        ----------
+        run_number: int
+            The index of this run (should be 1-indexed!)
+
+        restart_state: dict
+            Dictionary holding the current state of the restarting procedure
+
+        first_extension: bool
+            True if this is the first run of an extension set. If True, then back up west.cfg, and write the extended
+            west.cfg file.
+        """
+
+        log.debug(f"Copying run files from restart0/run{run_number}")
+
+        # Copy traj_segs, seg_logs, and west.h5 for restart0/runXX back into ./
+        #       Later: (May only need to copy the latest iteration traj_segs, to avoid tons of back and forth)
+        shutil.rmtree('traj_segs')
+        shutil.rmtree('seg_logs')
+        os.remove(self.data_manager.we_h5filename)
+
+        # Ignore dangling symlinks -- many of the symlinks in traj_segs will be broken when they're copied, because
+        #   they're still pointing to the original paths relative to the simulation root.
+        # However, *after* we copy them back, those references will be in the right place again!
+        shutil.copytree(f'restart0/run{run_number}/traj_segs', 'traj_segs', symlinks=True, ignore_dangling_symlinks=True)
+        shutil.copytree(f'restart0/run{run_number}/seg_logs', 'seg_logs')
+        shutil.copy(f'restart0/run{run_number}/west.h5', self.data_manager.we_h5filename)
+
+        if first_extension:
+
+            # This WOULD work if I didn't need to clear sim_manager state. But, I do.
+            # self.max_total_iterations += self.extension_iters
+            # self.sim_manager.max_total_iterations = self.max_total_iterations
+
+            # Backup (copy) west.cfg to west_normal.cfg  (if west_normal.cfg does not exist)
+            #       If it DOES exist, then we must be extending again, so extend on the current west.cfg
+            if not os.path.exists('west_original_length.cfg'):
+                shutil.copy('west.cfg', 'west_original_length.cfg')
+            else:
+                log.info('A backed-up west_original_length.cfg already exists, not overwriting.')
+
+            # Get lines to make a new west.cfg by extending west.propagation.max_total_iterations
+            with open('west.cfg', 'r') as west_config:
+                lines = west_config.readlines()
+                for i, line in enumerate(lines):
+                    # Parse out the number of maximum iterations
+                    if 'max_total_iterations' in line:
+                        max_iters = [int(i) for i in line.replace(':', ' ').replace('\n', ' ').split() if i.isdigit()]
+                        new_max_iters = max_iters[0] + self.extension_iters
+                        new_line = f"{line.split(':')[0]}: {new_max_iters}\n"
+                        lines[i] = new_line
+                        break
+
+            # And overwrite the original with it
+            with open('west.cfg', 'w') as west_config:
+                west_config.writelines(lines)
+
+        with open(self.restart_file, 'w') as fp:
+            json.dump(restart_state, fp)
+
+        log.info("First WE extension run ready!")
+        westpa.rc.pstatus(
+            f"\n\n===== Restart {restart_state['restarts_completed']}, "
+            + f"Run {restart_state['runs_completed'] + 1} extension running =====\n"
+        )
+
+        # TODO: I can't just go straight into a w_run here. w_run expects some things to be set I think, that aren't.
+        #   I can do w_init, and do a new simulation just fine...
+        #   I can do this on ONE run repeatedly just fine
+        #   But if I try to just copy files and continue like this, there's something screwy in state somewhere that
+        #       causes it to fail.
+        #   The error has to do with offsets in the HDF5 file?
+        #   Need to figure out what state would be cleared by w_init
+
+        log.debug(
+            f"West RC max iters  (rc):  {westpa.rc.config.get(['west', 'propagation', 'max_total_iterations'], default=None)}"
+        )
+        log.debug(f"West RC max iters (sim):  {westpa.rc.sim_manager.max_total_iterations}")
+        log.debug(f"Current iter before run: {self.sim_manager.n_iter}")
+
+        old_rc = westpa.rc
+        westpa.rc = westpa._rc.WESTRC()
+
+        # HACK: I'm not really sure how much of this is actually necessary. I just sort of did the nuclear option
+        #   on WESTPA's state.
+        # I might even be able to just use rc.clear_state  and then manually do the read_config.
+        # TODO: I also think if I just remove the .pop() from _rc.bins_from_yaml_dict I can skip doing a lot of this.
+        #   If I try to reinitialize like this, the issue was that there was no bins dict (because said pop  call removes
+        #   it the first time  WESTPA is fired up)
+        westpa.rc.cmdline_args = old_rc.cmdline_args
+        westpa.rc.verbosity = old_rc.verbosity
+
+        # TODO: Could probably point this to my custom westrc
+        westpa.rc.rcfile = old_rc.rcfile
+
+        # I definitely need this at least
+        westpa.rc.read_config(old_rc.rcfile)
+
+        # I  don't think I have to  do any of these, I think run_simulation() will handle it
+        westpa.rc.get_sim_manager()
+        westpa.rc.get_system_driver()
+        westpa.rc.get_data_manager()
+        westpa.rc.get_we_driver()
+        westpa.rc.get_propagator()
+
+        # self.janky_clear_state()
+
+        w_run.run_simulation()
+        return
+
     def prepare_new_we(self):
         """
         This function prepares a new WESTPA simulation using haMSM analysis to accelerate convergence.
@@ -472,8 +612,8 @@ class RestartDriver:
 
         restart_state = {'restarts_completed': 0, 'runs_completed': 0}
 
-        # TODO: Check for the existence of the extension lockfile here
-        doing_extension = False
+        # Check for the existence of the extension lockfile here
+        doing_extension = os.path.exists(EXTENSION_LOCKFILE)
 
         # Look for a restart.dat file to get the current state (how many restarts have been performed already)
         if os.path.exists(self.restart_file):
@@ -501,6 +641,10 @@ class RestartDriver:
             if os.path.exists(new_path):
                 log.error(f"{new_path} already exists. Removing and overwriting.")
                 shutil.rmtree(new_path)
+
+            # # If it's the 0th restart, then make sure any symlinks in traj_segs are replaced with their original files
+            # #   If we have to do an extension, these symlinks will be broken
+            # if restart_state['restarts_completed'] == 0:
 
             try:
                 os.rename(old_path, new_path)
@@ -561,6 +705,7 @@ class RestartDriver:
             self.data_manager.finalize_run()
             shutil.copyfile('west.h5', f"{run_directory}/west.h5")
 
+            # If this is a regular, fresh run (not an extension)
             if not doing_extension:
                 if os.path.exists(self.initialization_file):
                     with open(self.initialization_file, 'r') as fp:
@@ -588,25 +733,24 @@ class RestartDriver:
                     **initialization_state, shotgun=False,
                 )
 
+                with open(self.restart_file, 'w') as fp:
+                    json.dump(restart_state, fp)
+
+                log.info("New WE run ready!")
+                westpa.rc.pstatus(
+                    f"\n\n===== Restart {restart_state['restarts_completed']}, "
+                    + f"Run {restart_state['runs_completed']+1} running =====\n"
+                )
+
+                w_run.run_simulation()
+                return
+
             # If we're doing an extension set
+            #   Instead of w_initting a new iteration, copy the files from restart0/runXX back into ./
             elif doing_extension:
 
-                # TODO:  Instead of w_initting a new iteration, copy the files from restart0/runXX back into ./
-
-                # Then, continue as normal
-                pass
-
-            with open(self.restart_file, 'w') as fp:
-                json.dump(restart_state, fp)
-
-            log.info("New WE run ready!")
-            westpa.rc.pstatus(
-                f"\n\n===== Restart {restart_state['restarts_completed']}, "
-                + f"Run {restart_state['runs_completed']+1} running =====\n"
-            )
-
-            w_run.run_simulation()
-            return
+                self.prepare_extension_run(run_number=restart_state['runs_completed'] + 1, restart_state=restart_state)
+                return
 
         log.debug(f"{restart_state['restarts_completed']}/{self.n_restarts} restarts completed")
 
@@ -625,8 +769,6 @@ class RestartDriver:
         # Flush h5 file writes and copy it to the run directory
         self.data_manager.finalize_run()
         shutil.copyfile(self.data_manager.we_h5filename, f"{run_directory}/west.h5")
-
-        log.debug("Building haMSM and computing steady-state")
 
         # Use all files in all restarts
         # Restarts index at 0, because there's  a 0th restart before you've... restarted anything.
@@ -672,37 +814,39 @@ class RestartDriver:
         if restart_state['restarts_completed'] == 0:
             pass
 
-            # TODO: Check to see if you got any target flux in ANY runs
-            target_reached = True
+            # Check to see if you got any target flux in ANY runs
+            target_reached = False
+            for west_file_path in marathon_west_files:
+                if check_target_reached(west_file_path):
+                    target_reached = True
+                    break
 
             # If you reached the target, clean up from the extensions and then continue as normal
             if target_reached:
 
-                # TODO: Remove the doing_extensions.lck lockfile
+                # Do some cleanup from the extension run
+                if doing_extension:
+                    self.max_total_iterations = self.base_total_iterations
 
-                # TODO: Restore the original, non-extended west.cfg
+                    # Remove the doing_extensions.lck lockfile
+                    os.rm(EXTENSION_LOCKFILE)
 
-                # Then continue as normal
+                # Otherwise, just continue as normal
                 pass
 
             # If no runs reached the target, then we need to extend them
             elif not target_reached:
 
-                # TODO: Write the doing_extensions.lck "lockfile" to indicate we're in extend mode (or keep if exists)
+                # Create the doing_extensions.lck "lockfile" to indicate we're in extend mode (or keep if exists)
+                open(EXTENSION_LOCKFILE, 'a').close()
 
-                # TODO: Reset runs_completed to 0
+                # Reset runs_completed to 0, and rewrite restart.dat accordingly
+                restart_state['runs_completed'] = 0
 
-                # TODO: Copy traj_segs, seg_logs, and west.h5 for restart0/run0 back into ./
-                #       Later: (May only need to copy the latest iteration traj_segs, to avoid tons of back and forth)
+                self.prepare_extension_run(run_number=1, restart_state=restart_state, first_extension=True)
+                return
 
-                # TODO: Backup (copy) west.cfg to west_normal.cfg  (if west_normal.cfg does not exist)
-                #       If it DOES exist, then we must be extending again, so extend on the current west.cfg
-
-                # TODO: Create a new west.cfg by extending west.propagation.max_total_iterations
-
-                # TODO: w_run (which will use the extended west.cfg)
-                pass
-
+        log.debug("Building haMSM and computing steady-state")
         ss_dist, ss_flux, model = msmwe_compute_ss(self.plugin_config, marathon_west_files, self.cur_iter)
         self.ss_dist = ss_dist
         self.model = model
