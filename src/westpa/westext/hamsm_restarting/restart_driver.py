@@ -567,6 +567,7 @@ class RestartDriver:
         # TODO: Could probably point this to my custom westrc
         westpa.rc.rcfile = old_rc.rcfile
 
+        # TODO: Load in the config like this, create the sim manager, and then bump up the number of iterations!
         # I definitely need this at least
         westpa.rc.read_config(old_rc.rcfile)
 
@@ -829,7 +830,7 @@ class RestartDriver:
                     self.max_total_iterations = self.base_total_iterations
 
                     # Remove the doing_extensions.lck lockfile
-                    os.rm(EXTENSION_LOCKFILE)
+                    os.remove(EXTENSION_LOCKFILE)
 
                 # Otherwise, just continue as normal
                 pass
