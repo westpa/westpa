@@ -28,6 +28,7 @@ This plugin requires the following section in :code:`west.cfg` (or whatever your
       n_restarts: 0 	# Number of restarts to perform
       n_runs: 5			# Number of runs within each restart
       n_restarts_to_use: 0.5    # Amount of prior restarts' data to use. -1, a decimal in (0,1), or an integer. Details below.
+      extension_iters: 5    # Number of iterations to continue runs for, if target is not reached by first restart period
       coord_len: 2		# Length of pcoords returned
       initialization_file: restart_initialization.json	# JSON describing w_run parameters for new runs
       ref_pdb_file: common_files/bstate.pdb 		    # File containing reference structure/topology
