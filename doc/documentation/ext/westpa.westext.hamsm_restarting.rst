@@ -66,6 +66,19 @@ references in :code:`$WEST_SIM_ROOT/restartXX/start_states.txt` are set relative
 state references are defined relative to :code:`west.data.data_refs.basis_state`, so if that points to a subdirectory of
 :code:`$WEST_SIM_ROOT`, those paths will not be accurate.
 
+Extensions
+==========
+
+Running with :code:`extension_iters` greater than 0 will enable extensions before the first restart if the target
+state is not reached.
+This is useful to avoid restarting when you don't yet have structures spanning all the way from your basis to target.
+At the time of writing, it's not yet clear whether restarting from "incomplete" WE runs like this will help or hinder
+the total number of iterations it takes to reach the target.
+
+Extensions are simple and work as follows: before doing the first restart, after all runs are complete, the output
+WESTPA h5 files are scanned to see if any recycling has occurred.
+If it hasn't, then each run is extended by :code:`extension_iters` iterations.
+
 :code:`restart_initialization.json`
 +++++++++++++++++++++++++++++++++++
 
