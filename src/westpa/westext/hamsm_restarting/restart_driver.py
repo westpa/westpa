@@ -371,7 +371,7 @@ class RestartDriver:
         self.restart_file = plugin_config.get('restart_file', 'restart.dat')
         self.initialization_file = plugin_config.get('initialization_file', 'restart_initialization.json')
 
-        self.extension_iters = plugin_config.get('extension_iters', 50)
+        self.extension_iters = plugin_config.get('extension_iters', 0)
         self.max_total_iterations = westpa.rc.config.get(['west', 'propagation', 'max_total_iterations'], default=None)
         self.base_total_iterations = self.max_total_iterations
 
