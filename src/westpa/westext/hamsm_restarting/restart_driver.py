@@ -31,7 +31,7 @@ from msm_we import msm_we
 EPS = np.finfo(np.float64).eps
 
 log = logging.getLogger(__name__)
-log.setLevel("DEBUG")
+log.setLevel("INFO")
 log.propagate = False
 log.addHandler(RichHandler())
 
@@ -174,7 +174,7 @@ def prepare_coordinates(plugin_config, h5file, we_h5filename):
     log.debug(f"Wrote coords for {n_iter} iterations.")
 
 
-def msmwe_compute_ss(plugin_config, west_files, last_iter):
+def msmwe_compute_ss(plugin_config, west_files):
     """
     Prepare and initialize an msm_we model, and use it to predict a steady-state distribution.
 
@@ -282,11 +282,11 @@ def msmwe_compute_ss(plugin_config, west_files, last_iter):
     # First dimension is the total number of segments
     model.get_iterations()
 
-    model.get_coordSet(last_iter)
+    model.get_coordSet(model.maxIter)
 
     model.dimReduce()
 
-    first_iter, last_iter = model.first_iter, model.last_iter
+    first_iter, last_iter = model.first_iter, model.maxIter
 
     clusterFile = modelName + "_clusters_s" + str(first_iter) + "_e" + str(last_iter) + "_nC" + str(n_clusters) + ".h5"
     # TODO: Uncomment this to actually load the clusterFile if it exists.  For now, disable for development.
@@ -896,6 +896,7 @@ class RestartDriver:
                 return
 
         log.debug("Building haMSM and computing steady-state")
+        log.debug(f"Cur iter is {self.cur_iter}")
         ss_dist, ss_flux, model = msmwe_compute_ss(self.plugin_config, marathon_west_files, self.cur_iter)
         self.ss_dist = ss_dist
         self.model = model
