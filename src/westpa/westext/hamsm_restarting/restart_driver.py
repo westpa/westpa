@@ -31,7 +31,7 @@ from msm_we import msm_we
 EPS = np.finfo(np.float64).eps
 
 log = logging.getLogger(__name__)
-log.setLevel("INFO")
+log.setLevel("DEBUG")
 log.propagate = False
 log.addHandler(RichHandler())
 
@@ -453,17 +453,77 @@ class RestartDriver:
         return self.cur_iter == final_iter
 
     def janky_clear_state(self):
+        """
+        Clear state to prepare for a new run.
 
-        # from westpa.work_managers import make_work_manager
+        Notes
+        -----
+        A substantial amount of global state is stored in westpa.rc. At first, this seemed like it wouldn't be an issue.
+        However, it turns out that that was because I was doing all runs in the restarting flow with exactly the same
+        configuration.
 
-        # work_manager = westpa.rc.work_manager = make_work_manager()
+        Part of the problem is something about the HDF5 references start breaking when I continue another run.
 
-        # Load the sim manager and other drivers
-        # sim_manager = westpa.rc.get_sim_manager()
-        # system = westpa.rc.get_system_driver()
-        # data_manager = westpa.rc.get_data_manager()
-        # we_driver = westpa.rc.get_we_driver()
-        # propagator = westpa.rc.get_propagator()
+        In the usual run workflow this wasn't an issue because I'm calling w_init, which seems to clear
+        some state on its own.
+        However, in the extension workflow, I'm calling w_run on a totally new run without calling w_init.
+        Even when calling w_init though, some state appears to persist, and the number of max iterations is not
+        correctly updated.
+
+        Now that I'm adding extensions if the target state isn't reached, I need to be able to change the number of
+        iterations in a run.
+        That requires modifications to things held in global state, like the max number of iterations stored in
+        sim_manager.max_total_iterations.
+
+        Right now, this is implemented in the simple stupid way, which involves wiping out the entire westrc state and
+        rebuilding it. Configuration is re-read from the .cfg file that was originally  used, and command line args
+        are passed through from the old object as well.
+
+        TODO
+        ----
+        Rewrite the minimal amount of state necessary.
+
+        Why exactly does copying  the files for a new run in, and then calling run() break with errors about the  h5?
+
+
+        I think for a cleaner implementation of this, it might be sufficient to just overwrite
+        sim_manager.max_total_iterations, resetting it to the original value when I'm done.
+
+        Alternatively, if for some reason I actually need to read from the config, I could just change .rcfile  to point
+        to the new config.
+        That might help reduce the amount of state I need to clear.
+        """
+
+        log.debug("Clearing state!")
+
+        old_rc = westpa.rc
+        westpa.rc = westpa._rc.WESTRC()
+
+        # HACK: I'm not really sure how much of this is actually necessary. I just sort of did the nuclear option
+        #   on WESTPA's state.
+        # I might even be able to just use rc.clear_state  and then manually do the read_config.
+        # TODO: I also think if I just remove the .pop() from _rc.bins_from_yaml_dict I can skip doing a lot of this.
+        #   If I try to reinitialize like this, the issue was that there was no bins dict (because said pop  call removes
+        #   it the first time  WESTPA is fired up)
+        westpa.rc.cmdline_args = old_rc.cmdline_args
+        westpa.rc.verbosity = old_rc.verbosity
+
+        # TODO: Could probably point this to my custom westrc
+        log.info(f"Pointing new westpa.rc rcfile to {old_rc.rcfile}")
+        westpa.rc.rcfile = old_rc.rcfile
+
+        # TODO: Load in the config like this, create the sim manager, and then bump up the number of iterations!
+        # I definitely need this at least
+        westpa.rc.read_config(old_rc.rcfile)
+
+        # westpa.rc was freshly initialized at the beginning of this function. Calling this generates all of these
+        #   objects since they don't already exist.
+        # I  don't think I have to  do any of these, I think run_simulation() will handle it
+        westpa.rc.get_sim_manager()
+        westpa.rc.get_system_driver()
+        westpa.rc.get_data_manager()
+        westpa.rc.get_we_driver()
+        westpa.rc.get_propagator()
 
         westpa.rc._sim_manager = None
         westpa.rc._data_manager = None
@@ -509,6 +569,7 @@ class RestartDriver:
             # Backup (copy) west.cfg to west_normal.cfg  (if west_normal.cfg does not exist)
             #       If it DOES exist, then we must be extending again, so extend on the current west.cfg
             if not os.path.exists('west_original_length.cfg'):
+                log.debug("Backing up west.cfg")
                 shutil.copy('west.cfg', 'west_original_length.cfg')
             else:
                 log.info('A backed-up west_original_length.cfg already exists, not overwriting.')
@@ -546,39 +607,13 @@ class RestartDriver:
         #   The error has to do with offsets in the HDF5 file?
         #   Need to figure out what state would be cleared by w_init
 
-        log.debug(
-            f"West RC max iters  (rc):  {westpa.rc.config.get(['west', 'propagation', 'max_total_iterations'], default=None)}"
-        )
         log.debug(f"West RC max iters (sim):  {westpa.rc.sim_manager.max_total_iterations}")
         log.debug(f"Current iter before run: {self.sim_manager.n_iter}")
 
-        old_rc = westpa.rc
-        westpa.rc = westpa._rc.WESTRC()
+        # westpa.rc.sim_manager.max_total_iterations += self.extension_iters
+        # log.debug(f"New west RC max iters (sim):  {westpa.rc.sim_manager.max_total_iterations}")
 
-        # HACK: I'm not really sure how much of this is actually necessary. I just sort of did the nuclear option
-        #   on WESTPA's state.
-        # I might even be able to just use rc.clear_state  and then manually do the read_config.
-        # TODO: I also think if I just remove the .pop() from _rc.bins_from_yaml_dict I can skip doing a lot of this.
-        #   If I try to reinitialize like this, the issue was that there was no bins dict (because said pop  call removes
-        #   it the first time  WESTPA is fired up)
-        westpa.rc.cmdline_args = old_rc.cmdline_args
-        westpa.rc.verbosity = old_rc.verbosity
-
-        # TODO: Could probably point this to my custom westrc
-        westpa.rc.rcfile = old_rc.rcfile
-
-        # TODO: Load in the config like this, create the sim manager, and then bump up the number of iterations!
-        # I definitely need this at least
-        westpa.rc.read_config(old_rc.rcfile)
-
-        # I  don't think I have to  do any of these, I think run_simulation() will handle it
-        westpa.rc.get_sim_manager()
-        westpa.rc.get_system_driver()
-        westpa.rc.get_data_manager()
-        westpa.rc.get_we_driver()
-        westpa.rc.get_propagator()
-
-        # self.janky_clear_state()
+        self.janky_clear_state()
 
         w_run.run_simulation()
         return
@@ -823,14 +858,24 @@ class RestartDriver:
                     break
 
             # If you reached the target, clean up from the extensions and then continue as normal
-            if target_reached:
+            # If  extension_iters is set to 0, then don't do extensions.
+            if target_reached or self.extension_iters == 0:
 
                 # Do some cleanup from the extension run
-                if doing_extension:
-                    self.max_total_iterations = self.base_total_iterations
+                if doing_extension and not self.extension_iters == 0:
+                    # self.max_total_iterations = self.base_total_iterations
+                    with open(EXTENSION_LOCKFILE, 'r') as lockfile:
+                        self.max_total_iterations = int(lockfile.readlines()[0])
 
                     # Remove the doing_extensions.lck lockfile
                     os.remove(EXTENSION_LOCKFILE)
+
+                    # Copy the original west.cfg back
+                    os.remove('west.cfg')
+                    shutil.move('west_original_length.cfg', 'west.cfg')
+
+                    self.janky_clear_state()
+                    westpa.rc.sim_manager.max_total_iterations = self.max_total_iterations
 
                 # Otherwise, just continue as normal
                 pass
@@ -839,7 +884,10 @@ class RestartDriver:
             elif not target_reached:
 
                 # Create the doing_extensions.lck "lockfile" to indicate we're in extend mode (or keep if exists)
-                open(EXTENSION_LOCKFILE, 'a').close()
+                #   and write the initial number of iterations to it.
+                if not os.path.exists(EXTENSION_LOCKFILE):
+                    with open(EXTENSION_LOCKFILE, 'w') as lockfile:
+                        lockfile.write(str(self.max_total_iterations))
 
                 # Reset runs_completed to 0, and rewrite restart.dat accordingly
                 restart_state['runs_completed'] = 0
@@ -1042,6 +1090,7 @@ class RestartDriver:
             f"\nRun: \n\t w_init --tstate-file {tstates_filename} "
             + f"--bstate-file {bstates_filename} --sstate-file {sstates_filename} --segs-per-state {segs_per_state}\n"
         )
+
         w_init.initialize(**initialization_state, shotgun=False)
 
         log.info("New WE run ready!")
