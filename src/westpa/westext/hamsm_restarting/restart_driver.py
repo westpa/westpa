@@ -140,7 +140,7 @@ def prepare_coordinates(plugin_config, h5file, we_h5filename):
     log.debug(f"Found {model.maxIter} iterations")
 
     n_iter = None
-    for n_iter in tqdm.tqdm(range(1, model.maxIter)):
+    for n_iter in tqdm.tqdm(range(1, model.maxIter + 1)):
 
         nS = model.numSegments[n_iter - 1].astype(int)
         coords = np.zeros((nS, 2, model.nAtoms, 3))
@@ -897,7 +897,7 @@ class RestartDriver:
 
         log.debug("Building haMSM and computing steady-state")
         log.debug(f"Cur iter is {self.cur_iter}")
-        ss_dist, ss_flux, model = msmwe_compute_ss(self.plugin_config, marathon_west_files, self.cur_iter)
+        ss_dist, ss_flux, model = msmwe_compute_ss(self.plugin_config, marathon_west_files)
         self.ss_dist = ss_dist
         self.model = model
 
