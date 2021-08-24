@@ -656,6 +656,10 @@ class RestartDriver:
             with open(self.restart_file, 'r') as fp:
                 restart_state = json.load(fp)
 
+        if restart_state['runs_completed'] == 0 and restart_state['restarts_completed'] == 0 and not doing_extension:
+            log.debug("Removing old west.cfg backup..")
+            os.remove(WEST_CFG_BACKUP)
+
         # This is the final iteration of a run, so mark this run as completed
         restart_state['runs_completed'] += 1
 
