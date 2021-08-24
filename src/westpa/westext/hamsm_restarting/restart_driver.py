@@ -284,7 +284,7 @@ def msmwe_compute_ss(plugin_config, west_files, last_iter):
 
     log.debug(f"Processed flux matrix has shape {model.fluxMatrix.shape}")
 
-    model.get_steady_state_algebraic()  # gets steady-state from eigen decomp, output model.pSS
+    model.get_steady_state()  # gets steady-state from eigen decomp, output model.pSS
     model.get_steady_state_target_flux()  # gets steady-state target flux, output model.JtargetSS
 
     # Why is model.pss sometimes the wrong shape? It's "occasionally" returned as a nested array.
