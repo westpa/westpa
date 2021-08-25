@@ -117,6 +117,7 @@ INSTALL_REQUIRES = [
     "matplotlib",
     "blessings",
     "ipykernel",
+    "tqdm",
 ]
 
 EXTRAS_REQUIRE = {
