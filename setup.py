@@ -118,6 +118,8 @@ INSTALL_REQUIRES = [
     "blessings",
     "ipykernel",
     "tqdm",
+    "pandas",
+    "tables"
 ]
 
 EXTRAS_REQUIRE = {
