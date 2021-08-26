@@ -125,6 +125,8 @@ SETUP_REQUIRES = [
     "scipy>=0.19.1",
     "Cython>=0.29.16"
     "tqdm",
+    "pandas",
+    "tables"
 ]
 
 EXTRAS_REQUIRE = {
