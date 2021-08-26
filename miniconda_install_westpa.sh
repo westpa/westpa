@@ -67,7 +67,7 @@ export PATH="$PREFIX/bin:$PATH"
 ### +------------------------------------------------+ ########################################
 
 # Specify conda environment name
-conda_env=westpa-2020.03
+conda_env=westpa-2020.05
 
 # Update conda first
 conda update -n base -c defaults conda
