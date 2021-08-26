@@ -328,7 +328,7 @@ class AverageCommands(WESTKineticsBase):
 
             # Now, we wait to get the result back; we'll store it in the result, and return it.
             for future in self.work_manager.as_completed(futures):
-                pi.progress += iblock / step_iter
+                pi.progress = iblock / step_iter
                 future_result = future.get_result(discard=True)
 
                 if dim == 2:
