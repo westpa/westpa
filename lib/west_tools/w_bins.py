@@ -44,9 +44,12 @@ modify the binning for the current iteration of a WEST simulation.
         rebin_parser.add_argument('--confirm', action='store_true', 
                                   help='''Commit the revised iteration to HDF5; without this option, the effects of the
                                   new binning are only calculated and printed.''')
+        rebin_parser.add_argument('-n', '--n-iter', type=int, 
+                                 help='''Consider initial points of segment N_ITER (default: current iteration).''')
         rebin_parser.add_argument('--detail', action='store_true',
                                   help='''Display detailed per-bin information in addition to summary
                                      information.''')
+        
         self.binning.add_args(rebin_parser, suppress=['--bins-from-file'])
         self.binning.add_target_count_args(rebin_parser)
         rebin_parser.set_defaults(func=self.cmd_rebin)
@@ -104,7 +107,7 @@ modify the binning for the current iteration of a WEST simulation.
         data_manager = self.data_reader.data_manager
         
         segments = data_manager.get_segments(self.n_iter,load_pcoords=True)
-        last_iter_segments = data_manager.get_segments(self.n_iter-1,load_pcoords=False,load_auxdata=False)
+        last_iter_segments = data_manager.get_segments(self.n_iter-1,load_pcoords=False)
                 
         # Bin on this iteration's initial points
         # We don't have to worry about recycling because we are binning on
