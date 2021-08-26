@@ -41,12 +41,11 @@ import sys
 import threading
 import time
 from operator import attrgetter
-from os.path import isfile
+from os.path import relpath, dirname
 
 import h5py
 from h5py import h5s
 import numpy as np
-from mdtraj import load as load_traj
 
 from . import h5io
 from .segment import Segment
@@ -553,7 +552,9 @@ class WESTDataManager:
         if not self.store_h5:
             return
 
+        west_h5_file = makepath(self.we_h5filename)
         iter_ref_h5_file = makepath(self.iter_ref_h5_template, {'n_iter': n_iter})
+        iter_ref_rel_path = relpath(iter_ref_h5_file, dirname(west_h5_file))
 
         with h5io.WESTIterationFile(iter_ref_h5_file, 'a') as outf:
             for segment in segments:
@@ -562,7 +563,7 @@ class WESTDataManager:
         iter_group = self.get_iter_group(n_iter)
 
         if 'trajectories' not in iter_group:
-            iter_group['trajectories'] = h5py.ExternalLink(iter_ref_h5_file, '/')
+            iter_group['trajectories'] = h5py.ExternalLink(iter_ref_rel_path, '/')
 
     def get_basis_states(self, n_iter=None):
         '''Return a list of BasisState objects representing the basis states that are in use for iteration n_iter.'''

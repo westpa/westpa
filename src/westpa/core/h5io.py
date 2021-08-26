@@ -15,8 +15,10 @@ import numpy as np
 from numpy import index_exp
 
 from mdtraj import Trajectory, join as join_traj
-from mdtraj.utils import in_units_of, import_
+from mdtraj.utils import in_units_of, import_, ensure_type
+from mdtraj.utils.six import string_types
 from mdtraj.formats import HDF5TrajectoryFile
+from mdtraj.formats.hdf5 import _check_mode, Frames
 
 from .trajectory import WESTTrajectory
 
@@ -457,6 +459,67 @@ class WESTIterationFile(HDF5TrajectoryFile):
             self._frame_index = 0
             self._needs_initialization = False
 
+    def read(self, frame_indices=None, atom_indices=None):
+        _check_mode(self.mode, ('r',))
+
+        if frame_indices is None:
+            frame_slice = slice(None)
+            self._frame_index += (frame_slice.stop - frame_slice.start)
+        else:
+            frame_slice = ensure_type(frame_indices, dtype=np.int, ndim=1,
+                                      name='frame_indices', warn_on_cast=False)
+            if not np.all(frame_slice < self._handle.root.coordinates.shape[0]):
+                raise ValueError('As a zero-based index, the entries in '
+                                 'frame_slice must all be less than the number of frames '
+                                 'in the trajectory, %d' % self._handle.root.coordinates.shape[0])
+            if not np.all(frame_slice >= 0):
+                raise ValueError('The entries in frame_indices must be greater '
+                                 'than or equal to zero')
+            self._frame_index += (frame_slice[-1] - frame_slice[0])
+
+        if atom_indices is None:
+            # get all of the atoms
+            atom_slice = slice(None)
+        else:
+            atom_slice = ensure_type(atom_indices, dtype=np.int, ndim=1,
+                                     name='atom_indices', warn_on_cast=False)
+            if not np.all(atom_slice < self._handle.root.coordinates.shape[1]):
+                raise ValueError('As a zero-based index, the entries in '
+                                 'atom_indices must all be less than the number of atoms '
+                                 'in the trajectory, %d' % self._handle.root.coordinates.shape[1])
+            if not np.all(atom_slice >= 0):
+                raise ValueError('The entries in atom_indices must be greater '
+                                 'than or equal to zero')
+
+        def get_field(name, slice, out_units, can_be_none=True):
+            try:
+                node = self._get_node(where='/', name=name)
+                data = node.__getitem__(slice)
+                in_units = node.attrs.units
+                if not isinstance(in_units, string_types):
+                    in_units = in_units.decode()
+                data = in_units_of(data, in_units, out_units)
+                return data
+            except self.tables.NoSuchNodeError:
+                if can_be_none:
+                    return None
+                raise
+
+        frames = Frames(
+            coordinates = get_field('coordinates', (frame_slice, atom_slice, slice(None)),
+                                    out_units='nanometers', can_be_none=False),
+            time = get_field('time', frame_slice, out_units='picoseconds'),
+            cell_lengths = get_field('cell_lengths', (frame_slice, slice(None)), out_units='nanometers'),
+            cell_angles = get_field('cell_angles', (frame_slice, slice(None)), out_units='degrees'),
+            velocities = get_field('velocities', (frame_slice, atom_slice, slice(None)), out_units='nanometers/picosecond'),
+            kineticEnergy = get_field('kineticEnergy', frame_slice, out_units='kilojoules_per_mole'),
+            potentialEnergy = get_field('potentialEnergy', frame_slice, out_units='kilojoules_per_mole'),
+            temperature = get_field('temperature', frame_slice, out_units='kelvin'),
+            alchemicalLambda = get_field('lambda', frame_slice, out_units='dimensionless')
+        )
+
+        return frames
+
     def _has_node(self, where, name):
         try:
             self._get_node(where, name=name)
@@ -482,22 +545,40 @@ class WESTIterationFile(HDF5TrajectoryFile):
         node = self._get_node(where=where, name=name)
         return node.read()
 
-    def read_as_traj(self, n_frames=None, stride=None, atom_indices=None):
-        if n_frames is None:
-            n_frames = np.inf
-        if stride is not None:
-            stride = int(stride)
-
-        total_n_frames = len(self._handle.root.coordinates)
-        frame_slice = slice(self._frame_index, min(self._frame_index + n_frames, total_n_frames), stride)
+    def read_as_traj(self, iteration=None, segment=None, atom_indices=None):
+        _check_mode(self.mode, ('r',))
 
         pnode = self._get_node(where='/', name='pointer')
 
-        iter_labels = pnode[frame_slice, 0]
-        seg_labels = pnode[frame_slice, 1]
-        traj = super(WESTIterationFile, self).read_as_traj(n_frames, stride, atom_indices)
+        iter_labels = pnode[:, 0]
+        seg_labels = pnode[:, 1]
 
-        return WESTTrajectory(traj, iter_labels=iter_labels, seg_labels=seg_labels, pcoords=None)
+        if iteration is None and segment is None:
+            frame_indices = slice(None)
+        elif isinstance(iteration, (np.integer, int)) and isinstance(segment, (np.integer, int)):
+            frame_torf = np.logical_and(iter_labels==iteration, seg_labels==segment)
+            frame_indices = np.arange(len(iter_labels))[frame_torf]
+        else:
+            raise ValueError("iteration and segment must be integers and provided at the same time")
+
+        iter_labels = iter_labels[frame_indices]
+        seg_labels = seg_labels[frame_indices]
+
+        topology = self.topology
+        if atom_indices is not None:
+            topology = topology.subset(atom_indices)
+
+        data = self.read(frame_indices=frame_indices, atom_indices=atom_indices)
+        if len(data) == 0:
+            return Trajectory(xyz=np.zeros((0, topology.n_atoms, 3)), topology=topology)
+
+        in_units_of(data.coordinates, self.distance_unit, Trajectory._distance_unit, inplace=True)
+        in_units_of(data.cell_lengths, self.distance_unit, Trajectory._distance_unit, inplace=True)
+
+        return WESTTrajectory(data.coordinates, topology=topology, time=data.time,
+                              unitcell_lengths=data.cell_lengths,
+                              unitcell_angles=data.cell_angles, iter_labels=iter_labels,
+                              seg_labels=seg_labels, pcoords=None)
 
     def read_restart(self, segment):
         if self.has_restart(segment.seg_id):
