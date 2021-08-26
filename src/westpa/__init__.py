@@ -5,11 +5,7 @@ from .core.systems import WESTSystem
 from .core.states import BasisState, TargetState
 from .core import _rc
 
-from .core import yamlcfg
-from .core import extloader
-from . import westext
-
-__all__ = ['Segment', 'WESTSystem', 'BasisState', 'TargetState', '_rc', 'westext', 'extloader', 'yamlcfg']
+__all__ = ['Segment', 'WESTSystem', 'BasisState', 'TargetState', '_rc']
 
 rc = _rc.WESTRC()
 

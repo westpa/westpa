@@ -3,7 +3,7 @@ import logging
 import numpy as np
 
 import westpa
-from westpa import extloader
+from westpa.core import extloader
 from westpa.core.yamlcfg import check_bool, ConfigItemMissing
 from westpa.core.binning import VoronoiBinMapper
 
