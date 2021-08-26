@@ -469,19 +469,27 @@ class RestartDriver:
             west.cfg file.
         """
 
-        log.debug(f"Copying run files from restart0/run{run_number}")
+        log.debug(f"Linking run files from restart0/run{run_number}")
 
         # Copy traj_segs, seg_logs, and west.h5 for restart0/runXX back into ./
         #       Later: (May only need to copy the latest iteration traj_segs, to avoid tons of back and forth)
-        shutil.rmtree('traj_segs')
-        shutil.rmtree('seg_logs')
+        try:
+            shutil.rmtree('traj_segs')
+            shutil.rmtree('seg_logs')
+        except OSError as e:
+            if str(e) == 'Cannot call rmtree on a symbolic link':
+                os.unlink('traj_segs')
+                os.unlink('seg_logs')
+
         os.remove(self.data_manager.we_h5filename)
 
         # Ignore dangling symlinks -- many of the symlinks in traj_segs will be broken when they're copied, because
         #   they're still pointing to the original paths relative to the simulation root.
         # However, *after* we copy them back, those references will be in the right place again!
-        shutil.copytree(f'restart0/run{run_number}/traj_segs', 'traj_segs', symlinks=True, ignore_dangling_symlinks=True)
-        shutil.copytree(f'restart0/run{run_number}/seg_logs', 'seg_logs')
+        # shutil.copytree(f'restart0/run{run_number}/traj_segs', 'traj_segs', symlinks=True, ignore_dangling_symlinks=True)
+        # shutil.copytree(f'restart0/run{run_number}/seg_logs', 'seg_logs')
+        os.symlink(f'restart0/run{run_number}/traj_segs', 'traj_segs')
+        os.symlink(f'restart0/run{run_number}/seg_logs', 'seg_logs')
 
         if first_extension:
 
@@ -607,6 +615,14 @@ class RestartDriver:
 
         for data_folder in ['traj_segs', 'seg_logs']:
             old_path = data_folder
+
+            # If you're doing an extension, this will be a symlink. So no need to copy, just unlink it and move on
+            if doing_extension and os.path.islink(old_path):
+                log.debug('Unlinking symlink')
+                os.unlink(old_path)
+                os.mkdir(old_path)
+                continue
+
             new_path = f"{run_directory}/{old_path}"
 
             log.debug(f"Moving {old_path} to {new_path}")
@@ -614,10 +630,6 @@ class RestartDriver:
             if os.path.exists(new_path):
                 log.error(f"{new_path} already exists. Removing and overwriting.")
                 shutil.rmtree(new_path)
-
-            # # If it's the 0th restart, then make sure any symlinks in traj_segs are replaced with their original files
-            # #   If we have to do an extension, these symlinks will be broken
-            # if restart_state['restarts_completed'] == 0:
 
             try:
                 os.rename(old_path, new_path)
