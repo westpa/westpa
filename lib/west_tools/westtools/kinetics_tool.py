@@ -252,12 +252,12 @@ class AverageCommands(WESTKineticsBase):
 
                 # We create a future object with the appropriate name, and then append it to the work manager.
                 futures.append(generate_future(self.work_manager, name, eval_block, future_kwargs))
-                
-            pi.new_operation('Calculating {}'.format(name), len(futures))
+
+            pi.new_operation('Calculating {}'.format(name), extent=len(futures))
 
             # Now, we wait to get the result back; we'll store it in the result, and return it.
             for future in self.work_manager.as_completed(futures):
-                pi.progress += iblock / step_iter
+                pi.progress = iblock / step_iter 
                 future_result = future.get_result(discard=True)
 
                 if dim == 2:
@@ -268,5 +268,5 @@ class AverageCommands(WESTKineticsBase):
                     for result in future_result:
                         name,iblock,istate,ci_result = result
                         evolution_dataset[iblock, istate] = ci_result
-
+        
         return evolution_dataset
