@@ -52,7 +52,6 @@ from .segment import Segment
 from .states import BasisState, TargetState, InitialState
 from .we_driver import NewWeightEntry
 from .propagators.executable import ExecutablePropagator
-from .trajectory import WESTTrajectory
 
 import westpa
 
