@@ -116,7 +116,7 @@ INSTALL_REQUIRES = [
     "blessings",
     "ipykernel",
     "pandas",
-    "tables"
+    "tables",
 ]
 
 SETUP_REQUIRES = [
@@ -129,7 +129,7 @@ SETUP_REQUIRES = [
 INSTALL_REQUIRES += SETUP_REQUIRES
 
 EXTRAS_REQUIRE = {
-    "tests": ["pytest", "pytest-cov", "nose"],
+    "tests": ["pytest", "pytest-cov", "nose", "mdtraj >= 1.9.5"],
     "mpi": ["mpi4py"],
 }
 

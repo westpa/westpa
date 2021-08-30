@@ -190,7 +190,7 @@ def load_west(filename):
 
             raw_pcoord = iter_group['pcoord'][:]
             if raw_pcoord.ndim != 3:
-                log.warn('pcoord is expected to be a 3-d ndarray instead of {}-d'.format(data.ndim))
+                log.warn('pcoord is expected to be a 3-d ndarray instead of {}-d'.format(raw_pcoord.ndim))
                 continue
             # ignore the first frame of each segment
             raw_pcoord = raw_pcoord[:, 1:, :]
@@ -215,7 +215,7 @@ def load_west(filename):
                 with WESTIterationFile(traj_filename) as traj_file:
                     try:
                         traj = traj_file.read_as_traj()
-                    except:
+                    except Exception:
                         continue
             else:
                 continue
@@ -464,32 +464,32 @@ class WESTIterationFile(HDF5TrajectoryFile):
 
         if frame_indices is None:
             frame_slice = slice(None)
-            self._frame_index += (frame_slice.stop - frame_slice.start)
+            self._frame_index += frame_slice.stop - frame_slice.start
         else:
-            frame_slice = ensure_type(frame_indices, dtype=np.int, ndim=1,
-                                      name='frame_indices', warn_on_cast=False)
+            frame_slice = ensure_type(frame_indices, dtype=np.int, ndim=1, name='frame_indices', warn_on_cast=False)
             if not np.all(frame_slice < self._handle.root.coordinates.shape[0]):
-                raise ValueError('As a zero-based index, the entries in '
-                                 'frame_slice must all be less than the number of frames '
-                                 'in the trajectory, %d' % self._handle.root.coordinates.shape[0])
+                raise ValueError(
+                    'As a zero-based index, the entries in '
+                    'frame_slice must all be less than the number of frames '
+                    'in the trajectory, %d' % self._handle.root.coordinates.shape[0]
+                )
             if not np.all(frame_slice >= 0):
-                raise ValueError('The entries in frame_indices must be greater '
-                                 'than or equal to zero')
-            self._frame_index += (frame_slice[-1] - frame_slice[0])
+                raise ValueError('The entries in frame_indices must be greater ' 'than or equal to zero')
+            self._frame_index += frame_slice[-1] - frame_slice[0]
 
         if atom_indices is None:
             # get all of the atoms
             atom_slice = slice(None)
         else:
-            atom_slice = ensure_type(atom_indices, dtype=np.int, ndim=1,
-                                     name='atom_indices', warn_on_cast=False)
+            atom_slice = ensure_type(atom_indices, dtype=np.int, ndim=1, name='atom_indices', warn_on_cast=False)
             if not np.all(atom_slice < self._handle.root.coordinates.shape[1]):
-                raise ValueError('As a zero-based index, the entries in '
-                                 'atom_indices must all be less than the number of atoms '
-                                 'in the trajectory, %d' % self._handle.root.coordinates.shape[1])
+                raise ValueError(
+                    'As a zero-based index, the entries in '
+                    'atom_indices must all be less than the number of atoms '
+                    'in the trajectory, %d' % self._handle.root.coordinates.shape[1]
+                )
             if not np.all(atom_slice >= 0):
-                raise ValueError('The entries in atom_indices must be greater '
-                                 'than or equal to zero')
+                raise ValueError('The entries in atom_indices must be greater ' 'than or equal to zero')
 
         def get_field(name, slice, out_units, can_be_none=True):
             try:
@@ -506,16 +506,15 @@ class WESTIterationFile(HDF5TrajectoryFile):
                 raise
 
         frames = Frames(
-            coordinates = get_field('coordinates', (frame_slice, atom_slice, slice(None)),
-                                    out_units='nanometers', can_be_none=False),
-            time = get_field('time', frame_slice, out_units='picoseconds'),
-            cell_lengths = get_field('cell_lengths', (frame_slice, slice(None)), out_units='nanometers'),
-            cell_angles = get_field('cell_angles', (frame_slice, slice(None)), out_units='degrees'),
-            velocities = get_field('velocities', (frame_slice, atom_slice, slice(None)), out_units='nanometers/picosecond'),
-            kineticEnergy = get_field('kineticEnergy', frame_slice, out_units='kilojoules_per_mole'),
-            potentialEnergy = get_field('potentialEnergy', frame_slice, out_units='kilojoules_per_mole'),
-            temperature = get_field('temperature', frame_slice, out_units='kelvin'),
-            alchemicalLambda = get_field('lambda', frame_slice, out_units='dimensionless')
+            coordinates=get_field('coordinates', (frame_slice, atom_slice, slice(None)), out_units='nanometers', can_be_none=False),
+            time=get_field('time', frame_slice, out_units='picoseconds'),
+            cell_lengths=get_field('cell_lengths', (frame_slice, slice(None)), out_units='nanometers'),
+            cell_angles=get_field('cell_angles', (frame_slice, slice(None)), out_units='degrees'),
+            velocities=get_field('velocities', (frame_slice, atom_slice, slice(None)), out_units='nanometers/picosecond'),
+            kineticEnergy=get_field('kineticEnergy', frame_slice, out_units='kilojoules_per_mole'),
+            potentialEnergy=get_field('potentialEnergy', frame_slice, out_units='kilojoules_per_mole'),
+            temperature=get_field('temperature', frame_slice, out_units='kelvin'),
+            alchemicalLambda=get_field('lambda', frame_slice, out_units='dimensionless'),
         )
 
         return frames
@@ -556,7 +555,7 @@ class WESTIterationFile(HDF5TrajectoryFile):
         if iteration is None and segment is None:
             frame_indices = slice(None)
         elif isinstance(iteration, (np.integer, int)) and isinstance(segment, (np.integer, int)):
-            frame_torf = np.logical_and(iter_labels==iteration, seg_labels==segment)
+            frame_torf = np.logical_and(iter_labels == iteration, seg_labels == segment)
             frame_indices = np.arange(len(iter_labels))[frame_torf]
         else:
             raise ValueError("iteration and segment must be integers and provided at the same time")
@@ -575,10 +574,16 @@ class WESTIterationFile(HDF5TrajectoryFile):
         in_units_of(data.coordinates, self.distance_unit, Trajectory._distance_unit, inplace=True)
         in_units_of(data.cell_lengths, self.distance_unit, Trajectory._distance_unit, inplace=True)
 
-        return WESTTrajectory(data.coordinates, topology=topology, time=data.time,
-                              unitcell_lengths=data.cell_lengths,
-                              unitcell_angles=data.cell_angles, iter_labels=iter_labels,
-                              seg_labels=seg_labels, pcoords=None)
+        return WESTTrajectory(
+            data.coordinates,
+            topology=topology,
+            time=data.time,
+            unitcell_lengths=data.cell_lengths,
+            unitcell_angles=data.cell_angles,
+            iter_labels=iter_labels,
+            seg_labels=seg_labels,
+            pcoords=None,
+        )
 
     def read_restart(self, segment):
         if self.has_restart(segment.seg_id):
@@ -630,10 +635,12 @@ class WESTIterationFile(HDF5TrajectoryFile):
             self.write_data('/', 'pointer', pointers)
 
             # trajectory
-            self.write(coordinates=in_units_of(traj.xyz, Trajectory._distance_unit, self.distance_unit),
-                       time=traj.time,
-                       cell_lengths=in_units_of(traj.unitcell_lengths, Trajectory._distance_unit, self.distance_unit),
-                       cell_angles=traj.unitcell_angles)
+            self.write(
+                coordinates=in_units_of(traj.xyz, Trajectory._distance_unit, self.distance_unit),
+                time=traj.time,
+                cell_lengths=in_units_of(traj.unitcell_lengths, Trajectory._distance_unit, self.distance_unit),
+                cell_angles=traj.unitcell_angles,
+            )
 
             # topology
             if self.mode == 'a':
@@ -647,21 +654,25 @@ class WESTIterationFile(HDF5TrajectoryFile):
             if self.has_restart(segment.seg_id):
                 self._remove_node('/restart', name=str(segment.seg_id))
 
-            self._create_array('/restart/%d' % segment.seg_id,
-                               name='data',
-                               atom=self.tables.StringAtom(itemsize=len(restart)),
-                               obj=restart,
-                               createparents=True)
+            self._create_array(
+                '/restart/%d' % segment.seg_id,
+                name='data',
+                atom=self.tables.StringAtom(itemsize=len(restart)),
+                obj=restart,
+                createparents=True,
+            )
 
         if slog is not None:
             if self._has_node('/log', str(segment.seg_id)):
                 self._remove_node('/log', name=str(segment.seg_id))
 
-            self._create_array('/log/%d' % segment.seg_id,
-                               name='data',
-                               atom=self.tables.StringAtom(itemsize=len(slog)),
-                               obj=slog,
-                               createparents=True)
+            self._create_array(
+                '/log/%d' % segment.seg_id,
+                name='data',
+                atom=self.tables.StringAtom(itemsize=len(slog)),
+                obj=slog,
+                createparents=True,
+            )
 
     @property
     def _create_group(self):

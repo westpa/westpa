@@ -2,6 +2,7 @@ import math
 
 import numpy as np
 
+
 class Segment:
     '''A class wrapping segment data that must be passed through the work manager or data manager.
     Most fields are self-explanatory.  One item worth noting is that a negative parent ID means that

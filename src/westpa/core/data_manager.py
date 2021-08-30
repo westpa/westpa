@@ -52,7 +52,6 @@ from .segment import Segment
 from .states import BasisState, TargetState, InitialState
 from .we_driver import NewWeightEntry
 from .propagators.executable import ExecutablePropagator
-from .trajectory import WESTTrajectory
 
 import westpa
 
@@ -534,14 +533,16 @@ class WESTDataManager:
 
         segments = []
         for i, state in enumerate(basis_states):
-            dummy_segment = Segment(n_iter=0,
-                                    seg_id=state.state_id,
-                                    parent_id=-(state.state_id + 1),
-                                    weight=state.probability,
-                                    wtg_parent_ids=None,
-                                    pcoord=state.pcoord,
-                                    status=Segment.SEG_STATUS_UNSET,
-                                    data=state.data)
+            dummy_segment = Segment(
+                n_iter=0,
+                seg_id=state.state_id,
+                parent_id=-(state.state_id + 1),
+                weight=state.probability,
+                wtg_parent_ids=None,
+                pcoord=state.pcoord,
+                status=Segment.SEG_STATUS_UNSET,
+                data=state.data,
+            )
             segments.append(dummy_segment)
 
         # # link the iteration file in west.h5

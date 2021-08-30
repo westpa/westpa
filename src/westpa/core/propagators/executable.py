@@ -218,26 +218,22 @@ class ExecutablePropagator(WESTPropagator):
         log.debug('exe_info: {!r}'.format(self.exe_info))
 
         # Load configuration items relating to dataset input
-        self.data_info['pcoord'] = {'name': 'pcoord',
-                                    'loader': pcoord_loader,
-                                    'enabled': True,
-                                    'filename': None,
-                                    'dir': False}
-        self.data_info['trajectory'] = {'name': 'trajectory',
-                                        'loader': trajectory_loader,
-                                        'enabled': store_h5,
-                                        'filename': None,
-                                        'dir': True}
-        self.data_info['restart'] = {'name': 'restart',
-                                     'loader': restart_loader,
-                                     'enabled': store_h5,
-                                     'filename': None,
-                                     'dir': True}
-        self.data_info['log'] = {'name': 'seglog',
-                                 'loader': seglog_loader,
-                                 'enabled': store_h5,
-                                 'filename': None,
-                                 'dir': True}
+        self.data_info['pcoord'] = {'name': 'pcoord', 'loader': pcoord_loader, 'enabled': True, 'filename': None, 'dir': False}
+        self.data_info['trajectory'] = {
+            'name': 'trajectory',
+            'loader': trajectory_loader,
+            'enabled': store_h5,
+            'filename': None,
+            'dir': True,
+        }
+        self.data_info['restart'] = {
+            'name': 'restart',
+            'loader': restart_loader,
+            'enabled': store_h5,
+            'filename': None,
+            'dir': True,
+        }
+        self.data_info['log'] = {'name': 'seglog', 'loader': seglog_loader, 'enabled': store_h5, 'filename': None, 'dir': True}
 
         dataset_configs = config.get(['west', 'executable', 'datasets']) or []
         for dsinfo in dataset_configs:
@@ -458,14 +454,14 @@ class ExecutablePropagator(WESTPropagator):
         try:
             # If the filesystem is properly clean.
             os.makedirs(environ[self.ENV_CURRENT_SEG_DATA_REF])
-        except:
+        except Exception:
             # If the filesystem is NOT properly clean.
             shutil.rmtree(environ[self.ENV_CURRENT_SEG_DATA_REF])
             os.makedirs(environ[self.ENV_CURRENT_SEG_DATA_REF])
         if self.data_info['restart']['enabled']:
             restart_writer(environ[self.ENV_CURRENT_SEG_DATA_REF], segment=segment)
 
-    def setup_dataset_return(self, subset_keys=None):
+    def setup_dataset_return(self, segment=None, subset_keys=None):
         if subset_keys is None:
             subset_keys = self.data_info.keys()
 
@@ -482,6 +478,8 @@ class ExecutablePropagator(WESTPropagator):
 
             return_template = self.data_info[dataset].get('filename')
             if return_template:
+                if segment is None:
+                    raise ValueError('segment needs to be provided for dataset return')
                 return_files[dataset] = self.makepath(return_template, self.template_args_for_segment(segment))
                 del_return_files[dataset] = False
             else:
@@ -545,7 +543,9 @@ class ExecutablePropagator(WESTPropagator):
             raise TypeError('state must be a BasisState or InitialState')
 
         child_info = self.exe_info.get('get_pcoord')
-        addtl_env, return_files, del_return_files = self.setup_dataset_return(['pcoord', 'trajectory', 'restart', 'log'])
+        addtl_env, return_files, del_return_files = self.setup_dataset_return(
+            subset_keys=['pcoord', 'trajectory', 'restart', 'log']
+        )
         addtl_env[self.ENV_STRUCT_DATA_REF] = struct_ref
 
         rc, rusage = execfn(child_info, state, addtl_env)
@@ -601,7 +601,7 @@ class ExecutablePropagator(WESTPropagator):
         for segment in segments:
             starttime = time.time()
 
-            addtl_env, return_files, del_return_files = self.setup_dataset_return()
+            addtl_env, return_files, del_return_files = self.setup_dataset_return(segment)
 
             # Spawn propagator and wait for its completion
             rc, rusage = self.exec_for_segment(child_info, segment, addtl_env)
