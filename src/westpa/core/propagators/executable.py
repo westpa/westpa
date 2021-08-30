@@ -218,26 +218,22 @@ class ExecutablePropagator(WESTPropagator):
         log.debug('exe_info: {!r}'.format(self.exe_info))
 
         # Load configuration items relating to dataset input
-        self.data_info['pcoord'] = {'name': 'pcoord',
-                                    'loader': pcoord_loader,
-                                    'enabled': True,
-                                    'filename': None,
-                                    'dir': False}
-        self.data_info['trajectory'] = {'name': 'trajectory',
-                                        'loader': trajectory_loader,
-                                        'enabled': store_h5,
-                                        'filename': None,
-                                        'dir': True}
-        self.data_info['restart'] = {'name': 'restart',
-                                     'loader': restart_loader,
-                                     'enabled': store_h5,
-                                     'filename': None,
-                                     'dir': True}
-        self.data_info['log'] = {'name': 'seglog',
-                                 'loader': seglog_loader,
-                                 'enabled': store_h5,
-                                 'filename': None,
-                                 'dir': True}
+        self.data_info['pcoord'] = {'name': 'pcoord', 'loader': pcoord_loader, 'enabled': True, 'filename': None, 'dir': False}
+        self.data_info['trajectory'] = {
+            'name': 'trajectory',
+            'loader': trajectory_loader,
+            'enabled': store_h5,
+            'filename': None,
+            'dir': True,
+        }
+        self.data_info['restart'] = {
+            'name': 'restart',
+            'loader': restart_loader,
+            'enabled': store_h5,
+            'filename': None,
+            'dir': True,
+        }
+        self.data_info['log'] = {'name': 'seglog', 'loader': seglog_loader, 'enabled': store_h5, 'filename': None, 'dir': True}
 
         dataset_configs = config.get(['west', 'executable', 'datasets']) or []
         for dsinfo in dataset_configs:
@@ -546,7 +542,9 @@ class ExecutablePropagator(WESTPropagator):
             raise TypeError('state must be a BasisState or InitialState')
 
         child_info = self.exe_info.get('get_pcoord')
-        addtl_env, return_files, del_return_files = self.setup_dataset_return(subset_keys=['pcoord', 'trajectory', 'restart', 'log'])
+        addtl_env, return_files, del_return_files = self.setup_dataset_return(
+            subset_keys=['pcoord', 'trajectory', 'restart', 'log']
+        )
         addtl_env[self.ENV_STRUCT_DATA_REF] = struct_ref
 
         rc, rusage = execfn(child_info, state, addtl_env)

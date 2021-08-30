@@ -11,8 +11,18 @@ TRAJECTORY_EXTS = FormatRegistry.loaders.keys()
 
 
 class WESTTrajectory(Trajectory):
-    def __init__(self, coordinates, topology=None, time=None, iter_labels=None, seg_labels=None, pcoords=None,
-                 parent_ids=None, unitcell_lengths=None, unitcell_angles=None):
+    def __init__(
+        self,
+        coordinates,
+        topology=None,
+        time=None,
+        iter_labels=None,
+        seg_labels=None,
+        pcoords=None,
+        parent_ids=None,
+        unitcell_lengths=None,
+        unitcell_angles=None,
+    ):
         if isinstance(coordinates, Trajectory):
             xyz = coordinates.xyz
             topology = coordinates.topology if topology is None else topology
@@ -38,19 +48,18 @@ class WESTTrajectory(Trajectory):
         if np.isscalar(value):
             value = np.array([value] * self.n_frames, dtype=int)
         elif value.shape != (self.n_frames,):
-            raise ValueError('Wrong shape. Got %s, should be %s' % (value.shape,
-                (self.n_frames, )))
+            raise ValueError('Wrong shape. Got %s, should be %s' % (value.shape, (self.n_frames,)))
 
         return value
 
     def _check_pcoords(self, value):
         if value is None:
-            value = 0.
+            value = 0.0
         elif isinstance(value, list):
             value = np.array(value)
 
         if np.isscalar(value):
-            value = np.array([(value, )] * self.n_frames, dtype=int)
+            value = np.array([(value,)] * self.n_frames, dtype=int)
 
         if value.ndim == 1:
             value = np.repeat(value, self.n_frames, axis=0)
@@ -89,7 +98,7 @@ class WESTTrajectory(Trajectory):
 
     def _iter_blocks(self):
         for i, j in self.label_values:
-            IandJ = np.logical_and(self.iter_labels==i, self.seg_labels==j)
+            IandJ = np.logical_and(self.iter_labels == i, self.seg_labels == j)
             yield i, j, IandJ
 
     @property
@@ -148,13 +157,13 @@ class WESTTrajectory(Trajectory):
         if isinstance(other, Trajectory):
             other = [other]
 
-        new_traj = super(WESTTrajectory, self).join(other, 
-                         check_topology=check_topology, 
-                         discard_overlapping_frames=discard_overlapping_frames)
+        new_traj = super(WESTTrajectory, self).join(
+            other, check_topology=check_topology, discard_overlapping_frames=discard_overlapping_frames
+        )
 
         trajectories = [self] + other
         if discard_overlapping_frames:
-            for i in range(len(trajectories)-1):
+            for i in range(len(trajectories) - 1):
                 x0 = trajectories[i].xyz[-1]
                 x1 = trajectories[i + 1].xyz[0]
 
@@ -178,21 +187,21 @@ class WESTTrajectory(Trajectory):
             if hasattr(t, "seg_labels"):
                 segs = t.seg_labels
             else:
-                segs = np.zeros(len(t)) - 1   # default seg label: -1
+                segs = np.zeros(len(t)) - 1  # default seg label: -1
 
             seg_labels.append(segs)
 
             if hasattr(t, "parent_ids"):
                 pids = t.parent_ids
             else:
-                pids = np.zeros(len(t)) - 1   # default parent_id: -1
+                pids = np.zeros(len(t)) - 1  # default parent_id: -1
 
             parent_ids.append(pids)
 
             if hasattr(t, "pcoords"):
                 p = t.pcoords
             else:
-                p = np.zeros((len(t), pshape[-1]), dtype=float)   # default pcoord: 0.0
+                p = np.zeros((len(t), pshape[-1]), dtype=float)  # default pcoord: 0.0
 
             pcoords.append(p)
 
@@ -201,8 +210,9 @@ class WESTTrajectory(Trajectory):
         parent_ids = np.concatenate(parent_ids)
         pcoords = np.concatenate(pcoords)
 
-        new_westpa_traj = WESTTrajectory(new_traj, iter_labels=iter_labels, seg_labels=seg_labels,
-                                         pcoords=pcoords, parent_ids=parent_ids)
+        new_westpa_traj = WESTTrajectory(
+            new_traj, iter_labels=iter_labels, seg_labels=seg_labels, pcoords=pcoords, parent_ids=parent_ids
+        )
 
         return new_westpa_traj
 
@@ -220,7 +230,7 @@ class WESTTrajectory(Trajectory):
         ----------
         key : {int, np.ndarray, slice, tuple}
             The slice to take. Can be either an int, a list of ints, or a slice
-            object for slicing based on the index of each frame, or a tuple object 
+            object for slicing based on the index of each frame, or a tuple object
             for slicing based on iteration or segment indices.
         copy : bool, default=True
             Copy the arrays after slicing. If you set this to false, then if
@@ -243,7 +253,7 @@ class WESTTrajectory(Trajectory):
             else:
                 max_iter, max_seg, max_n_trajs = self._shape
 
-            M = np.full((max_iter+1, max_seg+1, max_n_trajs), -1, dtype=int)
+            M = np.full((max_iter + 1, max_seg + 1, max_n_trajs), -1, dtype=int)
             all_traj_indices = np.arange(self.n_frames, dtype=int)
             for i, j, block in self._iter_blocks():
                 traj_indices = all_traj_indices[block]
