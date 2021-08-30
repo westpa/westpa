@@ -123,7 +123,7 @@ INSTALL_REQUIRES = [
 ]
 
 EXTRAS_REQUIRE = {
-    "tests": ["pytest", "pytest-cov", "nose"],
+    "tests": ["pytest", "pytest-cov", "nose", "mdtraj >= 1.9.5"],
     "mpi": ["mpi4py"],
 }
 
