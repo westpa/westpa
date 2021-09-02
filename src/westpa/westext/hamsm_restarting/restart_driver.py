@@ -441,7 +441,7 @@ class RestartDriver:
     @property
     def is_last_iteration(self):
         """
-        Get whether this is the last iteration in this WE run.
+        Get whether this is, or is past, the last iteration in this WE run.
 
         Returns
         -------
@@ -450,7 +450,7 @@ class RestartDriver:
 
         final_iter = self.sim_manager.max_total_iterations
 
-        return self.cur_iter == final_iter
+        return self.cur_iter >= final_iter
 
     def prepare_extension_run(self, run_number, restart_state, first_extension=False):
         """
