@@ -887,12 +887,13 @@ class RestartDriver:
             log.info(f"Obtaining potential start structures ({len(model.cluster_structures.items())} avail)")
 
             # Loop over each set of (bin index, all the structures in that bin)
+            total_weight = 0.0
             for (msm_bin_idx, structures) in tqdm.tqdm(model.cluster_structures.items()):
 
                 # The per-segment bin probability.
                 # Map a cluster number onto a cluster INDEX, because after cleaning the cluster numbers may no longer
                 # be consecutive.
-                bin_prob = self.ss_dist[model.cluster_mapping[msm_bin_idx]] / len(structures)
+                bin_prob = self.ss_dist[model.cluster_mapping[msm_bin_idx]]  # / len(structures)
 
                 if bin_prob == 0:
                     log.info(f"MSM-Bin {msm_bin_idx}  has probability 0, so not saving any structs from it.")
@@ -917,6 +918,8 @@ class RestartDriver:
                         # Aristoff, D. & Zuckerman, D. M. Optimizing Weighted Ensemble Sampling of Steady States.
                         # Multiscale Model Sim 18, 646–673 (2020).
                         structure_weight = seg_we_weight * (bin_prob / msm_bin_we_weight)
+
+                        total_weight += structure_weight
 
                         topology = model.reference_structure.topology
 
@@ -952,6 +955,12 @@ class RestartDriver:
                         # This path is relative to WEST_SIM_ROOT
                         fp.write(f'b{msm_bin_idx}_s{struct_idx} {structure_weight} {structure_filename}\n')
                         seg_idx += 1
+
+            # Subtract off the probabilities of the basis and target states, since those don't have structures
+            #   assigned to them.
+            assert np.isclose(
+                total_weight, 1 - model.pSS[-1] - model.pSS[-2]
+            ), "Total steady-state structure weights not normalized! Proceeding, but be aware.."
 
         ### Start the new simulation
 
