@@ -960,7 +960,7 @@ class RestartDriver:
             #   assigned to them.
             assert np.isclose(
                 total_weight, 1 - model.pSS[-1] - model.pSS[-2]
-            ), "Total steady-state structure weights not normalized! Proceeding, but be aware.."
+            ), "Total steady-state structure weights not normalized!"
 
         ### Start the new simulation
 
