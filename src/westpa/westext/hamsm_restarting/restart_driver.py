@@ -959,7 +959,7 @@ class RestartDriver:
             # Subtract off the probabilities of the basis and target states, since those don't have structures
             #   assigned to them.
             assert np.isclose(
-                total_weight, 1 - model.pSS[-1] - model.pSS[-2]
+                total_weight, 1 - model.pSS[model.n_clusters :]
             ), "Total steady-state structure weights not normalized!"
 
         ### Start the new simulation
