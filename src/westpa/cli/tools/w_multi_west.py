@@ -125,6 +125,7 @@ Command-line options
         )
         iogroup.add_argument('-a', '--aux', action='append', help='''Names of additional auxiliary datasets to be combined''')
         iogroup.add_argument('-aa', '--auxall', action='store_true', help='''Combine all auxiliary datasets. Default: False''')
+        iogroup.add_argument('-nr', '--no-reweight', action='store_true', help='''Do not reweight. Default: False''')
 
     def open_files(self):
         self.output_file = h5io.WESTPAH5File(self.output_file, 'w', creating_program=True)
@@ -148,6 +149,7 @@ Command-line options
         self.sims = args.sims
         self.aux = args.aux
         self.auxall = args.auxall
+        self.reweight = args.no_reweight
 
     def total_number_of_walkers(self):
         self.total_walkers = [0] * self.niters
@@ -308,7 +310,10 @@ Command-line options
                 # This is... maybe wrong, actually?  Or at least, it's not ALL that is required for normalizing things.
                 # We need to weight everything by 1/N, then just normalize if that normalization was wrong.  Keep the relative weights sane.
                 # ... or actually, no, that's fine, nevermind, what's wrong with me?  But we'll leave it in for now.
-                mseg['weight'] /= mseg['weight'].sum()
+
+                if not self.reweight:
+                    mseg['weight'] /= mseg['weight'].sum()
+
                 summary['n_particles'][iter - 1] = mseg.shape[0]
                 summary['norm'][iter - 1] = mseg['weight'].sum()
                 summary['min_seg_prob'][iter - 1] = min(mseg['weight'])
