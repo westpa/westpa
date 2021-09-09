@@ -61,6 +61,8 @@ def mapper_from_function(funcspec):
 def mapper_from_hdf5(topol_group, hashval):
     '''Retrieve the mapper identified by ``hashval`` from the given bin topology group
     ``topol_group``. Returns ``(mapper, pickle, hashval)``'''
+    if not isinstance(hashval, bytes):
+        hashval = bytes(hashval, 'utf8')
 
     try:
         index_ds = topol_group['index']
