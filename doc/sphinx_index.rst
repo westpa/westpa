@@ -11,6 +11,7 @@
     WESTPA Tools                      <documentation/tools/westpa.tools>
     WESTPA Other Components           <documentation/others>
     WESTPA Extensions                 <documentation/ext>
+    WESTPA Analysis                   <documentation/analysis/index>
     HDF5 file structure               <documentation/hdf5>
 
 
