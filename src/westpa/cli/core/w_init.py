@@ -213,6 +213,7 @@ def initialize(tstates, tstate_file, bstates, bstate_file, sstates=None, sstate_
             sim_manager.initialize_simulation(
                 basis_states, target_states, start_states, segs_per_state=segs_per_state, suppress_we=shotgun
             )
+
         else:
             work_manager.run()
 
