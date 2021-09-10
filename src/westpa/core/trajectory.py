@@ -296,14 +296,15 @@ def load_trajectory(folder):
         if top_file is not None and traj_file is not None:
             break
 
-    if top_file is None:
-        raise ValueError('topology file not found')
-
     if traj_file is None:
         raise ValueError('trajectory file not found')
 
     traj_file = os.path.join(folder, traj_file)
-    top_file = os.path.join(folder, top_file)
 
-    traj = load_traj(traj_file, top=top_file)
+    kwargs = {}
+    if top_file is not None:
+        top_file = os.path.join(folder, top_file)
+        kwargs['top'] = top_file
+
+    traj = load_traj(traj_file, **kwargs)
     return traj
