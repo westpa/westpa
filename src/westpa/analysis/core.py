@@ -423,7 +423,7 @@ class Walker:
         endpoint_type = self.iteration.h5group['seg_index']['endpoint_type'][self.index]
         return endpoint_type == Segment.SEG_ENDPOINT_RECYCLED
 
-    def trace(self, source=None):
+    def trace(self, **kwargs):
         """Return the trace (ancestral line) of the walker.
 
         For full documentation see :class:`Trace`.
@@ -434,7 +434,7 @@ class Walker:
             The trace of the walker.
 
         """
-        return Trace(self, source=source)
+        return Trace(self, **kwargs)
 
     def __eq__(self, other):
         return self.index == other.index and self.iteration == other.iteration
@@ -589,14 +589,14 @@ class Trace:
     ----------
     walker : Walker
         The terminal walker.
-    source : Bin, BinUnion, or Container, optional
-        The source (macro)state, specified as a :type:`Container` object
-        whose :meth:`__contains__` method is the indicator function for
-        the corresponding subset of progress coordinate space. If `source`
-        is provided, the trace is continued only as far back as the last
-        walker that stopped in `source`. Otherwise, the trace extends back
-        to the initial state.
+    source : Bin, BinUnion, or collections.abc.Container, optional
+        A source (macro)state, specified as a container object whose
+        :meth:`__contains__` method is the indicator function for
+        the corresponding subset of progress coordinate space. The trace
+        is stopped upon encountering a trajectory segment whose endpoint
+        is in `source`. Default is ``BinUnion()`` (the empty set).
     max_length : int, optional
+        The maximum number of segments in the trace.
 
     """
 
