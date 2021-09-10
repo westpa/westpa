@@ -1,10 +1,14 @@
 import itertools
-import pandas as pd
 import sys
-import westpa.tools.binning
+
+import numpy as np
+import pandas as pd
+import westpa.tools.binning as binning
 
 from functools import cached_property
+
 from westpa.core.h5io import WESTPAH5File
+from westpa.core.segment import Segment
 from westpa.core.states import BasisState, InitialState, TargetState
 
 
@@ -178,7 +182,7 @@ class Iteration:
     @cached_property
     def weights(self):
         """1D ndarray: Statistical weight of each walker."""
-        return self.segment_info['weight']
+        return self.h5group['seg_index']['weight']
 
     @property
     def bin_target_counts(self):
@@ -193,7 +197,7 @@ class Iteration:
         """BinMapper: Bin mapper used in the iteration."""
         if self.bin_target_counts is None:
             return None
-        mapper, _, _ = westpa.tools.binning.mapper_from_hdf5(self.run.h5file['bin_topologies'], self.h5group.attrs['binhash'])
+        mapper, _, _ = binning.mapper_from_hdf5(self.run.h5file['bin_topologies'], self.h5group.attrs['binhash'])
         return mapper
 
     @property
@@ -226,7 +230,9 @@ class Iteration:
     @property
     def recycled_walkers(self):
         """Iterable[Walker]: Walkers that stopped in the sink."""
-        return (walker for walker in self if walker.recycled)
+        endpoint_type = self.h5group['seg_index']['endpoint_type']
+        indices = np.flatnonzero(endpoint_type == Segment.SEG_ENDPOINT_RECYCLED)
+        return (Walker(index, self) for index in indices)
 
     @property
     def _ibstates(self):
@@ -385,7 +391,7 @@ class Walker:
     @property
     def pcoords(self):
         """2D ndarray: Progress coordinate snapshots."""
-        return self.iteration.pcoords[self.index]
+        return self.iteration.h5group['pcoord'][self.index]
 
     @property
     def num_snapshots(self):
@@ -414,25 +420,8 @@ class Walker:
     @property
     def recycled(self):
         """bool: True if the walker stopped in the sink, False otherwise."""
-        return self.stopped_in(self.iteration.sink)
-
-    def stopped_in(self, pcoord_subset):
-        """Return True if the walker stopped (i.e., terminated) in a given
-        subset of progress coordinate space, False otherwise.
-
-        Parameters
-        ----------
-        pcoord_subset : Bin, BinUnion, or Container
-            A :type:`Container` object representing a subset of progress
-            coordinate space.
-
-        Returns
-        -------
-        bool
-            Whether the walker stopped in `pcoord_subset`.
-
-        """
-        return self.pcoords[-1] in pcoord_subset
+        endpoint_type = self.iteration.h5group['seg_index']['endpoint_type'][self.index]
+        return endpoint_type == Segment.SEG_ENDPOINT_RECYCLED
 
     def trace(self, source=None):
         """Return the trace (ancestral line) of the walker.
@@ -607,6 +596,7 @@ class Trace:
         is provided, the trace is continued only as far back as the last
         walker that stopped in `source`. Otherwise, the trace extends back
         to the initial state.
+    max_length : int, optional
 
     """
 
@@ -632,6 +622,16 @@ class Trace:
         self.walkers = tuple(reversed(walkers))
         self.source = source
         self.max_length = max_length
+
+    @property
+    def pcoords(self):
+        """2D ndarray: Progress coordinate snapshots."""
+        return np.concatenate([walker.pcoords for walker in self])
+
+    @property
+    def num_snapshots(self):
+        """int: Number of snapshots."""
+        return sum(walker.num_snapshots for walker in self)
 
     def __len__(self):
         return len(self.walkers)
