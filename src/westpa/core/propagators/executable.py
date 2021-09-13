@@ -1,11 +1,14 @@
 import logging
 import os
+import shutil
 import random
 import signal
 import subprocess
 import sys
 import tempfile
 import time
+import tarfile
+from io import BytesIO
 
 import numpy as np
 
@@ -16,6 +19,7 @@ from westpa.core.states import BasisState, InitialState
 from westpa.core.segment import Segment
 from westpa.core.yamlcfg import check_bool
 
+from westpa.core.trajectory import load_trajectory
 
 log = logging.getLogger(__name__)
 
@@ -60,6 +64,66 @@ def aux_data_loader(fieldname, data_filename, segment, single_point):
         raise ValueError('could not read any data for {}'.format(fieldname))
 
 
+def trajectory_loader(fieldname, coord_folder, segment, single_point):
+    # We just need one and the only trajectory and topology file from coord_folder
+    # it needs to be this way because the filename, namly the extension, bears information that tell
+    # us which format it is in
+    try:
+        data = load_trajectory(coord_folder)
+        segment.data['iterh5/trajectory'] = data
+    except Exception as e:
+        log.warning('could not read any data for {}: {}'.format(fieldname, str(e)))
+
+
+def restart_loader(fieldname, restart_folder, segment, single_point):
+    # We just need one and the only file from restart_folder
+    # it needs to be this way because we will need the filename
+    try:
+        d = BytesIO()
+        with tarfile.open(mode='w:gz', fileobj=d) as t:
+            t.add(restart_folder, arcname='.')
+
+        segment.data['iterh5/restart'] = d.getvalue() + b'\x01'  # add tail protection
+    except Exception as e:
+        log.warning('could not read any data for {}: {}'.format(fieldname, str(e)))
+    finally:
+        d.close()
+
+
+def restart_writer(path, segment):
+    # coord_file here is actually a directory. We just need one and the only file from the directory
+    # it needs to be this way because the filename, namly the extension, bears information that tell
+    # us which format it is in
+    try:
+        restart = segment.data.pop('iterh5/restart', None)
+        if restart is None:
+            raise ValueError('restart data is not present')
+
+        d = BytesIO(restart[:-1])  # remove tail protection
+        with tarfile.open(fileobj=d, mode='r:gz') as t:
+            t.extractall(path=path)
+
+    except Exception as e:
+        log.warning('could not write restart data for {}: {}'.format(str(segment), str(e)))
+    finally:
+        d.close()
+
+
+def seglog_loader(fieldname, log_folder, segment, single_point):
+    # We just need one and the only file from restart_folder
+    # it needs to be this way because we will need the filename
+    try:
+        d = BytesIO()
+        with tarfile.open(mode='w:gz', fileobj=d) as t:
+            t.add(log_folder, arcname='.')
+
+        segment.data['iterh5/log'] = d.getvalue() + b'\x01'  # add tail protection
+    except Exception as e:
+        log.warning('could not read any data for {}: {}'.format(fieldname, str(e)))
+    finally:
+        d.close()
+
+
 class ExecutablePropagator(WESTPropagator):
     ENV_CURRENT_ITER = 'WEST_CURRENT_ITER'
 
@@ -78,9 +142,6 @@ class ExecutablePropagator(WESTPropagator):
 
     # Environment variables for progress coordinate calculation
     ENV_STRUCT_DATA_REF = 'WEST_STRUCT_DATA_REF'
-
-    # Set everywhere a progress coordinate is required
-    ENV_PCOORD_RETURN = 'WEST_PCOORD_RETURN'
 
     ENV_RAND16 = 'WEST_RAND16'
     ENV_RAND32 = 'WEST_RAND32'
@@ -123,6 +184,7 @@ class ExecutablePropagator(WESTPropagator):
         self.segment_ref_template = config['west', 'data', 'data_refs', 'segment']
         self.basis_state_ref_template = config['west', 'data', 'data_refs', 'basis_state']
         self.initial_state_ref_template = config['west', 'data', 'data_refs', 'initial_state']
+        store_h5 = config.get(['west', 'data', 'data_refs', 'iteration']) is not None
 
         # Load additional environment variables for all child processes
         self.addtl_child_environ.update({k: str(v) for k, v in (config['west', 'executable', 'environ'] or {}).items()})
@@ -156,7 +218,23 @@ class ExecutablePropagator(WESTPropagator):
         log.debug('exe_info: {!r}'.format(self.exe_info))
 
         # Load configuration items relating to dataset input
-        self.data_info['pcoord'] = {'name': 'pcoord', 'loader': pcoord_loader, 'enabled': True, 'filename': None}
+        self.data_info['pcoord'] = {'name': 'pcoord', 'loader': pcoord_loader, 'enabled': True, 'filename': None, 'dir': False}
+        self.data_info['trajectory'] = {
+            'name': 'trajectory',
+            'loader': trajectory_loader,
+            'enabled': store_h5,
+            'filename': None,
+            'dir': True,
+        }
+        self.data_info['restart'] = {
+            'name': 'restart',
+            'loader': restart_loader,
+            'enabled': store_h5,
+            'filename': None,
+            'dir': True,
+        }
+        self.data_info['log'] = {'name': 'seglog', 'loader': seglog_loader, 'enabled': store_h5, 'filename': None, 'dir': True}
+
         dataset_configs = config.get(['west', 'executable', 'datasets']) or []
         for dsinfo in dataset_configs:
             try:
@@ -343,6 +421,8 @@ class ExecutablePropagator(WESTPropagator):
         self.update_args_env_iter(template_args, environ, segment.n_iter)
         self.update_args_env_segment(template_args, environ, segment)
         environ.update(addtl_env or {})
+        self.prepare_file_system(segment, environ)
+        child_info['cwd'] = environ[self.ENV_CURRENT_SEG_DATA_REF]
         return self.exec_child_from_child_info(child_info, template_args, environ)
 
     def exec_for_iteration(self, child_info, n_iter, addtl_env=None):
@@ -369,6 +449,81 @@ class ExecutablePropagator(WESTPropagator):
         environ.update(addtl_env or {})
         return self.exec_child_from_child_info(child_info, template_args, environ)
 
+    def prepare_file_system(self, segment, environ):
+        try:
+            # If the filesystem is properly clean.
+            os.makedirs(environ[self.ENV_CURRENT_SEG_DATA_REF])
+        except Exception:
+            # If the filesystem is NOT properly clean.
+            shutil.rmtree(environ[self.ENV_CURRENT_SEG_DATA_REF])
+            os.makedirs(environ[self.ENV_CURRENT_SEG_DATA_REF])
+        if self.data_info['restart']['enabled']:
+            restart_writer(environ[self.ENV_CURRENT_SEG_DATA_REF], segment=segment)
+
+    def setup_dataset_return(self, segment=None, subset_keys=None):
+        if subset_keys is None:
+            subset_keys = self.data_info.keys()
+
+        addtl_env = {}
+        return_files = {}
+        del_return_files = {}
+
+        for dataset in self.data_info:
+            if dataset not in subset_keys:
+                continue
+
+            if not self.data_info[dataset].get('enabled', False):
+                continue
+
+            return_template = self.data_info[dataset].get('filename')
+            if return_template:
+                if segment is None:
+                    raise ValueError('segment needs to be provided for dataset return')
+                return_files[dataset] = self.makepath(return_template, self.template_args_for_segment(segment))
+                del_return_files[dataset] = False
+            else:
+                isdir = self.data_info[dataset].get('dir', False)
+                if isdir:
+                    rfname = tempfile.mkdtemp()
+                else:
+                    (fd, rfname) = tempfile.mkstemp()
+                    os.close(fd)
+                return_files[dataset] = rfname
+                del_return_files[dataset] = True
+
+            addtl_env['WEST_{}_RETURN'.format(dataset.upper())] = return_files[dataset]
+
+        return addtl_env, return_files, del_return_files
+
+    def retrieve_dataset_return(self, segment, return_files, del_return_files, single_point):
+        for dataset in self.data_info:
+            if dataset not in return_files:
+                continue
+
+            # pcoord is always enabled (see __init__)
+            if not self.data_info[dataset].get('enabled', False):
+                continue
+
+            filename = return_files[dataset]
+            loader = self.data_info[dataset]['loader']
+            try:
+                loader(dataset, filename, segment, single_point=single_point)
+            except Exception as e:
+                log.error('could not read {} from {!r}: {!r}'.format(dataset, filename, e))
+                segment.status = Segment.SEG_STATUS_FAILED
+                break
+            else:
+                if del_return_files.get(dataset, False):
+                    try:
+                        if os.path.isfile(filename):
+                            os.unlink(filename)
+                        else:
+                            shutil.rmtree(filename)
+                    except Exception as e:
+                        log.warning('could not delete {} file {!r}: {!r}'.format(dataset, filename, e))
+                    else:
+                        log.debug('deleted {} file {!r}'.format(dataset, filename))
+
     # Specific functions required by the WEST framework
     def get_pcoord(self, state):
         '''Get the progress coordinate of the given basis or initial state.'''
@@ -387,23 +542,16 @@ class ExecutablePropagator(WESTPropagator):
             raise TypeError('state must be a BasisState or InitialState')
 
         child_info = self.exe_info.get('get_pcoord')
-        fd, rfname = tempfile.mkstemp()
-        os.close(fd)
+        addtl_env, return_files, del_return_files = self.setup_dataset_return(
+            subset_keys=['pcoord', 'trajectory', 'restart', 'log']
+        )
+        addtl_env[self.ENV_STRUCT_DATA_REF] = struct_ref
 
-        addtl_env = {self.ENV_PCOORD_RETURN: rfname, self.ENV_STRUCT_DATA_REF: struct_ref}
+        rc, rusage = execfn(child_info, state, addtl_env)
+        if rc != 0:
+            log.error('get_pcoord executable {!r} returned {}'.format(child_info['executable'], rc))
 
-        try:
-            rc, rusage = execfn(child_info, state, addtl_env)
-            if rc != 0:
-                log.error('get_pcoord executable {!r} returned {}'.format(child_info['executable'], rc))
-
-            loader = self.data_info['pcoord']['loader']
-            loader('pcoord', rfname, state, single_point=True)
-        finally:
-            try:
-                os.unlink(rfname)
-            except Exception as e:
-                log.warning('could not delete progress coordinate return file {!r}: {}'.format(rfname, e))
+        self.retrieve_dataset_return(state, return_files, del_return_files, True)
 
     def gen_istate(self, basis_state, initial_state):
         '''Generate a new initial state from the given basis state.'''
@@ -452,26 +600,7 @@ class ExecutablePropagator(WESTPropagator):
         for segment in segments:
             starttime = time.time()
 
-            addtl_env = {}
-
-            return_files = {}
-            del_return_files = {}
-
-            for dataset in self.data_info:
-                if not self.data_info[dataset].get('enabled', False):
-                    continue
-
-                return_template = self.data_info[dataset].get('filename')
-                if return_template:
-                    return_files[dataset] = self.makepath(return_template, self.template_args_for_segment(segment))
-                    del_return_files[dataset] = False
-                else:
-                    (fd, rfname) = tempfile.mkstemp()
-                    os.close(fd)
-                    return_files[dataset] = rfname
-                    del_return_files[dataset] = True
-
-                addtl_env['WEST_{}_RETURN'.format(dataset.upper())] = return_files[dataset]
+            addtl_env, return_files, del_return_files = self.setup_dataset_return(segment)
 
             # Spawn propagator and wait for its completion
             rc, rusage = self.exec_for_segment(child_info, segment, addtl_env)
@@ -488,27 +617,8 @@ class ExecutablePropagator(WESTPropagator):
                 continue
 
             # Extract data and store on segment for recording in the master thread/process/node
-            for dataset in self.data_info:
-                # pcoord is always enabled (see __init__)
-                if not self.data_info[dataset].get('enabled', False):
-                    continue
+            self.retrieve_dataset_return(segment, return_files, del_return_files, False)
 
-                filename = return_files[dataset]
-                loader = self.data_info[dataset]['loader']
-                try:
-                    loader(dataset, filename, segment, single_point=False)
-                except Exception as e:
-                    log.error('could not read {} from {!r}: {!r}'.format(dataset, filename, e))
-                    segment.status = Segment.SEG_STATUS_FAILED
-                    break
-                else:
-                    if del_return_files[dataset]:
-                        try:
-                            os.unlink(filename)
-                        except Exception as e:
-                            log.warning('could not delete {} file {!r}: {!r}'.format(dataset, filename, e))
-                        else:
-                            log.debug('deleted {} file {!r}'.format(dataset, filename))
             if segment.status == Segment.SEG_STATUS_FAILED:
                 continue
 

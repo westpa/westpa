@@ -8,15 +8,26 @@ import posixpath
 import socket
 import sys
 import time
+import logging
 
 import h5py
 import numpy as np
 from numpy import index_exp
 
+from mdtraj import Trajectory, join as join_traj
+from mdtraj.utils import in_units_of, import_, ensure_type
+from mdtraj.utils.six import string_types
+from mdtraj.formats import HDF5TrajectoryFile
+from mdtraj.formats.hdf5 import _check_mode, Frames
+
+from .trajectory import WESTTrajectory
+
 try:
     import psutil
 except ImportError:
     psutil = None
+
+log = logging.getLogger(__name__)
 
 #
 # Constants and globals
@@ -152,6 +163,74 @@ def get_creator_data(h5group):
     for attr in ['creation_program', 'creation_user', 'creation_hostname', 'creation_unix_time', 'creation_time']:
         d[attr] = attrs.get(attr)
     return d
+
+
+def load_west(filename):
+    """Load WESTPA trajectory files from disk.
+
+    Parameters
+    ----------
+    filename : str
+        String filename of HDF Trajectory file.
+    """
+
+    with h5py.File(filename, 'r') as f:
+        iter_group_template = 'iter_{1:0{0}d}'
+        iter_prec = f.attrs['west_iter_prec']
+        trajectories = []
+        n = 0
+
+        iter_group_name = iter_group_template.format(iter_prec, n)
+        for iter_group_name in f['iterations']:
+            iter_group = f['iterations/' + iter_group_name]
+
+            # pcoord is required
+            if 'pcoord' not in iter_group:
+                continue
+
+            raw_pcoord = iter_group['pcoord'][:]
+            if raw_pcoord.ndim != 3:
+                log.warn('pcoord is expected to be a 3-d ndarray instead of {}-d'.format(raw_pcoord.ndim))
+                continue
+            # ignore the first frame of each segment
+            raw_pcoord = raw_pcoord[:, 1:, :]
+            pcoords = np.concatenate(raw_pcoord, axis=0)
+            n_frames = raw_pcoord.shape[1]
+
+            if 'seg_index' in iter_group:
+                raw_pid = iter_group['seg_index']['parent_id'][:]
+
+                if np.any(raw_pid < 0):
+                    init_basis_ids = iter_group['ibstates']['istate_index']['basis_state_id'][:]
+                    init_ids = -(raw_pid[raw_pid < 0] + 1)
+                    raw_pid[raw_pid < 0] = [init_basis_ids[iid] for iid in init_ids]
+                parent_ids = raw_pid.repeat(n_frames, axis=0)
+            else:
+                parent_ids = None
+
+            if 'trajectories' in iter_group:
+                traj_link = iter_group['trajectories']
+                traj_filename = traj_link.file.filename
+
+                with WESTIterationFile(traj_filename) as traj_file:
+                    try:
+                        traj = traj_file.read_as_traj()
+                    except Exception:
+                        continue
+            else:
+                continue
+                # traj = WESTTrajectory(None)  # TODO: [HDF5] allow initializing trajectory without coordinates
+
+            traj.pcoords = pcoords
+            traj.parent_ids = parent_ids
+            trajectories.append(traj)
+
+            n += 1
+            iter_group_name = iter_group_template.format(iter_prec, n)
+
+    west_traj = join_traj(trajectories)
+
+    return west_traj
 
 
 ###
@@ -340,6 +419,278 @@ class WESTPAH5File(h5py.File):
         if group is None:
             group = self['/iterations']
         return group[self.iter_object_name(n_iter)]
+
+
+class WESTIterationFile(HDF5TrajectoryFile):
+    def __init__(self, file, mode='r', force_overwrite=True, compression='zlib', link=None):
+        if isinstance(file, str):
+            super(WESTIterationFile, self).__init__(file, mode, force_overwrite, compression)
+        else:
+            try:
+                self._init_from_handle(file)
+            except AttributeError:
+                raise ValueError('unknown input type: %s' % str(type(file)))
+
+    def _init_from_handle(self, handle):
+        self._handle = handle
+        self._open = handle.isopen != 0
+        self.mode = mode = handle.mode  # the mode in which the file was opened?
+
+        if mode not in ['r', 'w', 'a']:
+            raise ValueError("mode must be one of ['r', 'w', 'a']")
+
+        # import tables
+        self.tables = import_('tables')
+
+        if mode == 'w':
+            # what frame are we currently reading or writing at?
+            self._frame_index = 0
+            # do we need to write the header information?
+            self._needs_initialization = True
+
+        elif mode == 'a':
+            try:
+                self._frame_index = len(self._handle.root.coordinates)
+                self._needs_initialization = False
+            except self.tables.NoSuchNodeError:
+                self._frame_index = 0
+                self._needs_initialization = True
+        elif mode == 'r':
+            self._frame_index = 0
+            self._needs_initialization = False
+
+    def read(self, frame_indices=None, atom_indices=None):
+        _check_mode(self.mode, ('r',))
+
+        if frame_indices is None:
+            frame_slice = slice(None)
+            self._frame_index += frame_slice.stop - frame_slice.start
+        else:
+            frame_slice = ensure_type(frame_indices, dtype=np.int, ndim=1, name='frame_indices', warn_on_cast=False)
+            if not np.all(frame_slice < self._handle.root.coordinates.shape[0]):
+                raise ValueError(
+                    'As a zero-based index, the entries in '
+                    'frame_slice must all be less than the number of frames '
+                    'in the trajectory, %d' % self._handle.root.coordinates.shape[0]
+                )
+            if not np.all(frame_slice >= 0):
+                raise ValueError('The entries in frame_indices must be greater ' 'than or equal to zero')
+            self._frame_index += frame_slice[-1] - frame_slice[0]
+
+        if atom_indices is None:
+            # get all of the atoms
+            atom_slice = slice(None)
+        else:
+            atom_slice = ensure_type(atom_indices, dtype=np.int, ndim=1, name='atom_indices', warn_on_cast=False)
+            if not np.all(atom_slice < self._handle.root.coordinates.shape[1]):
+                raise ValueError(
+                    'As a zero-based index, the entries in '
+                    'atom_indices must all be less than the number of atoms '
+                    'in the trajectory, %d' % self._handle.root.coordinates.shape[1]
+                )
+            if not np.all(atom_slice >= 0):
+                raise ValueError('The entries in atom_indices must be greater ' 'than or equal to zero')
+
+        def get_field(name, slice, out_units, can_be_none=True):
+            try:
+                node = self._get_node(where='/', name=name)
+                data = node.__getitem__(slice)
+                in_units = node.attrs.units
+                if not isinstance(in_units, string_types):
+                    in_units = in_units.decode()
+                data = in_units_of(data, in_units, out_units)
+                return data
+            except self.tables.NoSuchNodeError:
+                if can_be_none:
+                    return None
+                raise
+
+        frames = Frames(
+            coordinates=get_field('coordinates', (frame_slice, atom_slice, slice(None)), out_units='nanometers', can_be_none=False),
+            time=get_field('time', frame_slice, out_units='picoseconds'),
+            cell_lengths=get_field('cell_lengths', (frame_slice, slice(None)), out_units='nanometers'),
+            cell_angles=get_field('cell_angles', (frame_slice, slice(None)), out_units='degrees'),
+            velocities=get_field('velocities', (frame_slice, atom_slice, slice(None)), out_units='nanometers/picosecond'),
+            kineticEnergy=get_field('kineticEnergy', frame_slice, out_units='kilojoules_per_mole'),
+            potentialEnergy=get_field('potentialEnergy', frame_slice, out_units='kilojoules_per_mole'),
+            temperature=get_field('temperature', frame_slice, out_units='kelvin'),
+            alchemicalLambda=get_field('lambda', frame_slice, out_units='dimensionless'),
+        )
+
+        return frames
+
+    def _has_node(self, where, name):
+        try:
+            self._get_node(where, name=name)
+        except self.tables.NoSuchNodeError:
+            return False
+
+        return True
+
+    def has_topology(self):
+        return self._has_node('/', 'topology')
+
+    def has_pointer(self):
+        return self._has_node('/', 'pointer')
+
+    def has_restart(self, seg_id):
+        return self._has_node('/restart', str(seg_id))
+
+    def write_data(self, where, name, data):
+        node = self._get_node(where=where, name=name)
+        node.append(data)
+
+    def read_data(self, where, name):
+        node = self._get_node(where=where, name=name)
+        return node.read()
+
+    def read_as_traj(self, iteration=None, segment=None, atom_indices=None):
+        _check_mode(self.mode, ('r',))
+
+        pnode = self._get_node(where='/', name='pointer')
+
+        iter_labels = pnode[:, 0]
+        seg_labels = pnode[:, 1]
+
+        if iteration is None and segment is None:
+            frame_indices = slice(None)
+        elif isinstance(iteration, (np.integer, int)) and isinstance(segment, (np.integer, int)):
+            frame_torf = np.logical_and(iter_labels == iteration, seg_labels == segment)
+            frame_indices = np.arange(len(iter_labels))[frame_torf]
+        else:
+            raise ValueError("iteration and segment must be integers and provided at the same time")
+
+        iter_labels = iter_labels[frame_indices]
+        seg_labels = seg_labels[frame_indices]
+
+        topology = self.topology
+        if atom_indices is not None:
+            topology = topology.subset(atom_indices)
+
+        data = self.read(frame_indices=frame_indices, atom_indices=atom_indices)
+        if len(data) == 0:
+            return Trajectory(xyz=np.zeros((0, topology.n_atoms, 3)), topology=topology)
+
+        in_units_of(data.coordinates, self.distance_unit, Trajectory._distance_unit, inplace=True)
+        in_units_of(data.cell_lengths, self.distance_unit, Trajectory._distance_unit, inplace=True)
+
+        return WESTTrajectory(
+            data.coordinates,
+            topology=topology,
+            time=data.time,
+            unitcell_lengths=data.cell_lengths,
+            unitcell_angles=data.cell_angles,
+            iter_labels=iter_labels,
+            seg_labels=seg_labels,
+            pcoords=None,
+        )
+
+    def read_restart(self, segment):
+        if self.has_restart(segment.seg_id):
+            data = self.read_data('/restart/%d' % segment.seg_id, 'data')
+            segment.data['iterh5/restart'] = data
+        else:
+            raise ValueError('no restart data available for {}'.format(str(segment)))
+
+    def write_segment(self, segment, pop=False):
+        n_iter = segment.n_iter
+
+        self.root._v_attrs['n_iter'] = n_iter
+
+        if pop:
+            get_data = segment.data.pop
+        else:
+            get_data = segment.data.get
+
+        traj = get_data('iterh5/trajectory', None)
+        restart = get_data('iterh5/restart', None)
+        slog = get_data('iterh5/log', None)
+
+        if traj is not None:
+            # create trajectory object
+            traj = WESTTrajectory(traj, iter_labels=n_iter, seg_labels=segment.seg_id)
+            if traj.n_frames == 0:
+                # we may consider logging warnings instead throwing errors for later.
+                # right now this is good for debugging purposes
+                raise ValueError('no trajectory data present for %s' % repr(segment))
+
+            if n_iter == 0:
+                base_time = 0
+            else:
+                iter_duration = traj.time[-1] - traj.time[0]
+                base_time = iter_duration * (n_iter - 1)
+
+            traj.time -= traj.time[0]
+            traj.time += base_time
+
+            # pointers
+            if not self.has_pointer():
+                self._create_earray('/', name='pointer', atom=self.tables.Int16Atom(), shape=(0, 2))
+
+            iter_idx = traj.iter_labels
+            seg_idx = traj.seg_labels
+
+            pointers = np.stack((iter_idx, seg_idx)).T
+
+            self.write_data('/', 'pointer', pointers)
+
+            # trajectory
+            self.write(
+                coordinates=in_units_of(traj.xyz, Trajectory._distance_unit, self.distance_unit),
+                time=traj.time,
+                cell_lengths=in_units_of(traj.unitcell_lengths, Trajectory._distance_unit, self.distance_unit),
+                cell_angles=traj.unitcell_angles,
+            )
+
+            # topology
+            if self.mode == 'a':
+                if not self.has_topology():
+                    self.topology = traj.topology
+            elif self.mode == 'w':
+                self.topology = traj.topology
+
+        # restart
+        if restart is not None:
+            if self.has_restart(segment.seg_id):
+                self._remove_node('/restart', name=str(segment.seg_id))
+
+            self._create_array(
+                '/restart/%d' % segment.seg_id,
+                name='data',
+                atom=self.tables.StringAtom(itemsize=len(restart)),
+                obj=restart,
+                createparents=True,
+            )
+
+        if slog is not None:
+            if self._has_node('/log', str(segment.seg_id)):
+                self._remove_node('/log', name=str(segment.seg_id))
+
+            self._create_array(
+                '/log/%d' % segment.seg_id,
+                name='data',
+                atom=self.tables.StringAtom(itemsize=len(slog)),
+                obj=slog,
+                createparents=True,
+            )
+
+    @property
+    def _create_group(self):
+        if self.tables.__version__ >= '3.0.0':
+            return self._handle.create_group
+        return self._handle.createGroup
+
+    @property
+    def _create_array(self):
+        if self.tables.__version__ >= '3.0.0':
+            return self._handle.create_array
+        return self._handle.createArray
+
+    @property
+    def _remove_node(self):
+        if self.tables.__version__ >= '3.0.0':
+            return self._handle.remove_node
+        return self._handle.removeNode
 
 
 ### Generalized WE dataset access classes

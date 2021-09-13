@@ -15,6 +15,7 @@ dependencies:
   - ipykernel
   - mpi4py
   - tqdm
+  - mdtraj
   # testing
   - pytest
   - pytest-cov

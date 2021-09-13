@@ -78,7 +78,7 @@ re-running segments that were incomplete (or never started).
 
 In case that the iteration data got corrupted or you want to go
 back to an specific iteration and change something, you need to 
-delete all the trajectory secgments and other files related to that 
+delete all the trajectory segments and other files related to that 
 iteration and run w_truncate on that iteration. This will delete westpa's 
 information about the nth iteration, which includes which segments have 
 run and which have not. Then restarting your westpa simulation will 
