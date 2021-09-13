@@ -89,9 +89,9 @@ class Run:
         return itertools.chain.from_iterable(self)
 
     @property
-    def successful_walkers(self):
-        """Iterable[Walker]: Walkers that stopped in the target."""
-        return itertools.chain.from_iterable(iteration.successful_walkers for iteration in self)
+    def recycled_walkers(self):
+        """Iterable[Walker]: Walkers that stopped in the sink."""
+        return itertools.chain.from_iterable(iteration.recycled_walkers for iteration in self)
 
     def iteration(self, number):
         """Return a specific iteration.
@@ -224,9 +224,9 @@ class Iteration:
         return (Walker(index, self) for index in range(self.num_walkers))
 
     @property
-    def successful_walkers(self):
-        """Iterable[Walker]: Walkers that stopped in the target."""
-        return (walker for walker in self if walker.successful)
+    def recycled_walkers(self):
+        """Iterable[Walker]: Walkers that stopped in the sink."""
+        return (walker for walker in self if walker.recycled)
 
     @property
     def _ibstates(self):
@@ -301,9 +301,9 @@ class Iteration:
         ]
 
     @cached_property
-    def target(self):
-        """Target: Union of bins that serve as the target."""
-        return Target(self)
+    def sink(self):
+        """Sink: Union of bins serving as the recycling sink."""
+        return Sink(self)
 
     def bin(self, index):
         """Return the bin with the given index.
@@ -412,9 +412,9 @@ class Walker:
         return (walker for walker in self.iteration.next.walkers if walker.parent == self)
 
     @property
-    def successful(self):
-        """bool: True if the walker stopped in the target, False otherwise."""
-        return self.stopped_in(self.iteration.target)
+    def recycled(self):
+        """bool: True if the walker stopped in the sink, False otherwise."""
+        return self.stopped_in(self.iteration.sink)
 
     def stopped_in(self, pcoord_subset):
         """Return True if the walker stopped (i.e., terminated) in a given
@@ -564,17 +564,14 @@ class BinUnion:
         return f'{self.__class__.__name__}{self.bins}'
 
 
-class Target(BinUnion):
-    """A union of bins that serve as the target for an iteration.
+class Sink(BinUnion):
+    """A union of bins serving as the recycling sink for a given iteration.
 
     Parameters
     ----------
     iteration : Iteration
-        The iteration for which the target is defined.
-
-    Notes
-    -----
-    The bins of the target belong to the *next* iteration.
+        The iteration whose target states define the sink. The bins
+        comprising the sink belong to the *next* iteration.
 
     """
 
@@ -584,12 +581,12 @@ class Target(BinUnion):
         else:
             pcoords = iteration.target_state_pcoords[:]
             bin_indices = set(iteration.next.bin_mapper.assign(pcoords))
-            super().__init__(*(Bin(i, iteration.next) for i in bin_indices))
+            super().__init__(*(Bin(k, iteration.next) for k in bin_indices))
         self.iteration = iteration
 
     @property
-    def states(self):
-        """list[TargetState]: Target states defining the target."""
+    def target_states(self):
+        """list[TargetState]: Target states defining the sink."""
         return self.iteration.target_states
 
     def __repr__(self):
