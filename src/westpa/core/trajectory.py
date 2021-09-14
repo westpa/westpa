@@ -8,7 +8,8 @@ FormatRegistry.loaders['.rst'] = mdformats.amberrst.load_restrt
 FormatRegistry.fileobjects['.rst'] = mdformats.AmberRestartFile
 
 TRAJECTORY_EXTS = list(FormatRegistry.loaders.keys())
-TOPOLOGY_EXTS.remove(".h5", ".hdf5", ".lh5")
+for ext in [".h5", ".hdf5", ".lh5"]:
+    TOPOLOGY_EXTS.remove(ext)
 
 
 class WESTTrajectory(Trajectory):
