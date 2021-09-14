@@ -286,7 +286,6 @@ def load_trajectory(folder):
     traj_file = top_file = None
     for filename in os.listdir(folder):
         filepath = os.path.join(folder, filename)
-        print(filepath)
         if not os.path.isfile(filepath):
             continue
 
