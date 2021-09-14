@@ -7,7 +7,8 @@ from mdtraj.core.trajectory import _TOPOLOGY_EXTS as TOPOLOGY_EXTS, _get_extensi
 FormatRegistry.loaders['.rst'] = mdformats.amberrst.load_restrt
 FormatRegistry.fileobjects['.rst'] = mdformats.AmberRestartFile
 
-TRAJECTORY_EXTS = FormatRegistry.loaders.keys()
+TRAJECTORY_EXTS = list(FormatRegistry.loaders.keys())
+TOPOLOGY_EXTS.remove(".h5", ".hdf5", ".lh5")
 
 
 class WESTTrajectory(Trajectory):
