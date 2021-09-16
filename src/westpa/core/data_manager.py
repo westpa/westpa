@@ -669,7 +669,7 @@ class WESTDataManager:
                 istate_index = ibstate_group['istate_index'][...]
             except KeyError:
                 return []
-            istate_pcoords = ibstate_group['pcoord'][...]
+            istate_pcoords = ibstate_group['istate_pcoord'][...]
 
             for state_id, (state, pcoord) in enumerate(zip(istate_index, istate_pcoords)):
                 states.append(
