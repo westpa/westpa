@@ -252,20 +252,25 @@ def msmwe_compute_ss(plugin_config, west_files):
     # model.initialize(fileSpecifier, refPDBfile, initPDBfile, modelName)
     model.initialize(fileSpecifier, refPDBfile, modelName, tau)
 
-    # Set some model parameters
-    WEtargetp1 = plugin_config.get('target_pcoord1', None)
-    if WEtargetp1 is not None:
-        log.warning(
-            "Using a deprecated target pcoord specification. "
-            "You should change this to explicitly give target_pcoord1_min and target_pcoord1_max as bounds. "
-            "Defaulting min to -np.inf for now.."
-        )
+    basis_pcoord_bounds = np.array(plugin_config.get('basis_pcoord_bounds'), dtype=float)
+    target_pcoord_bounds = np.array(plugin_config.get('target_pcoord_bounds'), dtype=float)
+    model.basis_pcoord_bounds = basis_pcoord_bounds
+    model.target_pcoord_bounds = target_pcoord_bounds
 
-    model.WEtargetp1_bounds = [
-        plugin_config.get('target_pcoord1_min', -np.inf),
-        plugin_config.get('target_pcoord1_max', WEtargetp1),
-    ]
-    model.WEbasisp1_bounds = [plugin_config.get('basis_pcoord1_min'), plugin_config.get('basis_pcoord1_max')]
+    # Set some model parameters
+    # WEtargetp1 = plugin_config.get('target_pcoord1', None)
+    # if WEtargetp1 is not None:
+    #     log.warning(
+    #         "Using a deprecated target pcoord specification. "
+    #         "You should change this to explicitly give target_pcoord1_min and target_pcoord1_max as bounds. "
+    #         "Defaulting min to -np.inf for now.."
+    #     )
+    #
+    # model.WEtargetp1_bounds = [
+    #     plugin_config.get('target_pcoord1_min', -np.inf),
+    #     plugin_config.get('target_pcoord1_max', WEtargetp1),
+    # ]
+    # model.WEbasisp1_bounds = [plugin_config.get('basis_pcoord1_min'), plugin_config.get('basis_pcoord1_max')]
 
     model.pcoord_ndim0 = plugin_config.get('pcoord_ndim0')
     model.dimReduceMethod = plugin_config.get('dim_reduce_method')
