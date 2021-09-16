@@ -65,9 +65,7 @@ def aux_data_loader(fieldname, data_filename, segment, single_point):
 
 
 def trajectory_loader(fieldname, coord_folder, segment, single_point):
-    # We just need one and the only trajectory and topology file from coord_folder
-    # it needs to be this way because the filename, namly the extension, bears information that tell
-    # us which format it is in
+    ''' Load data from the trajectory return. Please see ``load_trajectory`` for details.'''
     try:
         data = load_trajectory(coord_folder)
         segment.data['iterh5/trajectory'] = data
@@ -76,8 +74,8 @@ def trajectory_loader(fieldname, coord_folder, segment, single_point):
 
 
 def restart_loader(fieldname, restart_folder, segment, single_point):
-    # We just need one and the only file from restart_folder
-    # it needs to be this way because we will need the filename
+    ''' Load data from the restart return. The loader will tar all files in ``restart_folder``
+    and store it in the per-iteration HDF5 file.'''
     try:
         d = BytesIO()
         with tarfile.open(mode='w:gz', fileobj=d) as t:
@@ -91,9 +89,7 @@ def restart_loader(fieldname, restart_folder, segment, single_point):
 
 
 def restart_writer(path, segment):
-    # coord_file here is actually a directory. We just need one and the only file from the directory
-    # it needs to be this way because the filename, namly the extension, bears information that tell
-    # us which format it is in
+    '''Prepare the necessary files from the per-iteration HDF5 file to run ``segnment``.'''
     try:
         restart = segment.data.pop('iterh5/restart', None)
         if restart is None:
@@ -110,8 +106,8 @@ def restart_writer(path, segment):
 
 
 def seglog_loader(fieldname, log_folder, segment, single_point):
-    # We just need one and the only file from restart_folder
-    # it needs to be this way because we will need the filename
+    ''' Load data from the log return. The loader will tar all files in ``log_folder``
+    and store it in the per-iteration HDF5 file.'''
     try:
         d = BytesIO()
         with tarfile.open(mode='w:gz', fileobj=d) as t:
@@ -461,6 +457,8 @@ class ExecutablePropagator(WESTPropagator):
             restart_writer(environ[self.ENV_CURRENT_SEG_DATA_REF], segment=segment)
 
     def setup_dataset_return(self, segment=None, subset_keys=None):
+        '''Set up temporary files and environment variables that point to them for segment
+        runners to return data. '''
         if subset_keys is None:
             subset_keys = self.data_info.keys()
 
@@ -496,6 +494,7 @@ class ExecutablePropagator(WESTPropagator):
         return addtl_env, return_files, del_return_files
 
     def retrieve_dataset_return(self, segment, return_files, del_return_files, single_point):
+        '''Retrieve returned data from the temporary locations directed by the environment variables. '''
         for dataset in self.data_info:
             if dataset not in return_files:
                 continue
