@@ -13,6 +13,9 @@ for ext in [".h5", ".hdf5", ".lh5"]:
 
 
 class WESTTrajectory(Trajectory):
+    '''A subclass of ``mdtraj.Trajectory`` that contains the trajectory of atom coordinates with
+    pointers denoting the iteration number and segment index of each frame. '''
+
     def __init__(
         self,
         coordinates,
@@ -156,6 +159,10 @@ class WESTTrajectory(Trajectory):
         self._parent_ids = self._check_labels(value)
 
     def join(self, other, check_topology=True, discard_overlapping_frames=False):
+        """Join two ``Trajectory``s. This overrides ``mdtraj.Trajectory.join``
+        so that it also handles WESTPA pointers.
+        ``mdtraj.Trajectory.join``'s documentation for more details.
+        """
         if isinstance(other, Trajectory):
             other = [other]
 
@@ -219,25 +226,9 @@ class WESTTrajectory(Trajectory):
         return new_westpa_traj
 
     def slice(self, key, copy=True):
-        """Slice trajectory, by extracting one or more frames into a separate object
-
-        This method can also be called using index bracket notation, i.e
-        `traj[1] == traj.slice(1)`
-
-        or
-
-        `traj[0, 1] == traj.slice(0, 1)`
-
-        Parameters
-        ----------
-        key : {int, np.ndarray, slice, tuple}
-            The slice to take. Can be either an int, a list of ints, or a slice
-            object for slicing based on the index of each frame, or a tuple object
-            for slicing based on iteration or segment indices.
-        copy : bool, default=True
-            Copy the arrays after slicing. If you set this to false, then if
-            you modify a slice, you'll modify the original array since they
-            point to the same data.
+        """Slice the ``Trajectory``. This overrides ``mdtraj.Trajectory.slice``
+        so that it also handles WESTPA pointers. Please see
+        ``mdtraj.Trajectory.slice``'s documentation for more details.
         """
 
         if isinstance(key, tuple):
@@ -283,6 +274,11 @@ class WESTTrajectory(Trajectory):
 
 
 def load_trajectory(folder):
+    '''Load trajectory from ``folder`` using ``mdtraj`` and return a ``mdtraj.Trajectory``
+    object. The folder should contain a trajectory and a topology file (with a recognizable
+    extension) that is supported by ``mdtraj``. The topology file is optional if the
+    trajectory file contains topology data (e.g., HDF5 format).
+    '''
     traj_file = top_file = None
     for filename in os.listdir(folder):
         filepath = os.path.join(folder, filename)
