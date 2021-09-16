@@ -529,7 +529,8 @@ class WESTDataManager:
 
     def create_ibstate_iter_h5file(self, basis_states):
         '''Create the per-iteration HDF5 file for the basis states (i.e., iteration 0).
-        This special treatment is needed so that the analysis tools can access basis states more easily.'''
+        This special treatment is needed so that the analysis tools can access basis states
+        more easily.'''
 
         if not self.store_h5:
             return

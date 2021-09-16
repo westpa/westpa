@@ -161,6 +161,7 @@ class WESTTrajectory(Trajectory):
     def join(self, other, check_topology=True, discard_overlapping_frames=False):
         """Join two ``Trajectory``s. This overrides ``mdtraj.Trajectory.join``
         so that it also handles WESTPA pointers.
+        ``mdtraj.Trajectory.join``'s documentation for more details.
         """
         if isinstance(other, Trajectory):
             other = [other]
@@ -226,7 +227,8 @@ class WESTTrajectory(Trajectory):
 
     def slice(self, key, copy=True):
         """Slice the ``Trajectory``. This overrides ``mdtraj.Trajectory.slice``
-        so that it also handles WESTPA pointers.
+        so that it also handles WESTPA pointers. Please see
+        ``mdtraj.Trajectory.slice``'s documentation for more details.
         """
 
         if isinstance(key, tuple):
@@ -272,10 +274,10 @@ class WESTTrajectory(Trajectory):
 
 
 def load_trajectory(folder):
-    '''Load trajectory from ``folder`` using ``mdtraj``. The folder should contain a
-    trajectory and a topology file (with a recognizable extension) that is supported by
-    ``mdtraj``. The topology file is optional if the trajectory file contains topology
-    data (e.g., HDF5 format).
+    '''Load trajectory from ``folder`` using ``mdtraj`` and return a ``mdtraj.Trajectory``
+    object. The folder should contain a trajectory and a topology file (with a recognizable
+    extension) that is supported by ``mdtraj``. The topology file is optional if the
+    trajectory file contains topology data (e.g., HDF5 format).
     '''
     traj_file = top_file = None
     for filename in os.listdir(folder):
