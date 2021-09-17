@@ -252,25 +252,24 @@ def msmwe_compute_ss(plugin_config, west_files):
     # model.initialize(fileSpecifier, refPDBfile, initPDBfile, modelName)
     model.initialize(fileSpecifier, refPDBfile, modelName, tau)
 
-    basis_pcoord_bounds = np.array(plugin_config.get('basis_pcoord_bounds'), dtype=float)
-    target_pcoord_bounds = np.array(plugin_config.get('target_pcoord_bounds'), dtype=float)
+    # I've gone through 3 iterations of parameters for specifying basis and target pcoord boundaries before settling
+    #   on something that's appropriately general for multidimensional progress coordinates.
+    # Don't bother with backwards compatibility for this, since the old ones probably aren't really in use by
+    #   many anyways, but do raise a descriptive warning.
+
+    basis_pcoord_bounds = np.array(plugin_config.get('basis_pcoord_bounds', None), dtype=float)
+    target_pcoord_bounds = np.array(plugin_config.get('target_pcoord_bounds', None), dtype=float)
+
+    if np.isnan(basis_pcoord_bounds) or np.isnan(target_pcoord_bounds):
+        log.critical(
+            "Target and/or basis pcoord bounds were not specified. "
+            "Set them using the 'basis_pcoord_bounds' or 'target_pcoord_bounds' parameters. "
+            "'basis/target_pcoord1_min/max' and 'basis/target_pcoord1' are no longer supported. "
+            "See https://jdrusso.github.io/msm_we/api.html#msm_we.msm_we.modelWE.initialize for details."
+        )
+
     model.basis_pcoord_bounds = basis_pcoord_bounds
     model.target_pcoord_bounds = target_pcoord_bounds
-
-    # Set some model parameters
-    # WEtargetp1 = plugin_config.get('target_pcoord1', None)
-    # if WEtargetp1 is not None:
-    #     log.warning(
-    #         "Using a deprecated target pcoord specification. "
-    #         "You should change this to explicitly give target_pcoord1_min and target_pcoord1_max as bounds. "
-    #         "Defaulting min to -np.inf for now.."
-    #     )
-    #
-    # model.WEtargetp1_bounds = [
-    #     plugin_config.get('target_pcoord1_min', -np.inf),
-    #     plugin_config.get('target_pcoord1_max', WEtargetp1),
-    # ]
-    # model.WEbasisp1_bounds = [plugin_config.get('basis_pcoord1_min'), plugin_config.get('basis_pcoord1_max')]
 
     model.pcoord_ndim0 = plugin_config.get('pcoord_ndim0')
     model.dimReduceMethod = plugin_config.get('dim_reduce_method')
