@@ -24,6 +24,10 @@ determine how to access data even as the file format (i.e. organization of data 
 evolves.
 
 Version history:
+    Version 8
+        - Added external links to trajectory files in iterations/iter_* groups, if the HDF5
+          framework was used.
+        - Added an iter group for the iteration 0 to store conformations of basis states.
     Version 7
         - Removed bin_assignments, bin_populations, and bin_rates from iteration group.
         - Added new_segments subgroup to iteration group
