@@ -2,12 +2,13 @@ import numpy as np
 import os
 
 from mdtraj import Trajectory, load as load_traj, FormatRegistry, formats as mdformats
-from mdtraj.core.trajectory import _TOPOLOGY_EXTS as TOPOLOGY_EXTS, _get_extension as get_extension
+from mdtraj.core.trajectory import _TOPOLOGY_EXTS, _get_extension as get_extension
 
 FormatRegistry.loaders['.rst'] = mdformats.amberrst.load_restrt
 FormatRegistry.fileobjects['.rst'] = mdformats.AmberRestartFile
 
-TRAJECTORY_EXTS = FormatRegistry.loaders.keys()
+TRAJECTORY_EXTS = list(FormatRegistry.loaders.keys())
+TOPOLOGY_EXTS = list(_TOPOLOGY_EXTS)
 for ext in [".h5", ".hdf5", ".lh5"]:
     TOPOLOGY_EXTS.remove(ext)
 
