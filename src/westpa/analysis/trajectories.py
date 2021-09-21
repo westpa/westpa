@@ -8,7 +8,11 @@ try:
 except ImportError:
     mdtraj = None
 
-from functools import cached_property, partial, reduce
+try:
+    from functools import cached_property
+except ImportError:
+    cached_property = property
+from functools import partial, reduce
 from tqdm import tqdm
 from westpa.analysis.core import Walker, Trace
 
