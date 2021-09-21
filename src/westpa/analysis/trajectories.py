@@ -8,10 +8,6 @@ try:
 except ImportError:
     mdtraj = None
 
-try:
-    from functools import cached_property
-except ImportError:
-    cached_property = property
 from functools import partial, reduce
 from tqdm import tqdm
 from westpa.analysis.core import Walker, Trace
@@ -175,6 +171,8 @@ class Trajectory:
         self.concatenator = concatenator
         self.cache_segments = cache_segments
 
+        self._segment_collector = SegmentCollector(self)
+
         # Attach self to Walker and Trace classes.
         for cls in Walker, Trace:
             if hasattr(cls, name):
@@ -191,10 +189,10 @@ class Trajectory:
         """
         return '_' + self.name
 
-    @cached_property
+    @property
     def segment_collector(self):
         """SegmentCollector: Segment retrieval manager."""
-        return SegmentCollector(self)
+        return self._segment_collector
 
     @property
     def fget(self):
