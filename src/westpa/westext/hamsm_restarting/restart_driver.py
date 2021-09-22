@@ -378,7 +378,6 @@ class RestartDriver:
 
         self.extension_iters = plugin_config.get('extension_iters', 0)
         self.max_total_iterations = westpa.rc.config.get(['west', 'propagation', 'max_total_iterations'], default=None)
-        self.pcoord_ndim = plugin_config.get('pcoord_ndim', default=1)
         self.base_total_iterations = self.max_total_iterations
 
         self.coord_len = plugin_config.get('coord_len', 2)
