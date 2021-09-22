@@ -127,6 +127,7 @@ def prepare_coordinates(plugin_config, h5file, we_h5filename):
 
     parentTraj = plugin_config.get('parent_traj_filename')
     childTraj = plugin_config.get('child_traj_filename')
+    pcoord_ndim = plugin_config.get('pcoord_ndim', 1)
 
     model = msm_we.modelWE()
     log.info('Preparing coordinates...')
@@ -134,7 +135,7 @@ def prepare_coordinates(plugin_config, h5file, we_h5filename):
     # Only need the model to get the number of iterations and atoms
     # TODO: Replace this with something more lightweight, get directly from WE
     log.debug(f'Doing collectCoordinates on  WE file {we_h5filename}')
-    model.initialize(we_h5filename, refPDBfile, modelName)
+    model.initialize(we_h5filename, refPDBfile, modelName, pcoord_ndim=pcoord_ndim)
     model.get_iterations()
 
     log.debug(f"Found {model.maxIter} iterations")
@@ -244,13 +245,14 @@ def msmwe_compute_ss(plugin_config, west_files):
     modelName = plugin_config.get('model_name')
     n_clusters = plugin_config.get('n_clusters')
     tau = plugin_config.get('tau', None)
+    pcoord_ndim = plugin_config.get('pcoord_ndim', 1)
 
     # Fire up the model object
     # (Eventually this will just go in __init__)
 
     # In RestartXX/RunYY fileSpecifier is a list of all Restart{0..XX}/Run{1..YY}/west.h5
     # model.initialize(fileSpecifier, refPDBfile, initPDBfile, modelName)
-    model.initialize(fileSpecifier, refPDBfile, modelName, tau)
+    model.initialize(fileSpecifier, refPDBfile, modelName, tau, pcoord_ndim=pcoord_ndim)
 
     # I've gone through 3 iterations of parameters for specifying basis and target pcoord boundaries before settling
     #   on something that's appropriately general for multidimensional progress coordinates.
@@ -271,7 +273,6 @@ def msmwe_compute_ss(plugin_config, west_files):
     model.basis_pcoord_bounds = basis_pcoord_bounds
     model.target_pcoord_bounds = target_pcoord_bounds
 
-    model.pcoord_ndim0 = plugin_config.get('pcoord_ndim0')
     model.dimReduceMethod = plugin_config.get('dim_reduce_method')
 
     model.n_lag = n_lag
@@ -377,6 +378,7 @@ class RestartDriver:
 
         self.extension_iters = plugin_config.get('extension_iters', 0)
         self.max_total_iterations = westpa.rc.config.get(['west', 'propagation', 'max_total_iterations'], default=None)
+        self.pcoord_ndim = plugin_config.get('pcoord_ndim', default=1)
         self.base_total_iterations = self.max_total_iterations
 
         self.coord_len = plugin_config.get('coord_len', 2)
