@@ -406,7 +406,7 @@ The following options for datasets are supported:
             self.datasets.append(self.parse_dataset_string(dsstr))
 
         # self.h5storage.open_analysis_h5file()
-        self.output_file = h5py.File(args.output)
+        self.output_file = h5py.File(args.output, 'a')
 
     def parse_dataset_string(self, dsstr):
         dsinfo = {}
