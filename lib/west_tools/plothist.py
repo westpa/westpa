@@ -284,7 +284,7 @@ class PlotSupports2D(PlotHistBase):
         if self.plot_output_filename:
             if self.plotscale == 'energy':
                 plothist = enehist
-                label = r'$\Delta F(\vec{x})\,/\,kT$' +'\n' + r'$\left[-\ln\,P(x)\right]$'
+                label = r'$-\ln\,P(x)\ [kT^{-1}]$'
             elif self.plotscale == 'log10':
                 plothist = log10hist
                 label = r'$\log_{10}\ P(\vec{x})$'
