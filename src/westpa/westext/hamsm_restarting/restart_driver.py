@@ -489,27 +489,10 @@ class RestartDriver:
 
         os.remove(self.data_manager.we_h5filename)
 
-        # Ignore dangling symlinks -- many of the symlinks in traj_segs will be broken when they're copied, because
-        #   they're still pointing to the original paths relative to the simulation root.
-        # However, *after* we copy them back, those references will be in the right place again!
-        # shutil.copytree(f'restart0/run{run_number}/traj_segs', 'traj_segs', symlinks=True, ignore_dangling_symlinks=True)
-        # shutil.copytree(f'restart0/run{run_number}/seg_logs', 'seg_logs')
         os.symlink(f'restart0/run{run_number}/traj_segs', 'traj_segs')
         os.symlink(f'restart0/run{run_number}/seg_logs', 'seg_logs')
 
         if first_extension:
-
-            # This WOULD work if I didn't need to clear sim_manager state. But, I do.
-            # self.max_total_iterations += self.extension_iters
-            # self.sim_manager.max_total_iterations = self.max_total_iterations
-
-            # Backup (copy) west.cfg to west_normal.cfg  (if west_normal.cfg does not exist)
-            #       If it DOES exist, then we must be extending again, so extend on the current west.cfg
-            if not os.path.exists('west_original_length.cfg'):
-                log.debug("Backing up west.cfg")
-                shutil.copy('west.cfg', 'west_original_length.cfg')
-            else:
-                log.info('A backed-up west_original_length.cfg already exists, not overwriting.')
 
             # Get lines to make a new west.cfg by extending west.propagation.max_total_iterations
             with open('west.cfg', 'r') as west_config:
@@ -522,10 +505,6 @@ class RestartDriver:
                         new_line = f"{line.split(':')[0]}: {new_max_iters}\n"
                         lines[i] = new_line
                         break
-
-            # And overwrite the original with it
-            with open('west.cfg', 'w') as west_config:
-                west_config.writelines(lines)
 
         with open(self.restart_file, 'w') as fp:
             json.dump(restart_state, fp)
