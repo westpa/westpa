@@ -135,7 +135,17 @@ def prepare_coordinates(plugin_config, h5file, we_h5filename):
     # Only need the model to get the number of iterations and atoms
     # TODO: Replace this with something more lightweight, get directly from WE
     log.debug(f'Doing collectCoordinates on  WE file {we_h5filename}')
-    model.initialize(we_h5filename, refPDBfile, modelName, pcoord_ndim=pcoord_ndim)
+    model.initialize(
+        [we_h5filename],
+        refPDBfile,
+        modelName,
+        # Pass some dummy arguments -- these aren't important, this model is just created for convenience
+        # in the coordinate collection. Dummy arguments prevent warnings from being raised.
+        basis_pcoord_bounds=[[-np.inf, np.inf]],
+        target_pcoord_bounds=[[-np.inf, np.inf]],
+        tau=1,
+        pcoord_ndim=pcoord_ndim,
+    )
     model.get_iterations()
 
     log.debug(f"Found {model.maxIter} iterations")
@@ -241,24 +251,11 @@ def msmwe_compute_ss(plugin_config, west_files):
     model = msm_we.modelWE()
     streaming = plugin_config.get('streaming', False)
 
-    fileSpecifier = ' '.join(west_files)
     refPDBfile = plugin_config.get('ref_pdb_file')
     modelName = plugin_config.get('model_name')
     n_clusters = plugin_config.get('n_clusters')
     tau = plugin_config.get('tau', None)
     pcoord_ndim = plugin_config.get('pcoord_ndim', 1)
-
-    # Fire up the model object
-    # (Eventually this will just go in __init__)
-
-    # In RestartXX/RunYY fileSpecifier is a list of all Restart{0..XX}/Run{1..YY}/west.h5
-    # model.initialize(fileSpecifier, refPDBfile, initPDBfile, modelName)
-    model.initialize(fileSpecifier, refPDBfile, modelName, tau, pcoord_ndim=pcoord_ndim)
-
-    # I've gone through 3 iterations of parameters for specifying basis and target pcoord boundaries before settling
-    #   on something that's appropriately general for multidimensional progress coordinates.
-    # Don't bother with backwards compatibility for this, since the old ones probably aren't really in use by
-    #   many anyways, but do raise a descriptive warning.
 
     basis_pcoord_bounds = np.array(plugin_config.get('basis_pcoord_bounds', np.nan), dtype=float)
     target_pcoord_bounds = np.array(plugin_config.get('target_pcoord_bounds', np.nan), dtype=float)
@@ -271,19 +268,27 @@ def msmwe_compute_ss(plugin_config, west_files):
             "See https://jdrusso.github.io/msm_we/api.html#msm_we.msm_we.modelWE.initialize for details."
         )
 
-    model.basis_pcoord_bounds = basis_pcoord_bounds
-    model.target_pcoord_bounds = target_pcoord_bounds
+    if tau is None:
+        log.warning('No tau provided to restarting plugin. Defaulting to 1.')
+        tau = 1
+
+    # Fire up the model object
+    model.initialize(
+        west_files,
+        refPDBfile,
+        modelName,
+        tau,
+        basis_pcoord_bounds=basis_pcoord_bounds,
+        target_pcoord_bounds=target_pcoord_bounds,
+        tau=tau,
+        pcoord_ndim=pcoord_ndim,
+    )
 
     model.dimReduceMethod = plugin_config.get('dim_reduce_method')
 
     model.n_lag = n_lag
 
-    # last_iter_cluster = last_iter  # model.maxIter-1 #last iter often not complete
-    # i = last_iter_cluster
-    # coordSet = np.zeros((0, model.nAtoms, 3))  # extract coordinate libraries for clustering
-
     log.debug("Loading in iteration data.. (this could take a while)")
-    # log.debug(f'coord shape is {coordSet.shape}')
 
     # First dimension is the total number of segments
     model.get_iterations()
