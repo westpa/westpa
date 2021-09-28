@@ -277,7 +277,6 @@ def msmwe_compute_ss(plugin_config, west_files):
         west_files,
         refPDBfile,
         modelName,
-        tau,
         basis_pcoord_bounds=basis_pcoord_bounds,
         target_pcoord_bounds=target_pcoord_bounds,
         tau=tau,
