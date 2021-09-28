@@ -618,7 +618,7 @@ class RestartDriver:
             log.debug(f"Moving {old_path} to {new_path}")
 
             if os.path.exists(new_path):
-                log.error(f"{new_path} already exists. Removing and overwriting.")
+                log.info(f"{new_path} already exists. Removing and overwriting.")
                 shutil.rmtree(new_path)
 
             try:
