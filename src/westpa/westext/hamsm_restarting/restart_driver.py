@@ -239,6 +239,7 @@ def msmwe_compute_ss(plugin_config, west_files):
     # ##### Done with monkey-patching.
 
     model = msm_we.modelWE()
+    streaming = plugin_config.get('streaming', False)
 
     fileSpecifier = ' '.join(west_files)
     refPDBfile = plugin_config.get('ref_pdb_file')
@@ -307,7 +308,7 @@ def msmwe_compute_ss(plugin_config, west_files):
     else:
         # FIXME: This gives the wrong shape, but loading from the clusterfile gives the right shape
         log.debug("clustering coordinates into " + str(n_clusters) + " clusters...")
-        model.cluster_coordinates(n_clusters)
+        model.cluster_coordinates(n_clusters, streaming=streaming)
 
     first_iter = 1
     model.get_fluxMatrix(n_lag, first_iter, last_iter)  # extracts flux matrix, output model.fluxMatrixRaw

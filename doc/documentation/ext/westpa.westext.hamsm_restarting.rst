@@ -46,6 +46,7 @@ This plugin requires the following section in :code:`west.cfg` (or whatever your
       user_functions: westpa_scripts/restart_overrides.py	# Python file defining coordinate processing
       struct_filetype: mdtraj.formats.PDBTrajectoryFile 	# Filetype for output start-structures
       debug: False    # Optional, defaults to False. If true, enables debug-mode logging.
+      streaming: True  # Does clustering in a streaming fashion, versus trying to load all coords in memory
 
 Some sample parameters are provided in the above, but of course should be modified to your specific system.
 
