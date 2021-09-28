@@ -260,10 +260,10 @@ def msmwe_compute_ss(plugin_config, west_files):
     # Don't bother with backwards compatibility for this, since the old ones probably aren't really in use by
     #   many anyways, but do raise a descriptive warning.
 
-    basis_pcoord_bounds = np.array(plugin_config.get('basis_pcoord_bounds', None), dtype=float)
-    target_pcoord_bounds = np.array(plugin_config.get('target_pcoord_bounds', None), dtype=float)
+    basis_pcoord_bounds = np.array(plugin_config.get('basis_pcoord_bounds', np.nan), dtype=float)
+    target_pcoord_bounds = np.array(plugin_config.get('target_pcoord_bounds', np.nan), dtype=float)
 
-    if np.isnan(basis_pcoord_bounds) or np.isnan(target_pcoord_bounds):
+    if np.isnan(basis_pcoord_bounds).any() or np.isnan(target_pcoord_bounds).any():
         log.critical(
             "Target and/or basis pcoord bounds were not specified. "
             "Set them using the 'basis_pcoord_bounds' or 'target_pcoord_bounds' parameters. "
