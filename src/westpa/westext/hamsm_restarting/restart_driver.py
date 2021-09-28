@@ -46,7 +46,6 @@ STRUCT_EXTENSIONS = {
 }
 
 EXTENSION_LOCKFILE = 'doing_extension'
-WEST_CFG_BACKUP = 'west_original_length.cfg'
 
 
 def check_target_reached(h5_filename):
@@ -581,14 +580,6 @@ class RestartDriver:
         if os.path.exists(self.restart_file):
             with open(self.restart_file, 'r') as fp:
                 restart_state = json.load(fp)
-
-        if restart_state['runs_completed'] == 0 and restart_state['restarts_completed'] == 0 and not doing_extension:
-            try:
-                os.remove(WEST_CFG_BACKUP)
-            except FileNotFoundError:
-                pass
-            else:
-                log.debug("Removed old west.cfg backup..")
 
         # This is the final iteration of a run, so mark this run as completed
         restart_state['runs_completed'] += 1
