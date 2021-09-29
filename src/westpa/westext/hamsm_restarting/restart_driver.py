@@ -140,8 +140,8 @@ def prepare_coordinates(plugin_config, h5file, we_h5filename):
         modelName,
         # Pass some dummy arguments -- these aren't important, this model is just created for convenience
         # in the coordinate collection. Dummy arguments prevent warnings from being raised.
-        basis_pcoord_bounds=[[-np.inf, np.inf]],
-        target_pcoord_bounds=[[-np.inf, np.inf]],
+        basis_pcoord_bounds=None,
+        target_pcoord_bounds=None,
         tau=1,
         pcoord_ndim=pcoord_ndim,
     )
