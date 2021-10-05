@@ -129,7 +129,7 @@ SETUP_REQUIRES = [
 INSTALL_REQUIRES += SETUP_REQUIRES
 
 EXTRAS_REQUIRE = {
-    "tests": ["pytest", "pytest-cov", "nose", "mdtraj >= 1.9.5"],
+    "tests": ["pytest", "pytest-cov", "nose"],
     "mpi": ["mpi4py"],
 }
 
