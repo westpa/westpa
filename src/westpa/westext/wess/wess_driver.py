@@ -73,8 +73,10 @@ class WESSDriver:
         self.rate_calc_queue_size = plugin_config.get('rate_calc_queue_size', 1)
         self.rate_calc_n_blocks = plugin_config.get('rate_calc_n_blocks', 1)
 
-        bin_dict = plugin_config.get('bins', None)
-        self.bin_mapper = None if bin_dict is None else bins_from_yaml_dict(bin_dict)
+        bin_obj = plugin_config.get('bins', None)
+        if isinstance(bin_obj, dict):
+            bin_obj = bins_from_yaml_dict(bin_obj)
+        self.bin_mapper = bin_obj
 
         if self.do_reweight:
             sim_manager.register_callback(sim_manager.prepare_new_iteration, self.prepare_new_iteration, self.priority)
