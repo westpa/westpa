@@ -277,12 +277,8 @@ class AverageCommands(WESTKineticsBase):
             print("What's wrong?")
 
         # This is appropriate for bootstrapped quantities, I think.
-        all_items = np.arange(1, len(start_pts) + 1)
-        bootstrap_length = 0.5 * (len(start_pts) * (len(start_pts) + 1)) - np.delete(
-            all_items, np.arange(1, len(start_pts), step_iter)
-        )
+
         if True:
-            pi.new_operation('Calculating {}'.format(name), bootstrap_length[0])
 
             futures = []
             for iblock, start in enumerate(start_pts):
@@ -328,9 +324,11 @@ class AverageCommands(WESTKineticsBase):
                 # We create a future object with the appropriate name, and then append it to the work manager.
                 futures.append(generate_future(self.work_manager, name, eval_block, future_kwargs))
 
+            pi.new_operation('Calculating {}'.format(name), len(futures))
+
             # Now, we wait to get the result back; we'll store it in the result, and return it.
             for future in self.work_manager.as_completed(futures):
-                pi.progress += iblock / step_iter
+                pi.progress = iblock / step_iter
                 future_result = future.get_result(discard=True)
 
                 if dim == 2:
