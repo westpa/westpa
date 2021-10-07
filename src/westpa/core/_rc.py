@@ -61,7 +61,6 @@ def bins_from_yaml_dict(bin_dict):
         mapper_configs = kwargs.pop('mappers')
         mappers = []
         if mapper_configs is not None:
-            print(mapper_configs)
             for config in mapper_configs:
                 replaced_bin = config.pop('replaces_bin_at', None)
                 replaced_bin = config.pop('at', replaced_bin)
@@ -70,7 +69,6 @@ def bins_from_yaml_dict(bin_dict):
                 mapper = bins_from_yaml_dict(config)
                 mappers.append((mapper, replaced_bin))
 
-        print(mappers)
         for mapper, replaced_bin in mappers:
             rec_mapper.add_mapper(mapper, replaced_bin)
 
