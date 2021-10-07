@@ -122,8 +122,21 @@ class WESSDriver:
         else:
             log.debug('reweighting')
 
-        mapper = we_driver.bin_mapper if self.bin_mapper is None else self.bin_mapper
-        bins = we_driver.next_iter_binning
+        if self.bin_mapper is None:
+            mapper = we_driver.bin_mapper
+            bins = we_driver.next_iter_binning
+        else:
+            mapper = self.bin_mapper
+            bins = mapper.construct_bins()
+
+            segments = self.sim_manager.segments
+            pcoords = self.system.new_pcoord_array(len(segments))
+            for iseg, segment in enumerate(segments.values()):
+                pcoords[iseg] = segment.pcoord[-1]
+            assignments = mapper.assign(pcoords)
+            for (segment, assignment) in zip(iter(segments.values()), assignments):
+                bins[assignment].add(segment)
+
         n_bins = len(bins)
         westpa.rc.pstatus('Averaging rates')
         averager = self.get_rates(n_iter, mapper)
