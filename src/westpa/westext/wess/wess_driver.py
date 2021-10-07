@@ -7,6 +7,7 @@ import westpa
 from westpa.core.yamlcfg import check_bool
 from westpa.core.kinetics import RateAverager
 from westpa.westext.wess.ProbAdjust import prob_adjust
+from westpa.core._rc import bins_from_yaml_dict
 
 EPS = np.finfo(np.float64).eps
 
@@ -72,6 +73,11 @@ class WESSDriver:
         self.rate_calc_queue_size = plugin_config.get('rate_calc_queue_size', 1)
         self.rate_calc_n_blocks = plugin_config.get('rate_calc_n_blocks', 1)
 
+        bin_obj = plugin_config.get('bins', None)
+        if isinstance(bin_obj, dict):
+            bin_obj = bins_from_yaml_dict(bin_obj)
+        self.bin_mapper = bin_obj
+
         if self.do_reweight:
             sim_manager.register_callback(sim_manager.prepare_new_iteration, self.prepare_new_iteration, self.priority)
 
@@ -116,7 +122,7 @@ class WESSDriver:
         else:
             log.debug('reweighting')
 
-        mapper = we_driver.bin_mapper
+        mapper = we_driver.bin_mapper if self.bin_mapper is None else self.bin_mapper
         bins = we_driver.next_iter_binning
         n_bins = len(bins)
         westpa.rc.pstatus('Averaging rates')
