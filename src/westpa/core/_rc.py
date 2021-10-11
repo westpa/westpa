@@ -23,8 +23,8 @@ log = logging.getLogger('westpa.rc')
 
 
 def bins_from_yaml_dict(bin_dict):
-    typename = bin_dict.pop('type')
-    kwargs = bin_dict
+    kwargs = bin_dict.copy()
+    typename = kwargs.pop('type')
 
     try:
         mapper_type = getattr(sys.modules['westpa.core.binning'], typename)
