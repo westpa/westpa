@@ -11,6 +11,9 @@ import numpy as np
 
 import westpa
 import westpa.core.data_manager
+from westpa.core.binning.assign import BinMapper
+from westpa.core.binning import RectilinearBinMapper, RecursiveBinMapper
+from westpa.core.extloader import get_object
 from .yamlcfg import YAMLConfig
 from .yamlcfg import YAMLSystem
 from . import extloader
@@ -20,25 +23,56 @@ log = logging.getLogger('westpa.rc')
 
 
 def bins_from_yaml_dict(bin_dict):
-    typename = bin_dict.pop('type')
-    kwargs = bin_dict
+    kwargs = bin_dict.copy()
+    typename = kwargs.pop('type')
 
     try:
         mapper_type = getattr(sys.modules['westpa.core.binning'], typename)
     except AttributeError:
-        raise KeyError('unknown bin mapper type {!r}'.format(typename))
+        try:
+            mapper_type = get_object(typename)
+        except AttributeError:
+            raise KeyError('unknown bin mapper type {!r}'.format(typename))
 
-    if typename == 'RectilinearBinMapper':
-        boundary_lists = kwargs.pop('boundaries')
+    if not issubclass(mapper_type, BinMapper):
+        raise ValueError('{} is not a BinMapper'.format(mapper_type.__name__))
+
+    if mapper_type is RectilinearBinMapper:
+        boundary_lists = kwargs.pop('boundaries', None)
+        if boundary_lists is None:
+            raise KeyError('RectilinearBinMapper: missing boundaries')
         parsed_lists = boundary_lists[:]
         for iboundary, boundary in enumerate(boundary_lists):
             if boundary.__class__ == str:
                 parsed_lists[iboundary] = parsePCV(boundary)[0]
             else:
-                parsed_lists[iboundary] = list(
-                    map((lambda x: float('inf') if (x if isinstance(x, str) else '').lower() == 'inf' else x), boundary)
-                )
-        return mapper_type(parsed_lists)
+                parsed_lists[iboundary] = list(map((lambda x: float(x) if isinstance(x, str) else x), boundary))
+        return RectilinearBinMapper(parsed_lists)
+    elif mapper_type is RecursiveBinMapper:
+        base_mapper_config = kwargs.pop('base', None)
+        base_mapper_config = kwargs.pop('base_mapper', base_mapper_config)
+        if base_mapper_config is None:
+            raise KeyError('RecursiveBinMapper: missing base_mapper')
+
+        base_mapper = bins_from_yaml_dict(base_mapper_config)
+        start_index = kwargs.pop('start_index', 0)
+
+        rec_mapper = RecursiveBinMapper(base_mapper, start_index)
+        mapper_configs = kwargs.pop('mappers')
+        mappers = []
+        if mapper_configs is not None:
+            for config in mapper_configs:
+                replaced_bin = config.pop('replaces_bin_at', None)
+                replaced_bin = config.pop('at', replaced_bin)
+                if replaced_bin is None:
+                    raise KeyError('RecursiveBinMapper: missing replaces_bin_at for ' 'at least one of the child mappers')
+                mapper = bins_from_yaml_dict(config)
+                mappers.append((mapper, replaced_bin))
+
+        for mapper, replaced_bin in mappers:
+            rec_mapper.add_mapper(mapper, replaced_bin)
+
+        return rec_mapper
     else:
         try:
             return mapper_type(**kwargs)
