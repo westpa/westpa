@@ -291,10 +291,16 @@ class WESTRC:
 
     def new_sim_manager(self):
         drivername = self.config.get(['west', 'drivers', 'sim_manager'], 'default')
-        if drivername.lower() == 'default':
-            from .sim_manager import WESimManager
+        binmapname = self.config.get(['west', 'system', 'system_options', 'bins', 'type'], 'default')
+        nestmapname = self.config.get(['west', 'system', 'system_options', 'bins', 'mappers'])[:][0]['type']
 
+        if binmapname or nestmapname == 'MABBinMapper':
+            sim_manager = westpa.core.binning.mab_manager.MABSimManager(rc=self)
+
+        elif drivername.lower() == 'default':
+            from .sim_manager import WESimManager
             sim_manager = WESimManager(rc=self)
+
         else:
             sim_manager = extloader.get_object(drivername)(rc=self)
         log.debug('loaded simulation manager {!r}'.format(sim_manager))
@@ -325,8 +331,15 @@ class WESTRC:
         import westpa
 
         drivername = self.config.get(['west', 'drivers', 'we_driver'], 'default')
-        if drivername.lower() == 'default':
+        binmapname = self.config.get(['west', 'system', 'system_options', 'bins', 'type'], 'default')
+        nestmapname = self.config.get(['west', 'system', 'system_options', 'bins', 'mappers'])[:][0]['type']
+
+        if binmapname or nestmapname == 'MABBinMapper':
+            we_driver = westpa.core.binning.mab_driver.MABDriver()
+
+        elif drivername.lower() == 'default':
             we_driver = westpa.core.we_driver.WEDriver()
+
         else:
             we_driver = extloader.get_object(drivername)(rc=self)
         log.debug('loaded WE algorithm driver: {!r}'.format(we_driver))
