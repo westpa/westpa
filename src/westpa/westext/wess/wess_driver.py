@@ -130,12 +130,12 @@ class WESSDriver:
             mapper = self.bin_mapper
             bins = mapper.construct_bins()
 
-            segments = self.sim_manager.segments
+            segments = [s for s in we_driver.next_iter_segments]
             pcoords = self.system.new_pcoord_array(len(segments))
-            for iseg, segment in enumerate(segments.values()):
-                pcoords[iseg] = segment.pcoord[-1]
+            for iseg, segment in enumerate(segments):
+                pcoords[iseg] = segment.pcoord[0]
             assignments = mapper.assign(pcoords)
-            for (segment, assignment) in zip(iter(segments.values()), assignments):
+            for (segment, assignment) in zip(segments, assignments):
                 bins[assignment].add(segment)
             westpa.rc.pstatus('\nReweighting using a different bin mapper than simulation:\n{}'.format(mapper))
 
