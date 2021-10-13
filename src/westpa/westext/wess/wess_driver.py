@@ -125,6 +125,7 @@ class WESSDriver:
         if self.bin_mapper is None:
             mapper = we_driver.bin_mapper
             bins = we_driver.next_iter_binning
+            westpa.rc.pstatus('\nReweighting using the simulation bin mapper:\n{}'.format(mapper))
         else:
             mapper = self.bin_mapper
             bins = mapper.construct_bins()
@@ -136,6 +137,7 @@ class WESSDriver:
             assignments = mapper.assign(pcoords)
             for (segment, assignment) in zip(iter(segments.values()), assignments):
                 bins[assignment].add(segment)
+            westpa.rc.pstatus('\nReweighting using a different bin mapper than simulation:\n{}'.format(mapper))
 
         n_bins = len(bins)
         westpa.rc.pstatus('Averaging rates')
@@ -177,6 +179,7 @@ class WESSDriver:
                 flat_target_regions.append(new_ibin)
 
         binprobs = prob_adjust(binprobs, rij, uij, oldindex, flat_target_regions)
+        westpa.rc.pstatus('\nWould-be bin populations after reweighting:\n{!s}'.format(binprobs))
 
         # Check to see if reweighting has set non-zero bins to zero probability (should never happen)
         assert (~((orig_binprobs > 0) & (binprobs == 0))).all(), 'populated bin reweighted to zero probability'
