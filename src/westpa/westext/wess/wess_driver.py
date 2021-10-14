@@ -184,7 +184,6 @@ class WESSDriver:
                 flat_target_regions.append(new_ibin)
 
         binprobs = prob_adjust(binprobs, rij, uij, oldindex, flat_target_regions)
-        westpa.rc.pstatus('\nWould-be bin populations after reweighting:\n{!s}'.format(binprobs))
 
         # Check to see if reweighting has set non-zero bins to zero probability (should never happen)
         assert (~((orig_binprobs > 0) & (binprobs == 0))).all(), 'populated bin reweighted to zero probability'
