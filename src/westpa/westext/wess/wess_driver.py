@@ -125,6 +125,8 @@ class WESSDriver:
         if self.bin_mapper is None:
             mapper = we_driver.bin_mapper
             bins = we_driver.next_iter_binning
+            target_regions = list(we_driver.target_states.keys())
+            westpa.rc.pstatus('\nReweighting using the simulation bin mapper:\n{}'.format(mapper))
         else:
             mapper = self.bin_mapper
             bins = mapper.construct_bins()
@@ -136,6 +138,13 @@ class WESSDriver:
             assignments = mapper.assign(pcoords)
             for (segment, assignment) in zip(iter(segments.values()), assignments):
                 bins[assignment].add(segment)
+
+            target_states = list(we_driver.target_states.values())
+            target_regions = []
+            for tstate in target_states:
+                tstate_assignment = mapper.assign([tstate.pcoord])[0]
+                target_regions.append(tstate_assignment)
+            westpa.rc.pstatus('\nReweighting using a different bin mapper than simulation:\n{}'.format(mapper))
 
         n_bins = len(bins)
         westpa.rc.pstatus('Averaging rates')
@@ -166,9 +175,6 @@ class WESSDriver:
 
         rij, oldindex = reduce_array(averager.average_rate)
         uij = averager.stderr_rate[np.ix_(oldindex, oldindex)]
-
-        # target_regions = np.where(we_driver.target_state_mask)[0]
-        target_regions = list(we_driver.target_states.keys())
 
         flat_target_regions = []
         for target_region in target_regions:
