@@ -138,7 +138,6 @@ class WESSDriver:
             assignments = mapper.assign(pcoords)
             for (segment, assignment) in zip(segments, assignments):
                 bins[assignment].add(segment)
-            westpa.rc.pstatus('\nReweighting using a different bin mapper than simulation:\n{}'.format(mapper))
 
             target_states = list(we_driver.target_states.values())
             target_regions = []
