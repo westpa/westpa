@@ -27,6 +27,13 @@ def map_mab(coords, mask, output, *args, **kwargs):
         mask = mask[isfinal]
         splitting = True
 
+    # in case where there is no final segments but initial ones in range
+    if not np.any(mask):
+        coords = allcoords[:, :ndim]
+        mask = allmask
+        weights = None
+        splitting = False
+
     n_segments = coords.shape[0]
 
     varcoords = np.copy(coords)
@@ -117,9 +124,7 @@ def map_mab(coords, mask, output, *args, **kwargs):
 
 class MABBinMapper(FuncBinMapper):
     def __init__(self, nbins, bottleneck=True, pca=False):
-        kwargs = dict(nbins_per_dim=nbins,
-                      bottleneck=bottleneck,
-                      pca=pca)
+        kwargs = dict(nbins_per_dim=nbins, bottleneck=bottleneck, pca=pca)
         ndim = len(nbins)
         n_total_bins = np.prod(nbins) + ndim * (2 + 2 * bottleneck)
         super().__init__(map_mab, n_total_bins, kwargs=kwargs)

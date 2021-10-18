@@ -1,5 +1,4 @@
 import logging
-import numpy as np
 
 from westpa.core.sim_manager import WESimManager, grouper
 from westpa.core.states import InitialState, pare_basis_initial_states
@@ -10,18 +9,7 @@ log = logging.getLogger(__name__)
 
 class MABSimManager(WESimManager):
     def report_bin_statistics(self, bins, save_summary=False):
-        bin_counts = np.fromiter(map(len, bins), dtype=np.int_, count=len(bins))
-        target_counts = self.we_driver.bin_target_counts
-
-        # Do not include bins with target count zero (e.g. sinks, never-filled bins) in the (non)empty bins statistics
-        n_active_bins = len(target_counts[target_counts != 0])
-        n_pop = len(bin_counts[bin_counts != 0])
-
-        self.rc.pstatus(
-            "MAB binning in use".format(
-                n_pop, n_active_bins, n_pop / n_active_bins
-            )
-        )
+        self.rc.pstatus("MAB binning in use.")
         super().report_bin_statistics(bins, save_summary)
 
     def propagate(self):
