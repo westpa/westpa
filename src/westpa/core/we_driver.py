@@ -79,6 +79,8 @@ class WEDriver:
 
     weight_split_threshold = 2.0
     weight_merge_cutoff = 1.0
+    largest_allowed_weight = 1.0
+    smallest_allowed_weight = 0
 
     def __init__(self, rc=None, system=None):
         self.rc = rc or westpa.rc
@@ -136,6 +138,12 @@ class WEDriver:
 
         self.weight_merge_cutoff = config.get(['west', 'we', 'weight_merge_cutoff'], self.weight_merge_cutoff)
         log.info('Merge cutoff: {}'.format(self.weight_merge_cutoff))
+
+        self.largest_allowed_weight = config.get(['west', 'we', 'largest_allowed_weight'], self.largest_allowed_weight)
+        log.info('Largest allowed weight: {}'.format(self.largest_allowed_weight))
+
+        self.smallest_allowed_weight = config.get(['west', 'we', 'smallest_allowed_weight'], self.smallest_allowed_weight)
+        log.info('Smallest allowed_weight: {}'.format(self.smallest_allowed_weight))
 
     @property
     def next_iter_segments(self):
@@ -503,13 +511,16 @@ class WEDriver:
         if len(bin) > 0:
             assert target_count > 0
 
-        to_split = segments[weights > self.weight_split_threshold * ideal_weight]
+        to_split = segments[
+            np.logical_and(weights > self.weight_split_threshold * ideal_weight, weights / 2 > float(self.smallest_allowed_weight))
+        ]
 
-        for segment in to_split:
-            m = int(math.ceil(segment.weight / ideal_weight))
-            bin.remove(segment)
-            new_segments_list = self._split_walker(segment, m, bin)
-            bin.update(new_segments_list)
+        if len(to_split) > 0:
+            for segment in to_split:
+                m = int(math.ceil(segment.weight / ideal_weight))
+                bin.remove(segment)
+                new_segments_list = self._split_walker(segment, m, bin)
+                bin.update(new_segments_list)
 
     # KFW CHECK BACK            for new_segment in new_segments_list:
     # KFW CHECK BACK                try:
@@ -528,6 +539,10 @@ class WEDriver:
             to_merge = segments[cumul_weight <= ideal_weight * self.weight_merge_cutoff]
             if len(to_merge) < 2:
                 return
+
+            if sum(weights[:2]) >= float(self.largest_allowed_weight):
+                break
+
             bin.difference_update(to_merge)
             new_segment, parent = self._merge_walkers(to_merge, cumul_weight, bin)
             bin.add(new_segment)
@@ -550,27 +565,44 @@ class WEDriver:
 
         # split
         while len(bin) < target_count:
+            split_break = False
             for i in sorted_groups:
                 log.debug('adjusting counts by splitting')
                 # always split the highest probability walker into two
                 # KFW BINLESS segments = sorted(bin, key=weight_getter)
-                segments = sorted(i, key=weight_getter)
-                bin.remove(segments[-1])
-                i.remove(segments[-1])
-                new_segments_list = self._split_walker(segments[-1], 2, bin)
-                # KFW CHECK BACK                for new_segment in new_segments_list:
-                # KFW CHECK BACK                    try:
-                # KFW CHECK BACK                        new_segment.id_hist = list(segments[-1].id_hist)
-                # KFW CHECK BACK                    except AttributeError:
-                # KFW CHECK BACK                        pass
-                i.update(new_segments_list)
-                bin.update(new_segments_list)
+                segments = np.array(sorted(bin, key=weight_getter), dtype=np.object_)
+                weights = np.array(list(map(weight_getter, segments)))
+                # Check to see which walkers, when split, will result in
+                # a weight greater than the smallest allowed weight.
+                to_split = segments[weights / 2 >= float(self.smallest_allowed_weight)]
+                print(len(segments), weights[:], len(to_split))
+                if len(to_split) < 1:
+                    print("cannot split")
+                    split_break = True
+                # then split the highest probability walker into two
+                else:
+                    bin.remove(segments[-1])
+                    i.remove(segments[-1])
+                    new_segments_list = self._split_walker(to_split[-1], 2, bin)
+                    print("splitting occured")
+                    # KFW CHECK BACK                for new_segment in new_segments_list:
+                    # KFW CHECK BACK                    try:
+                    # KFW CHECK BACK                        new_segment.id_hist = list(segments[-1].id_hist)
+                    # KFW CHECK BACK                    except AttributeError:
+                    # KFW CHECK BACK                        pass
+                    i.update(new_segments_list)
+                    bin.update(new_segments_list)
 
-                if len(bin) == target_count:
-                    break
+                    if len(bin) == target_count:
+                        break
+
+            if split_break is True:
+                split_break = False
+                break
 
         # merge
         while len(bin) > target_count:
+            merge_break = False
             sorted_groups.reverse()
             # Adjust to go from lowest weight group to highest to merge
             for i in sorted_groups:
@@ -578,22 +610,36 @@ class WEDriver:
                 if len(i) > 1:
                     log.debug('adjusting counts by merging')
                     # always merge the two lowest-probability walkers
-                    segments = sorted(i, key=weight_getter)
-                    bin.difference_update(segments[:2])
-                    i.difference_update(segments[:2])
-                    merged_segment, parent = self._merge_walkers(segments[:2], cumul_weight=None, bin=bin)
-                    # KFW CHECK BACK                    try:
-                    # KFW CHECK BACK                        merged_segment.id_hist = list(parent.id_hist)
-                    # KFW CHECK BACK                    except AttributeError:
-                    # KFW CHECK BACK                        pass
-                    # merged_segment = self._merge_walkers(segments[:2], cumul_weight=None, bin=bin)
-                    i.add(merged_segment)
-                    bin.add(merged_segment)
-                    # As long as we're changing the merge_walkers and split_walkers, adjust them so that they don't update the bin within the function
-                    # and instead update the bin here.  Assuming nothing else relies on those.  Make sure with grin.
-                    # in bash, "find . -name \*.py | xargs fgrep -n '_merge_walkers'"
-                    if len(bin) == target_count:
-                        break
+                    segments = np.array(sorted(bin, key=weight_getter), dtype=np.object_)
+                    weights = np.array(list(map(weight_getter, segments)))
+                    # Check to see if the two lowest-probability walkers have
+                    # a combined weight less than the largest allowed weight.
+                    print(len(segments), weights[:])
+                    if sum(weights[:2]) <= float(self.largest_allowed_weight):
+                        to_merge = segments[:2]
+                        # then merge the two lowest-probability walkers
+                        bin.difference_update(segments[:2])
+                        i.difference_update(segments[:2])
+                        merged_segment, parent = self._merge_walkers(to_merge, cumul_weight=None, bin=bin)
+                        print("merging occured")
+                        # KFW CHECK BACK                    try:
+                        # KFW CHECK BACK                        merged_segment.id_hist = list(parent.id_hist)
+                        # KFW CHECK BACK                    except AttributeError:
+                        # KFW CHECK BACK                        pass
+                        i.add(merged_segment)
+                        bin.add(merged_segment)
+                        # As long as we're changing the merge_walkers and split_walkers, adjust them so that they don't update the bin within the function
+                        # and instead update the bin here.  Assuming nothing else relies on those.  Make sure with grin.
+                        # in bash, "find . -name \*.py | xargs fgrep -n '_merge_walkers'"
+                        if len(bin) == target_count:
+                            break
+                    else:
+                        print("cannot merge")
+                        merge_break = True
+
+            if merge_break is True:
+                merge_break = False
+                break
 
     def _check_pre(self):
         for ibin, _bin in enumerate(self.next_iter_binning):
