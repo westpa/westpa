@@ -591,8 +591,9 @@ class WEDriver:
                 if len(to_split) < 1:
                     print("cannot split")
                     split_break = True
-                # then split the highest probability walker into two
+                    break
                 else:
+                    # then split the highest probability walker into two
                     bin.remove(segments[-1])
                     i.remove(segments[-1])
                     new_segments_list = self._split_walker(to_split[-1], 2, bin)
@@ -648,6 +649,7 @@ class WEDriver:
                     else:
                         print("cannot merge")
                         merge_break = True
+                        break
 
             if merge_break is True:
                 merge_break = False
