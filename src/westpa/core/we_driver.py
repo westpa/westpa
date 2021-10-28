@@ -154,10 +154,8 @@ class WEDriver:
                 self.largest_allowed_weight = float(self.largest_allowed_weight)
                 self.smallest_allowed_weight = float(self.smallest_allowed_weight)
             except ValueError:
-                # Generate error saying thresholds are invalid.
-                assert isinstance(self.largest_allowed_weight, float) and isinstance(
-                    self.smallest_allowed_weight, float
-                ), "Invalid weight thresholds specified in west.cfg. Please check"
+                # Generate error saying thresholds are invalid
+                raise ValueError("Invalid weight thresholds specified. Please check your west.cfg.")
 
     @property
     def next_iter_segments(self):
