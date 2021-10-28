@@ -145,6 +145,20 @@ class WEDriver:
         self.smallest_allowed_weight = config.get(['west', 'we', 'smallest_allowed_weight'], self.smallest_allowed_weight)
         log.info('Smallest allowed_weight: {}'.format(self.smallest_allowed_weight))
 
+        # Checking to see if weight thresholds are valid
+        if (not np.issubdtype(type(self.largest_allowed_weight), np.floating)) or (
+            not np.issubdtype(type(self.smallest_allowed_weight), np.floating)
+        ):
+            try:
+                # Trying to self correct
+                self.largest_allowed_weight = float(self.largest_allowed_weight)
+                self.smallest_allowed_weight = float(self.smallest_allowed_weight)
+            except ValueError:
+                # Generate error saying thresholds are invalid.
+                assert isinstance(self.largest_allowed_weight, float) and isinstance(
+                    self.smallest_allowed_weight, float
+                ), "Invalid weight thresholds specified in west.cfg. Please check"
+
     @property
     def next_iter_segments(self):
         '''Newly-created segments for the next iteration'''
