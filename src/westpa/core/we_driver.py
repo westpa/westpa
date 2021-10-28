@@ -591,7 +591,6 @@ class WEDriver:
                 if len(to_split) < 1:
                     print("cannot split")
                     split_break = True
-                    break
                 else:
                     # then split the highest probability walker into two
                     bin.remove(segments[-1])
@@ -606,11 +605,10 @@ class WEDriver:
                     i.update(new_segments_list)
                     bin.update(new_segments_list)
 
-                    if len(bin) == target_count:
-                        break
+                if len(bin) == target_count or split_break is True:
+                    break
 
             if split_break is True:
-                split_break = False
                 break
 
         # merge
@@ -644,16 +642,15 @@ class WEDriver:
                         # As long as we're changing the merge_walkers and split_walkers, adjust them so that they don't update the bin within the function
                         # and instead update the bin here.  Assuming nothing else relies on those.  Make sure with grin.
                         # in bash, "find . -name \*.py | xargs fgrep -n '_merge_walkers'"
-                        if len(bin) == target_count:
-                            break
                     else:
-                        print("cannot merge")
                         merge_break = True
+                        print("cannot merge")
+
+                    if len(bin) == target_count or merge_break is True:
                         break
 
-            if merge_break is True:
-                merge_break = False
-                break
+                if merge_break is True:
+                    break
 
     def _check_pre(self):
         for ibin, _bin in enumerate(self.next_iter_binning):
