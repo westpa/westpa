@@ -300,6 +300,7 @@ class WESTRC:
 
         if binmapname == 'MABBinMapper':
             sim_manager = westpa.core.binning.mab_manager.MABSimManager(rc=self)
+            sys.stderr.write("-- WARNING  [config] -- Do not use MABBinMapper as an outer binning scheme with a target state.\n")
 
         elif nestmapname == 'MABBinMapper':
             sim_manager = westpa.core.binning.mab_manager.MABSimManager(rc=self)
