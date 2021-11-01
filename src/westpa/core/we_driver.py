@@ -587,16 +587,16 @@ class WEDriver:
                 # Check to see which walkers, when split, will result in
                 # a weight greater than the smallest allowed weight.
                 to_split = segments[weights / 2 >= float(self.smallest_allowed_weight)]
-                print(len(segments), weights[:], len(to_split))
+                log.debug(len(segments), weights[:], len(to_split))
                 if len(to_split) < 1:
-                    print("cannot split")
+                    log.debug('cannot split')
                     split_break = True
                 else:
                     # then split the highest probability walker into two
                     bin.remove(segments[-1])
                     i.remove(segments[-1])
                     new_segments_list = self._split_walker(to_split[-1], 2, bin)
-                    print("splitting occured")
+                    log.debug('splitting occured')
                     # KFW CHECK BACK                for new_segment in new_segments_list:
                     # KFW CHECK BACK                    try:
                     # KFW CHECK BACK                        new_segment.id_hist = list(segments[-1].id_hist)
@@ -625,14 +625,14 @@ class WEDriver:
                     weights = np.array(list(map(weight_getter, segments)))
                     # Check to see if the two lowest-probability walkers have
                     # a combined weight less than the largest allowed weight.
-                    print(len(segments), weights[:])
+                    log.debug(len(segments), weights[:])
                     if sum(weights[:2]) <= float(self.largest_allowed_weight):
                         to_merge = segments[:2]
                         # then merge the two lowest-probability walkers
                         bin.difference_update(segments[:2])
                         i.difference_update(segments[:2])
                         merged_segment, parent = self._merge_walkers(to_merge, cumul_weight=None, bin=bin)
-                        print("merging occured")
+                        log.debug('merging occured')
                         # KFW CHECK BACK                    try:
                         # KFW CHECK BACK                        merged_segment.id_hist = list(parent.id_hist)
                         # KFW CHECK BACK                    except AttributeError:
@@ -644,7 +644,7 @@ class WEDriver:
                         # in bash, "find . -name \*.py | xargs fgrep -n '_merge_walkers'"
                     else:
                         merge_break = True
-                        print("cannot merge")
+                        log.debug('cannot merge')
 
                     if len(bin) == target_count or merge_break is True:
                         break
