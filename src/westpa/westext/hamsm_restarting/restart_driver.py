@@ -63,6 +63,7 @@ def check_target_reached(h5_filename):
         for iteration_key in list(h5_file['iterations'].keys())[-2:0:-1]:
             endpoint_types = h5_file[f'iterations/{iteration_key}/seg_index']['endpoint_type']
             if Segment.SEG_ENDPOINT_RECYCLED in endpoint_types:
+                log.debug(f"recycled segment found in file {h5_filename} at iteration {iteration_key}")
                 return True
     return False
 
@@ -790,6 +791,8 @@ class RestartDriver:
             # If  extension_iters is set to 0, then don't do extensions.
             if target_reached or self.extension_iters == 0:
 
+                log.info("All runs reached target!")
+
                 # Do some cleanup from the extension run
                 if doing_extension and not self.extension_iters == 0:
 
@@ -803,6 +806,8 @@ class RestartDriver:
 
             # If no runs reached the target, then we need to extend them
             elif not target_reached:
+
+                log.info("Target not reached. Preparing for extensions.")
 
                 # Create the doing_extensions.lck "lockfile" to indicate we're in extend mode (or keep if exists)
                 #   and write the initial number of iterations to it.
