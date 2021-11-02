@@ -553,7 +553,7 @@ class WEDriver:
                 return
 
             if sum(weights[:2]) >= float(self.largest_allowed_weight):
-                break
+                return
 
             bin.difference_update(to_merge)
             new_segment, parent = self._merge_walkers(to_merge, cumul_weight, bin)
@@ -577,20 +577,18 @@ class WEDriver:
 
         # split
         while len(bin) < target_count:
-            split_break = False
             for i in sorted_groups:
                 log.debug('adjusting counts by splitting')
                 # always split the highest probability walker into two
                 # KFW BINLESS segments = sorted(bin, key=weight_getter)
-                segments = np.array(sorted(bin, key=weight_getter), dtype=np.object_)
-                weights = np.array(list(map(weight_getter, segments)))
+                segments = np.array(sorted(i, key=weight_getter))
+                weights = np.array(list(map(weight_getter, i)))
                 # Check to see which walkers, when split, will result in
                 # a weight greater than the smallest allowed weight.
                 to_split = segments[weights / 2 >= float(self.smallest_allowed_weight)]
-                log.debug(len(segments), weights[:], len(to_split))
+                log.debug('{!r}, {!r}, {!r}'.format(len(i), weights[:], len(to_split)))
                 if len(to_split) < 1:
                     log.debug('cannot split')
-                    split_break = True
                 else:
                     # then split the highest probability walker into two
                     bin.remove(segments[-1])
@@ -605,15 +603,13 @@ class WEDriver:
                     i.update(new_segments_list)
                     bin.update(new_segments_list)
 
-                if len(bin) == target_count or split_break is True:
+                if len(bin) == target_count:
                     break
-
-            if split_break is True:
-                break
+            # If we went through all the groups and nothing to split:
+            break
 
         # merge
         while len(bin) > target_count:
-            merge_break = False
             sorted_groups.reverse()
             # Adjust to go from lowest weight group to highest to merge
             for i in sorted_groups:
@@ -621,11 +617,11 @@ class WEDriver:
                 if len(i) > 1:
                     log.debug('adjusting counts by merging')
                     # always merge the two lowest-probability walkers
-                    segments = np.array(sorted(bin, key=weight_getter), dtype=np.object_)
+                    segments = np.array(sorted(i, key=weight_getter))
                     weights = np.array(list(map(weight_getter, segments)))
                     # Check to see if the two lowest-probability walkers have
                     # a combined weight less than the largest allowed weight.
-                    log.debug(len(segments), weights[:])
+                    log.debug('{!r},{!r}'.format(len(segments), weights[:]))
                     if sum(weights[:2]) <= float(self.largest_allowed_weight):
                         to_merge = segments[:2]
                         # then merge the two lowest-probability walkers
@@ -643,14 +639,13 @@ class WEDriver:
                         # and instead update the bin here.  Assuming nothing else relies on those.  Make sure with grin.
                         # in bash, "find . -name \*.py | xargs fgrep -n '_merge_walkers'"
                     else:
-                        merge_break = True
                         log.debug('cannot merge')
 
-                    if len(bin) == target_count or merge_break is True:
+                    if len(bin) == target_count:
                         break
-
-                if merge_break is True:
-                    break
+                    
+            # If we went through all groups and nothing to merge:
+            break
 
     def _check_pre(self):
         for ibin, _bin in enumerate(self.next_iter_binning):
