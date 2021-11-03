@@ -869,11 +869,20 @@ class RestartDriver:
             # Track the total number of segments iterated over
             seg_idx = 0
 
-            log.info(f"Obtaining potential start structures ({len(model.cluster_structures.items())} avail)")
+            log.info(f"Obtaining potential start structures ({len(model.cluster_structures.items())} bins avail)")
+
+            # Can use these for sanity checks
+            total_weight = 0.0
+            total_bin_weights = []
 
             # Loop over each set of (bin index, all the structures in that bin)
-            total_weight = 0.0
             for (msm_bin_idx, structures) in tqdm.tqdm(model.cluster_structures.items()):
+
+                total_bin_weights.append(0)
+
+                # Don't put structures in the basis or target
+                if msm_bin_idx in [model.n_clusters, model.n_clusters + 1]:
+                    continue
 
                 # The per-segment bin probability.
                 # Map a cluster number onto a cluster INDEX, because after cleaning the cluster numbers may no longer
@@ -888,6 +897,7 @@ class RestartDriver:
                 msm_bin_we_weight = sum(model.cluster_structure_weights[msm_bin_idx])
 
                 # Write each structure to disk. Loop over each structure within a bin.
+                msm_bin_we_weight_tracker = 0
                 for struct_idx, structure in enumerate(structures):
 
                     structure_filename = (
@@ -898,12 +908,14 @@ class RestartDriver:
 
                         # One structure per segment
                         seg_we_weight = model.cluster_structure_weights[msm_bin_idx][struct_idx]
+                        msm_bin_we_weight_tracker += seg_we_weight
 
                         # Structure weights are set according to Algorithm 5.3 in
                         # Aristoff, D. & Zuckerman, D. M. Optimizing Weighted Ensemble Sampling of Steady States.
                         # Multiscale Model Sim 18, 646–673 (2020).
                         structure_weight = seg_we_weight * (bin_prob / msm_bin_we_weight)
 
+                        total_bin_weights[-1] += structure_weight
                         total_weight += structure_weight
 
                         topology = model.reference_structure.topology
@@ -941,11 +953,18 @@ class RestartDriver:
                         fp.write(f'b{msm_bin_idx}_s{struct_idx} {structure_weight} {structure_filename}\n')
                         seg_idx += 1
 
+                # log.info(f"WE weight ({msm_bin_we_weight_tracker:.5e} / {msm_bin_we_weight:.5e})")
+
             # Subtract off the probabilities of the basis and target states, since those don't have structures
             #   assigned to them.
-            assert np.isclose(
-                total_weight, 1 - sum(model.pSS[model.n_clusters :])
-            ), "Total steady-state structure weights not normalized!"
+            assert np.isclose(total_weight, 1 - sum(model.pSS[model.n_clusters :])), (
+                f"Total steady-state structure weights not normalized! (Total: {total_weight}) "
+                f"\n\t pSS: {model.pSS}"
+                f"\n\t Total bin weights {total_bin_weights}"
+                f"\n\t pSS sum: {sum(model.pSS)}"
+                f"\n\t pSS -2 sum: {sum(model.pSS[:-2])}"
+                f"\n\t pSS (+target, no basis) sum: {sum(model.pSS[:-2]) + model.pSS[-1]}"
+            )
 
         ### Start the new simulation
 
