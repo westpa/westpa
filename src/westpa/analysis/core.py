@@ -65,7 +65,7 @@ class Run:
     @property
     def summary(self):
         """pd.DataFrame: Summary data for the run."""
-        return pd.DataFrame(self.h5file['summary'][:])
+        return pd.DataFrame(self.h5file['summary'][:-1], index=range(1, self.num_iterations + 1))
 
     @property
     def num_iterations(self):
