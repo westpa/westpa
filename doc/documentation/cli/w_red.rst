@@ -30,14 +30,6 @@ parallelization options::
                         Maximum number of tasks that can be queued. Useful to limit RAM use for tasks that
                         have very large requests/response. Default: no limit.
 
-runtime options::
-
-  --analysis-only, -ao  Use this flag to run the analysis and return to the terminal.
-  --reanalyze, -ra      Use this flag to delete the existing files and reanalyze.
-  --ignore-hash, -ih    Ignore hash and don't regenerate files.
-  --debug, -d           Debug output largely intended for development.
-  --terminal, -t        Plot output in terminal.
-
 parallelization options::
 
   --serial              run in serial mode
