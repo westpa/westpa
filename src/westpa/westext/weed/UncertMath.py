@@ -7,8 +7,8 @@ TOL = 1.0e-6
 
 
 class UncertContainer:
-    """ Container to hold uncertainty measurements. Data is convert to np masked arrays
-        to avoid possible numerical problems
+    """Container to hold uncertainty measurements. Data is convert to np masked arrays
+    to avoid possible numerical problems
     """
 
     def __init__(self, vals, vals_dmin, vals_dmax, mask=ma.nomask):
@@ -158,9 +158,9 @@ class UncertContainer:
         self.uncert.mask = self.mask
 
     def concatenate(self, value, axis=0):
-        """ Concatentate UncertContainer value to self.
-            Assumes that if dimensions of self and value do not match, to
-            add a np.newaxis along axis of value
+        """Concatentate UncertContainer value to self.
+        Assumes that if dimensions of self and value do not match, to
+        add a np.newaxis along axis of value
         """
 
         if isinstance(value, UncertContainer):
@@ -192,9 +192,9 @@ class UncertContainer:
             raise ValueError('Can only concatenate with an UncertContainer object')
 
     def weighted_average(self, axis=0, expaxis=None):
-        """ Calculate weighted average of data along axis
-            after optionally inserting a new dimension into the
-            shape array at position expaxis
+        """Calculate weighted average of data along axis
+        after optionally inserting a new dimension into the
+        shape array at position expaxis
         """
 
         if expaxis is not None:

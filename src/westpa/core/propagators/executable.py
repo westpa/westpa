@@ -67,7 +67,7 @@ def aux_data_loader(fieldname, data_filename, segment, single_point):
 def trajectory_loader(fieldname, coord_folder, segment, single_point):
     '''Load data from the trajectory return. ``coord_folder`` should be the path to a folder
     containing trajectory files. ``segment`` is the ``Segment`` object that the data is associated with.
-    Please see ``load_trajectory`` for more details. ``single_point`` is not used by this loader. '''
+    Please see ``load_trajectory`` for more details. ``single_point`` is not used by this loader.'''
     try:
         data = load_trajectory(coord_folder)
         segment.data['iterh5/trajectory'] = data
@@ -78,7 +78,7 @@ def trajectory_loader(fieldname, coord_folder, segment, single_point):
 def restart_loader(fieldname, restart_folder, segment, single_point):
     '''Load data from the restart return. The loader will tar all files in ``restart_folder``
     and store it in the per-iteration HDF5 file. ``segment`` is the ``Segment`` object that
-    the data is associated with. ``single_point`` is not used by this loader. '''
+    the data is associated with. ``single_point`` is not used by this loader.'''
     try:
         d = BytesIO()
         with tarfile.open(mode='w:gz', fileobj=d) as t:
@@ -109,9 +109,9 @@ def restart_writer(path, segment):
 
 
 def seglog_loader(fieldname, log_folder, segment, single_point):
-    ''' Load data from the log return. The loader will tar all files in ``log_folder``
+    '''Load data from the log return. The loader will tar all files in ``log_folder``
     and store it in the per-iteration HDF5 file. ``segment`` is the ``Segment`` object that
-    the data is associated with. ``single_point`` is not used by this loader. '''
+    the data is associated with. ``single_point`` is not used by this loader.'''
     try:
         d = BytesIO()
         with tarfile.open(mode='w:gz', fileobj=d) as t:
@@ -505,7 +505,7 @@ class ExecutablePropagator(WESTPropagator):
         is a ``dict`` where the keys are the dataset names and the values are the paths to the temporarily
         files that contain the returned data. ``del_return_files`` is a ``dict`` where the keys are the
         names of datasets to be deleted (if the corresponding value is set to ``True``) once the data is
-        retrieved. '''
+        retrieved.'''
         for dataset in self.data_info:
             if dataset not in return_files:
                 continue
