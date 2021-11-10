@@ -426,6 +426,12 @@ contained in the assign.h5 and direct.h5 files in ANALYSIS/DEFAULT.
         except Exception:
             raise ValueError('Time step not specified in west.cfg.')
 
+        if rc.config['west']['analysis']['kinetics']['evolution'] == "cumulative":
+            pass
+        else:
+            print("Only RED estimates with cumulative averaging are supported at this time.")
+            exit()
+
         config = rc.config
         adir = config.get(['west', 'analysis', 'directory'])
         name = config.get(['west', 'analysis', 'red', 'scheme'])
