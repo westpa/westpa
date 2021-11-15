@@ -446,7 +446,12 @@ contained in the assign.h5 and direct.h5 files in ANALYSIS/DEFAULT.
         print('--------------------------------------')
         print('\nEstimating RED fluxes...')
         rater = RateCalculator(
-            directh5path, istate, fstate, n_steps_iter=n_steps_per_iter, report_interval=n_steps_per_report, assignh5=assignh5path,
+            directh5path,
+            istate,
+            fstate,
+            n_steps_iter=n_steps_per_iter,
+            report_interval=n_steps_per_report,
+            assignh5=assignh5path,
         )
 
         rates = rater.calc_rates(red=True, callback=None)
