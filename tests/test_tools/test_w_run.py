@@ -9,7 +9,10 @@ class Test_W_Run:
     def test_run_w_run(self, ref_initialized):
         '''Tests running an initialized WESTPA system for 3 iterations'''
 
-        args = MockArgs(rcfile=self.cfg_filepath, verbosity='0',)
+        args = MockArgs(
+            rcfile=self.cfg_filepath,
+            verbosity='0',
+        )
 
         westpa.rc.process_args(args)
         work_managers.environment.process_wm_args(args)

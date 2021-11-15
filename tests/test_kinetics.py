@@ -91,7 +91,12 @@ class TestStreamingStats2D:
             rate_stats.update(d, mask)
 
         assert np.allclose(rate_stats.mean, data.mean(axis=0))
-        assert np.allclose(rate_stats.var, data.var(axis=0,))
+        assert np.allclose(
+            rate_stats.var,
+            data.var(
+                axis=0,
+            ),
+        )
 
     def test_nomask_groups(self):
         nbins = 100
@@ -111,10 +116,10 @@ class TestStreamingStats2D:
         rate_stats1 += rate_stats2
 
         assert np.allclose(rate_stats1.mean, data.mean(axis=0))
-        assert np.allclose(rate_stats1.var, data.var(axis=0,))
+        assert np.allclose(rate_stats1.var, data.var(axis=0))
 
         assert np.allclose(rate_stats3.mean, data.mean(axis=0))
-        assert np.allclose(rate_stats3.var, data.var(axis=0,))
+        assert np.allclose(rate_stats3.var, data.var(axis=0))
 
     def test_with_mask(self):
         nbins = 100
@@ -169,7 +174,7 @@ class TestStreamingStats1D:
             rate_stats.update(d, mask)
 
         assert np.allclose(rate_stats.mean, data.mean(axis=0))
-        assert np.allclose(rate_stats.var, data.var(axis=0,))
+        assert np.allclose(rate_stats.var, data.var(axis=0))
 
     def test_nomask_groups(self):
         nbins = 100
@@ -189,10 +194,10 @@ class TestStreamingStats1D:
         rate_stats1 += rate_stats2
 
         assert np.allclose(rate_stats1.mean, data.mean(axis=0))
-        assert np.allclose(rate_stats1.var, data.var(axis=0,))
+        assert np.allclose(rate_stats1.var, data.var(axis=0))
 
         assert np.allclose(rate_stats3.mean, data.mean(axis=0))
-        assert np.allclose(rate_stats3.var, data.var(axis=0,))
+        assert np.allclose(rate_stats3.var, data.var(axis=0))
 
     def test_with_mask(self):
         nbins = 100

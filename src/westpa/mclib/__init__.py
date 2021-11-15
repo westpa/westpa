@@ -136,16 +136,19 @@ def mcbs_ci_correl(
     if stride == 1:
         # Some estimators may require the stride, so we pass it in.
         estimator_kwargs['stride'] = stride
-        return mcbs_ci(
-            dataset=estimator_datasets,
-            estimator=estimator,
-            alpha=alpha,
-            dlen=dlen,
-            n_sets=n_sets,
-            args=args,
-            kwargs=estimator_kwargs,
-            sort=np.msort,
-        ) + (correl_len,)
+        return (
+            mcbs_ci(
+                dataset=estimator_datasets,
+                estimator=estimator,
+                alpha=alpha,
+                dlen=dlen,
+                n_sets=n_sets,
+                args=args,
+                kwargs=estimator_kwargs,
+                sort=np.msort,
+            )
+            + (correl_len,)
+        )
     else:
         subsample = subsample or (lambda x: x[np.random.randint(len(x))])
         # Let's make sure we decimate every array properly...
@@ -167,16 +170,19 @@ def mcbs_ci_correl(
             dlen = dset_shape[0]
             estimator_kwargs['stride'] = stride
 
-        return mcbs_ci(
-            dataset=decim_list,
-            estimator=estimator,
-            alpha=alpha,
-            dlen=dlen,
-            n_sets=n_sets,
-            args=args,
-            kwargs=estimator_kwargs,
-            sort=np.msort,
-        ) + (correl_len,)
+        return (
+            mcbs_ci(
+                dataset=decim_list,
+                estimator=estimator,
+                alpha=alpha,
+                dlen=dlen,
+                n_sets=n_sets,
+                args=args,
+                kwargs=estimator_kwargs,
+                sort=np.msort,
+            )
+            + (correl_len,)
+        )
 
 
 # These are blocks designed to evaluate simple information sets.
