@@ -15,7 +15,7 @@ for ext in [".h5", ".hdf5", ".lh5"]:
 
 class WESTTrajectory(Trajectory):
     '''A subclass of ``mdtraj.Trajectory`` that contains the trajectory of atom coordinates with
-    pointers denoting the iteration number and segment index of each frame. '''
+    pointers denoting the iteration number and segment index of each frame.'''
 
     def __init__(
         self,
