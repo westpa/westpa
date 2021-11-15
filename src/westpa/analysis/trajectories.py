@@ -117,7 +117,12 @@ class SegmentCollector:
         """
         walkers = tuple(walkers)
 
-        tqdm_kwargs = dict(desc='Retrieving segments', disable=(not self.show_progress), position=0, total=len(walkers),)
+        tqdm_kwargs = dict(
+            desc='Retrieving segments',
+            disable=(not self.show_progress),
+            position=0,
+            total=len(walkers),
+        )
 
         if self.use_threads:
             with cf.ThreadPoolExecutor(self.max_workers) as executor:

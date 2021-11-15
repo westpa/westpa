@@ -391,9 +391,9 @@ Command-line options
         log.debug('loaded states: {!r}'.format(self.states))
 
     def assign_iteration(self, n_iter, nstates, nbins, state_map, last_labels):
-        ''' Method to encapsulate the segment slicing (into n_worker slices) and parallel job submission
-            Submits job(s), waits on completion, splices them back together
-            Returns: assignments, trajlabels, pops for this iteration'''
+        '''Method to encapsulate the segment slicing (into n_worker slices) and parallel job submission
+        Submits job(s), waits on completion, splices them back together
+        Returns: assignments, trajlabels, pops for this iteration'''
 
         futures = []
 

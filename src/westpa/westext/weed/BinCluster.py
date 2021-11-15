@@ -23,8 +23,7 @@ class ClusterList:
         self.cluster_contents = {}  # Dictionary containing sets of bin ids with keys = cluster ids
 
     def join(self, pairs):
-        """ Join clusters given a tuple (i,j) of bin pairs
-        """
+        """Join clusters given a tuple (i,j) of bin pairs"""
 
         for i, j in zip(*pairs):
             # Both bins not joined
@@ -110,8 +109,7 @@ class ClusterList:
                     break
 
     def join_simple(self, pairs):
-        """ Join clusters using direct ratios given a tuple (i,j) of bin pairs
-        """
+        """Join clusters using direct ratios given a tuple (i,j) of bin pairs"""
 
         for i, j in zip(*pairs):
             # Both bins not joined
