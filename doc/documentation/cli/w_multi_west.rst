@@ -61,6 +61,9 @@ Both input and output files are *hdf5* format::
   -aa, --auxall
     Combine all auxiliary datsets as labeled in ``west.h5`` in folder 01. (Default: False)
 
+  -nr, --no-reweight
+    Do not perform reweighting. (Default: False)
+
 Examples
 --------
 If you have five simulations, set up your directory such that you 
