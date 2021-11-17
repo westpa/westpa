@@ -131,6 +131,9 @@ class Run:
     def __eq__(self, other):
         return self.h5file == other.h5file
 
+    def __hash__(self):
+        return hash(self.h5file)
+
     def __repr__(self):
         if self.name:
             return f'<{self.DESCRIPTION} "{self.name}" at {hex(id(self))}>'
@@ -344,6 +347,9 @@ class Iteration:
     def __eq__(self, other):
         return self.number == other.number and self.run == other.run
 
+    def __hash__(self):
+        return hash((self.number, self.run))
+
     def __repr__(self):
         return f'{self.__class__.__name__}({self.number}, {self.run})'
 
@@ -437,6 +443,9 @@ class Walker:
 
     def __eq__(self, other):
         return self.index == other.index and self.iteration == other.iteration
+
+    def __hash__(self):
+        return hash((self.index, self.iteration))
 
     def __repr__(self):
         return f'{self.__class__.__name__}({self.index}, {self.iteration})'
