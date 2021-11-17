@@ -45,27 +45,28 @@ trace = walker.trace()
 
 ### Retrieving Trajectories
 
-The `trajectory_segment()` decorator transforms a function for loading the
-trajectory of a particular walker into a trajectory attribute attached to
-both `Walker` and `Trace` instances. The following code, which uses the
+The `@Trajectory` decorator transforms a function for retrieving the
+trajectory of single walker into a callable that can be used to retrieve 
+trajectories of both walker and trace objects. 
+The following code, which uses the
 [MDTraj](https://www.mdtraj.org/1.9.5/index.html) library, demonstrates its
 use:
 
 ```py
-from westpa.analysis import trajectory_segment
-from mdtraj import Trajectory
+import mdtraj as md
+from westpa.analysis import Trajectory
 
-@trajectory_segment
-def traj(walker):
+@Trajectory
+def trajectory(walker, atom_indices=None):
     filename = f'traj_segs/{walker.iteration.number:06d}/{walker.index:06d}/seg.h5'
-    return Trajectory.load(filename)
+    return md.load(filename, atom_indices=atom_indices)
 ```
-The trajectory segment associated with a given walker can then be accessed via the `traj` attribute:
+The decorated function can be used to get the trajectory of either a walker:
 ```py
-segment = walker.traj
+seg = trajectory(walker)
 ```
-The trajectory of a trace (i.e., the concatentation of a sequence of 
-trajectory segments) can be accessed similarly:
+or a trace:
 ```py
-trajectory = trace.traj
+traj = trajectory(walker.trace())
 ```
+
