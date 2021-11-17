@@ -164,7 +164,7 @@ class SegmentCollector:
             The trajectory of each walker.
 
         """
-        walkers = tuple(walkers)
+        walkers = list(walkers)
 
         tqdm_kwargs = dict(desc='Retrieving segments', disable=(not self.show_progress), position=0, total=len(walkers),)
 

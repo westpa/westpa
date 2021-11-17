@@ -1,14 +1,12 @@
 import itertools
-import sys
-
 import numpy as np
 import pandas as pd
+import sys
 
 from westpa.core.binning.assign import BinMapper
 from westpa.core.h5io import WESTPAH5File
 from westpa.core.segment import Segment
 from westpa.core.states import BasisState, InitialState, TargetState
-
 from westpa.tools.binning import mapper_from_hdf5
 
 
@@ -97,6 +95,11 @@ class Run:
         """Iterable[Walker]: Walkers that stopped in the sink."""
         return itertools.chain.from_iterable(iteration.recycled_walkers for iteration in self)
 
+    @property
+    def initial_walkers(self):
+        """Iterable[Walker]: Walkers whose parents are initial states."""
+        return itertools.chain.from_iterable(iteration.initial_walkers for iteration in self)
+
     def iteration(self, number):
         """Return a specific iteration.
 
@@ -165,6 +168,8 @@ class Iteration:
     @property
     def next(self):
         """Iteration: Next iteration."""
+        if self.number == self.run.num_iterations:
+            return None
         return self.run.iteration(self.number + 1)
 
     @property
@@ -234,22 +239,25 @@ class Iteration:
         return (Walker(index, self) for index in indices)
 
     @property
-    def _ibstates(self):
-        return self.h5group['ibstates']
+    def initial_walkers(self):
+        """Iterable[Walker]: Walkers whose parents are initial states."""
+        parent_ids = self.iteration.h5group['seg_index']['parent_id']
+        return (walker for walker, parent_id in zip(self, parent_ids) if parent_id < 0)
 
     @property
-    def _tstates(self):
-        return self.h5group.get('tstates')  # None for equilibrium sampling
+    def auxiliary_data(self):
+        """h5py.Group or None: Auxiliary data stored for the iteration."""
+        return self.h5group.get('auxdata')
 
     @property
     def basis_state_info(self):
         """pd.DataFrame: Basis state summary data."""
-        return pd.DataFrame(self._ibstates['bstate_index'][:])
+        return pd.DataFrame(self.h5group['ibstates']['bstate_index'][:])
 
     @property
     def basis_state_pcoords(self):
         """2D ndarray: Progress coordinates of each basis state."""
-        return self._ibstates['bstate_pcoord'][:]
+        return self.h5group['ibstates']['bstate_pcoord'][:]
 
     @property
     def basis_states(self):
@@ -260,45 +268,24 @@ class Iteration:
         ]
 
     @property
-    def initial_state_info(self):
-        """pd.DataFrame: Initial state summary data."""
-        return pd.DataFrame(self._ibstates['istate_index'][:])
-
-    @property
-    def initial_state_pcoords(self):
-        """2D ndarray: Progress coordinates of each initial state."""
-        return self._ibstates['istate_pcoord']
-
-    @property
-    def initial_states(self):
-        """list[InitialState]: Initial states."""
-        return [
-            InitialState(
-                row.Index,
-                row.basis_state_id,
-                row.iter_created,
-                iter_used=row.iter_used,
-                istate_type=row.istate_type,
-                istate_status=row.istate_status,
-                pcoord=pcoord,
-            )
-            for row, pcoord in zip(self.initial_state_info.itertuples(), self.initial_state_pcoords)
-        ]
+    def has_target_states(self):
+        """bool: Whether target (sink) states are defined for this iteration."""
+        return 'tstates' in self.h5group
 
     @property
     def target_state_info(self):
         """pd.DataFrame: Target state summary data."""
-        return pd.DataFrame(self._tstates['index'][:]) if self._tstates else None
+        return pd.DataFrame(self.h5group['tstates']['index'][:]) if self.has_target_states else None
 
     @property
     def target_state_pcoords(self):
         """2D ndarray: Progress coordinates of each target state."""
-        return self._tstates['pcoord'][:] if self._tstates else None
+        return self.h5group['tstates']['pcoord'][:] if self.has_target_states else None
 
     @property
     def target_states(self):
-        """list[TargetState]: Target states."""
-        if self._tstates is None:
+        """list[TargetState]: Target states in use for the iteration."""
+        if not self.has_target_states:
             return []
         return [
             TargetState(row.label, pcoord, state_id=row.Index)
@@ -308,7 +295,7 @@ class Iteration:
     @property
     def sink(self):
         """BinUnion or None: Union of bins serving as the recycling sink."""
-        if not self.target_states:
+        if not self.has_target_states:
             return None
         mapper = self.next.bin_mapper
         return BinUnion(mapper.assign(self.target_state_pcoords), mapper)
@@ -404,11 +391,23 @@ class Walker:
 
     @property
     def parent(self):
-        """Walker: The parent of the walker."""
-        if not self.iteration.prev:
-            return None
-        index = self.iteration.h5group['seg_index']['parent_id'][self.index]
-        return Walker(index, self.iteration.prev)
+        """Walker or InitialState: The parent of the walker."""
+        parent_id = self.iteration.h5group['seg_index']['parent_id'][self.index]
+
+        if parent_id >= 0:
+            return Walker(parent_id, self.iteration.prev)
+
+        istate_id = -(parent_id + 1)
+        row = self.iteration.h5group['ibstates']['istate_index'][istate_id]
+        return InitialState(
+            index,
+            row['basis_state_id'],
+            row['iter_created'],
+            iter_used=row['iter_used'],
+            istate_type=row['istate_type'],
+            istate_status=row['istate_status'],
+            pcoord=self.iteration.h5group['ibstates']['istate_pcoord'][istate_id],
+        )
 
     @property
     def children(self):
@@ -564,9 +563,6 @@ class Trace:
     """
 
     def __init__(self, walker, source=None, max_length=None):
-        if source is None:
-            source = ()
-
         if max_length is None:
             max_length = sys.maxsize
         else:
@@ -575,11 +571,20 @@ class Trace:
                 raise ValueError('max_length must be at least 1')
 
         walkers = []
-        while walker and (walker.pcoords[-1] not in source) and (len(walkers) < max_length):
+        initial_state = None
+        while len(walkers) < max_length:
+            if source and walker.pcoords[-1] in source:
+                break
             walkers.append(walker)
-            walker = walker.parent
+            parent = walker.parent
+            if isinstance(parent, InitialState):
+                initial_state = parent
+                break
+            walker = parent
+        walkers.reverse()
 
-        self.walkers = tuple(reversed(walkers))
+        self.walkers = walkers
+        self.initial_state = initial_state
         self.source = source
         self.max_length = max_length
 
@@ -608,7 +613,7 @@ class Trace:
     def __repr__(self):
         s = f'Trace({self.walkers[-1]}'
         if self.source:
-            s += f',\n      source={self.source}'
+            s += f', source={self.source}'
         if self.max_length < sys.maxsize:
-            s += f',\n      max_length={self.max_length}'
+            s += f', max_length={self.max_length}'
         return s + ')'
