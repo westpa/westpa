@@ -1,4 +1,5 @@
 import concurrent.futures as cf
+import functools
 import operator
 import numpy as np
 
@@ -15,13 +16,84 @@ from westpa.analysis.core import Walker, Trace
 from typing import Callable
 
 
+class Trajectory:
+    """A callable that returns the trajectory of a walker or trace.
+
+    Parameters
+    ----------
+    fget : callable
+        Function for retrieving a single trajectory segment. Must take a
+        :type:`Walker` object as its first argument and return a sequence
+        (e.g., an MDTraj Trajectory or a NumPy array) representing the
+        trajectory of the walker.
+    concatenator : callable, optional
+        Function for concatenating trajectories. Must take a sequence of
+        trajectories as input and return their concatenation. The default
+        `concatenator` is :func:`concatenate`.
+
+    """
+
+    def __init__(self, fget=None, *, concatenator=None):
+        if fget is None:
+            return partial(self.__init__, concatenator=concatenator)
+
+        self.fget = fget
+        self.concatenator = concatenator
+
+        self._segment_collector = SegmentCollector(self)
+
+    @property
+    def segment_collector(self):
+        """SegmentCollector: Segment retrieval manager."""
+        return self._segment_collector
+
+    @property
+    def fget(self):
+        """callable: Function for getting trajectory segments."""
+        return self._fget
+
+    @fget.setter
+    def fget(self, value):
+        if not isinstance(value, Callable):
+            raise TypeError('fget must be callable')
+        self._fget = value
+
+    @property
+    def concatenator(self):
+        """callable: Function for concatenating trajectories."""
+        return self._concatenator
+
+    @concatenator.setter
+    def concatenator(self, value):
+        if value is None:
+            value = concatenate
+        elif not isinstance(value, Callable):
+            raise TypeError('concatenator must be callable')
+        self._concatenator = value
+
+    def __call__(self, obj, **kwargs):
+        if isinstance(obj, Walker):
+            value = self.fget(obj, **kwargs)
+            self._validate_segment(value)
+            return value
+        if isinstance(obj, Trace):
+            segments = self.segment_collector.get_segments(obj.walkers, **kwargs)
+            return self.concatenator(segments)
+        raise TypeError('argument must be a Walker or Trace')
+
+    def _validate_segment(self, value):
+        if not hasattr(value, '__getitem__'):
+            msg = f"'{type(value).__name__}' object can't be concatenated"
+            raise TypeError(msg)
+
+
 class SegmentCollector:
     """An object that manages the retrieval of trajectory segments.
 
     Parameters
     ----------
-    traj_descr : Trajectory
-        A trajectory descriptor.
+    trajectory : Trajectory
+        The trajectory to which the segment collector is attached.
     use_threads : bool, default False
         Whether to use a pool of threads to retrieve trajectory segments
         asynchronously. Setting this parameter to True may be may be
@@ -35,22 +107,22 @@ class SegmentCollector:
 
     """
 
-    def __init__(self, traj_descr, use_threads=False, max_workers=None, show_progress=False):
-        self.traj_descr = traj_descr
+    def __init__(self, trajectory, use_threads=False, max_workers=None, show_progress=False):
+        self.trajectory = trajectory
         self.use_threads = use_threads
         self.max_workers = max_workers
         self.show_progress = show_progress
 
     @property
-    def traj_descr(self):
-        return self._traj_descr
+    def trajectory(self):
+        return self._trajectory
 
-    @traj_descr.setter
-    def traj_descr(self, value):
+    @trajectory.setter
+    def trajectory(self, value):
         if not isinstance(value, Trajectory):
-            msg = f'traj_descr must be an instance of {Trajectory}'
+            msg = f'trajectory must be an instance of {Trajectory}'
             raise TypeError(msg)
-        self._traj_descr = value
+        self._trajectory = value
 
     @property
     def use_threads(self):
@@ -85,23 +157,7 @@ class SegmentCollector:
             raise ValueError('show_progress must be True or False')
         self._show_progress = value
 
-    def get_segment(self, walker):
-        """Return the trajectory of a given walker.
-
-        Parameters
-        ----------
-        walker : Walker
-            A walker.
-
-        Returns
-        -------
-        sequence
-            The trajectory of `walker`.
-
-        """
-        return self.traj_descr.__get__(walker, Walker)
-
-    def get_segments(self, walkers):
+    def get_segments(self, walkers, **kwargs):
         """Return the trajectories of a group of walkers.
 
         Parameters
@@ -119,174 +175,17 @@ class SegmentCollector:
 
         tqdm_kwargs = dict(desc='Retrieving segments', disable=(not self.show_progress), position=0, total=len(walkers),)
 
+        get_segment = functools.partial(self.trajectory, **kwargs)
         if self.use_threads:
             with cf.ThreadPoolExecutor(self.max_workers) as executor:
-                future_to_key = {executor.submit(self.get_segment, walker): key for key, walker in enumerate(walkers)}
+                future_to_key = {executor.submit(get_segment, walker): key for key, walker in enumerate(walkers)}
                 futures = list(tqdm(cf.as_completed(future_to_key), **tqdm_kwargs))
                 futures.sort(key=future_to_key.get)
                 segments = (future.result() for future in futures)
         else:
-            segments = tqdm(map(self.get_segment, walkers), **tqdm_kwargs)
+            segments = tqdm(map(get_segment, walkers), **tqdm_kwargs)
 
         return list(segments)
-
-
-class Trajectory:
-    """A data descriptor for walker and trace trajectories.
-
-    Parameters
-    ----------
-    fget : callable
-        Function for getting a trajectory segment. Must take a single
-        :type:`Walker` object as input and return a sequence representing
-        the trajectory of the walker.
-    name : str, optional
-        Name of the :type:`Walker` and :type:`Trace` attribute to which
-        to assign the trajectory descriptor. If not provided, `name` will
-        default to the function name of `fget`.
-    concatenator : callable, optional
-        Function for concatenating trajectories. Must take a sequence of
-        trajectories as input and return their concatenation. The default
-        `concatenator` is :func:`concatenate`.
-    cache_segments : bool, default True
-        Whether to cache trajectory segments.
-
-    See Also
-    --------
-    :func:`trajectory_segment`
-        Decorator that transforms a function for getting trajectory
-        segments into a :type:`Trajectory` descriptor.
-
-    """
-
-    def __init__(self, fget=None, *, name=None, concatenator=None, cache_segments=True):
-        if fget is None:
-            return partial(self.__init__, name=name, concatenator=concatenator, cache_segments=cache_segments)
-
-        if name is None:
-            name = fget.__name__
-
-        self.fget = fget
-        self.name = name
-        self.concatenator = concatenator
-        self.cache_segments = cache_segments
-
-        self._segment_collector = SegmentCollector(self)
-
-        # Attach self to Walker and Trace classes.
-        for cls in Walker, Trace:
-            if hasattr(cls, name):
-                msg = f"class '{cls.__name__}' already has attribute '{name}'"
-                raise AttributeError(msg)
-        for cls in Walker, Trace:
-            setattr(cls, name, self)
-
-    @property
-    def private_name(self):
-        """str: Name of the :type:`Walker` instance attribute used for
-        caching segments.
-
-        """
-        return '_' + self.name
-
-    @property
-    def segment_collector(self):
-        """SegmentCollector: Segment retrieval manager."""
-        return self._segment_collector
-
-    @property
-    def fget(self):
-        """callable: Function for getting trajectory segments."""
-        return self._fget
-
-    @fget.setter
-    def fget(self, value):
-        if not isinstance(value, Callable):
-            raise TypeError('fget must be callable')
-        self._fget = value
-
-    @property
-    def cache_segments(self):
-        """bool: Whether to cache trajectory segments."""
-        return self._cache_segments
-
-    @cache_segments.setter
-    def cache_segments(self, value):
-        if not isinstance(value, bool):
-            raise TypeError('cache_segments must be True or False')
-        self._cache_segments = value
-
-    @property
-    def concatenator(self):
-        """callable: Function for concatenating trajectories."""
-        return self._concatenator
-
-    @concatenator.setter
-    def concatenator(self, value):
-        if value is None:
-            value = concatenate
-        elif not isinstance(value, Callable):
-            raise TypeError('concatenator must be callable')
-        self._concatenator = value
-
-    def __get__(self, instance, owner):
-        if instance is None:
-            return self
-
-        if owner is Walker:
-            if hasattr(instance, self.private_name):
-                value = getattr(instance, self.private_name)
-            else:
-                value = self.fget(instance)
-                self._validate_segment(value)
-                if self.cache_segments:
-                    setattr(instance, self.private_name, value)
-            return value
-
-        if owner is Trace:
-            segments = self.segment_collector.get_segments(instance)
-            return self.concatenator(segments)
-
-        msg = f'owner must be Walker or Trace, not {owner.__name__}'
-        raise TypeError(msg)
-
-    def __set__(self, instance, value):
-        raise AttributeError("can't set attribute")
-
-    def __call__(self, arg):
-        if isinstance(arg, Walker):
-            return self.__get__(arg, Walker)
-        if isinstance(arg, Trace):
-            return self.__get__(arg, Trace)
-        raise TypeError('argument must be a Walker or Trace')
-
-    def _validate_segment(self, value):
-        if not hasattr(value, '__getitem__'):
-            msg = f"'{type(value).__name__}' object can't be concatenated"
-            raise TypeError(msg)
-
-
-def trajectory_segment(fget=None, *, cache=True):
-    """Transform a function for getting a trajectory segment into a
-    trajectory attribute of the same name.
-
-    Parameters
-    ----------
-    fget : callable
-        Function for getting a trajectory segment. Must take a single
-        :type:`Walker` object as input and return a sequence.
-    cache : bool, default True
-        Whether to cache trajectory segments.
-
-    Returns
-    -------
-    Trajectory
-        The newly created trajectory attribute. Equivalent to
-        ``getattr(Walker, fget.__name__)`` and
-        ``getattr(Trace, fget.__name__)``.
-
-    """
-    return Trajectory(fget, cache_segments=cache)
 
 
 def concatenate(trajectories):
