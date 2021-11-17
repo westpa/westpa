@@ -56,30 +56,30 @@ import mdtraj as md
 from westpa.analysis import Trajectory
 
 @Trajectory
-def traj(walker, atom_indices=None):
+def trajectory(walker, atom_indices=None):
     filename = f'traj_segs/{walker.iteration.number:06d}/{walker.index:06d}/seg.h5'
     return md.load(filename, atom_indices=atom_indices)
 ```
 The decorated function can be used to get the trajectory of either a walker:
 ```py
-segment = traj(walker)
+seg = trajectory(walker)
 ```
 or a trace:
 ```py
-trajectory = traj(walker.trace())
+traj = trajectory(walker.trace())
 ```
 To (potentially) speed things up, the trajectory segments of a trace
 can be retrieved asynchronously using a pool of threads. This behavior can 
 be controlled by setting the `use_threads` and `max_workers` properties
 of the trajectory's `segment_collector` attribute. For example:
 ```py
-traj.segment_collector.use_threads = True
-traj.segment_collector.max_workers = 8
+trajectory.segment_collector.use_threads = True
+trajectory.segment_collector.max_workers = 8
 ```
 Even when using multiple threads, loading numerous trajectory segments from 
 disk (or worse, downloading them from a remote host) can take time. 
 To monitor progress, progress bars can be displayed:
 ```py
-traj.segment_collector.show_progress = True
+trajectory.segment_collector.show_progress = True
 ```
 
