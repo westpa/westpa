@@ -68,4 +68,18 @@ or a trace:
 ```py
 traj = trajectory(walker.trace())
 ```
+To (potentially) speed things up, the trajectory segments of a trace
+can be retrieved asynchronously using a pool of threads. This behavior can 
+be controlled by setting the `use_threads` and `max_workers` properties
+of the trajectory's `segment_collector` attribute. For example:
+```py
+trajectory.segment_collector.use_threads = True
+trajectory.segment_collector.max_workers = 8
+```
+Even when using multiple threads, loading numerous trajectory segments from 
+disk (or worse, downloading them from a remote host) can take time. 
+To monitor progress, a progress bar can be displayed:
+```py
+trajectory.segment_collector.show_progress = True
+```
 
