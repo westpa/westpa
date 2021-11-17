@@ -34,18 +34,12 @@ class Run:
 
     @h5filename.setter
     def h5filename(self, value):
-        self.h5file = WESTPAH5File(value, 'r')
-
-    def __getstate__(self):
-        state = self.__dict__.copy()
-        state['h5filename'] = state['h5file'].filename
-        del state['h5file']
-        return state
-
-    def __setstate__(self, state):
-        state['h5file'] = WESTPAH5File(state['h5filename'], 'r')
-        del state['h5filename']
-        self.__dict__.update(state)
+        try:
+            h5file = WESTPAH5File(value, 'r')
+        except FileNotFoundError as e:
+            e.strerror = f'Failed to load {self.DESCRIPTION}: file {value!r} not found'
+            raise e.with_traceback(None)
+        self.h5file = h5file
 
     @property
     def name(self):
