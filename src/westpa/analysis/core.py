@@ -422,6 +422,11 @@ class Walker:
         endpoint_type = self.iteration.h5group['seg_index']['endpoint_type'][self.index]
         return endpoint_type == Segment.SEG_ENDPOINT_RECYCLED
 
+    @property
+    def initial(self):
+        """bool: True if the parent of the walker is an initial state, False otherwise."""
+        return self.iteration.h5group['seg_index']['parent_id'][self.index] < 0
+
     def trace(self, **kwargs):
         """Return the trace (ancestral line) of the walker.
 
