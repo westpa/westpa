@@ -1,19 +1,15 @@
 import concurrent.futures as cf
 import functools
 import operator
-import numpy as np
 
-# Required for fast concatenation of MDTraj trajectories.
-try:
-    import mdtraj
-except ImportError:
-    mdtraj = None
+import mdtraj as md
+import numpy as np
 
 from functools import partial, reduce
 from tqdm import tqdm
-from westpa.analysis.core import Walker, Trace
-
 from typing import Callable
+from westpa.analysis.core import Walker, Trace
+from westpa.core.h5io import WESTIterationFile
 
 
 class Trajectory:
@@ -203,6 +199,20 @@ def concatenate(segments):
     """
     if isinstance(segments[0], np.ndarray):
         return np.concatenate(segments)
-    if mdtraj and isinstance(segments[0], mdtraj.Trajectory):
+    if isinstance(segments[0], md.Trajectory):
         return segments[0].join(segments[1:], check_topology=False)
     return reduce(operator.concat, segments)
+
+
+@Trajectory
+def hdf5_framework_trajectory(walker, atom_selection=None):
+    link = walker.iteration.h5group.get('trajectories')
+    if link is None:
+        raise ValueError('the west.h5 file does not appear to have been generated using the HDF5 framework')
+    with WESTIterationFile(link.file.filename) as traj_file:
+        indices = traj_file.topology.select(atom_selection) if atom_selection else None
+        return traj_file.read_as_traj(
+            iteration=walker.iteration.number,
+            segment=walker.index,
+            atom_indices=indices,
+        )
