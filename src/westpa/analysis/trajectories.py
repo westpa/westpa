@@ -24,21 +24,20 @@ class Trajectory:
     fget : callable
         Function for retrieving a single trajectory segment. Must take a
         :type:`Walker` object as its first argument and return a sequence
-        (e.g., an MDTraj Trajectory or a NumPy array) representing the
-        trajectory of the walker.
-    concatenator : callable, optional
-        Function for concatenating trajectories. Must take a sequence of
-        trajectories as input and return their concatenation. The default
-        `concatenator` is :func:`concatenate`.
+        (e.g., a list or ndarray) representing the trajectory of the walker.
+    fconcat : callable, optional
+        Function for concatenating trajectory segments. Must take a sequence
+        of trajectory segments as input and return their concatenation. The
+        default concatenation function is :func:`concatenate`.
 
     """
 
-    def __init__(self, fget=None, *, concatenator=None):
+    def __init__(self, fget=None, *, fconcat=None):
         if fget is None:
-            return partial(self.__init__, concatenator=concatenator)
+            return partial(self.__init__, fconcat=fconcat)
 
         self.fget = fget
-        self.concatenator = concatenator
+        self.fconcat = fconcat
 
         self._segment_collector = SegmentCollector(self)
 
@@ -59,17 +58,17 @@ class Trajectory:
         self._fget = value
 
     @property
-    def concatenator(self):
-        """callable: Function for concatenating trajectories."""
-        return self._concatenator
+    def fconcat(self):
+        """callable: Function for concatenating trajectory segments."""
+        return self._fconcat
 
-    @concatenator.setter
-    def concatenator(self, value):
+    @fconcat.setter
+    def fconcat(self, value):
         if value is None:
             value = concatenate
         elif not isinstance(value, Callable):
-            raise TypeError('concatenator must be callable')
-        self._concatenator = value
+            raise TypeError('fconcat must be callable')
+        self._fconcat = value
 
     def __call__(self, obj, **kwargs):
         if isinstance(obj, Walker):
@@ -78,7 +77,7 @@ class Trajectory:
             return value
         if isinstance(obj, Trace):
             segments = self.segment_collector.get_segments(obj.walkers, **kwargs)
-            return self.concatenator(segments)
+            return self.fconcat(segments)
         raise TypeError('argument must be a Walker or Trace')
 
     def _validate_segment(self, value):
@@ -188,22 +187,22 @@ class SegmentCollector:
         return list(segments)
 
 
-def concatenate(trajectories):
-    """Return the concatenation of a sequence of trajectories.
+def concatenate(segments):
+    """Return the concatenation of a sequence of trajectory segments.
 
     Parameters
     ----------
-    trajectories : sequence of sequences
-        A sequence of trajectories.
+    segments : sequence of sequences
+        A sequence of trajectory segments.
 
     Returns
     -------
     sequence
-        The concatenation of `trajectories`.
+        The concatenation of `segments`.
 
     """
-    if isinstance(trajectories[0], np.ndarray):
-        return np.concatenate(trajectories)
-    if mdtraj and isinstance(trajectories[0], mdtraj.Trajectory):
-        return trajectories[0].join(trajectories[1:], check_topology=False)
-    return reduce(operator.concat, trajectories)
+    if isinstance(segments[0], np.ndarray):
+        return np.concatenate(segments)
+    if mdtraj and isinstance(segments[0], mdtraj.Trajectory):
+        return segments[0].join(segments[1:], check_topology=False)
+    return reduce(operator.concat, segments)
