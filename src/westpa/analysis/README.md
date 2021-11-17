@@ -78,7 +78,7 @@ trajectory.segment_collector.max_workers = 8
 ```
 Even when using multiple threads, loading numerous trajectory segments from 
 disk (or worse, downloading them from a remote host) can take time. 
-To monitor progress, a progress bar can be displayed:
+To monitor progress, progress bars can be displayed:
 ```py
 trajectory.segment_collector.show_progress = True
 ```
