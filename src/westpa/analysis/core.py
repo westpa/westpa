@@ -123,7 +123,7 @@ class Run:
         return iter(self.iterations)
 
     def __contains__(self, iteration):
-        return iteration.run is self
+        return iteration.run == self
 
     def __eq__(self, other):
         return self.h5file == other.h5file
@@ -339,7 +339,7 @@ class Iteration:
         return iter(self.walkers)
 
     def __contains__(self, walker):
-        return walker.iteration is self
+        return walker.iteration == self
 
     def __eq__(self, other):
         return self.number == other.number and self.run == other.run
