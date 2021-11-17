@@ -57,7 +57,10 @@ class Run:
     @property
     def summary(self):
         """pd.DataFrame: Summary data for the run."""
-        return pd.DataFrame(self.h5file['summary'][:self.num_iterations], index=range(1, self.num_iterations + 1))
+        df = pd.DataFrame(self.h5file['summary'][:self.num_iterations], index=range(1, self.num_iterations + 1))
+        df.pop('norm')  # should always be 1.0
+        df.pop('binhash')  # not human readable
+        return df
 
     @property
     def num_iterations(self):
