@@ -47,8 +47,7 @@ trace = walker.trace()
 
 The `@Trajectory` decorator transforms a function for retrieving the
 trajectory of single walker into a callable that can be used to retrieve 
-trajectories of both walker and trace objects. 
-The following code, which uses the
+both walker and trace trajectories. The following code, which uses the
 [MDTraj](https://www.mdtraj.org/1.9.5/index.html) library, demonstrates its
 use:
 
