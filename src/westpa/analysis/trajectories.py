@@ -203,14 +203,13 @@ def concatenate(segments):
 
 
 @Trajectory
-def hdf5_framework_trajectory(walker, atom_selection=None):
+def hdf5_framework_trajectory(walker, atom_indices=None):
     link = walker.iteration.h5group.get('trajectories')
     if link is None:
         raise ValueError('the west.h5 file does not appear to have been generated using the HDF5 framework')
     with WESTIterationFile(link.file.filename) as traj_file:
-        indices = traj_file.topology.select(atom_selection) if atom_selection else None
         return traj_file.read_as_traj(
             iteration=walker.iteration.number,
             segment=walker.index,
-            atom_indices=indices,
+            atom_indices=atom_indices,
         )
