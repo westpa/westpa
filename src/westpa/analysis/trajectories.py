@@ -1,11 +1,9 @@
 import concurrent.futures as cf
 import functools
-import operator
-
 import mdtraj as md
 import numpy as np
+import operator
 
-from functools import partial, reduce
 from tqdm import tqdm
 from typing import Callable
 from westpa.analysis.core import Walker, Trace
@@ -30,7 +28,7 @@ class Trajectory:
 
     def __init__(self, fget=None, *, fconcat=None):
         if fget is None:
-            return partial(self.__init__, fconcat=fconcat)
+            return functools.partial(self.__init__, fconcat=fconcat)
 
         self.fget = fget
         self.fconcat = fconcat
@@ -201,7 +199,7 @@ def concatenate(segments):
         return np.concatenate(segments)
     if isinstance(segments[0], md.Trajectory):
         return segments[0].join(segments[1:], check_topology=False)
-    return reduce(operator.concat, segments)
+    return functools.reduce(operator.concat, segments)
 
 
 @Trajectory
