@@ -16,17 +16,41 @@ class Run:
     Parameters
     ----------
     h5filename : str or file-like object, default 'west.h5'
-        Pathname or stream of a WESTPA HDF5 data file.
-    name : str, optional
-        Name of the run. Default is the empty string.
+        Pathname or stream of a WESTPA HDF5 file.
 
     """
 
     DESCRIPTION = 'WESTPA Run'
 
-    def __init__(self, h5filename='west.h5', name=None):
+    def __init__(self, h5filename='west.h5'):
         self.h5filename = h5filename
-        self.name = name
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, traceback):
+        self.close()
+
+    @classmethod
+    def open(cls, h5filename='west.h5'):
+        """Alternate constructor.
+
+        Parameters
+        ----------
+        h5filename : str or file-like object, default 'west.h5'
+            Pathname or stream of a WESTPA HDF5 file.
+
+        """
+        return cls(h5filename)
+
+    def close(self):
+        """Close the Run instance by closing the underlying WESTPA HDF5 file."""
+        self.h5file.close()
+
+    @property
+    def closed(self):
+        """bool: Whether the Run instance is closed."""
+        return not bool(self.h5file)
 
     @property
     def h5filename(self):
@@ -37,22 +61,9 @@ class Run:
         try:
             h5file = WESTPAH5File(value, 'r')
         except FileNotFoundError as e:
-            e.strerror = f'Failed to load {self.DESCRIPTION}: file {value!r} not found'
+            e.strerror = f'Failed to open {self.DESCRIPTION}: file {value!r} not found'
             raise e.with_traceback(None)
         self.h5file = h5file
-
-    @property
-    def name(self):
-        """str: Name of the run."""
-        return self._name
-
-    @name.setter
-    def name(self, value):
-        if value is None:
-            value = ''
-        elif not isinstance(value, str):
-            raise TypeError('name must be a string')
-        self._name = value
 
     @property
     def summary(self):
@@ -131,10 +142,13 @@ class Run:
     def __hash__(self):
         return hash(self.h5file)
 
+    def __bool__(self):
+        return not self.closed
+
     def __repr__(self):
-        if self.name:
-            return f'<{self.DESCRIPTION} "{self.name}" at {hex(id(self))}>'
-        return f'<{self.DESCRIPTION} at {hex(id(self))}>'
+        if self.closed:
+            return f'<Closed {self.DESCRIPTION} at {hex(id(self))}>'
+        return f'<{self.DESCRIPTION} with {self.num_iterations} iterations at {hex(id(self))}>'
 
 
 class Iteration:
