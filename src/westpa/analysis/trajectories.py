@@ -165,10 +165,14 @@ class SegmentCollector:
 
         """
         walkers = list(walkers)
-
-        tqdm_kwargs = dict(desc='Retrieving segments', disable=(not self.show_progress), position=0, total=len(walkers),)
-
         get_segment = functools.partial(self.trajectory, **kwargs)
+        tqdm_kwargs = dict(
+            desc='Retrieving segments',
+            disable=(not self.show_progress),
+            position=0,
+            total=len(walkers),
+        )
+
         if self.use_threads:
             with cf.ThreadPoolExecutor(self.max_workers) as executor:
                 future_to_key = {executor.submit(get_segment, walker): key for key, walker in enumerate(walkers)}

@@ -1,3 +1,4 @@
+import collections
 import itertools
 import numpy as np
 import pandas as pd
@@ -90,7 +91,7 @@ class Run:
 
     @property
     def num_segments(self):
-        """int: Alias self.num_walkers."""
+        """int: Total number of trajectory segments (alias self.num_walkers)."""
         return self.num_walkers
 
     @property
@@ -349,6 +350,48 @@ class Iteration:
             raise ValueError(f'walker index must be in {valid_range}')
         return Walker(index, self)
 
+    def basis_state(self, index):
+        """Return the basis state with the given index.
+
+        Parameters
+        ----------
+        index : int
+            Basis state index (0-based).
+
+        Returns
+        -------
+        BasisState
+            The basis state indexed by `index`.
+
+        """
+        row = self.h5group['ibstates']['bstate_index'][index]
+        pcoord = self.h5group['ibstates']['bstate_pcoord'][index]
+        return BasisState(
+            row['label'],
+            row['probability'],
+            pcoord=pcoord,
+            auxref=row['auxref'],
+            state_id=index,
+        )
+
+    def target_state(self, index):
+        """Return the target state with the given index.
+
+        Parameters
+        ----------
+        index : int
+            Target state index (0-based).
+
+        Returns
+        -------
+        TargetState
+            The target state indexed by `index`.
+
+        """
+        row = self.h5group['tstates']['index'][index]
+        pcoord = self.h5group['tstates']['pcoord'][index]
+        return TargetState(row['label'], pcoord, state_id=index)
+
     def __iter__(self):
         return iter(self.walkers)
 
@@ -417,13 +460,14 @@ class Walker:
         istate_id = -(parent_id + 1)
         row = self.iteration.h5group['ibstates']['istate_index'][istate_id]
         return InitialState(
-            index,
+            istate_id,
             row['basis_state_id'],
             row['iter_created'],
             iter_used=row['iter_used'],
             istate_type=row['istate_type'],
             istate_status=row['istate_status'],
             pcoord=self.iteration.h5group['ibstates']['istate_pcoord'][istate_id],
+            basis_state=self.iteration.basis_state(row['basis_state_id']),
         )
 
     @property
@@ -571,7 +615,7 @@ class Bin(BinUnion):
 
 
 class Trace:
-    """A trace of a walker's ancestry back to a source or initial state.
+    """A trace of a walker's ancestry.
 
     Parameters
     ----------
@@ -612,16 +656,6 @@ class Trace:
         self.initial_state = initial_state
         self.source = source
         self.max_length = max_length
-
-    @property
-    def pcoords(self):
-        """2D ndarray: Progress coordinate snapshots."""
-        return np.concatenate([walker.pcoords for walker in self])
-
-    @property
-    def num_snapshots(self):
-        """int: Number of snapshots."""
-        return sum(walker.num_snapshots for walker in self)
 
     def __len__(self):
         return len(self.walkers)
