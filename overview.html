@@ -2,7 +2,17 @@
 <html>
 
   <head>
-    <meta charset='utf-8'>
+    <meta charset="utf-8">
+	<script>
+		var viewport = document.createElement("meta");
+		viewport.setAttribute("name", "viewport");
+		if (screen.width < 648) {
+			viewport.setAttribute("content", "width=648");
+		} else {
+    	viewport.setAttribute("content", "width=device-width, initial-scale=1");
+		}
+		document.head.appendChild(viewport);
+    </script>
     <meta http-equiv="X-UA-Compatible" content="chrome=1">
     <meta name="description" content="WESTPA : The Weighted Ensemble Simulation Toolkit with Parallelization and Analysis">
 
@@ -21,7 +31,7 @@
 
             <section id="page_links">
               <a href="index.html">
-                <img class="logo_link" src="images/WESTPA2.jpg" alt="WESTPA logo" style="width:125px;height:59.6px;" border=0>
+                <img class="logo_link" src="images/WESTPA2.jpg" alt="WESTPA logo" style="width:125px;height:59.6px;" border="0">
               </a>
               <a class="gh_link" href="https://github.com/westpa/westpa">GitHub Repository</a>
               <a class="doc_link" href="https://github.com/westpa/westpa/wiki">Wiki</a>
@@ -65,8 +75,8 @@ Interoperability: Sampling at fixed time points enables WE software to be inter-
 </p>
 
 <p>
-<img src="images/we_overview_fig1.png" alt="fig1" style="width:100%;" border=0>
-</img>
+<img src="images/we_overview_fig1.png" alt="fig1" style="width:100%;" border="0">
+
 <strong>Figure 1.</strong> Weighted ensemble (WE) simulation using bins defined in advance or on the fly. Multiple trajectories are initiated from any known configuration (filled square) and run using standard dynamics simulation, without bias. Each of the four initial trajectories is assigned a weight of 1/4. (a) When a trajectory reaches a new bin, it is replicated with each “child” receiving an equal share of the parent trajectory's weight. Trajectories are checked for their location/bin at fixed time intervals: in the first interval, red trajectories were run, followed by green trajectories in the second interval. The dashed trajectories have each inherited 1/4 of the parent trajectory's weight, resulting in weights of 1/16 for each daughter. (b) New bins can be defined ‘on the fly’ based on user-defined criteria.
 </p>
 
@@ -118,8 +128,7 @@ A remarkable feature of WESS simulation is that information on very long timesca
 
 
 <p>
-<img src="images/we_overview_fig2.png" alt="fig2" style="width:75%;margin-left:80px;" border=0 >
-</img>
+<img src="images/we_overview_fig2.png" alt="fig2" style="width:75%;margin-left:80px;" border="0" >
 <br>
 <strong>Figure 2.</strong> Schematic depiction of equilibrium in WE simulation.  Thicker arrows represent higher-weight trajectories.  The total probability/weight flowing from one bin to another is exactly balanced, on average, by the reverse flow.  Thus, the flow of a given number of low-weight trajectories is matched by a smaller number of higher-weight trajectories moving in the opposite direction.  Equilibrium flows of weighted trajectories can be established by estimating and adjusting weights.
 </p>
@@ -145,8 +154,7 @@ As shown in <strong>Fig. 3</strong>, WE is ideal for identifying different pathw
 </p>
 
 <p>
-<img src="images/we_overview_fig3.png" alt="fig3" style="width:100%;" border=0>
-</img>
+<img src="images/we_overview_fig3.png" alt="fig3" style="width:100%;" border="0">
 <strong>Figure 3.</strong> Weighted ensemble (WE) simulation is well suited for finding multiple pathways.  A number of different pathways are shown for the alanine dipeptide molecule (center).  Transition trajectories start from the c<sub style="bottom:-0.25em;font-size:75%;line-height:0;position:relative;vertical-align: baseline;">7eq</sub> state at the center of each panel and terminate in the c<sub style="bottom:-0.25em;font-size:75%;line-height:0;position:relative;vertical-align: baseline;">7ax</sub> state, which occurs in the four outside corners of each panel due to the cyclic nature of torsion angles [Bhatt-2011].  WE has also identified distinct pathways in proteins – see text.
 </p>
 
@@ -170,7 +178,7 @@ As an example, consider a strategy proposed several years ago [Zhang-2007] that 
 There are several key points to be aware of when planning a WE study.  These are limitations of path sampling generally and WE in particular.
 </p>
 
-<img src="images/event_dur.png" alt="event_dur" style="width:50%;margin-left:145px" border=0>
+<img src="images/event_dur.png" alt="event_dur" style="width:50%;margin-left:145px" border="0">
 
 <p><u>Limitations intrinsic to path sampling.</u></p>
 <p>

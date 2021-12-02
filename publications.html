@@ -2,7 +2,17 @@
 <html>
 
   <head>
-    <meta charset='utf-8'>
+    <meta charset="utf-8">
+	<script>
+		var viewport = document.createElement("meta");
+		viewport.setAttribute("name", "viewport");
+		if (screen.width < 648) {
+			viewport.setAttribute("content", "width=648");
+		} else {
+    	viewport.setAttribute("content", "width=device-width, initial-scale=1");
+		}
+		document.head.appendChild(viewport);
+    </script>
     <meta http-equiv="X-UA-Compatible" content="chrome=1">
     <meta name="description" content="WESTPA : The Weighted Ensemble Simulation Toolkit with Parallelization and Analysis">
 
@@ -21,7 +31,7 @@
 
             <section id="page_links">
               <a href="index.html">
-                <img class="logo_link" src="images/WESTPA2.jpg" alt="WESTPA logo" style="width:125px;height:59.6px;" border=0>
+                <img class="logo_link" src="images/WESTPA2.jpg" alt="WESTPA logo" style="width:125px;height:59.6px;" border="0">
               </a>
               <a class="gh_link" href="https://github.com/westpa/westpa">GitHub Repository</a>
               <a class="doc_link" href="https://github.com/westpa/westpa/wiki">Wiki</a>
@@ -75,7 +85,7 @@ JL Adelman, A Scarbrough, MC Zwier, D Bhatt, LT Chong, DM Zuckerman, and M Grabe
 </li>
 
 <li>
-JL Adelman and M Grabe. “Simulating rare events using a weighted ensemble-based string method.” <a onclick="window.open(this.href); return false;" title="http://dx.doi.org/10.1063/1.4773892" href="http://dx.doi.org/10.1063/1.4773892" onkeypress="window.open(this.href); return false;" class="style_5">J. Chem. Phys., 138: 044105</a> (2013).<b>
+JL Adelman and M Grabe. “Simulating rare events using a weighted ensemble-based string method.” <a onclick="window.open(this.href); return false;" title="http://dx.doi.org/10.1063/1.4773892" href="http://dx.doi.org/10.1063/1.4773892" onkeypress="window.open(this.href); return false;" class="style_5">J. Chem. Phys., 138: 044105</a> (2013).<br>
 </li>
 
 <li>
