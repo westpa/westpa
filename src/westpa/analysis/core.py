@@ -328,7 +328,7 @@ class Iteration:
         """BinUnion or None: Union of bins serving as the recycling sink."""
         if not self.has_target_states:
             return None
-        mapper = self.next.bin_mapper
+        mapper = Iteration(self.number + 1, self.run).bin_mapper
         return BinUnion(mapper.assign(self.target_state_pcoords), mapper)
 
     def bin(self, index):
