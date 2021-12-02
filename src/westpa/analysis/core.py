@@ -1,11 +1,15 @@
 import itertools
-import pandas as pd
 import sys
-import westpa.tools.binning
 
-from functools import cached_property
+import numpy as np
+import pandas as pd
+
+from westpa.core.binning.assign import BinMapper
 from westpa.core.h5io import WESTPAH5File
+from westpa.core.segment import Segment
 from westpa.core.states import BasisState, InitialState, TargetState
+
+from westpa.tools.binning import mapper_from_hdf5
 
 
 class Run:
@@ -161,8 +165,6 @@ class Iteration:
     @property
     def next(self):
         """Iteration: Next iteration."""
-        if self.number == self.run.num_iterations:
-            return None
         return self.run.iteration(self.number + 1)
 
     @property
@@ -170,15 +172,15 @@ class Iteration:
         """pd.DataFrame: Segment summary data for the iteration."""
         return pd.DataFrame(self.h5group['seg_index'][:], dtype=object)
 
-    @cached_property
+    @property
     def pcoords(self):
         """3D ndarray: Progress coordinate snaphots of each walker."""
         return self.h5group['pcoord'][:]
 
-    @cached_property
+    @property
     def weights(self):
         """1D ndarray: Statistical weight of each walker."""
-        return self.segment_info['weight']
+        return self.h5group['seg_index']['weight']
 
     @property
     def bin_target_counts(self):
@@ -188,12 +190,12 @@ class Iteration:
             return None
         return val[:]
 
-    @cached_property
+    @property
     def bin_mapper(self):
         """BinMapper: Bin mapper used in the iteration."""
         if self.bin_target_counts is None:
             return None
-        mapper, _, _ = westpa.tools.binning.mapper_from_hdf5(self.run.h5file['bin_topologies'], self.h5group.attrs['binhash'])
+        mapper, _, _ = mapper_from_hdf5(self.run.h5file['bin_topologies'], self.h5group.attrs['binhash'])
         return mapper
 
     @property
@@ -206,7 +208,8 @@ class Iteration:
     @property
     def bins(self):
         """Iterable[Bin]: Bins."""
-        return (Bin(index, self) for index in range(self.num_bins))
+        mapper = self.bin_mapper
+        return (Bin(index, mapper) for index in range(self.num_bins))
 
     @property
     def num_walkers(self):
@@ -226,7 +229,9 @@ class Iteration:
     @property
     def recycled_walkers(self):
         """Iterable[Walker]: Walkers that stopped in the sink."""
-        return (walker for walker in self if walker.recycled)
+        endpoint_type = self.h5group['seg_index']['endpoint_type']
+        indices = np.flatnonzero(endpoint_type == Segment.SEG_ENDPOINT_RECYCLED)
+        return (Walker(index, self) for index in indices)
 
     @property
     def _ibstates(self):
@@ -300,10 +305,13 @@ class Iteration:
             for row, pcoord in zip(self.target_state_info.itertuples(), self.target_state_pcoords)
         ]
 
-    @cached_property
+    @property
     def sink(self):
-        """Sink: Union of bins serving as the recycling sink."""
-        return Sink(self)
+        """BinUnion or None: Union of bins serving as the recycling sink."""
+        if not self.target_states:
+            return None
+        mapper = self.next.bin_mapper
+        return BinUnion(mapper.assign(self.target_state_pcoords), mapper)
 
     def bin(self, index):
         """Return the bin with the given index.
@@ -311,7 +319,7 @@ class Iteration:
         Parameters
         ----------
         index : int
-            Bin index.
+            Bin index (0-based).
 
         Returns
         -------
@@ -319,10 +327,7 @@ class Iteration:
             The bin indexed by `index`.
 
         """
-        valid_range = range(self.num_bins)
-        if index not in valid_range:
-            raise ValueError(f'bin index must be in {valid_range}')
-        return Bin(index, self)
+        return Bin(index, self.bin_mapper)
 
     def walker(self, index):
         """Return the walker with the given index.
@@ -385,7 +390,7 @@ class Walker:
     @property
     def pcoords(self):
         """2D ndarray: Progress coordinate snapshots."""
-        return self.iteration.pcoords[self.index]
+        return self.iteration.h5group['pcoord'][self.index]
 
     @property
     def num_snapshots(self):
@@ -402,7 +407,8 @@ class Walker:
         """Walker: The parent of the walker."""
         if not self.iteration.prev:
             return None
-        return Walker(self.segment_info['parent_id'], self.iteration.prev)
+        index = self.iteration.h5group['seg_index']['parent_id'][self.index]
+        return Walker(index, self.iteration.prev)
 
     @property
     def children(self):
@@ -414,27 +420,10 @@ class Walker:
     @property
     def recycled(self):
         """bool: True if the walker stopped in the sink, False otherwise."""
-        return self.stopped_in(self.iteration.sink)
+        endpoint_type = self.iteration.h5group['seg_index']['endpoint_type'][self.index]
+        return endpoint_type == Segment.SEG_ENDPOINT_RECYCLED
 
-    def stopped_in(self, pcoord_subset):
-        """Return True if the walker stopped (i.e., terminated) in a given
-        subset of progress coordinate space, False otherwise.
-
-        Parameters
-        ----------
-        pcoord_subset : Bin, BinUnion, or Container
-            A :type:`Container` object representing a subset of progress
-            coordinate space.
-
-        Returns
-        -------
-        bool
-            Whether the walker stopped in `pcoord_subset`.
-
-        """
-        return self.pcoords[-1] in pcoord_subset
-
-    def trace(self, source=None):
+    def trace(self, **kwargs):
         """Return the trace (ancestral line) of the walker.
 
         For full documentation see :class:`Trace`.
@@ -445,7 +434,7 @@ class Walker:
             The trace of the walker.
 
         """
-        return Trace(self, source=source)
+        return Trace(self, **kwargs)
 
     def __eq__(self, other):
         return self.index == other.index and self.iteration == other.iteration
@@ -454,143 +443,107 @@ class Walker:
         return f'{self.__class__.__name__}({self.index}, {self.iteration})'
 
 
-class Bin:
-    """A bin used in the resampling step of an iteration.
+class BinUnion:
+    """A (disjoint) union of bins defined by a common bin mapper.
+
+    Parameters
+    ----------
+    indices : iterable of int
+        The indices of the bins comprising the union.
+    mapper : BinMapper
+        The bin mapper defining the bins.
+
+    """
+
+    def __init__(self, indices, mapper):
+        if not isinstance(mapper, BinMapper):
+            raise TypeError(f'mapper must be an instance of {BinMapper}')
+
+        indices = set(indices)
+        valid_range = range(mapper.nbins)
+        if any(index not in valid_range for index in indices):
+            raise ValueError(f'bin indices must be in {valid_range}')
+
+        self.indices = indices
+        self.mapper = mapper
+
+    def union(self, *others):
+        """Return the union of the bin union and all others.
+
+        Parameters
+        ----------
+        *others : BinUnion
+            Other :type:`BinUnion` instances, consisting of bins defined by
+            the same underlying bin mapper.
+
+        Return
+        ------
+        BinUnion
+            The union of `self` and `others`.
+
+        """
+        if any(other.mapper != self.mapper for other in others):
+            raise ValueError('bins must be defined by the same bin mapper')
+        indices = self.indices.union(*(other.indices for other in others))
+        return BinUnion(indices, self.mapper)
+
+    def intersection(self, *others):
+        """Return the intersection of the bin union and all others.
+
+        Parameters
+        ----------
+        *others : BinUnion
+            Other :type:`BinUnion` instances, consisting of bins defined by
+            the same underlying bin mapper.
+
+        Return
+        ------
+        BinUnion
+            The itersection of `self` and `others`.
+
+        """
+        if any(other.mapper != self.mapper for other in others):
+            raise ValueError('bins must be defined by the same bin mapper')
+        indices = self.indices.intersection(*(other.indices for other in others))
+        return BinUnion(indices, self.mapper)
+
+    def __contains__(self, coord):
+        result = self.mapper.assign([coord])
+        if result.size != 1:
+            raise ValueError('left operand must be a single coordinate tuple')
+        return result[0] in self.indices
+
+    def __or__(self, other):
+        return self.union(other)
+
+    def __and__(self, other):
+        return self.intersection(other)
+
+    def __bool__(self):
+        return bool(self.indices)
+
+    def __repr__(self):
+        return f'{self.__class__.__name__}({self.indices}, {self.mapper})'
+
+
+class Bin(BinUnion):
+    """A bin defined by a bin mapper.
 
     Parameters
     ----------
     index : int
-        Bin index.
-    iteration : Iteration
-        The iteration in which the bin was used.
+        The index of the bin.
+    mapper : BinMapper
+        The bin mapper defining the bin.
 
     """
 
-    def __init__(self, index, iteration):
+    def __init__(self, index, mapper):
+        super().__init__({index}, mapper)
         self.index = index
-        self.iteration = iteration
-
-    @property
-    def mapper(self):
-        """BinMapper: Bin mapper that defines the bin."""
-        return self.iteration.bin_mapper
-
-    @property
-    def target_count(self):
-        """int: Target number of particles in the bin."""
-        return self.iteration.bin_target_counts[self.index]
-
-    def union(self, *others):
-        """Return the union of this bin with other bins.
-
-        Parameters
-        ----------
-        *others : Bin
-            Other bins comprising the union.
-
-        Return
-        ------
-        BinUnion
-            The union of `self` and `others`.
-
-        """
-        return BinUnion(self, *others)
-
-    def __or__(self, other):
-        return self.union(other)
-
-    def __contains__(self, pcoord):
-        result = self.mapper.assign([pcoord])
-        if result.size != 1:
-            raise ValueError('left operand must be a single point in progress coordinate space')
-        return result[0] == self.index
 
     def __repr__(self):
-        return f'{self.__class__.__name__}({self.index}, {self.iteration})'
-
-
-class BinUnion:
-    """A union of bins.
-
-    Parameters
-    ----------
-    *bins : Bin
-        The bins comprising the union.
-
-    """
-
-    def __init__(self, *bins):
-        if not all(isinstance(bin_, Bin) for bin_ in bins):
-            raise TypeError('arguments must be of type Bin')
-        self._bins = bins
-
-    @property
-    def bins(self):
-        """tuple[Bin]: Bins comprising the union."""
-        return self._bins
-
-    def union(self, *others):
-        """Return the union of this bin with other bins.
-
-        Parameters
-        ----------
-        *others : BinUnion or Bin
-            Other bins comprising the union.
-
-        Return
-        ------
-        BinUnion
-            The union of `self` and `others`.
-
-        """
-        bins = list(self.bins)
-        for other in others:
-            if isinstance(other, Bin):
-                bins.append(other)
-                continue
-            bins += other.bins
-        return BinUnion(*bins)
-
-    def __or__(self, other):
-        return self.union(other)
-
-    def __bool__(self):
-        return bool(self.bins)
-
-    def __contains__(self, pcoord):
-        return any(pcoord in bin_ for bin_ in self.bins)
-
-    def __repr__(self):
-        return f'{self.__class__.__name__}{self.bins}'
-
-
-class Sink(BinUnion):
-    """A union of bins serving as the recycling sink for a given iteration.
-
-    Parameters
-    ----------
-    iteration : Iteration
-        The iteration whose target states define the sink. The bins
-        comprising the sink belong to the *next* iteration.
-
-    """
-
-    def __init__(self, iteration):
-        if not iteration.next or not iteration.target_states:
-            super().__init__()
-        else:
-            pcoords = iteration.target_state_pcoords[:]
-            bin_indices = set(iteration.next.bin_mapper.assign(pcoords))
-            super().__init__(*(Bin(k, iteration.next) for k in bin_indices))
-        self.iteration = iteration
-
-    @property
-    def target_states(self):
-        """list[TargetState]: Target states defining the sink."""
-        return self.iteration.target_states
-
-    def __repr__(self):
-        return f'{self.__class__.__name__}({self.iteration})'
+        return f'{self.__class__.__name__}({self.index}, {self.mapper})'
 
 
 class Trace:
@@ -600,38 +553,45 @@ class Trace:
     ----------
     walker : Walker
         The terminal walker.
-    source : Bin, BinUnion, or Container, optional
-        The source (macro)state, specified as a :type:`Container` object
-        whose :meth:`__contains__` method is the indicator function for
-        the corresponding subset of progress coordinate space. If `source`
-        is provided, the trace is continued only as far back as the last
-        walker that stopped in `source`. Otherwise, the trace extends back
-        to the initial state.
+    source : Bin, BinUnion, or collections.abc.Container, optional
+        A source (macro)state, specified as a container object whose
+        :meth:`__contains__` method is the indicator function for the
+        corresponding subset of progress coordinate space. The trace is
+        stopped upon encountering a walker that stopped in `source`.
+    max_length : int, optional
+        The maximum number of walkers in the trace.
 
     """
 
     def __init__(self, walker, source=None, max_length=None):
         if source is None:
-            source = BinUnion()
+            source = ()
 
         if max_length is None:
             max_length = sys.maxsize
         else:
-            if max_length <= 0:
-                raise ValueError('max_length must be greater than 0')
-            if not isinstance(max_length, int):
-                raise TypeError('max_length must be an integer')
+            max_length = int(max_length)
+            if max_length < 1:
+                raise ValueError('max_length must be at least 1')
 
         walkers = []
-        while walker and walker.pcoords[-1] not in source:
+        while walker and (walker.pcoords[-1] not in source) and (len(walkers) < max_length):
             walkers.append(walker)
-            if len(walkers) == max_length:
-                break
             walker = walker.parent
 
         self.walkers = tuple(reversed(walkers))
         self.source = source
         self.max_length = max_length
+
+    @property
+    def pcoords(self):
+        """2D ndarray: Progress coordinate snapshots."""
+        return np.concatenate([walker.pcoords for walker in self])
+
+    @property
+    def num_snapshots(self):
+        """int: Number of snapshots."""
+        return sum(walker.num_snapshots for walker in self)
 
     def __len__(self):
         return len(self.walkers)
@@ -641,6 +601,9 @@ class Trace:
 
     def __contains__(self, walker):
         return walker in self.walkers
+
+    def __getitem__(self, key):
+        return self.walkers[key]
 
     def __repr__(self):
         s = f'Trace({self.walkers[-1]}'

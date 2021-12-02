@@ -272,6 +272,7 @@ class WESimManager:
         # Process basis states
         self.get_bstate_pcoords(basis_states)
         self.data_manager.create_ibstate_group(basis_states)
+        self.data_manager.create_ibstate_iter_h5file(basis_states)
         self.report_basis_states(basis_states)
 
         # Process start states
@@ -440,6 +441,11 @@ class WESimManager:
         # Let the WE driver assign completed segments
         if completed_segments:
             self.we_driver.assign(list(completed_segments.values()))
+
+        # load restart data
+        self.data_manager.prepare_segment_restarts(
+            incomplete_segments.values(), self.current_iter_bstates, self.current_iter_istates
+        )
 
         # Get the basis states and initial states for the next iteration, necessary for doing on-the-fly recycling
         self.next_iter_bstates = self.data_manager.get_basis_states(self.n_iter + 1)

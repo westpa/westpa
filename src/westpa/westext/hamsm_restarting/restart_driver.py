@@ -28,6 +28,8 @@ from rich.logging import RichHandler
 #   Otherwise, if you modify the msm_we code, you'll need to re-install it through pip.
 from msm_we import msm_we
 
+import ray
+
 EPS = np.finfo(np.float64).eps
 
 log = logging.getLogger(__name__)
@@ -304,6 +306,9 @@ def msmwe_compute_ss(plugin_config, west_files):
     exists = False
     log.warning("Skipping any potential cluster reloading!")
 
+    log.info(f"Launching Ray with {plugin_config.get('n_cpus')} cpus")
+    ray.init(num_cpus=plugin_config.get('n_cpus'))
+
     # If a cluster file with the name corresponding to these parameters exists, load clusters from it.
     if exists:
         log.debug("loading clusters...")
@@ -388,6 +393,9 @@ class RestartDriver:
         self.coord_len = plugin_config.get('coord_len', 2)
         self.n_restarts = plugin_config.get('n_restarts', -1)
         self.n_runs = plugin_config.get('n_runs', 1)
+
+        # Number of CPUs available for parallelizing msm_we calculations
+        self.parallel_cpus = plugin_config.get('n_cpus', 1)
 
         # .get() might return this as a bool anyways, but be safe
         self.debug = bool(plugin_config.get('debug', False))
