@@ -1,9 +1,17 @@
 ===============
 WESTPA 2.0 
 ===============
-.. image:: https://readthedocs.org/projects/westpa/badge/?version=latest
-        :target: https://westpa.readthedocs.io/en/latest/?badge=latest
-        :alt: Documentation Status
+
+|ghactions| |docs|
+
+.. |ghactions| image:: https://github.com/westpa/westpa/actions/workflows/test.yaml/badge.svg?branch=westpa-2.0-restruct
+              :target: https://github.com/westpa/westpa/actions/workflows/test.yaml
+              :alt: GitHub Actions
+
+.. |docs| image:: https://readthedocs.org/projects/westpa/badge/?version=latest
+         :target: https://westpa.readthedocs.io/en/latest/?badge=latest
+         :alt: Documentation Status
+
 --------
 Overview
 --------
