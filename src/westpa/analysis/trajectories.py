@@ -10,7 +10,6 @@ import numpy as np
 from tqdm import tqdm
 from typing import Callable
 from westpa.analysis.core import Walker, Trace
-from westpa.core.h5io import WESTIterationFile
 
 
 class Trajectory:
