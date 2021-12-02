@@ -24,6 +24,10 @@ determine how to access data even as the file format (i.e. organization of data 
 evolves.
 
 Version history:
+    Version 8
+        - Added external links to trajectory files in iterations/iter_* groups, if the HDF5
+          framework was used.
+        - Added an iter group for the iteration 0 to store conformations of basis states.
     Version 7
         - Removed bin_assignments, bin_populations, and bin_rates from iteration group.
         - Added new_segments subgroup to iteration group
@@ -529,6 +533,9 @@ class WESTDataManager:
             return state_group
 
     def create_ibstate_iter_h5file(self, basis_states):
+        '''Create the per-iteration HDF5 file for the basis states (i.e., iteration 0).
+        This special treatment is needed so that the analysis tools can access basis states
+        more easily.'''
         if not self.store_h5:
             return
 
@@ -551,6 +558,8 @@ class WESTDataManager:
         self.update_iter_h5file(0, segments)
 
     def update_iter_h5file(self, n_iter, segments):
+        '''Write out the per-iteration HDF5 file with given segments and add an external link to it
+        in the main HDF5 file (west.h5) if the link is not present.'''
         if not self.store_h5:
             return
 
@@ -680,7 +689,7 @@ class WESTDataManager:
                 istate_index = ibstate_group['istate_index'][...]
             except KeyError:
                 return []
-            istate_pcoords = ibstate_group['pcoord'][...]
+            istate_pcoords = ibstate_group['istate_pcoord'][...]
 
             for state_id, (state, pcoord) in enumerate(zip(istate_index, istate_pcoords)):
                 states.append(
@@ -1096,6 +1105,10 @@ class WESTDataManager:
         return segments
 
     def prepare_segment_restarts(self, segments, basis_states=None, initial_states=None):
+        '''Prepare the necessary folder and files given the data stored in parent per-iteration HDF5 file
+        for propagating the simulation. ``basis_states`` and ``initial_states`` should be provided if the
+        segments are newly created'''
+
         if not self.store_h5:
             return
 
