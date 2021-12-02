@@ -19,12 +19,12 @@ class Trajectory:
     ----------
     fget : callable
         Function for retrieving a single trajectory segment. Must take a
-        Walker instance as its first argument and accept a boolean keyword
-        argument `include_initpoint`. The function should return a sequence
-        (e.g., a list or ndarray) representing the trajectory of the walker.
-        If `include_initpoint` is True, the trajectory segment should
-        include its initial point. Otherwise, the trajectory segment should
-        exclude its initial point.
+        :class:`Walker` instance as its first argument and accept a boolean
+        keyword argument `include_initpoint`. The function should return a
+        sequence (e.g., a list or ndarray) representing the trajectory of
+        the walker. If `include_initpoint` is True, the trajectory segment
+        should include its initial point. Otherwise, the trajectory segment
+        should exclude its initial point.
     fconcat : callable, optional
         Function for concatenating trajectory segments. Must take a sequence
         of trajectory segments as input and return their concatenation. The

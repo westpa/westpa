@@ -557,11 +557,11 @@ class BinUnion:
         Parameters
         ----------
         *others : BinUnion
-            Other :type:`BinUnion` instances, consisting of bins defined by
+            Other :class:`BinUnion` instances, consisting of bins defined by
             the same underlying bin mapper.
 
-        Return
-        ------
+        Returns
+        -------
         BinUnion
             The union of `self` and `others`.
 
@@ -577,11 +577,11 @@ class BinUnion:
         Parameters
         ----------
         *others : BinUnion
-            Other :type:`BinUnion` instances, consisting of bins defined by
+            Other :class:`BinUnion` instances, consisting of bins defined by
             the same underlying bin mapper.
 
-        Return
-        ------
+        Returns
+        -------
         BinUnion
             The itersection of `self` and `others`.
 
