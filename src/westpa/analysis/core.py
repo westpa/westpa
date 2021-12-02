@@ -188,9 +188,17 @@ class Iteration:
         return self.run.iteration(self.number + 1)
 
     @property
-    def segment_info(self):
+    def segment_summaries(self):
         """pd.DataFrame: Segment summary data for the iteration."""
-        return pd.DataFrame(self.h5group['seg_index'][:], dtype=object)
+        df = pd.DataFrame(self.h5group['seg_index'][:], dtype=object)
+
+        # Make 'endpoint_type' and 'status' human-readable.
+        names = map(Segment.endpoint_type_names.get, df['endpoint_type'])
+        df['endpoint_type'] = [name.split('_')[-1] for name in names]
+        names = map(Segment.status_names.get, df['status'])
+        df['status'] = [name.split('_')[-1] for name in names]
+
+        return df
 
     @property
     def pcoords(self):
@@ -234,7 +242,7 @@ class Iteration:
     @property
     def num_walkers(self):
         """int: Number of walkers in the iteration."""
-        return self.segment_info.shape[0]
+        return self.h5group['seg_index'].shape[0]
 
     @property
     def num_segments(self):
@@ -265,9 +273,12 @@ class Iteration:
         return self.h5group.get('auxdata')
 
     @property
-    def basis_state_info(self):
+    def basis_state_summaries(self):
         """pd.DataFrame: Basis state summary data."""
-        return pd.DataFrame(self.h5group['ibstates']['bstate_index'][:])
+        df = pd.DataFrame(self.h5group['ibstates']['bstate_index'][:])
+        df['label'] = df['label'].str.decode('UTF-8')
+        df['auxref'] = df['auxref'].str.decode('UTF-8')
+        return df
 
     @property
     def basis_state_pcoords(self):
@@ -279,7 +290,7 @@ class Iteration:
         """list[BasisState]: Basis states in use for the iteration."""
         return [
             BasisState(row.label, row.probability, pcoord=pcoord, auxref=row.auxref, state_id=row.Index)
-            for row, pcoord in zip(self.basis_state_info.itertuples(), self.basis_state_pcoords)
+            for row, pcoord in zip(self.basis_state_summaries.itertuples(), self.basis_state_pcoords)
         ]
 
     @property
@@ -288,13 +299,18 @@ class Iteration:
         return 'tstates' in self.h5group
 
     @property
-    def target_state_info(self):
-        """pd.DataFrame: Target state summary data."""
-        return pd.DataFrame(self.h5group['tstates']['index'][:]) if self.has_target_states else None
+    def target_state_summaries(self):
+        """pd.DataFrame or None: Target state summary data."""
+        if self.has_target_states:
+            df = pd.DataFrame(self.h5group['tstates']['index'][:])
+            df['label'] = df['label'].str.decode('UTF-8')
+            return df
+        else:
+            return None
 
     @property
     def target_state_pcoords(self):
-        """2D ndarray: Progress coordinates of each target state."""
+        """2D ndarray or None: Progress coordinates of each target state."""
         return self.h5group['tstates']['pcoord'][:] if self.has_target_states else None
 
     @property
@@ -304,7 +320,7 @@ class Iteration:
             return []
         return [
             TargetState(row.label, pcoord, state_id=row.Index)
-            for row, pcoord in zip(self.target_state_info.itertuples(), self.target_state_pcoords)
+            for row, pcoord in zip(self.target_state_summaries.itertuples(), self.target_state_pcoords)
         ]
 
     @property
@@ -445,9 +461,9 @@ class Walker:
         return self.pcoords.shape[0]
 
     @property
-    def segment_info(self):
+    def segment_summary(self):
         """pd.Series: Segment summary data."""
-        return self.iteration.segment_info.iloc[self.index]
+        return self.iteration.segment_summaries.iloc[self.index]
 
     @property
     def parent(self):
