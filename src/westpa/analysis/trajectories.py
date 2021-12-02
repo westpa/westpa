@@ -36,7 +36,10 @@ class Trajectory:
         if fget is None:
             return functools.partial(self.__init__, fconcat=fconcat)
 
-        self.fget = fget
+        if 'include_initpoint' not in inspect.signature(fget).parameters:
+            raise ValueError("'fget' must accept a parameter 'include_initpoint'")
+
+        self._fget = fget
         self.fconcat = fconcat
 
         self._segment_collector = SegmentCollector(self)
@@ -50,12 +53,6 @@ class Trajectory:
     def fget(self):
         """callable: Function for getting trajectory segments."""
         return self._fget
-
-    @fget.setter
-    def fget(self, value):
-        if 'include_initpoint' not in inspect.signature(value).parameters:
-            raise ValueError("'fget' must accept a parameter 'include_initpoint'")
-        self._fget = value
 
     @property
     def fconcat(self):
@@ -80,7 +77,7 @@ class Trajectory:
             initpoint_mask[0] = include_initpoint
             segments = self.segment_collector.get_segments(obj, initpoint_mask, **kwargs)
             return self.fconcat(segments)
-        raise TypeError('argument must be a Walker or Trace')
+        raise TypeError('argument must be a Walker or Trace instance')
 
     def _validate_segment(self, value):
         if not hasattr(value, '__getitem__'):
