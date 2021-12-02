@@ -156,7 +156,7 @@ class SegmentCollector:
         self._show_progress = value
 
     def get_segments(self, walkers, initpoint_mask=None, **kwargs):
-        """Retrieve the trajectories of several walkers.
+        """Retrieve the trajectories of a number of walkers.
 
         Parameters
         ----------
@@ -164,7 +164,8 @@ class SegmentCollector:
             A sequence of walkers.
         initpoint_mask : array_like of bool, optional
             A Boolean mask indicating whether each trajectory segment should
-            include or exclude its initial point. Default is all True.
+            include (True) or exclude (False) its initial point. Default is
+            all True.
 
         Returns
         -------
@@ -251,6 +252,9 @@ class BasicMDTrajectory(Trajectory):
                 return traj
 
         super().__init__(fget)
+
+        self.segment_collector.use_threads = True
+        self.segment_collector.show_progress = True
 
 
 def concatenate(segments):
