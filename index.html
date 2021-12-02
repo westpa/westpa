@@ -1,10 +1,16 @@
 <!DOCTYPE html>
-<html>
-
-  <head>
-    
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta charset='utf-8'>
+<html><head>
+    <meta charset="utf-8">
+	<script>
+		var viewport = document.createElement("meta");
+		viewport.setAttribute("name", "viewport");
+		if (screen.width < 648) {
+			viewport.setAttribute("content", "width=648");
+		} else {
+    	viewport.setAttribute("content", "width=device-width, initial-scale=1");
+		}
+		document.head.appendChild(viewport);
+    </script>
     <meta http-equiv="X-UA-Compatible" content="chrome=1">
     <meta name="description" content="WESTPA : The Weighted Ensemble Simulation Toolkit with Parallelization and Analysis">
 
