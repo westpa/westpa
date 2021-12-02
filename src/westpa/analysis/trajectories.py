@@ -156,13 +156,13 @@ class SegmentCollector:
         self._show_progress = value
 
     def get_segments(self, walkers, initpoint_mask=None, **kwargs):
-        """Retrieve the trajectories of a number of walkers.
+        """Retrieve the trajectories of multiple walkers.
 
         Parameters
         ----------
-        walkers : Iterable[Walker]
-            A sequence of walkers.
-        initpoint_mask : array_like of bool, optional
+        walkers : sequence of Walker
+            The walkers for which to retrieve trajectories.
+        initpoint_mask : sequence of bool, optional
             A Boolean mask indicating whether each trajectory segment should
             include (True) or exclude (False) its initial point. Default is
             all True.
@@ -173,7 +173,6 @@ class SegmentCollector:
             The trajectory of each walker.
 
         """
-        walkers = list(walkers)
         if initpoint_mask is None:
             initpoint_mask = np.full(len(walkers), True)
         else:
