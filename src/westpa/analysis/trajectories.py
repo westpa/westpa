@@ -249,14 +249,6 @@ class BasicMDTrajectory(Trajectory):
 
         super().__init__(fget)
 
-    def __repr__(self):
-        s = self.__class__.__name__ + '('
-        s += ', '.join(
-            f'{name}={getattr(self, name)!r}'
-            for name in list(inspect.signature(self.__init__).parameters)
-        )
-        return s + ')'
-
 
 def concatenate(segments):
     """Return the concatenation of a sequence of trajectory segments.
