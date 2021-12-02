@@ -238,7 +238,10 @@ class BasicMDTrajectory(Trajectory):
                 top = self.top
 
             path = os.path.join(seg_dir, self.traj_filename)
-            traj = mdtraj.load(path, top=top, atom_indices=atom_indices)
+            if top is not None:
+                traj = mdtraj.load(path, top=top, atom_indices=atom_indices)
+            else:
+                traj = mdtraj.load(path, atom_indices=atom_indices)
 
             if include_initpoint:
                 path = os.path.join(seg_dir, self.parent_filename)
