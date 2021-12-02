@@ -1,8 +1,11 @@
 import concurrent.futures as cf
 import functools
-import mdtraj as md
-import numpy as np
+import inspect
 import operator
+import os
+
+import mdtraj
+import numpy as np
 
 from tqdm import tqdm
 from typing import Callable
@@ -17,8 +20,12 @@ class Trajectory:
     ----------
     fget : callable
         Function for retrieving a single trajectory segment. Must take a
-        :type:`Walker` object as its first argument and return a sequence
+        Walker instance as its first argument and accept a boolean keyword
+        argument `include_initpoint`. The function should return a sequence
         (e.g., a list or ndarray) representing the trajectory of the walker.
+        If `include_initpoint` is True, the trajectory segment should
+        include its initial point. Otherwise, the trajectory segment should
+        exclude its initial point.
     fconcat : callable, optional
         Function for concatenating trajectory segments. Must take a sequence
         of trajectory segments as input and return their concatenation. The
@@ -47,8 +54,8 @@ class Trajectory:
 
     @fget.setter
     def fget(self, value):
-        if not isinstance(value, Callable):
-            raise TypeError('fget must be callable')
+        if 'include_initpoint' not in inspect.signature(value).parameters:
+            raise ValueError("'fget' must accept a parameter 'include_initpoint'")
         self._fget = value
 
     @property
@@ -61,22 +68,24 @@ class Trajectory:
         if value is None:
             value = concatenate
         elif not isinstance(value, Callable):
-            raise TypeError('fconcat must be callable')
+            raise TypeError("'fconcat' must be a callable object")
         self._fconcat = value
 
-    def __call__(self, obj, **kwargs):
+    def __call__(self, obj, include_initpoint=True, **kwargs):
         if isinstance(obj, Walker):
-            value = self.fget(obj, **kwargs)
+            value = self.fget(obj, include_initpoint=include_initpoint, **kwargs)
             self._validate_segment(value)
             return value
         if isinstance(obj, Trace):
-            segments = self.segment_collector.get_segments(obj.walkers, **kwargs)
+            initpoint_mask = np.full(len(obj), False)
+            initpoint_mask[0] = include_initpoint
+            segments = self.segment_collector.get_segments(obj, initpoint_mask, **kwargs)
             return self.fconcat(segments)
         raise TypeError('argument must be a Walker or Trace')
 
     def _validate_segment(self, value):
         if not hasattr(value, '__getitem__'):
-            msg = f"'{type(value).__name__}' object can't be concatenated"
+            msg = f"{type(value).__name__!r} object can't be concatenated"
             raise TypeError(msg)
 
 
@@ -92,9 +101,9 @@ class SegmentCollector:
         asynchronously. Setting this parameter to True may be may be
         useful when segment retrieval is an I/O bound task.
     max_workers : int, optional
-        Maximum number of threads to use. The default value is specified
-        in the :type:`ThreadPoolExecutor`
-        `documentation <https://docs.python.org/3/library/concurrent.futures.html#concurrent.futures.ThreadPoolExecutor>`_.
+        Maximum number of threads to use. The default value is specified in the
+        `ThreadPoolExecutor <https://docs.python.org/3/library/concurrent.futures.html#concurrent.futures.ThreadPoolExecutor>`_
+        documentation.
     show_progress : bool, default False
         Whether to show a progress bar when retrieving multiple segments.
 
@@ -150,13 +159,16 @@ class SegmentCollector:
             raise ValueError('show_progress must be True or False')
         self._show_progress = value
 
-    def get_segments(self, walkers, **kwargs):
-        """Return the trajectories of a group of walkers.
+    def get_segments(self, walkers, initpoint_mask=None, **kwargs):
+        """Retrieve the trajectories of several walkers.
 
         Parameters
         ----------
         walkers : Iterable[Walker]
-            A group of walkers.
+            A sequence of walkers.
+        initpoint_mask : array_like of bool, optional
+            A Boolean mask indicating whether each trajectory segment should
+            include or exclude its initial point. Default is all True.
 
         Returns
         -------
@@ -165,7 +177,13 @@ class SegmentCollector:
 
         """
         walkers = list(walkers)
+        if initpoint_mask is None:
+            initpoint_mask = np.full(len(walkers), True)
+        else:
+            initpoint_mask = np.asarray(initpoint_mask, dtype=bool)
+
         get_segment = functools.partial(self.trajectory, **kwargs)
+
         tqdm_kwargs = dict(
             desc='Retrieving segments',
             disable=(not self.show_progress),
@@ -175,14 +193,73 @@ class SegmentCollector:
 
         if self.use_threads:
             with cf.ThreadPoolExecutor(self.max_workers) as executor:
-                future_to_key = {executor.submit(get_segment, walker): key for key, walker in enumerate(walkers)}
+                future_to_key = {
+                    executor.submit(get_segment, walker, include_initpoint=i): key
+                    for key, (walker, i) in enumerate(zip(walkers, initpoint_mask))
+                }
                 futures = list(tqdm(cf.as_completed(future_to_key), **tqdm_kwargs))
                 futures.sort(key=future_to_key.get)
                 segments = (future.result() for future in futures)
         else:
-            segments = tqdm(map(get_segment, walkers), **tqdm_kwargs)
+            it = (
+                get_segment(walker, include_initpoint=i)
+                for walker, i in zip(walkers, initpoint_mask)
+            )
+            segments = tqdm(it, **tqdm_kwargs)
 
         return list(segments)
+
+
+class BasicMDTrajectory(Trajectory):
+    """A MD trajectory stored as in the
+    `Basic NaCl tutorial <https://github.com/westpa/westpa_tutorials/tree/main/basic_nacl>`_.
+
+    Parameters
+    ----------
+    traj_filename : str, default 'seg.dcd'
+    parent_filename : str, default 'parent.xml'
+    top : str or mdtraj.Topology, default 'bstate.pdb'
+
+    """
+
+    def __init__(self, traj_filename='seg.dcd', parent_filename='parent.xml',
+                 top='bstate.pdb'):
+        self.traj_filename = traj_filename
+        self.parent_filename = parent_filename
+        self.top = top
+
+        def fget(walker, include_initpoint=True, atom_indices=None, sim_root='.'):
+            seg_dir = os.path.join(
+                sim_root,
+                'traj_segs',
+                format(walker.iteration.number, '06d'),
+                format(walker.index, '06d'),
+            )
+
+            if isinstance(self.top, str):
+                top = os.path.join(seg_dir, self.top)
+            else:
+                top = self.top
+
+            path = os.path.join(seg_dir, self.traj_filename)
+            traj = mdtraj.load(path, top=top, atom_indices=atom_indices)
+
+            if include_initpoint:
+                path = os.path.join(seg_dir, self.parent_filename)
+                parent = mdtraj.load(path, top=traj.top, atom_indices=atom_indices)
+                return parent.join(traj, check_topology=False)
+            else:
+                return traj
+
+        super().__init__(fget)
+
+    def __repr__(self):
+        s = self.__class__.__name__ + '('
+        s += ', '.join(
+            f'{name}={getattr(self, name)!r}'
+            for name in list(inspect.signature(self.__init__).parameters)
+        )
+        return s + ')'
 
 
 def concatenate(segments):
@@ -201,19 +278,6 @@ def concatenate(segments):
     """
     if isinstance(segments[0], np.ndarray):
         return np.concatenate(segments)
-    if isinstance(segments[0], md.Trajectory):
+    if isinstance(segments[0], mdtraj.Trajectory):
         return segments[0].join(segments[1:], check_topology=False)
     return functools.reduce(operator.concat, segments)
-
-
-@Trajectory
-def hdf5_framework_trajectory(walker, atom_indices=None):
-    link = walker.iteration.h5group.get('trajectories')
-    if link is None:
-        raise ValueError('the west.h5 file does not appear to have been generated using the HDF5 framework')
-    with WESTIterationFile(link.file.filename) as traj_file:
-        return traj_file.read_as_traj(
-            iteration=walker.iteration.number,
-            segment=walker.index,
-            atom_indices=atom_indices,
-        )

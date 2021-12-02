@@ -383,10 +383,10 @@ class Iteration:
         row = self.h5group['ibstates']['bstate_index'][index]
         pcoord = self.h5group['ibstates']['bstate_pcoord'][index]
         return BasisState(
-            row['label'],
+            row['label'].decode(),
             row['probability'],
             pcoord=pcoord,
-            auxref=row['auxref'],
+            auxref=row['auxref'].decode(),
             state_id=index,
         )
 
@@ -406,7 +406,7 @@ class Iteration:
         """
         row = self.h5group['tstates']['index'][index]
         pcoord = self.h5group['tstates']['pcoord'][index]
-        return TargetState(row['label'], pcoord, state_id=index)
+        return TargetState(row['label'].decode(), pcoord, state_id=index)
 
     def __iter__(self):
         return iter(self.walkers)
