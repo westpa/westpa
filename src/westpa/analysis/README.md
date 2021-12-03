@@ -7,7 +7,7 @@ simulation data.
 
 The core abstraction of the `westpa.analysis` package is the `Run` class. A `Run` instance provides a read-only view of a WEST HDF5 ("west.h5") file.
 To create a  run, use the `open()` class method:
-```python
+```python-repl
 >>> from westpa.analysis import Run
 >>> run = Run.open('west.h5')
 >>> run
