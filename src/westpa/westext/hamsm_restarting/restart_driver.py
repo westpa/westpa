@@ -313,11 +313,13 @@ def msmwe_compute_ss(plugin_config, west_files):
 
     log.info(f"Launching Ray with {plugin_config.get('n_cpus', 1)} cpus")
 
-    ray_tempdir_root = plugin_config.get('ray_temp_dir', None) 
+    ray_tempdir_root = plugin_config.get('ray_temp_dir', None)
     if ray_tempdir_root is not None:
         ray_tempdir = tempfile.TemporaryDirectory(dir=ray_tempdir_root)
         log.info(f"Using {ray_tempdir.name} as temp_dir for Ray")
-        ray.init(num_cpus=plugin_config.get('n_cpus', 1), _temp_dir=ray_tempdir.name, ignore_reinit_error=True, include_dashboard=False)
+        ray.init(
+            num_cpus=plugin_config.get('n_cpus', 1), _temp_dir=ray_tempdir.name, ignore_reinit_error=True, include_dashboard=False
+        )
     else:
         ray.init(num_cpus=plugin_config.get('n_cpus', 1), ignore_reinit_error=True, include_dashboard=False)
 
@@ -418,7 +420,7 @@ class RestartDriver:
 
         # Number of CPUs available for parallelizing msm_we calculations
         self.parallel_cpus = plugin_config.get('n_cpus', 1)
-        self.ray_tempdir   = plugin_config.get('ray_temp_dir', None)
+        self.ray_tempdir = plugin_config.get('ray_temp_dir', None)
 
         # .get() might return this as a bool anyways, but be safe
         self.debug = bool(plugin_config.get('debug', False))
