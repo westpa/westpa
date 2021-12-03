@@ -1028,12 +1028,12 @@ class RestartDriver:
         flux_pcoord_fig, flux_pcoord_ax = plt.subplots()
         model.plot_flux(ax=flux_pcoord_ax, suppress_validation=True)
         flux_pcoord_fig.text(x=0.1, y=-0.05, s='This flux profile should become flatter after restarting', fontsize=12)
-        flux_pcoord_fig.savefig(f'{restart_directory}/flux_plot.pdf')
+        flux_pcoord_fig.savefig(f'{restart_directory}/flux_plot.pdf', bbox_inches="tight")
 
         flux_pseudocomm_fig, flux_pseudocomm_ax = plt.subplots()
         model.plot_flux(ax=flux_pseudocomm_ax, suppress_validation=True)
         flux_pseudocomm_fig.text(x=0.1, y=-0.05, s='This flux profile should become flatter after restarting', fontsize=12)
-        flux_pseudocomm_fig.savefig(f'{restart_directory}/pseudocomm-flux_plot.pdf')
+        flux_pseudocomm_fig.savefig(f'{restart_directory}/pseudocomm-flux_plot.pdf', bbox_inches="tight")
 
         # At this point, the restart is completed, and the data for the next one is ready (though still need to make the
         #   initialization file and such).
