@@ -588,7 +588,14 @@ class RestartDriver:
 
         flux_pseudocomm_fig, flux_pseudocomm_ax = plt.subplots()
         model.plot_flux_committor(ax=flux_pseudocomm_ax, suppress_validation=True)
-        flux_pseudocomm_fig.text(x=0.1, y=-0.05, s='This flux profile should become flatter after restarting', fontsize=12)
+        flux_pseudocomm_fig.text(
+            x=0.1,
+            y=-0.05,
+            s='This flux profile should become flatter after restarting.'
+            '\nThe x-axis is a "pseudo"committor, since it may be '
+            'calculated from WE trajectories in the one-way ensemble.',
+            fontsize=12,
+        )
         flux_pseudocomm_ax.legend(bbox_to_anchor=(1.01, 1.0), loc="upper left")
         flux_pseudocomm_fig.savefig(f'{restart_directory}/pseudocomm-flux_plot.pdf', bbox_inches="tight")
 
@@ -629,9 +636,15 @@ class RestartDriver:
                 linestyle='--',
             )
 
-        flux_comparison_ax.axhline(flux_estimates[0], label="Main model estimate", color=next(hamsm_flux_colors))
+        flux_comparison_ax.axhline(
+            flux_estimates[0], label=f"Main model estimate\n  {flux_estimates[0]:.2e}", color=next(hamsm_flux_colors)
+        )
         for i in range(1, n_validation_models + 1):
-            flux_comparison_ax.axhline(flux_estimates[i], label=f"Validation model {i - 1} estimate", color=next(hamsm_flux_colors))
+            flux_comparison_ax.axhline(
+                flux_estimates[i],
+                label=f"Validation model {i - 1} estimate\n  {flux_estimates[i]:.2e}",
+                color=next(hamsm_flux_colors),
+            )
 
         flux_comparison_ax.legend(bbox_to_anchor=(1.01, 0.9), loc='upper left')
         flux_comparison_ax.set_yscale('log')
