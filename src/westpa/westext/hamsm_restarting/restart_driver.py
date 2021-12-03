@@ -618,6 +618,10 @@ class RestartDriver:
                 short_filename = f"....{_file[-12:]}"
             else:
                 short_filename = _file
+
+            if target_flux == 0:
+                continue
+
             flux_comparison_ax.axhline(
                 target_flux,
                 color=next(direct_flux_colors),
