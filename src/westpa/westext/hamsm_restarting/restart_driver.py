@@ -21,6 +21,8 @@ import tqdm
 import mdtraj as md
 from rich.logging import RichHandler
 
+from matplotlib import pyplot as plt
+
 # Ensure this is installed via pip. msm_we's setup.py is all set up for that.
 # Navigate to the folder where msm_we is, and run python3 -m pip install .
 #   If you're doing development on msm_we, add the -e flag to pip, i.e. "python3 -m pip install -e ."
@@ -76,7 +78,7 @@ def fix_deprecated_initialization(initialization_state):
     keywords arguments to w_init. This just handles any old-style JSON files I still had, so they don't choke and die.
     """
 
-    log.info(f"Starting processing, dict is now {initialization_state}")
+    log.debug(f"Starting processing, dict is now {initialization_state}")
 
     # Some of my initial files had this old-style formatting. Handle it for now, but remove eventually
     for old_key, new_key in [
@@ -93,7 +95,7 @@ def fix_deprecated_initialization(initialization_state):
             value = initialization_state.pop(old_key)
             initialization_state[new_key] = value
 
-    log.info(f"Finished processing, dict is now {initialization_state}")
+    log.debug(f"Finished processing, dict is now {initialization_state}")
     return initialization_state
 
 
@@ -147,6 +149,7 @@ def prepare_coordinates(plugin_config, h5file, we_h5filename):
         target_pcoord_bounds=None,
         tau=1,
         pcoord_ndim=pcoord_ndim,
+        _suppress_boundary_warning=True,
     )
     model.get_iterations()
 
@@ -306,8 +309,8 @@ def msmwe_compute_ss(plugin_config, west_files):
     exists = False
     log.warning("Skipping any potential cluster reloading!")
 
-    log.info(f"Launching Ray with {plugin_config.get('n_cpus')} cpus")
-    ray.init(num_cpus=plugin_config.get('n_cpus'))
+    log.info(f"Launching Ray with {plugin_config.get('n_cpus', 1)} cpus")
+    ray.init(num_cpus=plugin_config.get('n_cpus', 1))
 
     # If a cluster file with the name corresponding to these parameters exists, load clusters from it.
     if exists:
@@ -345,6 +348,15 @@ def msmwe_compute_ss(plugin_config, west_files):
     log.debug(ss_flux)
 
     log.info("Completed flux matrix calculation and steady-state estimation!")
+
+    log.info("Starting block validation")
+    num_validation_groups = plugin_config.get('n_validation_groups', 2)
+    num_validation_blocks = plugin_config.get('n_validation_blocks', 4)
+    try:
+        model.do_block_validation(num_validation_groups, num_validation_blocks, use_ray=True)
+    except Exception as e:
+        log.exception(e)
+        log.error("Failed block validation! Continuing with restart, but BEWARE!")
 
     return ss_alg, ss_flux, model
 
@@ -704,7 +716,8 @@ class RestartDriver:
                 )
 
                 w_init.initialize(
-                    **initialization_state, shotgun=False,
+                    **initialization_state,
+                    shotgun=False,
                 )
 
                 with open(self.restart_file, 'w') as fp:
@@ -1008,6 +1021,22 @@ class RestartDriver:
             log.debug("Pickling model")
             pickle.dump(model, objFileHandler, protocol=4)
             objFileHandler.close()
+
+        # Before finishing this restart, make a plot of the flux profile.
+        #   This is made so the user can see whether
+        log.info("Producing flux-profile plot.")
+        flux_pcoord_fig, flux_pcoord_ax = plt.subplots()
+        model.plot_flux(ax=flux_pcoord_ax, suppress_validation=True)
+        flux_pcoord_fig.text(x=0.1, y=-0.05, s='This flux profile should become flatter after restarting', fontsize=12)
+        flux_pcoord_fig.savefig(f'{restart_directory}/flux_plot.pdf')
+
+        flux_pseudocomm_fig, flux_pseudocomm_ax = plt.subplots()
+        model.plot_flux(ax=flux_pseudocomm_ax, suppress_validation=True)
+        flux_pseudocomm_fig.text(x=0.1, y=-0.05, s='This flux profile should become flatter after restarting', fontsize=12)
+        flux_pseudocomm_fig.savefig(f'{restart_directory}/pseudocomm-flux_plot.pdf')
+
+        # At this point, the restart is completed, and the data for the next one is ready (though still need to make the
+        #   initialization file and such).
 
         if last_restart:
             log.info("All restarts completed! Finished.")
