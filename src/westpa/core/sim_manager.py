@@ -380,6 +380,24 @@ class WESimManager:
             )
         )
 
+        total_prob = float(sum(segment.weight for segment in segments))
+        pstatus(f'1-prob: {1-total_prob:.4e}')
+
+       
+
+
+        target_counts = self.we_driver.bin_target_counts
+        # Do not include bins with target count zero (e.g. sinks, never-filled bins) in the (non)empty bins statistics
+        n_active_bins = len(target_counts[target_counts != 0])
+        seg_probs = np.fromiter(map(operator.attrgetter('weight'), segments), dtype=weight_dtype, count=len(segments))
+        norm = seg_probs.sum()
+
+        if not abs(1 - norm) < EPS * (len(segments) + n_active_bins):
+            pstatus("Normalization check failed at w_init, explicitly renormalizing")
+            for segment in segments:
+                segment.weight /= norm
+ 
+
         # Send the segments over to the data manager to commit to disk
         data_manager.current_iteration = 1
 
