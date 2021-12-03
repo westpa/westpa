@@ -536,6 +536,7 @@ class WESTDataManager:
         '''Create the per-iteration HDF5 file for the basis states (i.e., iteration 0).
         This special treatment is needed so that the analysis tools can access basis states
         more easily.'''
+
         if not self.store_h5:
             return
 
@@ -560,6 +561,7 @@ class WESTDataManager:
     def update_iter_h5file(self, n_iter, segments):
         '''Write out the per-iteration HDF5 file with given segments and add an external link to it
         in the main HDF5 file (west.h5) if the link is not present.'''
+
         if not self.store_h5:
             return
 
