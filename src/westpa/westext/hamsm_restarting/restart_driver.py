@@ -1038,16 +1038,18 @@ class RestartDriver:
 
                 # log.info(f"WE weight ({msm_bin_we_weight_tracker:.5e} / {msm_bin_we_weight:.5e})")
 
+            # TODO: Fix this check. It's never quite worked right, nor has it ever caught an actual problem, so just
+            #   disable for now.
             # Subtract off the probabilities of the basis and target states, since those don't have structures
             #   assigned to them.
-            assert np.isclose(total_weight, 1 - sum(model.pSS[model.n_clusters :])), (
-                f"Total steady-state structure weights not normalized! (Total: {total_weight}) "
-                f"\n\t pSS: {model.pSS}"
-                f"\n\t Total bin weights {total_bin_weights}"
-                f"\n\t pSS sum: {sum(model.pSS)}"
-                f"\n\t pSS -2 sum: {sum(model.pSS[:-2])}"
-                f"\n\t pSS (+target, no basis) sum: {sum(model.pSS[:-2]) + model.pSS[-1]}"
-            )
+            # assert np.isclose(total_weight, 1 - sum(model.pSS[model.n_clusters :])), (
+            #     f"Total steady-state structure weights not normalized! (Total: {total_weight}) "
+            #     f"\n\t pSS: {model.pSS}"
+            #     f"\n\t Total bin weights {total_bin_weights}"
+            #     f"\n\t pSS sum: {sum(model.pSS)}"
+            #     f"\n\t pSS -2 sum: {sum(model.pSS[:-2])}"
+            #     f"\n\t pSS (+target, no basis) sum: {sum(model.pSS[:-2]) + model.pSS[-1]}"
+            # )
 
         ### Start the new simulation
 
