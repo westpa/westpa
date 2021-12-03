@@ -8,6 +8,7 @@ from westpa.cli.core import w_init
 from westpa.cli.core import w_run
 from westpa.core.extloader import get_object
 from westpa.core.segment import Segment
+from westpa import analysis
 
 import json
 
@@ -564,6 +565,67 @@ class RestartDriver:
         w_run.run_simulation()
         return
 
+    def generate_plots(self, restart_directory):
+
+        model = self.model
+
+        log.info("Producing flux-profile, pseudocommittor, and target flux comparison plots.")
+        flux_pcoord_fig, flux_pcoord_ax = plt.subplots()
+        model.plot_flux(ax=flux_pcoord_ax, suppress_validation=True)
+        flux_pcoord_fig.text(x=0.1, y=-0.05, s='This flux profile should become flatter after restarting', fontsize=12)
+        flux_pcoord_ax.legend(bbox_to_anchor=(1.01, 1.0), loc="upper left")
+        flux_pcoord_fig.savefig(f'{restart_directory}/flux_plot.pdf', bbox_inches="tight")
+
+        flux_pseudocomm_fig, flux_pseudocomm_ax = plt.subplots()
+        model.plot_flux_committor(ax=flux_pseudocomm_ax, suppress_validation=True)
+        flux_pseudocomm_fig.text(x=0.1, y=-0.05, s='This flux profile should become flatter after restarting', fontsize=12)
+        flux_pseudocomm_ax.legend(bbox_to_anchor=(1.01, 1.0), loc="upper left")
+        flux_pseudocomm_fig.savefig(f'{restart_directory}/pseudocomm-flux_plot.pdf', bbox_inches="tight")
+
+        flux_comparison_fig, flux_comparison_ax = plt.subplots(figsize=(7, 3))
+        # Get haMSM flux estimates
+        models = [model]
+        models.extend(model.validation_models)
+        n_validation_models = len(model.validation_models)
+
+        flux_estimates = []
+        for _model in models:
+            flux_estimates.append(_model.JtargetSS)
+
+        hamsm_flux_colors = iter(plt.rcParams['axes.prop_cycle'].by_key()['color'])
+        direct_flux_colors = iter(plt.cm.cool(np.linspace(0.2, 0.8, len(model.fileList))))
+
+        # Get WE direct flux estimate
+        for _file in model.fileList:
+
+            run = analysis.Run(_file)
+            last_iter = run.num_iterations
+            recycled = list(run.iteration(last_iter - 1).recycled_walkers)
+            target_flux = sum(walker.weight for walker in recycled) / model.tau
+
+            # TODO: Correct for time!
+            if len(_file) >= 15:
+                short_filename = f"....{_file[-12:]}"
+            else:
+                short_filename = _file
+            flux_comparison_ax.axhline(
+                target_flux,
+                color=next(direct_flux_colors),
+                label=f"Last iter WE direct {target_flux:.2e}" f"\n\t({short_filename})",
+                linestyle='--',
+            )
+
+        flux_comparison_ax.axhline(flux_estimates[0], label="Main model estimate", color=next(hamsm_flux_colors))
+        for i in range(1, n_validation_models + 1):
+            flux_comparison_ax.axhline(flux_estimates[i], label=f"Validation model {i - 1} estimate", color=next(hamsm_flux_colors))
+
+        flux_comparison_ax.legend(bbox_to_anchor=(1.01, 0.9), loc='upper left')
+        flux_comparison_ax.set_yscale('log')
+        flux_comparison_ax.set_ylabel('Flux')
+        flux_comparison_ax.set_xticks([])
+        flux_comparison_fig.tight_layout()
+        flux_comparison_fig.savefig(f'{restart_directory}/hamsm_vs_direct_flux_comparison_plot.pdf', bbox_inches="tight")
+
     def prepare_new_we(self):
         """
         This function prepares a new WESTPA simulation using haMSM analysis to accelerate convergence.
@@ -1024,16 +1086,8 @@ class RestartDriver:
 
         # Before finishing this restart, make a plot of the flux profile.
         #   This is made so the user can see whether
-        log.info("Producing flux-profile plot.")
-        flux_pcoord_fig, flux_pcoord_ax = plt.subplots()
-        model.plot_flux(ax=flux_pcoord_ax, suppress_validation=True)
-        flux_pcoord_fig.text(x=0.1, y=-0.05, s='This flux profile should become flatter after restarting', fontsize=12)
-        flux_pcoord_fig.savefig(f'{restart_directory}/flux_plot.pdf', bbox_inches="tight")
 
-        flux_pseudocomm_fig, flux_pseudocomm_ax = plt.subplots()
-        model.plot_flux_committors(ax=flux_pseudocomm_ax, suppress_validation=True)
-        flux_pseudocomm_fig.text(x=0.1, y=-0.05, s='This flux profile should become flatter after restarting', fontsize=12)
-        flux_pseudocomm_fig.savefig(f'{restart_directory}/pseudocomm-flux_plot.pdf', bbox_inches="tight")
+        self.generate_plots(restart_directory)
 
         # At this point, the restart is completed, and the data for the next one is ready (though still need to make the
         #   initialization file and such).
