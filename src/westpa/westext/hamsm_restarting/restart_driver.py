@@ -32,6 +32,7 @@ from matplotlib import pyplot as plt
 from msm_we import msm_we
 
 import ray
+import tempfile
 
 EPS = np.finfo(np.float64).eps
 
@@ -311,7 +312,14 @@ def msmwe_compute_ss(plugin_config, west_files):
     log.warning("Skipping any potential cluster reloading!")
 
     log.info(f"Launching Ray with {plugin_config.get('n_cpus', 1)} cpus")
-    ray.init(num_cpus=plugin_config.get('n_cpus', 1))
+
+    ray_tempdir_root = plugin_config.get('ray_temp_dir', None) 
+    if ray_tempdir_root is not None:
+        ray_tempdir = tempfile.TemporaryDirectory(dir=ray_tempdir_root)
+        log.info(f"Using {ray_tempdir.name} as temp_dir for Ray")
+        ray.init(num_cpus=plugin_config.get('n_cpus', 1), _temp_dir=ray_tempdir.name, include_dashboard=False)
+    else:
+        ray.init(num_cpus=plugin_config.get('n_cpus', 1), include_dashboard=False)
 
     # If a cluster file with the name corresponding to these parameters exists, load clusters from it.
     if exists:
@@ -324,6 +332,13 @@ def msmwe_compute_ss(plugin_config, west_files):
         model.cluster_coordinates(n_clusters, streaming=streaming)
 
     first_iter = 1
+
+    with open('model_dump.obj', 'wb') as objFileHandler:
+        log.debug("About to start flux matrix calc... Saving the model first.")
+        pickle.dump(model, objFileHandler, protocol=4)
+        objFileHandler.close()
+
+
     model.get_fluxMatrix(n_lag, first_iter, last_iter)  # extracts flux matrix, output model.fluxMatrixRaw
     log.debug(f"Unprocessed flux matrix has shape {model.fluxMatrixRaw.shape}")
     model.organize_fluxMatrix()  # gets rid of bins with no connectivity, sorts along p1, output model.fluxMatrix
@@ -358,6 +373,7 @@ def msmwe_compute_ss(plugin_config, west_files):
     except Exception as e:
         log.exception(e)
         log.error("Failed block validation! Continuing with restart, but BEWARE!")
+    ray.shutdown()
 
     return ss_alg, ss_flux, model
 
@@ -409,6 +425,7 @@ class RestartDriver:
 
         # Number of CPUs available for parallelizing msm_we calculations
         self.parallel_cpus = plugin_config.get('n_cpus', 1)
+        self.ray_tempdir   = plugin_config.get('ray_temp_dir', None)
 
         # .get() might return this as a bool anyways, but be safe
         self.debug = bool(plugin_config.get('debug', False))
