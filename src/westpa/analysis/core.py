@@ -264,7 +264,7 @@ class Iteration:
     @property
     def initial_walkers(self):
         """Iterable[Walker]: Walkers whose parents are initial states."""
-        parent_ids = self.iteration.h5group['seg_index']['parent_id']
+        parent_ids = self.h5group['seg_index']['parent_id']
         return (walker for walker, parent_id in zip(self, parent_ids) if parent_id < 0)
 
     @property
