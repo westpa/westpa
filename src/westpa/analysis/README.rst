@@ -134,7 +134,7 @@ implemented using the ``westpa.analysis.Trajectory`` class. Implementing
 a custom reader requires two ingredients:
 
 #. A function for retrieving individual trajectory segments. The function
-   must take a ``Walker`` instance as its first argment and return a sequence
+   must take a ``Walker`` instance as its first argument and return a sequence
    (e.g., a list, NumPy array, or MDTraj Trajectory) representing the
    trajectory of the walker. Moreover, it must accept a Boolean keyword
    argument ``include_initpoint``, which specifies whether the returned
