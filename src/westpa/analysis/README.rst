@@ -2,20 +2,18 @@
 ===================
 
 This subpackage provides an API to facilitate the analysis of WESTPA
-simulation data.
-
-The core abstraction of the ``westpa.analysis`` package is the ``Run`` class.
+simulation data. Its core abstraction is the ``Run`` class.
 A ``Run`` instance provides a read-only view of a WEST HDF5 ("west.h5") file.
-To open a run, use the ``open()`` class method::
+
+How To
+------
+
+Open a run::
 
     >>> from westpa.analysis import Run
     >>> run = Run.open('west.h5')
     >>> run
     <WESTPA Run with 500 iterations at 0x7fcaf8f0d5b0>
-
-
-How To
-------
 
 Iterate over iterations and walkers::
 
@@ -63,7 +61,7 @@ Get the parent and children of a walker::
     Walker(3, Iteration(11, <WESTPA Run with 500 iterations at 0x7fcaf8f0d5b0>))
     Walker(4, Iteration(11, <WESTPA Run with 500 iterations at 0x7fcaf8f0d5b0>))
 
-Trace the ancestry of a walker::
+Trace the ancestry of a walker
 
     >>> trace = walker.trace()
     >>> trace
@@ -81,6 +79,14 @@ Trace the ancestry of a walker::
     Walker(13, Iteration(8, <WESTPA Run with 500 iterations at 0x7fcaf8f0d5b0>))
     Walker(2, Iteration(9, <WESTPA Run with 500 iterations at 0x7fcaf8f0d5b0>))
     Walker(4, Iteration(10, <WESTPA Run with 500 iterations at 0x7fcaf8f0d5b0>))
+
+Close a run (and its underlying HDF5 file)::
+
+    >>> run.close()
+    >>> run
+    <Closed WESTPA Run at 0x7fcaf8f0d5b0>
+    >>> run.h5file
+    <Closed HDF5 file>
 
 
 Retrieving Trajectories
