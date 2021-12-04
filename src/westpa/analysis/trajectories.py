@@ -235,16 +235,19 @@ class BasicMDTrajectory(Trajectory):
 
             path = os.path.join(seg_dir, self.traj_filename)
             if top is not None:
-                traj = mdtraj.load(path, top=top, atom_indices=atom_indices)
+                traj = mdtraj.load(path, top=top)
             else:
-                traj = mdtraj.load(path, atom_indices=atom_indices)
+                traj = mdtraj.load(path)
 
             if include_initpoint:
                 path = os.path.join(seg_dir, self.parent_filename)
-                parent = mdtraj.load(path, top=traj.top, atom_indices=atom_indices)
-                return parent.join(traj, check_topology=False)
-            else:
-                return traj
+                parent = mdtraj.load(path, top=traj.top)
+                traj = parent.join(traj, check_topology=False)
+
+            if atom_indices is not None:
+                traj.atom_slice(atom_indices, inplace=True)
+
+            return traj
 
         super().__init__(fget)
 
