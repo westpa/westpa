@@ -197,10 +197,7 @@ class SegmentCollector:
                 futures.sort(key=future_to_key.get)
                 segments = (future.result() for future in futures)
         else:
-            it = (
-                get_segment(walker, include_initpoint=i)
-                for walker, i in zip(walkers, initpoint_mask)
-            )
+            it = (get_segment(walker, include_initpoint=i) for walker, i in zip(walkers, initpoint_mask))
             segments = tqdm(it, **tqdm_kwargs)
 
         return list(segments)
@@ -218,8 +215,7 @@ class BasicMDTrajectory(Trajectory):
 
     """
 
-    def __init__(self, traj_filename='seg.dcd', parent_filename='parent.xml',
-                 top='bstate.pdb'):
+    def __init__(self, traj_filename='seg.dcd', parent_filename='parent.xml', top='bstate.pdb'):
         self.traj_filename = traj_filename
         self.parent_filename = parent_filename
         self.top = top
