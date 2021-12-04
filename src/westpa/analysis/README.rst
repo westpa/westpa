@@ -61,7 +61,7 @@ Get the parent and children of a walker::
     Walker(3, Iteration(11, <WESTPA Run with 500 iterations at 0x7fcaf8f0d5b0>))
     Walker(4, Iteration(11, <WESTPA Run with 500 iterations at 0x7fcaf8f0d5b0>))
 
-Trace the ancestry of a walker
+Trace the ancestry of a walker::
 
     >>> trace = walker.trace()
     >>> trace
