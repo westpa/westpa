@@ -4,10 +4,6 @@
 This subpackage provides an API to facilitate the analysis of WESTPA
 simulation data.
 
-
-Getting Started
----------------
-
 The core abstraction of the ``westpa.analysis`` package is the ``Run`` class.
 A ``Run`` instance provides a read-only view of a WEST HDF5 ("west.h5") file.
 To open a run, use the ``open()`` class method::
@@ -19,7 +15,7 @@ To open a run, use the ``open()`` class method::
 
 
 How To
-^^^^^^
+------
 
 Iterate over iterations and walkers::
 
@@ -88,10 +84,10 @@ Trace the ancestry of a walker::
 
 
 Retrieving Trajectories
-^^^^^^^^^^^^^^^^^^^^^^^
+-----------------------
 
 Built-in Reader
-"""""""""""""""
+^^^^^^^^^^^^^^^
 
 MD trajectory data stored in an identical manner as in the
 `Basic NaCl tutorial <https://github.com/westpa/westpa_tutorials/tree/main/basic_nacl>`_
@@ -125,7 +121,7 @@ files ("seg.dcd" and "bstate.pdb"), we store them together in a
 
 
 Custom Readers
-""""""""""""""
+^^^^^^^^^^^^^^
 
 For users requiring greater flexibility, custom trajectory readers can be
 implemented using the ``westpa.analysis.Trajectory`` class. Implementing
