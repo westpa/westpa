@@ -8,7 +8,9 @@ This plugin leverages haMSM analysis `[1]`_ to provide simulation post-analysis.
 or can be used to initialize and run new WESTPA simulations using structures in the haMSM's best estimate of steady-state
 as described in `[2]`_, which may accelerate convergence to steady-state.
 
-haMSM analysis is performed using the `msm_we <https://github.com/jdrusso/msm_we>`_ library.
+haMSM analysis is performed using the `msm_we <https://github.com/westpa/msm_we>`_ library.
+
+Sample files necessary to run the restarting plugin (as described below) can be found in the `WESTPA GitHub Repo <https://github.com/westpa/westpa/tree/westpa-2.0-restruct/src/westpa/westext/hamsm_restarting>`_.
 
 Usage
 -----
@@ -22,31 +24,32 @@ Configuration
 This plugin requires the following section in :code:`west.cfg` (or whatever your WE configuration file is named):
 
 .. code-block:: yaml
-
+  
+  west:
     plugins:
     - plugin: westpa.westext.hamsm_restarting.restart_driver.RestartDriver
-      n_restarts: 0 	# Number of restarts to perform
+      n_restarts: 0 	        # Number of restarts to perform
       n_runs: 5			# Number of runs within each restart
       n_restarts_to_use: 0.5    # Amount of prior restarts' data to use. -1, a decimal in (0,1), or an integer. Details below.
-      extension_iters: 5    # Number of iterations to continue runs for, if target is not reached by first restart period
-      coord_len: 2		# Length of pcoords returned
+      extension_iters: 5        # Number of iterations to continue runs for, if target is not reached by first restart period
+      coord_len: 2                      		# Length of pcoords returned
       initialization_file: restart_initialization.json	# JSON describing w_run parameters for new runs
-      ref_pdb_file: common_files/bstate.pdb 		    # File containing reference structure/topology
-      model_name: NaClFlux		    # Name for msm_we model
-      n_clusters: 25				# Number of clusters in haMSM building
-      we_folder: .					# Should point to the same directory as WEST_SIM_ROOT
-      target_pcoord1: 2.6			# Progress value in the target state
-      basis_pcoord1_min: 14.0		# Maximum progress coordinate within the basis state
-      basis_pcoord1_max: 15.0		# Minimum progress coordinate within the basis state
-      tau: 5e-13                    # Resampling time, i.e. length of a WE iteration in physical units
-      pcoord_ndim: 1	            # Dimensionality of progress coordinate
-      dim_reduce_method: pca		# Dimensionality reduction scheme, either "pca", "vamp", or "none"
-      parent_traj_filename: parent.xml		# Name of parent file in each segment
-      child_traj_filename: seg.xml		    # Name of child file in each segment
+      ref_pdb_file: common_files/bstate.pdb 		# File containing reference structure/topology
+      model_name: NaClFlux                              # Name for msm_we model
+      n_clusters: 2			        	# Number of clusters in haMSM building
+      we_folder: .                      		# Should point to the same directory as WEST_SIM_ROOT
+      target_pcoord_bounds: [[-inf, 2.60]]		# Progress coordinate boundaries for the target state
+      basis_pcoord_bounds: [[12.0, inf]]               # Progress coordinate boundaries for the basis state
+      tau: 5e-13                                        # Resampling time, i.e. length of a WE iteration in physical units
+      pcoord_ndim0: 1	                                # Dimensionality of progress coordinate
+      dim_reduce_method: pca	                	# Dimensionality reduction scheme, either "pca", "vamp", or "none"
+      parent_traj_filename: parent.xml  		# Name of parent file in each segment
+      child_traj_filename: seg.xml	                # Name of child file in each segment
       user_functions: westpa_scripts/restart_overrides.py	# Python file defining coordinate processing
       struct_filetype: mdtraj.formats.PDBTrajectoryFile 	# Filetype for output start-structures
-      debug: False    # Optional, defaults to False. If true, enables debug-mode logging.
-      streaming: True  # Does clustering in a streaming fashion, versus trying to load all coords in memory
+      debug: False              # Optional, defaults to False. If true, enables debug-mode logging.
+      streaming: True           # Does clustering in a streaming fashion, versus trying to load all coords in memory
+      n_cpus: 1                 # Number of CPUs to use for parallel calculations
 
 Some sample parameters are provided in the above, but of course should be modified to your specific system.
 
