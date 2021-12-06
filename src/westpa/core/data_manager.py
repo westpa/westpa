@@ -174,6 +174,7 @@ istate_dtype = np.dtype(
         ('basis_state_id', seg_id_dtype),  # Which basis state this state was generated from
         ('istate_type', istate_type_dtype),  # What type this initial state is (generated or basis)
         ('istate_status', istate_status_dtype),  # Whether this initial state is ready to go
+        ('basis_auxref', vstr_dtype),
     ]
 )
 
@@ -540,7 +541,7 @@ class WESTDataManager:
             return
 
         segments = []
-        for state in basis_states:
+        for i, state in enumerate(basis_states):
             dummy_segment = Segment(
                 n_iter=0,
                 seg_id=state.state_id,
@@ -598,6 +599,14 @@ class WESTDataManager:
                 )
                 for (i, (row, pcoord)) in enumerate(zip(bstate_index, bstate_pcoords))
             ]
+
+            bstate_total_prob = sum(bstate.probability for bstate in bstates)
+
+            # This should run once in the second iteration, and only if start-states are specified,
+            # but is necessary to re-normalize (i.e. normalize without start-state probabilities included)
+            for i, bstate in enumerate(bstates):
+                bstate.probability /= bstate_total_prob
+                bstates[i] = bstate
             return bstates
 
     def create_initial_states(self, n_states, n_iter=None):
@@ -668,6 +677,8 @@ class WESTDataManager:
                 index_entries[i]['istate_status'] = initial_state.istate_status or InitialState.ISTATE_STATUS_PENDING
                 pcoord_vals[i] = initial_state.pcoord
 
+                index_entries[i]['basis_auxref'] = initial_state.basis_auxref or ""
+
             ibstate_group['istate_index'][state_ids] = index_entries
             ibstate_group['istate_pcoord'][state_ids] = pcoord_vals
 
@@ -690,6 +701,7 @@ class WESTDataManager:
                         iter_created=int(state['iter_created']),
                         iter_used=int(state['iter_used']),
                         istate_type=int(state['istate_type']),
+                        basis_auxref=h5io.tostr(state['basis_auxref']),
                         pcoord=pcoord.copy(),
                     )
                 )
@@ -718,6 +730,7 @@ class WESTDataManager:
                     iter_created=int(state['iter_created']),
                     iter_used=int(state['iter_used']),
                     istate_type=int(state['istate_type']),
+                    basis_auxref=h5io.tostr(state['basis_auxref']),
                     pcoord=pcoord.copy(),
                 )
                 istates.append(istate)

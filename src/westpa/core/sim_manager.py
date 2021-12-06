@@ -113,6 +113,24 @@ class WESimManager:
             except KeyError:
                 raise KeyError('invalid hook {!r}'.format(hook))
 
+        # It's possible to register a callback that's a duplicate function, but at a different place in memory.
+        #   For example, if you launch a run without clearing state from a previous run.
+        #   More details on this are available in https://github.com/westpa/westpa/issues/182 but the below code
+        #   handles specifically the problem that causes in plugin loading.
+        try:
+            # Before checking for set membership of (priority, function.__name__, function), just check
+            #   function names for collisions in this hook.
+            hook_function_names = [callback[1] for callback in self._callback_table[hook]]
+        except KeyError:
+            # If there's no entry in self._callback_table for this hook, then there definitely aren't any collisions
+            #   because no plugins are registered to it yet in the first place.
+            pass
+        else:
+            # If there are plugins registered to this hook, check for duplicate names.
+            if function.__name__ in hook_function_names:
+                log.debug("This plugin has already been loaded, skipping")
+                return
+
         try:
             self._callback_table[hook].add((priority, function.__name__, function))
         except KeyError:
@@ -241,7 +259,7 @@ class WESimManager:
         pstatus()
         self.rc.pflush()
 
-    def initialize_simulation(self, basis_states, target_states, segs_per_state=1, suppress_we=False):
+    def initialize_simulation(self, basis_states, target_states, start_states, segs_per_state=1, suppress_we=False):
         '''Initialize a new weighted ensemble simulation, taking ``segs_per_state`` initial
         states from each of the given ``basis_states``.
 
@@ -265,6 +283,12 @@ class WESimManager:
         self.data_manager.create_ibstate_iter_h5file(basis_states)
         self.report_basis_states(basis_states)
 
+        # Process start states
+        # Unlike the above, does not create an ibstate group.
+        # TODO: Should it? I don't think so, if needed it can be traced back through basis_auxref
+        self.get_bstate_pcoords(start_states)
+        self.report_basis_states(start_states)
+
         pstatus('Preparing initial states')
         initial_states = []
         weights = []
@@ -280,6 +304,19 @@ class WESimManager:
                 initial_state.basis_state = basis_state
                 initial_state.istate_type = istate_type
                 weights.append(basis_state.probability / segs_per_state)
+                initial_states.append(initial_state)
+
+        for start_state in start_states:
+            for _iseg in range(segs_per_state):
+                initial_state = data_manager.create_initial_states(1, 1)[0]
+                initial_state.basis_state_id = start_state.state_id
+                initial_state.basis_state = start_state
+                initial_state.basis_auxref = start_state.auxref
+
+                # Start states are assigned their own type, so they can be identified later
+                initial_state.istate_type = InitialState.ISTATE_TYPE_START
+                weights.append(start_state.probability / segs_per_state)
+                initial_state.iter_used = 1
                 initial_states.append(initial_state)
 
         if self.do_gen_istates:
@@ -343,6 +380,20 @@ class WESimManager:
             )
         )
 
+        total_prob = float(sum(segment.weight for segment in segments))
+        pstatus(f'1-prob: {1-total_prob:.4e}')
+
+        target_counts = self.we_driver.bin_target_counts
+        # Do not include bins with target count zero (e.g. sinks, never-filled bins) in the (non)empty bins statistics
+        n_active_bins = len(target_counts[target_counts != 0])
+        seg_probs = np.fromiter(map(operator.attrgetter('weight'), segments), dtype=weight_dtype, count=len(segments))
+        norm = seg_probs.sum()
+
+        if not abs(1 - norm) < EPS * (len(segments) + n_active_bins):
+            pstatus("Normalization check failed at w_init, explicitly renormalizing")
+            for segment in segments:
+                segment.weight /= norm
+
         # Send the segments over to the data manager to commit to disk
         data_manager.current_iteration = 1
 
@@ -351,6 +402,7 @@ class WESimManager:
         self.segments = {segment.seg_id: segment for segment in segments}
         self.report_bin_statistics(binning, save_summary=True)
         data_manager.flush_backing()
+        data_manager.close_backing()
 
     def prepare_iteration(self):
         log.debug('beginning iteration {:d}'.format(self.n_iter))
