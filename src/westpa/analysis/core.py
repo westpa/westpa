@@ -122,7 +122,7 @@ class Run:
             The iteration indexed by `number`.
 
         """
-        valid_range = range(0, self.num_iterations + 1)
+        valid_range = range(1, self.num_iterations + 1)
         if number not in valid_range:
             raise ValueError(f'iteration number must be in {valid_range}')
         return Iteration(number, self)

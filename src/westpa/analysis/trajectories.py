@@ -9,7 +9,7 @@ import numpy as np
 
 from tqdm import tqdm
 from typing import Callable
-from westpa.analysis.core import Walker, Trace
+from westpa.analysis.core import Walker, Trace, Iteration
 from westpa.core.states import InitialState
 
 
@@ -284,7 +284,7 @@ class HDF5MDTrajectory(Trajectory):
                 parent = walker.parent
                 if isinstance(parent, InitialState):
                     bstate = parent.basis_state
-                    iter0 = iter.run.iteration(0)
+                    iter0 = Iteration(0, iter.run)
                     parent = iter0.walker(bstate.state_id)
                 else:  # shouldn't happen but handles the case anyway
                     raise ValueError("Unknown parent type: %s" % type(parent).__name__)
