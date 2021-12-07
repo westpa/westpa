@@ -28,3 +28,35 @@ westpa.core.binning.bins module
    :show-inheritance:
    :imported-members:
 
+
+Minimal Adaptive Binning (MAB) Scheme
+=====================================
+
+westpa.core.binning.mab module
+------------------------------
+
+.. automodule:: westpa.core.binning.mab
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :imported-members:
+
+westpa.core.binning.mab_driver
+------------------------------
+
+.. automodule:: westpa.core.binning.mab_driver
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :imported-members:
+
+
+westpa.core.binning.mab_manager
+-------------------------------
+
+.. automodule:: westpa.core.binning.mab_manager
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :imported-members:
+

@@ -24,44 +24,44 @@ warnings.filterwarnings('ignore')
 
 class WIPI(WESTParallelTool):
     '''
-        Welcome to w_ipa (WESTPA Interactive Python Analysis)!
-        From here, you can run traces, look at weights, progress coordinates, etc.
-        This is considered a 'stateful' tool; that is, the data you are pulling is always pulled
-        from the current analysis scheme and iteration.
-        By default, the first analysis scheme in west.cfg is used, and you are set at iteration 1.
+    Welcome to w_ipa (WESTPA Interactive Python Analysis)!
+    From here, you can run traces, look at weights, progress coordinates, etc.
+    This is considered a 'stateful' tool; that is, the data you are pulling is always pulled
+    from the current analysis scheme and iteration.
+    By default, the first analysis scheme in west.cfg is used, and you are set at iteration 1.
 
-        ALL PROPERTIES ARE ACCESSED VIA w or west
-        To see the current iteration, try:
+    ALL PROPERTIES ARE ACCESSED VIA w or west
+    To see the current iteration, try:
 
-            w.iteration
-            OR
-            west.iteration
+        w.iteration
+        OR
+        west.iteration
 
-        to set it, simply plug in a new value.
+    to set it, simply plug in a new value.
 
-            w.iteration = 100
+        w.iteration = 100
 
-        To change/list the current analysis schemes:
+    To change/list the current analysis schemes:
 
-            w.list_schemes
-            w.scheme = OUTPUT FROM w.list_schemes
+        w.list_schemes
+        w.scheme = OUTPUT FROM w.list_schemes
 
-        To see the states and bins defined in the current analysis scheme:
+    To see the states and bins defined in the current analysis scheme:
 
-            w.states
-            w.bin_labels
+        w.states
+        w.bin_labels
 
-        All information about the current iteration is available in an object called 'current':
+    All information about the current iteration is available in an object called 'current':
 
-            w.current
-            walkers, summary, states, seg_id, weights, parents, kinavg, pcoord, bins, populations, and auxdata, if it exists.
+        w.current
+        walkers, summary, states, seg_id, weights, parents, kinavg, pcoord, bins, populations, and auxdata, if it exists.
 
-        In addition, the function w.trace(seg_id) will run a trace over a seg_id in the current iteration and return a dictionary
-        containing all pertinent information about that seg_id's history.  It's best to store this, as the trace can be expensive.
+    In addition, the function w.trace(seg_id) will run a trace over a seg_id in the current iteration and return a dictionary
+    containing all pertinent information about that seg_id's history.  It's best to store this, as the trace can be expensive.
 
-        Run help on any function or property for more information!
+    Run help on any function or property for more information!
 
-        Happy analyzing!
+    Happy analyzing!
 
     '''
 
@@ -793,7 +793,7 @@ class WIPI(WESTParallelTool):
 
     @property
     def help(self):
-        ''' Just a minor function to call help on itself.  Only in here to really help someone get help.'''
+        '''Just a minor function to call help on itself.  Only in here to really help someone get help.'''
         help(self)
 
     def _repr_pretty_(self, p, cycle):
