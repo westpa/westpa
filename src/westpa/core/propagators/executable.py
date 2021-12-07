@@ -67,7 +67,7 @@ def aux_data_loader(fieldname, data_filename, segment, single_point):
 def trajectory_loader(fieldname, coord_folder, segment, single_point):
     '''Load data from the trajectory return. ``coord_folder`` should be the path to a folder
     containing trajectory files. ``segment`` is the ``Segment`` object that the data is associated with.
-    Please see ``load_trajectory`` for more details. ``single_point`` is not used by this loader. '''
+    Please see ``load_trajectory`` for more details. ``single_point`` is not used by this loader.'''
     try:
         data = load_trajectory(coord_folder)
         segment.data['iterh5/trajectory'] = data
@@ -78,7 +78,7 @@ def trajectory_loader(fieldname, coord_folder, segment, single_point):
 def restart_loader(fieldname, restart_folder, segment, single_point):
     '''Load data from the restart return. The loader will tar all files in ``restart_folder``
     and store it in the per-iteration HDF5 file. ``segment`` is the ``Segment`` object that
-    the data is associated with. ``single_point`` is not used by this loader. '''
+    the data is associated with. ``single_point`` is not used by this loader.'''
     try:
         d = BytesIO()
         with tarfile.open(mode='w:gz', fileobj=d) as t:
@@ -109,9 +109,9 @@ def restart_writer(path, segment):
 
 
 def seglog_loader(fieldname, log_folder, segment, single_point):
-    ''' Load data from the log return. The loader will tar all files in ``log_folder``
+    '''Load data from the log return. The loader will tar all files in ``log_folder``
     and store it in the per-iteration HDF5 file. ``segment`` is the ``Segment`` object that
-    the data is associated with. ``single_point`` is not used by this loader. '''
+    the data is associated with. ``single_point`` is not used by this loader.'''
     try:
         d = BytesIO()
         with tarfile.open(mode='w:gz', fileobj=d) as t:
@@ -358,6 +358,10 @@ class ExecutablePropagator(WESTPropagator):
 
         if initial_state.basis_state is not None:
             basis_state = initial_state.basis_state
+        elif initial_state.istate_type == InitialState.ISTATE_TYPE_START:
+            basis_state = BasisState(
+                label=f"sstate_{initial_state.state_id}", pcoord=initial_state.pcoord, probability=0.0, auxref=""
+            )
         else:
             basis_state = self.basis_states[initial_state.basis_state_id]
 
@@ -392,16 +396,33 @@ class ExecutablePropagator(WESTPropagator):
             # This segment is initiated from a basis state; WEST_PARENT_SEG_ID and WEST_PARENT_DATA_REF are
             # set to the basis state ID and data ref
             initial_state = self.initial_states[segment.initial_state_id]
-            basis_state = self.basis_states[initial_state.basis_state_id]
+
+            if initial_state.istate_type == InitialState.ISTATE_TYPE_START:
+
+                basis_state = BasisState(
+                    label=f"sstate_{initial_state.state_id}", pcoord=initial_state.pcoord, probability=0.0, auxref=""
+                )
+
+            else:
+                basis_state = self.basis_states[initial_state.basis_state_id]
 
             if self.ENV_BSTATE_ID not in environ:
                 self.update_args_env_basis_state(template_args, environ, basis_state)
             if self.ENV_ISTATE_ID not in environ:
                 self.update_args_env_initial_state(template_args, environ, initial_state)
 
-            assert initial_state.istate_type in (InitialState.ISTATE_TYPE_BASIS, InitialState.ISTATE_TYPE_GENERATED)
+            assert initial_state.istate_type in (
+                InitialState.ISTATE_TYPE_BASIS,
+                InitialState.ISTATE_TYPE_GENERATED,
+                InitialState.ISTATE_TYPE_START,
+            )
             if initial_state.istate_type == InitialState.ISTATE_TYPE_BASIS:
                 environ[self.ENV_PARENT_DATA_REF] = environ[self.ENV_BSTATE_DATA_REF]
+
+            elif initial_state.istate_type == InitialState.ISTATE_TYPE_START:
+
+                # This points to the start-state PDB
+                environ[self.ENV_PARENT_DATA_REF] = environ[self.ENV_BSTATE_DATA_REF] + '/' + initial_state.basis_auxref
             else:  # initial_state.type == InitialState.ISTATE_TYPE_GENERATED
                 environ[self.ENV_PARENT_DATA_REF] = environ[self.ENV_ISTATE_DATA_REF]
 
@@ -506,7 +527,7 @@ class ExecutablePropagator(WESTPropagator):
         is a ``dict`` where the keys are the dataset names and the values are the paths to the temporarily
         files that contain the returned data. ``del_return_files`` is a ``dict`` where the keys are the
         names of datasets to be deleted (if the corresponding value is set to ``True``) once the data is
-        retrieved. '''
+        retrieved.'''
         for dataset in self.data_info:
             if dataset not in return_files:
                 continue

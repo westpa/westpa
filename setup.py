@@ -92,6 +92,7 @@ console_scripts_tools = [
     'ploterr = westpa.cli.tools.ploterr:entry_point',
     'plothist = westpa.cli.tools.plothist:entry_point',
     'w_multi_west = westpa.cli.tools.w_multi_west:entry_point',
+    'w_red = westpa.cli.tools.w_red:entry_point',
 ]
 
 console_scripts = console_scripts_core + console_scripts_tools
