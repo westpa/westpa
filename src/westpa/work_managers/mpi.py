@@ -18,8 +18,7 @@ log = logging.getLogger(__name__)
 # | Task |
 # +------+
 class Task:
-    """Tasks are tuples of (task_id, function, args, keyword args)
-    """
+    """Tasks are tuples of (task_id, function, args, keyword args)"""
 
     def __init__(self, task_id, fn, args, kwargs):
         self.task_id = task_id
@@ -35,8 +34,7 @@ class Task:
 # | MPIWorkManager |
 # +----------------+
 class MPIWorkManager(WorkManager):
-    """MPIWorkManager factory.
-    """
+    """MPIWorkManager factory."""
 
     @classmethod
     def from_environ(cls, wmenv=None):
@@ -61,8 +59,7 @@ class MPIWorkManager(WorkManager):
             return super().__new__(Worker)
 
     def __init__(self):
-        """Initialize info shared by Manager and Worker classes.
-        """
+        """Initialize info shared by Manager and Worker classes."""
         log.debug('MPIWorkManager.__init__()')
 
         super().__init__()
@@ -122,8 +119,7 @@ class Manager(MPIWorkManager):
     """
 
     def __init__(self):
-        """Initialize different state variables used by Manager.
-        """
+        """Initialize different state variables used by Manager."""
         super().__init__()
         log.debug('Manager__init__()')
 
@@ -156,8 +152,7 @@ class Manager(MPIWorkManager):
         self.lock = threading.Lock()
 
     def startup(self):
-        """Spawns the dispatcher and receiver threads.
-        """
+        """Spawns the dispatcher and receiver threads."""
         log.debug('Manager.startup()')
 
         if not self.running:
@@ -229,8 +224,7 @@ class Manager(MPIWorkManager):
             time.sleep(0.001)
 
     def submit(self, fn, args=None, kwargs=None):
-        """Receive task from simulation manager and add it to pending_futures.
-        """
+        """Receive task from simulation manager and add it to pending_futures."""
         log.debug('Manager.submit()')
 
         ft = WMFuture()
@@ -281,8 +275,7 @@ class Worker(MPIWorkManager):
         log.debug('Worker.__init__() %s' % self.rank)
 
     def startup(self):
-        """Clock the worker in for work.
-        """
+        """Clock the worker in for work."""
         log.debug('Worker.startup() %s' % self.rank)
         if not self.running:
 

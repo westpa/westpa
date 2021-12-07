@@ -150,6 +150,7 @@ class InitialState:
     ISTATE_TYPE_BASIS = 1
     ISTATE_TYPE_GENERATED = 2
     ISTATE_TYPE_RESTART = 3
+    ISTATE_TYPE_START = 4
 
     ISTATE_UNUSED = 0
 
@@ -173,6 +174,7 @@ class InitialState:
         istate_status=None,
         pcoord=None,
         basis_state=None,
+        basis_auxref=None,
     ):
         self.state_id = state_id
         self.basis_state_id = basis_state_id
@@ -182,6 +184,7 @@ class InitialState:
         self.iter_created = iter_created
         self.iter_used = iter_used
         self.pcoord = np.atleast_1d(pcoord)
+        self.basis_auxref = basis_auxref
         self.data = {}
 
     def __repr__(self):
@@ -200,6 +203,7 @@ class InitialState:
                 ('iter_used', np.uint),
                 ('istate_type', istate_type_dtype),
                 ('istate_status', istate_status_dtype),
+                ('basis_auxref', str),
                 ('pcoord', self.pcoord.dtype, (len(self.pcoord),)),
             ]
         )
@@ -314,7 +318,9 @@ def pare_basis_initial_states(basis_states, initial_states, segments=None):
         return_istates = set(initial_states)
 
     return_bstates = set(
-        bstatemap[istate.basis_state_id] for istate in return_istates if istate.istate_type != InitialState.ISTATE_TYPE_RESTART
+        bstatemap[istate.basis_state_id]
+        for istate in return_istates
+        if istate.istate_type != InitialState.ISTATE_TYPE_RESTART and istate.istate_type != InitialState.ISTATE_TYPE_START
     )
 
     return return_bstates, return_istates
