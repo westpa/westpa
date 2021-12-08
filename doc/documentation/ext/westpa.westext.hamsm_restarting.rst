@@ -1,5 +1,5 @@
 westpa.westext.hamsm_restarting package
-===================================
+========================================
 
 Description
 -----------
@@ -53,10 +53,10 @@ This plugin requires the following section in :code:`west.cfg` (or whatever your
 
 Some sample parameters are provided in the above, but of course should be modified to your specific system.
 
-**Note about `restarts_to_use`**: `restarts_to_use` can be specified in a few different ways. A value of `-1` means
-to use all available data. A decimal `0 < restarts_to_use < 1` will use the last `restarts_to_use * current_restart`
+**Note about** :code:`restarts_to_use` **:** :code:`restarts_to_use` can be specified in a few different ways. A value of :code:`-1` means
+to use all available data. A decimal :code:`0 < restarts_to_use < 1` will use the last :code:`restarts_to_use * current_restart`
 iterations of data -- so, for example, set to 0.5 to use the last half of the data, or 0.75 to use the last 3/4. Finally,
-and integer value will just use the last `restarts_to_use` iterations.
+and integer value will just use the last :code:`restarts_to_use` iterations.
 
 Note that ref_pdb_file can be any filetype supported by :code:`msm_we.initialize()`'s structure loading.
 At the time of writing, this is limited to PDB, however that is planned to be extended.
@@ -70,8 +70,14 @@ references in :code:`$WEST_SIM_ROOT/restartXX/start_states.txt` are set relative
 state references are defined relative to :code:`west.data.data_refs.basis_state`, so if that points to a subdirectory of
 :code:`$WEST_SIM_ROOT`, those paths will not be accurate.
 
+Running
+*******
+Once configured, just run your WESTPA simulation normally with :code:`w_run`, and the plugin will automatically handle performing restarts, and extensions if necessary.
+
 Extensions
-==========
+----------
+
+To be clear: these are extensions in the sense of extending a simulation to be longer -- not in the sense of "an extension to the WESTPA software package"!
 
 Running with :code:`extension_iters` greater than 0 will enable extensions before the first restart if the target
 state is not reached.
@@ -84,7 +90,7 @@ WESTPA h5 files are scanned to see if any recycling has occurred.
 If it hasn't, then each run is extended by :code:`extension_iters` iterations.
 
 :code:`restart_initialization.json`
-+++++++++++++++++++++++++++++++++++
+**************************************
 
 .. code-block:: json
 
@@ -112,7 +118,7 @@ After the first restart is performed, the plugin writes this file itself, so it 
 for that first set of runs.
 
 Featurization overrides
-+++++++++++++++++++++++
+************************
 
 .. code-block:: python
 
@@ -210,15 +216,3 @@ References
 _`[1]` Suárez, E., Adelman, J. L. & Zuckerman, D. M. Accurate Estimation of Protein Folding and Unfolding Times: Beyond Markov State Models. J Chem Theory Comput 12, 3473–3481 (2016).
 
 _`[2]` Copperman, J. & Zuckerman, D. M. Accelerated Estimation of Long-Timescale Kinetics from Weighted Ensemble Simulation via Non-Markovian “Microbin” Analysis. J Chem Theory Comput 16, 6763–6775 (2020).
-
-
-API
----
-
-westpa.westext.hamsm\_restarting module
-***************************************
-
-.. automodule:: westpa.westext.hamsm_restarting.restart_driver
-   :members:
-   :undoc-members:
-   :show-inheritance:
