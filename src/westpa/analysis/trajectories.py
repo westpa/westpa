@@ -261,9 +261,7 @@ class HDF5MDTrajectory(Trajectory):
 
     Parameters
     ----------
-    traj_filename : str, default 'seg.dcd'
-    parent_filename : str, default 'parent.xml'
-    top : str or mdtraj.Topology, default 'bstate.pdb'
+    atom_indices : list, default `None`
 
     """
 
