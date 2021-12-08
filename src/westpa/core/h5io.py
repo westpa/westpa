@@ -184,16 +184,34 @@ def load_west(filename):
         for iter_group_name in f['iterations']:
             iter_group = f['iterations/' + iter_group_name]
 
+            if 'trajectories' in iter_group:
+                traj_link = iter_group['trajectories']
+                traj_filename = traj_link.file.filename
+
+                with WESTIterationFile(traj_filename) as traj_file:
+                    traj = traj_file.read_as_traj()
+            else:
+                # TODO: [HDF5] allow initializing trajectory without coordinates
+                raise ValueError("Missing trajectories for iteration %d" % n)
+
             # pcoord is required
             if 'pcoord' not in iter_group:
-                continue
+                raise ValueError("Missing pcoords for iteration %d" % n)
 
             raw_pcoord = iter_group['pcoord'][:]
             if raw_pcoord.ndim != 3:
                 log.warn('pcoord is expected to be a 3-d ndarray instead of {}-d'.format(raw_pcoord.ndim))
                 continue
             # ignore the first frame of each segment
-            raw_pcoord = raw_pcoord[:, 1:, :]
+            if raw_pcoord.shape[1] == traj.n_frames + 1:
+                raw_pcoord = raw_pcoord[:, 1:, :]
+            elif raw_pcoord.shape[1] == traj.n_frames:
+                raw_pcoord = raw_pcoord[:, :, :]
+            else:
+                raise ValueError(
+                    "Inconsistent number of pcoords (%d) and frames (%d) for iteration %d" % (raw_pcoord.shape[1], traj.n_frames, n)
+                )
+
             pcoords = np.concatenate(raw_pcoord, axis=0)
             n_frames = raw_pcoord.shape[1]
 
@@ -207,19 +225,6 @@ def load_west(filename):
                 parent_ids = raw_pid.repeat(n_frames, axis=0)
             else:
                 parent_ids = None
-
-            if 'trajectories' in iter_group:
-                traj_link = iter_group['trajectories']
-                traj_filename = traj_link.file.filename
-
-                with WESTIterationFile(traj_filename) as traj_file:
-                    try:
-                        traj = traj_file.read_as_traj()
-                    except Exception:
-                        continue
-            else:
-                continue
-                # traj = WESTTrajectory(None)  # TODO: [HDF5] allow initializing trajectory without coordinates
 
             traj.pcoords = pcoords
             traj.parent_ids = parent_ids
