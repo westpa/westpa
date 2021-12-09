@@ -281,10 +281,12 @@ class HDF5MDTrajectory(Trajectory):
             if include_initpoint:
                 parent = walker.parent
                 if isinstance(parent, InitialState):
+                    if parent.istate_type != InitialState.ISTATE_TYPE_BASIS:
+                        raise ValueError('only initial states of type BASIS are supported')
                     bstate = parent.basis_state
                     iter0 = Iteration(0, iter.run)
                     parent = iter0.walker(bstate.state_id)
-                else:  # shouldn't happen but handles the case anyway
+                elif not isinstance(parent, Walker):  # shouldn't happen but handles the case anyway
                     raise ValueError("Unknown parent type: %s" % type(parent).__name__)
 
                 ptraj = fget(parent, include_initpoint=False, atom_indices=atom_indices)
