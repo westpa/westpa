@@ -290,7 +290,8 @@ class HDF5MDTrajectory(Trajectory):
                     raise ValueError("Unknown parent type: %s" % type(parent).__name__)
 
                 ptraj = fget(parent, include_initpoint=False, atom_indices=atom_indices)
-                traj = ptraj.join(traj, check_topology=False)
+                pframe = ptraj[-1]
+                traj = pframe.join(traj, check_topology=False)
 
             return traj
 
