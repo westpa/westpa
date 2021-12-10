@@ -503,6 +503,12 @@ class Walker:
         """bool: True if the parent of the walker is an initial state, False otherwise."""
         return self.iteration.h5group['seg_index']['parent_id'][self.index] < 0
 
+    @property
+    def auxiliary_data(self):
+        """dict: Auxiliary data for the walker."""
+        data = self.iteration.auxiliary_data or {}
+        return {name: data[name][self.index] for name in data}
+
     def trace(self, **kwargs):
         """Return the trace (ancestral line) of the walker.
 
