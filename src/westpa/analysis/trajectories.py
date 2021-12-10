@@ -226,19 +226,18 @@ class BasicMDTrajectory(Trajectory):
         def fget(walker, include_initpoint=True, atom_indices=None, sim_root=None):
             sim_root = sim_root or self.sim_root
 
-            seg_dir = os.path.join(
-                sim_root,
-                'traj_segs',
-                format(walker.iteration.number, '06d'),
-                format(walker.index, '06d'),
-            )
-
             if isinstance(self.top, str):
                 top = os.path.join(sim_root, 'common_files', self.top)
             else:
                 top = self.top
 
-            path = os.path.join(seg_dir, 'seg' + self.traj_ext)
+            path = os.path.join(
+                sim_root,
+                'traj_segs',
+                format(walker.iteration.number, '06d'),
+                format(walker.index, '06d'),
+                'seg' + self.traj_ext,
+            )
             if top is not None:
                 traj = mdtraj.load(path, top=top)
             else:
@@ -259,7 +258,7 @@ class BasicMDTrajectory(Trajectory):
                             sim_root,
                             'istates',
                             str(parent.iter_created),
-                            str(parent.state_id) + state_ext,
+                            str(parent.state_id) + self.state_ext,
                         )
                 else:
                     path = os.path.join(
@@ -267,7 +266,7 @@ class BasicMDTrajectory(Trajectory):
                         'traj_segs',
                         format(walker.iteration.number - 1, '06d'),
                         format(parent.index, '06d'),
-                        'seg' + state_ext,
+                        'seg' + self.state_ext,
                     )
 
                 frame = mdtraj.load(path, top=traj.top)
