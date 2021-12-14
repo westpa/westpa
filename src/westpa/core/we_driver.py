@@ -7,6 +7,7 @@ import numpy as np
 
 import westpa
 from .segment import Segment
+from .states import InitialState
 
 log = logging.getLogger(__name__)
 
@@ -781,7 +782,18 @@ class WEDriver:
         # and we need to  mark initial states as used or unused
         istates_by_id = {state.state_id: state for state in initial_states}
         dummysegs_by_id = self._parent_map
-        self.avail_initial_states = dict(istates_by_id)
+
+        # Don't add start states to the list of available initial states.
+        # They're only meant to be used in the first iteration, so nothing should ever be recycled into them.
+        # Thus, they're not available.
+        self.avail_initial_states = {
+            k: v for (k, v) in istates_by_id.items() if not v.istate_type == InitialState.ISTATE_TYPE_START
+        }
+
+        for state in self.avail_initial_states.keys():
+            if self.avail_initial_states[state].istate_type == InitialState.ISTATE_TYPE_START:
+                self.avail_initial_states.pop(state)
+
         self.used_initial_states = {}
         for segment in self.next_iter_segments:
             segment.parent_id = dummysegs_by_id[segment.parent_id].parent_id

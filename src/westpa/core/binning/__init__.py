@@ -11,6 +11,11 @@ from .assign import (
     VoronoiBinMapper,
 )
 
+from .mab import map_mab, MABBinMapper
+
+from .mab_driver import MABDriver
+from .mab_manager import MABSimManager
+
 from ._assign import accumulate_labeled_populations, assign_and_label, accumulate_state_populations_from_labeled
 from ._assign import assignments_list_to_table
 
@@ -29,6 +34,10 @@ __all__ = [
     'RecursiveBinMapper',
     'VectorizingFuncBinMapper',
     'VoronoiBinMapper',
+    'map_mab',
+    'MABBinMapper',
+    'MABDriver',
+    'MABSimManager',
     'accumulate_labeled_populations',
     'assign_and_label',
     'accumulate_state_populations_from_labeled',

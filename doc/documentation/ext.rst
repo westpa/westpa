@@ -10,6 +10,7 @@ Currently Supported
 
     Adaptive Voronoi Binning       <ext/westpa.westext.adaptvoronoi>
     String Method                  <ext/westpa.westext.stringmethod>
+    haMSM analysis/Restarting      <ext/westpa.westext.hamsm_restarting>
 
 
 Depreciated
