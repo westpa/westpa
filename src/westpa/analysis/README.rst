@@ -5,6 +5,8 @@ This subpackage provides an API to facilitate the analysis of WESTPA
 simulation data. Its core abstraction is the ``Run`` class.
 A ``Run`` instance provides a read-only view of a WEST HDF5 ("west.h5") file.
 
+**API reference:** `<https://westpa.readthedocs.io/en/latest/documentation/analysis/>`_
+
 How To
 ------
 
@@ -121,9 +123,9 @@ the coordinate and topology data for trajectory segments in separate
 files ("seg.dcd" and "bstate.pdb"), we store them together in a
 `MDTraj HDF5 <https://mdtraj.org/1.9.5/hdf5_format.html>`_ trajectory file
 ("seg.h5"). This change can be accommodated by explicitly setting the
-``traj_filename`` and ``top`` parameters of the trajectory reader::
+``traj_ext`` and ``top`` parameters of the trajectory reader::
 
-    >>> trajectory = BasicMDTrajectory(traj_filename='seg.h5', top=None)
+    >>> trajectory = BasicMDTrajectory(traj_ext='.h5', top=None)
 
 
 Custom Readers
