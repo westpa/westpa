@@ -67,8 +67,12 @@ class Run:
 
     @property
     def summary(self):
-        """pd.DataFrame: Summary data for the run."""
-        df = pd.DataFrame(self.h5file['summary'][: self.num_iterations], index=range(1, self.num_iterations + 1))
+        """pd.DataFrame: Summary data by iteration."""
+        df = pd.DataFrame(
+            self.h5file['summary'][: self.num_iterations],
+            index=range(1, self.num_iterations + 1),
+            dtype=object,
+        )
         df.pop('norm')  # should always be 1.0
         df.pop('binhash')  # not human readable
         return df
@@ -185,6 +189,18 @@ class Iteration:
         if self.number == self.run.num_iterations:
             return None
         return self.run.iteration(self.number + 1)
+
+    @property
+    def summary(self):
+        """pd.DataFrame: Iteration summary."""
+        df = pd.DataFrame(
+            self.run.h5file['summary'][[self.number - 1]],
+            index=[self.number],
+            dtype=object,
+        )
+        df.pop('norm')  # should always be 1.0
+        df.pop('binhash')  # not human readable
+        return df.iloc[0]
 
     @property
     def segment_summaries(self):
@@ -462,7 +478,19 @@ class Walker:
     @property
     def segment_summary(self):
         """pd.Series: Segment summary data."""
-        return self.iteration.segment_summaries.iloc[self.index]
+        df = pd.DataFrame(
+            self.iteration.h5group['seg_index'][[self.index]],
+            index=[self.index],
+            dtype=object,
+        )
+
+        # Make 'endpoint_type' and 'status' human-readable.
+        names = map(Segment.endpoint_type_names.get, df['endpoint_type'])
+        df['endpoint_type'] = [name.split('_')[-1] for name in names]
+        names = map(Segment.status_names.get, df['status'])
+        df['status'] = [name.split('_')[-1] for name in names]
+
+        return df.iloc[0]
 
     @property
     def parent(self):
@@ -502,6 +530,12 @@ class Walker:
     def initial(self):
         """bool: True if the parent of the walker is an initial state, False otherwise."""
         return self.iteration.h5group['seg_index']['parent_id'][self.index] < 0
+
+    @property
+    def auxiliary_data(self):
+        """dict: Auxiliary data for the walker."""
+        data = self.iteration.auxiliary_data or {}
+        return {name: data[name][self.index] for name in data}
 
     def trace(self, **kwargs):
         """Return the trace (ancestral line) of the walker.
