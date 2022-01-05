@@ -80,6 +80,8 @@ class WEDriver:
 
     weight_split_threshold = 2.0
     weight_merge_cutoff = 1.0
+    largest_allowed_weight = 1.0
+    smallest_allowed_weight = 1e-323
 
     def __init__(self, rc=None, system=None):
         self.rc = rc or westpa.rc
@@ -137,6 +139,24 @@ class WEDriver:
 
         self.weight_merge_cutoff = config.get(['west', 'we', 'weight_merge_cutoff'], self.weight_merge_cutoff)
         log.info('Merge cutoff: {}'.format(self.weight_merge_cutoff))
+
+        self.largest_allowed_weight = config.get(['west', 'we', 'largest_allowed_weight'], self.largest_allowed_weight)
+        log.info('Largest allowed weight: {}'.format(self.largest_allowed_weight))
+
+        self.smallest_allowed_weight = config.get(['west', 'we', 'smallest_allowed_weight'], self.smallest_allowed_weight)
+        log.info('Smallest allowed_weight: {}'.format(self.smallest_allowed_weight))
+
+        # Checking to see if weight thresholds are valid
+        if (not np.issubdtype(type(self.largest_allowed_weight), np.floating)) or (
+            not np.issubdtype(type(self.smallest_allowed_weight), np.floating)
+        ):
+            try:
+                # Trying to self correct
+                self.largest_allowed_weight = float(self.largest_allowed_weight)
+                self.smallest_allowed_weight = float(self.smallest_allowed_weight)
+            except ValueError:
+                # Generate error saying thresholds are invalid
+                raise ValueError("Invalid weight thresholds specified. Please check your west.cfg.")
 
     @property
     def next_iter_segments(self):
