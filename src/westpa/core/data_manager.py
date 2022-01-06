@@ -1113,13 +1113,21 @@ class WESTDataManager:
 
         if not self.store_h5:
             return
-
+        print('in prepare_segment_restarts')
         for segment in segments:
             if segment.parent_id < 0:
                 if initial_states is None or basis_states is None:
                     raise ValueError('initial and basis states required for preparing the segments')
                 initial_state = initial_states[segment.initial_state_id]
-                basis_state = basis_states[initial_state.basis_state_id]
+                # Check if it's a start state
+                if initial_state.istate_type == InitialState.ISTATE_TYPE_START:
+                    log.debug(
+                        f'Skip reading start state file from per-iteration HDF5 file for initial state {segment.initial_state_id}'
+                    )
+                    continue
+                else:
+                    basis_state = basis_states[initial_state.basis_state_id]
+
                 parent = Segment(n_iter=0, seg_id=basis_state.state_id)
             else:
                 parent = Segment(n_iter=segment.n_iter - 1, seg_id=segment.parent_id)

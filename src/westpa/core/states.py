@@ -139,8 +139,9 @@ class InitialState:
     :ivar istate_type:      Integer describing the type of this initial state
                             (ISTATE_TYPE_BASIS for direct use of a basis state,
                             ISTATE_TYPE_GENERATED for a state generated from a basis state,
-                            or ISTATE_TYPE_RESTART for a state corresponding to the endpoint
-                            of a segment in another simulation).
+                            ISTATE_TYPE_RESTART for a state corresponding to the endpoint
+                            of a segment in another simulation, or
+                            ISTATE_TYPE_START for a state generated from a start state).
     :ivar istate_status:    Integer describing whether this initial state has been properly
                             prepared.
     :ivar pcoord:           The representative progress coordinate of this state.
