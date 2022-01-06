@@ -287,11 +287,14 @@ class WESimManager:
         # Unlike the above, does not create an ibstate group.
         # TODO: Should it? I don't think so, if needed it can be traced back through basis_auxref
 
-        if start_states[0].state_id is None:
-            last_id = basis_states[-1].state_id
-            for start_state in start_states:
-                start_state.state_id = last_id + 1
-                last_id += 1
+        try:
+            if start_states[0].state_id is None:
+                last_id = basis_states[-1].state_id
+                for start_state in start_states:
+                    start_state.state_id = last_id + 1
+                    last_id += 1
+        except IndexError:
+            pass
 
         self.get_bstate_pcoords(start_states, label='start')
         self.report_basis_states(start_states, label='start')
