@@ -1113,7 +1113,7 @@ class WESTDataManager:
 
         if not self.store_h5:
             return
-        print('in prepare_segment_restarts')
+
         for segment in segments:
             if segment.parent_id < 0:
                 if initial_states is None or basis_states is None:
