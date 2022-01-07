@@ -92,23 +92,27 @@ def restart_loader(fieldname, restart_folder, segment, single_point):
 
 
 def restart_writer(path, segment):
-    '''Prepare the necessary files from the per-iteration HDF5 file to run ``segnment``.'''
+    '''Prepare the necessary files from the per-iteration HDF5 file to run ``segment``.'''
     try:
         restart = segment.data.pop('iterh5/restart', None)
         # Making an exception for start states in iteration 1
-        if segment.n_iter != 1:
-            if restart is None:
-                raise ValueError('restart data is not present')
+        if restart is None:
+            raise ValueError('restart data is not present')
 
         d = BytesIO(restart[:-1])  # remove tail protection
         with tarfile.open(fileobj=d, mode='r:gz') as t:
             t.extractall(path=path)
+    except ValueError as e:
+        log.warning('could not write restart data for {}: {}'.format(str(segment), str(e)))
+        d = BytesIO()
+        if segment.n_iter == 1:
+            log.warning(
+                'In iteration 1. Assuming this is a start state and proceeding to skip reading restart from per-iteration HDF5 file for {}'.format(
+                    str(segment)
+                )
+            )
     except Exception as e:
-        if segment.n_iter != 1:
-            log.warning('could not write restart data for {}: {}'.format(str(segment), str(e)))
-        else:
-            d = BytesIO()
-            log.warning('In iteration 1, so assuming you\'re trying not to read a start state from per-iteration HDF5 file.')
+        log.warning('could not write restart data for {}: {}'.format(str(segment), str(e)))
     finally:
         d.close()
 
