@@ -287,6 +287,14 @@ class WESimManager:
         # Unlike the above, does not create an ibstate group.
         # TODO: Should it? I don't think so, if needed it can be traced back through basis_auxref
 
+        # Here, we are trying to assign a state_id to the start state to be initialized, without actually
+        # saving it to the ibstates records in any of the h5 files. It might actually be a problem
+        # when tracing trajectories with westpa.analysis (especially with HDF5 framework) since it would
+        # try to look for a basis state id > len(basis_state).
+        # Since start states are only used while initializing and iteration 1, it's ok to not save it to save space. If necessary,
+        # the structure can be traced directly to the parent file using the standard basis state logic referencing
+        # west[iterations/iter_00000001/ibstates/istate_index/basis_auxref] of that istate.
+
         try:
             if start_states[0].state_id is None:
                 last_id = basis_states[-1].state_id
