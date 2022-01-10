@@ -295,14 +295,11 @@ class WESimManager:
         # the structure can be traced directly to the parent file using the standard basis state logic referencing
         # west[iterations/iter_00000001/ibstates/istate_index/basis_auxref] of that istate.
 
-        try:
-            if start_states[0].state_id is None:
-                last_id = basis_states[-1].state_id
-                for start_state in start_states:
-                    start_state.state_id = last_id + 1
-                    last_id += 1
-        except IndexError:
-            pass
+        if len(start_states) > 0 and start_states[0].state_id is None:
+            last_id = basis_states[-1].state_id
+            for start_state in start_states:
+                start_state.state_id = last_id + 1
+                last_id += 1
 
         self.get_bstate_pcoords(start_states, label='start')
         self.report_basis_states(start_states, label='start')
