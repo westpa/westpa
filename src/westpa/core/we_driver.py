@@ -80,6 +80,7 @@ class WEDriver:
 
     weight_split_threshold = 2.0
     weight_merge_cutoff = 1.0
+    total_walkers = 100
 
     def __init__(self, rc=None, system=None):
         self.rc = rc or westpa.rc
@@ -137,6 +138,14 @@ class WEDriver:
 
         self.weight_merge_cutoff = config.get(['west', 'we', 'weight_merge_cutoff'], self.weight_merge_cutoff)
         log.info('Merge cutoff: {}'.format(self.weight_merge_cutoff))
+
+        config.require_type_if_present(['west', 'we', 'constant_walkers'], bool)
+
+        self.constant_walkers = config.get(['west', 'we', 'constant_walkers'], False)
+        log.info('Keep number of walkers consistent: {}'.format(self.constant_walkers))
+
+        self.total_walkers = config.get(['west', 'we', 'total_walkers'], self.total_walkers)
+        log.info('Number of total walkers in the simulation: {}'.format(self.total_walkers))
 
     @property
     def next_iter_segments(self):
@@ -623,6 +632,43 @@ class WEDriver:
         # Then and only then adjust for correct particle count
         total_number_of_groups = 0
         total_number_of_particles = 0
+
+        if self.constant_walkers:
+
+            print("initial target counts:", self.bin_target_counts)
+            counts = np.zeros((len(self.bin_target_counts)))
+
+            for (ibin, bin) in enumerate(self.next_iter_binning):
+                counts[ibin] = len(bin)
+
+            print("bin counts:", counts)
+            occupied_bins = self.bin_target_counts[counts > 0]
+
+            new_target_count = int(self.total_walkers / len(occupied_bins))
+            print("new_target_count:", new_target_count)
+
+            for (idx, count) in enumerate(counts):
+                if count > 0:
+                    self.bin_target_counts[idx] = new_target_count
+                else:
+                    self.bin_target_counts[idx] = 0
+
+            lowest_bin_occupancy_idx = np.where(counts == np.min(counts[np.nonzero(counts)]))
+            highest_bin_occupancy_idx = np.where(counts == np.max(counts[np.nonzero(counts)]))
+
+            if self.bin_target_counts.sum() == self.total_walkers:
+                print("even split")
+            elif self.bin_target_counts.sum() > self.total_walkers:
+                difference = self.bin_target_counts.sum() - self.total_walkers
+                print("have too many by:", difference)
+                self.bin_target_counts[highest_bin_occupancy_idx] -= difference
+            elif self.bin_target_counts.sum() < self.total_walkers:
+                difference = self.total_walkers - self.bin_target_counts.sum()
+                print("have too few by:", difference)
+                self.bin_target_counts[lowest_bin_occupancy_idx] += difference
+
+            print("updated target counts:", self.bin_target_counts)
+
         for (ibin, bin) in enumerate(self.next_iter_binning):
             if len(bin) == 0:
                 continue
