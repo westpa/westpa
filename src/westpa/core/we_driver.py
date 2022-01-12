@@ -653,8 +653,14 @@ class WEDriver:
                 else:
                     self.bin_target_counts[idx] = 0
 
-            lowest_bin_occupancy_idx = np.where(counts == np.min(counts[np.nonzero(counts)]))
-            highest_bin_occupancy_idx = np.where(counts == np.max(counts[np.nonzero(counts)]))
+            lowest_bin_occupancy_idx = np.where(counts == np.min(counts[np.nonzero(counts)]))[0]
+            highest_bin_occupancy_idx = np.where(counts == np.max(counts[np.nonzero(counts)]))[0]
+
+            if len(lowest_bin_occupancy_idx) > 1:
+                lowest_bin_occupancy_idx = lowest_bin_occupancy_idx[-1]
+
+            if len(highest_bin_occupancy_idx) > 1:
+                highest_bin_occupancy_idx = highest_bin_occupancy_idx[-1]
 
             if self.bin_target_counts.sum() == self.total_walkers:
                 print("even split")
