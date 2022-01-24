@@ -11,6 +11,7 @@ from tqdm import tqdm
 from typing import Callable
 from westpa.analysis.core import Walker, Trace
 from westpa.core.states import InitialState
+from westpa.core.h5io import WESTIterationFile
 
 
 class Trajectory:
@@ -274,6 +275,52 @@ class BasicMDTrajectory(Trajectory):
 
             if atom_indices is not None:
                 traj.atom_slice(atom_indices, inplace=True)
+
+            return traj
+
+        super().__init__(fget)
+
+        self.segment_collector.use_threads = True
+        self.segment_collector.show_progress = True
+
+
+class HDF5MDTrajectory(Trajectory):
+    """Trajectory reader for MD trajectories stored by the HDF5 framework."""
+
+    def __init__(self):
+        def fget(walker, include_initpoint=True, atom_indices=None):
+            iteration = walker.iteration
+
+            try:
+                link = iteration.h5group['trajectories']
+            except KeyError:
+                msg = 'the HDF5 framework does not appear to have been used to store trajectories for this run'
+                raise ValueError(msg)
+
+            with WESTIterationFile(link.file.filename) as traj_file:
+                traj = traj_file.read_as_traj(
+                    iteration=iteration.number,
+                    segment=walker.index,
+                    atom_indices=atom_indices,
+                )
+
+            if include_initpoint:
+                parent = walker.parent
+
+                if isinstance(parent, InitialState):
+                    if parent.istate_type != InitialState.ISTATE_TYPE_BASIS:
+                        raise ValueError('only initial states of type BASIS are supported')
+
+                    link = walker.run.h5file.get_iter_group(0)['trajectories']
+                    with WESTIterationFile(link.file.filename) as traj_file:
+                        frame = traj_file.read_as_traj(
+                            iteration=0,
+                            segment=parent.basis_state_id,
+                            atom_indices=atom_indices,
+                        )
+                else:
+                    frame = fget(parent, include_initpoint=False, atom_indices=atom_indices)[-1]
+                traj = frame.join(traj, check_topology=False)
 
             return traj
 
