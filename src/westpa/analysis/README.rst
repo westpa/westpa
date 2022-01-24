@@ -127,6 +127,8 @@ files ("seg.dcd" and "bstate.pdb"), we store them together in a
 
     >>> trajectory = BasicMDTrajectory(traj_ext='.h5', top=None)
 
+Trajectories that are saved with the HDF5 Framework can use ``HDF5MDTrajectory`` reader instead.
+
 
 Custom Readers
 ^^^^^^^^^^^^^^
