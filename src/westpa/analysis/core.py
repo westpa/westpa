@@ -523,9 +523,11 @@ class Walker:
     @property
     def children(self):
         """Iterable[Walker]: The children of the walker."""
-        if not self.iteration.next:
+        next = walker.iteration.next
+        if next is None:
             return ()
-        return (walker for walker in self.iteration.next.walkers if walker.parent == self)
+        indices = np.flatnonzero(next.h5group['seg_index']['parent_id'] == walker.index)
+        return (Walker(index, next) for index in indices)
 
     @property
     def recycled(self):
