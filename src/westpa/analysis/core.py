@@ -80,7 +80,14 @@ class Run:
     @property
     def num_iterations(self):
         """int: Number of completed iterations."""
-        return self.h5file.attrs['west_current_iteration'] - 1
+        if not hasattr(self, '_num_iterations'):
+            current = self.h5file.attrs['west_current_iteration']
+            grp = self.h5file.get_iter_group(current)
+            if (grp['seg_index']['status'] == Segment.SEG_STATUS_COMPLETE).all():
+                self._num_iterations = current
+            else:
+                self._num_iterations = current - 1
+        return self._num_iterations
 
     @property
     def iterations(self):
