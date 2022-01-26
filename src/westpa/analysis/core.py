@@ -509,15 +509,24 @@ class Walker:
 
         istate_id = -(parent_id + 1)
         row = self.iteration.h5group['ibstates']['istate_index'][istate_id]
+
+        # Initial states may or may not be generated from a basis state.
+        bstate_id = row['basis_state_id']
+        try:
+            bstate = self.iteration.basis_state(bstate_id)
+        except IndexError:
+            bstate = None
+            bstate_id = None
+
         return InitialState(
             istate_id,
-            row['basis_state_id'],
+            bstate_id,
             row['iter_created'],
             iter_used=row['iter_used'],
             istate_type=row['istate_type'],
             istate_status=row['istate_status'],
             pcoord=self.iteration.h5group['ibstates']['istate_pcoord'][istate_id],
-            basis_state=self.iteration.basis_state(row['basis_state_id']),
+            basis_state=bstate,
         )
 
     @property
