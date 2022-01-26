@@ -532,7 +532,7 @@ class Walker:
     @property
     def children(self):
         """Iterable[Walker]: The children of the walker."""
-        next = walker.iteration.next
+        next = self.iteration.next
         if next is None:
             return ()
         indices = np.flatnonzero(next.h5group['seg_index']['parent_id'] == walker.index)
