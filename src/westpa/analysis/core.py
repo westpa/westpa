@@ -535,7 +535,7 @@ class Walker:
         next = self.iteration.next
         if next is None:
             return ()
-        indices = np.flatnonzero(next.h5group['seg_index']['parent_id'] == walker.index)
+        indices = np.flatnonzero(next.h5group['seg_index']['parent_id'] == self.index)
         return (Walker(index, next) for index in indices)
 
     @property
