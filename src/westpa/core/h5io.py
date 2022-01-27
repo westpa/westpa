@@ -496,10 +496,43 @@ class WESTIterationFile(HDF5TrajectoryFile):
             if not np.all(atom_slice >= 0):
                 raise ValueError('The entries in atom_indices must be greater ' 'than or equal to zero')
 
+        def get_item(node, key):
+            if not isinstance(key, tuple):
+                return node.__getitem__(key)
+
+            n_list_like = 0
+            new_keys = []
+            for item in key:
+                if not isinstance(item, slice):
+                    try:
+                        d = np.diff(item)
+                        if len(d) == 0:
+                            item = item[0]
+                        elif np.all(d == d[0]):
+                            item = slice(item[0], item[-1] + d[0], d[0])
+                        else:
+                            n_list_like += 1
+                    except Exception:
+                        n_list_like += 1
+                new_keys.append(item)
+            new_keys = tuple(new_keys)
+
+            if n_list_like <= 1:
+                return node.__getitem__(new_keys)
+
+            data = node
+            for i, item in enumerate(new_keys):
+                dkey = [slice(None)] * len(key)
+                dkey[i] = item
+                dkey = tuple(dkey)
+                data = data.__getitem__(dkey)
+
+            return data
+
         def get_field(name, slice, out_units, can_be_none=True):
             try:
                 node = self._get_node(where='/', name=name)
-                data = node.__getitem__(slice)
+                data = get_item(node, slice)
                 in_units = node.attrs.units
                 if not isinstance(in_units, string_types):
                     in_units = in_units.decode()
