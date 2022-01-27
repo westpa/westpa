@@ -92,6 +92,7 @@ console_scripts_tools = [
     'ploterr = westpa.cli.tools.ploterr:entry_point',
     'plothist = westpa.cli.tools.plothist:entry_point',
     'w_multi_west = westpa.cli.tools.w_multi_west:entry_point',
+    'w_red = westpa.cli.tools.w_red:entry_point',
 ]
 
 console_scripts = console_scripts_core + console_scripts_tools
@@ -111,11 +112,15 @@ INSTALL_REQUIRES = [
     "numpy >= 1.16.0",
     "scipy >= 0.19.1",
     "h5py >= 2.10",
+    "mdtraj >= 1.9.5",
     "pyyaml",
     "pyzmq",
     "matplotlib",
     "blessings",
     "ipykernel",
+    "tqdm",
+    "pandas",
+    "tables",
 ]
 
 EXTRAS_REQUIRE = {

@@ -8,7 +8,7 @@ requires = [
     "Cython>=0.29.16",  # Note: sync with setup.py
     "oldest-supported-numpy",
     "scipy>=0.19.1",
-    "versioneer-518",
+    "versioneer-518"
 ]
 # Uncommenting this requires adding the top level of the repo to sys.path in the setup.py
 # so that it can find the vendorized copy of versioneer. I see that other projects don't
