@@ -16,7 +16,8 @@ class Run:
     Parameters
     ----------
     h5filename : str or file-like object, default 'west.h5'
-        Pathname or stream of a WEST HDF5 file.
+        Pathname or stream of a main WESTPA HDF5 data file.
+
 
     """
 
@@ -38,7 +39,7 @@ class Run:
         Parameters
         ----------
         h5filename : str or file-like object, default 'west.h5'
-            Pathname or stream of a WEST HDF5 file.
+            Pathname or stream of a main WESTPA HDF5 data file.
 
         """
         return cls(h5filename)
