@@ -305,11 +305,18 @@ class WESTRC:
             except AttributeError:
                 pass
 
+    def detect_mab_mapper(self):
+        bin_dict = self.config.get(['west', 'system', 'system_options', 'bins'])
+        use_mab = False
+        if bin_dict is not None:
+            mapper = bins_from_yaml_dict(bin_dict)
+            use_mab = detect_mab_mapper(mapper)
+
+        return use_mab
+
     def new_sim_manager(self):
         drivername = self.config.get(['west', 'drivers', 'sim_manager'], 'default')
-        bin_dict = self.config.require(['west', 'system', 'system_options', 'bins'])
-        mapper = bins_from_yaml_dict(bin_dict)
-        use_mab = detect_mab_mapper(mapper)
+        use_mab = self.detect_mab_mapper()
 
         if use_mab:
             from .binning.mab_manager import MABSimManager
@@ -350,9 +357,7 @@ class WESTRC:
         import westpa
 
         drivername = self.config.get(['west', 'drivers', 'we_driver'], 'default')
-        bin_dict = self.config.require(['west', 'system', 'system_options', 'bins'])
-        mapper = bins_from_yaml_dict(bin_dict)
-        use_mab = detect_mab_mapper(mapper)
+        use_mab = self.detect_mab_mapper()
 
         if use_mab:
             from .binning.mab_driver import MABDriver
