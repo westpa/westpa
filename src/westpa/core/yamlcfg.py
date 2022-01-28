@@ -3,6 +3,7 @@ YAML-based configuration files for WESTPA
 '''
 
 import os
+from typing import Type
 import warnings
 
 import yaml
@@ -157,7 +158,7 @@ class YAMLConfig:
     def __contains__(self, key):
         try:
             self[key]
-        except KeyError:
+        except (KeyError, TypeError) as e:
             return False
         else:
             return True

@@ -78,7 +78,8 @@ cpdef Py_ssize_t get_bssize(double alpha) nogil:
         bssize *= 10
     return bssize
 
-cpdef mcbs_ci(dataset, estimator, alpha, dlen, n_sets=None, args=None, kwargs=None, sort=numpy.msort):
+
+cpdef mcbs_ci(dataset, estimator, alpha, dlen, n_sets=None, args=None, kwargs=None, sort=numpy.msort, bayesian=False):
     '''Perform a Monte Carlo bootstrap estimate for the (1-``alpha``) confidence interval
     on the given ``dataset`` with the given ``estimator``.  This routine is not appropriate
     for time-correlated data.
@@ -115,6 +116,11 @@ cpdef mcbs_ci(dataset, estimator, alpha, dlen, n_sets=None, args=None, kwargs=No
     except Exception:
         pass
 
+    def_indices = numpy.arange(dlen, dtype=numpy.uint16)
+    def_weights = numpy.ones(dlen, dtype=numpy.float64)
+
+    d_input['sample_indices'] = def_indices
+    d_input['sample_weights'] = def_weights
     fhat = estimator(**d_input)
 
     try:
@@ -130,29 +136,42 @@ cpdef mcbs_ci(dataset, estimator, alpha, dlen, n_sets=None, args=None, kwargs=No
     n_sets = n_sets or get_bssize(alpha)
 
     f_synth = numpy.empty((n_sets,) + estimator_shape, dtype=estimator_dtype)
+    k = numpy.ones(dlen, dtype=float)
 
     for i in xrange(n_sets):
-        indices = numpy.random.randint(dlen, size=(dlen,))
-        d_synth = {}
-        for key, dset in dataset.iteritems():
-            d_synth[key] = numpy.take(dset, indices, axis=0)
+        if bayesian:
+            indices = def_indices
+            weights = numpy.random.dirichlet(k, size=1).flatten().astype(numpy.float64)
+            d_synth = dataset
+        else:
+            indices = numpy.random.randint(dlen, size=(dlen,), dtype=numpy.uint16)
+            weights = def_weights
+            d_synth = {}
+            for key, dset in dataset.iteritems():
+                d_synth[key] = numpy.take(dset, indices, axis=0)
+
         d_input = d_synth.copy()
+        d_input['sample_indices'] = indices
+        d_input['sample_weights'] = weights
+
         try:
             d_input.update(kwargs)
         except Exception:
             pass
         f_synth[i] = estimator(**d_input)
         del indices
+        del weights
 
     f_synth_sorted = sort(f_synth)
     lbi = int(math.floor(n_sets*alpha/2.0))
-    ubi = int(math.ceil(n_sets*(1-alpha/2.0)))
+    ubi = int(math.ceil(n_sets*(1-alpha/2.0)))-1
     lb = f_synth_sorted[lbi]
     ub = f_synth_sorted[ubi]
     sterr = numpy.std(f_synth_sorted)
 
-    del f_synth_sorted, f_synth
+    del f_synth_sorted, f_synth, k
     return (fhat, lb, ub, sterr)
+
 
 cpdef mcbs_correltime(dataset, alpha, n_sets = None):
     '''Calculate the correlation time of the given ``dataset``, significant to the
