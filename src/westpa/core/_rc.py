@@ -6,13 +6,14 @@ import math
 import os
 import sys
 import warnings
+from copy import deepcopy
 
 import numpy as np
 
 import westpa
 import westpa.core.data_manager
 from westpa.core.binning.assign import BinMapper
-from westpa.core.binning import RectilinearBinMapper, RecursiveBinMapper
+from westpa.core.binning import RectilinearBinMapper, RecursiveBinMapper, MABBinMapper
 from westpa.core.extloader import get_object
 from .yamlcfg import YAMLConfig
 from .yamlcfg import YAMLSystem
@@ -23,7 +24,7 @@ log = logging.getLogger('westpa.rc')
 
 
 def bins_from_yaml_dict(bin_dict):
-    kwargs = bin_dict.copy()
+    kwargs = deepcopy(bin_dict)
     typename = kwargs.pop('type')
 
     try:
@@ -79,6 +80,21 @@ def bins_from_yaml_dict(bin_dict):
         except Exception:
             log.exception('exception instantiating mapper')
             raise
+
+
+def detect_mab_mapper(mapper):
+    if isinstance(mapper, MABBinMapper):
+        return True
+    elif isinstance(mapper, RecursiveBinMapper):
+        if detect_mab_mapper(mapper.base_mapper):
+            return True
+
+        for ibin in mapper._recursion_targets:
+            rec_mapper = mapper._recursion_targets[ibin]
+            if detect_mab_mapper(rec_mapper):
+                return True
+    else:
+        return False
 
 
 def parsePCV(pc_str):
@@ -292,29 +308,30 @@ class WESTRC:
             except AttributeError:
                 pass
 
+    def detect_mab_mapper(self):
+        bin_dict = self.config.get(['west', 'system', 'system_options', 'bins'])
+        use_mab = False
+        if bin_dict is not None:
+            mapper = bins_from_yaml_dict(bin_dict)
+            use_mab = detect_mab_mapper(mapper)
+
+        return use_mab
+
     def new_sim_manager(self):
         drivername = self.config.get(['west', 'drivers', 'sim_manager'], 'default')
-        binmapname = self.config.get(['west', 'system', 'system_options', 'bins', 'type'], 'default')
+        use_mab = self.detect_mab_mapper()
 
-        try:
-            nestmapname = self.config.get(['west', 'system', 'system_options', 'bins', 'mappers'])[:][0]['type']
-        except TypeError:
-            nestmapname = binmapname
+        if use_mab:
+            from .binning.mab_manager import MABSimManager
 
-        if binmapname == 'MABBinMapper':
-            sim_manager = westpa.core.binning.mab_manager.MABSimManager(rc=self)
-            sys.stderr.write("-- WARNING  [config] -- Do not use MABBinMapper as an outer binning scheme with a target state.\n")
-
-        elif nestmapname == 'MABBinMapper':
-            sim_manager = westpa.core.binning.mab_manager.MABSimManager(rc=self)
-
+            sim_manager = MABSimManager(rc=self)
         elif drivername.lower() == 'default':
             from .sim_manager import WESimManager
 
             sim_manager = WESimManager(rc=self)
-
         else:
             sim_manager = extloader.get_object(drivername)(rc=self)
+
         log.debug('loaded simulation manager {!r}'.format(sim_manager))
         return sim_manager
 
@@ -343,22 +360,16 @@ class WESTRC:
         import westpa
 
         drivername = self.config.get(['west', 'drivers', 'we_driver'], 'default')
-        binmapname = self.config.get(['west', 'system', 'system_options', 'bins', 'type'], 'default')
+        use_mab = self.detect_mab_mapper()
 
-        try:
-            nestmapname = self.config.get(['west', 'system', 'system_options', 'bins', 'mappers'])[:][0]['type']
-        except TypeError:
-            nestmapname = None
+        if use_mab:
+            from .binning.mab_driver import MABDriver
 
-        if binmapname == 'MABBinMapper':
-            we_driver = westpa.core.binning.mab_driver.MABDriver()
-
-        elif nestmapname == 'MABBinMapper':
-            we_driver = westpa.core.binning.mab_driver.MABDriver()
-
+            we_driver = MABDriver()
         elif drivername.lower() == 'default':
-            we_driver = westpa.core.we_driver.WEDriver()
+            from .we_driver import WEDriver
 
+            we_driver = WEDriver()
         else:
             we_driver = extloader.get_object(drivername)(rc=self)
         log.debug('loaded WE algorithm driver: {!r}'.format(we_driver))
