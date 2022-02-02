@@ -38,7 +38,7 @@ WESTPA is free software, licensed under the terms of the MIT License. See the fi
 Requirements
 ------------
 
-WESTPA is written in Python and requires version 3.6 or later. WESTPA further
+WESTPA is written in Python and requires version 3.7 or later. WESTPA further
 requires a large number of scientific software libraries for Python and other
 languages. The simplest way to meet these requirements is to download the
 Anaconda Python distribution from www.continuum.io (free for all users).
@@ -52,17 +52,27 @@ Obtaining and Installing WESTPA
 
 WESTPA is developed and tested on Unix-like operating systems, including Linux and Mac OS X.
 
-We recommend installing WESTPA through conda. See the quick install instructions on our `wiki`_ for how to do this. To install from source (not recommended), please continue reading.
 
 Before installing WESTPA, we recommend you to first install the Python 3 version provided by the latest free `Anaconda Python distribution`_. Create a new python environment for the install with the following::
 
-    conda create -n westpa-2.0 python=3.7
+    conda create -n westpa-2.0 python=3.9
+    conda activate westpa-2.0
 
-We recommend obtaining the latest release of WESTPA by downloading the corresponding tar.gz file from the `releases page`_. After downloading the file, unpack the file and install WESTPA by executing the following::
+Then, we recommend installing WESTPA through conda or pip. Execute either of the following::
+
+    conda install -c conda-forge westpa=2.0
+
+or::
+
+    python -m pip install westpa==2.0
+    
+See the install instructions on our `wiki`_ for more detailed information. 
+    
+
+To install from source (**not recommended**), start by downloading the corresponding tar.gz file from the `releases page`_. After downloading the file, unpack the file and install WESTPA by executing the following::
 
     tar xvzf westpa-main.tar.gz
     cd westpa
-    conda activate westpa-2.0
     python -m pip install -e .
 
 .. _`releases page`: https://github.com/westpa/westpa/releases
