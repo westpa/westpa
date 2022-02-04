@@ -14,7 +14,14 @@ class Test_W_Init:
         westpa.rc.process_args(args)
 
         westpa.cli.core.w_init.initialize(
-            tstates=None, tstate_file=None, bstates=['initial,1.0'], bstate_file=None, segs_per_state=1, shotgun=False
+            tstates=None,
+            tstate_file=None,
+            bstates=['initial,1.0'],
+            bstate_file=None,
+            sstates=None,
+            sstate_file=None,
+            segs_per_state=1,
+            shotgun=False,
         )
 
         # h5 files contain some internal information that includes timestamps, so I can't just compare md5 checksums

@@ -326,7 +326,7 @@ class WMFuture:
         with self._condition:
             if self._done:
                 if self._exception:
-                    if isinstance(self._traceback, h5py.string_dtype(encoding='utf-8').type):
+                    if isinstance(self._traceback, h5py.string_dtype(encoding='utf-8').type) or isinstance(self._traceback, str):
                         if self._traceback:
                             log.error('uncaught exception in remote function\n{}'.format(self._traceback))
                         raise self._exception

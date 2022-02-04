@@ -23,6 +23,7 @@ class Test_W_Multi_West:
                 sims='3',
                 aux=None,
                 auxall=True,
+                no_reweight=False,
             ),
         ):
             entry_point()

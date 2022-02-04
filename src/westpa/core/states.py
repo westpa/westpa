@@ -139,8 +139,9 @@ class InitialState:
     :ivar istate_type:      Integer describing the type of this initial state
                             (ISTATE_TYPE_BASIS for direct use of a basis state,
                             ISTATE_TYPE_GENERATED for a state generated from a basis state,
-                            or ISTATE_TYPE_RESTART for a state corresponding to the endpoint
-                            of a segment in another simulation).
+                            ISTATE_TYPE_RESTART for a state corresponding to the endpoint
+                            of a segment in another simulation, or
+                            ISTATE_TYPE_START for a state generated from a start state).
     :ivar istate_status:    Integer describing whether this initial state has been properly
                             prepared.
     :ivar pcoord:           The representative progress coordinate of this state.
@@ -150,6 +151,7 @@ class InitialState:
     ISTATE_TYPE_BASIS = 1
     ISTATE_TYPE_GENERATED = 2
     ISTATE_TYPE_RESTART = 3
+    ISTATE_TYPE_START = 4
 
     ISTATE_UNUSED = 0
 
@@ -173,6 +175,7 @@ class InitialState:
         istate_status=None,
         pcoord=None,
         basis_state=None,
+        basis_auxref=None,
     ):
         self.state_id = state_id
         self.basis_state_id = basis_state_id
@@ -182,6 +185,7 @@ class InitialState:
         self.iter_created = iter_created
         self.iter_used = iter_used
         self.pcoord = np.atleast_1d(pcoord)
+        self.basis_auxref = basis_auxref
         self.data = {}
 
     def __repr__(self):
@@ -200,6 +204,7 @@ class InitialState:
                 ('iter_used', np.uint),
                 ('istate_type', istate_type_dtype),
                 ('istate_status', istate_status_dtype),
+                ('basis_auxref', str),
                 ('pcoord', self.pcoord.dtype, (len(self.pcoord),)),
             ]
         )
@@ -314,7 +319,9 @@ def pare_basis_initial_states(basis_states, initial_states, segments=None):
         return_istates = set(initial_states)
 
     return_bstates = set(
-        bstatemap[istate.basis_state_id] for istate in return_istates if istate.istate_type != InitialState.ISTATE_TYPE_RESTART
+        bstatemap[istate.basis_state_id]
+        for istate in return_istates
+        if istate.istate_type != InitialState.ISTATE_TYPE_RESTART and istate.istate_type != InitialState.ISTATE_TYPE_START
     )
 
     return return_bstates, return_istates
