@@ -67,6 +67,23 @@ def entry_point():
                         This argument may be specified more than once, in which case the given states are appended
                         in the order they appear on the command line.''',
     )
+
+    parser.add_argument(
+        '--sstate-file',
+        '--sstates-from',
+        metavar='SSTATE_FILE',
+        help='Read start state names, probabilities, and (optionally) data references from SSTATE_FILE.',
+    )
+    parser.add_argument(
+        '--sstate',
+        action='append',
+        dest='sstates',
+        help='''Add the given start state (specified as a string 'label,probability[,auxref]')
+                        to the list of start states (after those specified in --sstates-from, if any). This argument
+                        may be specified more than once, in which case the given states are appended in the order
+                        they are given on the command line.''',
+    )
+
     parser.add_argument(
         '--segs-per-state',
         type=int,
@@ -90,10 +107,19 @@ def entry_point():
     westpa.rc.process_args(args)
     work_managers.environment.process_wm_args(args)
 
-    initialize(args.tstates, args.tstate_file, args.bstates, args.bstate_file, args.segs_per_state, args.shotgun)
+    initialize(
+        args.tstates,
+        args.tstate_file,
+        args.bstates,
+        args.bstate_file,
+        args.sstates,
+        args.sstate_file,
+        args.segs_per_state,
+        args.shotgun,
+    )
 
 
-def initialize(tstates, tstate_file, bstates, bstate_file, segs_per_state, shotgun):
+def initialize(tstates, tstate_file, bstates, bstate_file, sstates=None, sstate_file=None, segs_per_state=1, shotgun=False):
     """
     Initialize a WESTPA simulation.
 
@@ -104,6 +130,10 @@ def initialize(tstates, tstate_file, bstates, bstate_file, segs_per_state, shotg
     bstates : list of str
 
     bstate_file : str
+
+    sstates : list of str
+
+    sstate_file : str
 
     segs_per_state : int
 
@@ -145,20 +175,52 @@ def initialize(tstates, tstate_file, bstates, bstate_file, segs_per_state, shotg
                         auxref = None
                     basis_states.append(BasisState(label=label, probability=probability, auxref=auxref))
 
+            # Process the list of start states, creating a BasisState from each
+            start_states = []
+            if sstate_file:
+                start_states.extend(BasisState.states_from_file(sstate_file))
+            if sstates:
+                for sstate_str in sstates:
+                    fields = sstate_str.split(',')
+                    label = fields[0]
+                    probability = float(fields[1])
+                    try:
+                        auxref = fields[2]
+                    except IndexError:
+                        auxref = None
+                    start_states.append(BasisState(label=label, probability=probability, auxref=auxref))
+
             if not basis_states:
                 log.error('At least one basis state is required')
                 sys.exit(3)
 
             # Check that the total probability of basis states adds to one
-            tprob = sum(bstate.probability for bstate in basis_states)
+            bstate_prob, sstate_prob = (
+                sum(bstate.probability for bstate in basis_states),
+                sum(sstate.probability for sstate in start_states),
+            )
+            # tprob = sum(bstate.probability for bstate in basis_states)
+            tprob = bstate_prob + sstate_prob
             if abs(1.0 - tprob) > len(basis_states) * EPS:
                 pscale = 1 / tprob
-                log.warning('Basis state probabilities do not add to unity; rescaling by {:g}'.format(pscale))
+                log.warning(
+                    'Basis state probabilities do not add to unity (basis: {:.2f}, start states: {:.2f}); rescaling by {:g}. If using start states, some rescaling is normal.'.format(
+                        bstate_prob, sstate_prob, pscale
+                    )
+                )
                 for bstate in basis_states:
                     bstate.probability *= pscale
+                for sstate in start_states:
+                    sstate.probability *= pscale
 
             # Prepare simulation
-            sim_manager.initialize_simulation(basis_states, target_states, segs_per_state=segs_per_state, suppress_we=shotgun)
+            sim_manager.initialize_simulation(
+                basis_states=basis_states,
+                target_states=target_states,
+                start_states=start_states,
+                segs_per_state=segs_per_state,
+                suppress_we=shotgun,
+            )
         else:
             work_manager.run()
 

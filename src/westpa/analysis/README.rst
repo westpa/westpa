@@ -1,5 +1,5 @@
-westpa.analysis package
-=======================
+``westpa.analysis``
+===================
 
 This subpackage provides an API to facilitate the analysis of WESTPA
 simulation data. Its core abstraction is the ``Run`` class.
@@ -146,21 +146,3 @@ a custom reader requires two ingredients:
 #. A function for concatenating trajectory segments. A default implementation
    is provided by the ``concatenate()`` function in the
    ``westpa.analysis.trajectories`` module.
-
-westpa.analysis.core module
----------------------------
-
-.. automodule:: westpa.analysis.core
-   :members:
-
-westpa.analysis.trajectories module
------------------------------------
-
-.. automodule:: westpa.analysis.trajectories
-   :members:
-
-westpa.analysis.statistics module
----------------------------------
-
-.. automodule:: westpa.analysis.statistics
-   :members:

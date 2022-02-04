@@ -1,34 +1,56 @@
 import itertools
-import sys
-
 import numpy as np
 import pandas as pd
+import sys
 
 from westpa.core.binning.assign import BinMapper
 from westpa.core.h5io import WESTPAH5File
 from westpa.core.segment import Segment
 from westpa.core.states import BasisState, InitialState, TargetState
-
 from westpa.tools.binning import mapper_from_hdf5
 
 
 class Run:
-    """A completed WESTPA simulation run.
+    """A read-only view of a WESTPA simulation run.
 
     Parameters
     ----------
     h5filename : str or file-like object, default 'west.h5'
-        Pathname or stream of a WESTPA HDF5 data file.
-    name : str, optional
-        Name of the run. Default is the empty string.
+        Pathname or stream of a main WESTPA HDF5 data file.
 
     """
 
     DESCRIPTION = 'WESTPA Run'
 
-    def __init__(self, h5filename='west.h5', name=None):
+    def __init__(self, h5filename='west.h5'):
         self.h5filename = h5filename
-        self.name = name
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, traceback):
+        self.close()
+
+    @classmethod
+    def open(cls, h5filename='west.h5'):
+        """Alternate constructor.
+
+        Parameters
+        ----------
+        h5filename : str or file-like object, default 'west.h5'
+            Pathname or stream of a main WESTPA HDF5 data file.
+
+        """
+        return cls(h5filename)
+
+    def close(self):
+        """Close the Run instance by closing the underlying WESTPA HDF5 file."""
+        self.h5file.close()
+
+    @property
+    def closed(self):
+        """bool: Whether the Run instance is closed."""
+        return not bool(self.h5file)
 
     @property
     def h5filename(self):
@@ -36,41 +58,36 @@ class Run:
 
     @h5filename.setter
     def h5filename(self, value):
-        self.h5file = WESTPAH5File(value, 'r')
-
-    def __getstate__(self):
-        state = self.__dict__.copy()
-        state['h5filename'] = state['h5file'].filename
-        del state['h5file']
-        return state
-
-    def __setstate__(self, state):
-        state['h5file'] = WESTPAH5File(state['h5filename'], 'r')
-        del state['h5filename']
-        self.__dict__.update(state)
-
-    @property
-    def name(self):
-        """str: Name of the run."""
-        return self._name
-
-    @name.setter
-    def name(self, value):
-        if value is None:
-            value = ''
-        elif not isinstance(value, str):
-            raise TypeError('name must be a string')
-        self._name = value
+        try:
+            h5file = WESTPAH5File(value, 'r')
+        except FileNotFoundError as e:
+            e.strerror = f'Failed to open {self.DESCRIPTION}: file {value!r} not found'
+            raise e.with_traceback(None)
+        self.h5file = h5file
 
     @property
     def summary(self):
-        """pd.DataFrame: Summary data for the run."""
-        return pd.DataFrame(self.h5file['summary'][:])
+        """pd.DataFrame: Summary data by iteration."""
+        df = pd.DataFrame(
+            self.h5file['summary'][: self.num_iterations],
+            index=range(1, self.num_iterations + 1),
+            dtype=object,
+        )
+        df.pop('norm')  # should always be 1.0
+        df.pop('binhash')  # not human readable
+        return df
 
     @property
     def num_iterations(self):
         """int: Number of completed iterations."""
-        return self.h5file.attrs['west_current_iteration'] - 1
+        if not hasattr(self, '_num_iterations'):
+            current = self.h5file.attrs['west_current_iteration']
+            grp = self.h5file.get_iter_group(current)
+            if (grp['seg_index']['status'] == Segment.SEG_STATUS_COMPLETE).all():
+                self._num_iterations = current
+            else:
+                self._num_iterations = current - 1
+        return self._num_iterations
 
     @property
     def iterations(self):
@@ -84,7 +101,7 @@ class Run:
 
     @property
     def num_segments(self):
-        """int: Alias self.num_walkers."""
+        """int: Total number of trajectory segments (alias self.num_walkers)."""
         return self.num_walkers
 
     @property
@@ -96,6 +113,11 @@ class Run:
     def recycled_walkers(self):
         """Iterable[Walker]: Walkers that stopped in the sink."""
         return itertools.chain.from_iterable(iteration.recycled_walkers for iteration in self)
+
+    @property
+    def initial_walkers(self):
+        """Iterable[Walker]: Walkers whose parents are initial states."""
+        return itertools.chain.from_iterable(iteration.initial_walkers for iteration in self)
 
     def iteration(self, number):
         """Return a specific iteration.
@@ -123,15 +145,21 @@ class Run:
         return iter(self.iterations)
 
     def __contains__(self, iteration):
-        return iteration.run is self
+        return iteration.run == self
 
     def __eq__(self, other):
         return self.h5file == other.h5file
 
+    def __hash__(self):
+        return hash(self.h5file)
+
+    def __bool__(self):
+        return not self.closed
+
     def __repr__(self):
-        if self.name:
-            return f'<{self.DESCRIPTION} "{self.name}" at {hex(id(self))}>'
-        return f'<{self.DESCRIPTION} at {hex(id(self))}>'
+        if self.closed:
+            return f'<Closed {self.DESCRIPTION} at {hex(id(self))}>'
+        return f'<{self.DESCRIPTION} with {self.num_iterations} iterations at {hex(id(self))}>'
 
 
 class Iteration:
@@ -165,12 +193,34 @@ class Iteration:
     @property
     def next(self):
         """Iteration: Next iteration."""
+        if self.number == self.run.num_iterations:
+            return None
         return self.run.iteration(self.number + 1)
 
     @property
-    def segment_info(self):
+    def summary(self):
+        """pd.DataFrame: Iteration summary."""
+        df = pd.DataFrame(
+            self.run.h5file['summary'][[self.number - 1]],
+            index=[self.number],
+            dtype=object,
+        )
+        df.pop('norm')  # should always be 1.0
+        df.pop('binhash')  # not human readable
+        return df.iloc[0]
+
+    @property
+    def segment_summaries(self):
         """pd.DataFrame: Segment summary data for the iteration."""
-        return pd.DataFrame(self.h5group['seg_index'][:], dtype=object)
+        df = pd.DataFrame(self.h5group['seg_index'][:], dtype=object)
+
+        # Make 'endpoint_type' and 'status' human-readable.
+        names = map(Segment.endpoint_type_names.get, df['endpoint_type'])
+        df['endpoint_type'] = [name.split('_')[-1] for name in names]
+        names = map(Segment.status_names.get, df['status'])
+        df['status'] = [name.split('_')[-1] for name in names]
+
+        return df
 
     @property
     def pcoords(self):
@@ -214,7 +264,7 @@ class Iteration:
     @property
     def num_walkers(self):
         """int: Number of walkers in the iteration."""
-        return self.segment_info.shape[0]
+        return self.h5group['seg_index'].shape[0]
 
     @property
     def num_segments(self):
@@ -234,83 +284,73 @@ class Iteration:
         return (Walker(index, self) for index in indices)
 
     @property
-    def _ibstates(self):
-        return self.h5group['ibstates']
+    def initial_walkers(self):
+        """Iterable[Walker]: Walkers whose parents are initial states."""
+        parent_ids = self.h5group['seg_index']['parent_id']
+        return (walker for walker, parent_id in zip(self, parent_ids) if parent_id < 0)
 
     @property
-    def _tstates(self):
-        return self.h5group.get('tstates')  # None for equilibrium sampling
+    def auxiliary_data(self):
+        """h5py.Group or None: Auxiliary data stored for the iteration."""
+        return self.h5group.get('auxdata')
 
     @property
-    def basis_state_info(self):
+    def basis_state_summaries(self):
         """pd.DataFrame: Basis state summary data."""
-        return pd.DataFrame(self._ibstates['bstate_index'][:])
+        df = pd.DataFrame(self.h5group['ibstates']['bstate_index'][:])
+        df['label'] = df['label'].str.decode('UTF-8')
+        df['auxref'] = df['auxref'].str.decode('UTF-8')
+        return df
 
     @property
     def basis_state_pcoords(self):
         """2D ndarray: Progress coordinates of each basis state."""
-        return self._ibstates['bstate_pcoord'][:]
+        return self.h5group['ibstates']['bstate_pcoord'][:]
 
     @property
     def basis_states(self):
         """list[BasisState]: Basis states in use for the iteration."""
         return [
             BasisState(row.label, row.probability, pcoord=pcoord, auxref=row.auxref, state_id=row.Index)
-            for row, pcoord in zip(self.basis_state_info.itertuples(), self.basis_state_pcoords)
+            for row, pcoord in zip(self.basis_state_summaries.itertuples(), self.basis_state_pcoords)
         ]
 
     @property
-    def initial_state_info(self):
-        """pd.DataFrame: Initial state summary data."""
-        return pd.DataFrame(self._ibstates['istate_index'][:])
+    def has_target_states(self):
+        """bool: Whether target (sink) states are defined for this iteration."""
+        return 'tstates' in self.h5group
 
     @property
-    def initial_state_pcoords(self):
-        """2D ndarray: Progress coordinates of each initial state."""
-        return self._ibstates['istate_pcoord']
-
-    @property
-    def initial_states(self):
-        """list[InitialState]: Initial states."""
-        return [
-            InitialState(
-                row.Index,
-                row.basis_state_id,
-                row.iter_created,
-                iter_used=row.iter_used,
-                istate_type=row.istate_type,
-                istate_status=row.istate_status,
-                pcoord=pcoord,
-            )
-            for row, pcoord in zip(self.initial_state_info.itertuples(), self.initial_state_pcoords)
-        ]
-
-    @property
-    def target_state_info(self):
-        """pd.DataFrame: Target state summary data."""
-        return pd.DataFrame(self._tstates['index'][:]) if self._tstates else None
+    def target_state_summaries(self):
+        """pd.DataFrame or None: Target state summary data."""
+        if self.has_target_states:
+            df = pd.DataFrame(self.h5group['tstates']['index'][:])
+            df['label'] = df['label'].str.decode('UTF-8')
+            return df
+        else:
+            return None
 
     @property
     def target_state_pcoords(self):
-        """2D ndarray: Progress coordinates of each target state."""
-        return self._tstates['pcoord'][:] if self._tstates else None
+        """2D ndarray or None: Progress coordinates of each target state."""
+        return self.h5group['tstates']['pcoord'][:] if self.has_target_states else None
 
     @property
     def target_states(self):
-        """list[TargetState]: Target states."""
-        if self._tstates is None:
+        """list[TargetState]: Target states in use for the iteration."""
+        if not self.has_target_states:
             return []
         return [
             TargetState(row.label, pcoord, state_id=row.Index)
-            for row, pcoord in zip(self.target_state_info.itertuples(), self.target_state_pcoords)
+            for row, pcoord in zip(self.target_state_summaries.itertuples(), self.target_state_pcoords)
         ]
 
     @property
     def sink(self):
         """BinUnion or None: Union of bins serving as the recycling sink."""
-        if not self.target_states:
+        if not self.has_target_states:
             return None
-        mapper = self.next.bin_mapper
+        mapper = Iteration(self.number + 1, self.run).bin_mapper
         return BinUnion(mapper.assign(self.target_state_pcoords), mapper)
 
     def bin(self, index):
@@ -348,14 +388,59 @@ class Iteration:
             raise ValueError(f'walker index must be in {valid_range}')
         return Walker(index, self)
 
+    def basis_state(self, index):
+        """Return the basis state with the given index.
+
+        Parameters
+        ----------
+        index : int
+            Basis state index (0-based).
+
+        Returns
+        -------
+        BasisState
+            The basis state indexed by `index`.
+
+        """
+        row = self.h5group['ibstates']['bstate_index'][index]
+        pcoord = self.h5group['ibstates']['bstate_pcoord'][index]
+        return BasisState(
+            row['label'].decode(),
+            row['probability'],
+            pcoord=pcoord,
+            auxref=row['auxref'].decode(),
+            state_id=index,
+        )
+
+    def target_state(self, index):
+        """Return the target state with the given index.
+
+        Parameters
+        ----------
+        index : int
+            Target state index (0-based).
+
+        Returns
+        -------
+        TargetState
+            The target state indexed by `index`.
+
+        """
+        row = self.h5group['tstates']['index'][index]
+        pcoord = self.h5group['tstates']['pcoord'][index]
+        return TargetState(row['label'].decode(), pcoord, state_id=index)
+
     def __iter__(self):
         return iter(self.walkers)
 
     def __contains__(self, walker):
-        return walker.iteration is self
+        return walker.iteration == self
 
     def __eq__(self, other):
         return self.number == other.number and self.run == other.run
+
+    def __hash__(self):
+        return hash((self.number, self.run))
 
     def __repr__(self):
         return f'{self.__class__.__name__}({self.number}, {self.run})'
@@ -398,30 +483,77 @@ class Walker:
         return self.pcoords.shape[0]
 
     @property
-    def segment_info(self):
+    def segment_summary(self):
         """pd.Series: Segment summary data."""
-        return self.iteration.segment_info.iloc[self.index]
+        df = pd.DataFrame(
+            self.iteration.h5group['seg_index'][[self.index]],
+            index=[self.index],
+            dtype=object,
+        )
+
+        # Make 'endpoint_type' and 'status' human-readable.
+        names = map(Segment.endpoint_type_names.get, df['endpoint_type'])
+        df['endpoint_type'] = [name.split('_')[-1] for name in names]
+        names = map(Segment.status_names.get, df['status'])
+        df['status'] = [name.split('_')[-1] for name in names]
+
+        return df.iloc[0]
 
     @property
     def parent(self):
-        """Walker: The parent of the walker."""
-        if not self.iteration.prev:
-            return None
-        index = self.iteration.h5group['seg_index']['parent_id'][self.index]
-        return Walker(index, self.iteration.prev)
+        """Walker or InitialState: The parent of the walker."""
+        parent_id = self.iteration.h5group['seg_index']['parent_id'][self.index]
+
+        if parent_id >= 0:
+            return Walker(parent_id, self.iteration.prev)
+
+        istate_id = -(parent_id + 1)
+        row = self.iteration.h5group['ibstates']['istate_index'][istate_id]
+
+        # Initial states may or may not be generated from a basis state.
+        bstate_id = row['basis_state_id']
+        try:
+            bstate = self.iteration.basis_state(bstate_id)
+        except IndexError:
+            bstate = None
+            bstate_id = None
+
+        return InitialState(
+            istate_id,
+            bstate_id,
+            row['iter_created'],
+            iter_used=row['iter_used'],
+            istate_type=row['istate_type'],
+            istate_status=row['istate_status'],
+            pcoord=self.iteration.h5group['ibstates']['istate_pcoord'][istate_id],
+            basis_state=bstate,
+        )
 
     @property
     def children(self):
         """Iterable[Walker]: The children of the walker."""
-        if not self.iteration.next:
+        next = self.iteration.next
+        if next is None:
             return ()
-        return (walker for walker in self.iteration.next.walkers if walker.parent == self)
+        indices = np.flatnonzero(next.h5group['seg_index']['parent_id'] == self.index)
+        return (Walker(index, next) for index in indices)
 
     @property
     def recycled(self):
         """bool: True if the walker stopped in the sink, False otherwise."""
         endpoint_type = self.iteration.h5group['seg_index']['endpoint_type'][self.index]
         return endpoint_type == Segment.SEG_ENDPOINT_RECYCLED
+
+    @property
+    def initial(self):
+        """bool: True if the parent of the walker is an initial state, False otherwise."""
+        return self.iteration.h5group['seg_index']['parent_id'][self.index] < 0
+
+    @property
+    def auxiliary_data(self):
+        """dict: Auxiliary data for the walker."""
+        data = self.iteration.auxiliary_data or {}
+        return {name: data[name][self.index] for name in data}
 
     def trace(self, **kwargs):
         """Return the trace (ancestral line) of the walker.
@@ -438,6 +570,9 @@ class Walker:
 
     def __eq__(self, other):
         return self.index == other.index and self.iteration == other.iteration
+
+    def __hash__(self):
+        return hash((self.index, self.iteration))
 
     def __repr__(self):
         return f'{self.__class__.__name__}({self.index}, {self.iteration})'
@@ -473,11 +608,11 @@ class BinUnion:
         Parameters
         ----------
         *others : BinUnion
-            Other :type:`BinUnion` instances, consisting of bins defined by
+            Other :class:`BinUnion` instances, consisting of bins defined by
             the same underlying bin mapper.
 
-        Return
-        ------
+        Returns
+        -------
         BinUnion
             The union of `self` and `others`.
 
@@ -493,11 +628,11 @@ class BinUnion:
         Parameters
         ----------
         *others : BinUnion
-            Other :type:`BinUnion` instances, consisting of bins defined by
+            Other :class:`BinUnion` instances, consisting of bins defined by
             the same underlying bin mapper.
 
-        Return
-        ------
+        Returns
+        -------
         BinUnion
             The itersection of `self` and `others`.
 
@@ -547,7 +682,7 @@ class Bin(BinUnion):
 
 
 class Trace:
-    """A trace of a walker's ancestry back to a source or initial state.
+    """A trace of a walker's ancestry.
 
     Parameters
     ----------
@@ -564,9 +699,6 @@ class Trace:
     """
 
     def __init__(self, walker, source=None, max_length=None):
-        if source is None:
-            source = ()
-
         if max_length is None:
             max_length = sys.maxsize
         else:
@@ -575,23 +707,22 @@ class Trace:
                 raise ValueError('max_length must be at least 1')
 
         walkers = []
-        while walker and (walker.pcoords[-1] not in source) and (len(walkers) < max_length):
+        initial_state = None
+        while len(walkers) < max_length:
+            if source and walker.pcoords[-1] in source:
+                break
             walkers.append(walker)
-            walker = walker.parent
+            parent = walker.parent
+            if isinstance(parent, InitialState):
+                initial_state = parent
+                break
+            walker = parent
+        walkers.reverse()
 
-        self.walkers = tuple(reversed(walkers))
+        self.walkers = walkers
+        self.initial_state = initial_state
         self.source = source
         self.max_length = max_length
-
-    @property
-    def pcoords(self):
-        """2D ndarray: Progress coordinate snapshots."""
-        return np.concatenate([walker.pcoords for walker in self])
-
-    @property
-    def num_snapshots(self):
-        """int: Number of snapshots."""
-        return sum(walker.num_snapshots for walker in self)
 
     def __len__(self):
         return len(self.walkers)
@@ -608,7 +739,7 @@ class Trace:
     def __repr__(self):
         s = f'Trace({self.walkers[-1]}'
         if self.source:
-            s += f',\n      source={self.source}'
+            s += f', source={self.source}'
         if self.max_length < sys.maxsize:
-            s += f',\n      max_length={self.max_length}'
+            s += f', max_length={self.max_length}'
         return s + ')'

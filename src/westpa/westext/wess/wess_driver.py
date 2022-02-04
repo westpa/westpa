@@ -16,7 +16,7 @@ log = logging.getLogger(__name__)
 
 def reduce_array(Aij):
     """Remove empty rows and columns from an array Aij and return the reduced
-        array Bij and the list of non-empty states"""
+    array Bij and the list of non-empty states"""
 
     nonempty = list(range(0, Aij.shape[0]))
     eps = np.finfo(Aij.dtype).eps

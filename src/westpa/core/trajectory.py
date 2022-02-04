@@ -15,7 +15,7 @@ for ext in [".h5", ".hdf5", ".lh5"]:
 
 class WESTTrajectory(Trajectory):
     '''A subclass of ``mdtraj.Trajectory`` that contains the trajectory of atom coordinates with
-    pointers denoting the iteration number and segment index of each frame. '''
+    pointers denoting the iteration number and segment index of each frame.'''
 
     def __init__(
         self,
@@ -45,6 +45,18 @@ class WESTTrajectory(Trajectory):
         self.pcoords = pcoords
         self.parent_ids = parent_ids
 
+    def _string_summary_basic(self):
+        """Basic summary of WESTTrajectory in string form."""
+        unitcell_str = 'and unitcells' if self._have_unitcell else 'without unitcells'
+        value = "%s with %d frames, %d atoms, %d residues, %s" % (
+            self.__class__.__name__,
+            self.n_frames,
+            self.n_atoms,
+            self.n_residues,
+            unitcell_str,
+        )
+        return value
+
     def _check_labels(self, value):
         if value is None:
             value = 0
@@ -65,10 +77,10 @@ class WESTTrajectory(Trajectory):
             value = np.array(value)
 
         if np.isscalar(value):
-            value = np.array([(value,)] * self.n_frames, dtype=int)
+            value = np.array([(value,)] * self.n_frames, dtype=float)
 
         if value.ndim == 1:
-            value = np.repeat(value, self.n_frames, axis=0)
+            value = np.tile(value, (self.n_frames, 1))
         elif value.ndim != 2:
             raise ValueError('pcoords must be a 2-D array')
 
