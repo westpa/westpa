@@ -20,8 +20,13 @@ WESTPA is a package for constructing and running stochastic simulations using th
 of Huber and Kim (1996). For use of WESTPA please cite the following:
 
 Zwier, M.C., Adelman, J.L., Kaus, J.W., Pratt, A.J., Wong, K.F., Rego, N.B., Suarez, E., Lettieri, S.,
-Wang, D. W., Grabe, M., Zuckerman, D. M., and Chong, L. T. "WESTPA: An Interoperable, Highly 
+Wang, D.W., Grabe, M., Zuckerman, D.M., and Chong, L.T. "WESTPA: An Interoperable, Highly 
 Scalable Software Package For Weighted Ensemble Simulation and Analysis," J. Chem. Theory Comput., 11: 800−809 (2015). 
+
+Russo, J. D., Zhang, S., Leung, J.M.G., Bogetti, A.T., Thompson, J.P., DeGrave, A.J., Torrillo, P.A., Pratt, A.J., 
+Wong, K.F., Xia, J., Copperman, J., Adelman, J.L., Zwier, M.C., LeBard, D.N., Zuckerman, D.M., Chong, L.T. 
+WESTPA 2.0: High-Performance Upgrades for Weighted Ensemble Simulations and Analysis of Longer-Timescale Applications. 
+J. Chem. Theory Comput., 18 (2): 638–649 (2022).
 
 See this page_ and this powerpoint_ for an overview of weighted ensemble simulation.
 
