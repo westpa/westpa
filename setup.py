@@ -2,7 +2,7 @@ import sys
 
 from setuptools import setup, Extension, find_packages
 
-# import versioneer
+import versioneer
 
 
 def extensions():
@@ -132,13 +132,13 @@ EXTRAS_REQUIRE["dev"] = EXTRAS_REQUIRE["tests"] + ["pre-commit"]
 
 
 metadata = dict(
-    name='openeye-westpa',
+    name='westpa',
     url='http://github.com/westpa/westpa',
     license='MIT',
     long_description=open('README.rst', encoding='utf8').read(),
     version="2022.1.1a1",  # versioneer.get_version(),
     keywords='',
-    # cmdclass=versioneer.get_cmdclass(),
+    cmdclass=versioneer.get_cmdclass(),
     python_requires=">=3.6",
     zip_safe=False,
     classifiers=CLASSIFIERS,
