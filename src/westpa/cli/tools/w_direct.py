@@ -301,6 +301,8 @@ Command-line options
         rate_evol = self.run_calculation(eval_block=_1D_simple_eval_block, name='Target Flux Evolution', dim=1, **submit_kwargs)
         self.output_file.replace_dataset('target_flux_evolution', data=rate_evol, shuffle=True, compression=9)
 
+        self.close_files()
+
     def go(self):
         pi = self.progress.indicator
         with pi:
@@ -472,6 +474,8 @@ Command-line options
         submit_kwargs['dataset'] = {'dataset': state_pops}
         pop_evol = self.run_calculation(name='State Probability Evolution', dim=1, **submit_kwargs)
         self.output_file.replace_dataset(name='state_pop_evolution', data=pop_evol, shuffle=True, compression=9)
+
+        self.close_files()
 
     def go(self):
         pi = self.progress.indicator

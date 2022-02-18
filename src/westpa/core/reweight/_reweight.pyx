@@ -99,8 +99,9 @@ cpdef int normalize(weight_t[:,:] m, Py_ssize_t nfbins) nogil:
 @cython.boundscheck(False)
 @cython.wraparound(False)
 @cython.cdivision(True)
-cpdef reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, nbins, state_labels, state_map, nfbins, istate, jstate, stride, bin_last_state_map, bin_state_map, return_obs, obs_threshold=1):
-
+cpdef reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, nbins, state_labels, state_map, nfbins, 
+                     istate, jstate, stride, bin_last_state_map, bin_state_map, return_obs, obs_threshold=1, 
+                     sample_indices=None, sample_weights=None):
 
 
     # Instead of pulling in start and stop, we'll pull in a list of indices.
