@@ -260,10 +260,11 @@ class ExecutablePropagator(WESTPropagator):
             loader_directive = dsinfo.get('loader')
             if loader_directive:
                 loader = get_object(loader_directive)
-            elif dsname != 'pcoord':
+                dsinfo['loader'] = loader
+            elif dsname not in ['pcoord', 'seglog', 'restart', 'trajectory']:
                 loader = aux_data_loader
+                dsinfo['loader'] = loader
 
-            dsinfo['loader'] = loader
             self.data_info.setdefault(dsname, {}).update(dsinfo)
 
         log.debug('data_info: {!r}'.format(self.data_info))
