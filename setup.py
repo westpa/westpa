@@ -142,7 +142,7 @@ metadata = dict(
     url='http://github.com/westpa/westpa',
     license='MIT',
     long_description=open('README.rst', encoding='utf8').read(),
-    version="2022.1.1a3",  # versioneer.get_version(),
+    version="2022.1.1a4",  # versioneer.get_version(),
     keywords='',
     # cmdclass=versioneer.get_cmdclass(),
     python_requires=">=3.6",
