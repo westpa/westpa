@@ -46,7 +46,7 @@ def pcoord_loader(fieldname, pcoord_return_filename, destobj, single_point):
             pcoord.shape = (1,)
     else:
         expected_shape = (system.pcoord_len, system.pcoord_ndim)
-        if pcoord.ndim == 1:
+        if pcoord.ndim < 2:
             pcoord.shape = (len(pcoord), 1)
     if pcoord.shape != expected_shape:
         raise ValueError(
