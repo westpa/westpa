@@ -18,7 +18,6 @@ class Run:
     h5filename : str or file-like object, default 'west.h5'
         Pathname or stream of a main WESTPA HDF5 data file.
 
-
     """
 
     DESCRIPTION = 'WESTPA Run'
@@ -45,7 +44,7 @@ class Run:
         return cls(h5filename)
 
     def close(self):
-        """Close the Run instance by closing the underlying WEST HDF5 file."""
+        """Close the Run instance by closing the underlying WESTPA HDF5 file."""
         self.h5file.close()
 
     @property

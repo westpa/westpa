@@ -2,7 +2,7 @@ import sys
 
 from setuptools import setup, Extension, find_packages
 
-# import versioneer
+import versioneer
 
 
 def extensions():
@@ -109,6 +109,8 @@ CLASSIFIERS = [
 ]
 
 INSTALL_REQUIRES = [
+    "numpy >= 1.16.0",
+    "scipy >= 0.19.1",
     "h5py >= 2.10",
     "mdtraj >= 1.9.5",
     "pyyaml",
@@ -116,18 +118,10 @@ INSTALL_REQUIRES = [
     "matplotlib",
     "blessings",
     "ipykernel",
+    "tqdm",
     "pandas",
     "tables",
 ]
-
-SETUP_REQUIRES = [
-    "numpy>=1.16.0",
-    "scipy>=0.19.1",
-    "Cython>=0.29.16",
-    "tqdm",
-]
-
-INSTALL_REQUIRES += SETUP_REQUIRES
 
 EXTRAS_REQUIRE = {
     "tests": ["pytest", "pytest-cov", "nose"],
@@ -138,19 +132,18 @@ EXTRAS_REQUIRE["dev"] = EXTRAS_REQUIRE["tests"] + ["pre-commit"]
 
 
 metadata = dict(
-    name='openeye-westpa',
+    name='westpa',
     url='http://github.com/westpa/westpa',
     license='MIT',
     long_description=open('README.rst', encoding='utf8').read(),
-    version="2021.2.2",  # versioneer.get_version(),
+    version=versioneer.get_version(),
     keywords='',
-    # cmdclass=versioneer.get_cmdclass(),
+    cmdclass=versioneer.get_cmdclass(),
     python_requires=">=3.6",
     zip_safe=False,
     classifiers=CLASSIFIERS,
     entry_points={'console_scripts': console_scripts},
     install_requires=INSTALL_REQUIRES,
-    setup_requires=SETUP_REQUIRES,
     extras_require=EXTRAS_REQUIRE,
     package_data={},
     packages=find_packages(where='src'),
@@ -159,9 +152,5 @@ metadata = dict(
 
 
 if __name__ == '__main__':
-    from sys import argv
-
-    if argv[1] != "egg_info":
-        metadata['ext_modules'] = extensions()
-
+    metadata['ext_modules'] = extensions()
     setup(**metadata)

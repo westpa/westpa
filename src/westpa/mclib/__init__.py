@@ -6,10 +6,6 @@ import numpy as np
 from ._mclib import mcbs_correltime, get_bssize, mcbs_ci
 
 
-def arithmetic_average(dataset, sample_indices=None, sample_weights=None, stride=None):
-    return np.average(dataset, weights=sample_weights)
-
-
 def mcbs_ci_correl(
     estimator_datasets,
     estimator,
@@ -218,7 +214,7 @@ def _1D_simple_eval_block(
         estimator_datasets = {'dataset': data_input['dataset'][:, istate]}
         ci_res = mcbs_ci_correl(
             estimator_datasets,
-            estimator=arithmetic_average,
+            estimator=(lambda stride, dataset: np.mean(dataset)),
             alpha=mcbs_alpha,
             n_sets=mcbs_nsets,
             autocorrel_alpha=mcbs_acalpha,
@@ -260,7 +256,7 @@ def _2D_simple_eval_block(
             estimator_datasets = {'dataset': data_input['dataset'][:, istate, jstate]}
             ci_res = mcbs_ci_correl(
                 estimator_datasets,
-                estimator=arithmetic_average,
+                estimator=(lambda stride, dataset: np.mean(dataset)),
                 alpha=mcbs_alpha,
                 n_sets=mcbs_nsets,
                 autocorrel_alpha=mcbs_acalpha,
