@@ -158,7 +158,7 @@ class YAMLConfig:
     def __contains__(self, key):
         try:
             self[key]
-        except (KeyError, TypeError) as e:
+        except (KeyError, TypeError):
             return False
         else:
             return True
