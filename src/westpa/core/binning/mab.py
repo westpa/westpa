@@ -11,9 +11,15 @@ def map_mab(coords, mask, output, *args, **kwargs):
 
     pca = kwargs.pop("pca", False)
     bottleneck = kwargs.pop("bottleneck", True)
-    nbins_per_dim = kwargs.get("nbins_per_dim")
-    direction = kwargs.get("direction")
+    direction = kwargs.pop("direction", None)
+    nbins_per_dim = kwargs.pop("nbins_per_dim")
+
+    if nbins_per_dim is None:
+        raise ValueError("nbins_per_dim is missing")
+
     ndim = len(nbins_per_dim)
+    if direction is None:
+        direction = [0] * ndim
 
     if not np.any(mask):
         return output
@@ -129,13 +135,13 @@ def map_mab(coords, mask, output, *args, **kwargs):
                         special = True
                         break
 
-                if direction[n] == -1:
+                if direction[n] < 0:
                     if coord == minlist[n]:
                         holder = boundary_base + 2 * n
                         special = True
                         break
 
-                elif direction[n] == 1:
+                elif direction[n] > 0:
                     if coord == maxlist[n]:
                         holder = boundary_base + 2 * n
                         special = True
@@ -178,8 +184,11 @@ class MABBinMapper(FuncBinMapper):
     the progress coordinte. Extrema and bottleneck segments are assigned
     to their own bins.'''
 
-    def __init__(self, nbins, direction, bottleneck=True, pca=False):
-        kwargs = dict(nbins_per_dim=nbins, bottleneck=bottleneck, direction=direction, pca=pca)
+    def __init__(self, nbins, direction=None, bottleneck=True, pca=False):
+        kwargs = dict(nbins_per_dim=nbins, 
+                      direction=direction, 
+                      bottleneck=bottleneck, 
+                      pca=pca)
         ndim = len(nbins)
         n_total_bins = np.prod(nbins) + ndim * (2 + 2 * bottleneck)
         super().__init__(map_mab, n_total_bins, kwargs=kwargs)
