@@ -161,13 +161,10 @@ def map_mab(coords, mask, output, *args, **kwargs):
                 bins = np.linspace(minp, maxp, nbins + 1)
                 bin_number = np.digitize(coord, bins) - 1
 
-                if isfinal is None or not isfinal[i]:
-                    if bin_number >= nbins:
-                        bin_number = nbins - 1
-                    elif bin_number < 0:
-                        bin_number = 0
-                #                elif bin_number >= nbins or bin_number < 0:
-                #                    raise ValueError("Walker out of boundary")
+                if bin_number >= nbins:
+                    bin_number = nbins - 1
+                elif bin_number < 0:
+                    bin_number = 0
 
                 holder += bin_number * np.prod(nbins_per_dim[:n])
 
