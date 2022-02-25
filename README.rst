@@ -58,7 +58,7 @@ Obtaining and Installing WESTPA
 WESTPA is developed and tested on Unix-like operating systems, including Linux and Mac OS X.
 
 
-Before installing WESTPA, we recommend you to first install the Python 3 version provided by the latest free `Anaconda Python distribution`_. Create a new python environment for the install with the following::
+Regardless of the chosen method of installation, before installing WESTPA, we recommend you to first install the Python 3 version provided by the latest free `Anaconda Python distribution`_. After installing Anaconda, create a new python environment for the WESTPA install with the following::
 
     conda create -n westpa-2.0 python=3.9
     conda activate westpa-2.0
