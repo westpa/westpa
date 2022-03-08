@@ -204,6 +204,7 @@ class InitialState:
                 ('iter_used', np.uint),
                 ('istate_type', istate_type_dtype),
                 ('istate_status', istate_status_dtype),
+                ('basis_auxref', str),
                 ('pcoord', self.pcoord.dtype, (len(self.pcoord),)),
             ]
         )
@@ -216,6 +217,7 @@ class InitialState:
                     self.iter_used or 0,
                     self.istate_type or 0,
                     self.istate_status or 0,
+                    self.basis_auxref or None,
                     self.pcoord,
                 )
             ],
