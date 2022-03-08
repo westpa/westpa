@@ -724,13 +724,17 @@ class WESTDataManager:
             istates = []
 
             for state_id, state, pcoord in zip(sorted_istate_ids, istate_rows, istate_pcoords):
+                try:
+                    b_auxref = h5io.tostr(state['basis_auxref'])
+                except ValueError:
+                    b_auxref = None
                 istate = InitialState(
                     state_id=state_id,
                     basis_state_id=int(state['basis_state_id']),
                     iter_created=int(state['iter_created']),
                     iter_used=int(state['iter_used']),
                     istate_type=int(state['istate_type']),
-                    basis_auxref=h5io.tostr(state['basis_auxref']),
+                    basis_auxref=b_auxref,
                     pcoord=pcoord.copy(),
                 )
                 istates.append(istate)
