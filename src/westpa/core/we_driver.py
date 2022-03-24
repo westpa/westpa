@@ -119,8 +119,8 @@ class WEDriver:
 
         # Make property for grouping function.
         # KFW self.group_function = None
-        self.group_function = _group_walkers_identity
-        self.group_function_kwargs = {}
+        self.subgroup_function = _group_walkers_identity
+        self.subgroup_function_kwargs = {}
 
         self.process_config()
 
@@ -629,7 +629,7 @@ class WEDriver:
 
             # Splits the bin into groups as defined by the called function
             target_count = self.bin_target_counts[ibin]
-            groups = self.group_function(self, ibin, **self.group_function_kwargs)
+            groups = self.subgroup_function(self, ibin, **self.subgroup_function_kwargs)
             total_number_of_groups += len(groups)
             # Clear the bin
             segments = np.array(sorted(bin, key=operator.attrgetter('weight')), dtype=np.object_)
