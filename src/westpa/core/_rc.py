@@ -305,6 +305,13 @@ class WESTRC:
         elif nestmapname == 'MABBinMapper':
             sim_manager = westpa.core.binning.mab_manager.MABSimManager(rc=self)
 
+        elif binmapname == 'BinlessMapper':
+            sim_manager = westpa.core.binning.binless_manager.BinlessManager(rc=self)
+            sys.stderr.write("-- WARNING  [config] -- Do not use BinlessMapper as an outer binning scheme with a target state.\n")
+
+        elif nestmapname == 'BinlessMapper':
+            sim_manager = westpa.core.binning.binless_manager.BinlessSimManager(rc=self)
+
         elif drivername.lower() == 'default':
             from .sim_manager import WESimManager
 
