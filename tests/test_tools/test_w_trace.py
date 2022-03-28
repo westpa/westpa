@@ -1,12 +1,57 @@
 import unittest
 
 import h5py
+import pytest
+import tempfile
+import argparse
+import os
 
 from common import CommonToolTest
-from westpa.cli.tools.w_trace import WTraceTool
+from westpa.cli.tools.w_trace import WTraceTool, entry_point
 from h5diff import H5Diff
+from filecmp import cmp
+from unittest import mock
 
 
+class Test_NEW_W_Trace:
+    '''Class to test w_trace works with different positional arguments (of the form n_iter:seg_id [n_iter:seg_id])
+    This class tests that a) w_trace works with different numbers of positional arguments, b) that the output file is set up
+    correctly AND the data from subsequent traces is appended (in other words, if there is an existing output file, it
+    is not overwritten each time trace is called), and c) that the content of the h5 files generated match the content of previously
+    generated reference files.'''
+
+    def test_trace(self, ref_50iter):
+        arg_combos = [['20:0'], ['20:1'], ['20:2']]
+        output_combos = ['traj_20_0_trace.txt', 'traj_20_1_trace.txt', 'traj_20_2_trace.txt']
+        ref_dir = os.path.join(os.path.dirname(__file__), '../refs')
+
+        for arg, output_txt in zip(arg_combos, output_combos):
+            self.outfile = tempfile.TemporaryFile(suffix='.h5', prefix='trace')
+            test_dir = os.getcwd()
+            with mock.patch(
+                target='argparse.ArgumentParser.parse_args',
+                return_value=argparse.Namespace(
+                    rcfile=self.cfg_filepath,
+                    we_h5filename=self.h5_filepath,
+                    endpoints=arg,
+                    output=self.outfile,
+                    verbosity='debug',
+                    output_pattern='traj_%d_%d',
+                    datasets=None,
+                ),
+            ):
+                entry_point()
+
+            # Compare text file output
+            assert cmp(
+                os.path.join(test_dir, output_txt), os.path.join(ref_dir, output_txt), shallow=False
+            ), f'Output file {output_txt} is not the same as reference file.'
+
+            # diff = H5Diff(os.path.join(ref_dir, ref_file), self.outfile)
+            # diff.check()
+
+
+@pytest.mark.skip(reason='doesn\'t actually work')
 class Test_W_Trace_Args(unittest.TestCase, CommonToolTest):
     '''Class to test w_trace works with different positional arguments (of the form n_iter:seg_id [n_iter:seg_id])
     This class tests that a) w_trace works with different numbers of positional arguments, b) that the output file is set up
@@ -21,7 +66,6 @@ class Test_W_Trace_Args(unittest.TestCase, CommonToolTest):
 
     def test_args(self):
         '''Testing arg combos: w_trace runs as expected'''
-
         self.args_so_far = []
         self.endpoints = []
         self.outfile = self.mktemp(prefix='trace')
@@ -38,11 +82,11 @@ class Test_W_Trace_Args(unittest.TestCase, CommonToolTest):
 
             test_outcome, err = self.check_runs_with_args(idx)
 
-            yield self.check_args, test_outcome, err, args
+            return self.check_args, test_outcome, err, args
 
             del self.w
 
-        yield self.check_args, test_outcome, err, args
+        return self.check_args, test_outcome, err, args
 
     def check_output(self, arg_idx):
 
