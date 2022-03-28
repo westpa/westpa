@@ -14,11 +14,7 @@ from unittest import mock
 
 
 class Test_NEW_W_Trace:
-    '''Class to test w_trace works with different positional arguments (of the form n_iter:seg_id [n_iter:seg_id])
-    This class tests that a) w_trace works with different numbers of positional arguments, b) that the output file is set up
-    correctly AND the data from subsequent traces is appended (in other words, if there is an existing output file, it
-    is not overwritten each time trace is called), and c) that the content of the h5 files generated match the content of previously
-    generated reference files.'''
+    '''Class to test w_trace by running through the entry_point and comparing the output text files with reference files.'''
 
     def test_trace(self, ref_50iter):
         arg_combos = [['20:0'], ['20:1'], ['20:2']]
@@ -46,9 +42,6 @@ class Test_NEW_W_Trace:
             assert cmp(
                 os.path.join(test_dir, output_txt), os.path.join(ref_dir, output_txt), shallow=False
             ), f'Output file {output_txt} is not the same as reference file.'
-
-            # diff = H5Diff(os.path.join(ref_dir, ref_file), self.outfile)
-            # diff.check()
 
 
 @pytest.mark.skip(reason='doesn\'t actually work')
