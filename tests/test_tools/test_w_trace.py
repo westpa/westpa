@@ -17,8 +17,8 @@ class Test_NEW_W_Trace:
     '''Class to test w_trace by running through the entry_point and comparing the output text files with reference files.'''
 
     def test_trace(self, ref_50iter):
-        arg_combos = [['20:0'], ['20:1'], ['20:2']]
-        output_combos = ['traj_20_0_trace.txt', 'traj_20_1_trace.txt', 'traj_20_2_trace.txt']
+        arg_combos = [['20:0'], ['20:1'], ['20:2'], ['20:1', "20:2"]]
+        output_combos = ['traj_20_0_trace.txt', 'traj_20_1_trace.txt', 'traj_20_2_trace.txt', 'traj_20_2_trace.txt']
         ref_dir = os.path.join(os.path.dirname(__file__), '../refs')
 
         for arg, output_txt in zip(arg_combos, output_combos):
