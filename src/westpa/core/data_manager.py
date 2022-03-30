@@ -1100,9 +1100,13 @@ class WESTDataManager:
             for dsinfo in self.dataset_options.values():
                 if dsinfo.get('load', False):
                     dsname = dsinfo['name']
-                    ds = iter_group[dsinfo['h5path']]
+                    try:
+                        ds = iter_group[dsinfo['h5path']]
+                    except KeyError:
+                        ds = None
+
                     for (seg_id, segment) in enumerate(segments):
-                        segment.data[dsname] = ds[seg_id]
+                        segment.data[dsname] = None if ds is None else ds[seg_id]
 
         return segments
 
