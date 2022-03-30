@@ -360,6 +360,12 @@ class WESTRC:
         elif nestmapname == 'MABBinMapper':
             we_driver = westpa.core.binning.mab_driver.MABDriver()
 
+        elif binmapname == 'BinlessMapper':
+            we_driver = westpa.core.binning.binless_driver.BinlessDriver()
+
+        elif nestmapname == 'BinlessMapper':
+            we_driver = westpa.core.binning.binless_driver.BinlessDriver()
+
         elif drivername.lower() == 'default':
             we_driver = westpa.core.we_driver.WEDriver()
 
