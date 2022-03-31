@@ -56,10 +56,10 @@ def map_binless(coords, mask, output, *args, **kwargs):
         # if there are more than one segment in the binless region but still the total is less than
         # our target number, adjust our target number to be the number of segments in the binless
         # region minus one
-        elif nsegs_binless <= groups_per_dim[n]:
-            clusters = group_function(binless_coords, nsegs_binless - 1, splitting)
+        elif nsegs_binless < groups_per_dim[n]:
+            clusters = group_function(binless_coords, nsegs_binless, splitting)
         # if there are enough segments in the binless region, proceed as planned
-        elif nsegs_binless > groups_per_dim[n]:
+        elif nsegs_binless >= groups_per_dim[n]:
             clusters = group_function(binless_coords, groups_per_dim[0], splitting)
 
         # this is a good place to say this... output is a list which matches the length of allcoords
