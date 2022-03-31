@@ -21,6 +21,7 @@ def map_binless(coords, mask, output, *args, **kwargs):
     allmask = np.copy(mask)
 
     isfinal = None
+    splitting = False
 
     # the segments should be sent in by the driver as half initial segments and half final segments
     # allcoords contains all segments
@@ -32,11 +33,13 @@ def map_binless(coords, mask, output, *args, **kwargs):
             isfinal = np.ones(coords.shape[0], dtype=np.bool_)
         coords = coords[isfinal, :ndim]
         mask = mask[isfinal]
+        splitting = True
 
     # in case where there is no final segments but initial ones in range
     if not np.any(mask):
         coords = allcoords[:, :ndim]
         mask = allmask
+        splitting = False
 
     # filter the list of coordinates (which contains coordinates outside of the binless region)
     # to obtain only the ones we want to cluster
@@ -54,10 +57,10 @@ def map_binless(coords, mask, output, *args, **kwargs):
         # our target number, adjust our target number to be the number of segments in the binless
         # region minus one
         elif nsegs_binless <= groups_per_dim[n]:
-            clusters = group_function(binless_coords, nsegs_binless - 1)
+            clusters = group_function(binless_coords, nsegs_binless - 1, splitting)
         # if there are enough segments in the binless region, proceed as planned
         elif nsegs_binless > groups_per_dim[n]:
-            clusters = group_function(binless_coords, groups_per_dim[0])
+            clusters = group_function(binless_coords, groups_per_dim[0], splitting)
 
         # this is a good place to say this... output is a list which matches the length of allcoords
         # allcoords is a collection of all initial and final segment coords for that iteration
