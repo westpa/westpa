@@ -289,10 +289,10 @@ class ExecutablePropagator(WESTPropagator):
         ``subprocess.Popen()``. Every child process executed by ``exec_child()`` gets these.'''
 
         return {
-            self.ENV_RAND16: str(random.randint(0, 2 ** 16)),
-            self.ENV_RAND32: str(random.randint(0, 2 ** 32)),
-            self.ENV_RAND64: str(random.randint(0, 2 ** 64)),
-            self.ENV_RAND128: str(random.randint(0, 2 ** 128)),
+            self.ENV_RAND16: str(random.randint(0, 2**16)),
+            self.ENV_RAND32: str(random.randint(0, 2**32)),
+            self.ENV_RAND64: str(random.randint(0, 2**64)),
+            self.ENV_RAND128: str(random.randint(0, 2**128)),
             self.ENV_RANDFLOAT: str(random.random()),
         }
 
