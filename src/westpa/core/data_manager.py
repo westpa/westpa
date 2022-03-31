@@ -1105,8 +1105,9 @@ class WESTDataManager:
                     except KeyError:
                         ds = None
 
-                    for (seg_id, segment) in enumerate(segments):
-                        segment.data[dsname] = None if ds is None else ds[seg_id]
+                    if ds is not None:
+                        for (seg_id, segment) in enumerate(segments):
+                            segment.data[dsname] = ds[seg_id]
 
         return segments
 
