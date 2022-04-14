@@ -318,7 +318,7 @@ class HDF5MDTrajectory(Trajectory):
                             )
                     elif parent.istate_type == InitialState.ISTATE_TYPE_GENERATED:
                         link = walker.run.h5file.get_iter_group(0)['trajectories']
-                        istate_iter = -int(parent.iter_created)
+                        istate_iter = -int(parent.iter_created)  # the conversion to int is because iter_created is uint
                         with WESTIterationFile(link.file.filename) as traj_file:
                             frame = traj_file.read_as_traj(
                                 iteration=istate_iter,
