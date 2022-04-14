@@ -571,8 +571,8 @@ class WESTIterationFile(HDF5TrajectoryFile):
     def has_pointer(self):
         return self._has_node('/', 'pointer')
 
-    def has_restart(self, seg_id):
-        return self._has_node('/restart', str(seg_id))
+    def has_restart(self, segment):
+        return self._has_node('/restart', '%d_%d' % (segment.n_iter, segment.seg_id))
 
     def write_data(self, where, name, data):
         node = self._get_node(where=where, name=name)
@@ -597,6 +597,9 @@ class WESTIterationFile(HDF5TrajectoryFile):
             frame_indices = np.arange(len(iter_labels))[frame_torf]
         else:
             raise ValueError("iteration and segment must be integers and provided at the same time")
+
+        if len(frame_indices) == 0:
+            raise ValueError(f"no frame was selected: iteration={iteration}, segment={segment}, atom_indices={atom_indices}")
 
         iter_labels = iter_labels[frame_indices]
         seg_labels = seg_labels[frame_indices]
@@ -624,8 +627,8 @@ class WESTIterationFile(HDF5TrajectoryFile):
         )
 
     def read_restart(self, segment):
-        if self.has_restart(segment.seg_id):
-            data = self.read_data('/restart/%d' % segment.seg_id, 'data')
+        if self.has_restart(segment):
+            data = self.read_data('/restart/%d_%d' % (segment.n_iter, segment.seg_id), 'data')
             segment.data['iterh5/restart'] = data
         else:
             raise ValueError('no restart data available for {}'.format(str(segment)))
@@ -663,7 +666,7 @@ class WESTIterationFile(HDF5TrajectoryFile):
 
             # pointers
             if not self.has_pointer():
-                self._create_earray('/', name='pointer', atom=self.tables.Int16Atom(), shape=(0, 2))
+                self._create_earray('/', name='pointer', atom=self.tables.Int64Atom(), shape=(0, 2))
 
             iter_idx = traj.iter_labels
             seg_idx = traj.seg_labels
@@ -689,11 +692,11 @@ class WESTIterationFile(HDF5TrajectoryFile):
 
         # restart
         if restart is not None:
-            if self.has_restart(segment.seg_id):
-                self._remove_node('/restart', name=str(segment.seg_id))
+            if self.has_restart(segment):
+                self._remove_node('/restart', name='%d_%d' % (segment.n_iter, segment.seg_id))
 
             self._create_array(
-                '/restart/%d' % segment.seg_id,
+                '/restart/%d_%d' % (segment.n_iter, segment.seg_id),
                 name='data',
                 atom=self.tables.StringAtom(itemsize=len(restart)),
                 obj=restart,
@@ -705,7 +708,7 @@ class WESTIterationFile(HDF5TrajectoryFile):
                 self._remove_node('/log', name=str(segment.seg_id))
 
             self._create_array(
-                '/log/%d' % segment.seg_id,
+                '/log/%d_%d' % (segment.n_iter, segment.seg_id),
                 name='data',
                 atom=self.tables.StringAtom(itemsize=len(slog)),
                 obj=slog,
