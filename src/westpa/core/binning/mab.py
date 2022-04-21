@@ -110,7 +110,6 @@ def map_mab(coords, mask, output, *args, **kwargs):
                     flipdifflist[n] = fliptemp[i][0]
                     flipmaxdiff = flipdiff
 
-    print(minlist, maxlist)
     # assign segments to bins
     # the total number of linear bins + 2 boundary bins each dim
     boundary_base = np.prod(nbins_per_dim)
@@ -185,10 +184,7 @@ class MABBinMapper(FuncBinMapper):
     to their own bins.'''
 
     def __init__(self, nbins, direction=None, bottleneck=True, pca=False):
-        kwargs = dict(nbins_per_dim=nbins, 
-                      direction=direction, 
-                      bottleneck=bottleneck, 
-                      pca=pca)
+        kwargs = dict(nbins_per_dim=nbins, direction=direction, bottleneck=bottleneck, pca=pca)
         ndim = len(nbins)
         n_total_bins = np.prod(nbins) + ndim * (2 + 2 * bottleneck)
         super().__init__(map_mab, n_total_bins, kwargs=kwargs)
