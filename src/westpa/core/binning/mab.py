@@ -51,7 +51,7 @@ def map_mab(coords, mask, output, *args, **kwargs):
         for i in range(len(coords)):
             for j in range(len(coords[i])):
                 varcoords[i][j] = coords[i][j] - colavg[j]
-        covcoords = np.cov(np.transpose(varcoords))
+        covcoords = np.cov(np.transpose(varcoords), aweights=weights)
         eigval, eigvec = np.linalg.eigh(covcoords)
         eigvec = eigvec[:, np.argmax(np.absolute(eigvec), axis=1)]
         for i in range(len(eigvec)):
