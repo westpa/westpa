@@ -114,13 +114,14 @@ class WKinetics:
 
             # Estimate macrostate fluxes and calculate event durations using trajectory tracing
             # state is opaque to the find_macrostate_transitions function
+            dt = 1.0 if npts == 1 else 1.0 / (npts - 1)
             state = _fast_transition_state_copy(iiter, nstates, parent_ids, last_state)
             find_macrostate_transitions(
                 nstates,
                 weights,
                 label_assignments,
                 state_assignments,
-                1.0 / (npts - 1),
+                dt,
                 state,
                 cond_fluxes,
                 cond_counts,

@@ -1,5 +1,6 @@
 import logging
 
+from westpa.core.binning.mab import MABBinMapper
 from westpa.core.sim_manager import WESimManager, grouper
 from westpa.core.states import InitialState, pare_basis_initial_states
 from westpa.core import wm_ops
@@ -8,11 +9,21 @@ log = logging.getLogger(__name__)
 
 
 class MABSimManager(WESimManager):
+    def initialize_simulation(self, basis_states, target_states, start_states, segs_per_state=1, suppress_we=False):
+        if len(target_states) > 0:
+            if isinstance(self.system.bin_mapper, MABBinMapper):
+                log.error("MABBinMapper cannot be an outer binning scheme with a target state.\n")
+
+        super().initialize_simulation(
+            basis_states, target_states, start_states, segs_per_state=segs_per_state, suppress_we=suppress_we
+        )
+
     def report_bin_statistics(self, bins, save_summary=False):
         self.rc.pstatus("MAB binning in use.")
         super().report_bin_statistics(bins, save_summary)
 
     def propagate(self):
+        log.debug("MABSimManager in use.")
         segments = list(self.incomplete_segments.values())
         log.debug('iteration {:d}: propagating {:d} segments'.format(self.n_iter, len(segments)))
 
