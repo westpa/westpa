@@ -619,7 +619,6 @@ class WEDriver:
                 elif i == sorted_groups[-1] and split_counter == target_count:
                     threshold_target_count = len(bin)
 
-        print(split_counter)
         threshold_target_count = target_count
 
         # merge
@@ -656,7 +655,6 @@ class WEDriver:
                         break
                     elif i == sorted_groups[-1] and merge_counter == target_count:
                         threshold_target_count = len(bin)
-            print(merge_counter)
 
     def _check_pre(self):
         for ibin, _bin in enumerate(self.next_iter_binning):
