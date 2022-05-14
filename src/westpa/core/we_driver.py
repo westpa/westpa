@@ -534,10 +534,10 @@ class WEDriver:
             #   print(i.weight)
             # print(self.smallest_allowed_weight)
             if all(new_segment.weight < self.smallest_allowed_weight for new_segment in new_segments_list):
-                #    print("instance of threshold break (bw)")
+                #print("instance of threshold break (bw)")
                 bin.add(segment)
             else:
-                #    print("no threshold break (bw)")
+                #print("no threshold break (bw)")
                 bin.update(new_segments_list)
 
     # KFW CHECK BACK            for new_segment in new_segments_list:
@@ -560,10 +560,10 @@ class WEDriver:
             bin.difference_update(to_merge)
             new_segment, parent = self._merge_walkers(to_merge, cumul_weight, bin)
             if new_segment.weight > self.largest_allowed_weight:
-                # print("instance of threshold break (bw)")
+                #print("instance of threshold break (bw)")
                 bin.add(to_merge)
             else:
-                # print("no threshold break (bw)")
+                #print("no threshold break (bw)")
                 bin.add(new_segment)
 
     # KFW CHECK BACK            try:
@@ -585,7 +585,9 @@ class WEDriver:
         threshold_target_count = target_count
 
         # split
+        split_counter = 0
         while len(bin) < threshold_target_count:
+            split_counter += 1
             for i in sorted_groups:
                 log.debug('adjusting counts by splitting')
                 # always split the highest probability walker into two
@@ -594,15 +596,15 @@ class WEDriver:
                 bin.remove(segments[-1])
                 i.remove(segments[-1])
                 new_segments_list = self._split_walker(segments[-1], 2, bin)
-                # for j in new_segments_list:
-                #   print(j.weight)
-                # print(self.smallest_allowed_weight)
+                #print(new_segments_list)
+                #for j in new_segments_list:
+                #    print(j.weight)
                 if all(new_segment.weight < self.smallest_allowed_weight for new_segment in new_segments_list):
-                    #    print("instance of threshold break (ac)")
+                    #print("instance of threshold break (ac)")
                     bin.add(segments[-1])
                     i.add(segments[-1])
                 else:
-                    #    print("no threshold break (ac)")
+                    #print("no threshold break (ac)")
                     i.update(new_segments_list)
                     bin.update(new_segments_list)
 
@@ -614,13 +616,16 @@ class WEDriver:
 
                 if len(bin) == target_count:
                     break
-                elif i == sorted_groups[-1]:
+                elif i == sorted_groups[-1] and split_counter == target_count:
                     threshold_target_count = len(bin)
 
+        print(split_counter)
         threshold_target_count = target_count
 
         # merge
+        merge_counter = 0
         while len(bin) > threshold_target_count:
+            merge_counter += 1
             sorted_groups.reverse()
             # Adjust to go from lowest weight group to highest to merge
             for i in sorted_groups:
@@ -649,8 +654,9 @@ class WEDriver:
                     # in bash, "find . -name \*.py | xargs fgrep -n '_merge_walkers'"
                     if len(bin) == target_count:
                         break
-                    elif i == sorted_groups[-1]:
+                    elif i == sorted_groups[-1] and merge_counter == target_count:
                         threshold_target_count = len(bin)
+            print(merge_counter)
 
     def _check_pre(self):
         for ibin, _bin in enumerate(self.next_iter_binning):
