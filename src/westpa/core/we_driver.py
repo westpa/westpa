@@ -534,10 +534,10 @@ class WEDriver:
             #   print(i.weight)
             # print(self.smallest_allowed_weight)
             if all(new_segment.weight < self.smallest_allowed_weight for new_segment in new_segments_list):
-                #print("instance of threshold break (bw)")
+                # print("instance of threshold break (bw)")
                 bin.add(segment)
             else:
-                #print("no threshold break (bw)")
+                # print("no threshold break (bw)")
                 bin.update(new_segments_list)
 
     # KFW CHECK BACK            for new_segment in new_segments_list:
@@ -560,10 +560,10 @@ class WEDriver:
             bin.difference_update(to_merge)
             new_segment, parent = self._merge_walkers(to_merge, cumul_weight, bin)
             if new_segment.weight > self.largest_allowed_weight:
-                #print("instance of threshold break (bw)")
+                # print("instance of threshold break (bw)")
                 bin.add(to_merge)
             else:
-                #print("no threshold break (bw)")
+                # print("no threshold break (bw)")
                 bin.add(new_segment)
 
     # KFW CHECK BACK            try:
@@ -596,15 +596,15 @@ class WEDriver:
                 bin.remove(segments[-1])
                 i.remove(segments[-1])
                 new_segments_list = self._split_walker(segments[-1], 2, bin)
-                #print(new_segments_list)
-                #for j in new_segments_list:
+                # print(new_segments_list)
+                # for j in new_segments_list:
                 #    print(j.weight)
                 if all(new_segment.weight < self.smallest_allowed_weight for new_segment in new_segments_list):
-                    #print("instance of threshold break (ac)")
+                    # print("instance of threshold break (ac)")
                     bin.add(segments[-1])
                     i.add(segments[-1])
                 else:
-                    #print("no threshold break (ac)")
+                    # print("no threshold break (ac)")
                     i.update(new_segments_list)
                     bin.update(new_segments_list)
 
