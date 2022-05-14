@@ -310,7 +310,7 @@ class PlotSupports2D(PlotHistBase):
             nui = NonUniformImage(ax, extent=(midpoints[0][0], midpoints[0][-1], midpoints[1][0], midpoints[1][-1]),
                                   origin='lower', norm=norm)
             nui.set_data(midpoints[0], midpoints[1], plothist.T)
-            ax.images.append(nui)
+            ax.add_image(nui)
             ax.set_xlim(midpoints[0][0], midpoints[0][-1])
             ax.set_ylim(midpoints[1][0], midpoints[1][-1])
             cb = pyplot.colorbar(nui)
@@ -584,7 +584,7 @@ probability distribution must have been previously extracted with ``w_pdist``
             # not sure why plothist works but plothist.T doesn't, and the opposite is true
             # for _do_2d_output
             nui.set_data(midpoints, block_iters[:,-1], plothist)
-            ax.images.append(nui)
+            ax.add_image(nui)
             ax.set_xlim(midpoints[0], midpoints[-1])
             ax.set_ylim(block_iters[0,-1], block_iters[-1,-1])
             cb = pyplot.colorbar(nui)
