@@ -2,7 +2,9 @@
 WESTPA 2.0 
 ===============
 
-|ghactions| |anaconda| |tutorial1| |tutorial2| |docs| |usersgroup| |develgroup| 
+|ghactions| |anaconda| |tutorial1| |tutorial2| 
+
+|docs| |usersgroup| |develgroup| 
 
 .. |ghactions| image:: https://github.com/westpa/westpa/actions/workflows/test.yaml/badge.svg?branch=westpa-2.0-restruct
               :target: https://github.com/westpa/westpa/actions/workflows/test.yaml
