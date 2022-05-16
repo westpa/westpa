@@ -937,8 +937,3 @@ class WEDriver:
                 max_weight=weights[-1],
             )
             log.log(level, log_msg)
-
-            if weights[0] < 1e-100:
-                log.warning(
-                    '\n Min weight is < 1e-100 and might not be physically relevant. Please reconsider your progress coordinate or binning scheme.'
-                )
