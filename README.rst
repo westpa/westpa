@@ -1,6 +1,10 @@
 ===============
 WESTPA 1.0 
 ===============
+.. image:: https://img.shields.io/badge/WESTPA-tutorials-brightgreen.svg
+        :target: https://github.com/westpa/westpa_tutorials 
+        :alt: WESTPA Tutorials GitHub
+
 .. image:: https://readthedocs.org/projects/westpa/badge/?version=latest
         :target: https://westpa.readthedocs.io/en/latest/?badge=latest
         :alt: Documentation Status
