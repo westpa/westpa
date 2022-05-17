@@ -92,7 +92,6 @@ class WESSDriver:
                 eff_windowsize = min(self.max_windowsize, int(n_iter * self.windowsize))
             else:
                 eff_windowsize = int(n_iter * self.windowsize)
-
         else:  # self.windowtype == 'fixed':
             eff_windowsize = min(n_iter, self.windowsize or 0)
 
