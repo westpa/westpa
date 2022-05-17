@@ -1,9 +1,23 @@
 ===============
 WESTPA 1.0 
 ===============
+.. image:: https://img.shields.io/badge/WESTPA-tutorials-brightgreen.svg
+        :target: https://github.com/westpa/westpa_tutorials 
+        :alt: WESTPA Tutorials GitHub
+
 .. image:: https://readthedocs.org/projects/westpa/badge/?version=latest
         :target: https://westpa.readthedocs.io/en/latest/?badge=latest
         :alt: Documentation Status
+
+.. image:: https://img.shields.io/badge/Google%20Group-Users-lightgrey.svg
+        :target: http://groups.google.com/group/westpa-users 
+        :alt: Users Google Group
+
+.. image:: https://img.shields.io/badge/Google%20Group-Developers-lightgrey.svg
+        :target: https://groups.google.com/g/westpa-devel 
+        :alt: Developers Google Group
+
+
 --------
 Overview
 --------
