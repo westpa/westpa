@@ -4,11 +4,9 @@ from westpa.core.extloader import get_object
 
 
 def map_binless(coords, mask, output, *args, **kwargs):
-    '''Binning which adaptively places bins based on the positions of extrema segments and
-    bottleneck segments, which are where the difference in probability is the greatest
-    along the progress coordinate. Operates per dimension and places a fixed number of
-    evenly spaced bins between the segments with the min and max pcoord values. Extrema and
-    bottleneck segments are assigned their own bins.'''
+    '''Adaptively groups walkers according to a user-defined grouping function
+    that is defined externally. Very general implementation but limited to
+    only a two dimensional progress coordinate (for now).'''
 
     n_groups = kwargs.get("n_groups")
     n_dims = kwargs.get("n_dims")
@@ -80,9 +78,8 @@ def map_binless(coords, mask, output, *args, **kwargs):
 
 
 class BinlessMapper(FuncBinMapper):
-    '''Adaptively place bins in between minimum and maximum segments along
-    the progress coordinte. Extrema and bottleneck segments are assigned
-    to their own bins.'''
+    '''Adaptively group walkers according to a user-defined grouping
+    function that is defined externally.'''
 
     def __init__(self, ngroups, ndims, group_function):
         kwargs = dict(n_groups=ngroups, n_dims=ndims, group_function=group_function)
