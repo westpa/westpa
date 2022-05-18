@@ -1,9 +1,8 @@
 <!DOCTYPE html>
 <html>
-
-  <head>
-    <meta charset="utf-8">
-	<script>
+<head>
+<meta charset="utf-8">
+<script>
 		var viewport = document.createElement("meta");
 		viewport.setAttribute("name", "viewport");
 		if (screen.width < 648) {
@@ -13,307 +12,171 @@
 		}
 		document.head.appendChild(viewport);
     </script>
-    <meta http-equiv="X-UA-Compatible" content="chrome=1">
-    <meta name="description" content="WESTPA : The Weighted Ensemble Simulation Toolkit with Parallelization and Analysis">
+<meta http-equiv="X-UA-Compatible" content="chrome=1">
+<meta name="description" content="WESTPA : The Weighted Ensemble Simulation Toolkit with Parallelization and Analysis">
+<link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
+<title>WESTPA</title>
+</head>
 
-    <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
+<body>
 
-    <title>WESTPA</title>
-  </head>
-
-  <body>
-
-    <!-- HEADER -->
-    <div id="header_wrap" class="outer">
-        <header class="inner">
-
-          <!--<h1 id="project_title">WESTPA</h1>-->
-
-            <section id="page_links">
-              <a href="index.html">
-                <img class="logo_link" src="images/WESTPA2.jpg" alt="WESTPA logo" style="width:125px;height:59.6px;" border="0">
-              </a>
-              <a class="gh_link" href="https://github.com/westpa/westpa">GitHub Repository</a>
-              <a class="doc_link" href="https://github.com/westpa/westpa/wiki">Wiki</a>
-              <a class="sphinx_link" href="https://westpa.readthedocs.io">Documentation</a>
-	      <a class="pub_link" href="publications.html">Publications</a>
-            </section>
-
-        </header>
-    </div>
-
-    <!-- MAIN CONTENT -->
-    <div id="main_content_wrap" class="outer">
-      <section id="main_content" class="inner">
-        <div id="pub_text_div">
-        <h3>
-<a id="what-is-westpa" class="anchor" href="#what-is-westpa" aria-hidden="true"><span class="octicon octicon-link"></span></a>Publications</h3>
-
-<p><strong>The WESTPA Papers:</strong>   </p>
-
-<ol>
-<li>
-MC Zwier, JL Adelman, JW Kaus, AJ Pratt, KF Wong, NB Rego, E Suárez, S Lettieri, DW Wang, M Grabe, DM Zuckerman, and LT Chong. “WESTPA: An interoperable, highly scalable software package for weighted ensemble simulation and analysis”. <a onclick="window.open(this.href); return false;" title="http://pubs.acs.org/doi/abs/10.1021/ct5010615" href="http://pubs.acs.org/doi/abs/10.1021/ct5010615" onkeypress="window.open(this.href); return false;">J. Chem. Theory Comput., 11: 800-809</a> (2015).<br>
-</li>
-
-<li>
-JD Russo*, S Zhang*, JMG Leung*, AT Bogetti*, JP Thompson, AJ DeGrave, PA Torrillo, AJ Pratt, KF Wong, J Xia, J Copperman, JL Adelman, MC Zwier, DN LeBard, DM Zuckerman, and LT Chong. "WESTPA 2.0: High-Performance Upgrades for Weighted Ensemble Simulations and Analysis of Longer-Timescale Applications". <a onclick="window.open(this.href); return false;" title=" https://pubs.acs.org/doi/abs/10.1021/acs.jctc.1c01154 " href=" https://pubs.acs.org/doi/abs/10.1021/acs.jctc.1c01154 " onkeypress="window.open(this.href); return false;">J. Chem. Theory Comput, 18 (2), 638–649</a> (2022) *equal authorship.<br>
-</li>
-</ol>
-
-<p><strong>A Review of the WE Strategy:</strong>   </p>
-
-<ol>
-<li>
-DM Zuckerman and LT Chong. “Weighted ensemble simulation: Review of methodology, applications, and software”. <a onclick="window.open(this.href); return false;" title="https://doi.org/10.1146/annurev-biophys-070816-033834" href="https://doi.org/10.1146/annurev-biophys-070816-033834" onkeypress="window.open(this.href); return false;"> Annu. Rev. Biophys. 2017, 46: 43–57</a> (2017).<br>
-</li>
-</ol>
-
-<p><strong>WESTPA Tutorials:</strong>   </p>
-
-<ol>
-<li>
-AT Bogetti*, B Mostofian*, A Dickson*, AJ Pratt*, AS Saglam*, PO Harrison*, JL Adelman, M Dudek, PA Torrillo, AJ DeGrave, U Adhikari, MC Zwier, DM Zuckerman, and LT Chong. &quot;A suite of tutorials for the WESTPA rare-events sampling software.&quot; <a onclick="window.open(this.href); return false;" <a title="https://www.livecomsjournal.org/article/10607-a-suite-of-tutorials-for-the-westpa-rare-events-sampling-software-article-v1-0" href="https://www.livecomsjournal.org/article/10607-a-suite-of-tutorials-for-the-westpa-rare-events-sampling-software-article-v1-0" onkeypress="window.open(this.href); return false;" class="style_5"> Living Journal of Computational Molecular Science, 1: 10607</a> (2019) *equal authorship.<br> 
-</li>
-</ol>   
-          
-<p><strong>Made with WESTPA:</strong>   </p>
-
-<ol>
-<li>
-MC Zwier, JW Kaus, and LT Chong. “Efficient explicit-solvent molecular dynamics simulations of molecular associations: Methane/methane, Na+/Cl-, methane/benzene, and K+/18-crown-6 ether.” <a onclick="window.open(this.href); return false;" title="http://dx.doi.org/10.1021/ct100626x" href="http://dx.doi.org/10.1021/ct100626x" onkeypress="window.open(this.href); return false;">J. Chem. Theory Comput., 7: 1189-1197</a> (2011).<br>
-</li>
-
-<li>
-JL Adelman, A Scarbrough, MC Zwier, D Bhatt, LT Chong, DM Zuckerman, and M Grabe. “Simulations of the alternating access mechanism of the sodium symporter Mhp1.” <a onclick="window.open(this.href); return false;" title="http://dx.doi.org/10.1016/j.bpj.2011.09.061" href="http://dx.doi.org/10.1016/j.bpj.2011.09.061" onkeypress="window.open(this.href); return false;" class="style_5">Biophys. J., 101: 2399-2407</a> (2011).<br>
-</li>
-
-<li>
-JL Adelman and M Grabe. “Simulating rare events using a weighted ensemble-based string method.” <a onclick="window.open(this.href); return false;" title="http://dx.doi.org/10.1063/1.4773892" href="http://dx.doi.org/10.1063/1.4773892" onkeypress="window.open(this.href); return false;" class="style_5">J. Chem. Phys., 138: 044105</a> (2013).<br>
-</li>
-
-<li>
-RM Donovan, AJ Sedgewick, JR Faeder and DM Zuckerman. “Efficient stochastic simulation of chemical kinetics networks using a weighted ensemble of trajectories.” <a onclick="window.open(this.href); return false;" title="http://dx.doi.org/10.1063/1.4821167" href="http://dx.doi.org/10.1063/1.4821167" onkeypress="window.open(this.href); return false;" class="style_5">J. Chem. Phys., 139: 115105</a> (2013).<br>
-</li>
-  
-<li>
-E Suarez, S Lettieri, MC Zwier, CA Stringer, SR Subramanian, LT Chong and DM Zuckerman. “Simultaneous computation of dynamical and equilibrium information using a weighted ensemble of trajectories.” <a onclick="window.open(this.href); return false;" title="http://pubs.acs.org/doi/full/10.1021/ct401065r" href="http://pubs.acs.org/doi/full/10.1021/ct401065r" onkeypress="window.open(this.href); return false;" class="style_5">J. Chem. Theory Comput. 10: 2658-2667</a> (2014). <br>
-</li>
-
-<li>
-JL Adelman and M Grabe. “Simulating current–voltage relationships for a narrow ion channel using the weighted ensemble method” <a onclick="window.open(this.href); return false;" title="http://pubs.acs.org/doi/abs/10.1021/ct501134s" href="http://pubs.acs.org/doi/abs/10.1021/ct501134s" onkeypress="window.open(this.href); return false;" class="style_5">J. Chem. Theory Comput., 11: 1907-1918</a> (2015).<br>
-</li>
-
-<li>
-AS Saglam and LT Chong. “Highly efficient computation of the basal <em>k<a style="vertical-align:sub;text-decoration:none;color:#373737">on</a></em> using direct simulation of protein-protein association with flexible molecular models” <a onclick="window.open(this.href); return false;" title="http://pubs.acs.org/doi/abs/10.1021/acs.jpcb.5b10747" href="http://pubs.acs.org/doi/abs/10.1021/acs.jpcb.5b10747" onkeypress="window.open(this.href); return false;" class="style_5">J. Phys. Chem. B</a> (2015).<br>
-</li>
-
-<li>
-J Spiriti and DM Zuckerman. “Tabulation as a high-resolution alternative to coarse-graining protein interactions: Initial application to virus capsid subunits” <a onclick="window.open(this.href); return false;" title="http://scitation.aip.org/content/aip/journal/jcp/143/24/10.1063/1.4938479" href="http://scitation.aip.org/content/aip/journal/jcp/143/24/10.1063/1.4938479" onkeypress="window.open(this.href); return false;" class="style_5">J. Chem. Phys., 143: 243159</a> (2015).<br>
-</li>
-  
-<li>
-E Suarez, AJ Pratt, and LT Chong. “Estimating first-passage time distributions from weighted ensemble simulations and non-Markovian analyses” <a onclick="window.open(this.href); return false;" title="http://onlinelibrary.wiley.com/doi/10.1002/pro.2738/abstract;jsessionid=69C7073AB0A02E7DE592F85D053489C5.f03t01" href="http://onlinelibrary.wiley.com/doi/10.1002/pro.2738/abstract;jsessionid=69C7073AB0A02E7DE592F85D053489C5.f03t01" onkeypress="window.open(this.href); return false;" class="style_5">Prot. Sci., 1: 67-78</a> (2016).<br>
-</li>
-
-<li>
-RM Donovan, JJ Tapia, DP Sullivan, JR Faeder, RF Murphy, M Dittrich, and DM Zuckerman. “Unbiased rare event sampling in spatial stochastic systems biology models using a weighted ensemble of trajectories” <a onclick="window.open(this.href); return false;" title="http://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1004611" href="http://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1004611" onkeypress="window.open(this.href); return false;" class="style_5">PLoS Comput. Biol., 12: e1004611</a> (2016).<br>
-</li>
-  
-<li>
-MC Zwier, AJ Pratt, JL Adelman, JW Kaus, DM Zuckerman and LT Chong. “Efficient atomistic simulation of pathways and calculation of rate constants for protein-peptide binding process: Application to the MDM2 protein and an intrinsically disordered p53 peptide” <a onclick="window.open(this.href); return false;" title="http://pubs.acs.org/doi/abs/10.1021/acs.jpclett.6b01502" href="http://pubs.acs.org/doi/abs/10.1021/acs.jpclett.6b01502" onkeypress="window.open(this.href); return false;" class="style_5">J. Chem. Phys. Lett., 17: 3440-3445</a> (2016).<br>
-</li>
-  
-<li>
-AS Saglam, DW Wang, MC Zwier, and LT Chong. “Flexibility vs preorganization: Direct comparison of binding kinetics for a disordered peptide and its exact preorganized analogues” <a onclick="window.open(this.href); return false;" title="http://pubs.acs.org/doi/10.1021/acs.jpcb.7b08486" href="http://pubs.acs.org/doi/10.1021/acs.jpcb.7b08486" onkeypress="window.open(this.href); return false;" class="style_5">J. Phys. Chem. B, 121: 10046-10054</a> (2017).<br>
-</li>
-  
-<li>
-AJ DeGrave, JH Ha, SN Loh, and LT Chong. “Large enhancements of response times of a protein conformational switch by computational design” <a onclick="window.open(this.href); return false;" title="https://www.nature.com/articles/s41467-018-03228-6" href="https://www.nature.com/articles/s41467-018-03228-6" onkeypress="window.open(this.href); return false;" class="style_5">Nat. Commun., 9: 1013</a> (2018).<br>
-</li>
-  
-<li>
-A Nunes-Alves, DM Zuckerman, and GM Arantes. “Escape of a small molecule from inside T4 lysozyme by multiple pathways” <a onclick="window.open(this.href); return false;" title="https://www.sciencedirect.com/science/article/pii/S0006349518301401" href="https://www.sciencedirect.com/science/article/pii/S0006349518301401" onkeypress="window.open(this.href); return false;" class="style_5">Biophys. J., 114: 1058-1066</a> (2018).<br>
-</li>
-  
-<li>
-AS Saglam and LT Chong. &quot;Protein-protein binding pathways and calculations of rate constants using fully-continuous, explicit-solvent simulations.&quot; <a onclick="window.open(this.href); return false;" <a title="https://pubs.rsc.org/en/content/articlelanding/2019/sc/c8sc04811h#!divAbstract" href="https://pubs.rsc.org/en/content/articlelanding/2019/sc/c8sc04811h#!divAbstract" onkeypress="window.open(this.href); return false;" class="style_5"> Chem. Sci.,</a> (2019).<br> 
-</li>
-
-<li>
-U Adhikari, B Mostofian, J Copperman, SR Subramanian, AA Petersen, and DM Zuckerman. &quot;Computational estimation of microsecond to second atomistic folding times.&quot; <a onclick="window.open(this.href); return false;" <a title="https://pubs.acs.org/doi/full/10.1021/jacs.8b10735" href="https://pubs.acs.org/doi/full/10.1021/jacs.8b10735" onkeypress="window.open(this.href); return false;" class="style_5"> J. Am. Chem. Soc., 141: 6519-6526</a> (2019).<br>
-</li>
+<!-- HEADER -->
+<div id="header_wrap" class="outer">
+  <header class="inner"> 
     
-<li>
-B Mostofian and DM Zuckerman. &quot;Statistical uncertainty analysis for small-sample, high log-variance data: cautions for bootstrapping and Bayesian bootstrapping.&quot; <a onclick="window.open(this.href); return false;" <a title="https://pubs.acs.org/doi/abs/10.1021/acs.jctc.9b00015" href="https://pubs.acs.org/doi/abs/10.1021/acs.jctc.9b00015" onkeypress="window.open(this.href); return false;" class="style_5"> J. Chem. Theory. Comput., 15: 3499-3509</a> (2019).<br> 
-</li>
-
-<li>
-D Aristoff and DM Zuckerman. &quot;Optimizing weighted ensemble sampling of steady states.&quot; <a onclick="window.open(this.href); return false;" <a title="https://arxiv.org/abs/1806.00860v5" href="https://arxiv.org/abs/1806.00860v5" onkeypress="window.open(this.href); return false;" class="style_5"> Multiscale Model. Sim.</a> (2020).<br> 
-</li>
-
-<li>
-J Copperman and DM Zuckerman. &quot;Accelerated estimation of long-timescale kinetics from weighted ensemble simulation via non-Markovian “microbin” analysis.&quot; <a onclick="window.open(this.href); return false;" <a title="https://pubs.acs.org/doi/abs/10.1021/acs.jctc.0c00273" href="https://pubs.acs.org/doi/abs/10.1021/acs.jctc.0c00273" onkeypress="window.open(this.href); return false;" class="style_5"> J. Chem. Theory Comput., 16: 6763–6775</a> (2020).<br> 
-</li>
-
-<li>
-DM Zuckerman and JD Russo. &quot;A gentle introduction to the non-equilibrium physics of trajectories: Theory, algorithms, and biomolecular applications.&quot; <a onclick="window.open(this.href); return false;" <a title="https://arxiv.org/abs/2010.14991" href="https://arxiv.org/abs/2010.14991" onkeypress="window.open(this.href); return false;" class="style_5"> arXiv</a> (2020).<br> 
-</li>
-
-<li>
-T Sztain, S Ahn, AT Bogetti, L Casalino, JA Goldsmith, E Seitz, RS McCool, FL Kearns, F Acosta-Reyes, S Maji, G Mashayekhi, JA McCammon, A Ourmazd, J Frankm, JS McLellan, LT Chong, and RE Amaro. &quot;A glycan gate controls opening of the SARS-CoV-2 spike protein.&quot; <a onclick="window.open(this.href); return false;" <a title="https://www.nature.com/articles/s41557-021-00758-3" href="https://www.nature.com/articles/s41557-021-00758-3" onkeypress="window.open(this.href); return false;" class="style_5"> Nat. Chem.</a> (2021).<br> 
-</li>
-
-<li>
-  S Choe. &quot;Free Energy Analyses of Cell-Penetrating Peptides Using the Weighted Ensemble Method.&quot; <a onclick="window.open(this.href); return false;" <a title="https://www.mdpi.com/2077-0375/11/12/974" href="https://www.mdpi.com/2077-0375/11/12/974" onkeypress="window.open(this.href); return false;" class="style_5"> Membranes</a> (2021).<br> 
-</li>
-
-<li>
-  M Beasley, N Frazee, S Groover, SJ Valentine, B Mertz, and J Legleiter &quot;Physicochemical Properties Altered by the Tail Group of Lipid Membranes Influence Huntingtin Aggregation and Lipid Binding.&quot; <a onclick="window.open(this.href); return false;" <a title="https://pubs.acs.org/doi/10.1021/acs.jpcb.1c10254" href="https://pubs.acs.org/doi/10.1021/acs.jpcb.1c10254" onkeypress="window.open(this.href); return false;" class="style_5"> J. Phys. Chem. B</a> (2022).<br> 
-</li>
-
-</ol>
-
-<p><strong>Related Weighted Ensemble Publications:</strong>   </p>
-
-<ol>
-<li>
-GA Huber and S Kim. &quot;Weighted-ensemble Brownian dynamics simulations for protein association reactions.&quot; <a onclick="window.open(this.href); return false;" title="http://dx.doi.org/10.1016/S0006-3495(96)79552-8" href="http://dx.doi.org/10.1016/S0006-3495(96)79552-8" onkeypress="window.open(this.href); return false;" class="style_5">Biophys. J., 70: 97–110</a> (1996).<br>
-</li>
-
-<li>
-A Rojnuckarin, S Kim, and S Subramaniam. &quot;Brownian dynamics simulations of protein folding: Access to milliseconds time scale and beyond.&quot; <a onclick="window.open(this.href); return false;" title="http://dx.doi.org/10.1073/pnas.95.8.4288" href="http://dx.doi.org/10.1073/pnas.95.8.4288" onkeypress="window.open(this.href); return false;" class="style_5">Proc. Nat. Acad. Sci. USA, 95: 4288–4292</a> (1998).<br>
-</li>
-
-<li>
-A Rojnuckarin, DR Livesay, and S Subramaniam. &quot;Bimolecular reaction simulation using weighted ensemble Brownian dynamics and the University of Houston Brownian dynamics program.&quot; <a onclick="window.open(this.href); return false;" title="http://dx.doi.org/10.1016/S0006-3495(00)76327-2" href="http://dx.doi.org/10.1016/S0006-3495(00)76327-2" onkeypress="window.open(this.href); return false;" class="style_5">Biophys. J., 79: 686-693</a> (2000).<br>
-</li>
-
-<li>
-BW Zhang, D Jasnow, and DM Zuckerman. &quot;Efficient and verified simulation of a path-ensemble for conformational change in a united-residue model of calmodulin.&quot; <a onclick="window.open(this.href); return false;" title="http://dx.doi.org/10.1073/pnas.0706349104" href="http://dx.doi.org/10.1073/pnas.0706349104" onkeypress="window.open(this.href); return false;" class="style_5">Proc. Nat. Acad. Sci. USA, 104: 18043-18048</a> (2007).<br>
-</li>
-
-<li>
-BW Zhang, D Jasnow, and DM Zuckerman. &quot;The ”weighted ensemble” path sampling method is statistically exact for a broad class of stochastic processes and binning procedures.&quot; <a onclick="window.open(this.href); return false;" title="http://dx.doi.org/10.1063/1.3306345" href="http://dx.doi.org/10.1063/1.3306345" onkeypress="window.open(this.href); return false;" class="style_5">J. Chem. Phys., 132: 054107</a> (2010).<br>
-</li>
-
-<li>
-D Bhatt, BW Zhang, and DM Zuckerman. &quot;Steady state via weighted ensemble path sampling&quot; <a onclick="window.open(this.href); return false;" title="http://dx.doi.org/10.1063/1.3456985" href="http://dx.doi.org/10.1063/1.3456985" onkeypress="window.open(this.href); return false;" class="style_5">J. Chem. Phys., 133: 014110</a> (2010).<br>
-</li>
-
-<li>
-D Bhatt and DM Zuckerman. &quot;Heterogeneous path ensembles for conformational transitions in semiatomistic models of adenylate kinase.&quot; <a onclick="window.open(this.href); return false;" title="http://dx.doi.org/10.1021/ct100406t" href="http://dx.doi.org/10.1021/ct100406t" onkeypress="window.open(this.href); return false;" class="style_5">J. Chem. Theory Comput., 6: 3527–3539</a> (2010).<br>
-</li>
-
-<li>
-MC Zwier and LT Chong. “Reaching biological timescales with all-atom molecular dynamics simulations.” <a onclick="window.open(this.href); return false;" title="http://dx.doi.org/10.1016/j.coph.2010.09.008" href="http://dx.doi.org/10.1016/j.coph.2010.09.008" onkeypress="window.open(this.href); return false;" class="style_5">Curr. Opin. Pharmacol., 10: 745-752</a> (2010).<br>
-</li>
-
-<li>
-D Bhatt and DM Zuckerman. &quot;Beyond microscopic reversibility: Are observable non-equilibrium processes precisely reversible?&quot; <a onclick="window.open(this.href); return false;" title="http://dx.doi.org/10.1021/ct200086k" href="http://dx.doi.org/10.1021/ct200086k" onkeypress="window.open(this.href); return false;" class="style_5">J. Chem. Theory Comput., 7: 2520-2527</a> (2011). <br>
-</li>
-
-<li>
-D Bhatt and I Bahar. &quot;An adaptive weighted ensemble procedure for efficient computation of free energies and first passage rates.&quot; <a onclick="window.open(this.href); return false;" title="http://dx.doi.org/10.1063/1.4748278" href="http://dx.doi.org/10.1063/1.4748278" onkeypress="window.open(this.href); return false;" class="style_5">J. Chem. Phys., 137: 104101</a> (2012). <br>
-</li>
-
-<li>
-E Darve and E Ryu. &quot;Computing reaction rates in bio-molecular systems using discrete macro-states.&quot; Innovations in Biomolecular Modeling and Simulations. <a onclick="window.open(this.href); return false;" title="http://dx.doi.org/10.1039/9781849735049-00138" href="http://dx.doi.org/10.1039/9781849735049-00138" onkeypress="window.open(this.href); return false;" class="style_5">Royal Society of Chemistry, 1: 138-206</a> (2012).<br>
-</li>				
-
-<li>
-BW Zhang, D Jasnow, and DM Zuckerman. &quot;Weighted ensemble path sampling for multiple reaction channels.&quot; <a onclick="window.open(this.href); return false;" title="http://arxiv.org/abs/0902.2772" href="http://arxiv.org/abs/0902.2772" onkeypress="window.open(this.href); return false;" class="style_5">arXiv:0902.2772</a>. <br>
-</li>
-
-<li>
-A Dickson and CL Brooks, III. &quot;WExplore: Hierarchical exploration of high-dimensional spaces using the weighted ensemble algorithm.&quot; <a onclick="window.open(this.href); return false;" title="http://pubs.acs.org/doi/abs/10.1021/jp411479c" href="http://pubs.acs.org/doi/abs/10.1021/jp411479c" onkeypress="window.open(this.href); return false;" class="style_5">J. Phys. Chem. B, 138: 3532-3542</a> (2014). <br>
-</li>
-
-<li>
-B Abdul-Wahid, H Feng, D Rajan, R Costaouec, E Darve, D Thain, and JA Izaguirre. &quot;AWE-WQ: Fast-forwarding molecular dynamics using the accelerated weighted ensemble.&quot; <a onclick="window.open(this.href); return false;" title="http://pubs.acs.org/doi/abs/10.1021/ci500321g" href="http://pubs.acs.org/doi/abs/10.1021/ci500321g" onkeypress="window.open(this.href); return false;" class="style_5">J. Chem. Inf. Model., 54: 3033-3043</a> (2014). <br>
-</li>
-
-<li>
-H Feng, R Costaouec, E Darve and JA Izaguirre. &quot;A comparison of weighted ensemble and Markov state model methodologies.&quot; <a onclick="window.open(this.href); return false;" title="http://scitation.aip.org/content/aip/journal/jcp/142/21/10.1063/1.4921890" href="http://scitation.aip.org/content/aip/journal/jcp/142/21/10.1063/1.4921890" onkeypress="window.open(this.href); return false;" class="style_5">J. Chem. Phys., 142: 214113</a> (2015). <br>
-</li>
-
-<li>
-A Dickson, AM Mustoe, L Salmon and CL Brooks, III. &quot;Efficient in silico exploration of RNA interhelical conformations using Euler angles and WExplore.&quot; <a title="http://nar.oxfordjournals.org/content/42/19/12126" href="http://nar.oxfordjournals.org/content/42/19/12126" class="style_5">Nucl. Acids Res., 42: 12126-12137</a> (2014).<br>
-</li>
-
-<li>
-MJ Tse, BK Chu, M Roy and EL Read. &quot;DNA-binding kinetics determines the mechanism of noise-induced switching in gene networks.&quot; <a title="http://nar.oxfordjournals.org/content/42/19/12126" href="http://www.sciencedirect.com/science/article/pii/S000634951500870X" class="style_5">Biophy. J., 109: 1746-1757</a> (2015).<br>
-</li>
-
-<li>
-E Suarez, JL Adelman and DM Zuckerman. &quot;Accurate estimation of protein folding and unfolding times: Beyond Markov state models.&quot; <a title="http://pubs.acs.org/doi/full/10.1021/acs.jctc.6b00339" href="http://pubs.acs.org/doi/full/10.1021/acs.jctc.6b00339" class="style_5">J. Chem. Theory Comput., 12: 3473-3481</a> (2016).<br>
-</li>
-        
-<li>
-LT Chong, AS Saglam and DM Zuckerman. &quot;Path-sampling strategies for simulating rare events in biomolecular systems..&quot; <a title="http://www.sciencedirect.com/science/article/pii/S0959440X16302068" href="http://www.sciencedirect.com/science/article/pii/S0959440X16302068" class="style_5">Curr. Opin. Struc. Biol., 43: 88-94</a> (2017).<br>
-</li>
-  
-<li>
-A Dickson and SD Lotz. &quot;Multiple ligand unbinding pathways and ligand-induced destabilization revealed by WExplore..&quot; <a title="http://www.cell.com/biophysj/fulltext/S0006-3495(17)30045-0" href="http://www.cell.com/biophysj/fulltext/S0006-3495(17)30045-0" class="style_5">Biophys. J., 112: 620-629</a> (2017).<br>
-</li>
-  
-<li>
-A Dickson and SD Lotz. &quot;Ligand release pathways obtained with WExplore: Residence times and mechanisms..&quot; <a title="http://pubs.acs.org/doi/10.1021/acs.jpcb.6b04012" href="http://pubs.acs.org/doi/10.1021/acs.jpcb.6b04012" class="style_5">J. Phys. Chem. B, 120: 5377-5385</a> (2017).<br>
-</li>
-  
-<li>
-SD Lotz and A Dickson. &quot;Unbiased molecular dynamics of 11 min timescale drug unbinding reveals transition state stabilizing interactions..&quot; <a title="https://pubs.acs.org/doi/10.1021/jacs.7b08572" href="https://pubs.acs.org/doi/10.1021/jacs.7b08572" class="style_5">J. Am. Chem. Soc., 140: 618-628</a> (2018).<br>
-</li>
-
-<li>
-D Aristoff. &quot;Analysis and optimization of weighted ensemble sampling.&quot; <a title="http://rt4rf9qn2y.scholar.serialssolutions.com/?sid=google&auinit=D&aulast=Aristoff&atitle=Analysis+and+optimization+of+weighted+ensemble+sampling.&id=doi:10.1051/m2an/2017046" href="http://rt4rf9qn2y.scholar.serialssolutions.com/?sid=google&auinit=D&aulast=Aristoff&atitle=Analysis+and+optimization+of+weighted+ensemble+sampling.&id=doi:10.1051/m2an/2017046" class="style_5">ESAIM:M2AN., 52: 1219-1238</a> (2018).<br>
-</li>
-
-<li>
-N Donyapour, NM Rousey and A Dickson. &quot;REVO: Resampling of ensembles byvariation optimization.&quot; <a title="https://aip.scitation.org/doi/10.1063/1.5100521" href="https://aip.scitation.org/doi/10.1063/1.5100521" class="style_5">J. Chem. Phys., 150: 244112</a> (2019).<br>
-</li>
-
-<li>
-K Liu, B Chu, J Newby, EL Read, J Lowengrub and J Allard. &quot;Hydrodynamics of transient cell-cell contact: The role of membrane permeability and active protrusion length.&quot; <a title="https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1006352" href="https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1006352">PLOS Comput. Biol., 15: e1006352</a> (2019).<br>   
-</li>
-  
-<li>
-D Ray and I Andricioaei. &quot;Weighted ensemble milestoning (WEM): A combined approach for rare event simulations.&quot; <a title="https://aip-scitation-org.pitt.idm.oclc.org/doi/full/10.1063/5.0008028" href="https://aip-scitation-org.pitt.idm.oclc.org/doi/full/10.1063/5.0008028">J. Chem. Phys., 152, 234114</a> (2020).<br>   
-</li>
-
-<li>
-S Lotz and A Dickson. &quot;Wepy: A flexible software framework for simulating rare events with weighted ensemble resampling.&quot; <a title="https://chemrxiv.org/articles/preprint/Wepy_A_Flexible_Software_Framework_for_Simulating_Rare_Events_with_Weighted_Ensemble_Resampling/12801125" href="https://chemrxiv.org/articles/preprint/Wepy_A_Flexible_Software_Framework_for_Simulating_Rare_Events_with_Weighted_Ensemble_Resampling/12801125"> ChemRXiv</a> (2020).<br>   
-</li>
-  
-<li>
-NM Roussey and A Dickson. &quot;Enhanced Jarzynski free energy calculations using weighted ensemble.&quot; <a onclick="window.open(this.href); return false;" title="https://doi.org/10.1063/5.0020600" href="https://doi.org/10.1063/5.0020600" onkeypress="window.open(this.href); return false;" class="style_5">J. Chem. Phys. 153, 134116</a> (2020).<br>
-</li>
-  
-<li>
-K Moritsugu, N Yamamoto, Y Yonezawa, S Tate, and H Fujisaki. &quot;Path ensembles for pin1-catalyzed cis–trans isomerization of a substrate calculated by weighted ensemble simulations.&quot; <a onclick="window.open(this.href); return false;" title="https://doi.org/10.1021/acs.jctc.0c01280" href="https://doi.org/10.1021/acs.jctc.0c01280" onkeypress="window.open(this.href); return false;" class="style_5">J. Chem. Theory Comput. 17, 2522-2529</a> (2021).<br>
-</li>
-
-<li>
-R Taylor, J Allard, and EL Read. &quot;Simulation of receptor triggering by kinetic
-segregation shows role of oligomers and close contacts.&quot; <a onclick="window.open(this.href); return false;" title="https://doi.org/10.1016/j.bpj.2022.03.033" href="https://doi.org/10.1016/j.bpj.2022.03.033" onkeypress="window.open(this.href); return false;" class="style_5">Biophys. J. 121, 1660-1675</a> (2022).<br>
-</li>
-  
-        </div>
-      </section>
-    </div>
-
-    <!-- FOOTER  -->
-    <div id="footer_wrap" class="outer">
-      <footer class="inner">
-        <p class="copyright">WESTPA maintained by <a href="https://github.com/westpa">westpa</a></p>
-        <p>Published with <a href="http://pages.github.com">GitHub Pages</a></p>
-      </footer>
-    </div>
-
+    <!--<h1 id="project_title">WESTPA</h1>-->
     
+    <section id="page_links"> <a href="index.html"> <img class="logo_link" src="images/WESTPA2.jpg" alt="WESTPA logo" style="width:125px;height:59.6px;" border="0"> </a> <a class="gh_link" href="https://github.com/westpa/westpa">GitHub Repository</a> <a class="doc_link" href="https://github.com/westpa/westpa/wiki">Wiki</a> <a class="sphinx_link" href="https://westpa.readthedocs.io">Documentation</a> <a class="pub_link" href="publications.html">Publications</a> </section>
+  </header>
+</div>
 
-  </body>
-  <script>
+<!-- MAIN CONTENT -->
+<div id="main_content_wrap" class="outer">
+<section id="main_content" class="inner">
+<div id="pub_text_div">
+<h3> <a id="what-is-westpa" class="anchor" href="#what-is-westpa" aria-hidden="true"><span class="octicon octicon-link"></span></a>Publications</h3>
+<p><strong>The WESTPA Papers:</strong> </p>
+<ol>
+  <li> MC Zwier, JL Adelman, JW Kaus, AJ Pratt, KF Wong, NB Rego, E Suárez, S Lettieri, DW Wang, M Grabe, DM Zuckerman, and LT Chong. “WESTPA: An interoperable, highly scalable software package for weighted ensemble simulation and analysis”. <a onclick="window.open(this.href); return false;" title="http://pubs.acs.org/doi/abs/10.1021/ct5010615" href="http://pubs.acs.org/doi/abs/10.1021/ct5010615" onkeypress="window.open(this.href); return false;">J. Chem. Theory Comput., 11: 800-809</a> (2015).<br>
+  </li>
+  <li> JD Russo*, S Zhang*, JMG Leung*, AT Bogetti*, JP Thompson, AJ DeGrave, PA Torrillo, AJ Pratt, KF Wong, J Xia, J Copperman, JL Adelman, MC Zwier, DN LeBard, DM Zuckerman, and LT Chong. "WESTPA 2.0: High-Performance Upgrades for Weighted Ensemble Simulations and Analysis of Longer-Timescale Applications". <a onclick="window.open(this.href); return false;" title=" https://pubs.acs.org/doi/abs/10.1021/acs.jctc.1c01154 " href=" https://pubs.acs.org/doi/abs/10.1021/acs.jctc.1c01154 " onkeypress="window.open(this.href); return false;">J. Chem. Theory Comput, 18 (2), 638–649</a> (2022) *equal authorship.<br>
+  </li>
+</ol>
+<p><strong>A Review of the WE Strategy:</strong> </p>
+<ol>
+  <li> DM Zuckerman and LT Chong. “Weighted ensemble simulation: Review of methodology, applications, and software”. <a onclick="window.open(this.href); return false;" title="https://doi.org/10.1146/annurev-biophys-070816-033834" href="https://doi.org/10.1146/annurev-biophys-070816-033834" onkeypress="window.open(this.href); return false;"> Annu. Rev. Biophys. 2017, 46: 43–57</a> (2017).<br>
+  </li>
+</ol>
+<p><strong>WESTPA Tutorials:</strong> </p>
+<ol>
+  <li> AT Bogetti*, B Mostofian*, A Dickson*, AJ Pratt*, AS Saglam*, PO Harrison*, JL Adelman, M Dudek, PA Torrillo, AJ DeGrave, U Adhikari, MC Zwier, DM Zuckerman, and LT Chong. &quot;A suite of tutorials for the WESTPA rare-events sampling software.&quot; <a onclick="window.open(this.href); return false;" <a title="https://www.livecomsjournal.org/article/10607-a-suite-of-tutorials-for-the-westpa-rare-events-sampling-software-article-v1-0" href="https://www.livecomsjournal.org/article/10607-a-suite-of-tutorials-for-the-westpa-rare-events-sampling-software-article-v1-0" onkeypress="window.open(this.href); return false;" class="style_5"> Living Journal of Computational Molecular Science, 1: 10607</a> (2019) *equal authorship.<br>
+  </li>
+</ol>
+<p><strong>Made with WESTPA:</strong> </p>
+<ol>
+  <li> MC Zwier, JW Kaus, and LT Chong. “Efficient explicit-solvent molecular dynamics simulations of molecular associations: Methane/methane, Na+/Cl-, methane/benzene, and K+/18-crown-6 ether.” <a onclick="window.open(this.href); return false;" title="http://dx.doi.org/10.1021/ct100626x" href="http://dx.doi.org/10.1021/ct100626x" onkeypress="window.open(this.href); return false;">J. Chem. Theory Comput., 7: 1189-1197</a> (2011).<br>
+  </li>
+  <li> JL Adelman, A Scarbrough, MC Zwier, D Bhatt, LT Chong, DM Zuckerman, and M Grabe. “Simulations of the alternating access mechanism of the sodium symporter Mhp1.” <a onclick="window.open(this.href); return false;" title="http://dx.doi.org/10.1016/j.bpj.2011.09.061" href="http://dx.doi.org/10.1016/j.bpj.2011.09.061" onkeypress="window.open(this.href); return false;" class="style_5">Biophys. J., 101: 2399-2407</a> (2011).<br>
+  </li>
+  <li> JL Adelman and M Grabe. “Simulating rare events using a weighted ensemble-based string method.” <a onclick="window.open(this.href); return false;" title="http://dx.doi.org/10.1063/1.4773892" href="http://dx.doi.org/10.1063/1.4773892" onkeypress="window.open(this.href); return false;" class="style_5">J. Chem. Phys., 138: 044105</a> (2013).<br>
+  </li>
+  <li> RM Donovan, AJ Sedgewick, JR Faeder and DM Zuckerman. “Efficient stochastic simulation of chemical kinetics networks using a weighted ensemble of trajectories.” <a onclick="window.open(this.href); return false;" title="http://dx.doi.org/10.1063/1.4821167" href="http://dx.doi.org/10.1063/1.4821167" onkeypress="window.open(this.href); return false;" class="style_5">J. Chem. Phys., 139: 115105</a> (2013).<br>
+  </li>
+  <li> E Suarez, S Lettieri, MC Zwier, CA Stringer, SR Subramanian, LT Chong and DM Zuckerman. “Simultaneous computation of dynamical and equilibrium information using a weighted ensemble of trajectories.” <a onclick="window.open(this.href); return false;" title="http://pubs.acs.org/doi/full/10.1021/ct401065r" href="http://pubs.acs.org/doi/full/10.1021/ct401065r" onkeypress="window.open(this.href); return false;" class="style_5">J. Chem. Theory Comput. 10: 2658-2667</a> (2014). <br>
+  </li>
+  <li> JL Adelman and M Grabe. “Simulating current–voltage relationships for a narrow ion channel using the weighted ensemble method” <a onclick="window.open(this.href); return false;" title="http://pubs.acs.org/doi/abs/10.1021/ct501134s" href="http://pubs.acs.org/doi/abs/10.1021/ct501134s" onkeypress="window.open(this.href); return false;" class="style_5">J. Chem. Theory Comput., 11: 1907-1918</a> (2015).<br>
+  </li>
+  <li> AS Saglam and LT Chong. “Highly efficient computation of the basal <em>k<a style="vertical-align:sub;text-decoration:none;color:#373737">on</a></em> using direct simulation of protein-protein association with flexible molecular models” <a onclick="window.open(this.href); return false;" title="http://pubs.acs.org/doi/abs/10.1021/acs.jpcb.5b10747" href="http://pubs.acs.org/doi/abs/10.1021/acs.jpcb.5b10747" onkeypress="window.open(this.href); return false;" class="style_5">J. Phys. Chem. B</a> (2015).<br>
+  </li>
+  <li> J Spiriti and DM Zuckerman. “Tabulation as a high-resolution alternative to coarse-graining protein interactions: Initial application to virus capsid subunits” <a onclick="window.open(this.href); return false;" title="http://scitation.aip.org/content/aip/journal/jcp/143/24/10.1063/1.4938479" href="http://scitation.aip.org/content/aip/journal/jcp/143/24/10.1063/1.4938479" onkeypress="window.open(this.href); return false;" class="style_5">J. Chem. Phys., 143: 243159</a> (2015).<br>
+  </li>
+  <li> E Suarez, AJ Pratt, and LT Chong. “Estimating first-passage time distributions from weighted ensemble simulations and non-Markovian analyses” <a onclick="window.open(this.href); return false;" title="http://onlinelibrary.wiley.com/doi/10.1002/pro.2738/abstract;jsessionid=69C7073AB0A02E7DE592F85D053489C5.f03t01" href="http://onlinelibrary.wiley.com/doi/10.1002/pro.2738/abstract;jsessionid=69C7073AB0A02E7DE592F85D053489C5.f03t01" onkeypress="window.open(this.href); return false;" class="style_5">Prot. Sci., 1: 67-78</a> (2016).<br>
+  </li>
+  <li> RM Donovan, JJ Tapia, DP Sullivan, JR Faeder, RF Murphy, M Dittrich, and DM Zuckerman. “Unbiased rare event sampling in spatial stochastic systems biology models using a weighted ensemble of trajectories” <a onclick="window.open(this.href); return false;" title="http://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1004611" href="http://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1004611" onkeypress="window.open(this.href); return false;" class="style_5">PLoS Comput. Biol., 12: e1004611</a> (2016).<br>
+  </li>
+  <li> MC Zwier, AJ Pratt, JL Adelman, JW Kaus, DM Zuckerman and LT Chong. “Efficient atomistic simulation of pathways and calculation of rate constants for protein-peptide binding process: Application to the MDM2 protein and an intrinsically disordered p53 peptide” <a onclick="window.open(this.href); return false;" title="http://pubs.acs.org/doi/abs/10.1021/acs.jpclett.6b01502" href="http://pubs.acs.org/doi/abs/10.1021/acs.jpclett.6b01502" onkeypress="window.open(this.href); return false;" class="style_5">J. Chem. Phys. Lett., 17: 3440-3445</a> (2016).<br>
+  </li>
+  <li> AS Saglam, DW Wang, MC Zwier, and LT Chong. “Flexibility vs preorganization: Direct comparison of binding kinetics for a disordered peptide and its exact preorganized analogues” <a onclick="window.open(this.href); return false;" title="http://pubs.acs.org/doi/10.1021/acs.jpcb.7b08486" href="http://pubs.acs.org/doi/10.1021/acs.jpcb.7b08486" onkeypress="window.open(this.href); return false;" class="style_5">J. Phys. Chem. B, 121: 10046-10054</a> (2017).<br>
+  </li>
+  <li> AJ DeGrave, JH Ha, SN Loh, and LT Chong. “Large enhancements of response times of a protein conformational switch by computational design” <a onclick="window.open(this.href); return false;" title="https://www.nature.com/articles/s41467-018-03228-6" href="https://www.nature.com/articles/s41467-018-03228-6" onkeypress="window.open(this.href); return false;" class="style_5">Nat. Commun., 9: 1013</a> (2018).<br>
+  </li>
+  <li> A Nunes-Alves, DM Zuckerman, and GM Arantes. “Escape of a small molecule from inside T4 lysozyme by multiple pathways” <a onclick="window.open(this.href); return false;" title="https://www.sciencedirect.com/science/article/pii/S0006349518301401" href="https://www.sciencedirect.com/science/article/pii/S0006349518301401" onkeypress="window.open(this.href); return false;" class="style_5">Biophys. J., 114: 1058-1066</a> (2018).<br>
+  </li>
+  <li> AS Saglam and LT Chong. &quot;Protein-protein binding pathways and calculations of rate constants using fully-continuous, explicit-solvent simulations.&quot; <a onclick="window.open(this.href); return false;" <a title="https://pubs.rsc.org/en/content/articlelanding/2019/sc/c8sc04811h#!divAbstract" href="https://pubs.rsc.org/en/content/articlelanding/2019/sc/c8sc04811h#!divAbstract" onkeypress="window.open(this.href); return false;" class="style_5"> Chem. Sci.,</a> (2019).<br>
+  </li>
+  <li> U Adhikari, B Mostofian, J Copperman, SR Subramanian, AA Petersen, and DM Zuckerman. &quot;Computational estimation of microsecond to second atomistic folding times.&quot; <a onclick="window.open(this.href); return false;" <a title="https://pubs.acs.org/doi/full/10.1021/jacs.8b10735" href="https://pubs.acs.org/doi/full/10.1021/jacs.8b10735" onkeypress="window.open(this.href); return false;" class="style_5"> J. Am. Chem. Soc., 141: 6519-6526</a> (2019).<br>
+  </li>
+  <li> B Mostofian and DM Zuckerman. &quot;Statistical uncertainty analysis for small-sample, high log-variance data: cautions for bootstrapping and Bayesian bootstrapping.&quot; <a onclick="window.open(this.href); return false;" <a title="https://pubs.acs.org/doi/abs/10.1021/acs.jctc.9b00015" href="https://pubs.acs.org/doi/abs/10.1021/acs.jctc.9b00015" onkeypress="window.open(this.href); return false;" class="style_5"> J. Chem. Theory. Comput., 15: 3499-3509</a> (2019).<br>
+  </li>
+  <li> D Aristoff and DM Zuckerman. &quot;Optimizing weighted ensemble sampling of steady states.&quot; <a onclick="window.open(this.href); return false;" <a title="https://arxiv.org/abs/1806.00860v5" href="https://arxiv.org/abs/1806.00860v5" onkeypress="window.open(this.href); return false;" class="style_5"> Multiscale Model. Sim.</a> (2020).<br>
+  </li>
+  <li> J Copperman and DM Zuckerman. &quot;Accelerated estimation of long-timescale kinetics from weighted ensemble simulation via non-Markovian “microbin” analysis.&quot; <a onclick="window.open(this.href); return false;" <a title="https://pubs.acs.org/doi/abs/10.1021/acs.jctc.0c00273" href="https://pubs.acs.org/doi/abs/10.1021/acs.jctc.0c00273" onkeypress="window.open(this.href); return false;" class="style_5"> J. Chem. Theory Comput., 16: 6763–6775</a> (2020).<br>
+  </li>
+  <li> DM Zuckerman and JD Russo. &quot;A gentle introduction to the non-equilibrium physics of trajectories: Theory, algorithms, and biomolecular applications.&quot; <a onclick="window.open(this.href); return false;" <a title="https://arxiv.org/abs/2010.14991" href="https://arxiv.org/abs/2010.14991" onkeypress="window.open(this.href); return false;" class="style_5"> arXiv</a> (2020).<br>
+  </li>
+  <li> T Sztain, S Ahn, AT Bogetti, L Casalino, JA Goldsmith, E Seitz, RS McCool, FL Kearns, F Acosta-Reyes, S Maji, G Mashayekhi, JA McCammon, A Ourmazd, J Frankm, JS McLellan, LT Chong, and RE Amaro. &quot;A glycan gate controls opening of the SARS-CoV-2 spike protein.&quot; <a onclick="window.open(this.href); return false;" <a title="https://www.nature.com/articles/s41557-021-00758-3" href="https://www.nature.com/articles/s41557-021-00758-3" onkeypress="window.open(this.href); return false;" class="style_5"> Nat. Chem.</a> (2021).<br>
+  </li>
+  <li> S Choe. &quot;Free Energy Analyses of Cell-Penetrating Peptides Using the Weighted Ensemble Method.&quot; <a onclick="window.open(this.href); return false;" <a title="https://www.mdpi.com/2077-0375/11/12/974" href="https://www.mdpi.com/2077-0375/11/12/974" onkeypress="window.open(this.href); return false;" class="style_5"> Membranes</a> (2021).<br>
+  </li>
+  <li> M Beasley, N Frazee, S Groover, SJ Valentine, B Mertz, and J Legleiter &quot;Physicochemical Properties Altered by the Tail Group of Lipid Membranes Influence Huntingtin Aggregation and Lipid Binding.&quot; <a onclick="window.open(this.href); return false;" <a title="https://pubs.acs.org/doi/10.1021/acs.jpcb.1c10254" href="https://pubs.acs.org/doi/10.1021/acs.jpcb.1c10254" onkeypress="window.open(this.href); return false;" class="style_5"> J. Phys. Chem. B</a> (2022).<br>
+  </li>
+</ol>
+<p><strong>Related Weighted Ensemble Publications:</strong> </p>
+<ol>
+<li> GA Huber and S Kim. &quot;Weighted-ensemble Brownian dynamics simulations for protein association reactions.&quot; <a onclick="window.open(this.href); return false;" title="http://dx.doi.org/10.1016/S0006-3495(96)79552-8" href="http://dx.doi.org/10.1016/S0006-3495(96)79552-8" onkeypress="window.open(this.href); return false;" class="style_5">Biophys. J., 70: 97–110</a> (1996).<br>
+</li>
+<li> A Rojnuckarin, S Kim, and S Subramaniam. &quot;Brownian dynamics simulations of protein folding: Access to milliseconds time scale and beyond.&quot; <a onclick="window.open(this.href); return false;" title="http://dx.doi.org/10.1073/pnas.95.8.4288" href="http://dx.doi.org/10.1073/pnas.95.8.4288" onkeypress="window.open(this.href); return false;" class="style_5">Proc. Nat. Acad. Sci. USA, 95: 4288–4292</a> (1998).<br>
+</li>
+<li> A Rojnuckarin, DR Livesay, and S Subramaniam. &quot;Bimolecular reaction simulation using weighted ensemble Brownian dynamics and the University of Houston Brownian dynamics program.&quot; <a onclick="window.open(this.href); return false;" title="http://dx.doi.org/10.1016/S0006-3495(00)76327-2" href="http://dx.doi.org/10.1016/S0006-3495(00)76327-2" onkeypress="window.open(this.href); return false;" class="style_5">Biophys. J., 79: 686-693</a> (2000).<br>
+</li>
+<li> BW Zhang, D Jasnow, and DM Zuckerman. &quot;Efficient and verified simulation of a path-ensemble for conformational change in a united-residue model of calmodulin.&quot; <a onclick="window.open(this.href); return false;" title="http://dx.doi.org/10.1073/pnas.0706349104" href="http://dx.doi.org/10.1073/pnas.0706349104" onkeypress="window.open(this.href); return false;" class="style_5">Proc. Nat. Acad. Sci. USA, 104: 18043-18048</a> (2007).<br>
+</li>
+<li> BW Zhang, D Jasnow, and DM Zuckerman. &quot;The ”weighted ensemble” path sampling method is statistically exact for a broad class of stochastic processes and binning procedures.&quot; <a onclick="window.open(this.href); return false;" title="http://dx.doi.org/10.1063/1.3306345" href="http://dx.doi.org/10.1063/1.3306345" onkeypress="window.open(this.href); return false;" class="style_5">J. Chem. Phys., 132: 054107</a> (2010).<br>
+</li>
+<li> D Bhatt, BW Zhang, and DM Zuckerman. &quot;Steady state via weighted ensemble path sampling&quot; <a onclick="window.open(this.href); return false;" title="http://dx.doi.org/10.1063/1.3456985" href="http://dx.doi.org/10.1063/1.3456985" onkeypress="window.open(this.href); return false;" class="style_5">J. Chem. Phys., 133: 014110</a> (2010).<br>
+</li>
+<li> D Bhatt and DM Zuckerman. &quot;Heterogeneous path ensembles for conformational transitions in semiatomistic models of adenylate kinase.&quot; <a onclick="window.open(this.href); return false;" title="http://dx.doi.org/10.1021/ct100406t" href="http://dx.doi.org/10.1021/ct100406t" onkeypress="window.open(this.href); return false;" class="style_5">J. Chem. Theory Comput., 6: 3527–3539</a> (2010).<br>
+</li>
+<li> MC Zwier and LT Chong. “Reaching biological timescales with all-atom molecular dynamics simulations.” <a onclick="window.open(this.href); return false;" title="http://dx.doi.org/10.1016/j.coph.2010.09.008" href="http://dx.doi.org/10.1016/j.coph.2010.09.008" onkeypress="window.open(this.href); return false;" class="style_5">Curr. Opin. Pharmacol., 10: 745-752</a> (2010).<br>
+</li>
+<li> D Bhatt and DM Zuckerman. &quot;Beyond microscopic reversibility: Are observable non-equilibrium processes precisely reversible?&quot; <a onclick="window.open(this.href); return false;" title="http://dx.doi.org/10.1021/ct200086k" href="http://dx.doi.org/10.1021/ct200086k" onkeypress="window.open(this.href); return false;" class="style_5">J. Chem. Theory Comput., 7: 2520-2527</a> (2011). <br>
+</li>
+<li> D Bhatt and I Bahar. &quot;An adaptive weighted ensemble procedure for efficient computation of free energies and first passage rates.&quot; <a onclick="window.open(this.href); return false;" title="http://dx.doi.org/10.1063/1.4748278" href="http://dx.doi.org/10.1063/1.4748278" onkeypress="window.open(this.href); return false;" class="style_5">J. Chem. Phys., 137: 104101</a> (2012). <br>
+</li>
+<li> E Darve and E Ryu. &quot;Computing reaction rates in bio-molecular systems using discrete macro-states.&quot; Innovations in Biomolecular Modeling and Simulations. <a onclick="window.open(this.href); return false;" title="http://dx.doi.org/10.1039/9781849735049-00138" href="http://dx.doi.org/10.1039/9781849735049-00138" onkeypress="window.open(this.href); return false;" class="style_5">Royal Society of Chemistry, 1: 138-206</a> (2012).<br>
+</li>
+<li> BW Zhang, D Jasnow, and DM Zuckerman. &quot;Weighted ensemble path sampling for multiple reaction channels.&quot; <a onclick="window.open(this.href); return false;" title="http://arxiv.org/abs/0902.2772" href="http://arxiv.org/abs/0902.2772" onkeypress="window.open(this.href); return false;" class="style_5">arXiv:0902.2772</a>. <br>
+</li>
+<li> A Dickson and CL Brooks, III. &quot;WExplore: Hierarchical exploration of high-dimensional spaces using the weighted ensemble algorithm.&quot; <a onclick="window.open(this.href); return false;" title="http://pubs.acs.org/doi/abs/10.1021/jp411479c" href="http://pubs.acs.org/doi/abs/10.1021/jp411479c" onkeypress="window.open(this.href); return false;" class="style_5">J. Phys. Chem. B, 138: 3532-3542</a> (2014). <br>
+</li>
+<li> B Abdul-Wahid, H Feng, D Rajan, R Costaouec, E Darve, D Thain, and JA Izaguirre. &quot;AWE-WQ: Fast-forwarding molecular dynamics using the accelerated weighted ensemble.&quot; <a onclick="window.open(this.href); return false;" title="http://pubs.acs.org/doi/abs/10.1021/ci500321g" href="http://pubs.acs.org/doi/abs/10.1021/ci500321g" onkeypress="window.open(this.href); return false;" class="style_5">J. Chem. Inf. Model., 54: 3033-3043</a> (2014). <br>
+</li>
+<li> H Feng, R Costaouec, E Darve and JA Izaguirre. &quot;A comparison of weighted ensemble and Markov state model methodologies.&quot; <a onclick="window.open(this.href); return false;" title="http://scitation.aip.org/content/aip/journal/jcp/142/21/10.1063/1.4921890" href="http://scitation.aip.org/content/aip/journal/jcp/142/21/10.1063/1.4921890" onkeypress="window.open(this.href); return false;" class="style_5">J. Chem. Phys., 142: 214113</a> (2015). <br>
+</li>
+<li> A Dickson, AM Mustoe, L Salmon and CL Brooks, III. &quot;Efficient in silico exploration of RNA interhelical conformations using Euler angles and WExplore.&quot; <a title="http://nar.oxfordjournals.org/content/42/19/12126" href="http://nar.oxfordjournals.org/content/42/19/12126" class="style_5">Nucl. Acids Res., 42: 12126-12137</a> (2014).<br>
+</li>
+<li> MJ Tse, BK Chu, M Roy and EL Read. &quot;DNA-binding kinetics determines the mechanism of noise-induced switching in gene networks.&quot; <a title="http://nar.oxfordjournals.org/content/42/19/12126" href="http://www.sciencedirect.com/science/article/pii/S000634951500870X" class="style_5">Biophy. J., 109: 1746-1757</a> (2015).<br>
+</li>
+<li> E Suarez, JL Adelman and DM Zuckerman. &quot;Accurate estimation of protein folding and unfolding times: Beyond Markov state models.&quot; <a title="http://pubs.acs.org/doi/full/10.1021/acs.jctc.6b00339" href="http://pubs.acs.org/doi/full/10.1021/acs.jctc.6b00339" class="style_5">J. Chem. Theory Comput., 12: 3473-3481</a> (2016).<br>
+</li>
+<li> LT Chong, AS Saglam and DM Zuckerman. &quot;Path-sampling strategies for simulating rare events in biomolecular systems..&quot; <a title="http://www.sciencedirect.com/science/article/pii/S0959440X16302068" href="http://www.sciencedirect.com/science/article/pii/S0959440X16302068" class="style_5">Curr. Opin. Struc. Biol., 43: 88-94</a> (2017).<br>
+</li>
+<li> A Dickson and SD Lotz. &quot;Multiple ligand unbinding pathways and ligand-induced destabilization revealed by WExplore..&quot; <a title="http://www.cell.com/biophysj/fulltext/S0006-3495(17)30045-0" href="http://www.cell.com/biophysj/fulltext/S0006-3495(17)30045-0" class="style_5">Biophys. J., 112: 620-629</a> (2017).<br>
+</li>
+<li> A Dickson and SD Lotz. &quot;Ligand release pathways obtained with WExplore: Residence times and mechanisms..&quot; <a title="http://pubs.acs.org/doi/10.1021/acs.jpcb.6b04012" href="http://pubs.acs.org/doi/10.1021/acs.jpcb.6b04012" class="style_5">J. Phys. Chem. B, 120: 5377-5385</a> (2017).<br>
+</li>
+<li> SD Lotz and A Dickson. &quot;Unbiased molecular dynamics of 11 min timescale drug unbinding reveals transition state stabilizing interactions..&quot; <a title="https://pubs.acs.org/doi/10.1021/jacs.7b08572" href="https://pubs.acs.org/doi/10.1021/jacs.7b08572" class="style_5">J. Am. Chem. Soc., 140: 618-628</a> (2018).<br>
+</li>
+<li> D Aristoff. &quot;Analysis and optimization of weighted ensemble sampling.&quot; <a title="http://rt4rf9qn2y.scholar.serialssolutions.com/?sid=google&auinit=D&aulast=Aristoff&atitle=Analysis+and+optimization+of+weighted+ensemble+sampling.&id=doi:10.1051/m2an/2017046" href="http://rt4rf9qn2y.scholar.serialssolutions.com/?sid=google&auinit=D&aulast=Aristoff&atitle=Analysis+and+optimization+of+weighted+ensemble+sampling.&id=doi:10.1051/m2an/2017046" class="style_5">ESAIM:M2AN., 52: 1219-1238</a> (2018).<br>
+</li>
+<li> N Donyapour, NM Rousey and A Dickson. &quot;REVO: Resampling of ensembles byvariation optimization.&quot; <a title="https://aip.scitation.org/doi/10.1063/1.5100521" href="https://aip.scitation.org/doi/10.1063/1.5100521" class="style_5">J. Chem. Phys., 150: 244112</a> (2019).<br>
+</li>
+<li> K Liu, B Chu, J Newby, EL Read, J Lowengrub and J Allard. &quot;Hydrodynamics of transient cell-cell contact: The role of membrane permeability and active protrusion length.&quot; <a title="https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1006352" href="https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1006352">PLOS Comput. Biol., 15: e1006352</a> (2019).<br>
+</li>
+<li> D Ray and I Andricioaei. &quot;Weighted ensemble milestoning (WEM): A combined approach for rare event simulations.&quot; <a title="https://aip-scitation-org.pitt.idm.oclc.org/doi/full/10.1063/5.0008028" href="https://aip-scitation-org.pitt.idm.oclc.org/doi/full/10.1063/5.0008028">J. Chem. Phys., 152, 234114</a> (2020).<br>
+</li>
+<li> S Lotz and A Dickson. &quot;Wepy: A flexible software framework for simulating rare events with weighted ensemble resampling.&quot; <a title="https://chemrxiv.org/articles/preprint/Wepy_A_Flexible_Software_Framework_for_Simulating_Rare_Events_with_Weighted_Ensemble_Resampling/12801125" href="https://chemrxiv.org/articles/preprint/Wepy_A_Flexible_Software_Framework_for_Simulating_Rare_Events_with_Weighted_Ensemble_Resampling/12801125"> ChemRXiv</a> (2020).<br>
+</li>
+<li> NM Roussey and A Dickson. &quot;Enhanced Jarzynski free energy calculations using weighted ensemble.&quot; <a onclick="window.open(this.href); return false;" title="https://doi.org/10.1063/5.0020600" href="https://doi.org/10.1063/5.0020600" onkeypress="window.open(this.href); return false;" class="style_5">J. Chem. Phys. 153, 134116</a> (2020).<br>
+</li>
+<li> K Moritsugu, N Yamamoto, Y Yonezawa, S Tate, and H Fujisaki. &quot;Path ensembles for pin1-catalyzed cis–trans isomerization of a substrate calculated by weighted ensemble simulations.&quot; <a onclick="window.open(this.href); return false;" title="https://doi.org/10.1021/acs.jctc.0c01280" href="https://doi.org/10.1021/acs.jctc.0c01280" onkeypress="window.open(this.href); return false;" class="style_5">J. Chem. Theory Comput. 17, 2522-2529</a> (2021).<br>
+</li>
+<li> R Taylor, J Allard, and EL Read. &quot;Simulation of receptor triggering by kinetic
+  segregation shows role of oligomers and close contacts.&quot; <a onclick="window.open(this.href); return false;" title="https://doi.org/10.1016/j.bpj.2022.03.033" href="https://doi.org/10.1016/j.bpj.2022.03.033" onkeypress="window.open(this.href); return false;" class="style_5">Biophys. J. 121, 1660-1675</a> (2022).<br>
+</li>
+</div>
+</section>
+</div>
+
+<!-- FOOTER  -->
+<div id="footer_wrap" class="outer">
+  <footer class="inner">
+    <p class="copyright">WESTPA maintained by <a href="https://github.com/westpa">westpa</a></p>
+    <p>Published with <a href="http://pages.github.com">GitHub Pages</a></p>
+  </footer>
+</div>
+</body>
+<script>
   (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
   (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
   m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
@@ -323,6 +186,4 @@ segregation shows role of oligomers and close contacts.&quot; <a onclick="window
   ga('send', 'pageview');
 
 </script>
-  
 </html>
-

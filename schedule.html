@@ -1,104 +1,81 @@
 <!DOCTYPE html>
 <html>
+<head>
+<meta charset='utf-8'>
+<meta http-equiv="X-UA-Compatible" content="chrome=1">
+<meta name="description" content="WESTPA : The Weighted Ensemble Simulation Toolkit with Parallelization and Analysis">
+<link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
+<title>WESTPA</title>
+</head>
 
-  <head>
-    <meta charset='utf-8'>
-    <meta http-equiv="X-UA-Compatible" content="chrome=1">
-    <meta name="description" content="WESTPA : The Weighted Ensemble Simulation Toolkit with Parallelization and Analysis">
+<body>
 
-    <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
-
-    <title>WESTPA</title>
-  </head>
-
-  <body>
-
-    <!-- HEADER -->
-    <div id="header_wrap" class="outer">
-        <header class="inner">
-
-          <!--<h1 id="project_title">WESTPA</h1>-->
-           
-            <section id="page_links">
-              <a href="index.html">
-                <img class="logo_link" src="images/WESTPA2.jpg" alt="WESTPA logo" style="width:125px;height:59.6px;" border=0>
-              </a>
-              <a class="gh_link" href="https://github.com/westpa/westpa">GitHub Repository</a>
-              <a class="doc_link" href="https://github.com/westpa/westpa/wiki">Wiki</a>
-              <a class="sphinx_link" href="https://westpa.readthedocs.io">Documentation</a>
-	      <a class="pub_link" href="publications.html">Publications</a>
-            </section>
-
-        </header>
-    </div>
-
-
-    <!-- MAIN CONTENT -->
-    <div id="main_content_wrap" class="outer">
-      <section id="main_content" class="inner">
-        <div id="main_text_div">
-          <h3><a id="westpaworkshop" class="anchor" href="#westpaworkshop" aria-hidden="true"><span class="octicon octicon-link"></span></a>WESTPA Workshop, August 2-3, 2018</h3>
-          
-          This year's WESTPA workshop will be held at the University of Pittsburgh in the Chemistry Computer Classroom (Room 266) of the <a href=http://www.tour.pitt.edu/tour/chevron-science-center>Chevron Science Center</a>. Registration is free, but participants are responsible for covering the costs of transportation and accommodation.<br><br>
-          Rooms at the <a href=http://www.wyndhampittsburghuniversitycenter.com/>Wyndham Hotel (one block from the workshop)</a> are available for arrival on Aug 1st and
-departure on Aug 3rd at a discount rate of $139/day. Reserve <a href=https://www.wyndhamhotels.com/groups/hr/westpa>here</a> by <u>July 11th</u>.<br>
-          <br>
-
-The first day, Aug 2, will consist of lectures as well as tutorials.  The optional second day, Aug 3, will be an opportunity for one-on-one consultations with WESTPA developers.<br><br>
-
-To enable us to hit the ground running during the workshop, please complete one of the <a href=https://github.com/westpa/westpa/wiki/WESTPA-Tutorials#Introductory_Tutorials>introductory WESTPA tutorials</a> before attending the workshop.  THIS IS ABSOLUTELY ESSENTIAL AND SHOULD BE CONSIDERED A REQUIREMENT.<br>
-  
-        <h3><a id="schedule" class="anchor" href="#schedule" aria-hidden="true"><span class="octicon octicon-link"></span></a>Workshop Schedule</h3>
-
-        <p><u>Thursday, August 2, 2018</u><br>
-           09:30-09:50 Welcome and overview of workshop - Lillian Chong (U Pittsburgh)<br>
-           09:50-10:10 How far can we push WE today?  - Daniel Zuckerman (OHSU)<br>
-           10:10-10:40 Features of upcoming WESTPA release - AJ Pratt/Ali Saglam (U Pittsburgh)<br>
-           Coffee Break <br>
-           11:10-11:40 A little distance metric goes a long way:  Sampling multidimensional spaces with WExplore - Alex Dickson (MSU)<br>
-           11:40-12:10 Rare Events in Cell Fate Decisions - Elizabeth Read (UC Irvine)<br>
-           12:10-12:30 Q&A<br>
-           Lunch Break<br>
-           Parallel sessions <br>
-           14:00-15:00 WESTPA tutorial for molecular simulations <br>
-		- Barmak Mostofian (OHSU), Chemistry Computing Classroom <br>
-           14:00-15:00 WESTPA tutorial for systems biology <br>
-		- Ali Saglam (U Pittsburgh), Room 325 in Eberly Hall <br>
-		       Coffee Break <br>
-           15:30-16:30	WESTPA analysis tutorial - AJ Pratt (U Pittsburgh) <br>
-		       Coffee Break <br>
-           16:30-17:30 WExplore/WESTPA tutorial - Alex Dickson (MSU) <br>
-           19:00		Group dinner at Chengdu Gourmet, 5840 Forward Avenue, Pittsburgh, PA 15217 <br>
-	   <br>
-           <u>Friday, August 3, 2018</u><br>
-           09:30-12:30 Individual consultation sessions*<br>
-           <br>
-           * Optional sessions for participants who would like individual support in getting large-scale simulations off the ground using their desired computing resource.
-	     <br>
-	     <br>
-		To attend these optional sessions, there are additional requirements:  <br>
-	         1. Complete a standard "brute force" simulation of the system of interest using your preferred dynamics engine (AMBER, GROMACS, NAMD, etc.) to check for any issues in simulation settings. <br>
-                 2. Ideally, participants should complete an initial WESTPA simulation on their own system AND ON THE SAME CLUSTER WHERE PRODUCTION SIMULATION WILL BE PERFORMED to work out cluster settings with your system administrator. <br>
-		Please read <a href=https://github.com/westpa/westpa/wiki/Running-WESTPA-in-a-multi-node-environment>these tips</a> for running in multi-node environments before the workshop. It is important to note that consultants cannot provide support for the various cluster environments being used (that is best left to your system administrator), or for the dynamics engine (best left for the support communities of AMBER, GROMACS, NAMD, etc.). 
-          </p>
-
-        </div>
-      </section>
-    </div>
-
-    <!-- FOOTER  -->
-    <div id="footer_wrap" class="outer">
-      <footer class="inner">
-
-        <p class="copyright">WESTPA maintained by <a href="https://github.com/westpa">westpa</a></p>
-        <p>Published with <a href="http://pages.github.com">GitHub Pages</a></p>
-k     </footer>
-    </div>
-
+<!-- HEADER -->
+<div id="header_wrap" class="outer">
+  <header class="inner"> 
     
+    <!--<h1 id="project_title">WESTPA</h1>-->
+    
+    <section id="page_links"> <a href="index.html"> <img class="logo_link" src="images/WESTPA2.jpg" alt="WESTPA logo" style="width:125px;height:59.6px;" border=0> </a> <a class="gh_link" href="https://github.com/westpa/westpa">GitHub Repository</a> <a class="doc_link" href="https://github.com/westpa/westpa/wiki">Wiki</a> <a class="sphinx_link" href="https://westpa.readthedocs.io">Documentation</a> <a class="pub_link" href="publications.html">Publications</a> </section>
+  </header>
+</div>
 
-  </body>
-  <script>
+<!-- MAIN CONTENT -->
+<div id="main_content_wrap" class="outer">
+  <section id="main_content" class="inner">
+    <div id="main_text_div">
+      <h3><a id="westpaworkshop" class="anchor" href="#westpaworkshop" aria-hidden="true"><span class="octicon octicon-link"></span></a>WESTPA Workshop, August 2-3, 2018</h3>
+      This year's WESTPA workshop will be held at the University of Pittsburgh in the Chemistry Computer Classroom (Room 266) of the <a href=http://www.tour.pitt.edu/tour/chevron-science-center>Chevron Science Center</a>. Registration is free, but participants are responsible for covering the costs of transportation and accommodation.<br>
+      <br>
+      Rooms at the <a href=http://www.wyndhampittsburghuniversitycenter.com/>Wyndham Hotel (one block from the workshop)</a> are available for arrival on Aug 1st and
+      departure on Aug 3rd at a discount rate of $139/day. Reserve <a href=https://www.wyndhamhotels.com/groups/hr/westpa>here</a> by <u>July 11th</u>.<br>
+      <br>
+      The first day, Aug 2, will consist of lectures as well as tutorials.  The optional second day, Aug 3, will be an opportunity for one-on-one consultations with WESTPA developers.<br>
+      <br>
+      To enable us to hit the ground running during the workshop, please complete one of the <a href=https://github.com/westpa/westpa/wiki/WESTPA-Tutorials#Introductory_Tutorials>introductory WESTPA tutorials</a> before attending the workshop.  THIS IS ABSOLUTELY ESSENTIAL AND SHOULD BE CONSIDERED A REQUIREMENT.<br>
+      <h3><a id="schedule" class="anchor" href="#schedule" aria-hidden="true"><span class="octicon octicon-link"></span></a>Workshop Schedule</h3>
+      <p><u>Thursday, August 2, 2018</u><br>
+        09:30-09:50 Welcome and overview of workshop - Lillian Chong (U Pittsburgh)<br>
+        09:50-10:10 How far can we push WE today?  - Daniel Zuckerman (OHSU)<br>
+        10:10-10:40 Features of upcoming WESTPA release - AJ Pratt/Ali Saglam (U Pittsburgh)<br>
+        Coffee Break <br>
+        11:10-11:40 A little distance metric goes a long way:  Sampling multidimensional spaces with WExplore - Alex Dickson (MSU)<br>
+        11:40-12:10 Rare Events in Cell Fate Decisions - Elizabeth Read (UC Irvine)<br>
+        12:10-12:30 Q&A<br>
+        Lunch Break<br>
+        Parallel sessions <br>
+        14:00-15:00 WESTPA tutorial for molecular simulations <br>
+        - Barmak Mostofian (OHSU), Chemistry Computing Classroom <br>
+        14:00-15:00 WESTPA tutorial for systems biology <br>
+        - Ali Saglam (U Pittsburgh), Room 325 in Eberly Hall <br>
+        Coffee Break <br>
+        15:30-16:30	WESTPA analysis tutorial - AJ Pratt (U Pittsburgh) <br>
+        Coffee Break <br>
+        16:30-17:30 WExplore/WESTPA tutorial - Alex Dickson (MSU) <br>
+        19:00		Group dinner at Chengdu Gourmet, 5840 Forward Avenue, Pittsburgh, PA 15217 <br>
+        <br>
+        <u>Friday, August 3, 2018</u><br>
+        09:30-12:30 Individual consultation sessions*<br>
+        <br>
+        * Optional sessions for participants who would like individual support in getting large-scale simulations off the ground using their desired computing resource. <br>
+        <br>
+        To attend these optional sessions, there are additional requirements: <br>
+        1. Complete a standard "brute force" simulation of the system of interest using your preferred dynamics engine (AMBER, GROMACS, NAMD, etc.) to check for any issues in simulation settings. <br>
+        2. Ideally, participants should complete an initial WESTPA simulation on their own system AND ON THE SAME CLUSTER WHERE PRODUCTION SIMULATION WILL BE PERFORMED to work out cluster settings with your system administrator. <br>
+        Please read <a href=https://github.com/westpa/westpa/wiki/Running-WESTPA-in-a-multi-node-environment>these tips</a> for running in multi-node environments before the workshop. It is important to note that consultants cannot provide support for the various cluster environments being used (that is best left to your system administrator), or for the dynamics engine (best left for the support communities of AMBER, GROMACS, NAMD, etc.). </p>
+    </div>
+  </section>
+</div>
+
+<!-- FOOTER  -->
+<div id="footer_wrap" class="outer">
+  <footer class="inner">
+    <p class="copyright">WESTPA maintained by <a href="https://github.com/westpa">westpa</a></p>
+    <p>Published with <a href="http://pages.github.com">GitHub Pages</a></p>
+    k </footer>
+</div>
+</body>
+<script>
   (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
   (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
   m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
@@ -108,5 +85,4 @@ k     </footer>
   ga('send', 'pageview');
 
 </script>
-  
 </html>

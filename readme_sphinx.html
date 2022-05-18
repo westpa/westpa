@@ -1,18 +1,14 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 
-
 <html xmlns="http://www.w3.org/1999/xhtml">
-  <head>
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    
-    <title>WESTPA 1.0 beta &#8212; WESTPA 1.0b1 documentation</title>
-    
-    <link rel="stylesheet" href="static/alabaster.css" type="text/css" />
-    <link rel="stylesheet" href="static/pygments.css" type="text/css" />
-    <link rel="stylesheet" href="static/custom.css" type="text/css" />
-    
-    <script type="text/javascript">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title>WESTPA 1.0 beta &#8212; WESTPA 1.0b1 documentation</title>
+<link rel="stylesheet" href="static/alabaster.css" type="text/css" />
+<link rel="stylesheet" href="static/pygments.css" type="text/css" />
+<link rel="stylesheet" href="static/custom.css" type="text/css" />
+<script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    './',
         VERSION:     '1.0b1',
@@ -20,206 +16,201 @@
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
       };
-    </script>
-    <script type="text/javascript" src="static/jquery.js"></script>
-    <script type="text/javascript" src="static/underscore.js"></script>
-    <script type="text/javascript" src="static/doctools.js"></script>
-    <link rel="index" title="Index" href="genindex.html" />
-    <link rel="search" title="Search" href="search.html" />
-    <link rel="top" title="WESTPA 1.0b1 documentation" href="sphinx_index.html" />
-   
-  <link rel="stylesheet" href="static/custom.css" type="text/css" />
-  
-  
-  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
-
-  </head>
-  <body role="document">
-  
-
-    <div class="document">
-      <div class="documentwrapper">
-        <div class="bodywrapper">
-          <div class="body" role="main">
-            
-  <div class="section" id="westpa-1-0-beta">
-<h1>WESTPA 1.0 beta<a class="headerlink" href="#westpa-1-0-beta" title="Permalink to this headline">¶</a></h1>
-<div class="section" id="overview">
-<h2>Overview<a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h2>
-<p>WESTPA is a package for constructing and running stochastic simulations using the &#8220;weighted ensemble&#8221; approach
-of Huber and Kim (1996) (see <a class="reference external" href="https://westpa.github.io/westpa/overview.html">overview</a>).</p>
-<p>For use of WESTPA please cite the following:</p>
-<p>Zwier, M.C., Adelman, J.L., Kaus, J.W., Pratt, A.J., Wong, K.F., Rego, N.B., Suarez, E., Lettieri, S.,
-Wang, D. W., Grabe, M., Zuckerman, D. M., and Chong, L. T. &#8220;WESTPA: An Interoperable, Highly
-Scalable Software Package For Weighted Ensemble Simulation and Analysis,&#8221; J. Chem. Theory Comput., 11: 800−809 (2015).</p>
-<p>To help us fund development and improve WESTPA please fill out a one-minute <a class="reference external" href="https://docs.google.com/forms/d/e/1FAIpQLSfWaB2aryInU06cXrCyAFmhD_gPibgOfFk-dspLEsXuS9-RGQ/viewform">survey</a> and consider
-contributing documentation or code to the WESTPA community.</p>
-<p>WESTPA is free software, licensed under the terms of the GNU General Public
-License, Version 3. See the file <code class="docutils literal"><span class="pre">COPYING</span></code> for more information.</p>
-</div>
-<div class="section" id="obtaining-and-installing-westpa">
-<h2>Obtaining and Installing WESTPA<a class="headerlink" href="#obtaining-and-installing-westpa" title="Permalink to this headline">¶</a></h2>
-<p>WESTPA is developed and tested on Unix-like operating systems, including Linux and Mac OS X.</p>
-<p>Before installing WESTPA, you will need to first install the Python 2.7 version provided by the latest free <a class="reference external" href="https://www.continuum.io/downloads">Anaconda Python distribution</a>. After installing the Anaconda Python distribution, either add the Python executable to your $PATH or set the environment variable WEST_PYTHON:</p>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">export</span> <span class="n">WEST_PYTHON</span><span class="o">=/</span><span class="n">opt</span><span class="o">/</span><span class="n">anaconda</span><span class="o">/</span><span class="nb">bin</span><span class="o">/</span><span class="n">python2</span><span class="o">.</span><span class="mi">7</span>
-</pre></div>
-</div>
-<p>We recommend obtaining the latest release of WESTPA by downloading the corresponding tar.gz file from the <a class="reference external" href="https://github.com/westpa/westpa/releases">releases page</a>. After downloading the file, unpack the file and install WESTPA by executing the following:</p>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">tar</span> <span class="n">xvzf</span> <span class="n">westpa</span><span class="o">-</span><span class="n">master</span><span class="o">.</span><span class="n">tar</span><span class="o">.</span><span class="n">gz</span>
+    </script> 
+<script type="text/javascript" src="static/jquery.js"></script> 
+<script type="text/javascript" src="static/underscore.js"></script> 
+<script type="text/javascript" src="static/doctools.js"></script>
+<link rel="index" title="Index" href="genindex.html" />
+<link rel="search" title="Search" href="search.html" />
+<link rel="top" title="WESTPA 1.0b1 documentation" href="sphinx_index.html" />
+<link rel="stylesheet" href="static/custom.css" type="text/css" />
+<meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+</head>
+<body role="document">
+<div class="document">
+  <div class="documentwrapper">
+    <div class="bodywrapper">
+      <div class="body" role="main">
+        <div class="section" id="westpa-1-0-beta">
+          <h1>WESTPA 1.0 beta<a class="headerlink" href="#westpa-1-0-beta" title="Permalink to this headline">¶</a></h1>
+          <div class="section" id="overview">
+            <h2>Overview<a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h2>
+            <p>WESTPA is a package for constructing and running stochastic simulations using the &#8220;weighted ensemble&#8221; approach
+              of Huber and Kim (1996) (see <a class="reference external" href="https://westpa.github.io/westpa/overview.html">overview</a>).</p>
+            <p>For use of WESTPA please cite the following:</p>
+            <p>Zwier, M.C., Adelman, J.L., Kaus, J.W., Pratt, A.J., Wong, K.F., Rego, N.B., Suarez, E., Lettieri, S.,
+              Wang, D. W., Grabe, M., Zuckerman, D. M., and Chong, L. T. &#8220;WESTPA: An Interoperable, Highly
+              Scalable Software Package For Weighted Ensemble Simulation and Analysis,&#8221; J. Chem. Theory Comput., 11: 800−809 (2015).</p>
+            <p>To help us fund development and improve WESTPA please fill out a one-minute <a class="reference external" href="https://docs.google.com/forms/d/e/1FAIpQLSfWaB2aryInU06cXrCyAFmhD_gPibgOfFk-dspLEsXuS9-RGQ/viewform">survey</a> and consider
+              contributing documentation or code to the WESTPA community.</p>
+            <p>WESTPA is free software, licensed under the terms of the GNU General Public
+              License, Version 3. See the file <code class="docutils literal"><span class="pre">COPYING</span></code> for more information.</p>
+          </div>
+          <div class="section" id="obtaining-and-installing-westpa">
+            <h2>Obtaining and Installing WESTPA<a class="headerlink" href="#obtaining-and-installing-westpa" title="Permalink to this headline">¶</a></h2>
+            <p>WESTPA is developed and tested on Unix-like operating systems, including Linux and Mac OS X.</p>
+            <p>Before installing WESTPA, you will need to first install the Python 2.7 version provided by the latest free <a class="reference external" href="https://www.continuum.io/downloads">Anaconda Python distribution</a>. After installing the Anaconda Python distribution, either add the Python executable to your $PATH or set the environment variable WEST_PYTHON:</p>
+            <div class="highlight-default">
+              <div class="highlight">
+                <pre><span></span><span class="n">export</span> <span class="n">WEST_PYTHON</span><span class="o">=/</span><span class="n">opt</span><span class="o">/</span><span class="n">anaconda</span><span class="o">/</span><span class="nb">bin</span><span class="o">/</span><span class="n">python2</span><span class="o">.</span><span class="mi">7</span>
+</pre>
+              </div>
+            </div>
+            <p>We recommend obtaining the latest release of WESTPA by downloading the corresponding tar.gz file from the <a class="reference external" href="https://github.com/westpa/westpa/releases">releases page</a>. After downloading the file, unpack the file and install WESTPA by executing the following:</p>
+            <div class="highlight-default">
+              <div class="highlight">
+                <pre><span></span><span class="n">tar</span> <span class="n">xvzf</span> <span class="n">westpa</span><span class="o">-</span><span class="n">master</span><span class="o">.</span><span class="n">tar</span><span class="o">.</span><span class="n">gz</span>
 <span class="n">cd</span> <span class="n">westpa</span>
 <span class="o">./</span><span class="n">setup</span><span class="o">.</span><span class="n">sh</span>
-</pre></div>
-</div>
-<p>A westpa.sh script is created during installation, and will set the following environment variables:</p>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">WEST_ROOT</span>
+</pre>
+              </div>
+            </div>
+            <p>A westpa.sh script is created during installation, and will set the following environment variables:</p>
+            <div class="highlight-default">
+              <div class="highlight">
+                <pre><span></span><span class="n">WEST_ROOT</span>
 <span class="n">WEST_BIN</span>
 <span class="n">WEST_PYTHON</span>
-</pre></div>
-</div>
-<p>These environment variables must be set in order to run WESTPA on your computing cluster.</p>
-<p>To define environment variables post-installation, simply source the
-<code class="docutils literal"><span class="pre">westpa.sh</span></code> script in the <code class="docutils literal"><span class="pre">westpa</span></code> directory from the command line
-or your setup scripts.</p>
-</div>
-<div class="section" id="getting-started">
-<h2>Getting started<a class="headerlink" href="#getting-started" title="Permalink to this headline">¶</a></h2>
-<p>A Quickstart guide and tutorials are provided <a class="reference external" href="https://github.com/westpa/westpa/wiki">here</a>.</p>
-</div>
-<div class="section" id="getting-help">
-<h2>Getting help<a class="headerlink" href="#getting-help" title="Permalink to this headline">¶</a></h2>
-<div class="section" id="faq">
-<h3>FAQ<a class="headerlink" href="#faq" title="Permalink to this headline">¶</a></h3>
-<p>Responses to frequently asked questions (FAQ) can be found in the following page:</p>
-<ul class="simple">
-<li><a class="reference external" href="https://github.com/westpa/westpa/wiki/Frequently-Asked-Questions-%28FAQ%29">Frequently Asked Questions (FAQ)</a></li>
-</ul>
-<p>A mailing list for WESTPA is available, at which one can ask questions (or see
-if a question one has was previously addressed). This is the preferred means
-for obtaining help and support. See <a class="reference external" href="http://groups.google.com/group/westpa-users">http://groups.google.com/group/westpa-users</a>
-to sign up or search archived messages.</p>
-<p>Further, all WESTPA command-line tools (located in <code class="docutils literal"><span class="pre">westpa/bin</span></code>) provide detailed help when
-given the -h/&#8211;help option.</p>
-<p>Finally, while WESTPA is a powerful tool that enables expert simulators to access much longer
-timescales than is practical with standard simulations, there can be a steep learning curve to
-figuring out how to effectively run the simulations on your computing resource of choice.
-For serious users who have completed the online tutorials and are ready for production simulations
-of their system, we invite you to contact Lillian Chong (ltchong AT pitt DOT edu) about spending
-a few days with her lab and/or setting up video conferencing sessions to help you get your
-simulations off the ground.</p>
-</div>
-</div>
-<div class="section" id="copyright-license-and-warranty-information">
-<h2>Copyright, license, and warranty information<a class="headerlink" href="#copyright-license-and-warranty-information" title="Permalink to this headline">¶</a></h2>
-<div class="section" id="for-westpa">
-<h3>For WESTPA<a class="headerlink" href="#for-westpa" title="Permalink to this headline">¶</a></h3>
-<p>The WESTPA package is copyright (c) 2013, Matthew C. Zwier and
-Lillian T. Chong. (Individual contributions noted in each source file.)</p>
-<p>WESTPA is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.</p>
-<p>WESTPA is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.</p>
-<p>You should have received a copy of the GNU General Public License
-along with this program (see the included file <code class="docutils literal"><span class="pre">COPYING</span></code>).  If not,
-see &lt;<a class="reference external" href="http://www.gnu.org/licenses/">http://www.gnu.org/licenses/</a>&gt;.</p>
-<p>Unless otherwise noted, source files included in this distribution and
-lacking a more specific attribution are subject to the above copyright,
-terms, and conditions.</p>
-</div>
-<div class="section" id="for-included-software">
-<h3>For included software<a class="headerlink" href="#for-included-software" title="Permalink to this headline">¶</a></h3>
-<p>Distributions of WESTPA include a number of components without modification,
-each of which is subject to its own individual terms and conditions. Please
-see each package&#8217;s documentation for the most up-to-date possible information
-on authorship and licensing. Such packages include:</p>
-<blockquote>
-<div><dl class="docutils">
-<dt>h5py</dt>
-<dd>See lib/h5py/docs/source/licenses.rst</dd>
-<dt>blessings</dt>
-<dd>See lib/blessings/LICENSE</dd>
-</dl>
-</div></blockquote>
-<p>In addition, the <code class="docutils literal"><span class="pre">wwmgr</span></code> work manager is derived from the
-<code class="docutils literal"><span class="pre">concurrent.futures</span></code> module (as included in Python 3.2) by Brian Quinlan and
-copyright 2011 the Python Software Foundation. See
-<a class="reference external" href="http://docs.python.org/3/license.html">http://docs.python.org/3/license.html</a> for more information.</p>
-</div>
-</div>
-</div>
-
-
+</pre>
+              </div>
+            </div>
+            <p>These environment variables must be set in order to run WESTPA on your computing cluster.</p>
+            <p>To define environment variables post-installation, simply source the <code class="docutils literal"><span class="pre">westpa.sh</span></code> script in the <code class="docutils literal"><span class="pre">westpa</span></code> directory from the command line
+              or your setup scripts.</p>
+          </div>
+          <div class="section" id="getting-started">
+            <h2>Getting started<a class="headerlink" href="#getting-started" title="Permalink to this headline">¶</a></h2>
+            <p>A Quickstart guide and tutorials are provided <a class="reference external" href="https://github.com/westpa/westpa/wiki">here</a>.</p>
+          </div>
+          <div class="section" id="getting-help">
+            <h2>Getting help<a class="headerlink" href="#getting-help" title="Permalink to this headline">¶</a></h2>
+            <div class="section" id="faq">
+              <h3>FAQ<a class="headerlink" href="#faq" title="Permalink to this headline">¶</a></h3>
+              <p>Responses to frequently asked questions (FAQ) can be found in the following page:</p>
+              <ul class="simple">
+                <li><a class="reference external" href="https://github.com/westpa/westpa/wiki/Frequently-Asked-Questions-%28FAQ%29">Frequently Asked Questions (FAQ)</a></li>
+              </ul>
+              <p>A mailing list for WESTPA is available, at which one can ask questions (or see
+                if a question one has was previously addressed). This is the preferred means
+                for obtaining help and support. See <a class="reference external" href="http://groups.google.com/group/westpa-users">http://groups.google.com/group/westpa-users</a> to sign up or search archived messages.</p>
+              <p>Further, all WESTPA command-line tools (located in <code class="docutils literal"><span class="pre">westpa/bin</span></code>) provide detailed help when
+                given the -h/&#8211;help option.</p>
+              <p>Finally, while WESTPA is a powerful tool that enables expert simulators to access much longer
+                timescales than is practical with standard simulations, there can be a steep learning curve to
+                figuring out how to effectively run the simulations on your computing resource of choice.
+                For serious users who have completed the online tutorials and are ready for production simulations
+                of their system, we invite you to contact Lillian Chong (ltchong AT pitt DOT edu) about spending
+                a few days with her lab and/or setting up video conferencing sessions to help you get your
+                simulations off the ground.</p>
+            </div>
+          </div>
+          <div class="section" id="copyright-license-and-warranty-information">
+            <h2>Copyright, license, and warranty information<a class="headerlink" href="#copyright-license-and-warranty-information" title="Permalink to this headline">¶</a></h2>
+            <div class="section" id="for-westpa">
+              <h3>For WESTPA<a class="headerlink" href="#for-westpa" title="Permalink to this headline">¶</a></h3>
+              <p>The WESTPA package is copyright (c) 2013, Matthew C. Zwier and
+                Lillian T. Chong. (Individual contributions noted in each source file.)</p>
+              <p>WESTPA is free software: you can redistribute it and/or modify
+                it under the terms of the GNU General Public License as published by
+                the Free Software Foundation, either version 3 of the License, or
+                (at your option) any later version.</p>
+              <p>WESTPA is distributed in the hope that it will be useful,
+                but WITHOUT ANY WARRANTY; without even the implied warranty of
+                MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+                GNU General Public License for more details.</p>
+              <p>You should have received a copy of the GNU General Public License
+                along with this program (see the included file <code class="docutils literal"><span class="pre">COPYING</span></code>).  If not,
+                see &lt;<a class="reference external" href="http://www.gnu.org/licenses/">http://www.gnu.org/licenses/</a>&gt;.</p>
+              <p>Unless otherwise noted, source files included in this distribution and
+                lacking a more specific attribution are subject to the above copyright,
+                terms, and conditions.</p>
+            </div>
+            <div class="section" id="for-included-software">
+              <h3>For included software<a class="headerlink" href="#for-included-software" title="Permalink to this headline">¶</a></h3>
+              <p>Distributions of WESTPA include a number of components without modification,
+                each of which is subject to its own individual terms and conditions. Please
+                see each package&#8217;s documentation for the most up-to-date possible information
+                on authorship and licensing. Such packages include:</p>
+              <blockquote>
+                <div>
+                  <dl class="docutils">
+                    <dt>h5py</dt>
+                    <dd>See lib/h5py/docs/source/licenses.rst</dd>
+                    <dt>blessings</dt>
+                    <dd>See lib/blessings/LICENSE</dd>
+                  </dl>
+                </div>
+              </blockquote>
+              <p>In addition, the <code class="docutils literal"><span class="pre">wwmgr</span></code> work manager is derived from the <code class="docutils literal"><span class="pre">concurrent.futures</span></code> module (as included in Python 3.2) by Brian Quinlan and
+                copyright 2011 the Python Software Foundation. See <a class="reference external" href="http://docs.python.org/3/license.html">http://docs.python.org/3/license.html</a> for more information.</p>
+            </div>
           </div>
         </div>
       </div>
-      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
-        <div class="sphinxsidebarwrapper">
-            <p class="logo"><a href="sphinx_index.html">
-              <img class="logo" src="static/WESTPA2b.svg" alt="Logo"/>
-            </a></p>
-  <h3><a href="sphinx_index.html">Table Of Contents</a></h3>
-  <ul>
-<li><a class="reference internal" href="#">WESTPA 1.0 beta</a><ul>
-<li><a class="reference internal" href="#overview">Overview</a></li>
-<li><a class="reference internal" href="#obtaining-and-installing-westpa">Obtaining and Installing WESTPA</a></li>
-<li><a class="reference internal" href="#getting-started">Getting started</a></li>
-<li><a class="reference internal" href="#getting-help">Getting help</a><ul>
-<li><a class="reference internal" href="#faq">FAQ</a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#copyright-license-and-warranty-information">Copyright, license, and warranty information</a><ul>
-<li><a class="reference internal" href="#for-westpa">For WESTPA</a></li>
-<li><a class="reference internal" href="#for-included-software">For included software</a></li>
-</ul>
-</li>
-</ul>
-</li>
-</ul>
-<div class="relations">
-<h3>Related Topics</h3>
-<ul>
-  <li><a href="sphinx_index.html">Documentation overview</a><ul>
-  </ul></li>
-</ul>
-</div>
-  <div role="note" aria-label="source link">
-    <h3>This Page</h3>
-    <ul class="this-page-menu">
-      <li><a href="sources/readme_sphinx.txt"
-            rel="nofollow">Show Source</a></li>
-    </ul>
-   </div>
-<div id="searchbox" style="display: none" role="search">
-  <h3>Quick search</h3>
-    <form class="search" action="search.html" method="get">
-      <div><input type="text" name="q" /></div>
-      <div><input type="submit" value="Go" /></div>
-      <input type="hidden" name="check_keywords" value="yes" />
-      <input type="hidden" name="area" value="default" />
-    </form>
-</div>
-<script type="text/javascript">$('#searchbox').show(0);</script>
-        </div>
+    </div>
+  </div>
+  <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+    <div class="sphinxsidebarwrapper">
+      <p class="logo"><a href="sphinx_index.html"> <img class="logo" src="static/WESTPA2b.svg" alt="Logo"/> </a></p>
+      <h3><a href="sphinx_index.html">Table Of Contents</a></h3>
+      <ul>
+        <li><a class="reference internal" href="#">WESTPA 1.0 beta</a>
+          <ul>
+            <li><a class="reference internal" href="#overview">Overview</a></li>
+            <li><a class="reference internal" href="#obtaining-and-installing-westpa">Obtaining and Installing WESTPA</a></li>
+            <li><a class="reference internal" href="#getting-started">Getting started</a></li>
+            <li><a class="reference internal" href="#getting-help">Getting help</a>
+              <ul>
+                <li><a class="reference internal" href="#faq">FAQ</a></li>
+              </ul>
+            </li>
+            <li><a class="reference internal" href="#copyright-license-and-warranty-information">Copyright, license, and warranty information</a>
+              <ul>
+                <li><a class="reference internal" href="#for-westpa">For WESTPA</a></li>
+                <li><a class="reference internal" href="#for-included-software">For included software</a></li>
+              </ul>
+            </li>
+          </ul>
+        </li>
+      </ul>
+      <div class="relations">
+        <h3>Related Topics</h3>
+        <ul>
+          <li><a href="sphinx_index.html">Documentation overview</a>
+            <ul>
+            </ul>
+          </li>
+        </ul>
       </div>
-      <div class="clearer"></div>
+      <div role="note" aria-label="source link">
+        <h3>This Page</h3>
+        <ul class="this-page-menu">
+          <li><a href="sources/readme_sphinx.txt"
+            rel="nofollow">Show Source</a></li>
+        </ul>
+      </div>
+      <div id="searchbox" style="display: none" role="search">
+        <h3>Quick search</h3>
+        <form class="search" action="search.html" method="get">
+          <div>
+            <input type="text" name="q" />
+          </div>
+          <div>
+            <input type="submit" value="Go" />
+          </div>
+          <input type="hidden" name="check_keywords" value="yes" />
+          <input type="hidden" name="area" value="default" />
+        </form>
+      </div>
+      <script type="text/javascript">$('#searchbox').show(0);</script> 
     </div>
-    <div class="footer">
-      &copy;2015, Matthew C. Zwier and Lillian T. Chong.
-      
-      |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.4.9</a>
-      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
-      
-      |
-      <a href="sources/readme_sphinx.txt"
-          rel="nofollow">Page source</a>
-    </div>
-
-    
-
-    
-  </body>
+  </div>
+  <div class="clearer"></div>
+</div>
+<div class="footer"> &copy;2015, Matthew C. Zwier and Lillian T. Chong.
+  
+  |
+  Powered by <a href="http://sphinx-doc.org/">Sphinx 1.4.9</a> &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a> | <a href="sources/readme_sphinx.txt"
+          rel="nofollow">Page source</a> </div>
+</body>
 </html>

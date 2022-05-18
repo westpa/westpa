@@ -1,7 +1,8 @@
 <!DOCTYPE html>
-<html><head>
-    <meta charset="utf-8">
-	<script>
+<html>
+<head>
+<meta charset="utf-8">
+<script>
 		var viewport = document.createElement("meta");
 		viewport.setAttribute("name", "viewport");
 		if (screen.width < 648) {
@@ -11,40 +12,29 @@
 		}
 		document.head.appendChild(viewport);
     </script>
-    <meta http-equiv="X-UA-Compatible" content="chrome=1">
-    <meta name="description" content="WESTPA : The Weighted Ensemble Simulation Toolkit with Parallelization and Analysis">
+<meta http-equiv="X-UA-Compatible" content="chrome=1">
+<meta name="description" content="WESTPA : The Weighted Ensemble Simulation Toolkit with Parallelization and Analysis">
+<link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
+<script async defer src="https://buttons.github.io/buttons.js"></script>
+<title>WESTPA</title>
+</head>
 
-    <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
-    <script async defer src="https://buttons.github.io/buttons.js"></script>
-    <title>WESTPA</title>
-  </head>
-  
-  <body>
+<body>
 
-    <!-- HEADER -->
-    <div id="header_wrap" class="outer">
-        <header class="inner">
+<!-- HEADER -->
+<div id="header_wrap" class="outer">
+  <header class="inner"> 
+    
+    <!--<h1 id="project_title">WESTPA</h1>-->
+    
+    <section id="page_links"> <a href="index.html"> <img class="logo_link" src="images/WESTPA2.jpg" alt="WESTPA logo" style="width:125px;height:59.6px;" border="0"> </a> <a class="gh_link" href="https://github.com/westpa/westpa">GitHub Repository</a> <a class="doc_link" href="https://github.com/westpa/westpa/wiki">Wiki</a> <a class="sphinx_link" href="https://westpa.readthedocs.io">Documentation</a> <a class="pub_link" href="publications.html">Publications</a> </section>
+  </header>
+</div>
 
-          <!--<h1 id="project_title">WESTPA</h1>-->
-           
-            <section id="page_links">
-              <a href="index.html">
-                <img class="logo_link" src="images/WESTPA2.jpg" alt="WESTPA logo" style="width:125px;height:59.6px;" border=0>
-              </a>
-              <a class="gh_link" href="https://github.com/westpa/westpa">GitHub Repository</a>
-              <a class="doc_link" href="https://github.com/westpa/westpa/wiki">Wiki</a>
-              <a class="sphinx_link" href="https://westpa.readthedocs.io">Documentation</a>
-	      <a class="pub_link" href="publications.html">Publications</a>
-            </section>
-
-        </header>
-    </div>
-
-
-    <!-- MAIN CONTENT -->
-    <div id="main_content_wrap" class="outer">
-               <aside> 
-                  <style>
+<!-- MAIN CONTENT -->
+<div id="main_content_wrap" class="outer">
+  <aside>
+    <style>
                     aside {
                       float: right
                     }
@@ -54,85 +44,54 @@
                       }
                     }
                  </style>
-                 <header>
-                   <h1 style="text-align:center;">News</h1>
-                 </header>
-                 <a class="twitter-timeline" href="https://twitter.com/WestpaSoftware" data-chrome="noheader" data-height="600">Tweets by WESTPA</a> <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
-      <div id="main_content_wrap" class="outer">
-      </aside>
-      <section id="main_content" class="inner">
-        <div id="main_text_div">
-        <h4>
-<a id="what-is-westpa" class="anchor" href="#what-is-westpa" aria-hidden="true"><span class="octicon octicon-link"></span></a>What is WESTPA?</h3>
-
-<p>WESTPA (The Weighted Ensemble Simulation Toolkit with Parallelization and Analysis) is a high-performance Python framework for applying the weighted ensemble (WE) path sampling strategy, which enables simulations of processes that are orders of magnitude longer than the simulations themselves. See <a href="overview.html">Overview</a> of WE simulations. The WESTPA software package includes (1) the original <a href="https://www.cell.com/biophysj/pdf/S0006-3495(96)79552-8.pdf">Huber & Kim algorithm</a>, (2) options for <a href="http://pubs.acs.org/doi/abs/10.1021/ct401065r">reweighting</a> to a steady state to estimate rates and/or state populations from shorter trajectories, and (3) plugins/extensions for advanced customisation. </p>
-		
-<p><strong>Key features of WESTPA:</strong>   </p>
-
-<ul>
-<li>
-<strong>Highly scalable.</strong> Scales out to thousands of CPU cores or GPUs.<br>
-</li>
-<li>
-<strong>Interoperable.</strong> Designed to conveniently interface with any stochastic dynamics engine (e.g., molecular dynamics, Monte Carlo).<br>
-</li>
-<li>
-<strong>Extensible.</strong> Our modular design makes it straightforward to develop plug-ins.<br>
-</li>
-<li>
-<strong>Portable.</strong> The software can be used with any Unix operating system (e.g. Linux, OS X), including typical clusters and supercomputers.<br>
-</li>
-<li>
-<strong>Free and open source.</strong> All source code is available under the MIT license.<br>
-</li>
-</ul>
-		
-<p><strong>WESTPA plugins/extensions:</strong></p>
-<ul>
-<li>
-A WE-based string method. <a href="http://scitation.aip.org/content/aip/journal/jcp/138/4/10.1063/1.4773892">[pdf]</a>
-</li>
-<li>
-A hierarchical WE method (WExplore). <a href="https://pubs.acs.org/doi/10.1021/jp411479c">[pdf]</a>
-</li>
-<li>
-Markovian WE Milestoning (M-WEM). <a href="https://www.biorxiv.org/content/10.1101/2021.06.26.450057v3">[pdf]</a>
-</li>
-<li>
-A hybrid Gaussian-accelerated MD and WE method. <a href="https://pubs.acs.org/doi/abs/10.1021/acs.jctc.1c00770">[pdf]</a>
-</li>
-<li>
-WE rule-based modeling (WEBNG) for systems biology. <a href="https://webng.readthedocs.io/en/latest/quickstart.html">[pdf]</a>
-</li>
-</ul>
-
-<p><strong>Please cite us when using WESTPA:</strong></p>
-
-<p>MC Zwier, JL Adelman, JW Kaus, AJ Pratt, KF Wong, NB Rego, E Suárez, S Lettieri, DW Wang, M Grabe, DM Zuckerman, and LT Chong. “WESTPA: An interoperable, highly scalable software package for weighted ensemble simulation and analysis”. <em>J. Chem. Theory Comput.</em>, 11: 800-809 (2015).</p>
-          
-<p>JD Russo, S Zhang, JMG Leung, AT Bogetti, JP Thompson, AJ DeGrave, PA Torrillo, AJ Pratt, KF Wong, J Xia, J Copperman, JL Adelman, MC Zwier, DN LeBard, DM Zuckerman, and LT Chong. "WESTPA 2.0: High-Performance Upgrades for Weighted Ensemble Simulations and Analysis of Longer-Timescale Applications". <em>J. Chem. Theory Comput.</em>, 18 (2), 638–649 (2022).</p>
-
-<h4>
-<a id="support-or-contact" class="anchor" href="#support-or-contact" aria-hidden="true"><span class="octicon octicon-link"></span></a>Obtaining and Installing WESTPA</h3>
-
-<p><a href="https://github.com/westpa/westpa/wiki/WESTPA-Quick-Installation">Quick installation of WESTPA.</a>        
-<h4>
-  
-<h4>
-<a id="support-or-contact" class="anchor" href="#support-or-contact" aria-hidden="true"><span class="octicon octicon-link"></span></a>Documentation and Tutorials</h3>
-
-<p>To leverage the full power of the WE strategy, it is essential to invest the time to learn the theory and best practices for running the simulations.</p>
-<p>For documentation, please see the <a href="https://github.com/westpa/westpa/wiki">WESTPA Wiki</a> and <a href="https://westpa.readthedocs.io">Sphinx documentation.</a>
-<p>Our wiki page with WESTPA tutorials and best practices can be found <a href="https://github.com/westpa/westpa/wiki/Tutorials">here.</a></p>
-
-<p>We suggest subscribing to the <a href="https://groups.google.com/forum/#!forum/westpa-users/">WESTPA user mailing list.</a> Before posting an issue to the list, please use the most recent 
-	version of WESTPA and search the archives.</p>
-        <!-- Search bar --> 
-        <div id="search_bar_div">
-          <input id="search_bar" name="search_bar" type="text"
-                 placeholder="Search WESTPA user mailing list"></input>
-          <button id="search_but" onclick="search_arch()">Search</button>
-          <script type="text/javascript">
+    <header>
+      <h1 style="text-align:center;">News</h1>
+    </header>
+    <a class="twitter-timeline" href="https://twitter.com/WestpaSoftware" data-chrome="noheader" data-height="600">Tweets by WESTPA</a> <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+    <div id="main_content_wrap1" class="outer"> </div>
+  </aside>
+  <section id="main_content" class="inner">
+    <div id="main_text_div">
+      <h4> <a id="what-is-westpa" class="anchor" href="#what-is-westpa" aria-hidden="true"><span class="octicon octicon-link"></span></a>What is WESTPA?</h4>
+      <p>WESTPA (The Weighted Ensemble Simulation Toolkit with Parallelization and Analysis) is a high-performance Python framework for applying the weighted ensemble (WE) path sampling strategy, which enables simulations of processes that are orders of magnitude longer than the simulations themselves. See <a href="overview.html">Overview</a> of WE simulations. The WESTPA software package includes (1) the original <a href="https://www.cell.com/biophysj/pdf/S0006-3495(96)79552-8.pdf">Huber & Kim algorithm</a>, (2) options for <a href="http://pubs.acs.org/doi/abs/10.1021/ct401065r">reweighting</a> to a steady state to estimate rates and/or state populations from shorter trajectories, and (3) plugins/extensions for advanced customisation. </p>
+      <p><strong>Key features of WESTPA:</strong> </p>
+      <ul>
+        <li> <strong>Highly scalable.</strong> Scales out to thousands of CPU cores or GPUs.<br>
+        </li>
+        <li> <strong>Interoperable.</strong> Designed to conveniently interface with any stochastic dynamics engine (e.g., molecular dynamics, Monte Carlo).<br>
+        </li>
+        <li> <strong>Extensible.</strong> Our modular design makes it straightforward to develop plug-ins.<br>
+        </li>
+        <li> <strong>Portable.</strong> The software can be used with any Unix operating system (e.g. Linux, OS X), including typical clusters and supercomputers.<br>
+        </li>
+        <li> <strong>Free and open source.</strong> All source code is available under the MIT license.<br>
+        </li>
+      </ul>
+      <p><strong>WESTPA plugins/extensions:</strong></p>
+      <ul>
+        <li> A WE-based string method. <a href="http://scitation.aip.org/content/aip/journal/jcp/138/4/10.1063/1.4773892">[pdf]</a> </li>
+        <li> A hierarchical WE method (WExplore). <a href="https://pubs.acs.org/doi/10.1021/jp411479c">[pdf]</a> </li>
+        <li> Markovian WE Milestoning (M-WEM). <a href="https://www.biorxiv.org/content/10.1101/2021.06.26.450057v3">[pdf]</a> </li>
+        <li> A hybrid Gaussian-accelerated MD and WE method. <a href="https://pubs.acs.org/doi/abs/10.1021/acs.jctc.1c00770">[pdf]</a> </li>
+        <li> WE rule-based modeling (WEBNG) for systems biology. <a href="https://webng.readthedocs.io/en/latest/quickstart.html">[pdf]</a> </li>
+      </ul>
+      <p><strong>Please cite us when using WESTPA:</strong></p>
+      <p>MC Zwier, JL Adelman, JW Kaus, AJ Pratt, KF Wong, NB Rego, E Suárez, S Lettieri, DW Wang, M Grabe, DM Zuckerman, and LT Chong. “WESTPA: An interoperable, highly scalable software package for weighted ensemble simulation and analysis”. <em>J. Chem. Theory Comput.</em>, 11: 800-809 (2015).</p>
+      <p>JD Russo, S Zhang, JMG Leung, AT Bogetti, JP Thompson, AJ DeGrave, PA Torrillo, AJ Pratt, KF Wong, J Xia, J Copperman, JL Adelman, MC Zwier, DN LeBard, DM Zuckerman, and LT Chong. "WESTPA 2.0: High-Performance Upgrades for Weighted Ensemble Simulations and Analysis of Longer-Timescale Applications". <em>J. Chem. Theory Comput.</em>, 18 (2), 638–649 (2022).</p>
+      <h4> <a id="support-or-contact" class="anchor" href="#support-or-contact" aria-hidden="true"><span class="octicon octicon-link"></span></a>Obtaining and Installing WESTPA</h4>
+      <p><a href="https://github.com/westpa/westpa/wiki/WESTPA-Quick-Installation">Quick installation of WESTPA.</a> </p>
+      <h4> <a id="support-or-contact1" class="anchor" href="#support-or-contact" aria-hidden="true"><span class="octicon octicon-link"></span></a>Documentation and Tutorials</h4>
+      <p>To leverage the full power of the WE strategy, it is essential to invest the time to learn the theory and best practices for running the simulations.</p>
+      <p>For documentation, please see the <a href="https://github.com/westpa/westpa/wiki">WESTPA Wiki</a> and <a href="https://westpa.readthedocs.io">Sphinx documentation.</a></p>
+      <p>Our wiki page with WESTPA tutorials and best practices can be found <a href="https://github.com/westpa/westpa/wiki/Tutorials">here.</a></p>
+      <p>We suggest subscribing to the <a href="https://groups.google.com/forum/#!forum/westpa-users/">WESTPA user mailing list.</a> Before posting an issue to the list, please use the most recent 
+        version of WESTPA and search the archives.</p>
+      <!-- Search bar -->
+      <div id="search_bar_div">
+        <input id="search_bar" name="search_bar" type="text"
+                 placeholder="Search WESTPA user mailing list">
+        <button id="search_but" onclick="search_arch()">Search</button>
+        <script type="text/javascript">
             document.getElementById("search_bar")
               .addEventListener("keyup", function(event) {
               event.preventDefault();
@@ -147,50 +106,31 @@ WE rule-based modeling (WEBNG) for systems biology. <a href="https://webng.readt
               var link_to_src = search_str + se + app_src_str;
               window.location=link_to_src;
             };
-          </script>
-        </div>
-        <!-- End of Search bar --> 
-<br>
-
-		<p>If you have completed the <a href="https://www.livecomsjournal.org/index.php/livecoms/article/view/v1i2e10607">LiveCoMS WESTPA tutorials</a> and are ready for production simulations of your system, we invite you to join us via zoom for a <a href="https://groups.google.com/g/westpa-users/c/-Nw5Zs3q1DQ/m/hqnCVLsmDAAJ">WE data club</a> where we provide "no strings attached" expert advice on getting your simulations off the ground.</p>
-	
-<p>To make a feature request, please fill out this <a href="https://docs.google.com/forms/d/e/1FAIpQLSfWaB2aryInU06cXrCyAFmhD_gPibgOfFk-dspLEsXuS9-RGQ/viewform">form</a>. We welcome contributions to WESTPA code and/or documentation.</p>
-
-<p><strong>Want to support WESTPA? Give us a star on GitHub! </strong></p>          
-          
-<a class="github-button" href="https://github.com/westpa/westpa/subscription" data-color-scheme="no-preference: light; light: light; dark: dark;" data-icon="octicon-eye" data-size="large" data-show-count="true" aria-label="Watch westpa/westpa on GitHub">Watch</a>
-<a class="github-button" href="https://github.com/westpa/westpa" data-color-scheme="no-preference: light; light: light; dark: dark;" data-icon="octicon-star" data-size="large" data-show-count="true" aria-label="Star westpa/westpa on GitHub">Star</a>          
-
-<script type="text/javascript" id="clustrmaps" src="//cdn.clustrmaps.com/map_v2.js?d=KoazuFxDJTHAFJxkhb7qoPPcrpJqeAlvRE_4Q2n5pA0&cl=ffffff&w=a"></script>          
-		
-<h4>
-  <a id="funding" class="anchor" href="#funding" aria-hidden="true"><span class="octicon octicon-link"></span></a>Funding</h3>
-<p>
-<img src="images/PittLogo.png" alt="Upitt logo" style="width:127px;height:132px;" border=0>
-<img src="images/NSF-ForWeb.jpg" alt="NSF logo" style="width:159px;height:160px;" border=0>
-<img src="images/NIH_logo.svg" alt="NIH logo" style="width:150px;height:150px;" border=0>
-<img src="images/mmbios_logo.png" alt="MMBios logo" style="width:187px;height:56px;position: relative; left: 5px; top: 0px;" border=0>
-</p><br>
+          </script> 
+      </div>
+      <!-- End of Search bar --> 
+      <br>
+      <p>If you have completed the <a href="https://www.livecomsjournal.org/index.php/livecoms/article/view/v1i2e10607">LiveCoMS WESTPA tutorials</a> and are ready for production simulations of your system, we invite you to join us via zoom for a <a href="https://groups.google.com/g/westpa-users/c/-Nw5Zs3q1DQ/m/hqnCVLsmDAAJ">WE data club</a> where we provide "no strings attached" expert advice on getting your simulations off the ground.</p>
+      <p>To make a feature request, please fill out this <a href="https://docs.google.com/forms/d/e/1FAIpQLSfWaB2aryInU06cXrCyAFmhD_gPibgOfFk-dspLEsXuS9-RGQ/viewform">form</a>. We welcome contributions to WESTPA code and/or documentation! Please see our <a href="governance.html">Governance Document</a> for further details.</p>
+      <p><strong>Want to support WESTPA? Give us a star on GitHub! </strong></p>
+      <a class="github-button" href="https://github.com/westpa/westpa/subscription" data-color-scheme="no-preference: light; light: light; dark: dark;" data-icon="octicon-eye" data-size="large" data-show-count="true" aria-label="Watch westpa/westpa on GitHub">Watch</a> <a class="github-button" href="https://github.com/westpa/westpa" data-color-scheme="no-preference: light; light: light; dark: dark;" data-icon="octicon-star" data-size="large" data-show-count="true" aria-label="Star westpa/westpa on GitHub">Star</a> 
+      <script type="text/javascript" id="clustrmaps" src="//cdn.clustrmaps.com/map_v2.js?d=KoazuFxDJTHAFJxkhb7qoPPcrpJqeAlvRE_4Q2n5pA0&cl=ffffff&w=a"></script>
+      <h4> <a id="funding" class="anchor" href="#funding" aria-hidden="true"><span class="octicon octicon-link"></span></a>Funding</h4>
+      <p> <img src="images/PittLogo.png" alt="Upitt logo" style="width:127px;height:132px;" border="0"> <img src="images/NSF-ForWeb.jpg" alt="NSF logo" style="width:159px;height:160px;" border="0"> <img src="images/NIH_logo.svg" alt="NIH logo" style="width:150px;height:150px;" border="0"> <img src="images/mmbios_logo.png" alt="MMBios logo" style="width:187px;height:56px;position: relative; left: 5px; top: 0px;" border="0"> </p>
+      <br>
     </div>
+  </section>
+</div>
 
-
-      </section>
-    </div>
-
-    <!-- FOOTER  -->
-    <div id="footer_wrap" class="outer">
-      <footer class="inner">
-
-        <p class="copyright">WESTPA maintained by <a href="https://github.com/westpa">westpa</a></p>
-        <p>Published with <a href="http://pages.github.com">GitHub Pages</a></p>
-     </footer>
-    </div>
-
-    
-
-  </body>
- 
-  <script>
+<!-- FOOTER  -->
+<div id="footer_wrap" class="outer">
+  <footer class="inner">
+    <p class="copyright">WESTPA maintained by <a href="https://github.com/westpa">westpa</a></p>
+    <p>Published with <a href="http://pages.github.com">GitHub Pages</a></p>
+  </footer>
+</div>
+</body>
+<script>
   (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
   (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
   m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
@@ -200,5 +140,4 @@ WE rule-based modeling (WEBNG) for systems biology. <a href="https://webng.readt
   ga('send', 'pageview');
 
 </script>
-  
 </html>
