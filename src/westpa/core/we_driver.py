@@ -2,7 +2,6 @@ import logging
 import math
 import operator
 import random
-from copy import deepcopy
 
 import numpy as np
 
@@ -587,7 +586,7 @@ class WEDriver:
 
         # split
         while len(bin) < threshold_target_count:
-            last_bin = deepcopy(bin)
+            last_bin = len(bin)
             for i in sorted_groups:
                 log.debug('adjusting counts by splitting')
                 # always split the highest probability walker into two
@@ -616,14 +615,16 @@ class WEDriver:
 
                 if len(bin) == target_count:
                     break
-                elif i == sorted_groups[-1] and last_bin == bin:  # If the last "for" iteration didn't change anything, soft-break.
+                elif i == sorted_groups[-1] and last_bin == len(
+                    bin
+                ):  # If the last "for" iteration didn't change anything, soft-break.
                     threshold_target_count = len(bin)
 
         threshold_target_count = target_count
 
         # merge
         while len(bin) > threshold_target_count:
-            last_bin = deepcopy(bin)
+            last_bin = len(bin)
             sorted_groups.reverse()
             # Adjust to go from lowest weight group to highest to merge
             for i in sorted_groups:
@@ -652,8 +653,8 @@ class WEDriver:
                     # in bash, "find . -name \*.py | xargs fgrep -n '_merge_walkers'"
                     if len(bin) == target_count:
                         break
-                    elif (
-                        i == sorted_groups[-1] and last_bin == bin
+                    elif i == sorted_groups[-1] and last_bin == len(
+                        bin
                     ):  # If the last "for" iteration didn't change anything, soft-break.
                         threshold_target_count = len(bin)
 
