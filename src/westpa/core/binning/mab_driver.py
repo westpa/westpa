@@ -12,6 +12,7 @@ class MABDriver(WEDriver):
         initial states. This function is adapted to the MAB scheme, so that the inital and final segments are
         sent to the bin mapper at the same time, otherwise the inital and final bin boundaries can be inconsistent.'''
 
+        log.debug("MABDriver in use.")
         # collect initial and final coordinates into one place
         n_segments = len(segments)
         all_pcoords = np.empty((n_segments * 2, self.system.pcoord_ndim + 2), dtype=self.system.pcoord_dtype)

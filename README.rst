@@ -2,7 +2,9 @@
 WESTPA 2.0 
 ===============
 
-|ghactions| |docs|
+|ghactions| |anaconda| |tutorial1| |tutorial2| 
+
+|docs| |usersgroup| |develgroup| 
 
 .. |ghactions| image:: https://github.com/westpa/westpa/actions/workflows/test.yaml/badge.svg?branch=westpa-2.0-restruct
               :target: https://github.com/westpa/westpa/actions/workflows/test.yaml
@@ -11,6 +13,27 @@ WESTPA 2.0
 .. |docs| image:: https://readthedocs.org/projects/westpa/badge/?version=latest
          :target: https://westpa.readthedocs.io/en/latest/?badge=latest
          :alt: Documentation Status
+
+.. |tutorial1| image:: https://img.shields.io/badge/WESTPA-tutorials-brightgreen.svg
+        :target: https://github.com/westpa/westpa_tutorials 
+        :alt: WESTPA Tutorials GitHub
+
+.. |tutorial2| image:: https://img.shields.io/badge/WESTPA2-tutorials-blueviolet.svg
+        :target: https://github.com/westpa/westpa2_tutorials
+        :alt: WESTPA 2.0 Tutorials GitHub
+
+.. |usersgroup| image:: https://img.shields.io/badge/Google%20Group-Users-lightgrey.svg
+        :target: http://groups.google.com/group/westpa-users 
+        :alt: Users Google Group
+
+.. |develgroup| image:: https://img.shields.io/badge/Google%20Group-Developers-lightgrey.svg
+        :target: https://groups.google.com/g/westpa-devel 
+        :alt: Developers Google Group
+
+.. |anaconda| image:: https://anaconda.org/conda-forge/westpa/badges/version.svg
+   :alt: Anaconda
+   :target: https://anaconda.org/conda-forge/westpa
+
 
 --------
 Overview
