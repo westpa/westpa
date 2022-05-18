@@ -110,6 +110,12 @@ def map_mab(coords, mask, output, *args, **kwargs):
                     flipdifflist[n] = fliptemp[i][0]
                     flipmaxdiff = flipdiff
 
+    if splitting:
+        print("####### MAB stats #######")
+        print("minima in each dimension:", minlist)
+        print("maxima in each dimension:", maxlist)
+        print("direction for each dimension:", direction)
+        print("#########################")
     # assign segments to bins
     # the total number of linear bins + 2 boundary bins each dim
     boundary_base = np.prod(nbins_per_dim)
