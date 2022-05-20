@@ -11,8 +11,15 @@ def map_mab(coords, mask, output, *args, **kwargs):
 
     pca = kwargs.pop("pca", False)
     bottleneck = kwargs.pop("bottleneck", True)
-    nbins_per_dim = kwargs.get("nbins_per_dim")
+    direction = kwargs.pop("direction", None)
+    nbins_per_dim = kwargs.pop("nbins_per_dim")
+
+    if nbins_per_dim is None:
+        raise ValueError("nbins_per_dim is missing")
+
     ndim = len(nbins_per_dim)
+    if direction is None:
+        direction = [0] * ndim
 
     if not np.any(mask):
         return output
@@ -103,6 +110,12 @@ def map_mab(coords, mask, output, *args, **kwargs):
                     flipdifflist[n] = fliptemp[i][0]
                     flipmaxdiff = flipdiff
 
+    if splitting:
+        print("####### MAB stats #######")
+        print("minima in each dimension:", minlist)
+        print("maxima in each dimension:", maxlist)
+        print("direction for each dimension:", direction)
+        print("#########################")
     # assign segments to bins
     # the total number of linear bins + 2 boundary bins each dim
     boundary_base = np.prod(nbins_per_dim)
@@ -126,14 +139,28 @@ def map_mab(coords, mask, output, *args, **kwargs):
                         holder = bottleneck_base + 2 * n + 1
                         special = True
                         break
-                if coord == minlist[n]:
-                    holder = boundary_base + 2 * n
-                    special = True
-                    break
-                elif coord == maxlist[n]:
-                    holder = boundary_base + 2 * n + 1
-                    special = True
-                    break
+
+                if direction[n] < 0:
+                    if coord == minlist[n]:
+                        holder = boundary_base + 2 * n
+                        special = True
+                        break
+
+                elif direction[n] > 0:
+                    if coord == maxlist[n]:
+                        holder = boundary_base + 2 * n
+                        special = True
+                        break
+
+                elif direction[n] == 0:
+                    if coord == minlist[n]:
+                        holder = boundary_base + 2 * n
+                        special = True
+                        break
+                    elif coord == maxlist[n]:
+                        holder = boundary_base + 2 * n + 1
+                        special = True
+                        break
 
         if not special:
             for n in range(ndim):
@@ -145,13 +172,10 @@ def map_mab(coords, mask, output, *args, **kwargs):
                 bins = np.linspace(minp, maxp, nbins + 1)
                 bin_number = np.digitize(coord, bins) - 1
 
-                if isfinal is None or not isfinal[i]:
-                    if bin_number >= nbins:
-                        bin_number = nbins - 1
-                    elif bin_number < 0:
-                        bin_number = 0
-                elif bin_number >= nbins or bin_number < 0:
-                    raise ValueError("Walker out of boundary")
+                if bin_number >= nbins:
+                    bin_number = nbins - 1
+                elif bin_number < 0:
+                    bin_number = 0
 
                 holder += bin_number * np.prod(nbins_per_dim[:n])
 
@@ -165,8 +189,8 @@ class MABBinMapper(FuncBinMapper):
     the progress coordinte. Extrema and bottleneck segments are assigned
     to their own bins.'''
 
-    def __init__(self, nbins, bottleneck=True, pca=False):
-        kwargs = dict(nbins_per_dim=nbins, bottleneck=bottleneck, pca=pca)
+    def __init__(self, nbins, direction=None, bottleneck=True, pca=False):
+        kwargs = dict(nbins_per_dim=nbins, direction=direction, bottleneck=bottleneck, pca=pca)
         ndim = len(nbins)
         n_total_bins = np.prod(nbins) + ndim * (2 + 2 * bottleneck)
         super().__init__(map_mab, n_total_bins, kwargs=kwargs)
