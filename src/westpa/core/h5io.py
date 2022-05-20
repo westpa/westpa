@@ -693,7 +693,7 @@ class WESTIterationFile(HDF5TrajectoryFile):
         # restart
         if restart is not None:
             if self.has_restart(segment):
-                self._remove_node('/restart', name='%d_%d' % (segment.n_iter, segment.seg_id))
+                self._remove_node('/restart', name='%d_%d' % (segment.n_iter, segment.seg_id), recursive=True)
 
             self._create_array(
                 '/restart/%d_%d' % (segment.n_iter, segment.seg_id),
@@ -705,7 +705,7 @@ class WESTIterationFile(HDF5TrajectoryFile):
 
         if slog is not None:
             if self._has_node('/log', str(segment.seg_id)):
-                self._remove_node('/log', name=str(segment.seg_id))
+                self._remove_node('/log', name=str(segment.seg_id), recursive=True)
 
             self._create_array(
                 '/log/%d_%d' % (segment.n_iter, segment.seg_id),
