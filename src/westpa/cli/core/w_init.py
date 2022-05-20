@@ -204,7 +204,7 @@ def initialize(tstates, tstate_file, bstates, bstate_file, sstates=None, sstate_
             if abs(1.0 - tprob) > len(basis_states) * EPS:
                 pscale = 1 / tprob
                 log.warning(
-                    'Basis state probabilities do not add to unity (basis: {:.2f}, start states: {:.2f}); rescaling by {:g}. If using start-states, some rescaling is normal.'.format(
+                    'Basis state probabilities do not add to unity (basis: {:.2f}, start states: {:.2f}); rescaling by {:g}. If using start states, some rescaling is normal.'.format(
                         bstate_prob, sstate_prob, pscale
                     )
                 )
@@ -215,7 +215,11 @@ def initialize(tstates, tstate_file, bstates, bstate_file, sstates=None, sstate_
 
             # Prepare simulation
             sim_manager.initialize_simulation(
-                basis_states, target_states, start_states, segs_per_state=segs_per_state, suppress_we=shotgun
+                basis_states=basis_states,
+                target_states=target_states,
+                start_states=start_states,
+                segs_per_state=segs_per_state,
+                suppress_we=shotgun,
             )
         else:
             work_manager.run()
