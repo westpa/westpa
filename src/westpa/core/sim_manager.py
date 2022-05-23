@@ -90,11 +90,6 @@ class WESimManager:
         self.next_iter_bstates = None  # BasisStates valid for the next iteration
         self.next_iter_bstate_cprobs = None  # Cumulative probabilities for basis states, used for selection
 
-        # Initial states for next iteration
-        # self.next_iter_istates = None
-        # self.next_iter_avail_istates = None    # InitialStates available for use next iteration
-        # self.next_iter_assigned_istates = None # InitialStates that were available or generated in this iteration but then used
-
         # Tracking of this iteration's segments
         self.segments = None  # Mapping of seg_id to segment for all segments in this iteration
         self.completed_segments = None  # Mapping of seg_id to segment for all completed segments in this iteration

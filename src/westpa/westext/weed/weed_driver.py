@@ -7,6 +7,7 @@ import westpa
 from westpa.core.yamlcfg import check_bool
 from westpa.core.kinetics import RateAverager
 from westpa.westext.weed.ProbAdjustEquil import probAdjustEquil
+from westpa.core._rc import bins_from_yaml_dict
 
 EPS = np.finfo(np.float64).eps
 
@@ -53,6 +54,11 @@ class WEEDDriver:
         self.rate_calc_queue_size = plugin_config.get('rate_calc_queue_size', 1)
         self.rate_calc_n_blocks = plugin_config.get('rate_calc_n_blocks', 1)
 
+        bin_obj = plugin_config.get('bins', None)
+        if isinstance(bin_obj, dict):
+            bin_obj = bins_from_yaml_dict(bin_obj)
+        self.bin_mapper = bin_obj
+
         if self.do_reweight:
             sim_manager.register_callback(sim_manager.prepare_new_iteration, self.prepare_new_iteration, self.priority)
 
@@ -84,7 +90,7 @@ class WEEDDriver:
 
         if not self.do_reweight:
             # Reweighting not requested
-            log.debug('equilibrium reweighting not enabled')
+            log.debug('Equilibrium reweighting not enabled')
             return
 
         with self.data_manager.lock:
@@ -98,8 +104,24 @@ class WEEDDriver:
         else:
             log.debug('reweighting')
 
-        mapper = we_driver.bin_mapper
-        bins = we_driver.next_iter_binning
+        if self.bin_mapper is None:
+            mapper = we_driver.bin_mapper
+            bins = we_driver.next_iter_binning
+            westpa.rc.pstatus('\nReweighting using the simulation bin mapper:\n{}'.format(mapper))
+        else:
+            mapper = self.bin_mapper
+            bins = mapper.construct_bins()
+
+            segments = [s for s in we_driver.next_iter_segments]
+            pcoords = self.system.new_pcoord_array(len(segments))
+            for iseg, segment in enumerate(segments):
+                pcoords[iseg] = segment.pcoord[0]
+            assignments = mapper.assign(pcoords)
+            for (segment, assignment) in zip(segments, assignments):
+                bins[assignment].add(segment)
+
+            westpa.rc.pstatus('\nReweighting using a different bin mapper than simulation:\n{}'.format(mapper))
+
         n_bins = len(bins)
 
         # Create storage for ourselves
