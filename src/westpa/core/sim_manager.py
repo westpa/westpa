@@ -192,6 +192,11 @@ class WESimManager:
         self.rc.pstatus('norm = {:g}, error in norm = {:g} ({:.2g}*epsilon)'.format(norm, (norm - 1), (norm - 1) / EPS))
         self.rc.pflush()
 
+        if min_seg_prob < 1e-100:
+            log.warning(
+                '\n Minimum segment weight is < 1e-100 and might not be physically relevant. Please reconsider your progress coordinate or binning scheme.'
+            )
+
         if save_summary:
             iter_summary = self.data_manager.get_iter_summary()
             iter_summary['n_particles'] = len(segments)

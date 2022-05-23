@@ -1,5 +1,6 @@
 import numpy as np
 from westpa.core.binning import FuncBinMapper
+import westpa
 
 
 def map_mab(coords, mask, output, *args, **kwargs):
@@ -111,11 +112,13 @@ def map_mab(coords, mask, output, *args, **kwargs):
                     flipmaxdiff = flipdiff
 
     if splitting:
-        print("####### MAB stats #######")
-        print("minima in each dimension:", minlist)
-        print("maxima in each dimension:", maxlist)
-        print("direction for each dimension:", direction)
-        print("#########################")
+        westpa.rc.pstatus("################ MAB stats ################")
+        westpa.rc.pstatus("minima in each dimension:      {}".format(minlist))
+        westpa.rc.pstatus("maxima in each dimension:      {}".format(maxlist))
+        westpa.rc.pstatus("direction in each dimension:   {}".format(direction))
+        westpa.rc.pstatus("###########################################")
+        westpa.rc.pflush()
+
     # assign segments to bins
     # the total number of linear bins + 2 boundary bins each dim
     boundary_base = np.prod(nbins_per_dim)
