@@ -157,11 +157,11 @@ class WEDriver:
                 # Generate error saying thresholds are invalid
                 raise ValueError("Invalid weight thresholds specified. Please check your west.cfg.")
 
-        if self.largest_allowed_weight < self.smallest_allowed_weight:
+        if np.isclose(self.largest_allowed_weight, self.smallest_allowed_weight):
+            raise ValueError("Weight threshold bounds cannot be identical.")
+        elif self.largest_allowed_weight < self.smallest_allowed_weight:
             self.smallest_allowed_weight, self.largest_allowed_weight = self.largest_allowed_weight, self.smallest_allowed_weight
             log.warning('Swapped largest allowed weight with smallest allowed weight to fulfill inequality (largest > smallest).')
-        elif np.isclose(self.largest_allowed_weight, self.smallest_allowed_weight):
-            raise ValueError("Weight threshold bounds cannot be identical.")
 
     @property
     def next_iter_segments(self):
