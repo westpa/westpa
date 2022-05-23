@@ -90,11 +90,6 @@ class WESimManager:
         self.next_iter_bstates = None  # BasisStates valid for the next iteration
         self.next_iter_bstate_cprobs = None  # Cumulative probabilities for basis states, used for selection
 
-        # Initial states for next iteration
-        # self.next_iter_istates = None
-        # self.next_iter_avail_istates = None    # InitialStates available for use next iteration
-        # self.next_iter_assigned_istates = None # InitialStates that were available or generated in this iteration but then used
-
         # Tracking of this iteration's segments
         self.segments = None  # Mapping of seg_id to segment for all segments in this iteration
         self.completed_segments = None  # Mapping of seg_id to segment for all completed segments in this iteration
@@ -197,6 +192,11 @@ class WESimManager:
         self.rc.pstatus('norm = {:g}, error in norm = {:g} ({:.2g}*epsilon)'.format(norm, (norm - 1), (norm - 1) / EPS))
         self.rc.pflush()
 
+        if min_seg_prob < 1e-100:
+            log.warning(
+                '\n Minimum segment weight is < 1e-100 and might not be physically relevant. Please reconsider your progress coordinate or binning scheme.'
+            )
+
         if save_summary:
             iter_summary = self.data_manager.get_iter_summary()
             iter_summary['n_particles'] = len(segments)
@@ -211,19 +211,19 @@ class WESimManager:
                 iter_summary['walltime'] = 0.0
             self.data_manager.update_iter_summary(iter_summary)
 
-    def get_bstate_pcoords(self, basis_states):
+    def get_bstate_pcoords(self, basis_states, label='basis'):
         '''For each of the given ``basis_states``, calculate progress coordinate values
         as necessary.  The HDF5 file is not updated.'''
 
-        self.rc.pstatus('Calculating progress coordinate values for basis states.')
+        self.rc.pstatus('Calculating progress coordinate values for {} states.'.format(label))
         futures = [self.work_manager.submit(wm_ops.get_pcoord, args=(basis_state,)) for basis_state in basis_states]
         fmap = {future: i for (i, future) in enumerate(futures)}
         for future in self.work_manager.as_completed(futures):
             basis_states[fmap[future]].pcoord = future.get_result().pcoord
 
-    def report_basis_states(self, basis_states):
+    def report_basis_states(self, basis_states, label='basis'):
         pstatus = self.rc.pstatus
-        pstatus('{:d} basis state(s) present'.format(len(basis_states)), end='')
+        pstatus('{:d} {} state(s) present'.format(len(basis_states), label), end='')
         if self.rc.verbose_mode:
             pstatus(':')
             pstatus(
@@ -286,8 +286,23 @@ class WESimManager:
         # Process start states
         # Unlike the above, does not create an ibstate group.
         # TODO: Should it? I don't think so, if needed it can be traced back through basis_auxref
-        self.get_bstate_pcoords(start_states)
-        self.report_basis_states(start_states)
+
+        # Here, we are trying to assign a state_id to the start state to be initialized, without actually
+        # saving it to the ibstates records in any of the h5 files. It might actually be a problem
+        # when tracing trajectories with westpa.analysis (especially with HDF5 framework) since it would
+        # try to look for a basis state id > len(basis_state).
+        # Since start states are only used while initializing and iteration 1, it's ok to not save it to save space. If necessary,
+        # the structure can be traced directly to the parent file using the standard basis state logic referencing
+        # west[iterations/iter_00000001/ibstates/istate_index/basis_auxref] of that istate.
+
+        if len(start_states) > 0 and start_states[0].state_id is None:
+            last_id = basis_states[-1].state_id
+            for start_state in start_states:
+                start_state.state_id = last_id + 1
+                last_id += 1
+
+        self.get_bstate_pcoords(start_states, label='start')
+        self.report_basis_states(start_states, label='start')
 
         pstatus('Preparing initial states')
         initial_states = []

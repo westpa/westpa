@@ -196,7 +196,7 @@ class TestWEDriver(TestCase):
 
         for ibin, bin in enumerate(self.we_driver.next_iter_binning):
             target_count = self.we_driver.bin_target_counts[ibin]
-            groups = self.we_driver.group_function(self.we_driver, ibin, **self.we_driver.group_function_kwargs)
+            groups = self.we_driver.subgroup_function(self.we_driver, ibin, **self.we_driver.subgroup_function_kwargs)
             self.we_driver._adjust_count(bin, groups, target_count)
 
         assert len(self.we_driver.next_iter_binning[0]) == 5

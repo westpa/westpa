@@ -184,16 +184,34 @@ def load_west(filename):
         for iter_group_name in f['iterations']:
             iter_group = f['iterations/' + iter_group_name]
 
+            if 'trajectories' in iter_group:
+                traj_link = iter_group['trajectories']
+                traj_filename = traj_link.file.filename
+
+                with WESTIterationFile(traj_filename) as traj_file:
+                    traj = traj_file.read_as_traj()
+            else:
+                # TODO: [HDF5] allow initializing trajectory without coordinates
+                raise ValueError("Missing trajectories for iteration %d" % n)
+
             # pcoord is required
             if 'pcoord' not in iter_group:
-                continue
+                raise ValueError("Missing pcoords for iteration %d" % n)
 
             raw_pcoord = iter_group['pcoord'][:]
             if raw_pcoord.ndim != 3:
                 log.warn('pcoord is expected to be a 3-d ndarray instead of {}-d'.format(raw_pcoord.ndim))
                 continue
             # ignore the first frame of each segment
-            raw_pcoord = raw_pcoord[:, 1:, :]
+            if raw_pcoord.shape[1] == traj.n_frames + 1:
+                raw_pcoord = raw_pcoord[:, 1:, :]
+            elif raw_pcoord.shape[1] == traj.n_frames:
+                raw_pcoord = raw_pcoord[:, :, :]
+            else:
+                raise ValueError(
+                    "Inconsistent number of pcoords (%d) and frames (%d) for iteration %d" % (raw_pcoord.shape[1], traj.n_frames, n)
+                )
+
             pcoords = np.concatenate(raw_pcoord, axis=0)
             n_frames = raw_pcoord.shape[1]
 
@@ -207,19 +225,6 @@ def load_west(filename):
                 parent_ids = raw_pid.repeat(n_frames, axis=0)
             else:
                 parent_ids = None
-
-            if 'trajectories' in iter_group:
-                traj_link = iter_group['trajectories']
-                traj_filename = traj_link.file.filename
-
-                with WESTIterationFile(traj_filename) as traj_file:
-                    try:
-                        traj = traj_file.read_as_traj()
-                    except Exception:
-                        continue
-            else:
-                continue
-                # traj = WESTTrajectory(None)  # TODO: [HDF5] allow initializing trajectory without coordinates
 
             traj.pcoords = pcoords
             traj.parent_ids = parent_ids
@@ -491,10 +496,43 @@ class WESTIterationFile(HDF5TrajectoryFile):
             if not np.all(atom_slice >= 0):
                 raise ValueError('The entries in atom_indices must be greater ' 'than or equal to zero')
 
+        def get_item(node, key):
+            if not isinstance(key, tuple):
+                return node.__getitem__(key)
+
+            n_list_like = 0
+            new_keys = []
+            for item in key:
+                if not isinstance(item, slice):
+                    try:
+                        d = np.diff(item)
+                        if len(d) == 0:
+                            item = item[0]
+                        elif np.all(d == d[0]):
+                            item = slice(item[0], item[-1] + d[0], d[0])
+                        else:
+                            n_list_like += 1
+                    except Exception:
+                        n_list_like += 1
+                new_keys.append(item)
+            new_keys = tuple(new_keys)
+
+            if n_list_like <= 1:
+                return node.__getitem__(new_keys)
+
+            data = node
+            for i, item in enumerate(new_keys):
+                dkey = [slice(None)] * len(key)
+                dkey[i] = item
+                dkey = tuple(dkey)
+                data = data.__getitem__(dkey)
+
+            return data
+
         def get_field(name, slice, out_units, can_be_none=True):
             try:
                 node = self._get_node(where='/', name=name)
-                data = node.__getitem__(slice)
+                data = get_item(node, slice)
                 in_units = node.attrs.units
                 if not isinstance(in_units, string_types):
                     in_units = in_units.decode()
@@ -652,7 +690,7 @@ class WESTIterationFile(HDF5TrajectoryFile):
         # restart
         if restart is not None:
             if self.has_restart(segment.seg_id):
-                self._remove_node('/restart', name=str(segment.seg_id))
+                self._remove_node('/restart', name=str(segment.seg_id), recursive=True)
 
             self._create_array(
                 '/restart/%d' % segment.seg_id,
@@ -664,7 +702,7 @@ class WESTIterationFile(HDF5TrajectoryFile):
 
         if slog is not None:
             if self._has_node('/log', str(segment.seg_id)):
-                self._remove_node('/log', name=str(segment.seg_id))
+                self._remove_node('/log', name=str(segment.seg_id), recursive=True)
 
             self._create_array(
                 '/log/%d' % segment.seg_id,

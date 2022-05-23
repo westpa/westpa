@@ -46,8 +46,8 @@ def pcoord_loader(fieldname, pcoord_return_filename, destobj, single_point):
             pcoord.shape = (1,)
     else:
         expected_shape = (system.pcoord_len, system.pcoord_ndim)
-        if pcoord.ndim == 1:
-            pcoord.shape = (len(pcoord), 1)
+        if pcoord.ndim < 2:
+            pcoord.shape = expected_shape
     if pcoord.shape != expected_shape:
         raise ValueError(
             'progress coordinate data has incorrect shape {!r} [expected {!r}] Check pcoord.err or seg_logs for more information.'.format(
@@ -92,16 +92,25 @@ def restart_loader(fieldname, restart_folder, segment, single_point):
 
 
 def restart_writer(path, segment):
-    '''Prepare the necessary files from the per-iteration HDF5 file to run ``segnment``.'''
+    '''Prepare the necessary files from the per-iteration HDF5 file to run ``segment``.'''
     try:
         restart = segment.data.pop('iterh5/restart', None)
+        # Making an exception for start states in iteration 1
         if restart is None:
             raise ValueError('restart data is not present')
 
         d = BytesIO(restart[:-1])  # remove tail protection
         with tarfile.open(fileobj=d, mode='r:gz') as t:
             t.extractall(path=path)
-
+    except ValueError as e:
+        log.warning('could not write restart data for {}: {}'.format(str(segment), str(e)))
+        d = BytesIO()
+        if segment.n_iter == 1:
+            log.warning(
+                'In iteration 1. Assuming this is a start state and proceeding to skip reading restart from per-iteration HDF5 file for {}'.format(
+                    str(segment)
+                )
+            )
     except Exception as e:
         log.warning('could not write restart data for {}: {}'.format(str(segment), str(e)))
     finally:
@@ -251,10 +260,11 @@ class ExecutablePropagator(WESTPropagator):
             loader_directive = dsinfo.get('loader')
             if loader_directive:
                 loader = get_object(loader_directive)
-            elif dsname != 'pcoord':
+                dsinfo['loader'] = loader
+            elif dsname not in ['pcoord', 'seglog', 'restart', 'trajectory']:
                 loader = aux_data_loader
+                dsinfo['loader'] = loader
 
-            dsinfo['loader'] = loader
             self.data_info.setdefault(dsname, {}).update(dsinfo)
 
         log.debug('data_info: {!r}'.format(self.data_info))
@@ -280,10 +290,10 @@ class ExecutablePropagator(WESTPropagator):
         ``subprocess.Popen()``. Every child process executed by ``exec_child()`` gets these.'''
 
         return {
-            self.ENV_RAND16: str(random.randint(0, 2 ** 16)),
-            self.ENV_RAND32: str(random.randint(0, 2 ** 32)),
-            self.ENV_RAND64: str(random.randint(0, 2 ** 64)),
-            self.ENV_RAND128: str(random.randint(0, 2 ** 128)),
+            self.ENV_RAND16: str(random.randint(0, 2**16)),
+            self.ENV_RAND32: str(random.randint(0, 2**32)),
+            self.ENV_RAND64: str(random.randint(0, 2**64)),
+            self.ENV_RAND128: str(random.randint(0, 2**128)),
             self.ENV_RANDFLOAT: str(random.random()),
         }
 

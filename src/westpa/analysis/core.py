@@ -11,12 +11,12 @@ from westpa.tools.binning import mapper_from_hdf5
 
 
 class Run:
-    """A completed WESTPA simulation run.
+    """A read-only view of a WESTPA simulation run.
 
     Parameters
     ----------
     h5filename : str or file-like object, default 'west.h5'
-        Pathname or stream of a WESTPA HDF5 file.
+        Pathname or stream of a main WESTPA HDF5 data file.
 
     """
 
@@ -38,7 +38,7 @@ class Run:
         Parameters
         ----------
         h5filename : str or file-like object, default 'west.h5'
-            Pathname or stream of a WESTPA HDF5 file.
+            Pathname or stream of a main WESTPA HDF5 data file.
 
         """
         return cls(h5filename)
@@ -80,7 +80,14 @@ class Run:
     @property
     def num_iterations(self):
         """int: Number of completed iterations."""
-        return self.h5file.attrs['west_current_iteration'] - 1
+        if not hasattr(self, '_num_iterations'):
+            current = self.h5file.attrs['west_current_iteration']
+            grp = self.h5file.get_iter_group(current)
+            if (grp['seg_index']['status'] == Segment.SEG_STATUS_COMPLETE).all():
+                self._num_iterations = current
+            else:
+                self._num_iterations = current - 1
+        return self._num_iterations
 
     @property
     def iterations(self):
@@ -502,23 +509,34 @@ class Walker:
 
         istate_id = -(parent_id + 1)
         row = self.iteration.h5group['ibstates']['istate_index'][istate_id]
+
+        # Initial states may or may not be generated from a basis state.
+        bstate_id = row['basis_state_id']
+        try:
+            bstate = self.iteration.basis_state(bstate_id)
+        except IndexError:
+            bstate = None
+            bstate_id = None
+
         return InitialState(
             istate_id,
-            row['basis_state_id'],
+            bstate_id,
             row['iter_created'],
             iter_used=row['iter_used'],
             istate_type=row['istate_type'],
             istate_status=row['istate_status'],
             pcoord=self.iteration.h5group['ibstates']['istate_pcoord'][istate_id],
-            basis_state=self.iteration.basis_state(row['basis_state_id']),
+            basis_state=bstate,
         )
 
     @property
     def children(self):
         """Iterable[Walker]: The children of the walker."""
-        if not self.iteration.next:
+        next = self.iteration.next
+        if next is None:
             return ()
-        return (walker for walker in self.iteration.next.walkers if walker.parent == self)
+        indices = np.flatnonzero(next.h5group['seg_index']['parent_id'] == self.index)
+        return (Walker(index, next) for index in indices)
 
     @property
     def recycled(self):

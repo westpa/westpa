@@ -139,8 +139,9 @@ class InitialState:
     :ivar istate_type:      Integer describing the type of this initial state
                             (ISTATE_TYPE_BASIS for direct use of a basis state,
                             ISTATE_TYPE_GENERATED for a state generated from a basis state,
-                            or ISTATE_TYPE_RESTART for a state corresponding to the endpoint
-                            of a segment in another simulation).
+                            ISTATE_TYPE_RESTART for a state corresponding to the endpoint
+                            of a segment in another simulation, or
+                            ISTATE_TYPE_START for a state generated from a start state).
     :ivar istate_status:    Integer describing whether this initial state has been properly
                             prepared.
     :ivar pcoord:           The representative progress coordinate of this state.
@@ -193,7 +194,7 @@ class InitialState:
         )
 
     def as_numpy_record(self):
-        from westpa.core.data_manager import seg_id_dtype, istate_type_dtype, istate_status_dtype
+        from westpa.core.data_manager import seg_id_dtype, istate_type_dtype, istate_status_dtype, vstr_dtype
 
         istate_dtype = np.dtype(
             [
@@ -203,7 +204,7 @@ class InitialState:
                 ('iter_used', np.uint),
                 ('istate_type', istate_type_dtype),
                 ('istate_status', istate_status_dtype),
-                ('basis_auxref', str),
+                ('basis_auxref', vstr_dtype),
                 ('pcoord', self.pcoord.dtype, (len(self.pcoord),)),
             ]
         )
@@ -216,6 +217,7 @@ class InitialState:
                     self.iter_used or 0,
                     self.istate_type or 0,
                     self.istate_status or 0,
+                    self.basis_auxref or '',
                     self.pcoord,
                 )
             ],

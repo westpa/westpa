@@ -724,13 +724,17 @@ class WESTDataManager:
             istates = []
 
             for state_id, state, pcoord in zip(sorted_istate_ids, istate_rows, istate_pcoords):
+                try:
+                    b_auxref = h5io.tostr(state['basis_auxref'])
+                except ValueError:
+                    b_auxref = ''
                 istate = InitialState(
                     state_id=state_id,
                     basis_state_id=int(state['basis_state_id']),
                     iter_created=int(state['iter_created']),
                     iter_used=int(state['iter_used']),
                     istate_type=int(state['istate_type']),
-                    basis_auxref=h5io.tostr(state['basis_auxref']),
+                    basis_auxref=b_auxref,
                     pcoord=pcoord.copy(),
                 )
                 istates.append(istate)
@@ -1100,9 +1104,14 @@ class WESTDataManager:
             for dsinfo in self.dataset_options.values():
                 if dsinfo.get('load', False):
                     dsname = dsinfo['name']
-                    ds = iter_group[dsinfo['h5path']]
-                    for (seg_id, segment) in enumerate(segments):
-                        segment.data[dsname] = ds[seg_id]
+                    try:
+                        ds = iter_group[dsinfo['h5path']]
+                    except KeyError:
+                        ds = None
+
+                    if ds is not None:
+                        for (seg_id, segment) in enumerate(segments):
+                            segment.data[dsname] = ds[seg_id]
 
         return segments
 
@@ -1119,7 +1128,15 @@ class WESTDataManager:
                 if initial_states is None or basis_states is None:
                     raise ValueError('initial and basis states required for preparing the segments')
                 initial_state = initial_states[segment.initial_state_id]
-                basis_state = basis_states[initial_state.basis_state_id]
+                # Check if it's a start state
+                if initial_state.istate_type == InitialState.ISTATE_TYPE_START:
+                    log.debug(
+                        f'Skip reading start state file from per-iteration HDF5 file for initial state {segment.initial_state_id}'
+                    )
+                    continue
+                else:
+                    basis_state = basis_states[initial_state.basis_state_id]
+
                 parent = Segment(n_iter=0, seg_id=basis_state.state_id)
             else:
                 parent = Segment(n_iter=segment.n_iter - 1, seg_id=segment.parent_id)
