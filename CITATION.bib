@@ -1,0 +1,38 @@
+%% Citations for WESTPA 2.0
+%% Includes the 2015 original paper and the 2022 WESTPA 2.0 paper
+%% Saved with string encoding Unicode (UTF-8) 
+
+@article{zwier_westpa_2015,
+	title = {{WESTPA}: {An} {Interoperable}, {Highly} {Scalable} {Software} {Package} for {Weighted} {Ensemble} {Simulation} and {Analysis}},
+	volume = {11},
+	issn = {1549-9618},
+	shorttitle = {{WESTPA}},
+	url = {https://doi.org/10.1021/ct5010615},
+	doi = {10.1021/ct5010615},
+	abstract = {The weighted ensemble (WE) path sampling approach orchestrates an ensemble of parallel calculations with intermittent communication to enhance the sampling of rare events, such as molecular associations or conformational changes in proteins or peptides. Trajectories are replicated and pruned in a way that focuses computational effort on underexplored regions of configuration space while maintaining rigorous kinetics. To enable the simulation of rare events at any scale (e.g., atomistic, cellular), we have developed an open-source, interoperable, and highly scalable software package for the execution and analysis of WE simulations: WESTPA (The Weighted Ensemble Simulation Toolkit with Parallelization and Analysis). WESTPA scales to thousands of CPU cores and includes a suite of analysis tools that have been implemented in a massively parallel fashion. The software has been designed to interface conveniently with any dynamics engine and has already been used with a variety of molecular dynamics (e.g., GROMACS, NAMD, OpenMM, AMBER) and cell-modeling packages (e.g., BioNetGen, MCell). WESTPA has been in production use for over a year, and its utility has been demonstrated for a broad set of problems, ranging from atomically detailed host–guest associations to nonspatial chemical kinetics of cellular signaling networks. The following describes the design and features of WESTPA, including the facilities it provides for running WE simulations and storing and analyzing WE simulation data, as well as examples of input and output.},
+	number = {2},
+	urldate = {2020-06-19},
+	journal = {Journal of Chemical Theory and Computation},
+	author = {Zwier, Matthew C. and Adelman, Joshua L. and Kaus, Joseph W. and Pratt, Adam J. and Wong, Kim F. and Rego, Nicholas B. and Suárez, Ernesto and Lettieri, Steven and Wang, David W. and Grabe, Michael and Zuckerman, Daniel M. and Chong, Lillian T.},
+	month = feb,
+	year = {2015},
+	pages = {800--809},
+}
+
+@article{russo_westpa_2022,
+	title = {{WESTPA} 2.0: {High}-{Performance} {Upgrades} for {Weighted} {Ensemble} {Simulations} and {Analysis} of {Longer}-{Timescale} {Applications}},
+	volume = {18},
+	copyright = {All rights reserved},
+	issn = {1549-9618},
+	shorttitle = {{WESTPA} 2.0},
+	url = {https://doi.org/10.1021/acs.jctc.1c01154},
+	doi = {10.1021/acs.jctc.1c01154},
+	abstract = {The weighted ensemble (WE) family of methods is one of several statistical mechanics-based path sampling strategies that can provide estimates of key observables (rate constants and pathways) using a fraction of the time required by direct simulation methods such as molecular dynamics or discrete-state stochastic algorithms. WE methods oversee numerous parallel trajectories using intermittent overhead operations at fixed time intervals, enabling facile interoperability with any dynamics engine. Here, we report on the major upgrades to the WESTPA software package, an open-source, high-performance framework that implements both basic and recently developed WE methods. These upgrades offer substantial improvements over traditional WE methods. The key features of the new WESTPA 2.0 software enhance the efficiency and ease of use: an adaptive binning scheme for more efficient surmounting of large free energy barriers, streamlined handling of large simulation data sets, exponentially improved analysis of kinetics, and developer-friendly tools for creating new WE methods, including a Python API and resampler module for implementing both binned and “binless” WE strategies.},
+	number = {2},
+	urldate = {2022-02-08},
+	journal = {Journal of Chemical Theory and Computation},
+	author = {Russo, John D. and Zhang, She and Leung, Jeremy M. G. and Bogetti, Anthony T. and Thompson, Jeff P. and DeGrave, Alex J. and Torrillo, Paul A. and Pratt, A. J. and Wong, Kim F. and Xia, Junchao and Copperman, Jeremy and Adelman, Joshua L. and Zwier, Matthew C. and LeBard, David N. and Zuckerman, Daniel M. and Chong, Lillian T.},
+	month = feb,
+	year = {2022},
+	pages = {638--649},
+}

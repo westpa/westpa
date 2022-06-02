@@ -6,13 +6,12 @@ from westpa.core.we_driver import WEDriver
 log = logging.getLogger(__name__)
 
 
-class MABDriver(WEDriver):
+class BinlessDriver(WEDriver):
     def assign(self, segments, initializing=False):
         '''Assign segments to initial and final bins, and update the (internal) lists of used and available
         initial states. This function is adapted to the MAB scheme, so that the inital and final segments are
         sent to the bin mapper at the same time, otherwise the inital and final bin boundaries can be inconsistent.'''
 
-        log.debug("MABDriver in use.")
         # collect initial and final coordinates into one place
         n_segments = len(segments)
         all_pcoords = np.empty((n_segments * 2, self.system.pcoord_ndim + 2), dtype=self.system.pcoord_dtype)
