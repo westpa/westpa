@@ -90,11 +90,6 @@ class WESimManager:
         self.next_iter_bstates = None  # BasisStates valid for the next iteration
         self.next_iter_bstate_cprobs = None  # Cumulative probabilities for basis states, used for selection
 
-        # Initial states for next iteration
-        # self.next_iter_istates = None
-        # self.next_iter_avail_istates = None    # InitialStates available for use next iteration
-        # self.next_iter_assigned_istates = None # InitialStates that were available or generated in this iteration but then used
-
         # Tracking of this iteration's segments
         self.segments = None  # Mapping of seg_id to segment for all segments in this iteration
         self.completed_segments = None  # Mapping of seg_id to segment for all completed segments in this iteration
@@ -196,6 +191,11 @@ class WESimManager:
         self.rc.pstatus('per-segment probability dynamic range (kT): {:g}'.format(seg_drange))
         self.rc.pstatus('norm = {:g}, error in norm = {:g} ({:.2g}*epsilon)'.format(norm, (norm - 1), (norm - 1) / EPS))
         self.rc.pflush()
+
+        if min_seg_prob < 1e-100:
+            log.warning(
+                '\n Minimum segment weight is < 1e-100 and might not be physically relevant. Please reconsider your progress coordinate or binning scheme.'
+            )
 
         if save_summary:
             iter_summary = self.data_manager.get_iter_summary()
