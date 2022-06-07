@@ -13,7 +13,7 @@ import numpy as np
 import westpa
 import westpa.core.data_manager
 from westpa.core.binning.assign import BinMapper
-from westpa.core.binning import RectilinearBinMapper, RecursiveBinMapper, MABBinMapper
+from westpa.core.binning import RectilinearBinMapper, RecursiveBinMapper, MABBinMapper, BinlessMapper
 from westpa.core.extloader import get_object
 from .yamlcfg import YAMLConfig
 from .yamlcfg import YAMLSystem
@@ -92,6 +92,21 @@ def detect_mab_mapper(mapper):
         for ibin in mapper._recursion_targets:
             rec_mapper = mapper._recursion_targets[ibin]
             if detect_mab_mapper(rec_mapper):
+                return True
+    else:
+        return False
+
+
+def detect_binless_mapper(mapper):
+    if isinstance(mapper, BinlessMapper):
+        return True
+    elif isinstance(mapper, RecursiveBinMapper):
+        if detect_binless_mapper(mapper.base_mapper):
+            return True
+
+        for ibin in mapper._recursion_targets:
+            rec_mapper = mapper._recursion_targets[ibin]
+            if detect_binless_mapper(rec_mapper):
                 return True
     else:
         return False
@@ -317,14 +332,28 @@ class WESTRC:
 
         return use_mab
 
+    def detect_binless_mapper(self):
+        bin_dict = self.config.get(['west', 'system', 'system_options', 'bins'])
+        use_binless = False
+        if bin_dict is not None:
+            mapper = bins_from_yaml_dict(bin_dict)
+            use_binless = detect_binless_mapper(mapper)
+
+        return use_binless
+
     def new_sim_manager(self):
         drivername = self.config.get(['west', 'drivers', 'sim_manager'], 'default')
         use_mab = self.detect_mab_mapper()
+        use_binless = self.detect_binless_mapper()
 
         if use_mab:
             from .binning.mab_manager import MABSimManager
 
             sim_manager = MABSimManager(rc=self)
+        elif use_binless:
+            from .binning.binless_manager import BinlessSimManager
+
+            sim_manager = BinlessSimManager(rc=self)
         elif drivername.lower() == 'default':
             from .sim_manager import WESimManager
 
@@ -361,11 +390,16 @@ class WESTRC:
 
         drivername = self.config.get(['west', 'drivers', 'we_driver'], 'default')
         use_mab = self.detect_mab_mapper()
+        use_binless = self.detect_binless_mapper()
 
         if use_mab:
             from .binning.mab_driver import MABDriver
 
             we_driver = MABDriver()
+        elif use_binless:
+            from .binning.binless_driver import BinlessDriver
+
+            we_driver = BinlessDriver()
         elif drivername.lower() == 'default':
             from .we_driver import WEDriver
 
@@ -374,21 +408,21 @@ class WESTRC:
             we_driver = extloader.get_object(drivername)(rc=self)
         log.debug('loaded WE algorithm driver: {!r}'.format(we_driver))
 
-        group_function = self.config.get(['west', 'drivers', 'group_function'], 'default')
-        if group_function.lower() == 'default':
+        subgroup_function = self.config.get(['west', 'drivers', 'subgroup_function'], 'default')
+        if subgroup_function.lower() == 'default':
             try:
-                group_function = 'westpa.core.we_driver._group_walkers_identity'
-                we_driver.group_function = westpa.core.we_driver._group_walkers_identity
+                subgroup_function = 'westpa.core.we_driver._group_walkers_identity'
+                we_driver.subgroup_function = westpa.core.we_driver._group_walkers_identity
             except Exception:
                 pass
         else:
-            we_driver.group_function = extloader.get_object(group_function)
-        we_driver.group_function_kwargs = self.config.get(['west', 'drivers', 'group_arguments'])
+            we_driver.subgroup_function = extloader.get_object(subgroup_function)
+        we_driver.subgroup_function_kwargs = self.config.get(['west', 'drivers', 'subgroup_arguments'])
         # Necessary if the user hasn't specified any options.
-        if we_driver.group_function_kwargs is None:
-            we_driver.group_function_kwargs = {}
-        log.debug('loaded WE algorithm driver grouping function {!r}'.format(group_function))
-        log.debug('WE algorithm driver grouping function kwargs: {!r}'.format(we_driver.group_function_kwargs))
+        if we_driver.subgroup_function_kwargs is None:
+            we_driver.subgroup_function_kwargs = {}
+        log.debug('loaded WE algorithm driver grouping function {!r}'.format(subgroup_function))
+        log.debug('WE algorithm driver grouping function kwargs: {!r}'.format(we_driver.subgroup_function_kwargs))
 
         return we_driver
 

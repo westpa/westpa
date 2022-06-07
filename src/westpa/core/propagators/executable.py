@@ -117,14 +117,14 @@ def restart_writer(path, segment):
         d.close()
 
 
-def seglog_loader(fieldname, log_folder, segment, single_point):
-    '''Load data from the log return. The loader will tar all files in ``log_folder``
+def seglog_loader(fieldname, log_file, segment, single_point):
+    '''Load data from the log return. The loader will tar all files in ``log_file``
     and store it in the per-iteration HDF5 file. ``segment`` is the ``Segment`` object that
     the data is associated with. ``single_point`` is not used by this loader.'''
     try:
         d = BytesIO()
         with tarfile.open(mode='w:gz', fileobj=d) as t:
-            t.add(log_folder, arcname='.')
+            t.add(log_file, arcname='.')
 
         segment.data['iterh5/log'] = d.getvalue() + b'\x01'  # add tail protection
     except Exception as e:
@@ -242,7 +242,7 @@ class ExecutablePropagator(WESTPropagator):
             'filename': None,
             'dir': True,
         }
-        self.data_info['log'] = {'name': 'seglog', 'loader': seglog_loader, 'enabled': store_h5, 'filename': None, 'dir': True}
+        self.data_info['log'] = {'name': 'seglog', 'loader': seglog_loader, 'enabled': store_h5, 'filename': None, 'dir': False}
 
         dataset_configs = config.get(['west', 'executable', 'datasets']) or []
         for dsinfo in dataset_configs:

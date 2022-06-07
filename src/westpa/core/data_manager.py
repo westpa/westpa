@@ -682,6 +682,22 @@ class WESTDataManager:
             ibstate_group['istate_index'][state_ids] = index_entries
             ibstate_group['istate_pcoord'][state_ids] = pcoord_vals
 
+            if self.store_h5:
+                segments = []
+                for i, state in enumerate(initial_states):
+                    dummy_segment = Segment(
+                        n_iter=-state.iter_created,
+                        seg_id=state.state_id,
+                        parent_id=state.basis_state_id,
+                        weight=state.basis_state.probability,
+                        wtg_parent_ids=None,
+                        pcoord=state.pcoord,
+                        status=Segment.SEG_STATUS_PREPARED,
+                        data=state.data,
+                    )
+                    segments.append(dummy_segment)
+                self.update_iter_h5file(0, segments)
+
     def get_initial_states(self, n_iter=None):
         states = []
         with self.lock:
