@@ -124,6 +124,7 @@ class WEDriver:
         self.subgroup_function_kwargs = {}
 
         self.process_config()
+        self.check_threshold_configs()
 
     def process_config(self):
         config = self.rc.config
@@ -144,24 +145,6 @@ class WEDriver:
 
         self.smallest_allowed_weight = config.get(['west', 'we', 'smallest_allowed_weight'], self.smallest_allowed_weight)
         log.info('Smallest allowed_weight: {}'.format(self.smallest_allowed_weight))
-
-        # Checking to see if weight thresholds are valid
-        if (not np.issubdtype(type(self.largest_allowed_weight), np.floating)) or (
-            not np.issubdtype(type(self.smallest_allowed_weight), np.floating)
-        ):
-            try:
-                # Trying to self correct
-                self.largest_allowed_weight = float(self.largest_allowed_weight)
-                self.smallest_allowed_weight = float(self.smallest_allowed_weight)
-            except ValueError:
-                # Generate error saying thresholds are invalid
-                raise ValueError("Invalid weight thresholds specified. Please check your west.cfg.")
-
-        if np.isclose(self.largest_allowed_weight, self.smallest_allowed_weight):
-            raise ValueError("Weight threshold bounds cannot be identical.")
-        elif self.largest_allowed_weight < self.smallest_allowed_weight:
-            self.smallest_allowed_weight, self.largest_allowed_weight = self.largest_allowed_weight, self.smallest_allowed_weight
-            log.warning('Swapped largest allowed weight with smallest allowed weight to fulfill inequality (largest > smallest).')
 
     @property
     def next_iter_segments(self):
@@ -220,6 +203,25 @@ class WEDriver:
         '''Number of initial states needed to support recycling for this iteration'''
         n_istates_avail = len(self.avail_initial_states)
         return max(0, self.n_recycled_segs - n_istates_avail)
+
+    def check_threshold_configs(self):
+        '''Check to see if weight thresholds parameters are valid'''
+        if (not np.issubdtype(type(self.largest_allowed_weight), np.floating)) or (
+            not np.issubdtype(type(self.smallest_allowed_weight), np.floating)
+        ):
+            try:
+                # Trying to self correct
+                self.largest_allowed_weight = float(self.largest_allowed_weight)
+                self.smallest_allowed_weight = float(self.smallest_allowed_weight)
+            except ValueError:
+                # Generate error saying thresholds are invalid
+                raise ValueError("Invalid weight thresholds specified. Please check your west.cfg.")
+
+        if np.isclose(self.largest_allowed_weight, self.smallest_allowed_weight):
+            raise ValueError("Weight threshold bounds cannot be identical.")
+        elif self.largest_allowed_weight < self.smallest_allowed_weight:
+            self.smallest_allowed_weight, self.largest_allowed_weight = self.largest_allowed_weight, self.smallest_allowed_weight
+            log.warning('Swapped largest allowed weight with smallest allowed weight to fulfill inequality (largest > smallest).')
 
     def clear(self):
         '''Explicitly delete all Segment-related state.'''
