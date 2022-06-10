@@ -11,7 +11,11 @@ def map_binless(coords, mask, output, *args, **kwargs):
     n_groups = kwargs.get("n_groups")
     n_dims = kwargs.get("n_dims")
     group_function = get_object(kwargs.get("group_function"))
+    group_function_kwargs = kwargs.get('group_arguments')
     ndim = n_dims
+
+    if group_function_kwargs is None:
+       group_function_kwargs = {}
 
     if not np.any(mask):
         return output
@@ -55,10 +59,10 @@ def map_binless(coords, mask, output, *args, **kwargs):
     # our target number, adjust our target number to be the number of segments in the binless
     # region minus one
     elif nsegs_binless < n_groups:
-        clusters = group_function(binless_coords, nsegs_binless, splitting)
+        clusters = group_function(binless_coords, nsegs_binless, splitting, **group_function_kwargs)
     # if there are enough segments in the binless region, proceed as planned
     elif nsegs_binless >= n_groups:
-        clusters = group_function(binless_coords, n_groups, splitting)
+        clusters = group_function(binless_coords, n_groups, splitting, **group_function_kwargs)
 
     # this is a good place to say this... output is a list which matches the length of allcoords
     # allcoords is a collection of all initial and final segment coords for that iteration
@@ -81,7 +85,7 @@ class BinlessMapper(FuncBinMapper):
     '''Adaptively group walkers according to a user-defined grouping
     function that is defined externally.'''
 
-    def __init__(self, ngroups, ndims, group_function):
-        kwargs = dict(n_groups=ngroups, n_dims=ndims, group_function=group_function)
+    def __init__(self, ngroups, ndims, group_function, **group_function_kwargs):
+        kwargs = dict(n_groups=ngroups, n_dims=ndims, group_function=group_function, group_function_kwargs=group_function_kwargs)
         n_total_groups = ngroups
         super().__init__(map_binless, n_total_groups, kwargs=kwargs)
