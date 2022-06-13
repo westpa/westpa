@@ -67,7 +67,7 @@ def run_simulation():
                 westpa.rc.pstatus('interrupted; shutting down')
             except Exception as e:
                 westpa.rc.pstatus('exception caught; shutting down')
-                log.error(f'error message:{e}')
+                log.error(f'error message: {e}')
                 log.error(traceback.format_exc())
         else:
             work_manager.run()
