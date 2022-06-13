@@ -3,6 +3,8 @@ import logging
 from westpa.core.sim_manager import WESimManager, grouper
 from westpa.core.states import InitialState, pare_basis_initial_states
 from westpa.core import wm_ops
+from westpa.core.segment import Segment
+import numpy as np
 
 log = logging.getLogger(__name__)
 
@@ -71,3 +73,84 @@ class BinlessSimManager(WESimManager):
         log.debug('done with propagation')
         self.save_bin_data()
         self.data_manager.flush_backing()
+
+    def prepare_iteration(self):
+        log.debug('beginning iteration {:d}'.format(self.n_iter))
+
+        # the WE driver needs a list of all target states for this iteration
+        # along with information about any new weights introduced (e.g. by recycling)
+        target_states = self.data_manager.get_target_states(self.n_iter)
+        new_weights = self.data_manager.get_new_weight_data(self.n_iter)
+
+        self.we_driver.new_iteration(target_states=target_states, new_weights=new_weights)
+
+        # Get basis states used in this iteration
+        self.current_iter_bstates = self.data_manager.get_basis_states(self.n_iter)
+
+        # Get the segments for this iteration and separate into complete and incomplete
+        if self.segments is None:
+            segments = self.segments = {segment.seg_id: segment for segment in self.data_manager.get_segments()}
+            log.debug('loaded {:d} segments'.format(len(segments)))
+        else:
+            segments = self.segments
+            log.debug('using {:d} pre-existing segments'.format(len(segments)))
+
+        completed_segments = self.completed_segments = {}
+        incomplete_segments = self.incomplete_segments = {}
+        for segment in segments.values():
+            if segment.status == Segment.SEG_STATUS_COMPLETE:
+                completed_segments[segment.seg_id] = segment
+            else:
+                incomplete_segments[segment.seg_id] = segment
+        log.debug('{:d} segments are complete; {:d} are incomplete'.format(len(completed_segments), len(incomplete_segments)))
+
+        if len(incomplete_segments) == len(segments):
+            # Starting a new iteration
+            self.rc.pstatus('Beginning iteration {:d}'.format(self.n_iter))
+        elif incomplete_segments:
+            self.rc.pstatus('Continuing iteration {:d}'.format(self.n_iter))
+        self.rc.pstatus(
+            '{:d} segments remain in iteration {:d} ({:d} total)'.format(len(incomplete_segments), self.n_iter, len(segments))
+        )
+
+        # Get the initial states active for this iteration (so that the propagator has them if necessary)
+        self.current_iter_istates = {
+            state.state_id: state for state in self.data_manager.get_segment_initial_states(list(segments.values()))
+        }
+        log.debug('This iteration uses {:d} initial states'.format(len(self.current_iter_istates)))
+
+        # Assign this iteration's segments' initial points to bins and report on bin population
+        initial_pcoords = self.system.new_pcoord_array(len(segments))
+        initial_binning = self.system.bin_mapper.construct_bins()
+        for iseg, segment in enumerate(segments.values()):
+            initial_pcoords[iseg] = segment.pcoord[0]
+        initial_assignments = self.system.bin_mapper.assign(initial_pcoords)
+        for (segment, assignment) in zip(iter(segments.values()), initial_assignments):
+            initial_binning[assignment].add(segment)
+        self.report_bin_statistics(initial_binning, save_summary=True)
+        del initial_pcoords, initial_binning
+
+        # Let the WE driver assign completed segments
+        if completed_segments and len(incomplete_segments) == 0:
+            self.we_driver.assign(list(completed_segments.values()))
+
+        # load restart data
+        self.data_manager.prepare_segment_restarts(
+            incomplete_segments.values(), self.current_iter_bstates, self.current_iter_istates
+        )
+
+        # Get the basis states and initial states for the next iteration, necessary for doing on-the-fly recycling
+        self.next_iter_bstates = self.data_manager.get_basis_states(self.n_iter + 1)
+        self.next_iter_bstate_cprobs = np.add.accumulate([bstate.probability for bstate in self.next_iter_bstates])
+
+        self.we_driver.avail_initial_states = {
+            istate.state_id: istate for istate in self.data_manager.get_unused_initial_states(n_iter=self.n_iter + 1)
+        }
+        log.debug('{:d} unused initial states found'.format(len(self.we_driver.avail_initial_states)))
+
+        # Invoke callbacks
+        self.invoke_callbacks(self.prepare_iteration)
+
+        # dispatch and immediately wait on result for prep_iter
+        log.debug('dispatching propagator prep_iter to work manager')
+        self.work_manager.submit(wm_ops.prep_iter, args=(self.n_iter, segments)).get_result()
