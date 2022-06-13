@@ -14,7 +14,7 @@ def map_binless(coords, mask, output, *args, **kwargs):
     group_function_kwargs = kwargs.get('group_function_kwargs')['group_arguments']
     ndim = n_dims
     if group_function_kwargs is None or len(group_function_kwargs) == 0:
-       group_function_kwargs = {}
+        group_function_kwargs = {}
 
     if not np.any(mask):
         return output
@@ -54,7 +54,7 @@ def map_binless(coords, mask, output, *args, **kwargs):
     # if only one segment in the binless region, assign it to a single cluster
     if nsegs_binless == 1:
         clusters = [0]
-    
+
     # if there are more than one segment in the binless region but still the total is less than
     # our target number, adjust our target number to be the number of segments in the binless
     # region minus one
