@@ -1,25 +1,9 @@
-# Copyright (C) 2013 Matthew C. Zwier, Nick Rego, and Lillian T. Chong
-#
-# This file is part of WESTPA.
-#
-# WESTPA is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# WESTPA is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import print_function, division; __metaclass__ = type
 import sys
 import logging
 import math
 from numpy import index_exp
+import h5py
 
 from west.data_manager import seg_id_dtype, weight_dtype
 from westpa.binning import index_dtype, assign_and_label, accumulate_labeled_populations
@@ -408,10 +392,10 @@ Command-line options
         def task_gen():
             if __debug__:
                 checkset = set()
-            for lb in xrange(0, nsegs, blocksize):
+            for lb in range(0, nsegs, blocksize):
                 ub = min(nsegs, lb+blocksize)
                 if __debug__:
-                    checkset.update(set(xrange(lb,ub)))
+                    checkset.update(set(range(lb,ub)))
                 args = ()
                 kwargs = dict(n_iter=n_iter,
                               lb=lb, ub=ub, mapper=self.binning.mapper, nstates=nstates, state_map=state_map,
@@ -425,7 +409,7 @@ Command-line options
                 #futures.append(self.work_manager.submit(_assign_label_pop, 
                 #kwargs=)
             if __debug__:
-                assert checkset == set(xrange(nsegs)), 'segments missing: {}'.format(set(xrange(nsegs)) - checkset)
+                assert checkset == set(range(nsegs)), 'segments missing: {}'.format(set(range(nsegs)) - checkset)
 
         #for future in self.work_manager.as_completed(futures):
         for future in self.work_manager.submit_as_completed(task_gen(), queue_size=self.max_queue_len):
@@ -464,17 +448,17 @@ Command-line options
 
             # Recursive mappers produce a generator rather than a list of labels
             # so consume the entire generator into a list
-            labels = [label for label in self.binning.mapper.labels]
+            labels = [numpy.string_(label) for label in self.binning.mapper.labels]
 
             self.output_file.create_dataset('bin_labels', data=labels, compression=9)
 
             if self.states:
                 nstates = len(self.states)
                 state_map[:] = nstates # state_id == nstates => unknown state
-                state_labels = [state['label'] for state in self.states]
+                state_labels = [numpy.string_(state['label']) for state in self.states]
 
                 for istate, sdict in enumerate(self.states):
-                    assert state_labels[istate] == sdict['label'] #sanity check
+                    assert state_labels[istate] == numpy.string_(sdict['label']) #sanity check
                     state_assignments = assign(sdict['coords'])
                     for assignment in state_assignments:
                         state_map[assignment] = istate
@@ -492,7 +476,7 @@ Command-line options
 
             # scan for largest number of segments and largest number of points
             pi.new_operation ('Scanning for segment and point counts', iter_stop-iter_start)
-            for iiter, n_iter in enumerate(xrange(iter_start,iter_stop)):
+            for iiter, n_iter in enumerate(range(iter_start,iter_stop)):
                 iter_group = self.data_reader.get_iter_group(n_iter)
                 nsegs[iiter], npts[iiter] = iter_group['pcoord'].shape[0:2]
                 pi.progress += 1
@@ -528,11 +512,11 @@ Command-line options
             pops_ds = self.output_file.create_dataset('labeled_populations', dtype=weight_dtype, shape=pops_shape,
                                                       compression=4, shuffle=True,
                                                       chunks=h5io.calc_chunksize(pops_shape, weight_dtype))
-            h5io.label_axes(pops_ds, ['iteration', 'state', 'bin'])
+            h5io.label_axes(pops_ds, [numpy.string_(i) for i in ['iteration', 'state', 'bin']])
 
             pi.new_operation('Assigning to bins', iter_stop-iter_start)
             last_labels = None # mapping of seg_id to last macrostate inhabited      
-            for iiter, n_iter in enumerate(xrange(iter_start,iter_stop)):
+            for iiter, n_iter in enumerate(range(iter_start,iter_stop)):
                 #get iteration info in this block
 
                 if iiter == 0:

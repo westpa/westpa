@@ -1,21 +1,4 @@
-# Copyright (C) 2017 Matthew C. Zwier and Lillian T. Chong
-#
-# This file is part of WESTPA.
-#
-# WESTPA is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# WESTPA is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import print_function, division; __metaclass__ = type
 from westtools import (WESTToolComponent, WESTDataReader, IterRangeSelection, WESTSubcommand,
                        ProgressIndicatorComponent)
 
@@ -196,8 +179,8 @@ class AverageCommands(WESTKineticsBase):
 
     def print_averages(self, dataset, header, dim=1):
         print(header)
-        maxlabellen = max(map(len,self.state_labels))
-        for istate in xrange(self.nstates):
+        maxlabellen = max(list(map(len,self.state_labels)))
+        for istate in range(self.nstates):
             if dim == 1:
                 print('{:{maxlabellen}s}: mean={:21.15e} CI=({:21.15e}, {:21.15e}) * tau^-1'
                         .format(self.state_labels[istate],
@@ -207,7 +190,7 @@ class AverageCommands(WESTKineticsBase):
                         maxlabellen=maxlabellen))
 
             else:
-                for jstate in xrange(self.nstates):
+                for jstate in range(self.nstates):
                     if istate == jstate: continue
                     print('{:{maxlabellen}s} -> {:{maxlabellen}s}: mean={:21.15e} CI=({:21.15e}, {:21.15e}) * tau^-1'
                         .format(self.state_labels[istate], self.state_labels[jstate],
@@ -222,7 +205,7 @@ class AverageCommands(WESTKineticsBase):
         if do_averages:
             start_pts = [start_iter, stop_iter]
         else:
-            start_pts = range(start_iter, stop_iter, step_iter)
+            start_pts = list(range(start_iter, stop_iter, step_iter))
         # Our evolution dataset!
         if dim == 2:
             evolution_dataset = numpy.zeros((len(start_pts), nstates, nstates), dtype=ci_dtype)
@@ -233,10 +216,8 @@ class AverageCommands(WESTKineticsBase):
             print("What's wrong?")
 
         # This is appropriate for bootstrapped quantities, I think.
-        all_items = numpy.arange(1,len(start_pts)+1)
-        bootstrap_length = 0.5*(len(start_pts)*(len(start_pts)+1)) - numpy.delete(all_items, numpy.arange(1, len(start_pts)+1, step_iter))
+
         if True:
-            pi.new_operation('Calculating {}'.format(name), bootstrap_length[0])
 
             futures = []
             for iblock, start in enumerate(start_pts):
@@ -262,7 +243,7 @@ class AverageCommands(WESTKineticsBase):
                 # to ensure this is true.
 
                 # Actually, I'm less sure how to handle this for pre-calculated datasets.  Need to consider this.  But for now...
-                for key, value in dataset.iteritems():
+                for key, value in dataset.items():
                     try:
                         future_kwargs['data_input'][key] = value.iter_slice(block_start,stop) if hasattr(value, 'iter_slice') else value[block_start:stop]
                     except:
@@ -272,9 +253,11 @@ class AverageCommands(WESTKineticsBase):
                 # We create a future object with the appropriate name, and then append it to the work manager.
                 futures.append(generate_future(self.work_manager, name, eval_block, future_kwargs))
 
+            pi.new_operation('Calculating {}'.format(name), extent=len(futures))
+
             # Now, we wait to get the result back; we'll store it in the result, and return it.
             for future in self.work_manager.as_completed(futures):
-                pi.progress += iblock / step_iter
+                pi.progress = iblock / step_iter
                 future_result = future.get_result(discard=True)
 
                 if dim == 2:

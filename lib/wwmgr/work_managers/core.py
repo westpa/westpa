@@ -1,27 +1,11 @@
-# Copyright (C) 2013 Matthew C. Zwier, Joshua L. Adelman and Lillian T. Chong (see note below).
-#
-# This file is part of WESTPA.
-#
-# WESTPA is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# WESTPA is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 #
 # This implementation is derived from the ``concurrent.futures``
 # module of Python 3.2, by Brian Quinlan, (C) 2011 the Python Software
 # Foundation. See http://docs.python.org/3/license.html for more information.
 
-__metaclass__ = type
 import logging
 import uuid, threading, signal
+import h5py
 from itertools import islice
 from contextlib import contextmanager
 log = logging.getLogger(__name__)
@@ -337,12 +321,12 @@ class WMFuture:
         with self._condition:
             if self._done:
                 if self._exception:
-                    if isinstance(self._traceback, basestring):
+                    if isinstance(self._traceback, h5py.string_dtype(encoding='utf-8').type):
                         if self._traceback:
                             log.error('uncaught exception in remote function\n{}'.format(self._traceback))
                         raise self._exception
                     else:
-                        raise self._exception, None, self._traceback
+                        raise self._exception.with_traceback(self._traceback)
             else:
                 self._condition.wait()
                 assert self._done
@@ -351,7 +335,7 @@ class WMFuture:
                         log.error('uncaught exception in remote function\n{}'.format(self._traceback))
                         raise self._exception
                     else:
-                        raise self._exception, None, self._traceback
+                        raise self._exception.with_traceback(self._traceback)
                 
             result = self._result
             if discard:

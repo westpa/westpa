@@ -1,19 +1,3 @@
-# Copyright (C) 2017 Matthew C. Zwier and Lillian T. Chong
-#
-# This file is part of WESTPA.
-#
-# WESTPA is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# WESTPA is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
 import numpy as np
 import os, sys
@@ -32,16 +16,16 @@ class WIPIDataset(object):
         self.raw = raw
         self.name = key
     def __repr__(self):
-        if type(self.__dict__['raw']) == dict:
+        if isinstance(self.__dict__['raw'], dict):
             return repr(self.__dir__())
         else:
             return repr(self.raw)
     def __getitem__(self, value):
-        if type(value) != str:
+        if not isinstance(value, str):
             return self.__dict__['raw'][value]
-        if value in self.__dict__['raw'].keys():
+        if value in list(self.__dict__['raw'].keys()):
             return self.__dict__['raw'][value]
-        elif value in self.__dict__.keys():
+        elif value in list(self.__dict__.keys()):
             return self.__dict__[value]
     def __setitem__(self, key, value):
         self.__dict__[key] = value
@@ -55,7 +39,7 @@ class WIPIDataset(object):
     def __setattr__(self, key, value):
         self.__dict__[key] = value
     def __dir__(self):
-        dict_keys = self.__dict__.keys()
+        dict_keys = list(self.__dict__.keys())
         remove = ['raw', 'name', '__dict__', 'plotter']
         for i in remove:
             try:
@@ -63,7 +47,7 @@ class WIPIDataset(object):
             except:
                 pass
         # We don't enforce that this is a dictionary.
-        if type(self.__dict__['raw']) == dict:
+        if isinstance(self.__dict__['raw'], dict):
             return sorted(set(list(self.raw.keys()) + dict_keys))
         else:
             return sorted(set(dict_keys))
@@ -82,11 +66,11 @@ class WIPIDataset(object):
         return self.__dict__['raw'] * other
     def __rmul__(self, other):
         return other * self.__dict__['raw']
-    def __div__(self, other):
+    def __truediv__(self, other):
         return self.__dict__['raw'] / other
     def __floordiv__(self, other):
         return self.__dict__['raw'] // other
-    def __rdiv__(self, other):
+    def __rtruediv__(self, other):
         return other / self.__dict__['raw']
     def __mod__(self, other):
         return self.__dict__['raw'] % other
@@ -168,17 +152,17 @@ class KineticsIteration(object):
     def __repr__(self):
         return repr(self.__dir__())
     def __getitem__(self, value):
-        if value in self.__dict__.keys():
+        if value in list(self.__dict__.keys()):
             return self.__dict__[value]
     def __setitem__(self, key, value):
         self.__dict__[key] = value
     def __getattr__(self, value):
-        if value in self.__dict__.keys():
+        if value in list(self.__dict__.keys()):
             return self.__dict__[value]
     def __setattr__(self, key, value):
         self.__dict__[key] = value
     def __dir__(self):
-        dict_keys = self.__dict__.keys()
+        dict_keys = list(self.__dict__.keys())
         # We don't want to show the plotter class; just the plot function
         remove = [ 'h5file', '__dict__']
         for i in remove:
@@ -207,19 +191,19 @@ class KineticsIteration(object):
         def __getitem__(self, value):
             if value in self.__dict__['raw'].dtype.names:
                 return self.__dict__['raw'][value]
-            elif value in self.__dict__.keys():
+            elif value in list(self.__dict__.keys()):
                 return self.__dict__[value]
         def __setitem__(self, key, value):
             self.__dict__[key] = value
         def __getattr__(self, value):
             if value in self.__dict__['raw'].dtype.names:
                 return self.__dict__['raw'][value]
-            elif value in self.__dict__.keys():
+            elif value in list(self.__dict__.keys()):
                 return self.__dict__[value]
         def __setattr__(self, key, value):
             self.__dict__[key] = value
         def __dir__(self):
-            dict_keys = self.__dict__.keys()
+            dict_keys = list(self.__dict__.keys())
             # We don't want to show the plotter class; just the plot function
             remove = ['assign', 'dim', 'nstates', 'plotter', '__dict__']
             for i in remove:
@@ -238,10 +222,10 @@ class KineticsIteration(object):
         def _1D_repr_pretty_(self, p, cycle):
            # We're just using this as a way to print things in a pretty way.  They can still be indexed appropriately.
            # Stolen shamelessly from westtools/kinetics_tool.py
-            maxlabellen = max(map(len,self.assign['state_labels']))
+            maxlabellen = max(list(map(len,self.assign['state_labels'])))
             p.text('')
             p.text('{name} data:\n'.format(name=self.name))
-            for istate in xrange(self.nstates):
+            for istate in range(self.nstates):
                 p.text('{:{maxlabellen}s}: mean={:21.15e} CI=({:21.15e}, {:21.15e}) * tau^-1\n'
                     .format(self.assign['state_labels'][istate],
                     self.raw['expected'][istate],
@@ -254,11 +238,11 @@ class KineticsIteration(object):
         def _2D_repr_pretty_(self, p, cycle):
             # We're just using this as a way to print things in a pretty way.  They can still be indexed appropriately.
             # Stolen shamelessly from westtools/kinetics_tool.py
-            maxlabellen = max(map(len,self.assign['state_labels']))
+            maxlabellen = max(list(map(len,self.assign['state_labels'])))
             p.text('')
             p.text('{name} data:\n'.format(name=self.name))
-            for istate in xrange(self.nstates):
-                for jstate in xrange(self.nstates):
+            for istate in range(self.nstates):
+                for jstate in range(self.nstates):
                     if istate == jstate: continue
                     p.text('{:{maxlabellen}s} -> {:{maxlabellen}s}: mean={:21.15e} CI=({:21.15e}, {:21.15e}) * tau^-1\n'
                         .format(self.assign['state_labels'][istate], self.assign['state_labels'][jstate],
@@ -341,23 +325,20 @@ class __get_data_for_iteration__(object):
         self.parent = parent
         current = {}
         current['iteration'] = value
-        try: 
-            if seg_ids == None:
-                seg_ids = xrange(0, iter_group['seg_index']['weight'].shape[0])
-        except:
-            pass
+        if seg_ids is None:
+            seg_ids = range(0, iter_group['seg_index']['weight'].shape[0])
         # Just make these easier to access.
         current['weights'] = iter_group['seg_index']['weight'][seg_ids]
         current['pcoord'] = iter_group['pcoord'][...][seg_ids, :, :]
         try:
             current['auxdata'] = {}
-            for key in iter_group['auxdata'].keys():
+            for key in list(iter_group['auxdata'].keys()):
                 current['auxdata'][key] = iter_group['auxdata'][key][...][seg_ids, :]
         except:
             pass
         current['parents'] = iter_group['seg_index']['parent_id'][seg_ids]
         current['summary'] = parent.data_reader.data_manager.get_iter_summary(int(value))
-        current['seg_id'] = np.array(range(0, iter_group['seg_index'].shape[0]))[seg_ids]
+        current['seg_id'] = np.array(list(range(0, iter_group['seg_index'].shape[0])))[seg_ids]
         current['walkers'] = current['summary']['n_particles']
         current['states'] = parent.assign['trajlabels'][value-1, :current['walkers'], :][seg_ids]
         current['bins'] = parent.assign['assignments'][value-1, :current['walkers'], :][seg_ids]
@@ -403,19 +384,19 @@ class __get_data_for_iteration__(object):
         '''
         Returns the keys function of the internal dictionary.
         '''
-        return self.__dict__['raw'].keys()
+        return list(self.__dict__['raw'].keys())
 
     def __setitem__(self, key, value):
         self.__dict__[key] = value
     def __getattr__(self, value):
-        if value in self.__dict__['raw'].keys():
+        if value in list(self.__dict__['raw'].keys()):
             return self.__dict__['raw'][value]
-        elif value in self.__dict__.keys():
+        elif value in list(self.__dict__.keys()):
             return self.__dict__[value]
     def __setattr__(self, key, value):
         self.__dict__[key] = value
     def __dir__(self):
-        dict_keys = self.__dict__.keys()
+        dict_keys = list(self.__dict__.keys())
         dict_keys += ['maxweight', 'minweight', 'walkers', 'aggregate_walkers', 'successful_trajectories']
         remove = ['__dict__']
         for i in remove:
@@ -455,7 +436,7 @@ class __get_data_for_iteration__(object):
         new_states = state_changes[1] + 1
         old_states = state_changes[1]
         walker = {}
-        for z, (i, j) in enumerate(itertools.izip(old_states, new_states)):
+        for z, (i, j) in enumerate(zip(old_states, new_states)):
             #if self.raw['states'][walkers[z], i] == istate and self.raw['states'][walkers[z], j] == jstate:
             istate = self.raw['states'][walkers[z], i] 
             jstate = self.raw['states'][walkers[z], j]
@@ -489,13 +470,13 @@ class __get_data_for_iteration__(object):
         # Check to see if we're indexing via any of the active string types.  We should probably break it down via string or int, instead of 'what exists and what doesn't', but it works for now.
         active_items = ['kinavg', 'statepops', 'weights', 'pcoord', 'auxdata', 'parents', 'summary', 'seg_id', 'walkers', 'states', 'bins', 'populations', 'plot', 'instant_matrix', 'kinrw', 'matrix', 'rwstatepops']
         #if value in active_items:
-        if type(value) is str:
+        if isinstance(value, str):
             # This should handle everything.  Otherwise...
             try:
                 return self.raw[value]
             except:
                 print('{} is not a valid data structure.'.format(value))
-        elif type(value) is int or type(value) is np.int64:
+        elif isinstance(value, int) or isinstance(value, np.int64):
             # Otherwise, we assume they're trying to index for a seg_id.
             if value < self.walkers:
                 current = {}
@@ -512,7 +493,7 @@ class __get_data_for_iteration__(object):
                 current['weights'] = self.raw['weights'][value]
                 try:
                     current['auxdata'] = {}
-                    for key in self.raw['auxdata'].keys():
+                    for key in list(self.raw['auxdata'].keys()):
                         current['auxdata'][key] = self.raw['auxdata'][key][value]
                 except:
                     pass
@@ -549,7 +530,7 @@ class WIPIScheme(object):
         else:
             return str(self.scheme)
     def __getitem__(self, value):
-        if type(value) != str:
+        if not isinstance(value, str):
             for ischeme, schemename in enumerate(self.__dict__['raw'].keys()):
                 if ischeme == value:
                     value = schemename
@@ -557,11 +538,11 @@ class WIPIScheme(object):
         if '_ipython' in value:
             return self
         self.name = None
-        if value in self.__dict__['raw'].keys():
+        if value in list(self.__dict__['raw'].keys()):
             # If we have it in there...
             self.name = value
             return self
-        elif value in self.__dict__.keys():
+        elif value in list(self.__dict__.keys()):
             self.name = value
             return self
         elif value in self.__dir__():

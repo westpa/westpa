@@ -1,19 +1,3 @@
-# Copyright (C) 2017 Matthew C. Zwier and Lillian T. Chong
-#
-# This file is part of WESTPA.
-#
-# WESTPA is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# WESTPA is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
 
 '''Miscellaneous routines to help with HDF5 input and output of WEST-related data.'''
@@ -75,7 +59,7 @@ def calc_chunksize(shape, dtype, max_chunksize=262144):
 
     chunk_shape = list(shape)
     dtype = numpy.dtype(dtype)
-    for idim in xrange(len(shape)):
+    for idim in range(len(shape)):
         chunk_nbytes = numpy.multiply.reduce(chunk_shape)*dtype.itemsize
         while chunk_shape[idim] > 1 and chunk_nbytes > max_chunksize:
             chunk_shape[idim] >>= 1 # divide by 2
@@ -86,6 +70,19 @@ def calc_chunksize(shape, dtype, max_chunksize=262144):
 
     chunk_shape = tuple(chunk_shape)
     return chunk_shape
+
+
+def tostr(b):
+    '''Covert a nostandard string object ``b`` to str with the handling of the
+    case whhere ``b`` is bytes.'''
+
+    if b is None:
+        return None
+    elif isinstance(b, bytes):
+        return b.decode('utf-8')
+    else:
+        return str(b)
+
 
 #
 # Group and dataset manipulation functions
@@ -227,10 +224,10 @@ def label_axes(h5object, labels, units=None):
     if len(units) and len(units) != len(labels):
         raise ValueError('number of units labels does not match number of axes')
     
-    h5object.attrs['axis_labels'] = numpy.array(map(str,labels))
+    h5object.attrs['axis_labels'] = numpy.array([numpy.string_(i) for i in labels])
      
     if len(units):
-        h5object.attrs['axis_units'] = numpy.array(map(str,units))
+        h5object.attrs['axis_units'] = numpy.array([numpy.string_(i) for i in units])
 
 NotGiven = object()
 def _get_one_attr(h5object, namelist, default=NotGiven):
@@ -524,6 +521,8 @@ class IterBlockedDataset:
                 avail_bytes = psutil.virtual_memory().available
                 if dssize > avail_bytes:
                     return
+            elif isinstance(max_size, str):
+                return
             else:
                 if dssize > max_size:
                     return

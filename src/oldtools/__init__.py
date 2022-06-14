@@ -1,2 +1,2 @@
-import aframe, miscfn
+from . import aframe, miscfn
 

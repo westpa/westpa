@@ -1,6 +1,21 @@
 ===============
-WESTPA 1.0 beta
+WESTPA 1.0 
 ===============
+.. image:: https://img.shields.io/badge/WESTPA-tutorials-brightgreen.svg
+        :target: https://github.com/westpa/westpa_tutorials 
+        :alt: WESTPA Tutorials GitHub
+
+.. image:: https://readthedocs.org/projects/westpa/badge/?version=latest
+        :target: https://westpa.readthedocs.io/en/latest/?badge=latest
+        :alt: Documentation Status
+
+.. image:: https://img.shields.io/badge/Google%20Group-Users-lightgrey.svg
+        :target: http://groups.google.com/group/westpa-users 
+        :alt: Users Google Group
+
+.. image:: https://img.shields.io/badge/Google%20Group-Developers-lightgrey.svg
+        :target: https://groups.google.com/g/westpa-devel 
+        :alt: Developers Google Group
 
 
 --------
@@ -14,22 +29,23 @@ Zwier, M.C., Adelman, J.L., Kaus, J.W., Pratt, A.J., Wong, K.F., Rego, N.B., Sua
 Wang, D. W., Grabe, M., Zuckerman, D. M., and Chong, L. T. "WESTPA: An Interoperable, Highly 
 Scalable Software Package For Weighted Ensemble Simulation and Analysis," J. Chem. Theory Comput., 11: 800−809 (2015). 
 
-See this page_ for an overview of weighted ensemble simulation.
+See this page_ and this powerpoint_ for an overview of weighted ensemble simulation.
 
 To help us fund development and improve WESTPA please fill out a one-minute survey_ and consider 
 contributing documentation or code to the WESTPA community.
 
-WESTPA is free software, licensed under the terms of the GNU General Public
-License, Version 3. See the file ``COPYING`` for more information.
+WESTPA is free software, licensed under the terms of the MIT
+License. See the file ``LICENSE`` for more information.
 
 .. _survey: https://docs.google.com/forms/d/e/1FAIpQLSfWaB2aryInU06cXrCyAFmhD_gPibgOfFk-dspLEsXuS9-RGQ/viewform
 .. _page: https://westpa.github.io/westpa/overview.html
+.. _powerpoint: https://pitt.box.com/s/metui7tsfwh3bcv1xgbbj4g6fe0uokag
 
 ------------
 Requirements
 ------------
 
-WESTPA is written in Python and requires version 2.7. WESTPA further requires
+WESTPA is written in Python and requires version 3. WESTPA further requires
 a large number of scientific software libraries for Python and other
 languages. The simplest way to meet these requirements is to download the
 Anaconda Python distribution from www.continuum.io (free for all users).
@@ -43,9 +59,11 @@ Obtaining and Installing WESTPA
 
 WESTPA is developed and tested on Unix-like operating systems, including Linux and Mac OS X.
 
-Before installing WESTPA, you will need to first install the Python 2.7 version provided by the latest free `Anaconda Python distribution`_. After installing the Anaconda Python distribution, either add the Python executable to your $PATH or set the environment variable WEST_PYTHON::
+We recommend installing WESTPA through conda. See the quick install instructions on our `wiki`_ for how to do this. To install from source (not recommended), please continue reading.
 
-    export WEST_PYTHON=/opt/anaconda/bin/python2.7
+Before installing WESTPA, you will need to first install the Python 3 version provided by the latest free `Anaconda Python distribution`_. After installing the Anaconda Python distribution, either add the Python executable to your $PATH or set the environment variable WEST_PYTHON::
+
+    export WEST_PYTHON=/opt/anaconda/bin/python3
 
 We recommend obtaining the latest release of WESTPA by downloading the corresponding tar.gz file from the `releases page`_. After downloading the file, unpack the file and install WESTPA by executing the following::
 
@@ -62,13 +80,12 @@ A westpa.sh script is created during installation, and will set the following en
 These environment variables must be set in order to run WESTPA on your computing cluster.
 
 .. _`releases page`: https://github.com/westpa/westpa/releases
-.. _`Anaconda Python distribution`: https://www.continuum.io/downloads 
+.. _`Anaconda Python distribution`: https://www.anaconda.com/products/individual
+.. _`wiki`: https://github.com/westpa/westpa/wiki/WESTPA-Quick-Installation
 
 ---------------
 Getting started
 ---------------
-
-WESTPA simulation checklist_ 
 
 To define environment variables post-installation, simply source the 
 ``westpa.sh`` script in the ``westpa`` directory from the command line
@@ -86,8 +103,7 @@ of their system, we invite you to contact Lillian Chong (ltchong AT pitt DOT edu
 a few days with her lab and/or setting up video conferencing sessions to help you get your 
 simulations off the ground.
 
-.. _here: https://westpa.github.io/westpa/sphinx_index.html#tutorials
-.. _checklist: https://westpa.github.io/westpa/users_guide/checklist.html
+.. _here: https://github.com/westpa/westpa/wiki/Tutorials
 
 ------------
 Getting help
@@ -102,50 +118,8 @@ to sign up or search archived messages.
 
 .. _FAQ: https://westpa.github.io/westpa/users_guide/faq.html
 
--------------------------------------------------------
-Copyright, license, and warranty information
--------------------------------------------------------
+----------
+Developers
+----------
 
-For WESTPA
-###########
-
-The WESTPA package is copyright (c) 2013, Matthew C. Zwier and
-Lillian T. Chong. (Individual contributions noted in each source file.)
-
-WESTPA is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-WESTPA is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program (see the included file ``COPYING``).  If not,
-see <http://www.gnu.org/licenses/>.
-
-Unless otherwise noted, source files included in this distribution and
-lacking a more specific attribution are subject to the above copyright,
-terms, and conditions.
-
-
-For included software
-######################
-
-Distributions of WESTPA include a number of components without modification,
-each of which is subject to its own individual terms and conditions. Please
-see each package's documentation for the most up-to-date possible information
-on authorship and licensing. Such packages include:
-
-  h5py
-    See lib/h5py/docs/source/licenses.rst
-    
-  blessings
-    See lib/blessings/LICENSE
-    
-In addition, the ``wwmgr`` work manager is derived from the
-``concurrent.futures`` module (as included in Python 3.2) by Brian Quinlan and
-copyright 2011 the Python Software Foundation. See 
-http://docs.python.org/3/license.html for more information.
+Search archived messages or post to the westpa-devel Google group: https://groups.google.com/group/westpa-devel.

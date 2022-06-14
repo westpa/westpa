@@ -1,26 +1,9 @@
-# Copyright (C) 2013 Matthew C. Zwier and Lillian T. Chong
-#
-# This file is part of WESTPA.
-#
-# WESTPA is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# WESTPA is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
 
 '''
 YAML-based configuration files for WESTPA
 '''
 
-from __future__ import division, print_function; __metaclass__ = type
 
 import yaml
 try:
@@ -30,7 +13,7 @@ except ImportError:
     from yaml import Loader as YLoader
     
 import os, warnings
-import extloader
+from . import extloader
 
 # Only needed for temporary class
 import numpy
@@ -105,7 +88,7 @@ class YAMLConfig:
         return repr(self._data)
             
     def update_from_file(self, file, required=True):
-        if isinstance(file, basestring):
+        if isinstance(file, str):
             try:
                 file = open(file, 'rt')
             except IOError:
@@ -115,9 +98,10 @@ class YAMLConfig:
                     return
 
         self._data.update(yaml.load(file, Loader=YLoader))
+        file.close()
         
     def _normalize_key(self, key):
-        if isinstance(key, basestring):
+        if isinstance(key, str):
             key = (key,)
         else:
             try:
@@ -232,7 +216,7 @@ class YAMLConfig:
     def get_path(self, key, default=NotProvided, expandvars = True, expanduser = True, realpath = True, abspath = True):
         try:
             path = self[key]
-        except KeyError, ke:
+        except KeyError as ke:
             if default is not NotProvided:
                 path = default
             else:
@@ -264,10 +248,10 @@ class YAMLConfig:
             # practice it encourages.
             return paths
         
-        if expandvars: items = map(os.path.expandvars, items)
-        if expanduser: items = map(os.path.expanduser, items)
-        if realpath:   items = map(os.path.realpath, items)
-        if abspath:    items = map(os.path.abspath, items)
+        if expandvars: items = list(map(os.path.expandvars, items))
+        if expanduser: items = list(map(os.path.expanduser, items))
+        if realpath:   items = list(map(os.path.realpath, items))
+        if abspath:    items = list(map(os.path.abspath, items))
         
         return items
 

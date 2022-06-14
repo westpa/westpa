@@ -1,21 +1,4 @@
-# Copyright (C) 2017 Matthew C. Zwier and Lillian T. Chong
-#
-# This file is part of WESTPA.
-#
-# WESTPA is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# WESTPA is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import print_function, division; __metaclass__ = type
 import numpy, h5py
 from scipy.signal import fftconvolve
 
@@ -54,11 +37,11 @@ def _extract_fluxes_fileversion_lt_7(iter_start, iter_stop, data_manager):
         flux_field = 'flux'
         
     fluxdata = {itarget: numpy.zeros((iter_count,), dtype=fluxentry_dtype)
-                for itarget in xrange(target_count)}
+                for itarget in range(target_count)}
     
-    for iiter, n_iter in enumerate(xrange(iter_start, iter_stop)):
+    for iiter, n_iter in enumerate(range(iter_start, iter_stop)):
         rdata = data_manager.get_iter_group(n_iter)['recycling']
-        for itarget in xrange(target_count):            
+        for itarget in range(target_count):            
             fluxdata[itarget][iiter]['n_iter'] = n_iter
             fluxdata[itarget][iiter]['flux'] = rdata[itarget][flux_field]
             fluxdata[itarget][iiter]['count'] = rdata[itarget]['count']
@@ -83,7 +66,7 @@ def _extract_fluxes_fileversion_7(iter_start, iter_stop, data_manager):
     # but that's for another tool.
     by_target = {}
     
-    for iiter, n_iter in enumerate(xrange(iter_start, iter_stop)):
+    for iiter, n_iter in enumerate(range(iter_start, iter_stop)):
         target_states = data_manager.get_target_states(n_iter)
         try:
             new_weight_index = data_manager.get_iter_group(n_iter+1)['new_weights']['index']
@@ -236,7 +219,7 @@ the true value of ``tau``.
         avg_fluxdata = numpy.empty((n_targets,), dtype=ci_dtype)
         
 
-        for itarget, (target_label, target_fluxdata) in enumerate(fluxdata.iteritems()):
+        for itarget, (target_label, target_fluxdata) in enumerate(fluxdata.items()):
             # Create group and index entry
             index[itarget]['target_label'] = str(target_label)
             target_group = output_group.create_group('target_{}'.format(itarget))
@@ -289,7 +272,7 @@ the true value of ``tau``.
         westpa.rc.pstatus('Calculating cumulative evolution of flux confidence intervals every {} iteration(s)'
                         .format(self.evol_step))
         
-        for itarget, (target_label, target_fluxdata) in enumerate(self.fluxdata.iteritems()):
+        for itarget, (target_label, target_fluxdata) in enumerate(self.fluxdata.items()):
             fluxes = target_fluxdata['flux']
             target_group = self.target_groups[target_label]
             iter_start = target_group['n_iter'][0]
@@ -300,7 +283,7 @@ the true value of ``tau``.
             
             cis = numpy.empty((n_blocks,), dtype=ci_dtype)
             
-            for iblock in xrange(n_blocks):
+            for iblock in range(n_blocks):
                 block_iter_stop = min(iter_start + (iblock+1)*self.evol_step, iter_stop)
                 istop = min((iblock+1)*self.evol_step, len(target_fluxdata['flux']))
                 fluxes = target_fluxdata['flux'][:istop]

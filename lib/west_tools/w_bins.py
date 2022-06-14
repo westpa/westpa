@@ -1,21 +1,4 @@
-# Copyright (C) 2013 Matthew C. Zwier and Lillian T. Chong
-#
-# This file is part of WESTPA.
-#
-# WESTPA is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# WESTPA is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import print_function, division; __metaclass__ = type
 
 import logging, sys
 import numpy 
@@ -61,9 +44,12 @@ modify the binning for the current iteration of a WEST simulation.
         rebin_parser.add_argument('--confirm', action='store_true', 
                                   help='''Commit the revised iteration to HDF5; without this option, the effects of the
                                   new binning are only calculated and printed.''')
+        rebin_parser.add_argument('-n', '--n-iter', type=int, 
+                                 help='''Consider initial points of segment N_ITER (default: current iteration).''')
         rebin_parser.add_argument('--detail', action='store_true',
                                   help='''Display detailed per-bin information in addition to summary
                                      information.''')
+        
         self.binning.add_args(rebin_parser, suppress=['--bins-from-file'])
         self.binning.add_target_count_args(rebin_parser)
         rebin_parser.set_defaults(func=self.cmd_rebin)
@@ -121,7 +107,7 @@ modify the binning for the current iteration of a WEST simulation.
         data_manager = self.data_reader.data_manager
         
         segments = data_manager.get_segments(self.n_iter,load_pcoords=True)
-        last_iter_segments = data_manager.get_segments(self.n_iter-1,load_pcoords=False,load_auxdata=False)
+        last_iter_segments = data_manager.get_segments(self.n_iter-1,load_pcoords=False)
                 
         # Bin on this iteration's initial points
         # We don't have to worry about recycling because we are binning on

@@ -1,14 +1,21 @@
-==============================
-Contributors to the wwmgr code
-==============================
+WESTPA development is led by Lillian Chong (ltchong@pitt.edu)
+in collaboration with Daniel Zuckerman (zuckermd@ohsu.edu)
 
-(In alphabetical order)
+The original version of WESTPA was written by Matthew Zwier (matthew.zwier@drake.edu) 
+as part of his Ph.D. dissertation with Lillian Chong.
 
-Josh Adelman
-Joe Kaus
-Nick Rego
+Other contributors are the following (In alphabetical order)
+
+Joshua Adelman
+Alex DeGrave
+Joseph Kaus
+Page Harrison
+Patrick Pisciuneri
+A. J. Pratt
+Ali Saglam
+Nicholas Rego
+David Wang
 Kim Wong
-Matt Zwier <mczwier@gmail.com>
 
 The work manager interface is derived from the ``concurrent.futures`` module
 of Python 3.2 by Brian Quinlan, (C) 2011 the Python Software Foundation.

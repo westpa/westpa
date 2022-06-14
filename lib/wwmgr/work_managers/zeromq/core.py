@@ -4,12 +4,7 @@ Created on May 29, 2015
 @author: mzwier
 '''
 
-from __future__ import division, print_function; __metaclass__ = type
-
-try:
-    from cPickle import UnpicklingError
-except (NameError,AttributeError):
-    from pickle import UnpicklingError
+from pickle import UnpicklingError
 
 # Every ten seconds the master requests a status report from workers.
 # This also notifies workers that the master is still alive
@@ -107,7 +102,7 @@ class Message:
             else:
                 key = (msg.message, msg.payload)
             d[key] = msg
-        coalesced = msg.values()
+        coalesced = list(msg.values())
         log.debug('coalesced {} announcements into {}'.format(len(messages), len(coalesced)))
         return coalesced
 
@@ -580,7 +575,7 @@ class IsNode:
         if n_local_workers:
             self.local_ann_endpoint = self.make_internal_endpoint()
             self.local_rr_endpoint = self.make_internal_endpoint()
-            self.local_workers = [ZMQWorker(self.local_rr_endpoint, self.local_ann_endpoint) for _n in xrange(n_local_workers)]
+            self.local_workers = [ZMQWorker(self.local_rr_endpoint, self.local_ann_endpoint) for _n in range(n_local_workers)]
         else:
             self.local_ann_endpoint = None
             self.local_rr_endpoint = None

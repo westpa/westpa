@@ -1,25 +1,9 @@
-# Copyright (C) 2013 Matthew C. Zwier and Lillian T. Chong
-#
-# This file is part of WESTPA.
-#
-# WESTPA is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# WESTPA is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import division, print_function
+
 
 import os, sys, logging, numpy, operator, argparse
-import cStringIO
-from itertools import izip
+import io
+
 log = logging.getLogger('w_init')
 
 import work_managers
@@ -88,7 +72,7 @@ with work_manager:
         if args.tstate_file:
             target_states.extend(TargetState.states_from_file(args.tstate_file, system.pcoord_dtype))
         if args.tstates:
-            tstates_strio = cStringIO.StringIO('\n'.join(args.tstates).replace(',', ' '))
+            tstates_strio = io.StringIO('\n'.join(args.tstates).replace(',', ' '))
             target_states.extend(TargetState.states_from_file(tstates_strio, system.pcoord_dtype))
             del tstates_strio
                     

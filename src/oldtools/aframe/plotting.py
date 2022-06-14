@@ -1,21 +1,4 @@
-# Copyright (C) 2013 Matthew C. Zwier and Lillian T. Chong
-#
-# This file is part of WESTPA.
-#
-# WESTPA is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# WESTPA is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import division, print_function; __metaclass__ = type
 
 import logging
 log = logging.getLogger(__name__)
@@ -76,8 +59,8 @@ else:
                              (1.0,1.0,1.0)]}
     
     cm_pdr = matplotlib.colors.LinearSegmentedColormap('pdr', _pdr_data, 2048)
-    cm_pdr_r = matplotlib.colors.LinearSegmentedColormap('pdr_r', matplotlib.cm.revcmap(_pdr_data), 2048)
-    
+    cm_pdr_r = cm_pdr.reversed()
+
     matplotlib.cm.register_cmap('pdr', cm_pdr)
     matplotlib.cm.register_cmap('pdr_r', cm_pdr_r)
     matplotlib.cm.register_cmap('hovmol', cm_hovmol)

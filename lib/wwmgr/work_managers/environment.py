@@ -1,23 +1,6 @@
-# Copyright (C) 2013 Matthew C. Zwier and Lillian T. Chong
-#
-# This file is part of WESTPA.
-#
-# WESTPA is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# WESTPA is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
 
 '''Routines for configuring the work manager environment'''
 
-__metaclass__ = type
 
 import os, re
 from . import _available_work_managers
@@ -42,7 +25,7 @@ class WMEnvironment:
     
     default_work_manager = 'serial'
     default_parallel_work_manager = 'processes'
-    valid_work_managers = list(_available_work_managers.iterkeys())
+    valid_work_managers = list(_available_work_managers.keys())
     
     def __init__(self, use_arg_prefixes=False, valid_work_managers=None):
         self.environ = os.environ

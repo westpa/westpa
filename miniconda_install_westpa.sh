@@ -38,9 +38,9 @@ echo ${platform}
 
 # Assign download target based on platform
 if [ ${platform} == "Linux" ]; then
-   download=Miniconda2-latest-Linux-x86_64.sh
+   download=Miniconda3-latest-Linux-x86_64.sh
 elif [ ${platform} == "Mac" ]; then
-   download=Miniconda2-latest-MacOSX-x86_64.sh
+   download=Miniconda3-latest-MacOSX-x86_64.sh
 else
    echo "Installation script only supports Linux or Mac OS X."
    echo "Exiting installation."
@@ -49,7 +49,7 @@ fi
 
 echo "download = " ${download}
 
-# Download Anaconda Python 2.7 from https://www.continuum.io
+# Download Anaconda Python 3.7 from https://www.continuum.io
 if command -v wget >&/dev/null; then
    wget https://repo.continuum.io/miniconda/$download -P $(dirname $PREFIX)
 else
@@ -59,7 +59,7 @@ fi
 # Batch install to specified PREFIX
 bash $(dirname $PREFIX)/$download -b -p $PREFIX
 
-# Prepend the Miniconda2 install location to PATH
+# Prepend the Miniconda3 install location to PATH
 export PATH="$PREFIX/bin:$PATH"
 
 ### +------------------------------------------------+ ########################################
@@ -67,29 +67,31 @@ export PATH="$PREFIX/bin:$PATH"
 ### +------------------------------------------------+ ########################################
 
 # Specify conda environment name
-conda_env=westpa-2017.10
+conda_env=westpa-2020.05
 
-# Install WESTPA in virtual environment
-conda create --yes -c conda-forge -n $conda_env westpa
+# Update conda first
+conda update -n base -c defaults conda
 
+# Initialize conda
+conda init $(basename $SHELL)
+
+# Source initialization parameters created by conda init
 . $PREFIX/etc/profile.d/conda.sh
 
+# Install WESTPA in virtual environment
+conda create --yes -n $conda_env -c conda-forge westpa
+##conda create --yes -n $conda_env -c kimwong westpa
+
+# Test activate/deactive: will get an error if broken
 conda activate $conda_env
 
-# Place WESTPA environment variables inside conda env
-export ENV_PREFIX="$(dirname $(dirname `which python2.7`))"
-mkdir -p $ENV_PREFIX/etc/conda/activate.d
-mkdir -p $ENV_PREFIX/etc/conda/deactivate.d
-touch $ENV_PREFIX/etc/conda/activate.d/env_vars.sh
-cat << EOC >> $ENV_PREFIX/etc/conda/activate.d/env_vars.sh 
-. $(dirname $(dirname `which python2.7`))/$conda_env/westpa.sh
-EOC
-touch $ENV_PREFIX/etc/conda/deactivate.d/env_vars.sh
+echo "WEST_ROOT   = " $WEST_ROOT
+echo "WEST_BIN    = " $WEST_BIN
+echo "WEST_PYTHON = " $WEST_PYTHON
 
 conda deactivate
 
-# Reminder to add Miniconda2 install location to PATH
-echo "Be sure to add the following lines to your .bashrc startup file"
-echo "export PATH="$PREFIX/bin:'$PATH'""
-echo ". $PREFIX/etc/profile.d/conda.sh"
+# Reminder to add Miniconda3 install location to PATH
+echo ""
+echo "If WEST_ROOT, WEST_BIN, and WEST_PYTHON are defined, your WESTPA installation was successful."
 
