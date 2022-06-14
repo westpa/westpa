@@ -1,6 +1,9 @@
 import numpy as np
 from westpa.core.binning import FuncBinMapper
 from westpa.core.extloader import get_object
+import logging
+
+log = logging.getLogger('westpa.rc')
 
 
 def map_binless(coords, mask, output, *args, **kwargs):
@@ -11,6 +14,11 @@ def map_binless(coords, mask, output, *args, **kwargs):
     n_groups = kwargs.get("n_groups")
     n_dims = kwargs.get("n_dims")
     group_function = get_object(kwargs.get("group_function"))
+    log.debug(f'binless arguments: {kwargs}')
+    try:
+        group_function_kwargs = kwargs.get('group_function_kwargs')['group_arguments']
+    except KeyError:
+        group_function_kwargs = {}
     ndim = n_dims
 
     if not np.any(mask):
@@ -51,14 +59,15 @@ def map_binless(coords, mask, output, *args, **kwargs):
     # if only one segment in the binless region, assign it to a single cluster
     if nsegs_binless == 1:
         clusters = [0]
+
     # if there are more than one segment in the binless region but still the total is less than
     # our target number, adjust our target number to be the number of segments in the binless
     # region minus one
     elif nsegs_binless < n_groups:
-        clusters = group_function(binless_coords, nsegs_binless, splitting)
+        clusters = group_function(binless_coords, nsegs_binless, splitting, **group_function_kwargs)
     # if there are enough segments in the binless region, proceed as planned
     elif nsegs_binless >= n_groups:
-        clusters = group_function(binless_coords, n_groups, splitting)
+        clusters = group_function(binless_coords, n_groups, splitting, **group_function_kwargs)
 
     # this is a good place to say this... output is a list which matches the length of allcoords
     # allcoords is a collection of all initial and final segment coords for that iteration
@@ -81,7 +90,7 @@ class BinlessMapper(FuncBinMapper):
     '''Adaptively group walkers according to a user-defined grouping
     function that is defined externally.'''
 
-    def __init__(self, ngroups, ndims, group_function):
-        kwargs = dict(n_groups=ngroups, n_dims=ndims, group_function=group_function)
+    def __init__(self, ngroups, ndims, group_function, **group_function_kwargs):
+        kwargs = dict(n_groups=ngroups, n_dims=ndims, group_function=group_function, group_function_kwargs=group_function_kwargs)
         n_total_groups = ngroups
         super().__init__(map_binless, n_total_groups, kwargs=kwargs)
