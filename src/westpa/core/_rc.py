@@ -418,8 +418,8 @@ class WESTRC:
         # Necessary if the user hasn't specified any options.
         if we_driver.subgroup_function_kwargs is None:
             we_driver.subgroup_function_kwargs = {}
-        log.debug('loaded WE algorithm driver grouping function {!r}'.format(subgroup_function))
-        log.debug('WE algorithm driver grouping function kwargs: {!r}'.format(we_driver.subgroup_function_kwargs))
+        log.debug('loaded WE algorithm driver subgrouping function {!r}'.format(subgroup_function))
+        log.debug('WE algorithm driver subgrouping function kwargs: {!r}'.format(we_driver.subgroup_function_kwargs))
 
         return we_driver
 
