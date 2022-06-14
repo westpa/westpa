@@ -10,10 +10,10 @@ def map_mab(coords, mask, output, *args, **kwargs):
     evenly spaced bins between the segments with the min and max pcoord values. Extrema and
     bottleneck segments are assigned their own bins.'''
 
-    pca = kwargs.pop("pca", False)
-    bottleneck = kwargs.pop("bottleneck", True)
-    direction = kwargs.pop("direction", None)
-    nbins_per_dim = kwargs.pop("nbins_per_dim")
+    pca = kwargs.get("pca", False)
+    bottleneck = kwargs.get("bottleneck", True)
+    direction = kwargs.get("direction", None)
+    nbins_per_dim = kwargs.get("nbins_per_dim", None)
 
     if nbins_per_dim is None:
         raise ValueError("nbins_per_dim is missing")
@@ -175,10 +175,18 @@ def map_mab(coords, mask, output, *args, **kwargs):
                 bins = np.linspace(minp, maxp, nbins + 1)
                 bin_number = np.digitize(coord, bins) - 1
 
-                if bin_number >= nbins:
-                    bin_number = nbins - 1
-                elif bin_number < 0:
-                    bin_number = 0
+                if isfinal is None or not isfinal[i]:
+                    if bin_number >= nbins:
+                        bin_number = nbins - 1
+                    elif bin_number < 0:
+                        bin_number = 0
+                elif bin_number >= nbins or bin_number < 0:
+                    if np.isclose(bins[-1], coord):
+                        bin_number = nbins - 1
+                    elif np.isclose(bins[0], coord):
+                        bin_number = 0
+                    else:
+                        raise ValueError("Walker out of boundary")
 
                 holder += bin_number * np.prod(nbins_per_dim[:n])
 
