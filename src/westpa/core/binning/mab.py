@@ -181,7 +181,12 @@ def map_mab(coords, mask, output, *args, **kwargs):
                     elif bin_number < 0:
                         bin_number = 0
                 elif bin_number >= nbins or bin_number < 0:
-                    raise ValueError("Walker out of boundary")
+                    if np.isclose(bins[-1], coord):
+                        bin_number = nbins - 1
+                    elif np.isclose(bins[0], coord):
+                        bin_number = 0
+                    else:
+                        raise ValueError("Walker out of boundary")
 
                 holder += bin_number * np.prod(nbins_per_dim[:n])
 
