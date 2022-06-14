@@ -701,7 +701,7 @@ class WEDriver:
                     # A modified adjustment routine is necessary to ensure we don't unnecessarily destroy trajectory pathways.
                     self._adjust_count(bin, subgroups, target_count)
             total_number_of_particles += len(bin)
-        westpa.rc.pstatus('Total number of subgroups: {!r}'.format(total_number_of_subgroups))
+        log.debug('Total number of subgroups: {!r}'.format(total_number_of_subgroups))
 
         self._check_post()
 
