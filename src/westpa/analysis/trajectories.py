@@ -308,16 +308,25 @@ class HDF5MDTrajectory(Trajectory):
                 parent = walker.parent
 
                 if isinstance(parent, InitialState):
-                    if parent.istate_type != InitialState.ISTATE_TYPE_BASIS:
-                        raise ValueError('only initial states of type BASIS are supported')
-
-                    link = walker.run.h5file.get_iter_group(0)['trajectories']
-                    with WESTIterationFile(link.file.filename) as traj_file:
-                        frame = traj_file.read_as_traj(
-                            iteration=0,
-                            segment=parent.basis_state_id,
-                            atom_indices=atom_indices,
-                        )
+                    if parent.istate_type == InitialState.ISTATE_TYPE_BASIS:
+                        link = walker.run.h5file.get_iter_group(0)['trajectories']
+                        with WESTIterationFile(link.file.filename) as traj_file:
+                            frame = traj_file.read_as_traj(
+                                iteration=0,
+                                segment=parent.basis_state_id,
+                                atom_indices=atom_indices,
+                            )
+                    elif parent.istate_type == InitialState.ISTATE_TYPE_GENERATED:
+                        link = walker.run.h5file.get_iter_group(0)['trajectories']
+                        istate_iter = -int(parent.iter_created)  # the conversion to int is because iter_created is uint
+                        with WESTIterationFile(link.file.filename) as traj_file:
+                            frame = traj_file.read_as_traj(
+                                iteration=istate_iter,
+                                segment=parent.state_id,
+                                atom_indices=atom_indices,
+                            )
+                    else:
+                        raise ValueError('unsupported initial state type: %d' % parent.istate_type)
                 else:
                     frame = fget(parent, include_initpoint=False, atom_indices=atom_indices)[-1]
                 traj = frame.join(traj, check_topology=False)
