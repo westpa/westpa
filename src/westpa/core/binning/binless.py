@@ -1,6 +1,9 @@
 import numpy as np
 from westpa.core.binning import FuncBinMapper
 from westpa.core.extloader import get_object
+import logging
+
+log = logging.getLogger('westpa.rc')
 
 
 def map_binless(coords, mask, output, *args, **kwargs):
@@ -11,10 +14,12 @@ def map_binless(coords, mask, output, *args, **kwargs):
     n_groups = kwargs.get("n_groups")
     n_dims = kwargs.get("n_dims")
     group_function = get_object(kwargs.get("group_function"))
-    group_function_kwargs = kwargs.get('group_function_kwargs')['group_arguments']
-    ndim = n_dims
-    if group_function_kwargs is None or len(group_function_kwargs) == 0:
+    log.debug(f'binless arguments: {kwargs}')
+    try:
+        group_function_kwargs = kwargs.get('group_function_kwargs')['group_arguments']
+    except KeyError:
         group_function_kwargs = {}
+    ndim = n_dims
 
     if not np.any(mask):
         return output
