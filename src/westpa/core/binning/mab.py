@@ -1,6 +1,9 @@
 import numpy as np
 from westpa.core.binning import FuncBinMapper
 import westpa
+import logging
+
+log = logging.getLogger(__name__)
 
 
 def map_mab(coords, mask, output, *args, **kwargs):
@@ -13,6 +16,7 @@ def map_mab(coords, mask, output, *args, **kwargs):
     pca = kwargs.get("pca", False)
     bottleneck = kwargs.get("bottleneck", True)
     direction = kwargs.get("direction", None)
+    skip = kwargs.get("skip", None)
     nbins_per_dim = kwargs.get("nbins_per_dim", None)
 
     if nbins_per_dim is None:
@@ -21,6 +25,15 @@ def map_mab(coords, mask, output, *args, **kwargs):
     ndim = len(nbins_per_dim)
     if direction is None:
         direction = [0] * ndim
+    elif len(direction) != ndim:
+        direction = [0] * ndim
+        log.warn("Direction list is not the correct dimensions, setting to defaults.")
+
+    if skip is None:
+        skip = [0] * ndim
+    elif len(skip) != ndim:
+        skip = [0] * ndim
+        log.warn("Skip list is not the correct dimensions, setting to defaults.")
 
     if not np.any(mask):
         return output
@@ -116,12 +129,14 @@ def map_mab(coords, mask, output, *args, **kwargs):
         westpa.rc.pstatus("minima in each dimension:      {}".format(minlist))
         westpa.rc.pstatus("maxima in each dimension:      {}".format(maxlist))
         westpa.rc.pstatus("direction in each dimension:   {}".format(direction))
+        westpa.rc.pstatus("skip in each dimension:        {}".format(skip))
         westpa.rc.pstatus("###########################################")
         westpa.rc.pflush()
 
     # assign segments to bins
     # the total number of linear bins + 2 boundary bins each dim
     boundary_base = np.prod(nbins_per_dim)
+    skip_base = np.prod(nbins_per_dim)
     bottleneck_base = boundary_base + 2 * ndim
     for i in range(len(output)):
         if not allmask[i]:
@@ -132,6 +147,10 @@ def map_mab(coords, mask, output, *args, **kwargs):
         if splitting:
             for n in range(ndim):
                 coord = allcoords[i][n]
+
+                if skip[n] != 0:
+                    holder = skip_base + 2 * n
+                    break
 
                 if bottleneck:
                     if coord == difflist[n]:
@@ -167,6 +186,11 @@ def map_mab(coords, mask, output, *args, **kwargs):
 
         if not special:
             for n in range(ndim):
+
+                if skip[n] != 0:
+                    holder = skip_base + 2 * n
+                    break
+
                 coord = allcoords[i][n]
                 nbins = nbins_per_dim[n]
                 minp = minlist[n]
@@ -200,8 +224,8 @@ class MABBinMapper(FuncBinMapper):
     the progress coordinte. Extrema and bottleneck segments are assigned
     to their own bins.'''
 
-    def __init__(self, nbins, direction=None, bottleneck=True, pca=False):
-        kwargs = dict(nbins_per_dim=nbins, direction=direction, bottleneck=bottleneck, pca=pca)
+    def __init__(self, nbins, direction=None, skip=None, bottleneck=True, pca=False):
+        kwargs = dict(nbins_per_dim=nbins, direction=direction, skip=skip, bottleneck=bottleneck, pca=pca)
         ndim = len(nbins)
         n_total_bins = np.prod(nbins) + ndim * (2 + 2 * bottleneck)
         super().__init__(map_mab, n_total_bins, kwargs=kwargs)
