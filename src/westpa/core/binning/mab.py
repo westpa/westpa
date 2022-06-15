@@ -3,6 +3,8 @@ from westpa.core.binning import FuncBinMapper
 import westpa
 import logging
 
+log = logging.getLogger('westpa.rc')
+
 
 def map_mab(coords, mask, output, *args, **kwargs):
     '''Binning which adaptively places bins based on the positions of extrema segments and
@@ -25,13 +27,13 @@ def map_mab(coords, mask, output, *args, **kwargs):
         direction = [0] * ndim
     elif len(direction) != ndim:
         direction = [0] * ndim
-        logging.warn("Direction list is not the correct dimensions, setting to defaults.")
+        log.warn("Direction list is not the correct dimensions, setting to defaults.")
 
     if skip is None:
         skip = [0] * ndim
     elif len(skip) != ndim:
         skip = [0] * ndim
-        logging.warn("Skip list is not the correct dimensions, setting to defaults.")
+        log.warn("Skip list is not the correct dimensions, setting to defaults.")
 
     if not np.any(mask):
         return output
