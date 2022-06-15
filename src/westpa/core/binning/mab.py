@@ -3,7 +3,7 @@ from westpa.core.binning import FuncBinMapper
 import westpa
 import logging
 
-log = logging.getLogger('westpa.rc')
+log = logging.getLogger(__name__)
 
 
 def map_mab(coords, mask, output, *args, **kwargs):
