@@ -1,6 +1,7 @@
 import numpy as np
 from westpa.core.binning import FuncBinMapper
 import westpa
+import logging
 
 
 def map_mab(coords, mask, output, *args, **kwargs):
@@ -22,9 +23,15 @@ def map_mab(coords, mask, output, *args, **kwargs):
     ndim = len(nbins_per_dim)
     if direction is None:
         direction = [0] * ndim
+    elif len(direction) != ndim:
+        direction = [0] * ndim
+        logging.warn("Direction list is not the correct dimensions, setting to defaults.")
 
     if skip is None:
         skip = [0] * ndim
+    elif len(skip) != ndim:
+        skip = [0] * ndim
+        logging.warn("Skip list is not the correct dimensions, setting to defaults.")
 
     if not np.any(mask):
         return output
@@ -139,7 +146,7 @@ def map_mab(coords, mask, output, *args, **kwargs):
             for n in range(ndim):
                 coord = allcoords[i][n]
 
-                if skip[n] > 0:
+                if skip[n] != 0:
                     holder = skip_base + 2 * n
                     break
 
@@ -178,7 +185,7 @@ def map_mab(coords, mask, output, *args, **kwargs):
         if not special:
             for n in range(ndim):
 
-                if skip[n] > 0:
+                if skip[n] != 0:
                     holder = skip_base + 2 * n
                     break
 
