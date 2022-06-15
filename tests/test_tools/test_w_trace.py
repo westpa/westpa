@@ -38,6 +38,8 @@ class Test_NEW_W_Trace:
             ):
                 entry_point()
 
+            self.outfile.close()
+
             # Compare text file output
             assert cmp(
                 os.path.join(test_dir, output_txt), os.path.join(ref_dir, output_txt), shallow=False
