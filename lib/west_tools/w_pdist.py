@@ -1,12 +1,9 @@
-
 import logging
-from itertools import izip
 from westtools import (WESTParallelTool, WESTDataReader, WESTDSSynthesizer, WESTWDSSynthesizer, IterRangeSelection, 
                        ProgressIndicatorComponent)
 import numpy, h5py
 from fasthist import histnd, normhistnd
 from westpa import h5io
-from westpa.h5io import SingleIterDSSpec
 
 log = logging.getLogger('westtools.w_pdist')
 
@@ -192,7 +189,6 @@ Command-line options
         self.binspec = None
         self.output_filename = None
         self.output_file = None
-        
         
         self.dsspec = None
         self.wt_dsspec = None # dsspec for weights

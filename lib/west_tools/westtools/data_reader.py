@@ -1,4 +1,3 @@
-
 import numpy
 from numpy import index_exp
 from .core import WESTToolComponent
