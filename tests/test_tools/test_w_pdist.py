@@ -29,6 +29,7 @@ class Test_W_PDIST:
                 compress=False,
                 work_manager=None,
                 n_workers=None,
+                construct_wdataset=None,
             ),
         ):
             entry_point()
