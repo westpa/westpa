@@ -31,6 +31,14 @@ class ProcessWorkManager(WorkManager):
 
     def __init__(self, n_workers=None, shutdown_timeout=1):
         super().__init__()
+
+        try:
+            if sys.platform == 'darwin':  # MacOS
+                multiprocessing.set_start_method('fork')
+                log.debug('setting multiprocessing start method to fork')
+        except RuntimeError:
+            log.debug('failed to set start method to fork')
+
         self.n_workers = n_workers or multiprocessing.cpu_count()
         self.workers = None
         self.task_queue = multiprocessing.Queue()
