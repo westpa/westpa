@@ -3,7 +3,7 @@ from westpa.core.binning import FuncBinMapper
 from westpa.core.extloader import get_object
 import logging
 
-log = logging.getLogger('westpa.rc')
+log = logging.getLogger(__name__)
 
 
 def map_binless(coords, mask, output, *args, **kwargs):
