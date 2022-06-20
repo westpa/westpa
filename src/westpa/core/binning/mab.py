@@ -240,5 +240,13 @@ class MABBinMapper(FuncBinMapper):
     def __init__(self, nbins, direction=None, skip=None, bottleneck=True, pca=False):
         kwargs = dict(nbins_per_dim=nbins, direction=direction, skip=skip, bottleneck=bottleneck, pca=pca)
         ndim = len(nbins)
-        n_total_bins = np.prod(nbins) + ndim * (2 + 2 * bottleneck)
+        n_total_bins = np.prod(nbins)
+        for i in range(0, ndim):
+            if skip[i] == 0:
+                if direction[i] != 0:
+                    n_total_bins += 1 + 1 * bottleneck
+                else:
+                    n_total_bins += 2 + 2 * bottleneck
+            else:
+                n_total_bins -= np.prod(nbins) - 1
         super().__init__(map_mab, n_total_bins, kwargs=kwargs)
