@@ -153,14 +153,27 @@ def map_mab(coords, mask, output, *args, **kwargs):
                     break
 
                 if bottleneck:
-                    if coord == difflist[n]:
-                        holder = bottleneck_base + 2 * n
-                        special = True
-                        break
-                    elif coord == flipdifflist[n]:
-                        holder = bottleneck_base + 2 * n + 1
-                        special = True
-                        break
+                    if direction[n] < 0:
+                        if coord == flipdifflist[n]:
+                            holder = bottleneck_base + 2 * n
+                            special = True
+                            break
+
+                    if direction[n] > 0:
+                        if coord == difflist[n]:
+                            holder = bottleneck_base + 2 * n
+                            special = True
+                            break
+
+                    if direction[n] == 0:
+                        if coord == difflist[n]:
+                            holder = bottleneck_base + 2 * n
+                            special = True
+                            break
+                        elif coord == flipdifflist[n]:
+                            holder = bottleneck_base + 2 * n + 1
+                            special = True
+                            break
 
                 if direction[n] < 0:
                     if coord == minlist[n]:
