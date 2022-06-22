@@ -186,7 +186,7 @@ class WESimManager:
         bin_drange = math.log(max_bin_prob / min_bin_prob)
         n_pop = len(bin_counts[bin_counts != 0])
 
-        self.rc.pstatus('{:d} of {:d} ({:%}) active bins are populated'.format(n_pop, n_active_bins, n_pop / n_active_bins))
+        self.rc.pstatus('{:d} of {:d} ({:%}) active bins were populated'.format(n_pop, n_active_bins, n_pop / n_active_bins))
         self.rc.pstatus('per-bin minimum non-zero probability:       {:g}'.format(min_bin_prob))
         self.rc.pstatus('per-bin maximum probability:                {:g}'.format(max_bin_prob))
         self.rc.pstatus('per-bin probability dynamic range (kT):     {:g}'.format(bin_drange))
@@ -479,7 +479,7 @@ class WESimManager:
         initial_assignments = self.system.bin_mapper.assign(initial_pcoords)
         for (segment, assignment) in zip(iter(segments.values()), initial_assignments):
             initial_binning[assignment].add(segment)
-        self.report_bin_statistics(initial_binning, [], save_summary=True)
+        #        self.report_bin_statistics(initial_binning, [], save_summary=True)
         del initial_pcoords, initial_binning
 
         # Let the WE driver assign completed segments
@@ -516,6 +516,17 @@ class WESimManager:
         # dispatch and immediately wait on result for post_iter
         log.debug('dispatching propagator post_iter to work manager')
         self.work_manager.submit(wm_ops.post_iter, args=(self.n_iter, list(self.segments.values()))).get_result()
+
+        segments = self.segments = {segment.seg_id: segment for segment in self.data_manager.get_segments()}
+        final_pcoords = self.system.new_pcoord_array(len(segments))
+        final_binning = self.system.bin_mapper.construct_bins()
+        for iseg, segment in enumerate(segments.values()):
+            final_pcoords[iseg] = segment.pcoord[-1]
+        final_assignments = self.system.bin_mapper.assign(final_pcoords)
+        for (segment, assignment) in zip(iter(segments.values()), final_assignments):
+            final_binning[assignment].add(segment)
+        self.report_bin_statistics(final_binning, [], save_summary=True)
+        del final_pcoords, final_binning
 
         # Move existing segments into place as new segments
         del self.segments
