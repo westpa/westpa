@@ -1,6 +1,5 @@
 import numpy as np
 from westpa.core.binning import FuncBinMapper
-import westpa
 import logging
 
 log = logging.getLogger(__name__)
@@ -124,20 +123,30 @@ def map_mab(coords, mask, output, *args, **kwargs):
                     flipdifflist[n] = fliptemp[i][0]
                     flipmaxdiff = flipdiff
 
-    if splitting:
-        westpa.rc.pstatus("################ MAB stats ################")
-        westpa.rc.pstatus("minima in each dimension:      {}".format(minlist))
-        westpa.rc.pstatus("maxima in each dimension:      {}".format(maxlist))
-        westpa.rc.pstatus("direction in each dimension:   {}".format(direction))
-        westpa.rc.pstatus("skip in each dimension:        {}".format(skip))
-        westpa.rc.pstatus("###########################################")
-        westpa.rc.pflush()
+    #    if allcoords.shape[0] > ndim:
+    #        westpa.rc.pstatus("################ MAB stats ################")
+    #        westpa.rc.pstatus("minima in each dimension:      {}".format(minlist))
+    #        westpa.rc.pstatus("maxima in each dimension:      {}".format(maxlist))
+    #        westpa.rc.pstatus("direction in each dimension:   {}".format(direction))
+    #        westpa.rc.pstatus("skip in each dimension:        {}".format(skip))
+    #        westpa.rc.pstatus("###########################################")
+    #        westpa.rc.pflush()
 
     # assign segments to bins
     # the total number of linear bins + 2 boundary bins each dim
     boundary_base = np.prod(nbins_per_dim)
-    skip_base = np.prod(nbins_per_dim)
-    bottleneck_base = boundary_base + 2 * ndim
+    bottleneck_base = boundary_base
+
+    for i in range(0, ndim):
+        if direction[i] != 0:
+            bottleneck_base += 1
+        else:
+            bottleneck_base += 2
+
+    for i in range(0, ndim):
+        if skip[i] != 0:
+            boundary_base -= nbins_per_dim[i] - 1
+
     for i in range(len(output)):
         if not allmask[i]:
             continue
@@ -149,51 +158,51 @@ def map_mab(coords, mask, output, *args, **kwargs):
                 coord = allcoords[i][n]
 
                 if skip[n] != 0:
-                    holder = skip_base + 2 * n
+                    holder = boundary_base + n
                     break
 
                 if bottleneck:
                     if direction[n] < 0:
                         if coord == flipdifflist[n]:
-                            holder = bottleneck_base + 2 * n
+                            holder = bottleneck_base + n
                             special = True
                             break
 
                     if direction[n] > 0:
                         if coord == difflist[n]:
-                            holder = bottleneck_base + 2 * n
+                            holder = bottleneck_base + n
                             special = True
                             break
 
                     if direction[n] == 0:
                         if coord == difflist[n]:
-                            holder = bottleneck_base + 2 * n
+                            holder = bottleneck_base + n
                             special = True
                             break
                         elif coord == flipdifflist[n]:
-                            holder = bottleneck_base + 2 * n + 1
+                            holder = bottleneck_base + n + 1
                             special = True
                             break
 
                 if direction[n] < 0:
                     if coord == minlist[n]:
-                        holder = boundary_base + 2 * n
+                        holder = boundary_base + n
                         special = True
                         break
 
                 elif direction[n] > 0:
                     if coord == maxlist[n]:
-                        holder = boundary_base + 2 * n
+                        holder = boundary_base + n
                         special = True
                         break
 
                 elif direction[n] == 0:
                     if coord == minlist[n]:
-                        holder = boundary_base + 2 * n
+                        holder = boundary_base + n
                         special = True
                         break
                     elif coord == maxlist[n]:
-                        holder = boundary_base + 2 * n + 1
+                        holder = boundary_base + n + 1
                         special = True
                         break
 
@@ -201,7 +210,7 @@ def map_mab(coords, mask, output, *args, **kwargs):
             for n in range(ndim):
 
                 if skip[n] != 0:
-                    holder = skip_base + 2 * n
+                    holder = boundary_base + n
                     break
 
                 coord = allcoords[i][n]
@@ -248,5 +257,5 @@ class MABBinMapper(FuncBinMapper):
                 else:
                     n_total_bins += 2 + 2 * bottleneck
             else:
-                n_total_bins -= np.prod(nbins) - 1
+                n_total_bins -= nbins[i] - 1
         super().__init__(map_mab, n_total_bins, kwargs=kwargs)

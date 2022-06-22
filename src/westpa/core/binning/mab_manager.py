@@ -20,9 +20,9 @@ class MABSimManager(WESimManager):
             basis_states, target_states, start_states, segs_per_state=segs_per_state, suppress_we=suppress_we
         )
 
-    def report_bin_statistics(self, bins, save_summary=False):
+    def report_bin_statistics(self, bins, target_states, save_summary=False):
         self.rc.pstatus("MAB binning in use.")
-        super().report_bin_statistics(bins, save_summary)
+        super().report_bin_statistics(bins, target_states, save_summary)
 
     def propagate(self):
         log.debug("MABSimManager in use.")
@@ -131,14 +131,23 @@ class MABSimManager(WESimManager):
         log.debug('This iteration uses {:d} initial states'.format(len(self.current_iter_istates)))
 
         # Assign this iteration's segments' initial points to bins and report on bin population
+
+        n_segments = len(segments)
+        all_pcoords = np.empty((n_segments, self.system.pcoord_ndim + 2), dtype=self.system.pcoord_dtype)
+
+        for iseg, segment in enumerate(segments.values()):
+            all_pcoords[iseg] = np.append(segment.pcoord[0, :], [segment.weight, 1.0])
+
+        print(all_pcoords)
+
         initial_pcoords = self.system.new_pcoord_array(len(segments))
         initial_binning = self.system.bin_mapper.construct_bins()
         for iseg, segment in enumerate(segments.values()):
             initial_pcoords[iseg] = segment.pcoord[0]
-        initial_assignments = self.system.bin_mapper.assign(initial_pcoords)
+        initial_assignments = self.system.bin_mapper.assign(all_pcoords)
         for (segment, assignment) in zip(iter(segments.values()), initial_assignments):
             initial_binning[assignment].add(segment)
-        self.report_bin_statistics(initial_binning, save_summary=True)
+        self.report_bin_statistics(initial_binning, [], save_summary=True)
         del initial_pcoords, initial_binning
 
         # Let the WE driver assign completed segments
