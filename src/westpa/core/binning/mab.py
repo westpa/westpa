@@ -252,14 +252,13 @@ class MABBinMapper(FuncBinMapper):
     def __init__(self, nbins, direction=None, skip=None, bottleneck=True, pca=False):
         kwargs = dict(nbins_per_dim=nbins, direction=direction, skip=skip, bottleneck=bottleneck, pca=pca)
         ndim = len(nbins)
-
         # the following is neccessary because functional bin mappers need to "reserve"
         # bins and tell the sim manager how many bins they will need to use, this is
         # determined by taking all direction/skipping info into account
         n_total_bins = np.prod(nbins)
         for i in range(0, ndim):
-            if skip[i] == 0:
-                if direction[i] != 0:
+            if skip is None or skip[i] == 0:
+                if direction is not None and direction[i] != 0:
                     n_total_bins += 1 + 1 * bottleneck
                 else:
                     n_total_bins += 2 + 2 * bottleneck
