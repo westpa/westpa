@@ -172,7 +172,7 @@ class MABSimManager(WESimManager):
         all_pcoords = np.empty((n_segments, self.system.pcoord_ndim + 2), dtype=self.system.pcoord_dtype)
 
         for iseg, segment in enumerate(segments.values()):
-            all_pcoords[iseg] = np.append(segment.pcoord[0, :], [segment.weight, 1.0])
+            all_pcoords[iseg] = np.append(segment.pcoord[0, :], [segment.weight, InitialState.ISTATE_STATUS_PREPARED])
 
         final_binning = self.system.bin_mapper.construct_bins()
         final_assignments = self.system.bin_mapper.assign(all_pcoords)
