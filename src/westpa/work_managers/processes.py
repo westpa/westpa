@@ -21,7 +21,22 @@ result_shutdown_sentinel = ('shutdown', None, None)
 
 
 class ProcessWorkManager(WorkManager):
-    '''A work manager using the ``multiprocessing`` module.'''
+    '''A work manager using the ``multiprocessing`` module.
+    
+    Notes
+    -----
+    
+    On MacOS, as of Python 3.8 the default start method for multiprocessing launching new processes was changed from fork to spawn. 
+    In general, spawn is more robust and efficient, however it requires serializability of everything being passed to the child process.
+    In contrast, fork is much less memory efficient, as it makes a full copy of everything in the parent process. 
+    However, it does not require picklability.
+    
+    So, on MacOS, the method for launching new processes is explicitly changed to fork from the (MacOS-specific) default of spawn.
+    Unix should default to fork.
+    
+    See https://docs.python.org/3/library/multiprocessing.html#contexts-and-start-methods and 
+    https://docs.python.org/3/library/multiprocessing.html#the-spawn-and-forkserver-start-methods for more details.
+    '''
 
     @classmethod
     def from_environ(cls, wmenv=None):
