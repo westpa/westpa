@@ -370,6 +370,7 @@ class WESimManager:
         bin_occupancies = np.fromiter(map(len, binning), dtype=np.uint, count=self.we_driver.bin_mapper.nbins)
         target_occupancies = np.require(self.we_driver.bin_target_counts, dtype=np.uint)
 
+        # total_bins/replicas defined here to remove target state bin from "active" bins
         total_bins = len(bin_occupancies) - len(target_states)
         total_replicas = int(sum(target_occupancies)) - int(self.we_driver.bin_target_counts[-1]) * len(target_states)
 
@@ -471,17 +472,6 @@ class WESimManager:
         }
         log.debug('This iteration uses {:d} initial states'.format(len(self.current_iter_istates)))
 
-        # Assign this iteration's segments' initial points to bins and report on bin population
-        initial_pcoords = self.system.new_pcoord_array(len(segments))
-        initial_binning = self.system.bin_mapper.construct_bins()
-        for iseg, segment in enumerate(segments.values()):
-            initial_pcoords[iseg] = segment.pcoord[0]
-        initial_assignments = self.system.bin_mapper.assign(initial_pcoords)
-        for (segment, assignment) in zip(iter(segments.values()), initial_assignments):
-            initial_binning[assignment].add(segment)
-        #        self.report_bin_statistics(initial_binning, [], save_summary=True)
-        del initial_pcoords, initial_binning
-
         # Let the WE driver assign completed segments
         if completed_segments:
             self.we_driver.assign(list(completed_segments.values()))
@@ -517,6 +507,9 @@ class WESimManager:
         log.debug('dispatching propagator post_iter to work manager')
         self.work_manager.submit(wm_ops.post_iter, args=(self.n_iter, list(self.segments.values()))).get_result()
 
+        # re-assign segments after splitting and merging to report on bin stats
+        # note that this was moved here from prepare_iteration for more accurate
+        # bin population reporting
         segments = self.segments = {segment.seg_id: segment for segment in self.data_manager.get_segments()}
         final_pcoords = self.system.new_pcoord_array(len(segments))
         final_binning = self.system.bin_mapper.construct_bins()

@@ -14,18 +14,14 @@ class BinlessSimManager(WESimManager):
     def initialize_simulation(self, basis_states, target_states, start_states, segs_per_state=1, suppress_we=False):
         if len(target_states) > 0:
             if isinstance(self.system.bin_mapper, BinlessMapper):
-                log.error("BinlessMapper cannot be an outer binning scheme with a target state.\n")
+                log.error("BinlessMapper cannot be an outer binning scheme with a target state\n")
 
         super().initialize_simulation(
             basis_states, target_states, start_states, segs_per_state=segs_per_state, suppress_we=suppress_we
         )
 
-    def report_bin_statistics(self, bins, save_summary=False):
-        self.rc.pstatus("Binless scheme in use.")
-        super().report_bin_statistics(bins, save_summary)
-
     def propagate(self):
-        log.debug("BinlessManager in use.")
+        log.debug("BinlessManager in use")
         segments = list(self.incomplete_segments.values())
         log.debug('iteration {:d}: propagating {:d} segments'.format(self.n_iter, len(segments)))
 
@@ -130,16 +126,7 @@ class BinlessSimManager(WESimManager):
         }
         log.debug('This iteration uses {:d} initial states'.format(len(self.current_iter_istates)))
 
-        # Assign this iteration's segments' initial points to bins and report on bin population
-        initial_pcoords = self.system.new_pcoord_array(len(segments))
-        initial_binning = self.system.bin_mapper.construct_bins()
-        for iseg, segment in enumerate(segments.values()):
-            initial_pcoords[iseg] = segment.pcoord[0]
-        initial_assignments = self.system.bin_mapper.assign(initial_pcoords)
-        for (segment, assignment) in zip(iter(segments.values()), initial_assignments):
-            initial_binning[assignment].add(segment)
-        self.report_bin_statistics(initial_binning, save_summary=True)
-        del initial_pcoords, initial_binning
+        self.rc.pstatus("Binless scheme in use")
 
         # Let the WE driver assign completed segments
         if completed_segments and len(incomplete_segments) == 0:
@@ -165,3 +152,36 @@ class BinlessSimManager(WESimManager):
         # dispatch and immediately wait on result for prep_iter
         log.debug('dispatching propagator prep_iter to work manager')
         self.work_manager.submit(wm_ops.prep_iter, args=(self.n_iter, segments)).get_result()
+
+    def finalize_iteration(self):
+        '''Clean up after an iteration and prepare for the next.'''
+        log.debug('finalizing iteration {:d}'.format(self.n_iter))
+
+        self.invoke_callbacks(self.finalize_iteration)
+
+        # dispatch and immediately wait on result for post_iter
+        log.debug('dispatching propagator post_iter to work manager')
+        self.work_manager.submit(wm_ops.post_iter, args=(self.n_iter, list(self.segments.values()))).get_result()
+
+        # re-assign segments after splitting and merging to report on bin stats
+        # note that this was moved here from prepare_iteration for more accurate
+        # bin population reporting
+        segments = self.segments = {segment.seg_id: segment for segment in self.data_manager.get_segments()}
+
+        n_segments = len(segments)
+        all_pcoords = np.empty((n_segments, self.system.pcoord_ndim + 2), dtype=self.system.pcoord_dtype)
+
+        for iseg, segment in enumerate(segments.values()):
+            all_pcoords[iseg] = np.append(segment.pcoord[0, :], [segment.weight, 1.0])
+
+        final_binning = self.system.bin_mapper.construct_bins()
+        final_assignments = self.system.bin_mapper.assign(all_pcoords)
+        for (segment, assignment) in zip(iter(segments.values()), final_assignments):
+            final_binning[assignment].add(segment)
+
+        self.report_bin_statistics(final_binning, [], save_summary=True)
+        del all_pcoords, final_binning
+
+        # Move existing segments into place as new segments
+        del self.segments
+        self.segments = {segment.seg_id: segment for segment in self.we_driver.next_iter_segments}
