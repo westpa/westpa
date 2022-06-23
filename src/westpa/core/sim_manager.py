@@ -186,7 +186,7 @@ class WESimManager:
         bin_drange = math.log(max_bin_prob / min_bin_prob)
         n_pop = len(bin_counts[bin_counts != 0])
 
-        self.rc.pstatus('{:d} of {:d} ({:%}) active bins were populated'.format(n_pop, n_active_bins, n_pop / n_active_bins))
+        self.rc.pstatus('{:d} of {:d} ({:%}) active bins are populated'.format(n_pop, n_active_bins, n_pop / n_active_bins))
         self.rc.pstatus('per-bin minimum non-zero probability:       {:g}'.format(min_bin_prob))
         self.rc.pstatus('per-bin maximum probability:                {:g}'.format(max_bin_prob))
         self.rc.pstatus('per-bin probability dynamic range (kT):     {:g}'.format(bin_drange))
@@ -472,6 +472,8 @@ class WESimManager:
         }
         log.debug('This iteration uses {:d} initial states'.format(len(self.current_iter_istates)))
 
+        self.rc.pstatus('Waiting for segments to complete...')
+
         # Let the WE driver assign completed segments
         if completed_segments:
             self.we_driver.assign(list(completed_segments.values()))
@@ -507,23 +509,29 @@ class WESimManager:
         log.debug('dispatching propagator post_iter to work manager')
         self.work_manager.submit(wm_ops.post_iter, args=(self.n_iter, list(self.segments.values()))).get_result()
 
+        # Move existing segments into place as new segments
+        del self.segments
+        segments = self.segments = {segment.seg_id: segment for segment in self.we_driver.next_iter_segments}
+
         # re-assign segments after splitting and merging to report on bin stats
         # note that this was moved here from prepare_iteration for more accurate
         # bin population reporting
-        segments = self.segments = {segment.seg_id: segment for segment in self.data_manager.get_segments()}
-        final_pcoords = self.system.new_pcoord_array(len(segments))
-        final_binning = self.system.bin_mapper.construct_bins()
+
+        n_segments = len(segments)
+        all_pcoords = np.empty((n_segments, self.system.pcoord_ndim + 2), dtype=self.system.pcoord_dtype)
+
         for iseg, segment in enumerate(segments.values()):
-            final_pcoords[iseg] = segment.pcoord[-1]
-        final_assignments = self.system.bin_mapper.assign(final_pcoords)
+            all_pcoords[iseg] = np.append(segment.pcoord[0, :], [segment.weight, 1.0])
+
+        final_binning = self.system.bin_mapper.construct_bins()
+        final_assignments = self.system.bin_mapper.assign(all_pcoords)
         for (segment, assignment) in zip(iter(segments.values()), final_assignments):
             final_binning[assignment].add(segment)
-        self.report_bin_statistics(final_binning, [], save_summary=True)
-        del final_pcoords, final_binning
 
-        # Move existing segments into place as new segments
-        del self.segments
-        self.segments = {segment.seg_id: segment for segment in self.we_driver.next_iter_segments}
+        self.rc.pstatus("Iteration completed successfully")
+
+        self.report_bin_statistics(final_binning, [], save_summary=True)
+        del all_pcoords, final_binning
 
     def get_istate_futures(self):
         '''Add ``n_states`` initial states to the internal list of initial states assigned to
