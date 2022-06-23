@@ -128,6 +128,8 @@ class BinlessSimManager(WESimManager):
 
         self.rc.pstatus("Binless scheme in use")
 
+        self.rc.pstatus("Waiting for segments to complete...")
+
         # Let the WE driver assign completed segments
         if completed_segments and len(incomplete_segments) == 0:
             self.we_driver.assign(list(completed_segments.values()))
@@ -163,10 +165,13 @@ class BinlessSimManager(WESimManager):
         log.debug('dispatching propagator post_iter to work manager')
         self.work_manager.submit(wm_ops.post_iter, args=(self.n_iter, list(self.segments.values()))).get_result()
 
+        # Move existing segments into place as new segments
+        del self.segments
+        segments = self.segments = {segment.seg_id: segment for segment in self.we_driver.next_iter_segments}
+
         # re-assign segments after splitting and merging to report on bin stats
         # note that this was moved here from prepare_iteration for more accurate
         # bin population reporting
-        segments = self.segments = {segment.seg_id: segment for segment in self.data_manager.get_segments()}
 
         n_segments = len(segments)
         all_pcoords = np.empty((n_segments, self.system.pcoord_ndim + 2), dtype=self.system.pcoord_dtype)
@@ -179,9 +184,7 @@ class BinlessSimManager(WESimManager):
         for (segment, assignment) in zip(iter(segments.values()), final_assignments):
             final_binning[assignment].add(segment)
 
+        self.rc.pstatus("Iteration completed successfully")
+
         self.report_bin_statistics(final_binning, [], save_summary=True)
         del all_pcoords, final_binning
-
-        # Move existing segments into place as new segments
-        del self.segments
-        self.segments = {segment.seg_id: segment for segment in self.we_driver.next_iter_segments}
