@@ -258,8 +258,8 @@ class MABBinMapper(FuncBinMapper):
         # determined by taking all direction/skipping info into account
         n_total_bins = np.prod(nbins)
         for i in range(0, ndim):
-            if skip is None or skip[i] == 0:
-                if direction is not None and direction[i] != 0:
+            if skip[i] == 0:
+                if direction[i] != 0:
                     n_total_bins += 1 + 1 * bottleneck
                 else:
                     n_total_bins += 2 + 2 * bottleneck
