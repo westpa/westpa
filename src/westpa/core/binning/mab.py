@@ -1,6 +1,5 @@
 import numpy as np
 from westpa.core.binning import FuncBinMapper
-import westpa
 import logging
 
 log = logging.getLogger(__name__)
@@ -13,27 +12,12 @@ def map_mab(coords, mask, output, *args, **kwargs):
     evenly spaced bins between the segments with the min and max pcoord values. Extrema and
     bottleneck segments are assigned their own bins.'''
 
-    pca = kwargs.get("pca", False)
-    bottleneck = kwargs.get("bottleneck", True)
-    direction = kwargs.get("direction", None)
-    skip = kwargs.get("skip", None)
-    nbins_per_dim = kwargs.get("nbins_per_dim", None)
-
-    if nbins_per_dim is None:
-        raise ValueError("nbins_per_dim is missing")
-
+    pca = kwargs.get("pca")
+    bottleneck = kwargs.get("bottleneck")
+    direction = kwargs.get("direction")
+    skip = kwargs.get("skip")
+    nbins_per_dim = kwargs.get("nbins_per_dim")
     ndim = len(nbins_per_dim)
-    if direction is None:
-        direction = [0] * ndim
-    elif len(direction) != ndim:
-        direction = [0] * ndim
-        log.warn("Direction list is not the correct dimensions, setting to defaults.")
-
-    if skip is None:
-        skip = [0] * ndim
-    elif len(skip) != ndim:
-        skip = [0] * ndim
-        log.warn("Skip list is not the correct dimensions, setting to defaults.")
 
     if not np.any(mask):
         return output
@@ -58,7 +42,6 @@ def map_mab(coords, mask, output, *args, **kwargs):
         mask = mask[isfinal]
         splitting = True
 
-    # in case where there is no final segments but initial ones in range
     if not np.any(mask):
         coords = allcoords[:, :ndim]
         mask = allmask
@@ -100,7 +83,7 @@ def map_mab(coords, mask, output, *args, **kwargs):
             temp = temp[sorted_indices]
             for p in range(len(temp)):
                 if temp[p][1] == 0:
-                    temp[p][1] = 10**-39
+                    temp[p][1] = 10**-323
             fliptemp = np.flipud(temp)
 
             difflist.append(None)
@@ -124,84 +107,107 @@ def map_mab(coords, mask, output, *args, **kwargs):
                     flipdifflist[n] = fliptemp[i][0]
                     flipmaxdiff = flipdiff
 
-    if splitting:
-        westpa.rc.pstatus("################ MAB stats ################")
-        westpa.rc.pstatus("minima in each dimension:      {}".format(minlist))
-        westpa.rc.pstatus("maxima in each dimension:      {}".format(maxlist))
-        westpa.rc.pstatus("direction in each dimension:   {}".format(direction))
-        westpa.rc.pstatus("skip in each dimension:        {}".format(skip))
-        westpa.rc.pstatus("###########################################")
-        westpa.rc.pflush()
+    #    if splitting:
+    #        westpa.rc.pstatus("################ MAB stats ################")
+    #        westpa.rc.pstatus("minima in each dimension:      {}".format(minlist))
+    #        westpa.rc.pstatus("maxima in each dimension:      {}".format(maxlist))
+    #        westpa.rc.pstatus("direction in each dimension:   {}".format(direction))
+    #        westpa.rc.pstatus("skip in each dimension:        {}".format(skip))
+    #        westpa.rc.pstatus("###########################################")
+    #        westpa.rc.pflush()
 
     # assign segments to bins
-    # the total number of linear bins + 2 boundary bins each dim
+    # the total number of linear bins is the boundary base
     boundary_base = np.prod(nbins_per_dim)
-    skip_base = np.prod(nbins_per_dim)
-    bottleneck_base = boundary_base + 2 * ndim
+
+    # the bottleneck base is offset by the number of boundary walkers,
+    # which is two per dimension unless there is a direction specified
+    # in a particluar dimension, then it's just one
+    bottleneck_base = boundary_base
+
+    for i in range(0, ndim):
+        if direction[i] != 0:
+            bottleneck_base += 1
+        else:
+            bottleneck_base += 2
+
+    # if a dimension is being "skipped", leave only one bin total as
+    # the offset
+    for i in range(0, ndim):
+        if skip[i] != 0:
+            boundary_base -= nbins_per_dim[i] - 1
+
     for i in range(len(output)):
         if not allmask[i]:
             continue
 
+        # special means either a boundary or bottleneck walker (not a walker in the linear space)
         special = False
+        # this holder is the bin number, which only needs to be unique for different walker groups
         holder = 0
         if splitting:
             for n in range(ndim):
                 coord = allcoords[i][n]
 
+                # if skipped, just assign the walkers to the same bin (offset of boundary base)
                 if skip[n] != 0:
-                    holder = skip_base + 2 * n
+                    holder = boundary_base + n
                     break
 
+                # assign bottlenecks, taking directionality into account
                 if bottleneck:
                     if direction[n] < 0:
                         if coord == flipdifflist[n]:
-                            holder = bottleneck_base + 2 * n
+                            holder = bottleneck_base + n
                             special = True
                             break
 
                     if direction[n] > 0:
                         if coord == difflist[n]:
-                            holder = bottleneck_base + 2 * n
+                            holder = bottleneck_base + n
                             special = True
                             break
 
                     if direction[n] == 0:
                         if coord == difflist[n]:
-                            holder = bottleneck_base + 2 * n
+                            holder = bottleneck_base + n
                             special = True
                             break
                         elif coord == flipdifflist[n]:
-                            holder = bottleneck_base + 2 * n + 1
+                            holder = bottleneck_base + n + 1
                             special = True
                             break
 
+                # assign boundary walkers, taking directionality into account
                 if direction[n] < 0:
                     if coord == minlist[n]:
-                        holder = boundary_base + 2 * n
+                        holder = boundary_base + n
                         special = True
                         break
 
                 elif direction[n] > 0:
                     if coord == maxlist[n]:
-                        holder = boundary_base + 2 * n
+                        holder = boundary_base + n
                         special = True
                         break
 
                 elif direction[n] == 0:
                     if coord == minlist[n]:
-                        holder = boundary_base + 2 * n
+                        holder = boundary_base + n
                         special = True
                         break
                     elif coord == maxlist[n]:
-                        holder = boundary_base + 2 * n + 1
+                        holder = boundary_base + n + 1
                         special = True
                         break
 
+        # the following are for the "linear" portion
         if not special:
             for n in range(ndim):
 
+                # if skipped, it's added to the same bin as the special walkers above
                 if skip[n] != 0:
-                    holder = skip_base + 2 * n
+                    holder = boundary_base + n
                     break
 
                 coord = allcoords[i][n]
@@ -227,6 +233,7 @@ def map_mab(coords, mask, output, *args, **kwargs):
 
                 holder += bin_number * np.prod(nbins_per_dim[:n])
 
+        # output is the main list that, for each segment, holds the bin assignment
         output[i] = holder
 
     return output
@@ -238,7 +245,34 @@ class MABBinMapper(FuncBinMapper):
     to their own bins.'''
 
     def __init__(self, nbins, direction=None, skip=None, bottleneck=True, pca=False):
-        kwargs = dict(nbins_per_dim=nbins, direction=direction, skip=skip, bottleneck=bottleneck, pca=pca)
+        # Verifying parameters
+        if nbins is None:
+            raise ValueError("nbins_per_dim is missing")
         ndim = len(nbins)
-        n_total_bins = np.prod(nbins) + ndim * (2 + 2 * bottleneck)
+
+        if direction is None:
+            direction = [0] * ndim
+        elif len(direction) != ndim:
+            direction = [0] * ndim
+            log.warn("Direction list is not the correct dimensions, setting to defaults.")
+
+        if skip is None:
+            skip = [0] * ndim
+        elif len(skip) != ndim:
+            skip = [0] * ndim
+            log.warn("Skip list is not the correct dimensions, setting to defaults.")
+
+        kwargs = dict(nbins_per_dim=nbins, direction=direction, skip=skip, bottleneck=bottleneck, pca=pca)
+        # the following is neccessary because functional bin mappers need to "reserve"
+        # bins and tell the sim manager how many bins they will need to use, this is
+        # determined by taking all direction/skipping info into account
+        n_total_bins = np.prod(nbins)
+        for i in range(0, ndim):
+            if skip[i] == 0:
+                if direction[i] != 0:
+                    n_total_bins += 1 + 1 * bottleneck
+                else:
+                    n_total_bins += 2 + 2 * bottleneck
+            else:
+                n_total_bins -= nbins[i] - 1
         super().__init__(map_mab, n_total_bins, kwargs=kwargs)

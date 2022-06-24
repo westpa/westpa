@@ -14,18 +14,14 @@ class MABSimManager(WESimManager):
     def initialize_simulation(self, basis_states, target_states, start_states, segs_per_state=1, suppress_we=False):
         if len(target_states) > 0:
             if isinstance(self.system.bin_mapper, MABBinMapper):
-                log.error("MABBinMapper cannot be an outer binning scheme with a target state.\n")
+                log.error("MABBinMapper cannot be an outer binning scheme with a target state\n")
 
         super().initialize_simulation(
             basis_states, target_states, start_states, segs_per_state=segs_per_state, suppress_we=suppress_we
         )
 
-    def report_bin_statistics(self, bins, save_summary=False):
-        self.rc.pstatus("MAB binning in use.")
-        super().report_bin_statistics(bins, save_summary)
-
     def propagate(self):
-        log.debug("MABSimManager in use.")
+        log.debug("MABSimManager in use")
         segments = list(self.incomplete_segments.values())
         log.debug('iteration {:d}: propagating {:d} segments'.format(self.n_iter, len(segments)))
 
@@ -130,16 +126,25 @@ class MABSimManager(WESimManager):
         }
         log.debug('This iteration uses {:d} initial states'.format(len(self.current_iter_istates)))
 
-        # Assign this iteration's segments' initial points to bins and report on bin population
-        initial_pcoords = self.system.new_pcoord_array(len(segments))
-        initial_binning = self.system.bin_mapper.construct_bins()
+        n_segments = len(segments)
+        pcoords_with_weights = np.empty((n_segments, self.system.pcoord_ndim + 2), dtype=self.system.pcoord_dtype)
+
         for iseg, segment in enumerate(segments.values()):
-            initial_pcoords[iseg] = segment.pcoord[0]
-        initial_assignments = self.system.bin_mapper.assign(initial_pcoords)
+            pcoords_with_weights[iseg] = np.append(segment.pcoord[0, :], [segment.weight, 1.0])
+
+        # Assign this iteration's segments' initial points to bins and report on bin population
+        initial_binning = self.system.bin_mapper.construct_bins()
+        initial_assignments = self.system.bin_mapper.assign(pcoords_with_weights)
         for (segment, assignment) in zip(iter(segments.values()), initial_assignments):
             initial_binning[assignment].add(segment)
-        self.report_bin_statistics(initial_binning, save_summary=True)
-        del initial_pcoords, initial_binning
+        self.report_bin_statistics(initial_binning, [], save_summary=True)
+        del pcoords_with_weights, initial_binning
+
+        self.rc.pstatus("MAB binning in use")
+
+        self.rc.pstatus("Bottleneck bin occupancy may not be accurately reported")
+
+        self.rc.pstatus("Waiting for segments to complete...")
 
         # Let the WE driver assign completed segments
         if completed_segments and len(incomplete_segments) == 0:
