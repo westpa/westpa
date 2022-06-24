@@ -12,27 +12,12 @@ def map_mab(coords, mask, output, *args, **kwargs):
     evenly spaced bins between the segments with the min and max pcoord values. Extrema and
     bottleneck segments are assigned their own bins.'''
 
-    pca = kwargs.get("pca", False)
-    bottleneck = kwargs.get("bottleneck", True)
-    direction = kwargs.get("direction", None)
-    skip = kwargs.get("skip", None)
-    nbins_per_dim = kwargs.get("nbins_per_dim", None)
-
-    if nbins_per_dim is None:
-        raise ValueError("nbins_per_dim is missing")
-
+    pca = kwargs.get("pca")
+    bottleneck = kwargs.get("bottleneck")
+    direction = kwargs.get("direction")
+    skip = kwargs.get("skip")
+    nbins_per_dim = kwargs.get("nbins_per_dim")
     ndim = len(nbins_per_dim)
-    if direction is None:
-        direction = [0] * ndim
-    elif len(direction) != ndim:
-        direction = [0] * ndim
-        log.warn("Direction list is not the correct dimensions, setting to defaults.")
-
-    if skip is None:
-        skip = [0] * ndim
-    elif len(skip) != ndim:
-        skip = [0] * ndim
-        log.warn("Skip list is not the correct dimensions, setting to defaults.")
 
     if not np.any(mask):
         return output
@@ -250,9 +235,24 @@ class MABBinMapper(FuncBinMapper):
     to their own bins.'''
 
     def __init__(self, nbins, direction=None, skip=None, bottleneck=True, pca=False):
-        kwargs = dict(nbins_per_dim=nbins, direction=direction, skip=skip, bottleneck=bottleneck, pca=pca)
+        # Verifying parameters
+        if nbins is None:
+            raise ValueError("nbins_per_dim is missing")
         ndim = len(nbins)
 
+        if direction is None:
+            direction = [0] * ndim
+        elif len(direction) != ndim:
+            direction = [0] * ndim
+            log.warn("Direction list is not the correct dimensions, setting to defaults.")
+
+        if skip is None:
+            skip = [0] * ndim
+        elif len(skip) != ndim:
+            skip = [0] * ndim
+            log.warn("Skip list is not the correct dimensions, setting to defaults.")
+
+        kwargs = dict(nbins_per_dim=nbins, direction=direction, skip=skip, bottleneck=bottleneck, pca=pca)
         # the following is neccessary because functional bin mappers need to "reserve"
         # bins and tell the sim manager how many bins they will need to use, this is
         # determined by taking all direction/skipping info into account
