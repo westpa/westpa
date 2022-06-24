@@ -472,6 +472,17 @@ class WESimManager:
         }
         log.debug('This iteration uses {:d} initial states'.format(len(self.current_iter_istates)))
 
+        # Assign this iteration's segments' initial points to bins and report on bin population
+        initial_pcoords = self.system.new_pcoord_array(len(segments))
+        initial_binning = self.system.bin_mapper.construct_bins()
+        for iseg, segment in enumerate(segments.values()):
+            initial_pcoords[iseg] = segment.pcoord[0]
+        initial_assignments = self.system.bin_mapper.assign(initial_pcoords)
+        for (segment, assignment) in zip(iter(segments.values()), initial_assignments):
+            initial_binning[assignment].add(segment)
+        self.report_bin_statistics(initial_binning, [], save_summary=True)
+        del initial_pcoords, initial_binning
+
         self.rc.pstatus('Waiting for segments to complete...')
 
         # Let the WE driver assign completed segments
@@ -511,27 +522,9 @@ class WESimManager:
 
         # Move existing segments into place as new segments
         del self.segments
-        segments = self.segments = {segment.seg_id: segment for segment in self.we_driver.next_iter_segments}
-
-        # re-assign segments after splitting and merging to report on bin stats
-        # note that this was moved here from prepare_iteration for more accurate
-        # bin population reporting
-
-        n_segments = len(segments)
-        all_pcoords = np.empty((n_segments, self.system.pcoord_ndim + 2), dtype=self.system.pcoord_dtype)
-
-        for iseg, segment in enumerate(segments.values()):
-            all_pcoords[iseg] = np.append(segment.pcoord[0, :], [segment.weight, 1.0])
-
-        final_binning = self.system.bin_mapper.construct_bins()
-        final_assignments = self.system.bin_mapper.assign(all_pcoords)
-        for (segment, assignment) in zip(iter(segments.values()), final_assignments):
-            final_binning[assignment].add(segment)
+        self.segments = {segment.seg_id: segment for segment in self.we_driver.next_iter_segments}
 
         self.rc.pstatus("Iteration completed successfully")
-
-        self.report_bin_statistics(final_binning, [], save_summary=True)
-        del all_pcoords, final_binning
 
     def get_istate_futures(self):
         '''Add ``n_states`` initial states to the internal list of initial states assigned to
