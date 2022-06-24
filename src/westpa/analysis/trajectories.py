@@ -335,7 +335,7 @@ class HDF5MDTrajectory(Trajectory):
 
         super().__init__(fget)
 
-        self.segment_collector.use_threads = True
+        self.segment_collector.use_threads = False
         self.segment_collector.show_progress = True
 
 
