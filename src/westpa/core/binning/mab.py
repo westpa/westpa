@@ -1,7 +1,7 @@
 import numpy as np
 from westpa.core.binning import FuncBinMapper
 import logging
-
+import westpa
 log = logging.getLogger(__name__)
 
 
@@ -17,6 +17,7 @@ def map_mab(coords, mask, output, *args, **kwargs):
     direction = kwargs.get("direction")
     skip = kwargs.get("skip")
     nbins_per_dim = kwargs.get("nbins_per_dim")
+    mab_log = kwargs.get("mab_log")
     ndim = len(nbins_per_dim)
 
     if not np.any(mask):
@@ -107,15 +108,15 @@ def map_mab(coords, mask, output, *args, **kwargs):
                     flipdifflist[n] = fliptemp[i][0]
                     flipmaxdiff = flipdiff
 
-    #    if splitting:
-    #        westpa.rc.pstatus("################ MAB stats ################")
-    #        westpa.rc.pstatus("minima in each dimension:      {}".format(minlist))
-    #        westpa.rc.pstatus("maxima in each dimension:      {}".format(maxlist))
-    #        westpa.rc.pstatus("direction in each dimension:   {}".format(direction))
-    #        westpa.rc.pstatus("skip in each dimension:        {}".format(skip))
-    #        westpa.rc.pstatus("###########################################")
-    #        westpa.rc.pflush()
-
+            if mab_log:
+                westpa.rc.pstatus("################ MAB stats ################")
+                westpa.rc.pstatus("minima in each dimension:      {}".format(minlist))
+                westpa.rc.pstatus("maxima in each dimension:      {}".format(maxlist))
+                westpa.rc.pstatus("direction in each dimension:   {}".format(direction))
+                westpa.rc.pstatus("skip in each dimension:        {}".format(skip))
+                westpa.rc.pstatus("###########################################")
+                westpa.rc.pflush()
+    
     # assign segments to bins
     # the total number of linear bins is the boundary base
     boundary_base = np.prod(nbins_per_dim)
@@ -244,7 +245,7 @@ class MABBinMapper(FuncBinMapper):
     the progress coordinte. Extrema and bottleneck segments are assigned
     to their own bins.'''
 
-    def __init__(self, nbins, direction=None, skip=None, bottleneck=True, pca=False):
+    def __init__(self, nbins, direction=None, skip=None, bottleneck=True, pca=False, mab_log=False):
         # Verifying parameters
         if nbins is None:
             raise ValueError("nbins_per_dim is missing")
@@ -262,7 +263,7 @@ class MABBinMapper(FuncBinMapper):
             skip = [0] * ndim
             log.warn("Skip list is not the correct dimensions, setting to defaults.")
 
-        kwargs = dict(nbins_per_dim=nbins, direction=direction, skip=skip, bottleneck=bottleneck, pca=pca)
+        kwargs = dict(nbins_per_dim=nbins, direction=direction, skip=skip, bottleneck=bottleneck, pca=pca, mab_log=mab_log)
         # the following is neccessary because functional bin mappers need to "reserve"
         # bins and tell the sim manager how many bins they will need to use, this is
         # determined by taking all direction/skipping info into account
