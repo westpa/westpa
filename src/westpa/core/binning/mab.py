@@ -2,6 +2,7 @@ import numpy as np
 from westpa.core.binning import FuncBinMapper
 import logging
 import westpa
+
 log = logging.getLogger(__name__)
 
 
@@ -116,7 +117,7 @@ def map_mab(coords, mask, output, *args, **kwargs):
                 westpa.rc.pstatus("skip in each dimension:        {}".format(skip))
                 westpa.rc.pstatus("###########################################")
                 westpa.rc.pflush()
-    
+
     # assign segments to bins
     # the total number of linear bins is the boundary base
     boundary_base = np.prod(nbins_per_dim)
