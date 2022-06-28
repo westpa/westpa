@@ -30,11 +30,14 @@ def map_mab(coords, mask, output, *args, **kwargs):
     weights = None
     isfinal = None
     splitting = False
+    report = False
 
     # the segments should be sent in by the driver as half initial segments and half final segments
     # allcoords contains all segments
     # coords should contain ONLY final segments
     if coords.shape[1] > ndim:
+        if coords[0,-1] == 0:
+            report = True
         if coords.shape[1] > ndim + 1:
             isfinal = allcoords[:, ndim + 1].astype(np.bool_)
         else:
@@ -109,7 +112,7 @@ def map_mab(coords, mask, output, *args, **kwargs):
                     flipdifflist[n] = fliptemp[i][0]
                     flipmaxdiff = flipdiff
 
-            if mab_log:
+            if mab_log and report:
                 westpa.rc.pstatus("################ MAB stats ################")
                 westpa.rc.pstatus("minima in each dimension:      {}".format(minlist))
                 westpa.rc.pstatus("maxima in each dimension:      {}".format(maxlist))
