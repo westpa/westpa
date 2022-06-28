@@ -36,7 +36,7 @@ def map_mab(coords, mask, output, *args, **kwargs):
     # allcoords contains all segments
     # coords should contain ONLY final segments
     if coords.shape[1] > ndim:
-        if coords[0,-1] == 0:
+        if coords[0, -1] == 0:
             report = True
         if coords.shape[1] > ndim + 1:
             isfinal = allcoords[:, ndim + 1].astype(np.bool_)
