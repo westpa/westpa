@@ -1,6 +1,15 @@
 w_ipa
 =====
 
+The ``w_ipa`` is a (beta) WESTPA tool that automates analysis using analysis schemes and enables interactive analysis of WESTPA simulation data. The tool can do a variety of different types of analysis, including the following:
+* Calculate fluxes and rate constants
+* Adjust and use alternate state definitions
+* Trace trajectory segments, including statistical weights, position along the progress coordinate, and other auxiliary data
+* Plot all of the above in the terminal!   
+  
+If you are using ``w_ipa`` for kinetics automated kinetics analysis, keep in mind that ``w_ipa`` is running ``w_assign`` and ``w_direct`` using the scheme designated in your ``west.cfg`` file. For more diverse kinetics analysis options, consider using ``w_assign`` and ``w_direct`` manually. This can be useful if you'd like to use auxiliary coordinates that aren't your progress coordinate, in one or two dimension options.
+
+
 usage::
 
  w_ipa [-h] [-r RCFILE] [--quiet] [--verbose] [--version] [--max-queue-length MAX_QUEUE_LENGTH]

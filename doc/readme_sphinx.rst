@@ -56,11 +56,11 @@ Regardless of the chosen method of installation, before installing WESTPA, we re
 
 Then, we recommend installing WESTPA through conda or pip. Execute either of the following::
 
-    conda install -c conda-forge/label/westpa_dev -c conda-forge westpa=2.0dev1
+    conda install -c conda-forge westpa
 
 or::
 
-    python -m pip install westpa==2.0.dev1
+    python -m pip install westpa
     
 See the install instructions on our `wiki`_ for more detailed information. 
     
