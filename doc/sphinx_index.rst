@@ -2,7 +2,7 @@
 
 .. toctree::
    :maxdepth: 5
-   :caption: For Advanced Users (2.0):
+   :caption: For Users (v2022.XX):
    :hidden:
 
     WESTPA Command Line Interface     <documentation/cli>
@@ -29,7 +29,7 @@
 
 .. toctree::
    :maxdepth: 1
-   :caption: For Legacy Users (1.0):
+   :caption: For Legacy Users (v2020.XX):
    :hidden:
 
     WEST                      <users_guide/west>
