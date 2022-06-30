@@ -3,12 +3,12 @@
 
 <svg
    width="750pt"
-   height="500pt"
-   viewBox="0 0 264.58334 176.38889"
+   height="350pt"
+   viewBox="0 0 264.58334 123.47223"
    version="1.1"
    id="svg5"
-   inkscape:version="1.1.1 (3bf5ae0d25, 2021-09-20)"
-   sodipodi:docname="westpa2-new-final.svg"
+   inkscape:version="1.2 (dc2aeda, 2022-05-15)"
+   sodipodi:docname="WESTPA2b.svg"
    inkscape:export-filename="C:\Users\RainbowIslands\Desktop\westpa2-new_white.png"
    inkscape:export-xdpi="300"
    inkscape:export-ydpi="300"
@@ -30,14 +30,16 @@
      units="pt"
      height="500pt"
      inkscape:zoom="1.0280428"
-     inkscape:cx="460.09758"
-     inkscape:cy="349.20725"
-     inkscape:window-width="2560"
-     inkscape:window-height="1494"
-     inkscape:window-x="-11"
-     inkscape:window-y="-11"
-     inkscape:window-maximized="1"
-     inkscape:current-layer="layer1" />
+     inkscape:cx="468.36571"
+     inkscape:cy="356.98903"
+     inkscape:window-width="1728"
+     inkscape:window-height="962"
+     inkscape:window-x="0"
+     inkscape:window-y="38"
+     inkscape:window-maximized="0"
+     inkscape:current-layer="layer1"
+     inkscape:showpageshadow="2"
+     inkscape:deskcolor="#d1d1d1" />
   <defs
      id="defs2">
     <linearGradient
@@ -52,26 +54,26 @@
        x="-1.026438"
        y="340.59082"
        width="1020.1429"
-       height="343.66493"
+       height="343.66492"
        id="rect9234" />
     <linearGradient
        inkscape:collect="always"
        xlink:href="#linearGradient91097"
        id="linearGradient91099"
-       x1="57.077715"
-       y1="87.417224"
-       x2="259.27459"
-       y2="87.417224"
+       x1="57.077717"
+       y1="87.417221"
+       x2="259.2746"
+       y2="87.417221"
        gradientUnits="userSpaceOnUse" />
     <linearGradient
        inkscape:collect="always"
        xlink:href="#linearGradient91097"
        id="linearGradient153146"
        gradientUnits="userSpaceOnUse"
-       x1="57.077715"
-       y1="87.417224"
-       x2="259.27459"
-       y2="87.417224" />
+       x1="57.077717"
+       y1="87.417221"
+       x2="259.2746"
+       y2="87.417221" />
   </defs>
   <g
      inkscape:label="Layer 1"
@@ -79,7 +81,7 @@
      id="layer1">
     <g
        id="g40387"
-       transform="matrix(1,0,-0.00347473,1,-0.19684099,4.0611642)"
+       transform="matrix(1,0,-0.00347473,1,1.6047215,-25.807735)"
        inkscape:export-filename="C:\Users\RainbowIslands\Desktop\westpa2-new_white.png"
        inkscape:export-xdpi="300"
        inkscape:export-ydpi="300">
@@ -126,7 +128,7 @@
     </g>
     <path
        style="display:inline;fill:#ffd700;fill-opacity:1;stroke:none;stroke-width:0.237204px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-       d="m 77.432698,128.36668 2.873611,-5.30249 5.435275,-2.99794 -5.394046,-2.99796 -2.877127,-5.42485 -3.037334,5.46565 -5.414741,2.95716 5.455301,2.97754 z"
+       d="m 79.234261,98.497786 2.873611,-5.302494 5.435275,-2.99794 -5.394046,-2.997961 -2.877127,-5.42485 -3.037334,5.46565 -5.414741,2.957161 5.455301,2.97754 z"
        id="path120382"
        inkscape:export-filename="C:\Users\RainbowIslands\Desktop\westpa2-new_white.png"
        inkscape:export-xdpi="300"
