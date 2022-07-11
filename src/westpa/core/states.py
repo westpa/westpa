@@ -231,12 +231,8 @@ InitialState.istate_statuses.update(
 InitialState.istate_types.update(
     {_attr: getattr(InitialState, _attr) for _attr in dir(InitialState) if _attr.startswith('ISTATE_TYPE_')}
 )
-InitialState.istate_status_names.update(
-    {istate_status: name for name, istate_status in InitialState.istate_statuses.items()}
-)
-InitialState.istate_type_names.update(
-    {istate_type: name for name, istate_type in InitialState.istate_types.items()}
-)
+InitialState.istate_status_names.update({istate_status: name for name, istate_status in InitialState.istate_statuses.items()})
+InitialState.istate_type_names.update({istate_type: name for name, istate_type in InitialState.istate_types.items()})
 
 
 class TargetState:
