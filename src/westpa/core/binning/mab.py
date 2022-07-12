@@ -112,14 +112,14 @@ def map_mab(coords, mask, output, *args, **kwargs):
                     flipdifflist[n] = fliptemp[i][0]
                     flipmaxdiff = flipdiff
 
-            if mab_log and report:
-                westpa.rc.pstatus("################ MAB stats ################")
-                westpa.rc.pstatus("minima in each dimension:      {}".format(minlist))
-                westpa.rc.pstatus("maxima in each dimension:      {}".format(maxlist))
-                westpa.rc.pstatus("direction in each dimension:   {}".format(direction))
-                westpa.rc.pstatus("skip in each dimension:        {}".format(skip))
-                westpa.rc.pstatus("###########################################")
-                westpa.rc.pflush()
+    if mab_log and report:
+        westpa.rc.pstatus("################ MAB stats ################")
+        westpa.rc.pstatus("minima in each dimension:      {}".format(minlist))
+        westpa.rc.pstatus("maxima in each dimension:      {}".format(maxlist))
+        westpa.rc.pstatus("direction in each dimension:   {}".format(direction))
+        westpa.rc.pstatus("skip in each dimension:        {}".format(skip))
+        westpa.rc.pstatus("###########################################")
+        westpa.rc.pflush()
 
     # assign segments to bins
     # the total number of linear bins is the boundary base
@@ -280,4 +280,5 @@ class MABBinMapper(FuncBinMapper):
                     n_total_bins += 2 + 2 * bottleneck
             else:
                 n_total_bins -= nbins[i] - 1
+                n_total_bins += 1 * ndim  # or else it will be one bin short
         super().__init__(map_mab, n_total_bins, kwargs=kwargs)
