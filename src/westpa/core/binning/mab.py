@@ -112,7 +112,7 @@ def map_mab(coords, mask, output, *args, **kwargs):
                     flipdifflist[n] = fliptemp[i][0]
                     flipmaxdiff = flipdiff
 
-    if mab_log and report and splitting:
+    if mab_log and report:
         westpa.rc.pstatus("################ MAB stats ################")
         westpa.rc.pstatus("minima in each dimension:      {}".format(minlist))
         westpa.rc.pstatus("maxima in each dimension:      {}".format(maxlist))
