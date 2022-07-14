@@ -616,22 +616,18 @@ class WEDriver:
     def _split_by_threshold(self, bin, subgroups, target_count):
         # split to satisfy weight thresholds
         # this splits walkers that are too big
-        while True:
-            segments = np.array(sorted(bin, key=operator.attrgetter('weight')), dtype=np.object_)
-            weights = np.array(list(map(operator.attrgetter('weight'), segments)))
+        segments = np.array(sorted(bin, key=operator.attrgetter('weight')), dtype=np.object_)
+        weights = np.array(list(map(operator.attrgetter('weight'), segments)))
 
-            if len(bin) > 0:
-                assert target_count > 0
+        if len(bin) > 0:
+            assert target_count > 0
 
-            to_split = segments[weights > self.largest_allowed_weight]
-            if len(to_split) < 1:
-                return
-            for segment in to_split:
-                # m = int(math.ceil(segment.weight / self.largest_allowed_weight))
-                m = 2
-                bin.remove(segment)
-                new_segments_list = self._split_walker(segment, m, bin)
-                bin.update(new_segments_list)
+        to_split = segments[weights > self.largest_allowed_weight]
+        for segment in to_split:
+            m = int(math.ceil(segment.weight / self.largest_allowed_weight))
+            bin.remove(segment)
+            new_segments_list = self._split_walker(segment, m, bin)
+            bin.update(new_segments_list)
 
     def _check_pre(self):
         for ibin, _bin in enumerate(self.next_iter_binning):
