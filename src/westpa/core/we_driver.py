@@ -606,7 +606,7 @@ class WEDriver:
             weights = np.array(list(map(operator.attrgetter('weight'), segments)))
             cumul_weight = np.add.accumulate(weights)
 
-            to_merge = segments[cumul_weight <= self.smallest_allowed_weight]
+            to_merge = segments[weights <= self.smallest_allowed_weight]
             if len(to_merge) < 2:
                 return
             bin.difference_update(to_merge)
@@ -691,6 +691,10 @@ class WEDriver:
 
                 if len(subgroups) > target_count:
                     self._adjust_count(bin, subgroups, target_count)
+                if self.do_thresholds:
+                    self._split_by_threshold(bin, subgroups, target_count)
+                    self._merge_by_threshold(bin, subgroups, target_count)
+
             if len(subgroups) < target_count:
                 for i in subgroups:
                     self._split_by_weight(i, target_count, ideal_weight, len(subgroups))
