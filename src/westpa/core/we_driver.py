@@ -598,8 +598,22 @@ class WEDriver:
                     if len(bin) == target_count:
                         break
 
-    def _thresholds_check(self, bin, subgroups, target_count):
+    def _merge_by_threshold(self, bin, subgroups, target_count):
+        # merge to satisfy weight thresholds
+        # this gets rid of weights that are too small
+        while True:
+            segments = np.array(sorted(bin, key=operator.attrgetter('weight')), dtype=np.object_)
+            weights = np.array(list(map(operator.attrgetter('weight'), segments)))
+            cumul_weight = np.add.accumulate(weights)
 
+            to_merge = segments[cumul_weight <= self.smallest_allowed_weight]
+            if len(to_merge) < 2:
+                return
+            bin.difference_update(to_merge)
+            new_segment, parent = self._merge_walkers(to_merge, cumul_weight, bin)
+            bin.add(new_segment)
+
+    def _split_by_threshold(self, bin, subgroups, target_count):
         # split to satisfy weight thresholds
         # this splits walkers that are too big
         while True:
@@ -618,20 +632,6 @@ class WEDriver:
                 bin.remove(segment)
                 new_segments_list = self._split_walker(segment, m, bin)
                 bin.update(new_segments_list)
-
-        # merge to satisfy weight thresholds
-        # this gets rid of weights that are too small
-        while True:
-            segments = np.array(sorted(bin, key=operator.attrgetter('weight')), dtype=np.object_)
-            weights = np.array(list(map(operator.attrgetter('weight'), segments)))
-            cumul_weight = np.add.accumulate(weights)
-
-            to_merge = segments[cumul_weight <= self.smallest_allowed_weight]
-            if len(to_merge) < 2:
-                return
-            bin.difference_update(to_merge)
-            new_segment, parent = self._merge_walkers(to_merge, cumul_weight, bin)
-            bin.add(new_segment)
 
     def _check_pre(self):
         for ibin, _bin in enumerate(self.next_iter_binning):
@@ -701,7 +701,8 @@ class WEDriver:
                     # A modified adjustment routine is necessary to ensure we don't unnecessarily destroy trajectory pathways.
                     self._adjust_count(bin, subgroups, target_count)
                 if self.do_thresholds:
-                    self._thresholds_check(bin, subgroups, target_count)
+                    self._split_by_threshold(bin, subgroups, target_count)
+                    self._merge_by_threshold(bin, subgroups, target_count)
             total_number_of_particles += len(bin)
         log.debug('Total number of subgroups: {!r}'.format(total_number_of_subgroups))
 
