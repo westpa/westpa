@@ -687,9 +687,6 @@ class WEDriver:
 
                 if len(subgroups) > target_count:
                     self._adjust_count(bin, subgroups, target_count)
-                if self.do_thresholds:
-                    self._split_by_threshold(bin, subgroups, target_count)
-                    self._merge_by_threshold(bin, subgroups, target_count)
 
             if len(subgroups) < target_count:
                 for i in subgroups:
@@ -700,9 +697,14 @@ class WEDriver:
                 if self.do_adjust_counts:
                     # A modified adjustment routine is necessary to ensure we don't unnecessarily destroy trajectory pathways.
                     self._adjust_count(bin, subgroups, target_count)
-                if self.do_thresholds:
-                    self._split_by_threshold(bin, subgroups, target_count)
-                    self._merge_by_threshold(bin, subgroups, target_count)
+            if self.do_thresholds:
+                self._split_by_threshold(bin, subgroups, target_count)
+                self._merge_by_threshold(bin, subgroups, target_count)
+                for iseg in bin:
+                    if iseg.weight > self.largest_allowed_weight or iseg.weight < self.smallest_allowed_weight:
+                        log.warning(
+                            f'Unable to fulfill threshold conditions for {iseg}. The given threshold range is likely too small.'
+                        )
             total_number_of_particles += len(bin)
         log.debug('Total number of subgroups: {!r}'.format(total_number_of_subgroups))
 
