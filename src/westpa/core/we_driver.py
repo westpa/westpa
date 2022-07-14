@@ -606,7 +606,7 @@ class WEDriver:
             weights = np.array(list(map(operator.attrgetter('weight'), segments)))
             cumul_weight = np.add.accumulate(weights)
 
-            to_merge = segments[weights <= self.smallest_allowed_weight]
+            to_merge = segments[weights < self.smallest_allowed_weight]
             if len(to_merge) < 2:
                 return
             bin.difference_update(to_merge)
