@@ -198,7 +198,7 @@ class WESimManager:
 
         if min_seg_prob < 1e-100:
             log.warning(
-                '\n Minimum segment weight is < 1e-100 and might not be physically relevant. Please reconsider your progress coordinate or binning scheme.'
+                '\nMinimum segment weight is < 1e-100 and might not be physically relevant. Please reconsider your progress coordinate or binning scheme.'
             )
 
         if save_summary:
