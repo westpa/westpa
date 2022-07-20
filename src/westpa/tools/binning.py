@@ -90,7 +90,7 @@ def mapper_from_hdf5(topol_group, hashval):
 def mapper_from_yaml(yamlfilename):
     import yaml
 
-    ydict = yaml.load(open(yamlfilename, 'rt'))
+    ydict = yaml.load(open(yamlfilename, 'rt'), Loader=yaml.Loader)
     ybins = ydict['bins']
     from westpa.core._rc import bins_from_yaml_dict
 

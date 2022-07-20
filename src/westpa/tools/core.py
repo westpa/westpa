@@ -200,7 +200,7 @@ class WESTMultiTool(WESTParallelTool):
         import yaml
 
         with open(yamlfilepath, 'r') as yamlfile:
-            self.yamlargdict = yaml.load(yamlfile)
+            self.yamlargdict = yaml.load(yamlfile, Loader=yaml.Loader)
         # add in options here for intelligent processing of files
 
     def add_args(self, parser):
