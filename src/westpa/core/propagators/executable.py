@@ -8,6 +8,7 @@ import sys
 import tempfile
 import time
 import tarfile
+import pickle
 from io import BytesIO
 
 import numpy as np
@@ -59,6 +60,23 @@ def pcoord_loader(fieldname, pcoord_return_filename, destobj, single_point):
 
 def aux_data_loader(fieldname, data_filename, segment, single_point):
     data = np.loadtxt(data_filename)
+    segment.data[fieldname] = data
+    if data.nbytes == 0:
+        raise ValueError('could not read any data for {}'.format(fieldname))
+
+
+def npy_data_loader(fieldname, coord_file, segment, single_point):
+    log.debug('using npy_data_loader')
+    data = np.load(coord_file)
+    segment.data[fieldname] = data
+    if data.nbytes == 0:
+        raise ValueError('could not read any data for {}'.format(fieldname))
+
+
+def pickle_data_loader(fieldname, coord_file, segment, single_point):
+    log.debug('using pickle_data_loader')
+    with open(coord_file, 'rb') as fo:
+        data = pickle.load(fo)
     segment.data[fieldname] = data
     if data.nbytes == 0:
         raise ValueError('could not read any data for {}'.format(fieldname))
@@ -259,7 +277,15 @@ class ExecutablePropagator(WESTPropagator):
 
             loader_directive = dsinfo.get('loader')
             if loader_directive:
-                loader = get_object(loader_directive)
+                if loader_directive == 'default':
+                    if dsname not in ['pcoord', 'seglog', 'restart', 'trajectory']:
+                        loader = aux_data_loader
+                elif loader_directive == 'npy_loader':
+                    loader = npy_data_loader
+                elif loader_directive == 'pickle_loader':
+                    loader = pickle_data_loader
+                else:
+                    loader = get_object(loader_directive)
                 dsinfo['loader'] = loader
             elif dsname not in ['pcoord', 'seglog', 'restart', 'trajectory']:
                 loader = aux_data_loader
