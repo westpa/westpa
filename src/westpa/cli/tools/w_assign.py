@@ -353,7 +353,7 @@ Command-line options
     def load_state_file(self, state_filename):
         import yaml
 
-        ydict = yaml.load(open(state_filename, 'rt'))
+        ydict = yaml.load(open(state_filename, 'rt'), Loader=yaml.Loader)
         ystates = ydict['states']
         self.states_from_dict(ystates)
 
