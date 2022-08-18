@@ -57,7 +57,7 @@ def entry_point():
         '--tstates-from',
         metavar='TSTATE_FILE',
         help='''Read target state names and representative progress coordinates from TSTATE_FILE. WESTPA uses the
-                        representative progress coordinate of a target-state and converts the **entire** bin
+                        representative progress coordinate of a target state and converts the **entire** bin
                         containing that progress coordinate into a recycling sink.''',
     )
     parser.add_argument(

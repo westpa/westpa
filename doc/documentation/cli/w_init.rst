@@ -67,7 +67,7 @@ State Options
 
   --tstate-file TSTATE_FILE, --tstates-from TSTATE_FILE
     Read target state names and representative progress coordinates from
-    TSTATE_FILE. WESTPA uses the representative progress coordinate of a target-state and
+    TSTATE_FILE. WESTPA uses the representative progress coordinate of a target state and
     converts the **entire** bin containing that progress coordinate into a
     recycling sink.
 
