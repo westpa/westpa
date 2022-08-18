@@ -112,7 +112,7 @@ Command-line options
 
 
 def entry_point():
-    warn('WARNING: {} is being deprecated.  Please use w_direct instead.'.format(WDirect.prog))
+    warn('{} is being deprecated.  Please use w_direct instead.'.format(WDirect.prog))
     import sys
 
     try:
