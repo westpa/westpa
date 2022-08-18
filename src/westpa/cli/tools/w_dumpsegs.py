@@ -1,6 +1,7 @@
 import logging
 import sys
 
+from warnings import warn
 from westpa.tools import WESTTool, WESTDataReader
 from westpa.core.segment import Segment
 
@@ -85,6 +86,7 @@ significant analysis tasks).
 
 
 def entry_point():
+    warn('w_dumpsegs is being deprecated.')
     WDumpSegs().main()
 
 
