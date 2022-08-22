@@ -1,6 +1,6 @@
 from westpa.tools import WESTMasterCommand, WESTParallelTool
-
 from westpa.cli.tools.w_direct import DKinAvg
+from warnings import warn
 
 # Just a shim to make sure everything works and is backwards compatible.
 
@@ -112,7 +112,7 @@ Command-line options
 
 
 def entry_point():
-    print('WARNING: {} is being deprecated.  Please use w_direct instead.'.format(WDirect.prog))
+    warn('{} is being deprecated.  Please use w_direct instead.'.format(WDirect.prog))
     import sys
 
     try:
