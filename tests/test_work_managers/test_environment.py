@@ -79,6 +79,7 @@ class TestInstantiations(unittest.TestCase):
     def testZeroMQ(self):
         os.environ['WM_WORK_MANAGER'] = 'zmq'
         os.environ['WM_N_WORKERS'] = str(3)
+        os.environ['WM_TIMEOUT_FACTOR'] = str(10)
         work_manager = make_work_manager()
         assert isinstance(work_manager, ZMQWorkManager)
         with work_manager:
