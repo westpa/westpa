@@ -6,7 +6,7 @@ import westpa.work_managers.environment
 from westpa.work_managers.environment import make_work_manager, add_wm_args, process_wm_args
 from westpa.work_managers import SerialWorkManager, ThreadsWorkManager, ProcessWorkManager, ZMQWorkManager
 
-from .tsupport import will_succeed
+from .tsupport import will_succeed, will_wait
 
 
 class TestInstantiations(unittest.TestCase):
@@ -84,7 +84,7 @@ class TestInstantiations(unittest.TestCase):
         with work_manager:
             # Need to send enough work to start sufficient workers
             for _ in range(2):
-                future = work_manager.submit(will_succeed)
+                future = work_manager.submit(will_wait)
                 future.get_result()
 
             assert work_manager.n_workers == 3

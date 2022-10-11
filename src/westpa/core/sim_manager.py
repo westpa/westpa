@@ -697,7 +697,7 @@ class WESimManager:
             try:
                 recycling_events[nw.target_state_id].append(nw.weight)
             except KeyError:
-                recycling_events[nw.target_state_id] = list(nw.weight)
+                recycling_events[nw.target_state_id] = list([nw.weight])
 
         tstates_by_id = {state.state_id: state for state in self.we_driver.target_states.values()}
 
