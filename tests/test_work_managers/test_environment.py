@@ -6,7 +6,7 @@ import westpa.work_managers.environment
 from westpa.work_managers.environment import make_work_manager, add_wm_args, process_wm_args
 from westpa.work_managers import SerialWorkManager, ThreadsWorkManager, ProcessWorkManager, ZMQWorkManager
 
-from .tsupport import will_wait
+from .tsupport import will_succeed, will_wait
 
 
 class TestInstantiations(unittest.TestCase):
@@ -53,7 +53,7 @@ class TestInstantiations(unittest.TestCase):
         work_manager = make_work_manager()
         assert isinstance(work_manager, SerialWorkManager)
         with work_manager:
-            future = work_manager.submit(will_wait)
+            future = work_manager.submit(will_succeed)
             future.get_result()
 
     def testThreads(self):
@@ -63,7 +63,7 @@ class TestInstantiations(unittest.TestCase):
         assert isinstance(work_manager, ThreadsWorkManager)
         assert work_manager.n_workers == 3
         with work_manager:
-            future = work_manager.submit(will_wait)
+            future = work_manager.submit(will_succeed)
             future.get_result()
 
     def testProcesses(self):
@@ -73,7 +73,7 @@ class TestInstantiations(unittest.TestCase):
         assert isinstance(work_manager, ProcessWorkManager)
         assert work_manager.n_workers == 3
         with work_manager:
-            future = work_manager.submit(will_wait)
+            future = work_manager.submit(will_succeed)
             future.get_result()
 
     def testZeroMQ(self):
