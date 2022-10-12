@@ -3,12 +3,10 @@ name: test
 on:
   push:
     branches:
-      - "westpa1"
       - "westpa2"
       - "develop"
   pull_request:
     branches:
-      - "westpa1"
       - "westpa2"
       - "develop"
   #schedule:
@@ -21,9 +19,9 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Set up Python 3.9
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: 3.9
       - name: Linting
@@ -39,7 +37,7 @@ jobs:
         python-version: ["3.7", "3.8", "3.9", "3.10"]
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with: 
         fetch-depth: 2
 
@@ -77,7 +75,7 @@ jobs:
         pytest -v --cov=westpa --cov-report=xml --color=yes tests
 
     - name: CodeCov
-      uses: codecov/codecov-action@v2
+      uses: codecov/codecov-action@v3
       with:
         file: ./coverage.xml
         flags: unittests
@@ -93,8 +91,8 @@ jobs:
     runs-on: "${{ matrix.os }}"
 
     steps:
-      - uses: "actions/checkout@v2"
-      - uses: "actions/setup-python@v2"
+      - uses: "actions/checkout@v3"
+      - uses: "actions/setup-python@v4"
         with:
           python-version: "3.8"
       - name: "Install in dev mode"
