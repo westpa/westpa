@@ -7,7 +7,11 @@ on:
   push:
     branches:
       - 'westpa2'
-#  pull_request:
+      - 'develop'
+  pull_request:
+    branches:
+      - 'westpa2'
+      - 'develop'
   release:
     types:
       - published
