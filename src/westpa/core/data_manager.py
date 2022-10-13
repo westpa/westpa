@@ -575,7 +575,6 @@ class WESTDataManager:
         # This function is run both in propagation and in we
         with h5io.WESTIterationFile(iter_ref_h5_file, 'a') as outf:
             for segment in segments:
-                westpa.rc.pstatus(f"Writing segments")
                 outf.write_segment(segment, True)
 
             # Don't need this on the first iteration (and it's not defined then)
@@ -594,16 +593,13 @@ class WESTDataManager:
             steps_per_seg = westpa.rc.config.get(['west', 'system', 'system_options', 'pcoord_len']) - 1
 
             # For the ibstates in iter 0, just link to the ibstates iteration H5 file and do nothing else.
-            # TODO: These aren't written correctly for SynD
+            # TODO: These aren't written correctly for SynD? Is that a problem with SynD, or in the H5 framework?
             if n_iter == 0:
                 return
 
             n_segments = self.get_iter_summary()[0]
-
-            # This feels like a slightly indirect way to get these, but this seems to be the only
-            #   place we are guaranteed to know the total number of segments in this iteration.
-
-            # TODO: Magic number, and also makes it MD-specific..
+            # TODO: Magic number, and also makes it MD-specific.. But I suppose it already is, if we're using MDtraj
+            #   trajectories to store data.
             n_dims = 3
             n_frames = steps_per_seg * n_segments
 
@@ -619,7 +615,6 @@ class WESTDataManager:
 
             n_remaining_segments = n_segments-1
 
-            # for i in range(n_segments):
             for i, segment in enumerate(segments):
 
                 segment_index = segment.seg_id
@@ -631,6 +626,14 @@ class WESTDataManager:
                     ]
                 n_remaining_segments -= 1
 
+            # This logic looks a little weird, given the loop above.
+            # The rationale is as follows:
+            #   This function is executed multiple times per iteration, in propagation and in we.
+            #   However, this dataset can be created only once.
+            #   In propagation, this receives single segments, but in the WE step we get all the segments,
+            #   and their coordinates are ready, so we can write this virtual dataset.
+            # There's probably some meaningful check on the number of segments, but I'm not sure what's robust
+            # TODO: Have a more direct check for that.
             if n_remaining_segments < 0:
 
                 # If all the segments have been processed, create the virtual dataset of sorted segments
