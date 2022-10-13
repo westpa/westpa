@@ -586,14 +586,15 @@ class WESTDataManager:
         if 'trajectories' not in iter_group:
             # print(f"trajectories not found in {iter_group.keys()} at iter {n_iter}")
 
+            iter_group['trajectories'] = h5py.ExternalLink(iter_ref_rel_path, '/')
             if n_iter == 0:
                 # For the ibstates in iter 0, just link to the ibstates iteration H5 file.
                 # TODO: These aren't written correctly for SynD
-                iter_group['trajectories'] = h5py.ExternalLink(iter_ref_rel_path, '/')
                 return
 
-            # TODO: Deal with this sizing in a better way!!! This is just for testing
             n_segments = self.get_iter_summary()[0]
+
+            # This feels like a slightly weird way to get these, but there's not really an option
             steps_per_seg = westpa.rc.config.get(['west', 'system', 'system_options', 'pcoord_len'])-1
             n_dims = 3
             n_frames = steps_per_seg * n_segments
@@ -603,7 +604,7 @@ class WESTDataManager:
                 dtype='<f4')
 
             iter_vsource = h5py.VirtualSource(
-                iter_ref_rel_path,
+                '.',
                 '/coordinates',
                 shape=(n_frames, n_atoms, n_dims)
             )
@@ -619,11 +620,13 @@ class WESTDataManager:
                         i * steps_per_seg:(i + 1) * steps_per_seg
                     ]
 
-            self.we_h5file.create_virtual_dataset(
-                f'{iter_group.name}/trajectories/auxdata_virtual_coord',
-                iter_layout,
-                fillvalue=-1
-            )
+            with h5py.File(iter_ref_h5_file, 'a') as outf:
+                # self.we_h5file.create_virtual_dataset(
+                outf.create_virtual_dataset(
+                    '/segment_trajectories',
+                    iter_layout,
+                    fillvalue=-1
+                )
 
     def get_basis_states(self, n_iter=None):
         '''Return a list of BasisState objects representing the basis states that are in use for iteration n_iter.'''
