@@ -605,27 +605,19 @@ class WESTDataManager:
             n_dims = 3
             n_frames = steps_per_seg * n_segments
 
-            iter_layout = h5py.VirtualLayout(
-                shape=(n_segments, steps_per_seg, n_atoms, n_dims),
-                dtype='<f4')
+            iter_layout = h5py.VirtualLayout(shape=(n_segments, steps_per_seg, n_atoms, n_dims), dtype='<f4')
 
-            iter_vsource = h5py.VirtualSource(
-                '.',
-                '/coordinates',
-                shape=(n_frames, n_atoms, n_dims)
-            )
+            iter_vsource = h5py.VirtualSource('.', '/coordinates', shape=(n_frames, n_atoms, n_dims))
 
-            n_remaining_segments = n_segments-1
+            n_remaining_segments = n_segments - 1
 
             for i, segment in enumerate(segments):
 
                 segment_index = segment.seg_id
-                source_index = h5_trajectory_pointers[i*steps_per_seg, 1]
+                source_index = h5_trajectory_pointers[i * steps_per_seg, 1]
 
                 # A layout can be populated from a source file that doesn't exist yet
-                iter_layout[segment_index] = iter_vsource[
-                        source_index * steps_per_seg:(source_index + 1) * steps_per_seg
-                    ]
+                iter_layout[segment_index] = iter_vsource[source_index * steps_per_seg : (source_index + 1) * steps_per_seg]
                 n_remaining_segments -= 1
 
             # This logic looks a little weird, given the loop above.
@@ -640,11 +632,7 @@ class WESTDataManager:
 
                 # If all the segments have been processed, create the virtual dataset of sorted segments
                 with h5py.File(iter_ref_h5_file, 'a') as outf:
-                    outf.create_virtual_dataset(
-                        '/sorted_segment_trajectories',
-                        iter_layout,
-                        fillvalue=-1
-                    )
+                    outf.create_virtual_dataset('/sorted_segment_trajectories', iter_layout, fillvalue=-1)
 
     def get_basis_states(self, n_iter=None):
         '''Return a list of BasisState objects representing the basis states that are in use for iteration n_iter.'''

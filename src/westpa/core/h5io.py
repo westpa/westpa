@@ -38,7 +38,10 @@ default_iter_prec = 8
 # Helper functions
 #
 
-class NoRestartError(ValueError): pass
+
+class NoRestartError(ValueError):
+    pass
+
 
 def resolve_filepath(path, constructor=h5py.File, cargs=None, ckwargs=None, **addtlkwargs):
     '''Use a combined filesystem and HDF5 path to open an HDF5 file and return the
