@@ -575,8 +575,11 @@ class WESTDataManager:
         # This function is run both in propagation and in we
         with h5io.WESTIterationFile(iter_ref_h5_file, 'a') as outf:
             for segment in segments:
-                # print(f"Writing segment with id {segment.seg_id} {segment}")
                 outf.write_segment(segment, True)
+
+            # Don't need this on the first iteration (and it's not defined then)
+            if n_iter > 0:
+                n_atoms = outf.topology.n_atoms
 
         iter_group = self.get_iter_group(n_iter)
 
@@ -584,55 +587,43 @@ class WESTDataManager:
             # print(f"trajectories not found in {iter_group.keys()} at iter {n_iter}")
 
             if n_iter == 0:
+                # For the ibstates in iter 0, just link to the ibstates iteration H5 file.
+                # TODO: These aren't written correctly for SynD
                 iter_group['trajectories'] = h5py.ExternalLink(iter_ref_rel_path, '/')
                 return
 
             # TODO: Deal with this sizing in a better way!!! This is just for testing
             n_segments = self.get_iter_summary()[0]
             steps_per_seg = westpa.rc.config.get(['west', 'system', 'system_options', 'pcoord_len'])-1
-            # n_atoms = 4010 # NaCl
-            n_atoms = 272 # Trp-cage
             n_dims = 3
             n_frames = steps_per_seg * n_segments
-            # print(f"N segs: {n_segments}, steps per: {steps_per_seg}, n_frames: {n_frames}")
 
-            self.iter_layout = h5py.VirtualLayout(
+            iter_layout = h5py.VirtualLayout(
                 shape=(n_segments, steps_per_seg, n_atoms, n_dims),
                 dtype='<f4')
 
-            self.iter_vsource = h5py.VirtualSource(
+            iter_vsource = h5py.VirtualSource(
                 iter_ref_rel_path,
                 '/coordinates',
                 shape=(n_frames, n_atoms, n_dims)
             )
 
-            # westpa.rc.pstatus(f"iter vsource is {iter_ref_rel_path}:/coordinates")
-            # westpa.rc.pstatus(f"Iter summary is {self.get_iter_summary()}")
-
-            # for i, segment in enumerate(segments):
             for i in range(n_segments):
 
                 segment_index = i
 
-                # westpa.rc.pstatus(f"Trying to place segment with id {segment_index}, length "
-                #                   f"{i * steps_per_seg}:{(i + 1) * steps_per_seg}")
-
                 # A layout can be populated from a source file that doesn't exist yet
                 # TODO: Use the pointer or something instead of i, so these are correctly ordered
                 #   according to ID.
-                self.iter_layout[segment_index] = self.iter_vsource[
+                iter_layout[segment_index] = iter_vsource[
                         i * steps_per_seg:(i + 1) * steps_per_seg
                     ]
 
-            # print(f"Creating virtual dataset at {iter_group.name}/trajectories/auxdata_virtual_coord")
             self.we_h5file.create_virtual_dataset(
                 f'{iter_group.name}/trajectories/auxdata_virtual_coord',
-                self.iter_layout,
+                iter_layout,
                 fillvalue=-1
             )
-
-
-            # iter_group['trajectories'] = h5py.ExternalLink(iter_ref_rel_path, '/')
 
     def get_basis_states(self, n_iter=None):
         '''Return a list of BasisState objects representing the basis states that are in use for iteration n_iter.'''
