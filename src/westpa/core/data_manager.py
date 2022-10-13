@@ -586,73 +586,58 @@ class WESTDataManager:
         iter_group = self.get_iter_group(n_iter)
 
         if 'trajectories' not in iter_group:
-            westpa.rc.pstatus("Trajectories does not exist")
-            # print(f"trajectories not found in {iter_group.keys()} at iter {n_iter}")
-
             iter_group['trajectories'] = h5py.ExternalLink(iter_ref_rel_path, '/')
+
+        # After we prepare the virtual dataset, we populate it as segments come in
+        else:
+
+            steps_per_seg = westpa.rc.config.get(['west', 'system', 'system_options', 'pcoord_len']) - 1
+
+            # For the ibstates in iter 0, just link to the ibstates iteration H5 file and do nothing else.
+            # TODO: These aren't written correctly for SynD
             if n_iter == 0:
-                # For the ibstates in iter 0, just link to the ibstates iteration H5 file.
-                # TODO: These aren't written correctly for SynD
                 return
 
             n_segments = self.get_iter_summary()[0]
 
             # This feels like a slightly indirect way to get these, but this seems to be the only
             #   place we are guaranteed to know the total number of segments in this iteration.
-            self.steps_per_seg = westpa.rc.config.get(['west', 'system', 'system_options', 'pcoord_len'])-1
+
             # TODO: Magic number, and also makes it MD-specific..
             n_dims = 3
-            n_frames = self.steps_per_seg * n_segments
+            n_frames = steps_per_seg * n_segments
 
-            self.iter_layout = h5py.VirtualLayout(
-                shape=(n_segments, self.steps_per_seg, n_atoms, n_dims),
+            iter_layout = h5py.VirtualLayout(
+                shape=(n_segments, steps_per_seg, n_atoms, n_dims),
                 dtype='<f4')
 
-            self.iter_vsource = h5py.VirtualSource(
+            iter_vsource = h5py.VirtualSource(
                 '.',
                 '/coordinates',
                 shape=(n_frames, n_atoms, n_dims)
             )
 
-            self.n_remaining_segments = n_segments-1
-
-        # After we prepare the virtual dataset, we populate it as segments come in
-        else:
-            print("Trajectories already exists")
-
-            if n_iter == 0:
-                return
+            n_remaining_segments = n_segments-1
 
             # for i in range(n_segments):
             for i, segment in enumerate(segments):
 
                 segment_index = segment.seg_id
-
-                # TODO: Is this quite the correct way to get these?
-                #       Maybe I need to use pointer to get source_index
-                source_index = i
-                westpa.rc.pstatus(h5_trajectory_pointers)
-                source_index = h5_trajectory_pointers[i*self.steps_per_seg,1]
-
-
-                westpa.rc.pstatus(f"Placing segment with source index {source_index} at index {segment.seg_id}")
+                source_index = h5_trajectory_pointers[i*steps_per_seg, 1]
 
                 # A layout can be populated from a source file that doesn't exist yet
-                # TODO: Use the pointer or something instead of i, so these are correctly ordered
-                #   according to ID.
-                self.iter_layout[segment_index] = self.iter_vsource[
-                        source_index * self.steps_per_seg:(source_index + 1) * self.steps_per_seg
+                iter_layout[segment_index] = iter_vsource[
+                        source_index * steps_per_seg:(source_index + 1) * steps_per_seg
                     ]
-                self.n_remaining_segments -= 1
-                westpa.rc.pstatus(self.n_remaining_segments)
+                n_remaining_segments -= 1
 
-            if self.n_remaining_segments < 0:
-                westpa.rc.pstatus("Writing virtual dataset")
-                # If all the segments have been processed, create the virtual dataset
+            if n_remaining_segments < 0:
+
+                # If all the segments have been processed, create the virtual dataset of sorted segments
                 with h5py.File(iter_ref_h5_file, 'a') as outf:
                     outf.create_virtual_dataset(
                         '/sorted_segment_trajectories',
-                        self.iter_layout,
+                        iter_layout,
                         fillvalue=-1
                     )
 
