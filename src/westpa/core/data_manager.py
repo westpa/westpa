@@ -577,8 +577,10 @@ class WESTDataManager:
             for segment in segments:
                 outf.write_segment(segment, True)
 
-            # Don't need this on the first iteration (and it's not defined then)
-            if n_iter > 0:
+            # Don't need this on the first iteration (and it's not defined then).
+            # This topology may be undefined in other circumstances too (like after a pcoord update, apparently),
+            #   so check that explicitly instead of checking the iteration.
+            if outf.topology is not None:
                 n_atoms = outf.topology.n_atoms
                 h5_trajectory_pointers = outf.read_data('/', 'pointer')
 
