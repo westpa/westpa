@@ -38,6 +38,7 @@ default_iter_prec = 8
 # Helper functions
 #
 
+class NoRestartError(ValueError): pass
 
 def resolve_filepath(path, constructor=h5py.File, cargs=None, ckwargs=None, **addtlkwargs):
     '''Use a combined filesystem and HDF5 path to open an HDF5 file and return the
@@ -631,7 +632,7 @@ class WESTIterationFile(HDF5TrajectoryFile):
             data = self.read_data('/restart/%d_%d' % (segment.n_iter, segment.seg_id), 'data')
             segment.data['iterh5/restart'] = data
         else:
-            raise ValueError('no restart data available for {}'.format(str(segment)))
+            raise NoRestartError('no restart data available for {}'.format(str(segment)))
 
     def write_segment(self, segment, pop=False):
         n_iter = segment.n_iter
