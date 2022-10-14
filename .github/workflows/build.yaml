@@ -1,4 +1,4 @@
-name: Build
+name: build
 
 # Build on every branch push, tag push, and pull request change:
 #on: [push] #, pull_request]
@@ -8,6 +8,8 @@ on:
     branches:
       - 'westpa2'
       - 'develop'
+    tags:
+      - 'v*'
   pull_request:
     branches:
       - 'westpa2'
@@ -45,7 +47,8 @@ jobs:
             python -c "import westpa.work_managers" &&
             python -c "import westpa.tools" &&
             python -c "import westpa.fasthist" &&
-            python -c "import westpa.mclib"
+            python -c "import westpa.mclib" &&
+            echo "All done with the import tests!"
             # Currently blocked by https://github.com/westpa/westpa/issues/70
             #python -c "import westpa.trajtree"
         with:
@@ -87,9 +90,10 @@ jobs:
 #             python -c "import westpa.work_managers" &&
 #             python -c "import westpa.tools" &&
 #             python -c "import westpa.fasthist" &&
-#             python -c "import westpa.mclib"
+#             python -c "import westpa.mclib" &&
+#             echo "All done with the import tests!"
 #             # Currently blocked by https://github.com/westpa/westpa/issues/70
-#             #python -c "import westpa.trajtree"
+#             # python -c "import westpa.trajtree"
 #         with:
 #           package-dir: .
 #           output-dir: wheelhouse
@@ -125,10 +129,35 @@ jobs:
           python -c "import westpa.fasthist" &&
           python -c "import westpa.mclib" &&
           echo "All done with the import tests!"
-         
+          # Currently blocked by https://github.com/westpa/westpa/issues/70
+          # python -c "import westpa.trajtree"
       - uses: actions/upload-artifact@v3
         with:
           path: dist/*.tar.gz
+
+  upload_testpypi:
+    needs: [build_wheels, build_sdist] #, build_wheels_macos_arm64] # Skipping the apple silicon versions...
+    runs-on: ubuntu-latest
+    # upload to test.PyPI on every tag starting with 'v'; only in westpa/westpa repository
+    # if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    # alternatively, to publish when a GitHub Release is created, use the following rule:
+    if: |
+      github.repository == 'westpa/westpa' &&
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v'))
+    steps:
+      - uses: actions/download-artifact@v3
+        with:
+          # unpacks default artifact into dist/
+          # if `name: artifact` is omitted, the action will create extra parent dir
+          name: artifact
+          path: dist
+
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          user: __token__
+          password: ${{ secrets.test_pypi_upload_token }}
+          # To test: 
+          repository_url: https://test.pypi.org/legacy/
 
   upload_pypi:
     needs: [build_wheels, build_sdist] #, build_wheels_macos_arm64] # Skipping the apple silicon versions...
@@ -136,7 +165,9 @@ jobs:
     # upload to PyPI on every tag starting with 'v'
     # if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     # alternatively, to publish when a GitHub Release is created, use the following rule:
-    if: github.event_name == 'release' && github.event.action == 'published'
+    if: |
+      github.repository == 'westpa/westpa' &&
+      (github.event_name == 'release' && github.event.action == 'published')
     steps:
       - uses: actions/download-artifact@v3
         with:
