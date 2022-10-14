@@ -11,6 +11,7 @@ import tarfile
 import pickle
 from io import BytesIO
 
+import h5py
 import numpy as np
 
 import westpa
@@ -608,17 +609,49 @@ class ExecutablePropagator(WESTPropagator):
         else:
             raise TypeError('state must be a BasisState or InitialState')
 
-        child_info = self.exe_info.get('get_pcoord')
-        addtl_env, return_files, del_return_files = self.setup_dataset_return(
-            subset_keys=['pcoord', 'trajectory', 'restart', 'log']
-        )
-        addtl_env[self.ENV_STRUCT_DATA_REF] = struct_ref
+        westpa.rc.pstatus(f"getting pcoord for structure {struct_ref}")
 
-        rc, rusage = execfn(child_info, state, addtl_env)
-        if rc != 0:
-            log.error('get_pcoord executable {!r} returned {}'.format(child_info['executable'], rc))
 
-        self.retrieve_dataset_return(state, return_files, del_return_files, True)
+        state_ref_is_h5 = 'hdf:' in struct_ref
+
+        # Paths to data references can optionally be specified as hdf://<path/to/west/h5>:<iter>:<walker>.
+        #   From this, we can use the HDF5 framework to extract a structure/pcoord corresponding to this walker.
+        if state_ref_is_h5:
+            westpa.rc.pstatus("** HDF5 structure path identified")
+            _, h5path, iteration, seg_id = struct_ref.split(':')
+            iteration = int(iteration)
+            seg_id = int(seg_id)
+            westpa.rc.pstatus(f"Looking for segment {seg_id} in iteration {iteration} of h5file {h5path}")
+
+            # Get the pcoord from the H5 file (assume it's formatted the same as this one!)
+            with h5py.File(h5path, 'r') as prev_h5:
+
+                template = self.rc.config.get(['west', 'data', 'data_refs', 'iteration'])
+                # TODO: Don't require the format placeholder to be named n_iter
+                iter_group = f'iterations/iter_{iteration:08d}/pcoord'
+
+                print(f"Trying to get {iter_group}")
+                h5_iter_dataset = prev_h5[iter_group]
+
+                print(f"Got {h5_iter_dataset}")
+
+                pcoord = h5_iter_dataset[seg_id][-1]
+                self.rc.pstatus(f"Got pcoord {pcoord}")
+
+                state.pcoord = pcoord
+
+        else:
+            child_info = self.exe_info.get('get_pcoord')
+            addtl_env, return_files, del_return_files = self.setup_dataset_return(
+                subset_keys=['pcoord', 'trajectory', 'restart', 'log']
+            )
+            addtl_env[self.ENV_STRUCT_DATA_REF] = struct_ref
+
+            rc, rusage = execfn(child_info, state, addtl_env)
+            if rc != 0:
+                log.error('get_pcoord executable {!r} returned {}'.format(child_info['executable'], rc))
+
+            self.retrieve_dataset_return(state, return_files, del_return_files, True)
 
     def gen_istate(self, basis_state, initial_state):
         '''Generate a new initial state from the given basis state.'''
