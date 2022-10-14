@@ -318,10 +318,10 @@ class ExecutablePropagator(WESTPropagator):
         ``subprocess.Popen()``. Every child process executed by ``exec_child()`` gets these.'''
 
         return {
-            self.ENV_RAND16: str(random.randint(0, 2**16)),
-            self.ENV_RAND32: str(random.randint(0, 2**32)),
-            self.ENV_RAND64: str(random.randint(0, 2**64)),
-            self.ENV_RAND128: str(random.randint(0, 2**128)),
+            self.ENV_RAND16: str(random.randint(0, 2 ** 16)),
+            self.ENV_RAND32: str(random.randint(0, 2 ** 32)),
+            self.ENV_RAND64: str(random.randint(0, 2 ** 64)),
+            self.ENV_RAND128: str(random.randint(0, 2 ** 128)),
             self.ENV_RANDFLOAT: str(random.random()),
         }
 
@@ -707,8 +707,8 @@ class ExecutablePropagator(WESTPropagator):
             bstates = self.rc.get_data_manager().get_basis_states(n_iter=1)
 
             # These are read by update_args_env_segment.. However, that
-            self.initial_states = {istate.state_id:istate for istate in istates}
-            self.basis_states = {bstate.state_id:bstate for bstate in bstates}
+            self.initial_states = {istate.state_id: istate for istate in istates}
+            self.basis_states = {bstate.state_id: bstate for bstate in bstates}
 
             for segment in segments.values():
 
