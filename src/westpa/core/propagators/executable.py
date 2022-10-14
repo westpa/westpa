@@ -723,7 +723,7 @@ class ExecutablePropagator(WESTPropagator):
 
                 #  TODO: Turbo duplicated code from get_pcoord, make a generic implementation
                 if basis_state.auxref[:4] == 'hdf:':
-                    westpa.rc.pstatus(f'\t This is an HDF-style state -- additional processing needed')
+                    westpa.rc.pstatus('\t This is an HDF-style state -- additional processing needed')
 
                     _, h5path, iteration, seg_id = basis_state.auxref.split(':')
                     westpa.rc.pstatus(f"\t Looking for segment {seg_id} in iteration {iteration} of h5file {h5path}")
