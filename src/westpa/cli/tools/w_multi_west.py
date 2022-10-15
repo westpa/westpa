@@ -216,6 +216,7 @@ Command-line options
                     try:
                         if not np.array_equal(istate_pcoord, west['ibstates/0/istate_pcoord'][:]):  # noqa: F821
                             self.istate = False
+                            self.ibstates = False
                     except UnboundLocalError:
                         istate_pcoord = west['ibstates/0/istate_pcoord'][:]  # noqa: F841
 
