@@ -109,6 +109,9 @@ Command-line options
         iogroup.add_argument('-a', '--aux', action='append', help='''Names of additional auxiliary datasets to be combined''')
         iogroup.add_argument('-aa', '--auxall', action='store_true', help='''Combine all auxiliary datasets. Default: False''')
         iogroup.add_argument('-nr', '--no-reweight', action='store_true', help='''Do not reweight. Default: False''')
+        iogroup.add_argument(
+            '-ib', '--ibstates', action='store_true', help='''Attempt to combine ibstates dataset. Default: False'''
+        )
 
     def open_files(self):
         self.output_file = h5io.WESTPAH5File(self.output_file, 'w', creating_program=True)
@@ -133,6 +136,7 @@ Command-line options
         self.aux = args.aux
         self.auxall = args.auxall
         self.reweight = args.no_reweight
+        self.ibstates = args.ibstates
 
     def total_number_of_walkers(self):
         self.total_walkers = [0] * self.niters
@@ -152,6 +156,7 @@ Command-line options
 
     def go(self):
         pi = self.progress.indicator
+        self.istates = True  # Assume serendipitously istates is same between runs...
         with pi:
             pi.new_operation('Initializing')
             self.open_files()
@@ -194,6 +199,26 @@ Command-line options
                     self.niters = west.attrs['west_current_iteration'] - 1
                 else:
                     self.niters = min(west.attrs['west_current_iteration'] - 1, self.niters)
+                # Check to see if all the bstates are identical
+                if self.ibstates:
+                    check = [False, False]  # Assuming they're false, so not accidentally outputing anything that errors out.
+                    try:
+                        check[0] = np.array_equal(bstate_index, west['ibstates/0/bstate_index'][:])
+                        check[1] = np.array_equal(bstate_pcoord, west['ibstates/0/bstate_pcoord'][:])
+                        if not numpy.all(check):
+                            print(f'File {ifile} used different bstates than the first file. Will skip exporting ibstates dataset.')
+                            self.ibstates = False
+                    except NameError:
+                        bstate_index = west['ibstates/0/bstate_index'][:]  # noqa: F841
+                        bstate_pcoord = west['ibstates/0/bstate_pcoord'][:]  # noqa: F841
+
+                    # Check to see if the istates dataset is the same...
+                    try:
+                        if not np.array_equal(istate_pcoord, west['ibstates/0/istate_pcoord'][:]):  # noqa: F821
+                            self.istate = False
+                    except UnboundLocalError:
+                        istate_pcoord = west['ibstates/0/istate_pcoord'][:]  # noqa: F841
+
             start_point = []
             self.source_sinks = list(set(self.source_sinks))
             # We'll need a global list of walkers to add to and take care of during the next round of simulations, as well as the current one.
@@ -210,6 +235,19 @@ Command-line options
             print(pi.new_operation('Recreating...', self.niters))
             # tracker = SummaryTracker()
             # self.output_file.close()
+
+            if self.ibstates:
+                # Copying the ibstates group from the first file as base...
+                self.output_file.copy(self.westH5[1]['ibstates'], self.output_file)
+
+                for ifile, (key, west) in enumerate(self.westH5.items()):
+                    if ifile == 0:
+                        pass
+                    else:
+                        self.output_file['ibstates/0/istate_index']['iter_used', :] += west['ibstates/0/istate_index'][
+                            'iter_used', :
+                        ]
+
             for iter in range(self.niters):
                 # We have the following datasets in each iteration:
                 # ibstates, which aren't important.
@@ -236,6 +274,7 @@ Command-line options
                     seg_index = westdict['iterations/iter_{0:08d}'.format(iter)]['seg_index'][...]
                     pcoord = westdict['iterations/iter_{0:08d}'.format(iter)]['pcoord'][...]
                     wtgraph = westdict['iterations/iter_{0:08d}'.format(iter)]['wtgraph'][...]
+                    # new_weight = westdict['iterations/iter_{0:08d}'.format(iter)]['new_weight'][...]
                     if self.aux:
                         auxdata = {}
                         for i in self.aux:
@@ -304,6 +343,10 @@ Command-line options
 
                 curr_iter = self.output_file.create_group('iterations/iter_{0:08d}'.format(iter))
                 curr_iter.attrs['n_iter'] = iter
+
+                if self.ibstates:
+                    curr_iter['ibstates'] = self.output_file['ibstates/0']
+
                 ds_rate_evol = curr_iter.create_dataset('wtgraph', data=mwtg, shuffle=True, compression=9)
                 ds_rate_evol = curr_iter.create_dataset('seg_index', data=mseg, shuffle=True, compression=9)
                 ds_rate_evol = curr_iter.create_dataset('pcoord', data=mpco, shuffle=True, compression=9)
