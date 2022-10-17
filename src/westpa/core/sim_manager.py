@@ -7,7 +7,6 @@ from pickle import PickleError
 import random
 import time
 
-
 import numpy as np
 
 import westpa
@@ -220,10 +219,22 @@ class WESimManager:
         as necessary.  The HDF5 file is not updated.'''
 
         self.rc.pstatus('Calculating progress coordinate values for {} states.'.format(label))
-        futures = [self.work_manager.submit(wm_ops.get_pcoord, args=(basis_state,)) for basis_state in basis_states]
-        fmap = {future: i for (i, future) in enumerate(futures)}
-        for future in self.work_manager.as_completed(futures):
-            basis_states[fmap[future]].pcoord = future.get_result().pcoord
+
+        future_map = {}
+        for i, basis_state in enumerate(basis_states):
+            # If the basis_state has an auxref provided in HDF format, we should have the pcoord cached.
+            # Get it from there instead of recalculating it.
+            # TODO: Maybe catch exceptions from this and pass to get_pcoord
+            if basis_state.has_h5_cached_pcoord:
+                westpa.rc.pstatus(f"State {basis_state} has h5 cached pcoord")
+                basis_state.get_cached_h5_pcoord()
+
+            else:
+                future = self.work_manager.submit(wm_ops.get_pcoord, args=(basis_state,))
+                future_map[future] = i
+
+        for future in self.work_manager.as_completed(future_map.keys()):
+            basis_states[future_map[future]].pcoord = future.get_result().pcoord
 
     def report_basis_states(self, basis_states, label='basis'):
         pstatus = self.rc.pstatus

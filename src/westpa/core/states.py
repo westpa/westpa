@@ -1,4 +1,5 @@
 import numpy as np
+import h5py
 
 from westpa.core.segment import Segment
 
@@ -121,6 +122,39 @@ class BasisState:
             [(self.state_id, self.probability, self.pcoord, self.label or '', self.auxref or '')], dtype=bstate_dtype
         )[0]
         return bstaterec
+
+    @property
+    def has_h5_cached_pcoord(self):
+        return self.auxref[:4] == 'hdf:'
+
+    def get_h5_cached_segment_value(self, key):
+        if 'hdf:' in self.auxref:
+            _, h5path, iteration, seg_id = self.auxref.split(':')
+
+            iteration = int(iteration)
+            seg_id = int(seg_id)
+
+            # Get the pcoord from the H5 file (assume it's formatted the same as this one!)
+            with h5py.File(h5path, 'r') as prev_h5:
+                # This inline import is necessary, because otherwise there's a circular import...
+                from westpa import rc
+
+                # TODO: Don't assume the iteration # will be stored to the same precision..
+                iter_group = '/iterations/iter_{:0{prec}d}'.format(int(iteration), prec=rc.data_manager.iter_prec)
+                h5_iter_dataset = prev_h5[iter_group]
+                value = h5_iter_dataset[key][seg_id][-1]
+
+            return value, (h5path, iteration, seg_id)
+
+        else:
+            return None
+
+    def get_cached_h5_pcoord(self):
+
+        # If the basis_state has an auxref provided in HDF format, we should have the pcoord cached.
+        # Get it from there instead of recalculating it.
+        if self.has_h5_cached_pcoord:
+            return self.get_h5_cached_segment_value('pcoord')[0]
 
 
 class InitialState:
