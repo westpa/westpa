@@ -226,7 +226,6 @@ class WESimManager:
             # Get it from there instead of recalculating it.
             # TODO: Maybe catch exceptions from this and pass to get_pcoord
             if basis_state.has_h5_cached_pcoord:
-                westpa.rc.pstatus(f"State {basis_state} has h5 cached pcoord")
                 basis_state.get_cached_h5_pcoord()
 
             else:
