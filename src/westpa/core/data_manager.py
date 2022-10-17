@@ -1224,8 +1224,8 @@ class WESTDataManager:
                     westpa.rc.pstatus(f"\n\t Looking for segment {seg_id} in iteration {iteration} of h5file {h5path}")
 
                     with h5py.File(h5path, 'r') as prev_h5:
-                        # TODO: Don't hard-code groups
-                        iter_group = f'iterations/iter_{int(iteration):08d}'
+                        # TODO: Don't assume the iteration # will be stored to the same precision..
+                        iter_group = '/iterations/iter_{:0{prec}d}'.format(int(iteration), prec=self.iter_prec)
                         iter_h5 = prev_h5[iter_group]['trajectories']
 
                         with WESTIterationFile(iter_h5.file.filename) as iterh5file:

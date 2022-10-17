@@ -642,13 +642,9 @@ class ExecutablePropagator(WESTPropagator):
             # Get the pcoord from the H5 file (assume it's formatted the same as this one!)
             with h5py.File(h5path, 'r') as prev_h5:
 
-                # TODO: Get this in some non-hardcoded way
-                iter_group = f'iterations/iter_{iteration:08d}'
-
-                print(f"Trying to get {iter_group}")
+                # TODO: Don't assume the iteration # will be stored to the same precision..
+                iter_group = '/iterations/iter_{:0{prec}d}'.format(int(iteration), prec=westpa.rc.data_manager.iter_prec)
                 h5_iter_dataset = prev_h5[iter_group]
-
-                print(f"Got {h5_iter_dataset}")
 
                 # Manually load pcoord
                 pcoord = h5_iter_dataset['pcoord'][seg_id][-1]
