@@ -532,7 +532,6 @@ class ExecutablePropagator(WESTPropagator):
             shutil.rmtree(environ[self.ENV_CURRENT_SEG_DATA_REF])
             os.makedirs(environ[self.ENV_CURRENT_SEG_DATA_REF])
         if self.data_info['restart']['enabled']:
-            print(f"Preparing for seg with data ref {environ[self.ENV_CURRENT_SEG_DATA_REF]}")
             restart_writer(environ[self.ENV_CURRENT_SEG_DATA_REF], segment=segment)
 
     def setup_dataset_return(self, segment=None, subset_keys=None):
@@ -626,18 +625,14 @@ class ExecutablePropagator(WESTPropagator):
         else:
             raise TypeError('state must be a BasisState or InitialState')
 
-        westpa.rc.pstatus(f"getting pcoord for structure {struct_ref}")
-
-        state_ref_is_h5 = 'hdf:' in struct_ref
-
         # Paths to data references can optionally be specified as hdf://<path/to/west/h5>:<iter>:<walker>.
         #   From this, we can use the HDF5 framework to extract a structure/pcoord corresponding to this walker.
+        state_ref_is_h5 = 'hdf:' in struct_ref
         if state_ref_is_h5:
-            westpa.rc.pstatus("** HDF5 structure path identified")
             _, h5path, iteration, seg_id = struct_ref.split(':')
             iteration = int(iteration)
             seg_id = int(seg_id)
-            westpa.rc.pstatus(f"Looking for segment {seg_id} in iteration {iteration} of h5file {h5path}")
+            log.debug(f"Looking for segment {seg_id} in iteration {iteration} of h5file {h5path}")
 
             # Get the pcoord from the H5 file (assume it's formatted the same as this one!)
             with h5py.File(h5path, 'r') as prev_h5:
@@ -648,7 +643,6 @@ class ExecutablePropagator(WESTPropagator):
 
                 # Manually load pcoord
                 pcoord = h5_iter_dataset['pcoord'][seg_id][-1]
-                self.rc.pstatus(f"Got pcoord {pcoord}")
                 state.pcoord = pcoord
 
         else:
