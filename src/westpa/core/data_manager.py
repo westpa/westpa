@@ -1192,7 +1192,7 @@ class WESTDataManager:
         for propagating the simulation. ``basis_states`` and ``initial_states`` should be provided if the
         segments are newly created'''
 
-        westpa.rc.pstatus("Preparing segment restarts!")
+        log.debug("Preparing segment restarts")
 
         if not self.store_h5:
             return
@@ -1202,30 +1202,45 @@ class WESTDataManager:
                 if initial_states is None or basis_states is None:
                     raise ValueError('initial and basis states required for preparing the segments')
                 initial_state = initial_states[segment.initial_state_id]
+
                 # Check if it's a start state
+                # Start-states only do anything on iteration 1 -- they're not used for recycling.
                 if initial_state.istate_type == InitialState.ISTATE_TYPE_START:
-                    log.debug(
-                        f'Skip reading start state file from per-iteration HDF5 file for initial state {segment.initial_state_id}'
-                    )
-                    continue
+
+                    # Don't do anything with start-states after iter 1
+                    if not self.rc.sim_manager.n_iter == 1:
+                        log.debug(
+                            f'Skip reading start state file from per-iteration HDF5 file for initial state {segment.initial_state_id}'
+                        )
+                        continue
+
+                    # Start-states aren't stored as basis states -- so we construct a little basis state here
+                    #   that contains the correct information we'll need below.
+                    basis_state = BasisState(label=initial_state, probability=0, auxref=initial_state.basis_auxref)
+
                 else:
                     basis_state = basis_states[initial_state.basis_state_id]
 
                 parent = Segment(n_iter=0, seg_id=basis_state.state_id)
+
             else:
                 parent = Segment(n_iter=segment.n_iter - 1, seg_id=segment.parent_id)
 
             try:
 
+                # basis_state may be undefined here, but it'll be short-circuited by the check on segment.parent_id
+                # This if clause is a little redundant with the one above, but we need this in the try block
                 if segment.parent_id < 0 and basis_state.auxref[:4] == 'hdf:':
                     _, h5path, iteration, seg_id = basis_state.auxref.split(':')
 
                     with h5py.File(h5path, 'r') as prev_h5:
-                        # TODO: Don't assume the iteration # will be stored to the same precision..
+                        # TODO: Don't assume the iteration # will be stored to the same precision in the referenced file
                         iter_group = '/iterations/iter_{:0{prec}d}'.format(int(iteration), prec=self.iter_prec)
                         iter_h5 = prev_h5[iter_group]['trajectories']
 
                         with WESTIterationFile(iter_h5.file.filename) as iterh5file:
+
+                            log.debug(f"Finding parent restart for segment {segment}\n")
 
                             # The segment we're looking for as the start-state is not the segment we have now -- the
                             #   seg_id and iteration correspond to this basis/start-states seg_id and iteration in the
