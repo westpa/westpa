@@ -125,7 +125,10 @@ class BasisState:
 
     @property
     def has_h5_cached_pcoord(self):
-        return self.auxref[:4] == 'hdf:'
+        if self.auxref is not None:
+            return self.auxref[:4] == 'hdf:'
+        else:
+            return False
 
     def get_h5_cached_segment_value(self, key):
         if 'hdf:' in self.auxref:
